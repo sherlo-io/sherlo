@@ -90,6 +90,17 @@ describe('the compiled C core', () => {
       'sherlo_still_begin',
       'sherlo_still_step',
       'sherlo_still_end',
+      'sherlo_scroll_pick',
+      'sherlo_scroll_candidate_is_eligible',
+      'sherlo_scroll_candidate_fits',
+      'sherlo_scroll_is_scrollable',
+      'sherlo_scroll_nudge_target',
+      'sherlo_scroll_nudge_moved',
+      'sherlo_checkpoint_plan_for',
+      'sherlo_checkpoint_read_back',
+      'sherlo_inspector_has_room',
+      'sherlo_inspector_is_on_screen',
+      'sherlo_inspector_json',
     ]);
 
     // Every parameter is a number, or a pointer to plain data the header defines.
@@ -99,9 +110,18 @@ describe('the compiled C core', () => {
       'double',
       'void *',
       'int64_t *',
+      'double *',
       'const sherlo_image *',
       'const sherlo_still_params *',
       'sherlo_still_state *',
+      'const sherlo_scroll_candidate *',
+      'const sherlo_scroll_metrics *',
+      'const sherlo_scroll_position *',
+      'sherlo_checkpoint_plan *',
+      'const sherlo_checkpoint_plan *',
+      'sherlo_checkpoint_result *',
+      'const sherlo_inspector_node *',
+      'const char *const *',
     ];
     for (const declared of functions) {
       for (const parameterType of declared.parameterTypes) {

@@ -1,9 +1,11 @@
 // The iOS half of the parity recorder (record.js runs it): the original Pixelmatch.m answers each
 // pixel compare, and the stillness loop of ios/StabilityHelper.m (its lines 63-119, transcribed
-// below) decides each scripted timeline.
+// below) decides each scripted timeline. The scroll cases and the inspector trees are
+// recordViews.m's.
 //
-// Usage: record <pixel-compare.txt> <stillness.txt>. Prints one answer line per pixel compare,
-// a line "---", then one line of verdicts per stillness timeline.
+// Usage: record <pixel-compare.txt> <stillness.txt> <scroll.txt> <inspector.txt>. Prints one
+// answer line per pixel compare, a line "---", one line of verdicts per stillness timeline, "---",
+// one line per scroll case, "---", and one line per inspector tree.
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
 
@@ -184,11 +186,19 @@ static void recordStillnessLoops(const char *file) {
   fclose(input);
 }
 
+// recordViews.m
+void recordIosScrollCases(const char *file);
+void recordIosInspectorTrees(const char *file);
+
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
     recordPixelCompares(argv[1]);
     printf("---\n");
     recordStillnessLoops(argv[2]);
+    printf("---\n");
+    recordIosScrollCases(argv[3]);
+    printf("---\n");
+    recordIosInspectorTrees(argv[4]);
   }
   return 0;
 }

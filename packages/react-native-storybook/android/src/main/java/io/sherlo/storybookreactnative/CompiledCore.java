@@ -4,9 +4,10 @@ import android.graphics.Bitmap;
 import android.util.Log;
 
 /**
- * The C core: the pixel compare and the stillness decision, compiled and stripped into
- * jniLibs/&lt;abi&gt;/libsherlocore.so from packages/sherlo-core/native. These are its JNI entry
- * points (sherlo_core_jni.c); what each does is said in its one header, sherlo_core.h.
+ * The C core: the pixel compare, the stillness decision, the scroll engine and the inspector's
+ * JSON, compiled and stripped into jniLibs/&lt;abi&gt;/libsherlocore.so from
+ * packages/sherlo-core/native. These are its JNI entry points (sherlo_core_jni.c); what each does
+ * is said in its one header, sherlo_core.h.
  *
  * The library loads once. A library that does not load, or that speaks a C ABI this glue does not
  * know, is never called: unusableReason() says why.
@@ -99,4 +100,67 @@ final class CompiledCore {
             boolean focusWasCleared, long[] differentPixels);
 
     private static native void nativeStillEnd(long stillness);
+
+    // ---- The scroll engine ----------------------------------------------------------------------
+
+    /**
+     * sherlo_scroll_candidate_is_eligible, for a view the walk reached that can scroll
+     * vertically: is it VISIBLE, and not one of the framework's own (by its getClass().getName())?
+     * Only an eligible view has its other numbers read.
+     */
+    static native boolean nativeScrollCandidateIsEligible(String className, boolean isShown);
+
+    /**
+     * sherlo_scroll_candidate_fits, for an eligible view read in full: its height, its
+     * computeVerticalScrollRange (-1 when unread), whether getGlobalVisibleRect found it and that
+     * rect's size, against the root view's size. The walk stops at the first that fits.
+     */
+    static native boolean nativeScrollCandidateFits(String className, boolean isShown, int height, int range,
+            boolean isOnScreen, int visibleWidth, int visibleHeight, int screenWidth, int screenHeight);
+
+    /** sherlo_scroll_is_scrollable, for a view's height and computeVerticalScrollRange. */
+    static native boolean nativeScrollIsScrollable(boolean canScroll, boolean isShown, int height, int range);
+
+    /**
+     * sherlo_scroll_nudge_target: whether the nudge has an attempt numbered `attempt`, and the
+     * distance to scroll by for it, in distance[0]. offset and scrollY are where the view was
+     * before the nudge.
+     */
+    static native boolean nativeScrollNudgeTarget(int attempt, int offset, int scrollY, int[] distance);
+
+    /** sherlo_scroll_nudge_moved: whether the view moved from one offset and scrollY to the other. */
+    static native boolean nativeScrollNudgeMoved(int offsetBefore, int scrollYBefore, int offsetAfter,
+            int scrollYAfter);
+
+    /** sherlo_checkpoint_plan_for: the computeVerticalScrollOffset the checkpoint scrolls to. */
+    static native int nativeCheckpointTarget(int index, int stepPx, int lastIndex, int height, int range,
+            int extent);
+
+    /**
+     * sherlo_checkpoint_read_back, once the view is scrolled to actualOffset: writes reachedBottom
+     * (1 or 0), appliedIndex, appliedOffsetPx, viewportPx and contentPx to result. The numbers
+     * before actualOffset are the ones nativeCheckpointTarget was given.
+     */
+    static native void nativeCheckpointReadBack(int index, int stepPx, int lastIndex, int height,
+            int range, int extent, int actualOffset, int[] result);
+
+    // ---- The inspector --------------------------------------------------------------------------
+
+    /** How many numbers nativeInspectorJson reads for each node. */
+    static final int NUMBERS_PER_INSPECTOR_NODE = 11;
+
+    /** sherlo_inspector_has_room: whether the tree has room for a node at depth. */
+    static native boolean nativeInspectorHasRoom(int depth, int nodesKept);
+
+    /** sherlo_inspector_is_on_screen: whether a view from top to bottom meets the viewport. */
+    static native boolean nativeInspectorIsOnScreen(int top, int bottom, int viewportTop,
+            int viewportBottom);
+
+    /**
+     * sherlo_inspector_json: the JSON getInspectorData answers, or null when the core refused. For
+     * each of the nodeCount nodes, in pre-order, NUMBERS_PER_INSPECTOR_NODE numbers: depth, class
+     * index, isVisible (1 or 0), x, y, width, height, has an id (1 or 0), id, top, bottom.
+     */
+    static native String nativeInspectorJson(int[] nodeNumbers, int nodeCount, String[] classNames,
+            float density, float fontScale, int viewportTop, int viewportBottom);
 }

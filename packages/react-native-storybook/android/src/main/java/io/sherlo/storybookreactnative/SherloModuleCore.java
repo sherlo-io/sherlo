@@ -410,8 +410,6 @@ public class SherloModuleCore {
     // ============ Scroll Detection ============
 
     private static final boolean SCROLL_DEBUG = true;
-    private static final float EPSILON = 4.0f;
-    private static final float NUDGE_PX = 3.0f;
 
     // Locked scroll view from isScrollable(), reused by scrollToCheckpoint()
     private View lockedScrollView = null;
@@ -492,7 +490,7 @@ public class SherloModuleCore {
         candidate.setVerticalScrollBarEnabled(false);
         candidate.setHorizontalScrollBarEnabled(false);
 
-        // 2. Compute Metrics
+        // 2. Read Metrics
         int viewportPx = candidate.getHeight();
 
         int range = getScrollRangeViaReflection(candidate);
@@ -503,51 +501,29 @@ public class SherloModuleCore {
         }
 
         int extent = getScrollExtentViaReflection(candidate);
-        if (extent <= 0) extent = viewportPx;
 
-        int maxOffsetPx = Math.max(0, range - extent);
-        int minOffsetPx = 0;
-
-        // 3. Calculate Target
-        int clampedIndex = index;
-        if (clampedIndex < 0) clampedIndex = 0;
-        if (clampedIndex > maxIndex) clampedIndex = maxIndex;
-
-        int targetPx;
-        if (clampedIndex == 0) {
-            targetPx = minOffsetPx;
-        } else {
-            targetPx = minOffsetPx + (clampedIndex * offsetPx);
-        }
-
-        int clampedPx = Math.max(minOffsetPx, Math.min(maxOffsetPx, targetPx));
+        // 3. Plan: the C core keeps the index in range and the target inside the scroll range
+        int targetPx = CompiledCore.nativeCheckpointTarget(index, offsetPx, maxIndex, viewportPx, range, extent);
 
         // 4. Apply Scroll
         int currentOffset = getScrollOffsetViaReflection(candidate);
-        int delta = clampedPx - currentOffset;
+        int delta = targetPx - currentOffset;
 
         if (SCROLL_DEBUG) {
-            Log.d(TAG, "scrollToCheckpoint: index=" + clampedIndex + ", target=" + targetPx + ", clamped=" + clampedPx + ", current=" + currentOffset + ", delta=" + delta);
+            Log.d(TAG, "scrollToCheckpoint: index=" + index + ", target=" + targetPx + ", current=" + currentOffset + ", delta=" + delta);
         }
 
         if (Math.abs(delta) > 0) {
             scrollViewBy(candidate, delta);
         }
 
-        // 5. Read Back
+        // 5. Read Back: the offset reached, and whether this is the bottom
         int actualOffsetPx = getScrollOffsetViaReflection(candidate);
-
-        // 6. Detect Bottom
-        boolean reachedBottom = false;
-        if (actualOffsetPx >= maxOffsetPx - EPSILON) {
-            reachedBottom = true;
-        }
-        if (maxOffsetPx <= EPSILON) {
-            reachedBottom = true;
-        }
+        int[] result = new int[5];
+        CompiledCore.nativeCheckpointReadBack(index, offsetPx, maxIndex, viewportPx, range, extent, actualOffsetPx, result);
 
         WritableMap frame = getScrollViewFrameInPixels(candidate);
-        return createScrollResult(reachedBottom, clampedIndex, actualOffsetPx, viewportPx, range, frame);
+        return createScrollResult(result[0] == 1, result[1], result[2], result[3], result[4], frame);
     }
 
     private WritableMap createScrollResult(boolean reachedBottom, int appliedIndex, int appliedOffsetPx, int viewportPx, int contentPx, WritableMap scrollViewFrame) {
@@ -597,6 +573,12 @@ public class SherloModuleCore {
         // Reset lock for each new story detection
         lockedScrollView = null;
 
+        String unusableReason = CompiledCore.unusableReason();
+        if (unusableReason != null) {
+            Log.w(TAG, "isScrollable: the C core cannot decide - " + unusableReason);
+            return noResult;
+        }
+
         // BFS from root to find the best user-facing scrollable view
         View candidate = findBestScrollViewBFS(decorView);
 
@@ -644,13 +626,12 @@ public class SherloModuleCore {
 
     /**
      * BFS traversal from root to find the first (shallowest / most-wrapping) scrollable view.
-     * BFS guarantees breadth-first order so the outermost scrollable view is found first.
-     * Filters out framework-internal views and non-scrollable views.
+     * BFS guarantees breadth-first order so the outermost scrollable view is found first. The C core
+     * judges each view that can scroll vertically as the walk reaches it - VISIBLE and not
+     * framework-internal, then scrollable by its numbers and big enough - and the walk stops at the
+     * first that fits. Only an eligible view has its range read, as before.
      */
     private View findBestScrollViewBFS(View root) {
-        int screenArea = root.getWidth() * root.getHeight();
-        int minArea = screenArea / 10; // 10% threshold
-
         java.util.LinkedList<View> queue = new java.util.LinkedList<>();
         queue.add(root);
 
@@ -658,23 +639,24 @@ public class SherloModuleCore {
             View view = queue.poll();
 
             if (view.canScrollVertically(1) || view.canScrollVertically(-1)) {
-                if (view.getVisibility() == View.VISIBLE && !isFrameworkInternalScrollView(view)) {
-                    if (isScrollableByMetrics(view)) {
-                        // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
-                        android.graphics.Rect rect = new android.graphics.Rect();
-                        if (view.getGlobalVisibleRect(rect)) {
-                            int area = rect.width() * rect.height();
-                            if (area < minArea) {
-                                if (SCROLL_DEBUG) {
-                                    Log.d(TAG, "BFS: Skipping too-small scrollable view " +
-                                          view.getClass().getSimpleName() + " (area " + area + " < min " + minArea + ")");
-                                }
-                            } else {
-                                if (SCROLL_DEBUG) {
-                                    Log.d(TAG, "BFS: Found scrollable view " + view.getClass().getSimpleName());
-                                }
-                                return view;
+                String className = view.getClass().getName();
+                boolean isShown = view.getVisibility() == View.VISIBLE;
+                if (CompiledCore.nativeScrollCandidateIsEligible(className, isShown)) {
+                    int height = view.getHeight();
+                    int range = getScrollRangeViaReflection(view);
+                    // Check minimum area - skip tiny scrollable views (toasts, badges, etc.)
+                    android.graphics.Rect rect = new android.graphics.Rect();
+                    if (CompiledCore.nativeScrollIsScrollable(true, isShown, height, range) && view.getGlobalVisibleRect(rect)) {
+                        boolean fits = CompiledCore.nativeScrollCandidateFits(className, isShown, height, range, true,
+                                rect.width(), rect.height(), root.getWidth(), root.getHeight());
+                        if (fits) {
+                            if (SCROLL_DEBUG) {
+                                Log.d(TAG, "BFS: Found scrollable view " + view.getClass().getSimpleName());
                             }
+                            return view;
+                        }
+                        if (SCROLL_DEBUG) {
+                            Log.d(TAG, "BFS: Skipping too-small scrollable view " + view.getClass().getSimpleName());
                         }
                     }
                 }
@@ -689,18 +671,6 @@ public class SherloModuleCore {
         }
 
         return null;
-    }
-
-    /**
-     * Returns true if the view is a framework-internal view that should not be used as a scroll target.
-     */
-    private boolean isFrameworkInternalScrollView(View view) {
-        String className = view.getClass().getName();
-        // Android internal framework classes
-        if (className.startsWith("com.android.internal.")) {
-            return true;
-        }
-        return false;
     }
 
     /**
@@ -723,53 +693,22 @@ public class SherloModuleCore {
     }
 
     /**
-     * Metric-based check for scrollability.
+     * Metric-based check for scrollability: the view's numbers, judged by the C core. A range that
+     * cannot be read leaves the platform's own word that the view can scroll.
      */
     private boolean isScrollableByMetrics(View view) {
-        // Basic scrollability check using public API
-        if (!(view.canScrollVertically(1) || view.canScrollVertically(-1))) {
-            return false;
-        }
-
-        if (view.getVisibility() != View.VISIBLE) {
-            return false;
-        }
-
+        boolean canScroll = view.canScrollVertically(1) || view.canScrollVertically(-1);
+        boolean isShown = view.getVisibility() == View.VISIBLE;
         // Use view height as extent (viewport height)
-        int extent = view.getHeight();
-        
+        int height = view.getHeight();
         // Try to get scroll range using reflection since computeVerticalScrollRange is protected
         int range = getScrollRangeViaReflection(view);
-        
-        // If reflection failed, estimate based on canScrollVertically
-        // A view that can scroll in both directions has significant content
-        if (range <= 0) {
-            boolean canScrollDown = view.canScrollVertically(1);
-            boolean canScrollUp = view.canScrollVertically(-1);
-            
-            if (SCROLL_DEBUG) {
-                Log.d(TAG, "Scroll metrics (fallback) - canScrollDown: " + canScrollDown + ", canScrollUp: " + canScrollUp);
-            }
-            
-            // If we can scroll in any direction, assume it's scrollable
-            return canScrollDown || canScrollUp;
-        }
-        
-        int scrollRange = range - extent;
 
         if (SCROLL_DEBUG) {
-            Log.d(TAG, "Scroll metrics - range: " + range + ", extent: " + extent + ", scrollRange: " + scrollRange);
+            Log.d(TAG, "Scroll metrics - range: " + range + ", extent: " + height + ", canScroll: " + canScroll);
         }
 
-        if (extent <= 0) {
-            return false;
-        }
-
-        if (scrollRange <= EPSILON) {
-            return false;
-        }
-
-        return true;
+        return CompiledCore.nativeScrollIsScrollable(canScroll, isShown, height, range);
     }
 
     /**
@@ -806,53 +745,37 @@ public class SherloModuleCore {
     }
 
     /**
-     * Validate control by tiny nudge + restore.
+     * Validate control by tiny nudge + restore: the C core says how far to scroll for each attempt
+     * (down, then up), the view is scrolled, read back and scrolled back by what its scrollY moved,
+     * and the C core judges whether it moved - by its scrollY or its computed offset.
      */
     private boolean validateWithNudge(View view) {
         int originalScrollY = view.getScrollY();
         int originalOffset = getScrollOffsetViaReflection(view);
-        int nudgePx = (int) NUDGE_PX;
 
-        // Try scrolling down first
-        scrollViewBy(view, nudgePx);
+        int[] distance = new int[1];
+        for (int attempt = 0; CompiledCore.nativeScrollNudgeTarget(attempt, originalOffset, originalScrollY, distance); attempt++) {
+            scrollViewBy(view, distance[0]);
 
-        int newScrollY = view.getScrollY();
-        int newOffset = getScrollOffsetViaReflection(view);
+            int newScrollY = view.getScrollY();
+            int newOffset = getScrollOffsetViaReflection(view);
 
-        // Restore
-        scrollViewBy(view, -(newScrollY - originalScrollY));
-
-        int delta = Math.abs(newOffset - originalOffset);
-        int deltaScrollY = Math.abs(newScrollY - originalScrollY);
-
-        if (SCROLL_DEBUG) {
-            Log.d(TAG, "Nudge: originalScrollY=" + originalScrollY + ", newScrollY=" + newScrollY + 
-                       ", originalOffset=" + originalOffset + ", newOffset=" + newOffset + 
-                       ", delta=" + delta + ", deltaScrollY=" + deltaScrollY);
-        }
-
-        // Check both scrollY and computed offset
-        boolean moved = delta >= 1 || deltaScrollY >= 1;
-
-        // If we couldn't scroll down, try scrolling up
-        if (!moved) {
-            scrollViewBy(view, -nudgePx);
-            newScrollY = view.getScrollY();
-            newOffset = getScrollOffsetViaReflection(view);
-            
             // Restore
             scrollViewBy(view, -(newScrollY - originalScrollY));
-            
-            delta = Math.abs(newOffset - originalOffset);
-            deltaScrollY = Math.abs(newScrollY - originalScrollY);
-            moved = delta >= 1 || deltaScrollY >= 1;
-            
+
+            boolean moved = CompiledCore.nativeScrollNudgeMoved(originalOffset, originalScrollY, newOffset, newScrollY);
+
             if (SCROLL_DEBUG) {
-                Log.d(TAG, "Nudge (reverse): deltaScrollY=" + deltaScrollY + ", delta=" + delta + ", moved=" + moved);
+                Log.d(TAG, "Nudge " + attempt + ": originalScrollY=" + originalScrollY + ", newScrollY=" + newScrollY +
+                           ", originalOffset=" + originalOffset + ", newOffset=" + newOffset + ", moved=" + moved);
+            }
+
+            if (moved) {
+                return true;
             }
         }
 
-        return moved;
+        return false;
     }
 
     /**
