@@ -117,6 +117,9 @@ describe('init through the sixth seam', () => {
     expect(exitCode).toBe(1);
   });
 
+  // Epic setup-saga: an agent or a CI job runs setup with no keyboard behind it.
+  it.todo('a pose that says nobody is at the keyboard skips the prompt and the setup finishes with the config file written');
+
   it('CONTROL: the watched door IS the one a live install goes through', async () => {
     // Without this, a mock aimed at a path nothing imports any more would leave every "no real
     // package manager ran" assertion above passing while watching nothing at all.

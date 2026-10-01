@@ -165,4 +165,7 @@ module.exports = withStorybook(config);`;
 
     expect(typeof result.applied).toBe('boolean');
   });
+
+  // Epic setup-saga: only Storybook's withStorybook is swapped, never the plugin around it.
+  it.todo('keeps another plugin that wraps withStorybook');
 });
