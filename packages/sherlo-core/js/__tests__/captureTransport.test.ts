@@ -329,7 +329,6 @@ beforeEach(() => {
     providerFirstRenderedAt,
     storyOfTheAppFiber,
     storyErrors: {
-      record: recordStoryError,
       read: readStoryError,
       clear: clearStoryError,
       fallbackText: STORY_ERROR_FALLBACK_TEXT,

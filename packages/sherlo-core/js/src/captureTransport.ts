@@ -95,8 +95,8 @@
  * Carried in the answer, never inferred on the other end of the socket from what it received.
  *
  * AND, WHEN IT IS ROOTED AT THE WINDOW, WHY - because "window" alone leaves a reader guessing among
- * every branch that can produce it, the same guessing eight rounds of this epic already did from
- * outside the device. `theStorysOwnTree` takes that branch for one of two reasons - no reading of
+ * every branch that can produce it, which is all anyone can do from outside the device.
+ * `theStorysOwnTree` takes that branch for one of two reasons - no reading of
  * the app's views ever named the story, or the story on screen is broken - and, when it is broken,
  * by one of two readings of its own - the error registry, or the fallback words, and if the words,
  * which fiber generation the live-tag check picked them from (see the file's own note on generations
@@ -564,10 +564,10 @@ async function waitForTheStoryOnScreen({
  * clears it the same way. What a story that clears here goes on to be RECORDED as - re-rooted, or the
  * window because it is broken - is entirely theStorysOwnTree's decision, unchanged by this gate.
  *
- * A FAILURE HERE IS THE MEASUREMENT THIS EPIC HAS NEVER HAD, NOT A BARE TIMEOUT. Eleven rounds of
- * this epic guessed at how long after `storyRendered` the story's views actually arrive; a message
- * that only said "timed out" would still be a guess wearing an error's clothes. So the thrown error
- * carries the two facts a developer (or the next round of this epic) needs to tell "the wait was too
+ * A FAILURE HERE IS A MEASUREMENT, NOT A BARE TIMEOUT. How long after `storyRendered` the story's
+ * views actually arrive cannot be seen from outside the device; a message that only said "timed
+ * out" would still be a guess wearing an error's clothes. So the thrown error carries the two facts
+ * a developer needs to tell "the wait was too
  * short" apart from "something is actually stuck": how long this gate waited, and whether what it
  * was reading ever changed in that time - see describeWhatWasHeld.
  *
@@ -577,7 +577,7 @@ async function waitForTheStoryOnScreen({
  * is equally consistent with Storybook's own index never finishing, finishing empty, finishing onto
  * the wrong story, or finishing onto the right one whose render itself failed to bind. Those four are
  * different bugs with different fixes, and only Storybook's own `_ready`/index/selection tell them
- * apart - so the error carries them alongside the wait, rather than leaving the next round to guess.
+ * apart - so the error carries them alongside the wait, rather than leaving the reader to guess.
  */
 async function waitForTheStorysOwnViews(
   storyId: string,

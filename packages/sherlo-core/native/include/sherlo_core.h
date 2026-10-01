@@ -166,24 +166,15 @@ typedef struct sherlo_scroll_candidate {
   double visible_height;
 } sherlo_scroll_candidate;
 
-/** sherlo_scroll_pick found no candidate that fits. */
-#define SHERLO_SCROLL_NO_CANDIDATE -3
-
-/**
- * Picks the view a long screenshot scrolls: the first candidate that is shown, is not one of the
+/*
+ * PICKING THE VIEW A LONG SCREENSHOT SCROLLS: the first candidate that is shown, is not one of the
  * framework's own, can scroll by its numbers, and covers at least a tenth of the screen.
  *
- * The candidates come in the order of a breadth-first walk from the root: on iOS each
- * UIScrollView, on Android each view that can scroll vertically. The glue itself asks
- * sherlo_scroll_candidate_is_eligible and sherlo_scroll_candidate_fits of each candidate as it
- * walks, and stops at the first that fits; this answers the same for a list already read.
- * `screen_width` and `screen_height`: iOS, the window's bounds in points; Android, the root view's
- * size in pixels.
- *
- * Returns the candidate's index, SHERLO_SCROLL_NO_CANDIDATE, or SHERLO_ERROR_BAD_ARGUMENT.
+ * The glue walks the candidates in the order of a breadth-first walk from the root: on iOS each
+ * UIScrollView, on Android each view that can scroll vertically. It asks
+ * sherlo_scroll_candidate_is_eligible of each one it reaches, reads an eligible one in full, asks
+ * sherlo_scroll_candidate_fits of it, and stops at the first that fits.
  */
-int32_t sherlo_scroll_pick(int32_t platform, const sherlo_scroll_candidate *candidates,
-                           int32_t count, double screen_width, double screen_height);
 
 /**
  * The pick's first test, for one candidate, which the glue asks before it reads the candidate's
@@ -196,9 +187,9 @@ int32_t sherlo_scroll_candidate_is_eligible(int32_t platform,
                                             const sherlo_scroll_candidate *candidate);
 
 /**
- * Whether one candidate, read in full, is the view sherlo_scroll_pick would pick if it came first:
- * the glue asks it of each eligible candidate as its walk reaches it, and stops at the first that
- * fits. `screen_width` and `screen_height` as for sherlo_scroll_pick.
+ * Whether one candidate, read in full, is the view to pick if the walk reaches it: the glue asks it
+ * of each eligible candidate, and stops at the first that fits. `screen_width` and
+ * `screen_height`: iOS, the window's bounds in points; Android, the root view's size in pixels.
  *
  * Returns 1 or 0, or SHERLO_ERROR_BAD_ARGUMENT.
  */

@@ -72,7 +72,6 @@ export type SealedCoreHost = {
   bundlerOrigin: () => string | null;
   /** The errors stories threw, by story id. */
   storyErrors: {
-    record: (storyId: string, error: StoryError) => void;
     read: (storyId: string) => StoryError | undefined;
     clear: (storyId: string) => void;
     /** The words Sherlo's error boundary draws in place of a story that threw. */
@@ -108,22 +107,8 @@ export type SealedCore = {
   /** Called once by the SDK, with everything the core may reach. */
   install: (host: SealedCoreHost) => void;
 
-  /** Every story the app can show: read from its story files, filled in from Storybook's index. */
-  enumerateStories: (view: StorybookView) => StoryMeta[];
-  /** One entry per story and screen mode: the list a run's first launch sends the runner. */
-  prepareSnapshots: (stories: { storyMetas: StoryMeta[]; splitByMode?: boolean }) => Snapshot[];
-  /** The inspector's tree, matched to the app's views and re-rooted at the story's own view. */
-  prepareInspectorData: (
-    inspectorData: InspectorData,
-    fabricMetadata: Metadata,
-    storyId: string
-  ) => { inspectorData: InspectorData; hasNetworkImage: boolean };
   /** The app's views, read off each fiber generation and merged, the current one winning. */
   mergeGenerations: (roots: WalkedFiber[]) => Metadata;
-  /** The names of the app's components that render each native view of the story on screen. */
-  componentNamesByNativeTag: () => ComponentNamesByNativeTag;
-  /** The word a host fiber's React type names a view by: the platform's `RCT` prefix removed. */
-  primitiveOfHostType: (type: string) => string;
 
   /**
    * A run's first launch: list every story, keep the ones the run asked for, and send them to the

@@ -17,11 +17,7 @@ import SherloModule from '../SherloModule';
 import RunnerBridge from '../helpers/RunnerBridge';
 import { setCaptureLogSink } from '../helpers/RunnerBridge/captureLogSink';
 import { bundlerOrigin } from '../bundlerOrigin';
-import {
-  clearStoryError,
-  readStoryError,
-  recordStoryError,
-} from '../getStorybook/storyErrorRegistry';
+import { clearStoryError, readStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
 import { getStorybookChannel } from '../getStorybook/storybookChannel';
 import { activateMocksForStory } from '../getStorybook/storyMockActivation';
@@ -106,7 +102,6 @@ function hostForTheCore(): SealedCoreHost {
     runner: { send: RunnerBridge.send, log: RunnerBridge.log },
     bundlerOrigin,
     storyErrors: {
-      record: recordStoryError,
       read: readStoryError,
       clear: clearStoryError,
       fallbackText: STORY_ERROR_FALLBACK_TEXT,

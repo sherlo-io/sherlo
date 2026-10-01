@@ -35,10 +35,9 @@ export type StoryThrew = { name: string; message: string };
  * How one of the capture's two waits ended: on the very first check, after re-checking one or more
  * times, or by running out its ceiling without ever seeing what it was waiting for.
  *
- * THIS EXISTS BECAUSE FOUR ROUNDS OF FIXING THE WRONG WAIT COULD NOT TELL THEMSELVES APART. A
- * capture that waited its whole ceiling and gave up recorded the same shape as one that found
- * everything on the first check - `outcome` and `ms` are the difference reaching the terminal, at
- * last, instead of only a tree that happens to be wrong.
+ * Without it, a capture that waited its whole ceiling and gave up would record the same shape as
+ * one that found everything on the first check - `outcome` and `ms` are the difference reaching the
+ * terminal, instead of only a tree that happens to be wrong.
  */
 export type WaitOutcome = {
   outcome: 'first-check' | 'polled' | 'timed-out';

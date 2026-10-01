@@ -1,6 +1,6 @@
 /**
- * What the published SDK carries, and what the repository does not: each name is a rule the book
- * marks on "The sealed core" and "Working on the SDK".
+ * What the published SDK carries, what the repository does not, and what CI and a release check
+ * around the sealed core.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -133,6 +133,25 @@ function listFilesUnder(directory: string): string[] {
 
 function hashOfFile(filePath: string): string {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+/**
+ * A workflow's named steps, in order: each one's name and the lines of YAML under it. Text, not a
+ * YAML parse - every step these tests read starts with `- name:`.
+ */
+function namedStepsOf(workflowFile: string): Array<{ name: string; body: string }> {
+  const workflow = fs.readFileSync(
+    path.join(REPO_ROOT, '.github', 'workflows', workflowFile),
+    'utf8'
+  );
+  return workflow
+    .split(/\n(?=[ \t]+- name: )/)
+    .slice(1)
+    .map((stepText) => {
+      const [firstLine, ...rest] = stepText.split('\n');
+      const name = firstLine.replace(/^[ \t]+- name: /, '').replace(/^'(.*)'$/, '$1');
+      return { name, body: rest.join('\n') };
+    });
 }
 
 describe('what the published package carries', () => {
@@ -394,5 +413,53 @@ describe('what the published package carries', () => {
     for (const { file } of Object.values(LOADERS)) {
       expect(fs.readFileSync(file, 'utf8')).toContain(TEST_KEY_NAME);
     }
+  });
+
+  it("the podspec keeps the compiled core's header private", () => {
+    // CompiledCore.h imports sherlo_core.h, which only the pod's own build can find; a public
+    // header would reach the umbrella header of an app built with frameworks and break its build.
+    const podspec = fs.readFileSync(
+      path.join(SDK_ROOT, 'sherlo-react-native-storybook.podspec'),
+      'utf8'
+    );
+    expect(podspec).toContain('s.private_header_files = "ios/CompiledCore.h"');
+  });
+});
+
+describe('what CI and a release check', () => {
+  it("CI type-checks the sealed core in the SDK's job", () => {
+    const coreTypeCheckSteps = namedStepsOf('pr_checks.yml').filter((step) =>
+      /run: yarn tsc --noEmit -p packages\/sherlo-core\s*$/m.test(step.body)
+    );
+    expect(coreTypeCheckSteps).toHaveLength(1);
+    expect(coreTypeCheckSteps[0].body).toMatch(
+      /if: matrix\.package\.name == 'react-native-storybook'/
+    );
+  });
+
+  it('a release with no signing key stops before it commits anything', () => {
+    const steps = namedStepsOf('release-sherlo-packages.yml');
+    const positionOf = (stepName: string) => {
+      const position = steps.findIndex((step) => step.name === stepName);
+      expect(position, stepName).toBeGreaterThanOrEqual(0);
+      return position;
+    };
+    const keyCheckPosition = steps.findIndex(
+      (step) =>
+        step.body.includes('vars.SHERLO_CORE_PUBLIC_KEY') &&
+        step.body.includes('exit 1') &&
+        !step.body.includes('sealedCoreKey.js stamp')
+    );
+    expect(keyCheckPosition).toBeGreaterThanOrEqual(0);
+
+    // Before anything is installed or committed...
+    expect(keyCheckPosition).toBeLessThan(positionOf('Install dependencies'));
+    expect(keyCheckPosition).toBeLessThan(positionOf('Commit and push version updates'));
+    // ...while the real key is still stamped only after the commit, and restored after the publish.
+    const stampPosition = positionOf("Stamp Sherlo's public key into the native loaders");
+    expect(stampPosition).toBeGreaterThan(positionOf('Commit and push version updates'));
+    expect(positionOf('Restore the native loaders to the test key')).toBeGreaterThan(
+      positionOf('Publish to npm')
+    );
   });
 });

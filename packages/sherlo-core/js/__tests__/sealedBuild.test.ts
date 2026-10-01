@@ -1,6 +1,6 @@
 /**
- * The sealed JS core, read back from a real build: each name is a rule the book marks on "The
- * sealed core". The build (esbuild + terser + javascript-obfuscator) runs once for the whole file.
+ * The sealed JS core, read back from a real build. The build (esbuild + terser +
+ * javascript-obfuscator) runs once for the whole file.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -43,6 +43,29 @@ describe('the sealed JS core', () => {
     expect(theGlobal.__SHERLO_CORE__?.version).toBe(version);
     expect(theGlobal.__SHERLO_CORE__?.seam).toBe(1);
     expect(typeof theGlobal.__SHERLO_CORE__?.install).toBe('function');
+  });
+
+  it('the built core puts on __SHERLO_CORE__ only what the SDK calls', () => {
+    const theGlobal: { __SHERLO_CORE__?: { install: (host: unknown) => void } } = {};
+    new Function('globalThis', scrambledBody).call(theGlobal, theGlobal);
+    // The install only keeps the host, so an empty one is enough to read what stays on the global.
+    theGlobal.__SHERLO_CORE__!.install({});
+
+    expect(Object.keys(theGlobal.__SHERLO_CORE__!).sort()).toEqual(
+      [
+        'version',
+        'seam',
+        'install',
+        'mergeGenerations',
+        'startTestSession',
+        'testStory',
+        'startStoryRenderedTracking',
+        'startCaptureTransport',
+        'stopCaptureTransport',
+        'startOpenStoryChannel',
+        'stopOpenStoryChannel',
+      ].sort()
+    );
   });
 
   it("the built core holds none of its source's function names", () => {

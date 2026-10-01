@@ -1,6 +1,6 @@
 node_modules
 
-# The sealed cores are built at pack time, never committed (books/sherlo: The sealed core).
+# The sealed cores are built at pack time, never committed.
 packages/sherlo-core/sherlo-core.js
 packages/react-native-storybook/ios/Resources/assets/sherlo-core.js
 packages/react-native-storybook/android/src/main/assets/sherlo-core.js

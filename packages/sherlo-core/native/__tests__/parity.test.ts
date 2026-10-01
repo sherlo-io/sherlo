@@ -1,7 +1,7 @@
 /**
  * The C core against what the Objective-C and Java code it replaced answered. The inputs and the
  * answers were recorded once, beside each other, in fixtures/ (fixtures/recorder/record.js says
- * how). Each name is a rule the book marks on "The sealed core".
+ * how).
  */
 import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -24,7 +24,6 @@ import {
   PIXELS_RGBA8_PREMULTIPLIED,
   PLATFORM_ANDROID,
   PLATFORM_IOS,
-  SCROLL_NO_CANDIDATE,
   STILL_STABLE,
   STILL_UNSTABLE,
   ScrollCandidate,
@@ -42,7 +41,6 @@ import {
   isScrollable,
   nudgeMoved,
   nudgeTarget,
-  pickScrollCandidate,
   planAndReadBackCheckpoint,
   removeHostCore,
   solidImage,
@@ -235,12 +233,11 @@ describe('the C core against the recorded iOS and Android outputs', () => {
       const words = answer.split(' ');
       const recordedIndex = Number(words[0]);
       const candidates = candidatesAsGlueReads(platform, scrollCase, words.slice(1));
-      const expectedIndex = recordedIndex === -1 ? SCROLL_NO_CANDIDATE : recordedIndex;
-      const index = pickScrollCandidate(driver, platform, ...screenOf(platform, scrollCase), candidates);
+      // The recorders wrote -1 when no view was picked.
+      const expectedIndex = recordedIndex === -1 ? null : recordedIndex;
+      // The walk both glues run, asking of each candidate as it reaches it.
+      const index = walkScrollCandidates(driver, platform, ...screenOf(platform, scrollCase), candidates);
       expect(index, scrollCase.name).toBe(expectedIndex);
-      // The glue's walk, asking of each candidate as it reaches it, stops at the same one.
-      const walk = walkScrollCandidates(driver, platform, ...screenOf(platform, scrollCase), candidates);
-      expect(walk.index, scrollCase.name + ' (walked)').toBe(expectedIndex);
       if (recordedIndex >= 0) picked++;
     });
     expect(picked).toBeGreaterThan(10);
