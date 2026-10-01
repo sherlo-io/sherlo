@@ -79,6 +79,7 @@
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p .",
+    "prepack": "node scripts/packSealedCore.js",
     "dev": "yarn build --watch",
     "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint --ext .ts,.tsx src",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"

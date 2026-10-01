@@ -1,0 +1,17 @@
+{
+  "name": "@sherlo/core",
+  "version": "2.0.2",
+  "description": "Sherlo's sealed JS and C cores - built into the SDK, never published",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "node js/build.js",
+    "test": "../../scripts/require-test-exec-optin.sh && vitest run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0",
+    "javascript-obfuscator": "^4.1.1",
+    "terser": "^5.46.0",
+    "vitest": "^4.0.0"
+  }
+}

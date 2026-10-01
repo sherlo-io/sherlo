@@ -102,7 +102,8 @@
  * never grew the story's views before the wait for that gave up. `root.reason` names whichever of
  * these fired, read off the same checks that decided `root.at` rather than guessed at afterwards.
  */
-import { NativeModules } from 'react-native';
+import { bundlerOrigin } from './bundlerOrigin';
+import { getSealedCore } from './sealedCore/loadSealedCore';
 import SherloModule from './SherloModule';
 import { InspectorData, InspectorDataNode, StorybookView } from './types';
 import {
@@ -462,6 +463,8 @@ export function startCaptureTransport({
   capture?: CaptureTransport | null;
 }): void {
   if (collecting || !channel) return;
+  // No sealed core, no `sherlo capture`: the core holds what this road will need.
+  if (!getSealedCore()) return;
 
   const road = capture === undefined ? bundlerCapture() : capture;
   if (!road) return;
@@ -1650,15 +1653,4 @@ export function bundlerCapture(): CaptureTransport | null {
       }
     },
   };
-}
-
-function bundlerOrigin(): string | null {
-  const sourceCode = NativeModules.SourceCode as
-    | { getConstants?: () => { scriptURL?: string }; scriptURL?: string }
-    | undefined;
-  const scriptURL = sourceCode?.getConstants?.().scriptURL ?? sourceCode?.scriptURL;
-  if (typeof scriptURL !== 'string') return null;
-
-  const origin = /^(https?:\/\/[^/]+)/.exec(scriptURL);
-  return origin ? origin[1] : null;
 }
