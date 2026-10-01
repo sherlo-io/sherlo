@@ -79,7 +79,8 @@ async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void>
     passedOptions[PERSONAL_TOKEN_OPTION],
     {
       thisCommand: THIS_COMMAND,
-      tokenContextLine: 'The project token names one project, and this one does not exist yet.',
+      tokenContextLine:
+        'The project token names one project, and the project you are creating does not exist yet.',
     }
   );
 

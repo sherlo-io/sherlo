@@ -16,6 +16,7 @@ import {
   IOS_OPTION,
   MESSAGE_OPTION,
   METADATA_OPTION,
+  PERSONAL_TOKEN_OPTION,
   PROFILE_OPTION,
   PROJECT_ROOT_OPTION,
   TEST_COMMAND,
@@ -49,6 +50,12 @@ export type Config = {
     fontScale: string;
   }[];
   token?: string;
+  /**
+   * The project a push on a person's credential goes to: the team id, a slash and the project's
+   * number, such as `k3j9x2ab/4`. Not a secret. Its shape is checked where the credential is
+   * resolved (helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential).
+   */
+  project?: string;
   android?: string;
   ios?: string;
   include?: string[];
@@ -106,6 +113,7 @@ type CommandOptions = {
    * paths pick the standard road, everything else belongs to the staged one.
    */
   [TEST_COMMAND]: {
+    [PERSONAL_TOKEN_OPTION]?: string;
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
@@ -133,12 +141,15 @@ type CommandOptions = {
     [EMIT_BUNDLE_DIR_OPTION]?: string;
   };
   /**
-   * `sherlo view` takes no options of its own: the build it looks at is a
+   * `sherlo view`'s one option of its own is `--personal-token`, which it shares
+   * with `sherlo test` and not with the EAS commands. The build it looks at is a
    * POSITIONAL argument (see commands/view), and everything else it accepts -
    * the token, the config, `--wait`, `--wait-timeout`, `--metadata` - is
    * already common to every command.
    */
-  [VIEW_COMMAND]: {};
+  [VIEW_COMMAND]: {
+    [PERSONAL_TOKEN_OPTION]?: string;
+  };
   [INIT_COMMAND]: {};
   any: Partial<
     CommandOptions[typeof TEST_EAS_CLOUD_BUILD_COMMAND] &
@@ -150,7 +161,34 @@ type CommandOptions = {
 /* === COMMAND PARAMS === */
 
 export type CommandParams<C extends Command | 'any' = 'any'> = Config &
-  Options<C, 'withDefaults', 'normalized'> & { token: string };
+  Options<C, 'withDefaults', 'normalized'> & { credential: PushCredential };
+
+/**
+ * The credential a push or a view spends, and the project it goes to (sherlo / The credential
+ * and the project of a push). Resolved once, before any request, by
+ * helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
+ *
+ * `token` is what the push hands the server seam on both: the project token whole, or the
+ * personal token.
+ */
+export type PushCredential = ProjectTokenCredential | PersonCredential;
+
+/** A project token: the token whole, and the three parts `getTokenParts` slices from it. */
+export type ProjectTokenCredential = {
+  kind: 'projectToken';
+  token: string;
+  apiToken: string;
+  teamId: string;
+  projectIndex: number;
+};
+
+/** A personal token or the saved login, and the team and project the config's `project` names. */
+export type PersonCredential = {
+  kind: 'person';
+  token: string;
+  teamId: string;
+  projectIndex: number;
+};
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &
   Options<C, 'withDefaults', 'normalized'>;

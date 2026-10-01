@@ -36,7 +36,6 @@
  */
 import {
   getAppBuildUrl,
-  getTokenParts,
   getValidatedCommandParams,
   printResultsUrl,
   printSherloIntro,
@@ -64,7 +63,9 @@ async function view(
     { requirePlatformPaths: false }
   );
 
-  const { projectIndex, teamId } = getTokenParts(commandParams.token);
+  // On a project token the team and project come from the token; on a person's credential, from
+  // the config's `project` - both resolved before any request (getValidatedCommandParams).
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   reporting.setTag('build_index', String(buildIndex));
 
@@ -88,7 +89,7 @@ async function view(
   // straight over to it instead of refusing, so a mistyped index costs the
   // patience the caller asked `--wait` for, and nothing more.
   const build = await readBuildStatus({
-    token: commandParams.token,
+    token,
     buildIndex,
     projectIndex,
     teamId,
@@ -112,7 +113,7 @@ async function view(
     printResultsUrl(url);
 
     const exitCode = await waitForBuildResult({
-      token: commandParams.token,
+      token,
       buildIndex,
       projectIndex,
       teamId,

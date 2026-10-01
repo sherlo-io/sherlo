@@ -438,8 +438,11 @@ function addTestCommand(program: Command) {
   addCommand({
     program,
     command: TEST_COMMAND,
+    // `--personal-token` here and on `view`, never on the EAS commands: their credential travels
+    // to Expo's build machine, so they take a project token only.
     options: [
       ...getTestCommonOptions('withPlatformPaths'),
+      PERSONAL_TOKEN_OPTION,
       BUNDLE_DIR_OPTION,
       EMIT_BUNDLE_DIR_OPTION,
       DRY_RUN_OPTION,
@@ -466,6 +469,7 @@ function addViewCommand(program: Command) {
 
   addOptionsToCommand(commandInstance, [
     TOKEN_OPTION,
+    PERSONAL_TOKEN_OPTION,
     CONFIG_OPTION,
     PROJECT_ROOT_OPTION,
     WAIT_OPTION,

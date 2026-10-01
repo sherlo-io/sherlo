@@ -59,7 +59,7 @@ export async function runDryRunFlow({
 }: {
   projectRoot: string;
   platformsToTest: Platform[];
-  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
   token: string;
   projectIndex: number;
   teamId: string;

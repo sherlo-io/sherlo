@@ -54,7 +54,7 @@ export function realBundleUploadEffects(token: string): BundleUploadEffects {
     requestUploadSlots: (params) =>
       serverCalls()
         .getStagedUploadUrls({ token, ...params })
-        .catch(handleClientError),
+        .catch((error) => handleClientError(error, token)),
     uploadBundle: (params) => nativeBuild().uploadStagedArtifacts(params),
   };
 }
