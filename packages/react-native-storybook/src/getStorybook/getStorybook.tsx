@@ -11,10 +11,7 @@ import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 import { LOG_FILE, PROTOCOL_FILE } from '../constants';
-import {
-  getStorybookChannel,
-  startStoryRenderedTracking,
-} from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
+import { getStorybookChannel } from './storybookChannel';
 import {
   startInteractiveMockActivation,
   stopInteractiveMockActivation,
@@ -63,11 +60,11 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     const testingConfig = SherloModule.getConfigOrDefault();
     const delayMs = testingConfig.initialStoryRenderDelayMs;
 
-    // Attach the early STORY_RENDERED listener here - the earliest JS access to
+    // Attach the core's early STORY_RENDERED listener here - the earliest JS access to
     // the Storybook channel - so a story that renders before useTestStory mounts
-    // is buffered, not missed.
+    // is buffered, not missed. canWalkTheStories() above means the core is installed.
     try {
-      startStoryRenderedTracking(getStorybookChannel(view));
+      getSealedCore()?.startStoryRenderedTracking(getStorybookChannel(view));
     } catch (_e) {}
 
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(view._preview);

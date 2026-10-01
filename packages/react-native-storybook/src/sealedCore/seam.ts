@@ -20,6 +20,17 @@ import type { RenderedFiber } from '../componentNames';
 import type { StoryMocks } from '../mocking/mockDeclaration';
 import type { StorybookChannel } from '../getStorybook/storybookChannel';
 import type {
+  CaptureInstruction,
+  CaptureSettings,
+  CaptureTransport,
+  CapturedAnswer,
+  CapturedViewTree,
+  StoryThrew,
+  WaitOutcome,
+  WindowReason,
+} from '../captureTransport';
+import type { BundlerLetterbox, LetterboxAnswer } from '../openStoryChannel';
+import type {
   InspectorData,
   InspectorDataNode,
   Snapshot,
@@ -29,17 +40,27 @@ import type {
 } from '../types';
 
 export type {
+  BundlerLetterbox,
+  CaptureInstruction,
+  CaptureSettings,
+  CaptureTransport,
+  CapturedAnswer,
+  CapturedViewTree,
   Config,
   InspectorData,
   InspectorDataNode,
+  LetterboxAnswer,
   Metadata,
   RenderedFiber,
   Snapshot,
   SnapshotMode,
   StoryId,
   StoryMocks,
+  StoryThrew,
   StorybookChannel,
   StorybookView,
+  WaitOutcome,
+  WindowReason,
 };
 
 export type SealedCoreHost = {
@@ -61,10 +82,14 @@ export type SealedCoreHost = {
   storybookChannelOf: (view: StorybookView | undefined) => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
   activateMocksForStory: (view: StorybookView, storyId: string | undefined) => Promise<void> | null;
+  /** Put every mocked module, the clock, the randomness and the network back the way they are. */
+  clearMocks: () => void;
   /** One story's mocks from its project's, its file's and its own, the most specific winning. */
   mergeStoryMocks: (global?: StoryMocks, meta?: StoryMocks, story?: StoryMocks) => StoryMocks;
   /** The app's views as its renderer reads them, or nothing before the app has rendered. */
   collectAppMetadata: () => Metadata | undefined;
+  /** When the component that publishes the app's views first rendered in this boot, if it has. */
+  providerFirstRenderedAt: () => number | undefined;
   /** The fiber at the top of the app's story, or nothing before it has rendered. */
   storyOfTheAppFiber: () => RenderedFiber | undefined;
   /** Plug in, or remove with `undefined`, where each log line is pushed live. */
@@ -117,16 +142,32 @@ export type SealedCore = {
 
   /** Listen for Storybook's rendered event from now on. True once a channel is listened to. */
   startStoryRenderedTracking: (channel: StorybookChannel | null) => boolean;
-  /** Wait until Storybook says this exact story rendered, or until the time runs out. */
-  waitForStoryRendered: (wait: {
-    storyId: string;
-    timeoutMs: number;
-    channel: StorybookChannel | null;
-  }) => Promise<ReadinessResult>;
-  /** The story Storybook last said rendered, or undefined when none has. */
-  lastRenderedStory: () => string | undefined;
-  /** Tests only: forget the channel, the last rendered story and every waiter. */
-  __resetStoryRenderedTrackingForTests: () => void;
+
+  /**
+   * `sherlo capture`: wait on the bundler's capture address through `capture`, the road the SDK
+   * hands in, and walk every story it asks for. A second start while one is collecting does
+   * nothing.
+   */
+  startCaptureTransport: (start: {
+    view: StorybookView;
+    channel: StorybookChannel;
+    capture: CaptureTransport;
+  }) => void;
+  /** Stop waiting for captures. */
+  stopCaptureTransport: () => void;
+  /**
+   * `sherlo open`: wait on the bundler's letterbox through `letterbox`, the road the SDK hands in,
+   * and put every story it hands over on screen. A second start while one is collecting does
+   * nothing.
+   */
+  startOpenStoryChannel: (start: {
+    view: StorybookView;
+    channel: StorybookChannel;
+    atTheStoryBrowser: boolean;
+    letterbox: BundlerLetterbox;
+  }) => void;
+  /** Stop waiting on the letterbox. */
+  stopOpenStoryChannel: () => void;
 };
 
 /** The screen's safe-area insets, in points. */

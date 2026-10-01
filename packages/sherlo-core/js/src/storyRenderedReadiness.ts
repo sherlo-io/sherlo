@@ -86,7 +86,7 @@ export function startStoryRenderedTracking(channel: StorybookChannel | null): bo
 /**
  * The story Storybook last reported rendered, or undefined when none has been. The tracker already
  * buffers it for the readiness wait, and it is also the answer to what is on screen now - which is
- * what the app tells the letterbox on the bundler (the SDK's openStoryChannel).
+ * what the app tells the letterbox on the bundler (./openStoryChannel).
  */
 export function lastRenderedStory(): string | undefined {
   return lastRenderedStoryId;

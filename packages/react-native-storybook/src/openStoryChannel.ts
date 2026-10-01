@@ -1,47 +1,22 @@
 /**
- * THE APP'S HALF OF THE LETTERBOX - the JavaScript that waits on the bundler's address and puts
- * the story it is handed on screen.
+ * THE APP'S HALF OF THE LETTERBOX, the open part of it: the road to the bundler, and the words that
+ * travel it.
  *
- * It holds one request open against the address the bundler serves (metro/openStoryLetterbox.js),
- * saying what stories this app has and which one it has painted. The answer is the next story to
- * show; then it asks again, and that next asking - carrying the story it has just painted - is the
- * app's answer to whoever posted it.
+ * The collect loop - wait for a story, put it on screen through Storybook's channel, ask again with
+ * what was painted - is in the sealed core (packages/sherlo-core/js/src/openStoryChannel.ts). What
+ * stays here is what talks to the developer's bundler: `bundlerLetterbox`, the one request held open
+ * against the address the bundler serves (metro/openStoryLetterbox.js), and the shapes of what
+ * crosses it. Every message on this road is shaped here, in the open, beside the middleware it talks
+ * to.
  *
- * IT REPLACES THE STORY ON SCREEN WHERE IT STANDS. A request from outside cannot wait for a
- * restart, so the story travels Storybook's own channel, the same way Storybook's UI moves between
- * stories. The runner's road is the other one and is not this: it names a story before Storybook
- * opens and starts the screen over for the next.
- *
- * AN APP SHOWING ITSELF GOES TO THE STORY BROWSER. `sherlo open` is for a developer who wants to
- * see one story right now rather than launch the app and find it, so an app that is not at the
- * story browser and is told a story is waiting goes there. Getting there costs a restart and
- * nothing waiting inside the app survives one, which is exactly why the letterbox holds the story
- * rather than handing it over: this app collects it after it comes back.
- *
- * AND IT SAYS WHETHER THAT STORY BROKE. A story that threw while rendering records what it threw
- * in the one registry the error boundary fills (./getStorybook/storyErrorRegistry), and the app
- * reports that alongside the story it painted - so `sherlo open` tells a developer their story is
- * broken from the same fact the runner already trusts, rather than deciding it a second way.
- *
- * CHANNEL / EVENT-NAME CHOICE. `setCurrentStory` is a literal for the same reason `storyRendered`
- * and `storyChanged` are elsewhere in this SDK: the `storybook` core package is only a peer
- * dependency of `@storybook/react-native` and is not guaranteed to be resolvable from here, while
- * the event name itself is part of Storybook's stable wire protocol on 8.x and 9.x alike.
+ * With no core installed there is no `sherlo open`: `startOpenStoryChannel` starts nothing.
  */
 import { bundlerOrigin } from './bundlerOrigin';
 import { getSealedCore } from './sealedCore/loadSealedCore';
-import { StorybookView } from './types';
-import openStorybook from './openStorybook';
-import { readStoryError } from './getStorybook/storyErrorRegistry';
 import { sherloFetch } from './mocking/network';
-import {
-  lastRenderedStory,
-  startStoryRenderedTracking,
-  waitForStoryRendered,
-  type StorybookChannel,
-} from './getStorybook/components/TestingMode/useTestAllStories/storyRenderedReadiness';
-
-const SET_CURRENT_STORY = 'setCurrentStory';
+import type { StorybookChannel } from './getStorybook/storybookChannel';
+import type { StoryThrew } from './captureTransport';
+import type { StorybookView } from './types';
 
 /** The one address Sherlo adds to the bundler; the other half of it is metro/openStoryLetterbox.js. */
 const LETTERBOX_PATH = '/sherlo/letterbox';
@@ -53,12 +28,6 @@ const LETTERBOX_PATH = '/sherlo/letterbox';
  */
 const HOLD_TIMEOUT_MS = 25000;
 
-/** How long to leave the address alone after it failed to answer, rather than spin on a closed door. */
-const RETRY_AFTER_SILENCE_MS = 2000;
-
-/** How long the app waits for a story it was handed to reach the screen before asking again. */
-const PAINT_TIMEOUT_MS = 10000;
-
 /** What the letterbox answers an app that has been waiting. */
 export type LetterboxAnswer = {
   /** The story to put on screen. Only ever sent to an app that is at the story browser. */
@@ -66,9 +35,6 @@ export type LetterboxAnswer = {
   /** A story is waiting, and this app has to reach the story browser to collect it. */
   goToTheStoryBrowser?: boolean;
 };
-
-/** What a story threw while rendering, as the app reports it to the bundler. */
-export type StoryThrew = { name: string; message: string };
 
 /** What the app asks of the letterbox, and nothing else. */
 export type BundlerLetterbox = {
@@ -86,19 +52,17 @@ export type BundlerLetterbox = {
   }): Promise<LetterboxAnswer>;
 };
 
-let collecting = false;
-
 /**
- * Start waiting on the bundler's address. Idempotent - a second call while the first is still
- * collecting is a no-op, because there is one app and one channel to put stories on.
+ * Start waiting on the bundler's letterbox: the core's loop puts each story it is handed on screen.
+ * A second call while the first is still collecting is a no-op.
  *
  * `atTheStoryBrowser` says which side of the door this app is on: true while it is showing
- * Storybook, false while it is showing itself. The two wait on the same address and are answered
- * differently - one is handed stories, the other is sent to where stories can be shown.
+ * Storybook, false while it is showing itself.
  *
  * `letterbox` defaults to the bundler this app's JavaScript came from. A built app's JavaScript
  * came from inside the app, so there is no bundler beside it and no letterbox to wait on: nothing
- * starts, and `sherlo open` is refused by the tool rather than waited on by anybody.
+ * starts, and `sherlo open` is refused by the tool rather than waited on by anybody. With no sealed
+ * core nothing starts either.
  */
 export function startOpenStoryChannel({
   view,
@@ -111,98 +75,19 @@ export function startOpenStoryChannel({
   atTheStoryBrowser: boolean;
   letterbox?: BundlerLetterbox | null;
 }): void {
-  if (collecting || !channel) return;
-  // No sealed core, no `sherlo open`: the core holds what this road will need.
-  if (!getSealedCore()) return;
+  if (!channel) return;
+  const core = getSealedCore();
+  if (!core) return;
 
   const road = letterbox === undefined ? bundlerLetterbox() : letterbox;
   if (!road) return;
 
-  // The same tracker the readiness wait uses: it buffers the story last rendered, which is both
-  // what `waitForStoryRendered` reads and what this app reports as being on screen.
-  startStoryRenderedTracking(channel);
-
-  collecting = true;
-  collectStories({ view, channel, atTheStoryBrowser, letterbox: road });
+  core.startOpenStoryChannel({ view, channel, atTheStoryBrowser, letterbox: road });
 }
 
 /** Stop waiting. The request already in flight is left to finish and its answer dropped. */
 export function stopOpenStoryChannel(): void {
-  collecting = false;
-}
-
-/* ========================================================================== */
-
-async function collectStories({
-  view,
-  channel,
-  atTheStoryBrowser,
-  letterbox,
-}: {
-  view: StorybookView;
-  channel: StorybookChannel;
-  atTheStoryBrowser: boolean;
-  letterbox: BundlerLetterbox;
-}): Promise<void> {
-  while (collecting) {
-    let answer: LetterboxAnswer;
-
-    const showing = lastRenderedStory() ?? null;
-
-    try {
-      answer = await letterbox.waitForStory({
-        stories: storiesIn(view),
-        showing,
-        atTheStoryBrowser,
-        threw: showing === null ? null : whatTheStoryThrew(showing),
-      });
-    } catch (_e) {
-      await delay(RETRY_AFTER_SILENCE_MS);
-      continue;
-    }
-
-    if (!collecting) return;
-
-    if (answer.goToTheStoryBrowser) {
-      // This app is on its way out: changing mode restarts it, and the story it is going to fetch
-      // is still in the letterbox for the app that comes back to collect. Stop waiting here rather
-      // than ask again - if the restart never happens, the next launch collects it instead.
-      collecting = false;
-      openStorybook();
-      return;
-    }
-
-    if (!answer.storyId) continue;
-
-    const { storyId } = answer;
-    channel.emit(SET_CURRENT_STORY, { storyId });
-    // Ask again only once the story is on screen, so the asking carries the answer.
-    await waitForStoryRendered({ storyId, timeoutMs: PAINT_TIMEOUT_MS, channel });
-  }
-}
-
-/**
- * What the story on screen threw while rendering, or null when it drew cleanly.
- *
- * Read from the registry the error boundary fills and the runner already reads
- * (./getStorybook/storyErrorRegistry) - there is ONE way of knowing a story is broken in this SDK,
- * and this is a second reader of it rather than a second way. The stack and component stack it
- * also holds are left behind: what reaches a developer's terminal is the error's own words.
- */
-function whatTheStoryThrew(storyId: string): StoryThrew | null {
-  const recorded = readStoryError(storyId);
-  return recorded ? { name: recorded.name, message: recorded.message } : null;
-}
-
-/** Every story this app has, as Storybook's own index inside it knows them. */
-function storiesIn(view: StorybookView): string[] {
-  const index = (view as unknown as { _storyIndex?: { entries?: Record<string, unknown> } })
-    ._storyIndex;
-  return index?.entries ? Object.keys(index.entries) : [];
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  getSealedCore()?.stopOpenStoryChannel();
 }
 
 /**

@@ -26,7 +26,8 @@ import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
 import { getStorybookChannel } from '../getStorybook/storybookChannel';
 import { activateMocksForStory } from '../getStorybook/storyMockActivation';
 import { mergeStoryMocks } from '../mocking/mergeMocks';
-import { collectAppMetadata } from '../appMetadata';
+import { clearMocks } from '../mocking';
+import { collectAppMetadata, providerFirstRenderedAt } from '../appMetadata';
 import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
 import type { SealedCore, SealedCoreHost } from './seam';
@@ -112,8 +113,10 @@ function hostForTheCore(): SealedCoreHost {
     },
     storybookChannelOf: getStorybookChannel,
     activateMocksForStory,
+    clearMocks,
     mergeStoryMocks,
     collectAppMetadata,
+    providerFirstRenderedAt,
     storyOfTheAppFiber,
     setCaptureLogSink,
     warn: (message) => console.warn(message),

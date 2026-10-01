@@ -7,6 +7,10 @@ import type { ViewProps, WalkedFiber } from '../../../react-native-storybook/src
 import { primitiveOfHostType } from './componentNames';
 import { isNetworkImageComponent } from './networkImageDetection';
 
+// The whole walk is polled every 10 ms while a capture waits for the app's reading of a story,
+// so it is lightly scrambled - see build.js.
+/*! javascript-obfuscator:disable */
+
 /** Extract every string found in a fiber's props, straight or nested one level under `children`. */
 function extractTextFromProps(props: any, texts: string[]): void {
   if (!props) return;
@@ -190,3 +194,5 @@ export function collectFromRoot(root: WalkedFiber): { viewProps: ViewProps; text
 
   return { viewProps, texts };
 }
+
+/*! javascript-obfuscator:enable */

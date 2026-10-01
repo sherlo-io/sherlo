@@ -166,10 +166,12 @@ describe('loading the sealed core', () => {
       [
         'activateMocksForStory',
         'bundlerOrigin',
+        'clearMocks',
         'collectAppMetadata',
         'fetch',
         'mergeStoryMocks',
         'native',
+        'providerFirstRenderedAt',
         'runner',
         'setCaptureLogSink',
         'storyErrors',

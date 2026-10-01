@@ -6,8 +6,8 @@
  *      outside world only through the host the SDK hands its install, never through a module.
  *   2. Minify (terser).
  *   3. Scramble (javascript-obfuscator), Hermes-safe: no self-defending (it reads a function's
- *      own source text, which Hermes does not keep), light control-flow (a later task measures the
- *      hot code and may turn it up).
+ *      own source text, which Hermes does not keep), light control-flow. The functions a capture
+ *      polls are scrambled lightly: see LIGHTLY_SCRAMBLED_MARK.
  *   4. Prepend the header line the native loader reads: `// sherlo-core {"version":..,"seam":..}`.
  *   5. Write sherlo-core.js (gitignored; the pack copies it into the SDK's iOS and Android assets).
  *
@@ -27,7 +27,35 @@ const LERNA_JSON = path.join(HERE, '..', '..', '..', 'lerna.json');
 // The name js/src/index.ts declares and this build defines as the version.
 const VERSION_NAME = '__SHERLO_CORE_VERSION__';
 
+/**
+ * The comments that mark the source's lightly-scrambled functions:
+ * `/*! javascript-obfuscator:disable *\/` before them and `/*! javascript-obfuscator:enable *\/`
+ * after. A capture polls a few functions every 10 ms - the metadata walk of the app's fibers, and
+ * the check of each tree the inspector answers - and the encoded string lookups made them 7 to 15
+ * times slower than their source (js/__tests__/scrambledCoreSpeed.test.ts). Between the marks the
+ * scrambler leaves the code as terser wrote it: minified, every name mangled, no lookups. The `!`
+ * keeps each mark through esbuild and terser to the scrambler, which reads it and drops it.
+ */
+const LIGHTLY_SCRAMBLED_MARK = /javascript-obfuscator:(disable|enable)/;
+
 async function buildSealedCore() {
+  const { file, version, seam } = await sealedCoreFile();
+  fs.writeFileSync(OUTPUT, file);
+
+  console.log(
+    'sherlo-core.js: version ' +
+      version +
+      ', seam ' +
+      seam +
+      ', ' +
+      Buffer.byteLength(file) +
+      ' bytes'
+  );
+  return OUTPUT;
+}
+
+/** The built core, header line and all, without writing it anywhere - for a test to read. */
+async function sealedCoreFile() {
   const version = JSON.parse(fs.readFileSync(LERNA_JSON, 'utf8')).version;
   const seam = seamOfTheSource();
 
@@ -39,13 +67,19 @@ async function buildSealedCore() {
     target: 'es2018',
     write: false,
     define: { [VERSION_NAME]: JSON.stringify(version) },
+    // Keeps the lightly-scrambled marks (see LIGHTLY_SCRAMBLED_MARK) where the source put them.
+    legalComments: 'inline',
   });
   const bundled = bundle.outputFiles[0].text;
   refuseAnyImport(bundled);
 
   // reduce_vars off: with it on, terser writes each function the core object names straight into
   // the object, and the scrambler leaves the keys of an object holding functions readable.
-  const minifyOptions = { compress: { reduce_vars: false }, mangle: true };
+  const minifyOptions = {
+    compress: { reduce_vars: false },
+    mangle: true,
+    format: { comments: LIGHTLY_SCRAMBLED_MARK },
+  };
   const minified = (await minify(bundled, minifyOptions)).code;
 
   const scrambled = JavaScriptObfuscator.obfuscate(minified, {
@@ -68,19 +102,7 @@ async function buildSealedCore() {
   }).getObfuscatedCode();
 
   const header = '// sherlo-core ' + JSON.stringify({ version, seam }) + '\n';
-  const file = header + scrambled + '\n';
-  fs.writeFileSync(OUTPUT, file);
-
-  console.log(
-    'sherlo-core.js: version ' +
-      version +
-      ', seam ' +
-      seam +
-      ', ' +
-      Buffer.byteLength(file) +
-      ' bytes'
-  );
-  return OUTPUT;
+  return { file: header + scrambled + '\n', version, seam };
 }
 
 /**
@@ -106,7 +128,7 @@ function seamOfTheSource() {
   return Number(named[1]);
 }
 
-module.exports = { buildSealedCore };
+module.exports = { buildSealedCore, sealedCoreFile };
 
 if (require.main === module) {
   buildSealedCore().catch((error) => {

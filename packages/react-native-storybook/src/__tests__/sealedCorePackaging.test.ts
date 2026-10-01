@@ -385,7 +385,10 @@ describe('what the published package carries', () => {
     const { SHERLO_RELEASE_BUILD: _releaseFlag, ...localEnv } = process.env;
     execFileSync(
       'node',
-      ['-e', "require('./scripts/packSealedCore.js').packSealedCore([]).catch((e) => { console.error(e); process.exit(1); })"],
+      [
+        '-e',
+        "require('./scripts/packSealedCore.js').packSealedCore([]).catch((e) => { console.error(e); process.exit(1); })",
+      ],
       { cwd: SDK_ROOT, env: localEnv, stdio: 'pipe' }
     );
     for (const { file } of Object.values(LOADERS)) {

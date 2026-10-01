@@ -1,5 +1,5 @@
 /**
- * WORDS IN CHILDREN - the pure rule the SDK's captureTransport.test.ts "a text view carries the
+ * WORDS IN CHILDREN - the pure rule ./captureTransport.test.ts "a text view carries the
  * words it draws" exercises through the real fiber walk. This file tests wordsInChildren and its
  * gate, hostDrawsItsOwnChildrenAsWords, directly - the two pieces of metadataWalk.ts that decide it.
  */

@@ -36,13 +36,18 @@ import { theHost } from './host';
 
 /**
  * The word a host fiber's own React type names a view by - the platform's own `RCT` prefix
- * removed, exactly the rule the web inspector applies. Shared with the SDK's captureTransport.ts,
- * which applies this same rule wherever a fiber matched a view - so a host fiber's `type`, read
- * here, and a matched view's `className`, read there, come out as the same word either way.
+ * removed, exactly the rule the web inspector applies. Shared with the capture driver
+ * (./captureTransport), which applies this same rule wherever a fiber matched a view - so a
+ * host fiber's `type`, read here, and a matched view's `className`, read there, come out as the
+ * same word either way.
  */
+// Read for every host fiber of the metadata walk, which a capture polls every 10 ms, so it is
+// lightly scrambled - see build.js.
+/*! javascript-obfuscator:disable */
 export function primitiveOfHostType(type: string): string {
   return type.startsWith('RCT') ? type.slice(3) : type;
 }
+/*! javascript-obfuscator:enable */
 
 /**
  * Every name the app on screen carries, by the native tag of the view it belongs to. A view whose

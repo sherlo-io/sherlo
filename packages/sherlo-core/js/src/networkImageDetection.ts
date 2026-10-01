@@ -1,3 +1,7 @@
+// Read for every host fiber of the metadata walk (./metadataWalk), which a capture polls every
+// 10 ms, so it is lightly scrambled - see build.js.
+/*! javascript-obfuscator:disable */
+
 // Native view manager class names whose props.source / props.src can point to a network URI.
 // Entries are deduplicated where iOS and Android use the same class name.
 export const REMOTE_IMAGE_COMPONENTS = new Set([
@@ -50,3 +54,5 @@ export function isNetworkImageComponent(fiber: any): boolean {
   const source = props.source || props.src || props.srcSet || props.svgXmlData;
   return isNetworkImageSource(source);
 }
+
+/*! javascript-obfuscator:enable */
