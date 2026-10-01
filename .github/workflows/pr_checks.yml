@@ -8,6 +8,30 @@ on:
       - epic/**
 
 jobs:
+  # THE SEALED CORES' OWN SUITES: the JS core's tests, and the C core's harness, which compiles the
+  # C core with the runner's own compiler and runs it. Neither reads the API client libraries, so
+  # this job installs only the core package's own dependencies (`workspaces focus`) and skips the
+  # sherlo-api download and caches the checks job needs. The suite builds the Android libraries
+  # whenever the runner has the NDK; the iOS xcframework needs Xcode, so only a pack on macOS
+  # builds it.
+  core:
+    name: checks (sherlo-core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install the core package's dependencies
+        run: yarn workspaces focus @sherlo/core
+
+      - name: Unit tests (JS core and C harness)
+        working-directory: packages/sherlo-core
+        run: yarn test
+
   checks:
     name: checks (${{ matrix.package.name }})
     runs-on: ubuntu-latest
