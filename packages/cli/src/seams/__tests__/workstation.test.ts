@@ -36,7 +36,10 @@ describe('the live pod install', () => {
     delete process.env.LANG;
     delete process.env.LC_ALL;
 
-    await liveWorkstation.installPods({ command: 'cd ios && pod install', projectRoot: '/nowhere' });
+    await liveWorkstation.installPods({
+      command: 'cd ios && pod install',
+      projectRoot: '/nowhere',
+    });
 
     expect(shellRuns).toHaveLength(1);
     expect(shellRuns[0].env).toMatchObject({ LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' });
@@ -46,7 +49,10 @@ describe('the live pod install', () => {
     process.env.LANG = 'de_DE.UTF-8';
     process.env.LC_ALL = 'pl_PL.UTF-8';
 
-    await liveWorkstation.installPods({ command: 'cd ios && pod install', projectRoot: '/nowhere' });
+    await liveWorkstation.installPods({
+      command: 'cd ios && pod install',
+      projectRoot: '/nowhere',
+    });
 
     expect(shellRuns).toHaveLength(1);
     expect(shellRuns[0].env).toMatchObject({ LANG: 'de_DE.UTF-8', LC_ALL: 'pl_PL.UTF-8' });
