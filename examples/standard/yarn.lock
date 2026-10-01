@@ -2167,7 +2167,7 @@ __metadata:
 
 "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz::locator=sherlo-example-standard%40workspace%3A.":
   version: 2.0.2
-  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=aaa5a8&locator=sherlo-example-standard%40workspace%3A."
+  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=ec7ff2&locator=sherlo-example-standard%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"

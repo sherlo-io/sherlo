@@ -16,7 +16,7 @@ App: `examples/standard` (Expo 54, React Native 0.81.5, new architecture, Hermes
 | B. No override: shipped core runs | 2.0.2, native 0.46 ms, eval 2 ms | 2.0.2, native 1.64 ms, eval 2 ms |
 | C. Signed 2.0.3 dropped, app relaunched, no reinstall | 2.0.3 (with fix) runs | 2.0.3 (with fix) runs |
 | D. Forged signature dropped | refused, 2.0.2 runs | refused, 2.0.2 runs |
-| A. Development (Metro, debug build) | not run - needs a Metro server an agent may not host | not run |
+| A. Development (Metro, debug build) | shipped 2.0.2 runs, native 0.39 ms, eval 2 ms | not run (same native read) |
 
 Screenshots: `evidence/`. Each shows the banner the example app draws from the loader's summary.
 
