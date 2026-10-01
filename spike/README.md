@@ -18,7 +18,19 @@ App: `examples/standard` (Expo 54, React Native 0.81.5, new architecture, Hermes
 | D. Forged signature dropped | refused, 2.0.2 runs | refused, 2.0.2 runs |
 | A. Development (Metro, debug build) | shipped 2.0.2 runs, native 0.39 ms, eval 2 ms | not run (same native read) |
 
-Screenshots: `evidence/`. Each shows the banner the example app draws from the loader's summary.
+| E. Compiled C native core, shipped prebuilt and stripped, called from the glue | 3 px differ (right), only the 3 public names visible | 3 px differ (right), only the 3 JNI entry points visible |
+
+Screenshots: `evidence/`.
+
+The native core (`native-core/`): `include/sherlo_core.h` is the one C header (version, ABI number,
+a pixel-difference count standing in for the stillness comparison). `src/sherlo_core.c` is the
+readable source, `src/sherlo_core_jni.c` its JNI face on Android. iOS: compiled with
+`xcrun clang -fvisibility=hidden`, stripped (`strip -S -x`), packed into
+`sdk/package/ios/SherloCore.xcframework` (both slices must be named `libsherlocore.a`, or CocoaPods
+refuses the xcframework) and listed as `vendored_frameworks` in the podspec. Android: one
+`libsherlocore.so` per ABI from the NDK's clang (`-fvisibility=hidden -s`, 16 KB page alignment),
+in `sdk/package/android/src/main/jniLibs/<abi>/`, loaded with `System.loadLibrary`. Neither
+needs any change to the customer's build files. Each shows the banner the example app draws from the loader's summary.
 
 ## Layout
 

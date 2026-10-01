@@ -2,6 +2,13 @@
 #import <QuartzCore/QuartzCore.h>
 #import <Security/Security.h>
 
+// The compiled native core (SherloCore.xcframework). Its one header is sherlo_core.h; the three
+// calls are declared here so the glue needs no header search path into the xcframework.
+extern const char *sherlo_core_version(void);
+extern int sherlo_core_abi(void);
+extern int sherlo_core_count_different_pixels(const uint8_t *rgba_a, const uint8_t *rgba_b, int width, int height, double threshold);
+static const int SUPPORTED_NATIVE_ABI = 1;
+
 // The seam numbers this SDK speaks. A core whose header names another seam is never run.
 static const NSInteger SUPPORTED_SEAM = 1;
 
@@ -36,12 +43,34 @@ static NSString *const SHERLO_CORE_PUBLIC_KEY =
   result[@"version"] = header[@"version"] ?: [NSNull null];
   result[@"reason"] = refusal ?: [NSNull null];
   result[@"nativeMs"] = @((CACurrentMediaTime() - start) * 1000.0);
+  result[@"nativeCore"] = [self nativeCoreSelfTest];
 
   NSLog(@"[sherlo-core] native picked %@ %@%@ in %.2f ms", result[@"origin"], header[@"version"] ?: @"-",
         refusal ? [NSString stringWithFormat:@" (%@)", refusal] : @"", [result[@"nativeMs"] doubleValue]);
 
   NSData *json = [NSJSONSerialization dataWithJSONObject:result options:0 error:nil];
   return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+}
+
+/**
+ * Calls the compiled C core once, so a launch shows it is linked and answering: its version, and
+ * how many pixels of two 4x4 images it finds different (3 are changed, so the answer is 3).
+ */
++ (NSString *)nativeCoreSelfTest {
+  if (sherlo_core_abi() != SUPPORTED_NATIVE_ABI) {
+    return [NSString stringWithFormat:@"refused: native core speaks ABI %d", sherlo_core_abi()];
+  }
+  uint8_t before[4 * 4 * 4];
+  uint8_t after[4 * 4 * 4];
+  memset(before, 255, sizeof(before));
+  memset(after, 255, sizeof(after));
+  for (int pixel = 0; pixel < 3; pixel++) {
+    after[pixel * 4 + 0] = 0;
+  }
+  CFTimeInterval start = CACurrentMediaTime();
+  int different = sherlo_core_count_different_pixels(before, after, 4, 4, 0.1);
+  return [NSString stringWithFormat:@"native C %s, %d px differ, %.3f ms", sherlo_core_version(), different,
+                                    (CACurrentMediaTime() - start) * 1000.0];
 }
 
 /** The override core's bytes, or nil with the reason it was refused (nil reason: there was none). */

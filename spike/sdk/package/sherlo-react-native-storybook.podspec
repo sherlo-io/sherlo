@@ -16,6 +16,8 @@ Pod::Spec.new do |s|
   s.source_files  = "ios/**/*.{h,m,mm}"
   s.resources = "ios/Resources/**/*"
   s.frameworks = "Security"
+  # Spike swap-the-core: the compiled C core, shipped prebuilt and stripped.
+  s.vendored_frameworks = "ios/SherloCore.xcframework"
 
   s.dependency 'React-Core'
 

@@ -29,6 +29,34 @@ public class SherloCoreLoader {
     // The seam numbers this SDK speaks. A core whose header names another seam is never run.
     private static final int SUPPORTED_SEAM = 1;
 
+    // The compiled native core (jniLibs/<abi>/libsherlocore.so) and the C ABI this glue speaks.
+    private static final int SUPPORTED_NATIVE_ABI = 1;
+    private static native String nativeVersion();
+    private static native int nativeAbi();
+    private static native int nativeCountDifferentPixels(byte[] rgbaA, byte[] rgbaB, int width, int height, double threshold);
+
+    /**
+     * Calls the compiled C core once, so a launch shows it is linked and answering: its version, and
+     * how many pixels of two 4x4 images it finds different (3 are changed, so the answer is 3).
+     */
+    private static String nativeCoreSelfTest() {
+        try {
+            System.loadLibrary("sherlocore");
+        } catch (Throwable error) {
+            return "native core missing: " + error.getMessage();
+        }
+        if (nativeAbi() != SUPPORTED_NATIVE_ABI) return "refused: native core speaks ABI " + nativeAbi();
+        byte[] before = new byte[4 * 4 * 4];
+        byte[] after = new byte[4 * 4 * 4];
+        java.util.Arrays.fill(before, (byte) 255);
+        java.util.Arrays.fill(after, (byte) 255);
+        for (int pixel = 0; pixel < 3; pixel++) after[pixel * 4] = 0;
+        long start = System.nanoTime();
+        int different = nativeCountDifferentPixels(before, after, 4, 4, 0.1);
+        return "native C " + nativeVersion() + ", " + different + " px differ, "
+            + String.format("%.3f", (System.nanoTime() - start) / 1_000_000.0) + " ms";
+    }
+
     // Spike test key (X.509 SubjectPublicKeyInfo DER, base64). The real one is Sherlo's release key.
     private static final String SHERLO_CORE_PUBLIC_KEY =
         "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwuNK/v8HC6O+kHl+0fZqKZfcsW1h+FzVjcMprkWI2J9P+Z4yezALy/lRiqIXz3eDoe31SmkUacYRninMOli0iRpuUAAf3RV21CQoX8Knfl4u4yFsNNB/j8dkJOxGm1QoqV3XOu78sJyO54KHnPWM33yknkyifv/QxC5fwdtuv11Z/ssmiXAVStZV7t9Cow2nFDMaPFdfA4N1hdWg6bbIUeazT4w2fLaCKYdyts1CXZiXjyUJp30c5+wyMXOVHnTbY3Ye1Ap8VsNFfwvrurZYaG3TxHWTbnasWOX4Xwns4SITw+Nq7QA1hQTTlpbrXd+vEMaUfulA1dr8yk79MdzDwIDAQAB";
@@ -60,6 +88,7 @@ public class SherloCoreLoader {
             result.put("reason", refusal[0] != null ? refusal[0] : JSONObject.NULL);
             double nativeMs = (System.nanoTime() - start) / 1_000_000.0;
             result.put("nativeMs", nativeMs);
+            result.put("nativeCore", nativeCoreSelfTest());
             Log.i(TAG, "[sherlo-core] native picked " + result.getString("origin") + " "
                 + (header != null ? header.optString("version") : "-")
                 + (refusal[0] != null ? " (" + refusal[0] + ")" : "")

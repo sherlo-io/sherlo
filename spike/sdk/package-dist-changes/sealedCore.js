@@ -43,7 +43,8 @@ export function getSealedCore() {
     evaluatedWith +
     ' ' +
     evaluateMs +
-    ' ms';
+    ' ms' +
+    (picked.nativeCore ? ' | ' + picked.nativeCore : '');
   console.log(summary);
   globalThis.__SHERLO_CORE_SUMMARY__ = summary;
   return sealedCore;
