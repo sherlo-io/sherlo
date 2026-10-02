@@ -5,7 +5,7 @@
  * Pure, like everything under ./: state in, print-call arguments out.
  */
 import { DEVICES } from '@sherlo/shared';
-import { DEFAULT_CONFIG_FILENAME, DOCS_LINK } from '../constants';
+import { APP_DOMAIN, DEFAULT_CONFIG_FILENAME, DOCS_LINK } from '../constants';
 import { renderCheckLine, renderSectionTitle } from './initLines';
 import { renderNotice } from './pushSpine';
 
@@ -67,7 +67,7 @@ function renderNoTokenHint(): string {
     level: 'warning',
     message:
       `\`npx sherlo test\` needs a project token, and ${DEFAULT_CONFIG_FILENAME} has none yet\n` +
-      `Get one at https://app.sherlo.io, then run \`npx sherlo init --token <token>\` or add it as "token" in ${DEFAULT_CONFIG_FILENAME}`,
+      `Get one at ${APP_DOMAIN}, then run \`npx sherlo init --token <token>\` or add it as "token" in ${DEFAULT_CONFIG_FILENAME}`,
     learnMoreLink: DOCS_LINK.configToken,
   });
 }

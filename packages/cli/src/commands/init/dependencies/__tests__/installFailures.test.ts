@@ -51,7 +51,7 @@ afterEach(async () => {
 describe('a failed install', () => {
   it('a failed pod install shows the last lines the command printed under the refusal', async () => {
     workstationAnswers.installPods.mockRejectedValue(
-      Object.assign(new Error('Command failed'), { stderr: numberedLines(40), stdout: 'unused' })
+      Object.assign(new Error('Command failed'), { stderr: numberedLines(40), stdout: '' })
     );
 
     const message = await messageOfRefusal(installPods);
@@ -60,10 +60,26 @@ describe('a failed install', () => {
     expect(message).toContain('line 40');
     expect(message).toContain(`line ${40 - LAST_LINES_SHOWN + 1}`);
     expect(message).not.toContain(`line ${40 - LAST_LINES_SHOWN}\n`);
-    expect(message).not.toContain('unused');
     expect(message.indexOf('line 40')).toBeGreaterThan(
       message.indexOf('Failed to install Pods automatically')
     );
+  });
+
+  it('a failed pod install shows the last lines of both streams, so a warning on one cannot hide the cause on the other', async () => {
+    const warning = 'Ignoring ffi-1.15.5 because its extensions are not built.';
+    const cause = '[!] CocoaPods could not find compatible versions for pod "hermes-engine"';
+    workstationAnswers.installPods.mockRejectedValue(
+      Object.assign(new Error('Command failed'), {
+        stdout: `Analyzing dependencies\n${cause}`,
+        stderr: warning,
+      })
+    );
+
+    const message = await messageOfRefusal(installPods);
+
+    expect(message).toContain(cause);
+    expect(message).toContain(warning);
+    expect(message.indexOf(cause)).toBeLessThan(message.indexOf(warning));
   });
 
   it('a failed SDK install shows the last lines the command printed under the refusal', async () => {

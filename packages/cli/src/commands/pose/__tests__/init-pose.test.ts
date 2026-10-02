@@ -135,7 +135,7 @@ describe('init through the sixth seam', () => {
     expect(exitCode).toBe(1);
   });
 
-  // Epic setup-saga: an agent or a CI job runs setup with no keyboard behind it.
+  // An agent or a CI job runs setup with no keyboard behind it.
   it('a pose that says nobody is at the keyboard skips the prompt and the setup finishes with the config file written', async () => {
     const { screen, exitCode, refusals } = await runPose(
       withWorkstation('first-setup', { enter: 'nobody' })

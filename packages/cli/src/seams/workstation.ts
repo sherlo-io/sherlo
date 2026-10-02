@@ -29,9 +29,10 @@
  * The tool turns a failed install into its own refusal - "Failed to install Sherlo automatically",
  * or "Failed to install Pods automatically" - and ends the run there. A posed install that threw
  * would therefore replace the screen the pose exists to show with the tool's install-failure
- * screen, and whoever read it would be looking at a product state the pose never described. So the refusal is RECORDED, the run carries on, and the
- * refusal block printed under the screen - with exit 1 - is what says the pose owed an answer. It
- * is the same reason ../seams/serverCalls records rather than only throws.
+ * screen, and whoever read it would be looking at a product state the pose never described. So the
+ * refusal is RECORDED, the run carries on, and the refusal block printed under the screen - with
+ * exit 1 - is what says the pose owed an answer. It is the same reason ../seams/serverCalls
+ * records rather than only throws.
  *
  * THE PROMPT IS THE OTHER WAY ROUND. A pose with no `workstation` is a terminal nobody sits at, so
  * the question "is somebody there" THROWS its refusal, and the tool's own cancel branch prints
@@ -62,6 +63,7 @@ export type Workstation = {
 
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
+
   /** Wait for the key they press: Enter resolves, a kill key rejects and the setup is cancelled. */
   readEnterPress(): Promise<void>;
 };
@@ -76,15 +78,15 @@ export const liveWorkstation: Workstation = {
   },
 
   // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` when no locale is
-  // set, as on a CI machine, so a locale the environment names is kept and none gets UTF-8.
+  // set, as on a CI machine. So an environment naming no locale gets UTF-8 for both, and one that
+  // names a locale through either variable is passed as it is.
   installPods: async ({ command, projectRoot }) => {
+    const environmentNamesALocale = Boolean(process.env.LANG || process.env.LC_ALL);
+
     await runShellCommand({
       command,
       projectRoot,
-      env: {
-        LANG: process.env.LANG || 'en_US.UTF-8',
-        LC_ALL: process.env.LC_ALL || 'en_US.UTF-8',
-      },
+      env: environmentNamesALocale ? process.env : { LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' },
     });
   },
 
@@ -104,6 +106,7 @@ export const liveWorkstation: Workstation = {
    * GitHub Actions, GitLab, CircleCI, Travis and Buildkite alike.
    */
   somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
+
   readEnterPress: () => {
     process.stdin.setRawMode(true);
     process.stdin.resume();
@@ -193,6 +196,7 @@ export function posedWorkstation(
   posed: PosedWorkstation | undefined
 ): Workstation & { refusals(): UnansweredAct[] } {
   const refusals: UnansweredAct[] = [];
+  let packageInstallWasAsked = false;
   let podInstallWasAsked = false;
 
   function refuse(call: string, problem: string): Error {
@@ -202,9 +206,11 @@ export function posedWorkstation(
 
   return {
     // Read once the run is over, so an answer the command never asked for is known by then: pods
-    // stated for a project with no Podfile describe a `pod install` the setup never ran.
+    // stated for a project with no Podfile describe a `pod install` the setup never ran. A run that
+    // stopped before the dependencies step (its package install is that step's first act) asked
+    // neither install, so its unused `pods` is no more refused than its unused `install`.
     refusals: () =>
-      posed?.pods === 'installed' && !podInstallWasAsked
+      posed?.pods === 'installed' && packageInstallWasAsked && !podInstallWasAsked
         ? [
             ...refusals,
             {
@@ -217,6 +223,8 @@ export function posedWorkstation(
         : refusals,
 
     addPackage: async ({ packageSpec }) => {
+      packageInstallWasAsked = true;
+
       if (!posed) {
         // Recorded, not thrown - see this file's header for why the run carries on from here.
         refuse(
