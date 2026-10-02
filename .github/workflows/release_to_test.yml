@@ -49,6 +49,20 @@ jobs:
           echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
           echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
 
+      - name: Make the Android NDK findable
+        # The SDK's pack builds the Android core, which finds the NDK only through one of
+        # ANDROID_HOME, ANDROID_SDK_ROOT, ANDROID_NDK_HOME or ANDROID_NDK_ROOT. Name the newest
+        # NDK the image carries, and install one when it carries none.
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          NDK_DIR=$(ls -d "$SDK_ROOT"/ndk/*/ 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$NDK_DIR" ]; then
+            yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006"
+            NDK_DIR="$SDK_ROOT/ndk/27.1.12297006"
+          fi
+          echo "ANDROID_NDK_HOME=${NDK_DIR%/}" >> $GITHUB_ENV
+
       - name: Prepare and publish to GitHub Packages
         id: publish
         run: |
@@ -56,6 +70,9 @@ jobs:
           TEST_VERSION="${VERSION}-test.${GITHUB_RUN_ID}"
           echo "test-version=${TEST_VERSION}" >> $GITHUB_OUTPUT
 
+          # The CLI is renamed in place: it has no prepack, so publishing it renamed works.
+          # The SDK keeps its own name here (only its version and publish target change),
+          # because its prepack must run inside the workspace yarn knows it by.
           node -e "
             const fs = require('fs');
 
@@ -66,14 +83,37 @@ jobs:
             fs.writeFileSync('packages/cli/package.json', JSON.stringify(cli, null, 2) + '\n');
 
             const sdk = JSON.parse(fs.readFileSync('packages/react-native-storybook/package.json', 'utf8'));
-            sdk.name = '@sherlo-io/react-native-storybook';
             sdk.version = '${TEST_VERSION}';
             sdk.publishConfig = { registry: 'https://npm.pkg.github.com', access: 'restricted' };
             fs.writeFileSync('packages/react-native-storybook/package.json', JSON.stringify(sdk, null, 2) + '\n');
           "
 
-          cd packages/cli && npm publish --tag test
-          cd ../react-native-storybook && npm publish --tag test
+          # Packs the SDK (prepack included) under its own name, then renames it inside the
+          # tarball, so the test package is published under the test scope.
+          pack_sdk_as_test_package() {
+            local tarball="$RUNNER_TEMP/sdk.tgz"
+            local unpacked="$RUNNER_TEMP/sdk-unpacked"
+
+            (cd packages/react-native-storybook && yarn pack -o "$tarball")
+
+            rm -rf "$unpacked" && mkdir "$unpacked"
+            tar -xzf "$tarball" -C "$unpacked"
+            node -e "
+              const fs = require('fs');
+              const file = '$unpacked/package/package.json';
+              const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+              manifest.name = '@sherlo-io/react-native-storybook';
+              fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + '\n');
+            "
+            tar -czf "$tarball" -C "$unpacked" package
+
+            SDK_TARBALL="$tarball"
+          }
+
+          (cd packages/cli && npm publish --tag test)
+
+          pack_sdk_as_test_package
+          npm publish "$SDK_TARBALL" --tag test
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
