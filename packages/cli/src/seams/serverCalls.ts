@@ -272,9 +272,12 @@ function serviceRefusedTheToken(error: unknown): boolean {
   return errorTypes.some((errorType) => /unauthori[sz]ed|forbidden/i.test(errorType ?? ''));
 }
 
+// Never empty: AppSync refuses an empty Authorization before the service's request gate sees it.
+const NO_CREDENTIAL_PLACEHOLDER = 'no-credential';
+
 /** An sdk client that sends no credential - for the login's own two questions. */
 function clientWithNoCredential(): SdkClient {
-  return sdkClient({ authToken: '' }, getEndpointUrl());
+  return sdkClient({ authToken: NO_CREDENTIAL_PLACEHOLDER }, getEndpointUrl());
 }
 
 let installed: ServerCalls = liveServerCalls;
