@@ -462,4 +462,28 @@ describe('what CI and a release check', () => {
       positionOf('Publish to npm')
     );
   });
+
+  // The SDK's prepack must run inside the workspace yarn knows, so the rename comes after the pack.
+  it('the release to test packs the SDK under its own name, then renames it inside the package', () => {
+    const steps = namedStepsOf('release_to_test.yml');
+    const publishPosition = steps.findIndex(
+      (step) => step.name === 'Prepare and publish to GitHub Packages'
+    );
+    expect(publishPosition).toBeGreaterThanOrEqual(0);
+    const publishBody = steps[publishPosition].body;
+
+    expect(publishBody).not.toMatch(/\bsdk\.name\s*=/);
+    expect(publishBody).toMatch(/\bcli\.name\s*=/);
+
+    const packPosition = publishBody.indexOf('yarn pack');
+    expect(packPosition).toBeGreaterThanOrEqual(0);
+    expect(packPosition).toBeLessThan(publishBody.indexOf('@sherlo-io/react-native-storybook'));
+    expect(publishBody).toMatch(/npm publish "\$SDK_TARBALL"/);
+
+    const ndkStepPosition = steps.findIndex((step) =>
+      /ANDROID_NDK_HOME=.*>> \$GITHUB_ENV/.test(step.body)
+    );
+    expect(ndkStepPosition).toBeGreaterThanOrEqual(0);
+    expect(ndkStepPosition).toBeLessThan(publishPosition);
+  });
 });
