@@ -178,6 +178,10 @@ export type CommandParams<C extends Command | 'any' = 'any'> = Config &
  *
  * `token` is what the push hands the server seam on both: the project token whole, or the
  * personal token.
+ *
+ * `fromSavedLogin` says whether the token is the login saved on this computer, because the service
+ * refusing a saved login is answered differently from refusing a token somebody gave: the person
+ * runs `sherlo login` again (commands/shared/refuseRejectedLogin).
  */
 export type PushCredential = ProjectTokenCredential | PersonCredential;
 
@@ -188,6 +192,7 @@ export type ProjectTokenCredential = {
   apiToken: string;
   teamId: string;
   projectIndex: number;
+  fromSavedLogin: false;
 };
 
 /** A personal token or the saved login, and the team and project the config's `project` names. */
@@ -196,6 +201,7 @@ export type PersonCredential = {
   token: string;
   teamId: string;
   projectIndex: number;
+  fromSavedLogin: boolean;
 };
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &

@@ -15,7 +15,8 @@
  * A token given on purpose always beats the login, so a CI job never depends on who is logged in
  * on its machine. An empty SHERLO_TOKEN counts as unset, because GitHub turns a missing secret
  * into an empty string. The EAS opener takes a project token only, because its token travels to
- * Expo's build machine.
+ * Expo's build machine. A person's credential must be shaped like a personal token, whichever of
+ * the three it came from, or it is refused before it is sent.
  */
 import { TEAM_ID_LENGTH } from '@sherlo/shared';
 import {
@@ -32,6 +33,7 @@ import { getEndpointUrl } from '../../buildStatusRequest';
 import getTokenParts from '../../getTokenParts';
 import isPersonalToken from '../../isPersonalToken';
 import isValidToken from '../../isValidToken';
+import refuseIfNotPersonalToken from '../../refuseIfNotPersonalToken';
 import refuseIfPersonalToken from '../../refuseIfPersonalToken';
 import throwError from '../../throwError';
 
@@ -56,13 +58,23 @@ function resolvePushCredential(
 
   if (!personCredential) refuseNoCredential();
 
+  // Checked before anything else about it, as every management command checks it: a project token
+  // given where a personal token belongs must never be sent as somebody's login.
+  refuseIfNotPersonalToken(personCredential.token);
+
   if (command === TEST_EAS_CLOUD_BUILD_COMMAND) refuseOnEas(personCredential.name);
 
   if (config.project === undefined) refuseNoProject(personCredential.name);
 
   const { teamId, projectIndex } = parseConfigProject(config.project);
 
-  return { kind: 'person', token: personCredential.token, teamId, projectIndex };
+  return {
+    kind: 'person',
+    token: personCredential.token,
+    teamId,
+    projectIndex,
+    fromSavedLogin: personCredential.fromSavedLogin,
+  };
 }
 
 export default resolvePushCredential;
@@ -126,7 +138,14 @@ function spendProjectToken(projectToken: string, config: InvalidatedConfig): Pus
     }
   }
 
-  return { kind: 'projectToken', token: projectToken, apiToken, teamId, projectIndex };
+  return {
+    kind: 'projectToken',
+    token: projectToken,
+    apiToken,
+    teamId,
+    projectIndex,
+    fromSavedLogin: false,
+  };
 }
 
 /* ========================================================================== */
@@ -145,15 +164,23 @@ type PersonCredentialName =
  */
 function findPersonCredential(
   flags: CredentialFlags
-): { token: string; name: PersonCredentialName } | undefined {
+): { token: string; name: PersonCredentialName; fromSavedLogin: boolean } | undefined {
   const personalTokenFlag = flags[PERSONAL_TOKEN_OPTION]?.trim();
-  if (personalTokenFlag) return { token: personalTokenFlag, name: `\`--${PERSONAL_TOKEN_FLAG}\`` };
+  if (personalTokenFlag) {
+    return {
+      token: personalTokenFlag,
+      name: `\`--${PERSONAL_TOKEN_FLAG}\``,
+      fromSavedLogin: false,
+    };
+  }
 
   const personalTokenVariable = process.env[PERSONAL_TOKEN_ENV_VAR]?.trim();
-  if (personalTokenVariable) return { token: personalTokenVariable, name: PERSONAL_TOKEN_ENV_VAR };
+  if (personalTokenVariable) {
+    return { token: personalTokenVariable, name: PERSONAL_TOKEN_ENV_VAR, fromSavedLogin: false };
+  }
 
   const savedLogin = savedLogins().read(getEndpointUrl());
-  if (savedLogin) return { token: savedLogin.token, name: 'your login' };
+  if (savedLogin) return { token: savedLogin.token, name: 'your login', fromSavedLogin: true };
 
   return undefined;
 }

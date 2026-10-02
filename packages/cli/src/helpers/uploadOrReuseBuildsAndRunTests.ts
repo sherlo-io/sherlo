@@ -83,7 +83,7 @@ async function uploadOrReuseBuildsAndRunTests({
   effects?: PushEffects;
 }): Promise<{ url: string }> {
   // The credential and its project were resolved before any request (./getValidatedCommandParams).
-  const { token, projectIndex, teamId } = commandParams.credential;
+  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
 
   const command = TEST_COMMAND;
 
@@ -317,6 +317,7 @@ async function uploadOrReuseBuildsAndRunTests({
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
       token,
+      fromSavedLogin,
       buildIndex: buildIndex,
       projectIndex,
       teamId,

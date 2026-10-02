@@ -1,3 +1,4 @@
+import { REJECTED_LOGIN_MESSAGE } from '../commands/shared/refuseRejectedLogin';
 import type { BuildDetailsGitFacts } from '../render/buildView';
 import { buildDetailsOf } from './buildDetails';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
@@ -44,6 +45,7 @@ export type { BuildStatus, BuildStatusResponse } from './buildStatusRequest';
 
 async function waitForBuildResult({
   token,
+  fromSavedLogin = false,
   buildIndex,
   projectIndex,
   teamId,
@@ -57,6 +59,12 @@ async function waitForBuildResult({
   pollBuildStatus,
 }: {
   token: string;
+  /**
+   * The token is the login saved on this computer (`credential.fromSavedLogin`). A refusal of it
+   * then says to log in again, as every command answers a refused login; a token somebody gave
+   * keeps "check your token".
+   */
+  fromSavedLogin?: boolean;
   buildIndex: number;
   projectIndex: number;
   teamId: string;
@@ -192,7 +200,10 @@ async function waitForBuildResult({
         // Auth failures are not retryable - stop immediately
         if (error instanceof AuthError) {
           emit({ kind: 'blank-line' });
-          emit({ kind: 'wait-auth-failed', message: error.message });
+          emit({
+            kind: 'wait-auth-failed',
+            message: fromSavedLogin ? REJECTED_LOGIN_MESSAGE : error.message,
+          });
           emit({ kind: 'blank-line' });
           return EXIT_ERROR;
         }

@@ -52,11 +52,15 @@ jobs:
         with:
           node-version: '24'
 
-      # feature/sherlo-3 and every epic/** branch build against the SAME sherlo-api ref
-      # (feature/sherlo-3) - the S3 dev-stage canon can predate lib/SDK changes an epic's
-      # CLI code depends on (composition gap: CLI source is current, its @sherlo/* portal
-      # deps are not). A PR against main keeps the unchanged S3-canon path - empty `ref`
-      # here is that opt-out.
+      # A PR into feature/sherlo-3 or an epic/** branch builds its @sherlo/* libraries from
+      # sherlo-api source - the S3 dev-stage canon can predate lib/SDK changes the CLI code
+      # depends on (composition gap: CLI source is current, its @sherlo/* portal deps are not).
+      # The source is sherlo-api feature/sherlo-3 (`ref` here), except for a PR whose head
+      # branch is an epic/** branch that sherlo-api also has, by that exact name: its libraries
+      # come from that branch, because the epic's CLI code needs the same epic's service
+      # changes. The commit step below makes that choice, since only it can see sherlo-api's
+      # branches. A PR against main keeps the unchanged S3-canon path - empty `ref` here is
+      # that opt-out.
       - name: Resolve sherlo-lib source
         id: libs
         run: |
@@ -79,24 +83,30 @@ jobs:
 
       # `ref` above names a branch, and a branch moves, so it cannot key a cache. This resolves
       # it to the exact sherlo-api commit, which then keys both caches below and is the ref
-      # init-env.sh builds the libs from.
+      # init-env.sh builds the libs from. A PR from an epic/** branch takes sherlo-api's branch
+      # of the same name instead of `ref`, when sherlo-api has one.
       - name: Resolve the sherlo-api commit the libs are built from
         if: steps.libs.outputs.ref != ''
         id: libs_commit
         env:
           CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
-          LIBS_BRANCH: ${{ steps.libs.outputs.ref }}
+          DEFAULT_LIBS_BRANCH: ${{ steps.libs.outputs.ref }}
         # Run outside this checkout: actions/checkout leaves this repository's own token in its
         # git config as an extra header, and git would send that instead of CLONE_TOKEN.
         working-directory: ${{ runner.temp }}
         run: |
           set -o pipefail
-          sha=$(git ls-remote "https://x-access-token:${CLONE_TOKEN}@github.com/sherlo-io/sherlo-api.git" "refs/heads/$LIBS_BRANCH" | cut -f1)
+          SHERLO_API_URL="https://x-access-token:${CLONE_TOKEN}@github.com/sherlo-io/sherlo-api.git"
+          LIBS_BRANCH="$DEFAULT_LIBS_BRANCH"
+          if [[ "$GITHUB_HEAD_REF" == epic/* ]] && git ls-remote --exit-code "$SHERLO_API_URL" "refs/heads/$GITHUB_HEAD_REF" > /dev/null; then
+            LIBS_BRANCH="$GITHUB_HEAD_REF"
+          fi
+          sha=$(git ls-remote "$SHERLO_API_URL" "refs/heads/$LIBS_BRANCH" | cut -f1)
           if [ -z "$sha" ]; then
             echo "Error: '$LIBS_BRANCH' names no branch in sherlo-io/sherlo-api" >&2
             exit 1
           fi
-          echo "Libs come from sherlo-api@$sha"
+          echo "Libs come from sherlo-api $LIBS_BRANCH@$sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       # Both caches carry the sherlo-api commit in their key, never yarn.lock alone: the libs

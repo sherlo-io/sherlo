@@ -31,8 +31,8 @@ function refuseIfPersonalToken(token: string, optionName: string = TOKEN_OPTION)
       "  names exactly one project - copy it from that project's settings at\n" +
       `  ${APP_DOMAIN}.\n` +
       '\n' +
-      `  The personal token belongs on \`--${PERSONAL_TOKEN_FLAG}\`, which today only\n` +
-      '  `sherlo project create` takes.',
+      `  The personal token belongs on \`--${PERSONAL_TOKEN_FLAG}\`.\n` +
+      '  Or run `sherlo login` once, and no token is needed.',
   });
 }
 

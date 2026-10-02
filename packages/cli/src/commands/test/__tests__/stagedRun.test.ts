@@ -153,6 +153,7 @@ const PROJECT_TOKEN_CREDENTIAL = {
   apiToken: 'api',
   projectIndex: 3,
   teamId: 'team',
+  fromSavedLogin: false,
 } as const;
 
 // ---------------------------------------------------------------------------

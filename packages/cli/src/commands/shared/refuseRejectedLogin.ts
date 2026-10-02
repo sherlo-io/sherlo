@@ -7,18 +7,20 @@
  * for all three: log in again. A command calls this in place of its own refusal only when the
  * refused token came from the saved login - a token somebody gave on purpose gets that command's
  * own refusal.
+ *
+ * The words are exported on their own for the one place that cannot throw them: the `--wait` loop
+ * (../../helpers/waitForBuildResult), which ends a refused credential with its own exit code.
  */
-import { throwError } from '../../helpers';
+import throwError from '../../helpers/throwError';
 import { LOGIN_COMMAND } from '../login/constants';
 
+export const REJECTED_LOGIN_MESSAGE =
+  'Sherlo no longer accepts the login saved on this computer.\n' +
+  '  It expired after 90 days unused, was revoked, or its owner left the team.\n' +
+  `  Run \`sherlo ${LOGIN_COMMAND}\` to log in again.`;
+
 function refuseRejectedLogin(): never {
-  throwError({
-    type: 'auth',
-    message:
-      'Sherlo no longer accepts the login saved on this computer.\n' +
-      '  It expired after 90 days unused, was revoked, or its owner left the team.\n' +
-      `  Run \`sherlo ${LOGIN_COMMAND}\` to log in again.`,
-  });
+  throwError({ type: 'auth', message: REJECTED_LOGIN_MESSAGE });
 }
 
 export default refuseRejectedLogin;

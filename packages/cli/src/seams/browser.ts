@@ -31,6 +31,11 @@ const OPENER_GRACE_MS = 1500;
  *     still running when the grace ends -> opened: a `BROWSER` that is the browser itself runs
  *                                          until the person closes it
  *     cannot start at all              -> not opened
+ *     not an http: or https: link      -> not opened, and nothing is started
+ *
+ * ONLY A WEB LINK IS OPENED. The link comes from the service; an opener handed a `file:` path or
+ * some other scheme would run whatever the machine attaches to it, so anything else is left on the
+ * screen for the person to judge.
  *
  * NEVER WAITS LONGER THAN THE GRACE. The opener runs detached and is let go from the start, so a
  * browser that keeps running never holds the login before the wait line.
@@ -41,14 +46,15 @@ const OPENER_GRACE_MS = 1500;
 export const liveBrowser: Browser = {
   open: (url) =>
     new Promise((resolve) => {
-      const [program, ...args] = openerCommand(url);
+      if (!isWebLink(url)) {
+        resolve(false);
+        return;
+      }
+
+      const [program, ...args] = openerCommand(url, process.platform);
 
       try {
-        const opener = spawn(program, args, {
-          detached: true,
-          stdio: 'ignore',
-          windowsVerbatimArguments: true,
-        });
+        const opener = spawn(program, args, { detached: true, stdio: 'ignore' });
         opener.unref();
 
         const stillRunningAfterGrace = setTimeout(() => resolve(true), OPENER_GRACE_MS);
@@ -71,16 +77,30 @@ export const liveBrowser: Browser = {
  *
  * A test sets `BROWSER=true` for a browser that "opened" without opening anything: `true` is a
  * program that exits 0 and does nothing else.
+ *
+ * NO SHELL EVER READS THE LINK. Each opener is started directly with the link as its one last
+ * argument. On Windows that rules out `cmd /c start`, where `&`, `|` or `^` in the link would act
+ * as command separators; `rundll32 url.dll,FileProtocolHandler` opens the default browser without
+ * cmd parsing anything.
  */
-function openerCommand(url: string): string[] {
+export function openerCommand(url: string, platform: NodeJS.Platform): string[] {
   const browserProgram = process.env.BROWSER?.trim();
   if (browserProgram) return [browserProgram, url];
 
-  if (process.platform === 'darwin') return ['open', url];
-  // `start` takes its first quoted argument as a window title, so an empty title goes first.
-  if (process.platform === 'win32') return ['cmd', '/c', 'start', '""', url];
+  if (platform === 'darwin') return ['open', url];
+  if (platform === 'win32') return ['rundll32', 'url.dll,FileProtocolHandler', url];
 
   return ['xdg-open', url];
+}
+
+/** Whether `url` is an absolute `http:` or `https:` link - the only kind the opener is handed. */
+export function isWebLink(url: string): boolean {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 let installed: Browser = liveBrowser;
