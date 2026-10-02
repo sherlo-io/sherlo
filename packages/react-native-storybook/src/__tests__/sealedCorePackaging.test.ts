@@ -510,4 +510,26 @@ describe('what CI and a release check', () => {
       positionOf('Publish to npm')
     );
   });
+
+  // The SDK's prepack must run inside the workspace yarn knows, so it runs before the rename,
+  // and the publish skips it.
+  it('the release to test runs the SDK prepack before the rename, and the publish skips it', () => {
+    const steps = namedStepsOf('release_to_test.yml');
+    const publishPosition = steps.findIndex(
+      (step) => step.name === 'Prepare and publish to GitHub Packages'
+    );
+    expect(publishPosition).toBeGreaterThanOrEqual(0);
+    const publishBody = steps[publishPosition].body;
+
+    const prepackPosition = publishBody.indexOf('npm run prepack');
+    expect(prepackPosition).toBeGreaterThanOrEqual(0);
+    expect(prepackPosition).toBeLessThan(publishBody.search(/\bsdk\.name\s*=/));
+    expect(publishBody).toMatch(/npm publish --ignore-scripts --tag test/);
+
+    const ndkStepPosition = steps.findIndex((step) =>
+      /ANDROID_NDK_HOME=.*>> \$GITHUB_ENV/.test(step.body)
+    );
+    expect(ndkStepPosition).toBeGreaterThanOrEqual(0);
+    expect(ndkStepPosition).toBeLessThan(publishPosition);
+  });
 });
