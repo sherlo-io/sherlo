@@ -188,7 +188,7 @@ module.exports = withStorybook(config);`;
     expect(typeof result.applied).toBe('boolean');
   });
 
-  // Epic setup-saga: only Storybook's withStorybook is swapped, never the plugin around it.
+  // Only Storybook's withStorybook is swapped, never the plugin around it.
   it("keeps the developer's own local name for a destructured, aliased require", async () => {
     const aliased = `const { withStorybook: sb } = require('@storybook/react-native/metro/withStorybook');
 

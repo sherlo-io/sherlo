@@ -47,7 +47,7 @@ function readWrittenConfig(): { token?: string } {
 }
 
 describe('the config step of setup', () => {
-  // Epic setup-saga: the hint's two lines are approved copy (sherlo-content approved/sherlo.json).
+  // The hint's two lines are approved copy, so they are matched exactly.
   it('with no token, writes a config file with no token and prints where to get one and how to add it', async () => {
     const printed = await runConfigStep();
 
