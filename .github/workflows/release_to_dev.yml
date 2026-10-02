@@ -42,6 +42,11 @@ jobs:
           VERSION=$(node -p "require('./lerna.json').version")
           DEV_VERSION="${VERSION}-dev.${GITHUB_RUN_ID}"
 
+          # Run the SDK's prepack script before the rename below: yarn finds a workspace by its
+          # name, and the script runs yarn. The pack itself happens in `npm publish`, which skips
+          # the script.
+          (cd packages/react-native-storybook && npm run prepack)
+
           node -e "
             const fs = require('fs');
 
@@ -59,6 +64,6 @@ jobs:
           "
 
           cd packages/cli && npm publish --tag dev
-          cd ../react-native-storybook && npm publish --tag dev
+          cd ../react-native-storybook && npm publish --ignore-scripts --tag dev
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

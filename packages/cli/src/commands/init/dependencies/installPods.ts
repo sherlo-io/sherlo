@@ -1,7 +1,9 @@
 import chalk from 'chalk';
 import { FULL_INIT_COMMAND } from '../../../constants';
-import { getCwd, runShellCommand, spinner as createSpinner, throwError } from '../../../helpers';
+import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
+import { workstation } from '../../../seams/workstation';
 import { IOS_DIR } from './constants';
+import getFailedCommandOutput from './getFailedCommandOutput';
 
 async function installPods(): Promise<void> {
   const spinner = createSpinner('Installing Pods').start();
@@ -9,7 +11,9 @@ async function installPods(): Promise<void> {
   const command = `cd ${IOS_DIR} && pod install`;
 
   try {
-    await runShellCommand({
+    // Through the workstation seam, like the package install, so a posed run answers it from its
+    // `workstation` and never starts a real `pod install`.
+    await workstation().installPods({
       command,
       projectRoot: getCwd(),
     });
@@ -27,6 +31,7 @@ async function installPods(): Promise<void> {
         '\n' +
         chalk.reset('Then re-run:\n') +
         chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+      below: getFailedCommandOutput(error),
       errorToReport: error,
     });
   }
