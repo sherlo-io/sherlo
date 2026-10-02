@@ -73,6 +73,7 @@ const PROJECT_TOKEN_CREDENTIAL = {
   apiToken: 'a'.repeat(32),
   teamId: 'teamteam',
   projectIndex: 1,
+  fromSavedLogin: false,
 } as const;
 
 const originalApiUrl = process.env.SHERLO_API_URL;

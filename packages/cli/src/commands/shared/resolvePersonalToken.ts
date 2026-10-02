@@ -19,13 +19,8 @@
  * refused saved login is answered differently from a refused token somebody
  * gave: the person runs `sherlo login` again (./refuseRejectedLogin).
  */
-import {
-  PERSONAL_TOKEN_ENV_VAR,
-  PERSONAL_TOKEN_FLAG,
-  PERSONAL_TOKEN_PREFIX,
-  TOKEN_OPTION,
-} from '../../constants';
-import { isPersonalToken, throwError } from '../../helpers';
+import { PERSONAL_TOKEN_ENV_VAR, PERSONAL_TOKEN_FLAG, TOKEN_OPTION } from '../../constants';
+import { refuseIfNotPersonalToken, throwError } from '../../helpers';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { savedLogins } from '../../seams/savedLogins';
 import { LOGIN_COMMAND } from '../login/constants';
@@ -54,17 +49,7 @@ function resolvePersonalToken(
     });
   }
 
-  if (!isPersonalToken(personalToken)) {
-    throwError({
-      type: 'auth',
-      message:
-        `\`--${PERSONAL_TOKEN_FLAG}\` wants a personal token, and this is not one - a ` +
-        `personal\n  token starts with \`${PERSONAL_TOKEN_PREFIX}\`.\n` +
-        '\n' +
-        '  If you pasted your project token: that one names an existing project, not a\n' +
-        '  person. Mint a personal token in the Sherlo web app.',
-    });
-  }
+  refuseIfNotPersonalToken(personalToken);
 
   return { personalToken, fromSavedLogin: !givenToken };
 }

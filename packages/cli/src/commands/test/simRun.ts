@@ -117,7 +117,7 @@ async function simRun(
   const worldFile = composeSimWorldFile(world.parsed);
 
   // The credential and its project, resolved before any request (getValidatedCommandParams).
-  const { token, projectIndex, teamId } = commandParams.credential;
+  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
 
   // 4. Upload both artifacts to staged slots, per platform.
   const simKeys = await uploadSimArtifacts({
@@ -195,6 +195,7 @@ async function simRun(
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
       token,
+      fromSavedLogin,
       buildIndex,
       projectIndex,
       teamId,

@@ -237,7 +237,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //    The endpoint every call this road makes - including the read-only dry-run decision
   //    query - is resolved inside the server seam itself (../../seams/serverCalls), from the
   //    token this road hands it.
-  const { token, projectIndex, teamId } = commandParams.credential;
+  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
 
   // 5-dry. --dry-run (SHERLO-1895 Phase C): bundle for real, preview which
   //   stories a real run would capture, and STOP here. A dry run never runs the
@@ -462,6 +462,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
       token,
+      fromSavedLogin,
       buildIndex,
       projectIndex,
       teamId,

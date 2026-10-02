@@ -18,6 +18,7 @@ export { default as handleClientError } from './handleClientError';
 export { default as isPackageVersionCompatible } from './isPackageVersionCompatible';
 export { default as isPersonalToken } from './isPersonalToken';
 export { default as isValidToken } from './isValidToken';
+export { default as refuseIfNotPersonalToken } from './refuseIfNotPersonalToken';
 export { default as refuseIfPersonalToken } from './refuseIfPersonalToken';
 export { default as logInfo } from './logInfo';
 export { default as logWarning } from './logWarning';

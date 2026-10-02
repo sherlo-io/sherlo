@@ -45,6 +45,8 @@ type World = {
   env?: Record<string, string>;
   config?: Record<string, unknown>;
   loggedIn?: boolean;
+  /** The token the saved login holds, when it is not the usual one. Implies logged in. */
+  savedLoginToken?: string;
 };
 
 /** Resolve the credential in a world, with the settings and the saved logins it states. */
@@ -53,8 +55,9 @@ function resolveIn(world: World): PushCredential {
     env: { SHERLO_API_URL: SERVICE_ADDRESS, ...world.env },
     git: 'none',
   });
-  const logins: PosedLogins = world.loggedIn
-    ? { [SERVICE_ADDRESS]: { email: 'anna@example.com', token: SAVED_LOGIN_TOKEN } }
+  const savedLoginToken = world.savedLoginToken ?? (world.loggedIn ? SAVED_LOGIN_TOKEN : undefined);
+  const logins: PosedLogins = savedLoginToken
+    ? { [SERVICE_ADDRESS]: { email: 'anna@example.com', token: savedLoginToken } }
     : {};
 
   const uninstall = [
@@ -87,7 +90,7 @@ function refusalIn(world: World): string {
 describe('which credential a push spends', () => {
   it('spends the first of --token, SHERLO_TOKEN, the config token, --personal-token, SHERLO_PERSONAL_TOKEN and the saved login', () => {
     // All six at once, then each taken away in turn: the first one left is the one spent.
-    const everyCredential: Required<Omit<World, 'command'>> = {
+    const everyCredential: Required<Omit<World, 'command' | 'savedLoginToken'>> = {
       flags: {
         [TOKEN_OPTION]: TOKEN_ON_THE_FLAG,
         [PERSONAL_TOKEN_OPTION]: PERSONAL_TOKEN_ON_THE_FLAG,
@@ -106,6 +109,7 @@ describe('which credential a push spends', () => {
       apiToken: 'a'.repeat(PROJECT_API_TOKEN_LENGTH),
       teamId: TEAM_ID,
       projectIndex: PROJECT_INDEX,
+      fromSavedLogin: false,
     });
 
     const withoutTokenFlag = {
@@ -126,10 +130,14 @@ describe('which credential a push spends', () => {
       token: PERSONAL_TOKEN_ON_THE_FLAG,
       teamId: TEAM_ID,
       projectIndex: PROJECT_INDEX,
+      fromSavedLogin: false,
     });
 
     const withoutPersonalTokenFlag = { ...withoutConfigToken, flags: {} };
-    expect(resolveIn(withoutPersonalTokenFlag).token).toBe(PERSONAL_TOKEN_IN_THE_VARIABLE);
+    expect(resolveIn(withoutPersonalTokenFlag)).toMatchObject({
+      token: PERSONAL_TOKEN_IN_THE_VARIABLE,
+      fromSavedLogin: false,
+    });
 
     const withOnlyTheLogin = { ...withoutPersonalTokenFlag, env: {} };
     expect(resolveIn(withOnlyTheLogin)).toEqual({
@@ -137,6 +145,7 @@ describe('which credential a push spends', () => {
       token: SAVED_LOGIN_TOKEN,
       teamId: TEAM_ID,
       projectIndex: PROJECT_INDEX,
+      fromSavedLogin: true,
     });
   });
 
@@ -174,6 +183,42 @@ describe('what is refused about the credential', () => {
     const onTheFlag = refusalIn({ flags: { [TOKEN_OPTION]: personalToken } });
     expect(onTheFlag).toContain('`--token` wants a project token, and this is a personal token.');
     expect(onTheFlag).not.toContain(personalToken);
+  });
+
+  it('refuses a project token given where a personal token belongs, on the push path too', () => {
+    // A project token is cut up and sent if it is spent as a person's: it never gets that far,
+    // whichever of the three places for a person's credential it was put in.
+    const projectTokenAsPersonal = projectToken('f');
+    const misplacedTokens: World[] = [
+      {
+        flags: { [PERSONAL_TOKEN_OPTION]: projectTokenAsPersonal },
+        config: { project: CONFIG_PROJECT },
+      },
+      {
+        env: { SHERLO_PERSONAL_TOKEN: projectTokenAsPersonal },
+        config: { project: CONFIG_PROJECT },
+      },
+    ];
+
+    for (const world of misplacedTokens) {
+      const refusal = refusalIn(world);
+
+      // The refusal the management commands give, word for word.
+      expect(refusal).toContain(
+        'AUTH ERROR: `--personal-token` wants a personal token, and this is not one - a personal\n' +
+          '  token starts with `sht_`.'
+      );
+      expect(refusal).toContain('If you pasted your project token');
+      expect(refusal).not.toContain(projectTokenAsPersonal);
+    }
+
+    // A saved login that is not a personal token is refused the same way, never sent.
+    const onTheLogin = refusalIn({
+      savedLoginToken: projectTokenAsPersonal,
+      config: { project: CONFIG_PROJECT },
+    });
+    expect(onTheLogin).toContain('wants a personal token, and this is not one');
+    expect(onTheLogin).not.toContain(projectTokenAsPersonal);
   });
 
   it('refuses a push with no credential at all, naming sherlo login and SHERLO_TOKEN', () => {
