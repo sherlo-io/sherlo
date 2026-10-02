@@ -1,9 +1,7 @@
-import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
+import { renderConfigWritten } from '../../../render/initConfig';
 import { InvalidatedConfig } from '../../../types';
-import { printMessage } from '../helpers';
+import { printLines } from '../helpers';
 import { DEFAULT_DEVICES } from './constants';
-import printDefaultDevicesMessage from './printDefaultDevicesMessage';
-import printProjectAddedMessage from './printProjectAddedMessage';
 import writeConfig from './writeConfig';
 
 /** A new config: the project and the default devices. Never a token - the file is committed. */
@@ -17,14 +15,13 @@ async function createConfig(
 
   await writeConfig(config);
 
-  printMessage({
-    type: 'success',
-    message: `Created: ${DEFAULT_CONFIG_FILENAME}`,
-  });
-
-  printProjectAddedMessage(project);
-
-  printDefaultDevicesMessage();
+  printLines(
+    renderConfigWritten({
+      outcome: 'created',
+      project,
+      addedDevices: DEFAULT_DEVICES,
+    })
+  );
 
   return {
     createdConfig: config,

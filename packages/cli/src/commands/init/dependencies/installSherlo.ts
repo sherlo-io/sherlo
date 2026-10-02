@@ -10,6 +10,7 @@ import {
   throwError,
 } from '../../../helpers';
 import { workstation } from '../../../seams/workstation';
+import getFailedCommandOutput from './getFailedCommandOutput';
 
 async function installSherlo(): Promise<void> {
   const spinner = createSpinner('Installing Sherlo').start();
@@ -90,6 +91,7 @@ async function installSherlo(): Promise<void> {
         '\n' +
         chalk.reset('Then re-run:\n') +
         chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+      below: getFailedCommandOutput(error),
       errorToReport: error,
     });
   }

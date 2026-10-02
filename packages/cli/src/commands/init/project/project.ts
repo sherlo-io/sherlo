@@ -21,7 +21,8 @@ import { Options } from '../../../types';
 import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
 import { THIS_COMMAND } from '../constants';
-import { printMessage, printTitle } from '../helpers';
+import { renderCheckLine, renderSectionTitle } from '../../../render/initLines';
+import { printLines } from '../helpers';
 import askWhichProject from './askWhichProject';
 import checkGivenProject from './checkGivenProject';
 import resolveSetupPersonalToken from './resolveSetupPersonalToken';
@@ -32,7 +33,7 @@ async function project({
   [PERSONAL_TOKEN_OPTION]: personalTokenFlag,
   [PROJECT_OPTION]: projectFlag,
 }: Options<THIS_COMMAND>): Promise<string> {
-  printTitle('🎯 Project');
+  printLines(renderSectionTitle('🎯 Project'));
 
   console.log('Checking who is setting up and which project this app belongs to.');
   console.log();
@@ -41,11 +42,13 @@ async function project({
     const { teamId, projectIndex } = getTokenParts(token);
     const projectFromToken = asConfigProject({ teamId, projectIndex });
 
-    printMessage({
-      type: 'success',
-      // Bold, as the config step's "Added project" line shows it.
-      message: `Using the project from your token: ${chalk.bold(projectFromToken)}`,
-    });
+    printLines([
+      renderCheckLine({
+        type: 'success',
+        // Bold, as the config step's "Added project" line shows it.
+        message: `Using the project from your token: ${chalk.bold(projectFromToken)}`,
+      }),
+    ]);
     console.log('  The token is not written to sherlo.config.json.');
     console.log('  Add it to your CI as the SHERLO_TOKEN secret.');
 

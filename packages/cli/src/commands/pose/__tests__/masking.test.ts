@@ -123,6 +123,12 @@ describe('the masker folds every volatile class the tool prints', () => {
     expect(folded).toContain('https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>');
   });
 
+  it('stops folding a --token value at a backtick, keeping the backtick', () => {
+    const folded = maskScreen('run `npx sherlo init --token <token>` or add it', {});
+
+    expect(folded).toBe('run `npx sherlo init --token <MASKED>` or add it');
+  });
+
   it('folds a build url, a size in megabytes, a duration, the time since a build and a base fingerprint', () => {
     const folded = maskScreen(
       [
