@@ -212,7 +212,7 @@ describe('what the published package carries', () => {
       );
       expect(podspec).toContain('s.vendored_frameworks = "' + XCFRAMEWORK + '"');
       const manifest = JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'package.json'), 'utf8'));
-      expect(manifest.files).toContain(XCFRAMEWORK);
+      expect(manifest.files).toContain(XCFRAMEWORK + '/**/*');
 
       if (missingTools.length > 0) {
         console.warn('the xcframework itself was not built here, so its slices are not checked');
@@ -228,6 +228,31 @@ describe('what the published package carries', () => {
       const libraryPaths = [...infoPlist.matchAll(libraryPathPattern)].map((match) => match[1]);
       expect(libraryPaths).toEqual(['libsherlocore.a', 'libsherlocore.a']);
     });
+
+    it('a yarn pack carries the C core xcframework too', (context) => {
+      if (missingTools.length > 0) {
+        console.warn('not packed here: ' + missingTools.join('; '));
+        context.skip();
+      }
+      const yarnReleasePath = fs
+        .readFileSync(path.join(REPO_ROOT, '.yarnrc.yml'), 'utf8')
+        .match(/^yarnPath:\s*(\S+)\s*$/m)![1];
+      const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-yarn-pack-'));
+      const yarnTarball = path.join(temporaryDir, 'sdk.tgz');
+      execFileSync('node', [path.join(REPO_ROOT, yarnReleasePath), 'pack', '-o', yarnTarball], {
+        cwd: SDK_ROOT,
+        stdio: ['ignore', 'ignore', 'inherit'],
+      });
+      const yarnPackedFiles = execFileSync('tar', ['-tzf', yarnTarball], { encoding: 'utf8' })
+        .trim()
+        .split('\n')
+        .map((entry) => entry.replace(/^package\//, ''));
+
+      for (const slice of XCFRAMEWORK_SLICES) expect(yarnPackedFiles).toContain(slice);
+      for (const sliceName of ['ios-arm64', 'ios-arm64_x86_64-simulator']) {
+        expect(yarnPackedFiles).toContain(XCFRAMEWORK + '/' + sliceName + '/Headers/sherlo_core.h');
+      }
+    }, 300_000);
 
     it('the published files carry a C core library for every Android ABI', (context) => {
       if (missingTools.length > 0) {
@@ -437,6 +462,29 @@ describe('what CI and a release check', () => {
     );
   });
 
+  it('a test or dev release packs the SDK before it renames the package', () => {
+    for (const workflowFile of ['release_to_test.yml', 'release_to_dev.yml']) {
+      const publishStep = namedStepsOf(workflowFile).find(
+        (step) => step.name === 'Prepare and publish to GitHub Packages'
+      );
+      expect(publishStep, workflowFile).toBeDefined();
+      const stepBody = publishStep!.body;
+
+      const prepackPosition = stepBody.indexOf(
+        '(cd packages/react-native-storybook && npm run prepack)'
+      );
+      const renamePosition = stepBody.indexOf("sdk.name = '@sherlo-io/react-native-storybook'");
+      expect(prepackPosition, workflowFile).toBeGreaterThanOrEqual(0);
+      expect(renamePosition, workflowFile).toBeGreaterThanOrEqual(0);
+      expect(prepackPosition, workflowFile).toBeLessThan(renamePosition);
+
+      // The publish must not run prepack again, now under the new name.
+      expect(stepBody, workflowFile).toMatch(
+        /cd \.\.\/react-native-storybook && npm publish --ignore-scripts /
+      );
+    }
+  });
+
   it('a release with no signing key stops before it commits anything', () => {
     const steps = namedStepsOf('release-sherlo-packages.yml');
     const positionOf = (stepName: string) => {
@@ -463,8 +511,9 @@ describe('what CI and a release check', () => {
     );
   });
 
-  // The SDK's prepack must run inside the workspace yarn knows, so the rename comes after the pack.
-  it('the release to test packs the SDK under its own name, then renames it inside the package', () => {
+  // The SDK's prepack must run inside the workspace yarn knows, so it runs before the rename,
+  // and the publish skips it.
+  it('the release to test runs the SDK prepack before the rename, and the publish skips it', () => {
     const steps = namedStepsOf('release_to_test.yml');
     const publishPosition = steps.findIndex(
       (step) => step.name === 'Prepare and publish to GitHub Packages'
@@ -472,13 +521,10 @@ describe('what CI and a release check', () => {
     expect(publishPosition).toBeGreaterThanOrEqual(0);
     const publishBody = steps[publishPosition].body;
 
-    expect(publishBody).not.toMatch(/\bsdk\.name\s*=/);
-    expect(publishBody).toMatch(/\bcli\.name\s*=/);
-
-    const packPosition = publishBody.indexOf('yarn pack');
-    expect(packPosition).toBeGreaterThanOrEqual(0);
-    expect(packPosition).toBeLessThan(publishBody.indexOf('@sherlo-io/react-native-storybook'));
-    expect(publishBody).toMatch(/npm publish "\$SDK_TARBALL"/);
+    const prepackPosition = publishBody.indexOf('npm run prepack');
+    expect(prepackPosition).toBeGreaterThanOrEqual(0);
+    expect(prepackPosition).toBeLessThan(publishBody.search(/\bsdk\.name\s*=/));
+    expect(publishBody).toMatch(/npm publish --ignore-scripts --tag test/);
 
     const ndkStepPosition = steps.findIndex((step) =>
       /ANDROID_NDK_HOME=.*>> \$GITHUB_ENV/.test(step.body)

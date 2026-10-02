@@ -1,8 +1,8 @@
-import { printTitle, trackProgress } from '../helpers';
+import { renderConfigTitle, renderDevicesCanBeAdjusted } from '../../../render/initConfig';
+import { printLines, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import createConfig from './createConfig';
 import hasConfigFile from './hasConfigFile';
-import printDevicesInfo from './printDevicesInfo';
 import updateConfig from './updateConfig';
 
 async function config({
@@ -12,7 +12,7 @@ async function config({
   sessionId: string | null;
   token?: string;
 }): Promise<void> {
-  printTitle('📋 Config');
+  printLines(renderConfigTitle());
 
   let configValue, hasAddedDefaultDevices, action;
 
@@ -45,9 +45,7 @@ async function config({
   }
 
   if (hasAddedDefaultDevices) {
-    console.log();
-
-    printDevicesInfo();
+    printLines(renderDevicesCanBeAdjusted());
   }
 }
 

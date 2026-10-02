@@ -1,8 +1,7 @@
-import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
+import { renderConfigWritten } from '../../../render/initConfig';
 import { InvalidatedConfig } from '../../../types';
-import { printMessage } from '../helpers';
+import { printLines } from '../helpers';
 import { DEFAULT_DEVICES } from './constants';
-import printDefaultDevicesMessage from './printDefaultDevicesMessage';
 import readConfig from './readConfig';
 import writeConfig from './writeConfig';
 
@@ -11,7 +10,7 @@ async function updateConfig(
 ): Promise<{ updatedConfig: InvalidatedConfig; hasAddedDefaultDevices: boolean }> {
   const config = await readConfig();
   const hasDevices = Array.isArray(config.devices) && config.devices.length > 0;
-  let hasAddedDefaultDevices = false;
+  const hasAddedDefaultDevices = !hasDevices;
 
   const updatedConfig = {
     ...config,
@@ -21,18 +20,13 @@ async function updateConfig(
 
   await writeConfig(updatedConfig);
 
-  printMessage({
-    type: 'success',
-    message:
-      token && token !== config.token
-        ? `Updated token: ${DEFAULT_CONFIG_FILENAME}`
-        : `Already created: ${DEFAULT_CONFIG_FILENAME}`,
-  });
-
-  if (!hasDevices) {
-    printDefaultDevicesMessage();
-    hasAddedDefaultDevices = true;
-  }
+  printLines(
+    renderConfigWritten({
+      outcome: token && token !== config.token ? 'token-updated' : 'already-created',
+      hasToken: Boolean(updatedConfig.token),
+      addedDevices: hasAddedDefaultDevices ? DEFAULT_DEVICES : [],
+    })
+  );
 
   return {
     updatedConfig,

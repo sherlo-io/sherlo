@@ -2,7 +2,8 @@ import chalk from 'chalk';
 import { execSync } from 'child_process';
 import throwError from '../../helpers/throwError';
 import logWarning from '../../helpers/logWarning';
-import { printTitle } from '../init/helpers';
+import { renderSectionTitle } from '../../render/initLines';
+import { printLines } from '../init/helpers';
 import { SLUG_REGEX } from './constants';
 import {
   detectEntryFile,
@@ -114,7 +115,7 @@ async function showError(slug: string): Promise<void> {
   };
 
   // 8. Print symbolicated sections + footer
-  await printTitle('🔍 Symbolicated stack');
+  printLines(renderSectionTitle('🔍 Symbolicated stack'));
   console.log(renderOutput(outputData));
   console.log(chalk.dim(`\nResolved ${resolvedFrames} of ${totalFrames} frames`));
 

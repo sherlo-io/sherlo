@@ -1,12 +1,19 @@
-import { DOCS_LINK } from '../../../constants';
-import { logWarning, throwError } from '../../../helpers';
-import { printMessage, printTitle, trackProgress } from '../helpers';
+import { throwError } from '../../../helpers';
+import {
+  renderMetroConfigAlreadyUpdated,
+  renderMetroConfigNeedsManualEdit,
+  renderMetroConfigNotFound,
+  renderMetroConfigTitle,
+  renderMetroConfigUpdated,
+  renderMetroConfigWithoutWithStorybook,
+} from '../../../render/initMetroConfig';
+import { printLines, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import readMetroConfigState from './readMetroConfigState';
 import writeMetroConfigUpdate from './writeMetroConfigUpdate';
 
 async function metroConfig(sessionId: string | null): Promise<void> {
-  printTitle('🧩 Metro Config');
+  printLines(renderMetroConfigTitle());
 
   let state;
   try {
@@ -17,17 +24,14 @@ async function metroConfig(sessionId: string | null): Promise<void> {
   }
 
   if (!state.path) {
-    logWarning({
-      message: 'metro.config.js not found - complete Storybook setup first',
-      learnMoreLink: 'https://github.com/storybookjs/react-native#setup',
-    });
+    printLines(renderMetroConfigNotFound());
     await trackProgress({ event: EVENT, params: { status: 'failed:not_found' }, sessionId });
     throwError({ message: 'metro.config.js not found' });
     return;
   }
 
   if (state.alreadyWrapped) {
-    printMessage({ type: 'success', message: `Already updated: ${state.path}` });
+    printLines(renderMetroConfigAlreadyUpdated(state.path));
     await trackProgress({
       event: EVENT,
       params: { status: 'already_updated', path: state.path },
@@ -37,11 +41,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
   }
 
   if (!state.hasWithStorybook) {
-    printMessage({ type: 'fail', message: `${state.path} has no withStorybook(...) call` });
-    logWarning({
-      message: 'Complete Storybook integration in metro.config.js first',
-      learnMoreLink: 'https://github.com/storybookjs/react-native#setup',
-    });
+    printLines(renderMetroConfigWithoutWithStorybook(state.path));
     await trackProgress({
       event: EVENT,
       params: { status: 'failed:no_with_storybook', path: state.path },
@@ -64,12 +64,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
   }
 
   if (!result.applied) {
-    printMessage({ type: 'fail', message: `Could not automatically update ${state.path}` });
-    logWarning({
-      message:
-        'metro.config.js has a non-standard shape - add withStorybook from @sherlo/react-native-storybook/metro/withStorybook manually',
-      learnMoreLink: DOCS_LINK.setupMetroConfig,
-    });
+    printLines(renderMetroConfigNeedsManualEdit(state.path));
     await trackProgress({
       event: EVENT,
       params: { status: 'failed:manual_edit', path: state.path },
@@ -78,7 +73,7 @@ async function metroConfig(sessionId: string | null): Promise<void> {
     return;
   }
 
-  printMessage({ type: 'success', message: `Updated: ${state.path}` });
+  printLines(renderMetroConfigUpdated(state.path));
   await trackProgress({
     event: EVENT,
     params: { status: 'updated', path: state.path },

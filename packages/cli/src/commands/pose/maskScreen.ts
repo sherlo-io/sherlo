@@ -186,7 +186,7 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
  */
 function foldTokens(screen: string): string {
   return screen
-    .replace(/(--(?:personal-)?token[ =])[^\s"'\u001b]+/g, '$1<MASKED>')
+    .replace(/(--(?:personal-)?token[ =])[^\s"'`\u001b]+/g, '$1<MASKED>')
     .replace(/("?[A-Za-z]*[tT]oken"?:[ \t]*"?)[^\s",'\u001b]+/g, '$1<MASKED>')
     .replace(/(Authorization:[ \t]*(?:Basic|Bearer)[ \t]+)[^\s"'\u001b]+/g, '$1<MASKED>')
     .replace(new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}sht_[A-Za-z0-9]+`, 'g'), '<MASKED>')
