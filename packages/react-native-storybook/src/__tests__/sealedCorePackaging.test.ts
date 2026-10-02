@@ -437,6 +437,29 @@ describe('what CI and a release check', () => {
     );
   });
 
+  it('a test or dev release packs the SDK before it renames the package', () => {
+    for (const workflowFile of ['release_to_test.yml', 'release_to_dev.yml']) {
+      const publishStep = namedStepsOf(workflowFile).find(
+        (step) => step.name === 'Prepare and publish to GitHub Packages'
+      );
+      expect(publishStep, workflowFile).toBeDefined();
+      const stepBody = publishStep!.body;
+
+      const prepackPosition = stepBody.indexOf(
+        '(cd packages/react-native-storybook && npm run prepack)'
+      );
+      const renamePosition = stepBody.indexOf("sdk.name = '@sherlo-io/react-native-storybook'");
+      expect(prepackPosition, workflowFile).toBeGreaterThanOrEqual(0);
+      expect(renamePosition, workflowFile).toBeGreaterThanOrEqual(0);
+      expect(prepackPosition, workflowFile).toBeLessThan(renamePosition);
+
+      // The publish must not run prepack again, now under the new name.
+      expect(stepBody, workflowFile).toMatch(
+        /cd \.\.\/react-native-storybook && npm publish --ignore-scripts /
+      );
+    }
+  });
+
   it('a release with no signing key stops before it commits anything', () => {
     const steps = namedStepsOf('release-sherlo-packages.yml');
     const positionOf = (stepName: string) => {
