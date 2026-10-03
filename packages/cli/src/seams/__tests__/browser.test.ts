@@ -58,6 +58,21 @@ describe.skipIf(process.platform === 'win32')('the live browser', () => {
   });
 });
 
+describe.skipIf(process.platform === 'win32')('what the opener is handed', () => {
+  it('the opener is handed the parsed link, not the raw string', async () => {
+    const receivedPath = path.join(scratchFolder, 'received-link');
+    browserThatRuns(`printf '%s' "$1" > "${receivedPath}"`);
+
+    const rawLink = ' https://app.sherlo.io/cli-login/lg7Qm2Xa/a\tb';
+    const parsedHref = new URL(rawLink).href;
+    expect(parsedHref).not.toBe(rawLink);
+
+    await expect(liveBrowser.open(rawLink)).resolves.toBe(true);
+
+    expect(fs.readFileSync(receivedPath, 'utf8')).toBe(parsedHref);
+  });
+});
+
 describe('what the live browser is handed', () => {
   it('opens only an http or https link, and hands it to the opener as one argument', async () => {
     // An opener that would leave a mark if it were ever started.
