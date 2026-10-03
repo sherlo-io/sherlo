@@ -210,6 +210,24 @@ describe('the masker folds every volatile class the tool prints', () => {
     );
   });
 
+  it('folds the team in the project a setup names', () => {
+    const usingLine = `Using the project from your token: ${ESC}[1mAPiP7Oal/1${ESC}[22m`;
+    // A team id may carry `_` and `-`, as server-made ids do.
+    const addedLine = `Added project ${ESC}[1moGl_kc-A/1${ESC}[22m to sherlo.config.json`;
+
+    expect(maskScreen(usingLine, {})).toBe(
+      `Using the project from your token: ${ESC}[1m<TEAM>/1${ESC}[22m`
+    );
+    expect(maskScreen(addedLine, {})).toBe(
+      `Added project ${ESC}[1m<TEAM>/1${ESC}[22m to sherlo.config.json`
+    );
+
+    // Only those two lines: another `word/number` on a screen is left alone.
+    expect(maskScreen('Compared abc/1 with the last build', {})).toBe(
+      'Compared abc/1 with the last build'
+    );
+  });
+
   it("folds a CLI login's authorize link to one placeholder", () => {
     // A posed login and a live one on a test stage: another host, another login id, the link
     // painted cyan on one of them. All three read the same once folded.
