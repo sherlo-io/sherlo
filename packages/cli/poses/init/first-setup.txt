@@ -25,7 +25,7 @@ Initializing Sherlo in your project...
 
 Checking who is setting up and which project this app belongs to.
 
-[32m✔[39m Using the project from your token: [1mk3j9x2ab/4[22m
+[32m✔[39m Using the project from your token: [1m<TEAM>/4[22m
   The token is not written to sherlo.config.json.
   Add it to your CI as the SHERLO_TOKEN secret.
 
@@ -87,7 +87,7 @@ To enable Sherlo to access Storybook, choose one:
 [2m═════════[22m
 
 [32m✔[39m Created: sherlo.config.json
-[32m✔[39m Added project [1mk3j9x2ab/4[22m to sherlo.config.json
+[32m✔[39m Added project [1m<TEAM>/4[22m to sherlo.config.json
 [32m✔[39m Added default devices: iPhone 15 Pro, Pixel 7 Pro
 
 [34mINFO: You can adjust testing devices to match your needs[39m
