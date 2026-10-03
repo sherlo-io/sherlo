@@ -84,6 +84,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldLoginLink(folded);
   folded = foldProjectIndex(folded);
   folded = foldTeamId(folded);
+  folded = foldTeamInSetupProject(folded);
   folded = foldMintedProjectToken(folded);
   folded = foldByteSize(folded);
   folded = foldTimeAgo(folded);
@@ -241,6 +242,21 @@ function foldTeamId(screen: string): string {
     new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}teamId=[^\\s,)${ESCAPE}]+`, 'g'),
     'teamId=<TEAM>'
   );
+}
+
+/**
+ * The team in the project `sherlo init` names, as `<teamId>/<index>` in bold.
+ *
+ * TWO LINES NAME IT, AND ONLY THOSE TWO ARE FOLDED: "Using the project from your token:" and
+ * "Added project ... to". The team id is whatever the server handed out, so a run on a team it
+ * just made can never match a posed screen; the index stays, because it is the scenario's own
+ * word. Matched by the line's prefix and never by the bare `word/number` shape, so no other
+ * `abc/1` on a screen is touched, and the bold codes around the value are kept as they are.
+ */
+function foldTeamInSetupProject(screen: string): string {
+  const linePrefix = `(Using the project from your token: |Added project )((?:${COLOR_ESCAPE})*)`;
+
+  return screen.replace(new RegExp(`${linePrefix}[A-Za-z0-9_-]+(?=/\\d)`, 'g'), '$1$2<TEAM>');
 }
 
 /**
