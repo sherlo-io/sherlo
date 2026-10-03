@@ -11,13 +11,52 @@ interface SherloConstants {
   config: string;
   lastState: string;
   nativeVersion: string | null;
+  driver: string | null;
 }
+
+/**
+ * Who drives a testing-mode boot's own walk: a runner, polling the app over protocol files it
+ * wrote to disk (see RunnerBridge), or a capture, driving the app over the socket in
+ * captureTransport.ts and writing nothing. Both boots now produce the same `config`/`lastState`
+ * shape (see SherloModuleCore on each platform), so this is the one explicit fact that still tells
+ * them apart - checked once, in useTestAllStories, to decide whether the runner's own report loop
+ * may run at all.
+ */
+export type TestDriver = 'runner' | 'capture';
+
+/**
+ * What a test run leaves behind is config.sherlo; its absence means no run is in progress, which
+ * is a normal state (a capture is exactly that state - see captureTransport.ts) rather than an
+ * error. These are the same numbers the SDK answers with when it is not wired into a build at all
+ * (createDummySherloModule below), so a device with no config on disk behaves the way a device
+ * with no native module at all already does.
+ */
+const DEFAULT_CONFIG: Config = {
+  stabilization: {
+    requiredMatches: 3,
+    minScreenshotsCount: 3,
+    intervalMs: 500,
+    timeoutMs: 5_000,
+    saveScreenshots: true,
+    threshold: 0.0,
+    includeAA: true,
+  },
+  scrollableFallbackDelayMs: 3000,
+  storyRenderedTimeoutMs: 5000,
+  paintBarrierTimeoutMs: 1000,
+  paintBarrierPerScrollPart: true,
+};
 
 type SherloModule = {
   isTurboModule: boolean;
   getMode: () => StorybookViewMode;
+  /** Throws when there is no config.sherlo on disk - use getConfigOrDefault where that is normal. */
   getConfig: () => Config;
+  /** The app's own config, or the SDK's defaults when there is none. Never throws. */
+  getConfigOrDefault: () => Config;
   getLastState: () => LastState | undefined;
+  /** Who drives this boot's testing walk, or undefined outside testing mode - see TestDriver. */
+  getDriver: () => TestDriver | undefined;
   getNativeVersion: () => string | null;
   sendNativeError: (
     errorCode: string,
@@ -29,6 +68,16 @@ type SherloModule = {
   readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
   toggleStorybook: () => void;
+  /**
+   * Restart into testing mode. `storyId`, when given, is the story to land the restarted app on
+   * directly - a capture's first story of a session, handed over the same way a run's restart
+   * always has a story to land `initialSelection` on (see captureTransport.ts). `config` rides
+   * along the same restart, so the native side that comes back can produce the exact `config`/
+   * `lastState` shape a run's own config.sherlo would have (see SherloModuleCore on each
+   * platform) - a capture has no config.sherlo to read, so the caller hands over
+   * getConfigOrDefault()'s answer, the same values the SDK already falls back to.
+   */
+  openTesting: (storyId: string | undefined, config: Config) => void;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
@@ -138,6 +187,14 @@ function createSherloModule(): SherloModule {
       }
       return config;
     },
+    getConfigOrDefault: () => {
+      try {
+        const config = JSON.parse(getConstants().config) as Config | undefined;
+        return config ?? DEFAULT_CONFIG;
+      } catch (_e) {
+        return DEFAULT_CONFIG;
+      }
+    },
     getLastState: () => {
       const lastState = getConstants().lastState;
       const parsedLastState = lastState ? JSON.parse(lastState) : undefined;
@@ -147,6 +204,10 @@ function createSherloModule(): SherloModule {
       }
 
       return parsedLastState;
+    },
+    getDriver: () => {
+      const driver = getConstants().driver;
+      return driver === 'runner' || driver === 'capture' ? driver : undefined;
     },
     appendFile: (filename: string, data: string) => {
       const encodedData = base64.encode(utf8.encode(data));
@@ -159,6 +220,11 @@ function createSherloModule(): SherloModule {
     },
     openStorybook: () => module.openStorybook(),
     toggleStorybook: () => module.toggleStorybook(),
+    // The turbo module spec takes required strings, following the same empty-string-for-"nothing"
+    // convention sendNativeError's dataJson already uses - there is no separate optional-arg shape
+    // to keep in sync between the JS side and the generated native one.
+    openTesting: (storyId: string | undefined, config: Config) =>
+      module.openTesting(storyId ?? '', JSON.stringify(config)),
     isScrollable: () => module.isScrollable(),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
       module.scrollToCheckpoint(index, offset, maxIndex),
@@ -195,27 +261,14 @@ function createDummySherloModule(): SherloModule {
     getNativeVersion: () => null,
     sendNativeError: () => {},
     getLastState: () => undefined,
-    getConfig: () => ({
-      stabilization: {
-        requiredMatches: 3,
-        minScreenshotsCount: 3,
-        intervalMs: 500,
-        timeoutMs: 5_000,
-        saveScreenshots: true,
-        threshold: 0.0,
-        includeAA: true,
-      },
-      // Readiness knobs - represented here so the dummy config shape
-      // matches the real one.
-      scrollableFallbackDelayMs: 3000,
-      storyRenderedTimeoutMs: 5000,
-      paintBarrierTimeoutMs: 1000,
-      paintBarrierPerScrollPart: true,
-    }),
+    getDriver: () => undefined,
+    getConfig: () => DEFAULT_CONFIG,
+    getConfigOrDefault: () => DEFAULT_CONFIG,
     appendFile: async () => {},
     readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
+    openTesting: () => {},
     awaitFrameCommit: async () => false,
     isScrollable: async () => ({ scrollable: false }),
     scrollToCheckpoint: async () => ({

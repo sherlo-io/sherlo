@@ -1,0 +1,9 @@
+[32m✔[39m  Created team [1mStorefront[22m
+
+teamId=<TEAM>
+teamName=Storefront
+
+[2mNext: invite members from the web app, or create its first project with `sherlo project create --name <name> --team <id>`.[22m
+
+
+[exit 0]

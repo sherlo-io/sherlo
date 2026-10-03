@@ -1,0 +1,8 @@
+[31m✖[39m  [1mcontrols-button--primary[22m is on screen, and it threw while rendering
+
+  TypeError: Cannot read property 'label' of undefined
+
+[2mThe app is showing that error in place of the story.[22m
+
+
+[exit 0]

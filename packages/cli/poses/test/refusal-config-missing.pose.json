@@ -1,0 +1,10 @@
+{
+  "pose": 1,
+  "argv": ["test"],
+  "files": {},
+  "env": {},
+  "git": { "branch": "main", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
+  "bundles": {},
+  "api": [],
+  "masks": {}
+}

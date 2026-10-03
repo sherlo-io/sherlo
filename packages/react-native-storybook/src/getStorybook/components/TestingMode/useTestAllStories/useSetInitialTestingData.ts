@@ -1,42 +1,28 @@
 import { useEffect } from 'react';
-import { RunnerBridge } from '../../../../helpers';
-import SherloModule from '../../../../SherloModule';
-import prepareSnapshots from './prepareSnapshots';
 import { StorybookView } from '../../../../types';
-import { enumerateStories } from '../../../../storybook/adapter';
+import { getSealedCore } from '../../../../sealedCore/loadSealedCore';
 
-export function filterStoryMetas<T extends { id: string }>(
-  storyMetas: T[],
-  includeStoryIds: string[] | undefined
-): T[] {
-  if (!Array.isArray(includeStoryIds)) return storyMetas;
-  return storyMetas.filter((m) => includeStoryIds.includes(m.id));
-}
-
-function useSetInitialTestingData({ view }: { view: StorybookView }): void {
-  const lastState = SherloModule.getLastState();
-
+/**
+ * A run's first launch: the sealed core lists the stories and sends them to the runner (its
+ * startTestSession). With no core, Sherlo's features are off.
+ */
+function useSetInitialTestingData({
+  view,
+  enabled = true,
+}: {
+  view: StorybookView;
+  /**
+   * Whether this boot may start the protocol-file handshake at all - false for a capture, which
+   * has no runner behind it to answer this (see useTestAllStories, the one place that reads
+   * SherloModule.getDriver() to decide). Defaults to true.
+   */
+  enabled?: boolean;
+}): void {
   useEffect(() => {
-    if (lastState) return;
+    const core = getSealedCore();
+    if (!enabled || !core) return;
 
-    (async () => {
-      const storyMetas = enumerateStories(view);
-      const config = SherloModule.getConfig();
-      const filteredStoryMetas = filterStoryMetas(
-        storyMetas,
-        config.discoveryFilter?.includeStoryIds
-      );
-      const allStories = prepareSnapshots({ storyMetas: filteredStoryMetas, splitByMode: true });
-
-      RunnerBridge.log('start testing session', {
-        storiesCount: allStories.length,
-      });
-
-      await RunnerBridge.send({
-        action: 'START',
-        snapshots: allStories,
-      });
-    })();
+    core.startTestSession(view);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

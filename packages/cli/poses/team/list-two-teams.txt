@@ -1,0 +1,9 @@
+[32m✔[39m  2 teams
+
+  tm000001  Storefront     [2m2 projects[22m  [2mowner[22m
+  tm000002  Design System  [2mno projects yet[22m
+
+[2mNext: `sherlo project list --team <id>` shows a team's projects; `sherlo team create --name <name>` adds a team.[22m
+
+
+[exit 0]

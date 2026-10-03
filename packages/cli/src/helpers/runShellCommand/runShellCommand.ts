@@ -6,6 +6,12 @@ interface Options {
   projectRoot: string;
   encoding?: 'utf8' | 'buffer';
   env?: NodeJS.ProcessEnv;
+  /**
+   * 'merge' (default) inherits the CLI's ambient env; 'replace' runs the child
+   * with ONLY the passed `env` for deterministic, command-independent output.
+   * See executeCommand for details (SHERLO-1744).
+   */
+  envMode?: 'merge' | 'replace';
 }
 
 /**
@@ -20,9 +26,10 @@ async function runShellCommand({
   projectRoot,
   encoding = 'utf8',
   env,
+  envMode,
 }: Options): Promise<string | Buffer> {
   try {
-    return await executeCommand({ command, projectRoot, encoding, env });
+    return await executeCommand({ command, projectRoot, encoding, env, envMode });
   } catch (error) {
     if (
       error instanceof Error &&
@@ -35,6 +42,7 @@ async function runShellCommand({
         projectRoot,
         encoding,
         env,
+        envMode,
       });
     }
 

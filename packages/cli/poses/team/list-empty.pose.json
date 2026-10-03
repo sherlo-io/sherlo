@@ -1,0 +1,12 @@
+{
+  "pose": 1,
+  "argv": ["team", "list"],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_PERSONAL_TOKEN": "sht_posepersonaltoken000000000000" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    { "call": "listTeams", "with": {}, "answer": { "teams": [] } }
+  ],
+  "masks": {}
+}

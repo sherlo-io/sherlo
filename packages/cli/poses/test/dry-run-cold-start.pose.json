@@ -1,0 +1,94 @@
+{
+  "pose": 1,
+  "argv": [
+    "test",
+    "--dry-run"
+  ],
+  "files": {
+    "sherlo.config.json": {
+      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        },
+        {
+          "id": "iphone.15",
+          "osVersion": "17"
+        }
+      ]
+    }
+  },
+  "env": {},
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {
+    "android": {
+      "bundlePath": "node_modules/.cache/sherlo/bundle.android.js",
+      "bundleSizeMb": 4.29,
+      "bundleFormat": "plain-js",
+      "bundler": "expo",
+      "assets": [
+        "icon.png",
+        "splash.png"
+      ],
+      "storyClosureKeys": [
+        "src/components/Storefront/ProductCard.stories.tsx",
+        "src/components/Storefront/SharedButton.stories.tsx",
+        "src/components/Storefront/Header.stories.tsx",
+        "src/components/Storefront/Footer.stories.tsx",
+        "src/components/Storefront/Banner.stories.tsx",
+        "src/components/Storefront/Cart.stories.tsx",
+        "src/components/Storefront/Checkout.stories.tsx"
+      ]
+    },
+    "ios": {
+      "bundlePath": "node_modules/.cache/sherlo/bundle.ios.js",
+      "bundleSizeMb": 4.29,
+      "bundleFormat": "plain-js",
+      "bundler": "expo",
+      "assets": [
+        "icon.png",
+        "splash.png"
+      ],
+      "storyClosureKeys": [
+        "src/components/Storefront/ProductCard.stories.tsx",
+        "src/components/Storefront/SharedButton.stories.tsx",
+        "src/components/Storefront/Header.stories.tsx",
+        "src/components/Storefront/Footer.stories.tsx",
+        "src/components/Storefront/Banner.stories.tsx",
+        "src/components/Storefront/Cart.stories.tsx",
+        "src/components/Storefront/Checkout.stories.tsx"
+      ]
+    }
+  },
+  "api": [
+    {
+      "call": "computeDiffScopeDryRun",
+      "with": {
+        "branch": "feature/checkout",
+        "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b"
+      },
+      "answer": {
+        "platforms": [
+          {
+            "platform": "android",
+            "isFullCapture": true,
+            "reason": "first build - nothing to compare against yet",
+            "capturedStoryFilePaths": []
+          },
+          {
+            "platform": "ios",
+            "isFullCapture": true,
+            "reason": "first build - nothing to compare against yet",
+            "capturedStoryFilePaths": []
+          }
+        ]
+      }
+    }
+  ],
+  "masks": {}
+}

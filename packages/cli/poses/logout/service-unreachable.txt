@@ -1,0 +1,11 @@
+[31mERROR: Deleted the login of anna@example.com from this computer, but Sherlo could not be reached to end it there.[39m
+[31m  Until it expires, revoke it in the web app.[39m
+[31m  Open Account settings, then Personal tokens.[39m
+
+[2m══════════[22m
+[2m[22m
+[2mNeed Help?[22m
+[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
+[2m➜ [22m[2mcontact@sherlo.io[22m
+
+[exit 1]

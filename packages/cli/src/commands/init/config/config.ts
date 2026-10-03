@@ -1,28 +1,30 @@
-import { printTitle, trackProgress } from '../helpers';
+import { renderConfigTitle, renderDevicesCanBeAdjusted } from '../../../render/initConfig';
+import { printLines, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import createConfig from './createConfig';
 import hasConfigFile from './hasConfigFile';
-import printDevicesInfo from './printDevicesInfo';
 import updateConfig from './updateConfig';
 
+/** Writes `sherlo.config.json` with the project the project step settled, and never a token. */
 async function config({
   sessionId,
-  token,
+  project,
 }: {
   sessionId: string | null;
-  token?: string;
+  /** The team id, a slash and the project's number. */
+  project: string;
 }): Promise<void> {
-  printTitle('📋 Config');
+  printLines(renderConfigTitle());
 
   let configValue, hasAddedDefaultDevices, action;
 
   try {
     if (!hasConfigFile()) {
-      ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(token));
+      ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(project));
 
       action = 'created';
     } else {
-      ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(token));
+      ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(project));
 
       action = 'updated';
     }
@@ -45,9 +47,7 @@ async function config({
   }
 
   if (hasAddedDefaultDevices) {
-    console.log();
-
-    printDevicesInfo();
+    printLines(renderDevicesCanBeAdjusted());
   }
 }
 

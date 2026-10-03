@@ -54,6 +54,14 @@ public class SherloModule extends NativeSherloModuleSpec {
         return moduleCore.getSherloConstants();
     }
 
+    /**
+     * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+     */
+    @Override
+    public String loadCore() {
+        return SherloCoreLoader.loadCoreJson(getReactApplicationContext());
+    }
+
     // ==== Storybook Methods ====
 
     /**
@@ -78,6 +86,17 @@ public class SherloModule extends NativeSherloModuleSpec {
     @Override
     public void closeStorybook() {
         moduleCore.closeStorybook();
+    }
+
+    /**
+     * Explicitly switches to testing mode.
+     *
+     * @param storyId    the story to land the restarted app on directly, or empty when there is none.
+     * @param configJson the config to hand the restarted app over as `config`.
+     */
+    @Override
+    public void openTesting(String storyId, String configJson) {
+        moduleCore.openTesting(storyId, configJson);
     }
 
     // ==== Error Reporting ====

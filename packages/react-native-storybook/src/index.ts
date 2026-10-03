@@ -1,11 +1,29 @@
 import checkSdkCompatibility from './checkSdkCompatibility';
 import { PROTOCOL_FILE } from './constants';
+import { loadSealedCore } from './sealedCore/loadSealedCore';
 
 export { default as isRunningVisualTests } from './isRunningVisualTests';
 export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
+export { mock } from './mocking/mockDeclaration';
+export type { MockDeclaration } from './mocking/mockDeclaration';
+export { mockRequest } from './mocking/networkDeclaration';
+export type {
+  HttpMethod,
+  NetworkMockDeclaration,
+  NetworkRule,
+  RequestAnswer,
+  RequestMatcher,
+} from './mocking/networkDeclaration';
+export { UnmockedRequestError } from './mocking/networkRules';
+export { mockClock } from './mocking/clock';
+export { mockRandom } from './mocking/random';
 
 export * from './types';
+
+// The sealed core loads first, in every mode, so everything after it finds it installed. It never
+// throws: with no core, Sherlo's features are off and the rest of the SDK still works.
+loadSealedCore();
 
 try {
   installSherloIntegration();

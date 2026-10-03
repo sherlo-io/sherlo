@@ -1,0 +1,59 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "foundation-typography--scales"],
+  "capture": {
+    "stories": [
+      "foundation-typography--scales",
+      "foundation-colour--palette",
+      "controls-button--primary",
+      "controls-button--disabled",
+      "controls-input--empty",
+      "layout-card--basic"
+    ],
+    "settled": { "ms": 1400, "frames": 6 },
+    "tree": {
+      "primitive": "ScrollView",
+      "components": ["TypographyScales"],
+      "size": { "width": 360, "height": 800 },
+      "style": { "flex": 1, "padding": 16, "backgroundColor": "#fff" },
+      "children": [
+        {
+          "primitive": "Text",
+          "components": ["SectionTitle"],
+          "size": { "width": 328, "height": 16 },
+          "style": { "fontSize": 12, "fontWeight": "700", "letterSpacing": 1, "color": "#6b7280", "marginBottom": 8 },
+          "text": "FONT SIZES"
+        },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 14 }, "style": { "fontSize": 10, "color": "#111827", "marginBottom": 6 }, "text": "10px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 16 }, "style": { "fontSize": 12, "color": "#111827", "marginBottom": 6 }, "text": "12px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 19 }, "style": { "fontSize": 14, "color": "#111827", "marginBottom": 6 }, "text": "14px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 22 }, "style": { "fontSize": 16, "color": "#111827", "marginBottom": 6 }, "text": "16px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 24 }, "style": { "fontSize": 18, "color": "#111827", "marginBottom": 6 }, "text": "18px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 27 }, "style": { "fontSize": 20, "color": "#111827", "marginBottom": 6 }, "text": "20px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 32 }, "style": { "fontSize": 24, "color": "#111827", "marginBottom": 6 }, "text": "24px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 38 }, "style": { "fontSize": 28, "color": "#111827", "marginBottom": 6 }, "text": "28px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 43 }, "style": { "fontSize": 32, "color": "#111827", "marginBottom": 6 }, "text": "32px - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 54 }, "style": { "fontSize": 40, "color": "#111827", "marginBottom": 6 }, "text": "40px - The quick brown fox" },
+        {
+          "primitive": "Text",
+          "components": ["SectionTitle"],
+          "size": { "width": 328, "height": 16 },
+          "style": { "fontSize": 12, "fontWeight": "700", "letterSpacing": 1, "color": "#6b7280", "marginTop": 16, "marginBottom": 8 },
+          "text": "FONT WEIGHTS"
+        },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 22 }, "style": { "fontSize": 16, "fontWeight": "100", "color": "#111827", "marginBottom": 6 }, "text": "Weight 100 - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 22 }, "style": { "fontSize": 16, "fontWeight": "200", "color": "#111827", "marginBottom": 6 }, "text": "Weight 200 - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 22 }, "style": { "fontSize": 16, "fontWeight": "300", "color": "#111827", "marginBottom": 6 }, "text": "Weight 300 - The quick brown fox" },
+        { "primitive": "Text", "components": ["SampleLine"], "size": { "width": 328, "height": 22 }, "style": { "fontSize": 16, "fontWeight": "400", "color": "#111827", "marginBottom": 6 }, "text": "Weight 400 - The quick brown fox" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,319 @@
+'use strict';
+
+/**
+ * THE LETTERBOX ON THE BUNDLER - one address, three verbs, and the road `sherlo open` reaches a
+ * running app down.
+ *
+ *   PUT   the app: "these are my stories, this one is on screen, and here is whether I am at the
+ *         story browser - hold my request until there is a story for me". The answer is the next
+ *         story to show, an instruction to go to the story browser, or nothing when the hold runs
+ *         out.
+ *   POST  the tool: "show this story". The answer says what became of it.
+ *   GET   the tool: "which story is on screen" - answered with the story, with `no-app` when
+ *         nothing has ever connected, or with `not-at-story-browser` when an app is attached and
+ *         simply has nothing on screen to name.
+ *
+ * IT REMEMBERS RATHER THAN RELAYS. A story posted while no app holds a request is kept until one
+ * connects, because reaching the story browser costs a restart and a relay would drop the ask on
+ * the floor in the middle of it.
+ *
+ * AND THAT IS WHAT THE REMEMBERING IS FOR. An app showing itself rather than the story browser is
+ * not handed the story: it is told to go there, and the story stays here until it arrives. Nothing
+ * that was waiting inside the app survives the restart that getting there costs, so the only place
+ * the ask can wait is this one.
+ *
+ * THE APP'S OWN REQUEST IS ITS ANSWER TOO. Every PUT carries the story the app has painted, so
+ * `--wait` is held here until a PUT names the story that was posted - the tool reports a story on
+ * screen only because the app said so first. The same PUT carries what that story threw while
+ * rendering, when it threw, and that travels back to the waiting tool with it: a developer who
+ * asked to see a broken story is told it is broken.
+ *
+ * It lives beside the bundler rather than on a port of its own: the bundler's address is the one
+ * every device a developer uses can already reach - a simulator, a phone on the same network, a
+ * phone plugged in by cable - and a second port would be a second thing to tunnel on every one.
+ */
+
+/** The one address Sherlo adds to the bundler. */
+var LETTERBOX_PATH = '/sherlo/letterbox';
+
+/**
+ * How long a waiting app's request is held before it is answered with nothing and asked to come
+ * back. Long enough that the app is not re-asking constantly, short enough that a connection cut
+ * mid-hold costs one hold rather than for ever.
+ */
+var APP_HOLD_MS = 20000;
+
+/**
+ * The letterbox, as a Metro middleware plus the state behind it.
+ *
+ * @param {{ appHoldMs?: number }} [settings]
+ * @returns {{ middleware: Function, path: string }}
+ */
+function createOpenStoryLetterbox(settings) {
+  var appHoldMs = (settings && settings.appHoldMs) || APP_HOLD_MS;
+
+  /**
+   * What the app last said about itself: the stories it has, whether it is at the story browser,
+   * and the story it has painted. Null until an app has connected even once - which is how the
+   * tool tells "no app has ever been here" from "the app is between requests".
+   */
+  var appLastSaid = null;
+
+  /** The story the letterbox is holding for the next app to ask, if any. */
+  var storyToHandOver = null;
+
+  /** Every app request held open right now, each ready to be answered with one story. */
+  var appsWaiting = [];
+
+  /** Every `--wait` caller held open right now, each waiting for its own story to be painted. */
+  var waitingForPaint = [];
+
+  function middleware(request, response, next) {
+    if (pathOf(request.url) !== LETTERBOX_PATH) return next();
+
+    if (request.method === 'PUT') return appWaitsForAStory(request, response);
+    if (request.method === 'POST') return toolPostsAStory(request, response);
+    if (request.method === 'GET') return toolAsksWhatIsOnScreen(response);
+
+    return next();
+  }
+
+  /** The app: say what I have and where I am, then hold my request until there is a story. */
+  function appWaitsForAStory(request, response) {
+    readJsonBody(request, function (said) {
+      var atTheStoryBrowser = said.atTheStoryBrowser === true;
+
+      var showing = atTheStoryBrowser && typeof said.showing === 'string' ? said.showing : null;
+
+      appLastSaid = {
+        stories: Array.isArray(said.stories) ? said.stories : [],
+        atTheStoryBrowser: atTheStoryBrowser,
+        // An app showing itself has no story on screen, whatever it last painted.
+        showing: showing,
+        // What the story on screen threw, and so only meaningful when there is a story on screen.
+        threw: showing === null ? null : readThrew(said.threw),
+      };
+
+      // This request is also the app's answer: a story it names as painted releases the `--wait`
+      // caller that posted it, carrying what that story threw when it threw.
+      releasePaintWaiters(appLastSaid.showing, appLastSaid.threw);
+
+      if (storyToHandOver !== null) {
+        if (!atTheStoryBrowser) return sendJson(response, { goToTheStoryBrowser: true });
+
+        var remembered = storyToHandOver;
+        storyToHandOver = null;
+        return sendJson(response, { storyId: remembered });
+      }
+
+      holdAppRequest(response, atTheStoryBrowser);
+    });
+  }
+
+  function holdAppRequest(response, atTheStoryBrowser) {
+    var held = {
+      atTheStoryBrowser: atTheStoryBrowser,
+      done: false,
+
+      /** Take this hold off the list, once. True when this call is the one that took it off. */
+      stopWaiting: function () {
+        if (held.done) return false;
+        held.done = true;
+        clearTimeout(held.timer);
+        appsWaiting = appsWaiting.filter(function (other) {
+          return other !== held;
+        });
+        return true;
+      },
+
+      answer: function (payload) {
+        if (held.stopWaiting()) sendJson(response, payload);
+      },
+    };
+
+    held.timer = setTimeout(function () {
+      held.answer({ storyId: null });
+    }, appHoldMs);
+
+    // A device that went away frees its slot; the story it never collected stays remembered. This
+    // watches the RESPONSE rather than the request: a request stream closes the moment its body has
+    // been read, which is the normal start of a hold, while the response closes only once the hold
+    // is over - and by then `stopWaiting` has nothing left to do.
+    response.on('close', held.stopWaiting);
+
+    appsWaiting.push(held);
+  }
+
+  /** The tool: show this story. */
+  function toolPostsAStory(request, response) {
+    readJsonBody(request, function (posted) {
+      var storyId = typeof posted.storyId === 'string' ? posted.storyId : '';
+
+      if (!appLastSaid) return sendJson(response, { kind: 'no-app' });
+
+      if (appLastSaid.stories.indexOf(storyId) === -1) {
+        return sendJson(response, { kind: 'no-such-story', known: appLastSaid.stories });
+      }
+
+      storyToHandOver = storyId;
+      handOverToWaitingApps();
+
+      if (!posted.wait) {
+        return sendJson(response, {
+          kind: 'handed-over',
+          storyId: storyId,
+          rendered: 'not-waited',
+        });
+      }
+
+      waitForPaint(storyId, secondsOf(posted.timeoutSeconds), function (painted, threw) {
+        var answer = {
+          kind: 'handed-over',
+          storyId: storyId,
+          rendered: painted ? 'yes' : 'timed-out',
+        };
+        // Said only when the story broke: a story that drew cleanly has nothing to report, and an
+        // always-present empty field invites a reader to wonder what an empty one means.
+        if (threw) answer.threw = threw;
+        sendJson(response, answer);
+      });
+    });
+  }
+
+  /** The tool: which story is on screen. */
+  function toolAsksWhatIsOnScreen(response) {
+    // `no-app` means what it says: nothing carrying the SDK has ever connected here.
+    if (!appLastSaid) return sendJson(response, { kind: 'no-app' });
+
+    // The app IS attached - it is just not showing a story right now, because it is showing itself
+    // rather than the story browser (or it reached the story browser and has not painted one yet).
+    // That is a different fact from no app being there at all, and answering `no-app` for it would
+    // tell the reader to do something they have already done.
+    if (!appLastSaid.showing) return sendJson(response, { kind: 'not-at-story-browser' });
+
+    return sendJson(response, { kind: 'showing', storyId: appLastSaid.showing });
+  }
+
+  /**
+   * Hand the remembered story to every app holding a request AT THE STORY BROWSER, and send every
+   * other one there. A developer usually has one device on a bundler and this reaches that one;
+   * with two, both go to the story, which is the only answer that is not a coin toss about which
+   * device the developer meant.
+   *
+   * The story is only cleared when an app that can paint it took it. An app on its way to the story
+   * browser has not taken anything - it is about to restart, and the story has to be here when it
+   * comes back.
+   */
+  function handOverToWaitingApps() {
+    if (storyToHandOver === null || appsWaiting.length === 0) return;
+
+    var waiting = appsWaiting.slice();
+
+    waiting.forEach(function (held) {
+      if (!held.atTheStoryBrowser) held.answer({ goToTheStoryBrowser: true });
+    });
+
+    var readyForIt = waiting.filter(function (held) {
+      return held.atTheStoryBrowser;
+    });
+    if (readyForIt.length === 0) return;
+
+    var storyId = storyToHandOver;
+    storyToHandOver = null;
+    readyForIt.forEach(function (held) {
+      held.answer({ storyId: storyId });
+    });
+  }
+
+  function waitForPaint(storyId, timeoutSeconds, report) {
+    var waiter = {
+      storyId: storyId,
+      report: function (painted, threw) {
+        if (waiter.reported) return;
+        waiter.reported = true;
+        clearTimeout(waiter.timer);
+        waitingForPaint = waitingForPaint.filter(function (other) {
+          return other !== waiter;
+        });
+        report(painted, threw);
+      },
+      reported: false,
+      timer: null,
+    };
+
+    waiter.timer = setTimeout(function () {
+      waiter.report(false, null);
+    }, timeoutSeconds * 1000);
+
+    waitingForPaint.push(waiter);
+  }
+
+  function releasePaintWaiters(paintedStoryId, threw) {
+    if (!paintedStoryId) return;
+
+    waitingForPaint
+      .filter(function (waiter) {
+        return waiter.storyId === paintedStoryId;
+      })
+      .forEach(function (waiter) {
+        waiter.report(true, threw);
+      });
+  }
+
+  return { middleware: middleware, path: LETTERBOX_PATH };
+}
+
+/* ========================================================================== */
+
+/** The path part of a request url, without the query a bundler request may carry. */
+function pathOf(url) {
+  if (typeof url !== 'string') return '';
+  var queryStart = url.indexOf('?');
+  return queryStart === -1 ? url : url.slice(0, queryStart);
+}
+
+/** A body that is not JSON is read as an empty message rather than thrown at the bundler. */
+function readJsonBody(request, whenRead) {
+  var body = '';
+  request.on('data', function (chunk) {
+    body += chunk;
+  });
+  request.on('end', function () {
+    var parsed;
+    try {
+      parsed = JSON.parse(body || '{}');
+    } catch (_) {
+      parsed = {};
+    }
+    whenRead(parsed && typeof parsed === 'object' ? parsed : {});
+  });
+}
+
+function sendJson(response, payload) {
+  var body = JSON.stringify(payload);
+  response.writeHead(200, {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(body),
+  });
+  response.end(body);
+}
+
+/**
+ * What the app said its story threw, or null when it said nothing readable. The app sends the
+ * error's name and message and nothing else, because those are the words that reach a developer's
+ * terminal - anything else here would be a shape this address invented.
+ */
+function readThrew(said) {
+  if (!said || typeof said !== 'object') return null;
+  if (typeof said.name !== 'string' || typeof said.message !== 'string') return null;
+  return { name: said.name, message: said.message };
+}
+
+/** A timeout the tool did not state, or stated nonsensically, falls back to half a minute. */
+function secondsOf(passed) {
+  return typeof passed === 'number' && isFinite(passed) && passed > 0 ? passed : 30;
+}
+
+module.exports = createOpenStoryLetterbox;
+module.exports.createOpenStoryLetterbox = createOpenStoryLetterbox;
+module.exports.LETTERBOX_PATH = LETTERBOX_PATH;

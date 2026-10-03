@@ -1,0 +1,10 @@
+Log in to Sherlo at this link:
+
+  [36m<LOGIN_LINK>[39m
+
+[33m⏳[39m Waiting for you to click Authorize... [2m(Ctrl+C to stop)[22m
+
+[32m✔[39m  Logged in as [1manna@example.com[22m
+
+
+[exit 0]

@@ -1,9 +1,8 @@
-import chalk from 'chalk';
-import { PLATFORM_LABEL } from '../constants';
 import { Platform } from '@sherlo/api-types';
+import { emit } from './transcriptSink';
 
 function printBuildPlatformLabel(platform: Platform) {
-  console.log('📦 ' + chalk.bold(PLATFORM_LABEL[platform]));
+  emit({ kind: 'binary-platform-label', platform });
 }
 
 export default printBuildPlatformLabel;

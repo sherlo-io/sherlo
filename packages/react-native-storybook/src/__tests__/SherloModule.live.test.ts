@@ -20,6 +20,7 @@ const {
   mockStabilize,
   mockIsScrollable,
   mockScrollToCheckpoint,
+  mockOpenTesting,
 } = vi.hoisted(() => ({
   mockGetSherloConstants: vi.fn(),
   mockGetConstants: vi.fn(),
@@ -30,6 +31,7 @@ const {
   mockStabilize: vi.fn(),
   mockIsScrollable: vi.fn(),
   mockScrollToCheckpoint: vi.fn(),
+  mockOpenTesting: vi.fn(),
 }));
 
 vi.mock('../specs/NativeSherloModule', () => ({
@@ -46,6 +48,7 @@ vi.mock('../specs/NativeSherloModule', () => ({
     openStorybook: vi.fn(),
     toggleStorybook: vi.fn(),
     notifyGetStorybookCalled: vi.fn(),
+    openTesting: mockOpenTesting,
   },
 }));
 
@@ -149,6 +152,11 @@ describe('SherloModule live - getConfig / getLastState', () => {
     expect(config.stabilization.requiredMatches).toBe(3);
   });
 
+  it('getConfigOrDefault() parses the config JSON string too, when there is one', () => {
+    const config = SherloModule.getConfigOrDefault();
+    expect(config.stabilization.requiredMatches).toBe(3);
+  });
+
   it('getLastState() returns parsed last state when set', () => {
     const state = SherloModule.getLastState();
     expect(state).toBeDefined();
@@ -186,5 +194,54 @@ describe('SherloModule live - getConfig / getLastState', () => {
 
   it('isTurboModule is true when TurboModule is present', () => {
     expect(SherloModule.isTurboModule).toBe(true);
+  });
+
+  it("getDriver() reads the `driver` constant a run's config-based boot reports", () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'runner' });
+    expect(SherloModule.getDriver()).toBe('runner');
+  });
+
+  it("getDriver() reads the `driver` constant a capture's restart reports", () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'capture' });
+    expect(SherloModule.getDriver()).toBe('capture');
+  });
+
+  it('getDriver() returns undefined outside testing mode, where native reports no driver', () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: null });
+    expect(SherloModule.getDriver()).toBeUndefined();
+  });
+});
+
+describe('SherloModule live - openTesting', () => {
+  it('JSON-encodes the config and defaults a missing storyId to the empty string', () => {
+    const config = { stabilization: { requiredMatches: 3 } } as any;
+    SherloModule.openTesting(undefined, config);
+    expect(mockOpenTesting).toHaveBeenCalledWith('', JSON.stringify(config));
+  });
+
+  it('passes the storyId through when given', () => {
+    const config = { stabilization: { requiredMatches: 3 } } as any;
+    SherloModule.openTesting('comp--story', config);
+    expect(mockOpenTesting).toHaveBeenCalledWith('comp--story', JSON.stringify(config));
+  });
+});
+
+describe('SherloModule live - getConfigOrDefault() with nothing on disk', () => {
+  // A capture restarts the app into testing mode with no config.sherlo ever written to the
+  // device. Native reports that absence as null (NSNull on iOS, a null JSONObject on Android),
+  // which crosses the bridge as the constant `config: null` below.
+  const NO_CONFIG_ON_DISK = { ...NEW_ARCH_CONSTANTS, config: null as unknown as string };
+
+  it('getConfig() throws, because there is nothing to parse', () => {
+    mockGetSherloConstants.mockReturnValue(NO_CONFIG_ON_DISK);
+    mockGetConstants.mockReturnValue({});
+    expect(() => SherloModule.getConfig()).toThrow('Config is undefined');
+  });
+
+  it('getConfigOrDefault() falls back to the SDK defaults instead of throwing', () => {
+    mockGetSherloConstants.mockReturnValue(NO_CONFIG_ON_DISK);
+    mockGetConstants.mockReturnValue({});
+    const config = SherloModule.getConfigOrDefault();
+    expect(config.stabilization.requiredMatches).toBe(3);
   });
 });

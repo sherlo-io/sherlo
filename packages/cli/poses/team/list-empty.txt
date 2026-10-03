@@ -1,0 +1,6 @@
+[33m◦[39m  You are not in any team yet
+
+[2mNext: `sherlo team create --name <name>` makes your first team.[22m
+
+
+[exit 0]

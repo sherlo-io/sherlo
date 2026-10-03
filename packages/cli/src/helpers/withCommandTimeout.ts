@@ -19,7 +19,7 @@ function withCommandTimeout<T, P extends { wait?: boolean }>(
       return commandFn(options);
     }
 
-    let timeoutId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {

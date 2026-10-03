@@ -1,5 +1,20 @@
 import type { View } from '@storybook/react-native';
+import type { StoryMocks } from '../mocking/mockDeclaration';
+
 export interface SherloParameters {
+  /**
+   * Module Mocking (SHERLO-1734): the mocks this story declares, applied for the duration
+   * of the story's snapshot. Each is made by `mock(() => import('...'), definition)`, which
+   * names the module by its import so the definition is checked against that module's own
+   * types. The import's specifier must be a string literal so the config-time Metro scan can
+   * see it and emit the shim that makes the module mockable.
+   *
+   * The older form - an object keyed by module-specifier strings - is still accepted, and
+   * stays untyped. Deny-listed modules (react, react-native, @storybook/*, @sherlo/*) cannot
+   * be mocked - mock a wrapper module you own instead.
+   */
+  mocks?: StoryMocks;
+
   /**
    * Setting exclude to true skips the story during testing. This might be
    * useful if the story has animations that cannot be stabilized for testing
@@ -40,7 +55,7 @@ export type Snapshot = {
   sherloParameters?: SherloParameters;
   /**
    * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
-   * Emitted by the device so a story can be mapped to its source file server-side.
+   * Emitted by the device so Diff Scope can map storyId → source file server-side.
    * Absent on older SDK versions; runner captures every story when missing.
    */
   importPath?: string;
