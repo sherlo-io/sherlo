@@ -20,6 +20,16 @@ Initializing Sherlo in your project...
 [32m✔[39m Storybook
 
 
+[1m🎯 Project[22m
+[2m══════════[22m
+
+Checking who is setting up and which project this app belongs to.
+
+[32m✔[39m Using the project from your token: [1m<TEAM>/4[22m
+  The token is not written to sherlo.config.json.
+  Add it to your CI as the SHERLO_TOKEN secret.
+
+
 [1m💾 Dependencies[22m
 [2m═══════════════[22m
 

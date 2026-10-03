@@ -9,10 +9,12 @@
  * command and the bare form a read.
  *
  * WHAT IS STUBBED, AND WHAT IS DELIBERATELY NOT. Only the two things that reach
- * the outside world are: the build read and the wait loop. `getTokenParts`,
- * `getAppBuildUrl`, `parseWaitTimeout` and `throwError` stay real, so the cases
- * below are asserting that the command SPLITS the token, COMPOSES the URL and
- * PARSES the timeout, rather than that it was handed all three.
+ * the outside world are: the build read and the wait loop. The credential is
+ * resolved by the real resolver from the flags, the settings and the config each
+ * case states, and `getAppBuildUrl`, `parseWaitTimeout` and `throwError` stay
+ * real, so the cases below are asserting that the command reads the build in the
+ * project its credential names, COMPOSES the URL and PARSES the timeout, rather
+ * than that it was handed all three.
  */
 import { PROJECT_API_TOKEN_LENGTH } from '@sherlo/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,6 +51,7 @@ import _getValidatedCommandParams from '../../../helpers/getValidatedCommandPara
 import _waitForBuildResult, {
   readBuildStatus as _readBuildStatus,
 } from '../../../helpers/waitForBuildResult';
+import resolvePushCredential from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
 import view from '../view';
 
 const getValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
@@ -62,6 +65,13 @@ const readBuildStatus = vi.mocked(_readBuildStatus);
 const TEAM_ID = 'tm000001';
 const PROJECT_INDEX = 7;
 const TOKEN = `${'s'.repeat(PROJECT_API_TOKEN_LENGTH)}${TEAM_ID}${PROJECT_INDEX}`;
+
+/**
+ * What the config file holds beside the project token, per case. The token is
+ * always there - most cases read a build on it - and a case that spends a
+ * person's credential replaces it.
+ */
+let configOfThisCase: Record<string, unknown> = {};
 
 /** A finished build with nothing to review - the shape most cases here reuse. */
 const FINISHED_BUILD = {
@@ -82,13 +92,17 @@ beforeEach(() => {
   exitCodes = [];
   readBuildStatus.mockReset().mockResolvedValue(FINISHED_BUILD);
   waitForBuildResult.mockReset().mockResolvedValue(0);
-  // The real resolution has its own suite; what matters here is that the
-  // command works from the params it is GIVEN, options included.
-  getValidatedCommandParams
-    .mockReset()
-    .mockImplementation(
-      ({ passedOptions }) => ({ ...passedOptions, token: TOKEN, devices: [] } as never)
-    );
+  // The config file and the devices have their own suites; what matters here is
+  // that the command works from the params it is GIVEN, options included, and
+  // spends the credential the real resolver answers for them.
+  getValidatedCommandParams.mockReset().mockImplementation(({ command, passedOptions }) => {
+    const config = { token: TOKEN, ...configOfThisCase };
+    const credential = resolvePushCredential(command, passedOptions, config);
+    return { ...config, ...passedOptions, credential, devices: [] } as never;
+  });
+  configOfThisCase = {};
+  // The machine running this suite may hold a project token of its own; no case reads it.
+  vi.stubEnv('SHERLO_TOKEN', '');
 
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -100,6 +114,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   delete process.env.SKIP_INTRO;
 });
 
@@ -120,6 +135,22 @@ describe('which build `sherlo view` looks at', () => {
     expect(readBuildStatus).toHaveBeenCalledWith(
       expect.objectContaining({ buildIndex: 7, projectIndex: PROJECT_INDEX, teamId: TEAM_ID })
     );
+  });
+
+  it("reads the build in the config's project when it spends a person's credential", async () => {
+    // No project token anywhere: the config names the project, and the person's token is sent
+    // whole - it has no team or project in it to split out.
+    configOfThisCase = { token: undefined, project: 'k3j9x2ab/4' };
+    const personalToken = 'sht_viewpersonaltoken000000000000';
+
+    await runView('7', { personalToken });
+
+    expect(readBuildStatus).toHaveBeenCalledWith({
+      token: personalToken,
+      buildIndex: 7,
+      projectIndex: 4,
+      teamId: 'k3j9x2ab',
+    });
   });
 
   it('refuses with no argument, and says why there is no default', async () => {

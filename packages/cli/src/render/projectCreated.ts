@@ -44,7 +44,7 @@ export type ProjectCreated = {
 
 const STORE_IT_NOW = 'Project token - shown once. Store it now; it cannot be shown again.';
 
-const HOW_TO_USE = 'Use it as the `token` in sherlo.config.json, or as SHERLO_TOKEN in CI.';
+const HOW_TO_USE = 'Add it to your CI as the SHERLO_TOKEN secret.';
 
 /** Every line the command prints on success, in order. */
 export function renderProjectCreated({ name, index, projectToken }: ProjectCreated): string[] {

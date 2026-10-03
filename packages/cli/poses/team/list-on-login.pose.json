@@ -1,0 +1,24 @@
+{
+  "pose": 1,
+  "argv": ["team", "list"],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [{ "id": "tm000001", "name": "Storefront", "projectCount": 2, "role": "owner" }]
+      }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}

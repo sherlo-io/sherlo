@@ -5,8 +5,13 @@ import { DEFAULT_DEVICES } from './constants';
 import readConfig from './readConfig';
 import writeConfig from './writeConfig';
 
+/**
+ * An existing config, written back with its keys and devices, the default devices only when it has
+ * none, and the project in place of the old one. A `token` an older setup wrote stays as it was;
+ * setup never writes one.
+ */
 async function updateConfig(
-  token?: string
+  project: string
 ): Promise<{ updatedConfig: InvalidatedConfig; hasAddedDefaultDevices: boolean }> {
   const config = await readConfig();
   const hasDevices = Array.isArray(config.devices) && config.devices.length > 0;
@@ -14,7 +19,7 @@ async function updateConfig(
 
   const updatedConfig = {
     ...config,
-    ...(token && { token }),
+    project,
     devices: hasDevices ? config.devices : DEFAULT_DEVICES,
   };
 
@@ -22,8 +27,8 @@ async function updateConfig(
 
   printLines(
     renderConfigWritten({
-      outcome: token && token !== config.token ? 'token-updated' : 'already-created',
-      hasToken: Boolean(updatedConfig.token),
+      outcome: 'already-created',
+      project,
       addedDevices: hasAddedDefaultDevices ? DEFAULT_DEVICES : [],
     })
   );

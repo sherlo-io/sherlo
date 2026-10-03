@@ -5,7 +5,6 @@ import {
   getBuildRunConfig,
   getGitInfo,
   getPlatformsToTest,
-  getTokenParts,
   getValidatedCommandParams,
   handleClientError,
   printBuildIntroMessage,
@@ -13,6 +12,7 @@ import {
   printBuildPlatformLabel,
   printResultsUrl,
   printSherloIntro,
+  throwError,
 } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
@@ -39,7 +39,16 @@ async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
 
   validatePackageJsonScripts(commandParams);
 
-  const { apiToken, projectIndex, teamId } = getTokenParts(commandParams.token);
+  // The credential was resolved before any request, and this road takes a project token only: a
+  // person's credential was refused there by name (getValidatedCommandParams).
+  const { credential } = commandParams;
+  if (credential.kind !== 'projectToken') {
+    throwError({
+      type: 'unexpected',
+      error: new Error(`${TEST_EAS_CLOUD_BUILD_COMMAND} reached a build on a person's credential`),
+    });
+  }
+  const { apiToken, projectIndex, teamId } = credential;
   const client = sdkClient({ authToken: apiToken });
 
   const { build } = await client
@@ -83,7 +92,7 @@ async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
   createSherloTempDirectory({
     buildIndex,
     projectRoot: commandParams.projectRoot,
-    token: commandParams.token,
+    token: credential.token,
   });
 
   if (commandParams.easBuildScriptName) {

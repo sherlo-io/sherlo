@@ -2,8 +2,8 @@
  * `sherlo pose <pose.json|->` - run ONE command against a declared world and print the whole
  * screen it put on a terminal, with the exit code the real run would have had.
  *
- * THE COMMAND'S CODE IS THE SHIPPED CODE. What a pose replaces is the six seams a command
- * reaches through, each installed here for the length of one run and taken out afterwards:
+ * THE COMMAND'S CODE IS THE SHIPPED CODE. What a pose replaces is the seams a command reaches
+ * through, each installed here for the length of one run and taken out afterwards - among them:
  *
  *     ../../seams/projectFiles   the folder it reads
  *     ../../seams/surroundings   the settings it reads, and what git answers
@@ -13,6 +13,8 @@
  *                                fingerprint, the clock - and the uploads it makes
  *     ../../seams/workstation    what an `init` DOES to the machine - the package it installs,
  *                                the key it waits for
+ *     ../../seams/browser        whether the browser a login opens came up
+ *     ../../seams/savedLogins    the logins saved on the machine, by service address
  *
  * Everything between those seams - the routing in ../../start, the checks, the logo, the
  * wording, the help footer, the exit code - is the customer's road, unforked. That is what makes
@@ -44,6 +46,8 @@ import { installNativeBuild, posedNativeBuild } from '../../seams/nativeBuild';
 import { installWorkstation, posedWorkstation } from '../../seams/workstation';
 import { installLetterbox, posedLetterbox } from '../../seams/letterbox';
 import { installCaptureSocket, posedCaptureSocket } from '../../seams/captureSocket';
+import { installBrowser, posedBrowser } from '../../seams/browser';
+import { installSavedLogins, posedSavedLogins } from '../../seams/savedLogins';
 import type { CommandPose } from '../../seams/commandPose';
 import { readPoseDocument } from './readPose';
 import { maskScreen } from './maskScreen';
@@ -96,8 +100,11 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   const acts = posedWorkstation(commandPose.workstation);
   const app = posedLetterbox(commandPose.letterbox);
   const socket = posedCaptureSocket(commandPose.capture);
+  const loginBrowser = posedBrowser(commandPose.browser);
 
   const uninstall = [
+    installBrowser(loginBrowser),
+    installSavedLogins(posedSavedLogins(commandPose.logins)),
     installProjectFiles(files),
     installSurroundings(world),
     installBundler(posedBundler(commandPose.bundles)),
@@ -150,6 +157,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
       ...acts.refusals(),
       ...app.refusals(),
       ...socket.refusals(),
+      ...loginBrowser.refusals(),
     ],
     unusedCalls: api.unusedCalls(),
   };

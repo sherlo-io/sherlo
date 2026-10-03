@@ -56,9 +56,16 @@ describe('the init screens no pose draws', () => {
     ]);
   });
 
-  it('a config file whose token was replaced, and which kept its own devices, says only that', () => {
+  it('a config file that kept its own devices says it was already created and names the project', () => {
     expect(
-      render.renderConfigWritten({ outcome: 'token-updated', hasToken: true, addedDevices: [] })
-    ).toEqual([`${ESC}[32m✔${ESC}[39m Updated token: sherlo.config.json`]);
+      render.renderConfigWritten({
+        outcome: 'already-created',
+        project: 'k3j9x2ab/4',
+        addedDevices: [],
+      })
+    ).toEqual([
+      `${ESC}[32m✔${ESC}[39m Already created: sherlo.config.json`,
+      `${ESC}[32m✔${ESC}[39m Added project ${ESC}[1mk3j9x2ab/4${ESC}[22m to sherlo.config.json`,
+    ]);
   });
 });

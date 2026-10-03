@@ -19,7 +19,6 @@ import getBuildRunConfig from './getBuildRunConfig';
 import { getGitInfo } from '../seams/surroundings';
 import { nativeBuild } from '../seams/nativeBuild';
 import { serverCalls } from '../seams/serverCalls';
-import getTokenParts from './getTokenParts';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
 import parseWaitTimeout from './parseWaitTimeout';
@@ -83,8 +82,8 @@ async function uploadOrReuseBuildsAndRunTests({
   commandParams: CommandParams;
   effects?: PushEffects;
 }): Promise<{ url: string }> {
-  const { projectIndex, teamId } = getTokenParts(commandParams.token);
-  const token = commandParams.token;
+  // The credential and its project were resolved before any request (./getValidatedCommandParams).
+  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
 
   const command = TEST_COMMAND;
 
@@ -118,7 +117,7 @@ async function uploadOrReuseBuildsAndRunTests({
     openBuild: (input) =>
       serverCalls()
         .openBuild({ token, ...input } as never)
-        .catch(handleClientError),
+        .catch((error) => handleClientError(error, token)),
     binaryUpload: {
       readBinary: (buildPath, platform, projectRoot) =>
         machine.readBinaryForUpload(buildPath, platform, projectRoot),
@@ -317,7 +316,8 @@ async function uploadOrReuseBuildsAndRunTests({
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
-      token: commandParams.token,
+      token,
+      fromSavedLogin,
       buildIndex: buildIndex,
       projectIndex,
       teamId,

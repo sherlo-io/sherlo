@@ -13,11 +13,13 @@
  * shape of its own answer, and the contract was a third hand-written copy that could go stale in
  * silence. Now there is one declaration per seam, one composition here, and two generated copies.
  */
+import type { PosedBrowser } from './browser';
 import type { PosedBundle } from './bundler';
 import type { PosedCapture } from './captureSocket';
 import type { PosedLetterbox } from './letterbox';
 import type { PosedPush } from './nativeBuild';
 import type { PosedFiles } from './projectFiles';
+import type { PosedLogins } from './savedLogins';
 import type { ScriptedCall } from './serverCalls';
 import type { PosedGit } from './surroundings';
 import type { PosedWorkstation } from './workstation';
@@ -127,4 +129,17 @@ export type CommandPose = {
    * for any other command is refused, and a capture with no `capture` is refused at run time.
    */
   capture?: PosedCapture;
+  /**
+   * What the browser did when `sherlo login` opened it on the authorize link: whether it came up.
+   * For the commands that log in - `login`, and `init` when it runs the login itself - and refused
+   * for any other. Nothing opens on a posed run; a login with no `browser` is refused at run time.
+   */
+  browser?: PosedBrowser;
+  /**
+   * The logins saved on the machine before the run, by the service address each was made against
+   * (the run talks to **SHERLO_API_URL** when `env` sets it). Absent is a machine nobody has logged
+   * in on. A posed run reads and writes no saved-login file: what the command saves or deletes
+   * changes only this list, for the rest of the run.
+   */
+  logins?: PosedLogins;
 };

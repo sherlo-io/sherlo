@@ -56,7 +56,7 @@ import {
 } from '../../constants';
 import { printSherloIntro, reporting, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
-import { resolvePersonalToken, resolveTeamId } from '../shared';
+import { refuseRejectedLogin, resolvePersonalToken, resolveTeamId } from '../shared';
 import { CreateProjectAuthError } from './createProjectRequest';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
@@ -75,10 +75,14 @@ async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void>
     thisCommand: THIS_COMMAND,
     purpose: 'the team the project belongs to',
   });
-  const personalToken = resolvePersonalToken(passedOptions[PERSONAL_TOKEN_OPTION], {
-    thisCommand: THIS_COMMAND,
-    tokenContextLine: 'that one names a project, and the project does not exist yet.',
-  });
+  const { personalToken, fromSavedLogin } = resolvePersonalToken(
+    passedOptions[PERSONAL_TOKEN_OPTION],
+    {
+      thisCommand: THIS_COMMAND,
+      tokenContextLine:
+        'The project token names one project, and the project you are creating does not exist yet.',
+    }
+  );
 
   // The team is the one fact here worth having on a crash report. The token is
   // not, in any form: no hash, no prefix, no length.
@@ -87,7 +91,10 @@ async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void>
   const project = await serverCalls()
     .createProject({ name, teamId, personalToken })
     .catch((error: Error) => {
-      if (error instanceof CreateProjectAuthError) refuseRejectedToken(teamId);
+      if (error instanceof CreateProjectAuthError) {
+        if (fromSavedLogin) refuseRejectedLogin();
+        refuseRejectedToken(teamId);
+      }
 
       throwError({ message: error.message, errorToReport: error });
     });

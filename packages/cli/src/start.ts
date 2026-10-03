@@ -5,6 +5,8 @@ import {
   easBuildOnComplete,
   fingerprint,
   init,
+  login,
+  logout,
   projectCreate,
   projectList,
   showError,
@@ -48,6 +50,7 @@ import {
   PROJECT_COMMAND,
   PROJECT_CREATE_SUBCOMMAND,
   PROJECT_LIST_SUBCOMMAND,
+  PROJECT_OPTION,
   PROJECT_ROOT_OPTION,
   NAME_OPTION,
   TEAM_COMMAND,
@@ -73,6 +76,8 @@ import {
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
 } from './constants';
+import { LOGIN_COMMAND } from './commands/login/constants';
+import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
 
 // Disable all Node.js warnings
@@ -90,6 +95,10 @@ async function start() {
       .description('Sherlo CLI: Visual testing for React Native');
 
     addInitCommand(program);
+
+    addLoginCommand(program);
+
+    addLogoutCommand(program);
 
     addTestCommand(program);
 
@@ -142,6 +151,8 @@ export default start;
 
 const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
+  [LOGIN_COMMAND]: 'Log in to Sherlo through your browser and save the login on this computer',
+  [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
@@ -313,6 +324,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     "The team to create the project in - the `t=` value in the web app's URL. Required: " +
       'a personal token names a person, so there is no team to infer.',
   ],
+  [PROJECT_OPTION]: [
+    `--${PROJECT_OPTION} <teamId>/<projectIndex>`,
+    'The project this app belongs to: the team id, a slash and the project number (e.g. k3j9x2ab/4)',
+  ],
   [VERBOSE_OPTION]: [
     `--${VERBOSE_OPTION}`,
     'List every native source, package and file under its layer, with its digest',
@@ -388,11 +403,32 @@ function addCaptureCommand(program: Command) {
   });
 }
 
+// `sherlo login` waits for a person in the browser, up to the ten minutes a pending login lives -
+// a wait the service bounds, so `withTimeout: false`.
+function addLoginCommand(program: Command) {
+  addCommand({
+    program,
+    command: LOGIN_COMMAND,
+    options: [],
+    action: login,
+    withTimeout: false,
+  });
+}
+
+function addLogoutCommand(program: Command) {
+  addCommand({
+    program,
+    command: LOGOUT_COMMAND,
+    options: [],
+    action: logout,
+  });
+}
+
 function addInitCommand(program: Command) {
   addCommand({
     program,
     command: INIT_COMMAND,
-    options: [TOKEN_OPTION],
+    options: [TOKEN_OPTION, PERSONAL_TOKEN_OPTION, PROJECT_OPTION],
     action: init,
     withTimeout: false,
   });
@@ -407,8 +443,11 @@ function addTestCommand(program: Command) {
   addCommand({
     program,
     command: TEST_COMMAND,
+    // `--personal-token` here and on `view`, never on the EAS commands: their credential travels
+    // to Expo's build machine, so they take a project token only.
     options: [
       ...getTestCommonOptions('withPlatformPaths'),
+      PERSONAL_TOKEN_OPTION,
       BUNDLE_DIR_OPTION,
       EMIT_BUNDLE_DIR_OPTION,
       DRY_RUN_OPTION,
@@ -435,6 +474,7 @@ function addViewCommand(program: Command) {
 
   addOptionsToCommand(commandInstance, [
     TOKEN_OPTION,
+    PERSONAL_TOKEN_OPTION,
     CONFIG_OPTION,
     PROJECT_ROOT_OPTION,
     WAIT_OPTION,

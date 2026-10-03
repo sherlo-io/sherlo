@@ -36,7 +36,6 @@
  */
 import {
   getAppBuildUrl,
-  getTokenParts,
   getValidatedCommandParams,
   printResultsUrl,
   printSherloIntro,
@@ -44,10 +43,12 @@ import {
   throwError,
   waitForBuildResult,
 } from '../../helpers';
+import { AuthError } from '../../helpers/buildStatusRequest';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
 import { readBuildStatus } from '../../helpers/waitForBuildResult';
 import { Options } from '../../types';
+import { refuseRejectedLogin } from '../shared';
 import { THIS_COMMAND } from './constants';
 import { printBuildView, refuseBuildNotFound } from './printBuildView';
 
@@ -64,7 +65,9 @@ async function view(
     { requirePlatformPaths: false }
   );
 
-  const { projectIndex, teamId } = getTokenParts(commandParams.token);
+  // On a project token the team and project come from the token; on a person's credential, from
+  // the config's `project` - both resolved before any request (getValidatedCommandParams).
+  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
 
   reporting.setTag('build_index', String(buildIndex));
 
@@ -87,11 +90,17 @@ async function view(
   // by the caller's own `--wait-timeout`; a `--wait` miss on THIS read hands
   // straight over to it instead of refusing, so a mistyped index costs the
   // patience the caller asked `--wait` for, and nothing more.
+  //
+  // A refused saved login is answered the way every command answers it - log in again - and a
+  // token somebody gave keeps the read's own refusal.
   const build = await readBuildStatus({
-    token: commandParams.token,
+    token,
     buildIndex,
     projectIndex,
     teamId,
+  }).catch((error: Error) => {
+    if (error instanceof AuthError && fromSavedLogin) refuseRejectedLogin();
+    throw error;
   });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
@@ -112,7 +121,8 @@ async function view(
     printResultsUrl(url);
 
     const exitCode = await waitForBuildResult({
-      token: commandParams.token,
+      token,
+      fromSavedLogin,
       buildIndex,
       projectIndex,
       teamId,

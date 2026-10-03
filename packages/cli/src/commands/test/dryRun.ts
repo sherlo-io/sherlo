@@ -66,7 +66,7 @@ export async function runDryRunPreview({
   include,
   exclude,
 }: {
-  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
   token: string;
   bundles: Partial<Record<Platform, BundleResult>>;
   platformsToTest: Platform[];

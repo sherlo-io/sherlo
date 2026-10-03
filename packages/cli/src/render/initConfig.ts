@@ -1,11 +1,13 @@
 /**
  * WHAT `sherlo init` PRINTS FOR THE CONFIG FILE: its title, what happened to `sherlo.config.json`,
- * the hint when it holds no token, and the devices it was given.
+ * the project written into it, and the devices it was given. The file never holds a token: setup
+ * logs the person in and names the project, so there is no token hint to print.
  *
  * Pure, like everything under ./: state in, print-call arguments out.
  */
+import chalk from 'chalk';
 import { DEVICES } from '@sherlo/shared';
-import { APP_DOMAIN, DEFAULT_CONFIG_FILENAME, DOCS_LINK } from '../constants';
+import { DEFAULT_CONFIG_FILENAME, DOCS_LINK } from '../constants';
 import { renderCheckLine, renderSectionTitle } from './initLines';
 import { renderNotice } from './pushSpine';
 
@@ -17,26 +19,25 @@ export function renderConfigTitle(): string[] {
  * What happened to the config file:
  *
  *     created          - there was none, and a new one was written
- *     token-updated    - there was one, and the given token replaced the one it held
- *     already-created  - there was one, and it was written back as it was
+ *     already-created  - there was one, and it was written back with the project in place
  */
-export type ConfigFileOutcome = 'created' | 'token-updated' | 'already-created';
+export type ConfigFileOutcome = 'created' | 'already-created';
 
 /** The lines printed once the config file is written. */
 export function renderConfigWritten({
   outcome,
-  hasToken,
+  project,
   addedDevices,
 }: {
   outcome: ConfigFileOutcome;
-  /** Whether the file, as written, holds a token. */
-  hasToken: boolean;
+  /** The team id, a slash and the project's number, as written into the file. */
+  project: string;
   /** The devices the file was given because it had none; empty when it kept its own. */
   addedDevices: { id: keyof typeof DEVICES }[];
 }): string[] {
   return [
     renderCheckLine({ type: 'success', message: CONFIG_FILE_LINE[outcome] }),
-    ...(hasToken ? [] : [renderNoTokenHint()]),
+    renderProjectAdded(project),
     ...(addedDevices.length > 0 ? [renderDevicesAdded(addedDevices)] : []),
   ];
 }
@@ -57,18 +58,13 @@ export function renderDevicesCanBeAdjusted(): string[] {
 
 const CONFIG_FILE_LINE: Record<ConfigFileOutcome, string> = {
   created: `Created: ${DEFAULT_CONFIG_FILENAME}`,
-  'token-updated': `Updated token: ${DEFAULT_CONFIG_FILENAME}`,
   'already-created': `Already created: ${DEFAULT_CONFIG_FILENAME}`,
 };
 
-/** A config file with no token cannot push, so it says how to get one and where it goes. */
-function renderNoTokenHint(): string {
-  return renderNotice({
-    level: 'warning',
-    message:
-      `\`npx sherlo test\` needs a project token, and ${DEFAULT_CONFIG_FILENAME} has none yet\n` +
-      `Get one at ${APP_DOMAIN}, then run \`npx sherlo init --token <token>\` or add it as "token" in ${DEFAULT_CONFIG_FILENAME}`,
-    learnMoreLink: DOCS_LINK.configToken,
+function renderProjectAdded(project: string): string {
+  return renderCheckLine({
+    type: 'success',
+    message: `Added project ${chalk.bold(project)} to ${DEFAULT_CONFIG_FILENAME}`,
   });
 }
 

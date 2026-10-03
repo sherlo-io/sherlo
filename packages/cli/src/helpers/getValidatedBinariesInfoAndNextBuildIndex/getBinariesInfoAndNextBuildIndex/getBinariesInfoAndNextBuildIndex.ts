@@ -19,7 +19,7 @@ type OtherCommandParams = BaseParams & {
 };
 
 type BaseParams = {
-  /** The raw project token - the seam builds its own sdk client from it (../../../seams/serverCalls). */
+  /** The token the push spends - the seam builds its own sdk client from it (../../../seams/serverCalls). */
   token: string;
   platforms: Platform[];
   projectIndex: number;
@@ -72,7 +72,7 @@ async function getBinariesInfoAndNextBuildIndex(
       teamId,
       binaryReuseMode: 'requireHashMatch',
     })
-    .catch(handleClientError);
+    .catch((error) => handleClientError(error, token));
 
   const binariesInfo = {
     android: getBinaryInfo({

@@ -162,7 +162,7 @@ export type DryRunPlatformRequest = {
 };
 
 export type DryRunDecisionInput = {
-  /** The raw project token - the seam builds its own sdk client from it (../../seams/serverCalls). */
+  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
   token: string;
   /** The SAME git info openBuild is given - reuse it, do not build a second one. */
   gitInfo: GitInfo;

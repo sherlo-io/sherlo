@@ -8,7 +8,7 @@
 import { NAME_OPTION, PERSONAL_TOKEN_OPTION, TEAM_OPTION } from '../../constants';
 import { printSherloIntro, reporting, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
-import { resolvePersonalToken, resolveTeamId } from '../shared';
+import { refuseRejectedLogin, resolvePersonalToken, resolveTeamId } from '../shared';
 import { ListProjectsAuthError } from './listProjectsRequest';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
@@ -25,17 +25,24 @@ async function projectList(passedOptions: ProjectListOptions): Promise<void> {
     thisCommand: THIS_COMMAND,
     purpose: 'the team whose projects to list',
   });
-  const personalToken = resolvePersonalToken(passedOptions[PERSONAL_TOKEN_OPTION], {
-    thisCommand: THIS_COMMAND,
-    tokenContextLine: 'that one names a single project, and this command lists a whole team.',
-  });
+  const { personalToken, fromSavedLogin } = resolvePersonalToken(
+    passedOptions[PERSONAL_TOKEN_OPTION],
+    {
+      thisCommand: THIS_COMMAND,
+      tokenContextLine:
+        'The project token names one project, and this command lists the projects of a whole team.',
+    }
+  );
 
   reporting.setTag('team_id', teamId);
 
   const list = await serverCalls()
     .listProjects({ teamId, personalToken })
     .catch((error: Error) => {
-      if (error instanceof ListProjectsAuthError) refuseRejectedToken(teamId);
+      if (error instanceof ListProjectsAuthError) {
+        if (fromSavedLogin) refuseRejectedLogin();
+        refuseRejectedToken(teamId);
+      }
 
       throwError({ message: error.message, errorToReport: error });
     });

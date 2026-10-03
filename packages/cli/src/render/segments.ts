@@ -278,7 +278,23 @@ export type TranscriptSegment =
   /** The whole screen output of `sherlo capture`. See ./capturedStory. */
   | { kind: 'captured-story'; state: CapturedStory }
   /** `sherlo capture --logs` - the app's own log lines, printed after the story. See ./capturedLog. */
-  | { kind: 'captured-log'; logs: string[] };
+  | { kind: 'captured-log'; logs: string[] }
+  /* ---------------------------------------------------------------------- *
+   * LOGGING IN - what `sherlo login` and `sherlo logout` print when they    *
+   * end well. See ./login. No segment here carries a token.                 *
+   * ---------------------------------------------------------------------- */
+  /** The authorize link, alone on its line - printed before the browser is asked to open it. */
+  | { kind: 'login-link'; authorizeUrl: string }
+  /** The wait for the person's answer, and whether the browser came up. */
+  | { kind: 'login-waiting'; browserOpened: boolean }
+  /** `✔  Logged in as <email>`. */
+  | { kind: 'logged-in'; email: string }
+  /** `✔  Already logged in as <email>` - a saved login the service still accepts. */
+  | { kind: 'already-logged-in'; email: string }
+  /** `✔  Logged out <email>`. */
+  | { kind: 'logged-out'; email: string }
+  /** `◦  Not logged in` - a logout with no saved login. */
+  | { kind: 'not-logged-in' };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the

@@ -8,10 +8,8 @@ vi.mock('../../helpers/trackProgress', () => ({
   default: vi.fn(async ({ sessionId }) => ({ sessionId })),
 }));
 
-const NO_TOKEN_WARNING_LINES = [
-  '`npx sherlo test` needs a project token, and sherlo.config.json has none yet',
-  'Get one at https://app.sherlo.io, then run `npx sherlo init --token <token>` or add it as "token" in sherlo.config.json',
-];
+const PROJECT = 'k3j9x2ab/4';
+const OTHER_PROJECT = 'k3j9x2ab/5';
 
 let projectDir: string;
 let originalCwd: string;
@@ -27,7 +25,7 @@ afterEach(() => {
   fs.rmSync(projectDir, { recursive: true, force: true });
 });
 
-async function runConfigStep(token?: string): Promise<string> {
+async function runConfigStep(project: string): Promise<string> {
   const printedLines: string[] = [];
   const recordLine = (...args: unknown[]) => {
     printedLines.push(args.map(String).join(' '));
@@ -35,56 +33,39 @@ async function runConfigStep(token?: string): Promise<string> {
   vi.spyOn(console, 'log').mockImplementation(recordLine);
   vi.spyOn(console, 'warn').mockImplementation(recordLine);
 
-  await config({ sessionId: null, token });
+  await config({ sessionId: null, project });
 
   vi.restoreAllMocks();
 
   return printedLines.join('\n');
 }
 
-function readWrittenConfig(): { token?: string } {
+function readWrittenConfig(): { project?: string; token?: string } {
   return JSON.parse(fs.readFileSync(path.join(projectDir, 'sherlo.config.json'), 'utf-8'));
 }
 
 describe('the config step of setup', () => {
-  // The hint's two lines are approved copy, so they are matched exactly.
-  it('with no token, writes a config file with no token and prints where to get one and how to add it', async () => {
-    const printed = await runConfigStep();
+  it('writes a new config file with the project and no token, and says so before the devices pointer', async () => {
+    const printed = await runConfigStep(PROJECT);
 
+    expect(readWrittenConfig()).toMatchObject({ project: PROJECT });
     expect(readWrittenConfig().token).toBeUndefined();
-    for (const line of NO_TOKEN_WARNING_LINES) expect(printed).toContain(line);
 
     const createdAt = printed.indexOf('Created: sherlo.config.json');
-    const warningAt = printed.indexOf(NO_TOKEN_WARNING_LINES[0]);
+    const projectAt = printed.indexOf(`Added project`);
     const devicesInfoAt = printed.indexOf('You can adjust testing devices');
     expect(createdAt).toBeGreaterThanOrEqual(0);
-    expect(warningAt).toBeGreaterThan(createdAt);
-    expect(devicesInfoAt).toBeGreaterThan(warningAt);
+    expect(projectAt).toBeGreaterThan(createdAt);
+    expect(devicesInfoAt).toBeGreaterThan(projectAt);
+    expect(printed).not.toContain('needs a project token');
   });
 
-  it('prints nothing about a token when one is given', async () => {
-    const printed = await runConfigStep('some-token');
+  it('writes the new project over the old one when the file already exists', async () => {
+    await runConfigStep(PROJECT);
 
-    expect(readWrittenConfig().token).toBe('some-token');
-    expect(printed).not.toContain(NO_TOKEN_WARNING_LINES[0]);
-  });
+    const printed = await runConfigStep(OTHER_PROJECT);
 
-  it('prints nothing new when a file that already holds a token is re-run with no token', async () => {
-    await runConfigStep('some-token');
-
-    const printed = await runConfigStep();
-
-    expect(readWrittenConfig().token).toBe('some-token');
+    expect(readWrittenConfig().project).toBe(OTHER_PROJECT);
     expect(printed).toContain('Already created: sherlo.config.json');
-    expect(printed).not.toContain(NO_TOKEN_WARNING_LINES[0]);
-  });
-
-  it('warns again when an existing file holds no token and none is given', async () => {
-    await runConfigStep();
-
-    const printed = await runConfigStep();
-
-    expect(printed).toContain('Already created: sherlo.config.json');
-    expect(printed).toContain(NO_TOKEN_WARNING_LINES[0]);
   });
 });

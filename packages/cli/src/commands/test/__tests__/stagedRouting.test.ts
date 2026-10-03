@@ -51,7 +51,6 @@ vi.mock('../../../helpers', async () => {
     getBuildRunConfig: vi.fn(() => ({ ios: { devices: [], s3Key: 'unset' } })),
     getGitInfo: vi.fn(async () => ({ commitHash: 'c', branchName: 'b', commitName: 'm' })),
     getPlatformsToTest: vi.fn(() => ['ios']),
-    getTokenParts: vi.fn(() => ({ apiToken: 'api', projectIndex: 3, teamId: 'team' })),
     getValidatedCommandParams: vi.fn(),
     handleClientError: vi.fn((error) => {
       throw error;
@@ -104,6 +103,16 @@ let stagedRun: (passedOptions: any) => Promise<{ url: string }>;
 let exitSpy: ReturnType<typeof vi.spyOn>;
 let logSpy: ReturnType<typeof vi.spyOn>;
 
+/** The project token this road spends, as getValidatedCommandParams resolves it. */
+const PROJECT_TOKEN_CREDENTIAL = {
+  kind: 'projectToken',
+  token: 'token-value',
+  apiToken: 'api',
+  projectIndex: 3,
+  teamId: 'team',
+  fromSavedLogin: false,
+} as const;
+
 const IOS_DEVICE = {
   id: 'test-iphone',
   osVersion: '17.0',
@@ -135,7 +144,7 @@ beforeEach(async () => {
 
   mockGetValidatedCommandParams.mockReturnValue({
     projectRoot: '/proj',
-    token: 'token-value',
+    credential: PROJECT_TOKEN_CREDENTIAL,
     devices: [IOS_DEVICE],
     wait: false,
   } as any);
@@ -259,7 +268,7 @@ describe('native-needed (nothing is built)', () => {
   it('--wait: still exits EXIT_NATIVE_NEEDED, never a wait code, and never polls', async () => {
     mockGetValidatedCommandParams.mockReturnValue({
       projectRoot: '/proj',
-      token: 'token-value',
+      credential: PROJECT_TOKEN_CREDENTIAL,
       devices: [IOS_DEVICE],
       wait: true,
     } as any);
