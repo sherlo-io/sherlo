@@ -46,12 +46,14 @@ const OPENER_GRACE_MS = 1500;
 export const liveBrowser: Browser = {
   open: (url) =>
     new Promise((resolve) => {
-      if (!isWebLink(url)) {
+      const webLink = parseWebLink(url);
+      if (!webLink) {
         resolve(false);
         return;
       }
 
-      const [program, ...args] = openerCommand(url, process.platform);
+      // The opener gets the parsed link, never the raw string the parser forgave things in.
+      const [program, ...args] = openerCommand(webLink.href, process.platform);
 
       try {
         const opener = spawn(program, args, { detached: true, stdio: 'ignore' });
@@ -95,11 +97,17 @@ export function openerCommand(url: string, platform: NodeJS.Platform): string[] 
 
 /** Whether `url` is an absolute `http:` or `https:` link - the only kind the opener is handed. */
 export function isWebLink(url: string): boolean {
+  return parseWebLink(url) !== undefined;
+}
+
+/** The parsed link when `url` is an absolute `http:` or `https:` link, else nothing. */
+function parseWebLink(url: string): URL | undefined {
   try {
-    const { protocol } = new URL(url);
-    return protocol === 'http:' || protocol === 'https:';
+    const parsedLink = new URL(url);
+    const isWeb = parsedLink.protocol === 'http:' || parsedLink.protocol === 'https:';
+    return isWeb ? parsedLink : undefined;
   } catch {
-    return false;
+    return undefined;
   }
 }
 
