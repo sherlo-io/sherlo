@@ -7,8 +7,8 @@
  */
 import type {
   StoryMeta,
-  StoryMocks,
-  StorybookView,
+  OpaqueStoryMocks as StoryMocks,
+  OpaqueStorybookView as StorybookView,
 } from '../../../react-native-storybook/src/sealedCore/seam';
 import { theHost } from './host';
 

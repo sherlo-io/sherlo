@@ -13,3 +13,9 @@ static inline NSString *CompiledCoreUnusableReason(void) {
     if (coreAbi == KNOWN_COMPILED_CORE_ABI) return nil;
     return [NSString stringWithFormat:@"the C core speaks ABI %d, this SDK knows ABI %d", coreAbi, KNOWN_COMPILED_CORE_ABI];
 }
+
+/** The C core's own version, or nil when it cannot be used. */
+static inline NSString *CompiledCoreVersion(void) {
+    if (CompiledCoreUnusableReason()) return nil;
+    return [NSString stringWithUTF8String:sherlo_core_version()];
+}

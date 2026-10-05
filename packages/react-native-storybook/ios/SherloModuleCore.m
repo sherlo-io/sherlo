@@ -164,12 +164,17 @@ static FileSystemHelper *fileSystemHelper;
         }
     }
     
+    // The C core's version, for the START that reports which core ran. Only a run reads it, so it
+    // is asked for in testing mode only, as on Android.
+    NSString *compiledCoreVersion = [currentMode isEqualToString:MODE_TESTING] ? CompiledCoreVersion() : nil;
+
     return @{
         @"mode": currentMode,
         @"config": configString ?: [NSNull null],
         @"lastState": lastStateString ?: [NSNull null],
         @"nativeVersion": nativeVersion ?: [NSNull null],
-        @"driver": driver ?: [NSNull null]
+        @"driver": driver ?: [NSNull null],
+        @"compiledCoreVersion": compiledCoreVersion ?: [NSNull null]
     };
 }
 

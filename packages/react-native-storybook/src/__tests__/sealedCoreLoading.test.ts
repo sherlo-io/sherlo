@@ -3,22 +3,39 @@
  * with none.
  *
  * Native code is the react-native stub (./__mocks__/react-native): each test chooses what its
- * loadCore() answers, then imports the SDK fresh, because the core loads once per import.
+ * loadCore() answers, then imports the SDK fresh, because the core loads once per import. Unchosen,
+ * it answers with the suite's fake core (./__mocks__/fakeSealedCore).
  *
  * No renderer runs here, so React and the modules getStorybook.tsx draws with are stand-ins: the
  * JSX runtime answers `{ type, props }`, which is enough to see which component the entry renders.
  */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import base64 from 'base-64';
+import * as ts from 'typescript';
+import utf8 from 'utf8';
 import {
+  NativeModules,
+  __getAppendFileCalls,
   __getNativeErrors,
+  __resetAppendFileCalls,
   __resetNativeMode,
   __resetSealedCoreNative,
+  __setNativeCompiledCoreVersion,
   __setNativeLoadCore,
   __setNativeMode,
   __setNativeVersion,
   fakeSealedCoreSource,
   nativePickOf,
 } from './__mocks__/react-native';
+import { FAKE_CORE_VERSION } from './__mocks__/fakeSealedCore';
 import { REQUIRED_MIN_NATIVE_VERSION } from '../sdk-compatibility.json';
+import { PROTOCOL_FILE } from '../constants';
+import type { SealedCoreHost } from '../sealedCore/seam';
+
+// src: this file is at src/__tests__/.
+const SDK_SOURCE_DIR = path.resolve(__dirname, '..');
+const CORE_PACKAGE_DIR = path.resolve(SDK_SOURCE_DIR, '..', '..', 'sherlo-core');
 
 vi.mock('react', () => ({
   default: { useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }) },
@@ -324,14 +341,117 @@ describe('running with no core', () => {
   });
 });
 
+/** Every file in a `__tests__` folder of the SDK's source: its tests and their stubs. */
+function sdkTestFiles(): string[] {
+  const filesUnder = (dir: string): string[] =>
+    fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const entryPath = path.join(dir, entry.name);
+      return entry.isDirectory() ? filesUnder(entryPath) : [entryPath];
+    });
+  return filesUnder(SDK_SOURCE_DIR).filter(
+    (file) => file.split(path.sep).includes('__tests__') && /\.tsx?$/.test(file)
+  );
+}
+
+/** Every file a test file imports by a relative path, as an absolute path. */
+function filesImportedBy(testFile: string): string[] {
+  return ts
+    .preProcessFile(fs.readFileSync(testFile, 'utf8'), true, true)
+    .importedFiles.map((importedFile) => importedFile.fileName)
+    .filter((specifier) => specifier.startsWith('.'))
+    .map((specifier) => path.resolve(path.dirname(testFile), specifier));
+}
+
 describe('the core the SDK suite runs against', () => {
-  it('the SDK suite runs against a fake core, never a built or fetched one', () => {});
+  it('the SDK suite runs against a fake core, never a built or fetched one', async () => {
+    // WORKAROUND: the packaging test still reads the C core's build script for its ABI list. It
+    // checks the pack, not a run, and goes when packages/sherlo-core leaves this repository (task
+    // sdk-pin), which this exception then goes with.
+    const packagingTest = path.join(SDK_SOURCE_DIR, '__tests__', 'sealedCorePackaging.test.ts');
+
+    const importsOfTheCorePackage = sdkTestFiles()
+      .filter((testFile) => testFile !== packagingTest)
+      .flatMap((testFile) =>
+        filesImportedBy(testFile)
+          .filter((importedFile) => importedFile.startsWith(CORE_PACKAGE_DIR + path.sep))
+          .map(
+            (importedFile) => `${path.relative(SDK_SOURCE_DIR, testFile)} imports ${importedFile}`
+          )
+      );
+    expect(importsOfTheCorePackage).toEqual([]);
+
+    // With no answer chosen, native code hands the SDK the fake core, and that is the core it runs.
+    expect(JSON.parse(NativeModules.SherloModule.loadCore()).source).toBe(fakeSealedCoreSource(1));
+    expect((await freshLoader()).getSealedCore()?.version).toBe(FAKE_CORE_VERSION);
+  });
 });
 
+/** The protocol lines the app wrote for the runner, as the runner reads them. */
+function protocolLinesWritten(): Record<string, unknown>[] {
+  return __getAppendFileCalls()
+    .filter(([file]) => file === PROTOCOL_FILE)
+    .map(([, encodedLine]) => JSON.parse(utf8.decode(base64.decode(encodedLine))));
+}
+
+/** The core's START, sent through the runner line the SDK handed the installed core. */
+async function startSentByTheCore(): Promise<Record<string, unknown>> {
+  const host = coreOnTheGlobal()!.installedWith as unknown as SealedCoreHost;
+  __resetAppendFileCalls();
+  // The runner never answers here, so its answer is never awaited: the line is written before the
+  // SDK starts waiting for it.
+  host.runner.send({ action: 'START', snapshots: [] });
+  await Promise.resolve();
+
+  const [start] = protocolLinesWritten().filter((line) => line.action === 'START');
+  return start;
+}
+
 describe('reporting which core ran', () => {
-  it("in testing mode the app reports which core ran: its origin, its version and the C core's version", () => {});
+  beforeEach(() => {
+    // The SDK polls for the runner's answer; with fake timers it never does here.
+    vi.useFakeTimers();
+    // A testing-mode log line reads React Native's __DEV__.
+    vi.stubGlobal('__DEV__', true);
+    __setNativeCompiledCoreVersion('1.4.0');
+  });
 
-  it('an app with no core reports that none ran', () => {});
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 
-  it('outside testing mode the app reports no core', () => {});
+  it("in testing mode the app reports which core ran: its origin, its version and the C core's version", async () => {
+    __setNativeMode('testing');
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1), 'override', FAKE_CORE_VERSION));
+    (await freshLoader()).getSealedCore();
+
+    const start = await startSentByTheCore();
+
+    expect(start.core).toEqual({
+      origin: 'override',
+      version: FAKE_CORE_VERSION,
+      cVersion: '1.4.0',
+    });
+  });
+
+  it('an app with no core reports that none ran', async () => {
+    __setNativeMode('testing');
+    __setNativeLoadCore(() => nativePickOf(null));
+
+    const { getSealedCore, reportWhichCoreRan } = await freshLoader();
+
+    expect(getSealedCore()).toBeNull();
+    expect(reportWhichCoreRan()).toEqual({ origin: 'none', version: null, cVersion: '1.4.0' });
+  });
+
+  it('outside testing mode the app reports no core', async () => {
+    __setNativeMode('storybook');
+    const { getSealedCore, reportWhichCoreRan } = await freshLoader();
+    getSealedCore();
+
+    expect(reportWhichCoreRan()).toBeUndefined();
+    const start = await startSentByTheCore();
+    expect(start).toBeDefined();
+    expect(start).not.toHaveProperty('core');
+  });
 });

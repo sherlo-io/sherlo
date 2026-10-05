@@ -34,6 +34,11 @@ final class CompiledCore {
         return UNUSABLE_REASON;
     }
 
+    /** The C core's own version, or null when it cannot be used. */
+    static String version() {
+        return UNUSABLE_REASON == null ? nativeVersion() : null;
+    }
+
     private static String loadAndCheckAbi() {
         try {
             System.loadLibrary("sherlocore");

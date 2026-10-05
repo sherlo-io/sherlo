@@ -34,7 +34,7 @@ import type {
   LetterboxAnswer,
   StoryThrew,
   StorybookChannel,
-  StorybookView,
+  OpaqueStorybookView as StorybookView,
 } from '../../../react-native-storybook/src/sealedCore/seam';
 import { theHost } from './host';
 import {

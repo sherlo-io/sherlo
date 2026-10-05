@@ -117,7 +117,7 @@ import type {
   Metadata,
   StoryThrew,
   StorybookChannel,
-  StorybookView,
+  OpaqueStorybookView as StorybookView,
   WaitOutcome,
   WindowReason,
 } from '../../../react-native-storybook/src/sealedCore/seam';

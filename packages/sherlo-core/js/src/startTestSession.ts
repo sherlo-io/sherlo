@@ -4,7 +4,7 @@
  *
  * The SDK's useSetInitialTestingData hook calls this once, from its effect.
  */
-import type { StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
+import type { OpaqueStorybookView as StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
 import { theHost } from './host';
 import { enumerateStories } from './adapter';
 import prepareSnapshots from './prepareSnapshots';

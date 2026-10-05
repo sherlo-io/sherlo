@@ -15,19 +15,6 @@ import { activateStoryMocks } from '../../mocking';
 import { UNSHIMMED_KEYS_LOG } from '../../mocking/activateStoryMocks';
 import RunnerBridge from '../../helpers/RunnerBridge';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
-import { getSealedCore } from '../../sealedCore/loadSealedCore';
-import { enumerateStories as enumerateStoriesFromCoreSource } from '../../../../sherlo-core/js/src/adapter';
-import type { StorybookView } from '../../types';
-
-/**
- * The stories, as the sealed core lists them. The core calls this itself, so the SDK cannot: it is
- * taken from the core's source, after the SDK loaded and installed that core with its host, which
- * the listing reads.
- */
-function enumerateStories(view: StorybookView) {
-  expect(getSealedCore()).not.toBeNull();
-  return enumerateStoriesFromCoreSource(view);
-}
 
 afterEach(() => {
   clearMocks();
@@ -149,36 +136,26 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it('load ordering: a key whose shim was evaluated via enumerateStories’ require.context walk is not a false positive', () => {
+  it("load ordering: a key whose shim was evaluated by the core's walk of every story file is not a false positive", () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const fileExports = {
-      default: { title: 'Components/Widget' },
-      Default: { parameters: { sherlo: { mocks: { 'pkg/widget-dep': { value: 'mock' } } } } },
+    // In a test run the sealed core lists the stories by requiring every story file through
+    // Metro's require.context before any activation, and requiring a file also evaluates its
+    // static imports, including any generated shim reachable from it. Activation itself reads only
+    // the selected story (storyMocksOf), so with no such walk a shim reached only through another
+    // story's file may not have evaluated yet (see the note on warnUnshimmedKeys in
+    // activateStoryMocks.ts). The walk is the core's; here it is stood in for by requiring the
+    // story file, which runs createMockable exactly like the shim module would.
+    const requireStoryFile = (_filename: string) => {
+      createMockable('pkg/widget-dep', {});
+      return {
+        default: { title: 'Components/Widget' },
+        Default: { parameters: { sherlo: { mocks: { 'pkg/widget-dep': { value: 'mock' } } } } },
+      };
     };
-    // Requiring a story file also evaluates its static imports, including any
-    // generated shim reachable from it - mirror that by having req() itself run
-    // createMockable, exactly like a shim module would when Metro's require.context
-    // eagerly requires every story file.
-    const req = Object.assign(
-      (_filename: string) => {
-        createMockable('pkg/widget-dep', {});
-        return fileExports;
-      },
-      { keys: () => ['./Widget.stories.tsx'] }
-    );
-    (globalThis as any).STORIES = [{ directory: './src', req }];
+    const storyFile = requireStoryFile('./Widget.stories.tsx');
 
-    const view = { _storyIndex: { entries: {} } } as unknown as StorybookView;
-    // This holds the core's path - a test run, where the sealed core's enumerateStories loads
-    // every story file before any activation. Activation itself reads only the selected story
-    // (storyMocksOf), so with no core a shim reached only through another story's file may not
-    // have evaluated yet (see the note on warnUnshimmedKeys in activateStoryMocks.ts).
-    // enumerateStories eagerly requires every story file - by the time it returns,
-    // every reachable shim (including pkg/widget-dep's) has already registered.
-    const storyMetas = enumerateStories(view);
-
-    activateStoryMocks(storyMetas[0].mocks);
+    activateStoryMocks(storyFile.Default.parameters.sherlo.mocks);
 
     expect(warnSpy).not.toHaveBeenCalled();
   });

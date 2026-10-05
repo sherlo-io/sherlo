@@ -9,19 +9,7 @@
  * React.
  */
 
-/**
- * One node of the fiber tree the app is rendered from, as much of it as naming a view reads.
- *
- * A fiber typed by a string draws a native view; any other fiber draws a component of its own,
- * which is where the names come from. The native tag on a host fiber is the id the inspector
- * reports for the same view, which is how a name finds the view that carries it.
- */
-export type RenderedFiber = {
-  type: unknown;
-  stateNode?: unknown;
-  child?: RenderedFiber | null;
-  sibling?: RenderedFiber | null;
-};
+import type { RenderedFiber } from './sealedCore/seam';
 
 /** The top of the app's story, or nothing before it has been rendered. */
 let storyOfTheApp: RenderedFiber | undefined;

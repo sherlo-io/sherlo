@@ -1,6 +1,6 @@
 import { enumerateStories } from '../src/adapter';
 import prepareSnapshots from '../src/prepareSnapshots';
-import type { StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
+import type { OpaqueStorybookView as StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
 import { installTestHost } from './testHost';
 
 beforeEach(() => installTestHost());
