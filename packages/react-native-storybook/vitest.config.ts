@@ -7,9 +7,6 @@ const slotCpus = Number(process.env.BRAIN_SLOT_CPUS);
 const maxWorkers = slotCpus > 0 ? slotCpus : undefined;
 
 export default defineConfig({
-  // The suite runs against the sealed core's own source (src/__tests__/__mocks__/
-  // sealedCoreFromSource.ts), which names its version the way the core's build defines it.
-  define: { __SHERLO_CORE_VERSION__: JSON.stringify('0.0.0-source') },
   resolve: {
     alias: {
       // react-native/index.js uses Flow syntax (`import typeof`) that Vite/Rollup

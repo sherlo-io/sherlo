@@ -13,7 +13,7 @@ import type {
   Config,
   Metadata,
   SafeAreaInsets,
-  StorybookView,
+  OpaqueStorybookView as StorybookView,
 } from '../../../react-native-storybook/src/sealedCore/seam';
 import { theHost } from './host';
 import { waitForStoryRendered } from './storyRenderedReadiness';

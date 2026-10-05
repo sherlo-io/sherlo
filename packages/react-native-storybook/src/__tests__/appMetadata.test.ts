@@ -21,7 +21,7 @@ import {
   providerFirstRenderedAt,
   rememberAppMetadataCollector,
 } from '../appMetadata';
-import type { Metadata } from '../getStorybook/components/TestingMode/MetadataProvider';
+import type { Metadata } from '../sealedCore/seam';
 
 /** What the app published about itself, as the provider builds it: views by tag, and the words. */
 const THE_APPS_VIEWS: Metadata = {

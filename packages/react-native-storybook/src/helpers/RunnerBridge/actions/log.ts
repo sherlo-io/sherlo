@@ -1,5 +1,5 @@
 import SherloModule from '../../../SherloModule';
-import { LogFn } from '../types';
+import type { LogFn } from '../../../sealedCore/seam';
 import { pushAppLogLine } from '../captureLogSink';
 
 function log(path: string): LogFn {

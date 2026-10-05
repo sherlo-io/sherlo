@@ -251,6 +251,10 @@ public class SherloModuleCore {
         constants.putString("lastState", this.lastState != null ? this.lastState.toString() : null);
         constants.putString("nativeVersion", this.nativeVersion);
         constants.putString("driver", this.driver);
+        // The C core's version, for the START that reports which core ran. Only a run reads it, so
+        // only testing mode loads the C core to ask.
+        constants.putString("compiledCoreVersion",
+                MODE_TESTING.equals(this.currentMode) ? CompiledCore.version() : null);
         return constants;
     }
 

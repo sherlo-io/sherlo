@@ -9,25 +9,7 @@ import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
 import { rememberAppMetadataCollector } from '../../../appMetadata';
 import { getSealedCore } from '../../../sealedCore/loadSealedCore';
-import type { ViewProps } from '../../../sealedCore/seam';
-
-export interface Metadata {
-  viewProps: ViewProps;
-  texts: string[];
-  /**
-   * The same reading above, kept SEPARATE per fiber generation this collector walked - `fiber`
-   * and its `.alternate` (see the comment on `roots` in `collectMetadata`) - CURRENT GENERATION
-   * FIRST. `viewProps`/`texts` are the two MERGED across every generation, current one last, so
-   * for a native tag present in both a stale entry can only ADD an entry no live view holds
-   * (never reused across a story switch), never survive over what the current generation drew
-   * for a tag it shares with the stale one (reused every time a view updates in place, keeping
-   * its native tag). It is NOT right for "is the story ON SCREEN NOW throwing": a story that
-   * threw a switch or two ago left its fallback text sitting in the merged reading forever, under
-   * no tag a live inspector reading will ever match again. A caller asking that question reads
-   * this instead, picking the one generation whose own testID-carrying view is still live.
-   */
-  generations: { viewProps: ViewProps; texts: string[] }[];
-}
+import type { Metadata } from '../../../sealedCore/seam';
 
 export interface MetadataProviderRef {
   collectMetadata: () => Metadata;

@@ -1,9 +1,5 @@
-export interface StoryError {
-  name: string;
-  message: string;
-  stack: string;
-  componentStack: string;
-}
+import type { StoryError } from '../sealedCore/seam';
+
 const registry = new Map<string, StoryError>();
 export function recordStoryError(id: string, e: StoryError): void {
   registry.set(id, e);

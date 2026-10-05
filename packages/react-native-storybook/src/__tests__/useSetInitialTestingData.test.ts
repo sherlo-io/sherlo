@@ -1,8 +1,7 @@
 /**
  * What is left of useSetInitialTestingData in the SDK: it starts the sealed core's test session
- * (startTestSession, tested in packages/sherlo-core/js/__tests__) with the Storybook view, and only
- * for a launch a runner drives. The core is the one built from its source
- * (./__mocks__/sealedCoreFromSource), its session start stood in for.
+ * (startTestSession, tested where the core is built) with the Storybook view, and only for a launch
+ * a runner drives. The core is the suite's fake (./__mocks__/fakeSealedCore).
  */
 vi.mock('react', async () => {
   const actual = await vi.importActual<typeof import('react')>('react');

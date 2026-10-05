@@ -1,5 +1,5 @@
 import { enumerateStories } from '../src/adapter';
-import type { StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
+import type { OpaqueStorybookView as StorybookView } from '../../../react-native-storybook/src/sealedCore/seam';
 import { installTestHost } from './testHost';
 
 // The host carries the SDK's own mergeStoryMocks, the one the SDK hands the core.
