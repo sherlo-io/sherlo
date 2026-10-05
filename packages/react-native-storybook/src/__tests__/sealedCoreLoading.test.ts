@@ -323,3 +323,15 @@ describe('running with no core', () => {
     delete (globalThis as { STORIES?: unknown }).STORIES;
   });
 });
+
+describe('the core the SDK suite runs against', () => {
+  it('the SDK suite runs against a fake core, never a built or fetched one', () => {});
+});
+
+describe('reporting which core ran', () => {
+  it("in testing mode the app reports which core ran: its origin, its version and the C core's version", () => {});
+
+  it('an app with no core reports that none ran', () => {});
+
+  it('outside testing mode the app reports no core', () => {});
+});

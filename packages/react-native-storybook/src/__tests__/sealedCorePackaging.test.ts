@@ -449,6 +449,10 @@ describe('what the published package carries', () => {
     );
     expect(podspec).toContain('s.private_header_files = "ios/CompiledCore.h"');
   });
+
+  it('the sherlo repository tracks no source of either core', () => {});
+
+  it("every testing app's committed SDK tarball carries the JS core and the C core", () => {});
 });
 
 describe('what CI and a release check', () => {
@@ -532,4 +536,14 @@ describe('what CI and a release check', () => {
     expect(ndkStepPosition).toBeGreaterThanOrEqual(0);
     expect(ndkStepPosition).toBeLessThan(publishPosition);
   });
+
+  it('every workflow step that packs the SDK has the package token', () => {});
+
+  it("a release whose pinned core's runner commit is not on sherlo-runner's default branch stops before it commits anything", () => {});
+
+  it('no release workflow builds or signs a core', () => {});
+
+  it('no release workflow sets up the Android NDK', () => {});
+
+  it('no pull request job builds, tests or type-checks a core', () => {});
 });
