@@ -75,6 +75,7 @@
     "build": "rm -rf dist && tsc -p . && yarn build:metro",
     "build:metro": "bash ./scripts/buildMetroPlugin.sh",
     "prepack": "node scripts/packSealedCore.js && yarn build:metro",
+    "core:pin": "node scripts/pinCore.js",
     "dev": "yarn build --watch",
     "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint --ext .ts,.tsx src",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"

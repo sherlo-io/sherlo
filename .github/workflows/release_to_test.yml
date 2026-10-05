@@ -5,9 +5,9 @@ on:
 
 jobs:
   release-to-test:
-    # macOS: the SDK's pack builds the C core with Xcode and the Android NDK (see
-    # release-sherlo-packages.yml). This private copy is not a release, so it keeps the test key.
-    runs-on: macos-15
+    # The SDK's pack fetches the pinned core with PACKAGE_TOKEN and builds none. This private copy
+    # is not a release, so it keeps the test key.
+    runs-on: ubuntu-latest
     concurrency: release-to-test
     permissions:
       # `contents: write` is for the action release ref this job pushes (see the last
@@ -49,20 +49,6 @@ jobs:
           echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
           echo "{\"version\": \"$VERSION\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
 
-      - name: Make the Android NDK findable
-        # The SDK's pack builds the Android core, which finds the NDK only through one of
-        # ANDROID_HOME, ANDROID_SDK_ROOT, ANDROID_NDK_HOME or ANDROID_NDK_ROOT. Name the newest
-        # NDK the image carries, and install one when it carries none.
-        run: |
-          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          NDK_DIR=$(ls -d "$SDK_ROOT"/ndk/*/ 2>/dev/null | sort -V | tail -n 1)
-          if [ -z "$NDK_DIR" ]; then
-            yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006"
-            NDK_DIR="$SDK_ROOT/ndk/27.1.12297006"
-          fi
-          echo "ANDROID_NDK_HOME=${NDK_DIR%/}" >> $GITHUB_ENV
-
       - name: Prepare and publish to GitHub Packages
         id: publish
         run: |
@@ -95,6 +81,8 @@ jobs:
           cd ../react-native-storybook && npm publish --ignore-scripts --tag test
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The prepack fetches the pinned core from package storage with it.
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       # ────────────────────────────────────────────────────────────────────────
       # THE ACTION RELEASE REF.

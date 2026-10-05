@@ -23,10 +23,8 @@ permissions:
 
 jobs:
   release-to-prod:
-    # macOS because the SDK's pack builds the C core: the iOS xcframework needs Xcode, the Android
-    # libraries need the NDK, and this runner image carries both (the Android SDK's ndk folder, found
-    # through ANDROID_NDK_HOME). A pack that cannot build either fails the release.
-    runs-on: macos-15
+    # The SDK's pack fetches the pinned core with PACKAGE_TOKEN; nothing here builds or signs a core.
+    runs-on: ubuntu-latest
 
     env:
       SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK_URL}}
@@ -55,6 +53,22 @@ jobs:
         with:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
+
+      # The pin (packages/react-native-storybook/sherlo-core.json) names the sherlo-runner commit
+      # its core was built from. A release ships that core only once the commit is merged, so a pin
+      # whose commit is not on sherlo-runner's default branch stops here, before anything is
+      # committed.
+      - name: Check the pinned core's runner commit is merged
+        env:
+          GH_TOKEN: ${{ steps.github_app_token.outputs.token }}
+        run: |
+          RUNNER_SHA=$(jq -r .runnerSha packages/react-native-storybook/sherlo-core.json)
+          DEFAULT_BRANCH=$(gh api repos/sherlo-io/sherlo-runner --jq .default_branch)
+          COMPARE_STATUS=$(gh api "repos/sherlo-io/sherlo-runner/compare/${DEFAULT_BRANCH}...${RUNNER_SHA}" --jq .status)
+          if [ "$COMPARE_STATUS" != "identical" ] && [ "$COMPARE_STATUS" != "behind" ]; then
+            echo "Error: the pinned core was built from sherlo-runner commit $RUNNER_SHA, which is not on its default branch $DEFAULT_BRANCH. Merge sherlo-runner first." >&2
+            exit 1
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -124,6 +138,8 @@ jobs:
         run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
         env:
           SHERLO_RELEASE_BUILD: 'true'
+          # The SDK's prepack fetches the pinned core from package storage with it.
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Restore the native loaders to the test key
         run: git checkout -- packages/react-native-storybook/ios/SherloCoreLoader.m packages/react-native-storybook/android/src/main/java/io/sherlo/storybookreactnative/SherloCoreLoader.java

@@ -31,8 +31,9 @@
     "lint:js": "cross-env NODE_ENV=production eslint --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:js:fix": "cross-env NODE_ENV=production eslint --fix --cache --cache-location=.cache/eslint --ext .js,.jsx,.html,.ts,.tsx,.mjs --report-unused-disable-directives",
     "lint:types": "tsc --noEmit",
-    "typecheck": "tsc --noEmit -p packages/cli && tsc --noEmit -p packages/react-native-storybook && tsc --noEmit -p packages/sherlo-core && tsc --noEmit -p contracts",
+    "typecheck": "tsc --noEmit -p packages/cli && tsc --noEmit -p packages/react-native-storybook && tsc --noEmit -p contracts",
     "reset": "./scripts/reset.sh",
+    "pack:testing-apps": "bash ./scripts/pack-testing-apps.sh",
     "switch-env:test": "./scripts/switch-env.sh test",
     "switch-env:dev": "./scripts/switch-env.sh dev",
     "switch-env:prod": "./scripts/switch-env.sh prod"

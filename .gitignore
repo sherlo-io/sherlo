@@ -1,12 +1,10 @@
 node_modules
 
-# The sealed cores are built at pack time, never committed.
-packages/sherlo-core/sherlo-core.js
+# The pinned core is laid into the SDK at pack time (packages/react-native-storybook/scripts/packSealedCore.js), never committed.
 packages/react-native-storybook/ios/Resources/assets/sherlo-core.js
 packages/react-native-storybook/android/src/main/assets/sherlo-core.js
 packages/react-native-storybook/ios/SherloCore.xcframework
 packages/react-native-storybook/android/src/main/jniLibs
-packages/sherlo-core/native/build
 
 .expo/
 .next/

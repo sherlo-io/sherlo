@@ -35,7 +35,14 @@ import type { SealedCoreHost } from '../sealedCore/seam';
 
 // src: this file is at src/__tests__/.
 const SDK_SOURCE_DIR = path.resolve(__dirname, '..');
-const CORE_PACKAGE_DIR = path.resolve(SDK_SOURCE_DIR, '..', '..', 'sherlo-core');
+// The two scripts that fetch a real core from package storage, and the only test files that may
+// import them: the pin's and the packaging check's, which test the pack, not a run.
+const CORE_FETCHING_SCRIPTS = ['packSealedCore', 'storedCore'].map((scriptName) =>
+  path.resolve(SDK_SOURCE_DIR, '..', 'scripts', scriptName)
+);
+const TESTS_OF_THE_PACK = ['sealedCorePin.test.ts', 'sealedCorePackaging.test.ts'].map((testName) =>
+  path.join(SDK_SOURCE_DIR, '__tests__', testName)
+);
 
 vi.mock('react', () => ({
   default: { useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }) },
@@ -364,21 +371,21 @@ function filesImportedBy(testFile: string): string[] {
 
 describe('the core the SDK suite runs against', () => {
   it('the SDK suite runs against a fake core, never a built or fetched one', async () => {
-    // WORKAROUND: the packaging test still reads the C core's build script for its ABI list. It
-    // checks the pack, not a run, and goes when packages/sherlo-core leaves this repository (task
-    // sdk-pin), which this exception then goes with.
-    const packagingTest = path.join(SDK_SOURCE_DIR, '__tests__', 'sealedCorePackaging.test.ts');
-
-    const importsOfTheCorePackage = sdkTestFiles()
-      .filter((testFile) => testFile !== packagingTest)
+    // Only the tests of the pack reach the scripts that fetch a real core.
+    const fetchesARealCore = (importedFile: string) =>
+      CORE_FETCHING_SCRIPTS.includes(importedFile.replace(/\.js$/, ''));
+    const importsOfAFetchingScript = sdkTestFiles()
+      .filter((testFile) => !TESTS_OF_THE_PACK.includes(testFile))
       .flatMap((testFile) =>
         filesImportedBy(testFile)
-          .filter((importedFile) => importedFile.startsWith(CORE_PACKAGE_DIR + path.sep))
+          .filter(fetchesARealCore)
           .map(
             (importedFile) => `${path.relative(SDK_SOURCE_DIR, testFile)} imports ${importedFile}`
           )
       );
-    expect(importsOfTheCorePackage).toEqual([]);
+    expect(importsOfAFetchingScript).toEqual([]);
+    // The tests of the pack do import them, so the scan above finds an import when there is one.
+    expect(filesImportedBy(TESTS_OF_THE_PACK[0]).filter(fetchesARealCore)).not.toEqual([]);
 
     // With no answer chosen, native code hands the SDK the fake core, and that is the core it runs.
     expect(JSON.parse(NativeModules.SherloModule.loadCore()).source).toBe(fakeSealedCoreSource(1));

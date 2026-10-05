@@ -2,7 +2,7 @@
  * THE APP'S HALF OF THE CAPTURE SOCKET, the open part of it: the road to the bundler.
  *
  * The walk itself - waiting for each story to be on screen, stabilizing it and reading its view
- * tree - is the capture driver in the sealed core (packages/sherlo-core/js/src/captureTransport.ts).
+ * tree - is the capture driver in the sealed core, which the SDK packs and does not hold the source of.
  * What stays here is what talks to the developer's bundler: `bundlerCapture`, the one request held
  * open against the address the bundler serves (metro/captureSocket.js). The shapes of what crosses
  * it - which the command line reads back (packages/cli/src/seams/captureSocket.ts) - are the seam's
