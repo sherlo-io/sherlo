@@ -7,7 +7,7 @@
 // The manifest's story set is keyed by SOURCE FILE PATH, and the server narrows
 // a build's capture scope by matching that key against the project's configured
 // include/exclude lists. The runner on the device narrows by a different string
-// entirely: a snapshot's display name, which prepareSnapshots.ts builds as
+// entirely: a snapshot's display name, which the runner builds as
 // `"<title> - <story name>"` - where <title> is the Storybook TITLE of the
 // story's file. Paths and titles are two namespaces, so a server matching paths
 // can drop a story the runner would photograph. This module emits the title.

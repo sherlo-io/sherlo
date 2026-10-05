@@ -545,7 +545,7 @@ describe('what CI and a release check', () => {
     expect(stepsWithoutToken).toEqual([]);
   });
 
-  it("a release whose pinned core's runner commit is not on sherlo-runner's default branch stops before it commits anything", () => {
+  it("a release whose pinned core's source tree is on no commit of sherlo-runner's default branch stops before it commits anything", () => {
     const steps = namedStepsOf('release-sherlo-packages.yml');
     const positionOf = (stepName: string) => {
       const position = steps.findIndex((step) => step.name === stepName);
@@ -554,8 +554,10 @@ describe('what CI and a release check', () => {
     };
     const mergeCheckPosition = steps.findIndex(
       (step) =>
-        step.body.includes('.runnerSha packages/react-native-storybook/sherlo-core.json') &&
-        step.body.includes('repos/sherlo-io/sherlo-runner/compare/') &&
+        step.body.includes('.sourceTree packages/react-native-storybook/sherlo-core.json') &&
+        step.body.includes('repos/sherlo-io/sherlo-runner/commits?sha=') &&
+        step.body.includes('path=core') &&
+        step.body.includes('repos/sherlo-io/sherlo-runner/git/trees/') &&
         step.body.includes('exit 1')
     );
     expect(mergeCheckPosition).toBeGreaterThanOrEqual(0);
@@ -567,9 +569,10 @@ describe('what CI and a release check', () => {
     // ...on the checked-out pin, which only exists after the checkout...
     const checkoutPosition = steps.findIndex((step) => step.body.includes('actions/checkout'));
     expect(checkoutPosition).toBeLessThan(mergeCheckPosition);
-    // ...and passes only a commit the default branch holds: identical to it, or behind it.
-    expect(mergeCheck.body).toMatch(/"identical"/);
-    expect(mergeCheck.body).toMatch(/"behind"/);
+    // ...and passes only a source tree that a commit changing `core` on the default branch holds,
+    // however that commit was merged: the commit's own `core` tree entry is compared to the pin.
+    expect(mergeCheck.body).toContain('select(.path == "core")');
+    expect(mergeCheck.body).toContain('"$CORE_TREE" = "$SOURCE_TREE"');
     // Before anything is installed or committed.
     expect(mergeCheckPosition).toBeLessThan(positionOf('Install dependencies'));
     expect(mergeCheckPosition).toBeLessThan(positionOf('Commit and push version updates'));

@@ -100,10 +100,19 @@ afterEach(() => {
   }
 });
 
-/** A stand-in SDK folder: its pin names `fingerprint`, and its seam is this commit's seam. */
-function fakeSdkPinnedTo(fingerprint: string): string {
+/**
+ * A stand-in SDK folder: its pin copies every pin field the given core has (a bare fingerprint
+ * pins a core nothing stores), and its seam is this commit's seam.
+ */
+function fakeSdkPinnedTo(core: { fingerprint: string } & Partial<Manifest>): string {
   const sdkRoot = temporaryFolder('sherlo-sdk-');
-  fs.writeFileSync(path.join(sdkRoot, 'sherlo-core.json'), JSON.stringify({ fingerprint }));
+  const pin = Object.fromEntries(
+    PIN_FIELDS.filter((field) => field in core).map((field) => [
+      field,
+      core[field as keyof Manifest],
+    ])
+  );
+  fs.writeFileSync(path.join(sdkRoot, 'sherlo-core.json'), JSON.stringify(pin));
   fs.mkdirSync(path.join(sdkRoot, 'src', 'sealedCore'), { recursive: true });
   fs.copyFileSync(SEAM_FILE, path.join(sdkRoot, 'src', 'sealedCore', 'seam.ts'));
   return sdkRoot;
@@ -211,7 +220,7 @@ describe('a pack', () => {
       { manifest: pinnedManifest, files: pinnedFiles },
       { manifest: otherManifest, files: otherFiles },
     ]);
-    const sdkRoot = fakeSdkPinnedTo(pinnedManifest.fingerprint);
+    const sdkRoot = fakeSdkPinnedTo(pinnedManifest);
 
     await packSealedCore({ sdkRoot, readStoredFile: storage.readStoredFile });
 
@@ -226,7 +235,7 @@ describe('a pack', () => {
   it('a pack refuses a pin to a core that is not stored', async () => {
     const files = fakeCoreFiles();
     const { readStoredFile } = fakeStorage([{ manifest: manifestOf(files), files }]);
-    const sdkRoot = fakeSdkPinnedTo('d'.repeat(64));
+    const sdkRoot = fakeSdkPinnedTo({ fingerprint: 'd'.repeat(64) });
 
     await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
       'no core is stored under the fingerprint ' + 'd'.repeat(64)
@@ -235,7 +244,7 @@ describe('a pack', () => {
 
   it('a pack refuses a pin file that is not a pin', async () => {
     const { readStoredFile } = fakeStorage([]);
-    const sdkRoot = fakeSdkPinnedTo('d'.repeat(64));
+    const sdkRoot = fakeSdkPinnedTo({ fingerprint: 'd'.repeat(64) });
     fs.writeFileSync(path.join(sdkRoot, 'sherlo-core.json'), '{ "fingerprint": "latest" }');
 
     await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
@@ -248,7 +257,7 @@ describe('a pack', () => {
     files.delete('jniLibs/x86/libsherlocore.so');
     const manifest = manifestOf(files);
     const { readStoredFile } = fakeStorage([{ manifest, files }]);
-    const sdkRoot = fakeSdkPinnedTo(manifest.fingerprint);
+    const sdkRoot = fakeSdkPinnedTo(manifest);
 
     await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
       'core ' + manifest.fingerprint + ' stores no C core library for x86'
@@ -267,7 +276,7 @@ describe('a pack', () => {
       'cores/' + manifest.fingerprint + '/' + tamperedFile,
       Buffer.from('changed')
     );
-    const sdkRoot = fakeSdkPinnedTo(manifest.fingerprint);
+    const sdkRoot = fakeSdkPinnedTo(manifest);
 
     await expect(
       packSealedCore({ sdkRoot, readStoredFile: storage.readStoredFile })
@@ -283,13 +292,37 @@ describe('a pack', () => {
     // The manifest is not one of the files the fingerprint is made from, so only the seam differs.
     const manifest = manifestOf(files, sha256('another seam'));
     const { readStoredFile } = fakeStorage([{ manifest, files }]);
-    const sdkRoot = fakeSdkPinnedTo(manifest.fingerprint);
+    const sdkRoot = fakeSdkPinnedTo(manifest);
 
     await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
       "this commit's src/sealedCore/seam.ts hashes to " + sha256(fs.readFileSync(SEAM_FILE))
     );
     for (const { inSdk } of LAID_PATHS) {
       expect(fs.existsSync(path.join(sdkRoot, inSdk))).toBe(false);
+    }
+  });
+
+  it("A pack refuses a pin whose fields differ from the stored core's manifest", async () => {
+    const files = fakeCoreFiles();
+    const manifest = manifestOf(files);
+    const { readStoredFile } = fakeStorage([{ manifest, files }]);
+
+    for (const field of ['version', 'runnerSha', 'sourceTree', 'seamHash'] as const) {
+      const sdkRoot = fakeSdkPinnedTo({ ...manifest, [field]: 'not the stored ' + field });
+
+      await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
+        'sherlo-core.json says ' +
+          field +
+          ' is not the stored ' +
+          field +
+          ', but the stored core ' +
+          manifest.fingerprint +
+          ' says ' +
+          manifest[field]
+      );
+      for (const { inSdk } of LAID_PATHS) {
+        expect(fs.existsSync(path.join(sdkRoot, inSdk))).toBe(false);
+      }
     }
   });
 
@@ -300,7 +333,7 @@ describe('a pack', () => {
     const files = fakeCoreFiles();
     const coreManifest = manifestOf(files);
     const { readStoredFile } = fakeStorage([{ manifest: coreManifest, files }]);
-    const sdkRoot = fakeSdkPinnedTo(coreManifest.fingerprint);
+    const sdkRoot = fakeSdkPinnedTo(coreManifest);
     // A core laid by an earlier pack is replaced whole.
     const leftover = path.join(sdkRoot, 'android/src/main/jniLibs/mips/libsherlocore.so');
     fs.mkdirSync(path.dirname(leftover), { recursive: true });
