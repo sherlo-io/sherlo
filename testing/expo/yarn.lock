@@ -2434,7 +2434,7 @@ __metadata:
 
 "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz::locator=%40sherlo%2Fexpo%40workspace%3A.":
   version: 2.0.2
-  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=5e6f2f&locator=%40sherlo%2Fexpo%40workspace%3A."
+  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=280a7c&locator=%40sherlo%2Fexpo%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
@@ -2446,7 +2446,7 @@ __metadata:
     react: "*"
     react-native: ">=0.74.0"
     react-native-safe-area-context: "*"
-  checksum: 10/ff724a49c18195e4366a2ea15c8a25250d38e361555c1d65c62f4df63585363dd1c5bbc85cbb34ce8fbbbb265fc690d9e442b393353d72080a1d091b15301be0
+  checksum: 10/4133b87261898d4d73724227f802a2083e6c90c970c940e91fd6bf5ac7a29ee0c25e1f1af0d7bb3cf7e0563a2c77492f595cb74ab612a5cf179d137373125ba2
   languageName: node
   linkType: hard
 
