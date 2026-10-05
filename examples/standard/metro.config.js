@@ -12,5 +12,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');
 
 const config = getDefaultConfig(__dirname);
+// SPIKE android-lib-splice: brain's .watchmanconfig ignores .worktrees, so watchman sees no files.
+config.resolver.useWatchman = false;
 
 module.exports = withStorybook(config);

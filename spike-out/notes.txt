@@ -1,0 +1,43 @@
+SPIKE android-lib-splice - inputs for the runner helper's splice
+
+APK: app-release.apk (28400374 bytes), examples/standard, release variant, SDK packed from this copy
+  (yarn pack in packages/react-native-storybook: prepack built the JS core, the xcframework and jniLibs).
+  Built with reactNativeArchitectures=arm64-v8a only, so lib/ holds one ABI: arm64-v8a.
+  Holds lib/arm64-v8a/libsherlocore.so (24672 bytes) and assets/sherlo-core.js (70401 bytes).
+
+applicationId: io.sherlo.example.standard
+launch activity: io.sherlo.example.standard.MainActivity
+  adb shell am start -n io.sherlo.example.standard/.MainActivity
+
+Libraries (arm64-v8a):
+  libsherlocore-original.so   24672 bytes  sha256 c4d0ff63f2a6bc19dc34d15b8a359ec9efc4ceccb04953ed399dfc7722c61865  version 2.0.2
+    = the bytes inside the APK (extracted with unzip -p)
+  libsherlocore-sdk-jnilibs.so 24688 bytes sha256 c9fef42f1002ae211b93b5e5485815604c64e4618787a57c3f720615f9e709d5  version 2.0.2
+    = the SDK's jniLibs copy; AGP strips native libs again while packaging, so it is not byte-identical to the APK's
+  libsherlocore-variant.so    24704 bytes  sha256 a9b39bec7c0e402826bffc06627a9a48eba75a51c98fb92e350803ea31866756  version 2.0.2-splice-variant
+    = native/build.js's exact arm64 compile and link, with -DSHERLO_CORE_VERSION="2.0.2-splice-variant" (spike-out/variant.js)
+  Versions read with: grep -a -o "2\.0\.2[a-z-]*" <file>
+
+Logcat line naming the loaded core (added in this copy, logged on every launch, release build, level INFO):
+  tag: SherloSpikeCore
+  line: I SherloSpikeCore: loaded libsherlocore version=<version>
+  failure: E SherloSpikeCore: libsherlocore did not load: <message>
+  read with: adb logcat -d -s SherloSpikeCore
+  seen for this APK on emulator-5554: 10-05 11:10:26.652 27603 27603 I SherloSpikeCore: loaded libsherlocore version=2.0.2
+  (the SDK's own line, D SherloModule:CompiledCore "C core <v> loaded", only fires when a test run first touches the C core)
+
+Signing (apksigner verify --print-certs -v):
+  v1 false, v2 true, v3 false, v3.1 false, v4 false
+  one signer: CN=Android Debug, OU=Android, O=Unknown, L=Unknown, ST=Unknown, C=US
+  certificate SHA-256 fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b8332667591033b9c (the Mac's debug key; RSA 2048)
+  => after replacing an entry, zipalign then apksigner sign (v2) with the debug key; no v1 META-INF to strip.
+
+lib/ storage:
+  extractNativeLibs=false in the manifest (expo.useLegacyPackaging=false)
+  every lib/arm64-v8a/*.so is STORED (compression method none), page aligned: zipalign -c -P 16 -v 4 passes
+  libsherlocore.so local header at offset 21986792, data at 21987328
+  => the replacement must be stored uncompressed and 16 KB page aligned (zipalign -P 16 4), or the
+     installer refuses it / the loader cannot mmap it from the APK.
+
+Scripts here: prepare.js (pack SDK + install example), variant.js (build the variant .so),
+inspect.js (copy APK, print all of the above).

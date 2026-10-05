@@ -42,8 +42,12 @@ final class CompiledCore {
                 return "the C core speaks ABI " + abi + ", this SDK knows ABI " + KNOWN_ABI;
             }
             Log.d(TAG, "C core " + nativeVersion() + " loaded");
+            // SPIKE android-lib-splice: names the loaded library's version in release logcat.
+            Log.i("SherloSpikeCore", "loaded libsherlocore version=" + nativeVersion());
             return null;
         } catch (Throwable error) {
+            // SPIKE android-lib-splice
+            Log.e("SherloSpikeCore", "libsherlocore did not load: " + error.getMessage());
             return "libsherlocore.so did not load: " + error.getMessage();
         }
     }

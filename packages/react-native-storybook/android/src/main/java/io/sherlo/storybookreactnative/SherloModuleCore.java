@@ -80,6 +80,9 @@ public class SherloModuleCore {
         if (earlyInitDone) return;
         earlyInitDone = true;
 
+        // SPIKE android-lib-splice: load the C core on every launch, so logcat names its version.
+        CompiledCore.unusableReason();
+
         try {
             FileSystemHelper fsHelper = new FileSystemHelper(context);
             staticFsHelper = fsHelper;
