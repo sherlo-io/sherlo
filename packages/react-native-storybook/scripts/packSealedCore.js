@@ -10,6 +10,7 @@
  * - a pin to a core that is not stored;
  * - a core that lacks one of the four parts, or a C core library for one of the four Android ABIs;
  * - a stored file whose sha256 is not the one its manifest lists;
+ * - a pin whose version, runnerSha, sourceTree or seamHash differs from the stored core's manifest;
  * - a core typed against another seam: its manifest's seamHash must be the sha256 of this commit's
  *   src/sealedCore/seam.ts.
  *
@@ -48,6 +49,9 @@ const LAID_PATHS = [
 
 /** Every Android ABI the SDK ships a C core library for. */
 const ANDROID_ABIS = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'];
+
+/** The pin's fields besides the fingerprint, which the stored core's manifest says too. */
+const PIN_FIELDS_THE_MANIFEST_REPEATS = ['version', 'runnerSha', 'sourceTree', 'seamHash'];
 
 /** The pin, sherlo-core.json beside the SDK's manifest, or an error saying it is not one. */
 function readPin(sdkRoot) {
@@ -91,6 +95,15 @@ async function packSealedCore({ sdkRoot = SDK_ROOT, readStoredFile } = {}) {
 
   const pin = readPin(sdkRoot);
   const manifest = await readStoredManifest(pin.fingerprint, readCoreFile);
+
+  for (const field of PIN_FIELDS_THE_MANIFEST_REPEATS) {
+    if (pin[field] !== manifest[field]) {
+      throw new Error(
+        'sherlo-core.json says ' + field + ' is ' + pin[field] + ', but the stored core ' +
+          pin.fingerprint + ' says ' + manifest[field] + '. Repin: yarn core:pin.'
+      );
+    }
+  }
 
   const sdkSeamHash = sha256(fs.readFileSync(path.join(sdkRoot, 'src', 'sealedCore', 'seam.ts')));
   if (manifest.seamHash !== sdkSeamHash) {

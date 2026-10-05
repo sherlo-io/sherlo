@@ -54,21 +54,27 @@ jobs:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
 
-      # The pin (packages/react-native-storybook/sherlo-core.json) names the sherlo-runner commit
-      # its core was built from. A release ships that core only once the commit is merged, so a pin
-      # whose commit is not on sherlo-runner's default branch stops here, before anything is
-      # committed.
-      - name: Check the pinned core's runner commit is merged
+      # The pin (packages/react-native-storybook/sherlo-core.json) names the tree of sherlo-runner's
+      # `core` folder its core was built from. A release ships that core only once the same tree is
+      # on sherlo-runner's default branch. The branch is squash-merged, so the commit the core was
+      # built from is never on it, but a tree survives any merge: the pin passes when some commit
+      # that changed `core` on the default branch holds exactly that tree. Otherwise the release
+      # stops here, before anything is committed.
+      - name: Check the pinned core's source tree is on sherlo-runner's default branch
         env:
           GH_TOKEN: ${{ steps.github_app_token.outputs.token }}
         run: |
-          RUNNER_SHA=$(jq -r .runnerSha packages/react-native-storybook/sherlo-core.json)
+          SOURCE_TREE=$(jq -r .sourceTree packages/react-native-storybook/sherlo-core.json)
           DEFAULT_BRANCH=$(gh api repos/sherlo-io/sherlo-runner --jq .default_branch)
-          COMPARE_STATUS=$(gh api "repos/sherlo-io/sherlo-runner/compare/${DEFAULT_BRANCH}...${RUNNER_SHA}" --jq .status)
-          if [ "$COMPARE_STATUS" != "identical" ] && [ "$COMPARE_STATUS" != "behind" ]; then
-            echo "Error: the pinned core was built from sherlo-runner commit $RUNNER_SHA, which is not on its default branch $DEFAULT_BRANCH. Merge sherlo-runner first." >&2
-            exit 1
-          fi
+          COMMITS_CHANGING_CORE=$(gh api "repos/sherlo-io/sherlo-runner/commits?sha=${DEFAULT_BRANCH}&path=core&per_page=100" --jq '.[].sha')
+          for COMMIT in $COMMITS_CHANGING_CORE; do
+            CORE_TREE=$(gh api "repos/sherlo-io/sherlo-runner/git/trees/${COMMIT}" --jq '.tree[] | select(.path == "core") | .sha')
+            if [ "$CORE_TREE" = "$SOURCE_TREE" ]; then
+              exit 0
+            fi
+          done
+          echo "Error: the pinned core was built from the sherlo-runner core source tree $SOURCE_TREE, which no recent commit on its default branch $DEFAULT_BRANCH holds. Merge sherlo-runner first." >&2
+          exit 1
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

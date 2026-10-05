@@ -7,7 +7,7 @@
  * the sha256 of this file. So this file imports nothing either, and every type it names is
  * declared here. A change here is a change of the seam: it needs a new core built against it, and
  * a change of shape raises the seam number on both sides (SEAM_THIS_SDK_SPEAKS in
- * ./loadSealedCore, SEAM in the core's source, and SUPPORTED_SEAM in both native loaders).
+ * ./loadSealedCore, the seam number each core states, and SUPPORTED_SEAM in both native loaders).
  *
  * The SDK's own modules import these types from here; they do not declare them again.
  *
@@ -183,8 +183,8 @@ export type Config = {
    * Story-readiness + native-paint-barrier knobs.
    *
    * All optional: an OLD runner that omits them, paired with this SDK, still
-   * works because every value falls back to a SDK-side default (see
-   * READINESS_DEFAULTS in the sealed core's testStory).
+   * works because every value falls back to a default the core
+   * holds.
    */
   /**
    * When STORY_RENDERED is not received in time (or no Storybook channel is

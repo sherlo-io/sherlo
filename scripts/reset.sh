@@ -13,14 +13,20 @@
 #   5. Packs the SDK into the testing projects and installs their dependencies
 #
 # The SDK's pack fetches the pinned core (packages/react-native-storybook/sherlo-core.json) from
-# package storage, so PACKAGE_TOKEN must be set.
+# package storage, so PACKAGE_TOKEN must be set: in the environment, or in the repo's .env (the
+# same file scripts/init-env.sh reads it from).
 #
 # Usage:
 #   ./scripts/reset.sh
 #
 
+if [ -z "${PACKAGE_TOKEN:-}" ] && [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
 if [ -z "${PACKAGE_TOKEN:-}" ]; then
-  echo "Error: PACKAGE_TOKEN is not set. The SDK's pack fetches the pinned core with it, so set it and run again." >&2
+  echo "Error: PACKAGE_TOKEN is set neither in the environment nor in .env. The SDK's pack fetches the pinned core with it, so set it and run again." >&2
   exit 1
 fi
 

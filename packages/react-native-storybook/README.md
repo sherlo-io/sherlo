@@ -117,7 +117,13 @@ Yarn hashes the packed output of a directory reference at install time. TypeScri
 
 ### Rebuilding the tarball after SDK changes
 
-Run from the repo root (`sherlo/`):
+The pack fetches the pinned core from package storage, so it needs `PACKAGE_TOKEN` (in the environment, or in the repo's `.env`). The one command that does every step below is `yarn pack:testing-apps`, run from the repo root (`sherlo/`):
+
+```bash
+yarn pack:testing-apps
+```
+
+The same steps by hand, also from the repo root, with `PACKAGE_TOKEN` set:
 
 ```bash
 # 1. Build the SDK

@@ -5,8 +5,8 @@
  *
  * CHANNEL / EVENT-NAME CHOICE
  * Storybook emits `storyChanged` once a new selection settles, BEFORE the story
- * component itself renders - `storyRendered` (used by the sealed core's readiness
- * tracker for testing-mode readiness) fires much later, after render AND play have finished. We
+ * component itself renders - `storyRendered` (which the sealed core listens for to know
+ * a story is ready in testing mode) fires much later, after render AND play have finished. We
  * deliberately do NOT import the event name from a `storybook` core package: it is only
  * a peer dependency of `@storybook/react-native` and isn't guaranteed resolvable from
  * this SDK. The literal string is part of Storybook's stable wire protocol (8.x/9.x).
