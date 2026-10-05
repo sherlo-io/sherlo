@@ -10,11 +10,19 @@
 #   2. Clears yarn cache
 #   3. Reinstalls all dependencies
 #   4. Builds all packages (CLI + react-native-storybook)
-#   5. Installs dependencies for testing projects
+#   5. Packs the SDK into the testing projects and installs their dependencies
+#
+# The SDK's pack fetches the pinned core (packages/react-native-storybook/sherlo-core.json) from
+# package storage, so PACKAGE_TOKEN must be set.
 #
 # Usage:
 #   ./scripts/reset.sh
 #
+
+if [ -z "${PACKAGE_TOKEN:-}" ]; then
+  echo "Error: PACKAGE_TOKEN is not set. The SDK's pack fetches the pinned core with it, so set it and run again." >&2
+  exit 1
+fi
 
 APP_ROOT_DIR="$(pwd)"
 
@@ -45,21 +53,8 @@ yarn build
 echo "✓ All packages built"
 echo ""
 
-echo "Packing react-native-storybook SDK..."
-mkdir -p "$APP_ROOT_DIR/testing/expo/sherlo-lib" "$APP_ROOT_DIR/testing/react-native/sherlo-lib"
-(cd "$APP_ROOT_DIR/packages/react-native-storybook" && yarn pack --out ../../testing/expo/sherlo-lib/react-native-storybook.tgz)
-cp "$APP_ROOT_DIR/testing/expo/sherlo-lib/react-native-storybook.tgz" "$APP_ROOT_DIR/testing/react-native/sherlo-lib/react-native-storybook.tgz"
-echo "✓ SDK packed to testing/*/sherlo-lib/react-native-storybook.tgz"
-echo ""
-
-echo "Installing dependencies for testing/expo..."
-cd "$APP_ROOT_DIR/testing/expo" && yarn install
-echo "✓ Testing/expo dependencies installed"
-echo ""
-
-echo "Installing dependencies for testing/react-native..."
-cd "$APP_ROOT_DIR/testing/react-native" && yarn install
-echo "✓ Testing/react-native dependencies installed"
+echo "Packing the SDK into the testing apps and installing them..."
+bash "$APP_ROOT_DIR/scripts/pack-testing-apps.sh"
 echo ""
 
 echo "🎉 Repository reset complete!"

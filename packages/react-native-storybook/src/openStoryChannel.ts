@@ -2,7 +2,7 @@
  * THE APP'S HALF OF THE LETTERBOX, the open part of it: the road to the bundler.
  *
  * The collect loop - wait for a story, put it on screen through Storybook's channel, ask again with
- * what was painted - is in the sealed core (packages/sherlo-core/js/src/openStoryChannel.ts). What
+ * what was painted - is in the sealed core, which the SDK packs and does not hold the source of. What
  * stays here is what talks to the developer's bundler: `bundlerLetterbox`, the one request held open
  * against the address the bundler serves (metro/openStoryLetterbox.js). The shapes of what crosses
  * it are the seam's (./sealedCore/seam), because the core writes them.

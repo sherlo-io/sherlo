@@ -5,9 +5,9 @@ import android.util.Log;
 
 /**
  * The C core: the pixel compare, the stillness decision, the scroll engine and the inspector's
- * JSON, compiled and stripped into jniLibs/&lt;abi&gt;/libsherlocore.so from
- * packages/sherlo-core/native. These are its JNI entry points (sherlo_core_jni.c); what each does
- * is said in its one header, sherlo_core.h.
+ * JSON, shipped prebuilt and stripped as jniLibs/&lt;abi&gt;/libsherlocore.so: the pack lays in the
+ * pinned core (scripts/packSealedCore.js). These are its JNI entry points; what each does is said
+ * in its one header, sherlo_core.h, which the xcframework carries.
  *
  * The library loads once. A library that does not load, or that speaks a C ABI this glue does not
  * know, is never called: unusableReason() says why.
