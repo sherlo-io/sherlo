@@ -3,7 +3,7 @@ import { NativeModules } from 'react-native';
 import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData } from './types/types';
-import { Config, LastState } from './helpers/RunnerBridge/types';
+import type { Config, LastState } from './sealedCore/seam';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 
 interface SherloConstants {
@@ -12,6 +12,8 @@ interface SherloConstants {
   lastState: string;
   nativeVersion: string | null;
   driver: string | null;
+  /** The C core's version, read in testing mode only; null outside it, or with no usable C core. */
+  compiledCoreVersion?: string | null;
 }
 
 /**
@@ -58,6 +60,8 @@ type SherloModule = {
   /** Who drives this boot's testing walk, or undefined outside testing mode - see TestDriver. */
   getDriver: () => TestDriver | undefined;
   getNativeVersion: () => string | null;
+  /** The C core's version, in testing mode; null outside it, or with no usable C core. */
+  getCompiledCoreVersion: () => string | null;
   sendNativeError: (
     errorCode: string,
     message: string,
@@ -176,6 +180,9 @@ function createSherloModule(): SherloModule {
     getNativeVersion: () => {
       return getConstants().nativeVersion ?? null;
     },
+    getCompiledCoreVersion: () => {
+      return getConstants().compiledCoreVersion ?? null;
+    },
     sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => {
       module.sendNativeError(errorCode, message, data ? JSON.stringify(data) : '');
     },
@@ -259,6 +266,7 @@ function createDummySherloModule(): SherloModule {
     // build, this will be the value returned.
     getMode: () => 'default',
     getNativeVersion: () => null,
+    getCompiledCoreVersion: () => null,
     sendNativeError: () => {},
     getLastState: () => undefined,
     getDriver: () => undefined,

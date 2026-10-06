@@ -2,16 +2,25 @@
  * THE SDK'S TWO ROADS TO THE BUNDLER - `sherlo capture`'s and `sherlo open`'s - and how they reach
  * the sealed core.
  *
- * The walk of a capture and the letterbox's collect loop are the core's (packages/sherlo-core/js,
- * where their own suites live). What stays open in the SDK is the road itself: the address, the
- * method and the body of every request the app sends the bundler's middleware, and the door that
- * hands the road to the core. This suite runs against the core built from its source
- * (./__mocks__/sealedCoreFromSource), the way the app runs against the shipped one.
+ * The walk of a capture and the letterbox's collect loop are the core's, and tested where the core
+ * is built. What stays open in the SDK is the road itself: the address, the method and the body of
+ * every request the app sends the bundler's middleware, and the door that hands the road to the
+ * core. The core here is the suite's fake (./__mocks__/fakeSealedCore), which records what it is
+ * handed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeModules } from 'react-native';
 import { bundlerCapture, startCaptureTransport, stopCaptureTransport } from '../captureTransport';
 import { bundlerLetterbox, startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
+import { getSealedCore } from '../sealedCore/loadSealedCore';
+import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
+
+/** What the SDK handed the fake core's `method`, the last time it called it. */
+function lastHandedTo(method: 'startCaptureTransport' | 'startOpenStoryChannel'): unknown {
+  const fakeCore = getSealedCore() as FakeSealedCore;
+  const callsOfTheMethod = fakeCore.calls.filter((call) => call.method === method);
+  return callsOfTheMethod[callsOfTheMethod.length - 1]?.args[0];
+}
 
 const ORIGIN = 'http://localhost:8081';
 const STORY = 'components-button--primary';
@@ -33,6 +42,7 @@ function bundlerAnswering(answer: unknown) {
 }
 
 beforeEach(() => {
+  (getSealedCore() as FakeSealedCore).calls.length = 0;
   NativeModules.SourceCode = {
     getConstants: () => ({ scriptURL: `${ORIGIN}/index.bundle?platform=ios` }),
   };
@@ -60,32 +70,31 @@ describe("the SDK's road to the bundler's capture address", () => {
     expect(JSON.parse(init.body as string)).toEqual(saying);
   });
 
-  it('is handed to the core, which asks it with the mode and the stories of the app', async () => {
-    const waitForACapture = vi.fn(() => new Promise<never>(() => {}));
+  it('is handed to the core with the view and the channel', () => {
+    const capture = { waitForACapture: vi.fn() };
+    const channel = makeChannel();
 
-    startCaptureTransport({
-      view,
-      channel: makeChannel(),
-      capture: { waitForACapture },
-    });
+    startCaptureTransport({ view, channel, capture });
 
-    await vi.waitFor(() => expect(waitForACapture).toHaveBeenCalled());
-    expect(waitForACapture).toHaveBeenCalledWith({
-      mode: 'default',
-      stories: [STORY],
-      answer: null,
-    });
+    expect(lastHandedTo('startCaptureTransport')).toEqual({ view, channel, capture });
   });
 
-  it('is not there for an app whose JavaScript came from a file, so no capture starts', async () => {
+  it("is the bundler's own road when the SDK is handed none", () => {
+    startCaptureTransport({ view, channel: makeChannel() });
+
+    const { capture } = lastHandedTo('startCaptureTransport') as {
+      capture: { waitForACapture: unknown };
+    };
+    expect(typeof capture.waitForACapture).toBe('function');
+  });
+
+  it('is not there for an app whose JavaScript came from a file, so no capture starts', () => {
     delete NativeModules.SourceCode;
-    const fetchMock = bundlerAnswering({});
 
     expect(bundlerCapture()).toBeNull();
     startCaptureTransport({ view, channel: makeChannel() });
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(lastHandedTo('startCaptureTransport')).toBeUndefined();
   });
 });
 
@@ -104,33 +113,26 @@ describe("the SDK's road to the bundler's letterbox", () => {
     expect(JSON.parse(init.body as string)).toEqual(saying);
   });
 
-  it('is handed to the core, which asks it with the stories of the app and where it stands', async () => {
-    const waitForStory = vi.fn(() => new Promise<never>(() => {}));
+  it('is handed to the core with the view, the channel and where the app stands', () => {
+    const letterbox = { waitForStory: vi.fn() };
+    const channel = makeChannel();
 
-    startOpenStoryChannel({
+    startOpenStoryChannel({ view, channel, atTheStoryBrowser: true, letterbox });
+
+    expect(lastHandedTo('startOpenStoryChannel')).toEqual({
       view,
-      channel: makeChannel(),
+      channel,
       atTheStoryBrowser: true,
-      letterbox: { waitForStory },
-    });
-
-    await vi.waitFor(() => expect(waitForStory).toHaveBeenCalled());
-    expect(waitForStory).toHaveBeenCalledWith({
-      stories: [STORY],
-      showing: null,
-      atTheStoryBrowser: true,
-      threw: null,
+      letterbox,
     });
   });
 
-  it('is not there for an app whose JavaScript came from a file, so `sherlo open` starts nothing', async () => {
+  it('is not there for an app whose JavaScript came from a file, so `sherlo open` starts nothing', () => {
     delete NativeModules.SourceCode;
-    const fetchMock = bundlerAnswering({});
 
     expect(bundlerLetterbox()).toBeNull();
     startOpenStoryChannel({ view, channel: makeChannel(), atTheStoryBrowser: true });
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(lastHandedTo('startOpenStoryChannel')).toBeUndefined();
   });
 });

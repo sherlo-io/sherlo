@@ -12,15 +12,7 @@
  * this SDK. They are part of Storybook's stable cross-version wire protocol (8.x and 9.x alike).
  */
 
-/**
- * As much of the Storybook channel as Sherlo uses. `emit` is how a story asked for from outside is
- * put on screen (../openStoryChannel); the readiness tracker only listens.
- */
-export type StorybookChannel = {
-  on: (event: string, listener: (...args: unknown[]) => void) => void;
-  off: (event: string, listener: (...args: unknown[]) => void) => void;
-  emit: (event: string, ...args: unknown[]) => void;
-};
+import type { StorybookChannel } from '../sealedCore/seam';
 
 /** The Storybook channel of a `view`, or null when nothing usable is reachable. */
 export function getStorybookChannel(view?: unknown): StorybookChannel | null {

@@ -23,7 +23,7 @@ Pod::Spec.new do |s|
   s.resources = "ios/Resources/**/*"
   # The sealed core loader verifies a newer core's signature with the Security framework.
   s.frameworks = "Security"
-  # The C core, prebuilt and stripped by the pack step (packages/sherlo-core/native/build.js). Its
+  # The C core, prebuilt and stripped, laid in by the pack from the pinned core (scripts/packSealedCore.js). Its
   # one header, sherlo_core.h, is inside each slice; the glue finds it through the device slice.
   s.vendored_frameworks = "ios/SherloCore.xcframework"
   s.pod_target_xcconfig = {

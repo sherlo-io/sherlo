@@ -1,6 +1,19 @@
 import type { View } from '@storybook/react-native';
 import type { StoryMocks } from '../mocking/mockDeclaration';
 
+import type { Snapshot as SnapshotTheCoreWrites } from '../sealedCore/seam';
+
+// The runner's story entries and the inspector's reading cross the seam, so they are declared there.
+export type { InspectorData, InspectorDataNode, SnapshotMode, StoryId } from '../sealedCore/seam';
+
+/**
+ * One story entry of a run, as the core writes it, with its `sherloParameters` typed as the story
+ * declares them. The seam keeps that one field loose, because it names no type of the SDK's.
+ */
+export type Snapshot = Omit<SnapshotTheCoreWrites, 'sherloParameters'> & {
+  sherloParameters?: SherloParameters;
+};
+
 export interface SherloParameters {
   /**
    * Module Mocking (SHERLO-1734): the mocks this story declares, applied for the duration
@@ -45,33 +58,6 @@ export interface SherloParameters {
   platform?: 'ios' | 'android';
 }
 
-export type StoryId = `${string}--${string}`;
-
-export type Snapshot = {
-  // sherlo exclusive parameters
-  viewId: string; // components-avatar--basic-deviceHeight
-  mode: SnapshotMode; // deviceHeight
-  displayName: string; // components/Avatar - Basic
-  sherloParameters?: SherloParameters;
-  /**
-   * Project-root-relative import path of the story file (e.g. "./src/Button.stories.tsx").
-   * Emitted by the device so Diff Scope can map storyId → source file server-side.
-   * Absent on older SDK versions; runner captures every story when missing.
-   */
-  importPath?: string;
-
-  // storybook parameters
-  componentId: string; // components-avatar
-  componentTitle: string; // components/Avatar
-  storyId: StoryId; // components-avatar--basic
-  storyTitle: string; // Basic
-  parameters: any;
-  argTypes: any;
-  args: any;
-};
-
-export type SnapshotMode = 'deviceHeight' | 'fullHeight';
-
 export type StorybookView = View;
 
 type StorybookParamsRaw = Parameters<StorybookView['getStorybookUI']>[0];
@@ -93,23 +79,3 @@ export type StorybookParams = StorybookParamsRaw extends infer U
  * you need to disable animations or mock data during test runs.
  */
 export type StorybookViewMode = 'testing' | 'default' | 'storybook';
-
-export type InspectorDataNode = {
-  id: number;
-  className: string;
-  isVisible: boolean;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  adjustedWidth?: number;
-  adjustedHeight?: number;
-  properties?: Record<string, any>;
-  children?: InspectorDataNode[];
-};
-
-export type InspectorData = {
-  viewHierarchy: InspectorDataNode;
-  density: number;
-  fontScale: number;
-};

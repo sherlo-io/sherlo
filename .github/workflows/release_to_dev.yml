@@ -8,9 +8,9 @@ on:
 
 jobs:
   release-to-dev:
-    # macOS: the SDK's pack builds the C core with Xcode and the Android NDK (see
-    # release-sherlo-packages.yml). This private copy is not a release, so it keeps the test key.
-    runs-on: macos-15
+    # The SDK's pack fetches the pinned core with PACKAGE_TOKEN and builds none. This private copy
+    # is not a release, so it keeps the test key.
+    runs-on: ubuntu-latest
     concurrency: release-to-dev
     permissions:
       contents: read
@@ -67,3 +67,5 @@ jobs:
           cd ../react-native-storybook && npm publish --ignore-scripts --tag dev
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The prepack fetches the pinned core from package storage with it.
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}

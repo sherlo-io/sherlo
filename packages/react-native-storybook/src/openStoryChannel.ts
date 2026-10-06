@@ -1,21 +1,18 @@
 /**
- * THE APP'S HALF OF THE LETTERBOX, the open part of it: the road to the bundler, and the words that
- * travel it.
+ * THE APP'S HALF OF THE LETTERBOX, the open part of it: the road to the bundler.
  *
  * The collect loop - wait for a story, put it on screen through Storybook's channel, ask again with
- * what was painted - is in the sealed core (packages/sherlo-core/js/src/openStoryChannel.ts). What
+ * what was painted - is in the sealed core, which the SDK packs and does not hold the source of. What
  * stays here is what talks to the developer's bundler: `bundlerLetterbox`, the one request held open
- * against the address the bundler serves (metro/openStoryLetterbox.js), and the shapes of what
- * crosses it. Every message on this road is shaped here, in the open, beside the middleware it talks
- * to.
+ * against the address the bundler serves (metro/openStoryLetterbox.js). The shapes of what crosses
+ * it are the seam's (./sealedCore/seam), because the core writes them.
  *
  * With no core installed there is no `sherlo open`: `startOpenStoryChannel` starts nothing.
  */
 import { bundlerOrigin } from './bundlerOrigin';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import { sherloFetch } from './mocking/network';
-import type { StorybookChannel } from './getStorybook/storybookChannel';
-import type { StoryThrew } from './captureTransport';
+import type { BundlerLetterbox, LetterboxAnswer, StorybookChannel } from './sealedCore/seam';
 import type { StorybookView } from './types';
 
 /** The one address Sherlo adds to the bundler; the other half of it is metro/openStoryLetterbox.js. */
@@ -27,30 +24,6 @@ const LETTERBOX_PATH = '/sherlo/letterbox';
  * story to hand over.
  */
 const HOLD_TIMEOUT_MS = 25000;
-
-/** What the letterbox answers an app that has been waiting. */
-export type LetterboxAnswer = {
-  /** The story to put on screen. Only ever sent to an app that is at the story browser. */
-  storyId?: string | null;
-  /** A story is waiting, and this app has to reach the story browser to collect it. */
-  goToTheStoryBrowser?: boolean;
-};
-
-/** What the app asks of the letterbox, and nothing else. */
-export type BundlerLetterbox = {
-  /**
-   * Hold a request open at the bundler until there is something for this app, saying what this app
-   * has, where it is, and what is on screen now. Resolves with an empty answer when the hold ran
-   * out with nothing posted.
-   */
-  waitForStory(saying: {
-    stories: string[];
-    showing: string | null;
-    atTheStoryBrowser: boolean;
-    /** What the story named by `showing` threw while rendering, or null when it drew cleanly. */
-    threw: StoryThrew | null;
-  }): Promise<LetterboxAnswer>;
-};
 
 /**
  * Start waiting on the bundler's letterbox: the core's loop puts each story it is handed on screen.

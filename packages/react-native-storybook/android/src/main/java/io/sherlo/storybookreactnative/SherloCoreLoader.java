@@ -36,9 +36,9 @@ public class SherloCoreLoader {
     // the storage folder whose header names another seam is never run.
     private static final int SUPPORTED_SEAM = 1;
 
-    // THE TEST PUBLIC KEY: X.509 SubjectPublicKeyInfo DER, base64. Its private half is not kept
-    // anywhere, so no override core can be signed for it yet, and every core in the storage folder is
-    // refused. Signing override cores with Sherlo's own key is not set up yet.
+    // THE TEST PUBLIC KEY: X.509 SubjectPublicKeyInfo DER, base64. Its private half is kept nowhere,
+    // so a local pack refuses every override core. A release refuses this key and stamps in
+    // Sherlo's real one (scripts/sealedCoreKey.js).
     private static final String SHERLO_CORE_TEST_PUBLIC_KEY =
         "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxwuNK/v8HC6O+kHl+0fZqKZfcsW1h+FzVjcMprkWI2J9P+Z4yezALy/lRiqIXz3eDoe31SmkUacYRninMOli0iRpuUAAf3RV21CQoX8Knfl4u4yFsNNB/j8dkJOxGm1QoqV3XOu78sJyO54KHnPWM33yknkyifv/QxC5fwdtuv11Z/ssmiXAVStZV7t9Cow2nFDMaPFdfA4N1hdWg6bbIUeazT4w2fLaCKYdyts1CXZiXjyUJp30c5+wyMXOVHnTbY3Ye1Ap8VsNFfwvrurZYaG3TxHWTbnasWOX4Xwns4SITw+Nq7QA1hQTTlpbrXd+vEMaUfulA1dr8yk79MdzDwIDAQAB";
 

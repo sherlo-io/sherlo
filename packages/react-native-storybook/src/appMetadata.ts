@@ -15,7 +15,7 @@
  *
  * This file keeps no React: it is the seam, not a reader.
  */
-import type { Metadata } from './getStorybook/components/TestingMode/MetadataProvider';
+import type { Metadata } from './sealedCore/seam';
 
 /** How the app's views are read while the component that renders them is mounted. */
 type CollectAppMetadata = () => Metadata;

@@ -1,9 +1,8 @@
 /**
  * What is left of useTestStory in the SDK: it hands the sealed core's walk of one story (testStory,
- * tested in packages/sherlo-core/js/__tests__) the view, the screen's insets and the app's
- * metadata, runs it only for a launch a runner drives, and turns the story's mocks off when it is
- * over. The core is the one built from its source (./__mocks__/sealedCoreFromSource), its walk
- * stood in for.
+ * tested where the core is built) the view, the screen's insets and the app's metadata, runs it
+ * only for a launch a runner drives, and turns the story's mocks off when it is over. The core is
+ * the suite's fake (./__mocks__/fakeSealedCore).
  */
 const { mockClearMocks, INSETS } = vi.hoisted(() => ({
   mockClearMocks: vi.fn(),

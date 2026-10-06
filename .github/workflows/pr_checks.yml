@@ -8,30 +8,6 @@ on:
       - epic/**
 
 jobs:
-  # THE SEALED CORES' OWN SUITES: the JS core's tests, and the C core's harness, which compiles the
-  # C core with the runner's own compiler and runs it. Neither reads the API client libraries, so
-  # this job installs only the core package's own dependencies (`workspaces focus`) and skips the
-  # sherlo-api download and caches the checks job needs. The suite builds the Android libraries
-  # whenever the runner has the NDK; the iOS xcframework needs Xcode, so only a pack on macOS
-  # builds it.
-  core:
-    name: checks (sherlo-core)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Install the core package's dependencies
-        run: yarn workspaces focus @sherlo/core
-
-      - name: Unit tests (JS core and C harness)
-        working-directory: packages/sherlo-core
-        run: yarn test
-
   checks:
     name: checks (${{ matrix.package.name }})
     runs-on: ubuntu-latest
@@ -152,14 +128,6 @@ jobs:
       - name: Typecheck
         run: yarn tsc --noEmit -p ${{ matrix.package.dir }}
 
-      # The sealed core's source types itself against the SDK's seam
-      # (packages/react-native-storybook/src/sealedCore/seam.ts), and only the type check holds the
-      # two together. It runs here, not in the core job: seam.ts pulls in react-native's types,
-      # which only this job's full install carries.
-      - name: Typecheck the sealed core
-        if: matrix.package.name == 'react-native-storybook'
-        run: yarn tsc --noEmit -p packages/sherlo-core
-
       # THE POSE CONTRACT AND ITS READER ARE GENERATED from the types the CLI's seams
       # declare (packages/cli/scripts/generate-pose-contract.ts). This regenerates both
       # and diffs: a hand edit to either, or a seam type changed without regenerating,
@@ -223,4 +191,7 @@ jobs:
           # files never reach eslint, tsc or vitest's own file discovery. Empty
           # for react-native-storybook, whose suite never reads it.
           SHERLO_TESTER_ROOT: ${{ matrix.package.name == 'cli' && format('{0}/sherlo-tester', runner.temp) || '' }}
+          # The SDK suite's packaging check packs the SDK as a publish does, and the pack fetches
+          # the pinned core from package storage with this token. The CLI's suite gets none.
+          PACKAGE_TOKEN: ${{ matrix.package.name == 'react-native-storybook' && secrets.PACKAGE_TOKEN || '' }}
         run: yarn test
