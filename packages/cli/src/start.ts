@@ -79,6 +79,7 @@ import {
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
+import { renderFeedbackLine } from './render/initSteps';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -137,6 +138,11 @@ async function start() {
 
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
+
+      // `sherlo init` asks for feedback under its errors, apart from the help footer below.
+      if ((error as { showFeedbackLine?: boolean }).showFeedbackLine) {
+        for (const line of renderFeedbackLine({ under: 'error' })) console.error(line);
+      }
 
       printNeedHelpEpilogue();
 
@@ -428,7 +434,8 @@ function addInitCommand(program: Command) {
   addCommand({
     program,
     command: INIT_COMMAND,
-    options: [TOKEN_OPTION, PERSONAL_TOKEN_OPTION, PROJECT_OPTION],
+    // No `--token` (init-for-agents): setup logs the person in, and a project token is CI's.
+    options: [PERSONAL_TOKEN_OPTION],
     action: init,
     withTimeout: false,
   });

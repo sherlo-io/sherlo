@@ -44,9 +44,12 @@
  * no way to state an answer, so the posed half refuses every question and the setup is cancelled;
  * a test that needs an answer installs a workstation of its own.
  */
+import fs from 'fs';
+import path from 'path';
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
 import runShellCommand from '../helpers/runShellCommand';
+import type { PosedFiles } from './projectFiles';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
 export type Workstation = {
@@ -58,6 +61,16 @@ export type Workstation = {
     command: string;
     projectRoot: string;
     env?: NodeJS.ProcessEnv;
+  }): Promise<void>;
+
+  /**
+   * Set Storybook up in a project that has none, with Storybook's own installer, which writes its
+   * config folder, its example stories and its Metro wrapper into the project.
+   */
+  installStorybook(params: {
+    /** The whole command line, e.g. `npx create-storybook@latest --yes --type react_native`. */
+    command: string;
+    projectRoot: string;
   }): Promise<void>;
 
   /** Run `pod install` in the project's iOS folder. */
@@ -93,6 +106,10 @@ export type Workstation = {
 export const liveWorkstation: Workstation = {
   addPackage: async ({ command, projectRoot, env }) => {
     await runShellCommand({ command, projectRoot, env });
+  },
+
+  installStorybook: async ({ command, projectRoot }) => {
+    await runShellCommand({ command, projectRoot });
   },
 
   // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` when no locale is
@@ -197,7 +214,21 @@ export type PosedWorkstation = {
    * and all (`"@sherlo/react-native-storybook@2.0.2"`). Checked against the package the command
    * actually asked for, so a pose cannot answer an install the command never made.
    */
-  install: { package: string };
+  install: {
+    package: string;
+    /**
+     * What the package manager printed when the install failed, on each stream. Left out for an
+     * install that worked; stated, the install fails the way a real one does, with this output.
+     */
+    failed?: { stdout: string; stderr: string };
+  };
+  /**
+   * What Storybook's own installer wrote, for a project that had no Storybook: relative path ->
+   * content, laid into the project folder the way the pose's `files` are, so the steps after it
+   * read the project as the installer left it. Left out for a project that already has Storybook,
+   * where setup never runs it; stated for one that does not, it is refused.
+   */
+  storybook?: { wrote: PosedFiles };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
    * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
@@ -208,8 +239,11 @@ export type PosedWorkstation = {
    * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
    * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes on.
+   *
+   * Optional since init-for-agents: setup asks nothing any more, so a pose of it states no prompt.
+   * BUILD DEBT: the prompt and the questions below go with the old setup's last caller.
    */
-  enter: 'pressed' | 'closed' | 'nobody';
+  enter?: 'pressed' | 'closed' | 'nobody';
 };
 
 /**
@@ -266,6 +300,33 @@ export function posedWorkstation(
           'addPackage',
           `the pose answers the install with \`${installedPackage}\`, and the command asked the ` +
             `package manager for \`${packageSpec}\``
+        );
+        return;
+      }
+
+      // A failed install ends the way a real one does: an error carrying what each stream printed.
+      if (posed.install.failed) {
+        throw Object.assign(new Error('the package manager failed'), posed.install.failed);
+      }
+    },
+
+    installStorybook: async ({ projectRoot }) => {
+      if (!posed?.storybook) {
+        // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.
+        refuse(
+          'installStorybook',
+          'the project has no Storybook, so the command ran its installer - say what it wrote ' +
+            'in `"storybook": {"wrote": {...}}` in the workstation of the pose'
+        );
+        return;
+      }
+
+      for (const [relativePath, content] of Object.entries(posed.storybook.wrote)) {
+        const filePath = path.join(projectRoot, relativePath);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(
+          filePath,
+          typeof content === 'string' ? content : `${JSON.stringify(content, null, 2)}\n`
         );
       }
     },

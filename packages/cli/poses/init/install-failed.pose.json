@@ -1,0 +1,58 @@
+{
+  "pose": 1,
+  "argv": ["init"],
+  "files": {
+    "package.json": {
+      "name": "acme-shop",
+      "version": "1.0.0",
+      "private": true,
+      "main": "index.ts",
+      "dependencies": {
+        "@storybook/react-native": "^10.6.0",
+        "expo": "^54.0.0",
+        "react": "19.1.0",
+        "react-native": "0.81.5",
+        "storybook": "^10.6.0"
+      }
+    },
+    "package-lock.json": { "name": "acme-shop", "lockfileVersion": 3, "packages": {} },
+    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nmodule.exports = withStorybook(getDefaultConfig(__dirname));\n",
+    "node_modules/react-native/package.json": { "name": "react-native", "version": "0.81.5", "main": "index.js" },
+    "node_modules/react-native/index.js": "",
+    "node_modules/expo/package.json": { "name": "expo", "version": "54.0.0", "main": "index.js" },
+    "node_modules/expo/index.js": "",
+    "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.0", "main": "index.js" },
+    "node_modules/@storybook/react-native/index.js": ""
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    { "call": "trackCliInit", "with": { "event": "0_init" }, "answer": { "sessionId": "init-session-1" } },
+    { "call": "trackCliInit", "with": { "event": "1_requirements" }, "answer": { "sessionId": "init-session-1" } },
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": { "teams": [{ "id": "tm000001", "name": "Storefront", "projectCount": 2, "role": "owner" }] }
+    },
+    {
+      "call": "createProject",
+      "with": { "teamId": "tm000001", "name": "Acme Shop" },
+      "answer": { "name": "Acme Shop", "index": 3, "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaatm0000013" }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": { "email": "anna@example.com", "token": "sht_poselogintoken00000000000000000" }
+  },
+  "workstation": {
+    "install": {
+      "package": "@sherlo/react-native-storybook@2.0.2",
+      "failed": {
+        "stdout": "",
+        "stderr": "npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@sherlo%2freact-native-storybook - Not found\nnpm error 404\nnpm error 404  '@sherlo/react-native-storybook@*' is not in this registry.\nnpm error A complete log of this run can be found in: /home/anna/.npm/_logs/2026-10-07T12_31_04_000Z-debug-0.log\n"
+      }
+    }
+  }
+}

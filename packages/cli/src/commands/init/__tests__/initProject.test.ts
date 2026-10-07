@@ -344,6 +344,9 @@ async function runProjectStep(world: {
     addPackage: async () => {
       throw new Error('the project step installs nothing');
     },
+    installStorybook: async () => {
+      throw new Error('the project step installs nothing');
+    },
     installPods: async () => {
       throw new Error('the project step installs nothing');
     },

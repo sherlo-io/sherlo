@@ -30,6 +30,12 @@ export type Surroundings = {
   /** What the git read answers for a project folder. */
   readGitInfo(projectRoot: string, options?: { branchOverride?: string }): Promise<GitInfo>;
   /**
+   * Where the project's repository is published: the address of its `origin` remote, or null when
+   * it has none yet (or is no repository at all). Setup reads it to decide whether to add a GitHub
+   * workflow.
+   */
+  readGitRemote(projectRoot: string): Promise<string | null>;
+  /**
    * What the clock answers while a command waits, in milliseconds since the epoch - the wait
    * loop's deadline and every "has the deadline passed" read come through here.
    */
@@ -44,6 +50,10 @@ export const liveSurroundings: Surroundings = {
   // to undo.
   installSettings: () => () => undefined,
   readGitInfo: readGitInfoFromDisk,
+  // BUILD DEBT (init-for-agents): `git remote get-url origin` in the project folder, null when it fails.
+  readGitRemote: async () => {
+    throw new Error('readGitRemote is not built yet: init-for-agents plans it, a build task adds it.');
+  },
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
@@ -81,7 +91,16 @@ export function installSurroundings(next: Surroundings): () => void {
  * `"unavailable"` is a read that failed (the tool prints its own warning for it); otherwise the
  * three facts the tool asks for.
  */
-export type PosedGit = { branch: string; commit: string; dirty: boolean } | 'none' | 'unavailable';
+export type PosedGit =
+  | {
+      branch: string;
+      commit: string;
+      dirty: boolean;
+      /** The `origin` remote's address; left out for a repository that has none yet. */
+      remote?: string;
+    }
+  | 'none'
+  | 'unavailable';
 
 /**
  * The surroundings a pose declares.
@@ -131,6 +150,8 @@ export function posedSurroundings({
         process.env = previous;
       };
     },
+
+    readGitRemote: async () => (typeof git === 'object' ? git.remote ?? null : null),
 
     readGitInfo: async (_projectRoot: string, options?: { branchOverride?: string }) => {
       // THE WORDING IS GIT'S OWN. `readGitInfoFromDisk` degrades on the stderr of a failed

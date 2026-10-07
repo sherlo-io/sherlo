@@ -85,6 +85,12 @@ export type ServerCalls = {
 
   listTeams(request: { personalToken: string }): Promise<TeamList>;
 
+  /**
+   * Who the personal token belongs to: the name they signed up with, and their email. Setup names
+   * a team it makes for them after them ("Dawid's team").
+   */
+  whoAmI(request: { personalToken: string }): Promise<PersonOfToken>;
+
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
   openBuild(request: OpenBuildRequest & { token: string }): Promise<OpenBuildAnswer>;
@@ -133,6 +139,9 @@ export type ServerCalls = {
    */
   logOutCli(request: { personalToken: string }): Promise<void>;
 };
+
+/** The person a personal token belongs to. `name` is one string, as they signed up with it. */
+export type PersonOfToken = { name: string; email: string };
 
 /** A login the service started for this run: what to open, and what only this run may ask with. */
 export type PendingCliLogin = {
@@ -185,6 +194,11 @@ export const liveServerCalls: ServerCalls = {
   createTeam: (request) => createTeamRequest(request),
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
+
+  // BUILD DEBT (init-for-agents): the service has no query a personal token can ask this with yet.
+  whoAmI: async () => {
+    throw new Error('whoAmI is not built yet: init-for-agents plans it, a build task adds it.');
+  },
 
   openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
@@ -405,6 +419,12 @@ export type ScriptedCall =
         | ApiError;
     }
   | {
+      /** Who the personal token belongs to: their name as they signed up with it, and their email. */
+      call: 'whoAmI';
+      with: Record<string, never>;
+      answer: { name: string; email: string } | ApiError;
+    }
+  | {
       call: 'listProjects';
       with: { teamId: string };
       /** `mainBranch` is null while the project has never chosen one. */
@@ -573,6 +593,8 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     createTeam: async ({ name }) => answerFor('createTeam', { name }) as TeamCreated,
 
     listTeams: async () => answerFor('listTeams', {}) as TeamList,
+
+    whoAmI: async () => answerFor('whoAmI', {}) as PersonOfToken,
 
     listProjects: async ({ teamId }) => answerFor('listProjects', { teamId }) as ProjectList,
 
