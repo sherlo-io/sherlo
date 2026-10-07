@@ -22,6 +22,8 @@ const BUILD_POSES = [
       .filter((name) => name.endsWith('.pose.json'))
       .map((name) => path.join(folder, name))
   ),
+  // Setup asks where to build in a project that has an eas.json, and sets EAS mode up.
+  path.join('init', 'eas-setup.pose.json'),
 ];
 
 describe('the app build poses', () => {

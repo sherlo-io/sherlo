@@ -118,8 +118,8 @@ export function splitRunKeyOf(passedOptions: BuildFlags): string | null {
       kind: 'notice',
       level: 'warning',
       message:
-        'No CI run was found to join, so this job is a test of its own. ' +
-        'Pass --run-id <id> to both jobs to make them one test.',
+        'No CI run ID was found, so this job runs as a test of its own. ' +
+        'Pass the same --run-id <id> to both jobs to join them into one test.',
     });
   }
   return key;

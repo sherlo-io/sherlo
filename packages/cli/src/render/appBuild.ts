@@ -162,7 +162,7 @@ export function renderRunWaitsForBuilds(buildIndex: number, waitingFor: RunWaits
     'easBuilds' in waitingFor
       ? 'the EAS builds finish and upload to Sherlo'
       : 'easBuild' in waitingFor
-        ? `the ${PLATFORM_NAME[waitingFor.easBuild]} EAS build uploads to Sherlo`
+        ? `the ${PLATFORM_NAME[waitingFor.easBuild]} EAS build finishes and uploads to Sherlo`
         : `the ${PLATFORM_NAME[waitingFor.otherJob]} build arrives from the other job (run ${waitingFor.ciRunId})`;
   return `⏸  ${test} starts when ${when}`;
 }

@@ -69,8 +69,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   if (!passedProfiles) {
     throwError({
       message:
-        `No EAS profile to answer for: \`.sherlo/data.json\` names none and \`--${PROFILE_OPTION}\` was not passed\n\n` +
-        `Run \`sherlo ${TEST_COMMAND}\` to start the EAS builds, so it can name the profile\n`,
+        `Can't upload the EAS build: no EAS profile is named. .sherlo/data.json names none, and --${PROFILE_OPTION} was not passed.\n` +
+        `Start the EAS builds with \`sherlo ${TEST_COMMAND}\`, which names the profile, or pass --${PROFILE_OPTION} <name>.`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
   }
