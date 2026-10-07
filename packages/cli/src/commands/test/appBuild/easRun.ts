@@ -32,8 +32,11 @@ import {
   getGitInfo,
   handleClientError,
   printBuildIntroMessage,
+  reporting,
   throwError,
+  waitForBuildResult,
 } from '../../../helpers';
+import parseWaitTimeout from '../../../helpers/parseWaitTimeout';
 import { emit } from '../../../helpers/transcriptSink';
 import { serverCalls } from '../../../seams/serverCalls';
 import { appBuilder } from '../../../seams/appBuilder';
@@ -92,6 +95,21 @@ export async function easRun({
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
   emit({ kind: 'results-url', url });
+
+  // FROM A LAPTOP THE DEVELOPER OFTEN STAYS FOR THE ANSWER: `--wait` waits through the EAS builds
+  // and the run alike, under the same contract as every other wait - EAS builds take a while, so
+  // the deadline is the one `--wait-timeout` names.
+  if (commandParams.wait) {
+    const exitCode = await waitForBuildResult({
+      token,
+      fromSavedLogin: commandParams.credential.fromSavedLogin,
+      buildIndex,
+      projectIndex,
+      teamId,
+      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+    });
+    await reporting.flush().finally(() => process.exit(exitCode));
+  }
 
   return { url };
 }
