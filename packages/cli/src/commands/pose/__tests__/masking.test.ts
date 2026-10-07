@@ -461,3 +461,7 @@ function runMask(
     );
   }
 }
+
+describe('a screen with colour and one without fold alike', () => {
+  it.todo('folds a value the same way on a screen with colour and on one without');
+});
