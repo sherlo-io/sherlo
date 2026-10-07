@@ -1,20 +1,20 @@
 /**
  * STEPS 3 AND 4 - WHICH TEAM AND PROJECT THIS APP BELONGS TO, with no question asked.
  *
- *   - A config that already names a project keeps it, and nothing is asked of the service.
- *   - Otherwise the team is the one the person owns. A person owns at most one (the service refuses
- *     a second), so there is never a choice to make. A person who owns none gets one, named after
- *     them: "Dawid's team".
+ *   - A config that already names a project keeps it. Its team and project are looked up by name,
+ *     which also checks early that this person can reach them (a teammate who cloned the repo).
+ *   - Otherwise the team is `--team`, or the one team the person is in, or a new one named after
+ *     them ("Anna's team") when they are in none. A person in several teams is stopped and told how
+ *     to name one: a guess could put the project where its team cannot see it, and a rerun costs
+ *     one command.
  *   - The project is made in that team, named after the app.
- *
- * OPEN DECISION (talk): a person who owns no team but is a member of a coworker's. This draft makes
- * them their own team.
  */
-import path from 'path';
+import chalk from 'chalk';
 import fs from 'fs';
-import { APP_DOMAIN } from '../../../constants';
-import { getCwd } from '../../../helpers';
-import { renderStepLine } from '../../../render/initSteps';
+import path from 'path';
+import { APP_DOMAIN, FULL_INIT_COMMAND, TEAM_OPTION } from '../../../constants';
+import { getCwd, throwError } from '../../../helpers';
+import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
 import type { ResolvedPersonalToken } from '../../shared/resolvePersonalToken';
 import hasConfigFile from '../config/hasConfigFile';
@@ -26,16 +26,17 @@ import refuseFailedServiceCall from '../project/refuseFailedServiceCall';
 /** The project setup settled, as the config holds it, and its page in the web app. */
 export type SettledProject = { projectId: string; projectPageUrl: string };
 
-async function teamAndProject(person: ResolvedPersonalToken): Promise<SettledProject> {
+async function teamAndProject(
+  person: ResolvedPersonalToken,
+  teamFlag: string | undefined
+): Promise<SettledProject> {
   const projectInConfig = await readProjectFromConfig();
   if (projectInConfig) {
-    printLines([
-      renderStepLine({ outcome: 'already', name: 'Project', detail: asConfigProject(projectInConfig) }),
-    ]);
+    await showProjectInConfig(projectInConfig, person);
     return settled(projectInConfig);
   }
 
-  const teamId = await findOrCreateTeam(person);
+  const teamId = await chooseTeam(person, teamFlag);
   const project = await createProject(teamId, person);
 
   return settled(project);
@@ -45,16 +46,68 @@ export default teamAndProject;
 
 /* ========================================================================== */
 
-/** The team the person owns, or a new one named after them. */
-async function findOrCreateTeam({ personalToken, fromSavedLogin }: ResolvedPersonalToken): Promise<string> {
+/** The team and project a config already names, by name - refused when this person cannot reach them. */
+async function showProjectInConfig(
+  project: ProjectAddress,
+  { personalToken, fromSavedLogin }: ResolvedPersonalToken
+): Promise<void> {
+  const { team, projects } = await serverCalls()
+    .listProjects({ teamId: project.teamId, personalToken })
+    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+
+  const projectInTeam = projects.find(({ index }) => index === project.projectIndex);
+  if (!projectInTeam) {
+    printLines(renderFailedStepLine('Finding the project failed'));
+    throwError({
+      message: `You have no access to the project ${asConfigProject(project)} that ${'sherlo.config.json'} names`,
+      below:
+        '\n' +
+        chalk.reset('Ask a member of its team to invite you, then re-run setup:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+    });
+  }
+
+  printLines([
+    renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name }),
+    renderStepLine({
+      outcome: 'done',
+      name: 'Using project',
+      detail: `${projectInTeam.name} (${asConfigProject(project)})`,
+    }),
+  ]);
+}
+
+/** `--team`, the one team the person is in, or a new one named after them. */
+async function chooseTeam(
+  { personalToken, fromSavedLogin }: ResolvedPersonalToken,
+  teamFlag: string | undefined
+): Promise<string> {
   const { teams } = await serverCalls()
     .listTeams({ personalToken })
     .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
 
-  const ownTeam = teams.find((team) => team.role === 'owner');
-  if (ownTeam) {
-    printLines([renderStepLine({ outcome: 'done', name: 'Using team', detail: ownTeam.name })]);
-    return ownTeam.id;
+  const namedTeam = teamFlag ? teams.find(({ id }) => id === teamFlag) : undefined;
+  const onlyTeam = teams.length === 1 ? teams[0] : undefined;
+  const team = namedTeam ?? (teamFlag ? undefined : onlyTeam);
+
+  if (team) {
+    printLines([renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name })]);
+    return team.id;
+  }
+
+  if (teamFlag || teams.length > 1) {
+    printLines(renderFailedStepLine('Choosing a team failed'));
+    throwError({
+      message: teamFlag
+        ? `You are not in a team with the id ${teamFlag}`
+        : `You are in ${teams.length} teams, so setup cannot choose one for you`,
+      below:
+        '\n' +
+        teams.map(({ id, name }) => `  ${name.padEnd(24)} ${chalk.dim(id)}`).join('\n') +
+        '\n\n' +
+        chalk.reset('Re-run setup with the team to use:\n') +
+        chalk.cyan(`  ${FULL_INIT_COMMAND} --${TEAM_OPTION} <id>`),
+    });
   }
 
   const { name } = await serverCalls()

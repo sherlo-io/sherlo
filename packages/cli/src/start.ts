@@ -435,7 +435,7 @@ function addInitCommand(program: Command) {
     program,
     command: INIT_COMMAND,
     // No `--token` (init-for-agents): setup logs the person in, and a project token is CI's.
-    options: [PERSONAL_TOKEN_OPTION],
+    options: [PERSONAL_TOKEN_OPTION, TEAM_OPTION],
     action: init,
     withTimeout: false,
   });

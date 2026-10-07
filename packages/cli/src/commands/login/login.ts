@@ -52,7 +52,9 @@ export default login;
  * It prints the link and the wait, and nothing after them: what a finished login means is the
  * calling command's to say.
  */
-export async function logInThroughTheBrowser(serviceAddress: string): Promise<SavedLogin> {
+export async function logInThroughTheBrowser(
+  serviceAddress: string
+): Promise<SavedLogin & { browserOpened: boolean }> {
   const pendingLogin = await serverCalls()
     .startCliLogin()
     .catch((error: Error) => throwError({ message: error.message, errorToReport: error }));
@@ -67,7 +69,9 @@ export async function logInThroughTheBrowser(serviceAddress: string): Promise<Sa
   const newLogin: SavedLogin = { token: answer.token, email: answer.email };
   savedLogins().save(serviceAddress, newLogin);
 
-  return newLogin;
+  // Whether the browser came up decides how many lines the wait printed, which `sherlo init`
+  // erases once the login is done.
+  return { ...newLogin, browserOpened };
 }
 
 /* ========================================================================== */

@@ -1,0 +1,50 @@
+{
+  "pose": 1,
+  "argv": ["init"],
+  "files": {
+    "package.json": {
+      "name": "acme-shop",
+      "version": "1.0.0",
+      "private": true,
+      "main": "index.ts",
+      "dependencies": {
+        "@storybook/react-native": "^10.6.0",
+        "expo": "^54.0.0",
+        "react": "19.1.0",
+        "react-native": "0.81.5",
+        "storybook": "^10.6.0"
+      },
+      "packageManager": "yarn@4.3.1"
+    },
+    "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nmodule.exports = withStorybook(getDefaultConfig(__dirname));\n",
+    "node_modules/react-native/package.json": { "name": "react-native", "version": "0.81.5", "main": "index.js" },
+    "node_modules/react-native/index.js": "",
+    "node_modules/expo/package.json": { "name": "expo", "version": "54.0.0", "main": "index.js" },
+    "node_modules/expo/index.js": "",
+    "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.0", "main": "index.js" },
+    "node_modules/@storybook/react-native/index.js": ""
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    { "call": "trackCliInit", "with": { "event": "0_init" }, "answer": { "sessionId": "init-session-1" } },
+    { "call": "trackCliInit", "with": { "event": "1_requirements" }, "answer": { "sessionId": "init-session-1" } },
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [
+          { "id": "k7m2p9qx", "name": "Anna's team", "projectCount": 1, "role": "owner" },
+          { "id": "tm000001", "name": "Storefront", "projectCount": 4, "role": "member" }
+        ]
+      }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": { "email": "anna@example.com", "token": "sht_poselogintoken00000000000000000" }
+  },
+  "workstation": { "install": { "package": "@sherlo/react-native-storybook@2.0.2" } }
+}

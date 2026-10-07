@@ -6,7 +6,9 @@
  *
  * How the login waits, and what it says while it waits, is epic SLH's (sherlo-login-hidden-tokens).
  */
+import ansiEscapes from 'ansi-escapes';
 import { PERSONAL_TOKEN_ENV_VAR } from '../../../constants';
+import { renderLoginLink, renderLoginWaiting } from '../../../render/login';
 import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import { renderStepLine } from '../../../render/initSteps';
 import { savedLogins } from '../../../seams/savedLogins';
@@ -29,8 +31,19 @@ async function logIn(personalTokenFlag: string | undefined): Promise<ResolvedPer
   } else if (savedLogin) {
     printLines([renderStepLine({ outcome: 'already', name: 'Logged in', detail: savedLogin.email })]);
   } else {
+    // The login block stands apart from the list while it waits...
+    printLines(['']);
     const newLogin = await logInThroughTheBrowser(serviceAddress);
-    printLines(['', renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
+
+    // ...and in a terminal, once Authorize is clicked, it gives way to one line like every other
+    // step's. Where nothing can be erased - an agent reading a pipe - the block stays, and the line
+    // follows it.
+    if (process.stdout.isTTY) {
+      process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted(newLogin.browserOpened) + 1));
+    } else {
+      printLines(['']);
+    }
+    printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
   }
 
   // After a login there is a saved one, so this never refuses for want of a credential; it still
@@ -43,3 +56,18 @@ async function logIn(personalTokenFlag: string | undefined): Promise<ResolvedPer
 }
 
 export default logIn;
+
+/* ========================================================================== */
+
+/**
+ * How many lines the login block took, counting the blank line above it: the link and the lines
+ * around it (../../../render/login renderLoginLink), then the wait - one line, or three when the
+ * browser did not open.
+ */
+function linesTheLoginPrinted(browserOpened: boolean): number {
+  const blankLineAbove = 1;
+  const linkBlock = renderLoginLink('').length;
+  const waitBlock = renderLoginWaiting(browserOpened).length;
+
+  return blankLineAbove + linkBlock + waitBlock;
+}

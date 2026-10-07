@@ -91,10 +91,8 @@ export function renderNextSteps({
       }),
       '',
     ]),
-    `${chalk.blue('INFO:')} On this computer, ${chalk.cyan('npx sherlo test')} needs no token, because it uses`,
-    'the account you logged in with. For the GitHub workflow, create a project token at',
-    `${chalk.cyan(projectPageUrl)} and add it to GitHub as the`,
-    `${chalk.bold('SHERLO_TOKEN')} secret.`,
+    `${chalk.blue('INFO:')} For CI, create a project token and add it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    `      ${chalk.cyan(projectPageUrl)}`,
   ];
 }
 
