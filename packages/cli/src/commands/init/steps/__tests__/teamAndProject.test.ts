@@ -1,7 +1,7 @@
 import { describe, it } from 'vitest';
 
 /** WHICH TEAM AND PROJECT SETUP USES (epic init-for-agents). Shells written in plan. */
-describe('teamAndProject', () => {
+describe('which team and project setup uses', () => {
   describe('the team', () => {
     it.todo('setup uses the team --team names');
     it.todo("setup uses the person's only team");
