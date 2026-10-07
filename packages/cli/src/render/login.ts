@@ -16,9 +16,10 @@ import chalk from 'chalk';
 /**
  * The authorize link, alone on its own line, printed BEFORE the browser is asked to open it - so a
  * person on another machine, or an agent passing it on, has it whether or not a browser comes up.
+ * It says the browser is about to open, so the new tab is no surprise.
  */
 export function renderLoginLink(authorizeUrl: string): string[] {
-  return ['Log in to Sherlo at this link:', '', `  ${chalk.cyan(authorizeUrl)}`, ''];
+  return ['Opening your browser to log in to Sherlo...', '', `  ${chalk.cyan(authorizeUrl)}`, ''];
 }
 
 /** The line the wait opens with, and the one that says the browser did not come up. */
@@ -38,9 +39,15 @@ export function renderLoginWaiting(browserOpened: boolean): string[] {
   ];
 }
 
-/** The login is saved: whose it is. */
+/** The login is saved: whose it is, and the command a person runs next. */
 export function renderLoggedIn(email: string): string[] {
-  return ['', `${chalk.green('✔')}  Logged in as ${chalk.bold(email)}`, ''];
+  return [
+    '',
+    `${chalk.green('✔')}  Logged in as ${chalk.bold(email)}`,
+    '',
+    chalk.dim('Next: run `sherlo init` in your React Native app to set up Sherlo.'),
+    '',
+  ];
 }
 
 /** A saved login the service still accepts: no new login is started. */
