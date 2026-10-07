@@ -10,14 +10,8 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Can't build on EAS: eas.json has no "sherlo" build profile.[39m
-[31mSherlo starts its EAS builds with that profile. Add it to "build" in eas.json:[39m
-[31m"sherlo": {[39m
-[31m  "distribution": "internal",[39m
-[31m  "env": { "SHERLO_BUILD": "storybook" },[39m
-[31m  "android": { "buildType": "apk" },[39m
-[31m  "ios": { "simulator": true }[39m
-[31m}[39m
+[31mERROR: Can't build iOS: Xcode was not found.[39m
+[31mInstall Xcode, then run `sudo xcode-select -s <SHERLO_IOS_BUILD_PATH>`.[39m
 
 [2m══════════[22m
 [2m[22m

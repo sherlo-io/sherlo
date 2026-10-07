@@ -1,10 +1,4 @@
-import {
-  ANDROID_OPTION,
-  DOCS_LINK,
-  IOS_OPTION,
-  PROFILE_OPTION,
-  TEST_COMMAND,
-} from '../../constants';
+import { DOCS_LINK, PROFILE_OPTION, TEST_COMMAND } from '../../constants';
 import {
   getTokenParts,
   handleClientError,
@@ -40,7 +34,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
       message:
         'EAS builds were created locally\n\n' +
         `The \`sherlo ${THIS_COMMAND}\` command uploads builds made on Expo's servers.\n` +
-        `To test builds available locally, use \`sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> --${IOS_OPTION} <path>\` instead\n`,
+        `To test on this machine, run \`npx sherlo ${TEST_COMMAND}\`, which builds the app itself.\n`,
       learnMoreLink: DOCS_LINK.testing,
     });
 

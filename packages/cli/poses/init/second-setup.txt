@@ -97,7 +97,7 @@ To enable Sherlo to access Storybook, choose one:
 [33m│[39m Make sure you have provided [1mStorybook Access[22m [33m│[39m
 [33m╰──────────────────────────────────────────────╯[39m
 
-`npx sherlo test` builds your app with Gradle (Android) and Xcode (iOS) the first time, and again only when native code or build settings change.
+`npx sherlo test` builds your app with Gradle (Android) and Xcode (iOS) on the first run, and again only when native code or build settings change.
 
 
 [1m🧪 Testing[22m
@@ -106,7 +106,7 @@ To enable Sherlo to access Storybook, choose one:
 To test your app, run:
   [36mnpx sherlo test[39m
 
-[34mINFO: The first run builds your app and stores it. After that, `npx sherlo test` reuses the stored app build while only JavaScript changes.[39m
+[34mINFO: The first run builds your app and stores the app build. After that, `npx sherlo test` reuses it while only JavaScript changes.[39m
 [2m↳ Learn more: [4mhttps://sherlo.io/docs/testing[24m[22m
 
 

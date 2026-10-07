@@ -10,19 +10,33 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Can't build on EAS: eas.json has no "sherlo" build profile.[39m
-[31mSherlo starts its EAS builds with that profile. Add it to "build" in eas.json:[39m
-[31m"sherlo": {[39m
-[31m  "distribution": "internal",[39m
-[31m  "env": { "SHERLO_BUILD": "storybook" },[39m
-[31m  "android": { "buildType": "apk" },[39m
-[31m  "ios": { "simulator": true }[39m
-[31m}[39m
+[32m✔[39m  iOS: only JavaScript changed, so the stored app build is reused
+🔨 [1mAndroid[22m needs a new app build: native code changed since the stored one
+[34m➜[39m  building with Gradle... [2m(log: .sherlo/build-android.log)[22m
+[32m✔[39m  Android built in <DURATION> (<SIZE> MB)
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[32mTest 4[39m will run on [34m2 devices[39m (1 Android, 1 iOS)
 
-[exit 1]
+📦 [1mAndroid[22m
+[34m➜[39m  uploading build... (<SIZE> MB)
+[32m✔[39m  upload complete
+
+[1m[22m
+[1m📦 Bundling for this run...[22m
+[1m[22m
+[36m[39m
+[36m🤖 Building android bundle...[39m
+[32m  ✓ Bundle: bundle.android.js[39m (<SIZE> MB, plain-js, expo)
+[32m  ✓ Assets: 2 files[39m
+[36m[39m
+[36m⬆️  Uploading android bundle...[39m
+[36m[39m
+[36m🍎 Building ios bundle...[39m
+[32m  ✓ Bundle: bundle.ios.js[39m (<SIZE> MB, plain-js, expo)
+[32m  ✓ Assets: 2 files[39m
+[36m[39m
+[36m⬆️  Uploading ios bundle...[39m
+🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
+
+
+[exit 0]

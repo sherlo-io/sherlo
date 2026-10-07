@@ -19,8 +19,8 @@ export function renderTesting(): string[] {
     renderNotice({
       level: 'info',
       message:
-        'The first run builds your app and stores it. After that, `npx sherlo test` reuses the ' +
-        'stored app build while only JavaScript changes.',
+        'The first run builds your app and stores the app build. After that, `npx sherlo test` ' +
+        'reuses it while only JavaScript changes.',
       learnMoreLink: DOCS_LINK.testing,
     }),
     '',

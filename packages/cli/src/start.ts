@@ -167,9 +167,10 @@ const COMMAND_DESCRIPTION = {
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     '  Tests JS-only changes against the stored app build, with no build. When native code\n' +
-    '  or build settings changed, builds the app first - or takes it from the local build\n' +
-    '  cache `sherlo build` filled. With `--no-build`: only answers whether a new app build\n' +
-    '  is needed (`native-needed=true|false`) and builds nothing.',
+    '  or build settings changed, builds the app first (with Gradle and Xcode, or on EAS in EAS\n' +
+    '  mode) - or takes it from the local build cache `sherlo build` filled. With `--no-build`:\n' +
+    '  only answers whether a new app build is needed (`native-needed=true|false`) and builds\n' +
+    '  nothing.',
   [BUILD_COMMAND]:
     'Build the app into the local build cache, and push nothing.\n' +
     '  A later `sherlo test` takes the build from the cache instead of compiling, for as long\n' +

@@ -10,19 +10,12 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Can't build on EAS: eas.json has no "sherlo" build profile.[39m
-[31mSherlo starts its EAS builds with that profile. Add it to "build" in eas.json:[39m
-[31m"sherlo": {[39m
-[31m  "distribution": "internal",[39m
-[31m  "env": { "SHERLO_BUILD": "storybook" },[39m
-[31m  "android": { "buildType": "apk" },[39m
-[31m  "ios": { "simulator": true }[39m
-[31m}[39m
+📦 [1miOS[22m
+[34m➜[39m  uploading build... (<SIZE> MB)
+[32m✔[39m  upload complete
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+▶  Both builds are in - [32mTest 1[39m is starting
+🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
-[exit 1]
+
+[exit 0]

@@ -162,7 +162,7 @@ function refuseWithoutTheProfile(projectRoot: string, profile: string): void {
     throwError({
       message:
         `Can't build on EAS: eas.json has no "${profile}" build profile.\n` +
-        'EAS builds for Sherlo start with it. Add these lines to "build" in eas.json:\n' +
+        'Sherlo starts its EAS builds with that profile. Add it to "build" in eas.json:\n' +
         `"${profile}": {\n` +
         '  "distribution": "internal",\n' +
         `  "env": { "${STORYBOOK_BUILD_VARIABLE}": "${STORYBOOK_BUILD_VALUE}" },\n` +
@@ -177,7 +177,7 @@ function refuseWithoutTheProfile(projectRoot: string, profile: string): void {
   throwError({
     message:
       `Can't build on EAS: the "${profile}" profile in eas.json doesn't set ${STORYBOOK_BUILD_VARIABLE}.\n` +
-      'EAS builds for Sherlo need it to build the app with Storybook. Add this line to its "env":\n' +
+      `Sherlo's builds need it set to "${STORYBOOK_BUILD_VALUE}". Add this line to the profile's "env":\n` +
       `"${STORYBOOK_BUILD_VARIABLE}": "${STORYBOOK_BUILD_VALUE}"`,
   });
 }

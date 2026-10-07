@@ -24,7 +24,7 @@ export function renderBuilds({
       terminalColumns,
     }),
     '',
-    '`npx sherlo test` builds your app with Gradle (Android) and Xcode (iOS) the first time, ' +
+    '`npx sherlo test` builds your app with Gradle (Android) and Xcode (iOS) on the first run, ' +
       'and again only when native code or build settings change.',
   ];
 }
