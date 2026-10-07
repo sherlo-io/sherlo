@@ -1,11 +1,17 @@
 /**
  * THE GITHUB WORKFLOW `sherlo init` WRITES, as the file's text.
  *
- * Pure, like everything under ./: state in, the file out. Its comments are words a person reads in
- * their own repository, so they are drafts for the content department.
+ * Pure, like everything under ./: state in, the file out. Its comments are words a person - or their
+ * agent - reads in their own repository, so they are drafts for the content department.
  *
- * OPEN (the `sherlo test` build epic): the input that makes a push to main rebuild the app and
- * photograph every story. Drawn here as `full`, the name that epic settles.
+ * THE FULL RUN FOLLOWS THE REPOSITORY'S DEFAULT BRANCH, read by GitHub when the workflow runs
+ * (`github.event.repository.default_branch`), so setup never guesses a branch name. A push trigger
+ * cannot name a branch by an expression, so pushes to every branch start the workflow and the job
+ * skips all but the default branch's - a skipped job costs nothing. A team whose pull requests merge
+ * into another branch is told, in the file, where to name it.
+ *
+ * OPEN (the `sherlo test` build epic): the input that makes a run rebuild the app and photograph
+ * every story. Drawn here as `full`, the name that epic settles.
  */
 
 /** The line that installs the project's packages on a clean machine, per package manager. */
@@ -16,14 +22,7 @@ const INSTALL_COMMAND: Record<string, string> = {
   bun: 'bun install --frozen-lockfile',
 };
 
-export function renderSherloWorkflow({
-  packageManager,
-  mainBranch,
-}: {
-  packageManager: string;
-  /** The branch whose pushes test everything. */
-  mainBranch: string;
-}): string {
+export function renderSherloWorkflow({ packageManager }: { packageManager: string }): string {
   return `# Sherlo visual tests, added by \`npx sherlo init\`.
 #
 # Sherlo photographs your app's Storybook stories on a device and shows what changed, for review.
@@ -37,13 +36,17 @@ on:
   # out which stories the change can affect and photographs only those, so this run is quick.
   pull_request:
 
-  # Every push to ${mainBranch}: a change can reach ${mainBranch} without a pull request, and then
-  # nobody saw its UI. This run rebuilds the app and photographs every story, so nothing is missed.
+  # Every push to the branch your pull requests merge into (see the job's \`if\` below): a full run
+  # that rebuilds the app and photographs every story. It catches a change that reached the branch
+  # without a pull request, and any story a pull request's run should have photographed but missed.
   push:
-    branches: [${mainBranch}]
 
 jobs:
   sherlo:
+    # THE BRANCH YOUR PULL REQUESTS MERGE INTO - your development branch, not the one you release
+    # from. This is the repository's default branch; if most pull requests merge into another one
+    # (for example \`dev\`), put its name here in place of github.event.repository.default_branch.
+    if: github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     env:
       SHERLO_TOKEN: \${{ secrets.SHERLO_TOKEN }}

@@ -33,8 +33,7 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   const packageManager = (await detect({ cwd: projectRoot }))?.name ?? 'npm';
 
   fs.mkdirSync(path.dirname(workflowFile), { recursive: true });
-  // BUILD DEBT (init-for-agents): the main branch read from the repository, not assumed.
-  fs.writeFileSync(workflowFile, renderSherloWorkflow({ packageManager, mainBranch: 'main' }));
+  fs.writeFileSync(workflowFile, renderSherloWorkflow({ packageManager }));
 
   printLines([renderStepLine({ outcome: 'done', name: STEP_NAME, detail: WORKFLOW_PATH })]);
   return { hasWorkflow: true };
