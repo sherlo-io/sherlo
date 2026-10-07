@@ -5,6 +5,8 @@ import { fn } from 'storybook/test';
 
 import { Button } from './Button';
 
+console.log('SPIKE_MARKER_STORY_EVALUATED');
+
 const meta = {
   title: 'Example/Button',
   component: Button,

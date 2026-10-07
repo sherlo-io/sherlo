@@ -1,14 +1,15 @@
-/**
- * App entry point
- *
- * Sherlo requires Storybook access to run visual tests
- *
- * Want to switch between Storybook and your app?
- * Learn how: https://sherlo.io/docs/setup?storybook=integrated#storybook-access
- */
+// SPIKE (launch-time-entry): the app's own UI, with no Storybook in it - Storybook 10.4+'s new
+// setup, where .rnstorybook/index registers its own root.
+import { Text, View } from 'react-native';
+import { spikeToggleOnce } from './spikeToggle';
 
-import Storybook from './.rnstorybook';
+console.log('SPIKE_MARKER_APP_EVALUATED');
+spikeToggleOnce('app');
 
 export default function App() {
-  return <Storybook />;
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <Text testID="spike-app-text">SPIKE_APP_SCREEN</Text>
+    </View>
+  );
 }

@@ -31,7 +31,6 @@ declare global {
 
 
 const annotations = [
-  require('./preview'),
   require("@storybook/react-native/preview")
 ];
 

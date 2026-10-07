@@ -1,10 +1,5 @@
-/**
- * SPIKE (launch-time-entry): reads Sherlo's Metro wrapper from this repository's source, so the
- * spike's change is what runs; the runtime half (native module, dev menu) is the installed SDK.
- *
- * spike-env.json, when present, is copied into process.env before the wrapper runs - it stands in
- * for `STORYBOOK_ENABLED=true npx expo ...`, which the spike's shell cannot write.
- */
+// SPIKE (launch-time-entry): Expo Router app (main: expo-router/entry) on Storybook's new setup,
+// with Sherlo's Metro wrapper read from this repository's source.
 const fs = require('fs');
 const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
@@ -19,4 +14,4 @@ const config = getDefaultConfig(__dirname);
 // The spike's copy sits under brain's .worktrees, which brain's .watchmanconfig ignores.
 config.resolver.useWatchman = false;
 
-module.exports = process.env.SPIKE_PLAIN ? config : withStorybook(config);
+module.exports = withStorybook(config);

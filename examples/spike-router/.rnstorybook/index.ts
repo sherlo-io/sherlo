@@ -1,11 +1,7 @@
-// SPIKE (launch-time-entry): Storybook 10.4+'s new setup (templates/react-native/index.expo.js):
-// this file registers the root itself.
+// SPIKE (launch-time-entry): Storybook's new setup - this file registers the root itself.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerRootComponent } from 'expo';
 import { view } from './storybook.requires';
-import { spikeToggleOnce } from '../spikeToggle';
-
-spikeToggleOnce('storybook');
 
 const StorybookUIRoot = view.getStorybookUI({
   storage: {
