@@ -22,6 +22,8 @@ let configHome: string;
 beforeEach(() => {
   configHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-saved-logins-'));
   vi.stubEnv('XDG_CONFIG_HOME', configHome);
+  // SPIKE (keychain): these cases are the file's; the machine's keychain is never written by a test.
+  vi.stubEnv('SHERLO_SAVED_LOGIN_STORE', 'file');
 });
 
 afterEach(() => {

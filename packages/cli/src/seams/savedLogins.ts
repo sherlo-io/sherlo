@@ -38,10 +38,130 @@ export type SavedLogins = {
 };
 
 /**
- * The shipped answers: the saved-login file. A missing or unreadable file reads as no login, and
- * every write leaves the file readable and writable by its owner alone.
+ * SPIKE (keychain): the shipped answers - the OS keychain first, the saved-login file when no
+ * keychain answers, silently.
+ *
+ *     read   - the keychain's entry; when the keychain has none, or cannot be reached, the file's.
+ *              The file is read even after a keychain miss, so a login an earlier run had to keep in
+ *              the file (no keychain then) and a login saved before the keychain existed still count.
+ *     save   - into the keychain, and then out of the file, so no plain copy of the token is left
+ *              behind; into the file only when the keychain cannot take it.
+ *     remove - from both, so a logout leaves the token nowhere.
+ *
+ * SHERLO_SAVED_LOGIN_STORE=file skips the keychain entirely: a run that must keep its login in its
+ * own folder (one storyline among many on one machine) says so, and the machine's keychain is never
+ * touched.
  */
 export const liveSavedLogins: SavedLogins = {
+  read: (serviceAddress) => {
+    const keychain = reachableKeychain();
+    if (keychain) {
+      try {
+        const keychainLogin = keychain.read(serviceAddress);
+        if (keychainLogin) return keychainLogin;
+      } catch {
+        // The keychain is there but did not answer (locked, no Secret Service daemon): the file.
+      }
+    }
+    return fileSavedLogins.read(serviceAddress);
+  },
+
+  save: (serviceAddress, login) => {
+    const keychain = reachableKeychain();
+    if (keychain) {
+      try {
+        keychain.save(serviceAddress, login);
+        fileSavedLogins.remove(serviceAddress);
+        return;
+      } catch {
+        // The keychain cannot take it: the owner-only file does.
+      }
+    }
+    fileSavedLogins.save(serviceAddress, login);
+  },
+
+  remove: (serviceAddress) => {
+    const keychain = reachableKeychain();
+    if (keychain) {
+      try {
+        keychain.remove(serviceAddress);
+      } catch {
+        // Nothing to delete where nothing answers.
+      }
+    }
+    fileSavedLogins.remove(serviceAddress);
+  },
+};
+
+/* ========================================================================== */
+/* SPIKE: the keychain store                                                  */
+/* ========================================================================== */
+
+/** The name every Sherlo login is kept under in the keychain; the account is the service address. */
+const KEYCHAIN_SERVICE = 'sherlo';
+
+/** The value kept in one keychain entry: the token and whose it is, as one small JSON string. */
+type KeychainValue = { token: string; email: string };
+
+type KeyringModule = typeof import('@napi-rs/keyring');
+
+let keyringModule: KeyringModule | null | undefined;
+
+/**
+ * The keychain store, or undefined when this run must not or cannot use one: the run asked for the
+ * file, or the prebuilt keyring binary for this platform is missing (an unsupported platform, or an
+ * install that skipped optional dependencies). A missing binary is found once, at the first call.
+ */
+export function reachableKeychain(): SavedLogins | undefined {
+  if (process.env.SHERLO_SAVED_LOGIN_STORE === 'file') return undefined;
+
+  if (keyringModule === undefined) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      keyringModule = require('@napi-rs/keyring') as KeyringModule;
+    } catch {
+      keyringModule = null;
+    }
+  }
+  if (!keyringModule) return undefined;
+
+  const { Entry } = keyringModule;
+  // On Linux, only the Secret Service (gnome-keyring, KWallet) keeps a login across a restart; the
+  // library's own fallback, the kernel keyring, forgets it. Requiring the Secret Service makes a
+  // machine without one throw, and the file takes the login instead.
+  const entryOf = (serviceAddress: string) =>
+    new Entry(KEYCHAIN_SERVICE, serviceAddress, { linux: { store: 'secret-service' } });
+
+  return {
+    read: (serviceAddress) => {
+      const value = entryOf(serviceAddress).getPassword();
+      if (!value) return undefined;
+
+      const parsed = JSON.parse(value) as Partial<KeychainValue>;
+      if (typeof parsed.token !== 'string' || typeof parsed.email !== 'string') return undefined;
+      return { token: parsed.token, email: parsed.email };
+    },
+
+    save: (serviceAddress, login) => {
+      const value: KeychainValue = { token: login.token, email: login.email };
+      entryOf(serviceAddress).setPassword(JSON.stringify(value));
+    },
+
+    remove: (serviceAddress) => {
+      entryOf(serviceAddress).deletePassword();
+    },
+  };
+}
+
+/* ========================================================================== */
+/* The saved-login file                                                       */
+/* ========================================================================== */
+
+/**
+ * The saved-login file. A missing or unreadable file reads as no login, and every write leaves the
+ * file readable and writable by its owner alone.
+ */
+export const fileSavedLogins: SavedLogins = {
   read: (serviceAddress) => {
     const entry = readSavedLoginFile()[serviceAddress];
     if (typeof entry?.token !== 'string' || typeof entry.email !== 'string') return undefined;
