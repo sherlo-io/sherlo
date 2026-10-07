@@ -1,0 +1,5683 @@
+{
+  "formatVersion": 2,
+  "cliVersion": "2.0.2",
+  "native": {
+    "hash": "df7c9094b94de0077f7916d9e6113d5a8097942e",
+    "sources": [
+      {
+        "type": "file",
+        "id": ".gitignore",
+        "hash": "3f63e4eb0439c8e3eb588f15a8d320f36e854093"
+      },
+      {
+        "type": "file",
+        "id": "eas.json",
+        "hash": "7e1261aa23fd7bf9cada15b97bba82323186122a"
+      },
+      {
+        "type": "file",
+        "id": "node_modules/expo-localization/app.plugin.js",
+        "hash": "5378e16be441cf42ec78e172868a8cf5d65d4915"
+      },
+      {
+        "type": "file",
+        "id": "node_modules/expo-localization/plugin/build/withExpoLocalization.js",
+        "hash": "d0536f48e2967563a2a12782a310becc329962ab"
+      },
+      {
+        "type": "file",
+        "id": "node_modules/slugify/slugify.js",
+        "hash": "ae17311af8fd6853178bbb9638209af634559c36"
+      },
+      {
+        "type": "file",
+        "id": "plugins/withAndroidBuildFixes.js",
+        "hash": "6af1092894a09bc981e1dc59ace1d03f0b9fd995"
+      },
+      {
+        "type": "file",
+        "id": "plugins/withExcludeAppGlideModule.js",
+        "hash": "eea3bc501ac0461d3016f81250e455a989838312"
+      },
+      {
+        "type": "dir",
+        "id": "android",
+        "hash": "f9a52c2e2e0abcc3f26a297c5c4ae49cc4c4526f"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/@d11/react-native-fast-image",
+        "hash": "e7cb2602e9fb83d199c4926543d86f702354ef30"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/@react-native-async-storage/async-storage",
+        "hash": "c8abbd95b5a4de71497e32dc315b03711023ee53"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/@react-native-community/datetimepicker",
+        "hash": "d7b16125d128cccdfcc4904b8a15ac5b278826bd"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/@react-native-community/slider",
+        "hash": "872260f86921c636a6b56fcfc222a0487392207c"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/@sherlo/react-native-storybook",
+        "hash": "9792120595c6d1d78eb2f746ed869e2c346ac981"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/burnt/ios",
+        "hash": "f2f8fec1fb3a59684dadcc147c19dfaaed14b4f9"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo",
+        "hash": "04d76d300196d866e5d6da89759de213d11af59e"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-asset/android",
+        "hash": "79e88eff8c38f2b406e01fd832bcbb8c0e721dcd"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-asset/ios",
+        "hash": "64c4ad7cf42e31fd4da7fb209ece8e4d69b0a4c9"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-constants/android",
+        "hash": "9848b099fe6653dc5c44c3570cbef098f332eaa6"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-constants/ios",
+        "hash": "ff34c5d72c101e5e574da61a66657a85c73aeb15"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-dev-client/android",
+        "hash": "e8849560741cc9f12c90b5008cde78774e0fcf8a"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-dev-client/ios",
+        "hash": "ccb44b85889c0adf7525081c51441755772a2eef"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-dev-launcher",
+        "hash": "08e1fbcd0921a2c4e83108388ec3534d6f6a31bd"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-dev-launcher/expo-dev-launcher-gradle-plugin",
+        "hash": "1ed3b6334306a04c98eebd196eb1c9db0967eda5"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-dev-menu",
+        "hash": "64c43830dd014ce884c2862954699ec5ca5595eb"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-dev-menu-interface/android",
+        "hash": "dce78dff52c3a1d4464a42dfcb7eb716e7da30cc"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-dev-menu-interface/ios",
+        "hash": "ea1cb20508e03753bd06ab43bb3d8befbbd45cf2"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-eas-client/android",
+        "hash": "f792569851e69924c4370ce1d5f1c37180008039"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-eas-client/ios",
+        "hash": "9ad196a7467c2dd945ec44aa7c40c3c6170474a4"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-file-system/android",
+        "hash": "f6291bb3e726aaaa5a6a6aaec109d7c235aa28ca"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-file-system/ios",
+        "hash": "61284cc90a6cb2aaf51abf35af9e57943076ceda"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-font/android",
+        "hash": "aaaeba50df44c8f1295ad85aa81ccb69f3b579a5"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-font/ios",
+        "hash": "bd4094a0b2d865343efce31dab27f20061b7dcb1"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-image/android",
+        "hash": "89cd9b831d39a00fb61471ea446565805d0bbbb5"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-image/ios",
+        "hash": "900495b2b854f6c258e46254ec389f0f910055f5"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-json-utils/android",
+        "hash": "59c4263f6a989981a99d336704998a4e57e29a40"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-json-utils/ios",
+        "hash": "88b67909d990381d6b9af489659e10b2643fbcd3"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-keep-awake/android",
+        "hash": "526ee37c55efa994a976fb0a9bc7191c3887e1bd"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-keep-awake/ios",
+        "hash": "3189649a2314547c48865a8ada8afd964f0d913e"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-linear-gradient/android",
+        "hash": "b1ffdcff64cec8f40968ce3f8b6f2e08ad92a724"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-linear-gradient/ios",
+        "hash": "a3d5dd09746b4cf4e2aee89af47c97c93bee5b27"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-localization/android",
+        "hash": "3a28feadc43eec9abb1564f1268c5081eb1b125f"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-localization/ios",
+        "hash": "d50adc42c8b303a2701f8f5d3318e1293303f835"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-manifests/android",
+        "hash": "5a63455710324f9774ca8d1c5106857565c71512"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-manifests/ios",
+        "hash": "4529e3a4f9ef9a81649441b95413622b98fbcb11"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-modules-core",
+        "hash": "36fc225c3884b4e6fd516e691c246d5107995477"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-modules-core/expo-module-gradle-plugin",
+        "hash": "422fe35a530512206d2fa7933533eeb34de96175"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-structured-headers/android",
+        "hash": "d2a95fd271a2c0e3f70070c7b102ca0ecbcf657d"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-structured-headers/ios",
+        "hash": "ff605d99653a7a69ade5852d7e4a60e4f54ecc2b"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-system-ui/android",
+        "hash": "8bd3637ead58cea60bccb1239375dceaec87b48b"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-system-ui/ios",
+        "hash": "9dd7f1f9a6fac34a87681f49518f7baf7526d30d"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-updates-interface/android",
+        "hash": "883a9ecf89c2e7ac1ffa09a8dd35a6abf13a2942"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-updates-interface/ios",
+        "hash": "194dac6aa9e60f27e18948f29ed778a6469f01b3"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-updates/android",
+        "hash": "d6d26f7f4631fd1f37ed54b9bcd516b9fa7a9cd1"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-updates/expo-updates-gradle-plugin",
+        "hash": "12d9f1ac8b103ea0330b45c6e13655e507db2d24"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/expo-updates/ios",
+        "hash": "e45395663d8a84413f45075eacd201f09718105e"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-crash-tester",
+        "hash": "b35e51972822351132451b20c8402ec4c6d5363b"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-gesture-handler",
+        "hash": "73736b65cfe9a670e7a270afd735503f67d93bb3"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-linear-gradient",
+        "hash": "6ae03b6a11fbde192a3f030390926c4dfcad8632"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-reanimated",
+        "hash": "fa1bda6131168ff4b301bfefdb72832dbdae2136"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-safe-area-context",
+        "hash": "59b0624c0c126f0d28a68d57b5c18b9e6b506b7d"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-svg",
+        "hash": "fa0157dd9dfa9f148d9153b30320a5de7e4480a7"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-turbo-image",
+        "hash": "1ee9f5668333766f2be883dc5c8744102f80642f"
+      },
+      {
+        "type": "dir",
+        "id": "node_modules/react-native-worklets",
+        "hash": "bb8cea9a3353206b1a8677cc572ffb2080eb8895"
+      },
+      {
+        "type": "contents",
+        "id": "expoAutolinkingConfig:android",
+        "hash": "692afb1c9f6ab464b222ea230cdc24e06ea98555"
+      },
+      {
+        "type": "contents",
+        "id": "expoAutolinkingConfig:ios",
+        "hash": "7cf087a04bb12b3abc5bdacd29756299e5a76688"
+      },
+      {
+        "type": "contents",
+        "id": "expoConfig",
+        "hash": "2afe54e2ab2f8babc78a623450ab7ac035f8c8a2"
+      },
+      {
+        "type": "contents",
+        "id": "package:react-native",
+        "hash": "158cb5d106e4b3caae6b3dca43f7bbd146d2b3fc"
+      },
+      {
+        "type": "contents",
+        "id": "packageJson:scripts",
+        "hash": "a46d82fe8458f139b3209b2c6ca8033c84cc75f2"
+      },
+      {
+        "type": "contents",
+        "id": "rncoreAutolinkingConfig:android",
+        "hash": "344a91efb835b4c2109b3e7a1d24adfcfe3a9f33"
+      },
+      {
+        "type": "contents",
+        "id": "rncoreAutolinkingConfig:ios",
+        "hash": "a309a2da43e38c630761317f41cac13c770b9fed"
+      }
+    ]
+  },
+  "dependencies": {
+    "hash": "d7571f0dc47da053e7f12b0ccb36b1214b7786611f0d8fa5e1de57418ee4730b",
+    "source": "yarn.lock",
+    "packages": [
+      {
+        "name": "@0no-co/graphql.web",
+        "versions": [
+          "1.2.0"
+        ]
+      },
+      {
+        "name": "@adobe/css-tools",
+        "versions": [
+          "4.4.4"
+        ]
+      },
+      {
+        "name": "@babel/code-frame",
+        "versions": [
+          "7.10.4",
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/compat-data",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/core",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/generator",
+        "versions": [
+          "7.29.1"
+        ]
+      },
+      {
+        "name": "@babel/helper-annotate-as-pure",
+        "versions": [
+          "7.27.3"
+        ]
+      },
+      {
+        "name": "@babel/helper-compilation-targets",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/helper-create-class-features-plugin",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/helper-create-regexp-features-plugin",
+        "versions": [
+          "7.28.5"
+        ]
+      },
+      {
+        "name": "@babel/helper-define-polyfill-provider",
+        "versions": [
+          "0.6.7"
+        ]
+      },
+      {
+        "name": "@babel/helper-globals",
+        "versions": [
+          "7.28.0"
+        ]
+      },
+      {
+        "name": "@babel/helper-member-expression-to-functions",
+        "versions": [
+          "7.28.5"
+        ]
+      },
+      {
+        "name": "@babel/helper-module-imports",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/helper-module-transforms",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/helper-optimise-call-expression",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/helper-plugin-utils",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/helper-remap-async-to-generator",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/helper-replace-supers",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/helper-skip-transparent-expression-wrappers",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/helper-string-parser",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/helper-validator-identifier",
+        "versions": [
+          "7.28.5"
+        ]
+      },
+      {
+        "name": "@babel/helper-validator-option",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/helper-wrap-function",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/helpers",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/highlight",
+        "versions": [
+          "7.25.9"
+        ]
+      },
+      {
+        "name": "@babel/parser",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/plugin-proposal-decorators",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/plugin-proposal-export-default-from",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-async-generators",
+        "versions": [
+          "7.8.4"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-bigint",
+        "versions": [
+          "7.8.3"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-class-properties",
+        "versions": [
+          "7.12.13"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-class-static-block",
+        "versions": [
+          "7.14.5"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-decorators",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-dynamic-import",
+        "versions": [
+          "7.8.3"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-export-default-from",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-flow",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-import-attributes",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-import-meta",
+        "versions": [
+          "7.10.4"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-json-strings",
+        "versions": [
+          "7.8.3"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-jsx",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-logical-assignment-operators",
+        "versions": [
+          "7.10.4"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-nullish-coalescing-operator",
+        "versions": [
+          "7.8.3"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-numeric-separator",
+        "versions": [
+          "7.10.4"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-object-rest-spread",
+        "versions": [
+          "7.8.3"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-optional-catch-binding",
+        "versions": [
+          "7.8.3"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-optional-chaining",
+        "versions": [
+          "7.8.3"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-private-property-in-object",
+        "versions": [
+          "7.14.5"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-top-level-await",
+        "versions": [
+          "7.14.5"
+        ]
+      },
+      {
+        "name": "@babel/plugin-syntax-typescript",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-arrow-functions",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-async-generator-functions",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-async-to-generator",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-block-scoping",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-class-properties",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-class-static-block",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-classes",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-computed-properties",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-destructuring",
+        "versions": [
+          "7.28.5"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-export-namespace-from",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-flow-strip-types",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-for-of",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-function-name",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-literals",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-logical-assignment-operators",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-modules-commonjs",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-named-capturing-groups-regex",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-nullish-coalescing-operator",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-numeric-separator",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-object-rest-spread",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-optional-catch-binding",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-optional-chaining",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-parameters",
+        "versions": [
+          "7.27.7"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-private-methods",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-private-property-in-object",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-react-display-name",
+        "versions": [
+          "7.28.0"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-react-jsx",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-react-jsx-development",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-react-jsx-self",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-react-jsx-source",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-react-pure-annotations",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-regenerator",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-runtime",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-shorthand-properties",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-spread",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-sticky-regex",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-template-literals",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-typescript",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/plugin-transform-unicode-regex",
+        "versions": [
+          "7.27.1"
+        ]
+      },
+      {
+        "name": "@babel/preset-react",
+        "versions": [
+          "7.28.5"
+        ]
+      },
+      {
+        "name": "@babel/preset-typescript",
+        "versions": [
+          "7.28.5"
+        ]
+      },
+      {
+        "name": "@babel/runtime",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/template",
+        "versions": [
+          "7.28.6"
+        ]
+      },
+      {
+        "name": "@babel/traverse",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/traverse--for-generate-function-map",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@babel/types",
+        "versions": [
+          "7.29.0"
+        ]
+      },
+      {
+        "name": "@d11/react-native-fast-image",
+        "versions": [
+          "8.11.0"
+        ]
+      },
+      {
+        "name": "@egjs/hammerjs",
+        "versions": [
+          "2.0.17"
+        ]
+      },
+      {
+        "name": "@emotion/is-prop-valid",
+        "versions": [
+          "0.8.8"
+        ]
+      },
+      {
+        "name": "@emotion/memoize",
+        "versions": [
+          "0.7.4"
+        ]
+      },
+      {
+        "name": "@esbuild/aix-ppc64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/android-arm",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/android-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/android-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/darwin-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/darwin-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/freebsd-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/freebsd-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-arm",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-ia32",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-loong64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-mips64el",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-ppc64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-riscv64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-s390x",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/linux-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/netbsd-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/netbsd-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/openbsd-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/openbsd-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/openharmony-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/sunos-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/win32-arm64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/win32-ia32",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@esbuild/win32-x64",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "@expo/cli",
+        "versions": [
+          "54.0.23"
+        ]
+      },
+      {
+        "name": "@expo/code-signing-certificates",
+        "versions": [
+          "0.0.6"
+        ]
+      },
+      {
+        "name": "@expo/config",
+        "versions": [
+          "12.0.13"
+        ]
+      },
+      {
+        "name": "@expo/config-plugins",
+        "versions": [
+          "54.0.4"
+        ]
+      },
+      {
+        "name": "@expo/config-types",
+        "versions": [
+          "54.0.10"
+        ]
+      },
+      {
+        "name": "@expo/devcert",
+        "versions": [
+          "1.2.1"
+        ]
+      },
+      {
+        "name": "@expo/devtools",
+        "versions": [
+          "0.1.8"
+        ]
+      },
+      {
+        "name": "@expo/env",
+        "versions": [
+          "2.0.11"
+        ]
+      },
+      {
+        "name": "@expo/fingerprint",
+        "versions": [
+          "0.11.11",
+          "0.15.4"
+        ]
+      },
+      {
+        "name": "@expo/image-utils",
+        "versions": [
+          "0.8.12"
+        ]
+      },
+      {
+        "name": "@expo/json-file",
+        "versions": [
+          "10.0.12"
+        ]
+      },
+      {
+        "name": "@expo/metro",
+        "versions": [
+          "54.2.0"
+        ]
+      },
+      {
+        "name": "@expo/metro-config",
+        "versions": [
+          "54.0.14"
+        ]
+      },
+      {
+        "name": "@expo/osascript",
+        "versions": [
+          "2.4.2"
+        ]
+      },
+      {
+        "name": "@expo/package-manager",
+        "versions": [
+          "1.10.3"
+        ]
+      },
+      {
+        "name": "@expo/plist",
+        "versions": [
+          "0.4.8"
+        ]
+      },
+      {
+        "name": "@expo/prebuild-config",
+        "versions": [
+          "54.0.8"
+        ]
+      },
+      {
+        "name": "@expo/schema-utils",
+        "versions": [
+          "0.1.8"
+        ]
+      },
+      {
+        "name": "@expo/sdk-runtime-versions",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "@expo/spawn-async",
+        "versions": [
+          "1.7.2"
+        ]
+      },
+      {
+        "name": "@expo/sudo-prompt",
+        "versions": [
+          "9.3.2"
+        ]
+      },
+      {
+        "name": "@expo/vector-icons",
+        "versions": [
+          "15.1.1"
+        ]
+      },
+      {
+        "name": "@expo/ws-tunnel",
+        "versions": [
+          "1.0.6"
+        ]
+      },
+      {
+        "name": "@expo/xcpretty",
+        "versions": [
+          "4.4.1"
+        ]
+      },
+      {
+        "name": "@floating-ui/core",
+        "versions": [
+          "1.7.5"
+        ]
+      },
+      {
+        "name": "@floating-ui/dom",
+        "versions": [
+          "1.7.6"
+        ]
+      },
+      {
+        "name": "@floating-ui/react",
+        "versions": [
+          "0.27.19"
+        ]
+      },
+      {
+        "name": "@floating-ui/react-dom",
+        "versions": [
+          "2.1.8"
+        ]
+      },
+      {
+        "name": "@floating-ui/react-native",
+        "versions": [
+          "0.10.9"
+        ]
+      },
+      {
+        "name": "@floating-ui/utils",
+        "versions": [
+          "0.2.11"
+        ]
+      },
+      {
+        "name": "@gar/promise-retry",
+        "versions": [
+          "1.0.2"
+        ]
+      },
+      {
+        "name": "@gorhom/bottom-sheet",
+        "versions": [
+          "5.2.8"
+        ]
+      },
+      {
+        "name": "@gorhom/portal",
+        "versions": [
+          "1.0.14"
+        ]
+      },
+      {
+        "name": "@isaacs/fs-minipass",
+        "versions": [
+          "4.0.1"
+        ]
+      },
+      {
+        "name": "@isaacs/ttlcache",
+        "versions": [
+          "1.4.1"
+        ]
+      },
+      {
+        "name": "@istanbuljs/load-nyc-config",
+        "versions": [
+          "1.1.0"
+        ]
+      },
+      {
+        "name": "@istanbuljs/schema",
+        "versions": [
+          "0.1.3"
+        ]
+      },
+      {
+        "name": "@jest/create-cache-key-function",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "@jest/environment",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "@jest/fake-timers",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "@jest/schemas",
+        "versions": [
+          "29.6.3"
+        ]
+      },
+      {
+        "name": "@jest/transform",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "@jest/types",
+        "versions": [
+          "29.6.3"
+        ]
+      },
+      {
+        "name": "@jridgewell/gen-mapping",
+        "versions": [
+          "0.3.13"
+        ]
+      },
+      {
+        "name": "@jridgewell/remapping",
+        "versions": [
+          "2.3.5"
+        ]
+      },
+      {
+        "name": "@jridgewell/resolve-uri",
+        "versions": [
+          "3.1.2"
+        ]
+      },
+      {
+        "name": "@jridgewell/source-map",
+        "versions": [
+          "0.3.11"
+        ]
+      },
+      {
+        "name": "@jridgewell/sourcemap-codec",
+        "versions": [
+          "1.5.5"
+        ]
+      },
+      {
+        "name": "@jridgewell/trace-mapping",
+        "versions": [
+          "0.3.31"
+        ]
+      },
+      {
+        "name": "@motionone/animation",
+        "versions": [
+          "10.18.0"
+        ]
+      },
+      {
+        "name": "@motionone/dom",
+        "versions": [
+          "10.12.0"
+        ]
+      },
+      {
+        "name": "@motionone/easing",
+        "versions": [
+          "10.18.0"
+        ]
+      },
+      {
+        "name": "@motionone/generators",
+        "versions": [
+          "10.18.0"
+        ]
+      },
+      {
+        "name": "@motionone/types",
+        "versions": [
+          "10.17.1"
+        ]
+      },
+      {
+        "name": "@motionone/utils",
+        "versions": [
+          "10.18.0"
+        ]
+      },
+      {
+        "name": "@npmcli/agent",
+        "versions": [
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "@npmcli/fs",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "@react-native-async-storage/async-storage",
+        "versions": [
+          "2.2.0"
+        ]
+      },
+      {
+        "name": "@react-native-community/datetimepicker",
+        "versions": [
+          "8.4.4"
+        ]
+      },
+      {
+        "name": "@react-native-community/slider",
+        "versions": [
+          "5.0.1"
+        ]
+      },
+      {
+        "name": "@react-native/assets-registry",
+        "versions": [
+          "0.81.4"
+        ]
+      },
+      {
+        "name": "@react-native/babel-plugin-codegen",
+        "versions": [
+          "0.81.5"
+        ]
+      },
+      {
+        "name": "@react-native/babel-preset",
+        "versions": [
+          "0.81.5"
+        ]
+      },
+      {
+        "name": "@react-native/codegen",
+        "versions": [
+          "0.81.4",
+          "0.81.5"
+        ]
+      },
+      {
+        "name": "@react-native/community-cli-plugin",
+        "versions": [
+          "0.81.4"
+        ]
+      },
+      {
+        "name": "@react-native/debugger-frontend",
+        "versions": [
+          "0.81.4",
+          "0.81.5"
+        ]
+      },
+      {
+        "name": "@react-native/dev-middleware",
+        "versions": [
+          "0.81.4",
+          "0.81.5"
+        ]
+      },
+      {
+        "name": "@react-native/gradle-plugin",
+        "versions": [
+          "0.81.4"
+        ]
+      },
+      {
+        "name": "@react-native/js-polyfills",
+        "versions": [
+          "0.81.4"
+        ]
+      },
+      {
+        "name": "@react-native/normalize-color",
+        "versions": [
+          "2.1.0"
+        ]
+      },
+      {
+        "name": "@react-native/normalize-colors",
+        "versions": [
+          "0.81.4",
+          "0.81.5"
+        ]
+      },
+      {
+        "name": "@react-native/virtualized-lists",
+        "versions": [
+          "0.81.4"
+        ]
+      },
+      {
+        "name": "@sherlo/expo",
+        "versions": [
+          "0.0.0-use.local"
+        ]
+      },
+      {
+        "name": "@sherlo/react-native-storybook",
+        "versions": [
+          "2.0.2"
+        ]
+      },
+      {
+        "name": "@sinclair/typebox",
+        "versions": [
+          "0.27.10"
+        ]
+      },
+      {
+        "name": "@sinonjs/commons",
+        "versions": [
+          "3.0.1"
+        ]
+      },
+      {
+        "name": "@sinonjs/fake-timers",
+        "versions": [
+          "10.3.0"
+        ]
+      },
+      {
+        "name": "@storybook/addon-ondevice-actions",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@storybook/addon-ondevice-backgrounds",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@storybook/addon-ondevice-controls",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@storybook/addon-ondevice-notes",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@storybook/global",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "@storybook/react",
+        "versions": [
+          "9.1.20"
+        ]
+      },
+      {
+        "name": "@storybook/react-dom-shim",
+        "versions": [
+          "9.1.20"
+        ]
+      },
+      {
+        "name": "@storybook/react-native",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@storybook/react-native-theming",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@storybook/react-native-ui",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@storybook/react-native-ui-common",
+        "versions": [
+          "9.1.4"
+        ]
+      },
+      {
+        "name": "@tamagui/accordion",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/adapt",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/alert-dialog",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/animate",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/animate-presence",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/animations-css",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/animations-moti",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/animations-react-native",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/avatar",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/button",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/card",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/checkbox",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/checkbox-headless",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/collapsible",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/collection",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/colors",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/compose-refs",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/config",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/config-default",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/constants",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/core",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/create-context",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/create-theme",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/cubic-bezier-animator",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/dialog",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/dismissable",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/elements",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/fake-react-native",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/floating",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/focus-scope",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/focusable",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/font-inter",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/font-silkscreen",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/font-size",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/form",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/get-button-sized",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/get-font-sized",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/get-token",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/group",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/helpers",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/helpers-icon",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/helpers-tamagui",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/image",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/is-equal-shallow",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/label",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/linear-gradient",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/list-item",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/lucide-icons",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/normalize-css-color",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/polyfill-dev",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/popover",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/popper",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/portal",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/progress",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/radio-group",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/radio-headless",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/react-native-media-driver",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/react-native-use-pressable",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/react-native-use-responder-events",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/remove-scroll",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/roving-focus",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/scroll-view",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/select",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/separator",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/shapes",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/sheet",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/shorthands",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/simple-hash",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/slider",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/stacks",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/start-transition",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/switch",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/switch-headless",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/tabs",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/text",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/theme",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/theme-builder",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/themes",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/timer",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/toast",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/toggle-group",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/tooltip",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/types",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-async",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-callback-ref",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-constant",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-controllable-state",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-debounce",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-did-finish-ssr",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-direction",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-element-layout",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-escape-keydown",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-event",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-force-update",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-keyboard-visible",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-presence",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-previous",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/use-window-dimensions",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/visually-hidden",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/web",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@tamagui/z-index-stack",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "@testing-library/jest-dom",
+        "versions": [
+          "6.9.1"
+        ]
+      },
+      {
+        "name": "@testing-library/user-event",
+        "versions": [
+          "14.6.1"
+        ]
+      },
+      {
+        "name": "@types/babel__core",
+        "versions": [
+          "7.20.5"
+        ]
+      },
+      {
+        "name": "@types/babel__generator",
+        "versions": [
+          "7.27.0"
+        ]
+      },
+      {
+        "name": "@types/babel__template",
+        "versions": [
+          "7.4.4"
+        ]
+      },
+      {
+        "name": "@types/babel__traverse",
+        "versions": [
+          "7.28.0"
+        ]
+      },
+      {
+        "name": "@types/chai",
+        "versions": [
+          "5.2.3"
+        ]
+      },
+      {
+        "name": "@types/deep-eql",
+        "versions": [
+          "4.0.2"
+        ]
+      },
+      {
+        "name": "@types/estree",
+        "versions": [
+          "1.0.8"
+        ]
+      },
+      {
+        "name": "@types/graceful-fs",
+        "versions": [
+          "4.1.9"
+        ]
+      },
+      {
+        "name": "@types/hammerjs",
+        "versions": [
+          "2.0.46"
+        ]
+      },
+      {
+        "name": "@types/istanbul-lib-coverage",
+        "versions": [
+          "2.0.6"
+        ]
+      },
+      {
+        "name": "@types/istanbul-lib-report",
+        "versions": [
+          "3.0.3"
+        ]
+      },
+      {
+        "name": "@types/istanbul-reports",
+        "versions": [
+          "3.0.4"
+        ]
+      },
+      {
+        "name": "@types/json-schema",
+        "versions": [
+          "7.0.15"
+        ]
+      },
+      {
+        "name": "@types/lodash",
+        "versions": [
+          "4.17.24"
+        ]
+      },
+      {
+        "name": "@types/node",
+        "versions": [
+          "25.3.5"
+        ]
+      },
+      {
+        "name": "@types/react",
+        "versions": [
+          "19.1.17"
+        ]
+      },
+      {
+        "name": "@types/react-reconciler",
+        "versions": [
+          "0.28.9"
+        ]
+      },
+      {
+        "name": "@types/stack-utils",
+        "versions": [
+          "2.0.3"
+        ]
+      },
+      {
+        "name": "@types/yargs",
+        "versions": [
+          "17.0.35"
+        ]
+      },
+      {
+        "name": "@types/yargs-parser",
+        "versions": [
+          "21.0.3"
+        ]
+      },
+      {
+        "name": "@ungap/structured-clone",
+        "versions": [
+          "1.3.0"
+        ]
+      },
+      {
+        "name": "@urql/core",
+        "versions": [
+          "5.2.0"
+        ]
+      },
+      {
+        "name": "@urql/exchange-retry",
+        "versions": [
+          "1.3.2"
+        ]
+      },
+      {
+        "name": "@vitest/expect",
+        "versions": [
+          "3.2.4"
+        ]
+      },
+      {
+        "name": "@vitest/mocker",
+        "versions": [
+          "3.2.4"
+        ]
+      },
+      {
+        "name": "@vitest/pretty-format",
+        "versions": [
+          "3.2.4"
+        ]
+      },
+      {
+        "name": "@vitest/spy",
+        "versions": [
+          "3.2.4"
+        ]
+      },
+      {
+        "name": "@vitest/utils",
+        "versions": [
+          "3.2.4"
+        ]
+      },
+      {
+        "name": "@xmldom/xmldom",
+        "versions": [
+          "0.8.11"
+        ]
+      },
+      {
+        "name": "abbrev",
+        "versions": [
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "abort-controller",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "accepts",
+        "versions": [
+          "1.3.8",
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "acorn",
+        "versions": [
+          "8.16.0"
+        ]
+      },
+      {
+        "name": "agent-base",
+        "versions": [
+          "7.1.4"
+        ]
+      },
+      {
+        "name": "ajv",
+        "versions": [
+          "6.14.0",
+          "8.18.0"
+        ]
+      },
+      {
+        "name": "ajv-keywords",
+        "versions": [
+          "3.5.2"
+        ]
+      },
+      {
+        "name": "anser",
+        "versions": [
+          "1.4.10"
+        ]
+      },
+      {
+        "name": "ansi-escapes",
+        "versions": [
+          "4.3.2"
+        ]
+      },
+      {
+        "name": "ansi-regex",
+        "versions": [
+          "4.1.1",
+          "5.0.1"
+        ]
+      },
+      {
+        "name": "ansi-styles",
+        "versions": [
+          "3.2.1",
+          "4.3.0",
+          "5.2.0"
+        ]
+      },
+      {
+        "name": "any-promise",
+        "versions": [
+          "1.3.0"
+        ]
+      },
+      {
+        "name": "anymatch",
+        "versions": [
+          "3.1.3"
+        ]
+      },
+      {
+        "name": "arg",
+        "versions": [
+          "4.1.0",
+          "5.0.2"
+        ]
+      },
+      {
+        "name": "argparse",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "aria-query",
+        "versions": [
+          "5.3.2"
+        ]
+      },
+      {
+        "name": "asap",
+        "versions": [
+          "2.0.6"
+        ]
+      },
+      {
+        "name": "assertion-error",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "ast-types",
+        "versions": [
+          "0.16.1"
+        ]
+      },
+      {
+        "name": "async-function",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "async-generator-function",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "async-limiter",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "available-typed-arrays",
+        "versions": [
+          "1.0.7"
+        ]
+      },
+      {
+        "name": "babel-jest",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "babel-loader",
+        "versions": [
+          "8.4.1"
+        ]
+      },
+      {
+        "name": "babel-plugin-istanbul",
+        "versions": [
+          "6.1.1"
+        ]
+      },
+      {
+        "name": "babel-plugin-jest-hoist",
+        "versions": [
+          "29.6.3"
+        ]
+      },
+      {
+        "name": "babel-plugin-polyfill-corejs2",
+        "versions": [
+          "0.4.16"
+        ]
+      },
+      {
+        "name": "babel-plugin-polyfill-corejs3",
+        "versions": [
+          "0.13.0"
+        ]
+      },
+      {
+        "name": "babel-plugin-polyfill-regenerator",
+        "versions": [
+          "0.6.7"
+        ]
+      },
+      {
+        "name": "babel-plugin-react-compiler",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "babel-plugin-react-native-web",
+        "versions": [
+          "0.21.2"
+        ]
+      },
+      {
+        "name": "babel-plugin-syntax-hermes-parser",
+        "versions": [
+          "0.29.1"
+        ]
+      },
+      {
+        "name": "babel-plugin-transform-flow-enums",
+        "versions": [
+          "0.0.2"
+        ]
+      },
+      {
+        "name": "babel-preset-current-node-syntax",
+        "versions": [
+          "1.2.0"
+        ]
+      },
+      {
+        "name": "babel-preset-expo",
+        "versions": [
+          "54.0.10"
+        ]
+      },
+      {
+        "name": "babel-preset-jest",
+        "versions": [
+          "29.6.3"
+        ]
+      },
+      {
+        "name": "balanced-match",
+        "versions": [
+          "1.0.2",
+          "4.0.4"
+        ]
+      },
+      {
+        "name": "base-64",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "base64-js",
+        "versions": [
+          "1.5.1"
+        ]
+      },
+      {
+        "name": "baseline-browser-mapping",
+        "versions": [
+          "2.10.0"
+        ]
+      },
+      {
+        "name": "better-opn",
+        "versions": [
+          "3.0.2"
+        ]
+      },
+      {
+        "name": "big-integer",
+        "versions": [
+          "1.6.52"
+        ]
+      },
+      {
+        "name": "big.js",
+        "versions": [
+          "5.2.2"
+        ]
+      },
+      {
+        "name": "boolbase",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "bplist-creator",
+        "versions": [
+          "0.1.0",
+          "0.1.1"
+        ]
+      },
+      {
+        "name": "bplist-parser",
+        "versions": [
+          "0.3.2"
+        ]
+      },
+      {
+        "name": "brace-expansion",
+        "versions": [
+          "1.1.12",
+          "2.0.2",
+          "5.0.4"
+        ]
+      },
+      {
+        "name": "braces",
+        "versions": [
+          "3.0.3"
+        ]
+      },
+      {
+        "name": "browserslist",
+        "versions": [
+          "4.28.1"
+        ]
+      },
+      {
+        "name": "bser",
+        "versions": [
+          "2.1.1"
+        ]
+      },
+      {
+        "name": "buffer",
+        "versions": [
+          "5.7.1"
+        ]
+      },
+      {
+        "name": "buffer-from",
+        "versions": [
+          "1.1.2"
+        ]
+      },
+      {
+        "name": "burnt",
+        "versions": [
+          "0.13.0"
+        ]
+      },
+      {
+        "name": "bytes",
+        "versions": [
+          "3.1.2"
+        ]
+      },
+      {
+        "name": "cacache",
+        "versions": [
+          "20.0.3"
+        ]
+      },
+      {
+        "name": "call-bind",
+        "versions": [
+          "1.0.8"
+        ]
+      },
+      {
+        "name": "call-bind-apply-helpers",
+        "versions": [
+          "1.0.2"
+        ]
+      },
+      {
+        "name": "call-bound",
+        "versions": [
+          "1.0.4"
+        ]
+      },
+      {
+        "name": "camelcase",
+        "versions": [
+          "5.3.1",
+          "6.3.0"
+        ]
+      },
+      {
+        "name": "caniuse-lite",
+        "versions": [
+          "1.0.30001777"
+        ]
+      },
+      {
+        "name": "chai",
+        "versions": [
+          "5.3.3"
+        ]
+      },
+      {
+        "name": "chalk",
+        "versions": [
+          "2.4.2",
+          "4.1.2"
+        ]
+      },
+      {
+        "name": "check-error",
+        "versions": [
+          "2.1.3"
+        ]
+      },
+      {
+        "name": "chownr",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "chrome-launcher",
+        "versions": [
+          "0.15.2"
+        ]
+      },
+      {
+        "name": "chromium-edge-launcher",
+        "versions": [
+          "0.2.0"
+        ]
+      },
+      {
+        "name": "ci-info",
+        "versions": [
+          "2.0.0",
+          "3.9.0"
+        ]
+      },
+      {
+        "name": "cli-cursor",
+        "versions": [
+          "2.1.0"
+        ]
+      },
+      {
+        "name": "cli-spinners",
+        "versions": [
+          "2.9.2"
+        ]
+      },
+      {
+        "name": "cliui",
+        "versions": [
+          "8.0.1"
+        ]
+      },
+      {
+        "name": "clone",
+        "versions": [
+          "1.0.4"
+        ]
+      },
+      {
+        "name": "color-convert",
+        "versions": [
+          "1.9.3",
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "color-name",
+        "versions": [
+          "1.1.3",
+          "1.1.4"
+        ]
+      },
+      {
+        "name": "color2k",
+        "versions": [
+          "2.0.3"
+        ]
+      },
+      {
+        "name": "commander",
+        "versions": [
+          "12.1.0",
+          "2.20.3",
+          "4.1.1",
+          "7.2.0",
+          "8.3.0"
+        ]
+      },
+      {
+        "name": "commondir",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "compressible",
+        "versions": [
+          "2.0.18"
+        ]
+      },
+      {
+        "name": "compression",
+        "versions": [
+          "1.8.1"
+        ]
+      },
+      {
+        "name": "concat-map",
+        "versions": [
+          "0.0.1"
+        ]
+      },
+      {
+        "name": "connect",
+        "versions": [
+          "3.7.0"
+        ]
+      },
+      {
+        "name": "convert-source-map",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "core-js-compat",
+        "versions": [
+          "3.48.0"
+        ]
+      },
+      {
+        "name": "cross-spawn",
+        "versions": [
+          "7.0.6"
+        ]
+      },
+      {
+        "name": "css-select",
+        "versions": [
+          "5.2.2"
+        ]
+      },
+      {
+        "name": "css-tree",
+        "versions": [
+          "1.1.3"
+        ]
+      },
+      {
+        "name": "css-what",
+        "versions": [
+          "6.2.2"
+        ]
+      },
+      {
+        "name": "css.escape",
+        "versions": [
+          "1.5.1"
+        ]
+      },
+      {
+        "name": "csstype",
+        "versions": [
+          "3.2.3"
+        ]
+      },
+      {
+        "name": "debug",
+        "versions": [
+          "2.6.9",
+          "3.2.7",
+          "4.4.3"
+        ]
+      },
+      {
+        "name": "dedent",
+        "versions": [
+          "1.7.2"
+        ]
+      },
+      {
+        "name": "deep-eql",
+        "versions": [
+          "5.0.2"
+        ]
+      },
+      {
+        "name": "deep-equal",
+        "versions": [
+          "1.1.2"
+        ]
+      },
+      {
+        "name": "deep-extend",
+        "versions": [
+          "0.6.0"
+        ]
+      },
+      {
+        "name": "deepmerge",
+        "versions": [
+          "4.3.1"
+        ]
+      },
+      {
+        "name": "defaults",
+        "versions": [
+          "1.0.4"
+        ]
+      },
+      {
+        "name": "define-data-property",
+        "versions": [
+          "1.1.4"
+        ]
+      },
+      {
+        "name": "define-lazy-prop",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "define-properties",
+        "versions": [
+          "1.2.1"
+        ]
+      },
+      {
+        "name": "depd",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "destroy",
+        "versions": [
+          "1.2.0"
+        ]
+      },
+      {
+        "name": "detect-libc",
+        "versions": [
+          "2.1.2"
+        ]
+      },
+      {
+        "name": "dom-accessibility-api",
+        "versions": [
+          "0.6.3"
+        ]
+      },
+      {
+        "name": "dom-serializer",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "domelementtype",
+        "versions": [
+          "2.3.0"
+        ]
+      },
+      {
+        "name": "domhandler",
+        "versions": [
+          "5.0.3"
+        ]
+      },
+      {
+        "name": "domutils",
+        "versions": [
+          "3.2.2"
+        ]
+      },
+      {
+        "name": "dotenv",
+        "versions": [
+          "16.4.7",
+          "16.6.1"
+        ]
+      },
+      {
+        "name": "dotenv-expand",
+        "versions": [
+          "11.0.7"
+        ]
+      },
+      {
+        "name": "dunder-proto",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "ee-first",
+        "versions": [
+          "1.1.1"
+        ]
+      },
+      {
+        "name": "electron-to-chromium",
+        "versions": [
+          "1.5.307"
+        ]
+      },
+      {
+        "name": "emoji-regex",
+        "versions": [
+          "8.0.0"
+        ]
+      },
+      {
+        "name": "emojis-list",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "encodeurl",
+        "versions": [
+          "1.0.2",
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "entities",
+        "versions": [
+          "4.5.0"
+        ]
+      },
+      {
+        "name": "env-editor",
+        "versions": [
+          "0.4.2"
+        ]
+      },
+      {
+        "name": "env-paths",
+        "versions": [
+          "2.2.1"
+        ]
+      },
+      {
+        "name": "error-stack-parser",
+        "versions": [
+          "2.1.4"
+        ]
+      },
+      {
+        "name": "es-define-property",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "es-errors",
+        "versions": [
+          "1.3.0"
+        ]
+      },
+      {
+        "name": "es-object-atoms",
+        "versions": [
+          "1.1.1"
+        ]
+      },
+      {
+        "name": "es-toolkit",
+        "versions": [
+          "1.45.1"
+        ]
+      },
+      {
+        "name": "esbuild",
+        "versions": [
+          "0.25.12"
+        ]
+      },
+      {
+        "name": "esbuild-register",
+        "versions": [
+          "3.6.0"
+        ]
+      },
+      {
+        "name": "escalade",
+        "versions": [
+          "3.2.0"
+        ]
+      },
+      {
+        "name": "escape-html",
+        "versions": [
+          "1.0.3"
+        ]
+      },
+      {
+        "name": "escape-string-regexp",
+        "versions": [
+          "1.0.5",
+          "2.0.0",
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "esprima",
+        "versions": [
+          "4.0.1"
+        ]
+      },
+      {
+        "name": "estree-walker",
+        "versions": [
+          "3.0.3"
+        ]
+      },
+      {
+        "name": "etag",
+        "versions": [
+          "1.8.1"
+        ]
+      },
+      {
+        "name": "event-target-shim",
+        "versions": [
+          "5.0.1"
+        ]
+      },
+      {
+        "name": "expo",
+        "versions": [
+          "54.0.33"
+        ]
+      },
+      {
+        "name": "expo-asset",
+        "versions": [
+          "12.0.12"
+        ]
+      },
+      {
+        "name": "expo-constants",
+        "versions": [
+          "18.0.13"
+        ]
+      },
+      {
+        "name": "expo-dev-client",
+        "versions": [
+          "6.0.20"
+        ]
+      },
+      {
+        "name": "expo-dev-launcher",
+        "versions": [
+          "6.0.20"
+        ]
+      },
+      {
+        "name": "expo-dev-menu",
+        "versions": [
+          "7.0.18"
+        ]
+      },
+      {
+        "name": "expo-dev-menu-interface",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "expo-eas-client",
+        "versions": [
+          "1.0.8"
+        ]
+      },
+      {
+        "name": "expo-file-system",
+        "versions": [
+          "19.0.21"
+        ]
+      },
+      {
+        "name": "expo-font",
+        "versions": [
+          "14.0.11"
+        ]
+      },
+      {
+        "name": "expo-image",
+        "versions": [
+          "3.0.11"
+        ]
+      },
+      {
+        "name": "expo-json-utils",
+        "versions": [
+          "0.15.0"
+        ]
+      },
+      {
+        "name": "expo-keep-awake",
+        "versions": [
+          "15.0.8"
+        ]
+      },
+      {
+        "name": "expo-linear-gradient",
+        "versions": [
+          "15.0.8"
+        ]
+      },
+      {
+        "name": "expo-localization",
+        "versions": [
+          "17.0.8"
+        ]
+      },
+      {
+        "name": "expo-manifests",
+        "versions": [
+          "1.0.10"
+        ]
+      },
+      {
+        "name": "expo-modules-autolinking",
+        "versions": [
+          "3.0.24"
+        ]
+      },
+      {
+        "name": "expo-modules-core",
+        "versions": [
+          "3.0.29"
+        ]
+      },
+      {
+        "name": "expo-server",
+        "versions": [
+          "1.0.5"
+        ]
+      },
+      {
+        "name": "expo-status-bar",
+        "versions": [
+          "3.0.9"
+        ]
+      },
+      {
+        "name": "expo-structured-headers",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "expo-system-ui",
+        "versions": [
+          "6.0.9"
+        ]
+      },
+      {
+        "name": "expo-updates",
+        "versions": [
+          "29.0.16"
+        ]
+      },
+      {
+        "name": "expo-updates-interface",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "exponential-backoff",
+        "versions": [
+          "3.1.3"
+        ]
+      },
+      {
+        "name": "fast-deep-equal",
+        "versions": [
+          "2.0.1",
+          "3.1.3"
+        ]
+      },
+      {
+        "name": "fast-json-stable-stringify",
+        "versions": [
+          "2.1.0"
+        ]
+      },
+      {
+        "name": "fast-uri",
+        "versions": [
+          "3.1.0"
+        ]
+      },
+      {
+        "name": "fb-watchman",
+        "versions": [
+          "2.0.2"
+        ]
+      },
+      {
+        "name": "fdir",
+        "versions": [
+          "6.5.0"
+        ]
+      },
+      {
+        "name": "fill-range",
+        "versions": [
+          "7.1.1"
+        ]
+      },
+      {
+        "name": "finalhandler",
+        "versions": [
+          "1.1.2"
+        ]
+      },
+      {
+        "name": "find-cache-dir",
+        "versions": [
+          "3.3.2"
+        ]
+      },
+      {
+        "name": "find-up",
+        "versions": [
+          "4.1.0",
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "flow-enums-runtime",
+        "versions": [
+          "0.0.6"
+        ]
+      },
+      {
+        "name": "fontfaceobserver",
+        "versions": [
+          "2.3.0"
+        ]
+      },
+      {
+        "name": "for-each",
+        "versions": [
+          "0.3.5"
+        ]
+      },
+      {
+        "name": "framer-motion",
+        "versions": [
+          "6.5.1"
+        ]
+      },
+      {
+        "name": "framesync",
+        "versions": [
+          "6.0.1"
+        ]
+      },
+      {
+        "name": "freeport-async",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "fresh",
+        "versions": [
+          "0.5.2"
+        ]
+      },
+      {
+        "name": "fs-minipass",
+        "versions": [
+          "3.0.3"
+        ]
+      },
+      {
+        "name": "fs.realpath",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "fsevents",
+        "versions": [
+          "2.3.3"
+        ]
+      },
+      {
+        "name": "function-bind",
+        "versions": [
+          "1.1.2"
+        ]
+      },
+      {
+        "name": "functions-have-names",
+        "versions": [
+          "1.2.3"
+        ]
+      },
+      {
+        "name": "fuse.js",
+        "versions": [
+          "7.1.0"
+        ]
+      },
+      {
+        "name": "generator-function",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "gensync",
+        "versions": [
+          "1.0.0-beta.2"
+        ]
+      },
+      {
+        "name": "get-caller-file",
+        "versions": [
+          "2.0.5"
+        ]
+      },
+      {
+        "name": "get-intrinsic",
+        "versions": [
+          "1.3.1"
+        ]
+      },
+      {
+        "name": "get-package-type",
+        "versions": [
+          "0.1.0"
+        ]
+      },
+      {
+        "name": "get-proto",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "getenv",
+        "versions": [
+          "1.0.0",
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "glob",
+        "versions": [
+          "13.0.6",
+          "7.2.3"
+        ]
+      },
+      {
+        "name": "gopd",
+        "versions": [
+          "1.2.0"
+        ]
+      },
+      {
+        "name": "graceful-fs",
+        "versions": [
+          "4.2.11"
+        ]
+      },
+      {
+        "name": "has-flag",
+        "versions": [
+          "3.0.0",
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "has-property-descriptors",
+        "versions": [
+          "1.0.2"
+        ]
+      },
+      {
+        "name": "has-symbols",
+        "versions": [
+          "1.1.0"
+        ]
+      },
+      {
+        "name": "has-tostringtag",
+        "versions": [
+          "1.0.2"
+        ]
+      },
+      {
+        "name": "hasown",
+        "versions": [
+          "2.0.2"
+        ]
+      },
+      {
+        "name": "hermes-estree",
+        "versions": [
+          "0.29.1",
+          "0.32.0",
+          "0.33.3"
+        ]
+      },
+      {
+        "name": "hermes-parser",
+        "versions": [
+          "0.29.1",
+          "0.32.0",
+          "0.33.3"
+        ]
+      },
+      {
+        "name": "hey-listen",
+        "versions": [
+          "1.0.8"
+        ]
+      },
+      {
+        "name": "hoist-non-react-statics",
+        "versions": [
+          "3.3.2"
+        ]
+      },
+      {
+        "name": "hosted-git-info",
+        "versions": [
+          "7.0.2"
+        ]
+      },
+      {
+        "name": "http-cache-semantics",
+        "versions": [
+          "4.2.0"
+        ]
+      },
+      {
+        "name": "http-errors",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "http-proxy-agent",
+        "versions": [
+          "7.0.2"
+        ]
+      },
+      {
+        "name": "https-proxy-agent",
+        "versions": [
+          "7.0.6"
+        ]
+      },
+      {
+        "name": "iconv-lite",
+        "versions": [
+          "0.7.2"
+        ]
+      },
+      {
+        "name": "ieee754",
+        "versions": [
+          "1.2.1"
+        ]
+      },
+      {
+        "name": "ignore",
+        "versions": [
+          "5.3.2"
+        ]
+      },
+      {
+        "name": "image-size",
+        "versions": [
+          "1.2.1"
+        ]
+      },
+      {
+        "name": "imurmurhash",
+        "versions": [
+          "0.1.4"
+        ]
+      },
+      {
+        "name": "indent-string",
+        "versions": [
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "inflight",
+        "versions": [
+          "1.0.6"
+        ]
+      },
+      {
+        "name": "inherits",
+        "versions": [
+          "2.0.4"
+        ]
+      },
+      {
+        "name": "ini",
+        "versions": [
+          "1.3.8"
+        ]
+      },
+      {
+        "name": "invariant",
+        "versions": [
+          "2.2.4"
+        ]
+      },
+      {
+        "name": "ip-address",
+        "versions": [
+          "10.1.0"
+        ]
+      },
+      {
+        "name": "is-arguments",
+        "versions": [
+          "1.2.0"
+        ]
+      },
+      {
+        "name": "is-callable",
+        "versions": [
+          "1.2.7"
+        ]
+      },
+      {
+        "name": "is-core-module",
+        "versions": [
+          "2.16.1"
+        ]
+      },
+      {
+        "name": "is-date-object",
+        "versions": [
+          "1.1.0"
+        ]
+      },
+      {
+        "name": "is-docker",
+        "versions": [
+          "2.2.1"
+        ]
+      },
+      {
+        "name": "is-fullwidth-code-point",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "is-generator-function",
+        "versions": [
+          "1.1.2"
+        ]
+      },
+      {
+        "name": "is-number",
+        "versions": [
+          "7.0.0"
+        ]
+      },
+      {
+        "name": "is-plain-obj",
+        "versions": [
+          "2.1.0"
+        ]
+      },
+      {
+        "name": "is-regex",
+        "versions": [
+          "1.2.1"
+        ]
+      },
+      {
+        "name": "is-typed-array",
+        "versions": [
+          "1.1.15"
+        ]
+      },
+      {
+        "name": "is-wsl",
+        "versions": [
+          "2.2.0"
+        ]
+      },
+      {
+        "name": "isexe",
+        "versions": [
+          "2.0.0",
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "istanbul-lib-coverage",
+        "versions": [
+          "3.2.2"
+        ]
+      },
+      {
+        "name": "istanbul-lib-instrument",
+        "versions": [
+          "5.2.1"
+        ]
+      },
+      {
+        "name": "its-fine",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "jest-environment-node",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "jest-get-type",
+        "versions": [
+          "29.6.3"
+        ]
+      },
+      {
+        "name": "jest-haste-map",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "jest-message-util",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "jest-mock",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "jest-regex-util",
+        "versions": [
+          "29.6.3"
+        ]
+      },
+      {
+        "name": "jest-util",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "jest-validate",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "jest-worker",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "jimp-compact",
+        "versions": [
+          "0.16.1"
+        ]
+      },
+      {
+        "name": "js-tokens",
+        "versions": [
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "js-yaml",
+        "versions": [
+          "4.1.1"
+        ]
+      },
+      {
+        "name": "jsc-safe-url",
+        "versions": [
+          "0.2.4"
+        ]
+      },
+      {
+        "name": "jsesc",
+        "versions": [
+          "3.1.0"
+        ]
+      },
+      {
+        "name": "json-schema-traverse",
+        "versions": [
+          "0.4.1",
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "json5",
+        "versions": [
+          "2.2.3"
+        ]
+      },
+      {
+        "name": "kleur",
+        "versions": [
+          "3.0.3"
+        ]
+      },
+      {
+        "name": "lan-network",
+        "versions": [
+          "0.1.7"
+        ]
+      },
+      {
+        "name": "leven",
+        "versions": [
+          "3.1.0"
+        ]
+      },
+      {
+        "name": "lighthouse-logger",
+        "versions": [
+          "1.4.2"
+        ]
+      },
+      {
+        "name": "lightningcss",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-android-arm64",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-darwin-arm64",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-darwin-x64",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-freebsd-x64",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-linux-arm-gnueabihf",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-linux-arm64-gnu",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-linux-arm64-musl",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-linux-x64-gnu",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-linux-x64-musl",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-win32-arm64-msvc",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lightningcss-win32-x64-msvc",
+        "versions": [
+          "1.31.1"
+        ]
+      },
+      {
+        "name": "lines-and-columns",
+        "versions": [
+          "1.2.4"
+        ]
+      },
+      {
+        "name": "loader-utils",
+        "versions": [
+          "2.0.4"
+        ]
+      },
+      {
+        "name": "locate-path",
+        "versions": [
+          "5.0.0",
+          "6.0.0"
+        ]
+      },
+      {
+        "name": "lodash",
+        "versions": [
+          "4.17.23"
+        ]
+      },
+      {
+        "name": "lodash.debounce",
+        "versions": [
+          "4.0.8"
+        ]
+      },
+      {
+        "name": "lodash.throttle",
+        "versions": [
+          "4.1.1"
+        ]
+      },
+      {
+        "name": "log-symbols",
+        "versions": [
+          "2.2.0"
+        ]
+      },
+      {
+        "name": "loose-envify",
+        "versions": [
+          "1.4.0"
+        ]
+      },
+      {
+        "name": "loupe",
+        "versions": [
+          "3.2.1"
+        ]
+      },
+      {
+        "name": "lru-cache",
+        "versions": [
+          "10.4.3",
+          "11.2.6",
+          "5.1.1"
+        ]
+      },
+      {
+        "name": "magic-string",
+        "versions": [
+          "0.30.21"
+        ]
+      },
+      {
+        "name": "make-dir",
+        "versions": [
+          "3.1.0"
+        ]
+      },
+      {
+        "name": "make-fetch-happen",
+        "versions": [
+          "15.0.4"
+        ]
+      },
+      {
+        "name": "makeerror",
+        "versions": [
+          "1.0.12"
+        ]
+      },
+      {
+        "name": "map-or-similar",
+        "versions": [
+          "1.5.0"
+        ]
+      },
+      {
+        "name": "marky",
+        "versions": [
+          "1.3.0"
+        ]
+      },
+      {
+        "name": "math-intrinsics",
+        "versions": [
+          "1.1.0"
+        ]
+      },
+      {
+        "name": "mdn-data",
+        "versions": [
+          "2.0.14"
+        ]
+      },
+      {
+        "name": "memoize-one",
+        "versions": [
+          "5.2.1"
+        ]
+      },
+      {
+        "name": "memoizerific",
+        "versions": [
+          "1.11.3"
+        ]
+      },
+      {
+        "name": "merge-options",
+        "versions": [
+          "3.0.4"
+        ]
+      },
+      {
+        "name": "merge-stream",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "metro",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-babel-transformer",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-cache",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-cache-key",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-config",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-core",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-file-map",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-minify-terser",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-resolver",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-runtime",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-source-map",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-symbolicate",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-transform-plugins",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "metro-transform-worker",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "micromatch",
+        "versions": [
+          "4.0.8"
+        ]
+      },
+      {
+        "name": "mime",
+        "versions": [
+          "1.6.0"
+        ]
+      },
+      {
+        "name": "mime-db",
+        "versions": [
+          "1.52.0",
+          "1.54.0"
+        ]
+      },
+      {
+        "name": "mime-types",
+        "versions": [
+          "2.1.35",
+          "3.0.2"
+        ]
+      },
+      {
+        "name": "mimic-fn",
+        "versions": [
+          "1.2.0"
+        ]
+      },
+      {
+        "name": "min-indent",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "minimatch",
+        "versions": [
+          "10.2.4",
+          "3.1.5",
+          "9.0.9"
+        ]
+      },
+      {
+        "name": "minimist",
+        "versions": [
+          "1.2.8"
+        ]
+      },
+      {
+        "name": "minipass",
+        "versions": [
+          "3.3.6",
+          "7.1.3"
+        ]
+      },
+      {
+        "name": "minipass-collect",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "minipass-fetch",
+        "versions": [
+          "5.0.2"
+        ]
+      },
+      {
+        "name": "minipass-flush",
+        "versions": [
+          "1.0.5"
+        ]
+      },
+      {
+        "name": "minipass-pipeline",
+        "versions": [
+          "1.2.4"
+        ]
+      },
+      {
+        "name": "minipass-sized",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "minizlib",
+        "versions": [
+          "3.1.0"
+        ]
+      },
+      {
+        "name": "mkdirp",
+        "versions": [
+          "1.0.4"
+        ]
+      },
+      {
+        "name": "moti",
+        "versions": [
+          "0.30.0"
+        ]
+      },
+      {
+        "name": "ms",
+        "versions": [
+          "2.0.0",
+          "2.1.3"
+        ]
+      },
+      {
+        "name": "mz",
+        "versions": [
+          "2.7.0"
+        ]
+      },
+      {
+        "name": "nanoid",
+        "versions": [
+          "3.3.11"
+        ]
+      },
+      {
+        "name": "negotiator",
+        "versions": [
+          "0.6.3",
+          "0.6.4",
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "nested-error-stacks",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "node-forge",
+        "versions": [
+          "1.3.3"
+        ]
+      },
+      {
+        "name": "node-gyp",
+        "versions": [
+          "12.2.0"
+        ]
+      },
+      {
+        "name": "node-int64",
+        "versions": [
+          "0.4.0"
+        ]
+      },
+      {
+        "name": "node-releases",
+        "versions": [
+          "2.0.36"
+        ]
+      },
+      {
+        "name": "nopt",
+        "versions": [
+          "9.0.0"
+        ]
+      },
+      {
+        "name": "normalize-path",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "npm-package-arg",
+        "versions": [
+          "11.0.3"
+        ]
+      },
+      {
+        "name": "nth-check",
+        "versions": [
+          "2.1.1"
+        ]
+      },
+      {
+        "name": "nullthrows",
+        "versions": [
+          "1.1.1"
+        ]
+      },
+      {
+        "name": "ob1",
+        "versions": [
+          "0.83.3",
+          "0.83.5"
+        ]
+      },
+      {
+        "name": "object-assign",
+        "versions": [
+          "4.1.1"
+        ]
+      },
+      {
+        "name": "object-is",
+        "versions": [
+          "1.1.6"
+        ]
+      },
+      {
+        "name": "object-keys",
+        "versions": [
+          "1.1.1"
+        ]
+      },
+      {
+        "name": "on-finished",
+        "versions": [
+          "2.3.0",
+          "2.4.1"
+        ]
+      },
+      {
+        "name": "on-headers",
+        "versions": [
+          "1.1.0"
+        ]
+      },
+      {
+        "name": "once",
+        "versions": [
+          "1.4.0"
+        ]
+      },
+      {
+        "name": "onetime",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "open",
+        "versions": [
+          "7.4.2",
+          "8.4.2"
+        ]
+      },
+      {
+        "name": "ora",
+        "versions": [
+          "3.4.0"
+        ]
+      },
+      {
+        "name": "p-limit",
+        "versions": [
+          "2.3.0",
+          "3.1.0"
+        ]
+      },
+      {
+        "name": "p-locate",
+        "versions": [
+          "4.1.0",
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "p-map",
+        "versions": [
+          "7.0.4"
+        ]
+      },
+      {
+        "name": "p-try",
+        "versions": [
+          "2.2.0"
+        ]
+      },
+      {
+        "name": "parse-png",
+        "versions": [
+          "2.1.0"
+        ]
+      },
+      {
+        "name": "parseurl",
+        "versions": [
+          "1.3.3"
+        ]
+      },
+      {
+        "name": "path-exists",
+        "versions": [
+          "4.0.0"
+        ]
+      },
+      {
+        "name": "path-is-absolute",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "path-key",
+        "versions": [
+          "3.1.1"
+        ]
+      },
+      {
+        "name": "path-parse",
+        "versions": [
+          "1.0.7"
+        ]
+      },
+      {
+        "name": "path-scurry",
+        "versions": [
+          "2.0.2"
+        ]
+      },
+      {
+        "name": "pathval",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "picocolors",
+        "versions": [
+          "1.1.1"
+        ]
+      },
+      {
+        "name": "picomatch",
+        "versions": [
+          "2.3.1",
+          "3.0.1",
+          "4.0.3"
+        ]
+      },
+      {
+        "name": "pirates",
+        "versions": [
+          "4.0.7"
+        ]
+      },
+      {
+        "name": "pkg-dir",
+        "versions": [
+          "4.2.0"
+        ]
+      },
+      {
+        "name": "plist",
+        "versions": [
+          "3.1.0"
+        ]
+      },
+      {
+        "name": "pngjs",
+        "versions": [
+          "3.4.0"
+        ]
+      },
+      {
+        "name": "polished",
+        "versions": [
+          "4.3.1"
+        ]
+      },
+      {
+        "name": "popmotion",
+        "versions": [
+          "11.0.3"
+        ]
+      },
+      {
+        "name": "possible-typed-array-names",
+        "versions": [
+          "1.1.0"
+        ]
+      },
+      {
+        "name": "postcss",
+        "versions": [
+          "8.4.49"
+        ]
+      },
+      {
+        "name": "pretty-bytes",
+        "versions": [
+          "5.6.0"
+        ]
+      },
+      {
+        "name": "pretty-format",
+        "versions": [
+          "29.7.0"
+        ]
+      },
+      {
+        "name": "proc-log",
+        "versions": [
+          "4.2.0",
+          "6.1.0"
+        ]
+      },
+      {
+        "name": "progress",
+        "versions": [
+          "2.0.3"
+        ]
+      },
+      {
+        "name": "promise",
+        "versions": [
+          "8.3.0"
+        ]
+      },
+      {
+        "name": "prompts",
+        "versions": [
+          "2.4.2"
+        ]
+      },
+      {
+        "name": "prop-types",
+        "versions": [
+          "15.8.1"
+        ]
+      },
+      {
+        "name": "punycode",
+        "versions": [
+          "2.3.1"
+        ]
+      },
+      {
+        "name": "qrcode-terminal",
+        "versions": [
+          "0.11.0"
+        ]
+      },
+      {
+        "name": "queue",
+        "versions": [
+          "6.0.2"
+        ]
+      },
+      {
+        "name": "range-parser",
+        "versions": [
+          "1.2.1"
+        ]
+      },
+      {
+        "name": "rc",
+        "versions": [
+          "1.2.8"
+        ]
+      },
+      {
+        "name": "react",
+        "versions": [
+          "19.1.0"
+        ]
+      },
+      {
+        "name": "react-devtools-core",
+        "versions": [
+          "6.1.5"
+        ]
+      },
+      {
+        "name": "react-dom",
+        "versions": [
+          "19.1.0"
+        ]
+      },
+      {
+        "name": "react-freeze",
+        "versions": [
+          "1.0.4"
+        ]
+      },
+      {
+        "name": "react-is",
+        "versions": [
+          "16.13.1",
+          "18.3.1"
+        ]
+      },
+      {
+        "name": "react-native",
+        "versions": [
+          "0.81.4"
+        ]
+      },
+      {
+        "name": "react-native-crash-tester",
+        "versions": [
+          "0.2.3"
+        ]
+      },
+      {
+        "name": "react-native-gesture-handler",
+        "versions": [
+          "2.28.0"
+        ]
+      },
+      {
+        "name": "react-native-is-edge-to-edge",
+        "versions": [
+          "1.3.1"
+        ]
+      },
+      {
+        "name": "react-native-linear-gradient",
+        "versions": [
+          "2.8.3"
+        ]
+      },
+      {
+        "name": "react-native-modal-datetime-picker",
+        "versions": [
+          "18.0.0"
+        ]
+      },
+      {
+        "name": "react-native-reanimated",
+        "versions": [
+          "4.1.6"
+        ]
+      },
+      {
+        "name": "react-native-safe-area-context",
+        "versions": [
+          "5.6.2"
+        ]
+      },
+      {
+        "name": "react-native-svg",
+        "versions": [
+          "15.12.1"
+        ]
+      },
+      {
+        "name": "react-native-turbo-image",
+        "versions": [
+          "1.24.1"
+        ]
+      },
+      {
+        "name": "react-native-url-polyfill",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "react-native-worklets",
+        "versions": [
+          "0.5.1"
+        ]
+      },
+      {
+        "name": "react-refresh",
+        "versions": [
+          "0.14.2"
+        ]
+      },
+      {
+        "name": "recast",
+        "versions": [
+          "0.23.11"
+        ]
+      },
+      {
+        "name": "redent",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "regenerate",
+        "versions": [
+          "1.4.2"
+        ]
+      },
+      {
+        "name": "regenerate-unicode-properties",
+        "versions": [
+          "10.2.2"
+        ]
+      },
+      {
+        "name": "regenerator-runtime",
+        "versions": [
+          "0.13.11"
+        ]
+      },
+      {
+        "name": "regexp.prototype.flags",
+        "versions": [
+          "1.5.4"
+        ]
+      },
+      {
+        "name": "regexpu-core",
+        "versions": [
+          "6.4.0"
+        ]
+      },
+      {
+        "name": "regjsgen",
+        "versions": [
+          "0.8.0"
+        ]
+      },
+      {
+        "name": "regjsparser",
+        "versions": [
+          "0.13.0"
+        ]
+      },
+      {
+        "name": "require-directory",
+        "versions": [
+          "2.1.1"
+        ]
+      },
+      {
+        "name": "require-from-string",
+        "versions": [
+          "2.0.2"
+        ]
+      },
+      {
+        "name": "requireg",
+        "versions": [
+          "0.2.2"
+        ]
+      },
+      {
+        "name": "resolve",
+        "versions": [
+          "1.22.11",
+          "1.7.1"
+        ]
+      },
+      {
+        "name": "resolve-from",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "resolve-workspace-root",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "resolve.exports",
+        "versions": [
+          "2.0.3"
+        ]
+      },
+      {
+        "name": "restore-cursor",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "retry",
+        "versions": [
+          "0.13.1"
+        ]
+      },
+      {
+        "name": "rimraf",
+        "versions": [
+          "3.0.2"
+        ]
+      },
+      {
+        "name": "rtl-detect",
+        "versions": [
+          "1.1.2"
+        ]
+      },
+      {
+        "name": "safe-buffer",
+        "versions": [
+          "5.2.1"
+        ]
+      },
+      {
+        "name": "safe-regex-test",
+        "versions": [
+          "1.1.0"
+        ]
+      },
+      {
+        "name": "safer-buffer",
+        "versions": [
+          "2.1.2"
+        ]
+      },
+      {
+        "name": "sax",
+        "versions": [
+          "1.5.0"
+        ]
+      },
+      {
+        "name": "scheduler",
+        "versions": [
+          "0.26.0"
+        ]
+      },
+      {
+        "name": "schema-utils",
+        "versions": [
+          "2.7.1"
+        ]
+      },
+      {
+        "name": "semver",
+        "versions": [
+          "6.3.1",
+          "7.7.2",
+          "7.7.4"
+        ]
+      },
+      {
+        "name": "send",
+        "versions": [
+          "0.19.2"
+        ]
+      },
+      {
+        "name": "serialize-error",
+        "versions": [
+          "2.1.0"
+        ]
+      },
+      {
+        "name": "serve-static",
+        "versions": [
+          "1.16.3"
+        ]
+      },
+      {
+        "name": "set-function-length",
+        "versions": [
+          "1.2.2"
+        ]
+      },
+      {
+        "name": "set-function-name",
+        "versions": [
+          "2.0.2"
+        ]
+      },
+      {
+        "name": "setimmediate",
+        "versions": [
+          "1.0.5"
+        ]
+      },
+      {
+        "name": "setprototypeof",
+        "versions": [
+          "1.2.0"
+        ]
+      },
+      {
+        "name": "sf-symbols-typescript",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "shebang-command",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "shebang-regex",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "shell-quote",
+        "versions": [
+          "1.8.3"
+        ]
+      },
+      {
+        "name": "sherlo",
+        "versions": [
+          "0.0.0-use.local"
+        ]
+      },
+      {
+        "name": "signal-exit",
+        "versions": [
+          "3.0.7"
+        ]
+      },
+      {
+        "name": "simple-plist",
+        "versions": [
+          "1.4.0"
+        ]
+      },
+      {
+        "name": "sisteransi",
+        "versions": [
+          "1.0.5"
+        ]
+      },
+      {
+        "name": "slash",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "slugify",
+        "versions": [
+          "1.6.6"
+        ]
+      },
+      {
+        "name": "smart-buffer",
+        "versions": [
+          "4.2.0"
+        ]
+      },
+      {
+        "name": "socks",
+        "versions": [
+          "2.8.7"
+        ]
+      },
+      {
+        "name": "socks-proxy-agent",
+        "versions": [
+          "8.0.5"
+        ]
+      },
+      {
+        "name": "sonner",
+        "versions": [
+          "2.0.7"
+        ]
+      },
+      {
+        "name": "source-map",
+        "versions": [
+          "0.5.7",
+          "0.6.1"
+        ]
+      },
+      {
+        "name": "source-map-js",
+        "versions": [
+          "1.2.1"
+        ]
+      },
+      {
+        "name": "source-map-support",
+        "versions": [
+          "0.5.21"
+        ]
+      },
+      {
+        "name": "ssri",
+        "versions": [
+          "13.0.1"
+        ]
+      },
+      {
+        "name": "stack-utils",
+        "versions": [
+          "2.0.6"
+        ]
+      },
+      {
+        "name": "stackframe",
+        "versions": [
+          "1.3.4"
+        ]
+      },
+      {
+        "name": "stacktrace-parser",
+        "versions": [
+          "0.1.11"
+        ]
+      },
+      {
+        "name": "statuses",
+        "versions": [
+          "1.5.0",
+          "2.0.2"
+        ]
+      },
+      {
+        "name": "store2",
+        "versions": [
+          "2.14.4"
+        ]
+      },
+      {
+        "name": "storybook",
+        "versions": [
+          "9.1.20"
+        ]
+      },
+      {
+        "name": "stream-buffers",
+        "versions": [
+          "2.2.0"
+        ]
+      },
+      {
+        "name": "string-width",
+        "versions": [
+          "4.2.3"
+        ]
+      },
+      {
+        "name": "strip-ansi",
+        "versions": [
+          "5.2.0",
+          "6.0.1"
+        ]
+      },
+      {
+        "name": "strip-indent",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "strip-json-comments",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "structured-headers",
+        "versions": [
+          "0.4.1"
+        ]
+      },
+      {
+        "name": "style-value-types",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "sucrase",
+        "versions": [
+          "3.35.1"
+        ]
+      },
+      {
+        "name": "supports-color",
+        "versions": [
+          "5.5.0",
+          "7.2.0",
+          "8.1.1"
+        ]
+      },
+      {
+        "name": "supports-hyperlinks",
+        "versions": [
+          "2.3.0"
+        ]
+      },
+      {
+        "name": "supports-preserve-symlinks-flag",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "tabbable",
+        "versions": [
+          "6.4.0"
+        ]
+      },
+      {
+        "name": "tamagui",
+        "versions": [
+          "1.144.4"
+        ]
+      },
+      {
+        "name": "tar",
+        "versions": [
+          "7.5.10"
+        ]
+      },
+      {
+        "name": "terminal-link",
+        "versions": [
+          "2.1.1"
+        ]
+      },
+      {
+        "name": "terser",
+        "versions": [
+          "5.46.0"
+        ]
+      },
+      {
+        "name": "test-exclude",
+        "versions": [
+          "6.0.0"
+        ]
+      },
+      {
+        "name": "thenify",
+        "versions": [
+          "3.3.1"
+        ]
+      },
+      {
+        "name": "thenify-all",
+        "versions": [
+          "1.6.0"
+        ]
+      },
+      {
+        "name": "throat",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "tiny-invariant",
+        "versions": [
+          "1.3.3"
+        ]
+      },
+      {
+        "name": "tinycolor2",
+        "versions": [
+          "1.6.0"
+        ]
+      },
+      {
+        "name": "tinyglobby",
+        "versions": [
+          "0.2.15"
+        ]
+      },
+      {
+        "name": "tinyrainbow",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "tinyspy",
+        "versions": [
+          "4.0.4"
+        ]
+      },
+      {
+        "name": "tmpl",
+        "versions": [
+          "1.0.5"
+        ]
+      },
+      {
+        "name": "to-regex-range",
+        "versions": [
+          "5.0.1"
+        ]
+      },
+      {
+        "name": "toidentifier",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "ts-dedent",
+        "versions": [
+          "2.2.0"
+        ]
+      },
+      {
+        "name": "ts-interface-checker",
+        "versions": [
+          "0.1.13"
+        ]
+      },
+      {
+        "name": "tslib",
+        "versions": [
+          "2.8.1"
+        ]
+      },
+      {
+        "name": "type-detect",
+        "versions": [
+          "4.0.8"
+        ]
+      },
+      {
+        "name": "type-fest",
+        "versions": [
+          "0.21.3",
+          "0.7.1",
+          "2.19.0"
+        ]
+      },
+      {
+        "name": "typescript",
+        "versions": [
+          "5.9.3"
+        ]
+      },
+      {
+        "name": "undici",
+        "versions": [
+          "6.23.0"
+        ]
+      },
+      {
+        "name": "undici-types",
+        "versions": [
+          "7.18.2"
+        ]
+      },
+      {
+        "name": "unicode-canonical-property-names-ecmascript",
+        "versions": [
+          "2.0.1"
+        ]
+      },
+      {
+        "name": "unicode-match-property-ecmascript",
+        "versions": [
+          "2.0.0"
+        ]
+      },
+      {
+        "name": "unicode-match-property-value-ecmascript",
+        "versions": [
+          "2.2.1"
+        ]
+      },
+      {
+        "name": "unicode-property-aliases-ecmascript",
+        "versions": [
+          "2.2.0"
+        ]
+      },
+      {
+        "name": "unique-filename",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "unique-slug",
+        "versions": [
+          "6.0.0"
+        ]
+      },
+      {
+        "name": "unpipe",
+        "versions": [
+          "1.0.0"
+        ]
+      },
+      {
+        "name": "update-browserslist-db",
+        "versions": [
+          "1.2.3"
+        ]
+      },
+      {
+        "name": "uri-js",
+        "versions": [
+          "4.4.1"
+        ]
+      },
+      {
+        "name": "utf8",
+        "versions": [
+          "3.0.0"
+        ]
+      },
+      {
+        "name": "util",
+        "versions": [
+          "0.12.5"
+        ]
+      },
+      {
+        "name": "utils-merge",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "uuid",
+        "versions": [
+          "7.0.3"
+        ]
+      },
+      {
+        "name": "validate-npm-package-name",
+        "versions": [
+          "5.0.1"
+        ]
+      },
+      {
+        "name": "vary",
+        "versions": [
+          "1.1.2"
+        ]
+      },
+      {
+        "name": "vlq",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "walker",
+        "versions": [
+          "1.0.8"
+        ]
+      },
+      {
+        "name": "warn-once",
+        "versions": [
+          "0.1.1"
+        ]
+      },
+      {
+        "name": "wcwidth",
+        "versions": [
+          "1.0.1"
+        ]
+      },
+      {
+        "name": "webidl-conversions",
+        "versions": [
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "whatwg-fetch",
+        "versions": [
+          "3.6.20"
+        ]
+      },
+      {
+        "name": "whatwg-url-without-unicode",
+        "versions": [
+          "8.0.0-3"
+        ]
+      },
+      {
+        "name": "which",
+        "versions": [
+          "2.0.2",
+          "6.0.1"
+        ]
+      },
+      {
+        "name": "which-typed-array",
+        "versions": [
+          "1.1.20"
+        ]
+      },
+      {
+        "name": "wonka",
+        "versions": [
+          "6.3.5"
+        ]
+      },
+      {
+        "name": "wrap-ansi",
+        "versions": [
+          "7.0.0"
+        ]
+      },
+      {
+        "name": "wrappy",
+        "versions": [
+          "1.0.2"
+        ]
+      },
+      {
+        "name": "write-file-atomic",
+        "versions": [
+          "4.0.2"
+        ]
+      },
+      {
+        "name": "ws",
+        "versions": [
+          "6.2.3",
+          "7.5.10",
+          "8.19.0"
+        ]
+      },
+      {
+        "name": "xcode",
+        "versions": [
+          "3.0.1"
+        ]
+      },
+      {
+        "name": "xml2js",
+        "versions": [
+          "0.6.0"
+        ]
+      },
+      {
+        "name": "xmlbuilder",
+        "versions": [
+          "11.0.1",
+          "15.1.1"
+        ]
+      },
+      {
+        "name": "y18n",
+        "versions": [
+          "5.0.8"
+        ]
+      },
+      {
+        "name": "yallist",
+        "versions": [
+          "3.1.1",
+          "4.0.0",
+          "5.0.0"
+        ]
+      },
+      {
+        "name": "yaml",
+        "versions": [
+          "2.8.2"
+        ]
+      },
+      {
+        "name": "yargs",
+        "versions": [
+          "17.7.2"
+        ]
+      },
+      {
+        "name": "yargs-parser",
+        "versions": [
+          "21.1.1"
+        ]
+      },
+      {
+        "name": "yocto-queue",
+        "versions": [
+          "0.1.0"
+        ]
+      }
+    ]
+  },
+  "js": {},
+  "base": {
+    "hash": "df4ec7c7e77f74be7ab8262c0a45fc976d80ed20b9c6189b2b52bb665041cd5c",
+    "workflow": "bare",
+    "lockfiles": [
+      {
+        "file": "yarn.lock",
+        "digest": "7d3ca995f7d2c02adc21c1ebb8ba78d8c043e530a8a7fd58c74f4177dfb8a449"
+      }
+    ],
+    "autolinkedModules": []
+  }
+}
