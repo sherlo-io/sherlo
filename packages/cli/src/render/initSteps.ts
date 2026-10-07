@@ -101,10 +101,11 @@ export function renderNextSteps({
     { title: 'Run your first visual test', content: [chalk.cyan('npx sherlo test')] },
   ];
 
-  // ONE STEP IS NOT A LIST: it gets a singular title and no number.
+  // ONE STEP IS NOT A LIST: it gets a singular title and no number. Content lines start in one
+  // column everywhere in this section, the CI link's included.
   const stepLines =
     steps.length === 1
-      ? [chalk.bold(steps[0].title), ...steps[0].content.map((line) => `  ${line}`), '']
+      ? [chalk.bold(steps[0].title), ...steps[0].content.map((line) => `   ${line}`), '']
       : steps.flatMap(({ title, content }, index) => [
           chalk.bold(`${index + 1}. ${title}`),
           ...content.map((line) => (line === '' ? '' : `   ${line}`)),
@@ -117,7 +118,7 @@ export function renderNextSteps({
     ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
     ...stepLines,
     `${chalk.blue('INFO:')} For CI, create a project token and add it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
-    `      ${chalk.cyan(projectPageUrl)}`,
+    `   ${chalk.cyan(projectPageUrl)}`,
   ];
 }
 

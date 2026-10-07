@@ -3,14 +3,17 @@
  * Storybook's own installer, which also writes its example stories - the stories the first test
  * photographs until the project has stories of its own.
  *
- * OPEN DECISION (spike): whether the installer runs with no questions on every app Sherlo supports.
+ * Its line names the package and version, as Sherlo's line does, and that the example stories came
+ * with it. The other packages the installer adds are not listed: they are Storybook's own needs.
  */
 import { detect, resolveCommand } from 'package-manager-detector';
+import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
 import getFailedCommandOutput from '../dependencies/getFailedCommandOutput';
 import { printLines } from '../helpers';
+import getPackageVersion from '../requirements/getPackageVersion';
 
 /** Answers whether this run installed Storybook, which decides the example-stories next step. */
 async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{ installedNow: boolean }> {
@@ -51,7 +54,11 @@ async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{
 
   spinner.stop();
   printLines([
-    renderStepLine({ outcome: 'done', name: 'Installed Storybook', detail: "with Storybook's example stories" }),
+    renderStepLine({
+      outcome: 'done',
+      name: 'Installed Storybook',
+      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)} (with example stories)`,
+    }),
   ]);
 
   return { installedNow: true };
