@@ -49,9 +49,12 @@ async function init(options: Options<THIS_COMMAND>) {
     await metroConfig(sessionId);
     await githubWorkflow();
 
-    printLines(
-      renderNextSteps({ installedStorybook: installedNow, storybookSetup: storybookSetup(), projectPageUrl })
-    );
+    const storybookState = installedNow
+      ? 'installed'
+      : storybookSetup() === 'registers-root'
+        ? 'newer-setup'
+        : 'older-setup';
+    printLines(renderNextSteps({ storybook: storybookState, projectPageUrl }));
     printLines(renderFeedbackLine({ under: 'next-steps' }));
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });

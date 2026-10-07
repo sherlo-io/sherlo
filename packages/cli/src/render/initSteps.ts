@@ -51,64 +51,62 @@ export function renderFailedStepLine(name: string): string[] {
 }
 
 /**
- * The next steps, in their own section, numbered in the order they are done.
+ * The next steps, in their own section, numbered in the order they are done. The first ones
+ * depend on the Storybook the project had (epic storybook-both-setups settled the two setups):
  *
- * The example-stories step shows only when this run installed Storybook: a project that already
- * had Storybook already has stories of its own.
+ *   - `installed`: setup installed Storybook just now, on its newer setup, which needs nothing in the
+ *     app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
+ *   - `newer-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
+ *     with no change to the app - no Storybook step at all.
+ *   - `older-setup`: Storybook renders from the app's own root, so the person gives Sherlo access
+ *     there - or, recommended, moves to the newer setup, which needs no change.
  */
 export function renderNextSteps({
-  installedStorybook,
-  storybookSetup,
+  storybook,
   projectPageUrl,
 }: {
-  installedStorybook: boolean;
-  /**
-   * Storybook's newer setup registers the app's root in `.rnstorybook/index`, and Sherlo reaches it
-   * with no change to the app; an older one renders Storybook from the app, so the person adds
-   * Sherlo there.
-   */
-  storybookSetup: 'registers-root' | 'renders-in-app';
+  storybook: 'installed' | 'newer-setup' | 'older-setup';
   /** The project's page in the web app, where a project token for CI is made. */
   projectPageUrl: string;
 }): string[] {
-  const storybookAccessSteps =
-    storybookSetup === 'registers-root'
-      ? [
-          {
-            what: "If your stories need your app's providers, add them as decorators in .rnstorybook/preview.tsx.",
-            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#providers')}`),
-          },
-        ]
-      : [
-          {
-            what: 'Give Sherlo access to Storybook in your app.',
-            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`),
-          },
-          {
-            what: "Optional: move to Storybook's newer setup, which needs no change in your app.",
-            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup')}`),
-          },
-        ];
+  const how = (url: string) => chalk.dim(`↳ How: ${chalk.cyan(url)}`);
 
-  // Every step is the same shape: what to do, then one indented line of how.
-  const steps: Array<{ what: string; how: string }> = [
-    ...storybookAccessSteps,
-    ...(installedStorybook
-      ? [
-          {
-            what: 'Recommended: replace the example stories with your own components.',
-            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/stories')}`),
-          },
-        ]
-      : []),
-    { what: 'Run your first visual test:', how: chalk.cyan('npx sherlo test') },
+  const storybookSteps: Record<typeof storybook, Array<{ what: string; how: string[] }>> = {
+    installed: [
+      {
+        what: "Recommended: replace the example stories with your own, so Sherlo tests your app's UI, not placeholders.",
+        how: [how('https://sherlo.io/docs/stories')],
+      },
+    ],
+    'newer-setup': [],
+    'older-setup': [
+      {
+        what: 'Give Sherlo access to Storybook in your app:',
+        how: [
+          how('https://sherlo.io/docs/setup#storybook-access'),
+          chalk.dim(
+            `↳ Or, recommended: switch to Storybook's newer setup, which needs no change in your app: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup')}`
+          ),
+        ],
+      },
+    ],
+  };
+
+  // Every step is the same shape: what to do, then indented lines of how.
+  const steps = [
+    ...storybookSteps[storybook],
+    { what: 'Run your first visual test:', how: [chalk.cyan('npx sherlo test')] },
   ];
 
   // No CI is named: the token works on any CI, the GitHub workflow included.
   return [
     // 13, not the title's own length: the emoji is counted as one character and drawn as two.
     ...renderSectionTitle('👉 Next steps', 13),
-    ...steps.flatMap(({ what, how }, index) => [`${index + 1}. ${what}`, `   ${how}`, '']),
+    ...steps.flatMap(({ what, how: howLines }, index) => [
+      `${index + 1}. ${what}`,
+      ...howLines.map((line) => `   ${line}`),
+      '',
+    ]),
     `${chalk.blue('INFO:')} For CI, create a project token and add it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
     `      ${chalk.cyan(projectPageUrl)}`,
   ];
