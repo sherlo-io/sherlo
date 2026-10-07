@@ -133,5 +133,5 @@ export function renderFeedbackLine({ under }: { under: 'next-steps' | 'error' })
   // A thin rule above it marks it as a side note, apart from the steps or the error.
   const rule = chalk.dim('─'.repeat(10));
 
-  return under === 'next-steps' ? ['', rule, line] : [rule, line, ''];
+  return under === 'next-steps' ? ['', rule, '', line] : [rule, '', line, ''];
 }
