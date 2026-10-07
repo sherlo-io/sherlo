@@ -16,3 +16,9 @@
 -keepclasseswithmembernames class io.sherlo.storybookreactnative.CompiledCore {
     native <methods>;
 }
+
+# SPIKE (debug-only-native): the app's PackageList finds Sherlo's package by name (see
+# react-native.config.js), so R8 must keep the class and its no-argument constructor.
+-keep class io.sherlo.storybookreactnative.SherloModulePackage {
+    <init>();
+}

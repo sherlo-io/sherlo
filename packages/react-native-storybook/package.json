@@ -67,6 +67,7 @@
     "ios/Resources/**/*",
     "ios/SherloCore.xcframework/**/*",
     "sherlo-react-native-storybook.podspec",
+    "react-native.config.js",
     "dist-metro/withStorybook.js",
     "dist-metro/polyfill.js",
     "metro/withStorybook.d.ts"
