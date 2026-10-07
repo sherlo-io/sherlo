@@ -434,8 +434,9 @@ function addInitCommand(program: Command) {
   addCommand({
     program,
     command: INIT_COMMAND,
-    // No `--token` (init-for-agents): setup logs the person in, and a project token is CI's.
-    options: [PERSONAL_TOKEN_OPTION, TEAM_OPTION, PROJECT_OPTION],
+    // No `--token` (init-for-agents): setup logs the person in, and a project token is CI's. No
+    // `--personal-token` either: personal tokens are hidden (epic sherlo-login-hidden-tokens).
+    options: [TEAM_OPTION, PROJECT_OPTION],
     action: init,
     withTimeout: false,
   });

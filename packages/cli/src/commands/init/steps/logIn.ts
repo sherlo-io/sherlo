@@ -1,71 +1,51 @@
 /**
- * STEP 2 - WHO IS SETTING UP? `--personal-token`, then SHERLO_PERSONAL_TOKEN, then the login saved
- * on this computer; only when there is none of them does setup run the browser login itself, the
- * same one `sherlo login` runs. So the person's only act in the whole setup is clicking Authorize,
- * and an agent given a personal token never opens a browser.
+ * STEP 2 - WHO IS SETTING UP? The login saved on this computer; with none, setup runs the browser
+ * login itself, the same one `sherlo login` runs. So the person's only act in the whole setup is
+ * clicking Authorize - on this computer, or on their phone when an agent with no browser hands them
+ * the link.
  *
- * How the login waits, and what it says while it waits, is epic SLH's (sherlo-login-hidden-tokens).
+ * NO PERSONAL TOKEN (epic SLH, sherlo-login-hidden-tokens, operator decision 2026-10-07): personal
+ * tokens are hidden behind an admin switch, so setup is planned on the login alone. How the login
+ * waits, and what it says while it waits, is SLH's too.
  */
 import ansiEscapes from 'ansi-escapes';
-import { PERSONAL_TOKEN_ENV_VAR } from '../../../constants';
 import { renderLoginLink, renderLoginWaiting } from '../../../render/login';
 import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import { renderStepLine } from '../../../render/initSteps';
 import { savedLogins } from '../../../seams/savedLogins';
 import { logInThroughTheBrowser } from '../../login/login';
-import { resolvePersonalToken } from '../../shared';
 import type { ResolvedPersonalToken } from '../../shared/resolvePersonalToken';
-import { THIS_COMMAND } from '../constants';
 import { printLines } from '../helpers';
 
-async function logIn(personalTokenFlag: string | undefined): Promise<ResolvedPersonalToken> {
+async function logIn(): Promise<ResolvedPersonalToken> {
   const serviceAddress = getEndpointUrl();
 
-  const hasGivenToken = Boolean(
-    personalTokenFlag?.trim() || process.env[PERSONAL_TOKEN_ENV_VAR]?.trim()
-  );
   const savedLogin = savedLogins().read(serviceAddress);
-
-  if (hasGivenToken) {
-    // Checked before the line is printed, so a token that is not a personal one is refused without
-    // the screen first saying it logged in with it.
-    const person = resolvePersonalTokenForSetup(personalTokenFlag);
-    printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: 'with your personal token' })]);
-    return person;
-  } else if (savedLogin) {
+  if (savedLogin) {
     // Not marked as already done: like the team and project lines after it, being logged in is
     // where setup starts from, not work it did.
     printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: savedLogin.email })]);
-  } else {
-    // The login block stands apart from the list while it waits...
-    printLines(['']);
-    const newLogin = await logInThroughTheBrowser(serviceAddress);
-
-    // ...and in a terminal, once Authorize is clicked, it gives way to one line like every other
-    // step's. Where nothing can be erased - an agent reading a pipe - the block stays, and the line
-    // follows it.
-    // BUILD DEBT (init-for-agents): one shared check, in ../../../helpers, that every command asks
-    // whether its output is a person's terminal - a TTY, with no CI set and TERM not "dumb", the
-    // same test the spinner's library makes - so the spinner and this erase never disagree.
-    if (process.stdout.isTTY && !process.env.CI && process.env.TERM !== 'dumb') {
-      process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted(newLogin.browserOpened) + 1));
-    } else {
-      printLines(['']);
-    }
-    printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
+    return { personalToken: savedLogin.token, fromSavedLogin: true };
   }
 
-  // After a login there is a saved one, so this never refuses for want of a credential.
-  return resolvePersonalTokenForSetup(personalTokenFlag);
-}
+  // The login block stands apart from the list while it waits...
+  printLines(['']);
+  const newLogin = await logInThroughTheBrowser(serviceAddress);
 
-/** The person setup acts as - refusing a given token that is not a personal one. */
-function resolvePersonalTokenForSetup(personalTokenFlag: string | undefined): ResolvedPersonalToken {
-  return resolvePersonalToken(personalTokenFlag, {
-    thisCommand: THIS_COMMAND,
-    tokenContextLine:
-      'The project token names one project, and setup checks which projects you can reach.',
-  });
+  // ...and in a terminal, once Authorize is clicked, it gives way to one line like every other
+  // step's. Where nothing can be erased - an agent reading a pipe - the block stays, and the line
+  // follows it.
+  // BUILD DEBT (init-for-agents): one shared check, in ../../../helpers, that every command asks
+  // whether its output is a person's terminal - a TTY, with no CI set and TERM not "dumb", the
+  // same test the spinner's library makes - so the spinner and this erase never disagree.
+  if (process.stdout.isTTY && !process.env.CI && process.env.TERM !== 'dumb') {
+    process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted(newLogin.browserOpened) + 1));
+  } else {
+    printLines(['']);
+  }
+  printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
+
+  return { personalToken: newLogin.token, fromSavedLogin: true };
 }
 
 export default logIn;
