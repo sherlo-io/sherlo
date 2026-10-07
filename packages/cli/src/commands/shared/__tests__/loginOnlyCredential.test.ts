@@ -186,6 +186,10 @@ describe('the login as the only credential a person spends', () => {
 
     expect(unprefixedSubstitutions).toEqual([]);
   });
+
+  it('a login made inside npx sherlo init never tells the person to run npx sherlo init next', () => {
+    expect.fail('shell - written in build');
+  });
 });
 
 /* ========================================================================== */

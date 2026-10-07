@@ -299,6 +299,14 @@ describe('the keychain, when it only partly answers', () => {
     expect(readSavedLoginFile()[PROD_STAGE]).toMatchObject(ANNA);
     expect(logins.read(PROD_STAGE)).toEqual(ANNA);
   });
+
+  it('a removal the keychain refuses is reported, never counted as done', () => {
+    expect.fail('shell - written in build');
+  });
+
+  it('gives up on a keychain library call that does not answer in time, and the file takes over', () => {
+    expect.fail('shell - written in build');
+  });
 });
 
 /** A keychain kept in memory: what the store sees of a real one that answers. */
