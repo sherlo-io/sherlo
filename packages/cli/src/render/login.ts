@@ -51,10 +51,16 @@ export function renderLoginWaiting(): string[] {
   ];
 }
 
-/** The login is saved: whose it is, and the command a person runs next. */
-export function renderLoggedIn(email: string): string[] {
+/**
+ * The login is saved: whose it is, and the command a person runs next - unless the login was made
+ * inside setup, which is that command already.
+ */
+export function renderLoggedIn(email: string, insideSetup?: true): string[] {
+  const loggedInLine = `${chalk.green('✔')}  Logged in as ${chalk.bold(email)}`;
+  if (insideSetup) return [loggedInLine, ''];
+
   return [
-    `${chalk.green('✔')}  Logged in as ${chalk.bold(email)}`,
+    loggedInLine,
     '',
     chalk.dim('Next: run `npx sherlo init` in your React Native app to set up Sherlo.'),
     '',

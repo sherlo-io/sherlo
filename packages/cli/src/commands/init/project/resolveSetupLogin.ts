@@ -16,7 +16,8 @@ async function resolveSetupLogin(): Promise<SavedLogin> {
   if (savedLogin) return savedLogin;
 
   const newLogin = await logInThroughTheBrowser(serviceAddress);
-  emit({ kind: 'logged-in', email: newLogin.email });
+  // Setup is already `npx sherlo init`, so the line carries no next step pointing back at it.
+  emit({ kind: 'logged-in', email: newLogin.email, insideSetup: true });
 
   return newLogin;
 }

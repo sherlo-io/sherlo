@@ -457,7 +457,10 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'logged-in':
-      return { stream: 'stdout', prints: renderLoggedIn(segment.email).map((line) => [line]) };
+      return {
+        stream: 'stdout',
+        prints: renderLoggedIn(segment.email, segment.insideSetup).map((line) => [line]),
+      };
 
     case 'already-logged-in':
       return {

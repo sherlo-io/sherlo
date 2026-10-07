@@ -23,7 +23,12 @@ import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
 import { renderLoginWaitingSpinner } from '../../render/login';
 import { browser } from '../../seams/browser';
-import { savedLogins, type PendingLogin, type SavedLogin } from '../../seams/savedLogins';
+import {
+  hasExpired,
+  savedLogins,
+  type PendingLogin,
+  type SavedLogin,
+} from '../../seams/savedLogins';
 import { serverCalls } from '../../seams/serverCalls';
 import { surroundings } from '../../seams/surroundings';
 import { LOGIN_COMMAND } from './constants';
@@ -144,7 +149,6 @@ async function whileShowingTheWait<Answer>(wait: () => Promise<Answer>): Promise
  */
 async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLogin> {
   const { loginId, pollSecret } = pendingLogin;
-  const expiresAt = Date.parse(pendingLogin.expiresAt);
 
   for (;;) {
     const answer = await serverCalls()
@@ -154,10 +158,7 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
     if (answer.status === 'approved') return answer;
     if (answer.status !== 'pending') return { status: answer.status };
 
-    // An `expiresAt` that is not a time has no end to wait for, so it counts as passed: a wait
-    // that could never end is worse than a login started again.
-    const expiryHasPassed = Number.isNaN(expiresAt) || surroundings().now() >= expiresAt;
-    if (expiryHasPassed) return { status: 'expired' };
+    if (hasExpired(pendingLogin)) return { status: 'expired' };
 
     await surroundings().sleep(POLL_INTERVAL_MS);
   }
