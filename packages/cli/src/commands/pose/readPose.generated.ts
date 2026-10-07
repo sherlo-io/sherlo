@@ -73,6 +73,9 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
     if ('push' in object1) {
       readPosedPush(object1.push, at(path, 'push'), problems);
     }
+    if ('appBuild' in object1) {
+      readPosedAppBuild(object1.appBuild, at(path, 'appBuild'), problems);
+    }
     if ('clock' in object1) {
       expectStringArray(object1.clock, at(path, 'clock'), problems);
     }
@@ -103,6 +106,7 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
         'api',
         'masks',
         'push',
+        'appBuild',
         'clock',
         'workstation',
         'letterbox',
@@ -810,6 +814,44 @@ function readPosedPush(value: unknown, path: string, problems: string[]): void {
   }
 }
 
+/** The shape of a `PosedAppBuild`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedAppBuild(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectOneOf(object1.host, ['macos', 'linux'], at(path, 'host'), problems);
+    const where2 = at(path, 'tools');
+    const list3 = asArray(object1.tools, where2, problems);
+    if (list3) {
+      list3.forEach((entry4, index5) => {
+        readBuildTool(entry4, atIndex(where2, index5), problems);
+      });
+    }
+    const oneOf6 = object1.java;
+    const where7 = at(path, 'java');
+    if (typeof oneOf6 === 'number' || oneOf6 === null) {
+      // the value is one of these
+    } else {
+      reportWrongShape(oneOf6, 'a number or `null`', where7, problems);
+    }
+    if ('iosSchemes' in object1) {
+      expectStringArray(object1.iosSchemes, at(path, 'iosSchemes'), problems);
+    }
+    const where8 = at(path, 'platforms');
+    const map9 = asObject(object1.platforms, where8, problems);
+    if (map9) {
+      for (const key10 of Object.keys(map9)) {
+        readPosedPlatformBuild(map9[key10], atKey(where8, key10), problems);
+      }
+    }
+    reportUnknownFields(
+      object1,
+      ['host', 'tools', 'java', 'iosSchemes', 'platforms'],
+      path,
+      problems
+    );
+  }
+}
+
 /** The shape of a `PosedWorkstation`, as `contracts/pose.contract.ts` publishes it. */
 function readPosedWorkstation(value: unknown, path: string, problems: string[]): void {
   const object1 = asObject(value, path, problems);
@@ -1390,6 +1432,65 @@ function readPosedBinary(value: unknown, path: string, problems: string[]): void
         'expoSdkVersion',
         'androidAbis',
       ],
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `BuildTool`, as `contracts/pose.contract.ts` publishes it. */
+function readBuildTool(value: unknown, path: string, problems: string[]): void {
+  expectOneOf(value, ['android-sdk', 'xcode'], path, problems);
+}
+
+/** The shape of a `PosedPlatformBuild`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedPlatformBuild(value: unknown, path: string, problems: string[]): void {
+  const oneOf1 = value;
+  if (isPlainObject(oneOf1)) {
+    if ('cached' in oneOf1) {
+      const object2 = asObject(oneOf1, path, problems);
+      if (object2) {
+        expectString(object2.cached, at(path, 'cached'), problems);
+        reportUnknownFields(object2, ['cached'], path, problems);
+      }
+    } else if ('built' in oneOf1) {
+      const object3 = asObject(oneOf1, path, problems);
+      if (object3) {
+        expectString(object3.built, at(path, 'built'), problems);
+        expectString(object3.sizeMb, at(path, 'sizeMb'), problems);
+        expectNumber(object3.seconds, at(path, 'seconds'), problems);
+        reportUnknownFields(object3, ['built', 'sizeMb', 'seconds'], path, problems);
+      }
+    } else if ('failed' in oneOf1) {
+      const object4 = asObject(oneOf1, path, problems);
+      if (object4) {
+        const where5 = at(path, 'failed');
+        const object6 = asObject(object4.failed, where5, problems);
+        if (object6) {
+          expectNumber(object6.seconds, at(where5, 'seconds'), problems);
+          expectStringArray(object6.lastLines, at(where5, 'lastLines'), problems);
+          reportUnknownFields(object6, ['seconds', 'lastLines'], where5, problems);
+        }
+        reportUnknownFields(object4, ['failed'], path, problems);
+      }
+    } else if ('easBuild' in oneOf1) {
+      const object7 = asObject(oneOf1, path, problems);
+      if (object7) {
+        expectString(object7.easBuild, at(path, 'easBuild'), problems);
+        reportUnknownFields(object7, ['easBuild'], path, problems);
+      }
+    } else {
+      reportWrongShape(
+        oneOf1,
+        '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
+        path,
+        problems
+      );
+    }
+  } else {
+    reportWrongShape(
+      oneOf1,
+      '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
       path,
       problems
     );

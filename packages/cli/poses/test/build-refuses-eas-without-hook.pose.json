@@ -1,8 +1,7 @@
 {
   "pose": 1,
   "argv": [
-    "test",
-    "--no-build"
+    "test"
   ],
   "files": {
     "sherlo.config.json": {
@@ -12,7 +11,14 @@
           "id": "pixel.7",
           "osVersion": "13"
         }
-      ]
+      ],
+      "build": {
+        "tool": "eas"
+      }
+    },
+    "package.json": {
+      "name": "storefront",
+      "scripts": {}
     }
   },
   "env": {},
@@ -27,7 +33,7 @@
       "call": "checkStagedGate",
       "with": {
         "platform": "android",
-        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+        "baseFingerprint": "2211ec2fb7c0ac510489fb1bd0da70c7e3828ffa1b0d9009f896a2d1854e5dd0"
       },
       "answer": {
         "outcome": "full-build-needed",

@@ -88,6 +88,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldMintedProjectToken(folded);
   folded = foldByteSize(folded);
   folded = foldTimeAgo(folded);
+  folded = foldBuildDuration(folded);
   folded = foldBaseFingerprint(folded);
   folded = foldWaitProgress(folded);
   folded = foldTimeoutMinutes(folded);
@@ -140,6 +141,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<LOGIN_LINK>',
   '<SIZE>',
   '<TIME_AGO>',
+  '<DURATION>',
   '<FINGERPRINT>',
   '<N>',
   '<STATUS>',
@@ -309,6 +311,14 @@ function foldTimeAgo(screen: string): string {
       '<TIME_AGO>'
     )
     .replace(/(└─ created:)[^\n\u001b]*/g, '$1 <TIME_AGO>');
+}
+
+/**
+ * How long an app build took - `built in 1m 28s`, `failed after 42s`. Only after those two words,
+ * so a duration a scenario declares elsewhere (a wait's timeout) is never folded.
+ */
+function foldBuildDuration(screen: string): string {
+  return screen.replace(/\b(built in|failed after) (?:\d+m )?\d+s\b/g, '$1 <DURATION>');
 }
 
 /** `base-fingerprint=<64 hex>` - a digest over the project's native inputs. */

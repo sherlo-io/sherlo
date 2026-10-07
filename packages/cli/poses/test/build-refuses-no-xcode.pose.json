@@ -1,16 +1,15 @@
 {
   "pose": 1,
   "argv": [
-    "test",
-    "--no-build"
+    "test"
   ],
   "files": {
     "sherlo.config.json": {
       "token": "posetokenposetokenposetokenpose1tm0000017",
       "devices": [
         {
-          "id": "pixel.7",
-          "osVersion": "13"
+          "id": "iphone.15",
+          "osVersion": "17"
         }
       ]
     }
@@ -26,7 +25,7 @@
     {
       "call": "checkStagedGate",
       "with": {
-        "platform": "android",
+        "platform": "ios",
         "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
       },
       "answer": {
@@ -35,5 +34,11 @@
       }
     }
   ],
-  "masks": {}
+  "masks": {},
+  "appBuild": {
+    "host": "macos",
+    "tools": [],
+    "java": 17,
+    "platforms": {}
+  }
 }

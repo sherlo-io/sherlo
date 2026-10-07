@@ -1,0 +1,88 @@
+{
+  "pose": 1,
+  "argv": [
+    "test"
+  ],
+  "files": {
+    "sherlo.config.json": {
+      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        },
+        {
+          "id": "iphone.15",
+          "osVersion": "17"
+        }
+      ],
+      "build": {
+        "tool": "eas"
+      }
+    },
+    "package.json": {
+      "name": "storefront",
+      "scripts": {
+        "eas-build-on-complete": "sherlo eas-build-on-complete"
+      }
+    }
+  },
+  "env": {},
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "749c6f3fa37795d126f1fddec05ef063aa0d21e3b44d927025f8ba08a2b9e476"
+      },
+      "answer": {
+        "outcome": "full-build-needed",
+        "diff": []
+      }
+    },
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "ios",
+        "baseFingerprint": "749c6f3fa37795d126f1fddec05ef063aa0d21e3b44d927025f8ba08a2b9e476"
+      },
+      "answer": {
+        "outcome": "full-build-needed",
+        "diff": []
+      }
+    },
+    {
+      "call": "openBuild",
+      "with": {
+        "platforms": [
+          "android",
+          "ios"
+        ]
+      },
+      "answer": {
+        "buildIndex": 1,
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=1"
+      }
+    }
+  ],
+  "masks": {},
+  "appBuild": {
+    "host": "linux",
+    "tools": [],
+    "java": null,
+    "platforms": {
+      "android": {
+        "easBuild": "6c1f2a9e-2d4b-4f8a-9e3c-1b2d3e4f5a6b"
+      },
+      "ios": {
+        "easBuild": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"
+      }
+    }
+  }
+}

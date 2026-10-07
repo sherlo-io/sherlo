@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { Command } from 'commander';
 import { version } from '../package.json';
 import {
+  build,
   easBuildOnComplete,
   fingerprint,
   init,
@@ -18,6 +19,16 @@ import {
   testEasCloudBuild,
   view,
 } from './commands';
+import {
+  BUILD_CACHE_ENV_VAR,
+  BUILD_CACHE_OPTION,
+  BUILD_COMMAND,
+  DEFAULT_BUILD_CACHE,
+  NO_BUILD_OPTION,
+  PARALLEL_BUILDS_OPTION,
+  PLATFORM_OPTION,
+  RUN_ID_OPTION,
+} from './commands/test/appBuild/buildSettings';
 import {
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
@@ -102,6 +113,8 @@ async function start() {
 
     addTestCommand(program);
 
+    addBuildCommand(program);
+
     addViewCommand(program);
 
     addTestEasCloudBuildCommand(program);
@@ -160,6 +173,10 @@ const COMMAND_DESCRIPTION = {
     '  a native rebuild first, `native-needed=false` when it ran the test to completion.\n' +
     `  With \`--${ANDROID_OPTION} <path>\` (and optionally \`--${IOS_OPTION} <path>\`): runs a full test on\n` +
     '  those builds and registers them as the new base.',
+  [BUILD_COMMAND]:
+    'Build the app into the local build cache, and push nothing.\n' +
+    '  A later `sherlo test` takes the build from the cache instead of compiling, for as long\n' +
+    "  as the app's native code and build settings are unchanged.",
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
@@ -370,6 +387,33 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     '--wait-timeout <minutes>',
     'Max minutes to wait for results (default: 45). Exit code 3 on timeout.',
   ],
+  [PLATFORM_OPTION]: [
+    '--platform <platform>',
+    'Build and test one platform only (android or ios) - one job of a CI run split across ' +
+      'machines. The two jobs of one CI run join into one test, which starts when both ' +
+      'builds are in.',
+  ],
+  [NO_BUILD_OPTION]: [
+    '--no-build',
+    'Only answer whether this commit needs a new app build (`native-needed=true|false`), ' +
+      'and build nothing - the question a CI pipeline asks first on a cheap job.',
+  ],
+  [RUN_ID_OPTION]: [
+    '--run-id <id>',
+    'The id the two jobs of a split CI run share, for a CI service Sherlo does not ' +
+      'recognise. Read from the CI service itself otherwise.',
+  ],
+  [BUILD_CACHE_OPTION]: [
+    '--build-cache <dir>',
+    `Where app builds are kept between runs (default: ${DEFAULT_BUILD_CACHE}, ` +
+      `or ${BUILD_CACHE_ENV_VAR}). A build whose native code and build settings are ` +
+      'unchanged is taken from here instead of compiled.',
+  ],
+  [PARALLEL_BUILDS_OPTION]: [
+    '--parallel-builds',
+    'Build Android and iOS at the same time instead of one after the other. Needs a ' +
+      'machine with the memory for two compilers.',
+  ],
   [WRITE_OPTION]: [
     `--${WRITE_OPTION} <file>`,
     'Write the digests and their pre-image (native sources, lockfiles, autolinked modules, ' +
@@ -454,9 +498,27 @@ function addTestCommand(program: Command) {
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       METADATA_OPTION,
+      PLATFORM_OPTION,
+      NO_BUILD_OPTION,
+      RUN_ID_OPTION,
+      BUILD_CACHE_OPTION,
+      PARALLEL_BUILDS_OPTION,
       ...devtoolsOptions,
     ],
     action: test,
+  });
+}
+
+// `sherlo build` builds the app into the local build cache and pushes nothing, so a later
+// `sherlo test` - in this job or a later one that restores the cache - compiles nothing.
+// `withTimeout: false`: a release build is the slowest thing the tool does, and it ends on its own.
+function addBuildCommand(program: Command) {
+  addCommand({
+    program,
+    command: BUILD_COMMAND,
+    options: [CONFIG_OPTION, PROJECT_ROOT_OPTION, PLATFORM_OPTION, BUILD_CACHE_OPTION, PARALLEL_BUILDS_OPTION],
+    action: build,
+    withTimeout: false,
   });
 }
 

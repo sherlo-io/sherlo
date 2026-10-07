@@ -1,8 +1,7 @@
 {
   "pose": 1,
   "argv": [
-    "test",
-    "--no-build"
+    "test"
   ],
   "files": {
     "sherlo.config.json": {
@@ -35,5 +34,13 @@
       }
     }
   ],
-  "masks": {}
+  "masks": {},
+  "appBuild": {
+    "host": "linux",
+    "tools": [
+      "android-sdk"
+    ],
+    "java": null,
+    "platforms": {}
+  }
 }

@@ -111,6 +111,15 @@ export type CommandPose = {
    */
   push?: PosedPush;
   /**
+   * What building the app on the machine came to, for the commands that build it (`sherlo test`
+   * when a platform needs a new app build, `sherlo build`): which operating system it was, which
+   * build tools it had, and per platform whether the build was found in the cache, compiled,
+   * failed, or started on EAS. A pose that states it for a command that never builds is refused; a
+   * run that reaches the builder with no `appBuild` is refused at run time, exactly like a call
+   * the pose did not script.
+   */
+  appBuild?: PosedAppBuild;
+  /**
    * WHAT THE CLOCK ANSWERS WHILE THE COMMAND WAITS, ISO 8601, in the order the wait reads it. A
    * wait reads the clock once at its start and once before every poll; after the last instant here
    * the clock stands still. Absent, the clock stands at `push.now` (or at the run's start) for the
@@ -409,6 +418,20 @@ export type PosedPush = {
     | {
         unavailable: string;
       };
+};
+
+/** What building on the machine came to, as a pose states it. */
+export type PosedAppBuild = {
+  /** The operating system the run was on. */
+  host: 'macos' | 'linux';
+  /** The build tools the machine had (`android-sdk`, `xcode`). A tool not listed is missing. */
+  tools: BuildTool[];
+  /** The major version of the machine's Java, or null for a machine with none. */
+  java: number | null;
+  /** The schemes the iOS workspace lists, for a project that builds iOS. */
+  iosSchemes?: string[];
+  /** What each platform's build came to, per platform (`android`, `ios`). */
+  platforms: Record<string, PosedPlatformBuild>;
 };
 
 /** The acts `sherlo init` performs on the machine, as a pose states them. */
@@ -762,6 +785,41 @@ export type PosedBinary = {
   /** The ABIs an Android binary carries (`["arm64-v8a"]`); absent for an iOS build. */
   androidAbis?: string[];
 };
+
+/** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
+export type BuildTool = 'android-sdk' | 'xcode';
+
+/**
+ * One platform's build as a pose states it: found in the cache, compiled, failed, or started on
+ * EAS. Which of them the run reaches is the shipped code's decision; a pose that states a build
+ * the run never asked for is reported, and one the run asked for and the pose left out is refused.
+ */
+export type PosedPlatformBuild =
+  | {
+      /** The cache held this platform's app build: the path it answered with. */
+      cached: string;
+    }
+  | {
+      /** The compile wrote the app build here. */
+      built: string;
+      /** What the build line announces, e.g. `"53.90"`. */
+      sizeMb: string;
+      /** How long the compile took, in whole seconds. */
+      seconds: number;
+    }
+  | {
+      /** The compile failed. */
+      failed: {
+        /** How long it ran, in whole seconds. */
+        seconds: number;
+        /** The last lines the build tool wrote. */
+        lastLines: string[];
+      };
+    }
+  | {
+      /** The EAS build this platform started, by its id. */
+      easBuild: string;
+    };
 
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own

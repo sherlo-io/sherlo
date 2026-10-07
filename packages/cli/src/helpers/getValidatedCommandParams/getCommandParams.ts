@@ -1,4 +1,5 @@
 import path from 'path';
+import { DEVICES } from '@sherlo/shared';
 import { InvalidatedConfig, Options } from '../../types';
 
 /**
@@ -24,6 +25,31 @@ function getCommandParams<
     ...options,
     android: androidFullPath,
     ios: iosFullPath,
+    ...onlyThePlatformAsked(options, config),
+    // THE CONFIG'S `build` BLOCK, KEPT APART FROM THE `--no-build` FLAG. Commander hands the negated
+    // flag over as `build: true | false`, and the spread above lets the flag land on top of the
+    // config's object of the same name - so the block travels under a name of its own.
+    buildSettings: (config as { build?: unknown }).build,
+  };
+}
+
+/**
+ * `--platform <android|ios>`: one job of a split CI run builds and tests one platform, so the
+ * devices of the other platform are left out of this run. The platform nobody asked for still
+ * belongs to the test - the other job brings it.
+ */
+function onlyThePlatformAsked(options: object, config: object): { devices?: unknown[] } {
+  const platform = (options as { platform?: string }).platform;
+  const devices = (config as { devices?: unknown }).devices;
+  if (!platform || !Array.isArray(devices)) return {};
+
+  return {
+    devices: devices.filter(
+      (device) =>
+        (DEVICES as Record<string, { os: string } | undefined>)[
+          (device as { id?: string })?.id ?? ''
+        ]?.os === platform
+    ),
   };
 }
 

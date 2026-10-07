@@ -61,6 +61,8 @@ import {
   type StagedGateRefusal,
 } from './stagedGateRefusal';
 import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
+import { buildThenPush } from './appBuild/buildThenPush';
+import type { BuildFlags } from './appBuild/buildSettings';
 import {
   applyBundleToPlatformConfig,
   realBundleUploadEffects,
@@ -263,6 +265,21 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' };
   }
 
+  /** A platform the gate refused needs a new app build: build it, or, under `--no-build`, say so and stop. */
+  const buildOrReportNativeNeeded = (refusals: StagedGateRefusal[]): Promise<{ url: string }> => {
+    if ((passedOptions as BuildFlags).build === false) {
+      return reportNativeNeeded({
+        reason: describeRefusals(refusals),
+        details: refusals.map((refusal) => formatStagedGateRefusal(refusal, { withFallback: false })),
+        baseFingerprint,
+        noBuild: true,
+        refusedPlatforms: refusals.map(({ platform }) => platform),
+      });
+    }
+
+    return buildThenPush({ passedOptions, platformsToTest, refusals, baseFingerprint });
+  };
+
   // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
   //    alone answers "can this commit reuse the registered base?", so a commit
   //    that needs a native build costs a single API call and no bundler run.
@@ -275,12 +292,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     teamId,
   });
 
+  //    A refused platform needs a new app build, and the tool builds it itself - unless
+  //    `--no-build` asked only the question, which CI asks first on a cheap job (./appBuild).
   if (probeRefusals.length > 0) {
-    return reportNativeNeeded({
-      reason: describeRefusals(probeRefusals),
-      details: probeRefusals.map(formatStagedGateRefusal),
-      baseFingerprint,
-    });
+    return buildOrReportNativeNeeded(probeRefusals);
   }
 
   // 7. Get the bundle + assets for each platform, and construct gate metadata
@@ -330,11 +345,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   });
 
   if (identityRefusals.length > 0) {
-    return reportNativeNeeded({
-      reason: describeRefusals(identityRefusals),
-      details: identityRefusals.map(formatStagedGateRefusal),
-      baseFingerprint,
-    });
+    return buildOrReportNativeNeeded(identityRefusals);
   }
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
@@ -412,11 +423,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     // SAME routing answer, so it is published the SAME way.
     const refusal = parseStagedGateRefusal(error);
     if (refusal) {
-      return reportNativeNeeded({
-        reason: describeRefusals([refusal]),
-        details: [formatStagedGateRefusal(refusal)],
-        baseFingerprint,
-      });
+      return buildOrReportNativeNeeded([refusal]);
     }
     handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing

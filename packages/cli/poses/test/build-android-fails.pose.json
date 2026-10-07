@@ -1,8 +1,7 @@
 {
   "pose": 1,
   "argv": [
-    "test",
-    "--no-build"
+    "test"
   ],
   "files": {
     "sherlo.config.json": {
@@ -31,9 +30,30 @@
       },
       "answer": {
         "outcome": "full-build-needed",
-        "diff": []
+        "diff": [
+          "buildMetadata"
+        ]
       }
     }
   ],
-  "masks": {}
+  "masks": {},
+  "appBuild": {
+    "host": "linux",
+    "tools": [
+      "android-sdk"
+    ],
+    "java": 17,
+    "platforms": {
+      "android": {
+        "failed": {
+          "seconds": 72,
+          "lastLines": [
+            "> Task :app:compileReleaseKotlin FAILED",
+            "e: MainApplication.kt:42: Unresolved reference: SomeModule",
+            "BUILD FAILED in 1m 12s"
+          ]
+        }
+      }
+    }
+  }
 }

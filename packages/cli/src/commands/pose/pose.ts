@@ -11,6 +11,8 @@
  *     ../../seams/serverCalls    what the backend answers
  *     ../../seams/nativeBuild    what a real push reads off the machine - the binary, the base
  *                                fingerprint, the clock - and the uploads it makes
+ *     ../../seams/appBuilder     what building the app came to - the machine, its build tools,
+ *                                and per platform a cached, compiled, failed or EAS build
  *     ../../seams/workstation    what an `init` DOES to the machine - the package it installs,
  *                                the key it waits for
  *     ../../seams/browser        whether the browser a login opens came up
@@ -43,6 +45,7 @@ import { installSurroundings, posedSurroundings } from '../../seams/surroundings
 import { installBundler, posedBundler } from '../../seams/bundler';
 import { installServerCalls, posedServerCalls } from '../../seams/serverCalls';
 import { installNativeBuild, posedNativeBuild } from '../../seams/nativeBuild';
+import { installAppBuilder, posedAppBuilder } from '../../seams/appBuilder';
 import { installWorkstation, posedWorkstation } from '../../seams/workstation';
 import { installLetterbox, posedLetterbox } from '../../seams/letterbox';
 import { installCaptureSocket, posedCaptureSocket } from '../../seams/captureSocket';
@@ -97,6 +100,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     startedAt: commandPose.push?.now,
   });
   const machine = posedNativeBuild(commandPose.push);
+  const builder = posedAppBuilder(commandPose.appBuild);
   const acts = posedWorkstation(commandPose.workstation);
   const app = posedLetterbox(commandPose.letterbox);
   const socket = posedCaptureSocket(commandPose.capture);
@@ -110,6 +114,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     installBundler(posedBundler(commandPose.bundles)),
     installServerCalls(api),
     installNativeBuild(machine),
+    installAppBuilder(builder),
     installWorkstation(acts),
     installLetterbox(app),
     installCaptureSocket(socket),
@@ -154,6 +159,7 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
     refusals: [
       ...api.refusals(),
       ...machine.refusals(),
+      ...builder.refusals(),
       ...acts.refusals(),
       ...app.refusals(),
       ...socket.refusals(),
