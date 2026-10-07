@@ -58,18 +58,41 @@ export function renderFailedStepLine(name: string): string[] {
  */
 export function renderNextSteps({
   installedStorybook,
+  storybookSetup,
   projectPageUrl,
 }: {
   installedStorybook: boolean;
+  /**
+   * Storybook's newer setup registers the app's root in `.rnstorybook/index`, and Sherlo reaches it
+   * with no change to the app; an older one renders Storybook from the app, so the person adds
+   * Sherlo there.
+   */
+  storybookSetup: 'registers-root' | 'renders-in-app';
   /** The project's page in the web app, where a project token for CI is made. */
   projectPageUrl: string;
 }): string[] {
+  const storybookAccessSteps =
+    storybookSetup === 'registers-root'
+      ? [
+          {
+            what: "If your stories need your app's providers, add them as decorators in .rnstorybook/preview.tsx.",
+            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#providers')}`),
+          },
+        ]
+      : [
+          {
+            what: 'Give Sherlo access to Storybook in your app.',
+            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`),
+          },
+          {
+            what: "Optional: move to Storybook's newer setup, which needs no change in your app.",
+            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup')}`),
+          },
+        ];
+
   // Every step is the same shape: what to do, then one indented line of how.
   const steps: Array<{ what: string; how: string }> = [
-    {
-      what: 'Give Sherlo access to Storybook in your app.',
-      how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`),
-    },
+    ...storybookAccessSteps,
     ...(installedStorybook
       ? [
           {

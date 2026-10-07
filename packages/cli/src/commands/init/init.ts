@@ -17,6 +17,7 @@ import githubWorkflow from './steps/githubWorkflow';
 import logIn from './steps/logIn';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
+import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import { PROJECT_OPTION, TEAM_OPTION } from '../../constants';
 
@@ -48,7 +49,9 @@ async function init(options: Options<THIS_COMMAND>) {
     await metroConfig(sessionId);
     await githubWorkflow();
 
-    printLines(renderNextSteps({ installedStorybook: installedNow, projectPageUrl }));
+    printLines(
+      renderNextSteps({ installedStorybook: installedNow, storybookSetup: storybookSetup(), projectPageUrl })
+    );
     printLines(renderFeedbackLine({ under: 'next-steps' }));
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });

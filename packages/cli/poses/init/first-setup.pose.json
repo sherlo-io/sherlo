@@ -84,6 +84,7 @@
           "packageManager": "yarn@4.3.1"
         },
         "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config);\n",
+        ".rnstorybook/index.ts": "import { registerRootComponent } from 'expo';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({});\n\nregisterRootComponent(StorybookUIRoot);\n",
         "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.0", "main": "index.js" },
         "node_modules/@storybook/react-native/index.js": ""
       }
