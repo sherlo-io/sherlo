@@ -134,7 +134,8 @@ export function renderNextSteps({
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
-    ...stepLines,
+    // The last step's blank line goes: the section title brings its own two.
+    ...stepLines.slice(0, -1),
     ...renderSectionTitle('🔁 Test every pull request', 26),
     ...ciLines,
     `   ${chalk.cyan(projectPageUrl)}`,
