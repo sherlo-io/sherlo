@@ -28,12 +28,14 @@ export type SettledProject = { projectId: string; projectPageUrl: string };
 
 async function teamAndProject(
   person: ResolvedPersonalToken,
-  teamFlag: string | undefined
+  { teamFlag, projectFlag }: { teamFlag: string | undefined; projectFlag: string | undefined }
 ): Promise<SettledProject> {
-  const projectInConfig = await readProjectFromConfig();
-  if (projectInConfig) {
-    await showProjectInConfig(projectInConfig, person);
-    return settled(projectInConfig);
+  // `--project` is how the web app's setup line connects init to a project made there; it wins over
+  // a config's, which it then replaces. Either is looked up, never made again.
+  const existingProject = (projectFlag ? parseProject(projectFlag) : undefined) ?? (await readProjectFromConfig());
+  if (existingProject) {
+    await showProjectInConfig(existingProject, person);
+    return settled(existingProject);
   }
 
   const teamId = await chooseTeam(person, teamFlag);
@@ -59,7 +61,7 @@ async function showProjectInConfig(
   if (!projectInTeam) {
     printLines(renderFailedStepLine('Finding the project failed'));
     throwError({
-      message: `You have no access to the project ${asConfigProject(project)} that ${'sherlo.config.json'} names`,
+      message: `You have no access to the project ${asConfigProject(project)}`,
       below:
         '\n' +
         chalk.reset('Ask a member of its team to invite you, then re-run setup:\n') +
@@ -182,8 +184,16 @@ async function readProjectFromConfig(): Promise<ProjectAddress | undefined> {
   if (!hasConfigFile()) return undefined;
 
   const { project } = await readConfig();
-  if (typeof project !== 'string') return undefined;
+  return typeof project === 'string' ? parseProject(project) : undefined;
+}
 
+/**
+ * `<teamId>/<projectIndex>`, as the config and `--project` write it.
+ *
+ * BUILD DEBT (init-for-agents): a malformed `--project` is refused by name, in the first step,
+ * through the push's own reader (`parseConfigProject`).
+ */
+function parseProject(project: string): ProjectAddress | undefined {
   const [teamId, projectIndex] = project.split('/');
   return teamId && projectIndex ? { teamId, projectIndex: Number(projectIndex) } : undefined;
 }

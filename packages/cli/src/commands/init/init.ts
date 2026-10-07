@@ -18,7 +18,7 @@ import logIn from './steps/logIn';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
 import teamAndProject from './steps/teamAndProject';
-import { PERSONAL_TOKEN_OPTION, TEAM_OPTION } from '../../constants';
+import { PERSONAL_TOKEN_OPTION, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
 
 async function init(options: Options<THIS_COMMAND>) {
   const { sessionId } = await trackProgress({ event: '0_init', sessionId: null, hasStarted: true });
@@ -33,7 +33,10 @@ async function init(options: Options<THIS_COMMAND>) {
     const person = await logIn(options[PERSONAL_TOKEN_OPTION]);
     // BUILD DEBT (init-for-agents): `--team` joins init's options type in ../../types.
     const teamFlag = (options as { [TEAM_OPTION]?: string })[TEAM_OPTION];
-    const { projectId, projectPageUrl } = await teamAndProject(person, teamFlag);
+    const { projectId, projectPageUrl } = await teamAndProject(person, {
+      teamFlag,
+      projectFlag: options[PROJECT_OPTION],
+    });
     // Written as soon as the project exists, so a run that fails at any later step leaves the
     // project in the config, and a rerun uses it rather than making a second one.
     await config({ sessionId, project: projectId });
