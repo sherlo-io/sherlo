@@ -84,14 +84,14 @@ export function renderNextSteps({
     { what: 'Run your first visual test:', how: chalk.cyan('npx sherlo test') },
   ];
 
-  const whoNeedsIt = addedGitHubWorkflow ? 'The GitHub workflow needs' : 'CI needs';
+  const whereSecretsLive = addedGitHubWorkflow ? 'in GitHub' : 'in your CI';
 
   return [
     // 13, not the title's own length: the emoji is counted as one character and drawn as two.
     ...renderSectionTitle('👉 Next steps', 13),
     ...steps.flatMap(({ what, how }, index) => [`${index + 1}. ${what}`, `   ${how}`, '']),
-    `${chalk.blue('INFO:')} ${whoNeedsIt} a project token as the ${chalk.bold('SHERLO_TOKEN')} secret.`,
-    `      Create one here: ${chalk.cyan(projectPageUrl)}`,
+    `${chalk.blue('INFO:')} For CI, create a project token and save it ${whereSecretsLive} as the`,
+    `      ${chalk.bold('SHERLO_TOKEN')} secret: ${chalk.cyan(projectPageUrl)}`,
   ];
 }
 
