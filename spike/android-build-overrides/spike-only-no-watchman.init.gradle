@@ -1,0 +1,9 @@
+// SPIKE ONLY, not part of the product: points the React Native Gradle plugin's bundle step at a
+// Metro config with watchman off (see metro-no-watchman.config.js for why).
+def spikeFolder = new File('/Users/michalziolkowski/sherlo/sherlo-brain/.worktrees/spikes/sherlo-test-builds-apps/android-build-overrides/sherlo/spike/android-build-overrides')
+
+allprojects { project ->
+    project.pluginManager.withPlugin('com.facebook.react') {
+        project.extensions.getByName('react').bundleConfig.set(new File(spikeFolder, 'metro-no-watchman.config.js'))
+    }
+}

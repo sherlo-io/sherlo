@@ -1,0 +1,48 @@
+// Written by sherlo for its own build of the app. It changes none of the app's files:
+// 1. every build type is signed with the debug key, so a release build needs no real keystore;
+// 2. the merged AndroidManifest says expo.modules.updates.ENABLED=false, so expo-updates
+//    stays off and the app runs the JS bundle embedded in the APK.
+
+abstract class SherloSwitchOffExpoUpdates extends DefaultTask {
+    @InputFile
+    abstract RegularFileProperty getMergedManifest()
+
+    @OutputFile
+    abstract RegularFileProperty getUpdatedManifest()
+
+    @TaskAction
+    void switchOff() {
+        String manifest = getMergedManifest().get().asFile.text
+        // The <meta-data .../> tag that names expo.modules.updates.ENABLED, whatever its attribute order.
+        def updatesEnabledTag = ~/<meta-data\b[^>]*android:name="expo\.modules\.updates\.ENABLED"[^>]*>/
+        String updated = manifest.replaceAll(updatesEnabledTag) { String tag ->
+            tag.replaceAll(/android:value="[^"]*"/, 'android:value="false"')
+        }
+        getUpdatedManifest().get().asFile.text = updated
+        logger.lifecycle("sherlo: expo.modules.updates.ENABLED " + (updated == manifest ? "not in the manifest, left as is" : "set to false"))
+    }
+}
+
+allprojects { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        def androidComponents = project.extensions.getByName('androidComponents')
+
+        // The DSL is still open here; afterEvaluate would be too late.
+        androidComponents.finalizeDsl({ android ->
+            def debugSigning = android.signingConfigs.getByName('debug')
+            android.buildTypes.configureEach { buildType -> buildType.signingConfig = debugSigning }
+        } as Action)
+
+        // AGP's classes are not on the init script's classpath, so the artifact is looked up by name.
+        def mergedManifestArtifact = androidComponents.class.classLoader
+            .loadClass('com.android.build.api.artifact.SingleArtifact$MERGED_MANIFEST')
+            .getField('INSTANCE').get(null)
+
+        androidComponents.onVariants(androidComponents.selector().all(), { variant ->
+            def switchOff = project.tasks.register("sherloSwitchOffExpoUpdates${variant.name.capitalize()}", SherloSwitchOffExpoUpdates)
+            variant.artifacts.use(switchOff)
+                .wiredWithFiles({ task -> task.mergedManifest }, { task -> task.updatedManifest })
+                .toTransform(mergedManifestArtifact)
+        } as Action)
+    }
+}
