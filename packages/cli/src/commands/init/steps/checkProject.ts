@@ -18,6 +18,7 @@ import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import getPackageVersion from '../requirements/getPackageVersion';
 import hasDependency from '../requirements/hasDependency';
 import validateHasReactNative from '../requirements/validateHasReactNative';
+import validateHasWithStorybookInMetroConfig from '../requirements/validateHasWithStorybookInMetroConfig';
 import validateProjectContext from '../requirements/validateProjectContext';
 import validatePackageRequirement from '../requirements/validateCorePackagesVersions/validatePackageRequirement';
 
@@ -40,11 +41,15 @@ async function checkProject(): Promise<CheckedProject> {
     (await hasDependency(current, STORYBOOK_REACT_NATIVE_PACKAGE_NAME)) ||
     (await hasDependency(monorepoRoot, STORYBOOK_REACT_NATIVE_PACKAGE_NAME));
 
+  // A project that has Storybook must have it wired into Metro, checked HERE rather than at the
+  // Metro step: a refusal after the login would leave a project made and the SDK installed for an
+  // app setup could not finish. A project without Storybook gets the wiring from its installer.
   if (hasStorybook) {
     validatePackageRequirement({
       packageName: STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
       minVersion: MIN_STORYBOOK_REACT_NATIVE_VERSION,
     });
+    await validateHasWithStorybookInMetroConfig();
   }
 
   const expoVersion = getPackageVersion(EXPO_PACKAGE_NAME);
