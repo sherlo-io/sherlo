@@ -27,7 +27,11 @@ async function logIn(personalTokenFlag: string | undefined): Promise<ResolvedPer
   const savedLogin = savedLogins().read(serviceAddress);
 
   if (hasGivenToken) {
+    // Checked before the line is printed, so a token that is not a personal one is refused without
+    // the screen first saying it logged in with it.
+    const person = resolvePersonalTokenForSetup(personalTokenFlag);
     printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: 'with your personal token' })]);
+    return person;
   } else if (savedLogin) {
     // Not marked as already done: like the team and project lines after it, being logged in is
     // where setup starts from, not work it did.
@@ -51,8 +55,12 @@ async function logIn(personalTokenFlag: string | undefined): Promise<ResolvedPer
     printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
   }
 
-  // After a login there is a saved one, so this never refuses for want of a credential; it still
-  // refuses a given token that is not a personal one.
+  // After a login there is a saved one, so this never refuses for want of a credential.
+  return resolvePersonalTokenForSetup(personalTokenFlag);
+}
+
+/** The person setup acts as - refusing a given token that is not a personal one. */
+function resolvePersonalTokenForSetup(personalTokenFlag: string | undefined): ResolvedPersonalToken {
   return resolvePersonalToken(personalTokenFlag, {
     thisCommand: THIS_COMMAND,
     tokenContextLine:

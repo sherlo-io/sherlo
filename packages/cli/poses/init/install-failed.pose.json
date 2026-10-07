@@ -50,7 +50,8 @@
       "call": "createProject",
       "with": { "teamId": "k7m2p9qx", "name": "Acme Shop" },
       "answer": { "name": "Acme Shop", "index": 1, "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1" }
-    }
+    },
+    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } }
   ],
   "masks": {},
   "browser": { "opened": true },

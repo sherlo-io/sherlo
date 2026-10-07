@@ -51,9 +51,9 @@
       "with": { "teamId": "k7m2p9qx", "name": "Acme Shop" },
       "answer": { "name": "Acme Shop", "index": 1, "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1" }
     },
+    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } },
     { "call": "trackCliInit", "with": { "event": "2_dependencies" }, "answer": { "sessionId": "init-session-1" } },
     { "call": "trackCliInit", "with": { "event": "3_metro_config" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } },
     { "call": "trackCliInit", "with": { "event": "7_testing" }, "answer": { "sessionId": "init-session-1" } }
   ],
   "masks": {},

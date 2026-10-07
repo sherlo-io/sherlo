@@ -49,9 +49,9 @@
         "projects": [{ "index": 1, "name": "Acme Shop", "buildCount": 0, "mainBranch": null }]
       }
     },
+    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } },
     { "call": "trackCliInit", "with": { "event": "2_dependencies" }, "answer": { "sessionId": "init-session-1" } },
     { "call": "trackCliInit", "with": { "event": "3_metro_config" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } },
     { "call": "trackCliInit", "with": { "event": "7_testing" }, "answer": { "sessionId": "init-session-1" } }
   ],
   "masks": {},

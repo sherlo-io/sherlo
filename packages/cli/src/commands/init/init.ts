@@ -34,13 +34,15 @@ async function init(options: Options<THIS_COMMAND>) {
     // BUILD DEBT (init-for-agents): `--team` joins init's options type in ../../types.
     const teamFlag = (options as { [TEAM_OPTION]?: string })[TEAM_OPTION];
     const { projectId, projectPageUrl } = await teamAndProject(person, teamFlag);
+    // Written as soon as the project exists, so a run that fails at any later step leaves the
+    // project in the config, and a rerun uses it rather than making a second one.
+    await config({ sessionId, project: projectId });
 
     const { installedNow } = await storybook({ hasStorybook: project.hasStorybook });
     await sherloSdk();
     await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
     await metroConfig(sessionId);
-    await config({ sessionId, project: projectId });
     await githubWorkflow();
 
     printLines(renderNextSteps({ installedStorybook: installedNow, projectPageUrl }));
