@@ -51,6 +51,9 @@ import {
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
+import { splitRunKeyOf } from './appBuild/buildThenPush';
+import type { BuildFlags } from './appBuild/buildSettings';
+import { joinTheRun } from './appBuild/joinTheRun';
 import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
 import { readSimWorld } from './simWorld';
@@ -160,16 +163,19 @@ async function simRun(
     level: 'info',
   });
 
+  // ONE JOB OF A SPLIT CI RUN joins the run its CI run shares, exactly as on the other roads - which
+  // is what lets the branching storylines prove the join with a sim world on two cheap jobs.
+  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+
   let openBuildReturn;
   try {
-    openBuildReturn = await serverCalls().openBuild({
-      token,
-      teamId,
-      projectIndex,
-      buildRunConfig,
-      gitInfo,
-      message: commandParams.message,
-    });
+    const request = { teamId, projectIndex, buildRunConfig, gitInfo, message: commandParams.message };
+    openBuildReturn = joinKey
+      ? ({
+          ...(await joinTheRun({ token, joinKey, platform: platformsToTest[0], request })),
+          buildRun: { config: {} },
+        } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>)
+      : await serverCalls().openBuild({ token, ...request });
   } catch (error) {
     handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
