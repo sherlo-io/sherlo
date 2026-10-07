@@ -3,7 +3,7 @@
  *
  * It ends the login on the service, then deletes it from this computer. When the service cannot be
  * reached, the login is still deleted here, and the command says the login could not be ended on
- * the service and exits 1: it stays usable until it runs out, or is revoked in the web app. When
+ * the service and exits 1: it stays usable until it runs out after 90 days unused. When
  * the service answers but refuses the token, the login was already ended there (revoked, or run
  * out): it is deleted here and the logout ends as an ordinary one, exit 0. With no saved login, it
  * says so and exits 0.
@@ -42,8 +42,7 @@ async function logout(): Promise<void> {
     throwError({
       message:
         `Deleted the login of ${savedLogin.email} from this computer, but Sherlo could not be reached to end it there.\n` +
-        '  Until it expires, revoke it in the web app.\n' +
-        '  Open Account settings, then Personal tokens.',
+        '  It ends by itself after 90 days unused.',
     });
   }
 

@@ -10,19 +10,19 @@
  */
 import { throwError } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
+import type { SavedLogin } from '../../../seams/savedLogins';
 import { serverCalls } from '../../../seams/serverCalls';
 import { workstation } from '../../../seams/workstation';
-import type { ResolvedPersonalToken } from '../../shared/resolvePersonalToken';
 import type { ProjectAddress } from './projectAddress';
 import refuseFailedServiceCall from './refuseFailedServiceCall';
 
 /** The value of the last choice in the project question, after the team's own projects. */
 const MAKE_A_NEW_PROJECT = 'make-a-new-project';
 
-async function askWhichProject(person: ResolvedPersonalToken): Promise<ProjectAddress> {
-  const teamId = await askWhichTeam(person);
+async function askWhichProject(login: SavedLogin): Promise<ProjectAddress> {
+  const teamId = await askWhichTeam(login);
 
-  return askWhichProjectOfTheTeam(teamId, person);
+  return askWhichProjectOfTheTeam(teamId, login);
 }
 
 export default askWhichProject;
@@ -30,13 +30,10 @@ export default askWhichProject;
 /* ========================================================================== */
 
 /** The team the person picks, or the one they make when they are in none. */
-async function askWhichTeam({
-  personalToken,
-  fromSavedLogin,
-}: ResolvedPersonalToken): Promise<string> {
+async function askWhichTeam(login: SavedLogin): Promise<string> {
   const { teams } = await serverCalls()
-    .listTeams({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .listTeams({ personalToken: login.token })
+    .catch(refuseFailedServiceCall);
 
   if (teams.length > 0) {
     return cancelSetupWhenUnanswered(
@@ -57,8 +54,8 @@ async function askWhichTeam({
   );
 
   const newTeam = await serverCalls()
-    .createTeam({ name: teamName.trim(), personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .createTeam({ name: teamName.trim(), personalToken: login.token })
+    .catch(refuseFailedServiceCall);
 
   return newTeam.id;
 }
@@ -66,11 +63,11 @@ async function askWhichTeam({
 /** The project of this team the person picks, or the one they make. */
 async function askWhichProjectOfTheTeam(
   teamId: string,
-  { personalToken, fromSavedLogin }: ResolvedPersonalToken
+  login: SavedLogin
 ): Promise<ProjectAddress> {
   const { projects } = await serverCalls()
-    .listProjects({ teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .listProjects({ teamId, personalToken: login.token })
+    .catch(refuseFailedServiceCall);
 
   const chosenProject = await cancelSetupWhenUnanswered(
     workstation().chooseOne<number | typeof MAKE_A_NEW_PROJECT>({
@@ -89,8 +86,8 @@ async function askWhichProjectOfTheTeam(
   );
 
   const newProject = await serverCalls()
-    .createProject({ name: projectName.trim(), teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .createProject({ name: projectName.trim(), teamId, personalToken: login.token })
+    .catch(refuseFailedServiceCall);
 
   // Shown once, as `project create` shows it: this is the token CI pushes with.
   emit({ kind: 'project-created', project: newProject });

@@ -65,8 +65,8 @@ export function renderOpenedStory(state: OpenedStory): string[] {
         '',
         chalk.dim(
           state.waited
-            ? 'Next: `sherlo capture` records it the way a test run would.'
-            : 'Next: `sherlo open --story <id> --wait` waits until the story has drawn.'
+            ? 'Next: `npx sherlo capture` records it the way a test run would.'
+            : 'Next: `npx sherlo open --story <id> --wait` waits until the story has drawn.'
         ),
         '',
       ];
@@ -89,7 +89,7 @@ export function renderOpenedStory(state: OpenedStory): string[] {
           `it within ${state.seconds}s`,
         '',
         chalk.dim(
-          'The app may still be loading it. `sherlo capture` records it once it has drawn.'
+          'The app may still be loading it. `npx sherlo capture` records it once it has drawn.'
         ),
         '',
       ];

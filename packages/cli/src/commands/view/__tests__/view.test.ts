@@ -52,6 +52,7 @@ import _waitForBuildResult, {
   readBuildStatus as _readBuildStatus,
 } from '../../../helpers/waitForBuildResult';
 import resolvePushCredential from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
+import { installSavedLogins, posedSavedLogins } from '../../../seams/savedLogins';
 import view from '../view';
 
 const getValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
@@ -138,15 +139,24 @@ describe('which build `sherlo view` looks at', () => {
   });
 
   it("reads the build in the config's project when it spends a person's credential", async () => {
-    // No project token anywhere: the config names the project, and the person's token is sent
+    // No project token anywhere: the config names the project, and the login's token is sent
     // whole - it has no team or project in it to split out.
     configOfThisCase = { token: undefined, project: 'k3j9x2ab/4' };
-    const personalToken = 'sht_viewpersonaltoken000000000000';
+    const serviceAddress = 'https://api.sherlo.io/graphql';
+    const loginToken = 'sht_viewlogintoken0000000000000000';
+    vi.stubEnv('SHERLO_API_URL', serviceAddress);
+    const uninstallLogins = installSavedLogins(
+      posedSavedLogins({ [serviceAddress]: { email: 'anna@example.com', token: loginToken } })
+    );
 
-    await runView('7', { personalToken });
+    try {
+      await runView('7');
+    } finally {
+      uninstallLogins();
+    }
 
     expect(readBuildStatus).toHaveBeenCalledWith({
-      token: personalToken,
+      token: loginToken,
       buildIndex: 7,
       projectIndex: 4,
       teamId: 'k3j9x2ab',

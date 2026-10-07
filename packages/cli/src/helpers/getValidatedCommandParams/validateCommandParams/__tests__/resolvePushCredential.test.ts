@@ -8,12 +8,7 @@
  */
 import { PROJECT_API_TOKEN_LENGTH } from '@sherlo/shared';
 import { describe, expect, it } from 'vitest';
-import {
-  PERSONAL_TOKEN_OPTION,
-  TEST_COMMAND,
-  TEST_EAS_CLOUD_BUILD_COMMAND,
-  TOKEN_OPTION,
-} from '../../../../constants';
+import { TEST_COMMAND, TEST_EAS_CLOUD_BUILD_COMMAND, TOKEN_OPTION } from '../../../../constants';
 import { installSavedLogins, PosedLogins, posedSavedLogins } from '../../../../seams/savedLogins';
 import { installSurroundings, posedSurroundings } from '../../../../seams/surroundings';
 import { InvalidatedConfig, PushCredential } from '../../../../types';
@@ -34,19 +29,15 @@ function projectToken(apiCharacter: string, teamId = TEAM_ID, projectIndex = PRO
 const TOKEN_ON_THE_FLAG = projectToken('a');
 const TOKEN_IN_SHERLO_TOKEN = projectToken('b');
 const TOKEN_IN_THE_CONFIG = projectToken('c');
-const PERSONAL_TOKEN_ON_THE_FLAG = 'sht_flagpersonaltoken0000000000000';
-const PERSONAL_TOKEN_IN_THE_VARIABLE = 'sht_variablepersonaltoken000000000';
 const SAVED_LOGIN_TOKEN = 'sht_savedlogintoken0000000000000000';
 
 /** Everything the resolver reads. Unstated means absent. */
 type World = {
   command?: string;
-  flags?: { [TOKEN_OPTION]?: string; [PERSONAL_TOKEN_OPTION]?: string };
+  flags?: { [TOKEN_OPTION]?: string };
   env?: Record<string, string>;
   config?: Record<string, unknown>;
   loggedIn?: boolean;
-  /** The token the saved login holds, when it is not the usual one. Implies logged in. */
-  savedLoginToken?: string;
 };
 
 /** Resolve the credential in a world, with the settings and the saved logins it states. */
@@ -55,9 +46,8 @@ function resolveIn(world: World): PushCredential {
     env: { SHERLO_API_URL: SERVICE_ADDRESS, ...world.env },
     git: 'none',
   });
-  const savedLoginToken = world.savedLoginToken ?? (world.loggedIn ? SAVED_LOGIN_TOKEN : undefined);
-  const logins: PosedLogins = savedLoginToken
-    ? { [SERVICE_ADDRESS]: { email: 'anna@example.com', token: savedLoginToken } }
+  const logins: PosedLogins = world.loggedIn
+    ? { [SERVICE_ADDRESS]: { email: 'anna@example.com', token: SAVED_LOGIN_TOKEN } }
     : {};
 
   const uninstall = [
@@ -88,17 +78,11 @@ function refusalIn(world: World): string {
 }
 
 describe('which credential a push spends', () => {
-  it('spends the first of --token, SHERLO_TOKEN, the config token, --personal-token, SHERLO_PERSONAL_TOKEN and the saved login', () => {
-    // All six at once, then each taken away in turn: the first one left is the one spent.
-    const everyCredential: Required<Omit<World, 'command' | 'savedLoginToken'>> = {
-      flags: {
-        [TOKEN_OPTION]: TOKEN_ON_THE_FLAG,
-        [PERSONAL_TOKEN_OPTION]: PERSONAL_TOKEN_ON_THE_FLAG,
-      },
-      env: {
-        SHERLO_TOKEN: TOKEN_IN_SHERLO_TOKEN,
-        SHERLO_PERSONAL_TOKEN: PERSONAL_TOKEN_IN_THE_VARIABLE,
-      },
+  it('spends the first of --token, SHERLO_TOKEN, the config token and the saved login', () => {
+    // All four at once, then each taken away in turn: the first one left is the one spent.
+    const everyCredential: Required<Omit<World, 'command'>> = {
+      flags: { [TOKEN_OPTION]: TOKEN_ON_THE_FLAG },
+      env: { SHERLO_TOKEN: TOKEN_IN_SHERLO_TOKEN },
       config: { token: TOKEN_IN_THE_CONFIG, project: CONFIG_PROJECT },
       loggedIn: true,
     };
@@ -112,34 +96,13 @@ describe('which credential a push spends', () => {
       fromSavedLogin: false,
     });
 
-    const withoutTokenFlag = {
-      ...everyCredential,
-      flags: { [PERSONAL_TOKEN_OPTION]: PERSONAL_TOKEN_ON_THE_FLAG },
-    };
+    const withoutTokenFlag = { ...everyCredential, flags: {} };
     expect(resolveIn(withoutTokenFlag).token).toBe(TOKEN_IN_SHERLO_TOKEN);
 
-    const withoutSherloToken = {
-      ...withoutTokenFlag,
-      env: { SHERLO_PERSONAL_TOKEN: PERSONAL_TOKEN_IN_THE_VARIABLE },
-    };
+    const withoutSherloToken = { ...withoutTokenFlag, env: {} };
     expect(resolveIn(withoutSherloToken).token).toBe(TOKEN_IN_THE_CONFIG);
 
-    const withoutConfigToken = { ...withoutSherloToken, config: { project: CONFIG_PROJECT } };
-    expect(resolveIn(withoutConfigToken)).toEqual({
-      kind: 'person',
-      token: PERSONAL_TOKEN_ON_THE_FLAG,
-      teamId: TEAM_ID,
-      projectIndex: PROJECT_INDEX,
-      fromSavedLogin: false,
-    });
-
-    const withoutPersonalTokenFlag = { ...withoutConfigToken, flags: {} };
-    expect(resolveIn(withoutPersonalTokenFlag)).toMatchObject({
-      token: PERSONAL_TOKEN_IN_THE_VARIABLE,
-      fromSavedLogin: false,
-    });
-
-    const withOnlyTheLogin = { ...withoutPersonalTokenFlag, env: {} };
+    const withOnlyTheLogin = { ...withoutSherloToken, config: { project: CONFIG_PROJECT } };
     expect(resolveIn(withOnlyTheLogin)).toEqual({
       kind: 'person',
       token: SAVED_LOGIN_TOKEN,
@@ -176,7 +139,8 @@ describe('what is refused about the credential', () => {
     expect(refusal).toContain(
       'AUTH ERROR: SHERLO_TOKEN wants a project token, and this is a personal token.'
     );
-    expect(refusal).toContain('A personal token goes in SHERLO_PERSONAL_TOKEN.');
+    expect(refusal).toContain('To act as yourself, run `npx sherlo login` instead.');
+    expect(refusal).not.toContain('SHERLO_PERSONAL_TOKEN');
     expect(refusal).not.toContain(personalToken);
 
     // The same mistake on `--token` gets the same kind of refusal.
@@ -185,68 +149,25 @@ describe('what is refused about the credential', () => {
     expect(onTheFlag).not.toContain(personalToken);
   });
 
-  it('refuses a project token given where a personal token belongs, on the push path too', () => {
-    // A project token is cut up and sent if it is spent as a person's: it never gets that far,
-    // whichever of the three places for a person's credential it was put in.
-    const projectTokenAsPersonal = projectToken('f');
-    const misplacedTokens: World[] = [
-      {
-        flags: { [PERSONAL_TOKEN_OPTION]: projectTokenAsPersonal },
-        config: { project: CONFIG_PROJECT },
-      },
-      {
-        env: { SHERLO_PERSONAL_TOKEN: projectTokenAsPersonal },
-        config: { project: CONFIG_PROJECT },
-      },
-    ];
-
-    for (const world of misplacedTokens) {
-      const refusal = refusalIn(world);
-
-      // The refusal the management commands give, word for word.
-      expect(refusal).toContain(
-        'AUTH ERROR: `--personal-token` wants a personal token, and this is not one - a personal\n' +
-          '  token starts with `sht_`.'
-      );
-      expect(refusal).toContain('If you pasted your project token');
-      expect(refusal).not.toContain(projectTokenAsPersonal);
-    }
-
-    // A saved login that is not a personal token is refused the same way, never sent.
-    const onTheLogin = refusalIn({
-      savedLoginToken: projectTokenAsPersonal,
-      config: { project: CONFIG_PROJECT },
-    });
-    expect(onTheLogin).toContain('wants a personal token, and this is not one');
-    expect(onTheLogin).not.toContain(projectTokenAsPersonal);
-  });
-
   it('refuses a push with no credential at all, naming sherlo login and SHERLO_TOKEN', () => {
     expect(refusalIn({ config: { project: CONFIG_PROJECT } })).toContain(
       'AUTH ERROR: There is no credential to push with.\n' +
-        '  On your own computer, run `sherlo login`.\n' +
+        '  On your own computer, run `npx sherlo login`.\n' +
         '  In CI, set the project token as SHERLO_TOKEN.'
     );
   });
 
   it("refuses a person's credential on the EAS road by name, naming SHERLO_TOKEN", () => {
-    const onTheVariable = refusalIn({
-      command: TEST_EAS_CLOUD_BUILD_COMMAND,
-      env: { SHERLO_PERSONAL_TOKEN: PERSONAL_TOKEN_IN_THE_VARIABLE },
-      config: { project: CONFIG_PROJECT },
-    });
-    expect(onTheVariable).toContain(
-      '`sherlo test:eas-cloud-build` takes a project token only, and found SHERLO_PERSONAL_TOKEN.'
-    );
-    expect(onTheVariable).toContain('Set the project token as SHERLO_TOKEN.');
-    expect(onTheVariable).not.toContain(PERSONAL_TOKEN_IN_THE_VARIABLE);
-
     const onTheLogin = refusalIn({
       command: TEST_EAS_CLOUD_BUILD_COMMAND,
       config: { project: CONFIG_PROJECT },
       loggedIn: true,
     });
-    expect(onTheLogin).toContain('takes a project token only, and found your login.');
+    expect(onTheLogin).toContain(
+      '`npx sherlo test:eas-cloud-build` takes a project token only, and found your login.'
+    );
+    expect(onTheLogin).toContain('Set the project token as SHERLO_TOKEN.');
+    expect(onTheLogin).not.toContain(SAVED_LOGIN_TOKEN);
 
     // A project token still opens the EAS road.
     const credential = resolveIn({
@@ -264,7 +185,7 @@ describe('which project a push goes to', () => {
     expect(refusal).toContain(
       'ERROR: sherlo.config.json names no project, so your login has nowhere to push.'
     );
-    expect(refusal).toContain('Run `sherlo init` to choose one.');
+    expect(refusal).toContain('Run `npx sherlo init` to choose one.');
   });
 
   it('refuses a config project that is not a team id, a slash and a project number', () => {
@@ -287,7 +208,7 @@ describe('which project a push goes to', () => {
         'which is not a team id, a slash and a project number.'
       );
       expect(onTheLogin, JSON.stringify(project)).toContain(
-        'It looks like `k3j9x2ab/4`. Run `sherlo init` to write it.'
+        'It looks like `k3j9x2ab/4`. Run `npx sherlo init` to write it.'
       );
 
       // ...and on a project token, where it is checked against the token.

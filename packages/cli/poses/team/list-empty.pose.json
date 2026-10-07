@@ -2,11 +2,17 @@
   "pose": 1,
   "argv": ["team", "list"],
   "files": {},
-  "env": { "SKIP_INTRO": "true", "SHERLO_PERSONAL_TOKEN": "sht_posepersonaltoken000000000000" },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},
   "api": [
     { "call": "listTeams", "with": {}, "answer": { "teams": [] } }
   ],
-  "masks": {}
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
 }

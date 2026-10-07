@@ -45,7 +45,9 @@ async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
   if (credential.kind !== 'projectToken') {
     throwError({
       type: 'unexpected',
-      error: new Error(`${TEST_EAS_CLOUD_BUILD_COMMAND} reached a build on a person's credential`),
+      error: new Error(
+        `npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND} reached a build on a person's credential`
+      ),
     });
   }
   const { apiToken, projectIndex, teamId } = credential;

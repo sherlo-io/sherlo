@@ -103,6 +103,8 @@ describe('the masker folds every volatile class the tool prints', () => {
     const folded = maskScreen(
       [
         `$ sherlo test --token ${projectToken}`,
+        // An older version's screen: the tool no longer takes `--personal-token`, but a screen
+        // that still shows one keeps being masked - a safety net, not a flag the tool has.
         `$ sherlo team list --personal-token ${personalToken}`,
         `  "token": "${projectToken}",`,
         `🔗 https://app.sherlo.io/build?t=${personalToken}&p=7&b=4`,

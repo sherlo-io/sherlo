@@ -3,17 +3,16 @@
  * setup names the project). It runs right after the checks and before anything is installed, so a
  * run that cannot name a project stops here and changes nothing in the folder.
  *
- *   - `--token`: no login and no personal token. The project is the one the token names, and the
- *     token is never written into the config: it belongs in CI as SHERLO_TOKEN.
- *   - Otherwise the person is `--personal-token`, then SHERLO_PERSONAL_TOKEN, then the saved login,
- *     and the browser login runs only when there is none of them. The project is `--project`
- *     (checked against the person's own teams and projects), or the one the config already names,
- *     or the one the person chooses when setup asks.
+ *   - `--token`: no login. The project is the one the token names, and the token is never written
+ *     into the config: it belongs in CI as SHERLO_TOKEN.
+ *   - Otherwise the person is the saved login, and the browser login runs only when there is none.
+ *     The project is `--project` (checked against the person's own teams and projects), or the one
+ *     the config already names, or the one the person chooses when setup asks.
  *
  * Answers the project as the config writes it: the team id, a slash and the project's number.
  */
 import chalk from 'chalk';
-import { PERSONAL_TOKEN_OPTION, PROJECT_OPTION } from '../../../constants';
+import { PROJECT_OPTION } from '../../../constants';
 import { getTokenParts, throwError } from '../../../helpers';
 import { parseConfigProject } from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
 import { workstation } from '../../../seams/workstation';
@@ -25,12 +24,11 @@ import { renderCheckLine, renderSectionTitle } from '../../../render/initLines';
 import { printLines } from '../helpers';
 import askWhichProject from './askWhichProject';
 import checkGivenProject from './checkGivenProject';
-import resolveSetupPersonalToken from './resolveSetupPersonalToken';
+import resolveSetupLogin from './resolveSetupLogin';
 import { ProjectAddress, asConfigProject } from './projectAddress';
 
 async function project({
   token,
-  [PERSONAL_TOKEN_OPTION]: personalTokenFlag,
   [PROJECT_OPTION]: projectFlag,
 }: Options<THIS_COMMAND>): Promise<string> {
   printLines(renderSectionTitle('🎯 Project'));
@@ -64,17 +62,17 @@ async function project({
   const mustAskForProject = givenProject === undefined && configProject === undefined;
   if (mustAskForProject && !workstation().somebodyIsAtTheKeyboard()) refuseNobodyAtTheKeyboard();
 
-  const person = await resolveSetupPersonalToken(personalTokenFlag);
+  const login = await resolveSetupLogin();
 
   if (projectFlag !== undefined && givenProject) {
-    await checkGivenProject({ givenProject, projectAsGiven: projectFlag, person });
+    await checkGivenProject({ givenProject, projectAsGiven: projectFlag, login });
 
     return asConfigProject(givenProject);
   }
 
   if (configProject) return asConfigProject(configProject);
 
-  return asConfigProject(await askWhichProject(person));
+  return asConfigProject(await askWhichProject(login));
 }
 
 export default project;
