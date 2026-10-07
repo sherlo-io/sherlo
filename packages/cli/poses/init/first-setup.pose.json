@@ -18,7 +18,7 @@
     "node_modules/expo/package.json": { "name": "expo", "version": "54.0.0", "main": "index.js" },
     "node_modules/expo/index.js": ""
   },
-  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql", "CI": "true" },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": {
     "branch": "main",
     "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
