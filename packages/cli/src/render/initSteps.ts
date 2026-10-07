@@ -112,12 +112,14 @@ export function renderNextSteps({
           '',
         ]);
 
-  // No CI is named: the token works on any CI, the GitHub workflow included.
+  // CI IS A TITLED BLOCK LIKE THE STEPS, with no number and no label (operator, 2026-10-07): it is
+  // for later, not part of the first run. No CI is named: the token works on any CI.
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
     ...stepLines,
-    `${chalk.blue('INFO:')} For CI, create a CI token and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    chalk.bold('Run Sherlo in CI'),
+    `   Create a CI token and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
     `   ${chalk.cyan(projectPageUrl)}`,
   ];
 }
