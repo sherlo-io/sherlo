@@ -41,15 +41,9 @@ async function init(options: Options<THIS_COMMAND>) {
 
     await metroConfig(sessionId);
     await config({ sessionId, project: projectId });
-    const { hasWorkflow } = await githubWorkflow();
+    await githubWorkflow();
 
-    printLines(
-      renderNextSteps({
-        installedStorybook: installedNow,
-        projectPageUrl,
-        addedGitHubWorkflow: hasWorkflow,
-      })
-    );
+    printLines(renderNextSteps({ installedStorybook: installedNow, projectPageUrl }));
     printLines(renderFeedbackLine({ under: 'next-steps' }));
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });

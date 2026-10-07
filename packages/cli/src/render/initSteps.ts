@@ -59,13 +59,10 @@ export function renderFailedStepLine(name: string): string[] {
 export function renderNextSteps({
   installedStorybook,
   projectPageUrl,
-  addedGitHubWorkflow,
 }: {
   installedStorybook: boolean;
   /** The project's page in the web app, where a project token for CI is made. */
   projectPageUrl: string;
-  /** Whether the project has Sherlo's GitHub workflow, which names the secret it reads. */
-  addedGitHubWorkflow: boolean;
 }): string[] {
   // Every step is the same shape: what to do, then one indented line of how.
   const steps: Array<{ what: string; how: string }> = [
@@ -84,14 +81,13 @@ export function renderNextSteps({
     { what: 'Run your first visual test:', how: chalk.cyan('npx sherlo test') },
   ];
 
-  const whereSecretsLive = addedGitHubWorkflow ? 'in GitHub' : 'in your CI';
-
+  // No CI is named: the token works on any CI, the GitHub workflow included.
   return [
     // 13, not the title's own length: the emoji is counted as one character and drawn as two.
     ...renderSectionTitle('👉 Next steps', 13),
     ...steps.flatMap(({ what, how }, index) => [`${index + 1}. ${what}`, `   ${how}`, '']),
-    `${chalk.blue('INFO:')} For CI, create a project token and save it ${whereSecretsLive} as the`,
-    `      ${chalk.bold('SHERLO_TOKEN')} secret: ${chalk.cyan(projectPageUrl)}`,
+    `${chalk.blue('INFO:')} For CI, create a project token and add it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    `      ${chalk.cyan(projectPageUrl)}`,
   ];
 }
 

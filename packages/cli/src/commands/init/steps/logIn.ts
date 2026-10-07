@@ -40,7 +40,10 @@ async function logIn(personalTokenFlag: string | undefined): Promise<ResolvedPer
     // ...and in a terminal, once Authorize is clicked, it gives way to one line like every other
     // step's. Where nothing can be erased - an agent reading a pipe - the block stays, and the line
     // follows it.
-    if (process.stdout.isTTY) {
+    // BUILD DEBT (init-for-agents): one shared check, in ../../../helpers, that every command asks
+    // whether its output is a person's terminal - a TTY, with no CI set and TERM not "dumb", the
+    // same test the spinner's library makes - so the spinner and this erase never disagree.
+    if (process.stdout.isTTY && !process.env.CI && process.env.TERM !== 'dumb') {
       process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted(newLogin.browserOpened) + 1));
     } else {
       printLines(['']);
