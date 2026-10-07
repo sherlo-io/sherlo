@@ -27,7 +27,7 @@ export function renderSherloWorkflow({ packageManager }: { packageManager: strin
   return `# Sherlo visual tests, added by \`npx sherlo init\`.
 #
 # Sherlo photographs your app's Storybook stories on a device and shows what changed, for review.
-# It needs one secret: SHERLO_TOKEN, a project token from the Sherlo web app, added under
+# It needs one secret: SHERLO_TOKEN, a CI token from the Sherlo web app, added under
 # Settings > Secrets and variables > Actions. Docs: https://sherlo.io/docs/testing
 
 name: Sherlo
@@ -56,7 +56,7 @@ jobs:
       - name: Check the SHERLO_TOKEN secret
         run: |
           if [ -z "$SHERLO_TOKEN" ]; then
-            echo "::error::Add a SHERLO_TOKEN secret: create a project token in the Sherlo web app (https://app.sherlo.io), then add it under Settings > Secrets and variables > Actions."
+            echo "::error::Add a SHERLO_TOKEN secret: create a CI token in the Sherlo web app (https://app.sherlo.io), then add it under Settings > Secrets and variables > Actions."
             exit 1
           fi
 

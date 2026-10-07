@@ -117,7 +117,7 @@ export function renderNextSteps({
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
     ...stepLines,
-    `${chalk.blue('INFO:')} For CI, create a project token and add it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    `${chalk.blue('INFO:')} For CI, create a CI token and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
     `   ${chalk.cyan(projectPageUrl)}`,
   ];
 }
