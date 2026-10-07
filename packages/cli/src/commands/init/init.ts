@@ -19,7 +19,8 @@ import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
-import { PROJECT_OPTION, TEAM_OPTION } from '../../constants';
+import { PROJECT_OPTION, STORYBOOK_REACT_NATIVE_PACKAGE_NAME, TEAM_OPTION } from '../../constants';
+import getPackageVersion from './requirements/getPackageVersion';
 
 async function init(options: Options<THIS_COMMAND>) {
   const { sessionId } = await trackProgress({ event: '0_init', sessionId: null, hasStarted: true });
@@ -47,20 +48,27 @@ async function init(options: Options<THIS_COMMAND>) {
     await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
     await metroConfig(sessionId);
-    await githubWorkflow();
+    const { hasWorkflow } = await githubWorkflow();
 
     const storybookState = installedNow
       ? 'installed'
       : storybookSetup() === 'registers-root'
         ? 'newer-setup'
         : 'older-setup';
-    printLines(renderNextSteps({ storybook: storybookState, projectPageUrl }));
-    printLines(renderFeedbackLine({ under: 'next-steps' }));
+    printLines(
+      renderNextSteps({
+        storybook: storybookState,
+        storybookVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ?? undefined,
+        addedGithubWorkflow: hasWorkflow,
+        projectPageUrl,
+      })
+    );
+    printLines(renderFeedbackLine());
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });
   } catch (error) {
-    // The feedback line goes under the error too, between it and the help footer
-    // (../../start prints both).
+    // A failed run ends with one block for feedback and help, in place of the usual help footer
+    // (../../start prints it).
     Object.assign(error as object, { showFeedbackLine: true });
     throw error;
   }

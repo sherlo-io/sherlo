@@ -58,17 +58,30 @@ export function renderFailedStepLine(name: string): string[] {
  *     app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
  *   - `newer-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
  *     with no change to the app - no Storybook step at all.
- *   - `older-setup`: Storybook renders from the app's own root, so the person gives Sherlo access
- *     there - or, recommended, moves to the newer setup, which needs no change.
+ *   - `older-setup`: Storybook renders from the app's own root. Two equal choices, the recommended
+ *     one first: move to the newer setup (upgrading Storybook first when it predates it), or keep
+ *     the setup and follow Sherlo's guide for it.
+ *
+ * Then CI in a section of its own (operator, 2026-10-07): it is for later, not the first run.
  */
 export function renderNextSteps({
   storybook,
+  storybookVersion,
+  addedGithubWorkflow,
   projectPageUrl,
 }: {
   storybook: 'installed' | 'newer-setup' | 'older-setup';
-  /** The project's page in the web app, where a project token for CI is made. */
+  /** The installed `@storybook/react-native` version, which says whether the newer setup needs an upgrade first. */
+  storybookVersion: string | undefined;
+  /** Whether the project has the GitHub workflow setup adds, so the CI section can name it. */
+  addedGithubWorkflow: boolean;
+  /** The project's page in the web app, where a CI token is made. */
   projectPageUrl: string;
 }): string[] {
+  const newerSetupChoice = hasNewerSetup(storybookVersion)
+    ? "a) Switch to Storybook's newer setup (recommended):"
+    : `a) Upgrade Storybook to ${NEWER_SETUP_SINCE} or newer and switch to its newer setup (recommended):`;
+
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
   const storybookSteps: Record<typeof storybook, Array<{ title: string; content: string[] }>> = {
@@ -84,13 +97,12 @@ export function renderNextSteps({
     'newer-setup': [],
     'older-setup': [
       {
-        title: 'Give Sherlo access to Storybook',
+        title: 'Give Sherlo access to Storybook - pick one:',
         content: [
-          "Add Sherlo to your app's root component:",
-          chalk.cyan('https://sherlo.io/docs/setup#storybook-access'),
-          '',
-          "Recommended instead: switch to Storybook's newer setup, which needs no change in your app:",
-          chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup'),
+          newerSetupChoice,
+          `   ${chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup')}`,
+          'b) Or keep your setup and follow our guide for it:',
+          `   ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`,
         ],
       },
     ],
@@ -112,26 +124,52 @@ export function renderNextSteps({
           '',
         ]);
 
-  // CI IS A TITLED BLOCK LIKE THE STEPS, with no number and no label (operator, 2026-10-07): it is
-  // for later, not part of the first run. No CI is named: the token works on any CI.
+  const ciLines = addedGithubWorkflow
+    ? [
+        'Setup added a GitHub workflow that tests every pull request.',
+        `It needs a CI token, saved as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+      ]
+    : [`Create a CI token and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`];
+
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
     ...stepLines,
-    chalk.bold('Run Sherlo in CI'),
-    `   Create a CI token and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    ...renderSectionTitle('🔁 Test every pull request', 26),
+    ...ciLines,
     `   ${chalk.cyan(projectPageUrl)}`,
   ];
 }
 
-/**
- * The line every run ends with, a finished one and a failed one alike. Under an error it stands
- * apart from the help footer: feedback is not a request for help.
- */
-export function renderFeedbackLine({ under }: { under: 'next-steps' | 'error' }): string[] {
-  const line = `Something unclear or broken? Tell us: ${chalk.cyan('npx sherlo feedback "<what happened>"')}`;
-  // A thin rule above it marks it as a side note, apart from the steps or the error.
-  const rule = chalk.dim('─'.repeat(10));
+/** The first `@storybook/react-native` with the newer setup, whose own entry starts the app. */
+const NEWER_SETUP_SINCE = '10.4';
 
-  return under === 'next-steps' ? ['', rule, '', line] : [rule, '', line, ''];
+function hasNewerSetup(storybookVersion: string | undefined): boolean {
+  const [major = 0, minor = 0] = (storybookVersion ?? '').split('.').map(Number);
+  return major > 10 || (major === 10 && minor >= 4);
+}
+
+/** The line a finished run ends with, set apart by a thin rule: feedback is a side note. */
+export function renderFeedbackLine(): string[] {
+  return [
+    '',
+    chalk.dim('─'.repeat(10)),
+    '',
+    `Something unclear or broken? Tell us: ${chalk.cyan('npx sherlo feedback "<what happened>"')}`,
+  ];
+}
+
+/**
+ * What a failed run ends with, in place of the tool's usual help footer: one block, so feedback
+ * and help read as one place to turn (operator, 2026-10-07).
+ */
+export function renderStuckBlock({ discordUrl, contactEmail }: { discordUrl: string; contactEmail: string }): string[] {
+  return [
+    chalk.dim('═'.repeat(10)),
+    '',
+    'Stuck or something broken?',
+    `➜ Tell us: ${chalk.cyan('npx sherlo feedback "<what happened>"')}`,
+    `➜ Discord: ${chalk.cyan(discordUrl)}`,
+    `➜ Email: ${chalk.cyan(contactEmail)}`,
+  ];
 }

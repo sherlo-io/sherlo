@@ -19,6 +19,8 @@ import {
   view,
 } from './commands';
 import {
+  CONTACT_EMAIL,
+  DISCORD_URL,
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
   BASELINE_OPTION,
@@ -79,7 +81,7 @@ import {
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
-import { renderFeedbackLine } from './render/initSteps';
+import { renderStuckBlock } from './render/initSteps';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -139,12 +141,14 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      // `sherlo init` asks for feedback under its errors, apart from the help footer below.
+      // `sherlo init` ends a failure with one block for feedback and help, in place of the usual footer.
       if ((error as { showFeedbackLine?: boolean }).showFeedbackLine) {
-        for (const line of renderFeedbackLine({ under: 'error' })) console.error(line);
+        for (const line of renderStuckBlock({ discordUrl: DISCORD_URL, contactEmail: CONTACT_EMAIL })) {
+          console.log(line);
+        }
+      } else {
+        printNeedHelpEpilogue();
       }
-
-      printNeedHelpEpilogue();
 
       process.exit(error.code || 1);
     });
