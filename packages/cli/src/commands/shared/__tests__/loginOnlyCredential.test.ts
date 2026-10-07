@@ -16,6 +16,8 @@ import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { NAME_OPTION, TEAM_OPTION, TEST_COMMAND, TOKEN_OPTION } from '../../../constants';
 import resolvePushCredential from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
+import { captureTranscript } from '../../../helpers/transcriptSink';
+import { installBrowser, posedBrowser } from '../../../seams/browser';
 import type { CommandPose } from '../../../seams/commandPose';
 import { installSavedLogins, posedSavedLogins, type PosedLogins } from '../../../seams/savedLogins';
 import {
@@ -26,6 +28,7 @@ import {
 } from '../../../seams/serverCalls';
 import { installSurroundings, posedSurroundings } from '../../../seams/surroundings';
 import type { InvalidatedConfig } from '../../../types';
+import resolveSetupLogin from '../../init/project/resolveSetupLogin';
 import { runPose } from '../../pose/pose';
 import projectCreate from '../../projectCreate/projectCreate';
 import projectList from '../../projectList/projectList';
@@ -187,8 +190,27 @@ describe('the login as the only credential a person spends', () => {
     expect(unprefixedSubstitutions).toEqual([]);
   });
 
-  it('a login made inside npx sherlo init never tells the person to run npx sherlo init next', () => {
-    expect.fail('shell - written in build');
+  it('a login made inside npx sherlo init never tells the person to run npx sherlo init next', async () => {
+    const login = await runSetupLoginOnSeams([
+      {
+        call: 'startCliLogin',
+        with: {},
+        answer: {
+          loginId: 'lg7Qm2Xa',
+          authorizeUrl: 'https://app.sherlo.io/cli-login/lg7Qm2Xa',
+          expiresAt: '2030-01-01T00:15:00.000Z',
+        },
+      },
+      {
+        call: 'pollCliLogin',
+        with: { loginId: 'lg7Qm2Xa' },
+        answer: { status: 'approved', email: 'anna@example.com', token: LOGIN_TOKEN },
+      },
+    ]);
+
+    expect(login.printed).toContain('Logged in as anna@example.com');
+    expect(login.printed).not.toContain('npx sherlo init');
+    expect(login.printed).not.toContain('Next:');
   });
 });
 
@@ -266,6 +288,24 @@ async function runOnSeams(
     return { refusal, tokensSpent, unansweredCalls: posedCalls.refusals() };
   } finally {
     uninstallTheWorld();
+    uninstallServer();
+  }
+}
+
+/** Run setup's own login on posed seams, with no saved login, and answer what it printed. */
+async function runSetupLoginOnSeams(api: ScriptedCall[]) {
+  const uninstallServer = installServerCalls(posedServerCalls(api));
+  const uninstallBrowser = installBrowser(posedBrowser({ opened: true }));
+  const uninstallTheWorld = installTheWorld({ logins: {} });
+  try {
+    const transcript = await captureTranscript(async () => {
+      await resolveSetupLogin();
+    });
+
+    return { printed: plain(`${transcript.stdout}${transcript.stderr}`) };
+  } finally {
+    uninstallTheWorld();
+    uninstallBrowser();
     uninstallServer();
   }
 }

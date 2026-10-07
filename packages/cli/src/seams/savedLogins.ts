@@ -44,8 +44,11 @@ export type SavedLogins = {
   read(serviceAddress: string): SavedLogin | undefined;
   /** Save a login under this service address, replacing any saved before. */
   save(serviceAddress: string, login: SavedLogin): void;
-  /** Delete the login saved under this service address. */
-  remove(serviceAddress: string): void;
+  /**
+   * Delete the login saved under this service address. Answers whether it is gone: false when the
+   * keychain refused the deletion and still holds it, where the next read finds it first.
+   */
+  remove(serviceAddress: string): boolean;
 
   /**
    * The login still waiting for its click under this service address, or undefined when there is
@@ -158,30 +161,96 @@ function isOneWord(text: string): boolean {
 
 type KeyringLibrary = typeof import('@napi-rs/keyring');
 
+/** One act on the keychain library: what to do, and to which entry. */
+export type KeyringCall = {
+  act: 'read' | 'save' | 'remove';
+  name: string;
+  account: string;
+  /** The secret to keep, for a save. */
+  secret?: string;
+};
+
 /**
- * The Linux and Windows keychain, through a prebuilt keychain library. The library is loaded at
- * the first act, not before, so a run that keeps its login in the file never loads it, and a
- * machine whose platform has no prebuilt binary throws here - and the file takes the login.
+ * One act through the keychain library, answered with the secret a read found (undefined when
+ * there is none). It uses nothing outside itself and no modern syntax, because the child process
+ * below runs this function's own text.
  */
-export function keyringKeychain(
-  loadLibrary: () => KeyringLibrary = () => require('@napi-rs/keyring')
-): Keychain {
-  let library: KeyringLibrary | undefined;
+export function performKeyringCall(library: KeyringLibrary, call: KeyringCall): string | undefined {
+  // On Linux only the Secret Service (gnome-keyring, KWallet) keeps a login across a restart;
+  // the library's other store, the kernel keyring, forgets it. Requiring the Secret Service makes
+  // a machine without one throw, so the file takes the login instead.
+  const entry = new library.Entry(call.name, call.account, { linux: { store: 'secret-service' } });
 
-  const entryFor = (name: string, account: string) => {
-    library ??= loadLibrary();
+  if (call.act === 'save') {
+    entry.setPassword(call.secret as string);
+    return undefined;
+  }
+  if (call.act === 'remove') {
+    entry.deletePassword();
+    return undefined;
+  }
 
-    // On Linux only the Secret Service (gnome-keyring, KWallet) keeps a login across a restart;
-    // the library's other store, the kernel keyring, forgets it. Requiring the Secret Service makes
-    // a machine without one throw, so the file takes the login instead.
-    return new library.Entry(name, account, { linux: { store: 'secret-service' } });
-  };
+  const secret = entry.getPassword();
+  return secret === null ? undefined : secret;
+}
 
+/** One keychain library call, run so that a keychain that does not answer throws. */
+export type RunKeyringCall = (call: KeyringCall) => string | undefined;
+
+/** How long one keychain library call may take before the keychain counts as not answering. */
+const KEYRING_TIME_LIMIT_MS = 10_000;
+
+/**
+ * The program a child node process runs for one keychain library call: it reads the call from its
+ * input, loads the library from where the tool itself is installed (its first argument), and
+ * writes the secret it found as JSON.
+ */
+const KEYRING_CHILD_PROGRAM = `
+const performKeyringCall = ${performKeyringCall.toString()};
+const fs = require('fs');
+const toolPath = process.argv[1];
+const library = require(require('module').createRequire(toolPath).resolve('@napi-rs/keyring'));
+const call = JSON.parse(fs.readFileSync(0, 'utf8'));
+const secret = performKeyringCall(library, call);
+process.stdout.write(JSON.stringify({ secret: secret === undefined ? null : secret }));
+`;
+
+/**
+ * Run a keychain library call in a child node process, so it has the same time limit as `security`:
+ * the library's calls are synchronous and cannot be timed out inside this process. A call that does
+ * not answer in time, or fails, throws. The secret travels on the child's input, never in its
+ * arguments.
+ */
+export function runKeyringCallInChildProcess(
+  call: KeyringCall,
+  childProgram: string = KEYRING_CHILD_PROGRAM,
+  timeLimitMs: number = KEYRING_TIME_LIMIT_MS
+): string | undefined {
+  const result = spawnSync(
+    process.execPath,
+    ['-e', childProgram, fs.realpathSync(process.argv[1])],
+    { input: JSON.stringify(call), encoding: 'utf8', timeout: timeLimitMs }
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`the keychain library could not ${call.act}`);
+
+  return JSON.parse(result.stdout).secret ?? undefined;
+}
+
+/**
+ * The Linux and Windows keychain, through a prebuilt keychain library run in a child process (see
+ * `runKeyringCallInChildProcess`). The child loads the library at each act, so a run that keeps its
+ * login in the file never loads it, and a machine whose platform has no prebuilt binary throws -
+ * and the file takes the login.
+ */
+export function keyringKeychain(runCall: RunKeyringCall = runKeyringCallInChildProcess): Keychain {
   return {
-    read: (name, account) => entryFor(name, account).getPassword() ?? undefined,
-    save: (name, account, secret) => entryFor(name, account).setPassword(secret),
+    read: (name, account) => runCall({ act: 'read', name, account }),
+    save: (name, account, secret) => {
+      runCall({ act: 'save', name, account, secret });
+    },
     remove: (name, account) => {
-      entryFor(name, account).deletePassword();
+      runCall({ act: 'remove', name, account });
     },
   };
 }
@@ -200,6 +269,11 @@ type AddressStore<Kept> = {
   read(serviceAddress: string): Kept | undefined;
   save(serviceAddress: string, kept: Kept): void;
   remove(serviceAddress: string): void;
+};
+
+/** An address store whose removal says whether the record is gone. */
+type KeychainFirstStore<Kept> = Omit<AddressStore<Kept>, 'remove'> & {
+  remove(serviceAddress: string): boolean;
 };
 
 /**
@@ -224,19 +298,12 @@ export function savedLoginsKeptIn(keychain: Keychain): SavedLogins {
     save: logins.save,
     remove: logins.remove,
 
-    readPending: (serviceAddress) => {
-      const pendingLogin = pendingLogins.read(serviceAddress);
-      if (!pendingLogin) return undefined;
-
-      if (hasExpired(pendingLogin)) {
-        pendingLogins.remove(serviceAddress);
-        return undefined;
-      }
-
-      return pendingLogin;
-    },
+    readPending: (serviceAddress) =>
+      unexpired(pendingLogins.read(serviceAddress), () => pendingLogins.remove(serviceAddress)),
     savePending: pendingLogins.save,
-    removePending: pendingLogins.remove,
+    removePending: (serviceAddress) => {
+      pendingLogins.remove(serviceAddress);
+    },
   };
 }
 
@@ -244,9 +311,24 @@ export function savedLoginsKeptIn(keychain: Keychain): SavedLogins {
  * Has the service's own expiry passed, by the clock in force (a posed run's is the pose's)? An
  * expiry that is not a time has no end to wait for, so it counts as passed.
  */
-function hasExpired(pendingLogin: PendingLogin): boolean {
+export function hasExpired(pendingLogin: PendingLogin): boolean {
   const expiresAt = Date.parse(pendingLogin.expiresAt);
   return Number.isNaN(expiresAt) || surroundings().now() >= expiresAt;
+}
+
+/** The pending login when it has not expired; an expired one is forgotten as it is read. */
+function unexpired(
+  pendingLogin: PendingLogin | undefined,
+  forget: () => void
+): PendingLogin | undefined {
+  if (!pendingLogin) return undefined;
+
+  if (hasExpired(pendingLogin)) {
+    forget();
+    return undefined;
+  }
+
+  return pendingLogin;
 }
 
 /** The shipped answers: this machine's keychain, and the saved-login file when it does not answer. */
@@ -261,12 +343,13 @@ export const liveSavedLogins: SavedLogins = savedLoginsKeptIn(thisMachinesKeycha
  *     save   - into the keychain, and then out of the file, so no plain copy is left behind; into
  *              the file only when the keychain cannot take it, and then any older keychain entry
  *              is deleted, so it cannot hide the newer one in the file.
- *     remove - from both, so a logout leaves the token nowhere.
+ *     remove - from both, so a logout leaves the token nowhere; answers false when the keychain
+ *              refused and still holds it.
  */
 function keychainFirst<Kept>(
   inKeychain: AddressStore<Kept>,
   inFile: AddressStore<Kept>
-): AddressStore<Kept> {
+): KeychainFirstStore<Kept> {
   const keychainIsAllowed = () => process.env.SHERLO_SAVED_LOGIN_STORE !== 'file';
 
   return {
@@ -299,9 +382,21 @@ function keychainFirst<Kept>(
     },
 
     remove: (serviceAddress) => {
-      if (keychainIsAllowed()) ignoringFailure(() => inKeychain.remove(serviceAddress));
+      const keychainRefused =
+        keychainIsAllowed() &&
+        ignoringFailure(() => {
+          inKeychain.remove(serviceAddress);
+          return true;
+        }) === undefined;
 
       inFile.remove(serviceAddress);
+
+      // A refusal leaves the login where the next read finds it first only if the keychain can
+      // still hand it over; a keychain that answers nothing at all cannot.
+      const stillHeldByKeychain =
+        keychainRefused && ignoringFailure(() => inKeychain.read(serviceAddress)) !== undefined;
+
+      return !stillHeldByKeychain;
     },
   };
 }
@@ -517,19 +612,11 @@ export function posedSavedLogins(posed: PosedLogins | undefined): SavedLogins {
 
     remove: (serviceAddress) => {
       delete logins[serviceAddress];
+      return true;
     },
 
-    readPending: (serviceAddress) => {
-      const pendingLogin = pendingLogins[serviceAddress];
-      if (!pendingLogin) return undefined;
-
-      if (hasExpired(pendingLogin)) {
-        delete pendingLogins[serviceAddress];
-        return undefined;
-      }
-
-      return pendingLogin;
-    },
+    readPending: (serviceAddress) =>
+      unexpired(pendingLogins[serviceAddress], () => delete pendingLogins[serviceAddress]),
 
     savePending: (serviceAddress, pendingLogin) => {
       pendingLogins[serviceAddress] = { ...pendingLogin };

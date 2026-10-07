@@ -159,7 +159,7 @@ async function runLogoutOnSeams(world: {
       ...logins,
       remove: (serviceAddress) => {
         journal.push(`deleted ${serviceAddress}`);
-        logins.remove(serviceAddress);
+        return logins.remove(serviceAddress);
       },
     }),
     installSurroundings(surroundings),

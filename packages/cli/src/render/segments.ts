@@ -290,8 +290,11 @@ export type TranscriptSegment =
    * terminal the wait is a spinner instead, which the result replaces (../commands/login/login).
    */
   | { kind: 'login-waiting' }
-  /** `✔  Logged in as <email>`. */
-  | { kind: 'logged-in'; email: string }
+  /**
+   * `✔  Logged in as <email>`, then the next step. A login made inside setup (`insideSetup`) has
+   * no next step to name: it is already on it.
+   */
+  | { kind: 'logged-in'; email: string; insideSetup?: true }
   /** `✔  Already logged in as <email>` - a saved login the service still accepts. */
   | { kind: 'already-logged-in'; email: string }
   /** `✔  Logged out <email>`. */

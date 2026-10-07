@@ -13,7 +13,9 @@ import {
   type Keychain,
   keyringKeychain,
   macOsKeychain,
+  performKeyringCall,
   type PendingLogin,
+  runKeyringCallInChildProcess,
   savedLoginFilePath,
   savedLoginsKeptIn,
   type SecurityResult,
@@ -268,9 +270,8 @@ describe('the keychain, when it only partly answers', () => {
         return secrets.delete(`${this.name} ${this.account}`);
       }
     }
-    const keychain = keyringKeychain(
-      () => ({ Entry: FakeEntry } as unknown as typeof import('@napi-rs/keyring'))
-    );
+    const library = { Entry: FakeEntry } as unknown as typeof import('@napi-rs/keyring');
+    const keychain = keyringKeychain((call) => performKeyringCall(library, call));
 
     keychain.save('sherlo', PROD_STAGE, 'secret');
     expect(keychain.read('sherlo', PROD_STAGE)).toBe('secret');
@@ -301,11 +302,34 @@ describe('the keychain, when it only partly answers', () => {
   });
 
   it('a removal the keychain refuses is reported, never counted as done', () => {
-    expect.fail('shell - written in build');
+    const keychain = fakeKeychain();
+    keychain.save('sherlo', PROD_STAGE, JSON.stringify(ANNA));
+    vi.spyOn(keychain, 'remove').mockImplementation(() => {
+      throw new Error('the keychain is locked');
+    });
+    const logins = savedLoginsKeptIn(keychain);
+
+    // The keychain still holds the login, so the logout is not done.
+    expect(logins.remove(PROD_STAGE)).toBe(false);
+    expect(logins.read(PROD_STAGE)).toEqual(ANNA);
+
+    // A keychain that answers nothing at all holds nothing a read could find, so it is done.
+    expect(savedLoginsKeptIn(keychainThatNeverAnswers()).remove(PROD_STAGE)).toBe(true);
+
+    // And a removal that goes through is done.
+    expect(savedLoginsKeptIn(fakeKeychain()).remove(PROD_STAGE)).toBe(true);
   });
 
   it('gives up on a keychain library call that does not answer in time, and the file takes over', () => {
-    expect.fail('shell - written in build');
+    const neverAnswers = 'setTimeout(() => undefined, 60_000)';
+    const logins = savedLoginsKeptIn(
+      keyringKeychain((call) => runKeyringCallInChildProcess(call, neverAnswers, 300))
+    );
+
+    logins.save(PROD_STAGE, ANNA);
+
+    expect(readSavedLoginFile()[PROD_STAGE]).toMatchObject(ANNA);
+    expect(logins.read(PROD_STAGE)).toEqual(ANNA);
   });
 });
 

@@ -8,6 +8,9 @@
  * out): it is deleted here and the logout ends as an ordinary one, exit 0. With no saved login, it
  * says so and exits 0.
  *
+ * When the keychain refuses to delete the login, the command says so and exits 1, never that the
+ * login was deleted.
+ *
  * Only the login of the service address in use is touched.
  */
 import { printSherloIntro, throwError } from '../../helpers';
@@ -36,7 +39,13 @@ async function logout(): Promise<void> {
       (error: Error) => error instanceof ServiceRefusedTokenError
     );
 
-  savedLogins().remove(serviceAddress);
+  const deletedFromThisComputer = savedLogins().remove(serviceAddress);
+
+  if (!deletedFromThisComputer) {
+    throwError({
+      message: `Could not delete the login of ${savedLogin.email} from this computer: the keychain still holds it.`,
+    });
+  }
 
   if (!endedOnTheService) {
     throwError({
