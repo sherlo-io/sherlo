@@ -29,7 +29,9 @@ async function logIn(personalTokenFlag: string | undefined): Promise<ResolvedPer
   if (hasGivenToken) {
     printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: 'with your personal token' })]);
   } else if (savedLogin) {
-    printLines([renderStepLine({ outcome: 'already', name: 'Logged in', detail: savedLogin.email })]);
+    // Not marked as already done: like the team and project lines after it, being logged in is
+    // where setup starts from, not work it did.
+    printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: savedLogin.email })]);
   } else {
     // The login block stands apart from the list while it waits...
     printLines(['']);

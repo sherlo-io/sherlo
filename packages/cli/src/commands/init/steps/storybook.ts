@@ -37,7 +37,9 @@ async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{
   ]);
   const command = resolved ? `${resolved.command} ${resolved.args.join(' ')}` : '';
 
-  const spinner = createSpinner('Installing Storybook').start();
+  // The longest step: a spinner in a terminal, and one line for an agent reading a pipe, so neither
+  // takes the wait for a hang.
+  const spinner = createSpinner('Installing Storybook (this can take a few minutes)').start();
 
   try {
     await workstation().installStorybook({ command, projectRoot });

@@ -72,7 +72,7 @@ async function showProjectInConfig(
     renderStepLine({
       outcome: 'done',
       name: 'Using project',
-      detail: `${projectInTeam.name} (${asConfigProject(project)})`,
+      detail: projectInTeam.name,
     }),
   ]);
 }
@@ -133,15 +133,10 @@ async function createProject(
 
   const project = { teamId, projectIndex: newProject.index };
 
-  // The project token the service hands back is never printed: a token for CI is made in the web
-  // app, where the next steps point.
-  printLines([
-    renderStepLine({
-      outcome: 'done',
-      name: 'Created project',
-      detail: `${newProject.name} (${asConfigProject(project)})`,
-    }),
-  ]);
+  // Names only, for the team and the project alike: their ids are the config's business, and a
+  // person reads names. The project token the service hands back is never printed: a token for CI
+  // is made in the web app, where the next steps point.
+  printLines([renderStepLine({ outcome: 'done', name: 'Created project', detail: newProject.name })]);
 
   return project;
 }

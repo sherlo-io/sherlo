@@ -16,7 +16,7 @@ import { printLines } from '../helpers';
 import getFailedCommandOutput from './getFailedCommandOutput';
 
 async function installSherlo(): Promise<void> {
-  const spinner = createSpinner('Installing Sherlo').start();
+  const spinner = createSpinner('Installing Sherlo (this can take a minute)').start();
 
   let packageJson;
   const packageJsonPath = join(getCwd(), 'package.json');

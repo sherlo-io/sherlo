@@ -17,16 +17,17 @@ import { printLines } from '../helpers';
 const WORKFLOW_PATH = '.github/workflows/sherlo.yml';
 const STEP_NAME = 'Added GitHub workflow';
 
-async function githubWorkflow(): Promise<void> {
+/** Answers whether the project has Sherlo's workflow now, which the next steps name. */
+async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   const projectRoot = getCwd();
 
   const remote = await surroundings().readGitRemote(projectRoot);
-  if (remote && !remote.includes('github.com')) return;
+  if (remote && !remote.includes('github.com')) return { hasWorkflow: false };
 
   const workflowFile = path.join(projectRoot, WORKFLOW_PATH);
   if (fs.existsSync(workflowFile)) {
     printLines([renderStepLine({ outcome: 'already', name: STEP_NAME, detail: WORKFLOW_PATH })]);
-    return;
+    return { hasWorkflow: true };
   }
 
   const packageManager = (await detect({ cwd: projectRoot }))?.name ?? 'npm';
@@ -36,6 +37,7 @@ async function githubWorkflow(): Promise<void> {
   fs.writeFileSync(workflowFile, renderSherloWorkflow({ packageManager, mainBranch: 'main' }));
 
   printLines([renderStepLine({ outcome: 'done', name: STEP_NAME, detail: WORKFLOW_PATH })]);
+  return { hasWorkflow: true };
 }
 
 export default githubWorkflow;

@@ -59,40 +59,39 @@ export function renderFailedStepLine(name: string): string[] {
 export function renderNextSteps({
   installedStorybook,
   projectPageUrl,
+  addedGitHubWorkflow,
 }: {
   installedStorybook: boolean;
   /** The project's page in the web app, where a project token for CI is made. */
   projectPageUrl: string;
+  /** Whether the project has Sherlo's GitHub workflow, which names the secret it reads. */
+  addedGitHubWorkflow: boolean;
 }): string[] {
-  const steps: string[][] = [
-    [
-      'Let Sherlo open Storybook in your app.',
-      chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`),
-    ],
+  // Every step is the same shape: what to do, then one indented line of how.
+  const steps: Array<{ what: string; how: string }> = [
+    {
+      what: 'Give Sherlo access to Storybook in your app.',
+      how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`),
+    },
     ...(installedStorybook
       ? [
-          [
-            'Recommended: replace the example stories with a story of one of your own',
-            'components, so your first test shows your app.',
-            chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/stories')}`),
-          ],
+          {
+            what: 'Recommended: replace the example stories with your own components.',
+            how: chalk.dim(`↳ How: ${chalk.cyan('https://sherlo.io/docs/stories')}`),
+          },
         ]
       : []),
-    ['Run your first visual test:', '', `  ${chalk.cyan('npx sherlo test')}`],
+    { what: 'Run your first visual test:', how: chalk.cyan('npx sherlo test') },
   ];
+
+  const whoNeedsIt = addedGitHubWorkflow ? 'The GitHub workflow needs' : 'CI needs';
 
   return [
     // 13, not the title's own length: the emoji is counted as one character and drawn as two.
     ...renderSectionTitle('👉 Next steps', 13),
-    ...steps.flatMap((lines, index) => [
-      ...lines.map((line, lineIndex) => {
-        if (lineIndex === 0) return `${index + 1}. ${line}`;
-        return line === '' ? '' : `   ${line}`;
-      }),
-      '',
-    ]),
-    `${chalk.blue('INFO:')} For CI, create a project token and add it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
-    `      ${chalk.cyan(projectPageUrl)}`,
+    ...steps.flatMap(({ what, how }, index) => [`${index + 1}. ${what}`, `   ${how}`, '']),
+    `${chalk.blue('INFO:')} ${whoNeedsIt} a project token as the ${chalk.bold('SHERLO_TOKEN')} secret.`,
+    `      Create one here: ${chalk.cyan(projectPageUrl)}`,
   ];
 }
 
