@@ -13,8 +13,7 @@
           "osVersion": "13"
         }
       ]
-    },
-    ".sherlo/build-cache/android/app-release.apk": "the app build the local build cache held - what the tool reads out of it is `push`"
+    }
   },
   "env": {},
   "git": {
@@ -46,26 +45,19 @@
         "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
       },
       "answer": {
-        "outcome": "full-build-needed",
-        "diff": [
-          "buildMetadata"
-        ]
+        "outcome": "fast",
+        "diff": []
       }
     },
     {
-      "call": "getNextBuildInfo",
+      "call": "checkStagedGate",
       "with": {
-        "platforms": [
-          "android"
-        ]
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
       },
       "answer": {
-        "nextBuildIndex": 4,
-        "binaries": {
-          "android": {
-            "upload": true
-          }
-        }
+        "outcome": "fast",
+        "diff": []
       }
     },
     {
@@ -204,38 +196,5 @@
       }
     }
   ],
-  "masks": {},
-  "appBuild": {
-    "host": "linux",
-    "tools": [
-      "android-sdk"
-    ],
-    "java": 17,
-    "platforms": {
-      "android": {
-        "cached": ".sherlo/build-cache/android/app-release.apk"
-      }
-    }
-  },
-  "push": {
-    "now": "2026-09-15T12:00:00.000Z",
-    "binaries": {
-      "android": {
-        "hash": "3f7c1a9e5b2d4c6f8a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f",
-        "sizeMb": "48.12",
-        "sdkVersion": "2.0.2",
-        "hasEmbeddedBundle": true,
-        "bundleFormat": "plain-js",
-        "expoUpdatesEnabled": false,
-        "hasExpoDevClient": false,
-        "expoSdkVersion": "53.0.0",
-        "androidAbis": [
-          "arm64-v8a"
-        ]
-      }
-    },
-    "fingerprint": {
-      "hash": "b4c9e2f7a1d3c5b8e0f2a4c6d8b0e2f4a6c8d0b2e4f6a8c0d2b4e6f8a0c2d4e6"
-    }
-  }
+  "masks": {}
 }
