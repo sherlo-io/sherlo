@@ -34,6 +34,8 @@ async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{
     '--yes',
     '--type',
     'react_native',
+    '--no-dev',
+    '--disable-telemetry',
   ]);
   const command = resolved ? `${resolved.command} ${resolved.args.join(' ')}` : '';
 
