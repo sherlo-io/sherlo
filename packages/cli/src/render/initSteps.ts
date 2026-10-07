@@ -69,44 +69,53 @@ export function renderNextSteps({
   /** The project's page in the web app, where a project token for CI is made. */
   projectPageUrl: string;
 }): string[] {
-  const how = (url: string) => chalk.dim(`↳ How: ${chalk.cyan(url)}`);
-
-  const storybookSteps: Record<typeof storybook, Array<{ what: string; how: string[] }>> = {
+  // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
+  // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
+  const storybookSteps: Record<typeof storybook, Array<{ title: string; content: string[] }>> = {
     installed: [
       {
-        what: "Recommended: replace the example stories with your own, so Sherlo tests your app's UI, not placeholders.",
-        how: [how('https://sherlo.io/docs/stories')],
+        title: 'Replace the example stories',
+        content: [
+          "Swap Storybook's examples for your own components, so Sherlo tests your app's UI:",
+          chalk.cyan('https://sherlo.io/docs/stories'),
+        ],
       },
     ],
     'newer-setup': [],
     'older-setup': [
       {
-        what: 'Give Sherlo access to Storybook in your app:',
-        how: [
-          how('https://sherlo.io/docs/setup#storybook-access'),
-          chalk.dim(
-            `↳ Or, recommended: switch to Storybook's newer setup, which needs no change in your app: ${chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup')}`
-          ),
+        title: 'Give Sherlo access to Storybook',
+        content: [
+          "Add Sherlo to your app's root component:",
+          chalk.cyan('https://sherlo.io/docs/setup#storybook-access'),
+          '',
+          "Recommended instead: switch to Storybook's newer setup, which needs no change in your app:",
+          chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup'),
         ],
       },
     ],
   };
 
-  // Every step is the same shape: what to do, then indented lines of how.
   const steps = [
     ...storybookSteps[storybook],
-    { what: 'Run your first visual test:', how: [chalk.cyan('npx sherlo test')] },
+    { title: 'Run your first visual test', content: [chalk.cyan('npx sherlo test')] },
   ];
+
+  // ONE STEP IS NOT A LIST: it gets a singular title and no number.
+  const stepLines =
+    steps.length === 1
+      ? [chalk.bold(steps[0].title), ...steps[0].content.map((line) => `  ${line}`), '']
+      : steps.flatMap(({ title, content }, index) => [
+          chalk.bold(`${index + 1}. ${title}`),
+          ...content.map((line) => (line === '' ? '' : `   ${line}`)),
+          '',
+        ]);
 
   // No CI is named: the token works on any CI, the GitHub workflow included.
   return [
-    // 13, not the title's own length: the emoji is counted as one character and drawn as two.
-    ...renderSectionTitle('👉 Next steps', 13),
-    ...steps.flatMap(({ what, how: howLines }, index) => [
-      `${index + 1}. ${what}`,
-      ...howLines.map((line) => `   ${line}`),
-      '',
-    ]),
+    // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
+    ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
+    ...stepLines,
     `${chalk.blue('INFO:')} For CI, create a project token and add it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
     `      ${chalk.cyan(projectPageUrl)}`,
   ];
@@ -118,6 +127,8 @@ export function renderNextSteps({
  */
 export function renderFeedbackLine({ under }: { under: 'next-steps' | 'error' }): string[] {
   const line = `Something unclear or broken? Tell us: ${chalk.cyan('npx sherlo feedback "<what happened>"')}`;
+  // A thin rule above it marks it as a side note, apart from the steps or the error.
+  const rule = chalk.dim('─'.repeat(10));
 
-  return under === 'next-steps' ? ['', line] : [line, ''];
+  return under === 'next-steps' ? ['', rule, line] : [rule, line, ''];
 }

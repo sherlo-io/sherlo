@@ -25,7 +25,7 @@
     "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.0", "main": "index.js" },
     "node_modules/@storybook/react-native/index.js": ""
   },
-  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},
   "api": [

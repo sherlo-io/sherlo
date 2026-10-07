@@ -6,24 +6,17 @@
  * OPEN DECISION (spike): whether the installer runs with no questions on every app Sherlo supports.
  */
 import { detect, resolveCommand } from 'package-manager-detector';
-import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
 import getFailedCommandOutput from '../dependencies/getFailedCommandOutput';
 import { printLines } from '../helpers';
-import getPackageVersion from '../requirements/getPackageVersion';
 
 /** Answers whether this run installed Storybook, which decides the example-stories next step. */
 async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{ installedNow: boolean }> {
+  // A project's own Storybook prints no line: "Installed Storybook (already done)" would read as if
+  // setup had installed or changed it.
   if (hasStorybook) {
-    printLines([
-      renderStepLine({
-        outcome: 'already',
-        name: 'Installed Storybook',
-        detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)}`,
-      }),
-    ]);
     return { installedNow: false };
   }
 
