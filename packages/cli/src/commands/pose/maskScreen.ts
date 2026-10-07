@@ -79,12 +79,12 @@ export type MaskContext = {
 export function maskScreen(screen: string, context: MaskContext): string {
   let folded = foldMachinePaths(screen, context);
 
+  folded = foldTeamInSetupProject(folded);
   folded = foldTokens(folded);
   folded = foldBuildUrl(folded);
   folded = foldLoginLink(folded);
   folded = foldProjectIndex(folded);
   folded = foldTeamId(folded);
-  folded = foldTeamInSetupProject(folded);
   folded = foldMintedProjectToken(folded);
   folded = foldByteSize(folded);
   folded = foldTimeAgo(folded);
@@ -192,7 +192,7 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
 function foldTokens(screen: string): string {
   return screen
     .replace(/(--(?:personal-)?token[ =])[^\s"'`\u001b]+/g, '$1<MASKED>')
-    .replace(/("?[A-Za-z]*[tT]oken"?:[ \t]*"?)[^\s",'\u001b]+/g, '$1<MASKED>')
+    .replace(/("?[A-Za-z]*[tT]oken"?:[ \t]*"?)(?!<)[^\s",'\u001b]+/g, '$1<MASKED>')
     .replace(/(Authorization:[ \t]*(?:Basic|Bearer)[ \t]+)[^\s"'\u001b]+/g, '$1<MASKED>')
     .replace(new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}sht_[A-Za-z0-9]+`, 'g'), '<MASKED>')
     .replace(

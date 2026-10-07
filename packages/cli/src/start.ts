@@ -221,7 +221,8 @@ const COMMAND_DESCRIPTION = {
     '  on a terminal, with the exit code the real run would have had. The world - the\n' +
     "  project folder, the settings, git, the bundler's answer and the server's - is a\n" +
     '  JSON document (contracts/pose.contract.ts); pass `-` to read it from stdin.\n' +
-    '  Touches no network and no project. Hidden unless SHERLO_DEVTOOLS=1.',
+    '  With `--no-terminal`: print what an agent or a CI log receives instead, every\n' +
+    '  byte kept. Touches no network and no project. Hidden unless SHERLO_DEVTOOLS=1.',
   [MASK_COMMAND]:
     'Read a screen on stdin and print it with every value only a machine knows folded\n' +
     '  to its placeholder - a token, a build address, a size, a duration, a commit, a\n' +
@@ -706,10 +707,11 @@ function addPoseCommand(program: Command) {
   program
     .command(`${POSE_COMMAND} <pose>`)
     .description(COMMAND_DESCRIPTION[POSE_COMMAND])
-    .action(async (documentPath: string) => {
+    .option('--no-terminal', 'Print what an agent or a CI log receives, with no terminal attached')
+    .action(async (documentPath: string, actionOptions: { terminal: boolean }) => {
       const { pose } = await import('./commands/pose/pose');
 
-      await pose(documentPath);
+      await pose(documentPath, { terminal: actionOptions.terminal });
     });
 }
 
