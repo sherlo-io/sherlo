@@ -210,12 +210,6 @@ export type PosedWorkstation = {
    * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes on.
    */
   enter: 'pressed' | 'closed' | 'nobody';
-  /**
-   * What the person picked at each choice setup offered, in the order it asked, by the value of the
-   * choice - `"eas"` at "Where should Sherlo build your app?". Left out when setup offers no choice
-   * the pose follows; a choice the pose has no answer for is refused, and the setup is cancelled.
-   */
-  picks?: string[];
 };
 
 /**
@@ -229,7 +223,6 @@ export function posedWorkstation(
   const refusals: UnansweredAct[] = [];
   let packageInstallWasAsked = false;
   let podInstallWasAsked = false;
-  let picksTaken = 0;
 
   function refuse(call: string, problem: string): Error {
     refusals.push({ call, problem });
@@ -312,22 +305,10 @@ export function posedWorkstation(
       if (posed?.enter === 'closed') throw new Error('nobody pressed Enter');
     },
 
-    // A choice is answered by the pose's next pick, matched against the choices' values - a pick the
-    // choice does not offer, or no pick at all, is refused and the setup is cancelled. Free-text and
-    // yes-or-no questions still have no posed answer.
-    chooseOne: async ({ question, choices }) => {
-      const pick = posed?.picks?.[picksTaken];
-      picksTaken += 1;
-      const chosen = choices.find((choice) => String(choice.value) === pick);
-      if (!chosen) {
-        throw refuse(
-          'chooseOne',
-          pick === undefined
-            ? `the pose has no pick for the question "${question}"`
-            : `the pose picks "${pick}" at "${question}", which offers ${choices.map((choice) => `"${String(choice.value)}"`).join(', ')}`
-        );
-      }
-      return chosen.value;
+    // A pose cannot state an answer to a question, so a posed run that reaches one is refused,
+    // the way `somebodyIsAtTheKeyboard` is with no `workstation`, and the setup is cancelled.
+    chooseOne: async ({ question }) => {
+      throw refuse('chooseOne', `the pose cannot answer the question "${question}"`);
     },
 
     askForText: async ({ question }) => {

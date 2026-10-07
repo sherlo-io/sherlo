@@ -500,13 +500,6 @@ export type PosedWorkstation = {
    * on.
    */
   enter: 'pressed' | 'closed' | 'nobody';
-  /**
-   * What the person picked at each choice setup offered, in the order it asked, by the value of
-   * the choice - `"eas"` at "Where should Sherlo build your app?". Left out when setup offers no
-   * choice the pose follows; a choice the pose has no answer for is refused, and the setup is
-   * cancelled.
-   */
-  picks?: string[];
 };
 
 /**

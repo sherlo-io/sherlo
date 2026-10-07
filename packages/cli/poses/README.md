@@ -54,8 +54,8 @@ quietly rewrite its own baseline is not a ratchet.
   commit, a base fingerprint, the progress lines a wait printed
   (`src/commands/pose/maskScreen.ts`). Naming one of those classes here is describing the masker
   rather than the scenario, and the catalogue refuses it.
-- `push` - what a real push (`test --android <apk>`) read off the machine: per binary, what the
-  tool found inside the file (its hash, its size, the SDK baked in, whether it embeds a bundle,
+- `push` - what a real push (`test` uploading an app build it built or took from the local build
+  cache) read off the machine: per binary, what the tool found inside the file (its hash, its size, the SDK baked in, whether it embeds a bundle,
   the gate facts); the base fingerprint, or why there was none; and the clock. Optional - only
   that road reads the machine, and a pose that states it for any other command is refused. The
   server's two answers on that road (`getNextBuildInfo`, `getStagedUploadUrls`) are scripted in
@@ -80,9 +80,11 @@ what reaches the screen is the tool's own word for them, which is what a real ru
 
 ## Closed seams
 
-A REAL PUSH IS POSABLE (2026-09-15): `test/push-*` pose `sherlo test --android <apk> --wait` from
-the run header through the verdict, through `src/seams/nativeBuild.ts` - what the tool reads off
-the machine. `binary-abi-x86-only` (a native build whose libraries carry no arm64 slice) is a pose
+A REAL PUSH IS POSABLE (2026-09-15): `test/push-*` pose `sherlo test --wait` from the run header
+through the verdict, through `src/seams/nativeBuild.ts` - what the tool reads off the machine. The
+app build comes from the local build cache, posed in `appBuild` (`src/seams/appBuilder.ts`): Sherlo 3
+tests only app builds it made itself, and `test/refusal-binary-path-flag-gone` is what a Sherlo 2
+`--android <apk>` meets (operator decision 2026-10-07). `binary-abi-x86-only` (a native build whose libraries carry no arm64 slice) is a pose
 away: `push.binaries.android.androidAbis` without `arm64-v8a`. The `── details ──` block after
 `sherlo test --wait --metadata` is reachable through a push pose too, since the run that opened the
 build has the git rows to give.

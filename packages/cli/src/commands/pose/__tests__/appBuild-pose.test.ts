@@ -22,8 +22,16 @@ const BUILD_POSES = [
       .filter((name) => name.endsWith('.pose.json'))
       .map((name) => path.join(folder, name))
   ),
-  // Setup asks where to build in a project that has an eas.json, and sets EAS mode up.
-  path.join('init', 'eas-setup.pose.json'),
+  // The pushes take their app build from the local build cache (operator decision 2026-10-07:
+  // `sherlo test` takes no `--android`/`--ios`), and a Sherlo 2 command line that still passes one
+  // is refused.
+  ...[
+    'push-android-first-build-review-required',
+    'push-android-same-binary-again-no-changes',
+    'push-android-wait-names-the-screens',
+    'wait-runs-out',
+    'refusal-binary-path-flag-gone',
+  ].map((name) => path.join('test', `${name}.pose.json`)),
 ];
 
 describe('the app build poses', () => {

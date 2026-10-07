@@ -167,6 +167,27 @@ export function renderRunWaitsForBuilds(buildIndex: number, waitingFor: RunWaits
   return `⏸  ${test} starts when ${when}`;
 }
 
+/**
+ * The refusal a Sherlo 2 command line meets: `sherlo test --android <path>` (operator decision
+ * 2026-10-07 - Sherlo 3 tests only app builds it made itself). A CI script that still passes the
+ * flag is told what to run instead, not commander's bare "unknown option". Draft words, for the
+ * content department's review.
+ */
+export function renderBinaryPathFlagGone(): { message: string; below: string } {
+  return {
+    message:
+      '`sherlo test` builds your app itself, so it no longer takes --android or --ios, ' +
+      'or `android` / `ios` paths in sherlo.config.json.',
+    below: [
+      'To test, run `npx sherlo test` with no paths.',
+      'To build ahead of time, run `npx sherlo build` - the next `sherlo test` takes the app ' +
+        'from the local build cache.',
+      "For a build Gradle or Xcode can't do on their own, set `build.android.command` and " +
+        '`build.android.output` (or the `ios` ones) in sherlo.config.json.',
+    ].join('\n'),
+  };
+}
+
 /** `▶  Both builds are in - Test 1 is starting`. */
 export function renderRunStarting(buildIndex: number): string {
   return `▶  Both builds are in - ${chalk.green(`Test ${buildIndex}`)} is starting`;

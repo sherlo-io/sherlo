@@ -90,11 +90,11 @@ describe('sherlo --help', () => {
     expect(stdout).not.toContain('test:eas-update');
   });
 
-  it('describes both roads of `test` under the one command', async () => {
+  it('offers no app build paths: `sherlo test` builds the app itself', async () => {
     await runCli('--help');
 
-    expect(stdout).toContain('--android');
-    expect(stdout).toContain('--ios');
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--ios');
   });
 
   it('lists `view`, with its build as an OPTIONAL positional', async () => {
@@ -140,6 +140,28 @@ describe('sherlo test --help', () => {
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('--metadata');
+  });
+
+  it('lists neither --android nor --ios', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--ios');
+  });
+});
+
+describe('a Sherlo 2 app build path', () => {
+  it.each([
+    ['--android', 'app.apk'],
+    ['--ios', 'app.tar.gz'],
+  ])('`sherlo test %s <path>` is refused in words, with exit 1', async (flag, buildPath) => {
+    const exitCode = await runCli('test', flag, buildPath);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).not.toContain('unknown option');
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
+      'no longer takes --android or --ios'
+    );
   });
 });
 

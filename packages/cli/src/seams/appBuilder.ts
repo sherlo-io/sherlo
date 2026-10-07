@@ -86,9 +86,7 @@ export type AppBuilder = {
 };
 
 /** The error the live half throws until the real builders land. */
-const NOT_BUILT_YET =
-  'building apps is drawn in plan and not built yet (epic sherlo-test-builds-apps) - ' +
-  'pass `--android`/`--ios` with app builds you made yourself';
+const NOT_BUILT_YET = 'building apps is drawn in plan and not built yet (epic sherlo-test-builds-apps)';
 
 /** The shipped answers. PLAN-LAYER ONLY: every act refuses until the epic's build tasks land. */
 export const liveAppBuilder: AppBuilder = {

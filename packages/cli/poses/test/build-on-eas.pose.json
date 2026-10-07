@@ -25,6 +25,22 @@
       "scripts": {
         "eas-build-on-complete": "sherlo eas-build-on-complete"
       }
+    },
+    "eas.json": {
+      "build": {
+        "sherlo": {
+          "distribution": "internal",
+          "env": {
+            "SHERLO_BUILD": "storybook"
+          },
+          "android": {
+            "buildType": "apk"
+          },
+          "ios": {
+            "simulator": true
+          }
+        }
+      }
     }
   },
   "env": {},
@@ -39,7 +55,7 @@
       "call": "checkStagedGate",
       "with": {
         "platform": "android",
-        "baseFingerprint": "749c6f3fa37795d126f1fddec05ef063aa0d21e3b44d927025f8ba08a2b9e476"
+        "baseFingerprint": "aeab21e22d646e2572d0ee7cac5d3595d18df4b92bf8d3aff582550831af3538"
       },
       "answer": {
         "outcome": "full-build-needed",
@@ -50,7 +66,7 @@
       "call": "checkStagedGate",
       "with": {
         "platform": "ios",
-        "baseFingerprint": "749c6f3fa37795d126f1fddec05ef063aa0d21e3b44d927025f8ba08a2b9e476"
+        "baseFingerprint": "aeab21e22d646e2572d0ee7cac5d3595d18df4b92bf8d3aff582550831af3538"
       },
       "answer": {
         "outcome": "full-build-needed",
