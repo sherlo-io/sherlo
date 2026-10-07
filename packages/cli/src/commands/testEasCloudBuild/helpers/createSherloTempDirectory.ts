@@ -12,10 +12,13 @@ function createSherloTempDirectory({
   projectRoot,
   buildIndex,
   token,
+  profile,
 }: {
   projectRoot: string;
   buildIndex: number;
   token: string;
+  /** The EAS profile the builds start with, so the hook script needs no `--profile` of its own. */
+  profile?: string;
 }): void {
   const sherloDir = path.resolve(projectRoot, SHERLO_TEMP_DIRECTORY);
 
@@ -25,7 +28,7 @@ function createSherloTempDirectory({
 
   fs.writeFileSync(
     path.resolve(sherloDir, SHERLO_TEMP_DATA_FILENAME),
-    JSON.stringify({ buildIndex, token }, null, 2)
+    JSON.stringify({ buildIndex, token, ...(profile ? { profile } : {}) }, null, 2)
   );
 
   fs.writeFileSync(

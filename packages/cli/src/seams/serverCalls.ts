@@ -89,6 +89,22 @@ export type ServerCalls = {
 
   openBuild(request: OpenBuildRequest & { token: string }): Promise<OpenBuildAnswer>;
 
+  /**
+   * One job of a split CI run delivers its platform: the server opens the run the CI run's jobs
+   * share, or joins the one the other job opened, fills this platform's slot, and starts the run
+   * when every platform the config names is in - never before (operator ruling 2026-10-07).
+   */
+  joinBuild(request: JoinBuildRequest & { token: string }): Promise<JoinBuildAnswer>;
+
+  /**
+   * An EAS build delivers its platform into the run `sherlo test` opened for it on EAS: the
+   * server fills the slot and starts the run when the last platform is in.
+   */
+  asyncUpload(request: AsyncUploadRequest & { token: string }): Promise<AsyncUploadAnswer>;
+
+  /** End a run that can never start - an EAS build that failed on Expo's servers. */
+  closeBuild(request: CloseBuildRequest & { token: string }): Promise<CloseBuildAnswer>;
+
   /** Has the server seen these binaries, and which build comes next - the push's first question. */
   getNextBuildInfo(
     request: NextBuildInfoRequest & { token: string }
@@ -153,6 +169,33 @@ export type CliLoginAnswer =
   | { status: 'pending' | 'cancelled' | 'expired' | 'used' }
   | { status: 'approved'; email: string; token: string };
 
+/**
+ * What `joinBuild` is sent: everything `openBuild` is, plus the key the jobs of one CI run share and
+ * the platform this job delivers.
+ *
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): declared here, not by the sdk client,
+ * because the operation does not exist on the server yet. The build task adds it to sherlo-api,
+ * and this type becomes the client's own shape, as `openBuild`'s is.
+ */
+export type JoinBuildRequest = OpenBuildRequest & {
+  /** The key the jobs of one CI run share: the CI service and its run id, or `--run-id`. */
+  joinKey: string;
+  /** The platform this job built and uploaded. */
+  platform: Platform;
+};
+
+/** What `joinBuild` answers: the run, and the platforms it still waits for (empty: it is starting). */
+export type JoinBuildAnswer = {
+  build: { index: number };
+  waitingFor: Platform[];
+};
+
+/** What an EAS build's delivery and a run's closing are sent and answer - the sdk client's own shapes. */
+export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0];
+export type AsyncUploadAnswer = Awaited<ReturnType<SdkClient['asyncUpload']>>;
+export type CloseBuildRequest = Parameters<SdkClient['closeBuild']>[0];
+export type CloseBuildAnswer = Awaited<ReturnType<SdkClient['closeBuild']>>;
+
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
 export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
@@ -187,6 +230,18 @@ export const liveServerCalls: ServerCalls = {
   listProjects: (request) => listProjectsRequest(request),
 
   openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
+
+  // PLAN-LAYER DEBT: see JoinBuildRequest. Refused by name until the server has the operation.
+  joinBuild: async () => {
+    throw new Error(
+      'joining the jobs of a split CI run is drawn in plan and not built yet ' +
+        '(epic sherlo-test-builds-apps)'
+    );
+  },
+
+  asyncUpload: ({ token, ...request }) => clientFor(token).asyncUpload(request),
+
+  closeBuild: ({ token, ...request }) => clientFor(token).closeBuild(request),
 
   getNextBuildInfo: ({ token, ...request }) => clientFor(token).getNextBuildInfo(request),
 
@@ -428,6 +483,31 @@ export type ScriptedCall =
         | ApiError;
     }
   | {
+      /**
+       * One job of a split CI run delivering its platform into the run its CI run shares: `with`
+       * names the key the jobs share and this job's platform; the answer is the run and the
+       * platforms it still waits for - none, and the run is starting.
+       */
+      call: 'joinBuild';
+      with: { joinKey: string; platform: string };
+      answer: { buildIndex: number; waitingFor: string[] } | ApiError;
+    }
+  | {
+      /**
+       * An EAS build delivering its platform into the run opened for it: `with` names the run and
+       * the platform; the answer says whether that was the last platform the run waited for.
+       */
+      call: 'asyncUpload';
+      with: { buildIndex: number; platform: string };
+      answer: { couldRunThisBuildRightNow: boolean } | ApiError;
+    }
+  | {
+      /** A run closed before it started, and why (`user_easCloudBuild`: the EAS build failed). */
+      call: 'closeBuild';
+      with: { buildIndex: number; runError: string };
+      answer: Record<string, never> | ApiError;
+    }
+  | {
       call: 'computeDiffScopeDryRun';
       with: { branch: string; commit: string };
       answer: DiffScopeDryRunAnswer | ApiError;
@@ -592,6 +672,27 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
       return openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision);
     },
+
+    joinBuild: async ({ joinKey, platform }) => {
+      const answer = answerFor('joinBuild', { joinKey, platform }) as {
+        buildIndex: number;
+        waitingFor: Platform[];
+      };
+      return { build: { index: answer.buildIndex }, waitingFor: answer.waitingFor };
+    },
+
+    // The platform is the one whose storage key the delivery carries - the request names no other.
+    asyncUpload: async (request) =>
+      answerFor('asyncUpload', {
+        buildIndex: request.buildIndex,
+        platform: request.androidS3Key ? 'android' : 'ios',
+      }) as AsyncUploadAnswer,
+
+    closeBuild: async (request) =>
+      answerFor('closeBuild', {
+        buildIndex: request.buildIndex,
+        runError: request.runError,
+      }) as CloseBuildAnswer,
 
     getNextBuildInfo: async (request) => {
       const answer = answerFor('getNextBuildInfo', {

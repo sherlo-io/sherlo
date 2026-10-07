@@ -22,7 +22,9 @@ export type RunWaitsFor =
   /** The other job of a split CI run, building the named platform, in the named CI run. */
   | { otherJob: Platform; ciRunId: string }
   /** The EAS builds this run started. */
-  | { easBuilds: true };
+  | { easBuilds: true }
+  /** The one EAS build still to come, seen from inside the EAS build that just delivered its platform. */
+  | { easBuild: Platform };
 
 const PLATFORM_NAME: Record<Platform, string> = { android: 'Android', ios: 'iOS' };
 
@@ -159,7 +161,9 @@ export function renderRunWaitsForBuilds(buildIndex: number, waitingFor: RunWaits
   const when =
     'easBuilds' in waitingFor
       ? 'the EAS builds finish and upload to Sherlo'
-      : `the ${PLATFORM_NAME[waitingFor.otherJob]} build arrives from the other job (run ${waitingFor.ciRunId})`;
+      : 'easBuild' in waitingFor
+        ? `the ${PLATFORM_NAME[waitingFor.easBuild]} EAS build uploads to Sherlo`
+        : `the ${PLATFORM_NAME[waitingFor.otherJob]} build arrives from the other job (run ${waitingFor.ciRunId})`;
   return `⏸  ${test} starts when ${when}`;
 }
 

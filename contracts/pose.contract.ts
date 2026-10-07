@@ -296,6 +296,49 @@ export type ScriptedCall =
           };
     }
   | {
+      /**
+       * One job of a split CI run delivering its platform into the run its CI run shares: `with` names
+       * the key the jobs share and this job's platform; the answer is the run and the platforms it
+       * still waits for - none, and the run is starting.
+       */
+      call: 'joinBuild';
+      with: {
+        joinKey: string;
+        platform: string;
+      };
+      answer:
+        | ApiError
+        | {
+            buildIndex: number;
+            waitingFor: string[];
+          };
+    }
+  | {
+      /**
+       * An EAS build delivering its platform into the run opened for it: `with` names the run and the
+       * platform; the answer says whether that was the last platform the run waited for.
+       */
+      call: 'asyncUpload';
+      with: {
+        buildIndex: number;
+        platform: string;
+      };
+      answer:
+        | ApiError
+        | {
+            couldRunThisBuildRightNow: boolean;
+          };
+    }
+  | {
+      /** A run closed before it started, and why (`user_easCloudBuild`: the EAS build failed). */
+      call: 'closeBuild';
+      with: {
+        buildIndex: number;
+        runError: string;
+      };
+      answer: ApiError | Record<string, never>;
+    }
+  | {
       call: 'computeDiffScopeDryRun';
       with: {
         branch: string;

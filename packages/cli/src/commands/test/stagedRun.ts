@@ -61,7 +61,8 @@ import {
   type StagedGateRefusal,
 } from './stagedGateRefusal';
 import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
-import { buildThenPush } from './appBuild/buildThenPush';
+import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
+import { joinTheRun } from './appBuild/joinTheRun';
 import type { BuildFlags } from './appBuild/buildSettings';
 import {
   applyBundleToPlatformConfig,
@@ -403,12 +404,14 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     level: 'info',
   });
 
+  // ONE JOB OF A SPLIT CI RUN joins the run its CI run shares instead of opening one (./appBuild).
+  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+
   let openBuildReturn;
   try {
     // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
     // the network. The payload is the one this run composed, unchanged.
-    openBuildReturn = await serverCalls().openBuild({
-      token,
+    const request = {
       teamId,
       projectIndex,
       buildRunConfig,
@@ -416,7 +419,20 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       message: commandParams.message,
       baseFingerprint,
       gateMetadata: gateMetadata as GateMetadataByPlatform,
-    });
+    };
+    openBuildReturn = joinKey
+      ? // A joined run decides what it captures when its last platform is in, so this job
+        // has no capture plan to print - only the run's link.
+        ({
+          ...(await joinTheRun({
+            token,
+            joinKey,
+            platform: platformsToTest[0],
+            request,
+          })),
+          buildRun: { config: {} },
+        } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>)
+      : await serverCalls().openBuild({ token, ...request });
   } catch (error) {
     // Safety net: the server gate may still refuse at openBuild even though the
     // checks above said fast (e.g. a base registered between calls). It is the

@@ -78,7 +78,7 @@ export async function easRun({
 
   // Written BEFORE the EAS builds start: EAS uploads the project as it is when the build starts,
   // and each build reads which run it belongs to out of this file.
-  createSherloTempDirectory({ projectRoot: commandParams.projectRoot, buildIndex, token });
+  createSherloTempDirectory({ projectRoot: commandParams.projectRoot, buildIndex, token, profile });
 
   printBuildIntroMessage({ commandParams, nextBuildIndex: buildIndex });
 

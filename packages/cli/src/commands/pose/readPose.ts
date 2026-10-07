@@ -151,8 +151,14 @@ function reportRoadsThisCommandDoesNotTake(
     );
   }
 
-  // `sherlo build` reads the machine too: the base fingerprint its cache key is made of.
-  if ('push' in pose && !commandBundles(argv) && !commandBuildsApps(argv)) {
+  // `sherlo build` reads the machine too: the base fingerprint its cache key is made of. So does
+  // the EAS hook: the app build EAS made, and the base fingerprint it registers.
+  if (
+    'push' in pose &&
+    !commandBundles(argv) &&
+    !commandBuildsApps(argv) &&
+    argv[0] !== 'eas-build-on-complete'
+  ) {
     problems.push(
       `\`push\`: \`${command}\` never reads a native build, so there is no push for it to ` +
         'describe. Leave the field out.'

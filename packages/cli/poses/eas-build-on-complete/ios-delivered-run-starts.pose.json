@@ -1,0 +1,81 @@
+{
+  "pose": 1,
+  "argv": [
+    "eas-build-on-complete"
+  ],
+  "files": {
+    ".sherlo/data.json": {
+      "buildIndex": 1,
+      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "profile": "sherlo"
+    },
+    "eas.json": {
+      "build": {
+        "sherlo": {
+          "android": {
+            "buildType": "apk"
+          },
+          "ios": {
+            "simulator": true
+          }
+        }
+      }
+    },
+    "ios/build/Build/Products/Release-iphonesimulator/Storefront.app": "the app build EAS made - what the tool reads out of it is `push`"
+  },
+  "env": {
+    "EAS_BUILD_RUNNER": "eas-build",
+    "EAS_BUILD_PROFILE": "sherlo",
+    "EAS_BUILD_PLATFORM": "ios",
+    "EAS_BUILD_STATUS": "finished"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "getNextBuildInfo",
+      "with": {
+        "platforms": [
+          "ios"
+        ]
+      },
+      "answer": {
+        "nextBuildIndex": 1,
+        "binaries": {
+          "ios": {
+            "upload": true
+          }
+        }
+      }
+    },
+    {
+      "call": "asyncUpload",
+      "with": {
+        "buildIndex": 1,
+        "platform": "ios"
+      },
+      "answer": {
+        "couldRunThisBuildRightNow": true
+      }
+    }
+  ],
+  "masks": {},
+  "push": {
+    "now": "2026-09-15T12:00:00.000Z",
+    "binaries": {
+      "ios": {
+        "hash": "8d2c4e6a0b1f3d5c7e9a2b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a4c6e8b0d2f4a",
+        "sizeMb": "41.20",
+        "sdkVersion": "2.0.2",
+        "hasEmbeddedBundle": true,
+        "bundleFormat": "plain-js",
+        "expoUpdatesEnabled": false,
+        "hasExpoDevClient": false,
+        "expoSdkVersion": "54.0.0"
+      }
+    },
+    "fingerprint": {
+      "hash": "b4c9e2f7a1d3c5b8e0f2a4c6d8b0e2f4a6c8d0b2e4f6a8c0d2b4e6f8a0c2d4e6"
+    }
+  }
+}

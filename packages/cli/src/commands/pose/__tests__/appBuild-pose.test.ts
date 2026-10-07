@@ -16,10 +16,12 @@ const BUILD_POSES = [
     .readdirSync(path.join(POSES_ROOT, 'test'))
     .filter((name) => name.startsWith('build-') && name.endsWith('.pose.json'))
     .map((name) => path.join('test', name)),
-  ...fs
-    .readdirSync(path.join(POSES_ROOT, 'build'))
-    .filter((name) => name.endsWith('.pose.json'))
-    .map((name) => path.join('build', name)),
+  ...['build', 'eas-build-on-complete'].flatMap((folder) =>
+    fs
+      .readdirSync(path.join(POSES_ROOT, folder))
+      .filter((name) => name.endsWith('.pose.json'))
+      .map((name) => path.join(folder, name))
+  ),
 ];
 
 describe('the app build poses', () => {
