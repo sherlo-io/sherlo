@@ -1,40 +1,30 @@
 /**
  * `sherlo team create --name <name>` - the read-free sibling of
- * `project create`: same credential (a PERSONAL token), no `--team` flag,
+ * `project create`: same credential (the saved login), no `--team` flag,
  * because there is no team yet to name.
  */
-import { MAX_TEAM_NAME_LENGTH, NAME_OPTION, PERSONAL_TOKEN_OPTION } from '../../constants';
+import { MAX_TEAM_NAME_LENGTH, NAME_OPTION } from '../../constants';
 import { printSherloIntro, reporting, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
-import { refuseRejectedLogin, resolvePersonalToken } from '../shared';
+import { refuseRejectedLogin, resolveLogin } from '../shared';
 import { CreateTeamAuthError } from './createTeamRequest';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
 
 export type TeamCreateOptions = {
   [NAME_OPTION]?: string;
-  [PERSONAL_TOKEN_OPTION]?: string;
 };
 
 async function teamCreate(passedOptions: TeamCreateOptions): Promise<void> {
   printSherloIntro();
 
   const name = resolveName(passedOptions[NAME_OPTION]);
-  const { personalToken, fromSavedLogin } = resolvePersonalToken(
-    passedOptions[PERSONAL_TOKEN_OPTION],
-    {
-      thisCommand: THIS_COMMAND,
-      tokenContextLine: 'The project token names one project, and this command creates a team.',
-    }
-  );
+  const login = resolveLogin(THIS_COMMAND);
 
   const team = await serverCalls()
-    .createTeam({ name, personalToken })
+    .createTeam({ name, personalToken: login.token })
     .catch((error: Error) => {
-      if (error instanceof CreateTeamAuthError) {
-        if (fromSavedLogin) refuseRejectedLogin();
-        refuseRejectedToken();
-      }
+      if (error instanceof CreateTeamAuthError) refuseRejectedLogin();
 
       throwError({ message: error.message, errorToReport: error });
     });
@@ -55,8 +45,8 @@ function resolveName(passedName: string | undefined): string {
   if (!name) {
     throwError({
       message:
-        `\`sherlo ${THIS_COMMAND}\` needs a name for the team, e.g.\n` +
-        `  \`sherlo ${THIS_COMMAND} --${NAME_OPTION} "Acme"\`.`,
+        `\`npx sherlo ${THIS_COMMAND}\` needs a name for the team, e.g.\n` +
+        `  \`npx sherlo ${THIS_COMMAND} --${NAME_OPTION} "Acme"\`.`,
     });
   }
 
@@ -69,24 +59,4 @@ function resolveName(passedName: string | undefined): string {
   }
 
   return name;
-}
-
-/**
- * What the CLI says when the backend refuses the token.
- *
- * Unlike ../projectCreate/projectCreate's version, there is no team to name
- * here: creating a team has nothing to check the caller's role against, so
- * the possibilities are narrower.
- */
-function refuseRejectedToken(): never {
-  throwError({
-    type: 'auth',
-    message:
-      'The API refused this personal token.\n' +
-      '\n' +
-      '  It does not say which of these it is, so check them in this order:\n' +
-      '    - the token is revoked or expired (the web app lists both);\n' +
-      '    - it was minted without the `team:write` scope;\n' +
-      '    - the token was mistyped or truncated in transit.',
-  });
 }

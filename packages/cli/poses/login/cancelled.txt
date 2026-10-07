@@ -1,11 +1,10 @@
-Log in to Sherlo at this link:
+Opening your browser to log in to Sherlo...
+[2mIf it doesn't open, use this link on any device:[22m
 
   [36m<LOGIN_LINK>[39m
 
-[33m⏳[39m Waiting for you to click Authorize... [2m(Ctrl+C to stop)[22m
-
 [31mERROR: The login was canceled in the browser.[39m
-[31m  Run `sherlo login` to start a new one.[39m
+[31m  Run `npx sherlo login` to start a new one.[39m
 
 [2m══════════[22m
 [2m[22m

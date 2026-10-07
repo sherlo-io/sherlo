@@ -3,7 +3,7 @@
   1  Storefront App  [2m12 builds[22m  [2mmain[22m
   2  Storefront Web  [2mno builds yet[22m
 
-[2mNext: `sherlo project create --name <name> --team <id>` adds one; `sherlo view <build>` opens a build.[22m
+[2mNext: `npx sherlo project create --name <name> --team <id>` adds one; `npx sherlo view <build>` opens a build.[22m
 
 
 [exit 0]

@@ -3,8 +3,8 @@
  * project does a push go to?").
  *
  * The catalogued staged push (`poses/test/staged-borrows-the-base`) is run again with its project
- * token taken away: the config names the project instead, and the person's token is in
- * SHERLO_PERSONAL_TOKEN. The posed server answers every call as before, and records what each was
+ * token taken away: the config names the project instead, and the person is logged in. The posed
+ * server answers every call as before, and records what each was
  * sent with - which is the whole question here, because a pose's `with` never states the team, the
  * project or the token.
  */
@@ -47,7 +47,8 @@ import { POSES_ROOT } from '../../pose/catalogue';
 import { runPose } from '../../pose/pose';
 import { readPoseDocument } from '../../pose/readPose';
 
-const PERSONAL_TOKEN = 'sht_posepersonaltoken000000000000';
+const SERVICE_ADDRESS = 'https://api.sherlo.io/graphql';
+const LOGIN_TOKEN = 'sht_poselogintoken0000000000000000';
 
 describe("a push on a person's credential", () => {
   it("sends a push on a person's credential to the team and project the config's project names", async () => {
@@ -58,7 +59,8 @@ describe("a push on a person's credential", () => {
     delete config.token;
     config.project = 'k3j9x2ab/4';
     document.files['sherlo.config.json'] = config;
-    document.env = { ...document.env, SHERLO_PERSONAL_TOKEN: PERSONAL_TOKEN };
+    document.env = { ...document.env, SHERLO_API_URL: SERVICE_ADDRESS };
+    document.logins = { [SERVICE_ADDRESS]: { email: 'anna@example.com', token: LOGIN_TOKEN } };
 
     const { refusals, exitCode } = await runPose(document);
 
@@ -66,7 +68,7 @@ describe("a push on a person's credential", () => {
     expect(exitCode).toBe(0);
 
     // The gate twice, the upload slots, the build, and the wait's read - every one of them sent
-    // to the config's team and project, on the person's token as it was given.
+    // to the config's team and project, on the login's token.
     expect(sentRequests.map(({ operation }) => operation)).toEqual([
       'checkStagedGate',
       'checkStagedGate',
@@ -76,7 +78,7 @@ describe("a push on a person's credential", () => {
     ]);
     for (const { operation, request } of sentRequests) {
       expect(request, operation).toMatchObject({
-        token: PERSONAL_TOKEN,
+        token: LOGIN_TOKEN,
         teamId: 'k3j9x2ab',
         projectIndex: 4,
       });

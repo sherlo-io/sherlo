@@ -31,7 +31,7 @@ export type ProjectList = {
 };
 
 const NEXT_STEP =
-  'Next: `sherlo project create --name <name> --team <id>` adds one; `sherlo view <build>` opens a build.';
+  'Next: `npx sherlo project create --name <name> --team <id>` adds one; `npx sherlo view <build>` opens a build.';
 
 /** Every line the command prints on success, in order. */
 export function renderProjectList({ team, projects }: ProjectList): string[] {

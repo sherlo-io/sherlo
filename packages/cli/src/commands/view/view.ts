@@ -159,8 +159,8 @@ function resolveBuildIndex(buildArgument: string | undefined): number {
   if (buildArgument === undefined) {
     throwError({
       message:
-        '`sherlo view` needs the build to look at, e.g. `sherlo view 7`.\n' +
-        '  A build index is the `b=` value of its URL, which `sherlo test` prints when it\n' +
+        '`npx sherlo view` needs the build to look at, e.g. `npx sherlo view 7`.\n' +
+        '  A build index is the `b=` value of its URL, which `npx sherlo test` prints when it\n' +
         '  opens a build. Looking one up by "latest" or by branch is not something this\n' +
         '  command can do yet.',
     });
@@ -170,7 +170,7 @@ function resolveBuildIndex(buildArgument: string | undefined): number {
 
   if (!Number.isInteger(buildIndex) || buildIndex < 1) {
     throwError({
-      message: `\`${buildArgument}\` is not a build index. Pass the build's number, e.g. \`sherlo view 7\`.`,
+      message: `\`${buildArgument}\` is not a build index. Pass the build's number, e.g. \`npx sherlo view 7\`.`,
     });
   }
 

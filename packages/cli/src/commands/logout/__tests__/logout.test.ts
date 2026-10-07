@@ -74,7 +74,7 @@ describe('sherlo logout', () => {
     expect(plain(screen)).toContain(
       `ERROR: Deleted the login of ${ANNA.email} from this computer, but Sherlo could not be reached to end it there.`
     );
-    expect(plain(screen)).toContain('Until it expires, revoke it in the web app.');
+    expect(plain(screen)).toContain('It ends by itself after 90 days unused.');
     expect(plain(screen)).not.toContain('Logged out');
     expect(exitCode).toBe(1);
   });
@@ -104,7 +104,7 @@ describe('sherlo logout', () => {
     expect(refusals).toEqual([]);
     expect(unusedCalls).toEqual([]);
     expect(plain(screen)).toContain('Not logged in');
-    expect(plain(screen)).toContain('Run `sherlo login` to log in.');
+    expect(plain(screen)).toContain('Run `npx sherlo login` to log in.');
     expect(exitCode).toBe(0);
   });
 });
