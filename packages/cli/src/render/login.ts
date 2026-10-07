@@ -36,7 +36,9 @@ export function renderLoginLink(authorizeUrl: string): string[] {
  * `browserOpened`, which nothing reads any more; build drops it from the segment and the command.
  */
 export function renderLoginWaiting(): string[] {
-  return [`${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`];
+  return [
+    `${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`,
+  ];
 }
 
 /** The login is saved: whose it is, and the command a person runs next. */
