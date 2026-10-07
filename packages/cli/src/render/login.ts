@@ -19,24 +19,24 @@ import chalk from 'chalk';
  * It says the browser is about to open, so the new tab is no surprise.
  */
 export function renderLoginLink(authorizeUrl: string): string[] {
-  return ['Opening your browser to log in to Sherlo...', '', `  ${chalk.cyan(authorizeUrl)}`, ''];
+  return [
+    'Opening your browser to log in to Sherlo...',
+    chalk.dim("If it doesn't open, use this link on any device:"),
+    '',
+    `  ${chalk.cyan(authorizeUrl)}`,
+    '',
+  ];
 }
 
-/** The line the wait opens with, and the one that says the browser did not come up. */
-export function renderLoginWaiting(browserOpened: boolean): string[] {
-  const waiting = `${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim(
-    '(Ctrl+C to stop)'
-  )}`;
-
-  if (browserOpened) return [waiting];
-
-  return [
-    chalk.dim(
-      'The browser did not open. The link works on any device, so open it on your phone or another computer.'
-    ),
-    '',
-    waiting,
-  ];
+/**
+ * The line the wait opens with - one line whether or not the browser came up, because the link
+ * above already says what to do when it did not.
+ *
+ * PLAN DEBT (epic sherlo-login-hidden-tokens): the `login-waiting` segment still carries
+ * `browserOpened`, which nothing reads any more; build drops it from the segment and the command.
+ */
+export function renderLoginWaiting(): string[] {
+  return [`${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`];
 }
 
 /** The login is saved: whose it is, and the command a person runs next. */
@@ -45,7 +45,7 @@ export function renderLoggedIn(email: string): string[] {
     '',
     `${chalk.green('✔')}  Logged in as ${chalk.bold(email)}`,
     '',
-    chalk.dim('Next: run `sherlo init` in your React Native app to set up Sherlo.'),
+    chalk.dim('Next: run `npx sherlo init` in your React Native app to set up Sherlo.'),
     '',
   ];
 }
@@ -55,7 +55,7 @@ export function renderAlreadyLoggedIn(email: string): string[] {
   return [
     `${chalk.green('✔')}  Already logged in as ${chalk.bold(email)}`,
     '',
-    chalk.dim('Run `sherlo logout` to log out.'),
+    chalk.dim('Run `npx sherlo logout` to log out.'),
     '',
   ];
 }
@@ -70,7 +70,7 @@ export function renderNotLoggedIn(): string[] {
   return [
     `${chalk.yellow('◦')}  Not logged in`,
     '',
-    chalk.dim('Run `sherlo login` to log in.'),
+    chalk.dim('Run `npx sherlo login` to log in.'),
     '',
   ];
 }

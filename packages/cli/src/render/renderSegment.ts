@@ -453,7 +453,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'login-waiting':
       return {
         stream: 'stdout',
-        prints: renderLoginWaiting(segment.browserOpened).map((line) => [line]),
+        prints: renderLoginWaiting().map((line) => [line]),
       };
 
     case 'logged-in':
