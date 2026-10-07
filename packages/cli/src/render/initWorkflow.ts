@@ -4,14 +4,15 @@
  * Pure, like everything under ./: state in, the file out. Its comments are words a person - or their
  * agent - reads in their own repository, so they are drafts for the content department.
  *
- * THE FULL RUN FOLLOWS THE REPOSITORY'S DEFAULT BRANCH, read by GitHub when the workflow runs
+ * THE PUSH RUN FOLLOWS THE REPOSITORY'S DEFAULT BRANCH, read by GitHub when the workflow runs
  * (`github.event.repository.default_branch`), so setup never guesses a branch name. A push trigger
  * cannot name a branch by an expression, so pushes to every branch start the workflow and the job
  * skips all but the default branch's - a skipped job costs nothing. A team whose pull requests merge
  * into another branch is told, in the file, where to name it.
  *
- * OPEN (the `sherlo test` build epic): the input that makes a run rebuild the app and photograph
- * every story. Drawn here as `full`, the name that epic settles.
+ * NO FULL-RUN SWITCH: the service photographs every story of a build on the project's main line
+ * (Diff Scope's first rung), and infers that line from the repository's default branch - the same
+ * branch this file runs on. So both runs are a plain `sherlo test`.
  */
 
 /** The line that installs the project's packages on a clean machine, per package manager. */
@@ -36,16 +37,17 @@ on:
   # out which stories the change can affect and photographs only those, so this run is quick.
   pull_request:
 
-  # Every push to the branch your pull requests merge into (see the job's \`if\` below): a full run
-  # that rebuilds the app and photographs every story. It catches a change that reached the branch
-  # without a pull request, and any story a pull request's run should have photographed but missed.
+  # Every push to the branch your pull requests merge into (see the job's \`if\` below): Sherlo
+  # photographs every story there, because it is your project's main branch. It catches a change
+  # that reached the branch without a pull request, and any story a pull request's run missed.
   push:
 
 jobs:
   sherlo:
     # THE BRANCH YOUR PULL REQUESTS MERGE INTO - your development branch, not the one you release
     # from. This is the repository's default branch; if most pull requests merge into another one
-    # (for example \`dev\`), put its name here in place of github.event.repository.default_branch.
+    # (for example \`dev\`), put its name here in place of github.event.repository.default_branch,
+    # and set it as the main branch in your Sherlo project's settings too.
     if: github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     env:
@@ -71,6 +73,5 @@ jobs:
         uses: sherlo-io/sherlo@v3
         with:
           token: \${{ secrets.SHERLO_TOKEN }}
-          full: \${{ github.event_name == 'push' }}
 `;
 }
