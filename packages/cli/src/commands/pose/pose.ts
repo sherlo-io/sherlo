@@ -81,13 +81,30 @@ export type PosedScreen = {
 };
 
 /**
+ * Where the posed run's output goes.
+ *
+ * `terminal` - a person's terminal: the streams say they are one, 80 columns wide, with cursor
+ * moves, and colour is on. That is the screen a person watches.
+ *
+ * NO TERMINAL - an agent or a CI log reading a pipe: the streams say they are not a terminal,
+ * have no width and no cursor moves, and colour is off unless the pose's own settings force it,
+ * exactly as chalk decides on a real pipe. Every byte the command writes is kept, so an escape
+ * code that a terminal would have turned into an erase is still in the screen - which is what the
+ * agent receives.
+ */
+export type PoseOptions = { terminal: boolean };
+
+/**
  * Run the command a pose declares and return the whole screen it printed.
  *
  * Pure in the sense that matters: it writes nothing to this process's own streams and never ends
  * it. The command line is the pose's; this process's own arguments are not visible to the
  * command at all.
  */
-export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
+export async function runPose(
+  commandPose: CommandPose,
+  { terminal }: PoseOptions = { terminal: true }
+): Promise<PosedScreen> {
   const files = posedProjectFiles(commandPose.files);
   const api = posedServerCalls(commandPose.api);
   const world = posedSurroundings({
@@ -122,9 +139,9 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
   // the screen it is folded out of is read after the seams have been taken out again.
   const configPath = resolvedConfigPath(commandPose.argv);
 
-  const capture = captureBothStreams();
+  const capture = captureBothStreams({ terminal });
   const restoreArgv = installArgv(commandPose.argv);
-  const restoreColour = forceColour();
+  const restoreColour = setColour(terminal ? 1 : colourOnAPipe(commandPose.env));
   const restoreRedraws = holdTheRedrawsStill();
 
   let threw = false;
@@ -171,10 +188,10 @@ export async function runPose(commandPose: CommandPose): Promise<PosedScreen> {
  * printed, then the refusal under it, and the exit code is 1. A screen that stopped because the
  * world could not answer is still worth reading - it is the evidence that says which call to add.
  */
-export async function pose(documentPath: string): Promise<void> {
+export async function pose(documentPath: string, options: PoseOptions): Promise<void> {
   const document = documentPath === '-' ? readStdin() : fs.readFileSync(documentPath, 'utf8');
 
-  const { screen, exitCode, refusals } = await runPose(readPoseDocument(document));
+  const { screen, exitCode, refusals } = await runPose(readPoseDocument(document), options);
 
   process.stdout.write(screen);
 
@@ -228,13 +245,14 @@ class ExitSignal extends Error {
  * The buffer's streams SAY THEY ARE A TERMINAL, and so do the process's for the length of the
  * run: a screen is drawn for a terminal, and the parts of the tool that ask (the box that wraps
  * to the window, the error output that dims itself for a pipe) have to get a terminal's answer
- * or the screen is not the one a person gets.
+ * or the screen is not the one a person gets. With no terminal they all say they are a pipe, so
+ * the same parts get the answer an agent's or a CI runner's pipe gives.
  *
  * Once the posed command has exited, every further write is DROPPED: the shipped code keeps
  * running (a `process.exit` that returns is a `process.exit` nothing below it expects), and
  * anything it prints from there belongs to no screen a real user ever saw.
  */
-function captureBothStreams(): {
+function captureBothStreams({ terminal }: PoseOptions): {
   screen: () => string;
   exitCode: () => number | undefined;
   restore: () => void;
@@ -252,10 +270,10 @@ function captureBothStreams(): {
         collect(chunk.toString('utf8'));
         callback();
       },
-    }) as Writable & { isTTY: boolean; columns: number };
+    }) as Writable & { isTTY: boolean; columns: number | undefined };
 
-    stream.isTTY = true;
-    stream.columns = POSED_TERMINAL_WIDTH;
+    stream.isTTY = terminal;
+    stream.columns = terminal ? POSED_TERMINAL_WIDTH : undefined;
 
     return stream;
   };
@@ -269,7 +287,7 @@ function captureBothStreams(): {
     stream,
     descriptor: Object.getOwnPropertyDescriptor(stream, 'write'),
   }));
-  const restoreTerminal = pretendTheStreamsAreATerminal();
+  const restoreTerminal = terminal ? pretendTheStreamsAreATerminal() : pretendTheStreamsAreAPipe();
 
   const capturingWrite = (chunk: unknown, ...rest: unknown[]): boolean => {
     collect(typeof chunk === 'string' ? chunk : Buffer.from(chunk as Uint8Array).toString('utf8'));
@@ -323,30 +341,57 @@ function captureBothStreams(): {
  * behaviour, on every machine.
  */
 function pretendTheStreamsAreATerminal(): () => void {
-  const faked = ['isTTY', 'columns', 'cursorTo', 'clearLine', 'moveCursor', 'clearScreenDown'];
-
-  const previous = [process.stdout, process.stderr].map((stream) => ({
-    stream,
-    descriptors: faked.map((name) => ({
-      name,
-      descriptor: Object.getOwnPropertyDescriptor(stream, name),
-    })),
+  return answerForBothStreams((stream) => ({
+    isTTY: true,
+    columns: POSED_TERMINAL_WIDTH,
+    cursorTo: (x: number, y?: number, callback?: () => void) =>
+      readline.cursorTo(stream, x, y, callback),
+    clearLine: (direction: -1 | 0 | 1, callback?: () => void) =>
+      readline.clearLine(stream, direction, callback),
+    moveCursor: (dx: number, dy: number, callback?: () => void) =>
+      readline.moveCursor(stream, dx, dy, callback),
+    clearScreenDown: (callback?: () => void) => readline.clearScreenDown(stream, callback),
   }));
+}
 
-  for (const { stream } of previous) {
-    const terminal = {
-      isTTY: true,
-      columns: POSED_TERMINAL_WIDTH,
-      cursorTo: (x: number, y?: number, callback?: () => void) =>
-        readline.cursorTo(stream, x, y, callback),
-      clearLine: (direction: -1 | 0 | 1, callback?: () => void) =>
-        readline.clearLine(stream, direction, callback),
-      moveCursor: (dx: number, dy: number, callback?: () => void) =>
-        readline.moveCursor(stream, dx, dy, callback),
-      clearScreenDown: (callback?: () => void) => readline.clearScreenDown(stream, callback),
+/**
+ * Make `process.stdout` and `process.stderr` answer as a pipe, and give back whatever they said
+ * before.
+ *
+ * SET EVERY TIME, NOT INHERITED. Whoever runs `sherlo pose --no-terminal` may well be sitting at
+ * a terminal, and a screen that changed with the caller's own window would not be the log an
+ * agent gets. A pipe's stream says it is not a terminal and has no width and no cursor moves at
+ * all, so a caller that checks for one before using it takes the pipe's road.
+ */
+function pretendTheStreamsAreAPipe(): () => void {
+  return answerForBothStreams(() => ({
+    isTTY: false,
+    columns: undefined,
+    cursorTo: undefined,
+    clearLine: undefined,
+    moveCursor: undefined,
+    clearScreenDown: undefined,
+  }));
+}
+
+/** Put `answers` on both process streams for the length of the run; the returned function puts back what was there. */
+function answerForBothStreams(
+  answers: (stream: NodeJS.WriteStream) => Record<string, unknown>
+): () => void {
+  const previous = [process.stdout, process.stderr].map((stream) => {
+    const answersForThisStream = answers(stream);
+    return {
+      stream,
+      answersForThisStream,
+      descriptors: Object.keys(answersForThisStream).map((name) => ({
+        name,
+        descriptor: Object.getOwnPropertyDescriptor(stream, name),
+      })),
     };
+  });
 
-    for (const [name, value] of Object.entries(terminal)) {
+  for (const { stream, answersForThisStream } of previous) {
+    for (const [name, value] of Object.entries(answersForThisStream)) {
       Object.defineProperty(stream, name, { value, configurable: true, writable: true });
     }
   }
@@ -376,13 +421,25 @@ function installArgv(argv: string[]): () => void {
   };
 }
 
-/** Colour is forced ON: a screen is drawn for a terminal, and a pipe is not the audience. */
-function forceColour(): () => void {
+/** Set chalk's colour level for the length of the run; the returned function puts back the old one. */
+function setColour(level: 0 | 1): () => void {
   const previous = chalk.level;
-  chalk.level = 1;
+  chalk.level = level;
   return () => {
     chalk.level = previous;
   };
+}
+
+/**
+ * THE COLOUR A PIPE GETS, decided the way chalk decides it on a real pipe: none, unless the
+ * settings force it. The pose's settings are the whole environment, so FORCE_COLOR counts only
+ * when the pose states it. A forced colour is drawn at level 1, as a terminal's is, so the two
+ * screens of one pose differ only where the command itself chose differently.
+ */
+function colourOnAPipe(env: Record<string, string>): 0 | 1 {
+  const forced = env.FORCE_COLOR;
+  if (forced === undefined || forced === '0' || forced === 'false') return 0;
+  return 1;
 }
 
 /**

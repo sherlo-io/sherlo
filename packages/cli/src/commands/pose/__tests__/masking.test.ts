@@ -461,3 +461,18 @@ function runMask(
     );
   }
 }
+
+describe('a screen with colour and one without fold alike', () => {
+  it('folds a value the same way on a screen with colour and on one without', () => {
+    // The project line `sherlo init` prints names the team in bold. Without colour the word
+    // "token:" sits right against the value, which is the shape a token line has - the team must
+    // fold as a team there too, not as a token.
+    const withColour = `Using the project from your token: ${ESC}[1mtm000001/4${ESC}[22m`;
+    const withoutColour = 'Using the project from your token: tm000001/4';
+
+    expect(maskScreen(withoutColour, {})).toBe('Using the project from your token: <TEAM>/4');
+    expect(maskScreen(withColour, {})).toBe(
+      `Using the project from your token: ${ESC}[1m<TEAM>/4${ESC}[22m`
+    );
+  });
+});
