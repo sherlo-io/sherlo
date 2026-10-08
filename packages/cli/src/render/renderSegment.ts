@@ -487,7 +487,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'feedback-dry-run':
       return {
         stream: 'stdout',
-        prints: renderFeedbackDryRun(segment.report, segment.context).map((line) => [line]),
+        prints: renderFeedbackDryRun(segment.reportKind, segment.report, segment.context).map((line) => [line]),
       };
 
     case 'agent-feedback-after-run':

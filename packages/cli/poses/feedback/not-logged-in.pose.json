@@ -2,7 +2,9 @@
   "pose": 1,
   "argv": [
     "feedback",
-    "## Goal\nSet Sherlo up in a new app.\n## Steps\nnpx sherlo init\n## Happened\nInit stopped before the login step.\n## Expected\nInit to open the browser to log in.\n## Tried\nunknown\n## Smallest repro\nunknown"
+    "--kind",
+    "bug",
+    "## Steps\nnpx sherlo init\n## Happened\nInit stopped before the login step.\n## Expected\nInit to open the browser to log in."
   ],
   "files": {},
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },

@@ -139,6 +139,7 @@ export type ServerCalls = {
    */
   sendFeedback(request: {
     personalToken: string;
+    kind: 'bug' | 'missing' | 'unclear' | 'other';
     text: string;
     context: FeedbackContext;
   }): Promise<{ reference: string }>;
@@ -541,7 +542,7 @@ export type ScriptedCall =
        * the context is composed by the command, so a pose does not restate it.
        */
       call: 'sendFeedback';
-      with: { text: string };
+      with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; text: string };
       answer: { reference: string } | ApiError;
     };
 
@@ -684,7 +685,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       answerFor('logOutCli', {});
     },
 
-    sendFeedback: async ({ text }) => answerFor('sendFeedback', { text }) as { reference: string },
+    sendFeedback: async ({ kind, text }) => answerFor('sendFeedback', { kind, text }) as { reference: string },
   };
 }
 

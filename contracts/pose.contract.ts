@@ -395,6 +395,7 @@ export type ScriptedCall =
        */
       call: 'sendFeedback';
       with: {
+        kind: 'bug' | 'missing' | 'unclear' | 'other';
         text: string;
       };
       answer:

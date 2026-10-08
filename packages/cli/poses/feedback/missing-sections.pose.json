@@ -2,7 +2,9 @@
   "pose": 1,
   "argv": [
     "feedback",
-    "## Goal\nRun sherlo test.\n## Happened\nIt didn't work."
+    "--kind",
+    "bug",
+    "## Happened\nsherlo test didn't work."
   ],
   "files": {},
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },

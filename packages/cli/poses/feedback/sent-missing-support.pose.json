@@ -3,8 +3,8 @@
   "argv": [
     "feedback",
     "--kind",
-    "bug",
-    "## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link."
+    "missing",
+    "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only."
   ],
   "files": {},
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
@@ -14,10 +14,10 @@
     {
       "call": "sendFeedback",
       "with": {
-        "kind": "bug",
-        "text": "## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link."
+        "kind": "missing",
+        "text": "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only."
       },
-      "answer": { "error": "Network error: getaddrinfo ENOTFOUND api.sherlo.io" }
+      "answer": { "reference": "FB-5R2N" }
     }
   ],
   "masks": {},

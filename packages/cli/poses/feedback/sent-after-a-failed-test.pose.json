@@ -1,6 +1,6 @@
 {
   "pose": 1,
-  "argv": ["feedback", "--file", "report.md"],
+  "argv": ["feedback", "--kind", "bug", "--file", "report.md"],
   "files": {
     "report.md": "## Goal\nRun the first visual test on a freshly set-up Expo app.\n\n## Steps\n1. npx sherlo init\n2. npx sherlo test\n\n## Happened\nThe Android build stopped: \"SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable.\"\n\n## Expected\nsherlo test to find the Android SDK that Android Studio installed in ~/Library/Android/sdk.\n\n## Tried\nSet ANDROID_HOME in .zshrc and ran npx sherlo test again: the same error.\n\n## Smallest repro\nunknown\n",
     "package.json": {
@@ -20,6 +20,7 @@
     {
       "call": "sendFeedback",
       "with": {
+        "kind": "bug",
         "text": "## Goal\nRun the first visual test on a freshly set-up Expo app.\n\n## Steps\n1. npx sherlo init\n2. npx sherlo test\n\n## Happened\nThe Android build stopped: \"SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable.\"\n\n## Expected\nsherlo test to find the Android SDK that Android Studio installed in ~/Library/Android/sdk.\n\n## Tried\nSet ANDROID_HOME in .zshrc and ran npx sherlo test again: the same error.\n\n## Smallest repro\nunknown"
       },
       "answer": { "reference": "FB-7K2Q" }

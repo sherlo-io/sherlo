@@ -1,45 +1,89 @@
 /**
- * WHAT `sherlo feedback` PRINTS (sherlo / Sending feedback): the report's format, which its --help
- * and its refusals share, the dry run, and the screen once it is sent. Its refusals print through
- * the entry point like every refusal.
+ * WHAT `sherlo feedback` PRINTS (sherlo / Sending feedback): the four kinds of report and the
+ * sections each needs, which its --help and its refusals share, the dry run, and the screen once it
+ * is sent. Its refusals print through the entry point like every refusal.
  *
  * Pure, like everything under ./: state in, print-call argument lists out.
  *
- * WHY SECTIONS. What gets a bug fixed is the steps to reproduce it, and that is what a report leaves
- * out most; a report in named sections cannot leave a step out silently. "unknown" is a valid answer
- * to any section, because a guessed step is worse than a missing one. The words are the content
- * department's.
+ * WHY KINDS, AND SECTIONS PER KIND. What gets a bug fixed is the steps to reproduce it, and that is
+ * what a report leaves out most; so a bug report cannot be sent without them. A missing feature or a
+ * misleading doc has no steps, so each kind asks only for what makes ITS report actionable, and
+ * "other" asks for nothing but words. "unknown" answers any section, because a guessed step is worse
+ * than a missing one. The words are the content department's.
  */
 import chalk from 'chalk';
 import type { FeedbackContext } from '../seams/serverCalls';
 
-/** The six sections every report is written in, each with what it holds. */
-export const FEEDBACK_SECTIONS = [
-  { heading: 'Goal', holds: 'What you were trying to do, in one sentence' },
-  { heading: 'Steps', holds: 'The exact commands and edits, in order' },
-  { heading: 'Happened', holds: 'What Sherlo did - quote its output' },
-  { heading: 'Expected', holds: 'What you expected, and why' },
-  { heading: 'Tried', holds: 'What you changed to get past it, and what each change did' },
-  { heading: 'Smallest repro', holds: 'The smallest config or story that shows it' },
+/** A section a report of some kind is written in, with what it holds. */
+type Section = { heading: string; holds: string };
+
+/** The four kinds of report, each with what it is for and the sections it cannot be sent without. */
+export const FEEDBACK_KINDS = [
+  {
+    kind: 'bug',
+    isFor: 'Something is broken',
+    required: [
+      { heading: 'Steps', holds: 'The exact commands and edits, in order' },
+      { heading: 'Happened', holds: 'What Sherlo did - quote its output' },
+      { heading: 'Expected', holds: 'What you expected, and why' },
+    ],
+    welcome: ['Goal', 'Tried', 'Smallest repro'],
+  },
+  {
+    kind: 'missing',
+    isFor: 'A feature, platform or version Sherlo does not support',
+    required: [
+      { heading: 'Goal', holds: 'What you wanted to do' },
+      { heading: 'Missing', holds: 'What Sherlo lacks' },
+      { heading: 'Instead', holds: 'What you did instead, or "nothing"' },
+    ],
+    welcome: [],
+  },
+  {
+    kind: 'unclear',
+    isFor: 'A doc page or a message that misled you',
+    required: [
+      { heading: 'Where', holds: 'The page address, or the message, quoted' },
+      { heading: 'Understood', holds: 'What you understood from it' },
+      { heading: 'Actually', holds: 'What turned out to be true' },
+    ],
+    welcome: [],
+  },
+  { kind: 'other', isFor: 'Anything else, in your own words', required: [] as Section[], welcome: [] as string[] },
 ] as const;
+
+export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]['kind'];
 
 /** The last Sherlo command this project ran, as the feedback carries it. */
 export type LastCommand = { command: string; exitCode: number };
 
 /**
- * How to write a report, as --help prints it and a report with no words is refused with. It says
- * what is attached without asking, and what must never be written in.
+ * How to write a report, as --help prints it and a report with no kind or no words is refused with.
+ * It leads with the quoted here-document, because the shell changes nothing inside one: unquoted or
+ * double-quoted text can end the command at a `;` or run a `$(...)` it quotes.
  */
 export function renderFeedbackFormat(): string[] {
-  const widest = Math.max(...FEEDBACK_SECTIONS.map(({ heading }) => heading.length));
+  const kindLines = FEEDBACK_KINDS.flatMap(({ kind, isFor, required, welcome }) => {
+    const widest = Math.max(0, ...required.map(({ heading }) => heading.length));
+    return [
+      `  --kind ${kind.padEnd(8)}${isFor}`,
+      ...required.map(({ heading, holds }) => `                    ## ${heading.padEnd(widest)}  ${holds}`),
+      ...(welcome.length > 0 ? [`                    Also welcome: ${welcome.map((heading) => `## ${heading}`).join(', ')}`] : []),
+    ];
+  });
 
   return [
-    'Write the report in these six sections. Write "unknown" for any you do not know - never guess.',
-    ...FEEDBACK_SECTIONS.map(({ heading, holds }) => `  ## ${heading.padEnd(widest)}  ${holds}`),
+    'Say what kind of report it is, and write the sections that kind needs.',
+    'Write "unknown" for any you do not know - never guess.',
     '',
-    'Send it as words, a file or piped text:',
-    '  npx sherlo feedback --file report.md',
-    '  cat report.md | npx sherlo feedback -',
+    ...kindLines,
+    '',
+    'Send it in a quoted here-document, so the shell changes nothing in it:',
+    "  npx sherlo feedback --kind bug - <<'EOF'",
+    '  ## Steps',
+    '  ...',
+    '  EOF',
+    'Or from a file: npx sherlo feedback --kind bug --file report.md',
     '',
     'Sent with it, so you need not write them: your last Sherlo command with its exit code and error',
     'lines, the Sherlo, React Native, Expo and Storybook versions, the package manager and the OS.',
@@ -55,7 +99,7 @@ const OPERATING_SYSTEM_NAME: Record<string, string> = {
 };
 
 /** The report and everything sent beside it, exactly as it would leave the machine. Nothing is sent. */
-export function renderFeedbackDryRun(report: string, context: FeedbackContext): string[] {
+export function renderFeedbackDryRun(kind: FeedbackKind, report: string, context: FeedbackContext): string[] {
   const versions = [
     `Sherlo CLI ${context.cliVersion}`,
     context.reactNativeVersion && `React Native ${context.reactNativeVersion}`,
@@ -72,7 +116,7 @@ export function renderFeedbackDryRun(report: string, context: FeedbackContext): 
     : [];
 
   return [
-    `${chalk.yellow('◦')}  Dry run - nothing was sent. This is what would be sent:`,
+    `${chalk.yellow('◦')}  Dry run - nothing was sent. This ${kind} report is what would be sent:`,
     '',
     ...report.split('\n').map((line) => `  ${line}`),
     '',

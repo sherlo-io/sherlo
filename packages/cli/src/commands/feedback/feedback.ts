@@ -1,17 +1,17 @@
 /**
- * `sherlo feedback` - send the Sherlo team a report of what was unclear, slow or broken (sherlo /
- * Sending feedback).
+ * `sherlo feedback --kind <kind>` - send the Sherlo team a report (sherlo / Sending feedback).
  *
- * It asks nothing. The report is written in six named sections (../../render/feedback) and given as
- * words, a file (`--file`) or piped text (`-`); a report missing a section is refused once, naming
- * every missing section, and "unknown" answers any of them. It is sent with the login saved on this
- * computer, and refused without one. Beside the report it sends the facts needed to act on it - the
- * last Sherlo command this project ran with its error lines, the versions, package manager and
- * operating system - and never a token. `--dry-run` prints exactly that and sends nothing.
+ * It asks nothing. A report is one of four kinds - bug, missing, unclear, other - and each kind
+ * cannot be sent without its own sections (../../render/feedback); "unknown" answers any of them,
+ * and a report missing one is refused once, naming every missing section. The report is given in a
+ * quoted here-document on stdin (`-`), a file (`--file`) or quoted words, between 10 and 4,000
+ * characters. It is sent with the login saved on this computer, and refused without one. Beside the
+ * report it sends the facts needed to act on it - the last Sherlo command this project ran with its
+ * error lines, the versions, package manager and operating system, and whether an agent or a person
+ * sent it - and never a token. `--dry-run` prints exactly that and sends nothing.
  *
  * PLAN LAYER (epic sherlo-feedback): this body only prints. Collecting the context through the
- * existing helpers, recording each command's outcome, reading piped text and the live service call
- * are build tasks.
+ * existing helpers, recording each command's outcome and the live service call are build tasks.
  */
 import fs from 'fs';
 import os from 'os';
@@ -20,27 +20,45 @@ import { version } from '../../../package.json';
 import { printSherloIntro, throwError } from '../../helpers';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
-import { FEEDBACK_SECTIONS, renderFeedbackFormat } from '../../render/feedback';
+import { FEEDBACK_KINDS, renderFeedbackFormat } from '../../render/feedback';
 import { FEEDBACK_HELP_LINE } from '../../render/needHelp';
 import { projectFiles } from '../../seams/projectFiles';
 import { savedLogins } from '../../seams/savedLogins';
 import { serverCalls, type FeedbackContext } from '../../seams/serverCalls';
 
-type FeedbackOptions = { file?: string; dryRun?: boolean };
+type FeedbackOptions = { kind?: string; file?: string; dryRun?: boolean };
+
+const SHORTEST_REPORT = 10;
+const LONGEST_REPORT = 4000;
 
 async function feedback(text: string | undefined, options: FeedbackOptions): Promise<void> {
   printSherloIntro();
 
-  const report = readReport(text, options.file);
-  if (!report) {
-    throwError({ message: ['Write your report first.', ...renderFeedbackFormat()].join('\n  ') });
+  const kind = FEEDBACK_KINDS.find((one) => one.kind === options.kind);
+  if (!kind) {
+    throwError({
+      message: [
+        options.kind ? `There is no kind of report called "${options.kind}".` : 'Say what kind of report this is with --kind.',
+        ...renderFeedbackFormat(),
+      ].join('\n  '),
+    });
   }
 
-  const missing = missingSections(report);
+  const report = readReport(text, options.file);
+  if (report.length < SHORTEST_REPORT || report.length > LONGEST_REPORT) {
+    throwError({
+      message:
+        `Not sent: a report is between ${SHORTEST_REPORT} and ${LONGEST_REPORT.toLocaleString('en-US')} characters, and this one is ${report.length}.\n` +
+        `  The format: ${FEEDBACK_HELP_LINE}`,
+    });
+  }
+
+  const missing = missingSections(report, kind.required.map(({ heading }) => heading));
   if (missing.length > 0) {
     throwError({
       message:
-        `Not sent: the report has no ${listInWords(missing)}. We can only fix what we can reproduce.\n` +
+        `Not sent: a ${kind.kind} report needs ${listInWords(kind.required.map(({ heading }) => heading), 'and')}, ` +
+        `and this one has no ${listInWords(missing, 'or')}.\n` +
         '  Write each one, or "unknown" if you do not know it, then send it again.\n' +
         `  The format: ${FEEDBACK_HELP_LINE}`,
     });
@@ -49,7 +67,7 @@ async function feedback(text: string | undefined, options: FeedbackOptions): Pro
   const context = collectContext();
 
   if (options.dryRun) {
-    emit({ kind: 'feedback-dry-run', report, context });
+    emit({ kind: 'feedback-dry-run', reportKind: kind.kind, report, context });
     return;
   }
 
@@ -63,7 +81,7 @@ async function feedback(text: string | undefined, options: FeedbackOptions): Pro
   }
 
   const { reference } = await serverCalls()
-    .sendFeedback({ personalToken: savedLogin.token, text: report, context })
+    .sendFeedback({ personalToken: savedLogin.token, kind: kind.kind, text: report, context })
     .catch(() =>
       throwError({
         message:
@@ -82,14 +100,15 @@ async function feedback(text: string | undefined, options: FeedbackOptions): Pro
   });
 }
 
-/** The report's words: the argument, or the file `--file` names, trimmed. */
+/** The report's words: piped in (`-`), the file `--file` names, or the argument - trimmed. */
 function readReport(text: string | undefined, file: string | undefined): string {
+  if (text === '-') return fs.readFileSync(0, 'utf8').trim();
   if (file) return fs.readFileSync(path.resolve(projectFiles().root(), file), 'utf8').trim();
   return (text ?? '').trim();
 }
 
-/** The sections the report has no heading for, or leaves empty under its heading. */
-function missingSections(report: string): string[] {
+/** The required sections the report has no heading for, or leaves empty under its heading. */
+function missingSections(report: string, required: string[]): string[] {
   const bodies = new Map<string, string>();
   let current: string | undefined;
 
@@ -103,14 +122,12 @@ function missingSections(report: string): string[] {
     }
   }
 
-  return FEEDBACK_SECTIONS.map(({ heading }) => heading).filter(
-    (heading) => !bodies.get(heading.toLowerCase())
-  );
+  return required.filter((heading) => !bodies.get(heading.toLowerCase()));
 }
 
-function listInWords(items: string[]): string {
+function listInWords(items: string[], joiner: 'and' | 'or'): string {
   if (items.length === 1) return items[0];
-  return `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`;
+  return `${items.slice(0, -1).join(', ')} ${joiner} ${items[items.length - 1]}`;
 }
 
 /**

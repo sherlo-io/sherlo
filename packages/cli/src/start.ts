@@ -431,9 +431,10 @@ function addFeedbackCommand(program: Command) {
   program
     .command(`${FEEDBACK_COMMAND} [text]`)
     .description([COMMAND_DESCRIPTION[FEEDBACK_COMMAND], ...renderFeedbackFormat()].join('\n  '))
+    .option('--kind <kind>', 'bug, missing, unclear or other')
     .option('--file <path>', 'Read the report from this file')
     .option('--dry-run', 'Print exactly what would be sent, and send nothing')
-    .action(async (text: string | undefined, options: { file?: string; dryRun?: boolean }) => {
+    .action(async (text: string | undefined, options: { kind?: string; file?: string; dryRun?: boolean }) => {
       setReportingContext(FEEDBACK_COMMAND, options);
       await feedback(text, options);
     });

@@ -2,7 +2,9 @@
   "pose": 1,
   "argv": [
     "feedback",
-    "## Goal\nAdd the Sherlo check to our GitHub Actions workflow.\n## Steps\nRead sherlo.io/docs/ci, then looked for the CI token it names.\n## Happened\nThe page says to add SHERLO_TOKEN but not where the token comes from.\n## Expected\nA link to where the CI token is created.\n## Tried\nSearched the web app and found Create Token under the project's settings.\n## Smallest repro\nunknown"
+    "--kind",
+    "unclear",
+    "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app."
   ],
   "files": {},
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
@@ -12,7 +14,8 @@
     {
       "call": "sendFeedback",
       "with": {
-        "text": "## Goal\nAdd the Sherlo check to our GitHub Actions workflow.\n## Steps\nRead sherlo.io/docs/ci, then looked for the CI token it names.\n## Happened\nThe page says to add SHERLO_TOKEN but not where the token comes from.\n## Expected\nA link to where the CI token is created.\n## Tried\nSearched the web app and found Create Token under the project's settings.\n## Smallest repro\nunknown"
+        "kind": "unclear",
+        "text": "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app."
       },
       "answer": { "reference": "FB-3M9D" }
     }
