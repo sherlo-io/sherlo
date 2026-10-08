@@ -53,7 +53,7 @@ async function init(options: Options<THIS_COMMAND>) {
     const storybookState = installedNow
       ? 'installed'
       : storybookSetup() === 'registers-root'
-        ? 'new-setup'
+        ? 'default-setup'
         : 'old-setup';
     // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
     const reader = process.stdout.isTTY ? 'person' : 'agent';
