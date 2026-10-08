@@ -916,13 +916,13 @@ const PINS: Pin[] = [
 
   {
     kind: 'project-created',
-    what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
+    what: 'everything `sherlo project create` prints - no token comes with a new project, so it names the project page where a CI token is made',
     segment: {
       kind: 'project-created',
       project: {
         name: 'Design System',
         index: 12,
-        projectToken: 'pppppppppppppppppppppppppppppppp team1234 12',
+        projectPageUrl: 'https://app.sherlo.io/project?t=team1234&p=12',
       },
     },
     stream: 'stdout',
@@ -932,11 +932,8 @@ const PINS: Pin[] = [
       ['projectIndex=12'],
       ['projectName=Design System'],
       [''],
-      [`${ESC}[33mProject token - shown once. Store it now; it cannot be shown again.${ESC}[39m`],
-      [''],
-      ['  pppppppppppppppppppppppppppppppp team1234 12'],
-      [''],
-      [`${ESC}[2mAdd it to your CI as the SHERLO_TOKEN secret.${ESC}[22m`],
+      [`For CI, create a CI token on the project's page and save it as the ${ESC}[1mSHERLO_TOKEN${ESC}[22m secret:`],
+      [`  ${ESC}[36mhttps://app.sherlo.io/project?t=team1234&p=12${ESC}[39m`],
       [''],
     ],
   },

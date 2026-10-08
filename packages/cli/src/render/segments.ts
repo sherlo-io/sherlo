@@ -28,7 +28,7 @@ import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
 import type { BuildDetails, ViewMetadataJson, ViewMetadataStory } from './buildView';
 import type { DryRunPlatformPreview } from './dryRunPlan';
-import type { ProjectCreated } from './projectCreated';
+import type { ProjectCreatedLines } from './projectCreated';
 import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
 import type { OpenedStory } from './openedStory';
@@ -266,7 +266,7 @@ export type TranscriptSegment =
    * than the api response it was built from.                                *
    * ---------------------------------------------------------------------- */
   /** The whole success output of `sherlo project create`, token line included. */
-  | { kind: 'project-created'; project: ProjectCreated }
+  | { kind: 'project-created'; project: ProjectCreatedLines }
   /** The whole success output of `sherlo team create`. See ./teamCreated. */
   | { kind: 'team-created'; team: TeamCreated }
   /** The whole output of `sherlo project list`. See ./projectList. */

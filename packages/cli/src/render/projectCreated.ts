@@ -34,30 +34,33 @@
 import chalk from 'chalk';
 import { renderOutputKeys } from './pushSpine';
 
-/** The three facts about a created project the CLI is willing to print. */
+/** What the service answers when a project is made. */
 export type ProjectCreated = {
   name: string;
   index: number;
-  /** Plaintext, returned once by the API and never again. */
-  projectToken: string;
+  /** BUILD DEBT (init-for-agents): the service stops making a token with a project; this goes. */
+  projectToken?: string;
 };
 
-const STORE_IT_NOW = 'Project token - shown once. Store it now; it cannot be shown again.';
-
-const HOW_TO_USE = 'Add it to your CI as the SHERLO_TOKEN secret.';
+/**
+ * NO TOKEN COMES WITH A NEW PROJECT ANY MORE (operator, 2026-10-07, epic init-for-agents): a person
+ * works from their own computer on their login, and only CI needs a token, so one is made when
+ * someone presses Create Token on the project's page. The command names that page instead.
+ */
+export type ProjectCreatedLines = ProjectCreated & {
+  /** The project's page in the web app, where its CI token is made. */
+  projectPageUrl: string;
+};
 
 /** Every line the command prints on success, in order. */
-export function renderProjectCreated({ name, index, projectToken }: ProjectCreated): string[] {
+export function renderProjectCreated({ name, index, projectPageUrl }: ProjectCreatedLines): string[] {
   return [
     `${chalk.green('✔')}  Created project ${chalk.bold(name)}`,
     '',
     ...renderOutputKeys({ projectIndex: index, projectName: name }),
     '',
-    chalk.yellow(STORE_IT_NOW),
-    '',
-    `  ${projectToken}`,
-    '',
-    chalk.dim(HOW_TO_USE),
+    `For CI, create a CI token on the project's page and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    `  ${chalk.cyan(projectPageUrl)}`,
     '',
   ];
 }

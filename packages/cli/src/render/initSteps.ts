@@ -182,12 +182,24 @@ export function renderStuckBlock({
   discordUrl: string;
   contactEmail: string;
 }): string[] {
+  // AN AGENT FIXES IT ITSELF (operator, 2026-10-08): the person should only have to ask for setup;
+  // the agent resolves what failed and runs setup again, asking the person only when the fix is a
+  // real choice between options.
+  const agentLines =
+    reader === 'agent'
+      ? [
+          `AI agent? Fix the error above yourself, then re-run ${chalk.cyan('npx sherlo init')}.`,
+          'Ask the person only when the fix is a real choice between options.',
+          '',
+        ]
+      : [];
   const feedbackLine =
     reader === 'agent'
       ? `➜ AI agent? Share your feedback on what failed with us: ${chalk.cyan(FEEDBACK_COMMAND)}`
       : `➜ Tell us: ${chalk.cyan(FEEDBACK_COMMAND)}`;
 
   return [
+    ...agentLines,
     chalk.dim('═'.repeat(10)),
     '',
     'Stuck or something broken?',
