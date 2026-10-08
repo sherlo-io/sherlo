@@ -86,11 +86,13 @@ export function renderFeedbackFormat(): string[] {
     '  ## Steps',
     '  ...',
     '  EOF',
-    'Or from a file: npx sherlo feedback --kind bug --file report.md',
+    'Or from a file - the way on Windows, which has no here-document:',
+    '  npx sherlo feedback --kind bug --file report.md',
     '',
     'Sent with it, so you need not write them: your last Sherlo command with its exit code and error',
     'lines, the Sherlo, React Native, Expo and Storybook versions, the package manager and the OS.',
     'Never write in tokens, passwords, .env contents, personal data, or app code beyond the smallest repro.',
+    'Anything shaped like a token or a key is blanked out before it is sent.',
     '`--dry-run` prints exactly what would be sent, and sends nothing. The Sherlo team reads every report.',
   ];
 }

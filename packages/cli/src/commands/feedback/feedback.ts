@@ -31,7 +31,7 @@ type FeedbackOptions = { kind?: string; file?: string; dryRun?: boolean };
 const SHORTEST_REPORT = 10;
 const LONGEST_REPORT = 4000;
 
-async function feedback(text: string | undefined, options: FeedbackOptions): Promise<void> {
+async function feedback(words: string[], options: FeedbackOptions): Promise<void> {
   printSherloIntro();
 
   const kind = FEEDBACK_KINDS.find((one) => one.kind === options.kind);
@@ -44,7 +44,26 @@ async function feedback(text: string | undefined, options: FeedbackOptions): Pro
     });
   }
 
-  const report = readReport(text, options.file);
+  // More than one word means the shell split the report before Sherlo saw it: it was not quoted,
+  // so anything after a ; or a # is already gone, or ran as a command of its own.
+  if (words.length > 1) {
+    throwError({
+      message:
+        `Not sent: your report reached Sherlo as ${words.length} separate words, so the shell has already changed it.\n` +
+        "  Send it in a quoted here-document, which the shell leaves alone: npx sherlo feedback --kind bug - <<'EOF'\n" +
+        `  The format: ${FEEDBACK_HELP_LINE}`,
+    });
+  }
+
+  if (words[0] === '-' && process.stdin.isTTY) {
+    throwError({
+      message:
+        'Not sent: `-` reads the report from a pipe or a here-document, and nothing was piped in.\n' +
+        `  The format: ${FEEDBACK_HELP_LINE}`,
+    });
+  }
+
+  const report = readReport(words[0], options.file);
   if (report.length < SHORTEST_REPORT || report.length > LONGEST_REPORT) {
     throwError({
       message:

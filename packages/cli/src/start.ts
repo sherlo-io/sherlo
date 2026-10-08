@@ -429,14 +429,16 @@ function addFeedbackCommand(program: Command) {
   // here so a bare `sherlo feedback` gets the command's own refusal, which shows the report's
   // format, rather than the parser's.
   program
-    .command(`${FEEDBACK_COMMAND} [text]`)
+    // Every word is taken, so text the shell split - unquoted, or cut at a quote - reaches the
+    // command whole enough to be refused, rather than silently cut to its first word.
+    .command(`${FEEDBACK_COMMAND} [words...]`)
     .description([COMMAND_DESCRIPTION[FEEDBACK_COMMAND], ...renderFeedbackFormat()].join('\n  '))
     .option('--kind <kind>', 'bug, missing, unclear or other')
     .option('--file <path>', 'Read the report from this file')
     .option('--dry-run', 'Print exactly what would be sent, and send nothing')
-    .action(async (text: string | undefined, options: { kind?: string; file?: string; dryRun?: boolean }) => {
+    .action(async (words: string[], options: { kind?: string; file?: string; dryRun?: boolean }) => {
       setReportingContext(FEEDBACK_COMMAND, options);
-      await feedback(text, options);
+      await feedback(words, options);
     });
 }
 
