@@ -127,7 +127,7 @@ function getError(error: BinaryError) {
               `2. ${
                 error.platformLabels.length > 1 ? 'Builds are' : 'Build is'
               } created with this profile\n` +
-              `3. Same build profile is passed to \`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` using \`--${PROFILE_OPTION}\` option\n`
+              `3. Same build profile is passed to \`npx sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}\` using \`--${PROFILE_OPTION}\` option\n`
             : ''),
         learnMoreLink: DOCS_LINK.buildPreview,
       };

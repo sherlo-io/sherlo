@@ -19,6 +19,6 @@ base-fingerprint=<FINGERPRINT>
 [33m[39m
 [33mA native build is required before this commit can be tested: android: native inputs changed since the base build.[39m
 [33mNothing was built and no test ran (--no-build).[39m
-[33mTo build it on this machine, run `sherlo test` without --no-build.[39m
+[33mTo build it on this machine, run `npx sherlo test` without --no-build.[39m
 
 [exit 4]

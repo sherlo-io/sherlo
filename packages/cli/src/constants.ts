@@ -149,21 +149,6 @@ export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
 export const TOKEN_OPTION = 'token';
-/**
- * `sherlo project create`: the PERSONAL token, and it is a different credential
- * from `--token` - see PERSONAL_TOKEN_PREFIX below for the whole distinction.
- * It gets its own flag rather than a second meaning for `--token`, because a
- * flag that accepts either kind is a flag nobody can read an error message for.
- */
-export const PERSONAL_TOKEN_OPTION = 'personalToken';
-/**
- * What the user TYPES for the option above. It needs its own constant because
- * the two differ: every other option in this file is a single word, so its
- * commander property and its flag are the same string and prose can interpolate
- * either. This one is two words, and prose that interpolated the property would
- * tell a person to type `--personalToken`, which does nothing.
- */
-export const PERSONAL_TOKEN_FLAG = 'personal-token';
 /** `sherlo project create`: which team the new project belongs to. */
 export const TEAM_OPTION = 'team';
 /**
@@ -217,16 +202,16 @@ export const LOGS_OPTION = 'logs';
  *   tests and reads builds.
  *
  *   A PERSONAL TOKEN is `sht_` + 32 opaque chars. It carries NO team and NO
- *   project - it is resolved server-side to the PERSON who minted it, and what
- *   it may do is its scopes intersected with that person's current role on the
- *   team the request names. It is what `--personal-token` /
- *   SHERLO_PERSONAL_TOKEN mean, and it drives every management command:
- *   `project create`, `project list`, `team create`, `team list`.
+ *   project - it is resolved server-side to the PERSON it belongs to, and what
+ *   it may do is cut to that person's current role on the team the request
+ *   names. The login `sherlo login` saves is one, and the tool takes no other:
+ *   no flag and no variable carries a personal token (sherlo / Logging in from
+ *   the terminal).
  *
  * SLICING A PERSONAL TOKEN THE WAY A PROJECT TOKEN IS SLICED WOULD PRODUCE A
  * PLAUSIBLE-LOOKING TEAM ID out of eight characters of random. That is the
- * failure this constant exists to make impossible: every place that used to
- * assume the composite layout now checks the prefix first and refuses.
+ * failure this constant exists to make impossible: every place that takes a
+ * project token checks the prefix first and refuses a personal one by name.
  *
  * Source of truth: sherlo-api `packages/types/src/model/personalToken.ts`
  * (PERSONAL_TOKEN_PREFIX). Copied rather than imported because the published
@@ -234,14 +219,6 @@ export const LOGS_OPTION = 'logs';
  * copy once it does.
  */
 export const PERSONAL_TOKEN_PREFIX = 'sht_';
-
-/**
- * Where `sherlo project create` reads its personal token when the flag is
- * absent. Deliberately NOT `SHERLO_TOKEN`, which already means the project
- * token: overloading it would put a credential with a different reach behind a
- * name whose meaning a customer's CI already relies on.
- */
-export const PERSONAL_TOKEN_ENV_VAR = 'SHERLO_PERSONAL_TOKEN';
 
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;

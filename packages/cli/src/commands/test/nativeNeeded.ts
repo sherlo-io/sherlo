@@ -72,8 +72,8 @@ async function reportNativeNeeded({
   const closingLines = noBuild
     ? 'Nothing was built and no test ran (--no-build).\n' +
       (iosNeedsAMac
-        ? 'To build it, run `sherlo test --platform ios` on a Mac.'
-        : 'To build it on this machine, run `sherlo test` without --no-build.')
+        ? 'To build it, run `npx sherlo test --platform ios` on a Mac.'
+        : 'To build it on this machine, run `npx sherlo test` without --no-build.')
     : 'Nothing was built and no test ran.\n' + FALLBACK_LINE;
 
   console.log(

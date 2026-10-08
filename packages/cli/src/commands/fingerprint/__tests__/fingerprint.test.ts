@@ -462,9 +462,9 @@ describe('sherlo fingerprint', () => {
       // Every request this CLI makes leaves through node's http/https - the one
       // door `node-fetch` and the reporting client both go out of.
       const requestSpies = [vi.spyOn(http, 'request'), vi.spyOn(https, 'request')];
-      // The command takes no token option; these are the two env vars a token
-      // would arrive in, and it must answer without either.
-      const tokenVariables = ['SHERLO_TOKEN', 'SHERLO_PERSONAL_TOKEN'];
+      // The command takes no token option; this is the env var a token would
+      // arrive in, and it must answer without it.
+      const tokenVariables = ['SHERLO_TOKEN'];
       const savedTokens = tokenVariables.map((name) => [name, process.env[name]] as const);
       for (const name of tokenVariables) delete process.env[name];
       logSpy.mockClear();

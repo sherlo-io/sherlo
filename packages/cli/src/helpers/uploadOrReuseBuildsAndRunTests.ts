@@ -246,7 +246,7 @@ async function uploadOrReuseBuildsAndRunTests({
       message:
         'This run cannot render a freshly built JS bundle, so it was not started.\n\n' +
         `${reasons.map((reason) => `  - ${reason}`).join('\n')}\n\n` +
-        'Every `sherlo test` run renders the bundle built from your current project, ' +
+        'Every `npx sherlo test` run renders the bundle built from your current project, ' +
         'spliced into the binary you passed. A binary that cannot take it would render ' +
         'the JS it was built with instead, so it is refused rather than tested stale.',
     });

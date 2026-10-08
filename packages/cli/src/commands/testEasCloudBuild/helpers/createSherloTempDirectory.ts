@@ -36,8 +36,8 @@ function createSherloTempDirectory({
     `### Why do I have a directory named "${SHERLO_TEMP_DIRECTORY}" in my project?
 
 This directory appears when you run test with EAS Cloud Build method using:
-- \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND} --${EAS_BUILD_SCRIPT_NAME_OPTION} <script_name>\`, or
-- \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND} --${WAIT_FOR_EAS_BUILD_OPTION}\`
+- \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND} --${EAS_BUILD_SCRIPT_NAME_OPTION} <script_name>\`, or
+- \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND} --${WAIT_FOR_EAS_BUILD_OPTION}\`
 
 If you use \`--${EAS_BUILD_SCRIPT_NAME_OPTION}\`, the directory should be auto-deleted when the
 build script completes. With \`--${WAIT_FOR_EAS_BUILD_OPTION}\`, you need to handle it yourself.

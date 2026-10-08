@@ -94,7 +94,7 @@ function getEasBuildOnCompleteError(packageJsonPath: string): string {
     `1. Make sure you're in the correct project directory (current: "${packageJsonPath}")\n` +
     `2. If not, specify the correct path using \`--${PROJECT_ROOT_OPTION}\` option\n` +
     '3. Add the following script to your package.json:\n\n' +
-    `"${EAS_BUILD_ON_COMPLETE_SCRIPT_NAME}": "sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND} --${PROFILE_OPTION} <your-eas-profile>"\n`
+    `"${EAS_BUILD_ON_COMPLETE_SCRIPT_NAME}": "npx sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND} --${PROFILE_OPTION} <your-eas-profile>"\n`
   );
 }
 

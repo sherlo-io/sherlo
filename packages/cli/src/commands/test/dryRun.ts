@@ -88,7 +88,7 @@ export async function runDryRunPreview({
 }): Promise<void> {
   reporting.addBreadcrumb({
     category: 'api',
-    message: 'Running sherlo test --dry-run preview',
+    message: 'Running npx sherlo test --dry-run preview',
     data: { teamId, projectIndex, platforms: platformsToTest },
     level: 'info',
   });

@@ -33,7 +33,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     logInfo({
       message:
         'EAS builds were created locally\n\n' +
-        `The \`sherlo ${THIS_COMMAND}\` command uploads builds made on Expo's servers.\n` +
+        `The \`npx sherlo ${THIS_COMMAND}\` command uploads builds made on Expo's servers.\n` +
         `To test on this machine, run \`npx sherlo ${TEST_COMMAND}\`, which builds the app itself.\n`,
       learnMoreLink: DOCS_LINK.testing,
     });
@@ -64,7 +64,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     throwError({
       message:
         `Can't upload the EAS build: no EAS profile is named. .sherlo/data.json names none, and --${PROFILE_OPTION} was not passed.\n` +
-        `Start the EAS builds with \`sherlo ${TEST_COMMAND}\`, which names the profile, or pass --${PROFILE_OPTION} <name>.`,
+        `Start the EAS builds with \`npx sherlo ${TEST_COMMAND}\`, which names the profile, or pass --${PROFILE_OPTION} <name>.`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
   }

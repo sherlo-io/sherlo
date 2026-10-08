@@ -26,7 +26,7 @@ export const STAGED_GATE_REFUSAL_PREFIX = 'STAGED_GATE_REFUSAL';
  * ./buildBundle, the routing output in ./nativeNeeded) so the guidance can never
  * differ between them.
  */
-export const FALLBACK_LINE = `Run \`sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> [--${IOS_OPTION} <path>]\` for a full build with the same options.`;
+export const FALLBACK_LINE = `Run \`npx sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> [--${IOS_OPTION} <path>]\` for a full build with the same options.`;
 
 export type StagedGateRefusal = {
   /** Machine-readable gate outcome (never "fast" - that path doesn't refuse). */

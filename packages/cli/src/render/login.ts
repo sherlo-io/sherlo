@@ -16,31 +16,55 @@ import chalk from 'chalk';
 /**
  * The authorize link, alone on its own line, printed BEFORE the browser is asked to open it - so a
  * person on another machine, or an agent passing it on, has it whether or not a browser comes up.
+ * It says the browser is about to open, so the new tab is no surprise.
  */
 export function renderLoginLink(authorizeUrl: string): string[] {
-  return ['Log in to Sherlo at this link:', '', `  ${chalk.cyan(authorizeUrl)}`, ''];
-}
-
-/** The line the wait opens with, and the one that says the browser did not come up. */
-export function renderLoginWaiting(browserOpened: boolean): string[] {
-  const waiting = `${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim(
-    '(Ctrl+C to stop)'
-  )}`;
-
-  if (browserOpened) return [waiting];
-
   return [
-    chalk.dim(
-      'The browser did not open. The link works on any device, so open it on your phone or another computer.'
-    ),
+    'Opening your browser to log in to Sherlo...',
+    chalk.dim("If it doesn't open, use this link on any device:"),
     '',
-    waiting,
+    `  ${chalk.cyan(authorizeUrl)}`,
+    '',
   ];
 }
 
-/** The login is saved: whose it is. */
-export function renderLoggedIn(email: string): string[] {
-  return ['', `${chalk.green('✔')}  Logged in as ${chalk.bold(email)}`, ''];
+/**
+ * The wait on a terminal: the text of a spinner the result replaces. The spinner draws its own
+ * frame where the plain line below has its hourglass. The same text whether or not the browser
+ * came up, because the link above already says what to do when it did not.
+ */
+export function renderLoginWaitingSpinner(): string {
+  return `Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`;
+}
+
+/**
+ * The wait anywhere but a terminal - a log, a pipe, an agent's shell - where a spinner would leave
+ * nothing readable. The line stays, and the one under it tells an agent it may leave the command
+ * running in the background while the person clicks, and that a rerun waits on the same link.
+ */
+export function renderLoginWaiting(): string[] {
+  return [
+    `${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`,
+    chalk.dim(
+      'An agent may run this in the background while the person clicks. Running it again waits on the same link.'
+    ),
+  ];
+}
+
+/**
+ * The login is saved: whose it is, and the command a person runs next - unless the login was made
+ * inside setup, which is that command already.
+ */
+export function renderLoggedIn(email: string, insideSetup?: true): string[] {
+  const loggedInLine = `${chalk.green('✔')}  Logged in as ${chalk.bold(email)}`;
+  if (insideSetup) return [loggedInLine, ''];
+
+  return [
+    loggedInLine,
+    '',
+    chalk.dim('Next: run `npx sherlo init` in your React Native app to set up Sherlo.'),
+    '',
+  ];
 }
 
 /** A saved login the service still accepts: no new login is started. */
@@ -48,7 +72,7 @@ export function renderAlreadyLoggedIn(email: string): string[] {
   return [
     `${chalk.green('✔')}  Already logged in as ${chalk.bold(email)}`,
     '',
-    chalk.dim('Run `sherlo logout` to log out.'),
+    chalk.dim('Run `npx sherlo logout` to log out.'),
     '',
   ];
 }
@@ -63,7 +87,7 @@ export function renderNotLoggedIn(): string[] {
   return [
     `${chalk.yellow('◦')}  Not logged in`,
     '',
-    chalk.dim('Run `sherlo login` to log in.'),
+    chalk.dim('Run `npx sherlo login` to log in.'),
     '',
   ];
 }

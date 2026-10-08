@@ -19,5 +19,9 @@ export default defineConfig({
     ],
     globals: true,
     maxWorkers,
+    // No test may touch this machine's keychain: a test that reaches the live saved logins keeps
+    // them in the file, under the temporary folder it points XDG_CONFIG_HOME at. The keychain's
+    // own cases hand the store a fake keychain instead.
+    env: { SHERLO_SAVED_LOGIN_STORE: 'file' },
   },
 });

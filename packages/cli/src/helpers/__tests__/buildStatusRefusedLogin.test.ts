@@ -51,7 +51,7 @@ describe('a refused credential while waiting', () => {
     expect(onTheLogin.printed).toContain(
       'Sherlo no longer accepts the login saved on this computer.'
     );
-    expect(onTheLogin.printed).toContain('Run `sherlo login` to log in again.');
+    expect(onTheLogin.printed).toContain('Run `npx sherlo login` to log in again.');
     expect(onTheLogin.printed).not.toContain('check your token');
 
     logSpy.mockClear();

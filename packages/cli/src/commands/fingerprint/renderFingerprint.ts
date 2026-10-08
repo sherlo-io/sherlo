@@ -18,7 +18,7 @@ const DELTA_MARK: Record<DeltaEntry['kind'], string> = {
 
 /** The reason the `js` layer has nothing to show when no bundle was supplied. */
 export const JS_NOT_COMPUTED_REASON =
-  'needs a module manifest; pass --bundle-dir <dir> written by `sherlo test --emit-bundle-dir`';
+  'needs a module manifest; pass --bundle-dir <dir> written by `npx sherlo test --emit-bundle-dir`';
 
 export function renderLayers(
   document: FingerprintDocument,

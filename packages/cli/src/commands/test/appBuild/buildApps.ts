@@ -166,7 +166,7 @@ async function refuseWhatThisMachineCannotBuild({
         throwError({
           message:
             "Can't build iOS here: iOS builds need macOS, and this machine runs Linux.\n" +
-            'Run `sherlo test --platform android` here and `sherlo test --platform ios` on a Mac.\n' +
+            'Run `npx sherlo test --platform android` here and `npx sherlo test --platform ios` on a Mac.\n' +
             'Two jobs in the same CI run join into one test.',
         });
       }
