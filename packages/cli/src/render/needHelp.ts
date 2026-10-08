@@ -19,29 +19,33 @@ export type FeedbackInvite = 'person' | 'agent' | 'none';
 
 export const FEEDBACK_HELP_LINE = 'npx sherlo feedback --help';
 
-/** The one separator every side note sits under. */
-const SIDE_NOTE_RULE = chalk.dim('═'.repeat(10) + '\n');
+const AGENT_FEEDBACK_WORDS = `AI agents: you can report anything unclear or broken to the Sherlo team: ${FEEDBACK_HELP_LINE}`;
 
-const PERSON_FEEDBACK_LINE = `${chalk.dim('➜')} Noticed something off? Tell us: ${chalk.cyan(FEEDBACK_HELP_LINE)}`;
-const AGENT_FEEDBACK_LINE = `AI agents: you can report anything unclear or broken to the Sherlo team: ${FEEDBACK_HELP_LINE}`;
+// Coloured at print time, never when this file loads: the colour a line gets depends on whether it
+// is printed to a terminal or a pipe, which is not known yet when the module is read.
+
+/** The one separator every side note sits under. */
+function sideNoteRule(): string {
+  return chalk.dim('═'.repeat(10) + '\n');
+}
 
 /**
  * The side note a test run ends with when an AI agent reads it. A person at a terminal is not shown
  * it - they have the help block when something fails.
  */
 export function renderAgentFeedbackAfterRun(): string[] {
-  return [SIDE_NOTE_RULE, chalk.dim(AGENT_FEEDBACK_LINE), ''];
+  return [sideNoteRule(), chalk.dim(AGENT_FEEDBACK_WORDS), ''];
 }
 
 export function renderNeedHelp(feedbackInvite: FeedbackInvite): string[] {
   const feedbackLines = {
-    person: [PERSON_FEEDBACK_LINE],
-    agent: [`${chalk.dim('➜')} ${AGENT_FEEDBACK_LINE}`],
+    person: [`${chalk.dim('➜')} Noticed something off? Tell us: ${chalk.cyan(FEEDBACK_HELP_LINE)}`],
+    agent: [`${chalk.dim('➜')} ${AGENT_FEEDBACK_WORDS}`],
     none: [],
   }[feedbackInvite];
 
   return [
-    SIDE_NOTE_RULE,
+    sideNoteRule(),
     chalk.dim('Stuck or something broken?'),
     ...feedbackLines,
     chalk.dim('➜ ') + chalk.dim(DISCORD_URL),
