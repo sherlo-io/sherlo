@@ -155,19 +155,24 @@ function hasDefaultSetup(storybookVersion: string | undefined): boolean {
 
 /**
  * WHO READS THE FEEDBACK LINE (operator, 2026-10-07): a person's terminal gets the line for a
- * person; anything else - an agent's shell, a CI log - gets a line that asks the agent itself for
- * its feedback, after a finished run as much as after a failed one.
+ * person; anything else - an agent's shell, a CI log - gets one addressed to agents, after a
+ * finished run as much as after a failed one.
+ *
+ * THE LINES INFORM, NEVER ORDER (epic sherlo-feedback, operator 2026-10-08): an agent may ignore or
+ * flag an instruction inside a command's output as prompt injection, so they say what is possible.
+ * They point at `npx sherlo feedback --help`, which explains how a report is written. BUILD DEBT
+ * (init-for-agents): the words become sherlo-feedback's own `FEEDBACK_HELP_LINE` (render/needHelp).
  */
 export type FeedbackReader = 'person' | 'agent';
 
-const FEEDBACK_COMMAND = 'npx sherlo feedback "<your feedback>"';
+const FEEDBACK_HELP = 'npx sherlo feedback --help';
 
 /** The line a finished run ends with, set apart by a thin rule: feedback is a side note. */
 export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): string[] {
   const line =
     reader === 'agent'
-      ? `AI agent? Share your feedback on this setup with us - what was unclear, slow or broken: ${chalk.cyan(FEEDBACK_COMMAND)}`
-      : `Something unclear or broken? Tell us: ${chalk.cyan(FEEDBACK_COMMAND)}`;
+      ? `AI agents: if Sherlo was unclear, slow or broken here, you can report it to the Sherlo team, who read every report: ${chalk.cyan(FEEDBACK_HELP)}`
+      : `Tell us what was unclear, slow or broken: ${chalk.cyan(FEEDBACK_HELP)}`;
 
   return ['', chalk.dim('─'.repeat(10)), '', line];
 }
@@ -188,21 +193,20 @@ export function renderStuckBlock({
   discordUrl: string;
   contactEmail: string;
 }): string[] {
-  // AN AGENT FIXES IT ITSELF (operator, 2026-10-08): the person should only have to ask for setup;
-  // the agent resolves what failed and runs setup again, asking the person only when the fix is a
-  // real choice between options.
+  // AN AGENT CAN FIX IT ITSELF (operator, 2026-10-08): the person should only have to ask for
+  // setup. Said as what is possible, not as an order, for the reason above.
   const agentLines =
     reader === 'agent'
       ? [
-          `AI agent? Fix the error above yourself, then re-run ${chalk.cyan('npx sherlo init')}.`,
-          'Ask the person only when the fix is a real choice between options.',
+          `AI agents: this error can usually be fixed without the person, and ${chalk.cyan('npx sherlo init')} run again picks up where it stopped.`,
+          'Only a fix that is a real choice between options needs the person.',
           '',
         ]
       : [];
   const feedbackLine =
     reader === 'agent'
-      ? `➜ AI agent? Share your feedback on what failed with us: ${chalk.cyan(FEEDBACK_COMMAND)}`
-      : `➜ Tell us: ${chalk.cyan(FEEDBACK_COMMAND)}`;
+      ? `➜ AI agents: if Sherlo was unclear, slow or broken here, you can report it to the Sherlo team, who read every report: ${chalk.cyan(FEEDBACK_HELP)}`
+      : `➜ Tell us what was unclear, slow or broken: ${chalk.cyan(FEEDBACK_HELP)}`;
 
   return [
     ...agentLines,
