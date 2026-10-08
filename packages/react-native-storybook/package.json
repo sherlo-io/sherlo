@@ -102,7 +102,7 @@
   "peerDependencies": {
     "@storybook/react-native": ">=8.0.0",
     "react": "*",
-    "react-native": ">=0.74.0",
+    "react-native": ">=0.81.0",
     "react-native-safe-area-context": "*"
   },
   "engines": {
