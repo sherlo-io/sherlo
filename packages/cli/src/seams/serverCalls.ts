@@ -151,8 +151,8 @@ export type ServerCalls = {
  * and nothing from sherlo.config.json beyond the project and its devices.
  */
 export type FeedbackContext = {
-  /** Who ran the command: an AI agent reading a pipe, or a person at a terminal. */
-  sentBy: 'agent' | 'person';
+  /** The AI agent that ran the command, by name ("Claude Code"); absent when a person did. */
+  agent?: string;
   /** The last Sherlo command this project ran, with its error lines, when one is recorded. */
   lastCommand?: { command: string; exitCode: number; errorLines: string[]; logFile?: string };
   cliVersion: string;

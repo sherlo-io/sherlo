@@ -5,7 +5,8 @@
  * Pure, like everything under ./: whoever prints it decides who reads it and passes that in.
  *
  * The feedback line is offered only to someone with a saved login, because feedback is sent with
- * the login and would refuse anyone else. A person and an AI agent are addressed in different words
+ * the login and would refuse anyone else. A person and an AI agent (known by its harness, see
+ * ../commands/feedback/whoToInviteToFeedback) are addressed in different words
  * (operator, 2026-10-08): a person's line makes reporting sound like a rare thing, never that the
  * tool is often broken; an agent's line is short. Both INFORM and never order: an agent treats
  * instructions in a command's output as untrusted and may ignore or flag them. Both point at --help,

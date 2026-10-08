@@ -7,8 +7,8 @@
  * quoted here-document on stdin (`-`), a file (`--file`) or quoted words, between 10 and 4,000
  * characters. It is sent with the login saved on this computer, and refused without one. Beside the
  * report it sends the facts needed to act on it - the last Sherlo command this project ran with its
- * error lines, the versions, package manager and operating system, and whether an agent or a person
- * sent it - and never a token. `--dry-run` prints exactly that and sends nothing.
+ * error lines, the versions, package manager and operating system, and which AI agent sent it, by
+ * name - and never a token. `--dry-run` prints exactly that and sends nothing.
  *
  * PLAN LAYER (epic sherlo-feedback): this body only prints. Collecting the context through the
  * existing helpers, recording each command's outcome and the live service call are build tasks.
@@ -25,6 +25,7 @@ import { FEEDBACK_HELP_LINE } from '../../render/needHelp';
 import { projectFiles } from '../../seams/projectFiles';
 import { savedLogins } from '../../seams/savedLogins';
 import { serverCalls, type FeedbackContext } from '../../seams/serverCalls';
+import { runningAgent } from './whoToInviteToFeedback';
 
 type FeedbackOptions = { kind?: string; file?: string; dryRun?: boolean };
 
@@ -163,7 +164,7 @@ function collectContext(): FeedbackContext {
     : {};
 
   return {
-    sentBy: process.stderr.isTTY ? 'person' : 'agent',
+    agent: runningAgent(),
     lastCommand: fs.existsSync(lastCommandPath)
       ? JSON.parse(fs.readFileSync(lastCommandPath, 'utf8'))
       : undefined,
