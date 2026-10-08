@@ -78,10 +78,9 @@ import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { logWarning, reporting, withCommandTimeout } from './helpers';
-import { getEndpointUrl } from './helpers/buildStatusRequest';
-import { renderNeedHelp, type FeedbackInvite } from './render/needHelp';
+import { whoToInviteToFeedback } from './commands/feedback/whoToInviteToFeedback';
+import { renderNeedHelp } from './render/needHelp';
 import { renderFeedbackFormat } from './render/feedback';
-import { savedLogins } from './seams/savedLogins';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -151,26 +150,6 @@ async function start() {
 }
 
 export default start;
-
-/**
- * Who the help block invites to send feedback. Feedback is sent with the saved login, so nobody is
- * invited without one; nor is anyone whose feedback itself just failed. An AI agent reads a pipe,
- * a person a terminal.
- */
-function whoToInviteToFeedback(): FeedbackInvite {
-  if (process.argv[2] === FEEDBACK_COMMAND) return 'none';
-
-  const hasSavedLogin = (() => {
-    try {
-      return Boolean(savedLogins().read(getEndpointUrl()));
-    } catch {
-      return false;
-    }
-  })();
-  if (!hasSavedLogin) return 'none';
-
-  return process.stderr.isTTY ? 'person' : 'agent';
-}
 
 /* ========================================================================== */
 

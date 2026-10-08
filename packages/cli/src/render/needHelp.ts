@@ -18,6 +18,19 @@ export type FeedbackInvite = 'person' | 'agent' | 'none';
 
 export const FEEDBACK_HELP_LINE = 'npx sherlo feedback --help';
 
+/**
+ * The last line of a test run an AI agent reads: what feedback is for, never an order. A person at
+ * a terminal is not shown it - they have the help block when something fails.
+ */
+export function renderAgentFeedbackAfterRun(): string[] {
+  return [
+    chalk.dim(
+      `AI agents: if Sherlo was unclear, slow or broken in this run, you can report it to the Sherlo team, who read every report: ${FEEDBACK_HELP_LINE}`
+    ),
+    '',
+  ];
+}
+
 export function renderNeedHelp(feedbackInvite: FeedbackInvite): string[] {
   const feedbackLines = {
     person: [`${chalk.dim('➜')} Tell us what was unclear, slow or broken: ${chalk.cyan(FEEDBACK_HELP_LINE)}`],

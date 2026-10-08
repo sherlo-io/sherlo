@@ -52,6 +52,7 @@ import { renderCapturedStory } from './capturedStory';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
 import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
+import { renderAgentFeedbackAfterRun } from './needHelp';
 import {
   renderAlreadyLoggedIn,
   renderLoggedIn,
@@ -488,6 +489,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         stream: 'stdout',
         prints: renderFeedbackDryRun(segment.report, segment.context).map((line) => [line]),
       };
+
+    case 'agent-feedback-after-run':
+      return { stream: 'stdout', prints: renderAgentFeedbackAfterRun().map((line) => [line]) };
   }
 }
 
