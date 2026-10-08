@@ -724,7 +724,7 @@ const PINS: Pin[] = [
       ['teamName=Design Guild'],
       [''],
       [
-        `${ESC}[2mNext: invite members from the web app, or create its first project with \`sherlo project create --name <name> --team <id>\`.${ESC}[22m`,
+        `${ESC}[2mNext: invite members from the web app, or create its first project with \`npx sherlo project create --name <name> --team <id>\`.${ESC}[22m`,
       ],
       [''],
     ],
@@ -752,7 +752,7 @@ const PINS: Pin[] = [
       ],
       [``],
       [
-        `${ESC}[2mNext: \`sherlo project list --team <id>\` shows a team's projects; \`sherlo team create --name <name>\` adds a team.${ESC}[22m`,
+        `${ESC}[2mNext: \`npx sherlo project list --team <id>\` shows a team's projects; \`npx sherlo team create --name <name>\` adds a team.${ESC}[22m`,
       ],
       [``],
     ],
@@ -779,7 +779,7 @@ const PINS: Pin[] = [
       [`  2  Design System  ${ESC}[2mno builds yet${ESC}[22m`],
       [''],
       [
-        `${ESC}[2mNext: \`sherlo project create --name <name> --team <id>\` adds one; \`sherlo view <build>\` opens a build.${ESC}[22m`,
+        `${ESC}[2mNext: \`npx sherlo project create --name <name> --team <id>\` adds one; \`npx sherlo view <build>\` opens a build.${ESC}[22m`,
       ],
       [''],
     ],
@@ -796,7 +796,7 @@ const PINS: Pin[] = [
     prints: [
       [`${ESC}[32m✔${ESC}[39m  ${ESC}[1mfoundation-typography--scales${ESC}[22m is on screen`],
       [''],
-      [`${ESC}[2mNext: \`sherlo capture\` records it the way a test run would.${ESC}[22m`],
+      [`${ESC}[2mNext: \`npx sherlo capture\` records it the way a test run would.${ESC}[22m`],
       [''],
     ],
   },
@@ -949,7 +949,8 @@ const PINS: Pin[] = [
     segment: { kind: 'login-link', authorizeUrl: 'https://app.sherlo.io/cli-login/lg7Qm2Xa' },
     stream: 'stdout',
     prints: [
-      [`Log in to Sherlo at this link:`],
+      [`Opening your browser to log in to Sherlo...`],
+      [`${ESC}[2mIf it doesn't open, use this link on any device:${ESC}[22m`],
       [``],
       [`  ${ESC}[36mhttps://app.sherlo.io/cli-login/lg7Qm2Xa${ESC}[39m`],
       [``],
@@ -957,16 +958,15 @@ const PINS: Pin[] = [
   },
   {
     kind: 'login-waiting',
-    what: 'the wait, after the line that says no browser came up - the link above still stands',
-    segment: { kind: 'login-waiting', browserOpened: false },
+    what: 'the wait off a terminal - a plain line that stays, and tells an agent it may wait in the background',
+    segment: { kind: 'login-waiting' },
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[2mThe browser did not open. The link works on any device, so open it on your phone or another computer.${ESC}[22m`,
-      ],
-      [``],
-      [
         `${ESC}[33m⏳${ESC}[39m Waiting for you to click Authorize... ${ESC}[2m(Ctrl+C to stop)${ESC}[22m`,
+      ],
+      [
+        `${ESC}[2mAn agent may run this in the background while the person clicks. Running it again waits on the same link.${ESC}[22m`,
       ],
     ],
   },
@@ -976,8 +976,11 @@ const PINS: Pin[] = [
     segment: { kind: 'logged-in', email: 'anna@example.com' },
     stream: 'stdout',
     prints: [
-      [``],
       [`${ESC}[32m✔${ESC}[39m  Logged in as ${ESC}[1manna@example.com${ESC}[22m`],
+      [``],
+      [
+        `${ESC}[2mNext: run \`npx sherlo init\` in your React Native app to set up Sherlo.${ESC}[22m`,
+      ],
       [``],
     ],
   },
@@ -989,7 +992,7 @@ const PINS: Pin[] = [
     prints: [
       [`${ESC}[32m✔${ESC}[39m  Already logged in as ${ESC}[1manna@example.com${ESC}[22m`],
       [``],
-      [`${ESC}[2mRun \`sherlo logout\` to log out.${ESC}[22m`],
+      [`${ESC}[2mRun \`npx sherlo logout\` to log out.${ESC}[22m`],
       [``],
     ],
   },
@@ -1008,7 +1011,7 @@ const PINS: Pin[] = [
     prints: [
       [`${ESC}[33m◦${ESC}[39m  Not logged in`],
       [``],
-      [`${ESC}[2mRun \`sherlo login\` to log in.${ESC}[22m`],
+      [`${ESC}[2mRun \`npx sherlo login\` to log in.${ESC}[22m`],
       [``],
     ],
   },

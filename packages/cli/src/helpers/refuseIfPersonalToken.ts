@@ -1,4 +1,5 @@
-import { APP_DOMAIN, PERSONAL_TOKEN_FLAG, TOKEN_OPTION } from '../constants';
+import { APP_DOMAIN, TOKEN_OPTION } from '../constants';
+import { LOGIN_COMMAND } from '../commands/login/constants';
 import isPersonalToken from './isPersonalToken';
 import throwError from './throwError';
 
@@ -14,25 +15,27 @@ import throwError from './throwError';
  * point of the `sht_` prefix is that the CLI can be PRECISE about this mistake
  * rather than falling back on "invalid token".
  *
+ * It points a person at `sherlo login`, never at a flag for a personal token:
+ * the login is the only way the tool takes one.
+ *
  * THE TOKEN IS NEVER PUT IN THE MESSAGE OR IN THE REPORT. It is a live
  * credential someone just mistyped a flag for; a refusal that echoes it into a
  * CI log or a crash report turns a harmless mistake into a leak.
  */
-function refuseIfPersonalToken(token: string, optionName: string = TOKEN_OPTION): void {
+function refuseIfPersonalToken(token: string): void {
   if (!isPersonalToken(token)) return;
 
   throwError({
     type: 'auth',
     message:
-      `\`--${optionName}\` wants a project token, and this is a personal token.\n` +
+      `\`--${TOKEN_OPTION}\` wants a project token, and this is a personal token.\n` +
       '\n' +
       '  A personal token (`sht_...`) names a PERSON. It carries no team and no\n' +
       '  project, so nothing here can tell which project you meant. A project token\n' +
       "  names exactly one project - copy it from that project's settings at\n" +
       `  ${APP_DOMAIN}.\n` +
       '\n' +
-      `  The personal token belongs on \`--${PERSONAL_TOKEN_FLAG}\`.\n` +
-      '  Or run `sherlo login` once, and no token is needed.',
+      `  Or run \`npx sherlo ${LOGIN_COMMAND}\` once, and no token is needed.`,
   });
 }
 

@@ -24,7 +24,7 @@ export type TeamCreated = {
 };
 
 const NEXT_STEP =
-  'Next: invite members from the web app, or create its first project with `sherlo project create --name <name> --team <id>`.';
+  'Next: invite members from the web app, or create its first project with `npx sherlo project create --name <name> --team <id>`.';
 
 /** Every line the command prints on success, in order. */
 export function renderTeamCreated({ name, id }: TeamCreated): string[] {

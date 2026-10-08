@@ -5,30 +5,30 @@
  */
 import { PROJECT_OPTION } from '../../../constants';
 import { throwError } from '../../../helpers';
+import type { SavedLogin } from '../../../seams/savedLogins';
 import { serverCalls } from '../../../seams/serverCalls';
-import type { ResolvedPersonalToken } from '../../shared/resolvePersonalToken';
 import type { ProjectAddress } from './projectAddress';
 import refuseFailedServiceCall from './refuseFailedServiceCall';
 
 async function checkGivenProject({
   givenProject,
   projectAsGiven,
-  person: { personalToken, fromSavedLogin },
+  login,
 }: {
   givenProject: ProjectAddress;
   projectAsGiven: string;
-  person: ResolvedPersonalToken;
+  login: SavedLogin;
 }): Promise<void> {
   const { teams } = await serverCalls()
-    .listTeams({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .listTeams({ personalToken: login.token })
+    .catch(refuseFailedServiceCall);
 
   const isInTheTeam = teams.some((team) => team.id === givenProject.teamId);
   if (!isInTheTeam) refuseUnreachableProject(projectAsGiven);
 
   const { projects } = await serverCalls()
-    .listProjects({ teamId: givenProject.teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .listProjects({ teamId: givenProject.teamId, personalToken: login.token })
+    .catch(refuseFailedServiceCall);
 
   const projectExists = projects.some((project) => project.index === givenProject.projectIndex);
   if (!projectExists) refuseUnreachableProject(projectAsGiven);
@@ -42,7 +42,7 @@ function refuseUnreachableProject(projectAsGiven: string): never {
   throwError({
     message:
       `You have no access to the project \`${projectAsGiven}\`.\n` +
-      '  Run `sherlo project list --team <id>` to see the projects you can reach.\n' +
+      '  Run `npx sherlo project list --team <id>` to see the projects you can reach.\n' +
       `  Or leave out \`--${PROJECT_OPTION}\` and choose one.`,
   });
 }

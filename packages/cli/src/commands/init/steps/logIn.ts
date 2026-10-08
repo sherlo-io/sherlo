@@ -9,15 +9,14 @@
  * waits, and what it says while it waits, is SLH's too.
  */
 import ansiEscapes from 'ansi-escapes';
-import { renderLoginLink, renderLoginWaiting } from '../../../render/login';
+import { renderLoginLink } from '../../../render/login';
 import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import { renderStepLine } from '../../../render/initSteps';
-import { savedLogins } from '../../../seams/savedLogins';
+import { savedLogins, type SavedLogin } from '../../../seams/savedLogins';
 import { logInThroughTheBrowser } from '../../login/login';
-import type { ResolvedPersonalToken } from '../../shared/resolvePersonalToken';
 import { printLines } from '../helpers';
 
-async function logIn(): Promise<ResolvedPersonalToken> {
+async function logIn(): Promise<SavedLogin> {
   const serviceAddress = getEndpointUrl();
 
   const savedLogin = savedLogins().read(serviceAddress);
@@ -25,7 +24,7 @@ async function logIn(): Promise<ResolvedPersonalToken> {
     // Not marked as already done: like the team and project lines after it, being logged in is
     // where setup starts from, not work it did.
     printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: savedLogin.email })]);
-    return { personalToken: savedLogin.token, fromSavedLogin: true };
+    return savedLogin;
   }
 
   // The login block stands apart from the list while it waits...
@@ -33,19 +32,18 @@ async function logIn(): Promise<ResolvedPersonalToken> {
   const newLogin = await logInThroughTheBrowser(serviceAddress);
 
   // ...and in a terminal, once Authorize is clicked, it gives way to one line like every other
-  // step's. Where nothing can be erased - an agent reading a pipe - the block stays, and the line
-  // follows it.
+  // step's: the login's wait was a spinner there, gone by now, so only the link block is left to
+  // erase. Where nothing can be erased - an agent reading a pipe - the block and its wait lines
+  // stay, and the login already left a blank line under them.
   // BUILD DEBT (init-for-agents): one shared check, in ../../../helpers, that every command asks
-  // whether its output is a person's terminal - a TTY, with no CI set and TERM not "dumb", the
-  // same test the spinner's library makes - so the spinner and this erase never disagree.
-  if (process.stdout.isTTY && !process.env.CI && process.env.TERM !== 'dumb') {
-    process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted(newLogin.browserOpened) + 1));
-  } else {
-    printLines(['']);
+  // whether its output is a person's terminal, so the login's spinner, init's spinners and this
+  // erase never disagree. Today it is the login's own test.
+  if (process.stderr.isTTY && process.stdout.isTTY) {
+    process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted() + 1));
   }
   printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
 
-  return { personalToken: newLogin.token, fromSavedLogin: true };
+  return newLogin;
 }
 
 export default logIn;
@@ -53,14 +51,13 @@ export default logIn;
 /* ========================================================================== */
 
 /**
- * How many lines the login block took, counting the blank line above it: the link and the lines
- * around it (../../../render/login renderLoginLink), then the wait - one line, or three when the
- * browser did not open.
+ * How many lines the login block left in a terminal, counting the blank line above it: the link and
+ * the lines around it (../../../render/login renderLoginLink). The wait was a spinner, which leaves
+ * none.
  */
-function linesTheLoginPrinted(browserOpened: boolean): number {
+function linesTheLoginPrinted(): number {
   const blankLineAbove = 1;
   const linkBlock = renderLoginLink('').length;
-  const waitBlock = renderLoginWaiting(browserOpened).length;
 
-  return blankLineAbove + linkBlock + waitBlock;
+  return blankLineAbove + linkBlock;
 }

@@ -16,7 +16,7 @@ import { APP_DOMAIN, FULL_INIT_COMMAND, TEAM_OPTION } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
-import type { ResolvedPersonalToken } from '../../shared/resolvePersonalToken';
+import type { SavedLogin } from '../../../seams/savedLogins';
 import hasConfigFile from '../config/hasConfigFile';
 import readConfig from '../config/readConfig';
 import { printLines } from '../helpers';
@@ -27,7 +27,7 @@ import refuseFailedServiceCall from '../project/refuseFailedServiceCall';
 export type SettledProject = { projectId: string; projectPageUrl: string };
 
 async function teamAndProject(
-  person: ResolvedPersonalToken,
+  person: SavedLogin,
   { teamFlag, projectFlag }: { teamFlag: string | undefined; projectFlag: string | undefined }
 ): Promise<SettledProject> {
   // `--project` is how the web app's setup line connects init to a project made there; it wins over
@@ -51,11 +51,11 @@ export default teamAndProject;
 /** The team and project a config already names, by name - refused when this person cannot reach them. */
 async function showProjectInConfig(
   project: ProjectAddress,
-  { personalToken, fromSavedLogin }: ResolvedPersonalToken
+  { token: personalToken }: SavedLogin
 ): Promise<void> {
   const { team, projects } = await serverCalls()
     .listProjects({ teamId: project.teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .catch((error: Error) => refuseFailedServiceCall(error));
 
   const projectInTeam = projects.find(({ index }) => index === project.projectIndex);
   if (!projectInTeam) {
@@ -81,12 +81,12 @@ async function showProjectInConfig(
 
 /** `--team`, the one team the person is in, or a new one named after them. */
 async function chooseTeam(
-  { personalToken, fromSavedLogin }: ResolvedPersonalToken,
+  { token: personalToken }: SavedLogin,
   teamFlag: string | undefined
 ): Promise<string> {
   const { teams } = await serverCalls()
     .listTeams({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .catch((error: Error) => refuseFailedServiceCall(error));
 
   const namedTeam = teamFlag ? teams.find(({ id }) => id === teamFlag) : undefined;
   const onlyTeam = teams.length === 1 ? teams[0] : undefined;
@@ -114,11 +114,11 @@ async function chooseTeam(
 
   const { name } = await serverCalls()
     .whoAmI({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .catch((error: Error) => refuseFailedServiceCall(error));
 
   const newTeam = await serverCalls()
     .createTeam({ name: teamNameFor(name), personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .catch((error: Error) => refuseFailedServiceCall(error));
 
   printLines([renderStepLine({ outcome: 'done', name: 'Created team', detail: newTeam.name })]);
   return newTeam.id;
@@ -127,11 +127,11 @@ async function chooseTeam(
 /** A new project in the team, named after the app. */
 async function createProject(
   teamId: string,
-  { personalToken, fromSavedLogin }: ResolvedPersonalToken
+  { token: personalToken }: SavedLogin
 ): Promise<ProjectAddress> {
   const newProject = await serverCalls()
     .createProject({ name: appName(), teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, { fromSavedLogin }));
+    .catch((error: Error) => refuseFailedServiceCall(error));
 
   const project = { teamId, projectIndex: newProject.index };
 

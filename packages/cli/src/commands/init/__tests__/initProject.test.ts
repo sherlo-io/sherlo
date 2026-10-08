@@ -36,7 +36,6 @@ const OTHER_TEAM_ID = 'zz99yy88';
 /** A project token for project 4 of TEAM_ID: 32 characters of api token, the team id, the number. */
 const PROJECT_TOKEN = `${'a'.repeat(32)}${TEAM_ID}4`;
 
-const FLAG_TOKEN = 'sht_flagtoken0000000000000000000000';
 const ENV_TOKEN = 'sht_envtoken00000000000000000000000';
 const SAVED_TOKEN = 'sht_savedtoken000000000000000000000';
 const LOGIN_TOKEN = 'sht_logintoken000000000000000000000';
@@ -94,48 +93,34 @@ const LIST_PROJECTS: ScriptedCall = {
 const CHECK_PROJECT: ScriptedCall[] = [LIST_TEAMS, LIST_PROJECTS];
 
 describe('setup names the project', () => {
-  it('setup spends --personal-token, then SHERLO_PERSONAL_TOKEN, then the saved login, and runs the login only when it has none', async () => {
+  it('setup spends the saved login, and runs the login only when there is none', async () => {
     const givenProject = { project: `${TEAM_ID}/4` };
 
-    const withAll = await runProjectStep({
-      options: { ...givenProject, personalToken: FLAG_TOKEN },
-      env: { SHERLO_PERSONAL_TOKEN: ENV_TOKEN },
-      logins: SAVED_LOGIN,
-      api: CHECK_PROJECT,
-    });
-    expect(withAll.tokensSpent).toEqual([FLAG_TOKEN, FLAG_TOKEN]);
-
-    const withEnvAndLogin = await runProjectStep({
+    // A personal token in the environment is not a credential setup takes: the login is spent.
+    const withLogin = await runProjectStep({
       options: givenProject,
       env: { SHERLO_PERSONAL_TOKEN: ENV_TOKEN },
       logins: SAVED_LOGIN,
       api: CHECK_PROJECT,
     });
-    expect(withEnvAndLogin.tokensSpent).toEqual([ENV_TOKEN, ENV_TOKEN]);
+    expect(withLogin.tokensSpent).toEqual([SAVED_TOKEN, SAVED_TOKEN]);
 
-    const withLoginOnly = await runProjectStep({
-      options: givenProject,
-      logins: SAVED_LOGIN,
-      api: CHECK_PROJECT,
-    });
-    expect(withLoginOnly.tokensSpent).toEqual([SAVED_TOKEN, SAVED_TOKEN]);
+    // It started no login: its script holds no login call, and every scripted call was made.
+    expect(withLogin.refusal).toBeUndefined();
+    expect(withLogin.unansweredCalls).toEqual([]);
+    expect(withLogin.unusedCalls).toEqual([]);
+    expect(withLogin.printed).not.toContain('Opening your browser to log in to Sherlo...');
 
-    // None of the three runs above started a login: their scripts hold no login call, and every
-    // scripted call was made.
-    for (const run of [withAll, withEnvAndLogin, withLoginOnly]) {
-      expect(run.refusal).toBeUndefined();
-      expect(run.unansweredCalls).toEqual([]);
-      expect(run.unusedCalls).toEqual([]);
-      expect(run.printed).not.toContain('Log in to Sherlo at this link:');
-    }
-
+    // No saved login: the SHERLO_PERSONAL_TOKEN set here is ignored, as the browser login it runs
+    // shows.
     const withNothing = await runProjectStep({
       options: givenProject,
+      env: { SHERLO_PERSONAL_TOKEN: ENV_TOKEN },
       api: [...THE_BROWSER_LOGIN, ...CHECK_PROJECT],
     });
     expect(withNothing.refusal).toBeUndefined();
     expect(withNothing.unusedCalls).toEqual([]);
-    expect(withNothing.printed).toContain('Log in to Sherlo at this link:');
+    expect(withNothing.printed).toContain('Opening your browser to log in to Sherlo...');
     expect(withNothing.printed).toContain('Logged in as new@example.com');
     // The login it ran is the one it spends.
     expect(withNothing.tokensSpent).toEqual([LOGIN_TOKEN, LOGIN_TOKEN]);
@@ -170,7 +155,7 @@ describe('setup names the project', () => {
     });
     expect(notTheirTeam.refusal).toBe(
       'You have no access to the project `nothers1/4`.\n' +
-        '  Run `sherlo project list --team <id>` to see the projects you can reach.\n' +
+        '  Run `npx sherlo project list --team <id>` to see the projects you can reach.\n' +
         '  Or leave out `--project` and choose one.'
     );
 
@@ -310,11 +295,11 @@ type AskedQuestion = { question: string; choices?: string[] };
 
 /**
  * Run the project step on posed seams and a workstation that answers from `answers`, in order.
- * Answers what it printed, what it refused with, the project it settled, every personal token it
+ * Answers what it printed, what it refused with, the project it settled, every login token it
  * spent on a call, and every question it asked.
  */
 async function runProjectStep(world: {
-  options: { token?: string; personalToken?: string; project?: string };
+  options: { token?: string; project?: string };
   env?: Record<string, string>;
   logins?: PosedLogins;
   api: ScriptedCall[];

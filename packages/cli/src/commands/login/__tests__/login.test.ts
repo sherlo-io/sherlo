@@ -33,7 +33,7 @@ const ENV = { SKIP_INTRO: 'true', SHERLO_API_URL: SERVICE_ADDRESS };
 
 const LOGIN_ID = 'lg7Qm2Xa';
 const EXPIRES_AT = '2026-10-01T12:10:00.000Z';
-/** A moment inside the pending login's ten minutes. */
+/** A moment before the pending login's expiry. */
 const BEFORE_EXPIRY = '2026-10-01T12:00:05.000Z';
 /** A moment after the pending login expired. */
 const AFTER_EXPIRY = '2026-10-01T12:10:01.000Z';
@@ -61,6 +61,8 @@ const APPROVED = poll({ status: 'approved', email: EMAIL, token: LOGIN_TOKEN });
 
 describe('sherlo login', () => {
   it('prints the authorize link on its own line whether or not the browser opened', async () => {
+    const screens: string[] = [];
+
     for (const opened of [true, false]) {
       const { screen, exitCode, refusals } = await runPose(
         loginPose({ api: [START, APPROVED], browser: { opened } })
@@ -70,10 +72,11 @@ describe('sherlo login', () => {
       expect(exitCode).toBe(0);
       // The link is alone on its line: nothing but the indent around it once the colour is off.
       expect(plainLines(screen)).toContain('  <LOGIN_LINK>');
-
-      const saysBrowserDidNotOpen = plain(screen).includes('The browser did not open.');
-      expect(saysBrowserDidNotOpen, `browser opened: ${opened}`).toBe(!opened);
+      screens.push(screen);
     }
+
+    // One text for every case: the words under the link already say what to do without a browser.
+    expect(screens[0]).toBe(screens[1]);
   });
 
   it("saves the token and prints Logged in as the person's email once the person authorizes", async () => {
@@ -153,10 +156,9 @@ describe('sherlo login', () => {
 
       expect(refusals).toEqual([]);
       expect(unusedCalls).toEqual([]);
-      expect(plain(screen)).toContain(
-        'ERROR: The login expired. Nobody clicked Authorize within 10 minutes.'
-      );
-      expect(plain(screen)).toContain('Run `sherlo login` to start a new one.');
+      expect(plain(screen)).toContain('ERROR: The login expired');
+      expect(plain(screen)).toContain('Nobody clicked Authorize in time.');
+      expect(plain(screen)).toContain('Run `npx sherlo login` to start a new one.');
       expect(exitCode).toBe(1);
     }
   });
@@ -168,14 +170,14 @@ describe('sherlo login', () => {
 
     expect(refusals).toEqual([]);
     expect(plain(screen)).toContain('ERROR: The login was canceled in the browser.');
-    expect(plain(screen)).toContain('Run `sherlo login` to start a new one.');
+    expect(plain(screen)).toContain('Run `npx sherlo login` to start a new one.');
     expect(exitCode).toBe(1);
   });
 });
 
 /* ========================================================================== */
 
-/** A `sherlo login` pose: a browser that opened, a clock inside the login's ten minutes. */
+/** A `sherlo login` pose: a browser that opened, a clock before the login's expiry. */
 function loginPose(stated: Partial<CommandPose>): CommandPose {
   return {
     pose: 1,

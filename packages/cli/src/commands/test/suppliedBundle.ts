@@ -89,7 +89,7 @@ export async function resolveSuppliedBundle({
   if (!fs.existsSync(bundleDir)) {
     throw new Error(
       `The supplied bundle directory does not exist: ${bundleDir}` +
-        '\n\nPoint `--bundle-dir` at a directory produced by `sherlo test --emit-bundle-dir <dir>`.' +
+        '\n\nPoint `--bundle-dir` at a directory produced by `npx sherlo test --emit-bundle-dir <dir>`.' +
         FALLBACK_LINE
     );
   }
@@ -111,7 +111,7 @@ export async function resolveSuppliedBundle({
         'Without the manifest every run would silently capture every story instead ' +
         'of only what changed, so an incomplete directory is refused rather than ' +
         'quietly rebuilt.\n\n' +
-        'Produce a complete directory with `sherlo test --emit-bundle-dir <dir>`.' +
+        'Produce a complete directory with `npx sherlo test --emit-bundle-dir <dir>`.' +
         FALLBACK_LINE
     );
   }
@@ -180,7 +180,7 @@ export async function resolveSuppliedBundle({
     throw new Error(
       `The supplied ${platform} module manifest at ${manifestPath} is not a valid ` +
         'manifest (expected version, header, moduleHashes, storyClosures).\n\n' +
-        'Re-emit the bundle directory with `sherlo test --emit-bundle-dir <dir>`.' +
+        'Re-emit the bundle directory with `npx sherlo test --emit-bundle-dir <dir>`.' +
         FALLBACK_LINE
     );
   }
@@ -206,7 +206,7 @@ export async function resolveSuppliedBundle({
         `${mismatches.map((m) => `  - ${m}`).join('\n')}\n\n` +
         'Running a bundle built from different inputs would test code that is not ' +
         'this commit, so it is refused rather than uploaded. Re-emit the bundle ' +
-        'directory from this project with `sherlo test --emit-bundle-dir <dir>`.' +
+        'directory from this project with `npx sherlo test --emit-bundle-dir <dir>`.' +
         FALLBACK_LINE
     );
   }

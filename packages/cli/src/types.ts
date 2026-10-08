@@ -16,7 +16,6 @@ import {
   IOS_OPTION,
   MESSAGE_OPTION,
   METADATA_OPTION,
-  PERSONAL_TOKEN_OPTION,
   PROFILE_OPTION,
   PROJECT_OPTION,
   PROJECT_ROOT_OPTION,
@@ -114,7 +113,6 @@ type CommandOptions = {
    * paths pick the standard road, everything else belongs to the staged one.
    */
   [TEST_COMMAND]: {
-    [PERSONAL_TOKEN_OPTION]?: string;
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
@@ -142,21 +140,16 @@ type CommandOptions = {
     [EMIT_BUNDLE_DIR_OPTION]?: string;
   };
   /**
-   * `sherlo view`'s one option of its own is `--personal-token`, which it shares
-   * with `sherlo test` and not with the EAS commands. The build it looks at is a
-   * POSITIONAL argument (see commands/view), and everything else it accepts -
-   * the token, the config, `--wait`, `--wait-timeout`, `--metadata` - is
-   * already common to every command.
+   * `sherlo view` has no option of its own. The build it looks at is a POSITIONAL argument (see
+   * commands/view), and everything else it accepts - the token, the config, `--wait`,
+   * `--wait-timeout`, `--metadata` - is common to every command.
    */
-  [VIEW_COMMAND]: {
-    [PERSONAL_TOKEN_OPTION]?: string;
-  };
+  [VIEW_COMMAND]: Record<never, never>;
   /**
-   * `sherlo init` names the project with `--project`, and spends `--personal-token` to check it or
-   * to choose one (commands/init/project). `--token` is common to every command.
+   * `sherlo init` names the project with `--project`, and spends the saved login to check it or to
+   * choose one (commands/init/project). `--token` is common to every command.
    */
   [INIT_COMMAND]: {
-    [PERSONAL_TOKEN_OPTION]?: string;
     [PROJECT_OPTION]?: string;
   };
   any: Partial<
@@ -176,8 +169,8 @@ export type CommandParams<C extends Command | 'any' = 'any'> = Config &
  * and the project of a push). Resolved once, before any request, by
  * helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
  *
- * `token` is what the push hands the server seam on both: the project token whole, or the
- * personal token.
+ * `token` is what the push hands the server seam on both: the project token whole, or the saved
+ * login's token.
  *
  * `fromSavedLogin` says whether the token is the login saved on this computer, because the service
  * refusing a saved login is answered differently from refusing a token somebody gave: the person
@@ -195,13 +188,13 @@ export type ProjectTokenCredential = {
   fromSavedLogin: false;
 };
 
-/** A personal token or the saved login, and the team and project the config's `project` names. */
+/** The saved login, and the team and project the config's `project` names. */
 export type PersonCredential = {
   kind: 'person';
   token: string;
   teamId: string;
   projectIndex: number;
-  fromSavedLogin: boolean;
+  fromSavedLogin: true;
 };
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &

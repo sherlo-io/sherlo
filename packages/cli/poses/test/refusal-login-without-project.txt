@@ -11,7 +11,7 @@
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
 [31mERROR: sherlo.config.json names no project, so your login has nowhere to push.[39m
-[31m  Run `sherlo init` to choose one. It writes `project` into the config.[39m
+[31m  Run `npx sherlo init` to choose one. It writes `project` into the config.[39m
 
 [2m══════════[22m
 [2m[22m

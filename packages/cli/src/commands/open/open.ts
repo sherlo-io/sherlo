@@ -38,7 +38,7 @@ async function open(passedOptions: OpenOptions): Promise<void> {
   if (!storyId) {
     throwError({
       message:
-        `\`sherlo open\` needs the story to open: \`--${STORY_OPTION} <id>\`.\n` +
+        `\`npx sherlo open\` needs the story to open: \`--${STORY_OPTION} <id>\`.\n` +
         '\n' +
         '  A story id is what Storybook calls it, e.g. `foundation-typography--scales`.',
     });

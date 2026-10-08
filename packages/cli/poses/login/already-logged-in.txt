@@ -1,6 +1,6 @@
 [32m✔[39m  Already logged in as [1manna@example.com[22m
 
-[2mRun `sherlo logout` to log out.[22m
+[2mRun `npx sherlo logout` to log out.[22m
 
 
 [exit 0]

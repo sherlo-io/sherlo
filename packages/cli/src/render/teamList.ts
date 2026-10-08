@@ -28,8 +28,8 @@ export type TeamList = {
 };
 
 const NEXT_STEP =
-  "Next: `sherlo project list --team <id>` shows a team's projects; `sherlo team create --name <name>` adds a team.";
-const EMPTY_NEXT_STEP = 'Next: `sherlo team create --name <name>` makes your first team.';
+  "Next: `npx sherlo project list --team <id>` shows a team's projects; `npx sherlo team create --name <name>` adds a team.";
+const EMPTY_NEXT_STEP = 'Next: `npx sherlo team create --name <name>` makes your first team.';
 
 /** Every line the command prints on success, in order. */
 export function renderTeamList({ teams }: TeamList): string[] {

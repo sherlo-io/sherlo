@@ -3,7 +3,7 @@
 teamId=<TEAM>
 teamName=Storefront
 
-[2mNext: invite members from the web app, or create its first project with `sherlo project create --name <name> --team <id>`.[22m
+[2mNext: invite members from the web app, or create its first project with `npx sherlo project create --name <name> --team <id>`.[22m
 
 
 [exit 0]

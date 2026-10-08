@@ -36,7 +36,7 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
   if (!storyId) {
     throwError({
       message:
-        `\`sherlo capture\` needs the story to capture: \`--${STORY_OPTION} <id>\`.\n` +
+        `\`npx sherlo capture\` needs the story to capture: \`--${STORY_OPTION} <id>\`.\n` +
         '\n' +
         '  A story id is what Storybook calls it, e.g. `foundation-typography--scales`.',
     });

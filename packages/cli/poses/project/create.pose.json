@@ -2,7 +2,7 @@
   "pose": 1,
   "argv": ["project", "create", "--name", "Storefront App", "--team", "tm000001"],
   "files": {},
-  "env": { "SKIP_INTRO": "true", "SHERLO_PERSONAL_TOKEN": "sht_posepersonaltoken000000000000" },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},
   "api": [
@@ -12,5 +12,11 @@
       "answer": { "name": "Storefront App", "index": 1, "projectToken": "<A_MINTED_PROJECT_TOKEN>" }
     }
   ],
-  "masks": {}
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
 }

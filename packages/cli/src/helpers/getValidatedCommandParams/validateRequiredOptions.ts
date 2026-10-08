@@ -34,14 +34,14 @@ function validateTestEasCloudBuildOptions(options: Options<any>): void {
 
   if (!hasScriptNameFlag && !hasWaitFlag) {
     throwError({
-      message: `\`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` command requires either \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` or \`${WAIT_FOR_EAS_BUILD_FLAG}\` option`,
+      message: `\`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` command requires either \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` or \`${WAIT_FOR_EAS_BUILD_FLAG}\` option`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
   }
 
   if (hasScriptNameFlag && hasWaitFlag) {
     throwError({
-      message: `\`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` command cannot use \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` and \`${WAIT_FOR_EAS_BUILD_FLAG}\` options together`,
+      message: `\`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` command cannot use \`${EAS_BUILD_SCRIPT_NAME_FLAG}\` and \`${WAIT_FOR_EAS_BUILD_FLAG}\` options together`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
   }
