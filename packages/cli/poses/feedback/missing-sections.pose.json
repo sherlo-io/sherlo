@@ -1,0 +1,19 @@
+{
+  "pose": 1,
+  "argv": [
+    "feedback",
+    "## Goal\nRun sherlo test.\n## Happened\nIt didn't work."
+  ],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}

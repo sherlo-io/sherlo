@@ -1,6 +1,9 @@
 {
   "pose": 1,
-  "argv": ["feedback", "sherlo view printed no link for my last build."],
+  "argv": [
+    "feedback",
+    "## Goal\nOpen my last build.\n## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link.\n## Tried\nunknown\n## Smallest repro\nunknown"
+  ],
   "files": {},
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
@@ -8,7 +11,9 @@
   "api": [
     {
       "call": "sendFeedback",
-      "with": { "text": "sherlo view printed no link for my last build." },
+      "with": {
+        "text": "## Goal\nOpen my last build.\n## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link.\n## Tried\nunknown\n## Smallest repro\nunknown"
+      },
       "answer": { "error": "Network error: getaddrinfo ENOTFOUND api.sherlo.io" }
     }
   ],

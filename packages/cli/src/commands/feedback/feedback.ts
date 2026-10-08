@@ -1,14 +1,17 @@
 /**
- * `sherlo feedback "<text>"` - send the Sherlo team what was unclear, slow or broken (sherlo /
+ * `sherlo feedback` - send the Sherlo team a report of what was unclear, slow or broken (sherlo /
  * Sending feedback).
  *
- * It asks nothing: the words are its one argument, so an AI agent can send it in one call. It is
- * sent with the login saved on this computer, and refused without one. Beside the words it sends
- * the facts needed to act on them - the last Sherlo command this project ran with its error lines,
- * and the versions, package manager and operating system - and never a token.
+ * It asks nothing. The report is written in six named sections (../../render/feedback) and given as
+ * words, a file (`--file`) or piped text (`-`); a report missing a section is refused once, naming
+ * every missing section, and "unknown" answers any of them. It is sent with the login saved on this
+ * computer, and refused without one. Beside the report it sends the facts needed to act on it - the
+ * last Sherlo command this project ran with its error lines, the versions, package manager and
+ * operating system - and never a token. `--dry-run` prints exactly that and sends nothing.
  *
- * PLAN LAYER (epic sherlo-feedback): this body only prints. Collecting the context, recording each
- * command's outcome and the live service call are build tasks.
+ * PLAN LAYER (epic sherlo-feedback): this body only prints. Collecting the context through the
+ * existing helpers, recording each command's outcome, reading piped text and the live service call
+ * are build tasks.
  */
 import fs from 'fs';
 import os from 'os';
@@ -17,23 +20,37 @@ import { version } from '../../../package.json';
 import { printSherloIntro, throwError } from '../../helpers';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
-import type { LastCommand } from '../../render/feedback';
-import { FEEDBACK_COMMAND_LINE } from '../../render/needHelp';
+import { FEEDBACK_SECTIONS, renderFeedbackFormat } from '../../render/feedback';
+import { FEEDBACK_HELP_LINE } from '../../render/needHelp';
 import { projectFiles } from '../../seams/projectFiles';
 import { savedLogins } from '../../seams/savedLogins';
-import { serverCalls } from '../../seams/serverCalls';
+import { serverCalls, type FeedbackContext } from '../../seams/serverCalls';
 
-async function feedback(text: string | undefined): Promise<void> {
+type FeedbackOptions = { file?: string; dryRun?: boolean };
+
+async function feedback(text: string | undefined, options: FeedbackOptions): Promise<void> {
   printSherloIntro();
 
-  const words = (text ?? '').trim();
-  if (!words) {
+  const report = readReport(text, options.file);
+  if (!report) {
+    throwError({ message: ['Write your report first.', ...renderFeedbackFormat()].join('\n  ') });
+  }
+
+  const missing = missingSections(report);
+  if (missing.length > 0) {
     throwError({
       message:
-        'Write your feedback after the command, in quotes:\n' +
-        `  ${FEEDBACK_COMMAND_LINE}\n` +
-        '  A useful report says what you were doing, what you expected, what happened and what you tried.',
+        `Not sent: the report has no ${listInWords(missing)}. We can only fix what we can reproduce.\n` +
+        '  Write each one, or "unknown" if you do not know it, then send it again.\n' +
+        `  The format: ${FEEDBACK_HELP_LINE}`,
     });
+  }
+
+  const context = collectContext();
+
+  if (options.dryRun) {
+    emit({ kind: 'feedback-dry-run', report, context });
+    return;
   }
 
   const savedLogin = savedLogins().read(getEndpointUrl());
@@ -45,14 +62,8 @@ async function feedback(text: string | undefined): Promise<void> {
     });
   }
 
-  const lastCommand = readLastCommand();
-
   const { reference } = await serverCalls()
-    .sendFeedback({
-      personalToken: savedLogin.token,
-      text: words,
-      context: { lastCommand, cliVersion: version, operatingSystem: os.platform() },
-    })
+    .sendFeedback({ personalToken: savedLogin.token, text: report, context })
     .catch(() =>
       throwError({
         message:
@@ -64,21 +75,67 @@ async function feedback(text: string | undefined): Promise<void> {
   emit({
     kind: 'feedback-sent',
     reference,
-    lastCommand: lastCommand && { command: lastCommand.command, exitCode: lastCommand.exitCode },
+    lastCommand: context.lastCommand && {
+      command: context.lastCommand.command,
+      exitCode: context.lastCommand.exitCode,
+    },
   });
 }
 
-/**
- * The last Sherlo command this project ran, as every command records it in .sherlo/last-command.json.
- * PLAN LAYER: the record and its writer are a build task; this read is what the pictures need.
- */
-function readLastCommand():
-  | (LastCommand & { errorLines: string[]; logFile?: string })
-  | undefined {
-  const recordPath = path.join(projectFiles().root(), '.sherlo', 'last-command.json');
-  if (!fs.existsSync(recordPath)) return undefined;
+/** The report's words: the argument, or the file `--file` names, trimmed. */
+function readReport(text: string | undefined, file: string | undefined): string {
+  if (file) return fs.readFileSync(path.resolve(projectFiles().root(), file), 'utf8').trim();
+  return (text ?? '').trim();
+}
 
-  return JSON.parse(fs.readFileSync(recordPath, 'utf8'));
+/** The sections the report has no heading for, or leaves empty under its heading. */
+function missingSections(report: string): string[] {
+  const bodies = new Map<string, string>();
+  let current: string | undefined;
+
+  for (const line of report.split('\n')) {
+    const heading = line.match(/^##\s+(.+?)\s*$/);
+    if (heading) {
+      current = heading[1].toLowerCase();
+      bodies.set(current, '');
+    } else if (current) {
+      bodies.set(current, `${bodies.get(current)}${line.trim()}`);
+    }
+  }
+
+  return FEEDBACK_SECTIONS.map(({ heading }) => heading).filter(
+    (heading) => !bodies.get(heading.toLowerCase())
+  );
+}
+
+function listInWords(items: string[]): string {
+  if (items.length === 1) return items[0];
+  return `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`;
+}
+
+/**
+ * What is sent beside the report. PLAN LAYER: the build reads the versions through the existing
+ * helpers (getPackageVersion, the SDK's Storybook setup check, package-manager-detector) and
+ * records the last command in every command; this reads only what the pictures need.
+ */
+function collectContext(): FeedbackContext {
+  const root = projectFiles().root();
+  const lastCommandPath = path.join(root, '.sherlo', 'last-command.json');
+  const packageJsonPath = path.join(root, 'package.json');
+  const dependencies: Record<string, string> = fs.existsSync(packageJsonPath)
+    ? JSON.parse(fs.readFileSync(packageJsonPath, 'utf8')).dependencies ?? {}
+    : {};
+
+  return {
+    lastCommand: fs.existsSync(lastCommandPath)
+      ? JSON.parse(fs.readFileSync(lastCommandPath, 'utf8'))
+      : undefined,
+    cliVersion: version,
+    reactNativeVersion: dependencies['react-native'],
+    expoVersion: dependencies['expo'],
+    storybookVersion: dependencies['@storybook/react-native'],
+    operatingSystem: os.platform(),
+  };
 }
 
 export default feedback;

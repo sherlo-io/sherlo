@@ -80,6 +80,7 @@ import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { logWarning, reporting, withCommandTimeout } from './helpers';
 import { getEndpointUrl } from './helpers/buildStatusRequest';
 import { renderNeedHelp, type FeedbackInvite } from './render/needHelp';
+import { renderFeedbackFormat } from './render/feedback';
 import { savedLogins } from './seams/savedLogins';
 
 // Disable all Node.js warnings
@@ -445,21 +446,17 @@ function addLogoutCommand(program: Command) {
 }
 
 function addFeedbackCommand(program: Command) {
-  // feedback takes its words as one positional argument, no options - bypass addCommand. The words
-  // are optional here so a bare `sherlo feedback` gets the command's own refusal, which shows what a
-  // useful report says, rather than the parser's.
+  // feedback takes its report as one positional argument - bypass addCommand. The words are optional
+  // here so a bare `sherlo feedback` gets the command's own refusal, which shows the report's
+  // format, rather than the parser's.
   program
     .command(`${FEEDBACK_COMMAND} [text]`)
-    .description(
-      `${COMMAND_DESCRIPTION[FEEDBACK_COMMAND]}\n` +
-        '  Say what you were doing, what you expected, what happened and what you tried.\n' +
-        `  Example: npx sherlo feedback "sherlo test stopped at the Android build with\n` +
-        `           'SDK location not found'. I expected it to find ANDROID_HOME. I set it\n` +
-        `           and ran it again, with the same error."`
-    )
-    .action(async (text: string | undefined) => {
-      setReportingContext(FEEDBACK_COMMAND, {});
-      await feedback(text);
+    .description([COMMAND_DESCRIPTION[FEEDBACK_COMMAND], ...renderFeedbackFormat()].join('\n  '))
+    .option('--file <path>', 'Read the report from this file')
+    .option('--dry-run', 'Print exactly what would be sent, and send nothing')
+    .action(async (text: string | undefined, options: { file?: string; dryRun?: boolean }) => {
+      setReportingContext(FEEDBACK_COMMAND, options);
+      await feedback(text, options);
     });
 }
 

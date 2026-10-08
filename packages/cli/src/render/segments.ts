@@ -36,6 +36,7 @@ import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
 import type { LastCommand } from './feedback';
+import type { FeedbackContext } from '../seams/serverCalls';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -307,7 +308,9 @@ export type TranscriptSegment =
    * See ./feedback.                                                         *
    * ---------------------------------------------------------------------- */
   /** `✔  Feedback sent`, its reference, and what was sent with it. */
-  | { kind: 'feedback-sent'; reference: string; lastCommand?: LastCommand };
+  | { kind: 'feedback-sent'; reference: string; lastCommand?: LastCommand }
+  /** `--dry-run`: the report and everything beside it, exactly as it would be sent. */
+  | { kind: 'feedback-dry-run'; report: string; context: FeedbackContext };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the

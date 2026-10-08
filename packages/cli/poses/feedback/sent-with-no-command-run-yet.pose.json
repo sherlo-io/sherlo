@@ -2,7 +2,7 @@
   "pose": 1,
   "argv": [
     "feedback",
-    "The docs page for CI does not say where the CI token comes from. I found Create Token in the web app by searching."
+    "## Goal\nAdd the Sherlo check to our GitHub Actions workflow.\n## Steps\nRead sherlo.io/docs/ci, then looked for the CI token it names.\n## Happened\nThe page says to add SHERLO_TOKEN but not where the token comes from.\n## Expected\nA link to where the CI token is created.\n## Tried\nSearched the web app and found Create Token under the project's settings.\n## Smallest repro\nunknown"
   ],
   "files": {},
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
@@ -12,7 +12,7 @@
     {
       "call": "sendFeedback",
       "with": {
-        "text": "The docs page for CI does not say where the CI token comes from. I found Create Token in the web app by searching."
+        "text": "## Goal\nAdd the Sherlo check to our GitHub Actions workflow.\n## Steps\nRead sherlo.io/docs/ci, then looked for the CI token it names.\n## Happened\nThe page says to add SHERLO_TOKEN but not where the token comes from.\n## Expected\nA link to where the CI token is created.\n## Tried\nSearched the web app and found Create Token under the project's settings.\n## Smallest repro\nunknown"
       },
       "answer": { "reference": "FB-3M9D" }
     }
