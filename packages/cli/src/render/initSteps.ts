@@ -68,11 +68,19 @@ export function renderFailedStepLine(name: string): string[] {
  * Then CI in a section of its own (operator, 2026-10-07): it is for later, not the first run.
  */
 export function renderNextSteps({
+  reader,
   storybook,
   storybookVersion,
   addedGithubWorkflow,
   projectPageUrl,
 }: {
+  /**
+   * AN AGENT GETS THE STEPS SPELLED OUT (operator, 2026-10-08, from research): most agents ask before
+   * opening a link, or run with no network, and Vercel's evals found docs in context beat docs
+   * behind a link. So the agent / CI log says what to do in the output and keeps the link as a
+   * reference; a person's terminal stays short.
+   */
+  reader: FeedbackReader;
   storybook: 'installed' | 'new-setup' | 'old-setup';
   /** The installed `@storybook/react-native` version, which says whether the new setup needs an upgrade first. */
   storybookVersion: string | undefined;
@@ -91,10 +99,17 @@ export function renderNextSteps({
     installed: [
       {
         title: 'Replace the example stories',
-        content: [
-          "Swap Storybook's examples for your own components, so Sherlo tests your app's UI:",
-          chalk.cyan('https://sherlo.io/docs/stories'),
-        ],
+        content:
+          reader === 'agent'
+            ? [
+                "Storybook's example stories are in .rnstorybook/stories.",
+                "Stories for this app's own components, in their place, are what Sherlo should test.",
+                `How: ${chalk.cyan('https://sherlo.io/docs/stories')}`,
+              ]
+            : [
+                "Swap Storybook's examples for your own components, so Sherlo tests your app's UI:",
+                chalk.cyan('https://sherlo.io/docs/stories'),
+              ],
       },
     ],
     'new-setup': [],
@@ -127,10 +142,22 @@ export function renderNextSteps({
           '',
         ]);
 
-  // Short, and its own section, so the link needs no indent (operator, 2026-10-08).
-  const ciLine = addedGithubWorkflow
-    ? `Save a CI token as the ${chalk.bold('SHERLO_TOKEN')} secret for the workflow setup added:`
-    : `Save a CI token as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`;
+  // Short, and its own section, so the link needs no indent (operator, 2026-10-08). For an agent: the
+  // token is made by the person on the project's page, and the GitHub CLI can save it as the secret.
+  const ciLines =
+    reader === 'agent'
+      ? [
+          `The workflow setup added needs a CI token saved as the ${chalk.bold('SHERLO_TOKEN')} secret.`,
+          "The person creates the token on the project's page:",
+          chalk.cyan(projectPageUrl),
+          `With the GitHub CLI logged in, it is saved with: ${chalk.cyan('gh secret set SHERLO_TOKEN')}`,
+        ]
+      : [
+          addedGithubWorkflow
+            ? `Save a CI token as the ${chalk.bold('SHERLO_TOKEN')} secret for the workflow setup added:`
+            : `Save a CI token as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`,
+          chalk.cyan(projectPageUrl),
+        ];
 
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
@@ -138,8 +165,7 @@ export function renderNextSteps({
     // The last step's blank line goes: the section title brings its own two.
     ...stepLines.slice(0, -1),
     ...renderSectionTitle('🔁 Test every pull request', 26),
-    ciLine,
-    chalk.cyan(projectPageUrl),
+    ...ciLines,
   ];
 }
 

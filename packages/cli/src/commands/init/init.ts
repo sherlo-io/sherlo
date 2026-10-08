@@ -55,16 +55,18 @@ async function init(options: Options<THIS_COMMAND>) {
       : storybookSetup() === 'registers-root'
         ? 'new-setup'
         : 'old-setup';
+    // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
+    const reader = process.stdout.isTTY ? 'person' : 'agent';
     printLines(
       renderNextSteps({
+        reader,
         storybook: storybookState,
         storybookVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ?? undefined,
         addedGithubWorkflow: hasWorkflow,
         projectPageUrl,
       })
     );
-    // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
-    printLines(renderFeedbackLine({ reader: process.stdout.isTTY ? 'person' : 'agent' }));
+    printLines(renderFeedbackLine({ reader }));
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });
   } catch (error) {
