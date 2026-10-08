@@ -54,6 +54,9 @@ export const FEEDBACK_KINDS = [
 
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]['kind'];
 
+/** Sections sit under their kind's description: `  --kind ` and the widest kind, `unclear`, padded. */
+const SECTION_INDENT = ' '.repeat(18);
+
 /** The last Sherlo command this project ran, as the feedback carries it. */
 export type LastCommand = { command: string; exitCode: number };
 
@@ -66,9 +69,9 @@ export function renderFeedbackFormat(): string[] {
   const kindLines = FEEDBACK_KINDS.flatMap(({ kind, isFor, required, welcome }) => {
     const widest = Math.max(0, ...required.map(({ heading }) => heading.length));
     return [
-      `  --kind ${kind.padEnd(8)}${isFor}`,
-      ...required.map(({ heading, holds }) => `                    ## ${heading.padEnd(widest)}  ${holds}`),
-      ...(welcome.length > 0 ? [`                    Also welcome: ${welcome.map((heading) => `## ${heading}`).join(', ')}`] : []),
+      `  --kind ${kind.padEnd(9)}${isFor}`,
+      ...required.map(({ heading, holds }) => `${SECTION_INDENT}## ${heading.padEnd(widest)}  ${holds}`),
+      ...(welcome.length > 0 ? [`${SECTION_INDENT}Also welcome: ${welcome.map((heading) => `## ${heading}`).join(', ')}`] : []),
     ];
   });
 
