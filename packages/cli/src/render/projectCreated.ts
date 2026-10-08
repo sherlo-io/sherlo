@@ -19,7 +19,7 @@
  *
  * WHY THE PROJECT TOKEN IS PRINTED AT ALL. It is the entire product of the
  * command and it is returned exactly once - there is no re-fetch, and recovery
- * is an owner-only reset in the web app. A command that created a credential
+ * is a reset in the web app. A command that created a credential
  * and then hid it would just mean running the command twice. So it is printed
  * ONCE, alone on its own line, under a sentence that says plainly that it will
  * not be shown again.
@@ -59,7 +59,7 @@ export function renderProjectCreated({ name, index, projectPageUrl }: ProjectCre
     '',
     ...renderOutputKeys({ projectIndex: index, projectName: name }),
     '',
-    `For CI, create a CI token on the project's page and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    `For CI, create a CI token in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
     `  ${chalk.cyan(projectPageUrl)}`,
     '',
   ];

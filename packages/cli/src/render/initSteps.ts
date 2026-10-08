@@ -134,11 +134,12 @@ export function renderNextSteps({
         ]);
 
   // Short, and its own section, so the link needs no indent (operator, 2026-10-08). The token is
-  // made on the project's page; the detail is where it is saved.
+  // made in the Sherlo web app - named so, because "app" alone reads as the person's own app; the
+  // detail is where it is saved.
   const ciLines = [
     addedGithubWorkflow
-      ? `Create a CI token on the project's page and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your GitHub repository:`
-      : `Create a CI token on the project's page and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`,
+      ? `Create a CI token in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your GitHub repository:`
+      : `Create a CI token in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`,
     chalk.cyan(projectPageUrl),
   ];
 
