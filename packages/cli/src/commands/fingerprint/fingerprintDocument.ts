@@ -136,7 +136,7 @@ export function readFingerprintDocument(filePath: string): FingerprintDocument {
     throw new Error(
       `The baseline file at ${filePath} has format version ${String(parsed?.formatVersion)}, ` +
         `but this CLI reads format version ${FINGERPRINT_DOCUMENT_FORMAT_VERSION}. ` +
-        'Write a new baseline with `sherlo fingerprint --write <file>` using this CLI version.'
+        'Write a new baseline with `npx sherlo fingerprint --write <file>` using this CLI version.'
     );
   }
 

@@ -3,45 +3,36 @@
  * project of a push). `sherlo test`, `sherlo view` and `sherlo test:eas-cloud-build` resolve it
  * here, once, and every refusal of it happens here, before any request.
  *
- * The first of six is spent, in this order:
+ * The first of four is spent, in this order:
  *
  *     1. `--token`                  \
  *     2. SHERLO_TOKEN                > a project token: the project is the one the token names
  *     3. `token` in the config      /
- *     4. `--personal-token`         \
- *     5. SHERLO_PERSONAL_TOKEN       > a person's credential: the project is the config's `project`
- *     6. the saved login            /
+ *     4. the saved login            - a person's credential: the project is the config's `project`
  *
  * A token given on purpose always beats the login, so a CI job never depends on who is logged in
  * on its machine. An empty SHERLO_TOKEN counts as unset, because GitHub turns a missing secret
  * into an empty string. The EAS opener takes a project token only, because its token travels to
- * Expo's build machine. A person's credential must be shaped like a personal token, whichever of
- * the three it came from, or it is refused before it is sent.
+ * Expo's build machine. No flag and no variable carries a personal token: the login is the only
+ * person's credential a push takes.
  */
 import { TEAM_ID_LENGTH } from '@sherlo/shared';
-import {
-  DOCS_LINK,
-  PERSONAL_TOKEN_ENV_VAR,
-  PERSONAL_TOKEN_FLAG,
-  PERSONAL_TOKEN_OPTION,
-  TEST_EAS_CLOUD_BUILD_COMMAND,
-  TOKEN_OPTION,
-} from '../../../constants';
+import { DOCS_LINK, TEST_EAS_CLOUD_BUILD_COMMAND, TOKEN_OPTION } from '../../../constants';
+import { LOGIN_COMMAND } from '../../../commands/login/constants';
 import { savedLogins } from '../../../seams/savedLogins';
 import { InvalidatedConfig, PushCredential } from '../../../types';
 import { getEndpointUrl } from '../../buildStatusRequest';
 import getTokenParts from '../../getTokenParts';
 import isPersonalToken from '../../isPersonalToken';
 import isValidToken from '../../isValidToken';
-import refuseIfNotPersonalToken from '../../refuseIfNotPersonalToken';
 import refuseIfPersonalToken from '../../refuseIfPersonalToken';
 import throwError from '../../throwError';
 
 /** The variable CI keeps the project token in. */
 const PROJECT_TOKEN_ENV_VAR = 'SHERLO_TOKEN';
 
-/** The two credential flags a command was given, as commander parsed them. */
-type CredentialFlags = { [TOKEN_OPTION]?: string; [PERSONAL_TOKEN_OPTION]?: string };
+/** The credential flag a command was given, as commander parsed it. */
+type CredentialFlags = { [TOKEN_OPTION]?: string };
 
 function resolvePushCredential(
   command: string,
@@ -54,26 +45,22 @@ function resolvePushCredential(
     return spendProjectToken(projectToken, config);
   }
 
-  const personCredential = findPersonCredential(flags);
+  const savedLogin = savedLogins().read(getEndpointUrl());
 
-  if (!personCredential) refuseNoCredential();
+  if (!savedLogin) refuseNoCredential();
 
-  // Checked before anything else about it, as every management command checks it: a project token
-  // given where a personal token belongs must never be sent as somebody's login.
-  refuseIfNotPersonalToken(personCredential.token);
+  if (command === TEST_EAS_CLOUD_BUILD_COMMAND) refuseOnEas();
 
-  if (command === TEST_EAS_CLOUD_BUILD_COMMAND) refuseOnEas(personCredential.name);
-
-  if (config.project === undefined) refuseNoProject(personCredential.name);
+  if (config.project === undefined) refuseNoProject();
 
   const { teamId, projectIndex } = parseConfigProject(config.project);
 
   return {
     kind: 'person',
-    token: personCredential.token,
+    token: savedLogin.token,
     teamId,
     projectIndex,
-    fromSavedLogin: personCredential.fromSavedLogin,
+    fromSavedLogin: true,
   };
 }
 
@@ -149,43 +136,6 @@ function spendProjectToken(projectToken: string, config: InvalidatedConfig): Pus
 }
 
 /* ========================================================================== */
-/* A person's credential                                                      */
-/* ========================================================================== */
-
-/** A person's credential, said the way a refusal names it. */
-type PersonCredentialName =
-  | `\`--${typeof PERSONAL_TOKEN_FLAG}\``
-  | typeof PERSONAL_TOKEN_ENV_VAR
-  | 'your login';
-
-/**
- * `--personal-token`, then SHERLO_PERSONAL_TOKEN, then the login saved for the service address
- * this run talks to - read the way ../../../commands/shared/resolvePersonalToken reads them.
- */
-function findPersonCredential(
-  flags: CredentialFlags
-): { token: string; name: PersonCredentialName; fromSavedLogin: boolean } | undefined {
-  const personalTokenFlag = flags[PERSONAL_TOKEN_OPTION]?.trim();
-  if (personalTokenFlag) {
-    return {
-      token: personalTokenFlag,
-      name: `\`--${PERSONAL_TOKEN_FLAG}\``,
-      fromSavedLogin: false,
-    };
-  }
-
-  const personalTokenVariable = process.env[PERSONAL_TOKEN_ENV_VAR]?.trim();
-  if (personalTokenVariable) {
-    return { token: personalTokenVariable, name: PERSONAL_TOKEN_ENV_VAR, fromSavedLogin: false };
-  }
-
-  const savedLogin = savedLogins().read(getEndpointUrl());
-  if (savedLogin) return { token: savedLogin.token, name: 'your login', fromSavedLogin: true };
-
-  return undefined;
-}
-
-/* ========================================================================== */
 /* The config's `project`                                                     */
 /* ========================================================================== */
 
@@ -216,27 +166,27 @@ function refuseNoCredential(): never {
     type: 'auth',
     message:
       'There is no credential to push with.\n' +
-      '  On your own computer, run `sherlo login`.\n' +
+      `  On your own computer, run \`npx sherlo ${LOGIN_COMMAND}\`.\n` +
       `  In CI, set the project token as ${PROJECT_TOKEN_ENV_VAR}.`,
   });
 }
 
-function refuseOnEas(credentialName: PersonCredentialName): never {
+function refuseOnEas(): never {
   throwError({
     type: 'auth',
     message:
-      `\`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` takes a project token only, and found ` +
-      `${credentialName}.\n` +
+      `\`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` takes a project token only, and found ` +
+      'your login.\n' +
       "  Its token travels to Expo's build machine, so a person's login is never sent there.\n" +
       `  Set the project token as ${PROJECT_TOKEN_ENV_VAR}.`,
   });
 }
 
-function refuseNoProject(credentialName: PersonCredentialName): never {
+function refuseNoProject(): never {
   throwError({
     message:
-      `sherlo.config.json names no project, so ${credentialName} has nowhere to push.\n` +
-      '  Run `sherlo init` to choose one. It writes `project` into the config.',
+      'sherlo.config.json names no project, so your login has nowhere to push.\n' +
+      '  Run `npx sherlo init` to choose one. It writes `project` into the config.',
   });
 }
 
@@ -247,7 +197,7 @@ function refuseMalformedProject(configProject: unknown): never {
   throwError({
     message:
       `The \`project\` in sherlo.config.json is \`${shownValue}\`, which is not a team id, a slash and a project number.\n` +
-      '  It looks like `k3j9x2ab/4`. Run `sherlo init` to write it.',
+      '  It looks like `k3j9x2ab/4`. Run `npx sherlo init` to write it.',
   });
 }
 
@@ -269,6 +219,6 @@ function refusePersonalTokenInProjectTokenVariable(): never {
     message:
       `${PROJECT_TOKEN_ENV_VAR} wants a project token, and this is a personal token.\n` +
       `  CI holds the project token for ${PROJECT_TOKEN_ENV_VAR}. Copy it from the project's settings in the Sherlo web app.\n` +
-      `  A personal token goes in ${PERSONAL_TOKEN_ENV_VAR}.`,
+      `  To act as yourself, run \`npx sherlo ${LOGIN_COMMAND}\` instead.`,
   });
 }

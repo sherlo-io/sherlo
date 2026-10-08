@@ -1,6 +1,6 @@
 [33m◦[39m  Not logged in
 
-[2mRun `sherlo login` to log in.[22m
+[2mRun `npx sherlo login` to log in.[22m
 
 
 [exit 0]

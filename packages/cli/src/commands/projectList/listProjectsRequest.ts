@@ -104,7 +104,7 @@ async function listProjectsRequest(
   if (!team) {
     throw new Error(
       `Team \`${teamId}\` was not found among the teams this token's owner belongs to. ` +
-        'Check the id, or list your teams with `sherlo team list`.'
+        'Check the id, or list your teams with `npx sherlo team list`.'
     );
   }
 

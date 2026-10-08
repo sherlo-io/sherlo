@@ -285,10 +285,16 @@ export type TranscriptSegment =
    * ---------------------------------------------------------------------- */
   /** The authorize link, alone on its line - printed before the browser is asked to open it. */
   | { kind: 'login-link'; authorizeUrl: string }
-  /** The wait for the person's answer, and whether the browser came up. */
-  | { kind: 'login-waiting'; browserOpened: boolean }
-  /** `✔  Logged in as <email>`. */
-  | { kind: 'logged-in'; email: string }
+  /**
+   * The wait for the person's answer, as the plain line printed anywhere but a terminal. On a
+   * terminal the wait is a spinner instead, which the result replaces (../commands/login/login).
+   */
+  | { kind: 'login-waiting' }
+  /**
+   * `✔  Logged in as <email>`, then the next step. A login made inside setup (`insideSetup`) has
+   * no next step to name: it is already on it.
+   */
+  | { kind: 'logged-in'; email: string; insideSetup?: true }
   /** `✔  Already logged in as <email>` - a saved login the service still accepts. */
   | { kind: 'already-logged-in'; email: string }
   /** `✔  Logged out <email>`. */

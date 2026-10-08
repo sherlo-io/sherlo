@@ -41,9 +41,6 @@ import {
   MASK_COMMAND,
   MESSAGE_OPTION,
   METADATA_OPTION,
-  PERSONAL_TOKEN_ENV_VAR,
-  PERSONAL_TOKEN_FLAG,
-  PERSONAL_TOKEN_OPTION,
   PLATFORM_LABEL,
   POSE_COMMAND,
   PROFILE_OPTION,
@@ -161,7 +158,7 @@ const COMMAND_DESCRIPTION = {
     `  With \`--${ANDROID_OPTION} <path>\` (and optionally \`--${IOS_OPTION} <path>\`): runs a full test on\n` +
     '  those builds and registers them as the new base.',
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
-  [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
+  [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
   [VIEW_COMMAND]:
@@ -183,22 +180,22 @@ const COMMAND_DESCRIPTION = {
     '  Exit 0 when a record came back, 1 when it did not.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
-    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
-    `  which is a different credential from the \`--${TOKEN_OPTION}\` every other command\n` +
-    '  takes: a personal token names a person, a project token names a project.\n' +
+    `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`), which is a different credential\n` +
+    `  from the \`--${TOKEN_OPTION}\` other commands take: a login names a person, a project\n` +
+    '  token names a project.\n' +
     '  The project token it prints cannot be shown again - store it when you see it.',
   [`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`]:
     "List a team's projects: index, name, build count and main branch.\n" +
-    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
-    `  same as \`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`. Uploads nothing, creates nothing.`,
+    `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`), same as\n` +
+    `  \`npx sherlo ${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`. Uploads nothing, creates nothing.`,
   [`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`]:
     'Create a team and print its id.\n' +
-    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}),\n` +
-    `  same as \`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`.`,
+    `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`), same as\n` +
+    `  \`npx sherlo ${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}\`.`,
   [`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`]:
     'List every team you belong to: id, name and project count.\n' +
-    `  Authorized by a PERSONAL token (\`--${PERSONAL_TOKEN_FLAG}\` or ${PERSONAL_TOKEN_ENV_VAR}).\n` +
-    `  Takes no \`--${TEAM_OPTION}\`: it answers for every team the token's owner belongs to.`,
+    `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`).\n` +
+    `  Takes no \`--${TEAM_OPTION}\`: it answers for every team you belong to.`,
   [POSE_COMMAND]:
     'Run ONE command against a declared world and print the whole screen it would put\n' +
     '  on a terminal, with the exit code the real run would have had. The world - the\n' +
@@ -209,7 +206,7 @@ const COMMAND_DESCRIPTION = {
   [MASK_COMMAND]:
     'Read a screen on stdin and print it with every value only a machine knows folded\n' +
     '  to its placeholder - a token, a build address, a size, a duration, a commit, a\n' +
-    '  fingerprint, the progress lines a wait printed. The SAME folding `sherlo pose`\n' +
+    '  fingerprint, the progress lines a wait printed. The SAME folding `npx sherlo pose`\n' +
     "  applies to a screen it printed itself, so a live run's screen and a posed one\n" +
     '  can be compared. Hidden unless SHERLO_DEVTOOLS=1.',
   [FINGERPRINT_COMMAND]:
@@ -256,9 +253,9 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${LAYER_OPTION} <layer>`,
     "Print ONE layer's digest on stdout and nothing else: `native`, `dependencies`, `base`, " +
       '`js:android` or `js:ios`. THE BARE DIGEST, deliberately not the `key=value` form ' +
-      `\`${TEST_COMMAND}\` prints for the same numbers: that form serves a reader parsing many ` +
+      `\`npx sherlo ${TEST_COMMAND}\` prints for the same numbers: that form serves a reader parsing many ` +
       'keys out of one run, this one serves a shell capturing a single value ' +
-      '(`FP=$(sherlo fingerprint --layer base)`). A layer that cannot be computed exits ' +
+      '(`FP=$(npx sherlo fingerprint --layer base)`). A layer that cannot be computed exits ' +
       'non-zero and says why, so silence can never be read as "nothing changed". Cannot be ' +
       `combined with \`--${WRITE_OPTION}\`, \`--${BASELINE_OPTION}\` or \`--${VERBOSE_OPTION}\`, ` +
       'which write to the same stdout.',
@@ -298,24 +295,18 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     'Print a `\u2500\u2500 details \u2500\u2500` block after the normal output - ONE LINE PER FACT THE API\n' +
       '  PROVIDES, and nothing for one it does not: what the build was judged over, what the\n' +
       '  runner did, the capture accounting, and how many verdicts a human has cast. On\n' +
-      `  \`${TEST_COMMAND}\` it also names the branch and commit the run was made from, which that run\n` +
+      `  \`npx sherlo ${TEST_COMMAND}\` it also names the branch and commit the run was made from, which that run\n` +
       '  composed itself. Plain aligned text, no colour.',
   ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
-    `EAS Build profile (must match profile used in \`${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
+    `EAS Build profile (must match profile used in \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   ],
   [PROJECT_ROOT_OPTION]: [
     `--${PROJECT_ROOT_OPTION} <path>`,
     `Path to the root directory of your project (default: ${DEFAULT_PROJECT_ROOT})`,
   ],
   [TOKEN_OPTION]: [`--${TOKEN_OPTION} <token>`, 'Authentication token for the project'],
-  [PERSONAL_TOKEN_OPTION]: [
-    `--${PERSONAL_TOKEN_FLAG} <token>`,
-    'Your PERSONAL token (`sht_...`), minted in the Sherlo web app. Acts as you, and ' +
-      `may do only what your current role on the team allows. Defaults to ${PERSONAL_TOKEN_ENV_VAR}. ` +
-      `NOT the project token \`--${TOKEN_OPTION}\` takes, and deliberately not read from SHERLO_TOKEN.`,
-  ],
   [NAME_OPTION]: [
     `--${NAME_OPTION} <name>`,
     'The name of the project to create, as the web app will show it. Quote a name with spaces.',
@@ -323,7 +314,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [TEAM_OPTION]: [
     `--${TEAM_OPTION} <teamId>`,
     "The team to create the project in - the `t=` value in the web app's URL. Required: " +
-      'a personal token names a person, so there is no team to infer.',
+      'your login names a person, so there is no team to infer.',
   ],
   [PROJECT_OPTION]: [
     `--${PROJECT_OPTION} <teamId>/<projectIndex>`,
@@ -404,8 +395,8 @@ function addCaptureCommand(program: Command) {
   });
 }
 
-// `sherlo login` waits for a person in the browser, up to the ten minutes a pending login lives -
-// a wait the service bounds, so `withTimeout: false`.
+// `sherlo login` waits for a person in the browser, until the expiry the service gave the pending
+// login - a wait the service bounds, so `withTimeout: false`.
 function addLoginCommand(program: Command) {
   addCommand({
     program,
@@ -429,7 +420,7 @@ function addInitCommand(program: Command) {
   addCommand({
     program,
     command: INIT_COMMAND,
-    options: [TOKEN_OPTION, PERSONAL_TOKEN_OPTION, PROJECT_OPTION],
+    options: [TOKEN_OPTION, PROJECT_OPTION],
     action: init,
     withTimeout: false,
   });
@@ -444,11 +435,8 @@ function addTestCommand(program: Command) {
   addCommand({
     program,
     command: TEST_COMMAND,
-    // `--personal-token` here and on `view`, never on the EAS commands: their credential travels
-    // to Expo's build machine, so they take a project token only.
     options: [
       ...getTestCommonOptions('withPlatformPaths'),
-      PERSONAL_TOKEN_OPTION,
       BUNDLE_DIR_OPTION,
       EMIT_BUNDLE_DIR_OPTION,
       DRY_RUN_OPTION,
@@ -475,7 +463,6 @@ function addViewCommand(program: Command) {
 
   addOptionsToCommand(commandInstance, [
     TOKEN_OPTION,
-    PERSONAL_TOKEN_OPTION,
     CONFIG_OPTION,
     PROJECT_ROOT_OPTION,
     WAIT_OPTION,
@@ -548,7 +535,7 @@ function addFingerprintCommand(program: Command) {
   commandInstance.option(
     '--bundle-dir <path>',
     'Compute the js layer from the module manifests in a directory written by ' +
-      '`sherlo test --emit-bundle-dir`. Without it the js layer is not computed.'
+      '`npx sherlo test --emit-bundle-dir`. Without it the js layer is not computed.'
   );
   commandInstance.action(async (actionOptions) => {
     setReportingContext(FINGERPRINT_COMMAND, actionOptions);
@@ -573,7 +560,7 @@ function addProjectCommand(program: Command) {
     .command(PROJECT_CREATE_SUBCOMMAND)
     .description(COMMAND_DESCRIPTION[`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]);
 
-  addOptionsToCommand(createInstance, [NAME_OPTION, TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
+  addOptionsToCommand(createInstance, [NAME_OPTION, TEAM_OPTION]);
 
   createInstance.action(async (actionOptions) => {
     setReportingContext(`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`, actionOptions);
@@ -585,7 +572,7 @@ function addProjectCommand(program: Command) {
     .command(PROJECT_LIST_SUBCOMMAND)
     .description(COMMAND_DESCRIPTION[`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`]);
 
-  addOptionsToCommand(listInstance, [TEAM_OPTION, PERSONAL_TOKEN_OPTION]);
+  addOptionsToCommand(listInstance, [TEAM_OPTION]);
 
   listInstance.action(async (actionOptions) => {
     setReportingContext(`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`, actionOptions);
@@ -597,8 +584,8 @@ function addProjectCommand(program: Command) {
 /**
  * `sherlo team create --name <name>` / `sherlo team list` - the `team`
  * MANAGEMENT group, the sibling of `addProjectCommand` above. `team list`
- * takes no `--team`: a personal token names a person, not a team, so it
- * answers for every team that person belongs to rather than one named team.
+ * takes no `--team`: the login names a person, not a team, so it answers for
+ * every team that person belongs to rather than one named team.
  */
 function addTeamCommand(program: Command) {
   const teamGroup = program.command(TEAM_COMMAND).description('Manage Sherlo teams');
@@ -607,7 +594,7 @@ function addTeamCommand(program: Command) {
     .command(TEAM_CREATE_SUBCOMMAND)
     .description(COMMAND_DESCRIPTION[`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`]);
 
-  addOptionsToCommand(createInstance, [NAME_OPTION, PERSONAL_TOKEN_OPTION]);
+  addOptionsToCommand(createInstance, [NAME_OPTION]);
 
   createInstance.action(async (actionOptions) => {
     setReportingContext(`${TEAM_COMMAND} ${TEAM_CREATE_SUBCOMMAND}`, actionOptions);
@@ -619,12 +606,10 @@ function addTeamCommand(program: Command) {
     .command(TEAM_LIST_SUBCOMMAND)
     .description(COMMAND_DESCRIPTION[`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`]);
 
-  addOptionsToCommand(listInstance, [PERSONAL_TOKEN_OPTION]);
-
   listInstance.action(async (actionOptions) => {
     setReportingContext(`${TEAM_COMMAND} ${TEAM_LIST_SUBCOMMAND}`, actionOptions);
 
-    await teamList(actionOptions);
+    await teamList();
   });
 }
 
@@ -738,10 +723,10 @@ function showDeprecationWarning({
 /**
  * EVERY option whose name ends in `token` is redacted, not just `--token`.
  *
- * The list used to be one entry long, and a second credential (`--personal-token`)
- * is exactly the kind of thing that gets added to the CLI without anyone
- * remembering this function. Matching on the NAME means the next one is redacted
- * on the day it is added rather than on the day someone notices it in Sentry.
+ * A second credential flag is exactly the kind of thing that gets added to the
+ * CLI without anyone remembering this function. Matching on the NAME means the
+ * next one is redacted on the day it is added rather than on the day someone
+ * notices it in Sentry.
  */
 function setReportingContext(command: string, options: any) {
   const commandOptions = Object.fromEntries(

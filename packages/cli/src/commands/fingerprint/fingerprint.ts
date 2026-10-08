@@ -201,7 +201,7 @@ function computeJsLayers({
       message:
         `No module manifest found in ${bundleDir} ` +
         `(expected ${PLATFORMS.map(moduleManifestFileName).join(' or ')}). ` +
-        'Produce the directory with `sherlo test --emit-bundle-dir <dir>`.',
+        'Produce the directory with `npx sherlo test --emit-bundle-dir <dir>`.',
     });
   }
 
@@ -233,7 +233,7 @@ function computeJsLayer({
       message:
         `The ${platform} module manifest at ${manifestPath} is not a valid manifest ` +
         '(expected version, header, moduleHashes, storyClosures). ' +
-        'Re-emit the bundle directory with `sherlo test --emit-bundle-dir <dir>`.',
+        'Re-emit the bundle directory with `npx sherlo test --emit-bundle-dir <dir>`.',
     });
   }
 
@@ -314,7 +314,7 @@ async function computeOneLayerDigest({
         `The js ${platform} layer could not be computed: ${bundleDir} holds no ${platform} ` +
         `module manifest (expected ${moduleManifestFileName(platform)}). ` +
         `Emit the bundle directory from a run that tests ${platform}: ` +
-        '`sherlo test --emit-bundle-dir <dir>`.',
+        '`npx sherlo test --emit-bundle-dir <dir>`.',
     });
   }
 

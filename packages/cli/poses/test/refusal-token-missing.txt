@@ -11,7 +11,7 @@
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
 [31mAUTH ERROR: There is no credential to push with.[39m
-[31m  On your own computer, run `sherlo login`.[39m
+[31m  On your own computer, run `npx sherlo login`.[39m
 [31m  In CI, set the project token as SHERLO_TOKEN.[39m
 
 [2m══════════[22m
