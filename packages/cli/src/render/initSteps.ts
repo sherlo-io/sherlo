@@ -165,10 +165,14 @@ export type FeedbackReader = 'person' | 'agent';
 
 const FEEDBACK_HELP = 'npx sherlo feedback --help';
 
-/** One separator for every side note at the end of a run, finished or failed (operator, 2026-10-08). */
-const SIDE_NOTE_RULE = chalk.dim('═'.repeat(10));
+/**
+ * One separator for every side note at the end of a run, finished or failed (operator, 2026-10-08).
+ * Functions, not constants: colour is decided per run, after this module loads.
+ */
+const sideNoteRule = (): string => chalk.dim('═'.repeat(10));
 
-const AGENT_FEEDBACK_LINE = `AI agents: you can report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
+const agentFeedbackLine = (): string =>
+  `AI agents: you can report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
 
 /**
  * What a finished run ends with, for an agent only (operator, 2026-10-08): a person who just
@@ -177,7 +181,7 @@ const AGENT_FEEDBACK_LINE = `AI agents: you can report anything unclear or broke
 export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): string[] {
   if (reader === 'person') return [];
 
-  return ['', SIDE_NOTE_RULE, '', AGENT_FEEDBACK_LINE];
+  return ['', sideNoteRule(), '', agentFeedbackLine()];
 }
 
 /**
@@ -209,12 +213,12 @@ export function renderStuckBlock({
   // A person's line sounds like a rare thing worth telling, never as if the tool often fails.
   const feedbackLine =
     reader === 'agent'
-      ? `➜ ${AGENT_FEEDBACK_LINE}`
+      ? `➜ ${agentFeedbackLine()}`
       : `➜ Noticed something off? Tell us: ${chalk.cyan(FEEDBACK_HELP)}`;
 
   return [
     ...agentLines,
-    SIDE_NOTE_RULE,
+    sideNoteRule(),
     '',
     'Stuck or something broken?',
     ...(isLoggedIn ? [feedbackLine] : []),
