@@ -9,6 +9,6 @@ describe('sherlo init, end to end', () => {
   it.todo('init asks no question, even at a terminal');
   it.todo('prints one line per step, and marks a finished step (already done) on a rerun');
   it.todo('shows a spinner only in a real terminal, and a plain line otherwise');
-  it.todo('ends every run, finished or failed, with the feedback line');
+  it.todo("an agent's run ends with the feedback line, and a person's finished run does not");
   it.todo('every error init can meet is caught and given our own message');
 });
