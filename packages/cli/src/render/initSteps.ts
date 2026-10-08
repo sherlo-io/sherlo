@@ -143,14 +143,13 @@ export function renderNextSteps({
         ]);
 
   // Short, and its own section, so the link needs no indent (operator, 2026-10-08). For an agent: the
-  // token is made by the person on the project's page, and the GitHub CLI can save it as the secret.
+  // token is the person's to make and save, on the project's page.
   const ciLines =
     reader === 'agent'
       ? [
           `The workflow setup added needs a CI token saved as the ${chalk.bold('SHERLO_TOKEN')} secret.`,
-          "The person creates the token on the project's page:",
+          "The person creates the token on the project's page, and saves it in the repository's secrets:",
           chalk.cyan(projectPageUrl),
-          `With the GitHub CLI logged in, it is saved with: ${chalk.cyan('gh secret set SHERLO_TOKEN')}`,
         ]
       : [
           addedGithubWorkflow
