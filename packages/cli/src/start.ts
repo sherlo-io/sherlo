@@ -79,6 +79,8 @@ import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
 import { renderStuckBlock } from './render/initSteps';
+import { getEndpointUrl } from './helpers/buildStatusRequest';
+import { savedLogins } from './seams/savedLogins';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -141,7 +143,15 @@ async function start() {
       // `sherlo init` ends a failure with one block for feedback and help, in place of the usual footer.
       if ((error as { showFeedbackLine?: boolean }).showFeedbackLine) {
         const reader = process.stdout.isTTY ? 'person' : 'agent';
-        for (const line of renderStuckBlock({ reader, discordUrl: DISCORD_URL, contactEmail: CONTACT_EMAIL })) {
+        // `sherlo feedback` sends with the saved login and refuses without one (epic sherlo-feedback),
+        // so a run that failed before the login offers no feedback line.
+        const isLoggedIn = Boolean(savedLogins().read(getEndpointUrl()));
+        for (const line of renderStuckBlock({
+          reader,
+          isLoggedIn,
+          discordUrl: DISCORD_URL,
+          contactEmail: CONTACT_EMAIL,
+        })) {
           console.log(line);
         }
       } else {

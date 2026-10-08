@@ -178,10 +178,13 @@ export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): stri
  */
 export function renderStuckBlock({
   reader,
+  isLoggedIn,
   discordUrl,
   contactEmail,
 }: {
   reader: FeedbackReader;
+  /** `sherlo feedback` needs the saved login, so a run that failed before it offers no feedback line. */
+  isLoggedIn: boolean;
   discordUrl: string;
   contactEmail: string;
 }): string[] {
@@ -206,7 +209,7 @@ export function renderStuckBlock({
     chalk.dim('═'.repeat(10)),
     '',
     'Stuck or something broken?',
-    feedbackLine,
+    ...(isLoggedIn ? [feedbackLine] : []),
     `➜ Discord: ${chalk.cyan(discordUrl)}`,
     `➜ Email: ${chalk.cyan(contactEmail)}`,
   ];
