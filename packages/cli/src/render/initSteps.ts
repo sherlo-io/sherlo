@@ -54,13 +54,16 @@ export function renderFailedStepLine(name: string): string[] {
  * The next steps, in their own section, numbered in the order they are done. The first ones
  * depend on the Storybook the project had (epic storybook-both-setups settled the two setups):
  *
- *   - `installed`: setup installed Storybook just now, on its newer setup, which needs nothing in the
- *     app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
- *   - `newer-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
+ *   - `installed`: setup installed Storybook just now, on its default setup, which needs nothing in
+ *     the app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
+ *   - `default-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
  *     with no change to the app - no Storybook step at all.
- *   - `older-setup`: Storybook renders from the app's own root. Two equal choices, the recommended
- *     one first: move to the newer setup (upgrading Storybook first when it predates it), or keep
- *     the setup and follow Sherlo's guide for it.
+ *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
+ *     first: move to the default setup (upgrading Storybook first when it predates it), or keep the
+ *     old setup and follow Sherlo's guide for it.
+ *
+ * The names are the Storybook epic's (storybook-both-setups, 2026-10-08): "the default setup" and
+ * "the old setup", and the docs page's tabs `?storybook=default` and `?storybook=integrated`.
  *
  * Then CI in a section of its own (operator, 2026-10-07): it is for later, not the first run.
  */
@@ -70,17 +73,17 @@ export function renderNextSteps({
   addedGithubWorkflow,
   projectPageUrl,
 }: {
-  storybook: 'installed' | 'newer-setup' | 'older-setup';
-  /** The installed `@storybook/react-native` version, which says whether the newer setup needs an upgrade first. */
+  storybook: 'installed' | 'default-setup' | 'old-setup';
+  /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
   storybookVersion: string | undefined;
   /** Whether the project has the GitHub workflow setup adds, so the CI section can name it. */
   addedGithubWorkflow: boolean;
   /** The project's page in the web app, where a CI token is made. */
   projectPageUrl: string;
 }): string[] {
-  const newerSetupChoice = hasNewerSetup(storybookVersion)
-    ? "a) Switch to Storybook's newer setup (recommended):"
-    : `a) Upgrade Storybook to ${NEWER_SETUP_SINCE} or newer and switch to its newer setup (recommended):`;
+  const defaultSetupChoice = hasDefaultSetup(storybookVersion)
+    ? "a) Switch to Storybook's default setup (recommended):"
+    : `a) Upgrade Storybook to ${DEFAULT_SETUP_SINCE} or newer and switch to its default setup (recommended):`;
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
@@ -94,15 +97,15 @@ export function renderNextSteps({
         ],
       },
     ],
-    'newer-setup': [],
-    'older-setup': [
+    'default-setup': [],
+    'old-setup': [
       {
         title: 'Give Sherlo access to Storybook - pick one:',
         content: [
-          newerSetupChoice,
-          `   ${chalk.cyan('https://sherlo.io/docs/setup#storybook-newer-setup')}`,
+          defaultSetupChoice,
+          `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=default#storybook-access')}`,
           'b) Or keep your setup and follow our guide for it:',
-          `   ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`,
+          `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=integrated#storybook-access')}`,
         ],
       },
     ],
@@ -142,10 +145,10 @@ export function renderNextSteps({
   ];
 }
 
-/** The first `@storybook/react-native` with the newer setup, whose own entry starts the app. */
-const NEWER_SETUP_SINCE = '10.4';
+/** The first `@storybook/react-native` with the default setup, whose own entry starts the app. */
+const DEFAULT_SETUP_SINCE = '10.4';
 
-function hasNewerSetup(storybookVersion: string | undefined): boolean {
+function hasDefaultSetup(storybookVersion: string | undefined): boolean {
   const [major = 0, minor = 0] = (storybookVersion ?? '').split('.').map(Number);
   return major > 10 || (major === 10 && minor >= 4);
 }

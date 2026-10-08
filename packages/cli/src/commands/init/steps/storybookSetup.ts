@@ -3,7 +3,8 @@
  * (epic storybook-both-setups settled the rule, 2026-10-07).
  *
  * Storybook 10.4+ makes `.rnstorybook/index` register the app's root itself, and Sherlo's Metro
- * wrapper then swaps the entry at launch: nothing in the app needs changing. An older setup renders
+ * wrapper then swaps the entry at launch: nothing in the app needs changing - Storybook's default
+ * setup. The old setup renders
  * Storybook from the app's own root component, so the person adds Sherlo there. One rule for the
  * SDK and setup alike: does `.rnstorybook/index` register a root? No version is read.
  */
