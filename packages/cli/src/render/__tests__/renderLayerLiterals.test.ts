@@ -955,15 +955,12 @@ const PINS: Pin[] = [
   },
   {
     kind: 'login-waiting',
-    what: 'the wait off a terminal - a plain line that stays, and tells an agent it may wait in the background',
+    what: 'the wait off a terminal - one plain line that stays',
     segment: { kind: 'login-waiting' },
     stream: 'stdout',
     prints: [
       [
         `${ESC}[33m⏳${ESC}[39m Waiting for you to click Authorize... ${ESC}[2m(Ctrl+C to stop)${ESC}[22m`,
-      ],
-      [
-        `${ESC}[2mAn agent may run this in the background while the person clicks. Running it again waits on the same link.${ESC}[22m`,
       ],
     ],
   },

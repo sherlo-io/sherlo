@@ -53,7 +53,7 @@ async function init(options: Options<THIS_COMMAND>) {
     const storybookState = installedNow
       ? 'installed'
       : storybookSetup() === 'registers-root'
-        ? 'default-setup'
+        ? 'new-setup'
         : 'old-setup';
     printLines(
       renderNextSteps({

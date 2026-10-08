@@ -53,6 +53,9 @@ async function checkProject(): Promise<CheckedProject> {
   }
 
   const expoVersion = getPackageVersion(EXPO_PACKAGE_NAME);
+  // Storybook the project already has shows here, with the versions it was checked at - never as an
+  // install line, which would read as if setup had installed or changed it (operator, 2026-10-08).
+  const storybookVersion = hasStorybook ? getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) : null;
 
   printLines([
     renderStepLine({
@@ -61,6 +64,7 @@ async function checkProject(): Promise<CheckedProject> {
       detail: [
         expoVersion ? `Expo ${majorOf(expoVersion)}` : null,
         `React Native ${minorOf(reactNativeVersion)}`,
+        storybookVersion ? `Storybook ${minorOf(storybookVersion)}` : null,
       ]
         .filter(Boolean)
         .join(', '),

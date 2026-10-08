@@ -3,10 +3,10 @@
  * Storybook's own installer, which also writes its example stories - the stories the first test
  * photographs until the project has stories of its own.
  *
- * Its line names the package and version, as Sherlo's line does, and that the example stories came
- * with it. The other packages the installer adds are not listed: they are Storybook's own needs.
+ * Its line names the package and version, as Sherlo's line does; the next steps already say the
+ * example stories came with it. The other packages the installer adds are not listed: they are
+ * Storybook's own needs.
  */
-import chalk from 'chalk';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
@@ -58,8 +58,7 @@ async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{
     renderStepLine({
       outcome: 'done',
       name: 'Installed Storybook',
-      // The note is dimmed so it stands apart from the package, and gets noticed.
-      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)} ${chalk.dim('(with example stories)')}`,
+      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)}`,
     }),
   ]);
 

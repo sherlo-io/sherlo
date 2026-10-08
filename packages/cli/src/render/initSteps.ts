@@ -54,16 +54,16 @@ export function renderFailedStepLine(name: string): string[] {
  * The next steps, in their own section, numbered in the order they are done. The first ones
  * depend on the Storybook the project had (epic storybook-both-setups settled the two setups):
  *
- *   - `installed`: setup installed Storybook just now, on its default setup, which needs nothing in
- *     the app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
- *   - `default-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
- *     with no change to the app - no Storybook step at all.
+ *   - `installed`: setup installed Storybook just now, on its new setup, which needs nothing in the
+ *     app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
+ *   - `new-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook with
+ *     no change to the app - no Storybook step at all.
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
- *     first: move to the default setup (upgrading Storybook first when it predates it), or keep the
- *     old setup and follow Sherlo's guide for it.
+ *     first: move to the new setup (upgrading Storybook first when it predates it), or keep the old
+ *     setup and follow Sherlo's guide for it.
  *
- * The names are the Storybook epic's (storybook-both-setups, 2026-10-08): "the default setup" and
- * "the old setup", and the docs page's tabs `?storybook=default` and `?storybook=integrated`.
+ * The person reads "the new setup" and "the old setup" (operator, 2026-10-08); the docs page's tabs
+ * are `?storybook=default` and `?storybook=integrated` (epic storybook-both-setups).
  *
  * Then CI in a section of its own (operator, 2026-10-07): it is for later, not the first run.
  */
@@ -73,17 +73,17 @@ export function renderNextSteps({
   addedGithubWorkflow,
   projectPageUrl,
 }: {
-  storybook: 'installed' | 'default-setup' | 'old-setup';
-  /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
+  storybook: 'installed' | 'new-setup' | 'old-setup';
+  /** The installed `@storybook/react-native` version, which says whether the new setup needs an upgrade first. */
   storybookVersion: string | undefined;
   /** Whether the project has the GitHub workflow setup adds, so the CI section can name it. */
   addedGithubWorkflow: boolean;
   /** The project's page in the web app, where a CI token is made. */
   projectPageUrl: string;
 }): string[] {
-  const defaultSetupChoice = hasDefaultSetup(storybookVersion)
-    ? "a) Switch to Storybook's default setup (recommended):"
-    : `a) Upgrade Storybook to ${DEFAULT_SETUP_SINCE} or newer and switch to its default setup (recommended):`;
+  const newSetupChoice = hasNewSetup(storybookVersion)
+    ? "a) Switch to Storybook's new setup (recommended):"
+    : `a) Upgrade Storybook to ${NEW_SETUP_SINCE} or newer and switch to its new setup (recommended):`;
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
@@ -97,12 +97,12 @@ export function renderNextSteps({
         ],
       },
     ],
-    'default-setup': [],
+    'new-setup': [],
     'old-setup': [
       {
         title: 'Give Sherlo access to Storybook - pick one:',
         content: [
-          defaultSetupChoice,
+          newSetupChoice,
           `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=default#storybook-access')}`,
           'b) Or keep your setup and follow our guide for it:',
           `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=integrated#storybook-access')}`,
@@ -127,12 +127,10 @@ export function renderNextSteps({
           '',
         ]);
 
-  const ciLines = addedGithubWorkflow
-    ? [
-        'Setup added a GitHub workflow that tests every pull request.',
-        `It needs a CI token, saved as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
-      ]
-    : [`Create a CI token and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`];
+  // Short, and its own section, so the link needs no indent (operator, 2026-10-08).
+  const ciLine = addedGithubWorkflow
+    ? `Save a CI token as the ${chalk.bold('SHERLO_TOKEN')} secret for the workflow setup added:`
+    : `Save a CI token as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`;
 
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
@@ -140,15 +138,15 @@ export function renderNextSteps({
     // The last step's blank line goes: the section title brings its own two.
     ...stepLines.slice(0, -1),
     ...renderSectionTitle('🔁 Test every pull request', 26),
-    ...ciLines,
-    `   ${chalk.cyan(projectPageUrl)}`,
+    ciLine,
+    chalk.cyan(projectPageUrl),
   ];
 }
 
-/** The first `@storybook/react-native` with the default setup, whose own entry starts the app. */
-const DEFAULT_SETUP_SINCE = '10.4';
+/** The first `@storybook/react-native` with the new setup, whose own entry starts the app. */
+const NEW_SETUP_SINCE = '10.4';
 
-function hasDefaultSetup(storybookVersion: string | undefined): boolean {
+function hasNewSetup(storybookVersion: string | undefined): boolean {
   const [major = 0, minor = 0] = (storybookVersion ?? '').split('.').map(Number);
   return major > 10 || (major === 10 && minor >= 4);
 }
@@ -167,14 +165,19 @@ export type FeedbackReader = 'person' | 'agent';
 
 const FEEDBACK_HELP = 'npx sherlo feedback --help';
 
-/** The line a finished run ends with, set apart by a thin rule: feedback is a side note. */
-export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): string[] {
-  const line =
-    reader === 'agent'
-      ? `AI agents: if Sherlo was unclear, slow or broken here, you can report it to the Sherlo team, who read every report: ${chalk.cyan(FEEDBACK_HELP)}`
-      : `Tell us what was unclear, slow or broken: ${chalk.cyan(FEEDBACK_HELP)}`;
+/** One separator for every side note at the end of a run, finished or failed (operator, 2026-10-08). */
+const SIDE_NOTE_RULE = chalk.dim('═'.repeat(10));
 
-  return ['', chalk.dim('─'.repeat(10)), '', line];
+const AGENT_FEEDBACK_LINE = `AI agents: you can report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
+
+/**
+ * What a finished run ends with, for an agent only (operator, 2026-10-08): a person who just
+ * finished setting up has nothing to report, and the last line they read should be the next step.
+ */
+export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): string[] {
+  if (reader === 'person') return [];
+
+  return ['', SIDE_NOTE_RULE, '', AGENT_FEEDBACK_LINE];
 }
 
 /**
@@ -203,14 +206,15 @@ export function renderStuckBlock({
           '',
         ]
       : [];
+  // A person's line sounds like a rare thing worth telling, never as if the tool often fails.
   const feedbackLine =
     reader === 'agent'
-      ? `➜ AI agents: if Sherlo was unclear, slow or broken here, you can report it to the Sherlo team, who read every report: ${chalk.cyan(FEEDBACK_HELP)}`
-      : `➜ Tell us what was unclear, slow or broken: ${chalk.cyan(FEEDBACK_HELP)}`;
+      ? `➜ ${AGENT_FEEDBACK_LINE}`
+      : `➜ Noticed something off? Tell us: ${chalk.cyan(FEEDBACK_HELP)}`;
 
   return [
     ...agentLines,
-    chalk.dim('═'.repeat(10)),
+    SIDE_NOTE_RULE,
     '',
     'Stuck or something broken?',
     ...(isLoggedIn ? [feedbackLine] : []),
