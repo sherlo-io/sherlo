@@ -127,6 +127,7 @@ function collectContext(): FeedbackContext {
     : {};
 
   return {
+    sentBy: process.stderr.isTTY ? 'person' : 'agent',
     lastCommand: fs.existsSync(lastCommandPath)
       ? JSON.parse(fs.readFileSync(lastCommandPath, 'utf8'))
       : undefined,
