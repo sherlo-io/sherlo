@@ -59,7 +59,6 @@ async function init(options: Options<THIS_COMMAND>) {
     const reader = process.stdout.isTTY ? 'person' : 'agent';
     printLines(
       renderNextSteps({
-        reader,
         storybook: storybookState,
         storybookVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ?? undefined,
         addedGithubWorkflow: hasWorkflow,
