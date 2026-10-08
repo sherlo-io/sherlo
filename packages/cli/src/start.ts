@@ -140,7 +140,8 @@ async function start() {
 
       // `sherlo init` ends a failure with one block for feedback and help, in place of the usual footer.
       if ((error as { showFeedbackLine?: boolean }).showFeedbackLine) {
-        for (const line of renderStuckBlock({ discordUrl: DISCORD_URL, contactEmail: CONTACT_EMAIL })) {
+        const reader = process.stdout.isTTY ? 'person' : 'agent';
+        for (const line of renderStuckBlock({ reader, discordUrl: DISCORD_URL, contactEmail: CONTACT_EMAIL })) {
           console.log(line);
         }
       } else {

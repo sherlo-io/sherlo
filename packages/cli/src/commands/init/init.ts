@@ -63,7 +63,8 @@ async function init(options: Options<THIS_COMMAND>) {
         projectPageUrl,
       })
     );
-    printLines(renderFeedbackLine());
+    // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
+    printLines(renderFeedbackLine({ reader: process.stdout.isTTY ? 'person' : 'agent' }));
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });
   } catch (error) {
