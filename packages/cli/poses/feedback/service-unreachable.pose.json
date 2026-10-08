@@ -1,0 +1,22 @@
+{
+  "pose": 1,
+  "argv": ["feedback", "sherlo view printed no link for my last build."],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "sendFeedback",
+      "with": { "text": "sherlo view printed no link for my last build." },
+      "answer": { "error": "Network error: getaddrinfo ENOTFOUND api.sherlo.io" }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "pose": 1,
+  "argv": [
+    "feedback",
+    "The docs page for CI does not say where the CI token comes from. I found Create Token in the web app by searching."
+  ],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "sendFeedback",
+      "with": {
+        "text": "The docs page for CI does not say where the CI token comes from. I found Create Token in the web app by searching."
+      },
+      "answer": { "reference": "FB-3M9D" }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}

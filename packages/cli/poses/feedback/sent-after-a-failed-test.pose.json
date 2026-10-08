@@ -1,0 +1,33 @@
+{
+  "pose": 1,
+  "argv": [
+    "feedback",
+    "sherlo test stopped at the Android build with 'SDK location not found'. I expected it to find ANDROID_HOME. I set it in .zshrc and ran it again, with the same error."
+  ],
+  "files": {
+    ".sherlo/last-command.json": {
+      "command": "test",
+      "exitCode": 1,
+      "errorLines": ["SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable."]
+    }
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "sendFeedback",
+      "with": {
+        "text": "sherlo test stopped at the Android build with 'SDK location not found'. I expected it to find ANDROID_HOME. I set it in .zshrc and ran it again, with the same error."
+      },
+      "answer": { "reference": "FB-7K2Q" }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}

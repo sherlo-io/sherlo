@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { version } from '../package.json';
 import {
   easBuildOnComplete,
+  feedback,
   fingerprint,
   init,
   login,
@@ -75,7 +76,11 @@ import {
 } from './constants';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
-import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
+import { FEEDBACK_COMMAND } from './commands/feedback/constants';
+import { logWarning, reporting, withCommandTimeout } from './helpers';
+import { getEndpointUrl } from './helpers/buildStatusRequest';
+import { renderNeedHelp, type FeedbackInvite } from './render/needHelp';
+import { savedLogins } from './seams/savedLogins';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -104,6 +109,8 @@ async function start() {
     addTestEasCloudBuildCommand(program);
 
     addShowErrorCommand(program);
+
+    addFeedbackCommand(program);
 
     addFingerprintCommand(program);
 
@@ -135,7 +142,7 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      printNeedHelpEpilogue();
+      renderNeedHelp(whoToInviteToFeedback()).forEach((line) => console.log(line));
 
       process.exit(error.code || 1);
     });
@@ -144,12 +151,33 @@ async function start() {
 
 export default start;
 
+/**
+ * Who the help block invites to send feedback. Feedback is sent with the saved login, so nobody is
+ * invited without one; nor is anyone whose feedback itself just failed. An AI agent reads a pipe,
+ * a person a terminal.
+ */
+function whoToInviteToFeedback(): FeedbackInvite {
+  if (process.argv[2] === FEEDBACK_COMMAND) return 'none';
+
+  const hasSavedLogin = (() => {
+    try {
+      return Boolean(savedLogins().read(getEndpointUrl()));
+    } catch {
+      return false;
+    }
+  })();
+  if (!hasSavedLogin) return 'none';
+
+  return process.stderr.isTTY ? 'person' : 'agent';
+}
+
 /* ========================================================================== */
 
 const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
   [LOGIN_COMMAND]: 'Log in to Sherlo through your browser and save the login on this computer',
   [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
+  [FEEDBACK_COMMAND]: 'Tell the Sherlo team what was unclear, slow or broken',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
@@ -414,6 +442,25 @@ function addLogoutCommand(program: Command) {
     options: [],
     action: logout,
   });
+}
+
+function addFeedbackCommand(program: Command) {
+  // feedback takes its words as one positional argument, no options - bypass addCommand. The words
+  // are optional here so a bare `sherlo feedback` gets the command's own refusal, which shows what a
+  // useful report says, rather than the parser's.
+  program
+    .command(`${FEEDBACK_COMMAND} [text]`)
+    .description(
+      `${COMMAND_DESCRIPTION[FEEDBACK_COMMAND]}\n` +
+        '  Say what you were doing, what you expected, what happened and what you tried.\n' +
+        `  Example: npx sherlo feedback "sherlo test stopped at the Android build with\n` +
+        `           'SDK location not found'. I expected it to find ANDROID_HOME. I set it\n` +
+        `           and ran it again, with the same error."`
+    )
+    .action(async (text: string | undefined) => {
+      setReportingContext(FEEDBACK_COMMAND, {});
+      await feedback(text);
+    });
 }
 
 function addInitCommand(program: Command) {

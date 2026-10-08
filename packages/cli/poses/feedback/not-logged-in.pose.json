@@ -1,0 +1,10 @@
+{
+  "pose": 1,
+  "argv": ["feedback", "sherlo init stopped before the login step."],
+  "files": {},
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {}
+}

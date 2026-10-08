@@ -387,6 +387,21 @@ export type ScriptedCall =
       call: 'logOutCli';
       with: Record<string, never>;
       answer: ApiError | Record<string, never>;
+    }
+  | {
+      /**
+       * `sherlo feedback` stores the person's words. The pose states the words it expects sent; the
+       * context is composed by the command, so a pose does not restate it.
+       */
+      call: 'sendFeedback';
+      with: {
+        text: string;
+      };
+      answer:
+        | ApiError
+        | {
+            reference: string;
+          };
     };
 
 /** What a real push read off the machine, as a pose states it. */

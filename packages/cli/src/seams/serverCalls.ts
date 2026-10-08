@@ -132,6 +132,34 @@ export type ServerCalls = {
    * service the tool could not reach.
    */
   logOutCli(request: { personalToken: string }): Promise<void>;
+
+  /**
+   * `sherlo feedback`: store the person's words, and what the command attached beside them, under
+   * their login. Answers the short reference the person is shown.
+   */
+  sendFeedback(request: {
+    personalToken: string;
+    text: string;
+    context: FeedbackContext;
+  }): Promise<{ reference: string }>;
+};
+
+/**
+ * What `sherlo feedback` sends beside the person's words: the facts needed to act on a report
+ * (sherlo / Sending feedback). Never a token, never the saved login, never an environment value,
+ * and nothing from sherlo.config.json beyond the project and its devices.
+ */
+export type FeedbackContext = {
+  /** The last Sherlo command this project ran, with its error lines, when one is recorded. */
+  lastCommand?: { command: string; exitCode: number; errorLines: string[]; logFile?: string };
+  cliVersion: string;
+  sdkVersion?: string;
+  reactNativeVersion?: string;
+  expoVersion?: string;
+  storybookVersion?: string;
+  storybookSetup?: 'default' | 'old';
+  packageManager?: string;
+  operatingSystem: string;
 };
 
 /** A login the service started for this run: what to open, and what only this run may ask with. */
@@ -239,6 +267,12 @@ export const liveServerCalls: ServerCalls = {
       if (serviceRefusedTheToken(error)) throw new ServiceRefusedTokenError();
       throw error;
     }
+  },
+
+  // PLAN-LAYER ONLY (epic sherlo-feedback): the service has no feedback call yet. The build task
+  // that adds sherlo-api's sendFeedback mutation and its sdk-client request replaces this refusal.
+  sendFeedback: async () => {
+    throw new Error('sendFeedback is drawn for the plan only: the live call is a build task.');
   },
 };
 
@@ -498,6 +532,15 @@ export type ScriptedCall =
       call: 'logOutCli';
       with: Record<string, never>;
       answer: Record<string, never> | ApiError;
+    }
+  | {
+      /**
+       * `sherlo feedback` stores the person's words. The pose states the words it expects sent;
+       * the context is composed by the command, so a pose does not restate it.
+       */
+      call: 'sendFeedback';
+      with: { text: string };
+      answer: { reference: string } | ApiError;
     };
 
 /**
@@ -638,6 +681,8 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     logOutCli: async () => {
       answerFor('logOutCli', {});
     },
+
+    sendFeedback: async ({ text }) => answerFor('sendFeedback', { text }) as { reference: string },
   };
 }
 
