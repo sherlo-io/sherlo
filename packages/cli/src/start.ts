@@ -1,7 +1,8 @@
 import chalk from 'chalk';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { version } from '../package.json';
 import {
+  build,
   easBuildOnComplete,
   fingerprint,
   init,
@@ -19,7 +20,16 @@ import {
   view,
 } from './commands';
 import {
-  ANDROID_FILE_TYPES,
+  BUILD_CACHE_ENV_VAR,
+  BUILD_CACHE_OPTION,
+  BUILD_COMMAND,
+  DEFAULT_BUILD_CACHE,
+  NO_BUILD_OPTION,
+  PARALLEL_BUILDS_OPTION,
+  PLATFORM_OPTION,
+  RUN_ID_OPTION,
+} from './commands/test/appBuild/buildSettings';
+import {
   ANDROID_OPTION,
   BASELINE_OPTION,
   CONFIG_OPTION,
@@ -35,13 +45,11 @@ import {
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
-  IOS_FILE_TYPES,
   IOS_OPTION,
   LAYER_OPTION,
   MASK_COMMAND,
   MESSAGE_OPTION,
   METADATA_OPTION,
-  PLATFORM_LABEL,
   POSE_COMMAND,
   PROFILE_OPTION,
   PROJECT_COMMAND,
@@ -75,7 +83,8 @@ import {
 } from './constants';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
-import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
+import { logWarning, printNeedHelpEpilogue, reporting, throwError, withCommandTimeout } from './helpers';
+import { renderBinaryPathFlagGone } from './render/appBuild';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -98,6 +107,8 @@ async function start() {
     addLogoutCommand(program);
 
     addTestCommand(program);
+
+    addBuildCommand(program);
 
     addViewCommand(program);
 
@@ -152,11 +163,15 @@ const COMMAND_DESCRIPTION = {
   [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
-    `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
-    '  native base. Prints `native-needed=true` and builds nothing when this commit needs\n' +
-    '  a native rebuild first, `native-needed=false` when it ran the test to completion.\n' +
-    `  With \`--${ANDROID_OPTION} <path>\` (and optionally \`--${IOS_OPTION} <path>\`): runs a full test on\n` +
-    '  those builds and registers them as the new base.',
+    '  Tests JS-only changes against the stored app build, with no build. When native code\n' +
+    '  or build settings changed, builds the app first (with Gradle and Xcode, or on EAS in EAS\n' +
+    '  mode) - or takes it from the local build cache `npx sherlo build` filled. With `--no-build`:\n' +
+    '  only answers whether a new app build is needed (`native-needed=true|false`) and builds\n' +
+    '  nothing.',
+  [BUILD_COMMAND]:
+    'Build the app into the local build cache, and push nothing.\n' +
+    '  A later `npx sherlo test` takes the build from the cache instead of compiling, for as long\n' +
+    "  as the app's native code and build settings are unchanged.",
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
   [SHOW_ERROR_COMMAND]:
@@ -221,10 +236,6 @@ const COMMAND_DESCRIPTION = {
 };
 
 const OPTION_DEFINITION: Record<string, [string, string]> = {
-  [ANDROID_OPTION]: [
-    `--${ANDROID_OPTION} <path>`,
-    `Path to ${PLATFORM_LABEL.android} build (${ANDROID_FILE_TYPES.join(', ')})`,
-  ],
   [GIT_BRANCH_OPTION]: [
     '--git-branch <branch>',
     'Override the git branch name captured for this build (takes precedence over SHERLO_BRANCH and all CI-provider env vars)',
@@ -244,10 +255,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [INCLUDE_OPTION]: [
     `--${INCLUDE_OPTION} <stories>`,
     'List of story names to include in the test (e.g. "My Story","Another Story")',
-  ],
-  [IOS_OPTION]: [
-    `--${IOS_OPTION} <path>`,
-    `Path to ${PLATFORM_LABEL.ios} build (${IOS_FILE_TYPES.join(', ')})`,
   ],
   [LAYER_OPTION]: [
     `--${LAYER_OPTION} <layer>`,
@@ -362,6 +369,33 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     '--wait-timeout <minutes>',
     'Max minutes to wait for results (default: 45). Exit code 3 on timeout.',
   ],
+  [PLATFORM_OPTION]: [
+    '--platform <platform>',
+    'Build and test one platform only (android or ios) - one job of a CI run split across ' +
+      'machines. The two jobs of one CI run join into one test, which starts when both ' +
+      'builds are in.',
+  ],
+  [NO_BUILD_OPTION]: [
+    '--no-build',
+    'Only answer whether this commit needs a new app build (`native-needed=true|false`), ' +
+      'and build nothing - the question a CI pipeline asks first on a cheap job.',
+  ],
+  [RUN_ID_OPTION]: [
+    '--run-id <id>',
+    'The id the two jobs of a split CI run share, for a CI service Sherlo does not ' +
+      'recognise. Read from the CI service itself otherwise.',
+  ],
+  [BUILD_CACHE_OPTION]: [
+    '--build-cache <dir>',
+    `Where app builds are kept between runs (default: ${DEFAULT_BUILD_CACHE}, ` +
+      `or ${BUILD_CACHE_ENV_VAR}). A build whose native code and build settings are ` +
+      'unchanged is taken from here instead of compiled.',
+  ],
+  [PARALLEL_BUILDS_OPTION]: [
+    '--parallel-builds',
+    'Build Android and iOS at the same time instead of one after the other. Needs a ' +
+      'machine with the memory for two compilers.',
+  ],
   [WRITE_OPTION]: [
     `--${WRITE_OPTION} <file>`,
     'Write the digests and their pre-image (native sources, lockfiles, autolinked modules, ' +
@@ -426,26 +460,67 @@ function addInitCommand(program: Command) {
   });
 }
 
-// `sherlo test` is the ONE testing command: it carries the union of both roads'
-// options. The platform paths pick the standard road; without them the staged
-// road runs and --dry-run previews its bundling decision.
+// `sherlo test` is the ONE testing command, and it makes every app build it tests (operator
+// decision 2026-10-07): the staged road runs, builds what the gate refuses, and --dry-run previews
+// its bundling decision.
 function addTestCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
-  addCommand({
+  const testCommand = addCommand({
     program,
     command: TEST_COMMAND,
     options: [
-      ...getTestCommonOptions('withPlatformPaths'),
+      ...getTestCommonOptions(),
       BUNDLE_DIR_OPTION,
       EMIT_BUNDLE_DIR_OPTION,
       DRY_RUN_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       METADATA_OPTION,
+      PLATFORM_OPTION,
+      NO_BUILD_OPTION,
+      RUN_ID_OPTION,
+      BUILD_CACHE_OPTION,
+      PARALLEL_BUILDS_OPTION,
       ...devtoolsOptions,
     ],
-    action: test,
+    action: (options) => {
+      refuseBinaryPathFlags(options);
+      return test(options);
+    },
+  });
+
+  // THE SHERLO 2 FLAGS STAY PARSED, OUT OF SIGHT: a CI script that still passes `--android <path>`
+  // is answered with what to run instead (refuseBinaryPathFlags), not commander's "unknown option".
+  testCommand.addOption(new Option(`--${ANDROID_OPTION} <path>`).hideHelp());
+  testCommand.addOption(new Option(`--${IOS_OPTION} <path>`).hideHelp());
+}
+
+/**
+ * Sherlo 3 tests only app builds it made itself, so a path handed in is refused before anything
+ * runs - exit 1, like every other refused argument.
+ *
+ * PLAN-LAYER STOP (epic sherlo-test-builds-apps): this draws the refusal. The build task deletes
+ * the standard road behind it - `--android`/`--ios` routing in ./commands/test/test.ts,
+ * standardRun, the path validation, and the `android`/`ios` keys of sherlo.config.json, which it
+ * refuses with the same words.
+ */
+function refuseBinaryPathFlags(options: { [ANDROID_OPTION]?: string; [IOS_OPTION]?: string }) {
+  if (options[ANDROID_OPTION] === undefined && options[IOS_OPTION] === undefined) return;
+
+  throwError(renderBinaryPathFlagGone());
+}
+
+// `sherlo build` builds the app into the local build cache and pushes nothing, so a later
+// `sherlo test` - in this job or a later one that restores the cache - compiles nothing.
+// `withTimeout: false`: a release build is the slowest thing the tool does, and it ends on its own.
+function addBuildCommand(program: Command) {
+  addCommand({
+    program,
+    command: BUILD_COMMAND,
+    options: [CONFIG_OPTION, PROJECT_ROOT_OPTION, PLATFORM_OPTION, BUILD_CACHE_OPTION, PARALLEL_BUILDS_OPTION],
+    action: build,
+    withTimeout: false,
   });
 }
 
@@ -490,7 +565,7 @@ function addTestEasCloudBuildCommand(program: Command) {
     options: [
       EAS_BUILD_SCRIPT_NAME_OPTION,
       WAIT_FOR_EAS_BUILD_OPTION,
-      ...getTestCommonOptions('withoutPlatformPaths'),
+      ...getTestCommonOptions(),
       ...devtoolsOptions,
     ],
     action: testEasCloudBuild,
@@ -701,6 +776,7 @@ function addCommand({
   const commandInstance = program.command(command).description(COMMAND_DESCRIPTION[command]);
   addOptionsToCommand(commandInstance, options);
   commandInstance.action(action);
+  return commandInstance;
 }
 
 function showDeprecationWarning({
@@ -744,10 +820,8 @@ function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_
   });
 }
 
-function getTestCommonOptions(variant: 'withPlatformPaths' | 'withoutPlatformPaths') {
+function getTestCommonOptions() {
   return [
-    ...(variant === 'withPlatformPaths' ? [ANDROID_OPTION] : []),
-    ...(variant === 'withPlatformPaths' ? [IOS_OPTION] : []),
     TOKEN_OPTION,
     MESSAGE_OPTION,
     GIT_BRANCH_OPTION,

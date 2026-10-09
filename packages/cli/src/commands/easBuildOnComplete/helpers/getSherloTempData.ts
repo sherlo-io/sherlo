@@ -5,10 +5,10 @@ import {
   SHERLO_TEMP_DIRECTORY,
   TEST_EAS_CLOUD_BUILD_COMMAND,
 } from '../../../constants';
-import { getErrorWithCustomMessage, logWarning, throwError } from '../../../helpers';
+import { getCwd, getErrorWithCustomMessage, logWarning, throwError } from '../../../helpers';
 
-function getSherloTempData(): { buildIndex: number; token: string } | undefined {
-  const SHERLO_TEMP_FILE_PATH = [SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILENAME].join('/');
+function getSherloTempData(): { buildIndex: number; token: string; profile?: string } | undefined {
+  const SHERLO_TEMP_FILE_PATH = [getCwd(), SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILENAME].join('/');
 
   if (!fs.existsSync(SHERLO_TEMP_FILE_PATH)) {
     logWarning({
@@ -37,7 +37,7 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
     });
   }
 
-  const { buildIndex, token } = sherloTempData;
+  const { buildIndex, token, profile } = sherloTempData;
 
   if (typeof buildIndex !== 'number') {
     throwError({
@@ -58,7 +58,7 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
     });
   }
 
-  return { buildIndex, token };
+  return { buildIndex, token, ...(typeof profile === 'string' ? { profile } : {}) };
 }
 
 export default getSherloTempData;

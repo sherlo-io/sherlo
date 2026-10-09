@@ -1,0 +1,12 @@
+[31mERROR: `sherlo test` builds your app itself, so it no longer takes --android or --ios, or `android` / `ios` paths in sherlo.config.json.[39m
+To test, run `npx sherlo test` with no paths.
+To build ahead of time, run `npx sherlo build` - the next `sherlo test` takes the app from the local build cache.
+For a build Gradle or Xcode can't do on their own, set `build.android.command` and `build.android.output` (or the `ios` ones) in sherlo.config.json.
+
+[2m══════════[22m
+[2m[22m
+[2mNeed Help?[22m
+[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
+[2m➜ [22m[2mcontact@sherlo.io[22m
+
+[exit 1]

@@ -1,12 +1,4 @@
-import sdkClient from '@sherlo/sdk-client';
-import {
-  ANDROID_OPTION,
-  DOCS_LINK,
-  IOS_OPTION,
-  PROFILE_OPTION,
-  TEST_COMMAND,
-  TEST_EAS_CLOUD_BUILD_COMMAND,
-} from '../../constants';
+import { DOCS_LINK, PROFILE_OPTION, TEST_COMMAND } from '../../constants';
 import {
   getTokenParts,
   handleClientError,
@@ -14,22 +6,25 @@ import {
   printSherloIntro,
   throwError,
 } from '../../helpers';
+import { serverCalls } from '../../seams/serverCalls';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
 import { asyncUploadBuildAndRunTests, getSherloTempData } from './helpers';
 
 /**
+ * `sherlo eas-build-on-complete` - the package.json hook every EAS build runs when it ends, in a
+ * project that builds on EAS (`"build": { "tool": "eas" }` in sherlo.config.json). It uploads the
+ * build into the run `sherlo test` opened for it.
+ *
+ * The profile it answers for is the one `sherlo test` wrote into `.sherlo/data.json`, so the
+ * script is the same line in every project: `"eas-build-on-complete": "sherlo eas-build-on-complete"`.
+ * `--profile` still overrides it, for the scripts older CLIs asked for.
+ *
  * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
  * Environment variables: https://docs.expo.dev/build-reference/variables/#built-in-environment-variables
- * Secrets in environment variables: https://docs.expo.dev/build-reference/variables/#using-secrets-in-environment-variables
  */
-
 async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   const wasAppBuiltLocally = process.env.EAS_BUILD_RUNNER !== 'eas-build';
-  const isMultiProfile = passedOptions.profile.includes(',');
-  const passedProfiles = isMultiProfile
-    ? passedOptions.profile.split(',')
-    : [passedOptions.profile];
   const easBuildProfile = process.env.EAS_BUILD_PROFILE!;
 
   if (wasAppBuiltLocally) {
@@ -38,8 +33,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     logInfo({
       message:
         'EAS builds were created locally\n\n' +
-        `The \`npx sherlo ${THIS_COMMAND}\` command works only with \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`\n` +
-        `To test builds available locally, use \`npx sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> --${IOS_OPTION} <path>\` instead\n`,
+        `The \`npx sherlo ${THIS_COMMAND}\` command uploads builds made on Expo's servers.\n` +
+        `To test on this machine, run \`npx sherlo ${TEST_COMMAND}\`, which builds the app itself.\n`,
       learnMoreLink: DOCS_LINK.testing,
     });
 
@@ -50,11 +45,26 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
 
   printSherloIntro();
 
+  const sherloTempData = getSherloTempData();
+
+  if (!sherloTempData) {
+    return;
+  }
+
+  const { buildIndex, token } = sherloTempData;
+
+  // The profile `sherlo test` started the EAS builds with, unless the script names others.
+  const passedProfiles = passedOptions.profile
+    ? passedOptions.profile.split(',')
+    : sherloTempData.profile
+      ? [sherloTempData.profile]
+      : undefined;
+
   if (!passedProfiles) {
     throwError({
       message:
-        `The \`--${PROFILE_OPTION}\` option is required for \`npx sherlo ${THIS_COMMAND}\`\n\n` +
-        'Please specify the EAS profile that will be used for testing your builds with Sherlo\n',
+        `Can't upload the EAS build: no EAS profile is named. .sherlo/data.json names none, and --${PROFILE_OPTION} was not passed.\n` +
+        `Start the EAS builds with \`npx sherlo ${TEST_COMMAND}\`, which names the profile, or pass --${PROFILE_OPTION} <name>.`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
   }
@@ -64,7 +74,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     logInfo({
       message:
         'Sherlo tests skipped - EAS profiles mismatch\n\n' +
-        `Current build used "${easBuildProfile}" profile while \`npx sherlo ${THIS_COMMAND}\` was called with "${passedOptions.profile}"\n`,
+        `Current build used "${easBuildProfile}" profile while Sherlo is waiting for "${passedProfiles.join(', ')}"\n`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
 
@@ -73,27 +83,19 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     return;
   }
 
-  const sherloTempData = getSherloTempData();
-
-  if (!sherloTempData) {
-    return;
-  }
-
-  const { buildIndex, token } = sherloTempData;
-
   // Build failed on Expo servers
   if (process.env.EAS_BUILD_STATUS === 'errored') {
-    const { apiToken, projectIndex, teamId } = getTokenParts(token);
-    const client = sdkClient({ authToken: apiToken });
+    const { projectIndex, teamId } = getTokenParts(token);
 
-    await client
+    await serverCalls()
       .closeBuild({
+        token,
         buildIndex,
         projectIndex,
         teamId,
         runError: 'user_easCloudBuild',
       })
-      .catch(handleClientError);
+      .catch((error) => handleClientError(error, token));
 
     throwError({
       message:

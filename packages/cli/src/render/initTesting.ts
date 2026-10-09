@@ -1,38 +1,26 @@
 /**
- * WHAT `sherlo init` PRINTS FOR TESTING, its last section: a reminder to prepare the builds first,
- * the push to run, and what that first push sets up.
+ * WHAT `sherlo init` PRINTS FOR TESTING, its last section: the push to run, and what that first push
+ * sets up. `sherlo test` builds the app itself (epic sherlo-test-builds-apps), so there is no build
+ * to prepare first; words by the content department (review of 2026-10-07).
  *
- * Pure, like everything under ./: state in, print-call arguments out. The box wraps to the
- * terminal's width, which the caller reads and hands in.
+ * Pure, like everything under ./: state in, print-call arguments out.
  */
 import chalk from 'chalk';
 import { DOCS_LINK } from '../constants';
-import { renderBox } from './box';
 import { renderSectionTitle } from './initLines';
 import { renderNotice } from './pushSpine';
 
-export function renderTesting({
-  terminalColumns,
-}: {
-  terminalColumns: number | undefined;
-}): string[] {
+export function renderTesting(): string[] {
   return [
     ...renderSectionTitle('🧪 Testing'),
-    renderBox({
-      type: 'warning',
-      title: 'Before testing',
-      text: `Make sure you have prepared proper ${chalk.bold('Builds')}`,
-      terminalColumns,
-    }),
-    '',
-    'To test your app run:',
-    '  ' + chalk.cyan('npx sherlo test --android <path> --ios <path>'),
+    'To test your app, run:',
+    '  ' + chalk.cyan('npx sherlo test'),
     '',
     renderNotice({
       level: 'info',
       message:
-        'That first run registers your builds as the base. After it, plain `npx sherlo test` ' +
-        'tests JS-only changes with no native rebuild, and tells you when a fresh native build is needed',
+        'The first run builds your app and stores the app build. After that, `npx sherlo test` ' +
+        'reuses it while only JavaScript changes.',
       learnMoreLink: DOCS_LINK.testing,
     }),
     '',

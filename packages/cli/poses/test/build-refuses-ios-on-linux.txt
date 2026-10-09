@@ -10,17 +10,9 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Android preview simulator build not found at path: "<SHERLO_ANDROID_BUILD_PATH>"[39m
-Pass using `--android` option or set `android` in the config file
-
-[34m[2m╭─[22m[39m[34m Preview Simulator Build [39m[34m[2m────────────────────────────────────────────╮[22m[39m
-[34m[2m│[22m[39m Standard testing requires a [1mpreview simulator build[22m (with JS bundle) [34m[2m│[22m[39m
-[34m[2m│[22m[39m                                                                      [34m[2m│[22m[39m
-[34m[2m│[22m[39m How to build:                                                        [34m[2m│[22m[39m
-[34m[2m│[22m[39m [4mhttps://sherlo.io/docs/builds?type=preview-simulator#build-types[24m     [34m[2m│[22m[39m
-[34m[2m╰──────────────────────────────────────────────────────────────────────╯[22m[39m
-
-[34mINFO: Testing one platform? Remove unwanted devices from sherlo.config.json[39m
+[31mERROR: Can't build iOS here: iOS builds need macOS, and this machine runs Linux.[39m
+[31mRun `npx sherlo test --platform android` here and `npx sherlo test --platform ios` on a Mac.[39m
+[31mTwo jobs in the same CI run join into one test.[39m
 
 [2m══════════[22m
 [2m[22m

@@ -2,8 +2,6 @@
   "pose": 1,
   "argv": [
     "test",
-    "--android",
-    "builds/app-release.apk",
     "--wait",
     "--wait-timeout",
     "1"
@@ -18,7 +16,7 @@
         }
       ]
     },
-    "builds/app-release.apk": "a preview build - the bytes are not part of a pose; what the tool reads out of them is `push`"
+    ".sherlo/build-cache/android/app-release.apk": "the app build the local build cache held - what the tool reads out of it is `push`"
   },
   "env": {},
   "git": {
@@ -43,6 +41,17 @@
     }
   },
   "api": [
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
+      "answer": {
+        "outcome": "full-build-needed",
+        "diff": []
+      }
+    },
     {
       "call": "getNextBuildInfo",
       "with": {
@@ -91,6 +100,18 @@
     }
   ],
   "masks": {},
+  "appBuild": {
+    "host": "linux",
+    "tools": [
+      "android-sdk"
+    ],
+    "java": 17,
+    "platforms": {
+      "android": {
+        "cached": ".sherlo/build-cache/android/app-release.apk"
+      }
+    }
+  },
   "push": {
     "now": "2026-09-15T12:00:00.000Z",
     "binaries": {

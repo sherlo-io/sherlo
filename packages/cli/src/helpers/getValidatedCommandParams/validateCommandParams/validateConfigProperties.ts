@@ -11,6 +11,7 @@ const supportedProperties = [
   'include',
   'exclude',
   'simulation',
+  'build',
 ];
 
 function validateConfigProperties(config: InvalidatedConfig): void {

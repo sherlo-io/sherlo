@@ -1,0 +1,45 @@
+{
+  "pose": 1,
+  "argv": [
+    "test"
+  ],
+  "files": {
+    "sherlo.config.json": {
+      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        }
+      ],
+      "build": {
+        "tool": "eas"
+      }
+    },
+    "package.json": {
+      "name": "storefront",
+      "scripts": {}
+    }
+  },
+  "env": {},
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "2211ec2fb7c0ac510489fb1bd0da70c7e3828ffa1b0d9009f896a2d1854e5dd0"
+      },
+      "answer": {
+        "outcome": "full-build-needed",
+        "diff": []
+      }
+    }
+  ],
+  "masks": {}
+}

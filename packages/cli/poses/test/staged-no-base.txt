@@ -12,14 +12,13 @@
 
 [31m[39m
 [31m✗ Staged upload not possible for Android: the native binary needs to be rebuilt.[39m
-[31mRun `npx sherlo test --android <path> [--ios <path>]` for a full build with the same options.[39m
 
 native-needed=true
 reason=android: native inputs changed since the base build
 base-fingerprint=<FINGERPRINT>
 [33m[39m
 [33mA native build is required before this commit can be tested: android: native inputs changed since the base build.[39m
-[33mNothing was built and no test ran.[39m
-[33mRun `npx sherlo test --android <path> [--ios <path>]` for a full build with the same options.[39m
+[33mNothing was built and no test ran (--no-build).[39m
+[33mTo build it on this machine, run `npx sherlo test` without --no-build.[39m
 
 [exit 4]

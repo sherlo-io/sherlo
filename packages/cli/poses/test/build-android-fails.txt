@@ -1,0 +1,25 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+🔨 [1mAndroid[22m needs a new app build: native code changed since the stored one
+[34m➜[39m  building with Gradle... [2m(log: .sherlo/build-android.log)[22m
+[31m✗[39m  [31mAndroid build failed after <DURATION>.[39m Last lines of the log:
+
+[2m   | > Task :app:compileReleaseKotlin FAILED[22m
+[2m   | e: MainApplication.kt:42: Unresolved reference: SomeModule[22m
+[2m   | BUILD FAILED in 1m 12s[22m
+
+   Full log: .sherlo/build-android.log
+   Nothing was uploaded and no test ran.
+
+
+[exit 2]

@@ -103,6 +103,11 @@ function commandBundles(argv: string[]): boolean {
   return argv[0] === 'test';
 }
 
+/** `sherlo test` builds a platform that needs a new app build, and `sherlo build` builds and nothing else. */
+function commandBuildsApps(argv: string[]): boolean {
+  return argv[0] === 'test' || argv[0] === 'build';
+}
+
 /** `sherlo init` is the only command that installs a package and stops for a key. */
 function commandActsOnTheMachine(argv: string[]): boolean {
   return argv[0] === 'init';
@@ -146,9 +151,23 @@ function reportRoadsThisCommandDoesNotTake(
     );
   }
 
-  if ('push' in pose && !commandBundles(argv)) {
+  // `sherlo build` reads the machine too: the base fingerprint its cache key is made of. So does
+  // the EAS hook: the app build EAS made, and the base fingerprint it registers.
+  if (
+    'push' in pose &&
+    !commandBundles(argv) &&
+    !commandBuildsApps(argv) &&
+    argv[0] !== 'eas-build-on-complete'
+  ) {
     problems.push(
       `\`push\`: \`${command}\` never reads a native build, so there is no push for it to ` +
+        'describe. Leave the field out.'
+    );
+  }
+
+  if ('appBuild' in pose && !commandBuildsApps(argv)) {
+    problems.push(
+      `\`appBuild\`: \`${command}\` never builds an app, so there is no build for it to ` +
         'describe. Leave the field out.'
     );
   }
@@ -200,6 +219,10 @@ function reportForeignPlatforms(pose: Record<string, unknown>, problems: string[
   reportForeignKeys(pose.bundles, 'bundles', problems);
 
   if (isPlainObject(pose.push)) reportForeignKeys(pose.push.binaries, 'push.binaries', problems);
+
+  if (isPlainObject(pose.appBuild)) {
+    reportForeignKeys(pose.appBuild.platforms, 'appBuild.platforms', problems);
+  }
 
   for (const decision of captureDecisionsIn(pose)) {
     reportForeignKeys(decision.platforms, `${decision.path}.platforms`, problems);

@@ -1,7 +1,8 @@
 {
   "pose": 1,
   "argv": [
-    "test"
+    "test",
+    "--no-build"
   ],
   "files": {
     "sherlo.config.json": {

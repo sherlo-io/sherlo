@@ -1,15 +1,14 @@
 /**
- * WHAT `sherlo init` PRINTS FOR BUILDS: a reminder to provide Storybook access first, and where to
- * read about making the app binaries.
+ * WHAT `sherlo init` PRINTS FOR BUILDS: a reminder to provide Storybook access first, and how the
+ * app gets built - by `sherlo test` itself (epic sherlo-test-builds-apps). Words by the content
+ * department (review of 2026-10-07).
  *
  * Pure, like everything under ./: state in, print-call arguments out. The box wraps to the
  * terminal's width, which the caller reads and hands in.
  */
 import chalk from 'chalk';
-import { DOCS_LINK } from '../constants';
 import { renderBox } from './box';
 import { renderSectionTitle } from './initLines';
-import { formatLink } from './pushSpine';
 
 export function renderBuilds({
   terminalColumns,
@@ -25,7 +24,7 @@ export function renderBuilds({
       terminalColumns,
     }),
     '',
-    'Create builds aligned with your chosen testing method:',
-    '  ' + chalk.cyan(formatLink(DOCS_LINK.builds)),
+    '`npx sherlo test` builds your app with Gradle (Android) and Xcode (iOS) on the first run, ' +
+      'and again only when native code or build settings change.',
   ];
 }

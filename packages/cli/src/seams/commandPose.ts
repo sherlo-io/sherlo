@@ -13,6 +13,7 @@
  * shape of its own answer, and the contract was a third hand-written copy that could go stale in
  * silence. Now there is one declaration per seam, one composition here, and two generated copies.
  */
+import type { PosedAppBuild } from './appBuilder';
 import type { PosedBrowser } from './browser';
 import type { PosedBundle } from './bundler';
 import type { PosedCapture } from './captureSocket';
@@ -96,6 +97,15 @@ export type CommandPose = {
    * run time, exactly like a call the pose did not script.
    */
   push?: PosedPush;
+  /**
+   * What building the app on the machine came to, for the commands that build it (`sherlo test`
+   * when a platform needs a new app build, `sherlo build`): which operating system it was, which
+   * build tools it had, and per platform whether the build was found in the cache, compiled,
+   * failed, or started on EAS. A pose that states it for a command that never builds is refused;
+   * a run that reaches the builder with no `appBuild` is refused at run time, exactly like a call
+   * the pose did not script.
+   */
+  appBuild?: PosedAppBuild;
   /**
    * WHAT THE CLOCK ANSWERS WHILE THE COMMAND WAITS, ISO 8601, in the order the wait reads it. A
    * wait reads the clock once at its start and once before every poll; after the last instant

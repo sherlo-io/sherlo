@@ -42,7 +42,9 @@ function getBuildPath({
     });
   }
 
-  if (!fs.existsSync(platformPath)) {
+  // Relative to the project folder the hook runs in (the project-folder seam), not wherever this
+  // process happens to stand - which is the same folder on EAS, and the posed folder in a pose.
+  if (!fs.existsSync(path.resolve(getCwd(), platformPath))) {
     throwError({
       type: 'unexpected',
       error: new Error(`Build file does not exist at path: ${platformPath}`),
@@ -75,17 +77,22 @@ function getBuildPathFromEasJson({
     });
   }
 
-  return easJsonData?.builds?.[platform]?.[easBuildProfile]?.applicationArchivePath ?? null;
+  // eas.json nests a profile's settings as `build.<profile>.<platform>`: the hook used to read
+  // `builds.<platform>.<profile>`, which no eas.json has, so a profile's own archive path was never
+  // found and the default path was always used (Sherlo 3 audit).
+  return easJsonData?.build?.[easBuildProfile]?.[platform]?.applicationArchivePath ?? null;
 }
 
 function findDefaultIosAppPath(): string | null {
   const IOS_BUILD_PATH = 'ios/build/Build/Products/Release-iphonesimulator';
 
-  if (!fs.existsSync(IOS_BUILD_PATH)) {
+  const buildFolder = path.resolve(getCwd(), IOS_BUILD_PATH);
+
+  if (!fs.existsSync(buildFolder)) {
     return null;
   }
 
-  const fileNames = fs.readdirSync(IOS_BUILD_PATH);
+  const fileNames = fs.readdirSync(buildFolder);
 
   for (let i = 0; i < fileNames.length; i++) {
     const fileName = fileNames[i];

@@ -36,6 +36,21 @@ import {
 } from './buildView';
 import { formatDryRunPreview } from './dryRunPlan';
 import {
+  renderAppBuildCached,
+  renderAppBuildCompiling,
+  renderAppBuildDone,
+  renderAppBuildFailed,
+  renderAppBuildGenerating,
+  renderAppBuildNeeded,
+  renderAppBuildStart,
+  renderEasBuildHeader,
+  renderEasBuildQueued,
+  renderEasHostedVariables,
+  renderRunStarting,
+  renderRunWaitsForBuilds,
+  renderStoredBuildReused,
+} from './appBuild';
+import {
   formatLink,
   renderBinaryPlatformLabel,
   renderBinaryReused,
@@ -279,6 +294,64 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         stream: 'stdout',
         prints: [[`🔗 ${formatLink(segment.url)}\n`]],
       };
+
+    case 'app-build-needed':
+      return { stream: 'stdout', prints: [[renderAppBuildNeeded(segment.platform, segment.reason)]] };
+
+    case 'app-build-stored-reused':
+      return { stream: 'stdout', prints: [[renderStoredBuildReused(segment.platform)]] };
+
+    case 'app-build-start':
+      return { stream: 'stdout', prints: [[renderAppBuildStart(segment.platform)]] };
+
+    case 'app-build-cached':
+      // The blank line closes the platform's build lines, as it closes the upload lines.
+      return { stream: 'stdout', prints: [[renderAppBuildCached(segment.platform)], []] };
+
+    case 'app-build-generating':
+      return { stream: 'stdout', prints: [[renderAppBuildGenerating(segment.platform)]] };
+
+    case 'app-build-compiling':
+      return {
+        stream: 'stdout',
+        prints: [[renderAppBuildCompiling(segment.platform, segment.logPath)]],
+      };
+
+    case 'app-build-done':
+      return {
+        stream: 'stdout',
+        prints: [...renderAppBuildDone(segment).map((line) => [line]), []],
+      };
+
+    case 'app-build-failed':
+      return {
+        stream: 'stdout',
+        prints: [...renderAppBuildFailed(segment).map((line) => [line]), []],
+      };
+
+    case 'eas-build-header':
+      return { stream: 'stdout', prints: [[renderEasBuildHeader(segment.profile)]] };
+
+    case 'eas-build-queued':
+      return { stream: 'stdout', prints: [[renderEasBuildQueued(segment.platform)]] };
+
+    case 'eas-hosted-variables':
+      return {
+        stream: 'stdout',
+        prints: [
+          ...renderEasHostedVariables(segment.profile, segment.environment).map((line) => [line]),
+          [],
+        ],
+      };
+
+    case 'run-waits-for-builds':
+      return {
+        stream: 'stdout',
+        prints: [[renderRunWaitsForBuilds(segment.buildIndex, segment.waitingFor)]],
+      };
+
+    case 'run-starting':
+      return { stream: 'stdout', prints: [[renderRunStarting(segment.buildIndex)]] };
 
     case 'output-keys':
       return {

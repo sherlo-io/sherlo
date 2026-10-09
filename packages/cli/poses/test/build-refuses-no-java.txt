@@ -10,17 +10,8 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Missing required Android preview simulator build path[39m
-Pass using `--android` option or set `android` in the config file
-
-[34m[2m╭─[22m[39m[34m Preview Simulator Build [39m[34m[2m────────────────────────────────────────────╮[22m[39m
-[34m[2m│[22m[39m Standard testing requires a [1mpreview simulator build[22m (with JS bundle) [34m[2m│[22m[39m
-[34m[2m│[22m[39m                                                                      [34m[2m│[22m[39m
-[34m[2m│[22m[39m How to build:                                                        [34m[2m│[22m[39m
-[34m[2m│[22m[39m [4mhttps://sherlo.io/docs/builds?type=preview-simulator#build-types[24m     [34m[2m│[22m[39m
-[34m[2m╰──────────────────────────────────────────────────────────────────────╯[22m[39m
-
-[34mINFO: Testing one platform? Remove unwanted devices from sherlo.config.json[39m
+[31mERROR: Can't build Android: no Java was found.[39m
+[31mInstall JDK 17 or newer, or point JAVA_HOME at one.[39m
 
 [2m══════════[22m
 [2m[22m

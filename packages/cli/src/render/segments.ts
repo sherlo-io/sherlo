@@ -35,6 +35,7 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
+import type { AppBuildReason, RunWaitsFor } from './appBuild';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -148,6 +149,46 @@ export type TranscriptSegment =
   | { kind: 'results-url'; url: string }
   /** Machine-readable `key=value` answer lines. A key with no value is not printed. */
   | { kind: 'output-keys'; entries: Record<string, string | number | boolean | undefined> }
+  /* ---------------------------------------------------------------------- *
+   * APP BUILDS - what `sherlo test` prints when a platform needs a new app  *
+   * build and the tool builds it itself, and what `sherlo build` prints.    *
+   * See ./appBuild. The order below is the order a build prints them.       *
+   * ---------------------------------------------------------------------- */
+  /**
+   * `🔨 Android needs a new app build: none is stored for this project yet`. The reason is one
+   * of two the gate can give, as data: which words say it is this layer's decision.
+   */
+  | { kind: 'app-build-needed'; platform: Platform; reason: AppBuildReason }
+  /** `✔  iOS: only JavaScript changed, so the stored app build is reused` - the other half of a mixed run. */
+  | { kind: 'app-build-stored-reused'; platform: Platform }
+  /** `🔨 Building Android...` - the header `sherlo build` opens each platform with. */
+  | { kind: 'app-build-start'; platform: Platform }
+  /** `✔  reused the Android app build from the local build cache`. */
+  | { kind: 'app-build-cached'; platform: Platform }
+  /** `➜  generating the android folder (expo prebuild)...` - only for an Expo app with no native folder. */
+  | { kind: 'app-build-generating'; platform: Platform }
+  /** `➜  building with Gradle... (log: .sherlo/build-android.log)` - printed BEFORE the compile runs. */
+  | { kind: 'app-build-compiling'; platform: Platform; logPath: string }
+  /**
+   * `✔  Android built in 1m 28s (53.90 MB)`, and for `sherlo build` the cache sentence under it.
+   * The duration arrives in whole seconds, measured by logic: the renderer reads no clock.
+   */
+  | { kind: 'app-build-done'; platform: Platform; seconds: number; sizeMb: string; savedToCache: boolean }
+  /** The failed build: its duration, the build tool's last lines verbatim, and where the full log is. */
+  | { kind: 'app-build-failed'; platform: Platform; seconds: number; lastLines: string[]; logPath: string }
+  /** `☁️  Building on EAS with profile "sherlo"...`. */
+  | { kind: 'eas-build-header'; profile: string }
+  /** `✔  Android: EAS build queued`. */
+  | { kind: 'eas-build-queued'; platform: Platform }
+  /** The EAS profile reads variables kept on Expo's servers, which a local build cannot read. */
+  | { kind: 'eas-hosted-variables'; profile: string; environment: string }
+  /**
+   * `⏸  Test 1 starts when ...` - the run is open and waits for the builds still to come: the
+   * other job's platform in a split CI run, or the EAS builds.
+   */
+  | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: RunWaitsFor }
+  /** `▶  Both builds are in - Test 1 is starting` - this job's build was the last one the run waited for. */
+  | { kind: 'run-starting'; buildIndex: number }
   /* ---------------------------------------------------------------------- *
    * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
    * it prints when the build reaches a terminal state.                      *

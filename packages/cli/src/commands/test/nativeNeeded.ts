@@ -25,6 +25,7 @@
 import chalk from 'chalk';
 import { reporting } from '../../helpers';
 import printOutputKeys from '../../helpers/printOutputKeys';
+import { appBuilder } from '../../seams/appBuilder';
 import { EXIT_NATIVE_NEEDED, NATIVE_NEEDED_KEY } from './constants';
 import { FALLBACK_LINE } from './stagedGateRefusal';
 
@@ -42,10 +43,19 @@ async function reportNativeNeeded({
   reason,
   details = [],
   baseFingerprint,
+  noBuild = false,
+  refusedPlatforms = [],
 }: {
   reason: string;
   details?: string[];
   baseFingerprint?: string;
+  /**
+   * `--no-build` asked only the question. The tool builds a refused platform itself otherwise, so
+   * the closing lines say how to get the build rather than how to bring one.
+   */
+  noBuild?: boolean;
+  /** The platforms the gate refused, so a Linux machine asked for iOS points at a Mac. */
+  refusedPlatforms?: Array<'android' | 'ios'>;
 }): Promise<never> {
   for (const detail of details) {
     console.log(chalk.red(`\n${detail}`));
@@ -58,11 +68,17 @@ async function reportNativeNeeded({
     'base-fingerprint': baseFingerprint,
   });
 
+  const iosNeedsAMac = refusedPlatforms.includes('ios') && appBuilder().hostSystem() !== 'macos';
+  const closingLines = noBuild
+    ? 'Nothing was built and no test ran (--no-build).\n' +
+      (iosNeedsAMac
+        ? 'To build it, run `npx sherlo test --platform ios` on a Mac.'
+        : 'To build it on this machine, run `npx sherlo test` without --no-build.')
+    : 'Nothing was built and no test ran.\n' + FALLBACK_LINE;
+
   console.log(
     chalk.yellow(
-      `\nA native build is required before this commit can be tested: ${reason}.\n` +
-        'Nothing was built and no test ran.\n' +
-        FALLBACK_LINE
+      `\nA native build is required before this commit can be tested: ${reason}.\n` + closingLines
     )
   );
 
