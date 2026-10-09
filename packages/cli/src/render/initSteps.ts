@@ -107,10 +107,12 @@ export function renderNextSteps({
         content: [
           // "A few to start", never "simple ones": a person must not read that Sherlo only copes
           // with trivial components (operator, 2026-10-09). Which ones to begin with is the guide's.
-          "Start with stories for a few of your app's components,",
-          'and delete the examples in .rnstorybook/stories.',
-          'Storybook loads only the folders listed in .rnstorybook/main.ts, so add theirs there.',
-          `How: ${chalk.cyan(STORIES_GUIDE_PATH)}`,
+          // WHY FIRST, THEN WHAT, THEN WHERE THE REST IS (operator, 2026-10-09): a person reads why it
+          // matters - their real UI gets tested - and an agent gets each action it must take.
+          'Sherlo tests what your stories show, so swap the examples for your real UI:',
+          "start with stories for a few of your app's components, and delete .rnstorybook/stories.",
+          'Storybook loads only the folders listed in .rnstorybook/main.ts, so add yours there.',
+          `Which components to start with, and how: ${chalk.cyan(STORIES_GUIDE_PATH)}`,
         ],
       },
     ],
