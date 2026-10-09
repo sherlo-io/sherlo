@@ -161,4 +161,5 @@ function ensureStorybookRequires(opts, runGenerator) {
 module.exports = ensureStorybookRequires;
 module.exports.ensureStorybookRequires = ensureStorybookRequires;
 module.exports.resolveConfigDir = resolveConfigDir;
+module.exports.DEFAULT_CONFIG_DIRNAMES = DEFAULT_CONFIG_DIRNAMES;
 module.exports.requiresFileExists = requiresFileExists;

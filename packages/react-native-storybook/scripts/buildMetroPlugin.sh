@@ -23,6 +23,13 @@ yarn run ncc build metro/withStorybook.js --minify --out "$WORK_DIR/withStoryboo
   --external metro/src/lib/bundleToString
 
 mv "$WORK_DIR/withStorybook/index.js" "$OUTPUT_DIR/withStorybook.js"
+
+# The setup check is also loaded on its own by `sherlo init`, from the SDK installed in the project.
+yarn run ncc build metro/detectStorybookSetup.js --minify --out "$WORK_DIR/detectStorybookSetup" \
+  --external @babel/parser \
+  --external metro-babel-transformer/node_modules/@babel/parser
+
+mv "$WORK_DIR/detectStorybookSetup/index.js" "$OUTPUT_DIR/detectStorybookSetup.js"
 # The polyfill is only minified, never wrapped as a module. toplevel stays off so its writes to
 # global names keep those names. terser is one of this package's own devDependencies.
 node "$(node -p "require.resolve('terser/bin/terser')")" metro/polyfill.js --compress toplevel=false --mangle toplevel=false \
