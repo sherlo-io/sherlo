@@ -423,16 +423,13 @@ function addLogoutCommand(program: Command) {
 }
 
 function addFeedbackCommand(program: Command) {
-  // feedback takes its report as one positional argument - bypass addCommand. The words are optional
-  // here so a bare `sherlo feedback` gets the command's own refusal, which shows the report's
-  // format, rather than the parser's.
+  // feedback reads its report from --file only - bypass addCommand. Words after the command are taken
+  // only so they reach the command and are refused in its own words, rather than silently dropped.
   program
-    // Every word is taken, so text the shell split - unquoted, or cut at a quote - reaches the
-    // command whole enough to be refused, rather than silently cut to its first word.
     .command(`${FEEDBACK_COMMAND} [words...]`)
     .description([COMMAND_DESCRIPTION[FEEDBACK_COMMAND], ...renderFeedbackFormat()].join('\n  '))
     .option('--kind <kind>', 'bug, missing, unclear or other')
-    .option('--file <path>', 'Read the report from this file')
+    .option('--file <path>', 'Read the report from this file, or from a pipe with -')
     .option('--dry-run', 'Print exactly what would be sent, and send nothing')
     .action(async (words: string[], options: { kind?: string; file?: string; dryRun?: boolean }) => {
       setReportingContext(FEEDBACK_COMMAND, options);

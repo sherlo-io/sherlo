@@ -1,12 +1,9 @@
 {
   "pose": 1,
-  "argv": [
-    "feedback",
-    "--kind",
-    "bug",
-    "## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link."
-  ],
-  "files": {},
+  "argv": ["feedback", "--kind", "bug", "--file", "report.md"],
+  "files": {
+    "report.md": "## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link.\n"
+  },
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},

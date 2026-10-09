@@ -1,12 +1,9 @@
 {
   "pose": 1,
-  "argv": [
-    "feedback",
-    "--kind",
-    "missing",
-    "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only."
-  ],
-  "files": {},
+  "argv": ["feedback", "--kind", "missing", "--file", "report.md"],
+  "files": {
+    "report.md": "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only.\n"
+  },
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},

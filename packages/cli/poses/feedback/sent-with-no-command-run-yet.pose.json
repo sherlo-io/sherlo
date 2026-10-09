@@ -1,12 +1,9 @@
 {
   "pose": 1,
-  "argv": [
-    "feedback",
-    "--kind",
-    "unclear",
-    "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app."
-  ],
-  "files": {},
+  "argv": ["feedback", "--kind", "unclear", "--file", "report.md"],
+  "files": {
+    "report.md": "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app.\n"
+  },
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},

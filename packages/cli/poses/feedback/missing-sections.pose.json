@@ -1,12 +1,9 @@
 {
   "pose": 1,
-  "argv": [
-    "feedback",
-    "--kind",
-    "bug",
-    "## Happened\nsherlo test didn't work."
-  ],
-  "files": {},
+  "argv": ["feedback", "--kind", "bug", "--file", "report.md"],
+  "files": {
+    "report.md": "## Happened\nsherlo test didn't work.\n"
+  },
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},

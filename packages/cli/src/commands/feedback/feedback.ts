@@ -3,9 +3,9 @@
  *
  * It asks nothing. A report is one of four kinds - bug, missing, unclear, other - and each kind
  * cannot be sent without its own sections (../../render/feedback); "unknown" answers any of them,
- * and a report missing one is refused once, naming every missing section. The report is given in a
- * quoted here-document on stdin (`-`), a file (`--file`) or quoted words, between 10 and 4,000
- * characters. It is sent with the login saved on this computer, and refused without one. Beside the
+ * and a report missing one is refused once, naming every missing section. The report is read only
+ * from a file: `--file <path>`, or `--file -` for a quoted here-document piped in - never from words
+ * after the command, which the shell may already have changed - and is 10 to 4,000 characters. It is sent with the login saved on this computer, and refused without one. Beside the
  * report it sends the facts needed to act on it - the last Sherlo command this project ran with its
  * error lines, the versions, package manager and operating system, and which AI agent sent it, by
  * name - and never a token. `--dry-run` prints exactly that and sends nothing.
@@ -44,26 +44,26 @@ async function feedback(words: string[], options: FeedbackOptions): Promise<void
     });
   }
 
-  // More than one word means the shell split the report before Sherlo saw it: it was not quoted,
-  // so anything after a ; or a # is already gone, or ran as a command of its own.
-  if (words.length > 1) {
+  // A report is never read from words after the command: the shell has already changed them - a
+  // `$(...)` or a backtick inside double quotes ran, and an unquoted `;` ended the command.
+  if (words.length > 0 || !options.file) {
     throwError({
       message:
-        `Not sent: your report reached Sherlo as ${words.length} separate words, so the shell has already changed it.\n` +
-        "  Send it in a quoted here-document, which the shell leaves alone: npx sherlo feedback --kind bug - <<'EOF'\n" +
+        'Not sent: a report is read from a file, never from words after the command, which the shell may already have changed.\n' +
+        "  Pipe it in with a quoted here-document, which the shell leaves alone: npx sherlo feedback --kind bug --file - <<'EOF'\n" +
         `  The format: ${FEEDBACK_HELP_LINE}`,
     });
   }
 
-  if (words[0] === '-' && process.stdin.isTTY) {
+  if (options.file === '-' && process.stdin.isTTY) {
     throwError({
       message:
-        'Not sent: `-` reads the report from a pipe or a here-document, and nothing was piped in.\n' +
+        'Not sent: `--file -` reads the report from a pipe or a here-document, and nothing was piped in.\n' +
         `  The format: ${FEEDBACK_HELP_LINE}`,
     });
   }
 
-  const report = readReport(words[0], options.file);
+  const report = readReport(options.file);
   if (report.length < SHORTEST_REPORT || report.length > LONGEST_REPORT) {
     throwError({
       message:
@@ -119,11 +119,10 @@ async function feedback(words: string[], options: FeedbackOptions): Promise<void
   });
 }
 
-/** The report's words: piped in (`-`), the file `--file` names, or the argument - trimmed. */
-function readReport(text: string | undefined, file: string | undefined): string {
-  if (text === '-') return fs.readFileSync(0, 'utf8').trim();
-  if (file) return fs.readFileSync(path.resolve(projectFiles().root(), file), 'utf8').trim();
-  return (text ?? '').trim();
+/** The report's words, trimmed: piped in (`--file -`), or the file `--file` names. */
+function readReport(file: string): string {
+  if (file === '-') return fs.readFileSync(0, 'utf8').trim();
+  return fs.readFileSync(path.resolve(projectFiles().root(), file), 'utf8').trim();
 }
 
 /** The required sections the report has no heading for, or leaves empty under its heading. */

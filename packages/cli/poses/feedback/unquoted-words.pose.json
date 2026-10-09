@@ -1,6 +1,6 @@
 {
   "pose": 1,
-  "argv": ["feedback", "--kind", "bug", "sherlo", "test", "stopped", "at", "the", "Android", "build"],
+  "argv": ["feedback", "--kind", "bug", "sherlo test stopped at the Android build"],
   "files": {},
   "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",

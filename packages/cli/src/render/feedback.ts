@@ -64,9 +64,9 @@ export const FEEDBACK_HELP_LINE = 'npx sherlo feedback --help';
 export type LastCommand = { command: string; exitCode: number };
 
 /**
- * How to write a report, as --help prints it and a report with no kind or no words is refused with.
- * It leads with the quoted here-document, because the shell changes nothing inside one: unquoted or
- * double-quoted text can end the command at a `;` or run a `$(...)` it quotes.
+ * How to write a report, as --help prints it and a report with no kind is refused with. A report is
+ * read only from a file, a piped one first, because the shell changes nothing inside a quoted
+ * here-document, while words after the command may already have run a `$(...)` they quote.
  */
 export function renderFeedbackFormat(): string[] {
   const kindLines = FEEDBACK_KINDS.flatMap(({ kind, isFor, required, welcome }) => {
@@ -84,12 +84,12 @@ export function renderFeedbackFormat(): string[] {
     '',
     ...kindLines,
     '',
-    'Send it in a quoted here-document, so the shell changes nothing in it:',
-    "  npx sherlo feedback --kind bug - <<'EOF'",
+    'The report is read from a file. Pipe it in with a quoted here-document, which the shell leaves alone:',
+    "  npx sherlo feedback --kind bug --file - <<'EOF'",
     '  ## Steps',
     '  ...',
     '  EOF',
-    'Or from a file - the way on Windows, which has no here-document:',
+    'Or name a file - the way on Windows, which has no here-document:',
     '  npx sherlo feedback --kind bug --file report.md',
     '',
     'Sent with it, so you need not write them: your last Sherlo command with its exit code and error',
