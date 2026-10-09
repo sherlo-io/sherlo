@@ -13,6 +13,9 @@
  *         nothing has ever connected, or with `not-at-story-browser` when an app is attached and
  *         simply has nothing on screen to name.
  *
+ * `stories: null` in the app's PUT means the app cannot list its stories (not `[]`, an app with
+ * none): the story is then handed over unchecked, and checked when an app lists its stories.
+ *
  * IT REMEMBERS RATHER THAN RELAYS. A story posted while no app holds a request is kept until one
  * connects, because reaching the story browser costs a restart and a relay would drop the ask on
  * the floor in the middle of it.
@@ -86,7 +89,8 @@ function createOpenStoryLetterbox(settings) {
       var showing = atTheStoryBrowser && typeof said.showing === 'string' ? said.showing : null;
 
       appLastSaid = {
-        stories: Array.isArray(said.stories) ? said.stories : [],
+        // Null stays null: an app that cannot list its stories is not an app with none.
+        stories: Array.isArray(said.stories) ? said.stories : null,
         atTheStoryBrowser: atTheStoryBrowser,
         // An app showing itself has no story on screen, whatever it last painted.
         showing: showing,
@@ -97,6 +101,9 @@ function createOpenStoryLetterbox(settings) {
       // This request is also the app's answer: a story it names as painted releases the `--wait`
       // caller that posted it, carrying what that story threw when it threw.
       releasePaintWaiters(appLastSaid.showing, appLastSaid.threw);
+
+      // An app that lists its stories settles a story that was handed over unchecked.
+      if (appLastSaid.stories !== null) refuseTheStoryIfUnknown(appLastSaid.stories);
 
       if (storyToHandOver !== null) {
         if (!atTheStoryBrowser) return sendJson(response, { goToTheStoryBrowser: true });
@@ -151,7 +158,8 @@ function createOpenStoryLetterbox(settings) {
 
       if (!appLastSaid) return sendJson(response, { kind: 'no-app' });
 
-      if (appLastSaid.stories.indexOf(storyId) === -1) {
+      // An app that cannot list its stories takes the story unchecked: the story browser checks it.
+      if (appLastSaid.stories !== null && appLastSaid.stories.indexOf(storyId) === -1) {
         return sendJson(response, { kind: 'no-such-story', known: appLastSaid.stories });
       }
 
@@ -166,17 +174,24 @@ function createOpenStoryLetterbox(settings) {
         });
       }
 
-      waitForPaint(storyId, secondsOf(posted.timeoutSeconds), function (painted, threw) {
-        var answer = {
-          kind: 'handed-over',
-          storyId: storyId,
-          rendered: painted ? 'yes' : 'timed-out',
-        };
-        // Said only when the story broke: a story that drew cleanly has nothing to report, and an
-        // always-present empty field invites a reader to wonder what an empty one means.
-        if (threw) answer.threw = threw;
-        sendJson(response, answer);
-      });
+      waitForPaint(
+        storyId,
+        secondsOf(posted.timeoutSeconds),
+        function (painted, threw) {
+          var answer = {
+            kind: 'handed-over',
+            storyId: storyId,
+            rendered: painted ? 'yes' : 'timed-out',
+          };
+          // Said only when the story broke: a story that drew cleanly has nothing to report, and an
+          // always-present empty field invites a reader to wonder what an empty one means.
+          if (threw) answer.threw = threw;
+          sendJson(response, answer);
+        },
+        function (known) {
+          sendJson(response, { kind: 'no-such-story', known: known });
+        }
+      );
     });
   }
 
@@ -225,17 +240,43 @@ function createOpenStoryLetterbox(settings) {
     });
   }
 
-  function waitForPaint(storyId, timeoutSeconds, report) {
+  /**
+   * A story was handed over unchecked, and an app has now listed its stories. When the story is not
+   * among them, the tool still waiting on it is told so, and the story is forgotten.
+   */
+  function refuseTheStoryIfUnknown(knownStories) {
+    if (storyToHandOver === null || knownStories.indexOf(storyToHandOver) !== -1) return;
+
+    var unknownStory = storyToHandOver;
+    storyToHandOver = null;
+
+    waitingForPaint
+      .filter(function (waiter) {
+        return waiter.storyId === unknownStory;
+      })
+      .forEach(function (waiter) {
+        waiter.refuse(knownStories);
+      });
+  }
+
+  function waitForPaint(storyId, timeoutSeconds, report, refuse) {
     var waiter = {
       storyId: storyId,
       report: function (painted, threw) {
-        if (waiter.reported) return;
+        if (waiter.stopWaiting()) report(painted, threw);
+      },
+      refuse: function (known) {
+        if (waiter.stopWaiting()) refuse(known);
+      },
+      /** Take this caller off the list, once. True when this call is the one that took it off. */
+      stopWaiting: function () {
+        if (waiter.reported) return false;
         waiter.reported = true;
         clearTimeout(waiter.timer);
         waitingForPaint = waitingForPaint.filter(function (other) {
           return other !== waiter;
         });
-        report(painted, threw);
+        return true;
       },
       reported: false,
       timer: null,
