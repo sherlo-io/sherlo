@@ -36,6 +36,7 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import runShellCommand from '../../runShellCommand';
 
 // Layer 1 mocked to a fixed hash - keeps the test fast and focuses it on the
 // Layer-2 autolinking subprocess (the divergent input).
@@ -43,6 +44,30 @@ vi.mock('@expo/fingerprint', () => ({
   createFingerprintAsync: vi.fn().mockResolvedValue({ hash: 'layer1-fixed-hash' }),
   SourceSkips: { None: 0, ExpoConfigVersions: 1, ExpoConfigRuntimeVersionIfString: 2 },
 }));
+
+// The Layer-2 subprocess runs for REAL in the SHERLO-1744 block, whose whole subject it is. The
+// Layer-1 blocks below are not about it, so they answer it with what the fixture's stub prints
+// under the pinned env, instead of paying for an `npx` start in every compute.
+vi.mock('../../runShellCommand', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../runShellCommand')>();
+  return { ...real, default: vi.fn(real.default) };
+});
+
+/** What the fixture's autolinking stub prints under the pinned env (NODE_ENV=production). */
+const AUTOLINKED_UNDER_THE_PINNED_ENV = JSON.stringify({
+  dependencies: {
+    'react-native-reanimated': {
+      name: 'react-native-reanimated',
+      version: '3.0.0-production',
+    },
+  },
+});
+
+/** Answer the autolinking subprocess without starting it - for the blocks it is not the subject of. */
+function answerAutolinkingWithoutAProcess(): void {
+  // `as never`: runShellCommand is overloaded, and the mock's type sees only its Buffer overload.
+  vi.mocked(runShellCommand).mockResolvedValue(AUTOLINKED_UNDER_THE_PINNED_ENV as never);
+}
 
 const RUN_TIMEOUT_MS = 60_000;
 
@@ -112,6 +137,11 @@ beforeEach(async () => {
   // Reset Layer 1 to the env-INSENSITIVE fixed hash. The 1744 block relies on
   // this; the 1746 block overrides it with an env-SENSITIVE implementation.
   vi.mocked(createFingerprintAsync).mockResolvedValue({ hash: LAYER1_FIXED_HASH } as never);
+  // Layer 2 back to the real subprocess; the blocks that are not about it answer it themselves.
+  const real = await vi.importActual<typeof import('../../runShellCommand')>(
+    '../../runShellCommand'
+  );
+  vi.mocked(runShellCommand).mockImplementation(real.default);
   originalCwd = process.cwd();
   originalNodeEnv = process.env.NODE_ENV;
   originalNpmLifecycleEvent = process.env.npm_lifecycle_event;
@@ -186,6 +216,7 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
    * across commands.
    */
   beforeEach(() => {
+    answerAutolinkingWithoutAProcess();
     vi.mocked(createFingerprintAsync).mockImplementation(
       async () =>
         ({
@@ -283,6 +314,7 @@ describe('registration pre-step ordering determinism (SHERLO-1756)', () => {
   let savedLang: string | undefined;
 
   beforeEach(() => {
+    answerAutolinkingWithoutAProcess();
     savedLang = process.env[POLLUTABLE_ENV_KEY];
     // Model an app.config.js whose evaluation (a) reads env to shape its hash and
     // (b) as a dotenv-class side effect MUTATES an allowlisted env var. Under the

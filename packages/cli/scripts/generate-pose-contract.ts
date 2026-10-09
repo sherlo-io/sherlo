@@ -63,43 +63,69 @@ type NamedShape = { name: string; doc: string; shape: Shape };
 
 /* ========================================================================== */
 
-function main(): void {
-  const checking = process.argv.includes('--check');
-  const published = readSeamTypes();
+/** The two files this script writes, and what each should hold. */
+export type GeneratedPoseContract = { contract: string; reader: string };
+
+/** A generated file whose copy on disk is not what the seam types say: its path, its repo-relative name, and what it should hold. */
+export type StaleFile = { file: string; name: string; fresh: string };
+
+/**
+ * The contract and its reader as the seam types say they are.
+ *
+ * `seamSources` stands in for a seam file's text, keyed by its absolute path - how a test asks
+ * what a changed seam would generate without writing the seam.
+ */
+export function generatePoseContract(
+  seamSources: Record<string, string> = {}
+): GeneratedPoseContract {
+  publishedBodies.clear();
+  const published = readSeamTypes(seamSources);
   for (const type of published) publishedBodies.set(type.name, type.shape);
 
-  const contract = writePoseContract(published);
-  const reader = writeReadPoseGenerated(published);
+  return { contract: writePoseContract(published), reader: writeReadPoseGenerated(published) };
+}
+
+/** Each generated file whose copy on disk differs from `generated` - what the check refuses, by name. */
+export function staleFiles(
+  generated: GeneratedPoseContract,
+  readOnDisk: (file: string) => string = readOrEmpty
+): StaleFile[] {
+  return [
+    { file: CONTRACT_FILE, fresh: generated.contract },
+    { file: READER_FILE, fresh: generated.reader },
+  ]
+    .filter(({ file, fresh }) => readOnDisk(file) !== fresh)
+    .map(({ file, fresh }) => ({ file, name: relative(file), fresh }));
+}
+
+function main(): void {
+  const checking = process.argv.includes('--check');
+  const generated = generatePoseContract();
 
   if (!checking) {
-    fs.writeFileSync(CONTRACT_FILE, contract);
-    fs.writeFileSync(READER_FILE, reader);
+    fs.writeFileSync(CONTRACT_FILE, generated.contract);
+    fs.writeFileSync(READER_FILE, generated.reader);
     console.log(`wrote ${relative(CONTRACT_FILE)}\nwrote ${relative(READER_FILE)}`);
     return;
   }
 
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'pose-contract-'));
-  const stale = [
-    [CONTRACT_FILE, contract],
-    [READER_FILE, reader],
-  ]
-    .filter(([file, fresh]) => readOrEmpty(file) !== fresh)
-    .map(([file, fresh]) => {
-      const freshCopy = path.join(scratch, path.basename(file));
-      fs.writeFileSync(freshCopy, fresh);
-      return `  - ${relative(file)}\n    diff it against ${freshCopy}`;
-    });
-
+  const stale = staleFiles(generated);
   if (stale.length === 0) {
-    fs.rmSync(scratch, { recursive: true, force: true });
     console.log('the pose contract and its reader are what the seam types say they are');
     return;
   }
 
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'pose-contract-'));
+  const staleLines = stale.map(({ file, name, fresh }) => {
+    const freshCopy = path.join(scratch, path.basename(file));
+    fs.writeFileSync(freshCopy, fresh);
+    return `  - ${name}\n    diff it against ${freshCopy}`;
+  });
+
   console.error(
     'The pose contract and its reader are GENERATED from the seam types, and these no longer ' +
       'match what `src/seams/commandPose.ts` says:\n' +
-      stale.join('\n') +
+      staleLines.join('\n') +
       '\n\nA hand edit to either is the usual cause. Change the seam type instead, then run ' +
       '`yarn generate:pose-contract` from packages/cli and commit both files.'
   );
@@ -125,10 +151,13 @@ function readOrEmpty(file: string): string {
  * own `BuildStatus`, say - is written out where it is used, because a consumer copying the
  * contract has no import to resolve it with.
  */
-function readSeamTypes(): NamedShape[] {
+function readSeamTypes(seamSources: Record<string, string>): NamedShape[] {
   const config = ts.readConfigFile(path.join(CLI_ROOT, 'tsconfig.json'), ts.sys.readFile);
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, CLI_ROOT);
-  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  const host = ts.createCompilerHost(parsed.options);
+  const readFromDisk = host.readFile;
+  host.readFile = (file) => seamSources[path.resolve(file)] ?? readFromDisk(file);
+  const program = ts.createProgram(parsed.fileNames, parsed.options, host);
   const checker = program.getTypeChecker();
 
   const nameOfType = new Map<ts.Type, string>();
@@ -924,4 +953,5 @@ function format(source: string, file: string): string {
 
 /* ========================================================================== */
 
-main();
+// Run as a script, it writes or checks; imported, as the contract's own test does, it only exports.
+if (require.main === module) main();
