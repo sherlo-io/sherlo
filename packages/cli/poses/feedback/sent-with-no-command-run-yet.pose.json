@@ -1,0 +1,27 @@
+{
+  "pose": 1,
+  "argv": ["feedback", "--kind", "unclear", "--file", "report.md"],
+  "files": {
+    "report.md": "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app.\n"
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "sendFeedback",
+      "with": {
+        "kind": "unclear",
+        "text": "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app."
+      },
+      "answer": { "reference": "FB-3M9D" }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "pose": 1,
+  "argv": ["feedback", "--kind", "bug", "--file", "report.md", "--dry-run"],
+  "files": {
+    "report.md": "## Goal\nRun the first visual test on a freshly set-up Expo app.\n\n## Steps\n1. npx sherlo init\n2. npx sherlo test\n\n## Happened\nThe Android build stopped: \"SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable.\"\n\n## Expected\nsherlo test to find the Android SDK that Android Studio installed in ~/Library/Android/sdk.\n\n## Tried\nSet ANDROID_HOME in .zshrc and ran npx sherlo test again: the same error.\n\n## Smallest repro\nunknown\n",
+    "package.json": {
+      "name": "my-app",
+      "dependencies": { "expo": "~53.0.0", "react-native": "0.79.2", "@storybook/react-native": "^9.0.0" }
+    },
+    ".sherlo/last-command.json": {
+      "command": "test",
+      "exitCode": 1,
+      "errorLines": ["SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable."]
+    }
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {}
+}

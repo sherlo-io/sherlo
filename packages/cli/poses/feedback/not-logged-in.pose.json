@@ -1,0 +1,12 @@
+{
+  "pose": 1,
+  "argv": ["feedback", "--kind", "bug", "--file", "report.md"],
+  "files": {
+    "report.md": "## Steps\nnpx sherlo init\n## Happened\nInit stopped before the login step.\n## Expected\nInit to open the browser to log in.\n"
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {}
+}

@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { version } from '../package.json';
 import {
   easBuildOnComplete,
+  feedback,
   fingerprint,
   init,
   login,
@@ -75,7 +76,9 @@ import {
 } from './constants';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
+import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
+import { renderFeedbackFormat } from './render/feedback';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -104,6 +107,8 @@ async function start() {
     addTestEasCloudBuildCommand(program);
 
     addShowErrorCommand(program);
+
+    addFeedbackCommand(program);
 
     addFingerprintCommand(program);
 
@@ -150,6 +155,7 @@ const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
   [LOGIN_COMMAND]: 'Log in to Sherlo through your browser and save the login on this computer',
   [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
+  [FEEDBACK_COMMAND]: 'Tell the Sherlo team what was unclear, slow or broken',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     `  Without \`--${ANDROID_OPTION}\`/\`--${IOS_OPTION}\`: tests JS-only changes against the registered\n` +
@@ -414,6 +420,21 @@ function addLogoutCommand(program: Command) {
     options: [],
     action: logout,
   });
+}
+
+function addFeedbackCommand(program: Command) {
+  // feedback reads its report from --file only - bypass addCommand. Words after the command are taken
+  // only so they reach the command and are refused in its own words, rather than silently dropped.
+  program
+    .command(`${FEEDBACK_COMMAND} [words...]`)
+    .description([COMMAND_DESCRIPTION[FEEDBACK_COMMAND], ...renderFeedbackFormat()].join('\n  '))
+    .option('--kind <kind>', 'bug, missing, unclear or other')
+    .option('--file <path>', 'Read the report from this file, or from a pipe with -')
+    .option('--dry-run', 'Print exactly what would be sent, and send nothing')
+    .action(async (words: string[], options: { kind?: string; file?: string; dryRun?: boolean }) => {
+      setReportingContext(FEEDBACK_COMMAND, options);
+      await feedback(words, options);
+    });
 }
 
 function addInitCommand(program: Command) {

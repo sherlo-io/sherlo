@@ -1,0 +1,27 @@
+{
+  "pose": 1,
+  "argv": ["feedback", "--kind", "missing", "--file", "report.md"],
+  "files": {
+    "report.md": "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only.\n"
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "sendFeedback",
+      "with": {
+        "kind": "missing",
+        "text": "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only."
+      },
+      "answer": { "reference": "FB-5R2N" }
+    }
+  ],
+  "masks": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  }
+}
