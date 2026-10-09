@@ -27,21 +27,18 @@ function makeGeneratorSpy(behavior?: (options: GenerateOptions) => void) {
 }
 
 /**
- * Runs the guard inside a throwaway project directory that is the process cwd
- * for the duration, since the guard resolves the config directory relative to
- * process.cwd() exactly as upstream does.
+ * Runs the guard on a throwaway project directory. The guard resolves the config
+ * directory in the project root it is given, never in the process cwd, so the
+ * cwd is left where it is: a guard that read it would find no config there.
  */
 function inProject(setUp: (projectRoot: string) => void, run: (projectRoot: string) => void): void {
   const projectRoot = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-requires-test-'))
   );
-  const previousCwd = process.cwd();
   try {
     setUp(projectRoot);
-    process.chdir(projectRoot);
     run(projectRoot);
   } finally {
-    process.chdir(previousCwd);
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }
 }
@@ -59,7 +56,7 @@ describe('ensureStorybookRequires - storybook.requires is missing', () => {
         const requiresPath = path.join(projectRoot, '.rnstorybook', 'storybook.requires.ts');
 
         expect(fs.existsSync(requiresPath)).toBe(false);
-        const generated = ensureStorybookRequires({}, spy);
+        const generated = ensureStorybookRequires(projectRoot, {}, spy);
 
         expect(generated).toBe(true);
         expect(calls).toHaveLength(1);
@@ -75,7 +72,7 @@ describe('ensureStorybookRequires - storybook.requires is missing', () => {
       (projectRoot) => fs.mkdirSync(path.join(projectRoot, '.rnstorybook')),
       (projectRoot) => {
         const { spy, calls } = makeGeneratorSpy();
-        ensureStorybookRequires(undefined, spy);
+        ensureStorybookRequires(projectRoot, undefined, spy);
 
         expect(calls[0]).toEqual({
           configPath: path.join(projectRoot, '.rnstorybook'),
@@ -89,9 +86,9 @@ describe('ensureStorybookRequires - storybook.requires is missing', () => {
   it('forwards useJs and docTools when the caller set them', () => {
     inProject(
       (projectRoot) => fs.mkdirSync(path.join(projectRoot, '.rnstorybook')),
-      () => {
+      (projectRoot) => {
         const { spy, calls } = makeGeneratorSpy();
-        ensureStorybookRequires({ useJs: true, docTools: false }, spy);
+        ensureStorybookRequires(projectRoot, { useJs: true, docTools: false }, spy);
 
         expect(calls[0].useJs).toBe(true);
         expect(calls[0].docTools).toBe(false);
@@ -105,7 +102,7 @@ describe('ensureStorybookRequires - storybook.requires is missing', () => {
         fs.mkdirSync(path.join(projectRoot, 'config', 'storybook'), { recursive: true }),
       (projectRoot) => {
         const { spy, calls } = makeGeneratorSpy();
-        ensureStorybookRequires({ configPath: './config/storybook' }, spy);
+        ensureStorybookRequires(projectRoot, { configPath: './config/storybook' }, spy);
 
         expect(calls[0].configPath).toBe(path.join(projectRoot, 'config', 'storybook'));
         expect(
@@ -120,7 +117,7 @@ describe('ensureStorybookRequires - storybook.requires is missing', () => {
       (projectRoot) => fs.mkdirSync(path.join(projectRoot, '.storybook')),
       (projectRoot) => {
         const { spy, calls } = makeGeneratorSpy();
-        ensureStorybookRequires({}, spy);
+        ensureStorybookRequires(projectRoot, {}, spy);
 
         expect(calls[0].configPath).toBe(path.join(projectRoot, '.storybook'));
       }
@@ -130,13 +127,13 @@ describe('ensureStorybookRequires - storybook.requires is missing', () => {
   it('does not throw when the generator fails - upstream still gets its turn', () => {
     inProject(
       (projectRoot) => fs.mkdirSync(path.join(projectRoot, '.rnstorybook')),
-      () => {
+      (projectRoot) => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         const { spy } = makeGeneratorSpy(() => {
           throw new Error('generator blew up');
         });
 
-        expect(ensureStorybookRequires({}, spy)).toBe(false);
+        expect(ensureStorybookRequires(projectRoot, {}, spy)).toBe(false);
         expect(warn).toHaveBeenCalled();
         warn.mockRestore();
       }
@@ -162,7 +159,7 @@ describe('ensureStorybookRequires - storybook.requires already exists', () => {
         const { spy, calls } = makeGeneratorSpy();
         const requiresPath = path.join(projectRoot, '.rnstorybook', 'storybook.requires.ts');
 
-        expect(ensureStorybookRequires({}, spy)).toBe(false);
+        expect(ensureStorybookRequires(projectRoot, {}, spy)).toBe(false);
         expect(calls).toHaveLength(0);
         expect(fs.readFileSync(requiresPath, 'utf8')).toBe('// committed by the user');
       }
@@ -175,9 +172,9 @@ describe('ensureStorybookRequires - storybook.requires already exists', () => {
         fs.mkdirSync(path.join(projectRoot, '.rnstorybook'));
         fs.writeFileSync(path.join(projectRoot, '.rnstorybook', 'storybook.requires.js'), '// js');
       },
-      () => {
+      (projectRoot) => {
         const { spy, calls } = makeGeneratorSpy();
-        expect(ensureStorybookRequires({}, spy)).toBe(false);
+        expect(ensureStorybookRequires(projectRoot, {}, spy)).toBe(false);
         expect(calls).toHaveLength(0);
       }
     );
@@ -192,9 +189,9 @@ describe('ensureStorybookRequires - skipped entirely', () => {
   it('skips when Storybook is disabled for this build', () => {
     inProject(
       (projectRoot) => fs.mkdirSync(path.join(projectRoot, '.rnstorybook')),
-      () => {
+      (projectRoot) => {
         const { spy, calls } = makeGeneratorSpy();
-        expect(ensureStorybookRequires({ enabled: false }, spy)).toBe(false);
+        expect(ensureStorybookRequires(projectRoot, { enabled: false }, spy)).toBe(false);
         expect(calls).toHaveLength(0);
       }
     );
@@ -203,9 +200,9 @@ describe('ensureStorybookRequires - skipped entirely', () => {
   it('skips when the project has no Storybook config directory', () => {
     inProject(
       () => undefined,
-      () => {
+      (projectRoot) => {
         const { spy, calls } = makeGeneratorSpy();
-        expect(ensureStorybookRequires({}, spy)).toBe(false);
+        expect(ensureStorybookRequires(projectRoot, {}, spy)).toBe(false);
         expect(calls).toHaveLength(0);
       }
     );
@@ -225,8 +222,8 @@ describe('withStorybook.js - race guard wiring', () => {
 
   it('runs the guard BEFORE delegating to the real withStorybook', () => {
     // Both are handed the options after SHERLO_BUILD has had its say (metro/sherloBuild.js).
-    const guardIdx = source.indexOf('ensureStorybookRequires(storybookOptions)');
-    const delegateIdx = source.indexOf('realWithStorybook(config, storybookOptions)');
+    const guardIdx = source.indexOf('ensureStorybookRequires(projectRoot, storybookOptions)');
+    const delegateIdx = source.indexOf('loadOldSetupStorybookWrapper()(config, storybookOptions)');
     expect(guardIdx).toBeGreaterThan(-1);
     expect(delegateIdx).toBeGreaterThan(-1);
     expect(guardIdx).toBeLessThan(delegateIdx);

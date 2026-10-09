@@ -1,11 +1,12 @@
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 
+import { createFixtureRoot, fixtureFileWriter } from './bundle/fixtureMetroConfig';
 import { enterBundlingProcess } from './bundlingProcess';
 
 // The real wrapper, with the real Storybook wrapper behind it (a dev dependency of this package).
 const withStorybook = require('../../metro/withStorybook');
+const { sherloCacheFolder } = require('../../metro/projectPaths');
 
 const SDK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 const STAND_IN_MODULE = '@sherlo/react-native-storybook/dist/offStandIn.js';
@@ -23,12 +24,8 @@ const OFF_ROADS = [
 // A project with a Storybook config folder and one story that declares a mock, so the mock layer
 // would emit a shim if it ran.
 function createProject(): string {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-off-road-')));
-  const write = (relativePath: string, content: string) => {
-    const fullPath = path.join(root, relativePath);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    fs.writeFileSync(fullPath, content, 'utf8');
-  };
+  const root = createFixtureRoot('sherlo-off-road-');
+  const write = fixtureFileWriter(root);
   write(
     '.rnstorybook/main.js',
     "module.exports = { stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'], addons: [] };\n"
@@ -56,10 +53,6 @@ function metroContext(root: string) {
       filePath: path.join(root, 'node_modules', moduleName),
     }),
   };
-}
-
-function sherloCacheDir(root: string): string {
-  return path.join(root, 'node_modules', '.cache', 'sherlo');
 }
 
 describe('the bundler wrapper in a release bundle without Sherlo', () => {
@@ -115,7 +108,7 @@ describe('the bundler wrapper in a release bundle without Sherlo', () => {
       expect(config.serializer, road.name).toBeUndefined();
       expect(config.transformer, road.name).toBeUndefined();
       // No wrapper, no flag file and no shim were written: the cache folder was never made.
-      expect(fs.existsSync(sherloCacheDir(projectRoot)), road.name).toBe(false);
+      expect(fs.existsSync(sherloCacheFolder(projectRoot)), road.name).toBe(false);
     }
 
     // CONTROL: the same project with Sherlo in it gets all three, or this test proves nothing.
@@ -126,9 +119,9 @@ describe('the bundler wrapper in a release bundle without Sherlo', () => {
       config.resolver.resolveRequest(metroContext(projectRoot), '@storybook/react-native', 'ios')
     ).toEqual({
       type: 'sourceFile',
-      filePath: path.join(sherloCacheDir(projectRoot), 'storybook-wrapper.js'),
+      filePath: path.join(sherloCacheFolder(projectRoot), 'storybook-wrapper.js'),
     });
-    expect(fs.readdirSync(path.join(sherloCacheDir(projectRoot), 'mocks')).length).toBe(1);
+    expect(fs.readdirSync(path.join(sherloCacheFolder(projectRoot), 'mocks')).length).toBe(1);
   });
 
   it('a debug bundle with the setting unset keeps the SDK and Storybook, as before', () => {
@@ -143,6 +136,6 @@ describe('the bundler wrapper in a release bundle without Sherlo', () => {
     expect(() => wrapOnRoad({ env: { SHERLO_BUILD: 'on' }, argv: [] })).toThrow(
       'Unknown SHERLO_BUILD value "on". Use storybook, app-and-storybook or off, or leave it unset.'
     );
-    expect(fs.existsSync(sherloCacheDir(projectRoot))).toBe(false);
+    expect(fs.existsSync(sherloCacheFolder(projectRoot))).toBe(false);
   });
 });

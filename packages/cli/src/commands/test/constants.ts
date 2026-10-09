@@ -46,6 +46,7 @@ export const SHERLO_BUILD_FOR_PUSH = 'storybook';
 /**
  * The starts of the messages the SDK throws when the bundler must stop on a setup
  * problem: an unknown SHERLO_BUILD value, or no app entry file.
+ * bundlerSetupErrorMarkers.test.ts checks each against the SDK's own message.
  */
 export const BUNDLER_SETUP_ERROR_MARKERS = [
   'Unknown SHERLO_BUILD value',

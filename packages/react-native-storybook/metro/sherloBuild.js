@@ -12,6 +12,15 @@
 
 var SHERLO_BUILD_VALUES = ['storybook', 'app-and-storybook', 'off'];
 
+// The CLI reads the start of this message in the bundler's output (BUNDLER_SETUP_ERROR_MARKERS).
+function unknownSherloBuildMessage(value) {
+  return (
+    'Unknown SHERLO_BUILD value "' +
+    value +
+    '". Use storybook, app-and-storybook or off, or leave it unset.'
+  );
+}
+
 /**
  * @param {object} env - the environment to read, usually process.env
  * @returns {'storybook'|'app-and-storybook'|'off'|null} the value set, or null when it is unset
@@ -23,11 +32,7 @@ function readSherloBuild(env) {
   if (value === undefined || value === '') return null;
 
   if (SHERLO_BUILD_VALUES.indexOf(value) === -1) {
-    throw new Error(
-      'Unknown SHERLO_BUILD value "' +
-        value +
-        '". Use storybook, app-and-storybook or off, or leave it unset.'
-    );
+    throw new Error(unknownSherloBuildMessage(value));
   }
   return value;
 }
@@ -63,4 +68,5 @@ function whatThisBuildCarries(env, isReleaseBuild, storybookEnabledOption) {
 module.exports = {
   readSherloBuild: readSherloBuild,
   whatThisBuildCarries: whatThisBuildCarries,
+  unknownSherloBuildMessage: unknownSherloBuildMessage,
 };

@@ -15,24 +15,26 @@
 // plain JavaScript context and the test reads which side it launched.
 
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as vm from 'vm';
 
-import { enterBundlingProcess } from '../bundlingProcess';
-import { fixtureFileWriter, fixtureMetroConfig, recordBundledModules } from './fixtureMetroConfig';
+import {
+  SDK_FOLDER_IN_FIXTURE,
+  createFixtureRoot,
+  fixtureFileWriter,
+  sherloMetroConfig,
+  storybookWrapperStandInSource,
+  writeSdkPackageJson,
+  writeStandInPackage,
+} from './fixtureMetroConfig';
 
 const Metro = require('metro');
-const withStorybook = require('../../../metro/withStorybook');
 const { APP_SIDE_REQUEST } = require('../../../metro/launchTimeEntry');
-
-const PACKAGE_ROOT = path.resolve(__dirname, '../../..');
+const { sherloCacheFolder } = require('../../../metro/projectPaths');
 
 // The fixture project on disk, and its root directory.
 function createDefaultSetupApp(): string {
-  // realpath so projectRoot matches the path Metro's file watcher indexes (macOS /var ->
-  // /private/var).
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-release-entry-')));
+  const root = createFixtureRoot('sherlo-release-entry-');
   const write = fixtureFileWriter(root);
 
   write('package.json', JSON.stringify({ name: 'fixture-app', main: 'index.js' }));
@@ -55,62 +57,39 @@ function createDefaultSetupApp(): string {
   // The SDK: its real exports map, so the launch entry's requires resolve as in an app, and
   // stand-ins for the files the launch entry reads. The mode comes from the native module, which
   // the test hands the bundle.
-  const sdkPackageJson = JSON.parse(
-    fs.readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8')
-  );
-  const sdkDir = 'node_modules/@sherlo/react-native-storybook';
+  writeSdkPackageJson(write);
+  write(`${SDK_FOLDER_IN_FIXTURE}/dist/index.js`, 'exports.isStorybookMode = false;\n');
   write(
-    `${sdkDir}/package.json`,
-    JSON.stringify({
-      name: sdkPackageJson.name,
-      main: sdkPackageJson.main,
-      exports: sdkPackageJson.exports,
-    })
-  );
-  write(`${sdkDir}/dist/index.js`, 'exports.isStorybookMode = false;\n');
-  write(
-    `${sdkDir}/dist/SherloModule.js`,
+    `${SDK_FOLDER_IN_FIXTURE}/dist/SherloModule.js`,
     'exports.default = { getMode: function () { ' +
       'return global.nativeModuleProxy.SherloModule.getConstants().mode; } };\n'
   );
   write(
-    `${sdkDir}/dist/addStorybookToDevMenu.js`,
+    `${SDK_FOLDER_IN_FIXTURE}/dist/addStorybookToDevMenu.js`,
     'exports.default = function () { global.storybookToggleAdded = true; };\n'
   );
-  write(`${sdkDir}/dist/openStoryChannel.js`, 'exports.startWaitingAsTheApp = function () {};\n');
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/openStoryChannel.js`,
+    'exports.startWaitingAsTheApp = function () {};\n'
+  );
 
   // Storybook: its newer Metro wrapper swaps the app's entry for the Storybook entry file on every
   // resolution, as Storybook's own does, and its runtime package.
-  write(
-    'node_modules/@storybook/react-native/package.json',
-    JSON.stringify({ name: '@storybook/react-native', version: '10.4.0', main: 'index.js' })
+  writeStandInPackage(
+    write,
+    '@storybook/react-native',
+    '10.4.0',
+    'exports.start = function () {};\n'
   );
-  write('node_modules/@storybook/react-native/index.js', 'exports.start = function () {};\n');
   write(
     'node_modules/@storybook/react-native/withStorybook.js',
-    "var path = require('path');\n" +
-      'module.exports = function withStorybook(config, options) {\n' +
-      "  var appEntry = path.join(path.dirname(options.configPath), 'index.js');\n" +
-      "  var storybookEntry = path.join(options.configPath, 'index.js');\n" +
-      '  function resolveRequest(context, name, platform) {\n' +
-      '    var resolution = context.resolveRequest(context, name, platform);\n' +
-      '    if (resolution.filePath === appEntry) {\n' +
-      "      return { type: 'sourceFile', filePath: storybookEntry };\n" +
-      '    }\n' +
-      '    return resolution;\n' +
-      '  }\n' +
-      '  return Object.assign({}, config, {\n' +
-      '    resolver: Object.assign({}, config.resolver, { resolveRequest: resolveRequest }),\n' +
-      '  });\n' +
-      '};\n'
+    storybookWrapperStandInSource('newer')
   );
 
-  write(
-    'node_modules/react-native/package.json',
-    JSON.stringify({ name: 'react-native', version: '0.81.0', main: 'index.js' })
-  );
-  write(
-    'node_modules/react-native/index.js',
+  writeStandInPackage(
+    write,
+    'react-native',
+    '0.81.0',
     'exports.AppRegistry = { registerComponent: function (name) { global.registeredRoot = name; } };\n'
   );
 
@@ -119,27 +98,11 @@ function createDefaultSetupApp(): string {
 
 type Bundle = { bundledModules: string[]; code: string };
 
-// Sherlo's withStorybook on the fixture's config, loaded as `npx react-native bundle --dev false`
-// loads it for a build that carries the app and Storybook. Returns the config, and a function that
-// gives the modules of the latest build made with it.
-async function sherloMetroConfig(root: string) {
-  const leaveBundlingProcess = enterBundlingProcess({ SHERLO_BUILD: 'app-and-storybook' }, [
-    'bundle',
-    '--dev',
-    'false',
-  ]);
-  const savedCwd = process.cwd();
-  try {
-    process.chdir(root);
-    const baseConfig = await fixtureMetroConfig(root);
-    const modulesOfLatestBuild = recordBundledModules(baseConfig);
-    const config = withStorybook(baseConfig, { configPath: path.join(root, '.rnstorybook') });
-    return { config, modulesOfLatestBuild };
-  } finally {
-    leaveBundlingProcess();
-    process.chdir(savedCwd);
-  }
-}
+// `npx react-native bundle --dev false` for a build that carries the app and Storybook.
+const RELEASE_BUNDLE_WITH_APP_AND_STORYBOOK = {
+  env: { SHERLO_BUILD: 'app-and-storybook' },
+  commandLine: ['bundle', '--dev', 'false'],
+};
 
 /**
  * Runs a release bundle with the native module reporting `mode`, and returns what it left on the
@@ -164,7 +127,11 @@ describe('the release bundle entry', () => {
 
   beforeAll(async () => {
     root = createDefaultSetupApp();
-    const { config, modulesOfLatestBuild } = await sherloMetroConfig(root);
+    const { config, modulesOfLatestBuild } = await sherloMetroConfig(
+      root,
+      RELEASE_BUNDLE_WITH_APP_AND_STORYBOOK,
+      { configPath: path.join(root, '.rnstorybook') }
+    );
     resolveRequest = config.resolver.resolveRequest;
 
     // Both builds hand Metro the entry as a path, as `npx react-native bundle` does.
@@ -209,13 +176,7 @@ describe('the release bundle entry', () => {
   });
 
   it('a copy of the app entry resolves its imports as the original file did', () => {
-    const appEntryCopy = path.join(
-      root,
-      'node_modules',
-      '.cache',
-      'sherlo',
-      'app-entry-original.js'
-    );
+    const appEntryCopy = path.join(sherloCacheFolder(root), 'app-entry-original.js');
 
     // The app's side is the copy, and its relative import of ./src/App reached the app.
     expect(releaseBundle.bundledModules).toContain(appEntryCopy);
@@ -225,7 +186,7 @@ describe('the release bundle entry', () => {
     // A release bundle whose entry the resolver answers (the Expo exporter) reaches the app entry
     // from the generated launch entry: its app side is the copy too, or the app entry, served as
     // the launch entry, would run the launch twice.
-    const launchEntry = path.join(root, 'node_modules', '.cache', 'sherlo', 'launch-entry.js');
+    const launchEntry = path.join(sherloCacheFolder(root), 'launch-entry.js');
     const appSideOf = (dev: boolean) =>
       resolveRequest(
         { originModulePath: launchEntry, dev, resolveRequest: () => null },
