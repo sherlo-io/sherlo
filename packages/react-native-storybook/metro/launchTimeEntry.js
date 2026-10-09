@@ -7,6 +7,11 @@
 // launch entry, which loads the SDK, reads the mode, and then requires either the Storybook entry
 // file or the app's own entry. Metro runs a module only when something requires it, so only the
 // side the launch picks runs.
+//
+// The entry is replaced in two places, because the two ways of bundling find it differently: the
+// resolver answers the bundle's request for its entry (applyLaunchTimeEntry), and in a release
+// bundle the transformer also serves the launch entry in place of the app entry's source, for the
+// command that never asks the resolver (withReleaseEntryTransformer).
 
 var fs = require('fs');
 var path = require('path');
@@ -185,19 +190,26 @@ function namesTheAppEntry(context, moduleName, platform, realAppEntry) {
  * - Any other module that imports the app's entry gets the app's entry, which Storybook's wrapper
  *   would have swapped too. Any other module that imports the Storybook entry file is refused,
  *   naming it.
+ * - `npx react-native bundle` hands Metro the entry as a path and never asks the resolver, so in a
+ *   release bundle Sherlo's release entry transformer (withReleaseEntryTransformer) also serves the
+ *   launch entry in place of the app entry's source. There the app entry holds the launch entry,
+ *   so the app side is a copy of the app entry, and a request from the copy resolves as if it
+ *   came from the app entry. A development bundle never reads the copy.
  *
  * Files are compared with their symlinks followed, so a linked install cannot skip the swap.
  *
  * @param {object} config - the Metro config so far
  * @param {string} storybookEntryAsFound - absolute path to the project's Storybook entry file
  * @param {'storybook'|'app-and-storybook'} sherloBuild - what this build carries
- * @returns {object} the Metro config with the launch entry in place
+ * @returns {object} the Metro config with the launch entry and the release entry transformer in
+ *   place
  * @throws {Error} when the project has no app entry
  */
 function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
   var projectRoot = projectRootOf(config);
   var appEntry = findAppEntry(projectRoot);
   var storybookEntry = realFilePath(storybookEntryAsFound);
+  var appEntryCopy = appEntryCopyPath(projectRoot, appEntry);
 
   var cacheDir = sherloCacheFolder(projectRoot);
   fs.mkdirSync(cacheDir, { recursive: true });
@@ -206,14 +218,22 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
 
   var resolveAsTheConfigDoes = resolveThroughConfig(config);
 
-  function resolveRequest(context, moduleName, platform) {
+  function resolveRequest(contextAsAsked, moduleName, platform) {
+    // The copy of the app entry resolves its imports as the app entry itself does.
+    var context =
+      contextAsAsked.originModulePath === appEntryCopy
+        ? Object.assign({}, contextAsAsked, { originModulePath: appEntry })
+        : contextAsAsked;
     var importer = context.originModulePath;
 
-    if (importer === launchEntryPath && moduleName === APP_SIDE_REQUEST) {
-      return { type: 'sourceFile', filePath: appEntry };
-    }
-    if (importer === launchEntryPath && moduleName === STORYBOOK_SIDE_REQUEST) {
+    // In a release bundle the app entry holds the launch entry too: the transformer served it.
+    var isALaunchEntry = importer === launchEntryPath || importer === appEntry;
+    if (isALaunchEntry && moduleName === STORYBOOK_SIDE_REQUEST) {
       return { type: 'sourceFile', filePath: storybookEntry };
+    }
+    if (isALaunchEntry && moduleName === APP_SIDE_REQUEST) {
+      var isReleaseBundle = importer === appEntry || context.dev === false;
+      return { type: 'sourceFile', filePath: isReleaseBundle ? appEntryCopy : appEntry };
     }
 
     var resolution = resolveAsTheConfigDoes(context, moduleName, platform);
@@ -234,8 +254,127 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
     throw new Error(storybookEntryImportedMessage(path.relative(projectRoot, importer)));
   }
 
-  return Object.assign({}, config, {
+  var withLaunchEntry = Object.assign({}, config, {
     resolver: Object.assign({}, config.resolver, { resolveRequest: resolveRequest }),
+  });
+  return withReleaseEntryTransformer(withLaunchEntry, sherloBuild);
+}
+
+/**
+ * Where a release bundle's copy of the app's entry is written: beside the launch entry, in
+ * Sherlo's cache folder.
+ *
+ * @param {string} projectRoot - absolute path to the project
+ * @param {string} appEntry - absolute path to the app's entry file
+ * @returns {string}
+ */
+function appEntryCopyPath(projectRoot, appEntry) {
+  return path.join(
+    sherloCacheFolder(projectRoot),
+    'app-entry-original' + path.extname(appEntry)
+  );
+}
+
+/**
+ * The source of the Babel transformer a release bundle's app entry passes through. It serves
+ * `launchEntryCode` in place of the app entry's own source when Metro bundles for a release and not
+ * for the web, and hands every file, the app entry included, to the project's own transformer.
+ *
+ * The launch entry's source is written into the file, not read at transform time: Metro keys its
+ * transform cache on the transformer file's contents, so a new launch entry is never served from
+ * an old cache.
+ *
+ * @param {string} projectTransformer - the project's own babelTransformerPath
+ * @param {string} appEntry - absolute path to the app's entry file, symlinks followed
+ * @param {string} launchEntryCode - the launch entry's source code
+ * @returns {string}
+ */
+function releaseEntryTransformerSource(projectTransformer, appEntry, launchEntryCode) {
+  return (
+    "'use strict';\n" +
+    "// Generated by Sherlo's withStorybook: in a release bundle, serves the launch entry in place\n" +
+    "// of the app entry's source. Every file then goes to the project's own transformer.\n" +
+    "var fs = require('fs');\n" +
+    "var path = require('path');\n" +
+    'var projectTransformer = require(' + JSON.stringify(projectTransformer) + ');\n' +
+    'var APP_ENTRY = ' + JSON.stringify(appEntry) + ';\n' +
+    'var LAUNCH_ENTRY_SOURCE = ' + JSON.stringify(launchEntryCode) + ';\n' +
+    '\n' +
+    'function isTheAppEntry(filename, projectRoot) {\n' +
+    '  var filePath = path.resolve(projectRoot, filename);\n' +
+    '  if (path.basename(filePath) !== path.basename(APP_ENTRY)) return false;\n' +
+    '  try {\n' +
+    '    return fs.realpathSync(filePath) === APP_ENTRY;\n' +
+    '  } catch (_) {\n' +
+    '    return false;\n' +
+    '  }\n' +
+    '}\n' +
+    '\n' +
+    'module.exports = Object.assign({}, projectTransformer, {\n' +
+    '  transform: function (args) {\n' +
+    '    var servesTheLaunchEntry =\n' +
+    '      args.options.dev === false &&\n' +
+    "      args.options.platform !== 'web' &&\n" +
+    '      isTheAppEntry(args.filename, args.options.projectRoot);\n' +
+    '    if (!servesTheLaunchEntry) return projectTransformer.transform(args);\n' +
+    '    return projectTransformer.transform(Object.assign({}, args, { src: LAUNCH_ENTRY_SOURCE }));\n' +
+    '  },\n' +
+    '});\n'
+  );
+}
+
+/**
+ * The project's own Babel transformer, as a file Sherlo's transformer can load from its cache
+ * folder. Metro's default config names its transformer by package name (metro-babel-transformer),
+ * and a name only resolves from where the project or the SDK can load it, so it is resolved here.
+ * A name neither can load is kept as it is.
+ *
+ * @param {object} config - a Metro config
+ * @returns {string}
+ */
+function projectTransformerFile(config) {
+  // With no transformer named, Metro uses its own default.
+  var named =
+    (config.transformer && config.transformer.babelTransformerPath) || 'metro-babel-transformer';
+  try {
+    return require.resolve(named, { paths: [projectRootOf(config), __dirname] });
+  } catch (_) {
+    return named;
+  }
+}
+
+/**
+ * Sherlo's release entry transformer, in place of the project's own, which it hands every file to.
+ * In a bundle made with `dev` false it serves the launch entry's source in place of the app
+ * entry's, for `npx react-native bundle`, which never asks the resolver for the entry. It also
+ * writes the copy of the app entry that such a bundle runs as its app side (applyLaunchTimeEntry
+ * resolves the copy).
+ *
+ * A development server never takes this road, so it never reads the copy, and the copy cannot go
+ * stale while a developer edits.
+ *
+ * @param {object} config - a Metro config
+ * @param {'storybook'|'app-and-storybook'} sherloBuild - what this build carries
+ * @returns {object} the Metro config with the transformer in place
+ */
+function withReleaseEntryTransformer(config, sherloBuild) {
+  var projectRoot = projectRootOf(config);
+  var appEntry = findAppEntry(projectRoot);
+  fs.copyFileSync(appEntry, appEntryCopyPath(projectRoot, appEntry));
+
+  var transformerPath = path.join(sherloCacheFolder(projectRoot), 'release-entry-transformer.js');
+  fs.writeFileSync(
+    transformerPath,
+    releaseEntryTransformerSource(
+      projectTransformerFile(config),
+      appEntry,
+      launchEntrySource(sherloBuild)
+    ),
+    'utf8'
+  );
+
+  return Object.assign({}, config, {
+    transformer: Object.assign({}, config.transformer, { babelTransformerPath: transformerPath }),
   });
 }
 

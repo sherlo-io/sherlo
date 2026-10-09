@@ -21,7 +21,7 @@ import * as ts from 'typescript';
 import * as vm from 'vm';
 
 import { enterBundlingProcess } from '../bundlingProcess';
-import { fixtureMetroConfig } from './fixtureMetroConfig';
+import { fixtureFileWriter, fixtureMetroConfig, recordBundledModules } from './fixtureMetroConfig';
 
 const Metro = require('metro');
 const withStorybook = require('../../../metro/withStorybook');
@@ -35,11 +35,7 @@ function createOldSetupApp(): string {
   // realpath so projectRoot matches the path Metro's file watcher indexes (macOS /var ->
   // /private/var).
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-build-contents-')));
-  const write = (relativePath: string, content: string) => {
-    const fullPath = path.join(root, relativePath);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    fs.writeFileSync(fullPath, content, 'utf8');
-  };
+  const write = fixtureFileWriter(root);
 
   // The root, as the docs' Root component reads, in CommonJS so the fixture needs no transform.
   // It leaves what it renders on the global object, so a test that runs the bundle can read it.
@@ -132,19 +128,7 @@ async function bundleForRelease(
     process.chdir(root);
 
     const baseConfig = await fixtureMetroConfig(root);
-
-    // Every module the bundle holds is given an id once: record its path then.
-    const bundledModules: string[] = [];
-    baseConfig.serializer.createModuleIdFactory = () => {
-      const idOfModule = new Map<string, number>();
-      return (modulePath: string) => {
-        if (!idOfModule.has(modulePath)) {
-          idOfModule.set(modulePath, idOfModule.size);
-          bundledModules.push(modulePath);
-        }
-        return idOfModule.get(modulePath);
-      };
-    };
+    const modulesOfLatestBuild = recordBundledModules(baseConfig);
 
     const config = withStorybook(baseConfig, {
       configPath: path.join(root, '.rnstorybook'),
@@ -158,7 +142,7 @@ async function bundleForRelease(
       dev: false,
       minify: false,
     });
-    return { bundledModules, code };
+    return { bundledModules: modulesOfLatestBuild(), code };
   } finally {
     leaveBundlingProcess();
     process.chdir(savedCwd);
