@@ -664,6 +664,38 @@ function writeDisabledFlagPolyfill(cacheDir) {
 }
 
 /**
+ * Whether `file` lies somewhere under `folder` (both absolute). False when either is missing.
+ *
+ * @param {string|null|undefined} file
+ * @param {string|null|undefined} folder
+ * @returns {boolean}
+ */
+function isInsideFolder(file, folder) {
+  return !!file && !!folder && file.indexOf(folder + path.sep) === 0;
+}
+
+/**
+ * How `config` resolves a module before Sherlo adds a step: the resolveRequest it already set, or
+ * Metro's own when it set none. Every resolver step Sherlo adds hands what it does not answer
+ * itself to this, so the project's own step, and Storybook's, still run.
+ *
+ * @param {object} config - a Metro config
+ * @returns {function(object, string, string): object} a resolveRequest
+ */
+function resolveThroughConfig(config) {
+  var configResolveRequest =
+    config && config.resolver && config.resolver.resolveRequest
+      ? config.resolver.resolveRequest
+      : null;
+
+  return function resolveRequest(context, moduleName, platform) {
+    return configResolveRequest
+      ? configResolveRequest(context, moduleName, platform)
+      : context.resolveRequest(context, moduleName, platform);
+  };
+}
+
+/**
  * Applies Sherlo Metro transforms to an already-configured Metro config object.
  *
  * Takes the result of withStorybook() + opts and returns the Sherlo-augmented config.
@@ -713,19 +745,10 @@ function applySherloTransforms(result, opts) {
   // originating from a shim must NEVER be redirected back into a shim, otherwise
   // the shim's own require(real) would loop onto itself.
   function isShimPath(absPath) {
-    return !!absPath && !!mocksDir && absPath.indexOf(mocksDir + path.sep) === 0;
+    return isInsideFolder(absPath, mocksDir);
   }
 
-  var existingResolveRequest =
-    result && result.resolver && result.resolver.resolveRequest
-      ? result.resolver.resolveRequest
-      : null;
-
-  function delegateResolve(context, moduleName, platform) {
-    return existingResolveRequest
-      ? existingResolveRequest(context, moduleName, platform)
-      : context.resolveRequest(context, moduleName, platform);
-  }
+  var delegateResolve = resolveThroughConfig(result);
 
   function resolveRequest(context, moduleName, platform) {
     if (context.originModulePath === wrapperPath) {
@@ -952,6 +975,8 @@ function generateWrapper(wrapperPath) {
 module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
+module.exports.resolveThroughConfig = resolveThroughConfig;
+module.exports.isInsideFolder = isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
 module.exports.createOpenStoryLetterbox = createOpenStoryLetterbox;
 module.exports.createCaptureSocket = createCaptureSocket;

@@ -30,6 +30,12 @@ yarn run ncc build metro/detectStorybookSetup.js --minify --out "$WORK_DIR/detec
   --external metro-babel-transformer/node_modules/@babel/parser
 
 mv "$WORK_DIR/detectStorybookSetup/index.js" "$OUTPUT_DIR/detectStorybookSetup.js"
+
+# The build setting's parser is also loaded on its own by the native build: the package's
+# react-native.config.js requires dist-metro/sherloBuild.js with plain Node.
+yarn run ncc build metro/sherloBuild.js --minify --out "$WORK_DIR/sherloBuild"
+
+mv "$WORK_DIR/sherloBuild/index.js" "$OUTPUT_DIR/sherloBuild.js"
 # The polyfill is only minified, never wrapped as a module. toplevel stays off so its writes to
 # global names keep those names. terser is one of this package's own devDependencies.
 node "$(node -p "require.resolve('terser/bin/terser')")" metro/polyfill.js --compress toplevel=false --mangle toplevel=false \
