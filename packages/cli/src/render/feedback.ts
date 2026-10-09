@@ -57,6 +57,9 @@ export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]['kind'];
 /** Sections sit under their kind's description: `  --kind ` and the widest kind, `unclear`, padded. */
 const SECTION_INDENT = ' '.repeat(18);
 
+/** Where every refusal of the command points for the report's format. */
+export const FEEDBACK_HELP_LINE = 'npx sherlo feedback --help';
+
 /** The last Sherlo command this project ran, as the feedback carries it. */
 export type LastCommand = { command: string; exitCode: number };
 

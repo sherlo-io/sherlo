@@ -51,9 +51,7 @@ import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
-import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
-import { renderAgentFeedbackAfterRun } from './needHelp';
-import {
+import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';import {
   renderAlreadyLoggedIn,
   renderLoggedIn,
   renderLoggedOut,
@@ -488,11 +486,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderFeedbackDryRun(segment.reportKind, segment.report, segment.context).map((line) => [line]),
-      };
-
-    case 'agent-feedback-after-run':
-      return { stream: 'stdout', prints: renderAgentFeedbackAfterRun().map((line) => [line]) };
-  }
+      };  }
 }
 
 /* ========================================================================== */

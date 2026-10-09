@@ -77,9 +77,7 @@ import {
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
-import { logWarning, reporting, withCommandTimeout } from './helpers';
-import { whoToInviteToFeedback } from './commands/feedback/whoToInviteToFeedback';
-import { renderNeedHelp } from './render/needHelp';
+import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
 import { renderFeedbackFormat } from './render/feedback';
 
 // Disable all Node.js warnings
@@ -142,7 +140,7 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      renderNeedHelp(whoToInviteToFeedback()).forEach((line) => console.log(line));
+      printNeedHelpEpilogue();
 
       process.exit(error.code || 1);
     });

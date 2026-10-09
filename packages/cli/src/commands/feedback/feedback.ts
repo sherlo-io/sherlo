@@ -20,12 +20,11 @@ import { version } from '../../../package.json';
 import { printSherloIntro, throwError } from '../../helpers';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
-import { FEEDBACK_KINDS, renderFeedbackFormat } from '../../render/feedback';
-import { FEEDBACK_HELP_LINE } from '../../render/needHelp';
+import { FEEDBACK_HELP_LINE, FEEDBACK_KINDS, renderFeedbackFormat } from '../../render/feedback';
 import { projectFiles } from '../../seams/projectFiles';
 import { savedLogins } from '../../seams/savedLogins';
 import { serverCalls, type FeedbackContext } from '../../seams/serverCalls';
-import { runningAgent } from './whoToInviteToFeedback';
+import { runningAgent } from './runningAgent';
 
 type FeedbackOptions = { kind?: string; file?: string; dryRun?: boolean };
 

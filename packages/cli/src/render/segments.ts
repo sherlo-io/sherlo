@@ -310,9 +310,7 @@ export type TranscriptSegment =
   /** `✔  Feedback sent`, its reference, and what was sent with it. */
   | { kind: 'feedback-sent'; reference: string; lastCommand?: LastCommand }
   /** `--dry-run`: the report and everything beside it, exactly as it would be sent. */
-  | { kind: 'feedback-dry-run'; reportKind: FeedbackKind; report: string; context: FeedbackContext }
-  /** The last line of a test run an AI agent reads, with a saved login: what feedback is for. */
-  | { kind: 'agent-feedback-after-run' };
+  | { kind: 'feedback-dry-run'; reportKind: FeedbackKind; report: string; context: FeedbackContext };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the

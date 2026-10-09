@@ -74,8 +74,6 @@ import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerpri
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
-import { emit } from '../../helpers/transcriptSink';
-import { whoToInviteToFeedback } from '../feedback/whoToInviteToFeedback';
 import {
   formatDiffScopeReport,
   formatDiffScopeSummaryLine,
@@ -476,8 +474,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
     });
 
-    inviteAgentFeedback();
-
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
     await reporting.flush().finally(() => {
       process.exit(exitCode);
@@ -495,21 +491,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     });
   }
 
-  inviteAgentFeedback();
-
   return { url };
 }
 
 export default stagedRun;
-
-/**
- * The run's last line for an AI agent with a saved login: what feedback is for (sherlo / Sending
- * feedback). PLAN LAYER: drawn on the staged road; the build gives the standard and sim roads the
- * same ending.
- */
-function inviteAgentFeedback(): void {
-  if (whoToInviteToFeedback() === 'agent') emit({ kind: 'agent-feedback-after-run' });
-}
 
 /* ========================================================================== */
 
