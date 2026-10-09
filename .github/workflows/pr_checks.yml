@@ -6,18 +6,10 @@ on:
       - main
       - feature/sherlo-3
       - epic/**
-  # A push to a base branch only warms the caches: GitHub lets a pull request read only its own
-  # branch's caches and its base branch's, so caches saved by pull requests alone are missed by
-  # every new pull request.
-  push:
-    branches:
-      - main
-      - feature/sherlo-3
 
 jobs:
   checks:
     name: checks (${{ matrix.package.name }})
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -146,41 +138,6 @@ jobs:
           # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI.
           SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
-
-      - name: The clock
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          printf '@sherlo-io:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GH_TOKEN" > "$RUNNER_TEMP/sherlo-packages.npmrc"
-          NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/sherlo-packages.npmrc" npx --yes @sherlo-io/time-limits@1 clock
-
-  # Runs on a push to a base branch and does the install alone, so its caches are there for the
-  # next pull request. Both packages share the caches, so one package is enough.
-  warm-caches:
-    name: warm-caches
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      actions: read
-      contents: read
-      packages: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Install with the sherlo libraries
-        uses: ./.github/actions/install-with-libs
-        with:
-          app-id: ${{ secrets.SHERLO_BOT_APP_ID }}
-          private-key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
-          package-token: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: The clock
         if: always()
