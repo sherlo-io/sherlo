@@ -6,20 +6,24 @@
  * replaced by its stand-in in Node's module cache, so the real one never runs here.
  */
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as vm from 'vm';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import {
+  createFixtureRoot,
+  fixtureFileWriter,
+  storybookWrapperStandInSource,
+} from './bundle/fixtureMetroConfig';
 import { enterBundlingProcess } from './bundlingProcess';
 
 const SDK_METRO_FOLDER = path.resolve(__dirname, '..', '..', 'metro');
-const WITH_STORYBOOK_FILE = path.join(SDK_METRO_FOLDER, 'withStorybook.js');
 const {
   findAppEntry,
   APP_SIDE_REQUEST,
   STORYBOOK_SIDE_REQUEST,
 } = require('../../metro/launchTimeEntry');
+const { sherloCacheFolder } = require('../../metro/projectPaths');
 
 type WrapperCall = { wrapper: 'older' | 'newer'; options: Record<string, unknown> };
 type Resolution = { type: string; filePath?: string };
@@ -29,58 +33,30 @@ type ResolveRequest = (
   platform: string | null
 ) => Resolution;
 
+// Every stand-in wrapper records its calls here (storybookWrapperStandInSource).
 const wrapperCalls: WrapperCall[] = [];
 (globalThis as { __storybookWrapperCalls?: WrapperCall[] }).__storybookWrapperCalls = wrapperCalls;
 
-/**
- * The source of a stand-in Storybook wrapper. It records its options and, turned on, swaps the
- * app's entry for the Storybook entry file as Storybook 10.5's own wrapper does: every resolution
- * that lands on the app's `index.js`, as Storybook names it, is answered with the Storybook entry.
- */
-function standInWrapperSource(wrapper: 'older' | 'newer'): string {
-  return (
-    "var path = require('path');\n" +
-    'function withStorybook(config, options) {\n' +
-    "  globalThis.__storybookWrapperCalls.push({ wrapper: '" +
-    wrapper +
-    "', options: options });\n" +
-    '  if (!options || !options.enabled) return config;\n' +
-    "  var appEntry = path.join(path.dirname(options.configPath), 'index.js');\n" +
-    "  var storybookEntry = path.join(options.configPath, 'index.js');\n" +
-    '  return Object.assign({}, config, { resolver: { resolveRequest: function (context, name, platform) {\n' +
-    '    var resolution = context.resolveRequest(context, name, platform);\n' +
-    '    if (resolution.filePath && path.resolve(resolution.filePath) === appEntry) {\n' +
-    "      return { type: 'sourceFile', filePath: storybookEntry };\n" +
-    '    }\n' +
-    '    return resolution;\n' +
-    '  } } });\n' +
-    '}\n' +
-    'module.exports = { withStorybook: withStorybook };\n'
-  );
-}
-
-let withStorybook: (
+const withStorybook: (
   config: object,
   opts: object
-) => { resolver: { resolveRequest: ResolveRequest } };
+) => { resolver: { resolveRequest: ResolveRequest } } = require('../../metro/withStorybook');
 let olderWrapperFile: string;
 let cachedOlderWrapper: NodeModule | undefined;
 
 beforeAll(() => {
-  // withStorybook.js loads Storybook's older wrapper once, from the SDK's own folder: put the
-  // stand-in in its place in the module cache, and load withStorybook.js afresh behind it.
+  // withStorybook.js loads Storybook's older wrapper from the SDK's own folder, through Node's
+  // module cache: put the stand-in in its place there.
   olderWrapperFile = require.resolve('@storybook/react-native/metro/withStorybook', {
     paths: [SDK_METRO_FOLDER],
   });
   cachedOlderWrapper = require.cache[olderWrapperFile];
   const olderStandIn = { exports: {} as unknown, loaded: true, id: olderWrapperFile };
   const runStandIn = vm.runInThisContext(
-    '(function (module, require) {\n' + standInWrapperSource('older') + '\n})'
+    '(function (module, require) {\n' + storybookWrapperStandInSource('older') + '\n})'
   );
   runStandIn(olderStandIn, require);
   require.cache[olderWrapperFile] = olderStandIn as unknown as NodeModule;
-  delete require.cache[WITH_STORYBOOK_FILE];
-  withStorybook = require('../../metro/withStorybook');
 
   defaultSetupRoot = createStorybookProject(DEFAULT_SETUP_STORYBOOK_ENTRY);
   defaultSetupResolve = wrapConfig(defaultSetupRoot).resolver.resolveRequest;
@@ -92,7 +68,6 @@ beforeAll(() => {
 afterAll(() => {
   if (cachedOlderWrapper) require.cache[olderWrapperFile] = cachedOlderWrapper;
   else delete require.cache[olderWrapperFile];
-  delete require.cache[WITH_STORYBOOK_FILE];
   fs.rmSync(defaultSetupRoot, { recursive: true, force: true });
 });
 
@@ -112,13 +87,10 @@ const projectRoots: string[] = [];
 
 /** A project on disk with `files` in it, by their path in the project. */
 function createProject(files: Record<string, string>): string {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-launch-entry-')));
+  const root = createFixtureRoot('sherlo-launch-entry-');
   projectRoots.push(root);
-  for (const [relativePath, content] of Object.entries(files)) {
-    const fullPath = path.join(root, relativePath);
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-    fs.writeFileSync(fullPath, content, 'utf8');
-  }
+  const write = fixtureFileWriter(root);
+  for (const [relativePath, content] of Object.entries(files)) write(relativePath, content);
   return root;
 }
 
@@ -134,8 +106,9 @@ function createStorybookProject(storybookEntrySource: string): string {
       name: '@storybook/react-native',
       version: '10.4.0',
     }),
-    'node_modules/@storybook/react-native/withStorybook.js': standInWrapperSource('newer'),
-    'node_modules/@storybook/react-native/metro/withStorybook.js': standInWrapperSource('older'),
+    'node_modules/@storybook/react-native/withStorybook.js': storybookWrapperStandInSource('newer'),
+    'node_modules/@storybook/react-native/metro/withStorybook.js':
+      storybookWrapperStandInSource('older'),
   });
 }
 
@@ -191,7 +164,7 @@ function bundleEntryRequester(root: string): string {
 }
 
 function launchEntryFile(root: string): string {
-  return path.join(root, 'node_modules', '.cache', 'sherlo', 'launch-entry.js');
+  return path.join(sherloCacheFolder(root), 'launch-entry.js');
 }
 
 describe('the launch-time entry', () => {

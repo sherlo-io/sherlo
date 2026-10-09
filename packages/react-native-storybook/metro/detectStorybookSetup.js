@@ -10,24 +10,25 @@
 // The file is parsed and only real calls count, so the same words written inside a comment, a
 // string or a template literal are ignored.
 
-var fs = require('fs');
 var path = require('path');
 var resolveConfigDir = require('./ensureStorybookRequires').resolveConfigDir;
 var getBabelParser = require('./babelParser');
-var SOURCE_EXTENSIONS = require('./sourceFiles').SOURCE_EXTENSIONS;
+var sourceFileCandidates = require('./sourceFiles').sourceFileCandidates;
+var firstExistingSourceFile = require('./sourceFiles').firstExistingSourceFile;
+
+// The Storybook entry file is `index` in the config folder, with a source extension, TypeScript
+// first. findStorybookEntry reads the disk by this rule, and the module graph's side
+// (applySherloTransforms.js) asks storybookEntryCandidates, by the same rule.
+var STORYBOOK_ENTRY_EXTENSION_ORDER = 'typescript-first';
 
 /**
- * The paths the Storybook entry file can have in a config folder, best first. This is the one
- * rule for which file is the entry: findStorybookEntry reads the disk with it, and the module
- * graph's side (applySherloTransforms.js) asks the same list.
+ * The paths the Storybook entry file can have in a config folder, best first.
  *
  * @param {string} configFolder - absolute path to the Storybook config folder
  * @returns {string[]}
  */
 function storybookEntryCandidates(configFolder) {
-  return SOURCE_EXTENSIONS.map(function (extension) {
-    return path.join(configFolder, 'index' + extension);
-  });
+  return sourceFileCandidates(path.join(configFolder, 'index'), STORYBOOK_ENTRY_EXTENSION_ORDER);
 }
 
 /**
@@ -40,10 +41,7 @@ function findStorybookEntry(projectRoot, configPath) {
   var configFolder = resolveConfigDir(projectRoot, { configPath: configPath });
   if (!configFolder) return null;
 
-  var existingEntries = storybookEntryCandidates(configFolder).filter(function (entryPath) {
-    return fs.existsSync(entryPath);
-  });
-  return existingEntries.length > 0 ? existingEntries[0] : null;
+  return firstExistingSourceFile(path.join(configFolder, 'index'), STORYBOOK_ENTRY_EXTENSION_ORDER);
 }
 
 // `registerRootComponent(...)`

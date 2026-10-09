@@ -18,19 +18,18 @@ var path = require('path');
 var resolveThroughConfig = require('./applySherloTransforms').resolveThroughConfig;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
-
-// The extensions an app entry written without one is looked for with, in the order Storybook's own
-// entry swap looks (`index.js` first); SOURCE_EXTENSIONS keeps the Storybook entry file's order.
-var APP_ENTRY_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx'];
+var firstExistingSourceFile = require('./sourceFiles').firstExistingSourceFile;
+var isExistingFile = require('./sourceFiles').isExistingFile;
 
 // The two names only the launch entry asks for. Sherlo's resolver answers them itself, so neither
 // passes through Storybook's own entry swap.
 var APP_SIDE_REQUEST = 'sherlo-launch-entry:app';
 var STORYBOOK_SIDE_REQUEST = 'sherlo-launch-entry:storybook';
 
+// The CLI reads the start of this message in the bundler's output (BUNDLER_SETUP_ERROR_MARKERS).
 var NO_APP_ENTRY_MESSAGE =
   'Sherlo could not find your app\'s entry file. It looked for the "main" field in ' +
-  'package.json, then for index.js. Sherlo needs the app\'s entry to choose between the app and ' +
+  "package.json, then for index.js. Sherlo needs the app's entry to choose between the app and " +
   'Storybook at launch, so add a "main" field that points to it.';
 
 function storybookEntryImportedMessage(importer) {
@@ -55,24 +54,17 @@ function realFilePath(filePath) {
 }
 
 /**
- * `basePath` itself when it is a file, else the first of it with an entry extension that is one,
- * symlinks followed.
+ * `basePath` itself when it is a file, else the first of it with a source extension that is one,
+ * JavaScript first as Storybook's own entry swap looks (`index.js` first), symlinks followed.
  *
  * @param {string} basePath - absolute path, with or without an extension
  * @returns {string|null}
  */
-function existingFileWithEntryExtension(basePath) {
-  var candidates = [basePath].concat(
-    APP_ENTRY_EXTENSIONS.map(function (extension) {
-      return basePath + extension;
-    })
-  );
-  for (var i = 0; i < candidates.length; i++) {
-    if (fs.existsSync(candidates[i]) && fs.statSync(candidates[i]).isFile()) {
-      return realFilePath(candidates[i]);
-    }
-  }
-  return null;
+function existingAppEntryFile(basePath) {
+  var foundFile = isExistingFile(basePath)
+    ? basePath
+    : firstExistingSourceFile(basePath, 'javascript-first');
+  return foundFile ? realFilePath(foundFile) : null;
 }
 
 /**
@@ -91,20 +83,18 @@ function findAppEntry(projectRoot) {
     : undefined;
 
   if (typeof mainField === 'string' && mainField) {
-    var mainAsProjectFile = existingFileWithEntryExtension(path.resolve(projectRoot, mainField));
+    var mainAsProjectFile = existingAppEntryFile(path.resolve(projectRoot, mainField));
     if (mainAsProjectFile) return mainAsProjectFile;
 
     try {
       // Node follows symlinks here itself.
-      return require('module')
-        .createRequire(packageJsonPath)
-        .resolve(mainField);
+      return require('module').createRequire(packageJsonPath).resolve(mainField);
     } catch (_) {
       // Not a package the project can load either: look for index next.
     }
   }
 
-  var indexFile = existingFileWithEntryExtension(path.join(projectRoot, 'index'));
+  var indexFile = existingAppEntryFile(path.join(projectRoot, 'index'));
   if (indexFile) return indexFile;
 
   throw new Error(NO_APP_ENTRY_MESSAGE);
@@ -137,11 +127,15 @@ function launchEntrySource(sherloBuild) {
     header +
     "var mode = require('@sherlo/react-native-storybook/dist/SherloModule.js').default.getMode();\n" +
     "if (mode === 'storybook' || mode === 'testing') {\n" +
-    "  require('" + STORYBOOK_SIDE_REQUEST + "');\n" +
+    "  require('" +
+    STORYBOOK_SIDE_REQUEST +
+    "');\n" +
     '} else {\n' +
     "  require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default();\n" +
     "  require('@sherlo/react-native-storybook/dist/openStoryChannel.js').startWaitingAsTheApp();\n" +
-    "  require('" + APP_SIDE_REQUEST + "');\n" +
+    "  require('" +
+    APP_SIDE_REQUEST +
+    "');\n" +
     '}\n'
   );
 }
@@ -269,10 +263,7 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
  * @returns {string}
  */
 function appEntryCopyPath(projectRoot, appEntry) {
-  return path.join(
-    sherloCacheFolder(projectRoot),
-    'app-entry-original' + path.extname(appEntry)
-  );
+  return path.join(sherloCacheFolder(projectRoot), 'app-entry-original' + path.extname(appEntry));
 }
 
 /**
@@ -296,9 +287,15 @@ function releaseEntryTransformerSource(projectTransformer, appEntry, launchEntry
     "// of the app entry's source. Every file then goes to the project's own transformer.\n" +
     "var fs = require('fs');\n" +
     "var path = require('path');\n" +
-    'var projectTransformer = require(' + JSON.stringify(projectTransformer) + ');\n' +
-    'var APP_ENTRY = ' + JSON.stringify(appEntry) + ';\n' +
-    'var LAUNCH_ENTRY_SOURCE = ' + JSON.stringify(launchEntryCode) + ';\n' +
+    'var projectTransformer = require(' +
+    JSON.stringify(projectTransformer) +
+    ');\n' +
+    'var APP_ENTRY = ' +
+    JSON.stringify(appEntry) +
+    ';\n' +
+    'var LAUNCH_ENTRY_SOURCE = ' +
+    JSON.stringify(launchEntryCode) +
+    ';\n' +
     '\n' +
     'function isTheAppEntry(filename, projectRoot) {\n' +
     '  var filePath = path.resolve(projectRoot, filename);\n' +
@@ -384,4 +381,5 @@ module.exports = {
   applyLaunchTimeEntry: applyLaunchTimeEntry,
   APP_SIDE_REQUEST: APP_SIDE_REQUEST,
   STORYBOOK_SIDE_REQUEST: STORYBOOK_SIDE_REQUEST,
+  NO_APP_ENTRY_MESSAGE: NO_APP_ENTRY_MESSAGE,
 };

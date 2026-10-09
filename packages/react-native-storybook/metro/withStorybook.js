@@ -3,18 +3,6 @@
 var fs = require('fs');
 var path = require('path');
 
-// A Storybook wrapper module, however it exports its withStorybook.
-function storybookWrapperOf(wrapperModule) {
-  return wrapperModule.withStorybook || wrapperModule.default || wrapperModule;
-}
-
-var realModule;
-try {
-  realModule = require('@storybook/react-native/metro/withStorybook');
-} catch (_) {
-  realModule = require('@storybook/react-native/withStorybook');
-}
-var realWithStorybook = storybookWrapperOf(realModule);
 var applySherloTransforms = require('./applySherloTransforms');
 var ensureStorybookRequires = require('./ensureStorybookRequires');
 var resolveConfigDir = ensureStorybookRequires.resolveConfigDir;
@@ -26,6 +14,54 @@ var projectRootOf = require('./projectPaths').projectRootOf;
 
 var SDK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 var STAND_IN_MODULE = '@sherlo/react-native-storybook/dist/offStandIn.js';
+
+// Storybook's two Metro wrappers: the older one in its metro folder, on the versions that have it,
+// and the newer one at its package root.
+var OLDER_STORYBOOK_WRAPPER = '@storybook/react-native/metro/withStorybook';
+var NEWER_STORYBOOK_WRAPPER = '@storybook/react-native/withStorybook';
+
+// A Storybook wrapper module, however it exports its withStorybook.
+function storybookWrapperOf(wrapperModule) {
+  return wrapperModule.withStorybook || wrapperModule.default || wrapperModule;
+}
+
+/**
+ * Storybook's Metro wrapper: the first of `wrapperModuleNames` that loads, as `requiringFile`
+ * would require it.
+ *
+ * Loaded through createRequire, not a literal require: the published build is bundled, and only a
+ * require made at run time resolves from the folder asked for.
+ *
+ * @param {string} requiringFile - absolute path of the file the wrapper is required from
+ * @param {string[]} wrapperModuleNames - the wrappers to try, in order
+ * @returns {Function}
+ */
+function loadStorybookWrapper(requiringFile, wrapperModuleNames) {
+  var requireFromThere = require('module').createRequire(requiringFile);
+  for (var i = 0; i < wrapperModuleNames.length; i++) {
+    var isLastName = i === wrapperModuleNames.length - 1;
+    try {
+      return storybookWrapperOf(requireFromThere(wrapperModuleNames[i]));
+    } catch (error) {
+      if (isLastName) throw error;
+    }
+  }
+}
+
+/**
+ * The wrapper Storybook's old setup takes: the older one when this version has it, else the newer,
+ * loaded from the SDK's own folder.
+ */
+function loadOldSetupStorybookWrapper() {
+  return loadStorybookWrapper(__filename, [OLDER_STORYBOOK_WRAPPER, NEWER_STORYBOOK_WRAPPER]);
+}
+
+/**
+ * Storybook's newer wrapper, loaded from the project, where the default setup's Storybook lives.
+ */
+function loadNewerStorybookWrapper(projectRoot) {
+  return loadStorybookWrapper(path.join(projectRoot, 'package.json'), [NEWER_STORYBOOK_WRAPPER]);
+}
 
 /**
  * Whether Metro is bundling for a release build, told while this config loads: Storybook's own
@@ -64,8 +100,7 @@ function withoutSherloOrStorybook(config, opts, storybookWrapper) {
     config,
     Object.assign({}, opts, { enabled: false, onDisabledRemoveStorybook: true })
   );
-  var resolveAsTheProjectDoes =
-    applySherloTransforms.resolveThroughConfig(configWithoutStorybook);
+  var resolveAsTheProjectDoes = applySherloTransforms.resolveThroughConfig(configWithoutStorybook);
   var storybookConfigDir = resolveConfigDir(projectRootOf(config), opts);
 
   function resolveRequest(context, moduleName, platform) {
@@ -88,17 +123,6 @@ function withoutSherloOrStorybook(config, opts, storybookWrapper) {
 }
 
 /**
- * Storybook's newer Metro wrapper, the one at its package root, loaded from the project, where the
- * default setup's Storybook lives.
- */
-function loadNewerStorybookWrapper(projectRoot) {
-  var newerModule = require('module').createRequire(path.join(projectRoot, 'package.json'))(
-    '@storybook/react-native/withStorybook'
-  );
-  return storybookWrapperOf(newerModule);
-}
-
-/**
  * The project's Storybook entry file when the project is on Storybook's default setup, where that
  * file registers itself as the app's root; null on the old setup, or with no entry file at all.
  */
@@ -116,13 +140,14 @@ function defaultSetupStorybookEntry(projectRoot, opts) {
  * (launchTimeEntry.js).
  */
 function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuild) {
+  var projectRoot = projectRootOf(config);
   var storybookOptions = Object.assign({}, opts, {
     enabled: true,
     configPath: path.dirname(storybookEntry),
   });
   // Must run before Storybook's wrapper returns a config to Metro: see ensureStorybookRequires.js.
-  ensureStorybookRequires(storybookOptions);
-  var withStorybookOn = loadNewerStorybookWrapper(projectRootOf(config))(config, storybookOptions);
+  ensureStorybookRequires(projectRoot, storybookOptions);
+  var withStorybookOn = loadNewerStorybookWrapper(projectRoot)(config, storybookOptions);
   var withSherlo = applySherloTransforms(withStorybookOn, storybookOptions);
   return applyLaunchTimeEntry(withSherlo, storybookEntry, sherloBuild);
 }
@@ -139,7 +164,7 @@ function withStorybook(config, opts) {
   if (thisBuild.sherloBuild === 'off') {
     var storybookWrapper = defaultSetupEntry
       ? loadNewerStorybookWrapper(projectRoot)
-      : realWithStorybook;
+      : loadOldSetupStorybookWrapper();
     return withoutSherloOrStorybook(config, opts, storybookWrapper);
   }
 
@@ -152,8 +177,8 @@ function withStorybook(config, opts) {
   // Must run BEFORE upstream's withStorybook returns a config to Metro - see
   // ensureStorybookRequires.js for the race this closes. No-op when the
   // requires file already exists.
-  ensureStorybookRequires(storybookOptions);
-  var result = realWithStorybook(config, storybookOptions);
+  ensureStorybookRequires(projectRoot, storybookOptions);
+  var result = loadOldSetupStorybookWrapper()(config, storybookOptions);
   return applySherloTransforms(result, storybookOptions);
 }
 

@@ -15,16 +15,21 @@
 // package is not what decides - the Storybook wrapper read while the config loads is.
 
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as ts from 'typescript';
 import * as vm from 'vm';
 
-import { enterBundlingProcess } from '../bundlingProcess';
-import { fixtureFileWriter, fixtureMetroConfig, recordBundledModules } from './fixtureMetroConfig';
+import {
+  SDK_FOLDER_IN_FIXTURE,
+  createFixtureRoot,
+  fixtureFileWriter,
+  sherloMetroConfig,
+  writeSdkPackageJson,
+  writeStandInPackage,
+} from './fixtureMetroConfig';
 
 const Metro = require('metro');
-const withStorybook = require('../../../metro/withStorybook');
+const { sherloCacheFolder } = require('../../../metro/projectPaths');
 
 const PACKAGE_ROOT = path.resolve(__dirname, '../../..');
 const SDK_DIST_FRAGMENT = path.join('node_modules', '@sherlo', 'react-native-storybook', 'dist');
@@ -32,9 +37,7 @@ const STORYBOOK_FRAGMENT = path.join('node_modules', '@storybook') + path.sep;
 
 // The fixture project on disk, and its root directory.
 function createOldSetupApp(): string {
-  // realpath so projectRoot matches the path Metro's file watcher indexes (macOS /var ->
-  // /private/var).
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-build-contents-')));
+  const root = createFixtureRoot('sherlo-build-contents-');
   const write = fixtureFileWriter(root);
 
   // The root, as the docs' Root component reads, in CommonJS so the fixture needs no transform.
@@ -66,48 +69,42 @@ function createOldSetupApp(): string {
   write('src/Widget.stories.js', "export default { title: 'Widget' };\nexport const Basic = {};\n");
 
   // The SDK: its real package.json, so its exports map is what resolves, and the real stand-in.
-  const sdkPackageJson = JSON.parse(
-    fs.readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8')
-  );
-  const sdkDir = 'node_modules/@sherlo/react-native-storybook';
-  write(
-    `${sdkDir}/package.json`,
-    JSON.stringify({
-      name: sdkPackageJson.name,
-      main: sdkPackageJson.main,
-      exports: sdkPackageJson.exports,
-    })
-  );
+  writeSdkPackageJson(write);
   const standInSource = fs.readFileSync(path.join(PACKAGE_ROOT, 'src', 'offStandIn.ts'), 'utf8');
   write(
-    `${sdkDir}/dist/offStandIn.js`,
+    `${SDK_FOLDER_IN_FIXTURE}/dist/offStandIn.js`,
     ts.transpileModule(standInSource, {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2018 },
     }).outputText
   );
   // The full SDK's entry, and the two files Sherlo's Storybook wrapper reaches, as small stand-ins:
   // what matters is that they are SDK modules a bundle with Sherlo in it holds.
-  write(`${sdkDir}/dist/index.js`, 'exports.isStorybookMode = false;\n');
-  write(`${sdkDir}/dist/getStorybook/index.js`, 'exports.default = function () {};\n');
-  write(`${sdkDir}/dist/addStorybookToDevMenu.js`, 'exports.default = function () {};\n');
+  write(`${SDK_FOLDER_IN_FIXTURE}/dist/index.js`, 'exports.isStorybookMode = false;\n');
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/getStorybook/index.js`,
+    'exports.default = function () {};\n'
+  );
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/addStorybookToDevMenu.js`,
+    'exports.default = function () {};\n'
+  );
 
   // Storybook's runtime package, as a small stand-in: the real Storybook wrapper still runs while
   // the config loads, but the real runtime needs native peers this repository does not install.
-  write(
-    'node_modules/@storybook/react-native/package.json',
-    JSON.stringify({ name: '@storybook/react-native', version: '9.1.4', main: 'index.js' })
-  );
-  write(
-    'node_modules/@storybook/react-native/index.js',
+  writeStandInPackage(
+    write,
+    '@storybook/react-native',
+    '9.1.4',
     'exports.start = function () { return { getStorybookUI: function () { return null; } }; };\n'
   );
 
   // React Native, as the one name the stand-in imports.
-  write(
-    'node_modules/react-native/package.json',
-    JSON.stringify({ name: 'react-native', version: '0.81.0', main: 'index.js' })
+  writeStandInPackage(
+    write,
+    'react-native',
+    '0.81.0',
+    'exports.Alert = { alert: function () {} };\n'
   );
-  write('node_modules/react-native/index.js', 'exports.Alert = { alert: function () {} };\n');
 
   return root;
 }
@@ -120,33 +117,18 @@ async function bundleForRelease(
   env: Record<string, string>,
   commandLine: string[]
 ): Promise<{ bundledModules: string[]; code: string }> {
-  const leaveBundlingProcess = enterBundlingProcess(env, commandLine);
-  const savedCwd = process.cwd();
-
-  try {
-    // Storybook's generator resolves the stories from the working folder, as in a real project.
-    process.chdir(root);
-
-    const baseConfig = await fixtureMetroConfig(root);
-    const modulesOfLatestBuild = recordBundledModules(baseConfig);
-
-    const config = withStorybook(baseConfig, {
-      configPath: path.join(root, '.rnstorybook'),
-      useJs: true,
-      docTools: false,
-    });
-
-    const { code } = await Metro.runBuild(config, {
-      entry: 'index.js',
-      platform: 'ios',
-      dev: false,
-      minify: false,
-    });
-    return { bundledModules: modulesOfLatestBuild(), code };
-  } finally {
-    leaveBundlingProcess();
-    process.chdir(savedCwd);
-  }
+  const { config, modulesOfLatestBuild } = await sherloMetroConfig(
+    root,
+    { env, commandLine },
+    { configPath: path.join(root, '.rnstorybook'), useJs: true, docTools: false }
+  );
+  const { code } = await Metro.runBuild(config, {
+    entry: 'index.js',
+    platform: 'ios',
+    dev: false,
+    minify: false,
+  });
+  return { bundledModules: modulesOfLatestBuild(), code };
 }
 
 function sdkModulesIn(bundledModules: string[]): string[] {
@@ -214,7 +196,7 @@ describe('what a release bundle carries', () => {
       expect(sdkModulesIn(bundledModules), road.name).toEqual(['offStandIn.js']);
       expect(storybookModulesIn(bundledModules), road.name).toEqual([]);
       const sherloCacheModules = bundledModules.filter((modulePath) =>
-        modulePath.includes(path.join('.cache', 'sherlo'))
+        modulePath.startsWith(sherloCacheFolder(root))
       );
       expect(sherloCacheModules, road.name).toEqual([]);
     }

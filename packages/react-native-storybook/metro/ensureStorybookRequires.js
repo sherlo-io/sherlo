@@ -111,6 +111,7 @@ function runGeneratorSynchronously(generateOptions) {
     '});';
 
   childProcess.execFileSync(process.execPath, ['-e', script], {
+    // The working folder, as upstream's own generate() runs in it: only the config folder (an absolute configPath) comes from projectRoot.
     cwd: process.cwd(),
     stdio: 'inherit',
     timeout: 120000,
@@ -124,15 +125,18 @@ function runGeneratorSynchronously(generateOptions) {
  * this build (upstream never generates in that case, so there is no race), or
  * when the project has no Storybook config directory at all.
  *
+ * @param {string} projectRoot - absolute path to the project the Metro config bundles
+ *   (projectRootOf in projectPaths.js); a relative configPath and the default folders are looked
+ *   for in it
  * @param {object} [opts] - the options object passed to withStorybook
  * @param {Function} [runGenerator] - test seam; defaults to the child-process
  *   generator above. Receives the same generateOptions upstream would pass.
  * @returns {boolean} whether the generator was run
  */
-function ensureStorybookRequires(opts, runGenerator) {
+function ensureStorybookRequires(projectRoot, opts, runGenerator) {
   if (opts && opts.enabled === false) return false;
 
-  var configDir = resolveConfigDir(process.cwd(), opts);
+  var configDir = resolveConfigDir(projectRoot, opts);
   if (!configDir) return false;
   if (requiresFileExists(configDir)) return false;
 
