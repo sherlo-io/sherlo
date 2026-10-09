@@ -100,9 +100,15 @@ export function renderNextSteps({
     installed: [
       {
         title: 'Replace the example stories',
+        // A FEW SIMPLE COMPONENTS FIRST, AND WHERE STORYBOOK LOOKS (operator, 2026-10-09): an agent
+        // told to write "your components' stories" writes them where Storybook never loads them. The
+        // how is Sherlo's own guide, shipped inside the SDK setup just installed, so any agent reads
+        // it with no network and no restart. BUILD DEBT (init-for-agents): the guide file itself.
         content: [
-          "Swap Storybook's examples in .rnstorybook/stories for your own components, so Sherlo tests your app's UI:",
-          chalk.cyan('https://sherlo.io/docs/stories'),
+          'Write stories for a few simple components of your app (ones that need no data),',
+          'and delete the examples in .rnstorybook/stories.',
+          'Storybook loads only the folders listed in .rnstorybook/main.ts, so add theirs there.',
+          `How: ${chalk.cyan(STORIES_GUIDE_PATH)}`,
         ],
       },
     ],
@@ -162,6 +168,9 @@ export function renderNextSteps({
     ...ciLines,
   ];
 }
+
+/** Sherlo's guide to writing stories, inside the SDK package setup installs (operator, 2026-10-09). */
+const STORIES_GUIDE_PATH = 'node_modules/@sherlo/react-native-storybook/guides/writing-stories.md';
 
 /** The first `@storybook/react-native` with the default setup, whose own entry starts the app. */
 const DEFAULT_SETUP_SINCE = '10.4';
