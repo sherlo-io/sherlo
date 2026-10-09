@@ -34,9 +34,12 @@ jobs:
         env:
           CLIENT_STAGE: test
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Install dependencies
         run: yarn
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Build packages
         run: yarn build

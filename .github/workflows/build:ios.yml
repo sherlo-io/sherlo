@@ -15,6 +15,9 @@ on:
 jobs:
   ios_build:
     runs-on: macos-15
+    env:
+      # Every install reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:

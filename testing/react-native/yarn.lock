@@ -3405,6 +3405,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sherlo-io/time-limits@npm:^1.2.1":
+  version: 1.2.1
+  resolution: "@sherlo-io/time-limits@npm:1.2.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40sherlo-io%2Ftime-limits%2F1.2.1%2F0f05a3c6510aa38896e7f7d83a5be29050d77055"
+  peerDependencies:
+    vitest: ">=1"
+  bin:
+    time-limits: bin.js
+  checksum: 10/a185bb72149d68bbb5d395aa26e69a02ff1511398916526e0a0d8d71ea3b9d858b5eb0321650424447d6156e00aeb6f12b99a0a7c7c1a3740de85a25ebf34eae
+  languageName: node
+  linkType: hard
+
 "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz::locator=%40sherlo%2Freact-native%40workspace%3A.":
   version: 2.0.2
   resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=280a7c&locator=%40sherlo%2Freact-native%40workspace%3A."
@@ -3440,6 +3451,7 @@ __metadata:
     "@react-native/eslint-config": "npm:0.77.2"
     "@react-native/metro-config": "npm:0.77.2"
     "@react-native/typescript-config": "npm:0.77.2"
+    "@sherlo-io/time-limits": "npm:^1.2.1"
     "@sherlo/react-native-storybook": "file:./sherlo-lib/react-native-storybook.tgz"
     "@storybook/addon-ondevice-actions": "npm:9.1.4"
     "@storybook/addon-ondevice-controls": "npm:9.1.4"
