@@ -188,6 +188,20 @@ export class GitFixture {
     return new GitFixture(cloneDir);
   }
 
+  /**
+   * A full clone of this repo, as a fixture of its own: one git process, where building the same
+   * history again costs several per commit. The clone shares the same isolated git env.
+   */
+  clone(): GitFixture {
+    const cloneDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-git-clone-'));
+    execFileSync('git', ['clone', '-q', this.dir, cloneDir], {
+      cwd: os.tmpdir(),
+      encoding: 'utf8',
+      env: this.env({}),
+    });
+    return new GitFixture(cloneDir);
+  }
+
   /** Introduces an uncommitted change so the working tree is dirty. */
   makeDirty(file = 'dirty.txt'): void {
     this.writeFile(file, `uncommitted-${this.commitCount}\n`);

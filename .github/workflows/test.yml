@@ -54,6 +54,8 @@ jobs:
     environment: ${{ inputs.env }}
     runs-on: ubuntu-latest
     env:
+      # Every install reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
       SHERLO_TOKEN: ${{ (inputs.sherlo_project == 'expo' && secrets.SHERLO_STANDARD_EXPO_TOKEN) ||
                         (inputs.sherlo_project == 'react-native' && secrets.SHERLO_STANDARD_RN_TOKEN) ||
                         (inputs.sherlo_project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) ||

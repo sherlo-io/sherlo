@@ -11,6 +11,11 @@ jobs:
   checks:
     name: checks (${{ matrix.package.name }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
       matrix:
@@ -113,8 +118,9 @@ jobs:
 
       # Both caches carry the libs' inputs in their key, never yarn.lock alone: the libs are
       # built from a moving head that yarn.lock knows nothing about, and node_modules links to
-      # them. Both also carry this repository's own scripts/init-env.sh, which builds them. A PR against main takes its libs from the S3 canon instead, whose version this
-      # workflow cannot name, so that path is left uncached and installs fresh.
+      # them. Both also carry this repository's own scripts/init-env.sh, which builds them. A PR
+      # against main takes its libs from the S3 canon instead, whose version this workflow
+      # cannot name, so that path is left uncached and installs fresh.
       - name: Cache sherlo-lib
         if: steps.libs.outputs.ref != ''
         id: sherlo_lib_cache
@@ -140,11 +146,15 @@ jobs:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           LIBS_REF: ${{ steps.libs_commit.outputs.sha }}
           SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
+          # Reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       # init-env.sh ends in `yarn install`; when the libs came from the cache it did not run,
       # so the install runs here. It stays the authority over a restored node_modules.
       - name: Install dependencies
         if: steps.sherlo_lib_cache.outputs.cache-hit == 'true'
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
         run: yarn install
 
       - name: Eslint
@@ -245,3 +255,11 @@ jobs:
           # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI.
           SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
+
+      - name: The clock
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '@sherlo-io:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GH_TOKEN" > "$RUNNER_TEMP/sherlo-packages.npmrc"
+          NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/sherlo-packages.npmrc" npx --yes @sherlo-io/time-limits@1 clock

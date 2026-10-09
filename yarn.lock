@@ -3074,6 +3074,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sherlo-io/time-limits@npm:^1":
+  version: 1.0.0
+  resolution: "@sherlo-io/time-limits@npm:1.0.0::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40sherlo-io%2Ftime-limits%2F1.0.0%2F7fcbc2257952ba22afc5f96e9af942154be86e3b"
+  bin:
+    time-limits: bin.js
+  checksum: 10/13c5cdf9833baf61757a03e0358baf41a241347aea337f7d2f3a5c732c14b914375300983a749ee35f211b02cf96e5046826352f14418eebee7c5799cefe3be8
+  languageName: node
+  linkType: hard
+
 "@sherlo/api-types@portal:../../sherlo-lib/extracted/@sherlo/api-types::locator=sherlo%40workspace%3Apackages%2Fcli":
   version: 0.0.0-use.local
   resolution: "@sherlo/api-types@portal:../../sherlo-lib/extracted/@sherlo/api-types::locator=sherlo%40workspace%3Apackages%2Fcli"
@@ -3094,6 +3103,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@sherlo/react-native-storybook@workspace:packages/react-native-storybook"
   dependencies:
+    "@sherlo-io/time-limits": "npm:^1"
     "@storybook/react-native": "npm:9.1.4"
     "@types/base-64": "npm:^1.0.0"
     "@types/react": "npm:^18.2.0"
@@ -11698,6 +11708,7 @@ __metadata:
     "@inquirer/prompts": "npm:^7.8.4"
     "@napi-rs/keyring": "npm:2.1.0"
     "@sentry/node": "npm:10.47.0"
+    "@sherlo-io/time-limits": "npm:^1"
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types"
     "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client"
     "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client"
