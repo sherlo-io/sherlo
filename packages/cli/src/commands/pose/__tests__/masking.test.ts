@@ -7,10 +7,10 @@
  * run's screen. Written as a skeleton in plan (epic pose-road-hardening, task pose-road-masker);
  * the worker fills the bodies and never renames a case.
  */
-import { execFileSync } from 'child_process';
+import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { CLASSES_THE_TOOL_FOLDS, maskScreen } from '../maskScreen';
 import { applyMasks } from '../pose';
 import { POSES_ROOT, catalogue } from '../catalogue';
@@ -24,8 +24,8 @@ const ESC = String.fromCharCode(27);
  *
  * The three verb cases below spawn the CLI through ts-node, which transpiles the whole command
  * graph before the verb has read a byte - seconds, not milliseconds, and more of them on a loaded
- * machine running the rest of this suite in parallel. A default five-second budget makes those
- * cases a coin toss on CI, which is worse than no case at all.
+ * machine running the rest of this suite in parallel. So the three are started together, and
+ * each case is given longer than vitest's default to wait for its own.
  */
 const A_REAL_PROCESS = 60_000;
 
@@ -350,14 +350,38 @@ describe('the masker folds every volatile class the tool prints', () => {
 });
 
 describe('sherlo mask - the same folding for a screen the tool did not print itself', () => {
+  const projectRoot = '/tmp/a-live-run-12345';
+  const configPath = `${projectRoot}/sherlo.config.json`;
+
+  /**
+   * The three cases' processes, all started before the first case runs. Each spends its seconds
+   * loading the CLI, so started together they overlap instead of queueing one behind another.
+   */
+  let runs: {
+    liveScreen: Promise<MaskRun>;
+    withFlags: Promise<MaskRun>;
+    withoutDevtools: Promise<MaskRun>;
+  };
+
+  beforeAll(() => {
+    runs = {
+      liveScreen: runMask(LIVE_SCREEN, []),
+      withFlags: runMask(
+        [`✔ Created: ${configPath}`, `ERROR: nothing at ${projectRoot}/builds`].join('\n'),
+        ['--project-root', projectRoot, '--config-path', configPath]
+      ),
+      withoutDevtools: runMask('a screen', [], { devtools: false }),
+    };
+  });
+
   it(
     'reads a screen on stdin and prints it folded, byte for byte what applyMasks would have produced',
-    () => {
+    async () => {
       const scenario = readPoseDocument(fs.readFileSync(`${WAITED_PUSH}.pose.json`, 'utf8'));
 
       // BYTE FOR BYTE, which is the only comparison worth making: the test repository folds a live
       // screen through the verb and holds the result against a screen the pose road folded.
-      expect(runMask(LIVE_SCREEN, [])).toBe(
+      expect(printedBy(await runs.liveScreen)).toBe(
         applyMasks(LIVE_SCREEN, scenario, { root: '', configPath: '' })
       );
     },
@@ -366,14 +390,8 @@ describe('sherlo mask - the same folding for a screen the tool did not print its
 
   it(
     'takes the project root and the config path as flags, because a live run has its own',
-    () => {
-      const projectRoot = '/tmp/a-live-run-12345';
-      const configPath = `${projectRoot}/sherlo.config.json`;
-
-      const folded = runMask(
-        [`✔ Created: ${configPath}`, `ERROR: nothing at ${projectRoot}/builds`].join('\n'),
-        ['--project-root', projectRoot, '--config-path', configPath]
-      );
+    async () => {
+      const folded = printedBy(await runs.withFlags);
 
       expect(folded).toBe(
         ['✔ Created: <SHERLO_CONFIG_PATH>', 'ERROR: nothing at <PROJECT_ROOT>/builds'].join('\n')
@@ -384,10 +402,11 @@ describe('sherlo mask - the same folding for a screen the tool did not print its
 
   it(
     'is hidden unless SHERLO_DEVTOOLS=1, like sherlo pose',
-    () => {
+    async () => {
       // A user who runs `sherlo --help` has no use for a verb that folds a transcript, so the verb
       // is not there at all for them - the routing never learns it, exactly as `sherlo pose`.
-      expect(() => runMask('a screen', [], { devtools: false })).toThrow(/unknown command/i);
+      const run = await runs.withoutDevtools;
+      expect(() => printedBy(run)).toThrow(/unknown command/i);
     },
     A_REAL_PROCESS
   );
@@ -415,20 +434,30 @@ describe('a pose declares only a scenario literal in masks', () => {
 
 /* ========================================================================== */
 
+/** How one `sherlo mask` process ended: what it printed, or why it failed. */
+type MaskRun = { printed: string } | { failure: Error };
+
+/** What a run printed, or its failure thrown - so a case reads a run the way it would read a call. */
+function printedBy(run: MaskRun): string {
+  if ('failure' in run) throw run.failure;
+  return run.printed;
+}
+
 /**
- * Run `sherlo mask` in a REAL process with a screen on its stdin, and give back what it printed.
+ * Run `sherlo mask` in a REAL process with a screen on its stdin, and give back how it ended.
  *
  * A child process rather than a call into the module, because what these three cases are about is
  * the VERB: the gate it sits behind, the flags it takes, and the bytes it puts on stdout. Calling
- * the function directly would prove none of that.
+ * the function directly would prove none of that. It resolves rather than rejects on a failure, so
+ * a run started before its case never counts as an unhandled failure while it waits.
  */
 function runMask(
   screen: string,
   flags: string[],
   { devtools = true }: { devtools?: boolean } = {}
-): string {
-  try {
-    return execFileSync(
+): Promise<MaskRun> {
+  return new Promise((resolve) => {
+    const child = execFile(
       process.execPath,
       [
         '-r',
@@ -438,9 +467,7 @@ function runMask(
         ...flags,
       ],
       {
-        input: screen,
         encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
         env: {
           PATH: process.env.PATH,
           HOME: process.env.HOME,
@@ -452,16 +479,31 @@ function runMask(
             resolveJsonModule: true,
           }),
         },
+      },
+      (error, stdout, stderr) => {
+        if (!error) {
+          resolve({ printed: stdout });
+          return;
+        }
+        const exitCode = typeof error.code === 'number' ? error.code : '(never started)';
+        resolve({
+          failure: new Error(
+            `\`sherlo mask ${flags.join(' ')}\` exited ${exitCode}: ${stderr || error.message}`
+          ),
+        });
       }
     );
-  } catch (error) {
-    const failure = error as { status?: number; stderr?: string; message: string };
-
-    throw new Error(
-      `\`sherlo mask ${flags.join(' ')}\` exited ${failure.status ?? '(never started)'}: ` +
-        `${failure.stderr ?? failure.message}`
-    );
-  }
+    // A process that died before it read its screen breaks the pipe (EPIPE). Unheard, that error
+    // would crash the test worker; heard, it fails only the case that reads this run.
+    child.stdin?.on('error', (error) => {
+      resolve({
+        failure: new Error(
+          `\`sherlo mask ${flags.join(' ')}\` never read its screen: ${error.message}`
+        ),
+      });
+    });
+    child.stdin?.end(screen);
+  });
 }
 
 describe('a screen with colour and one without fold alike', () => {

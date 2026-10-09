@@ -18,10 +18,12 @@ It checks `packages/cli`, `packages/react-native-storybook` and `contracts`, the
 
 ## Test Execution
 
+Tests and checks are fast: a test file fails past 5 seconds and a pull request check past 5 minutes; a slow one is sped up, never given a bigger limit.
+
 There is no root `test` script in this repo. The unit suites are per-package (all vitest), each invoked via that package's own `yarn test`:
 
 - `packages/cli/` - CLI unit tests
-- `packages/react-native-storybook/` - SDK unit tests. They run against a fake core; only the packaging check packs the real, pinned core, which needs `PACKAGE_TOKEN` (without it, outside CI, those rules skip)
+- `packages/react-native-storybook/` - SDK unit tests. They run against a fake core; the packaging rules read the packs `scripts/packAsPublished.js` makes with `PACKAGE_TOKEN`, a step of the pull request check, from the folder `SHERLO_SDK_PACKS` names (without it, outside CI, those rules skip)
 
 Each package's `test` script is guarded by `../../scripts/require-test-exec-optin.sh`, which refuses to run unless `CI=true` (set automatically on GitHub Actions) or `ALLOW_LOCAL_TEST_EXEC=1`. To run a suite on your own machine, set the local override:
 
