@@ -2,17 +2,19 @@
  * What the published SDK carries, what the repository does not, and what CI and a release check
  * around the sealed core.
  *
- * The rules that read a real pack fetch the pinned core, so they need PACKAGE_TOKEN: CI carries it
- * (the packaging check), and on a machine without it they are skipped, saying so.
+ * The rules that read a real pack read the packs scripts/packAsPublished.js made - the pull
+ * request check runs it as a step before this suite, with PACKAGE_TOKEN, and names the folder in
+ * SHERLO_SDK_PACKS. Packing fetches a core and builds the bundler plugin, so it is done once, as a
+ * step, never inside the suite. In CI a run with no packs fails; elsewhere the rules that read a
+ * pack are skipped, saying so.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vm from 'node:vm';
-import { LAID_PATHS } from '../../scripts/packSealedCore.js';
 import {
   LOADERS,
   refuseTestPublicKey,
@@ -47,29 +49,12 @@ const TESTING_APP_TARBALLS = [
   'testing/react-native/sherlo-lib/react-native-storybook.tgz',
 ];
 
-/** Whether this run may read package storage; outside CI, a run without the token skips. */
-const canFetchThePinnedCore = Boolean(process.env.PACKAGE_TOKEN) || process.env.CI === 'true';
-const NO_TOKEN_REASON = 'PACKAGE_TOKEN is not set, so no real pack runs here';
-
-// Builds the bundler plugin, packs the SDK into a temporary folder and unpacks the tarball there,
-// so the test reads what a customer would install. The build runs as its own step and the pack
-// skips lifecycle scripts, so the pack's JSON output is never mixed with build logs.
-function packIntoTemporaryFolder(): { unpackedPackageDir: string; packedFilePaths: string[] } {
-  const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-pack-'));
-  execFileSync('yarn', ['build:metro'], { cwd: SDK_ROOT, stdio: 'ignore' });
-  const packOutput = execFileSync(
-    'npm',
-    ['pack', '--json', '--ignore-scripts', '--pack-destination', temporaryDir],
-    { cwd: SDK_ROOT, encoding: 'utf8' }
-  );
-  const [{ filename, files }] = JSON.parse(packOutput);
-  execFileSync('tar', ['-xzf', path.join(temporaryDir, filename), '-C', temporaryDir]);
-
-  return {
-    unpackedPackageDir: path.join(temporaryDir, 'package'),
-    packedFilePaths: files.map((file: { path: string }) => file.path),
-  };
-}
+/** The folder of packs the pull request's pack step made (scripts/packAsPublished.js), if any. */
+const PACKS_DIR = process.env.SHERLO_SDK_PACKS ?? '';
+const hasThePacks = PACKS_DIR !== '';
+const NO_PACKS_REASON =
+  'SHERLO_SDK_PACKS names no folder of packs, so no pack is read here - make one with ' +
+  '`node scripts/packAsPublished.js <folder>` (it needs PACKAGE_TOKEN) and name it in SHERLO_SDK_PACKS';
 
 /** The paths inside a tarball, without npm's `package/` folder. */
 function filesInTarball(tarball: string): string[] {
@@ -78,6 +63,29 @@ function filesInTarball(tarball: string): string[] {
     .split('\n')
     .map((entry) => entry.replace(/^package\//, ''));
 }
+
+let npmPack: { packedFiles: string[]; unpackedPackageDir: string } | undefined;
+
+/** The npm pack the step made - what a customer installs - unpacked once for every rule that reads it. */
+function theNpmPack(): { packedFiles: string[]; unpackedPackageDir: string } {
+  if (!npmPack) {
+    const tarball = path.join(PACKS_DIR, 'npm.tgz');
+    const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-pack-'));
+    execFileSync('tar', ['-xzf', tarball, '-C', temporaryDir]);
+    npmPack = {
+      packedFiles: filesInTarball(tarball),
+      unpackedPackageDir: path.join(temporaryDir, 'package'),
+    };
+  }
+  return npmPack;
+}
+
+beforeAll(() => {
+  // In CI the packs are not optional: a check that lost its pack step must go red, never skip.
+  if (process.env.CI === 'true' && !hasThePacks) {
+    throw new Error(`a CI run with no packs to read: ${NO_PACKS_REASON}`);
+  }
+});
 
 /** The two native loaders, copied to a temporary folder so a test may stamp them freely. */
 function copyLoadersToTemporaryFolder(): typeof LOADERS {
@@ -88,13 +96,6 @@ function copyLoadersToTemporaryFolder(): typeof LOADERS {
     return { file: copiedFile, derFormat };
   };
   return { ios: copyOf(LOADERS.ios), android: copyOf(LOADERS.android) };
-}
-
-/** Every path a pack lays the core at, removed, so a pack must lay each again. */
-function removeLaidCore() {
-  for (const { inSdk } of LAID_PATHS) {
-    fs.rmSync(path.join(SDK_ROOT, inSdk), { recursive: true, force: true });
-  }
 }
 
 /** The alignment of each loadable segment of an ELF shared library. */
@@ -163,50 +164,31 @@ function workflowWithoutComments(workflowFile: string): string {
 
 /**
  * Whether a workflow step packs the SDK: it runs the SDK's prepack, publishes with lerna (which
- * packs), packs by hand, or runs the SDK's unit suite, whose packaging check packs.
+ * packs), packs by hand, or runs the pack step the SDK suite's packaging rules read
+ * (scripts/packAsPublished.js). The suite itself packs nothing.
  */
 function packsTheSdk(step: { name: string; body: string }): boolean {
-  const runsTheSdkSuite =
-    /\byarn test\b/.test(step.body) &&
-    /working-directory: (packages\/react-native-storybook|\$\{\{ matrix\.package\.dir \}\})/.test(
-      step.body
-    );
-  return (
-    runsTheSdkSuite ||
-    /npm run prepack|lerna publish|\b(npm|yarn) pack\b|yarn reset/.test(step.body)
+  return /npm run prepack|lerna publish|\b(npm|yarn) pack\b|yarn reset|packAsPublished/.test(
+    step.body
   );
 }
 
 describe('what the published package carries', () => {
   describe('the pinned core, from a real pack', () => {
+    // Packed as a publish does, prepack and all, with no core laid beforehand: the step's npm.tgz.
     let packedFiles: string[] = [];
     let unpackedPackageDir = '';
 
     beforeAll(() => {
-      if (!canFetchThePinnedCore) {
-        console.warn(NO_TOKEN_REASON);
+      if (!hasThePacks) {
+        console.warn(NO_PACKS_REASON);
         return;
       }
-      // Pack as a publish does, prepack and all, with no core laid beforehand.
-      removeLaidCore();
-      const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-real-pack-'));
-      execFileSync('npm', ['pack', '--pack-destination', temporaryDir], {
-        cwd: SDK_ROOT,
-        stdio: ['ignore', 'ignore', 'inherit'],
-      });
-      const tarball = fs.readdirSync(temporaryDir).find((name) => name.endsWith('.tgz'))!;
-      execFileSync('tar', ['-xzf', path.join(temporaryDir, tarball), '-C', temporaryDir]);
-      packedFiles = filesInTarball(path.join(temporaryDir, tarball));
-      unpackedPackageDir = path.join(temporaryDir, 'package');
-    }, 300_000);
-
-    afterAll(() => {
-      // The pack laid the core into the SDK; clear it so a local run leaves none behind.
-      if (canFetchThePinnedCore) removeLaidCore();
+      ({ packedFiles, unpackedPackageDir } = theNpmPack());
     });
 
     it('the published files carry the JS core as an asset for iOS and Android', (context) => {
-      if (!canFetchThePinnedCore) context.skip();
+      if (!hasThePacks) context.skip();
       expect(packedFiles).toContain(IOS_ASSET);
       expect(packedFiles).toContain(ANDROID_ASSET);
 
@@ -228,7 +210,7 @@ describe('what the published package carries', () => {
       const manifest = JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'package.json'), 'utf8'));
       expect(manifest.files).toContain(XCFRAMEWORK + '/**/*');
 
-      if (!canFetchThePinnedCore) {
+      if (!hasThePacks) {
         console.warn('the xcframework is not packed here, so its slices are not checked');
         context.skip();
       }
@@ -244,26 +226,18 @@ describe('what the published package carries', () => {
     });
 
     it('a yarn pack carries the C core xcframework too', (context) => {
-      if (!canFetchThePinnedCore) context.skip();
-      const yarnReleasePath = fs
-        .readFileSync(path.join(REPO_ROOT, '.yarnrc.yml'), 'utf8')
-        .match(/^yarnPath:\s*(\S+)\s*$/m)![1];
-      const temporaryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-yarn-pack-'));
-      const yarnTarball = path.join(temporaryDir, 'sdk.tgz');
-      execFileSync('node', [path.join(REPO_ROOT, yarnReleasePath), 'pack', '-o', yarnTarball], {
-        cwd: SDK_ROOT,
-        stdio: ['ignore', 'ignore', 'inherit'],
-      });
-      const yarnPackedFiles = filesInTarball(yarnTarball);
+      if (!hasThePacks) context.skip();
+      // The same package packed by the repository's own yarn: the step's yarn.tgz.
+      const yarnPackedFiles = filesInTarball(path.join(PACKS_DIR, 'yarn.tgz'));
 
       for (const slice of XCFRAMEWORK_SLICES) expect(yarnPackedFiles).toContain(slice);
       for (const sliceName of ['ios-arm64', 'ios-arm64_x86_64-simulator']) {
         expect(yarnPackedFiles).toContain(XCFRAMEWORK + '/' + sliceName + '/Headers/sherlo_core.h');
       }
-    }, 300_000);
+    });
 
     it('the published files carry a C core library for every Android ABI', (context) => {
-      if (!canFetchThePinnedCore) context.skip();
+      if (!hasThePacks) context.skip();
       // The rule that keeps CompiledCore's native method names under R8 ships with them.
       expect(packedFiles).toContain('android/consumer-rules.pro');
       for (const library of ANDROID_LIBRARIES) {
@@ -277,7 +251,7 @@ describe('what the published package carries', () => {
     });
 
     it('the published files carry no readable source of either core', (context) => {
-      if (!canFetchThePinnedCore) context.skip();
+      if (!hasThePacks) context.skip();
       // No folder of either core's source, and no C source anywhere.
       expect(packedFiles.filter((file) => file.includes('sherlo-core/'))).toEqual([]);
       expect(packedFiles.filter((file) => /\.c$/.test(file))).toEqual([]);
@@ -291,8 +265,9 @@ describe('what the published package carries', () => {
     });
   });
 
-  it('the published bundler plugin is a minified bundle that requires no file of its own source', () => {
-    const { unpackedPackageDir, packedFilePaths } = packIntoTemporaryFolder();
+  it('the published bundler plugin is a minified bundle that requires no file of its own source', (context) => {
+    if (!hasThePacks) context.skip();
+    const { unpackedPackageDir, packedFiles: packedFilePaths } = theNpmPack();
 
     const readableMetroSources = packedFilePaths.filter(
       (filePath) => filePath.startsWith('metro/') && filePath.endsWith('.js')
@@ -332,10 +307,11 @@ describe('what the published package carries', () => {
         true
       );
     }
-  }, 120_000);
+  });
 
-  it('the published polyfill runs as a plain script, with no module or require around it', () => {
-    const { unpackedPackageDir } = packIntoTemporaryFolder();
+  it('the published polyfill runs as a plain script, with no module or require around it', (context) => {
+    if (!hasThePacks) context.skip();
+    const { unpackedPackageDir } = theNpmPack();
     const polyfillSource = fs.readFileSync(
       path.join(unpackedPackageDir, 'dist-metro', 'polyfill.js'),
       'utf8'
@@ -350,7 +326,7 @@ describe('what the published package carries', () => {
     bareScriptContext.globalThis = bareScriptContext;
     bareScriptContext.global = bareScriptContext;
     expect(() => vm.runInNewContext(polyfillSource, bareScriptContext)).not.toThrow();
-  }, 120_000);
+  });
 
   it('no built sealed part is committed', () => {
     const laidParts = [

@@ -27,7 +27,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import deriveSimManifest from '../deriveSimManifest';
 import {
   formatSimModuleFile,
@@ -114,12 +114,26 @@ function writeWorld(fixture: GitFixture, modules: SimModule[]): void {
   for (const module of modules) write(`${module.path}.json`, formatSimModuleFile(module));
 }
 
-/** A repo whose main line carries the trunk world. */
+/**
+ * The trunk world, committed once for the whole file. Each case works in its own clone of it - one
+ * git process instead of the several that writing and committing the world again would take.
+ */
+let trunk: GitFixture;
+
+beforeAll(() => {
+  trunk = GitFixture.create();
+  writeWorld(trunk, trunkModules());
+  trunk.commit('the trunk world');
+});
+
+afterAll(() => {
+  trunk?.cleanup();
+});
+
+/** A repo of this case's own, whose main line carries the trunk world. */
 function repoOnTrunk(): GitFixture {
-  const fixture = GitFixture.create();
+  const fixture = trunk.clone();
   fixtures.push(fixture);
-  writeWorld(fixture, trunkModules());
-  fixture.commit('the trunk world');
   return fixture;
 }
 
@@ -129,8 +143,8 @@ function branchWithEdit(
   name: string,
   edit: (modules: SimModule[]) => void
 ): void {
-  fixture.checkout('main');
-  fixture.branch(name, { checkout: true });
+  // One process for "switch to main, start the branch there".
+  fixture.git(['checkout', '-q', '-b', name, 'main']);
   const modules = trunkModules();
   edit(modules);
   writeWorld(fixture, modules);
@@ -153,18 +167,38 @@ function worldInRepo(fixture: GitFixture): ReturnType<typeof readSimWorld> {
 }
 
 describe('two branches touching different components', () => {
+  /**
+   * Both cases below read the same merge - a restyled button merged with retinted typography -
+   * so it is made once, by whichever case runs first, and only read after that.
+   */
+  let restyledAndRetinted: { fixture: GitFixture; mergeSucceeded: boolean } | undefined;
+
+  function mergeRestyleWithRetint(): { fixture: GitFixture; mergeSucceeded: boolean } {
+    if (!restyledAndRetinted) {
+      const fixture = trunk.clone();
+      branchWithEdit(fixture, 'restyle-button', (modules) => {
+        moduleAt(modules, BUTTON).content = 'SharedButton v2 - green #1e7a3c button';
+      });
+      branchWithEdit(fixture, 'retint-typography', (modules) => {
+        moduleAt(modules, TYPOGRAPHY_STORIES).stories[0].render.bg = '#eef2f7';
+      });
+
+      fixture.checkout('restyle-button');
+      restyledAndRetinted = {
+        fixture,
+        mergeSucceeded: mergeSucceeds(fixture, 'retint-typography'),
+      };
+    }
+    return restyledAndRetinted;
+  }
+
+  afterAll(() => {
+    restyledAndRetinted?.fixture.cleanup();
+  });
+
   it('merge, and produce the world a single author would have written', () => {
-    const fixture = repoOnTrunk();
-
-    branchWithEdit(fixture, 'restyle-button', (modules) => {
-      moduleAt(modules, BUTTON).content = 'SharedButton v2 - green #1e7a3c button';
-    });
-    branchWithEdit(fixture, 'retint-typography', (modules) => {
-      moduleAt(modules, TYPOGRAPHY_STORIES).stories[0].render.bg = '#eef2f7';
-    });
-
-    fixture.checkout('restyle-button');
-    expect(mergeSucceeds(fixture, 'retint-typography')).toBe(true);
+    const { fixture, mergeSucceeded } = mergeRestyleWithRetint();
+    expect(mergeSucceeded).toBe(true);
 
     // The combined world, written by hand the way a "combined variant" used to
     // have to be. The merge must reproduce it leaf for leaf.
@@ -178,17 +212,8 @@ describe('two branches touching different components', () => {
   });
 
   it('produce the manifest that hand-authored combination would have', () => {
-    const fixture = repoOnTrunk();
-
-    branchWithEdit(fixture, 'restyle-button', (modules) => {
-      moduleAt(modules, BUTTON).content = 'SharedButton v2 - green #1e7a3c button';
-    });
-    branchWithEdit(fixture, 'retint-typography', (modules) => {
-      moduleAt(modules, TYPOGRAPHY_STORIES).stories[0].render.bg = '#eef2f7';
-    });
-
-    fixture.checkout('restyle-button');
-    fixture.merge('retint-typography');
+    const { fixture, mergeSucceeded } = mergeRestyleWithRetint();
+    expect(mergeSucceeded).toBe(true);
 
     const combined = trunkModules();
     moduleAt(combined, BUTTON).content = 'SharedButton v2 - green #1e7a3c button';

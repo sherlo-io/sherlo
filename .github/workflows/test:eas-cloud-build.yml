@@ -15,6 +15,9 @@ jobs:
       (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     environment: ${{ inputs.env }}
+    env:
+      # Every install reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

@@ -68,6 +68,8 @@ jobs:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           LIBS_REF: ${{ steps.libs.outputs.ref }}
           SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
+          # Reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       # THE PACKAGED-BUILD GATE. This is the command the e2e suites run when a
       # run is dispatched with `cli_ref=<this branch>`: they clone the ref and
@@ -154,14 +156,26 @@ jobs:
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          # Reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
+
+      # Mirrors pr_checks.yml: the SDK packed as a publish packs it, once, for the suite's
+      # packaging rules to read. The pack fetches the pinned core with the token.
+      - name: Pack the SDK as a publish does
+        working-directory: packages/react-native-storybook
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: node scripts/packAsPublished.js "${{ runner.temp }}/sdk-packs"
 
       - name: Unit tests
         working-directory: packages/react-native-storybook
         env:
           PATH_FILTER: ${{ inputs.path_filter }}
           TEST_NAME: ${{ inputs.test_name }}
-          # The packaging check packs the SDK, and the pack fetches the pinned core with it.
+          # The pin rules look the pinned core up in package storage with it.
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          # The packs the step above made, for the packaging rules.
+          SHERLO_SDK_PACKS: ${{ runner.temp }}/sdk-packs
         run: |
           args=()
           if [ -n "$PATH_FILTER" ]; then
