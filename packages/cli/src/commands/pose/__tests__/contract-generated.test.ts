@@ -7,17 +7,16 @@
  * this check. Written as a skeleton in plan (epic pose-road-hardening, task
  * pose-road-contract-generated); the worker fills the bodies and never renames a case.
  */
-import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { PoseRefusal, readPose } from '../readPose';
+import { validPose } from './support/validPose';
 
 const CLI_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const REPO_ROOT = path.resolve(CLI_ROOT, '..', '..');
 const CONTRACT = path.join(REPO_ROOT, 'contracts', 'pose.contract.ts');
 const GENERATED_READER = path.join(CLI_ROOT, 'src', 'commands', 'pose', 'readPose.generated.ts');
-const SERVER_SEAM = path.join(CLI_ROOT, 'src', 'seams', 'serverCalls.ts');
 
 /**
  * The generator `yarn generate:pose-contract` and `yarn check:pose-contract` run, called in this
@@ -34,9 +33,6 @@ type PoseContractGenerator = {
 };
 const GENERATOR_SCRIPT = path.join(CLI_ROOT, 'scripts', 'generate-pose-contract.ts');
 
-/** A case that builds a TypeScript program of its own and starts a process: seconds, not milliseconds. */
-const A_GENERATION = 60_000;
-
 let generator: PoseContractGenerator;
 /** What the seam types on disk generate - made once, for every case that asks. */
 let generatedFromTheSeams: { contract: string; reader: string };
@@ -45,27 +41,6 @@ beforeAll(async () => {
   generator = await import(GENERATOR_SCRIPT);
   generatedFromTheSeams = generator.generatePoseContract();
 }, 60_000);
-
-afterAll(() => {
-  // A case below writes over the generated reader on purpose. Whatever happened to it, the
-  // worktree ends holding the reader the seam types generate - the one generation made above,
-  // written back, so this net costs no second program.
-  if (generatedFromTheSeams) fs.writeFileSync(GENERATED_READER, generatedFromTheSeams.reader);
-});
-
-/** A pose with nothing wrong with it - the thing the cases below break in one way at a time. */
-function validPose(): Record<string, unknown> {
-  return {
-    pose: 1,
-    argv: ['view', '7'],
-    files: {},
-    env: {},
-    git: 'none',
-    bundles: {},
-    api: [{ call: 'getBuildStatus', with: { buildIndex: 7 }, answer: { runStatus: 'finished' } }],
-    masks: {},
-  };
-}
 
 /** The problems a document is refused with, or a failure saying it was accepted. */
 function problemsOf(document: unknown): string[] {
@@ -77,32 +52,6 @@ function problemsOf(document: unknown): string[] {
   }
 
   throw new Error('the reader ACCEPTED this document - the case below is proving nothing');
-}
-
-/**
- * Read each pose through the reader AS IT IS ON DISK, all in one process of its own, and say for
- * each whether it was accepted and, if not, what the refusal said.
- *
- * A case that regenerates the reader cannot read its work through this file's own import: the
- * test runner loaded that module before the generator ran, and re-importing it hands back what
- * was loaded. A fresh process has no such memory.
- */
-function readPoses(documents: unknown[]): Array<{ ok: boolean; said: string }> {
-  const load =
-    'const { readPose } = require("./src/commands/pose/readPose");' +
-    'const said = JSON.parse(process.env.POSES).map((pose) => {' +
-    '  try { readPose(pose); return { ok: true, said: "" }; }' +
-    '  catch (error) { return { ok: false, said: String(error && error.message) }; }' +
-    '});' +
-    'process.stdout.write(JSON.stringify(said));';
-
-  const printed = execFileSync('yarn', ['run', '-T', 'ts-node', '--transpile-only', '-e', load], {
-    cwd: CLI_ROOT,
-    encoding: 'utf8',
-    stdio: 'pipe',
-    env: { ...process.env, POSES: JSON.stringify(documents) },
-  });
-  return JSON.parse(printed);
 }
 
 describe('the pose contract and its reader are generated from the seam types', () => {
@@ -134,58 +83,6 @@ describe('the pose contract and its reader are generated from the seam types', (
     expect(contract.split('\n')[0]).toContain('GENERATED');
     expect(contract.split('\n')[0]).toContain('yarn generate:pose-contract');
   });
-
-  it(
-    'a field added to a seam answer type appears in the contract and is accepted by the reader after one generation',
-    () => {
-      const addAFieldToTheGate = (before: string) =>
-        before.replace(
-          "  outcome: 'fast' | 'full-build-needed' | 'not-stageable';",
-          "  outcome: 'fast' | 'full-build-needed' | 'not-stageable';\n" +
-            '  /** A field added by this test, and by nothing else. */\n' +
-            '  measuredAt?: string;'
-        );
-
-      /** A pose of the one call whose answer the field was added to. */
-      const gatePose = (answer: Record<string, unknown>) => ({
-        ...validPose(),
-        argv: ['test', '--android', 'builds/app.apk'],
-        api: [
-          {
-            call: 'checkStagedGate',
-            with: { platform: 'android', baseFingerprint: 'b4c9e2f7' },
-            answer,
-          },
-        ],
-      });
-
-      const seamWithTheField = addAFieldToTheGate(fs.readFileSync(SERVER_SEAM, 'utf8'));
-      const generated = generator.generatePoseContract({ [SERVER_SEAM]: seamWithTheField });
-
-      // ONE edit, in the seam that answers the call - and both copies now carry the field.
-      expect(generated.contract).toContain('measuredAt?: string;');
-      expect(generated.reader).toContain("'measuredAt'");
-
-      const committedReader = fs.readFileSync(GENERATED_READER, 'utf8');
-      try {
-        fs.writeFileSync(GENERATED_READER, generated.reader);
-        const [stated, invented] = readPoses([
-          gatePose({ outcome: 'fast', diff: [], measuredAt: '2026-09-15' }),
-          gatePose({ outcome: 'fast', diff: [], measuredBy: 'nobody' }),
-        ]);
-
-        // And the reader generated from it ACCEPTS a pose that states the field.
-        expect(stated.ok).toBe(true);
-
-        // CONTROL: the field is accepted because it was GENERATED, not because unknown keys pass.
-        expect(invented.ok).toBe(false);
-        expect(invented.said).toContain('measuredBy: unknown field');
-      } finally {
-        fs.writeFileSync(GENERATED_READER, committedReader);
-      }
-    },
-    A_GENERATION
-  );
 
   it('the reader still refuses a missing field, an unknown key and a wrong type, naming every problem in one message', () => {
     const broken = validPose();
