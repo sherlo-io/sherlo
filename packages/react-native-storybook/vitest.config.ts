@@ -23,6 +23,7 @@ export default defineConfig({
     include: ['src/__tests__/**/*.test.ts', 'src/**/__tests__/**/*.test.tsx'],
     globals: true,
     maxWorkers,
+    setupFiles: ['@sherlo-io/time-limits/vitest-setup'],
     // A test file over five seconds fails the run, naming itself: the limit every suite shares.
     reporters: ['default', ['@sherlo-io/time-limits/vitest', { limit: 'ordinary' }]],
   },
