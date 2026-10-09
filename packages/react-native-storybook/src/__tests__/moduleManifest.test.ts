@@ -142,6 +142,73 @@ describe('module manifest - a story newly taken into the Storybook glob', () => 
 });
 
 /**
+ * On Storybook's default setup the app starts Storybook from an entry file
+ * (`.rnstorybook/index.tsx`) beside the generated requires file. No story
+ * imports it, yet an edit to it - or to a provider it imports - changes every
+ * story. The trap: the entry also imports the requires file, which reaches every
+ * story, so walking it without a stop would put each story into every other's
+ * closure.
+ */
+describe('module manifest - the Storybook entry file', () => {
+  const ENV_FLAG = 'SHERLO_MODULE_MANIFEST';
+
+  beforeEach(() => {
+    process.env[ENV_FLAG] = '1';
+  });
+  afterEach(() => {
+    delete process.env[ENV_FLAG];
+  });
+
+  const BUTTON_STORY = './src/Button.stories.tsx';
+  const TYPOGRAPHY_STORY = './src/Typography/Typography.stories.tsx';
+  const PROVIDER = './src/Provider.tsx';
+  const ENTRY = './.rnstorybook/index.tsx';
+
+  /** Two stories, plus an entry that imports the requires file and a provider. */
+  function emitClosuresWithEntry(): Record<string, string[]> {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-entry-'));
+    const graph = buildStorybookGraph(root, [
+      'src/Button.stories.tsx',
+      'src/Typography/Typography.stories.tsx',
+    ]);
+    const providerAbsPath = path.join(root, 'src', 'Provider.tsx');
+    const requiresAbsPath = path.join(root, '.rnstorybook', 'storybook.requires.ts');
+    graph.dependencies.set(providerAbsPath, fakeModule('PROVIDER_CODE', new Map()));
+    graph.dependencies.set(
+      path.join(root, '.rnstorybook', 'index.tsx'),
+      fakeModule(
+        'ENTRY_CODE',
+        new Map([
+          ['requires', { absolutePath: requiresAbsPath, data: { data: {} } }],
+          ['provider', { absolutePath: providerAbsPath, data: { data: {} } }],
+        ])
+      )
+    );
+    const manifest = emitManifest(root, graph);
+    fs.rmSync(root, { recursive: true, force: true });
+    return manifest.storyClosures;
+  }
+
+  it("the Storybook entry file's own imports join every story's closure", () => {
+    const storyClosures = emitClosuresWithEntry();
+
+    [BUTTON_STORY, TYPOGRAPHY_STORY].forEach((story) => {
+      expect(storyClosures[story]).toContain(ENTRY);
+      expect(storyClosures[story]).toContain(PROVIDER);
+    });
+  });
+
+  it("CONTROL: the Storybook entry file's stories do not join every story's closure", () => {
+    const storyClosures = emitClosuresWithEntry();
+
+    expect(storyClosures[BUTTON_STORY]).not.toContain(TYPOGRAPHY_STORY);
+    expect(storyClosures[BUTTON_STORY]).not.toContain('./src/Typography/Typography.tsx');
+    expect(storyClosures[TYPOGRAPHY_STORY]).not.toContain(BUTTON_STORY);
+    expect(storyClosures[TYPOGRAPHY_STORY]).not.toContain('./src/Button.tsx');
+  });
+});
+
+/**
  * The manifest's story set is keyed by SOURCE FILE PATH, and the server narrows
  * a build's capture scope by matching that key against the project's configured
  * include/exclude lists. The runner on the device narrows by a different string

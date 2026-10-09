@@ -60,7 +60,9 @@ function toRelativePath(absPath, projectRoot) {
 //                      EVERY story's set: the preview module (collectPreviewAbsPaths)
 //                      and its own transitive closure - Storybook applies the
 //                      preview's annotations/decorators around every story, so no
-//                      story's own downward walk ever reaches it (SHERLO-3).
+//                      story's own downward walk ever reaches it (SHERLO-3). The
+//                      Storybook entry file (collectEntryAbsPaths) joins the same
+//                      way, minus the requires file and the stories it reaches.
 //   3. storyTitles   - story source-path -> the Storybook TITLE of that story
 //                      file. The other two maps are keyed by path and the
 //                      runner knows nothing about paths, so without this the
@@ -245,8 +247,41 @@ function collectPreviewAbsPaths(graph) {
 }
 
 /**
+ * Absolute paths of the Storybook entry file: the module named `index` that sits
+ * in the same folder as the generated requires file (`.rnstorybook/index.tsx`
+ * on the default setup, which starts Storybook with the requires file's stories).
+ *
+ * Like the preview, it sits ABOVE every story: the app starts Storybook from it,
+ * so an edit to it, or to anything it imports, can change every story, yet no
+ * story ever imports it.
+ *
+ * @returns {string[]} entry absolute paths (empty when the setup has none).
+ */
+function collectEntryAbsPaths(graph) {
+  var requiresFolders = {};
+  graph.dependencies.forEach(function (_module, absPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+    requiresFolders[path.dirname(absPath)] = true;
+  });
+
+  var entries = [];
+  graph.dependencies.forEach(function (_module, absPath) {
+    var basename = path.basename(absPath);
+    var nameWithoutExtension = basename.slice(0, basename.length - path.extname(basename).length);
+    if (nameWithoutExtension !== 'index') return;
+    if (requiresFolders[path.dirname(absPath)]) entries.push(absPath);
+  });
+  return entries;
+}
+
+/**
  * Transitive forward dependency closure of one story, as a sorted list of
  * repo-relative source paths (the story itself is NOT included).
+ *
+ * `excludedAbsPaths` (a map of absolute path -> true) names modules the walk
+ * neither records nor descends into. The entry file passes the requires file
+ * and every story here: it imports the requires file, which reaches every story,
+ * and those are no part of the entry's own closure.
  *
  * Follows every dependency edge - static, async (dynamic import) and
  * require.context. A require.context edge points at a synthetic module; we
@@ -256,7 +291,8 @@ function collectPreviewAbsPaths(graph) {
  * still traversed, so a source file reached only through a node_modules hop is
  * not lost.
  */
-function collectForwardClosure(graph, storyAbsPath, projectRoot) {
+function collectForwardClosure(graph, storyAbsPath, projectRoot, excludedAbsPaths) {
+  var excluded = excludedAbsPaths || {};
   var closure = {};
   var visited = {};
   var stack = [storyAbsPath];
@@ -268,7 +304,7 @@ function collectForwardClosure(graph, storyAbsPath, projectRoot) {
     if (!module || !(module.dependencies instanceof Map)) continue;
     module.dependencies.forEach(function (dep) {
       var depAbs = dep.absolutePath;
-      if (!depAbs) return;
+      if (!depAbs || excluded[depAbs]) return;
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
       // A require.context edge resolves to a synthetic module: don't record its
       // path, just traverse into it so its matched targets get recorded.
@@ -475,6 +511,29 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       collectForwardClosure(graph, previewAbsPath, projectRoot).forEach(function (rel) {
         globalRelPaths[rel] = true;
       });
+    });
+
+    // The Storybook entry file joins the same way, with one trap: it imports the
+    // requires file, which reaches every story. Its walk stops at the requires
+    // file and at every story file.
+    /** @type {Record<string, boolean>} */
+    var notPartOfEntryClosure = {};
+    graph.dependencies.forEach(function (_module, absPath) {
+      if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) !== -1) {
+        notPartOfEntryClosure[absPath] = true;
+      }
+    });
+    collectStories(graph).forEach(function (story) {
+      notPartOfEntryClosure[story.absPath] = true;
+    });
+    collectEntryAbsPaths(graph).forEach(function (entryAbsPath) {
+      var entryRel = toRelativePath(entryAbsPath, projectRoot);
+      if (entryRel) globalRelPaths[entryRel] = true;
+      collectForwardClosure(graph, entryAbsPath, projectRoot, notPartOfEntryClosure).forEach(
+        function (rel) {
+          globalRelPaths[rel] = true;
+        }
+      );
     });
 
     /** @type {Record<string, string[]>} */
