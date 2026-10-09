@@ -76,8 +76,27 @@ function readDoorRules(): Record<string, RuleConfig> {
   return baseOverride.rules;
 }
 
-// Linting the whole tree is the slow part of this file (seconds, not milliseconds) - memoized so
-// the two tests that both need the raw violation set pay for it once, not twice.
+/**
+ * A linter that runs the door rules and nothing else. The census asks only which doors a module
+ * opens, so it parses TypeScript the way the lint does and skips every other rule of the
+ * project's config, which are most of a whole-config lint's time.
+ */
+function doorLinter() {
+  return new ESLint({
+    cwd: REPO_ROOT,
+    useEslintrc: false,
+    overrideConfig: {
+      root: true,
+      parser: '@typescript-eslint/parser',
+      parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+      plugins: ['@typescript-eslint'],
+      rules: readDoorRules(),
+    },
+  });
+}
+
+// Linting the whole tree is the slow part of this file - memoized so the two tests that both need
+// the raw violation set pay for it once, not twice.
 let rawViolations: Promise<DoorViolation[]> | undefined;
 
 /** Lint every `.ts` file under `packages/cli/src`, ignoring the seams and any `__tests__` directory, with NO other exception. */
@@ -87,13 +106,7 @@ function findRawViolations(): Promise<DoorViolation[]> {
 }
 
 async function computeRawViolations(): Promise<DoorViolation[]> {
-  const eslint = new ESLint({
-    cwd: REPO_ROOT,
-    useEslintrc: false,
-    overrideConfig: { root: true, extends: '@react-native', rules: readDoorRules() },
-  });
-
-  const results = await eslint.lintFiles(['packages/cli/src/**/*.ts']);
+  const results = await doorLinter().lintFiles(['packages/cli/src/**/*.ts']);
   const violations: DoorViolation[] = [];
 
   for (const result of results) {
@@ -479,12 +492,7 @@ describe('every door is a seam', () => {
     );
 
     try {
-      const eslint = new ESLint({
-        cwd: REPO_ROOT,
-        useEslintrc: false,
-        overrideConfig: { root: true, extends: '@react-native', rules: readDoorRules() },
-      });
-      const results = await eslint.lintFiles([path.relative(REPO_ROOT, scratchFile)]);
+      const results = await doorLinter().lintFiles([path.relative(REPO_ROOT, scratchFile)]);
       const messages: { ruleId: string | null }[] = results[0]?.messages ?? [];
 
       expect(
