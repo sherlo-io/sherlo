@@ -45,6 +45,10 @@
       "require": "./dist/mocking/index.js",
       "default": "./dist/mocking/index.js"
     },
+    "./metro/detectStorybookSetup": {
+      "require": "./dist-metro/detectStorybookSetup.js",
+      "default": "./dist-metro/detectStorybookSetup.js"
+    },
     "./metro/polyfill": {
       "require": "./dist-metro/polyfill.js",
       "default": "./dist-metro/polyfill.js"
@@ -68,6 +72,7 @@
     "ios/SherloCore.xcframework/**/*",
     "sherlo-react-native-storybook.podspec",
     "dist-metro/withStorybook.js",
+    "dist-metro/detectStorybookSetup.js",
     "dist-metro/polyfill.js",
     "metro/withStorybook.d.ts"
   ],
