@@ -23,30 +23,52 @@ const STEP_NAME = 'Added GitHub workflow';
  * the team already runs that CI. BUILD DEBT (init-for-agents): look in the repository's root too,
  * not only in the app's folder, for an app inside a monorepo.
  */
-const OTHER_CI_FILES = [
-  '.gitlab-ci.yml',
-  'bitbucket-pipelines.yml',
-  '.circleci/config.yml',
-  'bitrise.yml',
-  'codemagic.yaml',
-  'azure-pipelines.yml',
-  'Jenkinsfile',
-  '.travis.yml',
-  '.buildkite/pipeline.yml',
-  '.eas/workflows',
+const OTHER_CI_FILES: Array<{ file: string; ci: string }> = [
+  { file: '.gitlab-ci.yml', ci: 'GitLab CI' },
+  { file: 'bitbucket-pipelines.yml', ci: 'Bitbucket Pipelines' },
+  { file: '.circleci/config.yml', ci: 'CircleCI' },
+  { file: 'bitrise.yml', ci: 'Bitrise' },
+  { file: 'codemagic.yaml', ci: 'Codemagic' },
+  { file: 'azure-pipelines.yml', ci: 'Azure Pipelines' },
+  { file: 'Jenkinsfile', ci: 'Jenkins' },
+  { file: '.travis.yml', ci: 'Travis CI' },
+  { file: '.buildkite/pipeline.yml', ci: 'Buildkite' },
+  { file: '.eas/workflows', ci: 'EAS Workflows' },
 ];
+
+/** The hosts a remote names often enough to say by name; any other is "another host". */
+const REMOTE_HOSTS: Array<{ domain: string; host: string }> = [
+  { domain: 'gitlab', host: 'GitLab' },
+  { domain: 'bitbucket', host: 'Bitbucket' },
+  { domain: 'dev.azure.com', host: 'Azure DevOps' },
+];
+
+/**
+ * A SKIPPED WORKFLOW SAYS WHY, in one step line (operator, 2026-10-09): a person sees why the CI
+ * step names their own CI, and an agent learns the project has a CI and adds no workflow itself.
+ */
+function printWhyNoWorkflow(detail: string): void {
+  printLines([renderStepLine({ outcome: 'done', name: 'Found CI', detail: `${detail}, so no GitHub workflow added` })]);
+}
 
 /** Answers whether the project has Sherlo's workflow now, which the next steps name. */
 async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
   const projectRoot = getCwd();
 
   const remote = await surroundings().readGitRemote(projectRoot);
-  if (remote && !remote.includes('github.com')) return { hasWorkflow: false };
+  if (remote && !remote.includes('github.com')) {
+    const host = REMOTE_HOSTS.find(({ domain }) => remote.includes(domain))?.host ?? 'another host';
+    printWhyNoWorkflow(`the repository is on ${host}`);
+    return { hasWorkflow: false };
+  }
 
   const workflowFile = path.join(projectRoot, WORKFLOW_PATH);
   // Sherlo's own workflow from an earlier run counts before another CI does: setup put it there.
-  const runsAnotherCi = OTHER_CI_FILES.some((file) => fs.existsSync(path.join(projectRoot, file)));
-  if (runsAnotherCi && !fs.existsSync(workflowFile)) return { hasWorkflow: false };
+  const otherCi = OTHER_CI_FILES.find(({ file }) => fs.existsSync(path.join(projectRoot, file)));
+  if (otherCi && !fs.existsSync(workflowFile)) {
+    printWhyNoWorkflow(otherCi.ci);
+    return { hasWorkflow: false };
+  }
 
   if (fs.existsSync(workflowFile)) {
     printLines([renderStepLine({ outcome: 'already', name: STEP_NAME, detail: WORKFLOW_PATH })]);
