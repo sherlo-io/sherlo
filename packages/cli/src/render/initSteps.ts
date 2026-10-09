@@ -105,7 +105,9 @@ export function renderNextSteps({
         // how is Sherlo's own guide, shipped inside the SDK setup just installed, so any agent reads
         // it with no network and no restart. BUILD DEBT (init-for-agents): the guide file itself.
         content: [
-          'Write stories for a few simple components of your app (ones that need no data),',
+          // "A few to start", never "simple ones": a person must not read that Sherlo only copes
+          // with trivial components (operator, 2026-10-09). Which ones to begin with is the guide's.
+          "Start with stories for a few of your app's components,",
           'and delete the examples in .rnstorybook/stories.',
           'Storybook loads only the folders listed in .rnstorybook/main.ts, so add theirs there.',
           `How: ${chalk.cyan(STORIES_GUIDE_PATH)}`,
