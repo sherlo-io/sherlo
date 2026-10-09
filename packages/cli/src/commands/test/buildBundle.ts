@@ -26,6 +26,11 @@ import getPackageVersion from '../../commands/init/requirements/getPackageVersio
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
 import {
+  BUNDLER_SETUP_ERROR_LINE,
+  BUNDLER_SETUP_ERROR_MARKERS,
+  SHERLO_BUILD_FOR_PUSH,
+} from './constants';
+import {
   deleteModuleManifestSidecar,
   readValidatedModuleManifest,
   type ValidatedModuleManifest,
@@ -387,10 +392,13 @@ function execBundler(
   // The Sherlo Metro serializer reads SHERLO_MODULE_MANIFEST; setting it here scopes
   // emission to this spawned bundler process, so every other build (local dev,
   // non-Sherlo CI) is unaffected. Nothing else in this env changes, so the bundle
-  // output is byte-for-byte what it would be without it.
+  // output is byte-for-byte what it would be without it (SHERLO_BUILD below aside).
   const bundlerEnv: NodeJS.ProcessEnv = {
     ...process.env,
     SHERLO_MODULE_MANIFEST: '1',
+    // Listed after the spread so it wins over the developer's shell: a push always
+    // bundles Storybook alone.
+    SHERLO_BUILD: SHERLO_BUILD_FOR_PUSH,
   };
 
   if (bundler === 'expo') {
@@ -413,7 +421,10 @@ function execBundler(
     } catch (err: any) {
       const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
       throw new Error(
-        `expo export:embed failed for ${platform}:\n` + `${detail.slice(0, 500)}\n` + FALLBACK_LINE
+        `expo export:embed failed for ${platform}:\n` +
+          `${detail.slice(0, 500)}\n` +
+          setupErrorLineFor(detail) +
+          FALLBACK_LINE
       );
     }
   } else {
@@ -438,10 +449,20 @@ function execBundler(
       throw new Error(
         `react-native bundle failed for ${platform}:\n` +
           `${detail.slice(0, 500)}\n` +
+          setupErrorLineFor(detail) +
           FALLBACK_LINE
       );
     }
   }
+}
+
+/**
+ * The line that follows the bundler's own output when it stopped on an unknown
+ * SHERLO_BUILD value or a missing app entry. Any other failure gets nothing.
+ */
+function setupErrorLineFor(bundlerOutput: string): string {
+  const isSetupError = BUNDLER_SETUP_ERROR_MARKERS.some((marker) => bundlerOutput.includes(marker));
+  return isSetupError ? `${BUNDLER_SETUP_ERROR_LINE}\n` : '';
 }
 
 // ---------------------------------------------------------------------------
