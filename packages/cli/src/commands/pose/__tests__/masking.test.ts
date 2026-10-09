@@ -7,10 +7,10 @@
  * run's screen. Written as a skeleton in plan (epic pose-road-hardening, task pose-road-masker);
  * the worker fills the bodies and never renames a case.
  */
-import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import start from '../../../start';
 import { CLASSES_THE_TOOL_FOLDS, maskScreen } from '../maskScreen';
 import { applyMasks } from '../pose';
 import { POSES_ROOT, catalogue } from '../catalogue';
@@ -18,16 +18,6 @@ import { readPoseDocument } from '../readPose';
 
 /** The escape byte a styled screen is full of, named so this file carries none of them raw. */
 const ESC = String.fromCharCode(27);
-
-/**
- * How long a case that starts a REAL process is given.
- *
- * The three verb cases below spawn the CLI through ts-node, which transpiles the whole command
- * graph before the verb has read a byte - seconds, not milliseconds, and more of them on a loaded
- * machine running the rest of this suite in parallel. A default five-second budget makes those
- * cases a coin toss on CI, which is worse than no case at all.
- */
-const A_REAL_PROCESS = 60_000;
 
 /** The one pose whose committed screen these cases read, and the pose that rendered it. */
 const WAITED_PUSH = path.join(POSES_ROOT, 'test', 'push-android-wait-names-the-screens');
@@ -350,47 +340,38 @@ describe('the masker folds every volatile class the tool prints', () => {
 });
 
 describe('sherlo mask - the same folding for a screen the tool did not print itself', () => {
-  it(
-    'reads a screen on stdin and prints it folded, byte for byte what applyMasks would have produced',
-    () => {
-      const scenario = readPoseDocument(fs.readFileSync(`${WAITED_PUSH}.pose.json`, 'utf8'));
+  const projectRoot = '/tmp/a-live-run-12345';
+  const configPath = `${projectRoot}/sherlo.config.json`;
 
-      // BYTE FOR BYTE, which is the only comparison worth making: the test repository folds a live
-      // screen through the verb and holds the result against a screen the pose road folded.
-      expect(runMask(LIVE_SCREEN, [])).toBe(
-        applyMasks(LIVE_SCREEN, scenario, { root: '', configPath: '' })
-      );
-    },
-    A_REAL_PROCESS
-  );
+  it('reads a screen on stdin and prints it folded, byte for byte what applyMasks would have produced', async () => {
+    const scenario = readPoseDocument(fs.readFileSync(`${WAITED_PUSH}.pose.json`, 'utf8'));
 
-  it(
-    'takes the project root and the config path as flags, because a live run has its own',
-    () => {
-      const projectRoot = '/tmp/a-live-run-12345';
-      const configPath = `${projectRoot}/sherlo.config.json`;
+    // BYTE FOR BYTE, which is the only comparison worth making: the test repository folds a live
+    // screen through the verb and holds the result against a screen the pose road folded.
+    expect(printedBy(await runMask(LIVE_SCREEN, []))).toBe(
+      applyMasks(LIVE_SCREEN, scenario, { root: '', configPath: '' })
+    );
+  });
 
-      const folded = runMask(
+  it('takes the project root and the config path as flags, because a live run has its own', async () => {
+    const folded = printedBy(
+      await runMask(
         [`✔ Created: ${configPath}`, `ERROR: nothing at ${projectRoot}/builds`].join('\n'),
         ['--project-root', projectRoot, '--config-path', configPath]
-      );
+      )
+    );
 
-      expect(folded).toBe(
-        ['✔ Created: <SHERLO_CONFIG_PATH>', 'ERROR: nothing at <PROJECT_ROOT>/builds'].join('\n')
-      );
-    },
-    A_REAL_PROCESS
-  );
+    expect(folded).toBe(
+      ['✔ Created: <SHERLO_CONFIG_PATH>', 'ERROR: nothing at <PROJECT_ROOT>/builds'].join('\n')
+    );
+  });
 
-  it(
-    'is hidden unless SHERLO_DEVTOOLS=1, like sherlo pose',
-    () => {
-      // A user who runs `sherlo --help` has no use for a verb that folds a transcript, so the verb
-      // is not there at all for them - the routing never learns it, exactly as `sherlo pose`.
-      expect(() => runMask('a screen', [], { devtools: false })).toThrow(/unknown command/i);
-    },
-    A_REAL_PROCESS
-  );
+  it('is hidden unless SHERLO_DEVTOOLS=1, like sherlo pose', async () => {
+    // A user who runs `sherlo --help` has no use for a verb that folds a transcript, so the verb
+    // is not there at all for them - the routing never learns it, exactly as `sherlo pose`.
+    const run = await runMask('a screen', [], { devtools: false });
+    expect(() => printedBy(run)).toThrow(/unknown command/i);
+  });
 });
 
 describe('a pose declares only a scenario literal in masks', () => {
@@ -415,53 +396,94 @@ describe('a pose declares only a scenario literal in masks', () => {
 
 /* ========================================================================== */
 
+/** How one `sherlo mask` run ended: what it printed, or why it failed. */
+type MaskRun = { printed: string } | { failure: Error };
+
+/** What a run printed, or its failure thrown - so a case reads a run the way it would read a call. */
+function printedBy(run: MaskRun): string {
+  if ('failure' in run) throw run.failure;
+  return run.printed;
+}
+
+/** Thrown in place of ending this process when the verb exits. */
+class VerbExited extends Error {
+  constructor(code: number) {
+    super(`sherlo mask exited with ${code}`);
+    // The CLI's catch reports what it could not handle to Sentry; an exit is not that.
+    Object.assign(this, { skipReporting: true });
+  }
+}
+
 /**
- * Run `sherlo mask` in a REAL process with a screen on its stdin, and give back what it printed.
+ * Run `sherlo mask` through the CLI's own routing with a screen on its stdin, and give back how it
+ * ended.
  *
- * A child process rather than a call into the module, because what these three cases are about is
- * the VERB: the gate it sits behind, the flags it takes, and the bytes it puts on stdout. Calling
- * the function directly would prove none of that.
+ * Through `start`, the CLI's entry point, rather than a call into the masker, because what these
+ * three cases are about is the VERB: the gate it sits behind, the flags it takes, and the bytes it
+ * puts on stdout. It runs in THIS process, because a process of its own spent seconds loading the
+ * CLI and proved nothing more. So the edges a process would have are stood in for, for the length
+ * of the run: its command line, the gate's setting, its stdin (descriptor 0, the one the verb
+ * reads), its two output streams, and `process.exit` - which throws instead of ending this
+ * process. The FIRST exit is the run's: the CLI's catch keeps running after it, and anything it
+ * prints from there no real run would ever show.
  */
-function runMask(
+async function runMask(
   screen: string,
   flags: string[],
   { devtools = true }: { devtools?: boolean } = {}
-): string {
-  try {
-    return execFileSync(
-      process.execPath,
-      [
-        '-r',
-        require.resolve('ts-node/register/transpile-only'),
-        path.join(__dirname, 'support', 'cliEntry.ts'),
-        'mask',
-        ...flags,
-      ],
-      {
-        input: screen,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: {
-          PATH: process.env.PATH,
-          HOME: process.env.HOME,
-          ...(devtools ? { SHERLO_DEVTOOLS: '1' } : {}),
-          TS_NODE_COMPILER_OPTIONS: JSON.stringify({
-            module: 'commonjs',
-            target: 'es2021',
-            esModuleInterop: true,
-            resolveJsonModule: true,
-          }),
-        },
-      }
-    );
-  } catch (error) {
-    const failure = error as { status?: number; stderr?: string; message: string };
+): Promise<MaskRun> {
+  const printed: string[] = [];
+  const said: string[] = [];
+  let exitCode: number | undefined;
 
-    throw new Error(
-      `\`sherlo mask ${flags.join(' ')}\` exited ${failure.status ?? '(never started)'}: ` +
-        `${failure.stderr ?? failure.message}`
-    );
+  const realArgv = process.argv;
+  const realDevtools = process.env.SHERLO_DEVTOOLS;
+  const realReadFileSync = fs.readFileSync;
+
+  process.argv = [realArgv[0], 'sherlo', 'mask', ...flags];
+  if (devtools) process.env.SHERLO_DEVTOOLS = '1';
+  else delete process.env.SHERLO_DEVTOOLS;
+
+  const keepUntilExit = (into: string[]) => (chunk: unknown) => {
+    if (exitCode === undefined) into.push(String(chunk));
+    return true;
+  };
+  const spies = [
+    vi
+      .spyOn(fs, 'readFileSync')
+      .mockImplementation(((file: unknown, ...rest: unknown[]) =>
+        file === 0
+          ? screen
+          : Reflect.apply(realReadFileSync, fs, [file, ...rest])) as typeof fs.readFileSync),
+    vi.spyOn(process.stdout, 'write').mockImplementation(keepUntilExit(printed)),
+    vi.spyOn(process.stderr, 'write').mockImplementation(keepUntilExit(said)),
+    vi.spyOn(console, 'log').mockImplementation(keepUntilExit(said)),
+    vi.spyOn(console, 'error').mockImplementation(keepUntilExit(said)),
+    vi.spyOn(process, 'exit').mockImplementation((code) => {
+      exitCode ??= Number(code ?? 0);
+      throw new VerbExited(Number(code ?? 0));
+    }),
+  ];
+
+  let threw: unknown;
+  try {
+    await start();
+  } catch (error) {
+    threw = error;
+  } finally {
+    for (const spy of spies) spy.mockRestore();
+    process.argv = realArgv;
+    if (realDevtools === undefined) delete process.env.SHERLO_DEVTOOLS;
+    else process.env.SHERLO_DEVTOOLS = realDevtools;
   }
+
+  if (exitCode === 0) return { printed: printed.join('') };
+  return {
+    failure: new Error(
+      `\`sherlo mask ${flags.join(' ')}\` exited ${exitCode ?? '(never)'}: ` +
+        (said.join('') || String(threw))
+    ),
+  };
 }
 
 describe('a screen with colour and one without fold alike', () => {

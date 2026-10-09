@@ -95,6 +95,7 @@
     "utf8": "3.0.0"
   },
   "devDependencies": {
+    "@sherlo-io/time-limits": "^1.2.1",
     "@storybook/react-native": "9.1.4",
     "@types/base-64": "^1.0.0",
     "@types/react": "^18.2.0",
