@@ -24,16 +24,11 @@
 var fs = require('fs');
 var path = require('path');
 
-// The Babel parser Metro already depends on. Fall back across the couple of
-// module ids it has shipped under so we never take a hard dependency Metro
-// itself does not already satisfy.
-function getBabelParser() {
-  try {
-    return require('@babel/parser');
-  } catch (_) {
-    return require('metro-babel-transformer/node_modules/@babel/parser');
-  }
-}
+var getBabelParser = require('./babelParser');
+var sourceFiles = require('./sourceFiles');
+var SOURCE_EXTENSIONS = sourceFiles.SOURCE_EXTENSIONS;
+var basenameWithoutExtension = sourceFiles.basenameWithoutExtension;
+var isPreviewFile = sourceFiles.isPreviewFile;
 
 // Directories that never contain first-party story/preview sources. Skipping
 // them keeps the scan fast and avoids descending into installed packages.
@@ -48,15 +43,12 @@ var IGNORED_DIRS = {
   '.expo': true,
 };
 
-var SOURCE_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx'];
-
 // A file is a scan target when it is a Storybook story (`*.stories.<ext>`) or a
 // Storybook preview entry (`preview.<ext>`, e.g. .storybook/preview.tsx).
 function isScanTarget(fileName) {
   var ext = path.extname(fileName);
   if (SOURCE_EXTENSIONS.indexOf(ext) === -1) return false;
-  var base = fileName.slice(0, -ext.length);
-  return base === 'preview' || base.slice(-8) === '.stories';
+  return isPreviewFile(fileName) || basenameWithoutExtension(fileName).slice(-8) === '.stories';
 }
 
 // Recursively collect absolute paths of every story/preview file under

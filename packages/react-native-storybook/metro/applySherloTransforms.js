@@ -9,6 +9,9 @@ var createOpenStoryLetterbox = require('./openStoryLetterbox');
 var createCaptureSocket = require('./captureSocket');
 var createCaptureLogSocket = require('./captureLogSocket');
 var storyTitleReader = require('./storyTitleReader');
+var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
+var isPreviewFile = require('./sourceFiles').isPreviewFile;
+var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -177,8 +180,8 @@ function contextDirectoryOf(contextModuleAbsPath) {
 function collectStories(graph) {
   var seen = {};
   var stories = [];
-  graph.dependencies.forEach(function (module, requiresAbsPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(requiresAbsPath)) === -1) return;
+  collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+    var module = graph.dependencies.get(requiresAbsPath);
     if (!module.dependencies || !(module.dependencies instanceof Map)) return;
     module.dependencies.forEach(function (dep) {
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
@@ -202,17 +205,6 @@ function collectStories(graph) {
 }
 
 /**
- * True when a basename is a Storybook preview entry (`preview.<ext>`, e.g.
- * `.rnstorybook/preview.ts`) - same convention mockScan.js's isScanTarget uses
- * for the module-mocking scan, kept independent here since this walks the
- * Metro graph rather than the filesystem.
- */
-function isPreviewBasename(basename) {
-  var ext = path.extname(basename);
-  return basename.slice(0, basename.length - ext.length) === 'preview';
-}
-
-/**
  * Absolute paths of every preview module: an ORDINARY (non-require.context)
  * dependency of the generated requires file whose basename matches the
  * preview convention (`require('./preview')` in storybook.requires.ts).
@@ -230,15 +222,15 @@ function isPreviewBasename(basename) {
 function collectPreviewAbsPaths(graph) {
   var seen = {};
   var previews = [];
-  graph.dependencies.forEach(function (module, absPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+  collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+    var module = graph.dependencies.get(requiresAbsPath);
     if (!module.dependencies || !(module.dependencies instanceof Map)) return;
     module.dependencies.forEach(function (dep) {
       var depAbs = dep.absolutePath;
       if (!depAbs || seen[depAbs]) return;
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
       if (contextParams) return; // require.context edge -> stories, not the preview
-      if (!isPreviewBasename(path.basename(depAbs))) return;
+      if (!isPreviewFile(depAbs)) return;
       seen[depAbs] = true;
       previews.push(depAbs);
     });
@@ -247,9 +239,10 @@ function collectPreviewAbsPaths(graph) {
 }
 
 /**
- * Absolute paths of the Storybook entry file: the module named `index` that sits
- * in the same folder as the generated requires file (`.rnstorybook/index.tsx`
- * on the default setup, which starts Storybook with the requires file's stories).
+ * Absolute paths of the Storybook entry file: the module the setup check calls the entry
+ * (storybookEntryCandidates, in the folder of the generated requires file, which is the Storybook
+ * config folder: `.rnstorybook/index.tsx` on the default setup, which starts Storybook with the
+ * requires file's stories).
  *
  * Like the preview, it sits ABOVE every story: the app starts Storybook from it,
  * so an edit to it, or to anything it imports, can change every story, yet no
@@ -258,18 +251,13 @@ function collectPreviewAbsPaths(graph) {
  * @returns {string[]} entry absolute paths (empty when the setup has none).
  */
 function collectEntryAbsPaths(graph) {
-  var requiresFolders = {};
-  graph.dependencies.forEach(function (_module, absPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
-    requiresFolders[path.dirname(absPath)] = true;
-  });
-
   var entries = [];
-  graph.dependencies.forEach(function (_module, absPath) {
-    var basename = path.basename(absPath);
-    var nameWithoutExtension = basename.slice(0, basename.length - path.extname(basename).length);
-    if (nameWithoutExtension !== 'index') return;
-    if (requiresFolders[path.dirname(absPath)]) entries.push(absPath);
+  collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+    storybookEntryCandidates(path.dirname(requiresAbsPath)).forEach(function (candidateAbsPath) {
+      if (graph.dependencies.has(candidateAbsPath) && entries.indexOf(candidateAbsPath) === -1) {
+        entries.push(candidateAbsPath);
+      }
+    });
   });
   return entries;
 }
@@ -433,7 +421,18 @@ function buildManifestHeader(projectRoot) {
 // mean an equal output. So the manifest header names each generated file and
 // the files it was generated from, and the CLI digests those instead.
 
-var STORYBOOK_REQUIRES_BASENAMES = ['storybook.requires.ts', 'storybook.requires.js'];
+function isStorybookRequiresBasename(basename) {
+  return STORYBOOK_REQUIRES_BASENAMES.indexOf(basename) !== -1;
+}
+
+/** Absolute paths of the generated requires files among the graph's modules. */
+function collectRequiresAbsPaths(graph) {
+  var requiresAbsPaths = [];
+  graph.dependencies.forEach(function (_module, absPath) {
+    if (isStorybookRequiresBasename(path.basename(absPath))) requiresAbsPaths.push(absPath);
+  });
+  return requiresAbsPaths;
+}
 
 /**
  * The generated files among the graph's modules, keyed like moduleHashes, each
@@ -443,8 +442,7 @@ var STORYBOOK_REQUIRES_BASENAMES = ['storybook.requires.ts', 'storybook.requires
  */
 function describeGeneratedFiles(graph, projectRoot) {
   var generated = {};
-  graph.dependencies.forEach(function (_module, absPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+  collectRequiresAbsPaths(graph).forEach(function (absPath) {
     var rel = toRelativePath(absPath, projectRoot);
     if (!rel) return;
 
@@ -452,7 +450,7 @@ function describeGeneratedFiles(graph, projectRoot) {
     try {
       fs.readdirSync(path.dirname(absPath), { withFileTypes: true }).forEach(function (entry) {
         if (!entry.isFile()) return;
-        if (STORYBOOK_REQUIRES_BASENAMES.indexOf(entry.name) !== -1) return;
+        if (isStorybookRequiresBasename(entry.name)) return;
         var inputRel = toRelativePath(path.join(path.dirname(absPath), entry.name), projectRoot);
         if (inputRel) inputs.push(inputRel);
       });
@@ -518,12 +516,11 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     // file and at every story file.
     /** @type {Record<string, boolean>} */
     var notPartOfEntryClosure = {};
-    graph.dependencies.forEach(function (_module, absPath) {
-      if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) !== -1) {
-        notPartOfEntryClosure[absPath] = true;
-      }
+    collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+      notPartOfEntryClosure[requiresAbsPath] = true;
     });
-    collectStories(graph).forEach(function (story) {
+    var stories = collectStories(graph);
+    stories.forEach(function (story) {
       notPartOfEntryClosure[story.absPath] = true;
     });
     collectEntryAbsPaths(graph).forEach(function (entryAbsPath) {
@@ -548,7 +545,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
 
-    collectStories(graph).forEach(function (story) {
+    stories.forEach(function (story) {
       var storyRel = toRelativePath(story.absPath, projectRoot);
       if (!storyRel) return;
       var closureSet = {};

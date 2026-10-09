@@ -12,26 +12,22 @@
 
 var fs = require('fs');
 var path = require('path');
-var DEFAULT_CONFIG_DIRNAMES = require('./ensureStorybookRequires').DEFAULT_CONFIG_DIRNAMES;
+var resolveConfigDir = require('./ensureStorybookRequires').resolveConfigDir;
+var getBabelParser = require('./babelParser');
+var SOURCE_EXTENSIONS = require('./sourceFiles').SOURCE_EXTENSIONS;
 
-var ENTRY_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
-
-// The Babel parser Metro already depends on, resolved the way mockScan.js and storyTitleReader.js
-// resolve it.
-function getBabelParser() {
-  try {
-    return require('@babel/parser');
-  } catch (_) {
-    return require('metro-babel-transformer/node_modules/@babel/parser');
-  }
-}
-
-function findFirstExistingEntry(configDirectory) {
-  for (var i = 0; i < ENTRY_EXTENSIONS.length; i++) {
-    var entryPath = path.join(configDirectory, 'index' + ENTRY_EXTENSIONS[i]);
-    if (fs.existsSync(entryPath)) return entryPath;
-  }
-  return null;
+/**
+ * The paths the Storybook entry file can have in a config folder, best first. This is the one
+ * rule for which file is the entry: findStorybookEntry reads the disk with it, and the module
+ * graph's side (applySherloTransforms.js) asks the same list.
+ *
+ * @param {string} configFolder - absolute path to the Storybook config folder
+ * @returns {string[]}
+ */
+function storybookEntryCandidates(configFolder) {
+  return SOURCE_EXTENSIONS.map(function (extension) {
+    return path.join(configFolder, 'index' + extension);
+  });
 }
 
 /**
@@ -41,15 +37,13 @@ function findFirstExistingEntry(configDirectory) {
  * @returns {string|null} absolute path to the Storybook entry file, or null when there is none
  */
 function findStorybookEntry(projectRoot, configPath) {
-  if (configPath) {
-    return findFirstExistingEntry(path.resolve(projectRoot, configPath));
-  }
+  var configFolder = resolveConfigDir(projectRoot, { configPath: configPath });
+  if (!configFolder) return null;
 
-  for (var i = 0; i < DEFAULT_CONFIG_DIRNAMES.length; i++) {
-    var entryPath = findFirstExistingEntry(path.resolve(projectRoot, DEFAULT_CONFIG_DIRNAMES[i]));
-    if (entryPath) return entryPath;
-  }
-  return null;
+  var existingEntries = storybookEntryCandidates(configFolder).filter(function (entryPath) {
+    return fs.existsSync(entryPath);
+  });
+  return existingEntries.length > 0 ? existingEntries[0] : null;
 }
 
 // `registerRootComponent(...)`
@@ -112,5 +106,6 @@ function detectStorybookSetup(storybookEntrySource) {
 
 module.exports = {
   findStorybookEntry: findStorybookEntry,
+  storybookEntryCandidates: storybookEntryCandidates,
   detectStorybookSetup: detectStorybookSetup,
 };
