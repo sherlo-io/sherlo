@@ -221,18 +221,16 @@ export function renderStuckBlock({
           '',
         ]
       : [];
-  // A person's line sounds like a rare thing worth telling, never as if the tool often fails.
-  const feedbackLine =
-    reader === 'agent'
-      ? `➜ ${agentFeedbackLine()}`
-      : `➜ Noticed something off? Tell us: ${chalk.cyan(FEEDBACK_HELP)}`;
+  // THE FEEDBACK COMMAND IS FOR AGENTS ONLY (operator, 2026-10-09): a person is offered Discord and
+  // email, under the help block's usual "Need help?".
+  const showsFeedbackLine = reader === 'agent' && isLoggedIn;
 
   return [
     ...agentLines,
     sideNoteRule(),
     '',
-    'Stuck or something broken?',
-    ...(isLoggedIn ? [feedbackLine] : []),
+    'Need help?',
+    ...(showsFeedbackLine ? [`➜ ${agentFeedbackLine()}`] : []),
     `➜ Discord: ${chalk.cyan(discordUrl)}`,
     `➜ Email: ${chalk.cyan(contactEmail)}`,
   ];
