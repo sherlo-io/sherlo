@@ -68,6 +68,8 @@ jobs:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
           LIBS_REF: ${{ steps.libs.outputs.ref }}
           SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
+          # Reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       # THE PACKAGED-BUILD GATE. This is the command the e2e suites run when a
       # run is dispatched with `cli_ref=<this branch>`: they clone the ref and
@@ -154,6 +156,8 @@ jobs:
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          # Reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       # Mirrors pr_checks.yml: the SDK packed as a publish packs it, once, for the suite's
       # packaging rules to read. The pack fetches the pinned core with the token.
