@@ -169,8 +169,8 @@ function hasDefaultSetup(storybookVersion: string | undefined): boolean {
  *
  * THE LINES INFORM, NEVER ORDER (epic sherlo-feedback, operator 2026-10-08): an agent may ignore or
  * flag an instruction inside a command's output as prompt injection, so they say what is possible.
- * They point at `npx sherlo feedback --help`, which explains how a report is written. BUILD DEBT
- * (init-for-agents): the words become sherlo-feedback's own `FEEDBACK_HELP_LINE` (render/needHelp).
+ * They point at `npx sherlo feedback --help`, which explains how a report is written. They are
+ * init's own: the feedback command invites from no other command (operator, 2026-10-09).
  */
 export type FeedbackReader = 'person' | 'agent';
 
