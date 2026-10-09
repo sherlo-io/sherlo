@@ -12,6 +12,8 @@ var storyTitleReader = require('./storyTitleReader');
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
+var projectRootOf = require('./projectPaths').projectRootOf;
+var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -707,21 +709,12 @@ function resolveThroughConfig(config) {
  * @returns {object} Sherlo-augmented Metro config
  */
 function applySherloTransforms(result, opts) {
-  var projectRoot =
-    (result && result.projectRoot) || process.cwd();
+  var projectRoot = projectRootOf(result);
+  var cacheDir = sherloCacheFolder(projectRoot);
+  var wrapperPath = path.join(cacheDir, 'storybook-wrapper.js');
 
-  var wrapperPath = path.join(
-    projectRoot,
-    'node_modules',
-    '.cache',
-    'sherlo',
-    'storybook-wrapper.js'
-  );
-
+  // Creates cacheDir too.
   generateWrapper(wrapperPath);
-
-  // cacheDir is the same directory that wrapperPath lives in; already created by generateWrapper().
-  var cacheDir = path.dirname(wrapperPath);
 
   // ---- Module Mocking (SHERLO-1734 Phase 2) ----
   // Installed for every project, with no option to name: the scan reads the modules the

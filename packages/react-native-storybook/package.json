@@ -56,6 +56,7 @@
     "./dist/getStorybook/index.js": "./dist/getStorybook/index.js",
     "./dist/addStorybookToDevMenu.js": "./dist/addStorybookToDevMenu.js",
     "./dist/SherloModule.js": "./dist/SherloModule.js",
+    "./dist/openStoryChannel.js": "./dist/openStoryChannel.js",
     "./dist/offStandIn.js": "./dist/offStandIn.js",
     "./package.json": "./package.json"
   },

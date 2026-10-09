@@ -56,6 +56,9 @@ export function makeFakeSealedCore(seam: number): FakeSealedCore {
     stopOpenStoryChannel: () => {
       fake.calls.push({ method: 'stopOpenStoryChannel', args: [] });
     },
+    startWaitingAsTheApp: (start) => {
+      fake.calls.push({ method: 'startWaitingAsTheApp', args: [start] });
+    },
   };
   return fake;
 }
