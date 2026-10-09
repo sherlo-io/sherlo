@@ -54,7 +54,7 @@ function withoutSherloOrStorybook(config, opts) {
   );
   var resolveAsTheProjectDoes =
     applySherloTransforms.resolveThroughConfig(configWithoutStorybook);
-  var storybookConfigDir = resolveConfigDir(opts);
+  var storybookConfigDir = resolveConfigDir(process.cwd(), opts);
 
   function resolveRequest(context, moduleName, platform) {
     if (moduleName === SDK_PACKAGE_NAME) {

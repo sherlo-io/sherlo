@@ -200,67 +200,63 @@ describe('what a release bundle carries', () => {
   // Real Metro builds are slower than unit tests; give them room.
   const TIMEOUT = 120_000;
 
-  it(
-    'a release bundle with the setting off or unset holds no Sherlo and no Storybook module',
-    async () => {
-      const root = createOldSetupApp();
-      try {
-        for (const road of OFF_ROADS) {
-          const { bundledModules } = await bundleForRelease(root, road.env, road.commandLine);
-          expect(bundledModules.length, road.name).toBeGreaterThan(0);
-          expect(sdkModulesIn(bundledModules), road.name).toEqual(['offStandIn.js']);
-          expect(storybookModulesIn(bundledModules), road.name).toEqual([]);
-          const sherloCacheModules = bundledModules.filter((modulePath) =>
-            modulePath.includes(path.join('.cache', 'sherlo'))
-          );
-          expect(sherloCacheModules, road.name).toEqual([]);
-        }
+  type Bundle = { bundledModules: string[]; code: string };
 
-        // CONTROL: the same app with the setting at app-and-storybook holds both, or the above
-        // proves nothing.
-        const { bundledModules } = await bundleForRelease(
-          root,
-          CONTROL_ROAD.env,
-          CONTROL_ROAD.commandLine
-        );
-        expect(sdkModulesIn(bundledModules)).toEqual(
-          expect.arrayContaining(['index.js', 'getStorybook/index.js'])
-        );
-        expect(sdkModulesIn(bundledModules)).not.toContain('offStandIn.js');
-        expect(storybookModulesIn(bundledModules).length).toBeGreaterThan(0);
-      } finally {
-        fs.rmSync(root, { recursive: true, force: true });
-      }
-    },
-    TIMEOUT
-  );
+  // Each release case and the control are built once, here, and both tests read the results. The
+  // builds run one after another: each one sets the bundling process's globals and the working
+  // folder while its config loads, and two at once would overwrite each other.
+  let root: string;
+  let bundleOfOffRoad: Map<string, Bundle>;
+  let controlBundle: Bundle;
 
-  it(
-    'with the setting off or unset in a release bundle the Storybook config folder resolves to nothing',
-    async () => {
-      const root = createOldSetupApp();
-      try {
-        for (const road of OFF_ROADS) {
-          const { bundledModules, code } = await bundleForRelease(root, road.env, road.commandLine);
-          expect(configFolderModulesIn(root, bundledModules), road.name).toEqual([]);
+  beforeAll(async () => {
+    root = createOldSetupApp();
+    bundleOfOffRoad = new Map();
+    for (const road of OFF_ROADS) {
+      bundleOfOffRoad.set(road.name, await bundleForRelease(root, road.env, road.commandLine));
+    }
+    controlBundle = await bundleForRelease(root, CONTROL_ROAD.env, CONTROL_ROAD.commandLine);
+  }, TIMEOUT);
 
-          // The bundle runs: the root imports the config folder eagerly and still renders the app.
-          const appGlobal: Record<string, unknown> = {};
-          expect(() => vm.runInNewContext(code, appGlobal), road.name).not.toThrow();
-          expect(appGlobal.renderedRoot, road.name).toBe('THE_APP');
-        }
+  afterAll(() => {
+    // root is unset when beforeAll failed before it made the fixture.
+    if (root) fs.rmSync(root, { recursive: true, force: true });
+  });
 
-        // CONTROL: with the setting at app-and-storybook the folder is in the bundle.
-        const { bundledModules } = await bundleForRelease(
-          root,
-          CONTROL_ROAD.env,
-          CONTROL_ROAD.commandLine
-        );
-        expect(configFolderModulesIn(root, bundledModules).length).toBeGreaterThan(0);
-      } finally {
-        fs.rmSync(root, { recursive: true, force: true });
-      }
-    },
-    TIMEOUT
-  );
+  it('a release bundle with the setting off or unset holds no Sherlo and no Storybook module', () => {
+    for (const road of OFF_ROADS) {
+      const { bundledModules } = bundleOfOffRoad.get(road.name)!;
+      expect(bundledModules.length, road.name).toBeGreaterThan(0);
+      expect(sdkModulesIn(bundledModules), road.name).toEqual(['offStandIn.js']);
+      expect(storybookModulesIn(bundledModules), road.name).toEqual([]);
+      const sherloCacheModules = bundledModules.filter((modulePath) =>
+        modulePath.includes(path.join('.cache', 'sherlo'))
+      );
+      expect(sherloCacheModules, road.name).toEqual([]);
+    }
+
+    // CONTROL: the same app with the setting at app-and-storybook holds both, or the above
+    // proves nothing.
+    const { bundledModules } = controlBundle;
+    expect(sdkModulesIn(bundledModules)).toEqual(
+      expect.arrayContaining(['index.js', 'getStorybook/index.js'])
+    );
+    expect(sdkModulesIn(bundledModules)).not.toContain('offStandIn.js');
+    expect(storybookModulesIn(bundledModules).length).toBeGreaterThan(0);
+  });
+
+  it('with the setting off or unset in a release bundle the Storybook config folder resolves to nothing', () => {
+    for (const road of OFF_ROADS) {
+      const { bundledModules, code } = bundleOfOffRoad.get(road.name)!;
+      expect(configFolderModulesIn(root, bundledModules), road.name).toEqual([]);
+
+      // The bundle runs: the root imports the config folder eagerly and still renders the app.
+      const appGlobal: Record<string, unknown> = {};
+      expect(() => vm.runInNewContext(code, appGlobal), road.name).not.toThrow();
+      expect(appGlobal.renderedRoot, road.name).toBe('THE_APP');
+    }
+
+    // CONTROL: with the setting at app-and-storybook the folder is in the bundle.
+    expect(configFolderModulesIn(root, controlBundle.bundledModules).length).toBeGreaterThan(0);
+  });
 });

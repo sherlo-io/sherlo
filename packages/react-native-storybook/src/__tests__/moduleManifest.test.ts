@@ -165,7 +165,7 @@ describe('module manifest - the Storybook entry file', () => {
   const ENTRY = './.rnstorybook/index.tsx';
 
   /** Two stories, plus an entry that imports the requires file and a provider. */
-  function emitClosuresWithEntry(): Record<string, string[]> {
+  function emitClosuresWithEntry(entryFileName = 'index.tsx'): Record<string, string[]> {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-entry-'));
     const graph = buildStorybookGraph(root, [
       'src/Button.stories.tsx',
@@ -175,7 +175,7 @@ describe('module manifest - the Storybook entry file', () => {
     const requiresAbsPath = path.join(root, '.rnstorybook', 'storybook.requires.ts');
     graph.dependencies.set(providerAbsPath, fakeModule('PROVIDER_CODE', new Map()));
     graph.dependencies.set(
-      path.join(root, '.rnstorybook', 'index.tsx'),
+      path.join(root, '.rnstorybook', entryFileName),
       fakeModule(
         'ENTRY_CODE',
         new Map([
@@ -196,6 +196,13 @@ describe('module manifest - the Storybook entry file', () => {
       expect(storyClosures[story]).toContain(ENTRY);
       expect(storyClosures[story]).toContain(PROVIDER);
     });
+  });
+
+  it('an index file with an extension that is not a source extension is not the entry', () => {
+    const storyClosures = emitClosuresWithEntry('index.mjs');
+
+    expect(storyClosures[BUTTON_STORY]).not.toContain('./.rnstorybook/index.mjs');
+    expect(storyClosures[BUTTON_STORY]).not.toContain(PROVIDER);
   });
 
   it("CONTROL: the Storybook entry file's stories do not join every story's closure", () => {
