@@ -224,8 +224,9 @@ describe('withStorybook.js - race guard wiring', () => {
   });
 
   it('runs the guard BEFORE delegating to the real withStorybook', () => {
-    const guardIdx = source.indexOf('ensureStorybookRequires(opts)');
-    const delegateIdx = source.indexOf('realWithStorybook(config, opts)');
+    // Both are handed the options after SHERLO_BUILD has had its say (metro/sherloBuild.js).
+    const guardIdx = source.indexOf('ensureStorybookRequires(storybookOptions)');
+    const delegateIdx = source.indexOf('realWithStorybook(config, storybookOptions)');
     expect(guardIdx).toBeGreaterThan(-1);
     expect(delegateIdx).toBeGreaterThan(-1);
     expect(guardIdx).toBeLessThan(delegateIdx);
