@@ -11,11 +11,11 @@ import path from 'path';
 import { detect } from 'package-manager-detector';
 import { getCwd } from '../../../helpers';
 import { renderStepLine } from '../../../render/initSteps';
-import { renderSherloWorkflow } from '../../../render/initWorkflow';
+import { GITHUB_WORKFLOW_PATH, renderSherloWorkflow } from '../../../render/initWorkflow';
 import { surroundings } from '../../../seams/surroundings';
 import { printLines } from '../helpers';
 
-const WORKFLOW_PATH = '.github/workflows/sherlo.yml';
+const WORKFLOW_PATH = GITHUB_WORKFLOW_PATH;
 const STEP_NAME = 'Added GitHub workflow';
 
 /**

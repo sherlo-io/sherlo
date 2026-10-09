@@ -15,6 +15,9 @@
  * branch this file runs on. So both runs are a plain `sherlo test`.
  */
 
+/** Where the workflow goes in the repository - one name for the step that writes it and the lines that name it. */
+export const GITHUB_WORKFLOW_PATH = '.github/workflows/sherlo.yml';
+
 /** The line that installs the project's packages on a clean machine, per package manager. */
 const INSTALL_COMMAND: Record<string, string> = {
   npm: 'npm ci',

@@ -11,6 +11,7 @@
  */
 import chalk from 'chalk';
 import { renderSectionTitle } from './initLines';
+import { GITHUB_WORKFLOW_PATH } from './initWorkflow';
 
 /** How wide the step names are padded, so every step's detail starts in the same column. */
 const STEP_NAME_WIDTH = 22;
@@ -136,14 +137,21 @@ export function renderNextSteps({
         ]);
 
   // Short, and its own section, so the link needs no indent (operator, 2026-10-08). The token is
-  // made in the Sherlo web app - named so, because "app" alone reads as the person's own app; the
-  // detail is where it is saved.
-  const ciLines = [
-    addedGithubWorkflow
-      ? `Create a CI token in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your GitHub repository:`
-      : `Create a CI token in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} secret in your CI:`,
-    chalk.cyan(projectPageUrl),
-  ];
+  // made in the Sherlo web app - named so, because "app" alone reads as the person's own app.
+  // WHAT RUNS THE TEST IS SAID, NOT ASSUMED (operator, 2026-10-09): on GitHub the workflow setup
+  // added does it; on any other CI nothing does until the team adds the command, so the section
+  // says so - the same two cases the web app's how-to has.
+  const ciLines = addedGithubWorkflow
+    ? [
+        `${chalk.bold(GITHUB_WORKFLOW_PATH)} tests every pull request once it has a CI token.`,
+        `Create one in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} repository secret:`,
+        chalk.cyan(projectPageUrl),
+      ]
+    : [
+        'Create a CI token in the Sherlo web app and save it as a secret in your CI:',
+        chalk.cyan(projectPageUrl),
+        `Then run on every pull request: ${chalk.cyan('npx sherlo test --token <your secret>')}`,
+      ];
 
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
