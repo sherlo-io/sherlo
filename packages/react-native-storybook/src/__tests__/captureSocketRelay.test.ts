@@ -11,8 +11,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createCaptureSocket } from '../../metro/captureSocket.js';
+import { fakeRequest, fakeRes, noop } from './__mocks__/fakeBundlerExchange';
 
 const STORY = 'components-button--primary';
+const OTHER_STORY = 'components-button--secondary';
 const SETTINGS = { requiredMatches: 3, minScreenshotsCount: 6, intervalMs: 500, timeoutMs: 20000 };
 
 describe('the relay hands the restart a story to land on, from whichever side asked for it first', () => {
@@ -68,48 +70,46 @@ describe('the relay hands the restart a story to land on, from whichever side as
   });
 });
 
+describe('a capture of an app that cannot list its stories', () => {
+  it('a capture of an app that cannot list its stories is checked after the restart', () => {
+    const { middleware } = createCaptureSocket();
+
+    // The app shows itself and cannot list its stories (null, not []). It holds.
+    const appRes = fakeRes();
+    middleware(fakePut({ mode: 'default', stories: null, answer: null }), appRes, noop);
+
+    // The tool asks: the story cannot be checked yet, so the app is told to restart with it.
+    const toolRes = fakeRes();
+    middleware(fakePost({ storyId: STORY, settings: SETTINGS }), toolRes, noop);
+    expect(appRes.json()).toEqual({ restartIntoTesting: true, storyId: STORY });
+
+    // The app is back in testing mode, lists its stories, and the story is not among them.
+    const backRes = fakeRes();
+    middleware(fakePut({ mode: 'testing', stories: [OTHER_STORY], answer: null }), backRes, noop);
+
+    expect(toolRes.json()).toEqual({ kind: 'no-such-story', known: [OTHER_STORY] });
+  });
+
+  it('CONTROL: an app that lists no stories at all still gets no-such-story at once', () => {
+    const { middleware } = createCaptureSocket();
+
+    middleware(fakePut({ mode: 'default', stories: [], answer: null }), fakeRes(), noop);
+
+    const toolRes = fakeRes();
+    middleware(fakePost({ storyId: STORY, settings: SETTINGS }), toolRes, noop);
+
+    expect(toolRes.json()).toEqual({ kind: 'no-such-story', known: [] });
+  });
+});
+
 /* ========================================================================== */
 
-function noop(): void {}
-
-/** A PUT from the app, body read synchronously - the relay reads it inline, no real stream needed. */
+/** A PUT from the app. */
 function fakePut(body: unknown) {
-  return fakeRequest('PUT', body);
+  return fakeRequest('PUT', '/sherlo/capture', body);
 }
 
-/** A POST from the tool, body read synchronously - same reasoning as fakePut. */
+/** A POST from the tool. */
 function fakePost(body: unknown) {
-  return fakeRequest('POST', body);
-}
-
-function fakeRequest(method: string, body: unknown) {
-  const bytes = Buffer.from(JSON.stringify(body));
-  return {
-    method,
-    url: '/sherlo/capture',
-    on(event: string, listener: (...args: unknown[]) => void) {
-      // readJsonBody registers 'data' then 'end' synchronously and reads the body inline - firing
-      // both here, in the same tick, reproduces that without a real stream.
-      if (event === 'data') listener(bytes);
-      if (event === 'end') listener();
-    },
-  };
-}
-
-/** A response that records what was written to it, and can hand the parsed JSON back to a test. */
-function fakeRes() {
-  let written: string | undefined;
-  return {
-    on() {
-      // No test here closes a connection mid-hold; the relay's own close handling is untouched.
-    },
-    writeHead() {},
-    end(body: string) {
-      written = body;
-    },
-    json(): unknown {
-      if (written === undefined) throw new Error('nothing was written to this response yet');
-      return JSON.parse(written);
-    },
-  };
+  return fakeRequest('POST', '/sherlo/capture', body);
 }
