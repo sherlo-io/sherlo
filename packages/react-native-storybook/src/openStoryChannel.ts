@@ -10,6 +10,7 @@
  * With no core installed there is no `sherlo open`: `startOpenStoryChannel` starts nothing.
  */
 import { bundlerOrigin } from './bundlerOrigin';
+import { bundlerCapture } from './captureTransport';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import { sherloFetch } from './mocking/network';
 import type { BundlerLetterbox, LetterboxAnswer, StorybookChannel } from './sealedCore/seam';
@@ -61,6 +62,26 @@ export function startOpenStoryChannel({
 /** Stop waiting. The request already in flight is left to finish and its answer dropped. */
 export function stopOpenStoryChannel(): void {
   getSealedCore()?.stopOpenStoryChannel();
+}
+
+/**
+ * Start waiting as the app, for `sherlo open` and `sherlo capture` both. Sherlo's launch entry calls
+ * this on Storybook's default setup when the app launches in default mode: the app's own entry runs
+ * there, with no Storybook loaded, so there is no Storybook view or channel to hand the core, only
+ * the two roads to the bundler.
+ *
+ * A built app's JavaScript came from inside the app, with no bundler beside it, so nothing starts.
+ * With no sealed core nothing starts either.
+ */
+export function startWaitingAsTheApp(): void {
+  const core = getSealedCore();
+  if (!core) return;
+
+  const letterbox = bundlerLetterbox();
+  const capture = bundlerCapture();
+  if (!letterbox || !capture) return;
+
+  core.startWaitingAsTheApp({ letterbox, capture });
 }
 
 /**

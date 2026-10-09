@@ -1,16 +1,28 @@
 'use strict';
 
+var fs = require('fs');
+var path = require('path');
+
+// A Storybook wrapper module, however it exports its withStorybook.
+function storybookWrapperOf(wrapperModule) {
+  return wrapperModule.withStorybook || wrapperModule.default || wrapperModule;
+}
+
 var realModule;
 try {
   realModule = require('@storybook/react-native/metro/withStorybook');
 } catch (_) {
   realModule = require('@storybook/react-native/withStorybook');
 }
-var realWithStorybook = realModule.withStorybook || realModule.default || realModule;
+var realWithStorybook = storybookWrapperOf(realModule);
 var applySherloTransforms = require('./applySherloTransforms');
 var ensureStorybookRequires = require('./ensureStorybookRequires');
 var resolveConfigDir = ensureStorybookRequires.resolveConfigDir;
 var whatThisBuildCarries = require('./sherloBuild').whatThisBuildCarries;
+var detectStorybookSetup = require('./detectStorybookSetup').detectStorybookSetup;
+var findStorybookEntry = require('./detectStorybookSetup').findStorybookEntry;
+var applyLaunchTimeEntry = require('./launchTimeEntry').applyLaunchTimeEntry;
+var projectRootOf = require('./projectPaths').projectRootOf;
 
 var SDK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 var STAND_IN_MODULE = '@sherlo/react-native-storybook/dist/offStandIn.js';
@@ -47,14 +59,14 @@ function isReleaseBundle() {
  * The import then yields an empty module (its default export undefined), which the root renders
  * only when isStorybookMode, always false in the stand-in.
  */
-function withoutSherloOrStorybook(config, opts) {
-  var configWithoutStorybook = realWithStorybook(
+function withoutSherloOrStorybook(config, opts, storybookWrapper) {
+  var configWithoutStorybook = storybookWrapper(
     config,
     Object.assign({}, opts, { enabled: false, onDisabledRemoveStorybook: true })
   );
   var resolveAsTheProjectDoes =
     applySherloTransforms.resolveThroughConfig(configWithoutStorybook);
-  var storybookConfigDir = resolveConfigDir(process.cwd(), opts);
+  var storybookConfigDir = resolveConfigDir(projectRootOf(config), opts);
 
   function resolveRequest(context, moduleName, platform) {
     if (moduleName === SDK_PACKAGE_NAME) {
@@ -75,12 +87,67 @@ function withoutSherloOrStorybook(config, opts) {
   });
 }
 
+/**
+ * Storybook's newer Metro wrapper, the one at its package root, loaded from the project, where the
+ * default setup's Storybook lives.
+ */
+function loadNewerStorybookWrapper(projectRoot) {
+  var newerModule = require('module').createRequire(path.join(projectRoot, 'package.json'))(
+    '@storybook/react-native/withStorybook'
+  );
+  return storybookWrapperOf(newerModule);
+}
+
+/**
+ * The project's Storybook entry file when the project is on Storybook's default setup, where that
+ * file registers itself as the app's root; null on the old setup, or with no entry file at all.
+ */
+function defaultSetupStorybookEntry(projectRoot, opts) {
+  var storybookEntry = findStorybookEntry(projectRoot, opts && opts.configPath);
+  if (!storybookEntry) return null;
+
+  var setup = detectStorybookSetup(fs.readFileSync(storybookEntry, 'utf8'));
+  return setup === 'default' ? storybookEntry : null;
+}
+
+/**
+ * Storybook's default setup: Storybook's newer wrapper, with Storybook turned on, then Sherlo's
+ * transforms, then the launch entry that picks Storybook or the app at each launch
+ * (launchTimeEntry.js).
+ */
+function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuild) {
+  var storybookOptions = Object.assign({}, opts, {
+    enabled: true,
+    configPath: path.dirname(storybookEntry),
+  });
+  // Must run before Storybook's wrapper returns a config to Metro: see ensureStorybookRequires.js.
+  ensureStorybookRequires(storybookOptions);
+  var withStorybookOn = loadNewerStorybookWrapper(projectRootOf(config))(config, storybookOptions);
+  var withSherlo = applySherloTransforms(withStorybookOn, storybookOptions);
+  return applyLaunchTimeEntry(withSherlo, storybookEntry, sherloBuild);
+}
+
+/**
+ * The one place that decides which road a bundle takes: the build setting, then the project's
+ * Storybook setup.
+ */
 function withStorybook(config, opts) {
+  var projectRoot = projectRootOf(config);
   var thisBuild = whatThisBuildCarries(process.env, isReleaseBundle(), opts && opts.enabled);
+  var defaultSetupEntry = defaultSetupStorybookEntry(projectRoot, opts);
+
   if (thisBuild.sherloBuild === 'off') {
-    return withoutSherloOrStorybook(config, opts);
+    var storybookWrapper = defaultSetupEntry
+      ? loadNewerStorybookWrapper(projectRoot)
+      : realWithStorybook;
+    return withoutSherloOrStorybook(config, opts, storybookWrapper);
   }
 
+  if (defaultSetupEntry) {
+    return withStorybookOnTheDefaultSetup(config, opts, defaultSetupEntry, thisBuild.sherloBuild);
+  }
+
+  // The old setup.
   var storybookOptions = Object.assign({}, opts, { enabled: thisBuild.storybookEnabled });
   // Must run BEFORE upstream's withStorybook returns a config to Metro - see
   // ensureStorybookRequires.js for the race this closes. No-op when the
