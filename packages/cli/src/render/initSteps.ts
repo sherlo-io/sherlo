@@ -63,8 +63,9 @@ export function renderFailedStepLine(name: string): string[] {
  *     old setup and follow Sherlo's guide for it.
  *
  * The person reads "the default setup" and "the old setup", the same names everywhere (operator,
- * 2026-10-08, through epic storybook-both-setups); the docs page's tabs are `?storybook=default` and
- * `?storybook=integrated`.
+ * 2026-10-08, through epic storybook-both-setups). The docs have no default-setup tab (that epic
+ * changes no docs page, operator 2026-10-09), so the default setup links the Storybook access section
+ * plainly; the old setup keeps its `?storybook=integrated` tab.
  *
  * Then CI in a section of its own (operator, 2026-10-07): it is for later, not the first run.
  */
@@ -110,7 +111,7 @@ export function renderNextSteps({
         title: 'Give Sherlo access to Storybook - pick one:',
         content: [
           defaultSetupChoice,
-          `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=default#storybook-access')}`,
+          `   ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`,
           'b) Or keep your setup and follow our guide for it:',
           `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=integrated#storybook-access')}`,
         ],
