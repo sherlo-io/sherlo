@@ -684,7 +684,7 @@ export type CaptureTransport = {
    */
   waitForACapture(saying: {
     mode: string;
-    stories: string[];
+    stories: string[] | null;
     answer: CapturedAnswer | null;
   }): Promise<CaptureInstruction>;
 };
@@ -707,7 +707,7 @@ export type BundlerLetterbox = {
    * out with nothing posted.
    */
   waitForStory(saying: {
-    stories: string[];
+    stories: string[] | null;
     showing: string | null;
     atTheStoryBrowser: boolean;
     /** What the story named by `showing` threw while rendering, or null when it drew cleanly. */
