@@ -6,10 +6,18 @@ on:
       - main
       - feature/sherlo-3
       - epic/**
+  # A push to a base branch only warms the caches: GitHub lets a pull request read only its own
+  # branch's caches and its base branch's, so caches saved by pull requests alone are missed by
+  # every new pull request.
+  push:
+    branches:
+      - main
+      - feature/sherlo-3
 
 jobs:
   checks:
     name: checks (${{ matrix.package.name }})
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -33,129 +41,12 @@ jobs:
         with:
           node-version: '24'
 
-      # A PR into feature/sherlo-3 or an epic/** branch builds its @sherlo/* libraries from
-      # sherlo-api source - the S3 dev-stage canon can predate lib/SDK changes the CLI code
-      # depends on (composition gap: CLI source is current, its @sherlo/* portal deps are not).
-      # The source is sherlo-api feature/sherlo-3 (`ref` here), except for a PR whose head
-      # branch is an epic/** branch that sherlo-api also has, by that exact name: its libraries
-      # come from that branch, because the epic's CLI code needs the same epic's service
-      # changes. The commit step below makes that choice, since only it can see sherlo-api's
-      # branches. A PR against main keeps the unchanged S3-canon path - empty `ref` here is
-      # that opt-out.
-      - name: Resolve sherlo-lib source
-        id: libs
-        run: |
-          if [ "$GITHUB_BASE_REF" = "feature/sherlo-3" ] || [[ "$GITHUB_BASE_REF" == epic/* ]]; then
-            echo "ref=feature/sherlo-3" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Only minted when a from-source libs build is actually needed - mirrors the
-      # release_to_dev.yml SHERLO_BOT app-token pattern, since GITHUB_TOKEN has no access
-      # to sherlo-io/sherlo-api (a separate private repo).
-      - name: Create GH App Token (sherlo-api clone)
-        if: steps.libs.outputs.ref != ''
-        id: github_app_token
-        uses: tibdex/github-app-token@v2
+      - name: Install with the sherlo libraries
+        uses: ./.github/actions/install-with-libs
         with:
-          app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
-          private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
-
-      # `ref` above names a branch, and a branch moves, so it cannot key a cache. This resolves
-      # it to the exact sherlo-api commit, the ref init-env.sh builds the libs from, and keys both
-      # caches below on what that commit builds the libs from. A PR from an epic/** branch takes
-      # sherlo-api's branch of the same name instead of `ref`, when sherlo-api has one.
-      - name: Resolve the sherlo-api commit the libs are built from
-        if: steps.libs.outputs.ref != ''
-        id: libs_commit
-        # Run outside this checkout: actions/checkout leaves this repository's own token in its
-        # git config as an extra header, and git would send that instead of CLONE_TOKEN.
-        working-directory: ${{ runner.temp }}
-        run: |
-          set -o pipefail
-          SHERLO_API_URL="https://x-access-token:${CLONE_TOKEN}@github.com/sherlo-io/sherlo-api.git"
-          LIBS_BRANCH="$DEFAULT_LIBS_BRANCH"
-          if [[ "$GITHUB_HEAD_REF" == epic/* ]] && git ls-remote --exit-code "$SHERLO_API_URL" "refs/heads/$GITHUB_HEAD_REF" > /dev/null; then
-            LIBS_BRANCH="$GITHUB_HEAD_REF"
-          fi
-          sha=$(git ls-remote "$SHERLO_API_URL" "refs/heads/$LIBS_BRANCH" | cut -f1)
-          if [ -z "$sha" ]; then
-            echo "Error: '$LIBS_BRANCH' names no branch in sherlo-io/sherlo-api" >&2
-            exit 1
-          fi
-          echo "Libs come from sherlo-api $LIBS_BRANCH@$sha"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-
-          # THE CACHE KEY IS WHAT THE LIBS ARE BUILT FROM, not the commit. sherlo-api's branch
-          # moves with every change to the service, and most of those leave the four libraries
-          # this repository installs untouched - keyed on the commit, nearly every pull request
-          # rebuilt them from scratch, the slowest step of the job. A blobless fetch of the one
-          # commit reads its trees without downloading a file, and the key is the tree of every
-          # input the four libraries are built from.
-          git init -q libs-inputs
-          git -C libs-inputs fetch -q --depth 1 --filter=blob:none "$SHERLO_API_URL" "$sha"
-          inputs_listing=""
-          for input in $LIBS_INPUTS; do
-            inputs_listing+="$input $(git -C libs-inputs rev-parse "FETCH_HEAD:$input")"$'\n'
-          done
-          rm -rf libs-inputs
-          printf 'The libs are built from:\n%s' "$inputs_listing"
-          echo "key=$(printf '%s' "$inputs_listing" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
-        env:
-          CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
-          DEFAULT_LIBS_BRANCH: ${{ steps.libs.outputs.ref }}
-          # Every path of sherlo-api the four libraries (api-types, shared, common-client,
-          # sdk-client) are built from: their own packages, the root manifest, lockfile and
-          # TypeScript config they build with, the yarn and node versions that build them, and the
-          # scripts init-env.sh runs to build them. This list MUST name everything init-env.sh
-          # builds the libraries from: a path it leaves out can change while the cache key stays
-          # the same, and the job then installs stale libraries without a word.
-          LIBS_INPUTS: >-
-            package.json yarn.lock tsconfig.json .yarnrc .yarn/releases .nvmrc
-            packages/types packages/shared packages/clients/common packages/clients/sdk
-            scripts/set-package-env.sh scripts/build.sh scripts/prepare-packages.sh
-
-      # Both caches carry the libs' inputs in their key, never yarn.lock alone: the libs are
-      # built from a moving head that yarn.lock knows nothing about, and node_modules links to
-      # them. Both also carry this repository's own scripts/init-env.sh, which builds them. A PR
-      # against main takes its libs from the S3 canon instead, whose version this workflow
-      # cannot name, so that path is left uncached and installs fresh.
-      - name: Cache sherlo-lib
-        if: steps.libs.outputs.ref != ''
-        id: sherlo_lib_cache
-        uses: actions/cache@v4
-        with:
-          path: sherlo-lib
-          key: sherlo-lib-${{ steps.libs_commit.outputs.key }}-${{ hashFiles('scripts/init-env.sh') }}
-
-      - name: Cache node_modules
-        if: steps.libs.outputs.ref != ''
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('yarn.lock') }}-${{ steps.libs_commit.outputs.key }}-${{ hashFiles('scripts/init-env.sh') }}
-
-      - name: Download Sherlo packages
-        if: steps.sherlo_lib_cache.outputs.cache-hit != 'true'
-        run: ./scripts/init-env.sh
-        env:
-          CLIENT_STAGE: dev
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          LIBS_REF: ${{ steps.libs_commit.outputs.sha }}
-          SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
-          # Reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
-          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
-
-      # init-env.sh ends in `yarn install`; when the libs came from the cache it did not run,
-      # so the install runs here. It stays the authority over a restored node_modules.
-      - name: Install dependencies
-        if: steps.sherlo_lib_cache.outputs.cache-hit == 'true'
-        env:
-          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
-        run: yarn install
+          app-id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private-key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+          package-token: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Eslint
         working-directory: ${{ matrix.package.dir }}
@@ -255,6 +146,41 @@ jobs:
           # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI.
           SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
+
+      - name: The clock
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '@sherlo-io:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GH_TOKEN" > "$RUNNER_TEMP/sherlo-packages.npmrc"
+          NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/sherlo-packages.npmrc" npx --yes @sherlo-io/time-limits@1 clock
+
+  # Runs on a push to a base branch and does the install alone, so its caches are there for the
+  # next pull request. Both packages share the caches, so one package is enough.
+  warm-caches:
+    name: warm-caches
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install with the sherlo libraries
+        uses: ./.github/actions/install-with-libs
+        with:
+          app-id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private-key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+          package-token: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: The clock
         if: always()
