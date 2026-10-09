@@ -97,15 +97,18 @@ function createFixture(declaresMock: boolean): string {
 async function buildBundle(root: string): Promise<string> {
   const baseConfig = await getDefaultConfig(root);
 
-  // Metro's own runtime/polyfills and babel helpers live in the repo
-  // node_modules; the fixture only has the app-level packages. Watch and resolve
-  // against both. Use the node crawler (watchman does not cover the OS temp dir)
-  // and disable caches so each build is fresh.
-  const repoNodeModules = path.dirname(path.dirname(require.resolve('metro-runtime/package.json')));
-  // The @sherlo package dir, so the sherlo polyfill.js (added for the enabled path)
-  // is crawlable.
-  const packageRoot = path.resolve(__dirname, '../../..');
-  baseConfig.watchFolders = [root, repoNodeModules, packageRoot];
+  // Metro's own runtime and polyfills live in the repo node_modules; the fixture
+  // only has the app-level packages. Resolve against both, but watch only the
+  // folders the bundle reads from: Metro's node crawler walks every watched
+  // folder before it builds, and the whole repo node_modules is tens of
+  // thousands of files. Use the node crawler (watchman does not cover the OS
+  // temp dir) and disable caches so each build is fresh.
+  const metroRuntimeDir = path.dirname(require.resolve('metro-runtime/package.json'));
+  const repoNodeModules = path.dirname(metroRuntimeDir);
+  // The SDK's bundler folder, so the sherlo polyfill.js (added for the enabled
+  // path) is crawlable.
+  const sdkMetroDir = path.resolve(__dirname, '../../../metro');
+  baseConfig.watchFolders = [root, metroRuntimeDir, sdkMetroDir];
   baseConfig.resolver.nodeModulesPaths = [path.join(root, 'node_modules'), repoNodeModules];
   baseConfig.resolver.useWatchman = false;
   baseConfig.cacheStores = [];

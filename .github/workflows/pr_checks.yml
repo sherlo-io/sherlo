@@ -58,15 +58,12 @@ jobs:
           private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
       # `ref` above names a branch, and a branch moves, so it cannot key a cache. This resolves
-      # it to the exact sherlo-api commit, which then keys both caches below and is the ref
-      # init-env.sh builds the libs from. A PR from an epic/** branch takes sherlo-api's branch
-      # of the same name instead of `ref`, when sherlo-api has one.
+      # it to the exact sherlo-api commit, the ref init-env.sh builds the libs from, and keys both
+      # caches below on what that commit builds the libs from. A PR from an epic/** branch takes
+      # sherlo-api's branch of the same name instead of `ref`, when sherlo-api has one.
       - name: Resolve the sherlo-api commit the libs are built from
         if: steps.libs.outputs.ref != ''
         id: libs_commit
-        env:
-          CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
-          DEFAULT_LIBS_BRANCH: ${{ steps.libs.outputs.ref }}
         # Run outside this checkout: actions/checkout leaves this repository's own token in its
         # git config as an extra header, and git would send that instead of CLONE_TOKEN.
         working-directory: ${{ runner.temp }}
@@ -85,9 +82,38 @@ jobs:
           echo "Libs come from sherlo-api $LIBS_BRANCH@$sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-      # Both caches carry the sherlo-api commit in their key, never yarn.lock alone: the libs
-      # are built from a moving head that yarn.lock knows nothing about, and node_modules links
-      # to them. A PR against main takes its libs from the S3 canon instead, whose version this
+          # THE CACHE KEY IS WHAT THE LIBS ARE BUILT FROM, not the commit. sherlo-api's branch
+          # moves with every change to the service, and most of those leave the four libraries
+          # this repository installs untouched - keyed on the commit, nearly every pull request
+          # rebuilt them from scratch, the slowest step of the job. A blobless fetch of the one
+          # commit reads its trees without downloading a file, and the key is the tree of every
+          # input the four libraries are built from.
+          git init -q libs-inputs
+          git -C libs-inputs fetch -q --depth 1 --filter=blob:none "$SHERLO_API_URL" "$sha"
+          inputs_listing=""
+          for input in $LIBS_INPUTS; do
+            inputs_listing+="$input $(git -C libs-inputs rev-parse "FETCH_HEAD:$input")"$'\n'
+          done
+          rm -rf libs-inputs
+          printf 'The libs are built from:\n%s' "$inputs_listing"
+          echo "key=$(printf '%s' "$inputs_listing" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+        env:
+          CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
+          DEFAULT_LIBS_BRANCH: ${{ steps.libs.outputs.ref }}
+          # Every path of sherlo-api the four libraries (api-types, shared, common-client,
+          # sdk-client) are built from: their own packages, the root manifest, lockfile and
+          # TypeScript config they build with, the yarn and node versions that build them, and the
+          # scripts init-env.sh runs to build them. This list MUST name everything init-env.sh
+          # builds the libraries from: a path it leaves out can change while the cache key stays
+          # the same, and the job then installs stale libraries without a word.
+          LIBS_INPUTS: >-
+            package.json yarn.lock tsconfig.json .yarnrc .yarn/releases .nvmrc
+            packages/types packages/shared packages/clients/common packages/clients/sdk
+            scripts/set-package-env.sh scripts/build.sh scripts/prepare-packages.sh
+
+      # Both caches carry the libs' inputs in their key, never yarn.lock alone: the libs are
+      # built from a moving head that yarn.lock knows nothing about, and node_modules links to
+      # them. Both also carry this repository's own scripts/init-env.sh, which builds them. A PR against main takes its libs from the S3 canon instead, whose version this
       # workflow cannot name, so that path is left uncached and installs fresh.
       - name: Cache sherlo-lib
         if: steps.libs.outputs.ref != ''
@@ -95,7 +121,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: sherlo-lib
-          key: sherlo-lib-${{ steps.libs_commit.outputs.sha }}
+          key: sherlo-lib-${{ steps.libs_commit.outputs.key }}-${{ hashFiles('scripts/init-env.sh') }}
 
       - name: Cache node_modules
         if: steps.libs.outputs.ref != ''
@@ -104,7 +130,7 @@ jobs:
           path: |
             node_modules
             packages/*/node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('yarn.lock') }}-${{ steps.libs_commit.outputs.sha }}
+          key: node-modules-${{ runner.os }}-${{ hashFiles('yarn.lock') }}-${{ steps.libs_commit.outputs.key }}-${{ hashFiles('scripts/init-env.sh') }}
 
       - name: Download Sherlo packages
         if: steps.sherlo_lib_cache.outputs.cache-hit != 'true'
@@ -159,6 +185,17 @@ jobs:
         working-directory: ${{ matrix.package.dir }}
         run: yarn build
 
+      # THE PACKED CLI COMPUTES A BASE FINGERPRINT (SHERLO-1742), cli only. Packs the CLI the
+      # step above compiled, installs the tarball into two throwaway app folders, and runs the
+      # base fingerprint from the installed copy: a non-null hash with the fingerprint library's
+      # spawned helper reachable, and hash:null - never a crash - without the library. Only an
+      # installed copy shows either, and the pack and the two installs are a step's work, done
+      # once, never a unit test's. See packages/cli/scripts/check-packed-fingerprint.js.
+      - name: Packed CLI computes a base fingerprint
+        if: matrix.package.name == 'cli'
+        working-directory: ${{ matrix.package.dir }}
+        run: yarn check:packed-fingerprint
+
       # THE BYTE RATCHET's other half, for the cli package only (nothing in
       # react-native-storybook compares against a committed fixture). The CLI's
       # render-layer suites compare what the CLI renders against fixtures
@@ -184,6 +221,17 @@ jobs:
         env:
           TESTER_CLONE_TOKEN: ${{ steps.tester_token.outputs.token }}
 
+      # THE SDK PACKED AS A PUBLISH PACKS IT, once, for the SDK suite's packaging rules to read
+      # (src/__tests__/sealedCorePackaging.test.ts). The pack fetches the pinned core from package
+      # storage with this token and builds the bundler plugin - too slow for a unit suite, so the
+      # suite only reads the two tarballs this step leaves in the folder SHERLO_SDK_PACKS names.
+      - name: Pack the SDK as a publish does
+        if: matrix.package.name == 'react-native-storybook'
+        working-directory: ${{ matrix.package.dir }}
+        env:
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: node scripts/packAsPublished.js "${{ runner.temp }}/sdk-packs"
+
       - name: Unit tests
         working-directory: ${{ matrix.package.dir }}
         env:
@@ -191,7 +239,9 @@ jobs:
           # files never reach eslint, tsc or vitest's own file discovery. Empty
           # for react-native-storybook, whose suite never reads it.
           SHERLO_TESTER_ROOT: ${{ matrix.package.name == 'cli' && format('{0}/sherlo-tester', runner.temp) || '' }}
-          # The SDK suite's packaging check packs the SDK as a publish does, and the pack fetches
-          # the pinned core from package storage with this token. The CLI's suite gets none.
+          # The SDK suite's pin rules look the pinned core up in package storage with this token.
+          # The CLI's suite gets none.
           PACKAGE_TOKEN: ${{ matrix.package.name == 'react-native-storybook' && secrets.PACKAGE_TOKEN || '' }}
+          # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI.
+          SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test

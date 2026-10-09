@@ -35,6 +35,7 @@
   ],
   "scripts": {
     "build": "rm -rf dist && ncc build src/index.ts --source-map --minify --external @expo/fingerprint --external @napi-rs/keyring && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
     "check:pose-contract": "yarn run -T ts-node --transpile-only scripts/generate-pose-contract.ts --check",
     "generate:pose-contract": "yarn run -T ts-node --transpile-only scripts/generate-pose-contract.ts",
     "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint --ext .ts,.tsx,.mjs src ../../actions/lib",
