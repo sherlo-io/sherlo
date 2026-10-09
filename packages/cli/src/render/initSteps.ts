@@ -203,7 +203,23 @@ const FEEDBACK_HELP = 'npx sherlo feedback --help';
  * One separator for every side note at the end of a run, finished or failed (operator, 2026-10-08).
  * Functions, not constants: colour is decided per run, after this module loads.
  */
-const sideNoteRule = (): string => chalk.dim('═'.repeat(10));
+const sideNoteSeparator = (): string[] => {
+  // PLAN ONLY (init-for-agents): five separators for the operator to choose from, one per pose,
+  // because the section titles' underline is the same '═' (operator, 2026-10-09). The pose names
+  // its version; the chosen one replaces this table.
+  const separators: Record<string, string | undefined> = {
+    dots: '· · ·',
+    line: '─'.repeat(10),
+    dotted: '┄'.repeat(10),
+    stars: '*  *  *',
+    none: undefined,
+  };
+  const version = process.env.SHERLO_PLAN_SEPARATOR;
+  if (version === undefined || !(version in separators)) return [chalk.dim('═'.repeat(10)), ''];
+
+  const separator = separators[version];
+  return separator === undefined ? [''] : [chalk.dim(separator), ''];
+};
 
 const agentFeedbackLine = (): string =>
   `AI agents: report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
@@ -215,7 +231,7 @@ const agentFeedbackLine = (): string =>
 export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): string[] {
   if (reader === 'person') return [];
 
-  return ['', sideNoteRule(), '', agentFeedbackLine()];
+  return ['', ...sideNoteSeparator(), agentFeedbackLine()];
 }
 
 /**
@@ -250,8 +266,7 @@ export function renderStuckBlock({
 
   return [
     ...agentLines,
-    sideNoteRule(),
-    '',
+    ...sideNoteSeparator(),
     'Need help?',
     ...(showsFeedbackLine ? [`➜ ${agentFeedbackLine()}`] : []),
     `➜ Discord: ${chalk.cyan(discordUrl)}`,
