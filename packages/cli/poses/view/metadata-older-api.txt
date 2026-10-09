@@ -1,0 +1,12 @@
+{
+  "runStatus": "finished",
+  "buildIndex": 7,
+  "viewStatusesCount": {
+    "approved": 4,
+    "noChanges": 40,
+    "reported": 0,
+    "unreviewed": 0
+  }
+}
+
+[exit 0]

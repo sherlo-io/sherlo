@@ -19,6 +19,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
+import { PERSONAL_TOKEN_PREFIX } from '../../constants';
 import getTokenParts from '../getTokenParts';
 import isValidToken from '../isValidToken';
 
@@ -158,6 +159,92 @@ describe('getTokenParts - windows never shift onto foreign bytes', () => {
   });
 
   it('the teamId is always exactly bytes 32-40 of the input', () => {
+    const parts = getTokenParts(base);
+    expect(parts.teamId).toBe(
+      base.slice(PROJECT_API_TOKEN_LENGTH, PROJECT_API_TOKEN_LENGTH + TEAM_ID_LENGTH)
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A PERSONAL token is refused, not sliced
+// ---------------------------------------------------------------------------
+
+/**
+ * THIS IS THE CASE THAT MADE getTokenParts A LEGACY-ONLY BRANCH.
+ *
+ * A personal token is `sht_` plus 32 opaque characters, and it carries no team
+ * and no project - both are resolved server-side from its owner. Fed to the
+ * composite slicer it would not fail: it would SUCCEED, yielding eight
+ * characters of somebody's random secret as a `teamId`, and the CLI would then
+ * address a request to a team that does not exist. That is the exact class of
+ * silent mis-route the rest of this file was written to rule out, so the shape
+ * is refused by name at the top of the function instead.
+ *
+ * The refusal must also not echo the credential: it is live, and the CLI's
+ * errors reach CI logs and crash reports.
+ */
+describe('getTokenParts - a personal token is refused rather than mis-sliced', () => {
+  const PERSONAL = `${PERSONAL_TOKEN_PREFIX}${'x'.repeat(32)}`;
+
+  it('throws instead of returning parts', () => {
+    expect(() => getTokenParts(PERSONAL)).toThrow();
+  });
+
+  it('says which credential was given and which one is wanted', () => {
+    expect(() => getTokenParts(PERSONAL)).toThrow(/personal token/i);
+    expect(() => getTokenParts(PERSONAL)).toThrow(/project token/i);
+  });
+
+  it('never echoes the token it refused', () => {
+    try {
+      getTokenParts(PERSONAL);
+      expect.unreachable('getTokenParts accepted a personal token');
+    } catch (error) {
+      expect((error as Error).message).not.toContain(PERSONAL);
+      // Not even the random half of it.
+      expect((error as Error).message).not.toContain('x'.repeat(32));
+    }
+  });
+
+  it('is answered `false` by isValidToken WITHOUT reaching the parser', () => {
+    // The boolean gate has to survive a personal token: it is called from
+    // paths that expect a verdict, not an exception.
+    expect(isValidToken(PERSONAL)).toBe(false);
+  });
+
+  it('refuses on the PREFIX alone, whatever follows it', () => {
+    // Truncated, over-long, or shaped exactly like a composite token - the
+    // prefix decides, because a token that CLAIMS to be personal must never be
+    // parsed as if it were not.
+    const composite = `${PERSONAL_TOKEN_PREFIX}${API}${TEAM}7`;
+
+    expect(() => getTokenParts(`${PERSONAL_TOKEN_PREFIX}short`)).toThrow(/personal token/i);
+    expect(() => getTokenParts(composite)).toThrow(/personal token/i);
+    expect(isValidToken(composite)).toBe(false);
+  });
+
+  it('leaves a legacy token that merely CONTAINS the prefix alone', () => {
+    // `sht_` is only meaningful at position 0. A composite token whose random
+    // half happens to contain those four characters is an ordinary project
+    // token and must keep working.
+    const legacy = makeToken(`sht_${'A'.repeat(PROJECT_API_TOKEN_LENGTH - 4)}`, TEAM, '7');
+    const contains = makeToken(`A${'B'.repeat(3)}sht_${'C'.repeat(24)}`, TEAM, '7');
+
+    // The first one DOES start with the prefix, so it is refused - that is the
+    // intended trade and it is worth seeing stated.
+    expect(() => getTokenParts(legacy)).toThrow(/personal token/i);
+
+    // The second one does not, and is parsed exactly as before.
+    expect(getTokenParts(contains).teamId).toBe(TEAM);
+    expect(isValidToken(contains)).toBe(true);
+  });
+});
+
+describe('unchanged: the legacy parse is untouched by the new branch', () => {
+  const base = makeToken(API, TEAM, '7');
+
+  it('still slices an ordinary project token', () => {
     const parts = getTokenParts(base);
     expect(parts.teamId).toBe(
       base.slice(PROJECT_API_TOKEN_LENGTH, PROJECT_API_TOKEN_LENGTH + TEAM_ID_LENGTH)

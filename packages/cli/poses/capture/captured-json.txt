@@ -1,0 +1,97 @@
+{
+  "kind": "captured",
+  "storyId": "layout-card--basic",
+  "settled": {
+    "ms": 900,
+    "frames": 6
+  },
+  "tree": {
+    "primitive": "View",
+    "components": [
+      "ProductCard"
+    ],
+    "size": {
+      "width": 312,
+      "height": 168
+    },
+    "style": {
+      "padding": 24,
+      "gap": 12,
+      "borderWidth": 1,
+      "borderColor": "#e0e0e0",
+      "borderRadius": 12,
+      "backgroundColor": "#fff"
+    },
+    "children": [
+      {
+        "primitive": "Text",
+        "components": [],
+        "text": "Sherlo Widget",
+        "size": {
+          "width": 264,
+          "height": 27
+        },
+        "style": {
+          "fontSize": 20,
+          "fontWeight": "700",
+          "color": "#111"
+        },
+        "children": []
+      },
+      {
+        "primitive": "Text",
+        "components": [],
+        "text": "$29.99",
+        "size": {
+          "width": 264,
+          "height": 24
+        },
+        "style": {
+          "fontSize": 18,
+          "color": "#555"
+        },
+        "children": []
+      },
+      {
+        "primitive": "View",
+        "components": [
+          "SharedButton",
+          "TouchableOpacity"
+        ],
+        "size": {
+          "width": 264,
+          "height": 46
+        },
+        "style": {
+          "alignItems": "center",
+          "paddingVertical": 12,
+          "paddingHorizontal": 24,
+          "borderRadius": 8,
+          "backgroundColor": "#0066cc"
+        },
+        "props": {
+          "testID": "add-to-cart"
+        },
+        "children": [
+          {
+            "primitive": "Text",
+            "components": [],
+            "text": "Add to Cart",
+            "size": {
+              "width": 92,
+              "height": 22
+            },
+            "style": {
+              "fontSize": 16,
+              "fontWeight": "600",
+              "color": "#fff"
+            },
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
+
+[exit 0]

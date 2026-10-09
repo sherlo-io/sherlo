@@ -1,0 +1,57 @@
+name: Sherlo Staged Gate (deprecated)
+description: >-
+  DEPRECATED - use `sherlo-io/sherlo@v2` instead. Kept so pinned workflows keep
+  working; it delegates to the root action's body unchanged.
+
+# ══════════════════════════════════════════════════════════════════════════════
+# This action was superseded by the ROOT action, which runs the same one verb and
+# additionally takes `android` / `ios` build paths (the full-run road) and
+# publishes the run's `url`. Everything below is a pass-through: the same runner
+# script, the same outputs, the same exit-code trap.
+#
+#   - uses: sherlo-io/sherlo/actions/staged-gate@v1     # this, deprecated
+#   + uses: sherlo-io/sherlo@v2                         # with: token: ...
+#
+# The only surface difference is the token input's name: `sherlo-token` here,
+# `token` on the root action.
+# ══════════════════════════════════════════════════════════════════════════════
+
+inputs:
+  sherlo-token:
+    description: "Sherlo project token (SHERLO_TOKEN)"
+    required: true
+  working-directory:
+    description: "Directory to run `sherlo test` in (project root)"
+    required: false
+    default: "."
+  config:
+    description: "Path to the Sherlo config file (default: sherlo.config.json)"
+    required: false
+    default: ""
+
+outputs:
+  native-needed:
+    description: >-
+      "true" when this commit needs a native build before it can be tested (no
+      test ran); "false" when the JS-only run already completed.
+    value: ${{ steps.sherlo.outputs.native-needed }}
+  reason:
+    description: "Single-line human explanation of the answer"
+    value: ${{ steps.sherlo.outputs.reason }}
+  base-fingerprint:
+    description: "Source base fingerprint (may be empty)"
+    value: ${{ steps.sherlo.outputs.base-fingerprint }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run Sherlo test (JS-only staged road)
+      id: sherlo
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SHERLO_TOKEN: ${{ inputs.sherlo-token }}
+        SHERLO_CONFIG: ${{ inputs.config }}
+      run: |
+        echo "::warning title=Sherlo::sherlo-io/sherlo/actions/staged-gate is deprecated - use sherlo-io/sherlo@v2 (input \`token\` instead of \`sherlo-token\`)"
+        node "${{ github.action_path }}/../lib/runSherloTest.mjs"

@@ -50,6 +50,7 @@ async function accessFileInArchive({
 }
 
 export default accessFileInArchive;
+export { detectTarVersion };
 
 /**
  * Lists all entries under lib/ in an APK (zip archive).

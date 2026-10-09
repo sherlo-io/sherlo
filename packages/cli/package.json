@@ -34,16 +34,23 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
-    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
+    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify --external @expo/fingerprint --external @napi-rs/keyring && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
+    "check:pose-contract": "yarn run -T ts-node --transpile-only scripts/generate-pose-contract.ts --check",
+    "generate:pose-contract": "yarn run -T ts-node --transpile-only scripts/generate-pose-contract.ts",
+    "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint --ext .ts,.tsx,.mjs src ../../actions/lib",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
+  },
+  "dependencies": {
+    "@expo/fingerprint": "^0.11.0",
+    "@napi-rs/keyring": "2.1.0"
   },
   "devDependencies": {
     "@babel/parser": "^7.29.3",
-    "@expo/fingerprint": "^0.11.0",
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.8.4",
     "@sentry/node": "10.47.0",
+    "@sherlo-io/time-limits": "^1.2.1",
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types",
     "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client",
     "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client",
@@ -62,6 +69,7 @@
     "find-up": "^7.0.0",
     "gradient-string": "^2.0.1",
     "graphql": "^16.6.0",
+    "js-yaml": "^4.1.0",
     "magicast": "^0.5.2",
     "node-fetch": "^2.6.11",
     "ora": "^8.2.0",

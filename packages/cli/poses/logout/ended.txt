@@ -1,0 +1,4 @@
+[32m✔[39m  Logged out [1manna@example.com[22m
+
+
+[exit 0]

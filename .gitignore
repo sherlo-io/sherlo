@@ -1,4 +1,10 @@
-node_modules/
+node_modules
+
+# The pinned core is laid into the SDK at pack time (packages/react-native-storybook/scripts/packSealedCore.js), never committed.
+packages/react-native-storybook/ios/Resources/assets/sherlo-core.js
+packages/react-native-storybook/android/src/main/assets/sherlo-core.js
+packages/react-native-storybook/ios/SherloCore.xcframework
+packages/react-native-storybook/android/src/main/jniLibs
 
 .expo/
 .next/
@@ -9,6 +15,10 @@ node_modules/
 .local-data/
 
 dist/
+dist-metro/
+# The CLI copy the GitHub Action carries (actions/carried-cli) is built by
+# scripts/build-carried-cli.sh and committed onto release refs with `git add -f`.
+# On every other ref it is absent, and the rules above keep a local build untracked.
 builds/
 *.apk
 *.app
@@ -23,6 +33,7 @@ testing/react-native/sherlo-lib/*
 !testing/react-native/sherlo-lib/react-native-storybook.tgz
 .env
 sherlo.config.json
+!examples/*/sherlo.config.json
 
 *storybook.log
 storybook-static

@@ -1,9 +1,11 @@
 import sdkClient from '@sherlo/sdk-client';
 import {
+  ANDROID_OPTION,
   DOCS_LINK,
+  IOS_OPTION,
   PROFILE_OPTION,
+  TEST_COMMAND,
   TEST_EAS_CLOUD_BUILD_COMMAND,
-  TEST_STANDARD_COMMAND,
 } from '../../constants';
 import {
   getTokenParts,
@@ -36,9 +38,9 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     logInfo({
       message:
         'EAS builds were created locally\n\n' +
-        `The \`sherlo ${THIS_COMMAND}\` command works only with \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`\n` +
-        `To test builds available locally, use \`sherlo ${TEST_STANDARD_COMMAND}\` instead\n`,
-      learnMoreLink: DOCS_LINK.testStandard,
+        `The \`npx sherlo ${THIS_COMMAND}\` command works only with \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`\n` +
+        `To test builds available locally, use \`npx sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> --${IOS_OPTION} <path>\` instead\n`,
+      learnMoreLink: DOCS_LINK.testing,
     });
 
     console.log();
@@ -51,7 +53,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   if (!passedProfiles) {
     throwError({
       message:
-        `The \`--${PROFILE_OPTION}\` option is required for \`sherlo ${THIS_COMMAND}\`\n\n` +
+        `The \`--${PROFILE_OPTION}\` option is required for \`npx sherlo ${THIS_COMMAND}\`\n\n` +
         'Please specify the EAS profile that will be used for testing your builds with Sherlo\n',
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
@@ -62,7 +64,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     logInfo({
       message:
         'Sherlo tests skipped - EAS profiles mismatch\n\n' +
-        `Current build used "${easBuildProfile}" profile while \`sherlo ${THIS_COMMAND}\` was called with "${passedOptions.profile}"\n`,
+        `Current build used "${easBuildProfile}" profile while \`npx sherlo ${THIS_COMMAND}\` was called with "${passedOptions.profile}"\n`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
 

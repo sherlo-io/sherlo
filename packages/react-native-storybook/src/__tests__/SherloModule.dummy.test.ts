@@ -28,11 +28,20 @@ describe('SherloModule dummy (no native module)', () => {
     expect(SherloModule.getLastState()).toBeUndefined();
   });
 
+  it('getDriver() returns undefined', () => {
+    expect(SherloModule.getDriver()).toBeUndefined();
+  });
+
   it('getConfig() returns an object with stabilization defaults', () => {
     const config = SherloModule.getConfig();
     expect(config).toBeDefined();
     expect(config.stabilization).toBeDefined();
     expect(typeof config.stabilization.requiredMatches).toBe('number');
+  });
+
+  it('getConfigOrDefault() returns the same defaults, and never throws', () => {
+    expect(() => SherloModule.getConfigOrDefault()).not.toThrow();
+    expect(SherloModule.getConfigOrDefault()).toEqual(SherloModule.getConfig());
   });
 
   it('sendNativeError() does not throw', () => {

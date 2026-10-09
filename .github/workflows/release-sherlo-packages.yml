@@ -20,9 +20,11 @@ on:
 permissions:
   id-token: write # Required for OIDC trusted publishing
   contents: write # Required for commits and tagging
+  packages: read # Required to install @sherlo-io/time-limits from GitHub's package registry
 
 jobs:
   release-to-prod:
+    # The SDK's pack fetches the pinned core with PACKAGE_TOKEN; nothing here builds or signs a core.
     runs-on: ubuntu-latest
 
     env:
@@ -30,6 +32,17 @@ jobs:
       NEW_VERSION_NUMBER: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
     concurrency: release-to-prod
     steps:
+      # The key is stamped into the native loaders only after the version commit below, so a
+      # missing key would fail the release with that commit already pushed. Check it first.
+      - name: Check Sherlo's public key is set
+        run: |
+          if [ -z "$SHERLO_CORE_PUBLIC_KEY" ]; then
+            echo "Error: the repository variable SHERLO_CORE_PUBLIC_KEY is not set. A release needs Sherlo's public key to stamp into the native loaders." >&2
+            exit 1
+          fi
+        env:
+          SHERLO_CORE_PUBLIC_KEY: ${{ vars.SHERLO_CORE_PUBLIC_KEY }}
+
       - name: Create GH App Token
         id: github_app_token
         uses: tibdex/github-app-token@v2
@@ -42,6 +55,28 @@ jobs:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
 
+      # The pin (packages/react-native-storybook/sherlo-core.json) names the tree of sherlo-runner's
+      # `core` folder its core was built from. A release ships that core only once the same tree is
+      # on sherlo-runner's default branch. The branch is squash-merged, so the commit the core was
+      # built from is never on it, but a tree survives any merge: the pin passes when some commit
+      # that changed `core` on the default branch holds exactly that tree. Otherwise the release
+      # stops here, before anything is committed.
+      - name: Check the pinned core's source tree is on sherlo-runner's default branch
+        env:
+          GH_TOKEN: ${{ steps.github_app_token.outputs.token }}
+        run: |
+          SOURCE_TREE=$(jq -r .sourceTree packages/react-native-storybook/sherlo-core.json)
+          DEFAULT_BRANCH=$(gh api repos/sherlo-io/sherlo-runner --jq .default_branch)
+          COMMITS_CHANGING_CORE=$(gh api "repos/sherlo-io/sherlo-runner/commits?sha=${DEFAULT_BRANCH}&path=core&per_page=100" --jq '.[].sha')
+          for COMMIT in $COMMITS_CHANGING_CORE; do
+            CORE_TREE=$(gh api "repos/sherlo-io/sherlo-runner/git/trees/${COMMIT}" --jq '.tree[] | select(.path == "core") | .sha')
+            if [ "$CORE_TREE" = "$SOURCE_TREE" ]; then
+              exit 0
+            fi
+          done
+          echo "Error: the pinned core was built from the sherlo-runner core source tree $SOURCE_TREE, which no recent commit on its default branch $DEFAULT_BRANCH holds. Merge sherlo-runner first." >&2
+          exit 1
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -53,9 +88,12 @@ jobs:
         env:
           CLIENT_STAGE: prod
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Install dependencies
         run: yarn
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Bump Version
         run: npx lerna version $NEW_VERSION_NUMBER --yes --no-git-tag-version --no-push
@@ -95,14 +133,78 @@ jobs:
           push: true
           branch: ${{ github.ref_name }}
 
+      # THE PUBLIC KEY THE APP'S NATIVE LOADERS TRUST. The repository's loaders carry a test key so
+      # local packs work; a release swaps in Sherlo's real public key for the pack only. It is
+      # stamped AFTER the version commit above so it never lands in git, and the loaders are restored
+      # right after the publish. Only the public half lives in this repository's settings. The job's
+      # first step stops a release with no key set, and SHERLO_RELEASE_BUILD makes the pack refuse a
+      # test key anyway.
+      - name: Stamp Sherlo's public key into the native loaders
+        run: node packages/react-native-storybook/scripts/sealedCoreKey.js stamp
+        env:
+          SHERLO_CORE_PUBLIC_KEY: ${{ vars.SHERLO_CORE_PUBLIC_KEY }}
+
       - name: Publish to npm
         run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
+        env:
+          SHERLO_RELEASE_BUILD: 'true'
+          # The SDK's prepack fetches the pinned core from package storage with it.
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Restore the native loaders to the test key
+        run: git checkout -- packages/react-native-storybook/ios/SherloCoreLoader.m packages/react-native-storybook/android/src/main/java/io/sherlo/storybookreactnative/SherloCoreLoader.java
 
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         run: |
           git tag ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           git push origin ${{ github.event.inputs.NEW_VERSION_NUMBER }}
+
+      # ────────────────────────────────────────────────────────────────────────
+      # THE ACTION RELEASE REF - what `uses: sherlo-io/sherlo@v2` runs.
+      #
+      # `uses:` checks this repository out at the ref and runs what is committed
+      # there, so the ref customers pin has to carry a built CLI: with one, a job
+      # that installed no dependencies still works; without one, the action needs
+      # the project's own installed CLI (which is still preferred when present).
+      #
+      # `v2` is the moving major tag customers pin (README's Quick Start). It is
+      # force-updated to each release's commit; `action-release/v2` is the branch
+      # holding the same commit, so the history of the ref is readable.
+      # ────────────────────────────────────────────────────────────────────────
+      - name: Push the action release ref
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
+        run: |
+          VERSION=$(node -p "require('./lerna.json').version")
+          MAJOR_TAG="v${VERSION%%.*}"
+          BRANCH="action-release/${MAJOR_TAG}"
+
+          ./scripts/build-carried-cli.sh "$VERSION"
+
+          git config user.name "Sherlo Bot"
+          git config user.email "admin@sherlo.io"
+
+          git checkout -B "$BRANCH"
+          git add -f actions/carried-cli
+          git commit -m "Action release: sherlo@${VERSION}"
+
+          git push --force origin "$BRANCH"
+          git tag -f "$MAJOR_TAG"
+          git push --force origin "$MAJOR_TAG"
+
+          ACTION_SHA=$(git rev-parse HEAD)
+
+          # Back to the branch this release is being cut from: every step after this
+          # one still commits and reads there.
+          git checkout -
+
+          {
+            echo "### Action release ref"
+            echo ""
+            echo "- tag: \`$MAJOR_TAG\` (what \`uses: ${{ github.repository }}@$MAJOR_TAG\` resolves to)"
+            echo "- branch: \`$BRANCH\`"
+            echo "- sha: \`$ACTION_SHA\`"
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Create Release
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
@@ -137,6 +239,8 @@ jobs:
           done
           
       - name: Update lock files in examples and test directories
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
         run: |
           for dir in examples/standard examples/eas-update examples/eas-cloud-build; do
             cd $dir

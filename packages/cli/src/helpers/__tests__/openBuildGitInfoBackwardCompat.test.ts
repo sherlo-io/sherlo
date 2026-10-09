@@ -63,6 +63,7 @@ describe('openBuild gitInfo backward compatibility', () => {
       ancestorCommitHashes: ['base-sha'],
       isShallow: false,
       isDirty: true,
+      defaultBranch: 'main',
     };
 
     await openBuild(client)({ ...baseRequest, gitInfo });

@@ -1,29 +1,21 @@
-import chalk from 'chalk';
-import gradientString from 'gradient-string';
-import { COLOR } from '../constants';
+import { emit } from './transcriptSink';
 
-const header = `
-             888                       888          
-             888                       888          
-             888                       888          
-    .d8888b  888 8b.   .d88b.  .d88888 888  .d88b.  
-    88K      888 "88b d8P  Y8b 888"    888 d88""88b 
-    "Y8888b. 888  888 88888888 888     888 888  888 
-         X88 888  888 Y8b.     888     888 Y88..88P 
-    '88888P' 888  888  "Y8888  888     888  "Y88P"
-`;
-
+/**
+ * Print the sherlo wordmark and tagline.
+ *
+ * The banner's bytes live in the render layer (../render/renderSegment); what
+ * stays here is the one thing that is NOT rendering - the ambient read that
+ * decides whether the intro happens at all. An expectation producer declares
+ * that decision in its scenario instead of inheriting this process's env, which
+ * is what turns `SKIP_INTRO` from an invisible knob into a stated input.
+ */
 function printSherloIntro(): void {
   // Skip if already printed (prevents double printing in test command)
   if (process.env.SKIP_INTRO === 'true') {
     return;
   }
 
-  console.log(gradientString(COLOR.reported, COLOR.approved, COLOR.noChanges)(header));
-
-  console.log(chalk.dim(chalk.italic('Make sure your mobile app looks perfect on every device')));
-
-  console.log();
+  emit({ kind: 'intro' });
 }
 
 export default printSherloIntro;

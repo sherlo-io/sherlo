@@ -1,0 +1,41 @@
+[33m◦[39m  [1manimations--spinner[22m never stopped changing within 20s
+[2m   A test run of this story would stop at the same limit. What it read then:[22m
+
+   [93m<[39m[95mSpinner[39m[93m>[39m
+     [93m<[39m[36mView[39m
+       [37mstyle[39m[32m=[39m[36m{{[39m
+         [37mflex[39m[97m:[39m [93m1[39m[97m,[39m
+         [37malignItems[39m[97m:[39m [93m"center"[39m[97m,[39m
+         [37mjustifyContent[39m[97m:[39m [93m"center"[39m[97m,[39m
+         [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m
+       [36m}}[39m
+     [93m>[39m [36m(<SIZE>)[39m
+       [93m<[39m[95mSpinnerRing[39m[93m>[39m
+         [93m<[39m[36mView[39m
+           [37mstyle[39m[32m=[39m[36m{{[39m
+             [37mwidth[39m[97m:[39m [93m48[39m[97m,[39m
+             [37mheight[39m[97m:[39m [93m48[39m[97m,[39m
+             [37mborderWidth[39m[97m:[39m [93m4[39m[97m,[39m
+             [37mborderColor[39m[97m:[39m [93m"[39m[94m#0066CC[39m[93m"[39m[97m,[39m
+             [37mborderRadius[39m[97m:[39m [93m24[39m[97m,[39m
+             [37mtransform[39m[97m:[39m [93m"rotate(137deg)"[39m[97m,[39m
+             [37mborderTopColor[39m[97m:[39m [93m"transparent"[39m
+           [36m}}[39m
+         [93m/>[39m [36m(<SIZE>)[39m
+       [93m</[39m[95mSpinnerRing[39m[93m>[39m
+       [93m<[39m[36mText[39m
+         [37mstyle[39m[32m=[39m[36m{{[39m
+           [37mmarginTop[39m[97m:[39m [93m12[39m[97m,[39m
+           [37mcolor[39m[97m:[39m [93m"[39m[34m#6B7280[39m[93m"[39m[97m,[39m
+           [37mfontSize[39m[97m:[39m [93m14[39m
+         [36m}}[39m
+       [93m>[39m [36m(<SIZE>)[39m
+         Loading...
+       [93m</[39m[36mText[39m[93m>[39m
+     [93m</[39m[36mView[39m[93m>[39m
+   [93m</[39m[95mSpinner[39m[93m>[39m
+
+[2m   3 views · --json prints the record[22m
+
+
+[exit 0]

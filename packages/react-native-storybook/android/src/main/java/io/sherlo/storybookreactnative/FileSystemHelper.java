@@ -150,6 +150,16 @@ public class FileSystemHelper {
     }
 
     /**
+     * The file of this name in the sync directory, whether or not it exists.
+     *
+     * @param filename The name of the file
+     * @return The file in the sync directory
+     */
+    public File getFile(String filename) {
+        return new File(this.syncDirectoryPath, filename);
+    }
+
+    /**
      * Creates a file URI for a file in the sync directory.
      *
      * @param filename The name of the file

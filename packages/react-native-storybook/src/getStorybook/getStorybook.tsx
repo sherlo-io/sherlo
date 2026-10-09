@@ -11,14 +11,27 @@ import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 import { LOG_FILE, PROTOCOL_FILE } from '../constants';
+import { getStorybookChannel } from './storybookChannel';
 import {
-  getStorybookChannel,
-  startStoryRenderedTracking,
-} from './components/TestingMode/useTestAllStories/storyRenderedReadiness';
+  startInteractiveMockActivation,
+  stopInteractiveMockActivation,
+} from './interactiveMockActivation';
+import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
+import { startCaptureTransport } from '../captureTransport';
+import { StoryOfTheApp } from '../storyOfTheApp';
+import { getSealedCore } from '../sealedCore/loadSealedCore';
 
 let isSdkCompatible = true;
 if (SherloModule.getMode() === 'testing') {
   isSdkCompatible = checkSdkCompatibility();
+}
+
+/**
+ * Whether a test walk can run in this launch: the SDK matches its native side, and the sealed core
+ * that will hold the walk is installed. Without the core, testing mode renders nothing.
+ */
+function canWalkTheStories(): boolean {
+  return isSdkCompatible && getSealedCore() !== null;
 }
 
 function getStorybook(view: StorybookView, params?: StorybookParams): () => ReactElement {
@@ -29,20 +42,29 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // implementation is idempotent (safe to call even after the timer fired).
   SherloModule.notifyGetStorybookCalled();
 
+  // Start waiting on the bundler's capture address, in every mode. Unlike the letterbox - which
+  // only matters while Storybook is on screen - a capture can be asked for at any time, and
+  // answering one restarts the app into testing mode: the app that comes back is in testing mode,
+  // and it must still be listening for the capture that is waiting for it. startCaptureTransport is
+  // idempotent and cheap, so starting it unconditionally costs a built app nothing (no bundler
+  // beside it, nothing starts - see captureTransport's `bundlerCapture`).
+  startWaitingForACapture(view);
+
   // Only set up testing-mode story decorators when SDK is compatible.
-  // When isSdkCompatible=false the component returns null anyway, and calling
-  // getConfig() here can throw if config.sherlo isn't on disk yet (EAS-update
-  // timing edge case), which would crash the app before the async iOS
-  // sendNativeError(ERROR_SDK_COMPATIBILITY) write completes.
-  if (mode === 'testing' && isSdkCompatible) {
-    const testingConfig = SherloModule.getConfig();
+  // When isSdkCompatible=false the component returns null anyway. A capture writes no config to
+  // the device before restarting the app into testing mode, so testing mode with nothing on disk
+  // is a normal state here too (see captureTransport.ts) - getConfigOrDefault falls back to the
+  // SDK's own defaults instead of throwing, which used to crash the app before the async iOS
+  // sendNativeError(ERROR_SDK_COMPATIBILITY) write could complete.
+  if (mode === 'testing' && canWalkTheStories()) {
+    const testingConfig = SherloModule.getConfigOrDefault();
     const delayMs = testingConfig.initialStoryRenderDelayMs;
 
-    // Attach the early STORY_RENDERED listener here - the earliest JS access to
+    // Attach the core's early STORY_RENDERED listener here - the earliest JS access to
     // the Storybook channel - so a story that renders before useTestStory mounts
-    // is buffered, not missed.
+    // is buffered, not missed. canWalkTheStories() above means the core is installed.
     try {
-      startStoryRenderedTracking(getStorybookChannel(view));
+      getSealedCore()?.startStoryRenderedTracking(getStorybookChannel(view));
     } catch (_e) {}
 
     const originalGetProjectAnnotations = view._preview.getProjectAnnotations.bind(view._preview);
@@ -54,14 +76,16 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
           decorators: [
             (Story: any, context: any) => (
               <SherloStoryErrorBoundary storyId={context.id}>
-                <Story />
+                <StoryOfTheApp>
+                  <Story />
+                </StoryOfTheApp>
               </SherloStoryErrorBoundary>
             ),
-            ...(annotations.decorators ?? []),
+            ...toList(annotations.decorators),
           ],
           ...(delayMs !== undefined && {
             loaders: [
-              ...(annotations.loaders ?? []),
+              ...toList(annotations.loaders),
               async () => {
                 await new Promise((r) => setTimeout(r, delayMs));
               },
@@ -73,9 +97,10 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   }
 
   if (mode === 'storybook') {
+    let initialStoryId: string | undefined;
     try {
       const config = SherloModule.getConfig();
-      const initialStoryId = config.inspect?.initialStoryId;
+      initialStoryId = config.inspect?.initialStoryId;
       // Force shouldPersistSelection:false so inspect.initialStoryId always wins
       // over persisted AsyncStorage state from a previous launch.
       params = {
@@ -84,6 +109,33 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
         ...(initialStoryId && { initialSelection: initialStoryId as InitialSelection }),
       };
     } catch (_e) {}
+
+    // Attach the story-change listener here - the earliest JS access to the channel in
+    // this mode, before the component tree below ever renders - so the very first
+    // selection Storybook resolves on mount is not missed. Pass initialStoryId so the
+    // story Storybook lands on has its mocks activated immediately: storyChanged does
+    // not fire for that first selection, so without this a direct launch onto a mocked
+    // story would serve real values.
+    try {
+      startInteractiveMockActivation(view, getStorybookChannel(view), initialStoryId);
+    } catch (_e) {}
+
+    // Start waiting on the bundler's letterbox, so `sherlo open --story <id>` reaches this app.
+    // Here rather than in a hook for the same reason as the listener above: a story may be posted
+    // before the tree renders, and the app that is not waiting yet is an app that missed it.
+    startWaitingOnTheLetterbox(view, true);
+  }
+
+  // An app showing ITSELF waits on the same address, and is sent to the story browser when a story
+  // is posted for it - which is the whole point of `sherlo open`: see one story right now, rather
+  // than launch the app and go and find it. Getting there restarts the app, so this side collects
+  // nothing; the letterbox holds the story until the storybook-mode listener above asks for it.
+  //
+  // This is the ONE thing Sherlo does in default mode, and it costs a store build nothing: a built
+  // app's JavaScript came from a file on the device rather than from a bundler, so there is no
+  // address to wait on and nothing starts (see openStoryChannel's `bundlerLetterbox`).
+  if (mode === 'default') {
+    startWaitingOnTheLetterbox(view, false);
   }
 
   const isTestingMode = mode === 'testing';
@@ -130,8 +182,19 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       } catch (_e) {}
     }, []);
 
+    // Leaving Storybook (unmount) tears down both things started above: stop tracking selection
+    // changes and pass every module through to real again, and stop waiting on the bundler's
+    // letterbox - an app that is no longer showing Storybook has nowhere to put a story.
+    useEffect(() => {
+      if (!isStorybookMode) return;
+      return () => {
+        stopInteractiveMockActivation();
+        stopOpenStoryChannel();
+      };
+    }, []);
+
     if (isTestingMode) {
-      if (!isSdkCompatible) return null as unknown as ReactElement;
+      if (!canWalkTheStories()) return null as unknown as ReactElement;
 
       return (
         <SafeAreaProvider>
@@ -147,6 +210,35 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
 }
 
 export default getStorybook;
+
+/* ========================================================================== */
+
+// Storybook lets a project write `decorators` and `loaders` as one function or as a list of them.
+function toList<T>(oneOrMany: T | T[] | undefined): T[] {
+  if (oneOrMany === undefined) return [];
+
+  return Array.isArray(oneOrMany) ? oneOrMany : [oneOrMany];
+}
+
+function startWaitingOnTheLetterbox(view: StorybookView, atTheStoryBrowser: boolean): void {
+  try {
+    startOpenStoryChannel({ view, channel: getStorybookChannel(view), atTheStoryBrowser });
+  } catch (_e) {
+    // Ignored: a Storybook whose channel this could not read, or a device with no reachable
+    // bundler beside it. Either one costs `sherlo open` its road into this app and costs the app
+    // nothing else, so it is not worth crashing the app a developer is working in.
+  }
+}
+
+function startWaitingForACapture(view: StorybookView): void {
+  try {
+    startCaptureTransport({ view, channel: getStorybookChannel(view) });
+  } catch (_e) {
+    // Ignored: a device with no reachable bundler beside it. That costs `sherlo capture` its road
+    // into this app and costs the app nothing else, so it is not worth crashing the app a
+    // developer is working in.
+  }
+}
 
 export function __resetForTests(): void {
   isSdkCompatible = true;

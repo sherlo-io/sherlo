@@ -2,9 +2,16 @@
 
 var fs = require('fs');
 var path = require('path');
+var crypto = require('crypto');
+
+var mockShims = require('./mockShims');
+var createOpenStoryLetterbox = require('./openStoryLetterbox');
+var createCaptureSocket = require('./captureSocket');
+var createCaptureLogSocket = require('./captureLogSocket');
+var storyTitleReader = require('./storyTitleReader');
 
 // ---------------------------------------------------------------------------
-// Dependency graph sidecar (TurboSnap Phase 2)
+// Module path helper (shared by the Diff Scope module manifest)
 // ---------------------------------------------------------------------------
 
 /**
@@ -19,84 +26,539 @@ function toRelativePath(absPath, projectRoot) {
   }
   var rel = path.relative(projectRoot, absPath);
   if (rel.indexOf('..') === 0) return null; // outside project root
+  // The leading "./" is INTENTIONAL and load-bearing - do not strip it to match
+  // sherlo-api's DiffScope.md "Serialized shape" doc, which shows bare paths
+  // (e.g. "src/Button.tsx"). That doc describes the server's canonicalized
+  // form, not what the SDK is supposed to emit. This helper's "./"-prefixed
+  // output feeds the Diff Scope module manifest (the moduleHashes/storyClosures
+  // keys emitted by emitModuleManifestSidecar below). The server strips the
+  // prefix at ingestion, in sherlo-api's parseModuleManifest
+  // (computeDiffScopeDecision/moduleManifest.ts), per SHERLO-1912. Emitting bare
+  // paths here would mismatch every "./"-keyed ancestor manifest already stored
+  // in S3 - making every module look changed and silently degrading partial
+  // capture to whole-suite capture for every diff going forward.
   return './' + rel.split(path.sep).join('/');
 }
 
+// ---------------------------------------------------------------------------
+// Module manifest sidecar (SHERLO-1890 Diff Scope - Phase A)
+// ---------------------------------------------------------------------------
+// Emitted on the test:bundled bundling path only: the CLI sets
+// SHERLO_MODULE_MANIFEST=1 in the bundler subprocess it spawns (see the
+// serializer below), and off that path the env var is unset so not one byte of
+// this code runs inside a build.
+//
+// The manifest answers one empirical question: are per-module content hashes,
+// keyed by SOURCE PATH, deterministic across clean rebuilds of unchanged source?
+// It records:
+//   1. moduleHashes  - source-path -> sha256 of the module's TRANSFORMED output.
+//                      Keyed by source path (never Metro's ordinal module id,
+//                      which renumbers on any import add/remove/reorder).
+//   2. storyClosures - story source-path -> its transitive forward dependency
+//                      set (source paths). Stories are the require.context
+//                      targets collectStories resolves below. Unioned into
+//                      EVERY story's set: the preview module (collectPreviewAbsPaths)
+//                      and its own transitive closure - Storybook applies the
+//                      preview's annotations/decorators around every story, so no
+//                      story's own downward walk ever reaches it (SHERLO-3).
+//   3. storyTitles   - story source-path -> the Storybook TITLE of that story
+//                      file. The other two maps are keyed by path and the
+//                      runner knows nothing about paths, so without this the
+//                      server's include/exclude narrowing and the runner's are
+//                      done in two different namespaces. A story whose title
+//                      cannot be read without evaluating its source is OMITTED
+//                      rather than guessed. NOT SUFFICIENT on its own to drop a
+//                      story certainly - the runner matches a PER-EXPORT display
+//                      name and this is per file - see the header of
+//                      metro/storyTitleReader.js before narrowing by it.
+//   4. header        - toolchain/env fingerprint (metro version, transformer/
+//                      babel config digest, env digest) so a build produced by a
+//                      different toolchain/env is never mistaken for an unchanged one,
+//                      plus `generatedFiles`: the graph files a tool wrote at
+//                      bundle time and the inputs it wrote them from.
+//
+// Bail-open on any unrecognised Metro shape or error - never throw into a user's
+// bundle.
+
 /**
- * Emits a NON-DESTRUCTIVE graph sidecar to node_modules/.cache/sherlo/graph.json.
+ * sha256 of a module's transformed output code.
  *
- * Format:
- *   {
- *     "version": 1,
- *     "inverseGraph": { "./src/Button.tsx": ["./src/Button.stories.tsx"] },
- *     "contextGraph":  { "./src/.rnstorybook/storybook.requires.ts": ["./src/Button.stories.tsx"] }
- *   }
+ * Metro puts transformed code on module.output[].data.code. We hash the code of
+ * every output entry in array order (a module can have >1 output, e.g. js/module
+ * + js/script). The code references dependencies through a per-module dependency
+ * map by LOCAL index, not by global module id, so this hash is stable across the
+ * ordinal-id renumbering that import add/remove/reorder causes elsewhere.
  *
- * inverseGraph  – static (non-dynamic) reverse edges only: file → files that statically import it.
- * contextGraph  – require.context targets grouped by the module that owns the require.context call.
+ * @returns {string|null} hex digest, or null if the module has no hashable output.
+ */
+function hashModuleOutput(module) {
+  if (!module || !Array.isArray(module.output)) return null;
+  var hash = crypto.createHash('sha256');
+  var hashedAnything = false;
+  module.output.forEach(function (out) {
+    var code = out && out.data && out.data.code;
+    if (typeof code === 'string') {
+      hash.update(code);
+      hashedAnything = true;
+    }
+  });
+  return hashedAnything ? hash.digest('hex') : null;
+}
+
+/**
+ * Cross-machine determinism guard (SHERLO-1894). Returns true when a module's
+ * TRANSFORMED output inlines the absolute project root - the one path fragment that
+ * necessarily differs machine-to-machine, so its presence means the module's content
+ * hash is NOT portable across machines. Scans the exact same bytes hashModuleOutput
+ * hashes (module.output[].data.code), so a leak found here is a leak in the hash.
+ * Pure read: never mutates output, never influences the hash.
  *
- * Bail-open: any unrecognised Metro Graph shape or error → no sidecar (CLI forces full run).
+ * @returns {boolean} true if any output entry's code contains the absolute projectRoot.
+ */
+function moduleOutputLeaksAbsolutePath(module, projectRoot) {
+  if (!module || !Array.isArray(module.output) || !projectRoot) return false;
+  for (var i = 0; i < module.output.length; i++) {
+    var out = module.output[i];
+    var code = out && out.data && out.data.code;
+    if (typeof code === 'string' && code.indexOf(projectRoot) !== -1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * The directory a Metro require.context module gathers from, read back out of
+ * its own synthetic path.
+ *
+ * Metro builds that path as `<directory>?ctx=<hash>` and nowhere else records
+ * the directory (a dependency's `contextParams` carries the filter and mode, not
+ * the directory), so this suffix is the only source for it. A path without the
+ * marker is not a Metro context module and yields null, which leaves the stories
+ * behind it without titles rather than with invented ones.
+ */
+function contextDirectoryOf(contextModuleAbsPath) {
+  var marker = contextModuleAbsPath.indexOf('?ctx=');
+  return marker === -1 ? null : contextModuleAbsPath.slice(0, marker);
+}
+
+/**
+ * Collects the absolute paths of every story module: the targets of the
+ * require.context() edge declared in Storybook's own generated requires file
+ * (STORYBOOK_REQUIRES_BASENAMES, matched by basename exactly like
+ * describeGeneratedFiles below). require.context is an ordinary Metro feature
+ * an app is free to use for its own gathering (icons, fonts, locale files) -
+ * a require.context dependency is a synthetic module whose own dependencies
+ * are the matched files, and nothing in its shape distinguishes "this is a
+ * story list" from "this is an icon folder". Matching only the DECLARING
+ * MODULE, not the context's directory or filter regex (an app may legitimately
+ * reuse either), is what tells the two apart.
+ *
+ * Found via the Diff Scope fixture app's StorefrontBadge component, which
+ * gathers its own icons with `require.context('./badgeIcons', false, /\.ts$/)`:
+ * before this guard, truck.ts and cart.ts were counted as stories neither is,
+ * inflating every capture's story count by 2 and giving each icon a
+ * storyClosures entry it should never have had.
+ *
+ * Bail-open: if no such generated file is in the graph (e.g. a machine that
+ * never bundled - see describeGeneratedFiles), the result is an empty story
+ * list, exactly as for an app with no require.context at all.
+ *
+ * Each story is returned with the two paths its TITLE is derived from: the
+ * require.context directory it was gathered from, and the generated requires
+ * file that declared that context (see storyTitleReader.js). Either can be null on
+ * an unrecognised shape; a story then simply gets no title.
+ *
+ * @returns {{ absPath: string, contextDirAbsPath: string|null, requiresAbsPath: string }[]}
+ *   one entry per unique story absolute path.
+ */
+function collectStories(graph) {
+  var seen = {};
+  var stories = [];
+  graph.dependencies.forEach(function (module, requiresAbsPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(requiresAbsPath)) === -1) return;
+    if (!module.dependencies || !(module.dependencies instanceof Map)) return;
+    module.dependencies.forEach(function (dep) {
+      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+      if (!contextParams) return;
+      var ctxModule = graph.dependencies.get(dep.absolutePath);
+      if (!ctxModule || !(ctxModule.dependencies instanceof Map)) return;
+      var contextDirAbsPath = contextDirectoryOf(dep.absolutePath);
+      ctxModule.dependencies.forEach(function (ctxDep) {
+        if (ctxDep.absolutePath && !seen[ctxDep.absolutePath]) {
+          seen[ctxDep.absolutePath] = true;
+          stories.push({
+            absPath: ctxDep.absolutePath,
+            contextDirAbsPath: contextDirAbsPath,
+            requiresAbsPath: requiresAbsPath,
+          });
+        }
+      });
+    });
+  });
+  return stories;
+}
+
+/**
+ * True when a basename is a Storybook preview entry (`preview.<ext>`, e.g.
+ * `.rnstorybook/preview.ts`) - same convention mockScan.js's isScanTarget uses
+ * for the module-mocking scan, kept independent here since this walks the
+ * Metro graph rather than the filesystem.
+ */
+function isPreviewBasename(basename) {
+  var ext = path.extname(basename);
+  return basename.slice(0, basename.length - ext.length) === 'preview';
+}
+
+/**
+ * Absolute paths of every preview module: an ORDINARY (non-require.context)
+ * dependency of the generated requires file whose basename matches the
+ * preview convention (`require('./preview')` in storybook.requires.ts).
+ *
+ * The requires file sits ABOVE every story - Storybook applies its
+ * `annotations` (which include the preview module) around every story it
+ * renders, so no story ever imports preview.ts itself and a downward walk
+ * from a story can never reach it (SHERLO-3: "a global decorator captures
+ * every story"). This is the other direction: walking OUT of the requires
+ * file along its ordinary edges to find the preview module that wraps
+ * everything.
+ *
+ * @returns {string[]} unique preview absolute paths.
+ */
+function collectPreviewAbsPaths(graph) {
+  var seen = {};
+  var previews = [];
+  graph.dependencies.forEach(function (module, absPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+    if (!module.dependencies || !(module.dependencies instanceof Map)) return;
+    module.dependencies.forEach(function (dep) {
+      var depAbs = dep.absolutePath;
+      if (!depAbs || seen[depAbs]) return;
+      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+      if (contextParams) return; // require.context edge -> stories, not the preview
+      if (!isPreviewBasename(path.basename(depAbs))) return;
+      seen[depAbs] = true;
+      previews.push(depAbs);
+    });
+  });
+  return previews;
+}
+
+/**
+ * Transitive forward dependency closure of one story, as a sorted list of
+ * repo-relative source paths (the story itself is NOT included).
+ *
+ * Follows every dependency edge - static, async (dynamic import) and
+ * require.context. A require.context edge points at a synthetic module; we
+ * descend THROUGH it (recording its matched targets, not the synthetic path
+ * itself), so files reached only via require.context still land in the closure.
+ * Paths outside the project root (toRelativePath -> null) are skipped as keys but
+ * still traversed, so a source file reached only through a node_modules hop is
+ * not lost.
+ */
+function collectForwardClosure(graph, storyAbsPath, projectRoot) {
+  var closure = {};
+  var visited = {};
+  var stack = [storyAbsPath];
+  while (stack.length) {
+    var absPath = stack.pop();
+    if (visited[absPath]) continue;
+    visited[absPath] = true;
+    var module = graph.dependencies.get(absPath);
+    if (!module || !(module.dependencies instanceof Map)) continue;
+    module.dependencies.forEach(function (dep) {
+      var depAbs = dep.absolutePath;
+      if (!depAbs) return;
+      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+      // A require.context edge resolves to a synthetic module: don't record its
+      // path, just traverse into it so its matched targets get recorded.
+      if (!contextParams) {
+        var rel = toRelativePath(depAbs, projectRoot);
+        if (rel) closure[rel] = true;
+      }
+      if (!visited[depAbs]) stack.push(depAbs);
+    });
+  }
+  return Object.keys(closure).sort();
+}
+
+/**
+ * Deterministic JSON: object keys are emitted in sorted order at every depth, so
+ * two runs that produce equal data produce BYTE-IDENTICAL output regardless of
+ * the order Metro happened to enumerate its graph. Arrays keep their order (the
+ * caller sorts the arrays it cares about).
+ */
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return '[' + value.map(stableStringify).join(',') + ']';
+  }
+  var keys = Object.keys(value).sort();
+  var parts = keys.map(function (key) {
+    return JSON.stringify(key) + ':' + stableStringify(value[key]);
+  });
+  return '{' + parts.join(',') + '}';
+}
+
+/**
+ * Expo's CLI sets this itself, inside the bundler process, to the absolute path of
+ * the project root being bundled - "required for @expo/metro-runtime to format
+ * paths in the web LogBox" (@expo/cli's withMetroMultiPlatform.js). It reaches no
+ * module (the header's own absolutePathLeaks guard is the proof), so it is never a
+ * legitimate reason for the header to differ - unlike every other EXPO_PUBLIC_ var,
+ * which really is string-inlined into the bundle by babel-preset-expo. Excluded by
+ * name, not by pattern, so a real EXPO_PUBLIC_ var still changes the header.
+ */
+var EXPO_PROJECT_ROOT_ENV_VAR = 'EXPO_PUBLIC_PROJECT_ROOT';
+
+/**
+ * The env vars whose values can inline into a bundle, so a change to any of them
+ * is a legitimate reason for otherwise-unchanged source to produce a different
+ * bundle. Populated from Phase A spike question 4 (measured empirically, not read
+ * from docs): NODE_ENV / BABEL_ENV drive dead-code branches (`__DEV__`,
+ * `process.env.NODE_ENV === 'production'`); EXPO_PUBLIC_* are string-inlined by
+ * babel-preset-expo. The header records BOTH the digest and the sorted key list,
+ * so the manifest is self-describing about which vars were considered.
+ */
+function selectBundleInliningEnv() {
+  var picked = {};
+  Object.keys(process.env).forEach(function (name) {
+    if (name === EXPO_PROJECT_ROOT_ENV_VAR) return;
+    if (
+      name === 'NODE_ENV' ||
+      name === 'BABEL_ENV' ||
+      name.indexOf('EXPO_PUBLIC_') === 0
+    ) {
+      picked[name] = process.env[name];
+    }
+  });
+  return picked;
+}
+
+/**
+ * Builds the toolchain/env header. Every input is stable across rebuilds on the
+ * same machine with the same toolchain and env, and changes exactly when the
+ * thing it fingerprints changes - never on wall-clock or run identity.
+ */
+function buildManifestHeader(projectRoot) {
+  var metroVersion = null;
+  try {
+    metroVersion = require('metro/package.json').version || null;
+  } catch (_) {
+    metroVersion = null;
+  }
+
+  // Transformer/babel config digest: hash the project's babel config source. This
+  // is the config that actually shapes every module's transformed output.
+  var babelConfigDigest = null;
+  var babelCandidates = ['babel.config.js', 'babel.config.cjs', '.babelrc', '.babelrc.js'];
+  for (var i = 0; i < babelCandidates.length; i++) {
+    var candidate = path.join(projectRoot, babelCandidates[i]);
+    if (fs.existsSync(candidate)) {
+      babelConfigDigest = crypto
+        .createHash('sha256')
+        .update(fs.readFileSync(candidate, 'utf8'))
+        .digest('hex');
+      break;
+    }
+  }
+
+  var env = selectBundleInliningEnv();
+  var envKeys = Object.keys(env).sort();
+  var envDigest = crypto
+    .createHash('sha256')
+    .update(stableStringify(env))
+    .digest('hex');
+
+  return {
+    metroVersion: metroVersion,
+    babelConfigDigest: babelConfigDigest,
+    envDigest: envDigest,
+    envKeys: envKeys,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Generated files in the graph
+// ---------------------------------------------------------------------------
+//
+// Storybook's requires generator rewrites `<config dir>/storybook.requires.ts`
+// (or .js) on every bundle, from the config directory it sits in: main.* names
+// the story globs and addons, preview.* is imported when present, and the
+// generator options come from the same withStorybook call. Projects are told
+// not to track the file - a tracked copy is rewritten at bundle time, which
+// dirties the tree - so on a machine that never bundled it does not exist.
+//
+// The CLI digests every app source file in this graph to decide whether a
+// prebuilt bundle still matches a tree. A generated file cannot be digested by
+// its bytes on a machine that has no copy, but its INPUTS can, and equal inputs
+// mean an equal output. So the manifest header names each generated file and
+// the files it was generated from, and the CLI digests those instead.
+
+var STORYBOOK_REQUIRES_BASENAMES = ['storybook.requires.ts', 'storybook.requires.js'];
+
+/**
+ * The generated files among the graph's modules, keyed like moduleHashes, each
+ * with the generator that wrote it and the project-relative inputs it read.
+ *
+ * @returns {Record<string, { generatedBy: string, inputs: string[] }>}
+ */
+function describeGeneratedFiles(graph, projectRoot) {
+  var generated = {};
+  graph.dependencies.forEach(function (_module, absPath) {
+    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+    var rel = toRelativePath(absPath, projectRoot);
+    if (!rel) return;
+
+    var inputs = [];
+    try {
+      fs.readdirSync(path.dirname(absPath), { withFileTypes: true }).forEach(function (entry) {
+        if (!entry.isFile()) return;
+        if (STORYBOOK_REQUIRES_BASENAMES.indexOf(entry.name) !== -1) return;
+        var inputRel = toRelativePath(path.join(path.dirname(absPath), entry.name), projectRoot);
+        if (inputRel) inputs.push(inputRel);
+      });
+    } catch (_) {
+      // An unreadable config directory leaves the file with no inputs; the CLI
+      // then digests nothing for it, exactly as if it were absent.
+    }
+    inputs.sort();
+
+    generated[rel] = { generatedBy: 'storybook-requires', inputs: inputs };
+  });
+  return generated;
+}
+
+/**
+ * Emits the module manifest sidecar to node_modules/.cache/sherlo/module-manifest.json.
+ *
+ * Pure side-effect: never influences bundle output.
+ *
+ * Bail-open: any unrecognised Metro Graph shape or error -> no manifest.
  *
  * @param {object} graph      Metro ReadOnlyGraph passed to the customSerializer
  * @param {string} projectRoot absolute project root
  * @param {string} cacheDir   absolute cache directory (node_modules/.cache/sherlo)
  */
-function emitDependencyGraphSidecar(graph, projectRoot, cacheDir) {
+function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
   try {
-    // Feature-detect Metro Graph shape: bail-open if unrecognised.
-    if (
-      !graph ||
-      typeof graph !== 'object' ||
-      !(graph.dependencies instanceof Map)
-    ) {
+    if (!graph || typeof graph !== 'object' || !(graph.dependencies instanceof Map)) {
       return;
     }
 
-    /** @type {Record<string, string[]>} */
-    var inverseGraph = {};
-    /** @type {Record<string, string[]>} */
-    var contextGraph = {};
-
+    /** @type {Record<string, string>} */
+    var moduleHashes = {};
+    /** @type {string[]} source-path keys whose transformed output leaks an abs path. */
+    var absolutePathLeaks = [];
     graph.dependencies.forEach(function (module, absPath) {
       var rel = toRelativePath(absPath, projectRoot);
-      if (!rel) return; // skip synthetic modules
+      if (!rel) return; // skip synthetic/out-of-root modules
+      var digest = hashModuleOutput(module);
+      if (digest) moduleHashes[rel] = digest;
+      if (moduleOutputLeaksAbsolutePath(module, projectRoot)) {
+        absolutePathLeaks.push(rel);
+      }
+    });
+    absolutePathLeaks.sort();
 
-      // Ensure every real module appears as a key (even if it has no importers).
-      if (!inverseGraph[rel]) inverseGraph[rel] = [];
-
-      if (!module.dependencies || !(module.dependencies instanceof Map)) return;
-
-      module.dependencies.forEach(function (dep) {
-        // contextParams is set on require.context() edges.
-        var contextParams =
-          dep.data && dep.data.data && dep.data.data.contextParams;
-
-        if (contextParams) {
-          // This dependency is a synthetic context module.
-          // Resolve one level deeper to find the actual target files.
-          var ctxModule = graph.dependencies.get(dep.absolutePath);
-          if (ctxModule && ctxModule.dependencies instanceof Map) {
-            if (!contextGraph[rel]) contextGraph[rel] = [];
-            ctxModule.dependencies.forEach(function (ctxDep) {
-              var targetRel = toRelativePath(ctxDep.absolutePath, projectRoot);
-              if (targetRel) contextGraph[rel].push(targetRel);
-            });
-          }
-        } else {
-          // Static (or async) import → record as a reverse edge.
-          var depRel = toRelativePath(dep.absolutePath, projectRoot);
-          if (!depRel) return;
-          if (!inverseGraph[depRel]) inverseGraph[depRel] = [];
-          inverseGraph[depRel].push(rel);
-        }
+    // Files that reach every story from ABOVE (the preview module and its own
+    // transitive closure), unioned into every story's closure below. A story's
+    // own downward walk can never find these - Storybook applies the preview
+    // around the story, the story never imports it.
+    /** @type {Record<string, boolean>} */
+    var globalRelPaths = {};
+    collectPreviewAbsPaths(graph).forEach(function (previewAbsPath) {
+      var previewRel = toRelativePath(previewAbsPath, projectRoot);
+      if (previewRel) globalRelPaths[previewRel] = true;
+      collectForwardClosure(graph, previewAbsPath, projectRoot).forEach(function (rel) {
+        globalRelPaths[rel] = true;
       });
     });
 
-    var sidecar = JSON.stringify({ version: 1, inverseGraph: inverseGraph, contextGraph: contextGraph });
-    fs.writeFileSync(path.join(cacheDir, 'graph.json'), sidecar, 'utf8');
+    /** @type {Record<string, string[]>} */
+    var storyClosures = {};
+    /**
+     * @type {Record<string, string>} story source-path -> the Storybook title
+     * the runner matches its snapshots by. A story is absent here when its
+     * title cannot be read without evaluating its source; the server must read
+     * an absent key as "unknown", never as "untitled".
+     */
+    var storyTitles = {};
+    /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
+    var loaderEntriesByRequiresFile = {};
+
+    collectStories(graph).forEach(function (story) {
+      var storyRel = toRelativePath(story.absPath, projectRoot);
+      if (!storyRel) return;
+      var closureSet = {};
+      collectForwardClosure(graph, story.absPath, projectRoot).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
+      Object.keys(globalRelPaths).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
+      storyClosures[storyRel] = Object.keys(closureSet).sort();
+
+      if (!loaderEntriesByRequiresFile[story.requiresAbsPath]) {
+        loaderEntriesByRequiresFile[story.requiresAbsPath] = storyTitleReader.readStoryLoaderEntries(
+          story.requiresAbsPath
+        );
+      }
+      var loaderEntry = storyTitleReader.findLoaderEntry(
+        loaderEntriesByRequiresFile[story.requiresAbsPath],
+        story.contextDirAbsPath
+      );
+      if (!loaderEntry) return;
+      var title = storyTitleReader.readStoryTitle(story.absPath, loaderEntry);
+      if (title) storyTitles[storyRel] = title;
+    });
+
+    var header = buildManifestHeader(projectRoot);
+    // Cross-machine determinism guard (SHERLO-1894): FLAG (never fail) modules whose
+    // transformed output inlines the absolute project root - their hashes are not
+    // portable across machines. Recorded in the header so the manifest is
+    // self-describing; a non-empty list means the hashes are machine-local. Bail-open
+    // is preserved: we warn and still emit, never throw.
+    header.absolutePathLeaks = absolutePathLeaks;
+    // Files a tool wrote at bundle time, and what it wrote them from - see
+    // describeGeneratedFiles. Keyed like moduleHashes.
+    header.generatedFiles = describeGeneratedFiles(graph, projectRoot);
+    if (absolutePathLeaks.length > 0) {
+      console.warn(
+        '[Sherlo] Module manifest: ' +
+          absolutePathLeaks.length +
+          ' module(s) inline an absolute path into transformed output; their hashes ' +
+          'are not cross-machine portable: ' +
+          absolutePathLeaks.join(', ')
+      );
+    }
+
+    // version stays 1 across the addition of storyTitles: the map
+    // is additive, and the two things a consumer must tell apart are already
+    // told apart without it - a manifest with NO storyTitles key was written by
+    // an SDK that predates titles, and a key missing from the map is a story
+    // this SDK could not be certain about. Neither is an empty title, and
+    // neither lets the server narrow that story away. Bumping would instead
+    // make every manifest unreadable to the server already deployed, which is
+    // exactly the window this change was ordered to land before.
+    var manifest = {
+      version: 1,
+      header: header,
+      moduleHashes: moduleHashes,
+      storyClosures: storyClosures,
+      storyTitles: storyTitles,
+    };
+
+    fs.writeFileSync(
+      path.join(cacheDir, 'module-manifest.json'),
+      stableStringify(manifest),
+      'utf8'
+    );
   } catch (err) {
-    // Non-fatal: if we fail, no sidecar is emitted and the CLI bails to a full run.
-    console.warn('[Sherlo] Failed to emit dependency graph sidecar:', err && err.message);
+    // Non-fatal: if we fail, no manifest is emitted. Never throw into the bundle.
+    console.warn('[Sherlo] Failed to emit module manifest sidecar:', err && err.message);
   }
 }
 
@@ -173,25 +635,69 @@ function applySherloTransforms(result, opts) {
   // cacheDir is the same directory that wrapperPath lives in; already created by generateWrapper().
   var cacheDir = path.dirname(wrapperPath);
 
+  // ---- Module Mocking (SHERLO-1734 Phase 2) ----
+  // Installed for every project, with no option to name: the scan reads the modules the
+  // project's stories declare, one shim is emitted per module, and the resolver redirects
+  // those imports to their shims. A project that declares none gets no shim, no resolver
+  // redirect and no mocks directory, so it pays nothing - and the `./mocking` runtime stays
+  // unreachable from its bundle. This is INDEPENDENT of `opts.enabled`, which gates the
+  // storybook-disabled polyfill path below and must not influence mocking either way.
+  var mockSetup = mockShims.setupMocks({
+    projectRoot: projectRoot,
+    cacheDir: cacheDir,
+    mockModules: opts && opts.mockModules,
+  });
+  var mocksDir = mockSetup.mocksDir;
+  var mockedPathToShim = mockSetup.mockedPathToShim;
+
+  // True when a module path lives inside the emitted mocks directory. Requests
+  // originating from a shim must NEVER be redirected back into a shim, otherwise
+  // the shim's own require(real) would loop onto itself.
+  function isShimPath(absPath) {
+    return !!absPath && !!mocksDir && absPath.indexOf(mocksDir + path.sep) === 0;
+  }
+
   var existingResolveRequest =
     result && result.resolver && result.resolver.resolveRequest
       ? result.resolver.resolveRequest
       : null;
 
+  function delegateResolve(context, moduleName, platform) {
+    return existingResolveRequest
+      ? existingResolveRequest(context, moduleName, platform)
+      : context.resolveRequest(context, moduleName, platform);
+  }
+
   function resolveRequest(context, moduleName, platform) {
     if (context.originModulePath === wrapperPath) {
-      return existingResolveRequest
-        ? existingResolveRequest(context, moduleName, platform)
-        : context.resolveRequest(context, moduleName, platform);
+      return delegateResolve(context, moduleName, platform);
     }
 
     if (moduleName === '@storybook/react-native') {
       return { type: 'sourceFile', filePath: wrapperPath };
     }
 
-    return existingResolveRequest
-      ? existingResolveRequest(context, moduleName, platform)
-      : context.resolveRequest(context, moduleName, platform);
+    var resolution = delegateResolve(context, moduleName, platform);
+
+    // Delegate-first mock redirect: once the real request has resolved, redirect
+    // to the shim when the resolved absolute path belongs to a mocked module and
+    // the importer is not itself a shim (MK-01..04, MK-08).
+    if (
+      mockedPathToShim.size > 0 &&
+      resolution &&
+      resolution.type === 'sourceFile' &&
+      resolution.filePath &&
+      !isShimPath(context.originModulePath)
+    ) {
+      var shimPath = mockedPathToShim.get(
+        mockShims.canonicalizeModulePath(resolution.filePath)
+      );
+      if (shimPath && shimPath !== resolution.filePath) {
+        return { type: 'sourceFile', filePath: shimPath };
+      }
+    }
+
+    return resolution;
   }
 
   var polyfillPath = path.join(__dirname, 'polyfill.js');
@@ -209,28 +715,73 @@ function applySherloTransforms(result, opts) {
     return base.concat(sherloPolyfills);
   }
 
-  // ---- TurboSnap Phase 2: non-destructive dependency graph sidecar ----
-  // Wrap (or install) a customSerializer that side-effects a graph.json sidecar
-  // and then delegates to the original serializer unchanged.
-  var existingCustomSerializer =
-    result && result.serializer && typeof result.serializer.customSerializer === 'function'
-      ? result.serializer.customSerializer
+  // ---- Diff Scope module manifest sidecar ----
+  // The manifest is emitted on the test:bundled bundling path ONLY: the CLI sets
+  // SHERLO_MODULE_MANIFEST=1 in the bundler subprocess it spawns, scoping emission
+  // to that one child process so every normal build / every other user is
+  // unaffected. INDEPENDENT of opts.enabled.
+  var moduleManifestEnabled = process.env.SHERLO_MODULE_MANIFEST === '1';
+
+  // Off the bundling path the manifest is never emitted, so there is nothing for
+  // the serializer wrapper to do. Skip installing it entirely - Sherlo does not
+  // touch the user's result.serializer.customSerializer slot and never forces
+  // Metro's default serializer to load. We only wrap (or install) a serializer
+  // when moduleManifestEnabled is true and we can safely delegate to something:
+  // the user's existing customSerializer if present, else Metro's default; if
+  // that also fails to load we skip the wrapper rather than risk corrupting the
+  // bundle (bail-open).
+  var sherloCustomSerializer = null;
+  if (moduleManifestEnabled) {
+    var existingCustomSerializer =
+      result && result.serializer && typeof result.serializer.customSerializer === 'function'
+        ? result.serializer.customSerializer
+        : null;
+    var delegateSerializer = existingCustomSerializer || getMetroDefaultSerializer();
+
+    if (delegateSerializer) {
+      sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
+        // Emit the manifest as a pure side-effect; never affects bundle output.
+        var serializerProjectRoot =
+          (options && options.projectRoot) || projectRoot;
+        emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+        // Delegate to the original serializer and return its output unchanged.
+        return delegateSerializer(entryPoint, preModules, graph, options);
+      };
+    }
+  }
+
+  // ---- Sherlo's addresses on the bundler ----
+  // Three addresses served beside the bundle: the letterbox, the capture socket, and the capture
+  // socket's own live log feed. The letterbox is the road `sherlo open` and `sherlo inspect` reach a
+  // running app down (see openStoryLetterbox.js); the capture socket is the road `sherlo capture`
+  // reaches it down (see captureSocket.js); the log feed is the app's own RunnerBridge.log lines,
+  // pushed here the instant they are formed rather than carried home inside the capture's own answer
+  // (see captureLogSocket.js). All three are installed unconditionally: with no Sherlo app attached
+  // an address simply has nobody to answer, and a developer never has to add anything for them to be
+  // there.
+  var letterbox = createOpenStoryLetterbox();
+  var captureSocket = createCaptureSocket();
+  var captureLogSocket = createCaptureLogSocket();
+
+  var existingEnhanceMiddleware =
+    result && result.server && typeof result.server.enhanceMiddleware === 'function'
+      ? result.server.enhanceMiddleware
       : null;
 
-  // Only install the serializer wrapper when we can safely delegate to something.
-  // If there is no pre-existing serializer we try to load Metro's default; if that
-  // also fails we skip the wrapper rather than risk corrupting the bundle.
-  var delegateSerializer = existingCustomSerializer || getMetroDefaultSerializer();
+  function enhanceMiddleware(metroMiddleware, metroServer) {
+    var enhanced = existingEnhanceMiddleware
+      ? existingEnhanceMiddleware(metroMiddleware, metroServer)
+      : metroMiddleware;
 
-  var sherloCustomSerializer = null;
-  if (delegateSerializer) {
-    sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
-      // Emit the sidecar as a pure side-effect; never affects bundle output.
-      var serializerProjectRoot =
-        (options && options.projectRoot) || projectRoot;
-      emitDependencyGraphSidecar(graph, serializerProjectRoot, cacheDir);
-      // Delegate to the original serializer and return its output unchanged.
-      return delegateSerializer(entryPoint, preModules, graph, options);
+    return function sherloMiddleware(request, response, next) {
+      // Sherlo's addresses first, everything else untouched behind them.
+      return captureSocket.middleware(request, response, function () {
+        return captureLogSocket.middleware(request, response, function () {
+          return letterbox.middleware(request, response, function () {
+            return enhanced(request, response, next);
+          });
+        });
+      });
     };
   }
 
@@ -252,6 +803,9 @@ function applySherloTransforms(result, opts) {
     }),
     resolver: Object.assign({}, baseResult.resolver, {
       resolveRequest: resolveRequest,
+    }),
+    server: Object.assign({}, baseResult.server, {
+      enhanceMiddleware: enhanceMiddleware,
     }),
     serializer: serializer,
   });
@@ -340,3 +894,9 @@ module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
+module.exports.createOpenStoryLetterbox = createOpenStoryLetterbox;
+module.exports.createCaptureSocket = createCaptureSocket;
+module.exports.createCaptureLogSocket = createCaptureLogSocket;
+// Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
+module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;
+module.exports.stableStringify = stableStringify;

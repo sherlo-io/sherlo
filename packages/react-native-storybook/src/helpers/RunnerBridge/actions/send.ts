@@ -1,11 +1,16 @@
 import { getGlobalStates } from '../../../utils';
 import SherloModule from '../../../SherloModule';
-import { LogFn, SendFn, RunnerProtocolItem, AppProtocolItem, ProtocolItemMetadata } from '../types';
+import type { LogFn, RunnerProtocolItem } from '../../../sealedCore/seam';
+import type { AppProtocolItem, ProtocolItemMetadata } from '../types';
 
 const ACK_READ_INTERVAL = 500;
 
-function send(path: string, log: LogFn): SendFn {
-  return async function (protocolItem): Promise<RunnerProtocolItem> {
+/**
+ * Write one protocol line and resolve with the runner's answer. The core's START reaches here with
+ * the report of which core ran already added (../../../sealedCore/loadSealedCore).
+ */
+function send(path: string, log: LogFn) {
+  return async function (protocolItem: AppProtocolItem): Promise<RunnerProtocolItem> {
     const content: AppProtocolItem & ProtocolItemMetadata = {
       ...protocolItem,
       timestamp: Date.now(),
