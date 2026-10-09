@@ -183,7 +183,7 @@ const FEEDBACK_HELP = 'npx sherlo feedback --help';
 const sideNoteRule = (): string => chalk.dim('═'.repeat(10));
 
 const agentFeedbackLine = (): string =>
-  `AI agents: you can report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
+  `AI agents: report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
 
 /**
  * What a finished run ends with, for an agent only (operator, 2026-10-08): a person who just
