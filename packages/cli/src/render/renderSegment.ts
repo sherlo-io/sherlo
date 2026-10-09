@@ -51,7 +51,8 @@ import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
-import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';import {
+import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
+import {
   renderAlreadyLoggedIn,
   renderLoggedIn,
   renderLoggedOut,
@@ -485,8 +486,11 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'feedback-dry-run':
       return {
         stream: 'stdout',
-        prints: renderFeedbackDryRun(segment.reportKind, segment.report, segment.context).map((line) => [line]),
-      };  }
+        prints: renderFeedbackDryRun(segment.reportKind, segment.report, segment.context).map(
+          (line) => [line]
+        ),
+      };
+  }
 }
 
 /* ========================================================================== */
