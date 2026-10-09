@@ -30,13 +30,12 @@ async function config({
     const hasDevices = Array.isArray(existingConfig?.devices) && existingConfig!.devices.length > 0;
 
     if (existingConfig && existingConfig.project === project && hasDevices) {
-      // The project id shows here, where it is written (operator, 2026-10-08): the team and project
-      // lines above name them, and this one gives the id the config holds.
+      // No project id (operator, 2026-10-09): the team and project lines above already name them.
       printLines([
         renderStepLine({
           outcome: 'already',
           name: 'Created config',
-          detail: `${DEFAULT_CONFIG_FILENAME}, project ${project}`,
+          detail: DEFAULT_CONFIG_FILENAME,
         }),
       ]);
       await trackProgress({ event: EVENT, params: { action: 'already_created' }, sessionId });
@@ -58,7 +57,7 @@ async function config({
       renderStepLine({
         outcome: 'done',
         name: existingConfig ? 'Updated config' : 'Created config',
-        detail: `${DEFAULT_CONFIG_FILENAME}, project ${project}${addedDevices}`,
+        detail: `${DEFAULT_CONFIG_FILENAME}${addedDevices}`,
       }),
     ]);
 
