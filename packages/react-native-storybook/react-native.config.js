@@ -40,12 +40,20 @@ const androidPackageFoundByName = `new Object() {
         }
       }.loadSherloPackage()`;
 
+// React Native's C++ autolinking file is shared by every build type too, and by default it adds the
+// glue Sherlo's codegen writes into android/build/. Only a build that links the library runs that
+// codegen, so a store build would have no such folder and fail to configure. android/cpp-autolinking
+// is shipped with the package: it adds the generated glue where it exists, and an empty stand-in
+// under the same names where it does not.
+const CPP_LINKING_THAT_EVERY_BUILD_TYPE_HAS = 'cpp-autolinking/CMakeLists.txt';
+
 const debugOnlyPlatforms = {
   ios: { configurations: ['Debug'] },
   android: {
     buildTypes: ['debug'],
     packageImportPath: '// @sherlo/react-native-storybook: loaded by name below, linked in debug only',
     packageInstance: androidPackageFoundByName,
+    cmakeListsPath: CPP_LINKING_THAT_EVERY_BUILD_TYPE_HAS,
   },
 };
 
