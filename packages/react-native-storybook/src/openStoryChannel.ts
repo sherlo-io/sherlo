@@ -27,11 +27,40 @@ const LETTERBOX_PATH = '/sherlo/letterbox';
 const HOLD_TIMEOUT_MS = 25000;
 
 /**
+ * The events that tell Storybook has put a story of its own on screen: it drew one, the story
+ * threw, or the story it looked for is not there.
+ */
+const STORYBOOK_LANDED_EVENTS = [
+  'storyRendered',
+  'storyErrored',
+  'storyThrewException',
+  'storyMissing',
+];
+
+/**
+ * How long the app waits for Storybook to show its own first story before it opens the letterbox
+ * anyway. Storybook loads every story first, which takes a second or two; a Storybook that never
+ * says it showed one must not leave `sherlo open` waiting on an app that never asks.
+ */
+const STORYBOOKS_FIRST_STORY_TIMEOUT_MS = 10000;
+
+/** Stops waiting for Storybook's own first story, while the app is still waiting for it. */
+let stopWaitingForStorybooksFirstStory: (() => void) | null = null;
+
+/**
  * Start waiting on the bundler's letterbox: the core's loop puts each story it is handed on screen.
  * A second call while the first is still collecting is a no-op.
  *
  * `atTheStoryBrowser` says which side of the door this app is on: true while it is showing
  * Storybook, false while it is showing itself.
+ *
+ * AT THE STORY BROWSER, THE LETTERBOX OPENS ONLY ONCE STORYBOOK HAS SHOWN ITS OWN FIRST STORY.
+ * Storybook picks a story of its own when it starts (the one it remembered, its
+ * `initialSelection`, or the first one), and it does so only after it has loaded every story. A
+ * story `sherlo open` left in the letterbox while the app restarted would otherwise be put on
+ * screen first, and then replaced by Storybook's pick, after the tool had already said it was on
+ * screen. The letterbox keeps the story until the app asks, so waiting costs nothing. A Storybook
+ * already showing a story has made its pick, and the letterbox opens at once.
  *
  * `letterbox` defaults to the bundler this app's JavaScript came from. A built app's JavaScript
  * came from inside the app, so there is no bundler beside it and no letterbox to wait on: nothing
@@ -56,12 +85,63 @@ export function startOpenStoryChannel({
   const road = letterbox === undefined ? bundlerLetterbox() : letterbox;
   if (!road) return;
 
-  core.startOpenStoryChannel({ view, channel, atTheStoryBrowser, letterbox: road });
+  const startTheCore = () =>
+    core.startOpenStoryChannel({ view, channel, atTheStoryBrowser, letterbox: road });
+
+  if (!atTheStoryBrowser || view._preview?.currentSelection) {
+    startTheCore();
+    return;
+  }
+
+  if (stopWaitingForStorybooksFirstStory) return;
+  stopWaitingForStorybooksFirstStory = whenStorybookShowsItsFirstStory({ view, channel }, () => {
+    stopWaitingForStorybooksFirstStory = null;
+    startTheCore();
+  });
 }
 
 /** Stop waiting. The request already in flight is left to finish and its answer dropped. */
 export function stopOpenStoryChannel(): void {
+  stopWaitingForStorybooksFirstStory?.();
+  stopWaitingForStorybooksFirstStory = null;
   getSealedCore()?.stopOpenStoryChannel();
+}
+
+/**
+ * Call `then` once, when Storybook has shown the story it picks for itself on starting, or when
+ * STORYBOOKS_FIRST_STORY_TIMEOUT_MS has passed without it saying so. Returns the way to stop
+ * waiting.
+ *
+ * Storybook says a story is missing once before it has picked anything, while it is still
+ * starting; that one is not its pick. Storybook names what it is looking for (`selectionSpecifier`)
+ * before it looks, so a missing story counts only once that name is set.
+ */
+function whenStorybookShowsItsFirstStory(
+  { view, channel }: { view: StorybookView; channel: StorybookChannel },
+  then: () => void
+): () => void {
+  const listeners = STORYBOOK_LANDED_EVENTS.map((event) => {
+    const listener = () => {
+      const storybookHasNamedItsStory = Boolean(view._preview?.selectionStore?.selectionSpecifier);
+      if (event === 'storyMissing' && !storybookHasNamedItsStory) return;
+      stopWaiting();
+      then();
+    };
+    return { event, listener };
+  });
+
+  const giveUpWaiting = setTimeout(() => {
+    stopWaiting();
+    then();
+  }, STORYBOOKS_FIRST_STORY_TIMEOUT_MS);
+
+  function stopWaiting(): void {
+    clearTimeout(giveUpWaiting);
+    listeners.forEach(({ event, listener }) => channel.off(event, listener));
+  }
+
+  listeners.forEach(({ event, listener }) => channel.on(event, listener));
+  return stopWaiting;
 }
 
 /**
