@@ -39,16 +39,10 @@ export function renderLoginWaitingSpinner(): string {
 
 /**
  * The wait anywhere but a terminal - a log, a pipe, an agent's shell - where a spinner would leave
- * nothing readable. The line stays, and the one under it tells an agent it may leave the command
- * running in the background while the person clicks, and that a rerun waits on the same link.
+ * nothing readable. One line (operator, 2026-10-08: the note to agents under it went).
  */
 export function renderLoginWaiting(): string[] {
-  return [
-    `${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`,
-    chalk.dim(
-      'An agent may run this in the background while the person clicks. Running it again waits on the same link.'
-    ),
-  ];
+  return [`${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`];
 }
 
 /**

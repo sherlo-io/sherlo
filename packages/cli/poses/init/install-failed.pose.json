@@ -51,15 +51,18 @@
       "with": { "teamId": "k7m2p9qx", "name": "Acme Shop" },
       "answer": { "name": "Acme Shop", "index": 1, "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1" }
     },
-    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "2_dependencies" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "3_metro_config" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "7_testing" }, "answer": { "sessionId": "init-session-1" } }
+    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } }
   ],
   "masks": {},
   "browser": { "opened": true },
   "workstation": {
-    "install": { "package": "@sherlo/react-native-storybook@2.0.2" },
+    "install": {
+      "package": "@sherlo/react-native-storybook@2.0.2",
+      "failed": {
+        "stdout": "➤ YN0000: · Yarn 4.3.1\n➤ YN0000: ┌ Resolution step\n➤ YN0035: │ @sherlo/react-native-storybook@npm:^2.0.2: Package not found\n➤ YN0035: │   Response Code: 404 (Not Found)\n➤ YN0035: │   Request Method: GET\n➤ YN0035: │   Request URL: https://registry.yarnpkg.com/@sherlo%2freact-native-storybook\n➤ YN0000: └ Completed in 0s 512ms\n➤ YN0000: · Failed with errors in 0s 518ms\n",
+        "stderr": ""
+      }
+    },
     "storybook": {
       "wrote": {
         "package.json": {
@@ -84,7 +87,6 @@
           "packageManager": "yarn@4.3.1"
         },
         "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config);\n",
-        ".rnstorybook/index.ts": "import { registerRootComponent } from 'expo';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({});\n\nregisterRootComponent(StorybookUIRoot);\n",
         "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.0", "main": "index.js" },
         "node_modules/@storybook/react-native/index.js": ""
       }

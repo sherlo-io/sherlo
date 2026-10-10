@@ -395,6 +395,7 @@ function surroundingsWithClock(now: () => number): Surroundings {
   return {
     installSettings: () => () => undefined,
     readGitInfo: () => Promise.reject(new Error('not read in these cases')),
+    readGitRemote: () => Promise.reject(new Error('not read in these cases')),
     now,
     sleep: () => Promise.resolve(),
   };

@@ -179,6 +179,8 @@ export type PosedGit =
       branch: string;
       commit: string;
       dirty: boolean;
+      /** The `origin` remote's address; left out for a repository that has none yet. */
+      remote?: string;
     };
 
 /** One platform's bundle as the bundler reports it - the same fields the dry-run plan prints. */
@@ -250,6 +252,17 @@ export type ScriptedCall =
               projectCount: number;
               role: string | null;
             }>;
+          };
+    }
+  | {
+      /** Who the personal token belongs to: their name as they signed up with it, and their email. */
+      call: 'whoAmI';
+      with: Record<string, never>;
+      answer:
+        | ApiError
+        | {
+            name: string;
+            email: string;
           };
     }
   | {
@@ -420,6 +433,23 @@ export type PosedWorkstation = {
    */
   install: {
     package: string;
+    /**
+     * What the package manager printed when the install failed, on each stream. Left out for an
+     * install that worked; stated, the install fails the way a real one does, with this output.
+     */
+    failed?: {
+      stdout: string;
+      stderr: string;
+    };
+  };
+  /**
+   * What Storybook's own installer wrote, for a project that had no Storybook: relative path ->
+   * content, laid into the project folder the way the pose's `files` are, so the steps after it
+   * read the project as the installer left it. Left out for a project that already has Storybook,
+   * where setup never runs it; stated for one that does not, it is refused.
+   */
+  storybook?: {
+    wrote: PosedFiles;
   };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
@@ -432,8 +462,11 @@ export type PosedWorkstation = {
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
    * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes
    * on.
+   *
+   * Optional since init-for-agents: setup asks nothing any more, so a pose of it states no prompt.
+   * BUILD DEBT: the prompt and the questions below go with the old setup's last caller.
    */
-  enter: 'pressed' | 'closed' | 'nobody';
+  enter?: 'pressed' | 'closed' | 'nobody';
 };
 
 /**

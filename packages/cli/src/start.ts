@@ -19,6 +19,8 @@ import {
   view,
 } from './commands';
 import {
+  CONTACT_EMAIL,
+  DISCORD_URL,
   ANDROID_FILE_TYPES,
   ANDROID_OPTION,
   BASELINE_OPTION,
@@ -76,6 +78,9 @@ import {
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, withCommandTimeout } from './helpers';
+import { renderStuckBlock } from './render/initSteps';
+import { getEndpointUrl } from './helpers/buildStatusRequest';
+import { savedLogins } from './seams/savedLogins';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -135,7 +140,23 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      printNeedHelpEpilogue();
+      // `sherlo init` ends a failure with one block for feedback and help, in place of the usual footer.
+      if ((error as { showFeedbackLine?: boolean }).showFeedbackLine) {
+        const reader = process.stdout.isTTY ? 'person' : 'agent';
+        // `sherlo feedback` sends with the saved login and refuses without one (epic sherlo-feedback),
+        // so a run that failed before the login offers no feedback line.
+        const isLoggedIn = Boolean(savedLogins().read(getEndpointUrl()));
+        for (const line of renderStuckBlock({
+          reader,
+          isLoggedIn,
+          discordUrl: DISCORD_URL,
+          contactEmail: CONTACT_EMAIL,
+        })) {
+          console.log(line);
+        }
+      } else {
+        printNeedHelpEpilogue();
+      }
 
       process.exit(error.code || 1);
     });
@@ -420,7 +441,9 @@ function addInitCommand(program: Command) {
   addCommand({
     program,
     command: INIT_COMMAND,
-    options: [TOKEN_OPTION, PROJECT_OPTION],
+    // No `--token` (init-for-agents): setup logs the person in, and a project token is CI's. No
+    // `--personal-token` either: personal tokens are hidden (epic sherlo-login-hidden-tokens).
+    options: [TEAM_OPTION, PROJECT_OPTION],
     action: init,
     withTimeout: false,
   });

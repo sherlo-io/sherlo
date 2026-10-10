@@ -1,11 +1,22 @@
-import { renderConfigTitle, renderDevicesCanBeAdjusted } from '../../../render/initConfig';
+/**
+ * STEP 7 - `sherlo.config.json`: the project setup settled, and one device. Never a token: the file
+ * is committed.
+ *
+ * One Android phone, so the first test needs one build, on any machine: an iPhone needs a Mac.
+ * A file that already names this project and has devices is left as it is.
+ *
+ * BUILD DEBT (init-for-agents): the field becomes `projectId`, in every reader of the config.
+ */
+import { DEVICES } from '@sherlo/shared';
+import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
+import { renderStepLine } from '../../../render/initSteps';
+import { InvalidatedConfig } from '../../../types';
 import { printLines, trackProgress } from '../helpers';
-import { EVENT } from './constants';
-import createConfig from './createConfig';
+import { DEFAULT_DEVICES, EVENT } from './constants';
 import hasConfigFile from './hasConfigFile';
-import updateConfig from './updateConfig';
+import readConfig from './readConfig';
+import writeConfig from './writeConfig';
 
-/** Writes `sherlo.config.json` with the project the project step settled, and never a token. */
 async function config({
   sessionId,
   project,
@@ -14,40 +25,52 @@ async function config({
   /** The team id, a slash and the project's number. */
   project: string;
 }): Promise<void> {
-  printLines(renderConfigTitle());
-
-  let configValue, hasAddedDefaultDevices, action;
-
   try {
-    if (!hasConfigFile()) {
-      ({ createdConfig: configValue, hasAddedDefaultDevices } = await createConfig(project));
+    const existingConfig: InvalidatedConfig | null = hasConfigFile() ? await readConfig() : null;
+    const hasDevices = Array.isArray(existingConfig?.devices) && existingConfig!.devices.length > 0;
 
-      action = 'created';
-    } else {
-      ({ updatedConfig: configValue, hasAddedDefaultDevices } = await updateConfig(project));
-
-      action = 'updated';
+    if (existingConfig && existingConfig.project === project && hasDevices) {
+      // No project id (operator, 2026-10-09): the team and project lines above already name them.
+      printLines([
+        renderStepLine({
+          outcome: 'already',
+          name: 'Created config',
+          detail: DEFAULT_CONFIG_FILENAME,
+        }),
+      ]);
+      await trackProgress({ event: EVENT, params: { action: 'already_created' }, sessionId });
+      return;
     }
 
-    const configWithoutToken = { ...configValue };
-    delete configWithoutToken.token;
+    const newConfig = {
+      ...existingConfig,
+      project,
+      devices: hasDevices ? existingConfig!.devices : DEFAULT_DEVICES,
+    };
+    await writeConfig(newConfig);
 
+    const addedDevices = hasDevices
+      ? ''
+      : `, one device: ${DEFAULT_DEVICES.map(({ id }) => DEVICES[id].displayName).join(', ')}`;
+
+    printLines([
+      renderStepLine({
+        outcome: 'done',
+        name: existingConfig ? 'Updated config' : 'Created config',
+        detail: `${DEFAULT_CONFIG_FILENAME}${addedDevices}`,
+      }),
+    ]);
+
+    const configWithoutToken = { ...newConfig };
+    delete configWithoutToken.token;
     await trackProgress({
       event: EVENT,
-      params: { action, configWithoutToken },
+      params: { action: existingConfig ? 'updated' : 'created', configWithoutToken },
       sessionId,
     });
   } catch (error) {
-    await trackProgress({
-      event: EVENT,
-      params: { status: 'failed', error },
-      sessionId,
-    });
+    await trackProgress({ event: EVENT, params: { status: 'failed', error }, sessionId });
     throw error;
-  }
-
-  if (hasAddedDefaultDevices) {
-    printLines(renderDevicesCanBeAdjusted());
   }
 }
 
