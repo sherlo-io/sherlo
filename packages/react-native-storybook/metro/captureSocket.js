@@ -72,7 +72,8 @@ function createCaptureSocket(settings) {
     readJsonBody(request, function (said) {
       appEverConnected = true;
 
-      var stories = Array.isArray(said.stories) ? said.stories : [];
+      // Null stays null: an app that cannot list its stories is not an app with none.
+      var stories = Array.isArray(said.stories) ? said.stories : null;
       var answer = said.answer == null ? null : said.answer;
       var mode = typeof said.mode === 'string' ? said.mode : '';
 
@@ -90,7 +91,9 @@ function createCaptureSocket(settings) {
       // A PUT with no answer is the app waiting for a capture. Pair it with a waiting tool now, or
       // hold it until a tool arrives.
       if (toolWaiting) {
-        if (stories.indexOf(toolWaiting.storyId) === -1) {
+        // An app that cannot list its stories is not checked yet: it is checked once it is back in
+        // testing mode and lists them.
+        if (stories !== null && stories.indexOf(toolWaiting.storyId) === -1) {
           var refused = toolWaiting;
           toolWaiting = null;
           sendJson(refused.response, { kind: 'no-such-story', known: stories });
@@ -168,7 +171,7 @@ function createCaptureSocket(settings) {
 
       var held = appHolding;
 
-      if (held.stories.indexOf(storyId) === -1) {
+      if (held.stories !== null && held.stories.indexOf(storyId) === -1) {
         toolWaiting = null;
         held.answer({});
         return sendJson(response, { kind: 'no-such-story', known: held.stories });

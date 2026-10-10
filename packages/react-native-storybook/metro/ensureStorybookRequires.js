@@ -32,7 +32,8 @@ var REQUIRES_BASENAME = 'storybook.requires';
 
 // Both extensions count as "present": Metro resolves the extensionless
 // `./storybook.requires` import against either one, so a project on --use-js is
-// no more racy than a project on TypeScript.
+// no more racy than a project on TypeScript. Not SOURCE_EXTENSIONS: Storybook's generator writes
+// only these two.
 var REQUIRES_EXTENSIONS = ['.ts', '.js'];
 
 // Upstream's default config directory, newest first. Only consulted when the
@@ -44,33 +45,37 @@ var DEFAULT_CONFIG_DIRNAMES = ['.rnstorybook', '.storybook'];
 /**
  * Resolves the Storybook config directory the same way upstream does.
  *
+ * @param {string} projectRoot - absolute path a relative configPath and the default folders are
+ *   looked for in
  * @param {object} [opts] - the options object passed to withStorybook
  * @returns {string|null} absolute path, or null when no config directory exists
  */
-function resolveConfigDir(opts) {
+function resolveConfigDir(projectRoot, opts) {
   if (opts && typeof opts.configPath === 'string' && opts.configPath) {
-    return path.resolve(process.cwd(), opts.configPath);
+    return path.resolve(projectRoot, opts.configPath);
   }
 
   for (var i = 0; i < DEFAULT_CONFIG_DIRNAMES.length; i++) {
-    var candidate = path.resolve(process.cwd(), DEFAULT_CONFIG_DIRNAMES[i]);
+    var candidate = path.resolve(projectRoot, DEFAULT_CONFIG_DIRNAMES[i]);
     if (fs.existsSync(candidate)) return candidate;
   }
 
   return null;
 }
 
+// storybook.requires.ts and storybook.requires.js: the one list of the file's possible names.
+var REQUIRES_FILE_BASENAMES = REQUIRES_EXTENSIONS.map(function (extension) {
+  return REQUIRES_BASENAME + extension;
+});
+
 /**
  * @param {string} configDir - absolute path to the Storybook config directory
  * @returns {boolean} whether a storybook.requires file already exists there
  */
 function requiresFileExists(configDir) {
-  for (var i = 0; i < REQUIRES_EXTENSIONS.length; i++) {
-    if (fs.existsSync(path.join(configDir, REQUIRES_BASENAME + REQUIRES_EXTENSIONS[i]))) {
-      return true;
-    }
-  }
-  return false;
+  return REQUIRES_FILE_BASENAMES.some(function (basename) {
+    return fs.existsSync(path.join(configDir, basename));
+  });
 }
 
 /**
@@ -106,6 +111,7 @@ function runGeneratorSynchronously(generateOptions) {
     '});';
 
   childProcess.execFileSync(process.execPath, ['-e', script], {
+    // The working folder, as upstream's own generate() runs in it: only the config folder (an absolute configPath) comes from projectRoot.
     cwd: process.cwd(),
     stdio: 'inherit',
     timeout: 120000,
@@ -119,15 +125,18 @@ function runGeneratorSynchronously(generateOptions) {
  * this build (upstream never generates in that case, so there is no race), or
  * when the project has no Storybook config directory at all.
  *
+ * @param {string} projectRoot - absolute path to the project the Metro config bundles
+ *   (projectRootOf in projectPaths.js); a relative configPath and the default folders are looked
+ *   for in it
  * @param {object} [opts] - the options object passed to withStorybook
  * @param {Function} [runGenerator] - test seam; defaults to the child-process
  *   generator above. Receives the same generateOptions upstream would pass.
  * @returns {boolean} whether the generator was run
  */
-function ensureStorybookRequires(opts, runGenerator) {
+function ensureStorybookRequires(projectRoot, opts, runGenerator) {
   if (opts && opts.enabled === false) return false;
 
-  var configDir = resolveConfigDir(opts);
+  var configDir = resolveConfigDir(projectRoot, opts);
   if (!configDir) return false;
   if (requiresFileExists(configDir)) return false;
 
@@ -161,4 +170,5 @@ function ensureStorybookRequires(opts, runGenerator) {
 module.exports = ensureStorybookRequires;
 module.exports.ensureStorybookRequires = ensureStorybookRequires;
 module.exports.resolveConfigDir = resolveConfigDir;
+module.exports.REQUIRES_FILE_BASENAMES = REQUIRES_FILE_BASENAMES;
 module.exports.requiresFileExists = requiresFileExists;

@@ -87,6 +87,7 @@ function canonicalizeModulePath(absPath) {
 // bare extensions, the platform-split variants, and the directory index form.
 // Returns the found absolute file path, or null when nothing exists.
 function resolveAppModuleFile(basePath) {
+  // Not SOURCE_EXTENSIONS: this order is the one Metro resolves an extensionless import in.
   var extensions = ['.tsx', '.ts', '.jsx', '.js'];
 
   var candidates = [];

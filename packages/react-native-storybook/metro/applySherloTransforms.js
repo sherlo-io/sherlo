@@ -9,6 +9,11 @@ var createOpenStoryLetterbox = require('./openStoryLetterbox');
 var createCaptureSocket = require('./captureSocket');
 var createCaptureLogSocket = require('./captureLogSocket');
 var storyTitleReader = require('./storyTitleReader');
+var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
+var isPreviewFile = require('./sourceFiles').isPreviewFile;
+var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
+var projectRootOf = require('./projectPaths').projectRootOf;
+var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -60,7 +65,9 @@ function toRelativePath(absPath, projectRoot) {
 //                      EVERY story's set: the preview module (collectPreviewAbsPaths)
 //                      and its own transitive closure - Storybook applies the
 //                      preview's annotations/decorators around every story, so no
-//                      story's own downward walk ever reaches it (SHERLO-3).
+//                      story's own downward walk ever reaches it (SHERLO-3). The
+//                      Storybook entry file (collectEntryAbsPaths) joins the same
+//                      way, minus the requires file and the stories it reaches.
 //   3. storyTitles   - story source-path -> the Storybook TITLE of that story
 //                      file. The other two maps are keyed by path and the
 //                      runner knows nothing about paths, so without this the
@@ -175,8 +182,8 @@ function contextDirectoryOf(contextModuleAbsPath) {
 function collectStories(graph) {
   var seen = {};
   var stories = [];
-  graph.dependencies.forEach(function (module, requiresAbsPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(requiresAbsPath)) === -1) return;
+  collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+    var module = graph.dependencies.get(requiresAbsPath);
     if (!module.dependencies || !(module.dependencies instanceof Map)) return;
     module.dependencies.forEach(function (dep) {
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
@@ -200,17 +207,6 @@ function collectStories(graph) {
 }
 
 /**
- * True when a basename is a Storybook preview entry (`preview.<ext>`, e.g.
- * `.rnstorybook/preview.ts`) - same convention mockScan.js's isScanTarget uses
- * for the module-mocking scan, kept independent here since this walks the
- * Metro graph rather than the filesystem.
- */
-function isPreviewBasename(basename) {
-  var ext = path.extname(basename);
-  return basename.slice(0, basename.length - ext.length) === 'preview';
-}
-
-/**
  * Absolute paths of every preview module: an ORDINARY (non-require.context)
  * dependency of the generated requires file whose basename matches the
  * preview convention (`require('./preview')` in storybook.requires.ts).
@@ -228,15 +224,15 @@ function isPreviewBasename(basename) {
 function collectPreviewAbsPaths(graph) {
   var seen = {};
   var previews = [];
-  graph.dependencies.forEach(function (module, absPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+  collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+    var module = graph.dependencies.get(requiresAbsPath);
     if (!module.dependencies || !(module.dependencies instanceof Map)) return;
     module.dependencies.forEach(function (dep) {
       var depAbs = dep.absolutePath;
       if (!depAbs || seen[depAbs]) return;
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
       if (contextParams) return; // require.context edge -> stories, not the preview
-      if (!isPreviewBasename(path.basename(depAbs))) return;
+      if (!isPreviewFile(depAbs)) return;
       seen[depAbs] = true;
       previews.push(depAbs);
     });
@@ -245,8 +241,37 @@ function collectPreviewAbsPaths(graph) {
 }
 
 /**
+ * Absolute paths of the Storybook entry file: the module the setup check calls the entry
+ * (storybookEntryCandidates, in the folder of the generated requires file, which is the Storybook
+ * config folder: `.rnstorybook/index.tsx` on the default setup, which starts Storybook with the
+ * requires file's stories).
+ *
+ * Like the preview, it sits ABOVE every story: the app starts Storybook from it,
+ * so an edit to it, or to anything it imports, can change every story, yet no
+ * story ever imports it.
+ *
+ * @returns {string[]} entry absolute paths (empty when the setup has none).
+ */
+function collectEntryAbsPaths(graph) {
+  var entries = [];
+  collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+    storybookEntryCandidates(path.dirname(requiresAbsPath)).forEach(function (candidateAbsPath) {
+      if (graph.dependencies.has(candidateAbsPath) && entries.indexOf(candidateAbsPath) === -1) {
+        entries.push(candidateAbsPath);
+      }
+    });
+  });
+  return entries;
+}
+
+/**
  * Transitive forward dependency closure of one story, as a sorted list of
  * repo-relative source paths (the story itself is NOT included).
+ *
+ * `excludedAbsPaths` (a map of absolute path -> true) names modules the walk
+ * neither records nor descends into. The entry file passes the requires file
+ * and every story here: it imports the requires file, which reaches every story,
+ * and those are no part of the entry's own closure.
  *
  * Follows every dependency edge - static, async (dynamic import) and
  * require.context. A require.context edge points at a synthetic module; we
@@ -256,7 +281,8 @@ function collectPreviewAbsPaths(graph) {
  * still traversed, so a source file reached only through a node_modules hop is
  * not lost.
  */
-function collectForwardClosure(graph, storyAbsPath, projectRoot) {
+function collectForwardClosure(graph, storyAbsPath, projectRoot, excludedAbsPaths) {
+  var excluded = excludedAbsPaths || {};
   var closure = {};
   var visited = {};
   var stack = [storyAbsPath];
@@ -268,7 +294,7 @@ function collectForwardClosure(graph, storyAbsPath, projectRoot) {
     if (!module || !(module.dependencies instanceof Map)) continue;
     module.dependencies.forEach(function (dep) {
       var depAbs = dep.absolutePath;
-      if (!depAbs) return;
+      if (!depAbs || excluded[depAbs]) return;
       var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
       // A require.context edge resolves to a synthetic module: don't record its
       // path, just traverse into it so its matched targets get recorded.
@@ -397,7 +423,18 @@ function buildManifestHeader(projectRoot) {
 // mean an equal output. So the manifest header names each generated file and
 // the files it was generated from, and the CLI digests those instead.
 
-var STORYBOOK_REQUIRES_BASENAMES = ['storybook.requires.ts', 'storybook.requires.js'];
+function isStorybookRequiresBasename(basename) {
+  return STORYBOOK_REQUIRES_BASENAMES.indexOf(basename) !== -1;
+}
+
+/** Absolute paths of the generated requires files among the graph's modules. */
+function collectRequiresAbsPaths(graph) {
+  var requiresAbsPaths = [];
+  graph.dependencies.forEach(function (_module, absPath) {
+    if (isStorybookRequiresBasename(path.basename(absPath))) requiresAbsPaths.push(absPath);
+  });
+  return requiresAbsPaths;
+}
 
 /**
  * The generated files among the graph's modules, keyed like moduleHashes, each
@@ -407,8 +444,7 @@ var STORYBOOK_REQUIRES_BASENAMES = ['storybook.requires.ts', 'storybook.requires
  */
 function describeGeneratedFiles(graph, projectRoot) {
   var generated = {};
-  graph.dependencies.forEach(function (_module, absPath) {
-    if (STORYBOOK_REQUIRES_BASENAMES.indexOf(path.basename(absPath)) === -1) return;
+  collectRequiresAbsPaths(graph).forEach(function (absPath) {
     var rel = toRelativePath(absPath, projectRoot);
     if (!rel) return;
 
@@ -416,7 +452,7 @@ function describeGeneratedFiles(graph, projectRoot) {
     try {
       fs.readdirSync(path.dirname(absPath), { withFileTypes: true }).forEach(function (entry) {
         if (!entry.isFile()) return;
-        if (STORYBOOK_REQUIRES_BASENAMES.indexOf(entry.name) !== -1) return;
+        if (isStorybookRequiresBasename(entry.name)) return;
         var inputRel = toRelativePath(path.join(path.dirname(absPath), entry.name), projectRoot);
         if (inputRel) inputs.push(inputRel);
       });
@@ -477,6 +513,28 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       });
     });
 
+    // The Storybook entry file joins the same way, with one trap: it imports the
+    // requires file, which reaches every story. Its walk stops at the requires
+    // file and at every story file.
+    /** @type {Record<string, boolean>} */
+    var notPartOfEntryClosure = {};
+    collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
+      notPartOfEntryClosure[requiresAbsPath] = true;
+    });
+    var stories = collectStories(graph);
+    stories.forEach(function (story) {
+      notPartOfEntryClosure[story.absPath] = true;
+    });
+    collectEntryAbsPaths(graph).forEach(function (entryAbsPath) {
+      var entryRel = toRelativePath(entryAbsPath, projectRoot);
+      if (entryRel) globalRelPaths[entryRel] = true;
+      collectForwardClosure(graph, entryAbsPath, projectRoot, notPartOfEntryClosure).forEach(
+        function (rel) {
+          globalRelPaths[rel] = true;
+        }
+      );
+    });
+
     /** @type {Record<string, string[]>} */
     var storyClosures = {};
     /**
@@ -489,7 +547,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
 
-    collectStories(graph).forEach(function (story) {
+    stories.forEach(function (story) {
       var storyRel = toRelativePath(story.absPath, projectRoot);
       if (!storyRel) return;
       var closureSet = {};
@@ -605,6 +663,38 @@ function writeDisabledFlagPolyfill(cacheDir) {
 }
 
 /**
+ * Whether `file` lies somewhere under `folder` (both absolute). False when either is missing.
+ *
+ * @param {string|null|undefined} file
+ * @param {string|null|undefined} folder
+ * @returns {boolean}
+ */
+function isInsideFolder(file, folder) {
+  return !!file && !!folder && file.indexOf(folder + path.sep) === 0;
+}
+
+/**
+ * How `config` resolves a module before Sherlo adds a step: the resolveRequest it already set, or
+ * Metro's own when it set none. Every resolver step Sherlo adds hands what it does not answer
+ * itself to this, so the project's own step, and Storybook's, still run.
+ *
+ * @param {object} config - a Metro config
+ * @returns {function(object, string, string): object} a resolveRequest
+ */
+function resolveThroughConfig(config) {
+  var configResolveRequest =
+    config && config.resolver && config.resolver.resolveRequest
+      ? config.resolver.resolveRequest
+      : null;
+
+  return function resolveRequest(context, moduleName, platform) {
+    return configResolveRequest
+      ? configResolveRequest(context, moduleName, platform)
+      : context.resolveRequest(context, moduleName, platform);
+  };
+}
+
+/**
  * Applies Sherlo Metro transforms to an already-configured Metro config object.
  *
  * Takes the result of withStorybook() + opts and returns the Sherlo-augmented config.
@@ -619,21 +709,12 @@ function writeDisabledFlagPolyfill(cacheDir) {
  * @returns {object} Sherlo-augmented Metro config
  */
 function applySherloTransforms(result, opts) {
-  var projectRoot =
-    (result && result.projectRoot) || process.cwd();
+  var projectRoot = projectRootOf(result);
+  var cacheDir = sherloCacheFolder(projectRoot);
+  var wrapperPath = path.join(cacheDir, 'storybook-wrapper.js');
 
-  var wrapperPath = path.join(
-    projectRoot,
-    'node_modules',
-    '.cache',
-    'sherlo',
-    'storybook-wrapper.js'
-  );
-
+  // Creates cacheDir too.
   generateWrapper(wrapperPath);
-
-  // cacheDir is the same directory that wrapperPath lives in; already created by generateWrapper().
-  var cacheDir = path.dirname(wrapperPath);
 
   // ---- Module Mocking (SHERLO-1734 Phase 2) ----
   // Installed for every project, with no option to name: the scan reads the modules the
@@ -654,19 +735,10 @@ function applySherloTransforms(result, opts) {
   // originating from a shim must NEVER be redirected back into a shim, otherwise
   // the shim's own require(real) would loop onto itself.
   function isShimPath(absPath) {
-    return !!absPath && !!mocksDir && absPath.indexOf(mocksDir + path.sep) === 0;
+    return isInsideFolder(absPath, mocksDir);
   }
 
-  var existingResolveRequest =
-    result && result.resolver && result.resolver.resolveRequest
-      ? result.resolver.resolveRequest
-      : null;
-
-  function delegateResolve(context, moduleName, platform) {
-    return existingResolveRequest
-      ? existingResolveRequest(context, moduleName, platform)
-      : context.resolveRequest(context, moduleName, platform);
-  }
+  var delegateResolve = resolveThroughConfig(result);
 
   function resolveRequest(context, moduleName, platform) {
     if (context.originModulePath === wrapperPath) {
@@ -893,6 +965,8 @@ function generateWrapper(wrapperPath) {
 module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
+module.exports.resolveThroughConfig = resolveThroughConfig;
+module.exports.isInsideFolder = isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
 module.exports.createOpenStoryLetterbox = createOpenStoryLetterbox;
 module.exports.createCaptureSocket = createCaptureSocket;
