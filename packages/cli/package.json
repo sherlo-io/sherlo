@@ -43,7 +43,8 @@
   },
   "dependencies": {
     "@expo/fingerprint": "^0.11.0",
-    "@napi-rs/keyring": "2.1.0"
+    "@napi-rs/keyring": "2.1.0",
+    "agent-cli-detector": "0.1.6"
   },
   "devDependencies": {
     "@babel/parser": "^7.29.3",

@@ -4244,6 +4244,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"agent-cli-detector@npm:0.1.6":
+  version: 0.1.6
+  resolution: "agent-cli-detector@npm:0.1.6"
+  bin:
+    agent-cli-detector: dist/cli.js
+  checksum: 10/5f73c2f49ce50bb5aa520fb1adc24883853d05475b56a638ad2def9942a7a19bb258f00191177caafbc1d7974264dcc98d22b5f9ada55ac22fc214dc65c46484
+  languageName: node
+  linkType: hard
+
 "aggregate-error@npm:^3.0.0":
   version: 3.1.0
   resolution: "aggregate-error@npm:3.1.0"
@@ -11722,6 +11731,7 @@ __metadata:
     "@types/prompts": "npm:^2.4.9"
     "@types/tar": "npm:^6.1.5"
     "@vercel/ncc": "npm:latest"
+    agent-cli-detector: "npm:0.1.6"
     ansi-escapes: "npm:^7.2.0"
     chalk: "npm:^4.1.2"
     commander: "npm:^12.0.0"
