@@ -1,28 +1,4 @@
-const CONFIG_PATH = '../../react-native.config.js';
-
-type PlatformConfig = {
-  configurations?: string[];
-  buildTypes?: string[];
-  packageInstance?: string;
-};
-
-/** The config as autolinking reads it, with SHERLO_BUILD set to `value` (unset when undefined). */
-function loadPlatformsWith(value: string | undefined): {
-  ios: PlatformConfig;
-  android: PlatformConfig;
-} {
-  const before = process.env.SHERLO_BUILD;
-  if (value === undefined) delete process.env.SHERLO_BUILD;
-  else process.env.SHERLO_BUILD = value;
-
-  try {
-    delete require.cache[require.resolve(CONFIG_PATH)];
-    return require(CONFIG_PATH).dependency.platforms;
-  } finally {
-    if (before === undefined) delete process.env.SHERLO_BUILD;
-    else process.env.SHERLO_BUILD = before;
-  }
-}
+import { loadPlatformsWith } from './linkingConfig';
 
 describe("the SDK's native linking", () => {
   it('links the native module for debug only when the setting is off or unset', () => {
