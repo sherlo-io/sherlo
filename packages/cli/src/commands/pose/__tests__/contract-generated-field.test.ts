@@ -7,12 +7,14 @@
  * `readPose.ts` are generated from the seams' own types.
  */
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { describe, expect, it, vi } from 'vitest';
 import { validPose } from './support/validPose';
 
 const CLI_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const GENERATED_READER = path.join(CLI_ROOT, 'src', 'commands', 'pose', 'readPose.generated.ts');
+const POSE_PROBLEMS = path.join(CLI_ROOT, 'src', 'commands', 'pose', 'poseProblems');
 const SERVER_SEAM = path.join(CLI_ROOT, 'src', 'seams', 'serverCalls.ts');
 
 /**
@@ -94,13 +96,16 @@ describe('the pose contract and its reader are generated from the seam types', (
       expect(generated.contract).toContain('measuredAt?: string;');
       expect(generated.reader).toContain("'measuredAt'");
 
-      // A sibling only this run uses, so its relative imports resolve as the real one's do.
-      const readerUnderTest = path.join(
-        path.dirname(GENERATED_READER),
-        `readPose.generated.field-test-${process.pid}.ts`
-      );
+      // Written in a folder of its own under the OS temporary folder, never in the source tree: a
+      // check that walks the source (the door law) must never see a file this run is writing. The
+      // reader's one relative import is pointed at the committed module by its full path.
+      const scratchFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-field-test-'));
+      const readerUnderTest = path.join(scratchFolder, 'readPose.generated.ts');
       try {
-        fs.writeFileSync(readerUnderTest, generated.reader);
+        fs.writeFileSync(
+          readerUnderTest,
+          generated.reader.replace("from './poseProblems'", `from '${POSE_PROBLEMS}'`)
+        );
         const [stated, invented] = await readPoses(
           [
             gatePose({ outcome: 'fast', diff: [], measuredAt: '2026-09-15' }),
@@ -116,7 +121,7 @@ describe('the pose contract and its reader are generated from the seam types', (
         expect(invented.ok).toBe(false);
         expect(invented.said).toContain('measuredBy: unknown field');
       } finally {
-        fs.rmSync(readerUnderTest, { force: true });
+        fs.rmSync(scratchFolder, { recursive: true, force: true });
       }
     },
     A_GENERATION
