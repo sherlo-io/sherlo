@@ -24,7 +24,6 @@ import {
   BUILD_CACHE_OPTION,
   BUILD_COMMAND,
   DEFAULT_BUILD_CACHE,
-  NO_BUILD_OPTION,
   PARALLEL_BUILDS_OPTION,
   PLATFORM_OPTION,
   RUN_ID_OPTION,
@@ -165,9 +164,7 @@ const COMMAND_DESCRIPTION = {
     'Run visual tests.\n' +
     '  Tests JS-only changes against the stored app build, with no build. When native code\n' +
     '  or build settings changed, builds the app first (with Gradle and Xcode, or on EAS in EAS\n' +
-    '  mode) - or takes it from the local build cache `npx sherlo build` filled. With `--no-build`:\n' +
-    '  only answers whether a new app build is needed (`native-needed=true|false`) and builds\n' +
-    '  nothing.',
+    '  mode) - or takes it from the local build cache `npx sherlo build` filled.',
   [BUILD_COMMAND]:
     'Build the app into the local build cache, and push nothing.\n' +
     '  A later `npx sherlo test` takes the build from the cache instead of compiling, for as long\n' +
@@ -375,11 +372,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'machines. The two jobs of one CI run join into one test, which starts when both ' +
       'builds are in.',
   ],
-  [NO_BUILD_OPTION]: [
-    '--no-build',
-    'Only answer whether this commit needs a new app build (`native-needed=true|false`), ' +
-      'and build nothing - the question a CI pipeline asks first on a cheap job.',
-  ],
   [RUN_ID_OPTION]: [
     '--run-id <id>',
     'The id the two jobs of a split CI run share, for a CI service Sherlo does not ' +
@@ -478,7 +470,6 @@ function addTestCommand(program: Command) {
       WAIT_TIMEOUT_OPTION,
       METADATA_OPTION,
       PLATFORM_OPTION,
-      NO_BUILD_OPTION,
       RUN_ID_OPTION,
       BUILD_CACHE_OPTION,
       PARALLEL_BUILDS_OPTION,

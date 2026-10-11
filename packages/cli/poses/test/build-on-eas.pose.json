@@ -23,7 +23,8 @@
     "package.json": {
       "name": "storefront",
       "scripts": {
-        "eas-build-on-complete": "sherlo eas-build-on-complete"
+        "eas-build-on-complete": "sherlo eas-build-on-complete",
+        "eas-build-on-cancel": "sherlo eas-build-on-complete"
       }
     },
     "eas.json": {
@@ -55,7 +56,7 @@
       "call": "checkStagedGate",
       "with": {
         "platform": "android",
-        "baseFingerprint": "aeab21e22d646e2572d0ee7cac5d3595d18df4b92bf8d3aff582550831af3538"
+        "baseFingerprint": "54eb6acc9bba3d54601180f33489518d391e3151d69eb16bc3175b486b8f770f"
       },
       "answer": {
         "outcome": "full-build-needed",
@@ -66,7 +67,7 @@
       "call": "checkStagedGate",
       "with": {
         "platform": "ios",
-        "baseFingerprint": "aeab21e22d646e2572d0ee7cac5d3595d18df4b92bf8d3aff582550831af3538"
+        "baseFingerprint": "54eb6acc9bba3d54601180f33489518d391e3151d69eb16bc3175b486b8f770f"
       },
       "answer": {
         "outcome": "full-build-needed",

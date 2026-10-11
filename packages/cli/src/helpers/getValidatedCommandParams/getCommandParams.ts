@@ -26,9 +26,7 @@ function getCommandParams<
     android: androidFullPath,
     ios: iosFullPath,
     ...onlyThePlatformAsked(options, config),
-    // THE CONFIG'S `build` BLOCK, KEPT APART FROM THE `--no-build` FLAG. Commander hands the negated
-    // flag over as `build: true | false`, and the spread above lets the flag land on top of the
-    // config's object of the same name - so the block travels under a name of its own.
+    // THE CONFIG'S `build` BLOCK, under the name every reader of it uses (readBuildSettings).
     buildSettings: (config as { build?: unknown }).build,
   };
 }

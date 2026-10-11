@@ -10,16 +10,15 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31m[39m
-[31m✗ Staged upload not possible for Android: the native binary needs to be rebuilt.[39m
-[31mChanged since the base build: native build metadata.[39m
+[31mERROR: Can't build on EAS: EAS would leave .sherlo/data.json out of the project it uploads.[39m
+[31mSherlo writes the run's hand-over file there, and .gitignore ignores it with the line ".sherlo/".[39m
+[31mEAS reads .easignore instead of .gitignore when there is one, so add one at the root of your git repository:[39m
+[31mcopy .gitignore to .easignore, then remove the line ".sherlo/" from it.[39m
 
-native-needed=true
-reason=android: changed since the base build: native build metadata
-base-fingerprint=<FINGERPRINT>
-[33m[39m
-[33mA native build is required before this commit can be tested: android: changed since the base build: native build metadata.[39m
-[33mNothing was built and no test ran (--no-build).[39m
-[33mTo build it on this machine, run `npx sherlo test` without --no-build.[39m
+[2m══════════[22m
+[2m[22m
+[2mNeed Help?[22m
+[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
+[2m➜ [22m[2mcontact@sherlo.io[22m
 
-[exit 4]
+[exit 1]

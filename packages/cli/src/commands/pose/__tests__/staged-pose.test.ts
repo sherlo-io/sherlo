@@ -10,7 +10,6 @@ import { POSES_ROOT, renderPose } from '../catalogue';
 import { runPose } from '../pose';
 import type { CommandPose } from '../../../seams/commandPose';
 import { readPoseDocument } from '../readPose';
-import { EXIT_NATIVE_NEEDED } from '../../test/constants';
 
 /** One catalogued `test/*.pose.json`, read the same way the catalogue itself reads it. */
 function stagedPose(name: string) {
@@ -56,28 +55,6 @@ describe('a bare push is posable', () => {
     );
     expect(screen).toContain('🔗 Review:');
     expect(exitCode).toBe(0);
-  });
-
-  it('a staged gate that answers unregistered prints native-needed=true and exits with the native-needed code', async () => {
-    const { document } = stagedPose('staged-needs-native');
-    const { screen, exitCode, refusals } = await runPose(document);
-
-    expect(refusals).toEqual([]);
-    expect(screen).toContain('native-needed=true');
-    expect(exitCode).toBe(EXIT_NATIVE_NEEDED);
-  });
-
-  it('a dry run against a pose prints native-needed and the base fingerprint and opens nothing', async () => {
-    const { document } = stagedPose('staged-no-base');
-    const { screen, exitCode, refusals } = await runPose(document);
-
-    expect(refusals).toEqual([]);
-    expect(screen).toContain('native-needed=true');
-    expect(screen).toContain('base-fingerprint=');
-    // Nothing was opened: the gate refused before a single byte was bundled or uploaded.
-    expect(screen).not.toContain('Bundling for staged upload');
-    expect(screen).not.toContain('🔗 Review:');
-    expect(exitCode).toBe(EXIT_NATIVE_NEEDED);
   });
 
   it('a posed bare push whose openBuild answer states a full capture prints the capture plan and the Diff Scope line a real one prints', async () => {

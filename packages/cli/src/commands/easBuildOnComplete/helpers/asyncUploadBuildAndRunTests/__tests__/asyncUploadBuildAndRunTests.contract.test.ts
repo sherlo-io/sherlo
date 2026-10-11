@@ -47,6 +47,7 @@ vi.mock('@sherlo/sdk-client', () => ({ default: mocks.sdkClient }));
 
 vi.mock('../../../../../helpers', () => ({
   getAppBuildUrl: mocks.getAppBuildUrl,
+  getCwd: () => '/tmp/project',
   getTokenParts: mocks.getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex: mocks.getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError: mocks.handleClientError,

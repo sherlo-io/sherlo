@@ -10,9 +10,10 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Can't build on EAS: package.json has no "eas-build-on-complete" script.[39m
-[31mEAS builds upload to Sherlo through it. Add it to "scripts":[39m
-[31m"eas-build-on-complete": "sherlo eas-build-on-complete"[39m
+[31mERROR: Can't build on EAS: package.json has no "eas-build-on-complete" or "eas-build-on-cancel" script.[39m
+[31mEAS builds report to Sherlo through them. Add to "scripts":[39m
+[31m"eas-build-on-complete": "sherlo eas-build-on-complete",[39m
+[31m"eas-build-on-cancel": "sherlo eas-build-on-complete"[39m
 
 [2m══════════[22m
 [2m[22m

@@ -17,7 +17,8 @@ import { asyncUploadBuildAndRunTests, getSherloTempData } from './helpers';
  * build into the run `sherlo test` opened for it.
  *
  * The profile it answers for is the one `sherlo test` wrote into `.sherlo/data.json`, so the
- * script is the same line in every project: `"eas-build-on-complete": "sherlo eas-build-on-complete"`.
+ * script is the same line in every project: `"eas-build-on-complete": "sherlo eas-build-on-complete"`,
+ * and `"eas-build-on-cancel"` runs the same line, so a cancelled EAS build closes its run.
  * `--profile` still overrides it, for the scripts older CLIs asked for.
  *
  * Build lifecycle hooks: https://docs.expo.dev/build-reference/npm-hooks/
@@ -83,8 +84,15 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     return;
   }
 
-  // Build failed on Expo servers
-  if (process.env.EAS_BUILD_STATUS === 'errored') {
+  // THE BUILD FAILED OR WAS CANCELLED ON EXPO'S SERVERS: either way no app build is coming, so the
+  // run is closed now rather than left waiting until its deadline. Expo runs the
+  // `eas-build-on-cancel` script on a cancel, and it runs this same command (epic
+  // sherlo-test-builds-apps, operator decision 2026-10-11); every package manager names the script
+  // it runs in `npm_lifecycle_event`, which is how this command tells a cancel from an ending.
+  const wasCancelled = process.env.npm_lifecycle_event === 'eas-build-on-cancel';
+  const failed = process.env.EAS_BUILD_STATUS === 'errored';
+
+  if (wasCancelled || failed) {
     const { projectIndex, teamId } = getTokenParts(token);
 
     await serverCalls()
@@ -99,7 +107,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
 
     throwError({
       message:
-        "Sherlo test can't be executed - EAS build failed on Expo servers\n\n" +
+        `Sherlo test can't be executed - ${wasCancelled ? 'the EAS build was cancelled' : 'EAS build failed on Expo servers'}\n\n` +
         'The test has been marked as errored in Sherlo web app',
     });
   }

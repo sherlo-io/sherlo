@@ -4,9 +4,8 @@
  *
  * It asks ONE question first: can this commit be tested without a native
  * rebuild? The gate answers from the source fingerprint alone, BEFORE anything
- * is built. On "no" the road stops right there - nothing is bundled, nothing is
- * uploaded, no test runs - and publishes `native-needed=true` so the caller can
- * route to its own native-build job (see ./nativeNeeded.ts).
+ * is built. On "no" the tool builds the refused platforms itself and pushes
+ * them (./appBuild/buildThenPush.ts); nothing is bundled for the staged road.
  *
  * On "yes" it builds a production plain-JS bundle + assets via the project's
  * canonical bundler, re-asks the gate with the REAL bundle-derived identity
@@ -32,7 +31,6 @@ import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
 import { Options } from '../../types';
 import {
-  describeDiffSources,
   getAppBuildUrl,
   getBuildRunConfig,
   getGitInfo,
@@ -55,7 +53,6 @@ import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fi
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
 import {
-  formatStagedGateRefusal,
   parseStagedGateRefusal,
   FALLBACK_LINE,
   type StagedGateRefusal,
@@ -266,26 +263,15 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' };
   }
 
-  /** A platform the gate refused needs a new app build: build it, or, under `--no-build`, say so and stop. */
-  const buildOrReportNativeNeeded = (refusals: StagedGateRefusal[]): Promise<{ url: string }> => {
-    if ((passedOptions as BuildFlags).build === false) {
-      return reportNativeNeeded({
-        reason: describeRefusals(refusals),
-        details: refusals.map((refusal) => formatStagedGateRefusal(refusal, { withFallback: false })),
-        baseFingerprint,
-        noBuild: true,
-        refusedPlatforms: refusals.map(({ platform }) => platform),
-      });
-    }
-
-    return buildThenPush({
+  /** A platform the gate refused needs a new app build, and the tool builds it itself. */
+  const buildTheRefusedPlatforms = (refusals: StagedGateRefusal[]): Promise<{ url: string }> =>
+    buildThenPush({
       passedOptions,
       platformsToTest,
       refusals,
       baseFingerprint,
       fingerprintPreimage: fpResult.preimage,
     });
-  };
 
   // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
   //    alone answers "can this commit reuse the registered base?", so a commit
@@ -299,10 +285,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     teamId,
   });
 
-  //    A refused platform needs a new app build, and the tool builds it itself - unless
-  //    `--no-build` asked only the question, which CI asks first on a cheap job (./appBuild).
+  //    A refused platform needs a new app build, and the tool builds it itself (./appBuild).
   if (probeRefusals.length > 0) {
-    return buildOrReportNativeNeeded(probeRefusals);
+    return buildTheRefusedPlatforms(probeRefusals);
   }
 
   // 7. Get the bundle + assets for each platform, and construct gate metadata
@@ -352,7 +337,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   });
 
   if (identityRefusals.length > 0) {
-    return buildOrReportNativeNeeded(identityRefusals);
+    return buildTheRefusedPlatforms(identityRefusals);
   }
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
@@ -445,7 +430,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     // SAME routing answer, so it is published the SAME way.
     const refusal = parseStagedGateRefusal(error);
     if (refusal) {
-      return buildOrReportNativeNeeded([refusal]);
+      return buildTheRefusedPlatforms([refusal]);
     }
     handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
@@ -598,22 +583,6 @@ function collectModuleManifests(
     if (manifest) moduleManifests[platform] = manifest;
   }
   return moduleManifests;
-}
-
-/** One single-line, platform-prefixed reason per refusal, joined for the output key. */
-function describeRefusals(refusals: StagedGateRefusal[]): string {
-  return refusals
-    .map(({ platform, outcome, diff }) => {
-      if (outcome === 'not-stageable') {
-        return `${platform}: this project can't use the staged fast path`;
-      }
-
-      const named = describeDiffSources(diff);
-      return named
-        ? `${platform}: changed since the base build: ${named}`
-        : `${platform}: native inputs changed since the base build`;
-    })
-    .join('; ');
 }
 
 /**

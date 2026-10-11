@@ -24,8 +24,6 @@ import type { Platform } from '@sherlo/api-types';
 export type BuildFlags = {
   /** `--platform <android|ios>`: build and test this platform only - one job of a split CI run. */
   platform?: string;
-  /** `--no-build`: commander's negated form, `false` when the flag was passed. */
-  build?: boolean;
   /** `--run-id <id>`: the CI run the two jobs of a split share, where no CI provider names one. */
   runId?: string;
   /** `--build-cache <dir>`: where the local build cache is kept. */
@@ -58,7 +56,6 @@ export const BUILD_COMMAND = 'build';
 
 /** The flags, by the key commander hands each one over under. */
 export const PLATFORM_OPTION = 'platform';
-export const NO_BUILD_OPTION = 'build';
 export const RUN_ID_OPTION = 'runId';
 export const BUILD_CACHE_OPTION = 'buildCache';
 export const PARALLEL_BUILDS_OPTION = 'parallelBuilds';

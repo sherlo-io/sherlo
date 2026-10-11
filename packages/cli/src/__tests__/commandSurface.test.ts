@@ -148,6 +148,22 @@ describe('sherlo test --help', () => {
     expect(stdout).not.toContain('--android');
     expect(stdout).not.toContain('--ios');
   });
+
+  it('does not offer --no-build: every CI job runs sherlo test and builds what it needs', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--no-build');
+  });
+});
+
+describe('--no-build', () => {
+  it('sherlo test --no-build is an unknown option, with exit 1', async () => {
+    // No Sherlo 2 CLI had the flag, so commander's own answer is enough.
+    const exitCode = await runCli('test', '--no-build');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("error: unknown option '--no-build'");
+  });
 });
 
 describe('a Sherlo 2 app build path', () => {

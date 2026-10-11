@@ -100,14 +100,9 @@ const OUTCOME_REASON: Record<Exclude<GateOutcome, 'fast'>, string> = {
 
 /**
  * Render a refusal into the user-facing message: a one-line reason, the named
- * diff sources that changed (when present), and the full-run fallback line -
- * left out for `sherlo test --no-build`, whose closing lines say how to get the
- * build instead (./nativeNeeded).
+ * diff sources that changed (when present), and the full-run fallback line.
  */
-export function formatStagedGateRefusal(
-  refusal: StagedGateRefusal,
-  { withFallback = true }: { withFallback?: boolean } = {}
-): string {
+export function formatStagedGateRefusal(refusal: StagedGateRefusal): string {
   const platformLabel = refusal.platform === 'android' ? 'Android' : 'iOS';
   const reason =
     refusal.outcome === 'fast'
@@ -121,7 +116,7 @@ export function formatStagedGateRefusal(
     lines.push(`Changed since the base build: ${named}.`);
   }
 
-  if (withFallback) lines.push(FALLBACK_LINE);
+  lines.push(FALLBACK_LINE);
 
   return lines.join('\n');
 }

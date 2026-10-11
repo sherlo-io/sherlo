@@ -13,8 +13,8 @@
  *   - one job of a SPLIT CI run (`--platform`): the run it ends on is the one its CI run's jobs
  *     share, joined rather than opened (./joinTheRun).
  *
- * `--no-build` keeps the old answer: `native-needed=true`, nothing built, exit 4 - the question a
- * CI pipeline asks first on a cheap Linux job, so a JavaScript-only change never starts a Mac.
+ * There is no asking first (operator decision 2026-10-11): CI always runs one job per platform, and
+ * a JavaScript-only change finishes in minutes in each without building.
  */
 import fs from 'fs';
 import path from 'path';

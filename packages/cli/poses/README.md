@@ -100,8 +100,8 @@ in `files` like any other pose's.
 (`checkStagedGate`, asked once per platform before the bundle and once after it with the bundle's
 real identity), and a wait that runs out is posed through the pose's `clock` - the instants the
 wait reads, in order, so a deadline can pass without a timer. The tester's push saga poses both;
-this catalogue holds a screen for both now: `test/staged-borrows-the-base`, `test/staged-needs-native`
-and `test/staged-no-base` pose the gate's three outcomes, and `test/wait-runs-out` poses a push whose
+this catalogue holds a screen for both now: `test/staged-borrows-the-base` poses the gate letting a
+change through (a refusal builds the app, posed by the `build-*` screens), and `test/wait-runs-out` poses a push whose
 clock passes its `--wait-timeout` deadline. The verdict screens in `view/verdict-*` pose the SAME
 closers through `sherlo view <build> --wait`, which reaches them through `getBuildStatus` alone. The
 `── details ──` block after `sherlo test --wait --metadata` is now reachable through a push pose,

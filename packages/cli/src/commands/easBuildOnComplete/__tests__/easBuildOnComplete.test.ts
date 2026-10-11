@@ -50,7 +50,8 @@ import easBuildOnComplete from '../easBuildOnComplete';
 // Env save / restore
 // ---------------------------------------------------------------------------
 
-const ENV_KEYS = ['EAS_BUILD_RUNNER', 'EAS_BUILD_PROFILE', 'EAS_BUILD_STATUS'] as const;
+// `npm_lifecycle_event` too: the package manager running this suite sets it to its own script.
+const ENV_KEYS = ['EAS_BUILD_RUNNER', 'EAS_BUILD_PROFILE', 'EAS_BUILD_STATUS', 'npm_lifecycle_event'] as const;
 let savedEnv: Record<string, string | undefined>;
 
 beforeEach(() => {
@@ -62,6 +63,7 @@ beforeEach(() => {
   process.env.EAS_BUILD_RUNNER = 'eas-build';
   process.env.EAS_BUILD_PROFILE = 'preview';
   delete process.env.EAS_BUILD_STATUS;
+  process.env.npm_lifecycle_event = 'eas-build-on-complete';
   mocks.getSherloTempData.mockReturnValue({ buildIndex: 5, token: 'the-token' });
 });
 
@@ -116,6 +118,28 @@ describe('easBuildOnComplete - EAS build errored', () => {
   it('closes the build as errored and throws, without uploading', async () => {
     await expect(easBuildOnComplete({ profile: 'preview' } as any)).rejects.toThrow(
       "Sherlo test can't be executed"
+    );
+
+    expect(mocks.closeBuild).toHaveBeenCalledWith({
+      buildIndex: 5,
+      projectIndex: 7,
+      teamId: 'team1234',
+      runError: 'user_easCloudBuild',
+    });
+    expect(mocks.asyncUploadBuildAndRunTests).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A cancelled EAS build - Expo runs the eas-build-on-cancel script, which runs this same command
+// ---------------------------------------------------------------------------
+
+describe('easBuildOnComplete - EAS build cancelled', () => {
+  it('run from the eas-build-on-cancel script, closes the run as errored without uploading', async () => {
+    process.env.npm_lifecycle_event = 'eas-build-on-cancel';
+
+    await expect(easBuildOnComplete({ profile: 'preview' } as any)).rejects.toThrow(
+      'the EAS build was cancelled'
     );
 
     expect(mocks.closeBuild).toHaveBeenCalledWith({

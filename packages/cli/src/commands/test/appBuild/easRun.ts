@@ -6,9 +6,12 @@
  * here it is built on Expo's servers instead of this machine:
  *
  *   1. package.json must hold the `eas-build-on-complete` script - each EAS build uploads itself
- *      to Sherlo through it when it finishes. A project without it is refused before anything
- *      starts, because a run would otherwise wait for builds that never arrive. So is one whose
- *      eas.json has no profile named `build.easProfile` (default "sherlo") - setup writes none.
+ *      to Sherlo through it when it finishes - and the `eas-build-on-cancel` script, the same line,
+ *      through which a cancelled EAS build closes the run (epic sherlo-test-builds-apps, operator
+ *      decision 2026-10-11). A project without either is refused before anything starts, naming
+ *      every one it lacks, because a run would otherwise wait for builds that never arrive. So is
+ *      one whose eas.json has no profile named `build.easProfile` (default "sherlo") - setup writes
+ *      none - and one whose upload to EAS would leave `.sherlo/data.json` out (./easHandOver.ts).
  *   2. The run is opened with one empty slot per platform, and `.sherlo/data.json` is written so
  *      the EAS builds carry which run they belong to.
  *   3. One EAS build per refused platform is started with the profile `build.easProfile`
@@ -45,9 +48,14 @@ import type { CommandParams } from '../../../types';
 import { createSherloTempDirectory } from '../../testEasCloudBuild/helpers';
 import type { THIS_COMMAND } from '../constants';
 import { type BuildSettings, DEFAULT_EAS_PROFILE } from './buildSettings';
+import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
 
-/** The package.json script each EAS build uploads itself to Sherlo through. */
-const EAS_HOOK_SCRIPT = 'eas-build-on-complete';
+/**
+ * The package.json scripts each EAS build reports to Sherlo through, both running the same command:
+ * Expo runs the first when a build ends, finished or errored, and the second when it is cancelled.
+ */
+const EAS_HOOK_SCRIPTS = ['eas-build-on-complete', 'eas-build-on-cancel'];
+const EAS_HOOK_COMMAND = 'sherlo eas-build-on-complete';
 
 /** The variable, and its value, every Sherlo app build is made with: the app opens into Storybook. */
 const STORYBOOK_BUILD_VARIABLE = 'SHERLO_BUILD';
@@ -63,10 +71,11 @@ export async function easRun({
   platforms: Platform[];
   settings: BuildSettings;
 }): Promise<{ url: string }> {
-  refuseWithoutTheHookScript(commandParams.projectRoot);
+  refuseWithoutTheHookScripts(commandParams.projectRoot);
 
   const profile = settings.easProfile ?? DEFAULT_EAS_PROFILE;
   refuseWithoutTheProfile(commandParams.projectRoot, profile);
+  refuseWhenEasLeavesTheHandOverOut(commandParams.projectRoot);
   const { token, projectIndex, teamId } = commandParams.credential;
 
   const { build } = await serverCalls()
@@ -120,22 +129,29 @@ export async function easRun({
   return { url };
 }
 
-/** EAS builds upload themselves through the hook script, so a project without it is refused first. */
-function refuseWithoutTheHookScript(projectRoot: string): void {
+/**
+ * EAS builds report to Sherlo through the hook scripts, so a project without them is refused first,
+ * naming every script it lacks and the line to add for each.
+ */
+function refuseWithoutTheHookScripts(projectRoot: string): void {
   let scripts: Record<string, unknown> = {};
   try {
     scripts = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).scripts ?? {};
   } catch {
-    // No package.json, or one that cannot be read: the script is missing either way.
+    // No package.json, or one that cannot be read: the scripts are missing either way.
   }
 
-  if (scripts[EAS_HOOK_SCRIPT]) return;
+  const missingScripts = EAS_HOOK_SCRIPTS.filter((script) => !scripts[script]);
+  if (missingScripts.length === 0) return;
+
+  const named = missingScripts.map((script) => `"${script}"`).join(' or ');
+  const lines = missingScripts.map((script) => `"${script}": "${EAS_HOOK_COMMAND}"`).join(',\n');
 
   throwError({
     message:
-      `Can't build on EAS: package.json has no "${EAS_HOOK_SCRIPT}" script.\n` +
-      'EAS builds upload to Sherlo through it. Add it to "scripts":\n' +
-      `"${EAS_HOOK_SCRIPT}": "sherlo ${EAS_HOOK_SCRIPT}"`,
+      `Can't build on EAS: package.json has no ${named} script.\n` +
+      `EAS builds report to Sherlo through ${missingScripts.length === 1 ? 'it' : 'them'}. Add to "scripts":\n` +
+      lines,
   });
 }
 
