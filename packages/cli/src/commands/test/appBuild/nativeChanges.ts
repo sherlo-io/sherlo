@@ -8,10 +8,18 @@
  * versions - never a file's contents - and the comparison is the one `sherlo fingerprint
  * --baseline` makes (../../fingerprint/diffFingerprintDocuments), so the two can never disagree
  * about what counts as a change.
+ *
+ * A BARE PROJECT'S NATIVE FOLDER IS NAMED BY THE FILE THAT CHANGED INSIDE IT. Expo's fingerprint
+ * hashes `android` and `ios` as one source each, so the folder alone could only say `~ android`.
+ * The stored list also keeps each folder's files with a hash apiece, and this run hashes its own
+ * (the app builder seam's `hashNativeFolderFiles`), so a folder both sides hashed file by file is
+ * compared file by file: `~ android/app/build.gradle`. Those per-file hashes exist for this list
+ * alone - the base fingerprint and the rebuild decision never read them. A folder an older CLI
+ * stored without its files is compared as one entry, as before.
  */
 import type { BaseFingerprintPreimage } from '../../../helpers/fingerprint/baseFingerprint';
 import type { NativeChange } from '../../../render/appBuild';
-import type { StoredBaseSources } from '../../../seams/serverCalls';
+import type { NativeFolderFile, StoredBaseSources } from '../../../seams/serverCalls';
 import {
   autolinkedAsPackages,
   diffFiles,
@@ -40,21 +48,50 @@ function settingName(id: string): string {
   return id;
 }
 
+function isInsideFolder(filePath: string, folder: string): boolean {
+  return filePath.startsWith(`${folder}/`);
+}
+
+/**
+ * The native folders the stored list keeps file by file - the ones whose files this run hashes
+ * before comparing. Empty for a managed project, and for a list an older CLI stored.
+ */
+export function foldersStoredFileByFile(storedBase: StoredBaseSources): string[] {
+  return storedBase.sources
+    .filter((source) => source.kind === 'dir' && source.files !== undefined)
+    .map((source) => source.path);
+}
+
 /**
  * Every change between the stored app build and this run, in the order they print: native files
- * and lockfiles, then native modules, then resolved settings.
+ * and lockfiles, then native modules, then resolved settings. `thisRunFolderFiles` are this run's
+ * files inside the folders {@link foldersStoredFileByFile} named, one hash each.
  */
 export function nativeChangesSince(
   storedBase: StoredBaseSources,
-  thisRun: BaseFingerprintPreimage
+  thisRun: BaseFingerprintPreimage,
+  thisRunFolderFiles: NativeFolderFile[]
 ): NativeChange[] {
+  // A folder is compared file by file only when BOTH sides hashed its files; otherwise it stays
+  // one entry, so a folder that is gone this run reads `- android`, not every file it held.
+  const foldersByFile = foldersStoredFileByFile(storedBase).filter((folder) =>
+    thisRunFolderFiles.some((file) => isInsideFolder(file.path, folder))
+  );
+
   const storedFiles = storedBase.sources
     .filter((source) => source.kind !== 'contents')
-    .map((source) => ({ path: source.path, digest: source.hash ?? 'excluded' }));
+    .flatMap((source) =>
+      foldersByFile.includes(source.path)
+        ? (source.files ?? []).map((file) => ({ path: file.path, digest: file.hash }))
+        : [{ path: source.path, digest: source.hash ?? 'excluded' }]
+    );
   const thisRunFiles = [
     ...thisRun.nativeSources
-      .filter((source) => source.type !== 'contents')
+      .filter((source) => source.type !== 'contents' && !foldersByFile.includes(source.id))
       .map((source) => ({ path: source.id, digest: source.hash ?? 'excluded' })),
+    ...thisRunFolderFiles
+      .filter((file) => foldersByFile.some((folder) => isInsideFolder(file.path, folder)))
+      .map((file) => ({ path: file.path, digest: file.hash })),
     ...thisRun.lockfiles.map((lockfile) => ({ path: lockfile.file, digest: lockfile.digest })),
   ];
 

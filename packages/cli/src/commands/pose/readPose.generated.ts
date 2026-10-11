@@ -958,9 +958,18 @@ function readPosedAppBuild(value: unknown, path: string, problems: string[]): vo
         readPosedPlatformBuild(map9[key10], atKey(where8, key10), problems);
       }
     }
+    if ('nativeFolderFiles' in object1) {
+      const where11 = at(path, 'nativeFolderFiles');
+      const map12 = asObject(object1.nativeFolderFiles, where11, problems);
+      if (map12) {
+        for (const key13 of Object.keys(map12)) {
+          expectString(map12[key13], atKey(where11, key13), problems);
+        }
+      }
+    }
     reportUnknownFields(
       object1,
-      ['host', 'tools', 'java', 'iosSchemes', 'platforms'],
+      ['host', 'tools', 'java', 'iosSchemes', 'platforms', 'nativeFolderFiles'],
       path,
       problems
     );
@@ -1699,35 +1708,58 @@ function readStoredBaseSources(value: unknown, path: string, problems: string[])
     const list3 = asArray(object1.sources, where2, problems);
     if (list3) {
       list3.forEach((entry4, index5) => {
-        const where6 = atIndex(where2, index5);
-        const object7 = asObject(entry4, where6, problems);
-        if (object7) {
-          expectString(object7.path, at(where6, 'path'), problems);
-          const oneOf8 = object7.hash;
-          const where9 = at(where6, 'hash');
-          if (typeof oneOf8 === 'string' || oneOf8 === null) {
-            // the value is one of these
-          } else {
-            reportWrongShape(oneOf8, 'a string or `null`', where9, problems);
-          }
-          expectOneOf(object7.kind, ['file', 'dir', 'contents'], at(where6, 'kind'), problems);
-          reportUnknownFields(object7, ['path', 'hash', 'kind'], where6, problems);
-        }
+        readStoredBaseSource(entry4, atIndex(where2, index5), problems);
       });
     }
-    const where10 = at(path, 'modules');
-    const list11 = asArray(object1.modules, where10, problems);
-    if (list11) {
-      list11.forEach((entry12, index13) => {
-        const where14 = atIndex(where10, index13);
-        const object15 = asObject(entry12, where14, problems);
-        if (object15) {
-          expectString(object15.name, at(where14, 'name'), problems);
-          expectString(object15.version, at(where14, 'version'), problems);
-          reportUnknownFields(object15, ['name', 'version'], where14, problems);
+    const where6 = at(path, 'modules');
+    const list7 = asArray(object1.modules, where6, problems);
+    if (list7) {
+      list7.forEach((entry8, index9) => {
+        const where10 = atIndex(where6, index9);
+        const object11 = asObject(entry8, where10, problems);
+        if (object11) {
+          expectString(object11.name, at(where10, 'name'), problems);
+          expectString(object11.version, at(where10, 'version'), problems);
+          reportUnknownFields(object11, ['name', 'version'], where10, problems);
         }
       });
     }
     reportUnknownFields(object1, ['buildIndex', 'sources', 'modules'], path, problems);
+  }
+}
+
+/** The shape of a `StoredBaseSource`, as `contracts/pose.contract.ts` publishes it. */
+function readStoredBaseSource(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectString(object1.path, at(path, 'path'), problems);
+    const oneOf2 = object1.hash;
+    const where3 = at(path, 'hash');
+    if (typeof oneOf2 === 'string' || oneOf2 === null) {
+      // the value is one of these
+    } else {
+      reportWrongShape(oneOf2, 'a string or `null`', where3, problems);
+    }
+    expectOneOf(object1.kind, ['file', 'dir', 'contents'], at(path, 'kind'), problems);
+    if ('files' in object1) {
+      const where4 = at(path, 'files');
+      const list5 = asArray(object1.files, where4, problems);
+      if (list5) {
+        list5.forEach((entry6, index7) => {
+          readNativeFolderFile(entry6, atIndex(where4, index7), problems);
+        });
+      }
+    }
+    reportUnknownFields(object1, ['path', 'hash', 'kind', 'files'], path, problems);
+  }
+}
+
+/** The shape of a `NativeFolderFile`, as `contracts/pose.contract.ts` publishes it. */
+function readNativeFolderFile(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectString(object1.path, at(path, 'path'), problems);
+    expectString(object1.hash, at(path, 'hash'), problems);
+    reportUnknownFields(object1, ['path', 'hash'], path, problems);
   }
 }

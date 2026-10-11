@@ -31,6 +31,7 @@ import { realFreshBundleEffects } from '../../../helpers/uploadFreshBundles';
 import type { PushEffects } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
 import type { BaseFingerprintPreimage } from '../../../helpers/fingerprint/baseFingerprint';
 import type { AppBuildReason, ChangesSinceStoredBuild } from '../../../render/appBuild';
+import { appBuilder } from '../../../seams/appBuilder';
 import { nativeBuild } from '../../../seams/nativeBuild';
 import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
 import type { CommandParams, Options } from '../../../types';
@@ -43,7 +44,7 @@ import { type BuildFlags, type BuildSettings, readBuildSettings } from './buildS
 import { ciRunKey } from './ciRun';
 import { easRun } from './easRun';
 import { joinTheRun } from './joinTheRun';
-import { nativeChangesSince } from './nativeChanges';
+import { foldersStoredFileByFile, nativeChangesSince } from './nativeChanges';
 
 /** Build what the gate refused, then run the standard road on the fresh app builds. */
 export async function buildThenPush({
@@ -80,13 +81,17 @@ export async function buildThenPush({
 
   warnAboutVariablesOnExpo(commandParams.projectRoot, settings);
 
-  const builtPaths = await buildApps({
-    projectRoot: commandParams.projectRoot,
-    toBuild: refusals.map((refusal) => ({
+  const toBuild = await Promise.all(
+    refusals.map(async (refusal) => ({
       platform: refusal.platform,
       reason: reasonOf(refusal),
-      ...changesSinceStoredBuildOf(refusal, fingerprintPreimage),
-    })),
+      ...(await changesSinceStoredBuildOf(refusal, fingerprintPreimage, commandParams.projectRoot)),
+    }))
+  );
+
+  const builtPaths = await buildApps({
+    projectRoot: commandParams.projectRoot,
+    toBuild,
     settings,
     baseFingerprint,
     cacheDirFlag: passedOptions.buildCache,
@@ -280,18 +285,25 @@ function reasonOf(refusal: StagedGateRefusal): AppBuildReason {
 
 /**
  * What changed since the stored app build, when the gate handed back its source list and this
- * run knows its own: nothing to say otherwise, and the build line gives only its reason.
+ * run knows its own: nothing to say otherwise, and the build line gives only its reason. When the
+ * stored list keeps a native folder's files, this run hashes its own files in that folder too, so
+ * the list names the file that changed rather than the folder.
  */
-function changesSinceStoredBuildOf(
+async function changesSinceStoredBuildOf(
   refusal: StagedGateRefusal,
-  fingerprintPreimage: BaseFingerprintPreimage | undefined
-): { changesSince?: ChangesSinceStoredBuild } {
+  fingerprintPreimage: BaseFingerprintPreimage | undefined,
+  projectRoot: string
+): Promise<{ changesSince?: ChangesSinceStoredBuild }> {
   if (!refusal.storedBase || !fingerprintPreimage) return {};
+
+  const folders = foldersStoredFileByFile(refusal.storedBase);
+  const thisRunFolderFiles =
+    folders.length > 0 ? await appBuilder().hashNativeFolderFiles({ projectRoot, folders }) : [];
 
   return {
     changesSince: {
       storedBuildIndex: refusal.storedBase.buildIndex,
-      changes: nativeChangesSince(refusal.storedBase, fingerprintPreimage),
+      changes: nativeChangesSince(refusal.storedBase, fingerprintPreimage, thisRunFolderFiles),
     },
   };
 }

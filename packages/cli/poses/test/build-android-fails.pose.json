@@ -51,7 +51,13 @@
             {
               "path": "android",
               "hash": "5f2a8c4e1b7d3f9a0c6e2b8d4f1a7c3e9b5d0f2a",
-              "kind": "dir"
+              "kind": "dir",
+              "files": [
+                {
+                  "path": "android/app/build.gradle",
+                  "hash": "a41c7e9f02b85d3e6c1f4a7b9d2e5c8f0a3b6d91"
+                }
+              ]
             },
             {
               "path": "package:react-native",
@@ -81,6 +87,9 @@
       "android-sdk"
     ],
     "java": 17,
+    "nativeFolderFiles": {
+      "android/app/build.gradle": "7d3b0e5a92c14f8e6b2d9a0c3f7e1b5d8a4c2f60"
+    },
     "platforms": {
       "android": {
         "failed": {

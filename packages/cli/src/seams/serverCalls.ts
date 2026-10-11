@@ -420,10 +420,28 @@ export type StoredBaseSources = {
    * The native files and folders, the lockfiles (as files), and the `contents` sources - a
    * resolved setting such as the Expo config plugins, named by its id and nothing more.
    */
-  sources: Array<{ path: string; hash: string | null; kind: 'file' | 'dir' | 'contents' }>;
+  sources: StoredBaseSource[];
   /** The autolinked native modules, one version each. */
   modules: Array<{ name: string; version: string }>;
 };
+
+/** One source of a stored app build's list. */
+export type StoredBaseSource = {
+  path: string;
+  hash: string | null;
+  kind: 'file' | 'dir' | 'contents';
+  /**
+   * A native folder's files, one hash each (`android/app/build.gradle`), so the list can name the
+   * file that changed rather than the folder (operator decision 2026-10-11). Kept for the list
+   * ALONE: the base fingerprint still hashes the folder as one source, and these never enter it.
+   * Only on a `dir` source the fingerprint hashed whole - a bare project's `android` and `ios` -
+   * and absent on a folder an older CLI stored, which is then compared as one entry.
+   */
+  files?: NativeFolderFile[];
+};
+
+/** One file inside a native folder: its project-relative path and its hash, never its contents. */
+export type NativeFolderFile = { path: string; hash: string };
 
 /**
  * The server's capture decision at `openBuild`, per platform - what the "📸 Capture plan"

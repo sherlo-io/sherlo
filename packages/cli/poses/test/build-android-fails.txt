@@ -11,7 +11,7 @@
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
 🔨 [1mAndroid[22m needs a new app build: 3 native changes since Test 12
-   [33m~[39m android
+   [33m~[39m android/app/build.gradle
    [33m~[39m yarn.lock
    [31m-[39m react-native-maps 1.2.0
 [34m➜[39m  building with Gradle... [2m(log: .sherlo/build-android.log)[22m

@@ -26,6 +26,7 @@
  * refusal would be a build that never landed - the landing review checks it is gone.
  */
 import type { Platform } from '@sherlo/api-types';
+import type { NativeFolderFile } from './serverCalls';
 
 /** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
 export type BuildTool = 'android-sdk' | 'xcode';
@@ -83,6 +84,22 @@ export type AppBuilder = {
   }): Promise<CompiledApp>;
   /** Start an EAS build of one platform with one profile, and answer its id without waiting. */
   startEasBuild(params: { platform: Platform; profile: string; projectRoot: string }): Promise<{ buildId: string }>;
+  /**
+   * Every file inside the named native folders (`android`, `ios`), one hash each, for the list of
+   * what changed since the stored app build - and for the list a stored app build keeps. Asked
+   * only on the way to a build, never by the staged gate: the base fingerprint still hashes each
+   * folder as one source, and these hashes never enter it.
+   *
+   * THE LIVE BODY IS A BUILD TASK, and it writes no walk of its own: @expo/fingerprint already
+   * hashes each file of a folder source on its way to the folder's hash, and hands them back
+   * under the source's `debugInfo` when called with `debug: true`. Calling it with the base
+   * fingerprint's own options and deterministic env (helpers/fingerprint/baseFingerprint.ts) and
+   * flattening the named folders' `debugInfo.children` gives the files the folder hash was made
+   * of: the same ignore list (its DEFAULT_IGNORE_PATHS - build outputs, Pods, `.gradle`, `.cxx`,
+   * xcuserdata - plus the project's `.fingerprintignore`), and the same version-stripping
+   * transform, so a version bump alone changes no file's hash here either.
+   */
+  hashNativeFolderFiles(params: { projectRoot: string; folders: string[] }): Promise<NativeFolderFile[]>;
 };
 
 /** The error the live half throws until the real builders land. */
@@ -114,6 +131,9 @@ export const liveAppBuilder: AppBuilder = {
     throw new Error(NOT_BUILT_YET);
   },
   startEasBuild: async () => {
+    throw new Error(NOT_BUILT_YET);
+  },
+  hashNativeFolderFiles: async () => {
     throw new Error(NOT_BUILT_YET);
   },
 };
@@ -150,6 +170,12 @@ export type PosedAppBuild = {
   iosSchemes?: string[];
   /** What each platform's build came to, per platform (`android`, `ios`). */
   platforms: Record<string, PosedPlatformBuild>;
+  /**
+   * The files inside the project's native folders, path -> hash, as this run hashed them for the
+   * list of what changed since the stored app build (`"android/app/build.gradle": "<hash>"`).
+   * Needed only when the stored app build's list keeps a folder's files; a hash is never printed.
+   */
+  nativeFolderFiles?: Record<string, string>;
 };
 
 /**
@@ -271,6 +297,20 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
         `the run started an EAS build of \`${platform}\`, and the pose answers it with a local ` +
           'build - say `easBuild`'
       );
+    },
+
+    hashNativeFolderFiles: async ({ folders }) => {
+      const files = stated('hashNativeFolderFiles').nativeFolderFiles;
+      if (!files) {
+        throw refuse(
+          'hashNativeFolderFiles',
+          `the stored app build keeps the files of ${folders.map((folder) => `\`${folder}\``).join(', ')} ` +
+            '- say `nativeFolderFiles` in the `appBuild` of the pose'
+        );
+      }
+      return Object.entries(files)
+        .filter(([filePath]) => folders.some((folder) => filePath.startsWith(`${folder}/`)))
+        .map(([filePath, hash]) => ({ path: filePath, hash }));
     },
   };
 }
