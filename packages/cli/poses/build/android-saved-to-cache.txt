@@ -13,7 +13,7 @@
 🔨 [1mBuilding Android...[22m
 [34m➜[39m  building with Gradle... [2m(log: .sherlo/build-android.log)[22m
 [32m✔[39m  Android built in <DURATION> (<SIZE> MB) and saved to the local build cache
-[2m   `sherlo test` uses it instead of building, until native code or build settings change.[22m
+[2m   `npx sherlo test` uses it instead of building, until native code or build settings change.[22m
 
 
 [exit 0]

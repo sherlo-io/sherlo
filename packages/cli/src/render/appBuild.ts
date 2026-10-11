@@ -102,7 +102,7 @@ export function renderAppBuildDone({
   return [
     renderBuildMessageLine(`${built} and saved to the local build cache`, 'success'),
     chalk.dim(
-      '   `sherlo test` uses it instead of building, until native code or build settings change.'
+      '   `npx sherlo test` uses it instead of building, until native code or build settings change.'
     ),
   ];
 }
@@ -176,11 +176,11 @@ export function renderRunWaitsForBuilds(buildIndex: number, waitingFor: RunWaits
 export function renderBinaryPathFlagGone(): { message: string; below: string } {
   return {
     message:
-      '`sherlo test` builds your app itself, so it no longer takes --android or --ios, ' +
+      '`npx sherlo test` builds your app itself, so it no longer takes --android or --ios, ' +
       'or `android` / `ios` paths in sherlo.config.json.',
     below: [
       'To test, run `npx sherlo test` with no paths.',
-      'To build ahead of time, run `npx sherlo build` - the next `sherlo test` takes the app ' +
+      'To build ahead of time, run `npx sherlo build` - the next `npx sherlo test` takes the app ' +
         'from the local build cache.',
       "For a build Gradle or Xcode can't do on their own, set `build.android.command` and " +
         '`build.android.output` (or the `ios` ones) in sherlo.config.json.',
