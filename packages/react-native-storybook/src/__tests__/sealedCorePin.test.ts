@@ -13,7 +13,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { LAID_PATHS, packSealedCore } from '../../scripts/packSealedCore.js';
 import { PIN_FILE, pinCore } from '../../scripts/pinCore.js';
-import { coreFingerprint, storageReaderWith } from '../../scripts/storedCore.js';
+import { coreFingerprint, describeFailure, storageReaderWith } from '../../scripts/storedCore.js';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -361,5 +361,109 @@ describe('a pack', () => {
     expect(fs.existsSync(path.join(sdkRoot, 'ios/Resources/assets/sherlo-core.js.sig'))).toBe(
       false
     );
+  });
+});
+
+/** The error Node's fetch throws when the network fails: "fetch failed", the reason in its cause. */
+function networkFailure(): Error {
+  const reason = Object.assign(new Error('other side closed'), { code: 'UND_ERR_SOCKET' });
+  return new TypeError('fetch failed', { cause: reason });
+}
+
+/**
+ * A stand-in for the network: it fails the first `failuresFirst` fetches, then the package endpoint
+ * answers a download address and the download answers the object's bytes. Every address is kept.
+ */
+function networkFailingFirst(failuresFirst: number) {
+  const addressesFetched: string[] = [];
+  const fetchFromNetwork = async (address: string) => {
+    addressesFetched.push(address);
+    if (addressesFetched.length <= failuresFirst) throw networkFailure();
+    if (address.includes('get-package-endpoint')) {
+      return new Response('https://storage.example/the-object\n');
+    }
+    return new Response('the stored bytes');
+  };
+  return { addressesFetched, fetchFromNetwork };
+}
+
+describe('reading package storage', () => {
+  it('a network failure is tried again twice before the reader gives up', async () => {
+    const network = networkFailingFirst(2);
+    const readStoredFile = storageReaderWith('a-token', {
+      fetchFromNetwork: network.fetchFromNetwork,
+      pauseBetweenTriesMs: 0,
+    });
+
+    const bytes = await readStoredFile('cores/some-core/manifest.json');
+
+    expect(bytes?.toString('utf8')).toBe('the stored bytes');
+    // Two failed tries of the endpoint, the third answered, then the download.
+    expect(network.addressesFetched).toHaveLength(4);
+  });
+
+  it('after three network failures the error names their cause', async () => {
+    const network = networkFailingFirst(Infinity);
+    const readStoredFile = storageReaderWith('a-token', {
+      fetchFromNetwork: network.fetchFromNetwork,
+      pauseBetweenTriesMs: 0,
+    });
+
+    const failure = await readStoredFile('cores/some-core/manifest.json').catch(
+      (error: unknown) => error
+    );
+
+    expect(network.addressesFetched).toHaveLength(3);
+    expect(describeFailure(failure)).toBe(
+      'reading cores/some-core/manifest.json from package storage failed 3 times' +
+        ', because: fetch failed' +
+        ', because: other side closed (UND_ERR_SOCKET)'
+    );
+  });
+
+  it('an answer cut off while its body is read is tried again', async () => {
+    let fetchesMade = 0;
+    const readStoredFile = storageReaderWith('a-token', {
+      fetchFromNetwork: async (address: string) => {
+        fetchesMade++;
+        if (address.includes('get-package-endpoint')) {
+          return new Response('https://storage.example/the-object\n');
+        }
+        // The first download's body is cut off midway, as Node's fetch reports it.
+        if (fetchesMade === 2) {
+          return {
+            ok: true,
+            status: 200,
+            arrayBuffer: async () => {
+              throw new TypeError('terminated', { cause: networkFailure().cause });
+            },
+          } as unknown as Response;
+        }
+        return new Response('the stored bytes');
+      },
+      pauseBetweenTriesMs: 0,
+    });
+
+    const bytes = await readStoredFile('cores/some-core/manifest.json');
+
+    expect(bytes?.toString('utf8')).toBe('the stored bytes');
+    // The endpoint, the cut-off download, then the endpoint and the download again.
+    expect(fetchesMade).toBe(4);
+  });
+
+  it('a refusal from the package endpoint is not tried again', async () => {
+    const addressesFetched: string[] = [];
+    const readStoredFile = storageReaderWith('a-token', {
+      fetchFromNetwork: async (address: string) => {
+        addressesFetched.push(address);
+        return new Response('no', { status: 500 });
+      },
+      pauseBetweenTriesMs: 0,
+    });
+
+    await expect(readStoredFile('cores/some-core/manifest.json')).rejects.toThrow(
+      'the package endpoint refused cores/some-core/manifest.json (HTTP 500)'
+    );
+    expect(addressesFetched).toHaveLength(1);
   });
 });

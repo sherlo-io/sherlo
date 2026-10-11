@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createCaptureLogSocket } from '../../metro/captureLogSocket.js';
+import { fakeRequest, fakeRes, noop } from './__mocks__/fakeBundlerExchange';
 
 describe('a posted line lands in the feed for the next reader, and nowhere held open', () => {
   it('hands a reader every line posted so far, oldest first', () => {
@@ -76,41 +77,10 @@ describe('a posted line lands in the feed for the next reader, and nowhere held 
 
 /* ========================================================================== */
 
-function noop(): void {}
-
 function fakePost(body: unknown) {
   return fakeRequest('POST', '/sherlo/capture-log', body);
 }
 
 function fakeGet(url = '/sherlo/capture-log') {
-  return fakeRequest('GET', url, undefined);
-}
-
-/** A request whose body is read synchronously - the relay reads it inline, no real stream needed. */
-function fakeRequest(method: string, url: string, body: unknown) {
-  const bytes = Buffer.from(JSON.stringify(body ?? {}));
-  return {
-    method,
-    url,
-    on(event: string, listener: (...args: unknown[]) => void) {
-      if (event === 'data') listener(bytes);
-      if (event === 'end') listener();
-    },
-  };
-}
-
-/** A response that records what was written to it, and can hand the parsed JSON back to a test. */
-function fakeRes() {
-  let written: string | undefined;
-  return {
-    on() {},
-    writeHead() {},
-    end(body: string) {
-      written = body;
-    },
-    json(): unknown {
-      if (written === undefined) throw new Error('nothing was written to this response yet');
-      return JSON.parse(written);
-    },
-  };
+  return fakeRequest('GET', url);
 }

@@ -54,15 +54,7 @@
 var fs = require('fs');
 var path = require('path');
 
-// The Babel parser Metro already depends on, resolved exactly as mockScan.js
-// resolves it, so this takes no dependency Metro does not already satisfy.
-function getBabelParser() {
-  try {
-    return require('@babel/parser');
-  } catch (_) {
-    return require('metro-babel-transformer/node_modules/@babel/parser');
-  }
-}
+var getBabelParser = require('./babelParser');
 
 function parseSource(source) {
   try {

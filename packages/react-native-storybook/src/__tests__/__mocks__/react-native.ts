@@ -149,6 +149,21 @@ export const NativeModules: Record<string, any> = {
   },
 };
 
+/** Every Alert.alert call, as [title, message]. */
+export function __getAlerts(): Array<[string, string | undefined]> {
+  return (globalThis as any).__sherloTestAlerts ?? [];
+}
+
+export function __resetAlerts(): void {
+  (globalThis as any).__sherloTestAlerts = [];
+}
+
+export const Alert = {
+  alert: (title: string, message?: string): void => {
+    (globalThis as any).__sherloTestAlerts = [...__getAlerts(), [title, message]];
+  },
+};
+
 export const Platform = { OS: 'ios' };
 export const DevSettings = {
   addMenuItem: (_label: string, _cb: () => void): void => {},
