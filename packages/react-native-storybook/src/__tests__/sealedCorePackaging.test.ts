@@ -597,9 +597,12 @@ describe('what CI and a release check', () => {
 
   it('no pull request job builds, tests or type-checks a core', () => {
     const workflow = workflowWithoutComments('pr_checks.yml');
-    // One job, once per package: the CLI and the SDK.
+    // One job per package (the CLI and the SDK), then the final check.
     const jobs = workflow.slice(workflow.search(/^jobs:\s*$/m));
-    expect([...jobs.matchAll(/^ {2}(\S+):\s*$/gm)].map((match) => match[1])).toEqual(['checks']);
+    expect([...jobs.matchAll(/^ {2}(\S+):\s*$/gm)].map((match) => match[1])).toEqual([
+      'package-checks',
+      'checks',
+    ]);
     expect([...workflow.matchAll(/^\s+- name: (\S+)\s*$/gm)].map((match) => match[1])).toEqual(
       expect.arrayContaining(['cli', 'react-native-storybook'])
     );
