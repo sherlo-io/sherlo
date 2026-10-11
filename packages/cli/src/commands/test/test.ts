@@ -43,6 +43,7 @@
 import { ANDROID_OPTION, IOS_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
 import { Options } from '../../types';
+import { endsAsPlatformNotInConfig } from './platformNotInConfig';
 import simRun from './simRun';
 import { resolveSimulationWorldPath, SIMULATION_CONFIG_FIELD } from './simWorld';
 import stagedRun from './stagedRun';
@@ -50,6 +51,10 @@ import standardRun from './standardRun';
 import { THIS_COMMAND } from './constants';
 
 async function test(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
+  // A `--platform` job whose config tests nothing on that platform ends here, green, before any
+  // road: it joins no run, so the other job's run never waits for it (./platformNotInConfig).
+  if (endsAsPlatformNotInConfig(passedOptions)) return { url: '' };
+
   const hasNativeBuildPaths = Boolean(passedOptions[ANDROID_OPTION] || passedOptions[IOS_OPTION]);
 
   const simWorldDirPath = resolveSimulationWorldPath(passedOptions);

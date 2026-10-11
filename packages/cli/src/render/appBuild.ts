@@ -251,6 +251,21 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
   };
 }
 
+/**
+ * `✔  Nothing to test on iOS: sherlo.config.json names no iOS device, so no test waits for this job`.
+ *
+ * The one line a `--platform` job prints when the config tests nothing on its platform - the Mac
+ * job of an Android-only team running the one workflow every team gets. It exits 0 and joins no
+ * run, so the other job's run never waits for it. Draft words, for the content department's review.
+ */
+export function renderPlatformNotInConfig(platform: Platform): string {
+  return renderBuildMessageLine(
+    `Nothing to test on ${PLATFORM_NAME[platform]}: sherlo.config.json names no ` +
+      `${PLATFORM_NAME[platform]} device, so no test waits for this job`,
+    'success'
+  );
+}
+
 /** `▶  Both builds are in - Test 1 is starting`. */
 export function renderRunStarting(buildIndex: number): string {
   return `▶  Both builds are in - ${chalk.green(`Test ${buildIndex}`)} is starting`;

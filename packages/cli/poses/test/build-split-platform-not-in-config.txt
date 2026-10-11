@@ -1,0 +1,3 @@
+[32m✔[39m  Nothing to test on iOS: sherlo.config.json names no iOS device, so no test waits for this job
+
+[exit 0]
