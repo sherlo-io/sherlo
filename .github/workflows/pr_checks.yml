@@ -8,8 +8,8 @@ on:
       - epic/**
 
 jobs:
-  checks:
-    name: checks (${{ matrix.package.name }})
+  package-checks:
+    name: package-checks (${{ matrix.package.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -138,6 +138,35 @@ jobs:
           # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI.
           SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
+
+      - name: The clock
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '@sherlo-io:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GH_TOKEN" > "$RUNNER_TEMP/sherlo-packages.npmrc"
+          NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/sherlo-packages.npmrc" npx --yes @sherlo-io/time-limits@1 clock
+
+  # THE FINAL CHECK, named exactly `checks`: the one check a branch rule requires. `always()` makes
+  # it report even when a package job failed or was cancelled, and it fails when either did.
+  checks:
+    needs: [package-checks]
+    if: ${{ always() }}
+    runs-on: ubuntu-slim
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    steps:
+      - name: Every check passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Package job results: $RESULTS"
+          if [[ "$RESULTS" == *failure* || "$RESULTS" == *cancelled* ]]; then
+            exit 1
+          fi
 
       - name: The clock
         if: always()
