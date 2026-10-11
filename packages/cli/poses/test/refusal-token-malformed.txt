@@ -10,7 +10,7 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Invalid `token` value. Make sure you copied it correctly or generate a new one in Sherlo web app[39m
+[31mERROR: Invalid SHERLO_TOKEN value. Make sure you copied it correctly or generate a new one in Sherlo web app[39m
 [2m↳ Learn more: [4mhttps://sherlo.io/docs/config#token[24m[22m
 
 [2m══════════[22m

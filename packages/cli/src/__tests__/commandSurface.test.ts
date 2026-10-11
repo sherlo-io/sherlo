@@ -97,6 +97,15 @@ describe('sherlo --help', () => {
     expect(stdout).not.toContain('--ios');
   });
 
+  it('offers no --token on sherlo test or sherlo view: a push takes SHERLO_TOKEN or the login', async () => {
+    for (const command of ['test', 'view']) {
+      stdout = '';
+      await runCli(command, '--help');
+
+      expect(stdout, command).not.toContain('--token');
+    }
+  });
+
   it('lists `view`, with its build as an OPTIONAL positional', async () => {
     // Optional at the parser so the command can refuse in its own words and say
     // why there is no default yet - see commands/view.
@@ -117,7 +126,9 @@ describe('sherlo view --help', () => {
     expect(stdout).toContain('--wait');
     expect(stdout).toContain('--wait-timeout');
     expect(stdout).toContain('--metadata');
-    expect(stdout).toContain('--token');
+
+    // Sherlo 3 takes the credential from SHERLO_TOKEN or the login, never from a flag.
+    expect(stdout).not.toContain('--token');
 
     // `view` opens nothing, so nothing about building or bundling belongs on it.
     expect(stdout).not.toContain('--android');

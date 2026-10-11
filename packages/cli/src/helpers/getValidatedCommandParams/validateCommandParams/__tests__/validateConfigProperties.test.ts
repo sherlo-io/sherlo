@@ -34,7 +34,7 @@ describe('validateConfigProperties', () => {
   // must NOT warn, because the CLI honours both.
   it('does NOT warn for a config carrying `include` and `exclude`', () => {
     validateConfigProperties({
-      token: 'abc',
+      project: 'k3j9x2ab/4',
       devices: [],
       include: ['My Story'],
       exclude: ['Other Story'],
@@ -45,7 +45,7 @@ describe('validateConfigProperties', () => {
 
   it('does NOT warn for any of the supported properties together', () => {
     validateConfigProperties({
-      token: 'abc',
+      project: 'k3j9x2ab/4',
       android: 'app.apk',
       ios: 'app.app',
       devices: [],
@@ -60,7 +60,7 @@ describe('validateConfigProperties', () => {
   // fallback. Nothing reads it any more, so a config that still carries it must
   // be told - silently accepting a block the CLI ignores is the worse failure.
   it('warns for the removed `staged` block', () => {
-    validateConfigProperties({ token: 'abc', staged: {} } as any);
+    validateConfigProperties({ project: 'k3j9x2ab/4', staged: {} } as any);
 
     const warned = warnings();
     expect(warned).toHaveLength(1);
@@ -68,7 +68,7 @@ describe('validateConfigProperties', () => {
   });
 
   it('still warns for a genuinely unknown property', () => {
-    validateConfigProperties({ token: 'abc', bogus: true } as any);
+    validateConfigProperties({ project: 'k3j9x2ab/4', bogus: true } as any);
 
     const warned = warnings();
     expect(warned).toHaveLength(1);

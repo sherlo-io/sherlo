@@ -2,8 +2,9 @@ import { DOCS_LINK } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import logWarning from '../../logWarning';
 
+// `token` is not here: a config that still holds one is refused before this runs
+// (resolvePushCredential), so it is never merely warned about.
 const supportedProperties = [
-  'token',
   'project',
   'android',
   'ios',

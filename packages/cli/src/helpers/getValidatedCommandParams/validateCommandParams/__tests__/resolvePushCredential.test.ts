@@ -2,13 +2,13 @@
  * THE CREDENTIAL A PUSH SPENDS, AND THE PROJECT IT GOES TO (sherlo / The credential and the
  * project of a push).
  *
- * Each case states the whole world the resolver reads - the flags, the settings, the config and the
- * logins saved on this computer - through the same seams a posed run uses, so nothing on the
- * machine running this suite (a SHERLO_TOKEN of its own, a real saved login) can answer for it.
+ * Each case states the whole world the resolver reads - the settings, the config and the logins
+ * saved on this computer - through the same seams a posed run uses, so nothing on the machine
+ * running this suite (a SHERLO_TOKEN of its own, a real saved login) can answer for it.
  */
 import { PROJECT_API_TOKEN_LENGTH } from '@sherlo/shared';
 import { describe, expect, it } from 'vitest';
-import { TEST_COMMAND, TEST_EAS_CLOUD_BUILD_COMMAND, TOKEN_OPTION } from '../../../../constants';
+import { TEST_COMMAND, TEST_EAS_CLOUD_BUILD_COMMAND } from '../../../../constants';
 import { installSavedLogins, PosedLogins, posedSavedLogins } from '../../../../seams/savedLogins';
 import { installSurroundings, posedSurroundings } from '../../../../seams/surroundings';
 import { InvalidatedConfig, PushCredential } from '../../../../types';
@@ -26,15 +26,12 @@ function projectToken(apiCharacter: string, teamId = TEAM_ID, projectIndex = PRO
   return `${apiCharacter.repeat(PROJECT_API_TOKEN_LENGTH)}${teamId}${projectIndex}`;
 }
 
-const TOKEN_ON_THE_FLAG = projectToken('a');
 const TOKEN_IN_SHERLO_TOKEN = projectToken('b');
-const TOKEN_IN_THE_CONFIG = projectToken('c');
 const SAVED_LOGIN_TOKEN = 'sht_savedlogintoken0000000000000000';
 
 /** Everything the resolver reads. Unstated means absent. */
 type World = {
   command?: string;
-  flags?: { [TOKEN_OPTION]?: string };
   env?: Record<string, string>;
   config?: Record<string, unknown>;
   loggedIn?: boolean;
@@ -59,7 +56,6 @@ function resolveIn(world: World): PushCredential {
   try {
     return resolvePushCredential(
       world.command ?? TEST_COMMAND,
-      world.flags ?? {},
       (world.config ?? {}) as InvalidatedConfig
     );
   } finally {
@@ -78,31 +74,24 @@ function refusalIn(world: World): string {
 }
 
 describe('which credential a push spends', () => {
-  it('spends the first of --token, SHERLO_TOKEN, the config token and the saved login', () => {
-    // All four at once, then each taken away in turn: the first one left is the one spent.
-    const everyCredential: Required<Omit<World, 'command'>> = {
-      flags: { [TOKEN_OPTION]: TOKEN_ON_THE_FLAG },
+  it('spends SHERLO_TOKEN before the saved login', () => {
+    // Both at once, then the project token taken away: the one left is the one spent.
+    const bothCredentials: Required<Omit<World, 'command'>> = {
       env: { SHERLO_TOKEN: TOKEN_IN_SHERLO_TOKEN },
-      config: { token: TOKEN_IN_THE_CONFIG, project: CONFIG_PROJECT },
+      config: { project: CONFIG_PROJECT },
       loggedIn: true,
     };
 
-    expect(resolveIn(everyCredential)).toEqual({
+    expect(resolveIn(bothCredentials)).toEqual({
       kind: 'projectToken',
-      token: TOKEN_ON_THE_FLAG,
-      apiToken: 'a'.repeat(PROJECT_API_TOKEN_LENGTH),
+      token: TOKEN_IN_SHERLO_TOKEN,
+      apiToken: 'b'.repeat(PROJECT_API_TOKEN_LENGTH),
       teamId: TEAM_ID,
       projectIndex: PROJECT_INDEX,
       fromSavedLogin: false,
     });
 
-    const withoutTokenFlag = { ...everyCredential, flags: {} };
-    expect(resolveIn(withoutTokenFlag).token).toBe(TOKEN_IN_SHERLO_TOKEN);
-
-    const withoutSherloToken = { ...withoutTokenFlag, env: {} };
-    expect(resolveIn(withoutSherloToken).token).toBe(TOKEN_IN_THE_CONFIG);
-
-    const withOnlyTheLogin = { ...withoutSherloToken, config: { project: CONFIG_PROJECT } };
+    const withOnlyTheLogin = { ...bothCredentials, env: {} };
     expect(resolveIn(withOnlyTheLogin)).toEqual({
       kind: 'person',
       token: SAVED_LOGIN_TOKEN,
@@ -119,20 +108,21 @@ describe('which credential a push spends', () => {
       const refusal = refusalIn({ env: { SHERLO_TOKEN: blank } });
 
       expect(refusal).toContain('There is no credential to push with.');
-      expect(refusal).not.toContain('Invalid `token` value');
+      expect(refusal).not.toContain('Invalid SHERLO_TOKEN value');
 
-      // And the next credential in line is spent instead of it.
+      // And the login, next in line, is spent instead of it.
       const credential = resolveIn({
         env: { SHERLO_TOKEN: blank },
-        config: { token: TOKEN_IN_THE_CONFIG },
+        config: { project: CONFIG_PROJECT },
+        loggedIn: true,
       });
-      expect(credential.token).toBe(TOKEN_IN_THE_CONFIG);
+      expect(credential.token).toBe(SAVED_LOGIN_TOKEN);
     }
   });
 });
 
 describe('what is refused about the credential', () => {
-  it('refuses a personal token in SHERLO_TOKEN by name, as on --token', () => {
+  it('refuses a personal token in SHERLO_TOKEN by name', () => {
     const personalToken = 'sht_putinthewrongvariable0000000000';
     const refusal = refusalIn({ env: { SHERLO_TOKEN: personalToken } });
 
@@ -142,11 +132,6 @@ describe('what is refused about the credential', () => {
     expect(refusal).toContain('To act as yourself, run `npx sherlo login` instead.');
     expect(refusal).not.toContain('SHERLO_PERSONAL_TOKEN');
     expect(refusal).not.toContain(personalToken);
-
-    // The same mistake on `--token` gets the same kind of refusal.
-    const onTheFlag = refusalIn({ flags: { [TOKEN_OPTION]: personalToken } });
-    expect(onTheFlag).toContain('`--token` wants a project token, and this is a personal token.');
-    expect(onTheFlag).not.toContain(personalToken);
   });
 
   it('refuses a push with no credential at all, naming sherlo login and SHERLO_TOKEN', () => {
@@ -237,7 +222,7 @@ describe('which project a push goes to', () => {
       });
 
       expect(refusal).toContain(
-        'AUTH ERROR: SHERLO_TOKEN or `--token` names a different project than `project` in sherlo.config.json.'
+        'AUTH ERROR: SHERLO_TOKEN names a different project than `project` in sherlo.config.json.'
       );
       expect(refusal).toContain('This push would land in a project the config does not name.');
       expect(refusal).not.toContain(token);

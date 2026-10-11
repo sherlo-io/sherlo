@@ -6,7 +6,6 @@
   ],
   "files": {
     "sherlo.config.json": {
-      "token": "posetokenposetokenposetokenpose1tm0000017",
       "devices": [
         {
           "id": "pixel.7",
@@ -19,7 +18,7 @@
       ]
     }
   },
-  "env": {},
+  "env": { "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
   "git": "none",
   "bundles": {
     "android": {

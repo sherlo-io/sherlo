@@ -40,11 +40,10 @@ describe('sherlo pose runs one command against a declared world', () => {
       argv: ['view', '7'],
       files: {
         'sherlo.config.json': {
-          token: 'posetokenposetokenposetokenpose1tm0000017',
           devices: [{ id: 'pixel.7', osVersion: '13' }],
         },
       },
-      env: {},
+      env: { SHERLO_TOKEN: 'posetokenposetokenposetokenpose1tm0000017' },
       git: 'none',
       bundles: {},
       api: [],
@@ -172,7 +171,7 @@ describe('sherlo pose runs one command against a declared world', () => {
     restoreFiles();
 
     try {
-      const recorded = recordThroughAPty(pose.argv, scratch.root());
+      const recorded = recordThroughAPty(pose.argv, scratch.root(), pose.env);
 
       const fromTheTerminal = applyMasks(recorded, pose, { root: scratch.root(), configPath });
       const fromThePose = fs.readFileSync(PTY_SCENARIO.replace(/\.pose\.json$/, '.txt'), 'utf8');
@@ -209,7 +208,11 @@ describe('sherlo pose runs one command against a declared world', () => {
  * If `script` is not there, this FAILS - loudly, saying so. A ratchet that skipped itself on a
  * machine without a pty would be green on exactly the machine that could not prove anything.
  */
-function recordThroughAPty(argv: string[], projectRoot: string): string {
+function recordThroughAPty(
+  argv: string[],
+  projectRoot: string,
+  scenarioEnv: Record<string, string>
+): string {
   const command = [
     process.execPath,
     '-r',
@@ -230,6 +233,8 @@ function recordThroughAPty(argv: string[], projectRoot: string): string {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'inherit'],
       env: {
+        // The settings the scenario states, such as its SHERLO_TOKEN - the same ones the pose run reads.
+        ...scenarioEnv,
         PATH: process.env.PATH,
         // `script -c` runs the command through `/bin/sh` on Linux, and node resolves a few
         // defaults against a home. Neither reaches the screen.

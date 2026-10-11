@@ -68,9 +68,9 @@ const PROJECT_INDEX = 7;
 const TOKEN = `${'s'.repeat(PROJECT_API_TOKEN_LENGTH)}${TEAM_ID}${PROJECT_INDEX}`;
 
 /**
- * What the config file holds beside the project token, per case. The token is
- * always there - most cases read a build on it - and a case that spends a
- * person's credential replaces it.
+ * What the config file holds, per case. The project token is always in
+ * SHERLO_TOKEN - most cases read a build on it - and a case that spends a
+ * person's credential empties it.
  */
 let configOfThisCase: Record<string, unknown> = {};
 
@@ -97,13 +97,13 @@ beforeEach(() => {
   // that the command works from the params it is GIVEN, options included, and
   // spends the credential the real resolver answers for them.
   getValidatedCommandParams.mockReset().mockImplementation(({ command, passedOptions }) => {
-    const config = { token: TOKEN, ...configOfThisCase };
-    const credential = resolvePushCredential(command, passedOptions, config);
+    const config = { ...configOfThisCase };
+    const credential = resolvePushCredential(command, config);
     return { ...config, ...passedOptions, credential, devices: [] } as never;
   });
   configOfThisCase = {};
-  // The machine running this suite may hold a project token of its own; no case reads it.
-  vi.stubEnv('SHERLO_TOKEN', '');
+  // The machine running this suite may hold a project token of its own; every case states its own.
+  vi.stubEnv('SHERLO_TOKEN', TOKEN);
 
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -141,7 +141,8 @@ describe('which build `sherlo view` looks at', () => {
   it("reads the build in the config's project when it spends a person's credential", async () => {
     // No project token anywhere: the config names the project, and the login's token is sent
     // whole - it has no team or project in it to split out.
-    configOfThisCase = { token: undefined, project: 'k3j9x2ab/4' };
+    configOfThisCase = { project: 'k3j9x2ab/4' };
+    vi.stubEnv('SHERLO_TOKEN', '');
     const serviceAddress = 'https://api.sherlo.io/graphql';
     const loginToken = 'sht_viewlogintoken0000000000000000';
     vi.stubEnv('SHERLO_API_URL', serviceAddress);

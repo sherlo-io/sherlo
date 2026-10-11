@@ -31,7 +31,7 @@ export type CommandPose = {
   pose: 1;
   /**
    * The command line after the tool's own name, word by word, exactly as a shell would split it:
-   * `["view", "3"]`, `["test", "--token", "not-a-real-token", "--android", "builds/app.apk"]`.
+   * `["view", "3"]`, `["test", "--platform", "android", "--message", "nightly run"]`.
    * The tool's own routing decides which command runs and which checks fire, in what order.
    */
   argv: string[];

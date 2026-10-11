@@ -83,7 +83,8 @@ import {
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printNeedHelpEpilogue, reporting, throwError, withCommandTimeout } from './helpers';
-import { renderBinaryPathFlagGone } from './render/appBuild';
+import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
+import { renderTokenGone } from './render/pushCredential';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -193,7 +194,7 @@ const COMMAND_DESCRIPTION = {
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
     `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`), which is a different credential\n` +
-    `  from the \`--${TOKEN_OPTION}\` other commands take: a login names a person, a project\n` +
+    '  from the project token CI keeps in SHERLO_TOKEN: a login names a person, a project\n' +
     '  token names a project.\n' +
     '  The project token it prints cannot be shown again - store it when you see it.',
   [`${PROJECT_COMMAND} ${PROJECT_LIST_SUBCOMMAND}`]:
@@ -477,14 +478,47 @@ function addTestCommand(program: Command) {
     ],
     action: (options) => {
       refuseBinaryPathFlags(options);
+      refuseTokenFlag(TEST_COMMAND, options);
+      refuseUnknownPlatform(options);
       return test(options);
     },
   });
 
   // THE SHERLO 2 FLAGS STAY PARSED, OUT OF SIGHT: a CI script that still passes `--android <path>`
-  // is answered with what to run instead (refuseBinaryPathFlags), not commander's "unknown option".
+  // or `--token <token>` is answered with what to run instead (refuseBinaryPathFlags,
+  // refuseTokenFlag), not commander's "unknown option".
   testCommand.addOption(new Option(`--${ANDROID_OPTION} <path>`).hideHelp());
   testCommand.addOption(new Option(`--${IOS_OPTION} <path>`).hideHelp());
+  testCommand.addOption(new Option(`--${TOKEN_OPTION} <token>`).hideHelp());
+}
+
+/**
+ * Sherlo 3 takes a push's credential from SHERLO_TOKEN or the saved login only (operator decision
+ * 2026-10-11), so a token on the command line is refused before anything runs - exit 1, naming the
+ * two that remain. The same words refuse a `token` in sherlo.config.json (resolvePushCredential).
+ *
+ * `sherlo init --token` is another epic's, and keeps its flag.
+ *
+ * PLAN-LAYER STOP (epic sherlo-test-builds-apps): this draws the refusal. The build task proves it,
+ * and deletes the `token` key of the push's config and option types, which nothing reads any more.
+ */
+function refuseTokenFlag(command: string, options: { [TOKEN_OPTION]?: string }) {
+  if (options[TOKEN_OPTION] === undefined) return;
+
+  throwError(renderTokenGone(command));
+}
+
+/**
+ * `--platform` names one of the two platforms, or is left out for both. Any other value is refused
+ * before anything runs - exit 1, naming the two - rather than read as "no platform matched".
+ *
+ * PLAN-LAYER STOP (epic sherlo-test-builds-apps): this draws the refusal. The build task proves it.
+ */
+function refuseUnknownPlatform(options: { [PLATFORM_OPTION]?: string }) {
+  const givenPlatform = options[PLATFORM_OPTION];
+  if (givenPlatform === undefined || givenPlatform === 'android' || givenPlatform === 'ios') return;
+
+  throwError(renderPlatformUnknown(givenPlatform));
 }
 
 /**
@@ -510,7 +544,10 @@ function addBuildCommand(program: Command) {
     program,
     command: BUILD_COMMAND,
     options: [CONFIG_OPTION, PROJECT_ROOT_OPTION, PLATFORM_OPTION, BUILD_CACHE_OPTION, PARALLEL_BUILDS_OPTION],
-    action: build,
+    action: (options) => {
+      refuseUnknownPlatform(options);
+      return build(options);
+    },
     withTimeout: false,
   });
 }
@@ -528,7 +565,6 @@ function addViewCommand(program: Command) {
     .description(COMMAND_DESCRIPTION[VIEW_COMMAND]);
 
   addOptionsToCommand(commandInstance, [
-    TOKEN_OPTION,
     CONFIG_OPTION,
     PROJECT_ROOT_OPTION,
     WAIT_OPTION,
@@ -536,8 +572,13 @@ function addViewCommand(program: Command) {
     METADATA_OPTION,
   ]);
 
+  // Parsed out of sight and refused, as on `sherlo test` (refuseTokenFlag).
+  commandInstance.addOption(new Option(`--${TOKEN_OPTION} <token>`).hideHelp());
+
   commandInstance.action(async (build: string | undefined, actionOptions) => {
     setReportingContext(VIEW_COMMAND, actionOptions);
+
+    refuseTokenFlag(VIEW_COMMAND, actionOptions);
 
     // `withCommandTimeout` wraps a one-argument command, and it already skips
     // its own 30-minute race whenever `--wait` is set - which is the case that
@@ -549,7 +590,7 @@ function addViewCommand(program: Command) {
 function addTestEasCloudBuildCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
-  addCommand({
+  const easCommand = addCommand({
     program,
     command: TEST_EAS_CLOUD_BUILD_COMMAND,
     oldCommand: 'expo-cloud-builds',
@@ -559,8 +600,14 @@ function addTestEasCloudBuildCommand(program: Command) {
       ...getTestCommonOptions(),
       ...devtoolsOptions,
     ],
-    action: testEasCloudBuild,
+    action: (options) => {
+      refuseTokenFlag(TEST_EAS_CLOUD_BUILD_COMMAND, options);
+      return testEasCloudBuild(options);
+    },
   });
+
+  // Parsed out of sight and refused, as on `sherlo test` (refuseTokenFlag).
+  easCommand.addOption(new Option(`--${TOKEN_OPTION} <token>`).hideHelp());
 
   addCommand({
     program,
@@ -813,7 +860,6 @@ function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_
 
 function getTestCommonOptions() {
   return [
-    TOKEN_OPTION,
     MESSAGE_OPTION,
     GIT_BRANCH_OPTION,
     INCLUDE_OPTION,

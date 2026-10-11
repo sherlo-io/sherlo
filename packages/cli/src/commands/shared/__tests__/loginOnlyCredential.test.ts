@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { NAME_OPTION, TEAM_OPTION, TEST_COMMAND, TOKEN_OPTION } from '../../../constants';
+import { NAME_OPTION, TEAM_OPTION, TEST_COMMAND } from '../../../constants';
 import resolvePushCredential from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
 import { captureTranscript } from '../../../helpers/transcriptSink';
 import { installBrowser, posedBrowser } from '../../../seams/browser';
@@ -104,7 +104,7 @@ describe('the login as the only credential a person spends', () => {
     const pushCredential = withSeams(
       { logins: LOGGED_IN, env: { SHERLO_PERSONAL_TOKEN: PERSONAL_TOKEN } },
       () =>
-        resolvePushCredential(TEST_COMMAND, {}, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
+        resolvePushCredential(TEST_COMMAND, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
     );
     expect(pushCredential).toMatchObject({ kind: 'person', token: LOGIN_TOKEN });
 
@@ -132,40 +132,25 @@ describe('the login as the only credential a person spends', () => {
 
     const pushRefusal = refusalOf(() =>
       withSeams({ logins: {} }, () =>
-        resolvePushCredential(TEST_COMMAND, {}, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
+        resolvePushCredential(TEST_COMMAND, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
       )
     );
     expect(pushRefusal).toContain('On your own computer, run `npx sherlo login`.');
     expect(pushRefusal).not.toMatch(/personal/i);
   });
 
-  it('refuses a personal token on --token by naming npx sherlo login, never a personal-token flag', () => {
-    const onTheFlag = refusalOf(() =>
-      withSeams({ logins: {} }, () =>
-        resolvePushCredential(
-          TEST_COMMAND,
-          { [TOKEN_OPTION]: PERSONAL_TOKEN },
-          {} as InvalidatedConfig
-        )
-      )
-    );
-    const inSherloToken = refusalOf(() =>
+  it('refuses a personal token in SHERLO_TOKEN by naming npx sherlo login, never a personal-token flag', () => {
+    const refusal = refusalOf(() =>
       withSeams({ logins: {}, env: { SHERLO_TOKEN: PERSONAL_TOKEN } }, () =>
-        resolvePushCredential(TEST_COMMAND, {}, {} as InvalidatedConfig)
+        resolvePushCredential(TEST_COMMAND, {} as InvalidatedConfig)
       )
     );
 
-    expect(onTheFlag).toContain('`--token` wants a project token, and this is a personal token.');
-    expect(inSherloToken).toContain(
-      'SHERLO_TOKEN wants a project token, and this is a personal token.'
-    );
-
-    for (const refusal of [onTheFlag, inSherloToken]) {
-      expect(refusal).toContain('`npx sherlo login`');
-      expect(refusal).not.toContain('--personal-token');
-      expect(refusal).not.toContain('SHERLO_PERSONAL_TOKEN');
-      expect(refusal).not.toContain(PERSONAL_TOKEN);
-    }
+    expect(refusal).toContain('SHERLO_TOKEN wants a project token, and this is a personal token.');
+    expect(refusal).toContain('`npx sherlo login`');
+    expect(refusal).not.toContain('--personal-token');
+    expect(refusal).not.toContain('SHERLO_PERSONAL_TOKEN');
+    expect(refusal).not.toContain(PERSONAL_TOKEN);
   });
 
   it('every command the tool names in its messages is written as npx sherlo', () => {

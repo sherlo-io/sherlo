@@ -7,7 +7,6 @@
   ],
   "files": {
     "sherlo.config.json": {
-      "token": "posetokenposetokenposetokenpose1tm0000017",
       "devices": [
         {
           "id": "pixel.7",
@@ -22,6 +21,7 @@
     ".sherlo/builds/ios/Storefront.tar.gz": "the app build the posed compile wrote - what the tool reads out of it is `push`"
   },
   "env": {
+    "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017",
     "CI": "true",
     "GITHUB_ACTIONS": "true",
     "GITHUB_REPOSITORY": "acme/storefront",

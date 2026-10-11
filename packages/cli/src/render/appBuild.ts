@@ -252,6 +252,18 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
 }
 
 /**
+ * The refusal of a `--platform` that is neither `android` nor `ios` - a typo in a CI matrix, or
+ * `--platform both`. It names the two values and says what leaving the flag out does, so the job is
+ * fixed in one edit. Draft words, for the content department's review.
+ */
+export function renderPlatformUnknown(givenPlatform: string): { message: string; below: string } {
+  return {
+    message: `\`--platform\` takes android or ios, and was given \`${givenPlatform}\`.`,
+    below: 'Leave `--platform` out to do both platforms in one job.',
+  };
+}
+
+/**
  * `✔  Nothing to test on iOS: sherlo.config.json names no iOS device, so no test waits for this job`.
  *
  * The one line a `--platform` job prints when the config tests nothing on its platform - the Mac
