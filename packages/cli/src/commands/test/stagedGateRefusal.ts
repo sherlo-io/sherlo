@@ -15,6 +15,7 @@
  */
 import { GateDiffSource, GateOutcome } from '@sherlo/api-types';
 import { ANDROID_OPTION, IOS_OPTION, TEST_COMMAND } from '../../constants';
+import type { StoredBaseSources } from '../../seams/serverCalls';
 
 /** Machine-parseable prefix emitted by the openBuild resolver on refusal. */
 export const STAGED_GATE_REFUSAL_PREFIX = 'STAGED_GATE_REFUSAL';
@@ -35,6 +36,11 @@ export type StagedGateRefusal = {
   platform: 'android' | 'ios';
   /** Named diff sources (empty for not-stageable). */
   diff: GateDiffSource[];
+  /**
+   * The stored app build's source list, when the gate handed one back - only `checkStagedGate`
+   * does; the refusal string above never carries it.
+   */
+  storedBase?: StoredBaseSources;
 };
 
 /**

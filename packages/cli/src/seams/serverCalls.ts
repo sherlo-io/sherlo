@@ -122,7 +122,7 @@ export type ServerCalls = {
   /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
   checkStagedGate(
     request: CheckStagedGateRequest & { token: string }
-  ): Promise<CheckStagedGateAnswer>;
+  ): Promise<CheckStagedGateAnswer & { storedBase?: StoredBaseSources }>;
 
   /**
    * One progress report `sherlo init` sends as it walks its steps. It rides this seam like every
@@ -397,6 +397,32 @@ export type StagedGateAnswer = {
     | 'buildMetadata'
     | 'bundleFormat'
   >;
+  /**
+   * What the platform's stored app build was built from - handed back with `full-build-needed`
+   * when the platform has a stored app build whose list Sherlo keeps, so the tool can say what
+   * changed since it. Absent when nothing is stored, and for an app build an older CLI stored
+   * without a list.
+   */
+  storedBase?: StoredBaseSources;
+};
+
+/**
+ * THE SOURCE LIST OF A STORED APP BUILD - the native inputs its base fingerprint was computed
+ * over, as the CLI sent them when the build was stored. Paths, hashes and versions only: never a
+ * file's contents, for the same reason the fingerprint keeps none (`FingerprintSourceDigest` in
+ * packages/cli/src/helpers/fingerprint/baseFingerprint.ts). The tool diffs it against its own
+ * fingerprint's sources, on the developer's machine.
+ */
+export type StoredBaseSources = {
+  /** The test the stored app build was built in - "since Test 12". */
+  buildIndex: number;
+  /**
+   * The native files and folders, the lockfiles (as files), and the `contents` sources - a
+   * resolved setting such as the Expo config plugins, named by its id and nothing more.
+   */
+  sources: Array<{ path: string; hash: string | null; kind: 'file' | 'dir' | 'contents' }>;
+  /** The autolinked native modules, one version each. */
+  modules: Array<{ name: string; version: string }>;
 };
 
 /**
@@ -531,7 +557,8 @@ export type ScriptedCall =
       /**
        * The staged road's first question, asked once per platform BEFORE anything is bundled: can
        * this commit reuse the base registered under this fingerprint? `fast` takes the road;
-       * `full-build-needed` names which layers of the bundle's identity moved (`diff`), and
+       * `full-build-needed` names which layers of the bundle's identity moved (`diff`) and, when a
+       * stored app build kept its source list, hands that list back (`storedBase`), and
        * `not-stageable` is a project that can never take it. The post-bundle check asks the same
        * question again with the bundle's real identity, so a bare push scripts it TWICE per
        * platform when the first answer is `fast`.
@@ -720,7 +747,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       answerFor('checkStagedGate', {
         platform: request.platform,
         baseFingerprint: request.baseFingerprint,
-      }) as CheckStagedGateAnswer,
+      }) as CheckStagedGateAnswer & { storedBase?: StoredBaseSources },
 
     // The step that sent the report is the one thing a pose can meaningfully state about it: the
     // params carry whatever that step measured, which the command composed rather than the pose.

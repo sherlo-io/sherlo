@@ -296,7 +296,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'app-build-needed':
-      return { stream: 'stdout', prints: [[renderAppBuildNeeded(segment.platform, segment.reason)]] };
+      return {
+        stream: 'stdout',
+        prints: renderAppBuildNeeded(segment.platform, segment.reason, segment.changesSince).map(
+          (line) => [line]
+        ),
+      };
 
     case 'app-build-stored-reused':
       return { stream: 'stdout', prints: [[renderStoredBuildReused(segment.platform)]] };

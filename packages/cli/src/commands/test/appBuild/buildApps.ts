@@ -25,7 +25,7 @@ import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
 import { reporting, throwError } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
-import type { AppBuildReason } from '../../../render/appBuild';
+import type { AppBuildReason, ChangesSinceStoredBuild } from '../../../render/appBuild';
 import { appBuilder } from '../../../seams/appBuilder';
 import {
   BUILD_CACHE_ENV_VAR,
@@ -41,8 +41,15 @@ const MINIMUM_JAVA = 17;
 /** The exit code of a run whose app build failed - the wait contract's "build/system error". */
 const EXIT_BUILD_FAILED = 2;
 
-/** A platform to build, and why. `sherlo build` builds without a reason to give. */
-export type PlatformToBuild = { platform: Platform; reason?: AppBuildReason };
+/**
+ * A platform to build, and why - with what changed since the stored app build when the gate
+ * handed back its source list. `sherlo build` builds without a reason to give.
+ */
+export type PlatformToBuild = {
+  platform: Platform;
+  reason?: AppBuildReason;
+  changesSince?: ChangesSinceStoredBuild;
+};
 
 /**
  * Build every platform asked for and answer where each app build is. Never returns for a run that
@@ -72,8 +79,12 @@ export async function buildApps({
   const cacheDir = cacheDirFlag ?? process.env[BUILD_CACHE_ENV_VAR] ?? DEFAULT_BUILD_CACHE;
   const builtPaths: Partial<Record<Platform, string>> = {};
 
-  for (const { platform, reason } of toBuild) {
-    emit(reason ? { kind: 'app-build-needed', platform, reason } : { kind: 'app-build-start', platform });
+  for (const { platform, reason, changesSince } of toBuild) {
+    emit(
+      reason
+        ? { kind: 'app-build-needed', platform, reason, ...(changesSince ? { changesSince } : {}) }
+        : { kind: 'app-build-start', platform }
+    );
 
     const cacheKey = cacheKeyOf({ baseFingerprint, platform, settings });
 

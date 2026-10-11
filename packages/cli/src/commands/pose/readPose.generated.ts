@@ -1502,7 +1502,10 @@ function readStagedGateAnswer(value: unknown, path: string, problems: string[]):
         );
       });
     }
-    reportUnknownFields(object1, ['outcome', 'diff'], path, problems);
+    if ('storedBase' in object1) {
+      readStoredBaseSources(object1.storedBase, at(path, 'storedBase'), problems);
+    }
+    reportUnknownFields(object1, ['outcome', 'diff', 'storedBase'], path, problems);
   }
 }
 
@@ -1684,5 +1687,47 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
       expectString(object1.reason, at(path, 'reason'), problems);
     }
     reportUnknownFields(object1, ['full', 'storyFilePaths', 'reason'], path, problems);
+  }
+}
+
+/** The shape of a `StoredBaseSources`, as `contracts/pose.contract.ts` publishes it. */
+function readStoredBaseSources(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectNumber(object1.buildIndex, at(path, 'buildIndex'), problems);
+    const where2 = at(path, 'sources');
+    const list3 = asArray(object1.sources, where2, problems);
+    if (list3) {
+      list3.forEach((entry4, index5) => {
+        const where6 = atIndex(where2, index5);
+        const object7 = asObject(entry4, where6, problems);
+        if (object7) {
+          expectString(object7.path, at(where6, 'path'), problems);
+          const oneOf8 = object7.hash;
+          const where9 = at(where6, 'hash');
+          if (typeof oneOf8 === 'string' || oneOf8 === null) {
+            // the value is one of these
+          } else {
+            reportWrongShape(oneOf8, 'a string or `null`', where9, problems);
+          }
+          expectOneOf(object7.kind, ['file', 'dir', 'contents'], at(where6, 'kind'), problems);
+          reportUnknownFields(object7, ['path', 'hash', 'kind'], where6, problems);
+        }
+      });
+    }
+    const where10 = at(path, 'modules');
+    const list11 = asArray(object1.modules, where10, problems);
+    if (list11) {
+      list11.forEach((entry12, index13) => {
+        const where14 = atIndex(where10, index13);
+        const object15 = asObject(entry12, where14, problems);
+        if (object15) {
+          expectString(object15.name, at(where14, 'name'), problems);
+          expectString(object15.version, at(where14, 'version'), problems);
+          reportUnknownFields(object15, ['name', 'version'], where14, problems);
+        }
+      });
+    }
+    reportUnknownFields(object1, ['buildIndex', 'sources', 'modules'], path, problems);
   }
 }

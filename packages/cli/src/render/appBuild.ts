@@ -37,13 +37,76 @@ export function formatBuildDuration(seconds: number): string {
   return minutes > 0 ? `${minutes}m ${rest}s` : `${rest}s`;
 }
 
-/** `🔨 Android needs a new app build: none is stored for this project yet`. */
-export function renderAppBuildNeeded(platform: Platform, reason: AppBuildReason): string {
+/**
+ * One native change since the stored app build: a file (a native file, a lockfile, or a resolved
+ * setting named by the file a developer edits), or a native module with its version.
+ */
+export type NativeChange =
+  | { change: 'changed' | 'added' | 'removed'; file: string }
+  | { change: 'added' | 'removed'; module: string; version: string }
+  | { change: 'changed'; module: string; from: string; to: string };
+
+/** What changed since the stored app build, and which test built it. */
+export type ChangesSinceStoredBuild = { storedBuildIndex: number; changes: NativeChange[] };
+
+/** At most this many changes are listed; the rest are counted in one "and N more" line. */
+export const NATIVE_CHANGES_LISTED = 8;
+
+/** Coloured when printed, not when loaded: a run decides whether colour is on after the import. */
+function changeMark(change: NativeChange['change']): string {
+  if (change === 'added') return chalk.green('+');
+  if (change === 'removed') return chalk.red('-');
+  return chalk.yellow('~');
+}
+
+/**
+ * `🔨 Android needs a new app build: none is stored for this project yet`, or, when the stored
+ * app build's source list says what changed, the count and the list under it:
+ *
+ *     🔨 Android needs a new app build: 3 native changes since Test 12
+ *        ~ android/app/build.gradle
+ *        + react-native-maps 1.3.0
+ *        ~ app.json (Expo plugins)
+ */
+export function renderAppBuildNeeded(
+  platform: Platform,
+  reason: AppBuildReason,
+  changesSince?: ChangesSinceStoredBuild
+): string[] {
+  const head = `🔨 ${chalk.bold(PLATFORM_NAME[platform])} needs a new app build:`;
+
+  if (changesSince && changesSince.changes.length > 0) {
+    const { storedBuildIndex, changes } = changesSince;
+    const count = changes.length === 1 ? '1 native change' : `${changes.length} native changes`;
+    return [`${head} ${count} since Test ${storedBuildIndex}`, ...renderNativeChanges(changes)];
+  }
+
   const why =
     reason === 'nothing-stored'
       ? 'none is stored for this project yet'
       : 'native code changed since the stored one';
-  return `🔨 ${chalk.bold(PLATFORM_NAME[platform])} needs a new app build: ${why}`;
+  return [`${head} ${why}`];
+}
+
+/**
+ * The list of native changes, one per line: `~` changed, `+` added, `-` removed; a native module
+ * as `name version`, or `name old → new` when its version moved. Capped at
+ * {@link NATIVE_CHANGES_LISTED}, with the rest counted.
+ */
+export function renderNativeChanges(changes: NativeChange[]): string[] {
+  const listed = changes.slice(0, NATIVE_CHANGES_LISTED);
+  const lines = listed.map((change) => `   ${changeMark(change.change)} ${describeChange(change)}`);
+
+  const notListed = changes.length - listed.length;
+  if (notListed > 0) lines.push(chalk.dim(`   and ${notListed} more`));
+
+  return lines;
+}
+
+function describeChange(change: NativeChange): string {
+  if ('file' in change) return change.file;
+  if ('from' in change) return `${change.module} ${change.from} → ${change.to}`;
+  return `${change.module} ${change.version}`;
 }
 
 /** `✔  iOS: only JavaScript changed, so the stored app build is reused`. */

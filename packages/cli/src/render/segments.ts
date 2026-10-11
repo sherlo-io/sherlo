@@ -35,7 +35,7 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
-import type { AppBuildReason, RunWaitsFor } from './appBuild';
+import type { AppBuildReason, ChangesSinceStoredBuild, RunWaitsFor } from './appBuild';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -156,9 +156,16 @@ export type TranscriptSegment =
    * ---------------------------------------------------------------------- */
   /**
    * `🔨 Android needs a new app build: none is stored for this project yet`. The reason is one
-   * of two the gate can give, as data: which words say it is this layer's decision.
+   * of two the gate can give, as data: which words say it is this layer's decision. With the
+   * changes since the stored app build, the line counts them and lists them under it - the list
+   * then sits above a failed build's last lines, beside the error it likely caused.
    */
-  | { kind: 'app-build-needed'; platform: Platform; reason: AppBuildReason }
+  | {
+      kind: 'app-build-needed';
+      platform: Platform;
+      reason: AppBuildReason;
+      changesSince?: ChangesSinceStoredBuild;
+    }
   /** `✔  iOS: only JavaScript changed, so the stored app build is reused` - the other half of a mixed run. */
   | { kind: 'app-build-stored-reused'; platform: Platform }
   /** `🔨 Building Android...` - the header `sherlo build` opens each platform with. */

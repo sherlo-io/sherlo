@@ -10,12 +10,15 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-🔨 [1mAndroid[22m needs a new app build: none is stored for this project yet
+🔨 [1mAndroid[22m needs a new app build: 3 native changes since Test 12
+   [33m~[39m yarn.lock
+   [31m-[39m react-native-maps 1.2.0
+   [33m~[39m react-native (installed version)
 [34m➜[39m  generating the android folder (expo prebuild)...
 [34m➜[39m  building with Gradle... [2m(log: .sherlo/build-android.log)[22m
 [32m✔[39m  Android built in <DURATION> (<SIZE> MB)
 
-[32mTest 1[39m will run on [34m1 device[39m (1 Android)
+[32mTest 13[39m will run on [34m1 device[39m (1 Android)
 
 📦 [1mAndroid[22m
 [34m➜[39m  uploading build... (<SIZE> MB)

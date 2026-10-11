@@ -98,7 +98,7 @@ function lockfilesAsFiles(lockfiles: LockfileDigest[]): AppSourceFileDigest[] {
 }
 
 /** `name@version` entries are packages with exactly one version each. */
-function autolinkedAsPackages(entries: string[]): PackageVersions[] {
+export function autolinkedAsPackages(entries: string[]): PackageVersions[] {
   return entries.map((entry) => {
     // A scoped name holds its own `@`, so the version starts at the LAST one.
     const separator = entry.lastIndexOf('@');

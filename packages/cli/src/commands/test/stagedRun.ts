@@ -278,7 +278,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       });
     }
 
-    return buildThenPush({ passedOptions, platformsToTest, refusals, baseFingerprint });
+    return buildThenPush({
+      passedOptions,
+      platformsToTest,
+      refusals,
+      baseFingerprint,
+      fingerprintPreimage: fpResult.preimage,
+    });
   };
 
   // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
@@ -560,7 +566,7 @@ async function checkGate({
     for (const platform of platformsToTest) {
       // Through the server seam, so a posed run answers the gate from its pose (the tester's
       // staged storyline) and never reaches the network.
-      const { outcome, diff } = await serverCalls().checkStagedGate({
+      const { outcome, diff, storedBase } = await serverCalls().checkStagedGate({
         token,
         baseFingerprint,
         gateMetadata: gateMetadata(platform) as GateMetadata,
@@ -570,7 +576,7 @@ async function checkGate({
       });
 
       if (outcome !== 'fast') {
-        refusals.push({ outcome, platform, diff });
+        refusals.push({ outcome, platform, diff, ...(storedBase ? { storedBase } : {}) });
       }
     }
   } catch (error) {

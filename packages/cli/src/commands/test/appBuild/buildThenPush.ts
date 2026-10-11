@@ -29,7 +29,8 @@ import getBinariesInfoAndNextBuildIndex from '../../../helpers/getValidatedBinar
 import { emit } from '../../../helpers/transcriptSink';
 import { realFreshBundleEffects } from '../../../helpers/uploadFreshBundles';
 import type { PushEffects } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
-import type { AppBuildReason } from '../../../render/appBuild';
+import type { BaseFingerprintPreimage } from '../../../helpers/fingerprint/baseFingerprint';
+import type { AppBuildReason, ChangesSinceStoredBuild } from '../../../render/appBuild';
 import { nativeBuild } from '../../../seams/nativeBuild';
 import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
 import type { CommandParams, Options } from '../../../types';
@@ -42,6 +43,7 @@ import { type BuildFlags, type BuildSettings, readBuildSettings } from './buildS
 import { ciRunKey } from './ciRun';
 import { easRun } from './easRun';
 import { joinTheRun } from './joinTheRun';
+import { nativeChangesSince } from './nativeChanges';
 
 /** Build what the gate refused, then run the standard road on the fresh app builds. */
 export async function buildThenPush({
@@ -49,11 +51,14 @@ export async function buildThenPush({
   platformsToTest,
   refusals,
   baseFingerprint,
+  fingerprintPreimage,
 }: {
   passedOptions: Options<THIS_COMMAND> & BuildFlags;
   platformsToTest: Platform[];
   refusals: StagedGateRefusal[];
   baseFingerprint: string;
+  /** The sources `baseFingerprint` was computed over - what a stored app build's list is compared with. */
+  fingerprintPreimage?: BaseFingerprintPreimage;
 }): Promise<{ url: string }> {
   const refused = refusals.map(({ platform }) => platform);
   const stored = platformsToTest.filter((platform) => !refused.includes(platform));
@@ -77,7 +82,11 @@ export async function buildThenPush({
 
   const builtPaths = await buildApps({
     projectRoot: commandParams.projectRoot,
-    toBuild: refusals.map((refusal) => ({ platform: refusal.platform, reason: reasonOf(refusal) })),
+    toBuild: refusals.map((refusal) => ({
+      platform: refusal.platform,
+      reason: reasonOf(refusal),
+      ...changesSinceStoredBuildOf(refusal, fingerprintPreimage),
+    })),
     settings,
     baseFingerprint,
     cacheDirFlag: passedOptions.buildCache,
@@ -256,14 +265,33 @@ function warnAboutVariablesOnExpo(projectRoot: string, settings: BuildSettings):
 }
 
 /**
- * The gate's refusal, in the developer's words: a refusal that names what moved is native code
- * that changed since the stored app build, and one that names nothing is a project Sherlo holds no
- * app build for yet - the gate has nothing to compare with.
+ * The gate's refusal, in the developer's words: a refusal that hands back a stored app build's
+ * source list, or names what moved, is native code that changed since the stored app build, and
+ * one that does neither is a project Sherlo holds no app build for yet - the gate has nothing to
+ * compare with.
  *
- * PLAN-LAYER DEBT: a moved base fingerprint is refused with an empty diff too, so today the gate
- * cannot tell "nothing stored" from "native code changed". The build task gives the gate's answer
- * a field that says no base is stored, and this reads it instead of the empty diff.
+ * PLAN-LAYER DEBT: a moved base fingerprint whose stored app build kept no list (an older CLI
+ * stored it) is refused with an empty diff too, so the gate cannot tell "nothing stored" from
+ * "native code changed" there. The build task reads the gate's own reason instead of guessing.
  */
 function reasonOf(refusal: StagedGateRefusal): AppBuildReason {
-  return refusal.diff.length > 0 ? 'native-changed' : 'nothing-stored';
+  return refusal.storedBase || refusal.diff.length > 0 ? 'native-changed' : 'nothing-stored';
+}
+
+/**
+ * What changed since the stored app build, when the gate handed back its source list and this
+ * run knows its own: nothing to say otherwise, and the build line gives only its reason.
+ */
+function changesSinceStoredBuildOf(
+  refusal: StagedGateRefusal,
+  fingerprintPreimage: BaseFingerprintPreimage | undefined
+): { changesSince?: ChangesSinceStoredBuild } {
+  if (!refusal.storedBase || !fingerprintPreimage) return {};
+
+  return {
+    changesSince: {
+      storedBuildIndex: refusal.storedBase.buildIndex,
+      changes: nativeChangesSince(refusal.storedBase, fingerprintPreimage),
+    },
+  };
 }
