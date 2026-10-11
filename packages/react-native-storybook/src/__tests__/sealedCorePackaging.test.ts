@@ -309,6 +309,27 @@ describe('what the published package carries', () => {
     }
   });
 
+  it('the published build setting parser loads with plain Node from the package root', (context) => {
+    if (!hasThePacks) context.skip();
+    const { unpackedPackageDir, packedFiles } = theNpmPack();
+
+    expect(packedFiles).toContain('dist-metro/sherloBuild.js');
+    const { readSherloBuild, whatThisBuildCarries } = require(path.join(
+      unpackedPackageDir,
+      'dist-metro',
+      'sherloBuild.js'
+    ));
+    expect(readSherloBuild({ SHERLO_BUILD: 'off' })).toBe('off');
+    expect(whatThisBuildCarries({}, true, undefined).sherloBuild).toBe('off');
+
+    // The stand-in a build without Sherlo resolves the SDK to is published and named in the
+    // exports map, so a project's resolver can reach it by its package path.
+    const exportsMap = JSON.parse(
+      fs.readFileSync(path.join(unpackedPackageDir, 'package.json'), 'utf8')
+    ).exports;
+    expect(exportsMap['./dist/offStandIn.js']).toBe('./dist/offStandIn.js');
+  });
+
   it('the published polyfill runs as a plain script, with no module or require around it', (context) => {
     if (!hasThePacks) context.skip();
     const { unpackedPackageDir } = theNpmPack();

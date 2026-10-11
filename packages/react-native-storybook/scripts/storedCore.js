@@ -29,34 +29,96 @@ function packageTokenFrom(env) {
   return packageToken;
 }
 
+/** How many times a read is tried when the network fails: once, then twice again. */
+const TRIES_ON_NETWORK_FAILURE = 3;
+
+/** How long a read waits before it is tried again. */
+const PAUSE_BETWEEN_TRIES_MS = 2000;
+
+/** An answer from the endpoint or from storage that refuses, such as HTTP 500: never tried again. */
+class StorageRefusal extends Error {}
+
 /**
  * A reader of package storage: `readStoredFile(objectKey)` answers the object's bytes, or null
  * when storage holds no such object.
+ *
+ * When the network fails - no answer came back, or an answer was cut off while its body was read -
+ * the whole read is tried again, up to three times in all, with a pause between tries. An answer
+ * that refuses is not tried again. `fetchFromNetwork` and `pauseBetweenTriesMs` are for tests.
  */
-function storageReaderWith(packageToken) {
-  return async function readStoredFile(objectKey) {
+function storageReaderWith(
+  packageToken,
+  { fetchFromNetwork = fetch, pauseBetweenTriesMs = PAUSE_BETWEEN_TRIES_MS } = {}
+) {
+  async function readOnce(objectKey) {
     const endpointUrl =
       PACKAGE_ENDPOINT +
       '?token=' +
       encodeURIComponent(packageToken) +
       '&objectKey=' +
       encodeURIComponent(objectKey);
-    const endpointAnswer = await fetch(endpointUrl);
+    const endpointAnswer = await fetchFromNetwork(endpointUrl);
     if (!endpointAnswer.ok) {
-      throw new Error(
+      throw new StorageRefusal(
         'the package endpoint refused ' + objectKey + ' (HTTP ' + endpointAnswer.status + ')'
       );
     }
     const downloadUrl = (await endpointAnswer.text()).trim();
 
-    const download = await fetch(downloadUrl);
+    const download = await fetchFromNetwork(downloadUrl);
     // Storage answers 403 or 404 for an object it does not hold.
     if (download.status === 403 || download.status === 404) return null;
     if (!download.ok) {
-      throw new Error('downloading ' + objectKey + ' failed (HTTP ' + download.status + ')');
+      throw new StorageRefusal(
+        'downloading ' + objectKey + ' failed (HTTP ' + download.status + ')'
+      );
     }
     return Buffer.from(await download.arrayBuffer());
+  }
+
+  return async function readStoredFile(objectKey) {
+    let lastNetworkFailure;
+    for (let tryNumber = 1; tryNumber <= TRIES_ON_NETWORK_FAILURE; tryNumber++) {
+      if (tryNumber > 1) await pause(pauseBetweenTriesMs);
+      try {
+        return await readOnce(objectKey);
+      } catch (error) {
+        // readOnce throws only a refusal it wrote, or what fetch or a body read threw: the network.
+        if (error instanceof StorageRefusal) throw error;
+        lastNetworkFailure = error;
+      }
+    }
+    throw new Error(
+      'reading ' +
+        objectKey +
+        ' from package storage failed ' +
+        TRIES_ON_NETWORK_FAILURE +
+        ' times',
+      { cause: lastNetworkFailure }
+    );
   };
+}
+
+function pause(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+/**
+ * An error's message followed by every cause under it, so "fetch failed" also says why:
+ * "fetch failed, because: other side closed (UND_ERR_SOCKET)". The scripts print this when they
+ * fail.
+ */
+function describeFailure(error) {
+  const parts = [];
+  for (let current = error; current; current = current.cause) {
+    if (!(current instanceof Error)) {
+      parts.push(String(current));
+      break;
+    }
+    const code = current.code ? ' (' + current.code + ')' : '';
+    parts.push((current.message || current.name) + code);
+  }
+  return parts.join(', because: ');
 }
 
 /** The manifest of the core stored under `fingerprint`, or an error saying none is stored. */
@@ -106,6 +168,7 @@ module.exports = {
   PACKAGE_TOKEN_NAME,
   packageTokenFrom,
   storageReaderWith,
+  describeFailure,
   readStoredManifest,
   coreFingerprint,
   sha256,
