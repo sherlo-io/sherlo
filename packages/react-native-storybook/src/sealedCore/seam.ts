@@ -114,6 +114,12 @@ export type SealedCore = {
   }) => void;
   /** Stop waiting on the letterbox. */
   stopOpenStoryChannel: () => void;
+  /**
+   * Storybook's default setup, a launch in default mode: the app's own entry runs and no Storybook
+   * is loaded, so the core waits on both of the bundler's roads, `letterbox` for `sherlo open` and
+   * `capture` for `sherlo capture`, as the app.
+   */
+  startWaitingAsTheApp: (start: { letterbox: BundlerLetterbox; capture: CaptureTransport }) => void;
 };
 
 declare global {
@@ -678,7 +684,7 @@ export type CaptureTransport = {
    */
   waitForACapture(saying: {
     mode: string;
-    stories: string[];
+    stories: string[] | null;
     answer: CapturedAnswer | null;
   }): Promise<CaptureInstruction>;
 };
@@ -701,7 +707,7 @@ export type BundlerLetterbox = {
    * out with nothing posted.
    */
   waitForStory(saying: {
-    stories: string[];
+    stories: string[] | null;
     showing: string | null;
     atTheStoryBrowser: boolean;
     /** What the story named by `showing` threw while rendering, or null when it drew cleanly. */

@@ -725,6 +725,69 @@ describe('buildBundleForPlatform - empty bundle', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The setting the bundler runs with
+// ---------------------------------------------------------------------------
+
+describe('buildBundleForPlatform - bundler environment', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('runs the bundler with SHERLO_BUILD set to storybook', async () => {
+    vi.stubEnv('SHERLO_BUILD', 'off');
+    setupBundleBuild(plainJsBundle());
+
+    await buildBundleForPlatform({ projectRoot: tempDir, platform: 'ios' as Platform });
+
+    const options = mockExecSync.mock.calls[0][1] as { env: NodeJS.ProcessEnv };
+    expect(options.env.SHERLO_BUILD).toBe('storybook');
+  });
+
+  const BUNDLER_SETUP_ERROR_LINE =
+    'The bundler stopped because of a setup problem. Its message above says what to fix.';
+
+  function makeBundlerStopWith(output: string) {
+    setupBundleBuild(plainJsBundle());
+    mockExecSync.mockImplementation((() => {
+      throw Object.assign(new Error('bundler failed'), { stderr: Buffer.from(output) });
+    }) as any);
+  }
+
+  it.each([
+    'Error: Unknown SHERLO_BUILD value "on". Use storybook, app-and-storybook or off, or leave it unset.',
+    `Error: Sherlo could not find your app's entry file. It looked for the "main" field.`,
+  ])('prints the setup line after the bundler output for: %s', async (output) => {
+    makeBundlerStopWith(output);
+
+    const message = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'ios' as Platform,
+    }).then(
+      () => '',
+      (err: Error) => err.message
+    );
+
+    expect(message).toContain(BUNDLER_SETUP_ERROR_LINE);
+    expect(message.indexOf(output)).toBeLessThan(message.indexOf(BUNDLER_SETUP_ERROR_LINE));
+  });
+
+  it('prints no setup line when the bundler stops for another reason', async () => {
+    makeBundlerStopWith('Error: Unable to resolve module ./missing');
+
+    const message = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'ios' as Platform,
+    }).then(
+      () => '',
+      (err: Error) => err.message
+    );
+
+    expect(message).toContain('react-native bundle failed');
+    expect(message).not.toContain(BUNDLER_SETUP_ERROR_LINE);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Cross-platform module-manifest contamination (SHERLO-1894 §2)
 // ---------------------------------------------------------------------------
 

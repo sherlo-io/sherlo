@@ -121,8 +121,9 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     } catch (_e) {}
 
     // Start waiting on the bundler's letterbox, so `sherlo open --story <id>` reaches this app.
-    // Here rather than in a hook for the same reason as the listener above: a story may be posted
-    // before the tree renders, and the app that is not waiting yet is an app that missed it.
+    // Here rather than in a hook for the same reason as the listener above: the letterbox opens
+    // once Storybook has shown its own first story (see openStoryChannel), and a listener attached
+    // after that story rendered would wait for it for ever.
     startWaitingOnTheLetterbox(view, true);
   }
 

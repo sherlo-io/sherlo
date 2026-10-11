@@ -16,6 +16,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {
+  describeFailure,
   packageTokenFrom,
   readStoredManifest,
   storageReaderWith,
@@ -54,7 +55,7 @@ if (require.main === module) {
     const pin = await pinCore({ fingerprint, readStoredFile });
     console.log('pinned core ' + pin.version + ' (' + pin.fingerprint + ') in sherlo-core.json');
   })().catch((error) => {
-    console.error(error.message);
+    console.error(describeFailure(error));
     process.exit(1);
   });
 }

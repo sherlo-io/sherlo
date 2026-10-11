@@ -27,6 +27,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { refuseTestPublicKey } = require('./sealedCoreKey.js');
 const {
+  describeFailure,
   packageTokenFrom,
   readStoredManifest,
   sha256,
@@ -166,7 +167,7 @@ module.exports = { packSealedCore, LAID_PATHS };
 
 if (require.main === module) {
   packSealedCore().catch((error) => {
-    console.error(error.message);
+    console.error(describeFailure(error));
     process.exit(1);
   });
 }

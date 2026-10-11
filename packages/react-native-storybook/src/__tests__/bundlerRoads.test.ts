@@ -116,11 +116,21 @@ describe("the SDK's road to the bundler's letterbox", () => {
   it('is handed to the core with the view, the channel and where the app stands', () => {
     const letterbox = { waitForStory: vi.fn() };
     const channel = makeChannel();
+    // A Storybook already showing a story: the letterbox opens once it is (openStoryChannel.test.ts).
+    const storybookShowingAStory = {
+      ...view,
+      _preview: { currentSelection: { storyId: STORY } },
+    } as never;
 
-    startOpenStoryChannel({ view, channel, atTheStoryBrowser: true, letterbox });
+    startOpenStoryChannel({
+      view: storybookShowingAStory,
+      channel,
+      atTheStoryBrowser: true,
+      letterbox,
+    });
 
     expect(lastHandedTo('startOpenStoryChannel')).toEqual({
-      view,
+      view: storybookShowingAStory,
       channel,
       atTheStoryBrowser: true,
       letterbox,

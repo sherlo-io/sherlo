@@ -16,3 +16,10 @@
 -keepclasseswithmembernames class io.sherlo.storybookreactnative.CompiledCore {
     native <methods>;
 }
+
+# The generated package list finds Sherlo's package by its class name (react-native.config.js), so
+# R8 must keep the class and its constructor named as they are, or a shrunk release build that
+# links Sherlo would fall back to the empty package.
+-keep class io.sherlo.storybookreactnative.SherloModulePackage {
+    <init>();
+}

@@ -45,6 +45,10 @@
       "require": "./dist/mocking/index.js",
       "default": "./dist/mocking/index.js"
     },
+    "./metro/detectStorybookSetup": {
+      "require": "./dist-metro/detectStorybookSetup.js",
+      "default": "./dist-metro/detectStorybookSetup.js"
+    },
     "./metro/polyfill": {
       "require": "./dist-metro/polyfill.js",
       "default": "./dist-metro/polyfill.js"
@@ -52,6 +56,8 @@
     "./dist/getStorybook/index.js": "./dist/getStorybook/index.js",
     "./dist/addStorybookToDevMenu.js": "./dist/addStorybookToDevMenu.js",
     "./dist/SherloModule.js": "./dist/SherloModule.js",
+    "./dist/openStoryChannel.js": "./dist/openStoryChannel.js",
+    "./dist/offStandIn.js": "./dist/offStandIn.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -61,6 +67,8 @@
     "android/CMakeLists.txt",
     "android/build.gradle",
     "android/consumer-rules.pro",
+    "android/cpp-autolinking/**/*",
+    "react-native.config.js",
     "ios/*.h",
     "ios/*.m",
     "ios/*.mm",
@@ -68,7 +76,9 @@
     "ios/SherloCore.xcframework/**/*",
     "sherlo-react-native-storybook.podspec",
     "dist-metro/withStorybook.js",
+    "dist-metro/detectStorybookSetup.js",
     "dist-metro/polyfill.js",
+    "dist-metro/sherloBuild.js",
     "metro/withStorybook.d.ts"
   ],
   "scripts": {
@@ -96,6 +106,7 @@
     "@types/utf8": "^3.0.1",
     "@vercel/ncc": "latest",
     "react-native-safe-area-context": "4.11.0",
+    "storybook": "^9.1.20",
     "terser": "^5.46.0",
     "typescript": "^5.3.3",
     "vitest": "^4.0.0"
