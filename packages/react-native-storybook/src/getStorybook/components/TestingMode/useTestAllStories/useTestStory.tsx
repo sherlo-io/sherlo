@@ -27,10 +27,13 @@ function useTestStory({
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
+    // No walk happens for a capture: the mocks turned on for its story must stay on.
+    if (!enabled) return;
+
     (async (): Promise<void> => {
       try {
         const core = getSealedCore();
-        if (!enabled || !core) return;
+        if (!core) return;
 
         await core.testStory({
           view,
