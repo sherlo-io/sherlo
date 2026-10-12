@@ -157,10 +157,11 @@ export type ServerTakingUpgrades = {
 /** As much of `ws`'s WebSocketServer class as the line uses. */
 export type WebSocketServerClass = new (options: { noServer: true }) => {
   on: (event: 'connection', listener: (webSocket: any) => void) => unknown;
+  // `any`: the line requires nothing, so it cannot name `ws`'s or Node's types for these three.
   handleUpgrade: (
-    request: unknown,
-    socket: unknown,
-    head: unknown,
+    request: any,
+    socket: any,
+    head: any,
     whenUpgraded: (webSocket: any) => void
   ) => void;
   emit: (event: 'connection', webSocket: any, request: unknown) => boolean;
