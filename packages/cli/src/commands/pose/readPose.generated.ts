@@ -448,7 +448,10 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         const object51 = asObject(object49.with, where50, problems);
         if (object51) {
           expectStringArray(object51.platforms, at(where50, 'platforms'), problems);
-          reportUnknownFields(object51, ['platforms'], where50, problems);
+          if ('pushFacts' in object51) {
+            readPushFacts(object51.pushFacts, at(where50, 'pushFacts'), problems);
+          }
+          reportUnknownFields(object51, ['platforms', 'pushFacts'], where50, problems);
         }
         const oneOf52 = object49.answer;
         const where53 = at(path, 'answer');
@@ -501,7 +504,10 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         if (object57) {
           expectString(object57.joinKey, at(where56, 'joinKey'), problems);
           expectString(object57.platform, at(where56, 'platform'), problems);
-          reportUnknownFields(object57, ['joinKey', 'platform'], where56, problems);
+          if ('pushFacts' in object57) {
+            readPushFactsPlatform(object57.pushFacts, at(where56, 'pushFacts'), problems);
+          }
+          reportUnknownFields(object57, ['joinKey', 'platform', 'pushFacts'], where56, problems);
         }
         const oneOf58 = object55.answer;
         const where59 = at(path, 'answer');
@@ -542,7 +548,10 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         if (object63) {
           expectNumber(object63.buildIndex, at(where62, 'buildIndex'), problems);
           expectString(object63.platform, at(where62, 'platform'), problems);
-          reportUnknownFields(object63, ['buildIndex', 'platform'], where62, problems);
+          if ('pushFacts' in object63) {
+            readPushFactsPlatform(object63.pushFacts, at(where62, 'pushFacts'), problems);
+          }
+          reportUnknownFields(object63, ['buildIndex', 'platform', 'pushFacts'], where62, problems);
         }
         const oneOf64 = object61.answer;
         const where65 = at(path, 'answer');
@@ -880,7 +889,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[] }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string }; answer: ApiError | { buildIndex: number; waitingFor: string[] } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string }; answer: ApiError | { couldRunThisBuildRightNow: boolean } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'computeDiffScopeDryRun'; with: { branch: string; commit: string }; answer: ApiError | DiffScopeDryRunAnswer }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
+      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[] } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'computeDiffScopeDryRun'; with: { branch: string; commit: string }; answer: ApiError | DiffScopeDryRunAnswer }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
       path,
       problems
     );
@@ -1238,81 +1247,72 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         );
       }
     }
-    if ('gitInfo' in object1) {
-      const where12 = at(path, 'gitInfo');
-      const object13 = asObject(object1.gitInfo, where12, problems);
-      if (object13) {
-        expectString(object13.branchName, at(where12, 'branchName'), problems);
-        expectString(object13.commitHash, at(where12, 'commitHash'), problems);
-        reportUnknownFields(object13, ['branchName', 'commitHash'], where12, problems);
-      }
-    }
     if ('stories' in object1) {
-      const oneOf14 = object1.stories;
-      const where15 = at(path, 'stories');
-      if (oneOf14 === null) {
+      const oneOf12 = object1.stories;
+      const where13 = at(path, 'stories');
+      if (oneOf12 === null) {
         // the value is one of these
-      } else if (Array.isArray(oneOf14)) {
-        const list16 = asArray(oneOf14, where15, problems);
-        if (list16) {
-          list16.forEach((entry17, index18) => {
-            const where19 = atIndex(where15, index18);
-            const object20 = asObject(entry17, where19, problems);
-            if (object20) {
-              expectString(object20.name, at(where19, 'name'), problems);
-              expectString(object20.status, at(where19, 'status'), problems);
-              const oneOf21 = object20.baseline;
-              const where22 = at(where19, 'baseline');
-              if (oneOf21 === null) {
+      } else if (Array.isArray(oneOf12)) {
+        const list14 = asArray(oneOf12, where13, problems);
+        if (list14) {
+          list14.forEach((entry15, index16) => {
+            const where17 = atIndex(where13, index16);
+            const object18 = asObject(entry15, where17, problems);
+            if (object18) {
+              expectString(object18.name, at(where17, 'name'), problems);
+              expectString(object18.status, at(where17, 'status'), problems);
+              const oneOf19 = object18.baseline;
+              const where20 = at(where17, 'baseline');
+              if (oneOf19 === null) {
                 // the value is one of these
-              } else if (isPlainObject(oneOf21)) {
-                const object23 = asObject(oneOf21, where22, problems);
-                if (object23) {
-                  expectNumber(object23.buildIndex, at(where22, 'buildIndex'), problems);
-                  reportUnknownFields(object23, ['buildIndex'], where22, problems);
+              } else if (isPlainObject(oneOf19)) {
+                const object21 = asObject(oneOf19, where20, problems);
+                if (object21) {
+                  expectNumber(object21.buildIndex, at(where20, 'buildIndex'), problems);
+                  reportUnknownFields(object21, ['buildIndex'], where20, problems);
                 }
               } else {
-                reportWrongShape(oneOf21, '`{ buildIndex: number }` or `null`', where22, problems);
+                reportWrongShape(oneOf19, '`{ buildIndex: number }` or `null`', where20, problems);
               }
-              if ('reason' in object20) {
-                const oneOf24 = object20.reason;
-                const where25 = at(where19, 'reason');
-                if (typeof oneOf24 === 'string' || oneOf24 === null) {
+              if ('reason' in object18) {
+                const oneOf22 = object18.reason;
+                const where23 = at(where17, 'reason');
+                if (typeof oneOf22 === 'string' || oneOf22 === null) {
                   // the value is one of these
                 } else {
-                  reportWrongShape(oneOf24, 'a string or `null`', where25, problems);
+                  reportWrongShape(oneOf22, 'a string or `null`', where23, problems);
                 }
               }
-              if ('candidates' in object20) {
-                const oneOf26 = object20.candidates;
-                const where27 = at(where19, 'candidates');
-                if (oneOf26 === null) {
+              if ('candidates' in object18) {
+                const oneOf24 = object18.candidates;
+                const where25 = at(where17, 'candidates');
+                if (oneOf24 === null) {
                   // the value is one of these
-                } else if (Array.isArray(oneOf26)) {
-                  const list28 = asArray(oneOf26, where27, problems);
-                  if (list28) {
-                    list28.forEach((entry29, index30) => {
-                      const where31 = atIndex(where27, index30);
-                      const object32 = asObject(entry29, where31, problems);
-                      if (object32) {
-                        expectNumber(object32.buildIndex, at(where31, 'buildIndex'), problems);
-                        reportUnknownFields(object32, ['buildIndex'], where31, problems);
+                } else if (Array.isArray(oneOf24)) {
+                  const list26 = asArray(oneOf24, where25, problems);
+                  if (list26) {
+                    list26.forEach((entry27, index28) => {
+                      const where29 = atIndex(where25, index28);
+                      const object30 = asObject(entry27, where29, problems);
+                      if (object30) {
+                        expectNumber(object30.buildIndex, at(where29, 'buildIndex'), problems);
+                        reportUnknownFields(object30, ['buildIndex'], where29, problems);
                       }
                     });
                   }
                 } else {
                   reportWrongShape(
-                    oneOf26,
+                    oneOf24,
                     '`Array<{ buildIndex: number }>` or `null`',
-                    where27,
+                    where25,
                     problems
                   );
                 }
               }
               reportUnknownFields(
-                object20,
+                object18,
                 ['name', 'status', 'baseline', 'reason', 'candidates'],
-                where19,
+                where17,
                 problems
               );
             }
@@ -1320,31 +1320,141 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         }
       } else {
         reportWrongShape(
-          oneOf14,
+          oneOf12,
           '`Array<{ name: string; status: string; baseline: { buildIndex: number } | null; reason?: string | null; candidates?: Array<{ buildIndex: number }> | null }>` or `null`',
-          where15,
+          where13,
           problems
         );
       }
     }
     if ('diffScope' in object1) {
-      const where33 = at(path, 'diffScope');
-      const object34 = asObject(object1.diffScope, where33, problems);
-      if (object34) {
-        expectString(object34.reason, at(where33, 'reason'), problems);
-        expectStringArray(object34.captured, at(where33, 'captured'), problems);
-        expectStringArray(object34.inherited, at(where33, 'inherited'), problems);
-        const oneOf35 = object34.ancestorBuildIndex;
-        const where36 = at(where33, 'ancestorBuildIndex');
-        if (typeof oneOf35 === 'number' || oneOf35 === null) {
+      const where31 = at(path, 'diffScope');
+      const object32 = asObject(object1.diffScope, where31, problems);
+      if (object32) {
+        expectString(object32.reason, at(where31, 'reason'), problems);
+        expectStringArray(object32.captured, at(where31, 'captured'), problems);
+        expectStringArray(object32.inherited, at(where31, 'inherited'), problems);
+        const oneOf33 = object32.ancestorBuildIndex;
+        const where34 = at(where31, 'ancestorBuildIndex');
+        if (typeof oneOf33 === 'number' || oneOf33 === null) {
           // the value is one of these
         } else {
-          reportWrongShape(oneOf35, 'a number or `null`', where36, problems);
+          reportWrongShape(oneOf33, 'a number or `null`', where34, problems);
         }
         reportUnknownFields(
-          object34,
+          object32,
           ['reason', 'captured', 'inherited', 'ancestorBuildIndex'],
-          where33,
+          where31,
+          problems
+        );
+      }
+    }
+    if ('runErrorPlatform' in object1) {
+      const oneOf35 = object1.runErrorPlatform;
+      const where36 = at(path, 'runErrorPlatform');
+      if (oneOf35 === 'android' || oneOf35 === 'ios' || oneOf35 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf35, '`"android"`, `"ios"` or `null`', where36, problems);
+      }
+    }
+    if ('gitInfo' in object1) {
+      const where37 = at(path, 'gitInfo');
+      const object38 = asObject(object1.gitInfo, where37, problems);
+      if (object38) {
+        expectString(object38.branchName, at(where37, 'branchName'), problems);
+        expectString(object38.commitHash, at(where37, 'commitHash'), problems);
+        if ('isDirty' in object38) {
+          const oneOf39 = object38.isDirty;
+          const where40 = at(where37, 'isDirty');
+          if (typeof oneOf39 === 'boolean' || oneOf39 === null) {
+            // the value is one of these
+          } else {
+            reportWrongShape(oneOf39, 'true/false or `null`', where40, problems);
+          }
+        }
+        reportUnknownFields(object38, ['branchName', 'commitHash', 'isDirty'], where37, problems);
+      }
+    }
+    if ('mainBranch' in object1) {
+      const oneOf41 = object1.mainBranch;
+      const where42 = at(path, 'mainBranch');
+      if (typeof oneOf41 === 'string' || oneOf41 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf41, 'a string or `null`', where42, problems);
+      }
+    }
+    if ('ciRun' in object1) {
+      const oneOf43 = object1.ciRun;
+      const where44 = at(path, 'ciRun');
+      if (oneOf43 === null) {
+        // the value is one of these
+      } else if (isPlainObject(oneOf43)) {
+        const object45 = asObject(oneOf43, where44, problems);
+        if (object45) {
+          expectString(object45.provider, at(where44, 'provider'), problems);
+          expectString(object45.runId, at(where44, 'runId'), problems);
+          reportUnknownFields(object45, ['provider', 'runId'], where44, problems);
+        }
+      } else {
+        reportWrongShape(
+          oneOf43,
+          '`{ provider: string; runId: string }` or `null`',
+          where44,
+          problems
+        );
+      }
+    }
+    if ('devices' in object1) {
+      const oneOf46 = object1.devices;
+      const where47 = at(path, 'devices');
+      if (oneOf46 === null) {
+        // the value is one of these
+      } else if (Array.isArray(oneOf46)) {
+        const list48 = asArray(oneOf46, where47, problems);
+        if (list48) {
+          list48.forEach((entry49, index50) => {
+            const where51 = atIndex(where47, index50);
+            const object52 = asObject(entry49, where51, problems);
+            if (object52) {
+              expectString(object52.id, at(where51, 'id'), problems);
+              expectString(object52.osVersion, at(where51, 'osVersion'), problems);
+              expectOneOf(object52.platform, ['android', 'ios'], at(where51, 'platform'), problems);
+              reportUnknownFields(object52, ['id', 'osVersion', 'platform'], where51, problems);
+            }
+          });
+        }
+      } else {
+        reportWrongShape(
+          oneOf46,
+          "`Array<{ id: string; osVersion: string; platform: 'android' | 'ios' }>` or `null`",
+          where47,
+          problems
+        );
+      }
+    }
+    if ('platforms' in object1) {
+      const oneOf53 = object1.platforms;
+      const where54 = at(path, 'platforms');
+      if (oneOf53 === null) {
+        // the value is one of these
+      } else if (isPlainObject(oneOf53)) {
+        const object55 = asObject(oneOf53, where54, problems);
+        if (object55) {
+          if ('android' in object55) {
+            readBuildStatusPlatform(object55.android, at(where54, 'android'), problems);
+          }
+          if ('ios' in object55) {
+            readBuildStatusPlatform(object55.ios, at(where54, 'ios'), problems);
+          }
+          reportUnknownFields(object55, ['android', 'ios'], where54, problems);
+        }
+      } else {
+        reportWrongShape(
+          oneOf53,
+          '`{ android?: BuildStatusPlatform; ios?: BuildStatusPlatform }` or `null`',
+          where54,
           problems
         );
       }
@@ -1358,13 +1468,46 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         'viewStatusesCount',
         'runError',
         'diffScopeInfo',
-        'gitInfo',
         'stories',
         'diffScope',
+        'runErrorPlatform',
+        'gitInfo',
+        'mainBranch',
+        'ciRun',
+        'devices',
+        'platforms',
       ],
       path,
       problems
     );
+  }
+}
+
+/** The shape of a `PushFacts`, as `contracts/pose.contract.ts` publishes it. */
+function readPushFacts(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    const where2 = at(path, 'platforms');
+    const object3 = asObject(object1.platforms, where2, problems);
+    if (object3) {
+      if ('android' in object3) {
+        readPushFactsPlatform(object3.android, at(where2, 'android'), problems);
+      }
+      if ('ios' in object3) {
+        readPushFactsPlatform(object3.ios, at(where2, 'ios'), problems);
+      }
+      reportUnknownFields(object3, ['android', 'ios'], where2, problems);
+    }
+    if ('ciRun' in object1) {
+      const where4 = at(path, 'ciRun');
+      const object5 = asObject(object1.ciRun, where4, problems);
+      if (object5) {
+        expectString(object5.provider, at(where4, 'provider'), problems);
+        expectString(object5.runId, at(where4, 'runId'), problems);
+        reportUnknownFields(object5, ['provider', 'runId'], where4, problems);
+      }
+    }
+    reportUnknownFields(object1, ['platforms', 'ciRun'], path, problems);
   }
 }
 
@@ -1404,6 +1547,36 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
         'capturedSnapshotCount',
         'inheritedSnapshotCount',
       ],
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `PushFactsPlatform`, as `contracts/pose.contract.ts` publishes it. */
+function readPushFactsPlatform(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    if ('madeBy' in object1) {
+      expectOneOf(
+        object1.madeBy,
+        ['compiled', 'build-cache', 'command', 'eas'],
+        at(path, 'madeBy'),
+        problems
+      );
+    }
+    if ('why' in object1) {
+      expectOneOf(object1.why, ['nothing-stored', 'native-changed'], at(path, 'why'), problems);
+    }
+    if ('nativeChanges' in object1) {
+      expectStringArray(object1.nativeChanges, at(path, 'nativeChanges'), problems);
+    }
+    if ('storiesInBundle' in object1) {
+      expectNumber(object1.storiesInBundle, at(path, 'storiesInBundle'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      ['madeBy', 'why', 'nativeChanges', 'storiesInBundle'],
       path,
       problems
     );
@@ -1690,6 +1863,136 @@ function readPosedView(value: unknown, path: string, problems: string[]): void {
     reportUnknownFields(
       object1,
       ['primitive', 'components', 'text', 'size', 'style', 'props', 'children'],
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `BuildStatusPlatform`, as `contracts/pose.contract.ts` publishes it. */
+function readBuildStatusPlatform(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectBoolean(object1.arrived, at(path, 'arrived'), problems);
+    if ('capture' in object1) {
+      const oneOf2 = object1.capture;
+      const where3 = at(path, 'capture');
+      if (oneOf2 === null) {
+        // the value is one of these
+      } else if (isPlainObject(oneOf2)) {
+        const object4 = asObject(oneOf2, where3, problems);
+        if (object4) {
+          expectBoolean(object4.full, at(where3, 'full'), problems);
+          const oneOf5 = object4.reason;
+          const where6 = at(where3, 'reason');
+          if (typeof oneOf5 === 'string' || oneOf5 === null) {
+            // the value is one of these
+          } else {
+            reportWrongShape(oneOf5, 'a string or `null`', where6, problems);
+          }
+          expectStringArray(object4.storyFiles, at(where3, 'storyFiles'), problems);
+          reportUnknownFields(object4, ['full', 'reason', 'storyFiles'], where3, problems);
+        }
+      } else {
+        reportWrongShape(
+          oneOf2,
+          '`{ full: boolean; reason: string | null; storyFiles: string[] }` or `null`',
+          where3,
+          problems
+        );
+      }
+    }
+    if ('appBuild' in object1) {
+      const oneOf7 = object1.appBuild;
+      const where8 = at(path, 'appBuild');
+      if (oneOf7 === null) {
+        // the value is one of these
+      } else if (isPlainObject(oneOf7)) {
+        const object9 = asObject(oneOf7, where8, problems);
+        if (object9) {
+          expectOneOf(object9.from, ['uploaded', 'stored'], at(where8, 'from'), problems);
+          if ('storedFromTest' in object9) {
+            const oneOf10 = object9.storedFromTest;
+            const where11 = at(where8, 'storedFromTest');
+            if (typeof oneOf10 === 'number' || oneOf10 === null) {
+              // the value is one of these
+            } else {
+              reportWrongShape(oneOf10, 'a number or `null`', where11, problems);
+            }
+          }
+          if ('madeBy' in object9) {
+            const oneOf12 = object9.madeBy;
+            const where13 = at(where8, 'madeBy');
+            if (
+              oneOf12 === 'compiled' ||
+              oneOf12 === 'build-cache' ||
+              oneOf12 === 'command' ||
+              oneOf12 === 'eas' ||
+              oneOf12 === null
+            ) {
+              // the value is one of these
+            } else {
+              reportWrongShape(
+                oneOf12,
+                '`"compiled"`, `"build-cache"`, `"command"`, `"eas"` or `null`',
+                where13,
+                problems
+              );
+            }
+          }
+          if ('why' in object9) {
+            const oneOf14 = object9.why;
+            const where15 = at(where8, 'why');
+            if (oneOf14 === 'nothing-stored' || oneOf14 === 'native-changed' || oneOf14 === null) {
+              // the value is one of these
+            } else {
+              reportWrongShape(
+                oneOf14,
+                '`"nothing-stored"`, `"native-changed"` or `null`',
+                where15,
+                problems
+              );
+            }
+          }
+          if ('nativeChanges' in object9) {
+            const oneOf16 = object9.nativeChanges;
+            const where17 = at(where8, 'nativeChanges');
+            if (oneOf16 === null) {
+              // the value is one of these
+            } else if (Array.isArray(oneOf16)) {
+              expectStringArray(oneOf16, where17, problems);
+            } else {
+              reportWrongShape(oneOf16, 'an array of strings or `null`', where17, problems);
+            }
+          }
+          reportUnknownFields(
+            object9,
+            ['from', 'storedFromTest', 'madeBy', 'why', 'nativeChanges'],
+            where8,
+            problems
+          );
+        }
+      } else {
+        reportWrongShape(
+          oneOf7,
+          "`{ from: 'uploaded' | 'stored'; storedFromTest?: number | null; madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null; why?: 'nothing-stored' | 'native-changed' | null; nativeChanges?: string[] | null }` or `null`",
+          where8,
+          problems
+        );
+      }
+    }
+    if ('storiesInBundle' in object1) {
+      const oneOf18 = object1.storiesInBundle;
+      const where19 = at(path, 'storiesInBundle');
+      if (typeof oneOf18 === 'number' || oneOf18 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf18, 'a number or `null`', where19, problems);
+      }
+    }
+    reportUnknownFields(
+      object1,
+      ['arrived', 'capture', 'appBuild', 'storiesInBundle'],
       path,
       problems
     );

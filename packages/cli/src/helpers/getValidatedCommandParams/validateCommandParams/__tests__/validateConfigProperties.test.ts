@@ -27,7 +27,8 @@ describe('validateConfigProperties', () => {
   function warnings(): string[] {
     return logSpy.mock.calls
       .map((call: unknown[]) => String(call[0] ?? ''))
-      .filter((line: string) => line.includes('WARNING'));
+      // A warning is a line with init's yellow bang (epic sherlo-test-builds-apps).
+      .filter((line: string) => line.includes('! '));
   }
 
   // The regression this ticket exists for: a config carrying include/exclude

@@ -6,6 +6,7 @@ import {
   printSherloIntro,
   throwError,
 } from '../../helpers';
+import { emit } from '../../helpers/transcriptSink';
 import { serverCalls } from '../../seams/serverCalls';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
@@ -45,6 +46,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   }
 
   printSherloIntro();
+  emit({ kind: 'command-intro', command: 'eas-build-on-complete' });
 
   const sherloTempData = getSherloTempData();
 

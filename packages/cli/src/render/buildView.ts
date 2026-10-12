@@ -1,6 +1,6 @@
 /**
- * THE BUILD-VIEW LINES (F5) - what `sherlo view` prints about one build, and the
- * `── details ──` block that BOTH `sherlo view` and `sherlo test --wait` print
+ * THE BUILD-VIEW LINES (F5) - what `sherlo view` prints about one build (and its
+ * `--json` record), and the `── details ──` block `sherlo test --wait` prints
  * for `--metadata`.
  *
  * Pure, like the rest of `src/render/`: state in, bytes out. The command decides
@@ -34,6 +34,7 @@
  * "the answer was nothing" - which is why nothing here zero-fills.
  */
 import chalk from 'chalk';
+import type { BuildStatusAnswer } from '../seams/serverCalls';
 
 /* ========================================================================== */
 /* `sherlo view`'s own lines                                                  */
@@ -190,7 +191,7 @@ export type BuildDetails = {
   };
   /**
    * The Diff Scope block (view-metadata, operator ruling 2026-09-03) - the
-   * same shape `sherlo view --metadata` prints as `diffScope`, reused here so
+   * same shape `sherlo view --json` prints as `diffScope`, reused here so
    * `sherlo test --wait --metadata` says the same thing about the same build.
    * Absent on an older API (no `diffScope` field) or a gate-off build.
    */
@@ -353,7 +354,7 @@ function runnerValue({ runStatus, runError }: BuildDetails): string {
 }
 
 /* ========================================================================== */
-/* `--metadata`'s JSON contract (view-metadata, operator ruling 2026-09-03)    */
+/* `sherlo view --json`: the record (operator decision 2026-10-12)            */
 /* ========================================================================== */
 
 /**
@@ -363,7 +364,7 @@ function runnerValue({ runStatus, runError }: BuildDetails): string {
  * same reason it does on the wire type in helpers/waitForBuildResult: a status
  * this CLI has not learned yet must still pass through.
  */
-export type ViewMetadataStory = {
+export type ViewStory = {
   name: string;
   status: string;
   baseline: { buildIndex: number } | null;
@@ -374,10 +375,56 @@ export type ViewMetadataStory = {
 };
 
 /**
- * The whole `sherlo view --metadata` JSON payload (view-metadata, operator
- * ruling 2026-09-03). This IS the contract - see docs/view-metadata-spec.md in
- * the epic branch history - so every key here is one the JSON prints under its
- * own name, in this order.
+ * THE WHOLE `sherlo view <n> --json` RECORD - one read-back for everything about a test (operator
+ * decision 2026-10-12, epic sherlo-test-builds-apps). Every key is one the JSON prints under its own
+ * name, in this order, and agents read them, so a name never changes once shipped.
+ *
+ * A FIELD LIFT OFF `getBuildStatus` (commands/view/printBuildView's `viewJsonOf`), never a
+ * translation: absent means the service did not say (an older API), `null` means it said "none",
+ * and nothing is ever filled in as a zero.
+ */
+export type ViewJson = {
+  runStatus: string;
+  buildIndex: number;
+  /** The build's frozen git identity. `dirty`: the push sent uncommitted changes. */
+  commit?: { sha: string; branch: string; dirty?: boolean | null };
+  /** `true`: the build shows only what its own branch changed against the main line. */
+  showsOnlyBranchChanges?: boolean;
+  /** The main line the build was judged against. `null` while the project has none. */
+  mainBranch?: string | null;
+  /** The CI run that pushed the build. `null` for a push from a person's machine. */
+  ciRun?: { provider: string; runId: string } | null;
+  /** Why the run ended in `error`: the service's code, and the platform when it was one platform's. */
+  runError?: { code: string; platform?: 'android' | 'ios' };
+  /** The devices the run was asked for. */
+  devices?: BuildStatusAnswer['devices'];
+  viewStatusesCount?: ViewMetadataJson['viewStatusesCount'];
+  /** `null` is what the wire sends for a build whose run errored before any view row existed. */
+  stories?: ViewStory[] | null;
+  /** The Diff Scope block, build-wide, as today: see {@link ViewMetadataJson}'s `diffScope`. */
+  diffScope?: ViewMetadataJson['diffScope'];
+  /**
+   * Per platform the run was asked for: whether its app build `arrived`, where the app build came
+   * from (`appBuild`), the capture plan (`capture`, read off the stored decision, so a canceled
+   * build still has it) and `storiesInBundle`. See ../seams/serverCalls' BuildStatusPlatform.
+   */
+  platforms?: BuildStatusAnswer['platforms'];
+};
+
+/**
+ * `sherlo view --json`'s entire output: the record, pretty-printed, and nothing
+ * else - no header, no colour, no url line. It is meant to be piped and parsed,
+ * so the bytes are exactly `JSON.stringify(json, null, 2)`.
+ */
+export function renderViewJson(json: ViewJson): string {
+  return JSON.stringify(json, null, 2);
+}
+
+/**
+ * The record `--metadata` printed before it became `--json`.
+ *
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): nothing prints it any more; only
+ * helpers/buildDetails' `buildViewMetadataJson` still builds it, and the build task deletes both.
  */
 export type ViewMetadataJson = {
   runStatus: string;
@@ -396,10 +443,10 @@ export type ViewMetadataJson = {
     unreviewed: number;
   };
   /** `null` is what the wire sends for a build whose run errored before any view row existed. */
-  stories?: ViewMetadataStory[] | null;
+  stories?: ViewStory[] | null;
   /**
    * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
-   * `sherlo view --metadata` prints as `diffScope`. `reason` is the primary
+   * `sherlo view --json` prints as `diffScope`. `reason` is the primary
    * platform's prose, `captured`/`inherited` are story display names, and
    * `ancestorBuildIndex` is the build this decision diffed against (`null`
    * when there was none). Absent whenever the API sent no `diffScope` (an
@@ -413,31 +460,22 @@ export type ViewMetadataJson = {
   };
 };
 
-/**
- * `--metadata`'s entire output: the JSON payload, pretty-printed, and nothing
- * else - no header, no colour, no url line. It is meant to be piped and parsed,
- * so the bytes are exactly `JSON.stringify(json, null, 2)`.
- */
-export function renderViewMetadataJson(json: ViewMetadataJson): string {
-  return JSON.stringify(json, null, 2);
-}
-
 /* ========================================================================== */
-/* The stories table (human-readable, no `--metadata`)                       */
+/* The stories table (human-readable, no `--json`)                           */
 /* ========================================================================== */
 
 /**
- * The per-story table `sherlo view` prints (without `--metadata`) under the
+ * The per-story table `sherlo view` prints (without `--json`) under the
  * check sentence. Plain and aligned like {@link renderBuildDetails}'s block,
  * for the same reason: three columns, one row per story, widths driven by the
  * widest cell actually present.
  *
  * A `review-required` row's baseline column carries the reason instead of a
  * build index - there IS no baseline for that story (see
- * ViewMetadataStory.baseline), and printing blank there would read as an
+ * ViewStory.baseline), and printing blank there would read as an
  * omission rather than the answer.
  */
-export function renderStoriesTable(stories: ViewMetadataStory[]): string[] {
+export function renderStoriesTable(stories: ViewStory[]): string[] {
   if (stories.length === 0) return [];
 
   const rows = stories.map((story) => ({
@@ -457,7 +495,7 @@ export function renderStoriesTable(stories: ViewMetadataStory[]): string[] {
   ];
 }
 
-function baselineCell(story: ViewMetadataStory): string {
+function baselineCell(story: ViewStory): string {
   if (story.baseline) return `build #${story.baseline.buildIndex}`;
   if (story.reason === 'two-baselines' && story.candidates) {
     return `two baselines (#${story.candidates.map((c) => c.buildIndex).join(', #')})`;

@@ -35,17 +35,14 @@ import {
   getBuildRunConfig,
   getGitInfo,
   handleClientError,
-  printBuildIntroMessage,
-  reporting,
   throwError,
-  waitForBuildResult,
 } from '../../../helpers';
-import parseWaitTimeout from '../../../helpers/parseWaitTimeout';
 import { emit } from '../../../helpers/transcriptSink';
 import { serverCalls } from '../../../seams/serverCalls';
 import { appBuilder } from '../../../seams/appBuilder';
 import type { CommandParams } from '../../../types';
 import { createSherloTempDirectory } from '../../testEasCloudBuild/helpers';
+import { closeTheRun } from '../closeTheRun';
 import type { THIS_COMMAND } from '../constants';
 import { type BuildSettings, DEFAULT_EAS_PROFILE } from './buildSettings';
 import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
@@ -98,33 +95,19 @@ export async function easRun({
   // and each build reads which run it belongs to out of this file.
   createSherloTempDirectory({ projectRoot: commandParams.projectRoot, buildIndex, token, profile });
 
-  printBuildIntroMessage({ commandParams, nextBuildIndex: buildIndex });
-
-  emit({ kind: 'eas-build-header', profile });
   for (const platform of platforms) {
     await appBuilder().startEasBuild({ platform, profile, projectRoot: commandParams.projectRoot });
-    emit({ kind: 'eas-build-queued', platform });
+    emit({ kind: 'eas-build-queued', platform, profile });
   }
 
   emit({ kind: 'run-waits-for-builds', buildIndex, waitingFor: { easBuilds: true } });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
-  emit({ kind: 'results-url', url });
 
   // FROM A LAPTOP THE DEVELOPER OFTEN STAYS FOR THE ANSWER: `--wait` waits through the EAS builds
   // and the run alike, under the same contract as every other wait - EAS builds take a while, so
   // the deadline is the one `--wait-timeout` names.
-  if (commandParams.wait) {
-    const exitCode = await waitForBuildResult({
-      token,
-      fromSavedLogin: commandParams.credential.fromSavedLogin,
-      buildIndex,
-      projectIndex,
-      teamId,
-      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
-    });
-    await reporting.flush().finally(() => process.exit(exitCode));
-  }
+  await closeTheRun({ commandParams, buildIndex, url });
 
   return { url };
 }

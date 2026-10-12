@@ -10,13 +10,15 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
+Testing your app...
+
 [31mERROR: Can't build Android: no Android SDK was found.[39m
 [31mSet ANDROID_HOME, or add sdk.dir to android/local.properties.[39m
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 1]

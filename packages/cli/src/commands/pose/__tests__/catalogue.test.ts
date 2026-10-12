@@ -96,10 +96,11 @@ describe('the pose catalogue under packages/cli/poses', () => {
     // ever re-minted through a stripping masker, every case above would keep passing while going
     // blind to every colour and style-boundary change - and nothing else would say so.
     //
-    // THE COLOURLESS SCREENS ARE `--metadata` AND `--json`, AND BOTH ARE COLOURLESS ON PURPOSE:
-    // each flag prints a JSON contract and nothing else - no header, no colour, no url line -
-    // because each is meant to be piped and parsed (commands/view/printBuildView; commands/capture
-    // writes the record straight to process.stdout). Reading that exception off the POSE rather
+    // THE COLOURLESS SCREENS ARE `--json`, AND THEY ARE COLOURLESS ON PURPOSE: the flag prints a
+    // record and nothing else - no header, no colour, no url line - because it is meant to be
+    // piped and parsed (commands/view/printBuildView; commands/capture writes the record straight
+    // to process.stdout). `sherlo view --wait --json` is one too: commander's own refusal of the
+    // pair, before anything prints. Reading that exception off the POSE rather
     // than off a list of names is what keeps this case exact: a stripping masker would turn every
     // OTHER screen colourless too, and this would say so.
     // eslint-disable-next-line no-control-regex
@@ -152,10 +153,10 @@ describe('the pose catalogue under packages/cli/poses', () => {
 
 /* ========================================================================== */
 
-/** `--metadata` and `--json` print a JSON contract instead of the human view, and that carries no colour. */
+/** `--json` prints a record instead of the human view, and that carries no colour. */
 function printsTheJsonContract(posePath: string): boolean {
   const { argv } = readPoseDocument(fs.readFileSync(posePath, 'utf8'));
-  return argv.includes('--metadata') || argv.includes('--json');
+  return argv.includes('--json');
 }
 
 /**

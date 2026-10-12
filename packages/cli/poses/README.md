@@ -47,7 +47,10 @@ quietly rewrite its own baseline is not a ratchet.
 - `git` - what the git read answers, or `"none"` / `"unavailable"`.
 - `bundles` - what bundling answers, per platform, for the commands that bundle. `{}` otherwise.
 - `api` - the server's answers, one per call, in order, each checked against the arguments the
-  command actually made the call with.
+  command actually made the call with. `openBuild`, `joinBuild` and `asyncUpload` may name
+  `pushFacts` in their `with` - what only the push knows (how the app build was made, why, what
+  changed natively, how many stories the bundle holds), which `sherlo view --json` reads back - and
+  a pose that names them is checked against what the push sent.
 - `masks` - placeholder -> a literal the SCENARIO itself put on the screen, and nothing else. The
   tool folds every value only a machine knows on its own, by shape: the temporary project folder,
   the resolved config path, a token, a build address, a size, a duration, the time since a build, a

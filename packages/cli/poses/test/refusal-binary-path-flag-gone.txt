@@ -2,10 +2,10 @@
 To build ahead of time, run `npx sherlo build`. The next `npx sherlo test` uses the app from the local build cache.
 If Gradle or Xcode can't build your app on their own, set `build.android.command` and `build.android.output` (or the `ios` ones) in sherlo.config.json.
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 1]

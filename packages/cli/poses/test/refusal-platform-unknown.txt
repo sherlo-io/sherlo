@@ -1,10 +1,10 @@
 [31mERROR: `--platform` takes `android` or `ios`, not `both`.[39m
 Leave `--platform` out to test both platforms in one job.
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 1]

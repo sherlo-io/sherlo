@@ -284,8 +284,10 @@ export type ScriptedCall =
     }
   | {
       call: 'openBuild';
+      /** `pushFacts`: what the push reports about itself; a pose that states it is checked against it. */
       with: {
         platforms: string[];
+        pushFacts?: PushFacts;
       };
       answer:
         | ApiError
@@ -305,6 +307,7 @@ export type ScriptedCall =
       with: {
         joinKey: string;
         platform: string;
+        pushFacts?: PushFactsPlatform;
       };
       answer:
         | ApiError
@@ -322,6 +325,7 @@ export type ScriptedCall =
       with: {
         buildIndex: number;
         platform: string;
+        pushFacts?: PushFactsPlatform;
       };
       answer:
         | ApiError
@@ -615,9 +619,16 @@ export type ApiError = {
 };
 
 /**
- * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, aliased rather than re-typed: a pose
+ * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, extended rather than re-typed: a pose
  * describing a build the backend cannot send would let a product design be approved off a state
  * that can never occur.
+ *
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the fields below are what `sherlo view
+ * --json` reads beyond today's wire, drawn here and sent by no server yet. The build task adds
+ * them to sherlo-api's `getBuildStatus`, to both selections of it (the CLI's raw fetch in
+ * helpers/buildStatusRequest.ts and the sdk client's), and folds this intersection back into
+ * `BuildStatus`. Every one is optional: an older API leaves it out, and `view --json` then prints
+ * it absent, never as a zero.
  */
 export type BuildStatusAnswer = {
   runStatus: 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
@@ -693,14 +704,6 @@ export type BuildStatusAnswer = {
     };
   };
   /**
-   * The build's frozen git identity (view-metadata, operator ruling 2026-09-03) - only the two
-   * fields `getBuildStatus` sends. Absent on an older API.
-   */
-  gitInfo?: {
-    branchName: string;
-    commitHash: string;
-  };
-  /**
    * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo view --metadata`
    * prints as `stories[]`. `status` is spelled as the plain string the wire sends (including the
    * hyphenated `"review-required"`) rather than a narrowed union, because `@sherlo/api-types` is
@@ -736,6 +739,57 @@ export type BuildStatusAnswer = {
     inherited: string[];
     ancestorBuildIndex: number | null;
   };
+  /**
+   * The platform whose failure ended the run - beside `runError`, which the wire already sends as
+   * the server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...). Absent or
+   * `null` when the error is not one platform's.
+   */
+  runErrorPlatform?: 'android' | 'ios' | null;
+  /** The build's frozen git identity. `isDirty`: whether the push sent uncommitted changes. */
+  gitInfo?: {
+    branchName: string;
+    commitHash: string;
+    isDirty?: boolean | null;
+  };
+  /** The project's main line the build was judged against. `null` while the project has none. */
+  mainBranch?: string | null;
+  /**
+   * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
+   * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
+   * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
+   * `null` for a push from a person's machine.
+   */
+  ciRun?: {
+    provider: string;
+    runId: string;
+  } | null;
+  /** The devices the run was asked for, as the config named them. */
+  devices?: Array<{
+    id: string;
+    osVersion: string;
+    platform: 'android' | 'ios';
+  }> | null;
+  /**
+   * Per platform the run was asked for, what it did with it. A platform it was not asked for is
+   * absent.
+   */
+  platforms?: {
+    android?: BuildStatusPlatform;
+    ios?: BuildStatusPlatform;
+  } | null;
+};
+
+/** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */
+export type PushFacts = {
+  platforms: {
+    android?: PushFactsPlatform;
+    ios?: PushFactsPlatform;
+  };
+  /** The CI service and its run id, when the push ran in CI. */
+  ciRun?: {
+    provider: string;
+    runId: string;
+  };
 };
 
 /**
@@ -768,6 +822,38 @@ export type PosedCaptureDecision = {
    */
   capturedSnapshotCount?: number;
   inheritedSnapshotCount?: number;
+};
+
+/**
+ * WHAT ONLY THE PUSH KNOWS about one platform it delivers - the machine that made the app build is
+ * the only witness, so the push reports it on `openBuild`, `joinBuild` or the EAS hook's
+ * `asyncUpload`, the service stores it on the build run, and `getBuildStatus` echoes it ({@link
+ * BuildStatusPlatform}). Self-reported: the CLI vouches for itself, so nothing the web app trusts
+ * may be decided from it.
+ *
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the calls' posed `with` names these, and
+ * no push composes them yet. The build task composes them where the push already decides each
+ * fact, sends them, and the service stores them.
+ */
+export type PushFactsPlatform = {
+  /**
+   * How the app build was made: `compiled` on this machine, taken from the local `build-cache`,
+   * made by the project's own build `command`, or by `eas`. Absent when the push sent no app build
+   * (it took a stored one).
+   */
+  madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas';
+  /**
+   * Why a new app build was made: `nothing-stored` for this platform yet, or `native-changed`
+   * since the stored one.
+   */
+  why?: 'nothing-stored' | 'native-changed';
+  /**
+   * The native files and modules that changed since the stored app build, with `why:
+   * native-changed`.
+   */
+  nativeChanges?: string[];
+  /** How many stories the pushed bundle holds. */
+  storiesInBundle?: number;
 };
 
 /** What the dry-run road's one read-only question answers. */
@@ -904,6 +990,52 @@ export type PosedView = {
   /** The other props the screen prints beside the style: a placeholder, a testID, numberOfLines. */
   props?: Record<string, string | number | boolean>;
   children?: PosedView[];
+};
+
+/**
+ * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it: service-known facts beside the facts
+ * the push reported about itself ({@link PushFacts}).
+ */
+export type BuildStatusPlatform = {
+  /**
+   * Whether this platform's app build reached the run. `false`: a split or EAS run still waits for
+   * it.
+   */
+  arrived: boolean;
+  /**
+   * The capture plan the service decided for this platform, read off the stored decision
+   * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has it.
+   * `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
+   */
+  capture?: {
+    /** `true`: every story in the bundle was captured. */
+    full: boolean;
+    /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+    reason: string | null;
+    /** The story files captured, as paths. Empty when `full`. */
+    storyFiles: string[];
+  } | null;
+  /** Where the app build came from. `null` before the platform arrived. */
+  appBuild?: {
+    /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
+    from: 'uploaded' | 'stored';
+    /** The test the stored app build was first uploaded in. Only with `from: stored`. */
+    storedFromTest?: number | null;
+    /**
+     * How the push made the app build it uploaded, as the push reported it. Only with `from:
+     * uploaded`.
+     */
+    madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null;
+    /** Why a new app build was made, as the push reported it. */
+    why?: 'nothing-stored' | 'native-changed' | null;
+    /**
+     * What changed natively since the stored app build, as the push reported it, with `why:
+     * native-changed`.
+     */
+    nativeChanges?: string[] | null;
+  } | null;
+  /** How many stories the pushed bundle holds, as the push counted them. */
+  storiesInBundle?: number | null;
 };
 
 /** One platform's capture decision, as a pose states it. */

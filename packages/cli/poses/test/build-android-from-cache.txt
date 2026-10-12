@@ -10,25 +10,18 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-🔨 [1mAndroid[22m needs a new app build: none is stored for this project yet
-[32m✔[39m  reused the Android app build from the local build cache
+Testing your app...
 
-[32mTest 1[39m will run on [34m1 device[39m (1 Android)
-
-📦 [1mAndroid[22m
-[34m➜[39m  uploading build... (<SIZE> MB)
-[32m✔[39m  upload complete
-
+[32m✔[39m Built the Android app  kept in the local build cache, no app build stored yet [2m(reused)[22m
+[32m✔[39m Set up Test 1          on 1 device (Pixel 7)
+[2mUploading the app build (<SIZE> MB)...[22m
+[32m✔[39m Uploaded app build
 [1m[22m
 [1m📦 Bundling for this run...[22m
 [1m[22m
-[36m[39m
-[36m🤖 Building android bundle...[39m
-[32m  ✓ Bundle: bundle.android.js[39m (<SIZE> MB, plain-js, expo)
-[32m  ✓ Assets: 2 files[39m
-[36m[39m
-[36m⬆️  Uploading android bundle...[39m
-🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
+[2mBundling the JavaScript for 🤖 Android...[22m
+[32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 0]

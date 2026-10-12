@@ -82,7 +82,8 @@ describe('THE CLOSER PRINTS THE ADDRESS ONCE, ON THE LINE WITH THE EMOJI, WHOEVE
     process.env.CI = 'true';
     try {
       expect(renderSegment({ kind: 'results-url', url }).prints).toEqual([
-        [`\u{1F517} ${ESC}[4m${url}${ESC}[24m\n`],
+        [`\u{1F517} Review: ${ESC}[36m${url}${ESC}[39m`],
+        [''],
       ]);
     } finally {
       delete process.env.CI;
@@ -95,6 +96,24 @@ describe('THE CLOSER PRINTS THE ADDRESS ONCE, ON THE LINE WITH THE EMOJI, WHOEVE
 /* ========================================================================== */
 
 const ESC = '\u001b';
+
+/** Init's help block, the end of every failed run (../testSteps `renderHelpBlock`), one print each. */
+const HELP_BLOCK_PRINTS = [
+  [`${ESC}[2m──────────${ESC}[22m`],
+  [''],
+  ['Need help?'],
+  [`➜ Discord: ${ESC}[36mhttps://discord.gg/G7eqTBkWZt${ESC}[39m`],
+  [`➜ Email: ${ESC}[36mcontact@sherlo.io${ESC}[39m`],
+];
+
+/** Init's `👉 Next step` section title: two blank lines, the bold title, its dim underline, a blank. */
+const NEXT_STEP_TITLE_PRINTS = [
+  [''],
+  [''],
+  [`${ESC}[1m👉 Next step${ESC}[22m`],
+  [`${ESC}[2m════════════${ESC}[22m`],
+  [''],
+];
 
 /**
  * One pinned segment: the state that produces it, and the EXACT bytes the shipped
@@ -118,32 +137,35 @@ type Pin = {
 const PINS: Pin[] = [
   {
     kind: 'dry-run-bundling-header',
-    what: 'the bundling header, whose blank lines live INSIDE the bold',
+    what: 'the dry run opens like every test, so its bundling has no header of its own - zero print calls',
     segment: { kind: 'dry-run-bundling-header' },
     stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[1m${ESC}[22m\n${ESC}[1m📦 Bundling for dry-run preview...${ESC}[22m\n${ESC}[1m${ESC}[22m`,
-      ],
-    ],
+    prints: [],
+  },
+  {
+    kind: 'command-intro',
+    what: "the line under the logo saying what the command is doing, then init's blank line",
+    segment: { kind: 'command-intro', command: 'test' },
+    stream: 'stdout',
+    prints: [['Testing your app...'], ['']],
   },
   {
     kind: 'platform-bundle-start',
-    what: 'the android bundle-start line, whose leading blank line is inside the cyan',
+    what: 'the android bundle-start line - a step still running, dim, printed once (a spinner is build work)',
     segment: { kind: 'platform-bundle-start', platform: 'android' },
     stream: 'stdout',
-    prints: [[`${ESC}[36m${ESC}[39m\n${ESC}[36m🤖 Building android bundle...${ESC}[39m`]],
+    prints: [[`${ESC}[2mBundling the JavaScript for 🤖 Android...${ESC}[22m`]],
   },
   {
     kind: 'platform-bundle-start',
-    what: 'the ios bundle-start line (the apple emoji, and the lowercase platform word)',
+    what: 'the ios bundle-start line (the apple emoji, and the platform as the product spells it)',
     segment: { kind: 'platform-bundle-start', platform: 'ios' },
     stream: 'stdout',
-    prints: [[`${ESC}[36m${ESC}[39m\n${ESC}[36m🍎 Building ios bundle...${ESC}[39m`]],
+    prints: [[`${ESC}[2mBundling the JavaScript for 🍎 iOS...${ESC}[22m`]],
   },
   {
     kind: 'platform-bundle-built',
-    what: 'the bundle-built line, where the green CLOSES before the size parenthetical',
+    what: 'the bundle prints nothing - the upload step that follows is what a person reads',
     segment: {
       kind: 'platform-bundle-built',
       bundlePath: '/tmp/out/bundle.android.js',
@@ -152,20 +174,21 @@ const PINS: Pin[] = [
       bundler: 'expo',
     },
     stream: 'stdout',
-    prints: [[`${ESC}[32m  ✓ Bundle: bundle.android.js${ESC}[39m (4.29 MB, plain-js, expo)`]],
+    prints: [],
   },
   {
     kind: 'platform-bundle-assets',
-    what: 'the assets line, two leading spaces inside the green',
+    what: 'the asset count prints nothing either',
     segment: { kind: 'platform-bundle-assets', assetCount: 6 },
     stream: 'stdout',
-    prints: [[`${ESC}[32m  ✓ Assets: 6 files${ESC}[39m`]],
+    prints: [],
   },
   {
     kind: 'platform-bundle-supplied',
-    what: 'the supplied-bundle line - it SAYS "supplied", and the green closes before the parenthetical exactly as the built line does',
+    what: 'the supplied-bundle step - it SAYS the JavaScript came from --bundle-dir, so a broken supply road never reads as bundling',
     segment: {
       kind: 'platform-bundle-supplied',
+      platform: 'android',
       bundlePath: '/tmp/supplied/bundle.android.js',
       bundleSizeMb: 4.29,
       bundleFormat: 'plain-js',
@@ -173,33 +196,31 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[32m  ✓ Bundle supplied: bundle.android.js${ESC}[39m (4.29 MB, plain-js, expo)`],
+      [
+        `${ESC}[32m✔${ESC}[39m Used your JavaScript   🤖 Android bundle.android.js, from --bundle-dir`,
+      ],
     ],
   },
   {
     kind: 'platform-bundle-supplied-note',
-    what: 'the supplied-bundle advisory - yellow, two leading spaces, a bang not a cross (it is not a failure)',
+    what: 'the supplied-bundle advisory - yellow, a bang not a cross (it is not a failure)',
     segment: {
       kind: 'platform-bundle-supplied-note',
       note: 'built beside a different native base (abc123def456)',
     },
     stream: 'stdout',
-    prints: [[`${ESC}[33m  ! built beside a different native base (abc123def456)${ESC}[39m`]],
+    prints: [[`${ESC}[33m! built beside a different native base (abc123def456)${ESC}[39m`]],
   },
   {
     kind: 'bundle-emit-header',
-    what: 'the emit header, whose blank lines live INSIDE the bold like every other header',
+    what: "the emit header prints nothing - each platform's own step says where its JavaScript went",
     segment: { kind: 'bundle-emit-header', bundleDir: '/tmp/out' },
     stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[1m${ESC}[22m\n${ESC}[1m📦 Emitting bundle directory to /tmp/out...${ESC}[22m\n${ESC}[1m${ESC}[22m`,
-      ],
-    ],
+    prints: [],
   },
   {
     kind: 'platform-bundle-emitted',
-    what: 'the emitted line, where the green closes before the asset parenthetical',
+    what: 'the emitted step, naming the platform and the folder',
     segment: {
       kind: 'platform-bundle-emitted',
       platform: 'android',
@@ -207,18 +228,24 @@ const PINS: Pin[] = [
       assetCount: 6,
     },
     stream: 'stdout',
-    prints: [[`${ESC}[32m  ✓ Emitted android bundle${ESC}[39m (6 assets)`]],
+    prints: [[`${ESC}[32m✔${ESC}[39m Saved the JavaScript   🤖 Android, to /tmp/out`]],
   },
   {
     kind: 'platform-bundle-failed',
-    what: 'the bundling failure, whose leading blank line is inside the red',
+    what: "the bundling failure in init's failed-step shape, the message in red, then the help block - the run exits right after it",
     segment: { kind: 'platform-bundle-failed', message: 'metro exited with code 1' },
     stream: 'stdout',
-    prints: [[`${ESC}[31m${ESC}[39m\n${ESC}[31m  ✗ metro exited with code 1${ESC}[39m`]],
+    prints: [
+      [`${ESC}[31m✖${ESC}[39m Bundling the JavaScript failed`],
+      [''],
+      [`${ESC}[31mmetro exited with code 1${ESC}[39m`],
+      [''],
+      ...HELP_BLOCK_PRINTS,
+    ],
   },
   {
     kind: 'dry-run-capture-plan',
-    what: 'the whole capture plan and its closer - indentation, the two blank lines before "◦ Dry run", and every style boundary in between',
+    what: 'the whole capture plan and its closer - one step per platform when they differ, the stories under a partial one, and the dry-run line',
     segment: {
       kind: 'dry-run-capture-plan',
       previews: [
@@ -238,15 +265,11 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[1m📸 Capture plan (dry run)${ESC}[22m\n` +
-          `  ${ESC}[36m🤖 Android${ESC}[39m - ${ESC}[1mwould capture 1 of 12 stories in this bundle, reusing 11 from the previous build${ESC}[22m\n` +
-          `${ESC}[2m     why: 1 file changed - a.tsx${ESC}[22m\n` +
-          `${ESC}[2m     stories:${ESC}[22m\n` +
-          `${ESC}[2m       • Storefront/ProductCard${ESC}[22m\n` +
-          `  ${ESC}[36m🍎 iOS${ESC}[39m - ${ESC}[1mwould capture all stories${ESC}[22m\n` +
-          `${ESC}[33m     ! couldn't compute what changed - capturing everything to be safe${ESC}[39m\n` +
+        `${ESC}[32m✔${ESC}[39m Previewed the capture  🤖 Android - 1 of 12 stories: 1 file changed - a.tsx\n` +
+          `${ESC}[2m   Storefront/ProductCard${ESC}[22m\n` +
+          `${ESC}[32m✔${ESC}[39m Previewed the capture  🍎 iOS - all stories: couldn't work out what changed, so all are captured to be safe\n` +
           `\n` +
-          `${ESC}[33m◦ Dry run - no build created, nothing uploaded${ESC}[39m`,
+          `This was a dry run: nothing was uploaded and no test was started.`,
       ],
     ],
   },
@@ -264,7 +287,7 @@ const PINS: Pin[] = [
    * ---------------------------------------------------------------------- */
   {
     kind: 'run-header',
-    what: 'the run header for two devices on two platforms - plural noun, comma-joined breakdown, and the TRAILING newline that is the blank line under it',
+    what: "the run header for two devices - init's step line, the plural noun, and the devices by the names the web app shows",
     segment: {
       kind: 'run-header',
       nextBuildIndex: 3,
@@ -275,7 +298,7 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[32mTest 3${ESC}[39m will run on ${ESC}[34m2 devices${ESC}[39m (1 Android, 1 iOS)\n`],
+      [`${ESC}[32m✔${ESC}[39m Set up Test 3          on 2 devices (Pixel 4 XL, iPhone 14)`],
     ],
   },
   {
@@ -289,65 +312,78 @@ const PINS: Pin[] = [
       ],
     },
     stream: 'stdout',
-    prints: [[`${ESC}[32mTest 1${ESC}[39m will run on ${ESC}[34m1 device${ESC}[39m (1 Android)\n`]],
+    prints: [[`${ESC}[32m✔${ESC}[39m Set up Test 1          on 1 device (Pixel 4 XL)`]],
   },
   {
     kind: 'binary-platform-label',
-    what: 'the Android binary-block label - the emoji and its ONE trailing space sit OUTSIDE the bold',
+    what: "the binary-block label prints nothing - the upload's own step says it",
     segment: { kind: 'binary-platform-label', platform: 'android' },
     stream: 'stdout',
-    prints: [[`📦 ${ESC}[1mAndroid${ESC}[22m`]],
-  },
-  {
-    kind: 'binary-platform-label',
-    what: 'the iOS binary-block label - the label is "iOS", capitalised as the product spells it',
-    segment: { kind: 'binary-platform-label', platform: 'ios' },
-    stream: 'stdout',
-    prints: [[`📦 ${ESC}[1miOS${ESC}[22m`]],
+    prints: [],
   },
   {
     kind: 'binary-uploading',
-    what: 'the uploading line - the blue closes after the icon, and TWO spaces follow it to align with the section title above',
+    what: 'the uploading line - a step still running, dim, with the size',
     segment: { kind: 'binary-uploading', sizeMb: '41.2' },
     stream: 'stdout',
-    prints: [[`${ESC}[34m➜${ESC}[39m  uploading build... (41.2 MB)`]],
+    prints: [[`${ESC}[2mUploading the app build (41.2 MB)...${ESC}[22m`]],
   },
   {
     kind: 'binary-uploaded',
-    what: 'the upload-complete line and the BARE console.log() that follows it - two print calls, not one string with a trailing newline',
+    what: "the upload step, a name with nothing after it - init's step line trimmed at its name",
     segment: { kind: 'binary-uploaded' },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m  upload complete`], []],
+    prints: [[`${ESC}[32m✔${ESC}[39m Uploaded app build`]],
   },
   {
     kind: 'binary-upload-retry',
     what: 'the upload retry notice - a real branch no committed fixture watches, which is exactly why it is pinned here',
     segment: { kind: 'binary-upload-retry', attempt: 1, maxRetries: 3 },
     stream: 'stdout',
-    prints: [[`${ESC}[34m➜${ESC}[39m  Upload failed (attempt 1/3), retrying...`]],
+    prints: [[`${ESC}[2m   Upload failed (attempt 1 of 3), trying again...${ESC}[22m`]],
   },
   {
     kind: 'binary-reused',
-    what: 'the reuse line - THREE nested style boundaries on one line, and a bare newline after it',
+    what: "the reuse step - init's step line, with `(reused)` dimmed the way init dims `(already done)`",
     segment: { kind: 'binary-reused', buildIndex: 1, timeAgo: '7 minutes ago' },
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m  reusing unchanged build (${ESC}[32mTest 1${ESC}[39m, ${ESC}[34m7 minutes ago${ESC}[39m)`,
+        `${ESC}[32m✔${ESC}[39m Uploaded app build     the same as Test 1's, 7 minutes ago ${ESC}[2m(reused)${ESC}[22m`,
       ],
-      [],
     ],
   },
   {
-    kind: 'notice',
-    what: 'a WARNING with no learn-more link - one line, the whole thing yellow',
-    segment: { kind: 'notice', level: 'warning', message: 'Staged uploads unavailable - reason.' },
+    kind: 'javascript-uploaded',
+    what: 'one upload step for every bundle the run sent, each platform with its emoji and size',
+    segment: { kind: 'javascript-uploaded', bundleSizesMb: { android: 4.29, ios: 4.31 } },
     stream: 'stdout',
-    prints: [[`${ESC}[33mWARNING: Staged uploads unavailable - reason.${ESC}[39m`]],
+    prints: [[`${ESC}[32m✔${ESC}[39m Uploaded JavaScript    🤖 Android 4.29 MB, 🍎 iOS 4.31 MB`]],
+  },
+  {
+    kind: 'test-started',
+    what: 'the step that started the test, on the devices the config names',
+    segment: {
+      kind: 'test-started',
+      buildIndex: 3,
+      devices: [
+        { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
+        { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
+      ],
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 3         on 2 devices (Pixel 4 XL, iPhone 14)`]],
   },
   {
     kind: 'notice',
-    what: 'an INFO with a learn-more link - two lines joined INSIDE one print call, the link underlined inside the dim',
+    what: 'a warning with no learn-more link - one line, a yellow bang',
+    segment: { kind: 'notice', level: 'warning', message: 'Staged uploads unavailable - reason.' },
+    stream: 'stdout',
+    prints: [[`${ESC}[33m! Staged uploads unavailable - reason.${ESC}[39m`]],
+  },
+  {
+    kind: 'notice',
+    what: 'a note with a learn-more link - the note as it is, the link cyan inside the dim line under it',
     segment: {
       kind: 'notice',
       level: 'info',
@@ -356,10 +392,8 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [
-        `${ESC}[34mINFO: Something worth knowing.${ESC}[39m\n` +
-          `${ESC}[2m↳ Learn more: ${ESC}[4mhttps://sherlo.io/docs${ESC}[24m${ESC}[22m`,
-      ],
+      ['Something worth knowing.'],
+      [`${ESC}[2m  Learn more: ${ESC}[36mhttps://sherlo.io/docs${ESC}[39m${ESC}[22m`],
     ],
   },
   {
@@ -378,13 +412,210 @@ const PINS: Pin[] = [
   },
   {
     kind: 'results-url',
-    what: 'the closer - the human link once, with its trailing blank line, and no `url=` line',
+    what: 'the closer standing alone - the link once, labelled, a blank line under it, and no `url=` line',
     segment: {
       kind: 'results-url',
       url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1',
     },
     stream: 'stdout',
-    prints: [[`🔗 ${ESC}[4mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[24m\n`]],
+    prints: [[`🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[39m`], ['']],
+  },
+  {
+    kind: 'results-url',
+    what: "the closer of a test nobody waited for - init's next-step section, the link in it, and the command that waits",
+    segment: {
+      kind: 'results-url',
+      url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1',
+      testIndex: 1,
+    },
+    stream: 'stdout',
+    prints: [
+      ...NEXT_STEP_TITLE_PRINTS,
+      [`${ESC}[1mReview Test 1 when it finishes${ESC}[22m`],
+      [`   🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[39m`],
+      [`   To wait for it here: ${ESC}[36mnpx sherlo view 1 --wait${ESC}[39m`],
+    ],
+  },
+  {
+    kind: 'app-build-stored-reused',
+    what: 'the stored app build taken again - one of the three sources, said apart from the other two',
+    segment: { kind: 'app-build-stored-reused', platform: 'ios' },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m Built the iOS app      stored by Sherlo, only JavaScript changed since ${ESC}[2m(reused)${ESC}[22m`,
+      ],
+    ],
+  },
+  {
+    kind: 'app-build-cached',
+    what: 'the app build from the local build cache, with why this run needed a new one',
+    segment: { kind: 'app-build-cached', platform: 'android', why: { reason: 'nothing-stored' } },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m Built the Android app  kept in the local build cache, no app build stored yet ${ESC}[2m(reused)${ESC}[22m`,
+      ],
+    ],
+  },
+  {
+    kind: 'app-build-generating',
+    what: 'expo prebuild, a step still running',
+    segment: { kind: 'app-build-generating', platform: 'android' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mGenerating the android folder with expo prebuild...${ESC}[22m`]],
+  },
+  {
+    kind: 'app-build-compiling',
+    what: 'the compile, a step still running, naming the build tool',
+    segment: { kind: 'app-build-compiling', platform: 'ios' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mBuilding the iOS app with Xcode...${ESC}[22m`]],
+  },
+  {
+    kind: 'app-build-done',
+    what: 'an app build made here, with the time it took, why, the log, and the native changes under it',
+    segment: {
+      kind: 'app-build-done',
+      platform: 'android',
+      seconds: 88,
+      logPath: '.sherlo/build-android.log',
+      command: 'test',
+      why: {
+        reason: 'native-changed',
+        changesSince: {
+          storedBuildIndex: 12,
+          changes: [
+            { change: 'changed', file: 'android/app/build.gradle' },
+            { change: 'added', module: 'react-native-maps', version: '1.3.0' },
+          ],
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m Built the Android app  in 1m 28s, native code changed since Test 12's app build ${ESC}[2m(log: .sherlo/build-android.log)${ESC}[22m`,
+      ],
+      [`   ${ESC}[33m~${ESC}[39m android/app/build.gradle`],
+      [`   ${ESC}[32m+${ESC}[39m react-native-maps 1.3.0`],
+    ],
+  },
+  {
+    kind: 'app-build-done',
+    what: '`sherlo build` says where it kept the app build instead of why it built one',
+    segment: {
+      kind: 'app-build-done',
+      platform: 'ios',
+      seconds: 42,
+      logPath: '.sherlo/build-ios.log',
+      command: 'build',
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m Built the iOS app      in 42s, kept in the local build cache ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`,
+      ],
+    ],
+  },
+  {
+    kind: 'app-build-failed',
+    what: "the failed build in init's failed-step shape, the log's last lines, what to do, and the help block",
+    segment: {
+      kind: 'app-build-failed',
+      platform: 'android',
+      seconds: 72,
+      lastLines: ['BUILD FAILED in 1m 12s'],
+      logPath: '.sherlo/build-android.log',
+      command: 'test',
+      why: { reason: 'nothing-stored' },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[31m✖${ESC}[39m Building the Android app failed`],
+      [''],
+      ['The build failed after 1m 12s. Last lines of the log:'],
+      [`${ESC}[2m   | BUILD FAILED in 1m 12s${ESC}[22m`],
+      [''],
+      ['Full log: .sherlo/build-android.log'],
+      [
+        `Nothing was uploaded and no test was started. Fix the build, then run ${ESC}[36mnpx sherlo test${ESC}[39m again.`,
+      ],
+      [''],
+      ...HELP_BLOCK_PRINTS,
+    ],
+  },
+  {
+    kind: 'app-build-next-step',
+    what: "`sherlo build`'s ending - what the kept app build is for, in init's next-step section",
+    segment: { kind: 'app-build-next-step' },
+    stream: 'stdout',
+    prints: [
+      ...NEXT_STEP_TITLE_PRINTS,
+      [`${ESC}[1mTest your app${ESC}[22m`],
+      [
+        `   ${ESC}[36mnpx sherlo test${ESC}[39m takes this app build from the local build cache instead of building,`,
+      ],
+      ['   until native code or build settings change.'],
+    ],
+  },
+  {
+    kind: 'eas-build-queued',
+    what: 'one EAS build started, its platform and profile',
+    segment: { kind: 'eas-build-queued', platform: 'android', profile: 'sherlo' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m Started an EAS build   🤖 Android, profile "sherlo"`]],
+  },
+  {
+    kind: 'eas-hosted-variables',
+    what: "the profile's variables kept on Expo's servers - a yellow bang, three lines",
+    segment: { kind: 'eas-hosted-variables', profile: 'sherlo', environment: 'preview' },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[33m! eas.json profile "sherlo" uses variables stored on Expo's servers (environment: preview).${ESC}[39m`,
+      ],
+      [`${ESC}[33m  A build on this machine can't read them.${ESC}[39m`],
+      [`${ESC}[33m  If the app needs them, set them in sherlo.config.json "build.env".${ESC}[39m`],
+    ],
+  },
+  {
+    kind: 'run-waits-for-builds',
+    what: "a split job's run, waiting for the other job's platform",
+    segment: {
+      kind: 'run-waits-for-builds',
+      buildIndex: 1,
+      waitingFor: { otherJob: 'ios', ciRunId: '123' },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m Opened Test 1          it starts when 🍎 iOS arrives from the other job (CI run 123)`,
+      ],
+    ],
+  },
+  {
+    kind: 'run-waits-for-builds',
+    what: 'an EAS run, waiting for its EAS builds',
+    segment: { kind: 'run-waits-for-builds', buildIndex: 1, waitingFor: { easBuilds: true } },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m Opened Test 1          it starts when the EAS builds are uploaded`]],
+  },
+  {
+    kind: 'run-waits-for-builds',
+    what: 'the EAS build that delivered first: it joined the run, which waits for the other',
+    segment: { kind: 'run-waits-for-builds', buildIndex: 1, waitingFor: { easBuild: 'ios' } },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m Added to Test 1        it starts when the 🍎 iOS EAS build is uploaded`],
+    ],
+  },
+  {
+    kind: 'run-starting',
+    what: "this job's app build was the last one the run waited for",
+    segment: { kind: 'run-starting', buildIndex: 1 },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 1         both platforms are in`]],
   },
   {
     kind: 'output-keys',
@@ -413,17 +644,17 @@ const PINS: Pin[] = [
   },
   {
     kind: 'wait-header',
-    what: 'the --wait header, dim, with the minute count and no space before "min"',
+    what: 'the --wait header, dim, saying what is waited for and for how long',
     segment: { kind: 'wait-header', timeoutMinutes: 45 },
     stream: 'stdout',
-    prints: [[`${ESC}[2m⏳ Waiting for build results (timeout: 45min)...${ESC}[22m`]],
+    prints: [[`${ESC}[2mWaiting for the test to finish (up to 45 min)...${ESC}[22m`]],
   },
   {
     kind: 'wait-progress',
-    what: 'the progress line for a known status: three leading spaces INSIDE the dim, and the emoji label',
+    what: 'the progress line for a known status: three leading spaces INSIDE the dim, and the word',
     segment: { kind: 'wait-progress', runStatus: 'inProgress' },
     stream: 'stdout',
-    prints: [[`${ESC}[2m   🔵 Running${ESC}[22m`]],
+    prints: [[`${ESC}[2m   Running${ESC}[22m`]],
   },
   {
     kind: 'wait-heartbeat',
@@ -441,29 +672,29 @@ const PINS: Pin[] = [
   },
   {
     kind: 'wait-build-not-found',
-    what: 'the build-not-found retry line',
+    what: 'the test-not-found retry line',
     segment: { kind: 'wait-build-not-found' },
     stream: 'stdout',
-    prints: [[`${ESC}[2m   Build not found, retrying...${ESC}[22m`]],
+    prints: [[`${ESC}[2m   Test not found yet, retrying...${ESC}[22m`]],
   },
   {
     kind: 'wait-auth-failed',
-    what: 'the credential-refused closer, red, with the error message verbatim after the lock',
+    what: 'the credential-refused closer, red, with the error message verbatim after the cross',
     segment: {
       kind: 'wait-auth-failed',
       message: 'Authentication failed (HTTP 401) - check your token',
     },
     stream: 'stdout',
-    prints: [[`${ESC}[31m🔒 Authentication failed (HTTP 401) - check your token${ESC}[39m`]],
+    prints: [[`${ESC}[31m✖ Authentication failed (HTTP 401) - check your token${ESC}[39m`]],
   },
   {
     kind: 'wait-timed-out',
-    what: 'the deadline closer: TWO print calls, and "minutes" spelled out where the header abbreviates',
+    what: 'the deadline closer: TWO print calls, a yellow bang, and "minutes" spelled out where the header abbreviates',
     segment: { kind: 'wait-timed-out', timeoutMinutes: 45 },
     stream: 'stdout',
     prints: [
-      [`${ESC}[33m⏰ Timeout reached after 45 minutes.${ESC}[39m`],
-      [`${ESC}[33m   The build may still be running.${ESC}[39m`],
+      [`${ESC}[33m! Stopped waiting after 45 minutes.${ESC}[39m`],
+      [`${ESC}[33m  The test may still be running in Sherlo.${ESC}[39m`],
     ],
   },
   {
@@ -471,18 +702,24 @@ const PINS: Pin[] = [
     what: "the Ctrl-C closer, dim - the same style the progress lines use, which is why the tester's collapse anchors on its TEXT and not on its colour",
     segment: { kind: 'wait-interrupted' },
     stream: 'stdout',
-    prints: [[`${ESC}[2mStopped waiting. The run is still going in Sherlo.${ESC}[22m`]],
+    prints: [[`${ESC}[2mStopped waiting. The test is still running in Sherlo.${ESC}[22m`]],
   },
   {
     kind: 'verdict-passed',
-    what: "today's generic green closer",
+    what: "the green verdict as init's section - one blank above (the wait frames it with the other), the title, an underline one longer than the title for the wide emoji",
     segment: { kind: 'verdict-passed' },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✅ All stories passed - no visual changes require review.${ESC}[39m`]],
+    prints: [
+      [''],
+      [`${ESC}[1m✅ All stories passed${ESC}[22m`],
+      [`${ESC}[2m═════════════════════${ESC}[22m`],
+      [''],
+      ['No visual changes need review.'],
+    ],
   },
   {
     kind: 'verdict-server-bypassed',
-    what: "the server-bypassed closer: the server's prose inline in a green headline, then a fixed dim line",
+    what: "the server-bypassed verdict as init's finished step, with the server's prose verbatim",
     segment: {
       kind: 'verdict-server-bypassed',
       reason: 'no change on this branch reaches any story',
@@ -490,25 +727,27 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✅ Nothing needed capturing - no change on this branch reaches any story${ESC}[39m`,
+        `${ESC}[32m✔${ESC}[39m Finished the test      with no device run: no change on this branch reaches any story`,
       ],
-      [`${ESC}[2m   closed by the server - no device run was needed${ESC}[22m`],
     ],
   },
   {
     kind: 'verdict-review-required',
-    what: 'the block closer of a build whose screens the wait never learned - BOTH counts non-zero, three print calls, because how many lines it makes is a function of the state',
+    what: 'the review verdict of a build whose screens the wait never learned - BOTH counts non-zero, because how many lines it makes is a function of the state',
     segment: { kind: 'verdict-review-required', counts: { unreviewed: 2, reported: 1 } },
     stream: 'stdout',
     prints: [
-      [`${ESC}[33m⚠️  Build finished with changes requiring review.${ESC}[39m`],
-      [`${ESC}[33m   2 story/stories unreviewed.${ESC}[39m`],
-      [`${ESC}[33m   1 story/stories reported.${ESC}[39m`],
+      [''],
+      [`${ESC}[1m⚠️ 3 stories need review${ESC}[22m`],
+      [`${ESC}[2m════════════════════════${ESC}[22m`],
+      [''],
+      ['2 stories unreviewed'],
+      ['1 story reported'],
     ],
   },
   {
     kind: 'verdict-review-required',
-    what: 'the same closer over a build whose screens the wait DID learn - one yellow line per screen that needs a person, then the settled ones in ONE dim line',
+    what: 'the same verdict over a build whose screens the wait DID learn - one row per screen that needs a person, its word in one column, then the rest in ONE dim line',
     segment: {
       kind: 'verdict-review-required',
       screens: [
@@ -521,16 +760,19 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[33m⚠️  Build finished with changes requiring review.${ESC}[39m`],
-      [`${ESC}[33m   unreviewed: Storefront - ProductCard${ESC}[39m`],
-      [`${ESC}[33m   reported: Storefront - Checkout${ESC}[39m`],
-      [`${ESC}[33m   errored: Storefront - Banner${ESC}[39m`],
-      [`${ESC}[2m   1 more settled - approved, unchanged or inherited.${ESC}[22m`],
+      [''],
+      [`${ESC}[1m⚠️ 3 stories need review${ESC}[22m`],
+      [`${ESC}[2m════════════════════════${ESC}[22m`],
+      [''],
+      ['Storefront - ProductCard   changed'],
+      ['Storefront - Checkout      reported'],
+      ['Storefront - Banner        errored'],
+      [`${ESC}[2m1 more story needs no review.${ESC}[22m`],
     ],
   },
   {
     kind: 'verdict-run-errored',
-    what: "the infrastructure closer, with the server's error blob stringified rather than phrased",
+    what: "the infrastructure closer as init's failed step, the server's error blob stringified rather than phrased, then the help block",
     segment: {
       kind: 'verdict-run-errored',
       runStatus: 'error',
@@ -538,8 +780,12 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[31m❌ Build ended in "error" state.${ESC}[39m`],
-      [`${ESC}[31m   Error: {"code":"RUNNER_CRASH"}${ESC}[39m`],
+      [`${ESC}[31m✖${ESC}[39m Running the test failed`],
+      [''],
+      ['The test ended as "error".'],
+      [`${ESC}[2mError: {"code":"RUNNER_CRASH"}${ESC}[22m`],
+      [''],
+      ...HELP_BLOCK_PRINTS,
     ],
   },
 
@@ -552,14 +798,20 @@ const PINS: Pin[] = [
     what: "⚠⚠ DEPICTS FUTURE: the sparse green, in the GitHub check's own words (CHECK_COPY.noChanges title + summary)",
     segment: { kind: 'verdict-no-changes' },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✅ No visual changes - all snapshots match their baselines.${ESC}[39m`]],
+    prints: [
+      [''],
+      [`${ESC}[1m✅ No visual changes${ESC}[22m`],
+      [`${ESC}[2m════════════════════${ESC}[22m`],
+      [''],
+      ['All snapshots match their baselines.'],
+    ],
   },
   {
     kind: 'verdict-capture-accounting',
     what: '⚠⚠ DEPICTS FUTURE: the sparse accounting line - what this branch photographed, and what it carried over',
     segment: { kind: 'verdict-capture-accounting', captured: 3, inherited: 41 },
     stream: 'stdout',
-    prints: [[`${ESC}[2m   3 captured on this branch, 41 inherited unchanged${ESC}[22m`]],
+    prints: [[`${ESC}[2m3 captured on this branch, 41 carried over unchanged.${ESC}[22m`]],
   },
   {
     kind: 'verdict-nothing-recorded',
@@ -567,11 +819,12 @@ const PINS: Pin[] = [
     segment: { kind: 'verdict-nothing-recorded' },
     stream: 'stdout',
     prints: [
-      [`${ESC}[33m⚠️  Build finished without recording any snapshots.${ESC}[39m`],
-      [
-        `${ESC}[33m   Nothing was captured and nothing was inherited, so this build is not${ESC}[39m`,
-      ],
-      [`${ESC}[33m   evidence that nothing changed. Check the run in Sherlo.${ESC}[39m`],
+      [''],
+      [`${ESC}[1m⚠️ Nothing was recorded${ESC}[22m`],
+      [`${ESC}[2m═══════════════════════${ESC}[22m`],
+      [''],
+      ['The test captured no story and carried none over, so it is not'],
+      ['evidence that nothing changed. Check the test in Sherlo.'],
     ],
   },
 
@@ -675,7 +928,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'build-view-json',
-    what: "`--metadata`'s whole output - pretty-printed JSON, NO colour, as ONE print call so a pipe gets exactly `JSON.parse`-able bytes",
+    what: "`sherlo view --json`'s whole output - pretty-printed JSON, NO colour, as ONE print call so a pipe gets exactly `JSON.parse`-able bytes",
     segment: {
       kind: 'build-view-json',
       json: { runStatus: 'error', buildIndex: 7 },
@@ -1276,9 +1529,9 @@ describe('CONTROL: the pin catches what the masker hides', () => {
     expect(hoisted).not.toBe(shipped);
   });
 
-  it('and the pinned value is what the shipped renderer actually emits', () => {
-    expect(String(renderSegment({ kind: 'dry-run-bundling-header' }).prints[0][0])).toBe(shipped);
-  });
+  // The header this example was taken from no longer prints (epic sherlo-test-builds-apps: the dry
+  // run opens with `Testing your app...` like every test), so the example stays a worked one, and
+  // the pins above are what compare against the shipped renderer.
 });
 
 /* ========================================================================== */
@@ -1290,22 +1543,17 @@ describe('the sink concatenates segments without editing them', () => {
     const error = new Error('not a git repository');
 
     const captured = await captureTranscript(async () => {
-      emit({ kind: 'dry-run-bundling-header' });
+      emit({ kind: 'command-intro', command: 'test' });
       emit({ kind: 'platform-bundle-assets', assetCount: 6 });
+      emit({ kind: 'platform-bundle-start', platform: 'android' });
       emit({ kind: 'git-info-unavailable', error });
     });
 
+    const expected = `Testing your app...\n\n${ESC}[2mBundling the JavaScript for 🤖 Android...${ESC}[22m\n`;
     expect(
       captured.stdout,
-      mismatch(
-        'the buffered stdout transcript',
-        'helpers/transcriptSink.ts',
-        `${ESC}[1m${ESC}[22m\n${ESC}[1m📦 Bundling for dry-run preview...${ESC}[22m\n${ESC}[1m${ESC}[22m\n${ESC}[32m  ✓ Assets: 6 files${ESC}[39m\n`,
-        captured.stdout
-      )
-    ).toBe(
-      `${ESC}[1m${ESC}[22m\n${ESC}[1m📦 Bundling for dry-run preview...${ESC}[22m\n${ESC}[1m${ESC}[22m\n${ESC}[32m  ✓ Assets: 6 files${ESC}[39m\n`
-    );
+      mismatch('the buffered stdout transcript', 'helpers/transcriptSink.ts', expected, captured.stdout)
+    ).toBe(expected);
 
     expect(
       captured.stderr.startsWith(`${GIT_INFO_UNAVAILABLE_BYTES} Error: not a git repository`),

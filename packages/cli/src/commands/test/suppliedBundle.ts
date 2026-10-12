@@ -297,6 +297,7 @@ export async function resolveSuppliedBundles({
 
     emit({
       kind: 'platform-bundle-supplied',
+      platform,
       bundlePath: result.bundlePath,
       bundleSizeMb: result.bundleSizeMb,
       bundleFormat: result.bundleFormat,

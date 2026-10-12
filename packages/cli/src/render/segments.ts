@@ -26,7 +26,7 @@
 import { Platform } from '@sherlo/api-types';
 import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
-import type { BuildDetails, ViewMetadataJson, ViewMetadataStory } from './buildView';
+import type { BuildDetails, ViewJson, ViewStory } from './buildView';
 import type { DryRunPlatformPreview } from './dryRunPlan';
 import type { ProjectCreated } from './projectCreated';
 import type { TeamCreated } from './teamCreated';
@@ -35,7 +35,8 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
-import type { AppBuildReason, ChangesSinceStoredBuild, RunWaitsFor } from './appBuild';
+import type { AppBuildCommand, RunWaitsFor, WhyANewAppBuild } from './appBuild';
+import type { IntroducedCommand } from './testSteps';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -54,11 +55,16 @@ export type TranscriptStream = 'stdout' | 'stderr';
 export type TranscriptSegment =
   /** The gradient wordmark, the tagline and the trailing blank line. */
   | { kind: 'intro' }
+  /** `Testing your app...` - the line under the logo saying what the command is doing. See ./testSteps. */
+  | { kind: 'command-intro'; command: IntroducedCommand }
   /** `📦 Bundling for dry-run preview...`, wrapped in its own blank lines. */
   | { kind: 'dry-run-bundling-header' }
-  /** `🤖 Building android bundle...` - printed BEFORE the bundler runs. */
+  /** `Bundling the JavaScript for Android...` - printed BEFORE the bundler runs. */
   | { kind: 'platform-bundle-start'; platform: Platform }
-  /** `  ✓ Bundle: bundle.android.js (4.29 MB, plain-js, expo)`. */
+  /**
+   * The bundle the bundler made. It prints nothing: the step a person reads is the upload that
+   * follows (`javascript-uploaded`), and a bundle's format and asset count are not theirs to read.
+   */
   | {
       kind: 'platform-bundle-built';
       bundlePath: string;
@@ -66,10 +72,10 @@ export type TranscriptSegment =
       bundleFormat: BundleFormat;
       bundler: 'expo' | 'rn';
     }
-  /** `  ✓ Assets: 6 files` - emitted only when the bundler produced an assets dir. */
+  /** The bundler's assets - emitted only when it produced an assets dir. Prints nothing, as above. */
   | { kind: 'platform-bundle-assets'; assetCount: number }
   /**
-   * `  ✓ Bundle supplied: bundle.android.js (4.29 MB, plain-js, expo)`.
+   * `✔ Used your JavaScript       🤖 Android bundle.android.js, from --bundle-dir`.
    *
    * The honest line for `--bundle-dir`. It deliberately does NOT reuse
    * `platform-bundle-built`: a run that skipped bundling must SAY it skipped
@@ -78,6 +84,7 @@ export type TranscriptSegment =
    */
   | {
       kind: 'platform-bundle-supplied';
+      platform: Platform;
       bundlePath: string;
       bundleSizeMb: number;
       bundleFormat: BundleFormat;
@@ -91,7 +98,7 @@ export type TranscriptSegment =
   | { kind: 'platform-bundle-emitted'; platform: Platform; bundleDir: string; assetCount: number }
   /** `  ✗ <message>` - a bundling failure, already carrying its own fallback line. */
   | { kind: 'platform-bundle-failed'; message: string }
-  /** The whole `📸 Capture plan (dry run)` block plus the `◦ Dry run` closer. */
+  /** The whole `✔ Previewed the capture` plan plus the dry-run line under it. */
   | { kind: 'dry-run-capture-plan'; previews: DryRunPlatformPreview[] }
   /** `Couldn't get git info <error>` - on stderr, the one degrade the family shows. */
   | { kind: 'git-info-unavailable'; error: unknown }
@@ -99,30 +106,37 @@ export type TranscriptSegment =
    * THE PUSH SPINE (F1). The order below is the order a push prints them.   *
    * ---------------------------------------------------------------------- */
   /**
-   * `Test 3 will run on 2 devices (1 Android, 1 iOS)`, plus its trailing blank.
+   * `✔ Set up Test 3              on 2 devices (Pixel 7, iPhone 15)`.
    *
    * It carries the DEVICE LIST, not the counts: counting is a rendering
-   * decision (which platforms appear, in which order, singular or plural), and
+   * decision (which devices appear, in which order, singular or plural), and
    * a scenario that could hand over "2 devices" could claim a count its own
    * device list contradicts.
    */
   | { kind: 'run-header'; nextBuildIndex: number; devices: Config['devices'] }
-  /** `📦 Android` / `📦 iOS` - the header of one platform's binary block. */
+  /** The header of one platform's binary block. Prints nothing: the upload's own step says it. */
   | { kind: 'binary-platform-label'; platform: Platform }
-  /** `➜  uploading build... (41.2 MB)` - printed BEFORE the bytes go up. */
+  /** `Uploading the app build (41.2 MB)...` - printed BEFORE the bytes go up. */
   | { kind: 'binary-uploading'; sizeMb: string }
-  /** `✔  upload complete`, plus its trailing blank. */
+  /** `✔ Uploaded app build`. */
   | { kind: 'binary-uploaded' }
-  /** `➜  Upload failed (attempt 1/3), retrying...` - the per-attempt notice. */
+  /** `   Upload failed (attempt 1 of 3), trying again...` - the per-attempt notice. */
   | { kind: 'binary-upload-retry'; attempt: number; maxRetries: number }
   /**
-   * `✔  reusing unchanged build (Test 1, 7 minutes ago)`, plus its trailing
-   * blank. `timeAgo` arrives already phrased because computing it reads the
+   * `✔ Uploaded app build         the same as Test 1's, 7 minutes ago (reused)`.
+   * `timeAgo` arrives already phrased because computing it reads the
    * WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
    */
   | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
+  /** `✔ Uploaded JavaScript        🤖 Android 4.29 MB, 🍎 iOS 4.31 MB` - every bundle this run sent. */
+  | { kind: 'javascript-uploaded'; bundleSizesMb: Partial<Record<Platform, number>> }
   /**
-   * `WARNING: ...` / `INFO: ...`, optionally with a `↳ Learn more:` line.
+   * `✔ Started Test 3             on 2 devices (Pixel 7, iPhone 15)` - the test is open and
+   * running, on the devices the config names.
+   */
+  | { kind: 'test-started'; buildIndex: number; devices: Config['devices'] }
+  /**
+   * `! <warning>` in yellow, or a note as it is, optionally with a `Learn more:` line.
    *
    * The one segment that carries TEXT rather than data, and deliberately: the
    * message is a value computed by logic (a stageability reason from
@@ -141,12 +155,17 @@ export type TranscriptSegment =
    */
   | { kind: 'build-message'; message: string; type: 'info' | 'success'; endsWithNewLine?: boolean }
   /**
-   * The closer of a run that reached a build: the human `🔗` link, then a blank - and NOTHING
-   * ELSE (operator ruling 2026-09-15: the address is printed once, on the line with the emoji,
-   * for a machine and a person alike). The `url=` line that used to precede it under CI is gone;
-   * the GitHub Action reads the address off the `🔗` line (actions/lib/cliOutputs.mjs).
+   * The closer of a run that reached a build: `🔗 Review: <url>` - the address printed once, on
+   * the line with the emoji, for a machine and a person alike (operator ruling 2026-09-15); the
+   * GitHub Action reads it off that line (actions/lib/cliOutputs.mjs).
+   *
+   * With `testIndex`, the run did not wait for its verdict, and the link sits in init's `👉 Next
+   * step` section with the command that waits for it. Without it, the link stands alone: the
+   * ending of a run that waited, a split job whose run starts in the other job, or a print site
+   * that does not know the test yet (PLAN-LAYER DEBT: the push spine, helpers/printResultsUrl,
+   * which the build task teaches to pass the index).
    */
-  | { kind: 'results-url'; url: string }
+  | { kind: 'results-url'; url: string; testIndex?: number }
   /** Machine-readable `key=value` answer lines. A key with no value is not printed. */
   | { kind: 'output-keys'; entries: Record<string, string | number | boolean | undefined> }
   /* ---------------------------------------------------------------------- *
@@ -155,46 +174,58 @@ export type TranscriptSegment =
    * See ./appBuild. The order below is the order a build prints them.       *
    * ---------------------------------------------------------------------- */
   /**
-   * `🔨 Android needs a new app build: none is stored for this project yet`. The reason is one
-   * of two the gate can give, as data: which words say it is this layer's decision. With the
-   * changes since the stored app build, the line counts them and lists them under it - the list
-   * then sits above a failed build's last lines, beside the error it likely caused.
+   * `✔ Built the iOS app          stored by Sherlo, only JavaScript changed since (reused)` - a
+   * platform whose stored app build still matches: the staged road, or the other half of a mixed run.
+   */
+  | { kind: 'app-build-stored-reused'; platform: Platform }
+  /**
+   * `✔ Built the Android app      kept in the local build cache, ... (reused)`. `why` is the gate's
+   * reason this run needed a new app build - which words say it is this layer's decision - and the
+   * native changes are listed under the line; `sherlo build` builds with no reason to give.
+   */
+  | { kind: 'app-build-cached'; platform: Platform; why?: WhyANewAppBuild }
+  /** `Generating the android folder with expo prebuild...` - only for an Expo app with no native folder. */
+  | { kind: 'app-build-generating'; platform: Platform }
+  /** `Building the Android app with Gradle...` - printed BEFORE the compile runs. */
+  | { kind: 'app-build-compiling'; platform: Platform }
+  /**
+   * `✔ Built the Android app      in 1m 28s, no app build stored yet (log: ...)`, with the native
+   * changes under it. The duration arrives in whole seconds, measured by logic: the renderer reads
+   * no clock.
    */
   | {
-      kind: 'app-build-needed';
+      kind: 'app-build-done';
       platform: Platform;
-      reason: AppBuildReason;
-      changesSince?: ChangesSinceStoredBuild;
+      seconds: number;
+      logPath: string;
+      why?: WhyANewAppBuild;
+      command: AppBuildCommand;
     }
-  /** `✔  iOS: only JavaScript changed, so the stored app build is reused` - the other half of a mixed run. */
-  | { kind: 'app-build-stored-reused'; platform: Platform }
-  /** `🔨 Building Android...` - the header `sherlo build` opens each platform with. */
-  | { kind: 'app-build-start'; platform: Platform }
-  /** `✔  reused the Android app build from the local build cache`. */
-  | { kind: 'app-build-cached'; platform: Platform }
-  /** `➜  generating the android folder (expo prebuild)...` - only for an Expo app with no native folder. */
-  | { kind: 'app-build-generating'; platform: Platform }
-  /** `➜  building with Gradle... (log: .sherlo/build-android.log)` - printed BEFORE the compile runs. */
-  | { kind: 'app-build-compiling'; platform: Platform; logPath: string }
   /**
-   * `✔  Android built in 1m 28s (53.90 MB)`, and for `sherlo build` the cache sentence under it.
-   * The duration arrives in whole seconds, measured by logic: the renderer reads no clock.
+   * The failed build: what changed since the stored app build, its duration, the build tool's last
+   * lines verbatim, where the full log is - and the help block, since the run ends there.
    */
-  | { kind: 'app-build-done'; platform: Platform; seconds: number; sizeMb: string; savedToCache: boolean }
-  /** The failed build: its duration, the build tool's last lines verbatim, and where the full log is. */
-  | { kind: 'app-build-failed'; platform: Platform; seconds: number; lastLines: string[]; logPath: string }
-  /** `☁️  Building on EAS with profile "sherlo"...`. */
-  | { kind: 'eas-build-header'; profile: string }
-  /** `✔  Android: EAS build queued`. */
-  | { kind: 'eas-build-queued'; platform: Platform }
+  | {
+      kind: 'app-build-failed';
+      platform: Platform;
+      seconds: number;
+      lastLines: string[];
+      logPath: string;
+      why?: WhyANewAppBuild;
+      command: AppBuildCommand;
+    }
+  /** `sherlo build`'s ending: the `👉 Next step` section naming what the kept app build is for. */
+  | { kind: 'app-build-next-step' }
+  /** `✔ Started an EAS build       🤖 Android, profile "sherlo"`. */
+  | { kind: 'eas-build-queued'; platform: Platform; profile: string }
   /** The EAS profile reads variables kept on Expo's servers, which a local build cannot read. */
   | { kind: 'eas-hosted-variables'; profile: string; environment: string }
   /**
-   * `⏸  Test 1 starts when ...` - the run is open and waits for the builds still to come: the
-   * other job's platform in a split CI run, or the EAS builds.
+   * `✔ Opened Test 1              it starts when ...` - the run is open and waits for the builds
+   * still to come: the other job's platform in a split CI run, or the EAS builds.
    */
   | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: RunWaitsFor }
-  /** `▶  Both builds are in - Test 1 is starting` - this job's build was the last one the run waited for. */
+  /** `✔ Started Test 1             both platforms are in` - this job's build was the last one the run waited for. */
   | { kind: 'run-starting'; buildIndex: number }
   /* ---------------------------------------------------------------------- *
    * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
@@ -209,9 +240,9 @@ export type TranscriptSegment =
    * emits around a closer, which is exactly the shape the shipped code had.
    */
   | { kind: 'blank-line' }
-  /** `⏳ Waiting for build results (timeout: 45min)...`, printed before the first poll. */
+  /** `Waiting for the test to finish (up to 45 min)...`, printed before the first poll. */
   | { kind: 'wait-header'; timeoutMinutes: number }
-  /** `   🔵 Running` - reprinted only when the wire's `runStatus` CHANGES. */
+  /** `   Running` - reprinted only when the wire's `runStatus` CHANGES. */
   | { kind: 'wait-progress'; runStatus: string }
   /**
    * `   still running... (5m elapsed)`.
@@ -224,15 +255,15 @@ export type TranscriptSegment =
   | { kind: 'wait-heartbeat'; statusLabel: string; elapsedMinutes: number }
   /** `   Network error, retrying... (<message>)` - a transient blip, not a verdict. */
   | { kind: 'wait-network-retry'; message: string }
-  /** `   Build not found, retrying...`. */
+  /** `   Test not found yet, retrying...`. */
   | { kind: 'wait-build-not-found' }
-  /** `🔒 <message>` - a credential refused mid-poll, which is not retryable. */
+  /** `✖ <message>` - a credential refused mid-poll, which is not retryable. */
   | { kind: 'wait-auth-failed'; message: string }
   /** The deadline closer, both lines. */
   | { kind: 'wait-timed-out'; timeoutMinutes: number }
   /** The Ctrl-C closer: the waiting stopped, the run did not. */
   | { kind: 'wait-interrupted' }
-  /** Today's generic green: `✅ All stories passed - no visual changes require review.` */
+  /** The green verdict, as a section: `✅ All stories passed`. */
   | { kind: 'verdict-passed' }
   /**
    * The compact closer for a build the server closed without a device run. The
@@ -241,7 +272,7 @@ export type TranscriptSegment =
    */
   | { kind: 'verdict-server-bypassed'; reason: string }
   /**
-   * `⚠️  Build finished with changes requiring review.`, then the screens that
+   * `⚠️ 3 stories need review`, as a section, then the screens that
    * need a person BY NAME when the wait learned them, and the build's own tally
    * when it did not. See ./verdictCloser's {@link renderVerdictReviewRequired}.
    */
@@ -252,7 +283,7 @@ export type TranscriptSegment =
       /** The build's tally, printed when the screens name nobody. */
       counts: { unreviewed: number; reported: number };
     }
-  /** `❌ Build ended in "error" state.` plus the server's error blob, if any. */
+  /** `✖ Running the test failed`, the state it ended in, the server's error blob if any, and help. */
   | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown }
   /* ---------------------------------------------------------------------- *
    * GATED. The three kinds below are emitted by the shipped wait loop, but   *
@@ -261,16 +292,16 @@ export type TranscriptSegment =
    * `decideSparseBuildVerdict` (helpers/sparseBuildVerdict.ts); a build with *
    * no gate on it never reaches any of them. See that module's header.       *
    * ---------------------------------------------------------------------- */
-  /** `✅ No visual changes - all snapshots match their baselines.` (the check's own copy). */
+  /** `✅ No visual changes` / `All snapshots match their baselines.` (the check's own copy). */
   | { kind: 'verdict-no-changes' }
-  /** `   3 captured on this branch, 41 inherited unchanged` - the sparse accounting. */
+  /** `3 captured on this branch, 41 carried over unchanged.` - the sparse accounting. */
   | { kind: 'verdict-capture-accounting'; captured: number; inherited: number }
   /** The build recorded nothing at all, so it is evidence of nothing. Not green. */
   | { kind: 'verdict-nothing-recorded' }
   /* ---------------------------------------------------------------------- *
-   * THE BUILD VIEW (F5) - what `sherlo view` prints about one build, and    *
-   * the `── details ──` block `--metadata` adds to it and to the `--wait`   *
-   * roads of `sherlo test`. See ./buildView.                               *
+   * THE BUILD VIEW (F5) - what `sherlo view` prints about one build, its    *
+   * `--json` record, and the `── details ──` block `--metadata` adds to the *
+   * `--wait` roads of `sherlo test`. See ./buildView.                      *
    * ---------------------------------------------------------------------- */
   /** `Build #7 · finished` - the line `sherlo view` opens with. */
   | { kind: 'build-view-header'; buildIndex: number; runStatus: string }
@@ -298,16 +329,16 @@ export type TranscriptSegment =
    */
   | { kind: 'build-details'; details: BuildDetails }
   /**
-   * `sherlo view --metadata`'s WHOLE output (view-metadata, operator ruling
-   * 2026-09-03): the JSON contract, pretty-printed, and nothing around it - no
-   * header, no url line. See ./buildView's ViewMetadataJson.
+   * `sherlo view --json`'s WHOLE output (operator decision 2026-10-12): the
+   * record, pretty-printed, and nothing around it - no header, no url line.
+   * See ./buildView's ViewJson.
    */
-  | { kind: 'build-view-json'; json: ViewMetadataJson }
+  | { kind: 'build-view-json'; json: ViewJson }
   /**
-   * The per-story table `sherlo view` prints (without `--metadata`): one row
+   * The per-story table `sherlo view` prints (without `--json`): one row
    * per story with its status and baseline. See ./buildView.
    */
-  | { kind: 'build-view-stories-table'; stories: ViewMetadataStory[] }
+  | { kind: 'build-view-stories-table'; stories: ViewStory[] }
   /* ---------------------------------------------------------------------- *
    * PROJECT MANAGEMENT - what `sherlo project create` prints. See           *
    * ./projectCreated for why this segment carries three named fields rather *

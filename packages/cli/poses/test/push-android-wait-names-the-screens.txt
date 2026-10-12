@@ -10,25 +10,25 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[1m[22m
-[1m📦 Bundling for staged upload...[22m
-[1m[22m
-[36m[39m
-[36m🤖 Building android bundle...[39m
-[32m  ✓ Bundle: bundle.android.js[39m (<SIZE> MB, plain-js, expo)
-[32m  ✓ Assets: 2 files[39m
-[36m[39m
-[36m⬆️  Uploading android bundle...[39m
+Testing your app...
 
-🔗 Review: [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
-[2m⏳ Waiting for build results (timeout: 45min)...[22m
+[2mBundling the JavaScript for 🤖 Android...[22m
+[32m✔[39m Built the Android app  stored by Sherlo, only JavaScript changed since [2m(reused)[22m
+[32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
+[32m✔[39m Started Test 4         on 1 device (Pixel 7)
+[2mWaiting for the test to finish (up to 45 min)...[22m
    <build progress masked>
 
-[33m⚠️  Build finished with changes requiring review.[39m
-[33m   unreviewed: Storefront/ProductCard - Default[39m
-[33m   unreviewed: Storefront/ProductCard - Sale badge[39m
-[33m   reported: Storefront/Checkout - Empty cart[39m
-[2m   3 more settled - approved, unchanged or inherited.[22m
+
+[1m⚠️ 3 stories need review[22m
+[2m════════════════════════[22m
+
+Storefront/ProductCard - Default      changed
+Storefront/ProductCard - Sale badge   new
+Storefront/Checkout - Empty cart      reported
+[2m3 more stories need no review.[22m
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 1]

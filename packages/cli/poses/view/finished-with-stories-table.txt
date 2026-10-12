@@ -7,7 +7,7 @@ Typography - Scales   review-required  two baselines (#2, #4)
 Typography - Dense    unchanged        build #1
 Sanity/Hello - Basic  approved         build #1
 
-🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 0]

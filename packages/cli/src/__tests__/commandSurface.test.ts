@@ -119,13 +119,16 @@ describe('sherlo --help', () => {
 });
 
 describe('sherlo view --help', () => {
-  it('takes the wait flags and --metadata, and none of the test-only options', async () => {
+  it('takes the wait flags and --json, and none of the test-only options', async () => {
     const exitCode = await runCli('view', '--help');
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('--wait');
     expect(stdout).toContain('--wait-timeout');
-    expect(stdout).toContain('--metadata');
+    expect(stdout).toContain('--json');
+
+    // The record is `--json`, as on `gh`; the old name is gone, with no alias (it never shipped).
+    expect(stdout).not.toContain('--metadata');
 
     // Sherlo 3 takes the credential from SHERLO_TOKEN or the login, never from a flag.
     expect(stdout).not.toContain('--token');

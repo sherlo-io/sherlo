@@ -82,8 +82,9 @@ import {
 } from './constants';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
-import { logWarning, printNeedHelpEpilogue, reporting, throwError, withCommandTimeout } from './helpers';
+import { logWarning, reporting, throwError, withCommandTimeout } from './helpers';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
+import { renderHelpBlock } from './render/testSteps';
 import { renderTokenGone } from './render/pushCredential';
 
 // Disable all Node.js warnings
@@ -146,7 +147,9 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      printNeedHelpEpilogue();
+      // INIT'S HELP BLOCK ENDS EVERY FAILED COMMAND (epic sherlo-test-builds-apps, Direction C), in
+      // place of the old `══════════ Need Help?` footer, so a failure reads the same everywhere.
+      for (const line of renderHelpBlock()) console.log(line);
 
       process.exit(error.code || 1);
     });
@@ -569,8 +572,14 @@ function addViewCommand(program: Command) {
     PROJECT_ROOT_OPTION,
     WAIT_OPTION,
     WAIT_TIMEOUT_OPTION,
-    METADATA_OPTION,
   ]);
+
+  // `--json` prints one read as a record for a program; `--wait` prints a verdict for a person.
+  // Commander refuses the pair in its own words, before anything runs - a script waits with one
+  // command and reads with the next (`gh run watch`, then `gh run view --json`).
+  commandInstance.addOption(
+    new Option(...OPTION_DEFINITION[JSON_OPTION]).conflicts(WAIT_OPTION)
+  );
 
   // Parsed out of sight and refused, as on `sherlo test` (refuseTokenFlag).
   commandInstance.addOption(new Option(`--${TOKEN_OPTION} <token>`).hideHelp());

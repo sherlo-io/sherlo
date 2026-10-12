@@ -10,14 +10,16 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
+Testing your app...
+
 [31mERROR: Can't build iOS here: iOS builds need macOS, and this machine runs Linux.[39m
 [31mRun `npx sherlo test --platform android` here and `npx sherlo test --platform ios` on a Mac.[39m
 [31mTwo jobs in the same CI run join into one test.[39m
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 1]

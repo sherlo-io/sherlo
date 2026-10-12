@@ -10,12 +10,12 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-📦 [1miOS[22m
-[34m➜[39m  uploading build... (<SIZE> MB)
-[32m✔[39m  upload complete
+Sending your EAS build to Sherlo...
 
-▶  Both builds are in - [32mTest 1[39m is starting
-🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
+[2mUploading the app build (<SIZE> MB)...[22m
+[32m✔[39m Uploaded app build
+[32m✔[39m Started Test 1         both platforms are in
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 0]

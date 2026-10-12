@@ -1,10 +1,9 @@
 /**
  * THE VISIBLE-SHAPE GATE for `--metadata` on the `--wait` roads.
  *
- * The `sherlo view --wait --metadata` half of this claim is now byte-ratcheted for real, by
- * `packages/cli/poses/view/verdict-metadata-after-view-wait.pose.json` under
- * `commands/pose/__tests__/catalogue.test.ts`. What is left to pin here is the half the pose
- * catalogue does not cover yet: `sherlo test --wait --metadata`, the road that OPENED the build
+ * `sherlo view` no longer takes `--metadata` (it reads a build back with `--json`, operator
+ * decision 2026-10-12), so what is pinned here is the one road left: `sherlo test --wait
+ * --metadata`, the road that OPENED the build
  * and so is the only one that can report which branch and commit it opened it from. Both halves
  * are run through the SHIPPED wait loop (`waitForBuildResult`) over a scripted poll answer -
  * every branch, dedupe and literal it reaches is the live one - so what is pinned is evidence
@@ -74,10 +73,14 @@ describe('`--metadata` on the wait roads', () => {
   it('the test road prints the block after the closer, carrying the git it opened the build with', async () => {
     expect(await runWaitLoop(openedBuild, { git: OPENED_WITH_GIT })).toBe(
       [
-        '⏳ Waiting for build results (timeout: 45min)...',
-        '   🟢 Finished',
+        'Waiting for the test to finish (up to 45 min)...',
+        '   Finished',
         '',
-        '✅ All stories passed - no visual changes require review.',
+        '',
+        '✅ All stories passed',
+        '═'.repeat(21),
+        '',
+        'No visual changes need review.',
         '',
         '── details ──',
         'branch:        feature/login-copy @ 4f3a9c1 (clean tree)',
@@ -102,11 +105,14 @@ describe('`--metadata` on the wait roads', () => {
 
     expect(await runWaitLoop(build, {})).toBe(
       [
-        '⏳ Waiting for build results (timeout: 45min)...',
-        '   🟢 Finished',
+        'Waiting for the test to finish (up to 45 min)...',
+        '   Finished',
         '',
-        '⚠️  Build finished with changes requiring review.',
-        '   3 story/stories unreviewed.',
+        '',
+        '⚠️ 3 stories need review',
+        '═'.repeat(24),
+        '',
+        '3 stories unreviewed',
         '',
         '── details ──',
         // No branch, no main line.
@@ -158,7 +164,7 @@ describe('the block is bound to a build that actually finished', () => {
 
     const stdout = stripAnsi(transcript.stdout);
 
-    expect(stdout).toContain('⏰ Timeout reached after 45 minutes.');
+    expect(stdout).toContain('! Stopped waiting after 45 minutes.');
     expect(stdout).not.toContain('── details ──');
   });
 

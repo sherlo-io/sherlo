@@ -43,6 +43,7 @@ import {
   throwError,
   waitForBuildResult,
 } from '../../helpers';
+import { JSON_OPTION } from '../../constants';
 import { AuthError } from '../../helpers/buildStatusRequest';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
@@ -104,8 +105,11 @@ async function view(
   });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
-  const showDetails = commandParams.metadata === true;
 
+  // `--json` never meets `--wait`: commander refuses the pair before anything runs (addViewCommand,
+  // ../../start). A wait prints a verdict for a person and a record is one read for a program, so
+  // a script waits with one command and reads with the next, the way `gh run watch` and
+  // `gh run view --json` are two.
   if (commandParams.wait) {
     // The verdict belongs to the wait loop from here on, so the tally and the
     // status sentence are NOT printed first: they would describe a build that is
@@ -127,7 +131,6 @@ async function view(
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
-      metadata: showDetails ? {} : undefined,
     });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
@@ -144,7 +147,7 @@ async function view(
     refuseBuildNotFound(buildIndex);
   }
 
-  printBuildView({ build, buildIndex, url, showDetails });
+  printBuildView({ build, buildIndex, url, printJson: passedOptions[JSON_OPTION] === true });
 }
 
 export default view;

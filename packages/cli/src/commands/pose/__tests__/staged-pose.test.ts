@@ -56,20 +56,18 @@ describe('a bare push is posable', () => {
     expect(exitCode).toBe(0);
   });
 
-  it('a posed bare push whose openBuild answer states a full capture prints the capture plan and the Diff Scope line a real one prints', async () => {
+  it('a posed bare push whose openBuild answer states a full capture prints the capture plan a real one prints', async () => {
     const { document } = stagedPose('staged-borrows-the-base');
     const { screen, refusals } = await runPose(document);
     const M = androidStoryCount(document);
 
     expect(refusals).toEqual([]);
-    expect(screen).toContain('📸 Capture plan');
-    expect(screen).toContain(`capturing all ${M} stories in this bundle`);
+    expect(screen).toContain('Planned the capture');
     expect(screen).toContain(
-      'why: no main branch set for this project - every build captures every story'
+      `all ${M} stories: no main branch set for this project - every build captures every story`
     );
-    expect(screen).toContain(
-      `Diff Scope: capturing all ${M} stories: no main branch set for this project - every build captures every story`
-    );
+    // The one-line "Diff Scope:" summary repeated the plan in internal words, and is gone.
+    expect(screen).not.toContain('Diff Scope');
   });
 
   it('a posed bare push whose openBuild answer states no capture decision prints no plan, as it does today', async () => {
@@ -84,8 +82,7 @@ describe('a bare push is posable', () => {
     const { screen, refusals } = await runPose(withoutDecision);
 
     expect(refusals).toEqual([]);
-    expect(screen).not.toContain('📸 Capture plan');
-    expect(screen).not.toContain('Diff Scope:');
+    expect(screen).not.toContain('Planned the capture');
     expect(screen).toContain('🔗 Review:');
   });
 });

@@ -3,7 +3,7 @@
  *
  * `sherlo test --wait` and `sherlo view` are meant to tell a developer the same thing about a
  * finished build (operator intent, 2026-09-21). They do not: the wait polls the build's status and
- * gets every screen back with its status and its baseline - the same data `view --metadata` renders
+ * gets every screen back with its status and its baseline - the same data `view --json` renders
  * - then discards it and prints `1 story/stories unreviewed`. A developer who waited has to run a
  * second command to learn WHICH screen is waiting for them.
  *
@@ -29,6 +29,14 @@ beforeAll(() => {
 /** The tally a build carries alongside its screens - what the closer falls back to. */
 const SOME_COUNTS = { unreviewed: 2, reported: 1 };
 
+/**
+ * The verdict as init's section (epic sherlo-test-builds-apps): one blank line (the wait loop
+ * frames it with the other), the title, its underline, a blank line, then the body.
+ */
+function section(title: string, ...body: string[]): string[] {
+  return ['', title, '═'.repeat(title.length), '', ...body];
+}
+
 describe('the verdict closer of a wait that ended needing review', () => {
   it('a wait that ends needing review names the screens that need one', () => {
     // Unreviewed, reported and errored screens by name - those are the ones a person has to act
@@ -45,15 +53,17 @@ describe('the verdict closer of a wait that ended needing review', () => {
       SOME_COUNTS
     );
 
-    expect(lines).toEqual([
-      '⚠️  Build finished with changes requiring review.',
-      '   unreviewed: Storefront - ProductCard',
-      '   unreviewed: Storefront - Banner',
-      '   unreviewed: Typography - Scales',
-      '   reported: Storefront - Checkout',
-      '   errored: Storefront - Cart',
-      '   1 more settled - approved, unchanged or inherited.',
-    ]);
+    expect(lines).toEqual(
+      section(
+        '⚠️ 5 stories need review',
+        'Storefront - ProductCard   changed',
+        'Storefront - Banner        new',
+        'Typography - Scales        unreviewed',
+        'Storefront - Checkout      reported',
+        'Storefront - Cart          errored',
+        '1 more story needs no review.'
+      )
+    );
   });
 
   it('the settled screens are a count, however many there are', () => {
@@ -69,11 +79,13 @@ describe('the verdict closer of a wait that ended needing review', () => {
       SOME_COUNTS
     );
 
-    expect(lines).toEqual([
-      '⚠️  Build finished with changes requiring review.',
-      '   unreviewed: Storefront - ProductCard',
-      '   100 more settled - approved, unchanged or inherited.',
-    ]);
+    expect(lines).toEqual(
+      section(
+        '⚠️ 1 story needs review',
+        'Storefront - ProductCard   changed',
+        '100 more stories need no review.'
+      )
+    );
     // Said as a number and NOT as a hundred names - the property the case is named for, asserted
     // where the list above could only have been read as one example of it.
     expect(lines.some((line) => line.includes('Settled - Screen'))).toBe(false);
@@ -82,17 +94,14 @@ describe('the verdict closer of a wait that ended needing review', () => {
   it('a build whose screens the wait never learned prints the counts it always did', () => {
     // An older backend, or a status read that came back without the rows: the new words are an
     // improvement on having the data, never a requirement to have it.
-    expect(renderVerdictReviewRequired(undefined, SOME_COUNTS)).toEqual([
-      '⚠️  Build finished with changes requiring review.',
-      '   2 story/stories unreviewed.',
-      '   1 story/stories reported.',
-    ]);
+    expect(renderVerdictReviewRequired(undefined, SOME_COUNTS)).toEqual(
+      section('⚠️ 3 stories need review', '2 stories unreviewed', '1 story reported')
+    );
 
     // Each count line is printed only for a non-zero count, exactly as it always was.
-    expect(renderVerdictReviewRequired(undefined, { unreviewed: 3, reported: 0 })).toEqual([
-      '⚠️  Build finished with changes requiring review.',
-      '   3 story/stories unreviewed.',
-    ]);
+    expect(renderVerdictReviewRequired(undefined, { unreviewed: 3, reported: 0 })).toEqual(
+      section('⚠️ 3 stories need review', '3 stories unreviewed')
+    );
 
     // And a build whose rows arrived but name NOBODY says less than its own tally does, so it
     // falls back to the same two lines rather than to a headline standing on its own.
@@ -101,11 +110,7 @@ describe('the verdict closer of a wait that ended needing review', () => {
         [{ name: 'Storefront - Footer', status: 'approved' }],
         SOME_COUNTS
       )
-    ).toEqual([
-      '⚠️  Build finished with changes requiring review.',
-      '   2 story/stories unreviewed.',
-      '   1 story/stories reported.',
-    ]);
+    ).toEqual(section('⚠️ 3 stories need review', '2 stories unreviewed', '1 story reported'));
   });
 
   it('a build with more screens needing a person than the closer names says how many more', () => {
@@ -118,11 +123,13 @@ describe('the verdict closer of a wait that ended needing review', () => {
 
     const lines = renderVerdictReviewRequired(needAPerson, { unreviewed: 13, reported: 0 });
 
-    expect(lines).toEqual([
-      '⚠️  Build finished with changes requiring review.',
-      ...Array.from({ length: 10 }, (_, index) => `   unreviewed: Storefront - Screen ${index}`),
-      '   ... and 3 more needing review.',
-    ]);
+    expect(lines).toEqual(
+      section(
+        '⚠️ 13 stories need review',
+        ...Array.from({ length: 10 }, (_, index) => `Storefront - Screen ${index}   changed`),
+        'And 3 more to review.'
+      )
+    );
   });
 
   it('a screen whose status this CLI has not learned is named under that status, not dropped', () => {
@@ -136,10 +143,12 @@ describe('the verdict closer of a wait that ended needing review', () => {
       { unreviewed: 1, reported: 0 }
     );
 
-    expect(lines).toEqual([
-      '⚠️  Build finished with changes requiring review.',
-      '   quarantined: Storefront - Kiosk',
-      '   1 more settled - approved, unchanged or inherited.',
-    ]);
+    expect(lines).toEqual(
+      section(
+        '⚠️ 1 story needs review',
+        'Storefront - Kiosk   quarantined',
+        '1 more story needs no review.'
+      )
+    );
   });
 });

@@ -21,8 +21,8 @@
  * uploaded under. Neither is decided here.
  */
 import { Platform, StagedPlatformUploadUrls } from '@sherlo/api-types';
-import chalk from 'chalk';
 import { handleClientError, reporting } from '../../helpers';
+import { emit } from '../../helpers/transcriptSink';
 import { nativeBuild } from '../../seams/nativeBuild';
 import { serverCalls } from '../../seams/serverCalls';
 import type { BundleResult } from './buildBundle';
@@ -111,9 +111,13 @@ export async function uploadBundles({
       throw new StagedSlotMissingError(platform);
     }
 
-    console.log(chalk.cyan(`\n⬆️  Uploading ${platform} bundle...`));
     keys[platform] = await effects.uploadBundle({ platform, bundleResult, urls });
   }
+
+  // One step for every bundle this run sent, once they are all up.
+  const bundleSizesMb: Partial<Record<Platform, number>> = {};
+  for (const platform of platformsToTest) bundleSizesMb[platform] = bundles[platform]?.bundleSizeMb;
+  emit({ kind: 'javascript-uploaded', bundleSizesMb });
 
   return keys;
 }

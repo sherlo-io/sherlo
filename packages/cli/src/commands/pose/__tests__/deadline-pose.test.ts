@@ -25,7 +25,7 @@ describe('a wait that runs out is posable', () => {
     // The minutes read `<N>`: a run that reached this closer passed a clock of its own, so the
     // masker folds the number on every screen (../maskScreen). The closer and the exit code are
     // what this case is about, and both are here.
-    expect(screen).toContain('⏰ Timeout reached after <N> minutes.');
+    expect(screen).toContain('! Stopped waiting after <N> minutes.');
     expect(exitCode).toBe(EXIT_TIMEOUT);
   });
 

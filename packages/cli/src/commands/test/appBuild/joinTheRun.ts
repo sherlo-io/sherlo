@@ -28,7 +28,7 @@ export async function joinTheRun({
   platform: Platform;
   /** Everything an `openBuild` of this job would have been sent. */
   request: OpenBuildRequest;
-}): Promise<{ build: { index: number } }> {
+}): Promise<{ build: { index: number }; waitingFor: Platform[] }> {
   const { build, waitingFor } = await serverCalls()
     .joinBuild({ token, joinKey, platform, ...request })
     .catch((error) => handleClientError(error, token));
@@ -43,5 +43,5 @@ export async function joinTheRun({
       : { kind: 'run-starting', buildIndex: build.index }
   );
 
-  return { build };
+  return { build, waitingFor };
 }

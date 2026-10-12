@@ -10,15 +10,17 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
+Testing your app...
+
 [31mERROR: Can't build on EAS: package.json has no "eas-build-on-complete" or "eas-build-on-cancel" script.[39m
 [31mEAS builds report back to Sherlo through these scripts. Add them to "scripts":[39m
 [31m"eas-build-on-complete": "sherlo eas-build-on-complete",[39m
 [31m"eas-build-on-cancel": "sherlo eas-build-on-complete"[39m
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 1]

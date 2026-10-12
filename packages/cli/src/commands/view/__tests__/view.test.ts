@@ -254,23 +254,11 @@ describe('the exit-code split', () => {
   });
 });
 
-describe('--metadata', () => {
-  it('asks the wait loop for the block only when the flag is passed', async () => {
+describe('--wait', () => {
+  it('never asks the wait loop for a details block - `view` reads a build back with `--json`', async () => {
     await runView('7', { wait: true });
-    expect(waitForBuildResult).toHaveBeenLastCalledWith(
-      expect.objectContaining({ metadata: undefined })
-    );
 
-    await runView('7', { wait: true, metadata: true });
-    expect(waitForBuildResult).toHaveBeenLastCalledWith(expect.objectContaining({ metadata: {} }));
-  });
-
-  it('hands the loop NO git, because this command did not open the build', async () => {
-    // Reading local git here would describe whatever commit is checked out,
-    // which is not the one the build was made from.
-    await runView('7', { wait: true, metadata: true });
-
-    const lastCall = waitForBuildResult.mock.lastCall as [{ metadata?: { git?: unknown } }];
-    expect(lastCall[0].metadata?.git).toBeUndefined();
+    const lastCall = waitForBuildResult.mock.lastCall as [Record<string, unknown>];
+    expect(lastCall[0]).not.toHaveProperty('metadata');
   });
 });

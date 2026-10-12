@@ -73,7 +73,12 @@ async function runWaitLoop(build: BuildStatus): Promise<{ exitCode: number; stdo
 }
 
 /** The two lines every run of the above starts with, before any closer. */
-const WAIT_PREAMBLE = '⏳ Waiting for build results (timeout: 45min)...\n   🟢 Finished\n';
+const WAIT_PREAMBLE = 'Waiting for the test to finish (up to 45 min)...\n   Finished\n';
+
+/** A verdict section (init's grammar): a blank line, the title, its underline, a blank line, the body. */
+function verdictSection(title: string, underlineLength: number, ...body: string[]): string {
+  return `\n${title}\n${'═'.repeat(underlineLength)}\n\n${body.join('\n')}\n`;
+}
 
 /* ========================================================================== */
 /* (2) THE UNGATED PATH IS INDIFFERENT TO THE NEW FIELDS                      */
@@ -96,7 +101,7 @@ describe('a build the server did not mark prints exactly what it always printed'
 
     expect(exitCode).toBe(EXIT_GREEN);
     expect(stdout).toBe(
-      `${WAIT_PREAMBLE}\n✅ All stories passed - no visual changes require review.\n\n`
+      `${WAIT_PREAMBLE}\n${verdictSection('✅ All stories passed', 21, 'No visual changes need review.')}\n`
     );
   });
 
@@ -149,8 +154,7 @@ describe('a build the server did not mark prints exactly what it always printed'
 
     expect(withoutGate.exitCode).toBe(EXIT_BLOCK);
     expect(withoutGate.stdout).toBe(
-      `${WAIT_PREAMBLE}\n⚠️  Build finished with changes requiring review.\n` +
-        '   2 story/stories unreviewed.\n   1 story/stories reported.\n\n'
+      `${WAIT_PREAMBLE}\n${verdictSection('⚠️ 3 stories need review', 24, '2 stories unreviewed', '1 story reported')}\n`
     );
     expect(gateOff.stdout).toBe(withoutGate.stdout);
     expect(gateOff.exitCode).toBe(withoutGate.exitCode);
@@ -178,8 +182,12 @@ describe('an opted-in build takes its verdict from the server, not from the tall
 
     expect(exitCode).toBe(EXIT_GREEN);
     expect(stdout).toBe(
-      `${WAIT_PREAMBLE}\n✅ No visual changes - all snapshots match their baselines.\n` +
-        '   3 captured on this branch, 41 inherited unchanged\n\n'
+      `${WAIT_PREAMBLE}\n${verdictSection(
+        '✅ No visual changes',
+        20,
+        'All snapshots match their baselines.',
+        '3 captured on this branch, 41 carried over unchanged.'
+      )}\n`
     );
   });
 
@@ -208,9 +216,9 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     const { exitCode, stdout } = await runWaitLoop(recordedNothing);
 
     expect(exitCode).toBe(EXIT_BLOCK);
-    expect(stdout).toContain('Build finished without recording any snapshots.');
+    expect(stdout).toContain('Nothing was recorded');
     expect(stdout).not.toContain('All stories passed');
-    expect(stdout).not.toContain('0 story/stories unreviewed');
+    expect(stdout).not.toContain('0 stories unreviewed');
   });
 
   /**
@@ -237,7 +245,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
 
     expect(exitCode).toBe(EXIT_GREEN);
     expect(stdout).toContain(
-      '✅ Nothing needed capturing - no change on this branch reaches any story'
+      'with no device run: no change on this branch reaches any story'
     );
     expect(stdout).not.toContain('No visual changes');
   });
@@ -286,9 +294,9 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     );
 
     expect(exitCode).toBe(EXIT_BLOCK);
-    expect(stdout).toContain('⚠️  Build finished with changes requiring review.');
-    expect(stdout).toContain('   2 story/stories unreviewed.');
-    expect(stdout).not.toContain('without recording any snapshots');
+    expect(stdout).toContain('⚠️ 2 stories need review');
+    expect(stdout).toContain('2 stories unreviewed');
+    expect(stdout).not.toContain('Nothing was recorded');
   });
 
   /**
@@ -307,7 +315,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
       )
     );
 
-    expect(stdout).toContain('✅ No visual changes - all snapshots match their baselines.');
+    expect(stdout).toContain('All snapshots match their baselines.');
     expect(stdout).not.toContain('captured on this branch');
   });
 });

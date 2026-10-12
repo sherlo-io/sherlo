@@ -74,7 +74,7 @@ describe('readValidatedModuleManifest - BAIL-OPEN failure modes (returns null, n
 
     expect(readValidatedModuleManifest(projectRoot)).toBeNull();
     const warned = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(warned).toMatch(/WARNING/);
+    expect(warned).toMatch(/! .*continuing without it/);
     expect(warned).toMatch(/continuing without it/);
   });
 

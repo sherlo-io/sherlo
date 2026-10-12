@@ -25,7 +25,7 @@ import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
 import { reporting, throwError } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
-import type { AppBuildReason, ChangesSinceStoredBuild } from '../../../render/appBuild';
+import type { AppBuildCommand, WhyANewAppBuild } from '../../../render/appBuild';
 import { appBuilder } from '../../../seams/appBuilder';
 import {
   BUILD_CACHE_ENV_VAR,
@@ -47,8 +47,7 @@ const EXIT_BUILD_FAILED = 2;
  */
 export type PlatformToBuild = {
   platform: Platform;
-  reason?: AppBuildReason;
-  changesSince?: ChangesSinceStoredBuild;
+  why?: WhyANewAppBuild;
 };
 
 /**
@@ -61,7 +60,7 @@ export async function buildApps({
   settings,
   baseFingerprint,
   cacheDirFlag,
-  savedToCache,
+  command,
 }: {
   projectRoot: string;
   toBuild: PlatformToBuild[];
@@ -69,8 +68,8 @@ export async function buildApps({
   baseFingerprint: string;
   /** `--build-cache <dir>`, when the command line names one. */
   cacheDirFlag?: string;
-  /** `sherlo build` keeps what it builds in the cache, and says so. */
-  savedToCache: boolean;
+  /** Which command builds: `sherlo build` only keeps the app build in the cache, and says so. */
+  command: AppBuildCommand;
 }): Promise<Partial<Record<Platform, string>>> {
   const builder = appBuilder();
 
@@ -79,18 +78,14 @@ export async function buildApps({
   const cacheDir = cacheDirFlag ?? process.env[BUILD_CACHE_ENV_VAR] ?? DEFAULT_BUILD_CACHE;
   const builtPaths: Partial<Record<Platform, string>> = {};
 
-  for (const { platform, reason, changesSince } of toBuild) {
-    emit(
-      reason
-        ? { kind: 'app-build-needed', platform, reason, ...(changesSince ? { changesSince } : {}) }
-        : { kind: 'app-build-start', platform }
-    );
-
+  for (const { platform, why } of toBuild) {
+    // The step line of each platform says why it needed a new app build, so the reason rides on it.
+    const whyThisBuild = why ? { why } : {};
     const cacheKey = cacheKeyOf({ baseFingerprint, platform, settings });
 
     const cached = await builder.findCachedBuild({ platform, cacheKey, cacheDir });
     if (cached) {
-      emit({ kind: 'app-build-cached', platform });
+      emit({ kind: 'app-build-cached', platform, ...whyThisBuild });
       builtPaths[platform] = cached;
       continue;
     }
@@ -101,7 +96,7 @@ export async function buildApps({
     }
 
     const logPath = buildLogPath(platform);
-    emit({ kind: 'app-build-compiling', platform, logPath });
+    emit({ kind: 'app-build-compiling', platform });
 
     const platformSettings = settings[platform] ?? {};
     const compiled = await builder.compile({
@@ -130,6 +125,8 @@ export async function buildApps({
         seconds: compiled.seconds,
         lastLines: compiled.lastLines,
         logPath,
+        command,
+        ...whyThisBuild,
       });
       await reporting.flush().finally(() => process.exit(EXIT_BUILD_FAILED));
       throw new Error('unreachable'); // process.exit above never returns
@@ -141,8 +138,9 @@ export async function buildApps({
       kind: 'app-build-done',
       platform,
       seconds: compiled.seconds,
-      sizeMb: compiled.sizeMb,
-      savedToCache,
+      logPath,
+      command,
+      ...whyThisBuild,
     });
 
     builtPaths[platform] = compiled.path;

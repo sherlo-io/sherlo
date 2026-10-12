@@ -126,10 +126,11 @@ describe('the dry-run decision honours an endpoint override end to end', () => {
     await stagedRun({ dryRun: true } as any);
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('🍎 iOS - would capture all stories');
-    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    expect(printed).toContain(
+      "✔ Previewed the capture  all stories: couldn't work out what changed, so all are captured to be safe"
+    );
     expect(printed).not.toContain('first build');
-    expect(printed).not.toContain('in this bundle');
+    expect(printed).not.toMatch(/all \d+ stor/);
 
     logSpy.mockRestore();
   }, 15_000);

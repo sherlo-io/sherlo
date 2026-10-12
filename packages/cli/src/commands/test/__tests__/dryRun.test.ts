@@ -112,18 +112,15 @@ describe('formatDryRunPreview', () => {
 
     expect(output).toBe(
       [
-        '📸 Capture plan (dry run)',
-        '  🤖 Android - would capture 6 of 22 stories in this bundle, reusing 16 from the previous build',
-        '     why: SharedButton.tsx changed',
-        '     stories:',
-        '       • Storefront/CheckoutScreen',
-        '       • Storefront/PriceTag',
-        '       • Storefront/PriceTagInline',
-        '       • Storefront/ProductCard',
-        '       • Storefront/ProductCardCompact',
-        '       • Storefront/SharedButton',
+        '✔ Previewed the capture  6 of 22 stories: SharedButton.tsx changed',
+        '   Storefront/CheckoutScreen',
+        '   Storefront/PriceTag',
+        '   Storefront/PriceTagInline',
+        '   Storefront/ProductCard',
+        '   Storefront/ProductCardCompact',
+        '   Storefront/SharedButton',
         '',
-        '◦ Dry run - no build created, nothing uploaded',
+        'This was a dry run: nothing was uploaded and no test was started.',
       ].join('\n')
     );
   });
@@ -139,10 +136,11 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('🤖 Android - nothing to capture - no change reaches any story');
-    expect(output).toContain('     ✓ none of the 5 stories in this bundle need capture');
-    // A partial-zero has no capture verb at all.
-    expect(output).not.toContain('would capture');
+    expect(output).toContain(
+      '✔ Previewed the capture  nothing to capture: no change reaches any story'
+    );
+    // A partial-zero names no count at all.
+    expect(output).not.toContain('stories');
   });
 
   it('renders a FULL capture (isFullCapture=true, EMPTY list) as "would capture all N stories"', () => {
@@ -156,12 +154,10 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('🍎 iOS - would capture all 12 stories in this bundle');
-    expect(output).toContain('     why: main-branch');
+    expect(output).toContain('✔ Previewed the capture  all 12 stories: main-branch');
     // The dangerous misreads: never render the empty list as "nothing".
     expect(output).not.toContain('nothing to capture');
-    expect(output).not.toContain('would capture 0');
-    expect(output).not.toContain('stories:');
+    expect(output).not.toContain('0 of');
   });
 
   it("renders a full capture from the server's in-band bail-open reason verbatim", () => {
@@ -176,8 +172,9 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('🤖 Android - would capture all 8 stories in this bundle');
-    expect(output).toContain('     why: dry-run-error: base ancestry lookup timed out');
+    expect(output).toContain(
+      '✔ Previewed the capture  all 8 stories: dry-run-error: base ancestry lookup timed out'
+    );
   });
 
   it('omits the "of M" total on a partial when the decision does not report one', () => {
@@ -190,7 +187,7 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('would capture 1 story');
+    expect(output).toContain('✔ Previewed the capture  1 story: a.ts changed');
     expect(output).not.toContain(' of ');
   });
 
@@ -201,9 +198,8 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview(previews);
 
-    expect(output).toContain('🍎 iOS - would capture all stories');
     expect(output).toContain(
-      "     ! couldn't compute what changed - capturing everything to be safe"
+      "✔ Previewed the capture  all stories: couldn't work out what changed, so all are captured to be safe"
     );
     // The raw error stays in telemetry, not on the user's line.
     expect(output).not.toContain('network exploded');
@@ -253,11 +249,8 @@ describe('runDryRunPreview', () => {
     expect(arg.platforms[0].manifest.parsed.version).toBe(1);
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain(
-      '🍎 iOS - would capture 1 of 3 stories in this bundle, reusing 2 from the previous build'
-    );
-    expect(printed).toContain('why: App.tsx changed');
-    expect(printed).toContain('◦ Dry run - no build created, nothing uploaded');
+    expect(printed).toContain('✔ Previewed the capture  1 of 3 stories: App.tsx changed');
+    expect(printed).toContain('This was a dry run: nothing was uploaded and no test was started.');
 
     logSpy.mockRestore();
   });
@@ -325,8 +318,7 @@ describe('runDryRunPreview', () => {
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
     // No manifest total -> full capture degrades to "all stories" (no number).
-    expect(printed).toContain('🤖 Android - would capture all stories');
-    expect(printed).toContain('why: manifest-missing');
+    expect(printed).toContain('✔ Previewed the capture  all stories: manifest-missing');
 
     logSpy.mockRestore();
   });
@@ -347,9 +339,10 @@ describe('runDryRunPreview', () => {
     ).resolves.toBeUndefined();
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('🍎 iOS - would capture all stories');
-    expect(printed).toContain('🤖 Android - would capture all stories');
-    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    // Both platforms decided the same, so the plan is one line for the test.
+    expect(printed).toContain(
+      "✔ Previewed the capture  all stories: couldn't work out what changed, so all are captured to be safe"
+    );
     // The raw error is telemetry-only, never on the user's line.
     expect(printed).not.toContain('network exploded');
 
@@ -378,8 +371,8 @@ describe('runDryRunPreview', () => {
     });
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('🍎 iOS - would capture 1 story');
-    expect(printed).toContain('🤖 Android - would capture all stories');
+    expect(printed).toContain('✔ Previewed the capture  🍎 iOS - 1 story');
+    expect(printed).toContain('✔ Previewed the capture  🤖 Android - all stories');
 
     logSpy.mockRestore();
   });
@@ -414,11 +407,12 @@ describe('runDryRunPreview', () => {
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
     expect(printed).toContain(
-      '🍎 iOS - would capture 1 of 4 stories in this bundle, reusing 3 from the previous build'
+      [
+        '✔ Previewed the capture  🍎 iOS - 1 of 4 stories: x.tsx changed',
+        '   x/X',
+        '✔ Previewed the capture  🤖 Android - all 4 stories: native-changed',
+      ].join('\n')
     );
-    expect(printed).toContain('• x/X');
-    expect(printed).toContain('🤖 Android - would capture all 4 stories in this bundle');
-    expect(printed).toContain('why: native-changed');
 
     logSpy.mockRestore();
   });
@@ -445,8 +439,9 @@ describe('runDryRunPreview', () => {
     );
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('🍎 iOS - would capture all stories');
-    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    expect(printed).toContain(
+      "✔ Previewed the capture  all stories: couldn't work out what changed, so all are captured to be safe"
+    );
     expect(printed).not.toContain('first build');
 
     logSpy.mockRestore();
@@ -467,11 +462,12 @@ describe('runDryRunPreview', () => {
     });
 
     const printed = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(printed).toContain('🍎 iOS - would capture all stories');
-    expect(printed).toContain("! couldn't compute what changed - capturing everything to be safe");
+    expect(printed).toContain(
+      "✔ Previewed the capture  all stories: couldn't work out what changed, so all are captured to be safe"
+    );
     // A bail-open never sounds precise about a count, and never borrows the server's
     // own "first build" reading of an absent base reference.
-    expect(printed).not.toContain('in this bundle');
+    expect(printed).not.toMatch(/all \d+ stor/);
     expect(printed).not.toContain('first build');
     expect(printed).not.toContain('ECONNREFUSED');
 

@@ -561,14 +561,13 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('📸 Capture plan');
     expect(out).toContain(
-      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
+      [
+        '✔ Planned the capture    2 of 22 stories: SharedButton.tsx changed',
+        '   Storefront/Storefront',
+        '   Cart/Cart',
+      ].join('\n')
     );
-    expect(out).toContain('     why: SharedButton.tsx changed');
-    expect(out).toContain('     stories:');
-    expect(out).toContain('       • Storefront/Storefront');
-    expect(out).toContain('       • Cart/Cart');
 
     logSpy.mockRestore();
   });
@@ -593,8 +592,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
-    expect(out).toContain('     why: native code changed - everything re-shot');
+    expect(out).toContain(
+      '✔ Planned the capture    all 22 stories: native code changed - everything re-shot'
+    );
     // Inversion: an empty list on a full capture is "everything", never "nothing".
     expect(out).not.toContain('capturing 0');
     expect(out).not.toContain('nothing');
@@ -623,8 +623,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - nothing to capture - no change reaches any story');
-    expect(out).toContain('     ✓ none of the 22 stories in this bundle need capture');
+    expect(out).toContain('✔ Planned the capture    nothing to capture: no change reaches any story');
     // No "Build created" line (SHERLO-1937) - the Review URL is the ending.
     expect(out).not.toContain('Build created');
     expect(out).toContain('🔗 Review: http://app/build');
@@ -649,8 +648,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
-    expect(out).toContain("     ! couldn't compute what changed - capturing everything to be safe");
+    expect(out).toContain(
+      "✔ Planned the capture    all 22 stories: couldn't work out what changed, so all are captured to be safe"
+    );
     expect(out).not.toContain('why:');
 
     logSpy.mockRestore();
@@ -681,10 +681,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain(
-      '🍎 iOS - capturing 1 of 8 stories in this bundle, reusing 7 from the previous build'
-    );
-    expect(out).toContain('       • x/X');
+    expect(out).toContain(['✔ Planned the capture    1 of 8 stories', '   x/X'].join('\n'));
     // The block renders in full; it simply carries no why line.
     expect(out).not.toContain('why:');
 
@@ -704,7 +701,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // No plan: no header, no per-platform block, no assertion of a decision.
-    expect(out).not.toContain('Capture plan');
+    expect(out).not.toContain('Planned the capture');
     expect(out).not.toContain('capturing');
     // No "Build created" line (SHERLO-1937) - the link is never withheld though.
     expect(out).not.toContain('Build created');
@@ -749,14 +746,12 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      '🍎 iOS - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build'
+      [
+        '✔ Planned the capture    🍎 iOS - 1 of 22 stories: ProductCardPlatformNote.ios.tsx changed',
+        '   Storefront/ProductCard',
+        '✔ Planned the capture    🤖 Android - nothing to capture: the change never reaches the Android app',
+      ].join('\n')
     );
-    expect(out).toContain('     why: ProductCardPlatformNote.ios.tsx changed');
-    expect(out).toContain('       • Storefront/ProductCard');
-    expect(out).toContain(
-      '🤖 Android - nothing to capture - the change never reaches the Android app'
-    );
-    expect(out).toContain('     ✓ none of the 22 stories in this bundle need capture');
     // No "Build created" line (SHERLO-1937) - even though iOS captured a story,
     // there is no "- running on devices" suffix either.
     expect(out).not.toContain('Build created');
@@ -791,7 +786,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    const planIdx = out.indexOf('📸 Capture plan');
+    const planIdx = out.indexOf('Planned the capture');
     const urlIdx = out.indexOf('🔗 Review:');
     expect(planIdx).toBeGreaterThanOrEqual(0);
     expect(urlIdx).toBeGreaterThan(planIdx);
@@ -829,13 +824,13 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 10 stories in this bundle');
-    expect(out).toContain('     why: native-changed');
     expect(out).toContain(
-      '🤖 Android - capturing 1 of 10 stories in this bundle, reusing 9 from the previous build'
+      [
+        '✔ Planned the capture    🍎 iOS - all 10 stories: native-changed',
+        '✔ Planned the capture    🤖 Android - 1 of 10 stories: x.tsx changed',
+        '   x/X',
+      ].join('\n')
     );
-    expect(out).toContain('       • x/X');
-    expect(out).toContain('     why: x.tsx changed');
 
     logSpy.mockRestore();
   });
@@ -874,9 +869,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // The exact fraction is pinned so the invariant is stated, not inferred.
-    expect(out).toContain(
-      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
-    );
+    expect(out).toContain('✔ Planned the capture    2 of 22 stories');
 
     logSpy.mockRestore();
   });
@@ -1009,8 +1002,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✅ Nothing needed capturing - no change reaches any story');
-    expect(out).toContain('closed by the server - no device run was needed');
+    expect(out).toContain('✔ Finished the test      with no device run: no change reaches any story');
     // The whole point: no URL of any kind on the bypassed path.
     expect(out).not.toContain('🔗 Review');
     expect(out).not.toContain('http://app/build');
@@ -1081,15 +1073,21 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
     await stagedRun(mockOptions());
 
-    expect(printed(logSpy)).toMatchSnapshot();
+    // The test ends on its one finished step: no started step, no next step, no link.
+    const out = printed(logSpy);
+    expect(
+      out.endsWith('✔ Finished the test      with no device run: no change reaches any story')
+    ).toBe(true);
+    expect(out).not.toContain('Started Test');
+    expect(out).not.toContain('Next step');
 
     logSpy.mockRestore();
   });
 
-  // BYTE-IDENTICAL guarantee (explicit acceptance criterion): a non-bypassed
-  // build's own printed output is unchanged, and identical whether or not --wait
-  // is set (the wait poll adds nothing to stagedRun's own output here).
-  it('non-bypassed output is byte-identical with and without --wait', async () => {
+  // Init's grammar (epic sherlo-test-builds-apps): both endings carry the same steps and the same
+  // link; without --wait the link sits in the `👉 Next step` section with the command that waits,
+  // and with it the link comes LAST, after the verdict the (mocked) wait prints.
+  it('non-bypassed output ends on the next step without --wait and on the link with it', async () => {
     const logA = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: false });
     await stagedRun(mockOptions());
@@ -1104,8 +1102,19 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     const withWait = printed(logB);
     logB.mockRestore();
 
-    expect(withWait).toBe(withoutWait);
-    expect(withoutWait).toMatchSnapshot();
+    const steps = withWait.slice(0, withWait.indexOf('🔗 Review:'));
+    expect(withoutWait.startsWith(steps)).toBe(true);
+    expect(withWait.endsWith('🔗 Review: http://app/build\n')).toBe(true);
+    expect(withoutWait).toContain(
+      [
+        '👉 Next step',
+        '════════════',
+        '',
+        'Review Test 7 when it finishes',
+        '   🔗 Review: http://app/build',
+        '   To wait for it here: npx sherlo view 7 --wait',
+      ].join('\n')
+    );
   });
 
   /* ------------------------------------------------------------------------ *

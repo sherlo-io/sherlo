@@ -46,8 +46,8 @@ import {
   printSherloIntro,
   reporting,
   throwError,
-  waitForBuildResult,
 } from '../../helpers';
+import { emit } from '../../helpers/transcriptSink';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
@@ -57,7 +57,8 @@ import { joinTheRun } from './appBuild/joinTheRun';
 import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
 import { readSimWorld } from './simWorld';
-import { parseWaitTimeout, printBypassedCloser, printCapturePlanAndCloser } from './stagedRun';
+import { closeTheRun } from './closeTheRun';
+import { printCapturePlanAndStart } from './stagedRun';
 import { putBuffer, type StagedUploadUrlsWithManifest } from './uploadStagedArtifacts';
 import type { ValidatedModuleManifest } from './readModuleManifest';
 
@@ -86,6 +87,7 @@ async function simRun(
   simWorldDirPath: string
 ): Promise<{ url: string }> {
   printSherloIntro();
+  emit({ kind: 'command-intro', command: 'test' });
 
   // 1. The world tree - strict validation, every problem named at once.
   const world = readSimWorld(simWorldDirPath);
@@ -120,7 +122,7 @@ async function simRun(
   const worldFile = composeSimWorldFile(world.parsed);
 
   // The credential and its project, resolved before any request (getValidatedCommandParams).
-  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   // 4. Upload both artifacts to staged slots, per platform.
   const simKeys = await uploadSimArtifacts({
@@ -190,38 +192,17 @@ async function simRun(
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
   const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
 
-  printCapturePlanAndCloser({
-    openBuildReturn,
-    moduleManifests: manifestForEveryPlatform(manifest, platformsToTest),
-    platformsToTest,
-    url,
-    serverBypassed,
-  });
-
-  if (commandParams.wait) {
-    const exitCode = await waitForBuildResult({
-      token,
-      fromSavedLogin,
-      buildIndex,
-      projectIndex,
-      teamId,
-      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+  if (!joinKey) {
+    printCapturePlanAndStart({
+      openBuildReturn,
+      moduleManifests: manifestForEveryPlatform(manifest, platformsToTest),
+      platformsToTest,
+      devices: commandParams.devices,
       serverBypassed,
     });
-
-    // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
-    });
-  } else if (serverBypassed) {
-    await printBypassedCloser({
-      token,
-      buildIndex,
-      projectIndex,
-      teamId,
-      url,
-    });
   }
+
+  await closeTheRun({ commandParams, buildIndex, url, serverBypassed });
 
   return { url };
 }

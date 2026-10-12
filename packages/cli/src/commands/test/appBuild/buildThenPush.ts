@@ -84,8 +84,10 @@ export async function buildThenPush({
   const toBuild = await Promise.all(
     refusals.map(async (refusal) => ({
       platform: refusal.platform,
-      reason: reasonOf(refusal),
-      ...(await changesSinceStoredBuildOf(refusal, fingerprintPreimage, commandParams.projectRoot)),
+      why: {
+        reason: reasonOf(refusal),
+        ...(await changesSinceStoredBuildOf(refusal, fingerprintPreimage, commandParams.projectRoot)),
+      },
     }))
   );
 
@@ -95,7 +97,7 @@ export async function buildThenPush({
     settings,
     baseFingerprint,
     cacheDirFlag: passedOptions.buildCache,
-    savedToCache: false,
+    command: 'test',
   });
 
   // THE STANDARD ROAD, ON THE BUILDS JUST MADE: the same validation and the same push spine a

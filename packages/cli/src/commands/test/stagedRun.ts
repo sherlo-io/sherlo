@@ -26,10 +26,9 @@
  * server-side) alongside the real jsBundleS3Key / assetsS3Key.
  */
 import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
-import { PLATFORMS } from '../../constants';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
-import { Options } from '../../types';
+import { Config, Options } from '../../types';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
@@ -40,16 +39,11 @@ import {
   printSherloIntro,
   reporting,
   throwError,
-  waitForBuildResult,
 } from '../../helpers';
-import parseWaitTimeout from '../../helpers/parseWaitTimeout';
-import printLink from '../../helpers/printLink';
-import {
-  isServerBypassed,
-  fetchServerBypassReason,
-  printServerBypassCloser,
-} from '../../helpers/waitForBuildResult';
+import { emit } from '../../helpers/transcriptSink';
+import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
+import { closeTheRun } from './closeTheRun';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
 import {
@@ -74,11 +68,7 @@ import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerpri
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
-import {
-  formatDiffScopeReport,
-  formatDiffScopeSummaryLine,
-  type DiffScopePlatformReport,
-} from './diffScopeReport';
+import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -113,15 +103,6 @@ type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
 type DiffScopeInfoWithPlatformReasons = {
   fullCaptureTriggerReason?: string;
   platforms?: Partial<Record<Platform, { reason?: string }>>;
-  /**
-   * The primary frozen ancestor build index this decision diffed against.
-   * Hand-typed rather than imported from `@sherlo/api-types` for the same
-   * forward-compat reason as the two fields above (this file's module doc):
-   * sherlo-api commit e7c7d5a (`feature/sherlo-3`) added it to
-   * `Build.diffScopeInfo` and the portal tarball this repo builds against may
-   * not carry it yet. Absent -> no ancestor, or an older API.
-   */
-  ancestorBuildIndex?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -130,6 +111,7 @@ type DiffScopeInfoWithPlatformReasons = {
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   printSherloIntro();
+  emit({ kind: 'command-intro', command: 'test' });
 
   // 1. Validate params (no platform binary paths required - bundle only).
   const commandParams = getValidatedCommandParams(
@@ -237,7 +219,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //    The endpoint every call this road makes - including the read-only dry-run decision
   //    query - is resolved inside the server seam itself (../../seams/serverCalls), from the
   //    token this road hands it.
-  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   // 5-dry. --dry-run (SHERLO-1895 Phase C): bundle for real, preview which
   //   stories a real run would capture, and STOP here. A dry run never runs the
@@ -299,8 +281,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   let gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput };
 
   if (bundleDir !== undefined) {
-    console.log(chalk.bold('\n📦 Using the supplied bundle...\n'));
-
     ({ results: bundles, gateMetadata } = await resolveSuppliedBundles({
       bundleDir,
       projectRoot: commandParams.projectRoot,
@@ -312,8 +292,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       gateMetadataFor: async (_platform, _bundleResult, recorded) => recorded,
     }));
   } else {
-    console.log(chalk.bold('\n📦 Bundling for staged upload...\n'));
-
     ({ results: bundles, gateMetadata } = await buildBundles({
       projectRoot: commandParams.projectRoot,
       platformsToTest,
@@ -338,6 +316,12 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
 
   if (identityRefusals.length > 0) {
     return buildTheRefusedPlatforms(identityRefusals);
+  }
+
+  //    Both checks said every platform takes its stored app build: the step a person reads first.
+  //    Said here, after the second check, so a platform that check refuses is never called reused.
+  for (const platform of platformsToTest) {
+    emit({ kind: 'app-build-stored-reused', platform });
   }
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
@@ -399,6 +383,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
 
   let openBuildReturn;
+  /** A split job whose test starts in the other job: its run waits for that job's platform. */
+  let joinedRunWaits = false;
   try {
     // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
     // the network. The payload is the one this run composed, unchanged.
@@ -411,19 +397,18 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       baseFingerprint,
       gateMetadata: gateMetadata as GateMetadataByPlatform,
     };
-    openBuildReturn = joinKey
-      ? // A joined run decides what it captures when its last platform is in, so this job
-        // has no capture plan to print - only the run's link.
-        ({
-          ...(await joinTheRun({
-            token,
-            joinKey,
-            platform: platformsToTest[0],
-            request,
-          })),
-          buildRun: { config: {} },
-        } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>)
-      : await serverCalls().openBuild({ token, ...request });
+    if (joinKey) {
+      // A joined run decides what it captures when its last platform is in, so this job
+      // has no capture plan to print - only the run's link.
+      const joined = await joinTheRun({ token, joinKey, platform: platformsToTest[0], request });
+      joinedRunWaits = joined.waitingFor.length > 0;
+      openBuildReturn = {
+        build: joined.build,
+        buildRun: { config: {} },
+      } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>;
+    } else {
+      openBuildReturn = await serverCalls().openBuild({ token, ...request });
+    }
   } catch (error) {
     // Safety net: the server gate may still refuse at openBuild even though the
     // checks above said fast (e.g. a base registered between calls). It is the
@@ -458,52 +443,27 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
 
   // The command EXPLAINS its own capture plan (SHERLO-1919): which stories this
-  // run is capturing, which it is reusing from the previous build, and why - read
-  // straight off the openBuild response, no extra API call - then closes with the
-  // Review URL LAST (SHERLO-1937: no "Build created" line - the URL IS the
-  // ending). Prints no plan block for a platform the server made no decision for
-  // (Diff Scope off, or older API), but always closes with the URL so the link
-  // never disappears - UNLESS the build was server-bypassed, whose compact closer
-  // is printed below instead (by the --wait poll, or the non-wait branch).
-  printCapturePlanAndCloser({
-    openBuildReturn,
-    moduleManifests: collectModuleManifests(bundles, platformsToTest),
-    platformsToTest,
-    url,
-    serverBypassed,
-  });
-
-  if (commandParams.wait) {
-    const exitCode = await waitForBuildResult({
-      token,
-      fromSavedLogin,
-      buildIndex,
-      projectIndex,
-      teamId,
-      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+  // run is capturing, and why - read straight off the openBuild response, no
+  // extra API call - then the step that started the test (a joined run's own
+  // step was printed by joinTheRun), then its ending (./closeTheRun).
+  if (!joinKey) {
+    printCapturePlanAndStart({
+      openBuildReturn,
+      moduleManifests: collectModuleManifests(bundles, platformsToTest),
+      platformsToTest,
+      devices: commandParams.devices,
       serverBypassed,
-      // --metadata: the details block, carrying the git identity THIS run
-      // composed and sent at openBuild - `getBuildStatus` does not return it, so
-      // the only honest source is the value that created the build.
-      metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
-    });
-
-    // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
-    });
-  } else if (serverBypassed) {
-    // Non-wait bypassed build: --wait is not printing the closer, so fetch the
-    // server's verbatim reason with a single getBuildStatus read and print the
-    // compact closer here (SHERLO-1952). Best-effort - see printBypassedCloser.
-    await printBypassedCloser({
-      token,
-      buildIndex,
-      projectIndex,
-      teamId,
-      url,
     });
   }
+
+  await closeTheRun({
+    commandParams,
+    buildIndex,
+    url,
+    serverBypassed,
+    gitInfo,
+    endsOnNextStep: !joinedRunWaits,
+  });
 
   return { url };
 }
@@ -587,37 +547,31 @@ function collectModuleManifests(
 
 /**
  * Print this run's capture plan, per platform, straight off the openBuild
- * response (SHERLO-1919). No extra API call: `captureScope` carries the captured
- * set and `diffScopeInfo` carries the reason. Renders through the SAME shared
- * formatter the dry run uses, so the two modes read identically apart from the
- * capture verb. Then closes with the Review URL LAST - no "Build created" line
- * (SHERLO-1937 operator ruling: a live run's ending IS the Review URL).
+ * response (SHERLO-1919), then the step that started the test. No extra API
+ * call: `captureScope` carries the captured set and `diffScopeInfo` carries the
+ * reason. Renders through the SAME shared formatter the dry run uses, so the two
+ * modes read identically apart from the step's name. The review link is the
+ * ending's (./closeTheRun) - there is no "Build created" line (SHERLO-1937).
  *
  * A platform the server made no decision for (no `captureScope`) is skipped
  * entirely - silence, never an invented "captured everything". If NO platform has
- * a decision, no plan block prints, but the URL still does so the developer
- * always gets their link.
+ * a decision, no plan step prints.
  *
- * The one exception (SHERLO-1952): a server-bypassed build. There is nothing to
- * review and the review page cannot render this build shape yet (SHERLO-1974), so
- * the Review URL is withheld here in BOTH modes; the compact bypassed closer is
- * printed by the caller instead (the --wait poll, or the non-wait branch).
- *
- * Exported (with the closer + wait helpers below) because the SIM road reuses
- * this exact output road - it has no bundles, so the plan is keyed on each
- * platform's module manifest, the one input the report actually reads.
+ * Exported because the SIM road reuses this exact output road - it has no
+ * bundles, so the plan is keyed on each platform's module manifest, the one input
+ * the report actually reads.
  */
-export function printCapturePlanAndCloser({
+export function printCapturePlanAndStart({
   openBuildReturn,
   moduleManifests,
   platformsToTest,
-  url,
+  devices,
   serverBypassed,
 }: {
   openBuildReturn: OpenBuildAnswer;
   moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
-  url: string;
+  devices: Config['devices'];
   serverBypassed: boolean;
 }): void {
   const diffScopeInfo = openBuildReturn.build.diffScopeInfo as
@@ -650,79 +604,14 @@ export function printCapturePlanAndCloser({
   }
 
   if (platforms.length > 0) {
-    console.log('\n' + formatDiffScopeReport('live', platforms));
-
-    // The one-line "Diff Scope:" summary (view-metadata, operator ruling
-    // 2026-09-03), printed once for the build - not per platform - keyed on
-    // the PRIMARY platform (first-present, PLATFORMS-ordered: android before
-    // ios), the same convention the server uses for its own single reason.
-    const primary = PLATFORMS.map((platform) =>
-      platforms.find((p) => p.platform === platform)
-    ).find((p): p is DiffScopePlatformReport => p !== undefined);
-
-    if (primary) {
-      const summaryLine = formatDiffScopeSummaryLine({
-        full: primary.full,
-        capturedStoryFilePaths: primary.capturedStoryFilePaths,
-        totalStoriesInBundle: primary.totalStoriesInBundle,
-        reason: primary.reason,
-        allStoryFilePaths: moduleManifests[primary.platform]
-          ? Object.keys(moduleManifests[primary.platform]!.parsed.storyClosures)
-          : undefined,
-        ancestorBuildIndex: diffScopeInfo?.ancestorBuildIndex,
-      });
-      if (summaryLine) console.log('\n' + summaryLine);
-    }
+    console.log(formatDiffScopeReport('live', platforms));
   }
 
-  // A server-bypassed build has its compact closer printed by the caller (the
-  // --wait poll, or the non-wait branch), never a Review URL - the review page
-  // cannot render this build shape yet (SHERLO-1952/1974). Withhold the URL here
-  // in both modes.
-  if (serverBypassed) {
-    return;
-  }
+  // A test the server closed without a device run never started on one: its ending is the one
+  // finished step that says so (./closeTheRun).
+  if (serverBypassed) return;
 
-  // The closer, LAST (SHERLO-1919 ordering). A live run has no "Build created"
-  // line (SHERLO-1937 operator ruling) - the Review URL IS the ending, printed ONCE, on the
-  // line with the emoji, whoever is reading (operator ruling 2026-09-15: no `url=` line above it,
-  // ever - the GitHub Action reads the address off this line, actions/lib/cliOutputs.mjs). A
-  // server-bypassed build returns above without it - there is no review to link to.
-  console.log(`\n🔗 Review: ${printLink(url)}`);
-}
-
-/**
- * Non-wait closer for a server-bypassed build (SHERLO-1952). Sources the server's
- * verbatim reason with a single getBuildStatus read (the build is already closed,
- * so it returns immediately - a read, not a wait) and prints the compact closer.
- *
- * Best-effort by ruling: if the reason cannot be fetched (network, auth, timeout,
- * older API with no per-platform prose), fall back to TODAY's full output - the
- * Review URL - rather than a closer with nothing after the dash. A working link
- * beats silence, and a build that succeeded is never reported failed over this
- * cosmetic query (fetchServerBypassReason swallows every error).
- */
-export async function printBypassedCloser({
-  token,
-  buildIndex,
-  projectIndex,
-  teamId,
-  url,
-}: {
-  token: string;
-  buildIndex: number;
-  projectIndex: number;
-  teamId: string;
-  url: string;
-}): Promise<void> {
-  const reason = await fetchServerBypassReason({ token, buildIndex, projectIndex, teamId });
-
-  if (reason) {
-    console.log();
-    printServerBypassCloser(reason);
-  } else {
-    console.log(`\n🔗 Review: ${printLink(url)}`);
-  }
+  emit({ kind: 'test-started', buildIndex: openBuildReturn.build.index, devices });
 }
 
 /**
@@ -750,5 +639,3 @@ function resolveLiveReason({
 
   return undefined;
 }
-
-export { parseWaitTimeout };

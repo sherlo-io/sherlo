@@ -14,6 +14,7 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  JSON_OPTION,
   MESSAGE_OPTION,
   METADATA_OPTION,
   PROFILE_OPTION,
@@ -91,9 +92,8 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [WAIT_OPTION]?: boolean;
   [WAIT_TIMEOUT_OPTION]?: F extends 'raw' ? string : string;
   /**
-   * Print the `-- details --` block after the command's normal output. Carried
-   * on the COMMON options because two commands take it - `sherlo view` and the
-   * `--wait` roads of `sherlo test` - and both print the same block.
+   * Print the `-- details --` block after the `--wait` roads of `sherlo test`.
+   * (`sherlo view` reads a build back with `--json` instead.)
    */
   [METADATA_OPTION]?: boolean;
 } & (M extends 'withDefaults'
@@ -140,11 +140,13 @@ type CommandOptions = {
     [EMIT_BUNDLE_DIR_OPTION]?: string;
   };
   /**
-   * `sherlo view` has no option of its own. The build it looks at is a POSITIONAL argument (see
-   * commands/view), and everything else it accepts - the token, the config, `--wait`,
-   * `--wait-timeout`, `--metadata` - is common to every command.
+   * `sherlo view` takes its build as a POSITIONAL argument (see commands/view). Its own option is
+   * `--json`, the whole record for a program to read; everything else it accepts - the token, the
+   * config, `--wait`, `--wait-timeout` - is common to every command.
    */
-  [VIEW_COMMAND]: Record<never, never>;
+  [VIEW_COMMAND]: {
+    [JSON_OPTION]?: boolean;
+  };
   /**
    * `sherlo init` names the project with `--project`, and spends the saved login to check it or to
    * choose one (commands/init/project). `--token` is common to every command.

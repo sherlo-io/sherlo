@@ -25,14 +25,14 @@
 import path from 'path';
 import chalk from 'chalk';
 import gradientString from 'gradient-string';
-import { COLOR } from '../constants';
+import { COLOR, PLATFORMS } from '../constants';
 import {
   renderBuildDetails,
   renderBuildViewHeader,
   renderBuildViewStatus,
   renderBuildViewTally,
   renderStoriesTable,
-  renderViewMetadataJson,
+  renderViewJson,
 } from './buildView';
 import { formatDryRunPreview } from './dryRunPlan';
 import {
@@ -41,24 +41,31 @@ import {
   renderAppBuildDone,
   renderAppBuildFailed,
   renderAppBuildGenerating,
-  renderAppBuildNeeded,
-  renderAppBuildStart,
-  renderEasBuildHeader,
-  renderEasBuildQueued,
+  renderAppBuildNextStep,
+  renderEasBuildStarted,
   renderEasHostedVariables,
   renderRunStarting,
   renderRunWaitsForBuilds,
   renderStoredBuildReused,
 } from './appBuild';
 import {
-  formatLink,
-  renderBinaryPlatformLabel,
   renderBinaryReused,
   renderBuildMessageLine,
-  renderNotice,
   renderOutputKeys,
   renderRunHeader,
+  renderTestNotice,
 } from './pushSpine';
+import {
+  describeDevices,
+  platformWithEmoji,
+  renderCommandIntro,
+  renderFailedTestStep,
+  renderHelpBlock,
+  renderReviewLink,
+  renderStepInProgress,
+  renderTestNextStep,
+  renderTestStep,
+} from './testSteps';
 import { renderProjectCreated } from './projectCreated';
 import { renderTeamCreated } from './teamCreated';
 import { renderProjectList } from './projectList';
@@ -135,48 +142,37 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         ],
       };
 
+    case 'command-intro':
+      return { stream: 'stdout', prints: renderCommandIntro(segment.command).map((line) => [line]) };
+
     case 'dry-run-bundling-header':
-      return {
-        stream: 'stdout',
-        prints: [[chalk.bold('\n📦 Bundling for dry-run preview...\n')]],
-      };
+      // The dry run opens like every test, with `Testing your app...` under the logo; its plan says
+      // it is a preview (../commands/test/diffScopeReport), so the bundling needs no header of its own.
+      return { stream: 'stdout', prints: [] };
 
     case 'platform-bundle-start':
       return {
         stream: 'stdout',
         prints: [
-          [
-            chalk.cyan(
-              `\n${platformEmoji(segment.platform)} Building ${segment.platform} bundle...`
-            ),
-          ],
+          [renderStepInProgress(`Bundling the JavaScript for ${platformWithEmoji(segment.platform)}...`)],
         ],
       };
 
+    // The bundle and its assets print nothing: the step a person reads is the upload that follows
+    // (`javascript-uploaded`), and a bundle's format and asset count are not theirs to read.
     case 'platform-bundle-built':
-      return {
-        stream: 'stdout',
-        prints: [
-          [
-            chalk.green(`  ✓ Bundle: ${path.basename(segment.bundlePath)}`) +
-              ` (${segment.bundleSizeMb} MB, ${segment.bundleFormat}, ${segment.bundler})`,
-          ],
-        ],
-      };
-
     case 'platform-bundle-assets':
-      return {
-        stream: 'stdout',
-        prints: [[chalk.green(`  ✓ Assets: ${segment.assetCount} files`)]],
-      };
+      return { stream: 'stdout', prints: [] };
 
     case 'platform-bundle-supplied':
       return {
         stream: 'stdout',
         prints: [
           [
-            chalk.green(`  ✓ Bundle supplied: ${path.basename(segment.bundlePath)}`) +
-              ` (${segment.bundleSizeMb} MB, ${segment.bundleFormat}, ${segment.bundler})`,
+            renderTestStep({
+              name: 'Used your JavaScript',
+              detail: `${platformWithEmoji(segment.platform)} ${path.basename(segment.bundlePath)}, from --bundle-dir`,
+            }),
           ],
         ],
       };
@@ -184,30 +180,36 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'platform-bundle-supplied-note':
       return {
         stream: 'stdout',
-        prints: [[chalk.yellow(`  ! ${segment.note}`)]],
+        prints: [[chalk.yellow(`! ${segment.note}`)]],
       };
 
     case 'bundle-emit-header':
-      return {
-        stream: 'stdout',
-        prints: [[chalk.bold(`\n📦 Emitting bundle directory to ${segment.bundleDir}...\n`)]],
-      };
+      // Each platform's own step says where its JavaScript went (`platform-bundle-emitted`).
+      return { stream: 'stdout', prints: [] };
 
     case 'platform-bundle-emitted':
       return {
         stream: 'stdout',
         prints: [
           [
-            chalk.green(`  ✓ Emitted ${segment.platform} bundle`) +
-              ` (${segment.assetCount} assets)`,
+            renderTestStep({
+              name: 'Saved the JavaScript',
+              detail: `${platformWithEmoji(segment.platform)}, to ${segment.bundleDir}`,
+            }),
           ],
         ],
       };
 
     case 'platform-bundle-failed':
+      // The run exits right after this line (../commands/test/bundleAndPreview), so it ends on help.
       return {
         stream: 'stdout',
-        prints: [[chalk.red(`\n  ✗ ${segment.message}`)]],
+        prints: [
+          ...renderFailedTestStep('Bundling the JavaScript'),
+          chalk.red(segment.message),
+          '',
+          ...renderHelpBlock(),
+        ].map((line) => [line]),
       };
 
     case 'dry-run-capture-plan':
@@ -231,34 +233,29 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'binary-platform-label':
-      return {
-        stream: 'stdout',
-        prints: [[renderBinaryPlatformLabel(segment.platform)]],
-      };
+      // The upload's own step says it (`binary-uploaded`).
+      return { stream: 'stdout', prints: [] };
 
     case 'binary-uploading':
       return {
         stream: 'stdout',
-        prints: [[renderBuildMessageLine(`uploading build... (${segment.sizeMb} MB)`, 'info')]],
+        prints: [[renderStepInProgress(`Uploading the app build (${segment.sizeMb} MB)...`)]],
       };
 
     case 'binary-uploaded':
-      // Two print calls, not one string with a trailing newline: the shipped
-      // `endsWithNewLine` branch was a second bare `console.log()`, and a bare
-      // one is what a buffering sink has to reproduce to stay byte-faithful.
-      return {
-        stream: 'stdout',
-        prints: [[renderBuildMessageLine('upload complete', 'success')], []],
-      };
+      // PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): init's grammar names the platform
+      // and the size here (`✔ Uploaded app build         🤖 Android 61.4 MB`). The segment carries
+      // neither - its print site, helpers/uploadOrPrintBinaryReuse, is outside what plan may edit -
+      // so the build task adds both to it.
+      return { stream: 'stdout', prints: [[renderTestStep({ name: 'Uploaded app build' })]] };
 
     case 'binary-upload-retry':
       return {
         stream: 'stdout',
         prints: [
           [
-            renderBuildMessageLine(
-              `Upload failed (attempt ${segment.attempt}/${segment.maxRetries}), retrying...`,
-              'info'
+            renderStepInProgress(
+              `   Upload failed (attempt ${segment.attempt} of ${segment.maxRetries}), trying again...`
             ),
           ],
         ],
@@ -267,13 +264,41 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'binary-reused':
       return {
         stream: 'stdout',
-        prints: [[renderBinaryReused(segment.buildIndex, segment.timeAgo)], []],
+        prints: [[renderBinaryReused(segment.buildIndex, segment.timeAgo)]],
+      };
+
+    case 'javascript-uploaded':
+      return {
+        stream: 'stdout',
+        prints: [
+          [
+            renderTestStep({
+              name: 'Uploaded JavaScript',
+              detail: PLATFORMS.filter((platform) => segment.bundleSizesMb[platform] !== undefined)
+                .map((platform) => `${platformWithEmoji(platform)} ${segment.bundleSizesMb[platform]} MB`)
+                .join(', '),
+            }),
+          ],
+        ],
+      };
+
+    case 'test-started':
+      return {
+        stream: 'stdout',
+        prints: [
+          [
+            renderTestStep({
+              name: `Started Test ${segment.buildIndex}`,
+              detail: describeDevices(segment.devices),
+            }),
+          ],
+        ],
       };
 
     case 'notice':
       return {
         stream: 'stdout',
-        prints: [[renderNotice(segment)]],
+        prints: renderTestNotice(segment).map((line) => [line]),
       };
 
     case 'build-message':
@@ -292,61 +317,43 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // reading. The GitHub Action reads the address off this line (actions/lib/cliOutputs.mjs).
       return {
         stream: 'stdout',
-        prints: [[`🔗 ${formatLink(segment.url)}\n`]],
-      };
-
-    case 'app-build-needed':
-      return {
-        stream: 'stdout',
-        prints: renderAppBuildNeeded(segment.platform, segment.reason, segment.changesSince).map(
-          (line) => [line]
-        ),
+        prints: (segment.testIndex !== undefined
+          ? renderTestNextStep({ testIndex: segment.testIndex, url: segment.url })
+          : [renderReviewLink(segment.url), '']
+        ).map((line) => [line]),
       };
 
     case 'app-build-stored-reused':
       return { stream: 'stdout', prints: [[renderStoredBuildReused(segment.platform)]] };
 
-    case 'app-build-start':
-      return { stream: 'stdout', prints: [[renderAppBuildStart(segment.platform)]] };
-
     case 'app-build-cached':
-      // The blank line closes the platform's build lines, as it closes the upload lines.
-      return { stream: 'stdout', prints: [[renderAppBuildCached(segment.platform)], []] };
+      return { stream: 'stdout', prints: renderAppBuildCached(segment).map((line) => [line]) };
 
     case 'app-build-generating':
       return { stream: 'stdout', prints: [[renderAppBuildGenerating(segment.platform)]] };
 
     case 'app-build-compiling':
-      return {
-        stream: 'stdout',
-        prints: [[renderAppBuildCompiling(segment.platform, segment.logPath)]],
-      };
+      return { stream: 'stdout', prints: [[renderAppBuildCompiling(segment.platform)]] };
 
     case 'app-build-done':
-      return {
-        stream: 'stdout',
-        prints: [...renderAppBuildDone(segment).map((line) => [line]), []],
-      };
+      return { stream: 'stdout', prints: renderAppBuildDone(segment).map((line) => [line]) };
 
     case 'app-build-failed':
-      return {
-        stream: 'stdout',
-        prints: [...renderAppBuildFailed(segment).map((line) => [line]), []],
-      };
+      return { stream: 'stdout', prints: renderAppBuildFailed(segment).map((line) => [line]) };
 
-    case 'eas-build-header':
-      return { stream: 'stdout', prints: [[renderEasBuildHeader(segment.profile)]] };
+    case 'app-build-next-step':
+      return { stream: 'stdout', prints: renderAppBuildNextStep().map((line) => [line]) };
 
     case 'eas-build-queued':
-      return { stream: 'stdout', prints: [[renderEasBuildQueued(segment.platform)]] };
+      return {
+        stream: 'stdout',
+        prints: [[renderEasBuildStarted(segment.platform, segment.profile)]],
+      };
 
     case 'eas-hosted-variables':
       return {
         stream: 'stdout',
-        prints: [
-          ...renderEasHostedVariables(segment.profile, segment.environment).map((line) => [line]),
-          [],
-        ],
+        prints: renderEasHostedVariables(segment.profile, segment.environment).map((line) => [line]),
       };
 
     case 'run-waits-for-builds':
@@ -403,7 +410,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return { stream: 'stdout', prints: [[renderWaitInterrupted()]] };
 
     case 'verdict-passed':
-      return { stream: 'stdout', prints: [[renderVerdictPassed()]] };
+      return { stream: 'stdout', prints: renderVerdictPassed().map((line) => [line]) };
 
     case 'verdict-server-bypassed':
       return {
@@ -426,7 +433,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     /* GATED on showsOnlyBranchChanges - see ./verdictCloser and helpers/sparseBuildVerdict. */
 
     case 'verdict-no-changes':
-      return { stream: 'stdout', prints: [[renderVerdictNoChanges()]] };
+      return { stream: 'stdout', prints: renderVerdictNoChanges().map((line) => [line]) };
 
     case 'verdict-capture-accounting':
       return {
@@ -467,7 +474,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'build-view-json':
-      return { stream: 'stdout', prints: [[renderViewMetadataJson(segment.json)]] };
+      return { stream: 'stdout', prints: [[renderViewJson(segment.json)]] };
 
     case 'build-view-stories-table':
       return {
@@ -552,10 +559,4 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'not-logged-in':
       return { stream: 'stdout', prints: renderNotLoggedIn().map((line) => [line]) };
   }
-}
-
-/* ========================================================================== */
-
-function platformEmoji(platform: 'android' | 'ios'): string {
-  return platform === 'android' ? '🤖' : '🍎';
 }

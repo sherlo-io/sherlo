@@ -10,10 +10,17 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-🔨 [1mBuilding Android...[22m
-[34m➜[39m  building with Gradle... [2m(log: .sherlo/build-android.log)[22m
-[32m✔[39m  Android built in <DURATION> (<SIZE> MB) and saved to the local build cache
-[2m   `npx sherlo test` uses it instead of building, until native code or build settings change.[22m
+Building your app...
 
+[2mBuilding the Android app with Gradle...[22m
+[32m✔[39m Built the Android app  in <DURATION>, kept in the local build cache [2m(log: .sherlo/build-android.log)[22m
+
+
+[1m👉 Next step[22m
+[2m════════════[22m
+
+[1mTest your app[22m
+   [36mnpx sherlo test[39m takes this app build from the local build cache instead of building,
+   until native code or build settings change.
 
 [exit 0]

@@ -205,11 +205,15 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      expect(printed).toMatchSnapshot();
+      // Pinned inline (epic sherlo-test-builds-apps): the snapshot file beside this test is build
+      // work to delete, outside what plan may edit.
+      expect(printed).toBe(
+        '\n✔ Finished the test      with no device run: no change reaches any story\n'
+      );
 
       // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
-      expect(printed).not.toContain('Waiting for build results');
-      expect(printed).not.toContain('🟢 Finished');
+      expect(printed).not.toContain('Waiting for the test to finish');
+      expect(printed).not.toContain('   Finished');
       expect(printed).not.toContain('http'); // neither a review nor a build URL
     });
 
@@ -240,12 +244,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('Nothing needed capturing');
-      // The platform reason is printed verbatim, INLINE in the headline.
-      expect(printed).toContain('✅ Nothing needed capturing - no change reaches any story');
-      // The fixed dim line replaces the old CLI-invented "every screenshot was
-      // reused" sentence.
-      expect(printed).toContain('closed by the server - no device run was needed');
+      // The platform reason is printed verbatim, INLINE in the finished step (init's grammar).
+      expect(printed).toContain('Finished the test');
+      expect(printed).toContain('with no device run: no change reaches any story');
       expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');
     });
@@ -277,7 +278,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await promise;
 
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('Nothing needed capturing');
+      expect(printed).toContain('with no device run');
       expect(printed).toContain('no change reaches any story');
       expect(printed).not.toContain('ios: nothing to capture');
     });
@@ -303,7 +304,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await promise;
 
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('Nothing needed capturing');
+      expect(printed).toContain('with no device run');
       expect(printed).toContain('no change reaches any story');
     });
 
@@ -327,7 +328,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
-      expect(printed).not.toContain('Nothing needed capturing');
+      expect(printed).not.toContain('with no device run');
     });
 
     it('falls back to the generic green message when capturedSnapshotCount is not 0', async () => {
@@ -357,7 +358,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
-      expect(printed).not.toContain('Nothing needed capturing');
+      expect(printed).not.toContain('with no device run');
     });
 
     it('forward-compat degrade: counts say bypass but the poll carries no reason -> generic green, no link', async () => {
@@ -384,7 +385,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
-      expect(printed).not.toContain('Nothing needed capturing');
+      expect(printed).not.toContain('with no device run');
       expect(printed).not.toContain('http');
     });
   });
@@ -768,7 +769,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_GREEN);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('clean finish (BLOCK) does not reprint the link', async () => {
@@ -788,7 +789,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_BLOCK);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('clean finish (ERROR) does not reprint the link', async () => {
@@ -805,7 +806,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_ERROR);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('TIMEOUT does not reprint the link', async () => {
@@ -830,7 +831,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_TIMEOUT);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     }, 10_000);
 
     it('SIGINT does not reprint the link', async () => {
@@ -858,7 +859,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_SIGINT);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('AuthError at poll time does not reprint the link', async () => {
@@ -880,7 +881,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_ERROR);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
   });
 });
@@ -1194,7 +1195,7 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
 
     expect(await erroredPromise).toBe(EXIT_ERROR);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(countPrinted(erroredLog, 'Build ended in "error" state')).toBe(1);
+    expect(countPrinted(erroredLog, 'The test ended as "error".')).toBe(1);
     erroredLog.mockRestore();
 
     mockFetch.mockReset();
@@ -1213,7 +1214,7 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
 
     expect(await canceledPromise).toBe(EXIT_ERROR);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(countPrinted(canceledLog, 'Build ended in "canceled" state')).toBe(1);
+    expect(countPrinted(canceledLog, 'The test ended as "canceled".')).toBe(1);
     canceledLog.mockRestore();
   });
 

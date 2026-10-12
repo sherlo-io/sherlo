@@ -314,11 +314,14 @@ function foldTimeAgo(screen: string): string {
 }
 
 /**
- * How long an app build took - `built in 1m 28s`, `failed after 42s`. Only after those two words,
- * so a duration a scenario declares elsewhere (a wait's timeout) is never folded.
+ * How long an app build took - `Built the Android app      in 1m 28s`, `failed after 42s`. Only
+ * after those words, so a duration a scenario declares elsewhere (a wait's timeout) is never folded.
  */
 function foldBuildDuration(screen: string): string {
-  return screen.replace(/\b(built in|failed after) (?:\d+m )?\d+s\b/g, '$1 <DURATION>');
+  return screen.replace(
+    /\b(Built the (?:Android|iOS) app +in|failed after) (?:\d+m )?\d+s\b/g,
+    '$1 <DURATION>'
+  );
 }
 
 /** `base-fingerprint=<64 hex>` - a digest over the project's native inputs. */
@@ -346,7 +349,7 @@ function foldBaseFingerprint(screen: string): string {
  */
 function foldWaitProgress(screen: string): string {
   const lines = screen.split('\n');
-  const header = lines.findIndex((line) => visible(line).includes('⏳ Waiting for build results'));
+  const header = lines.findIndex((line) => visible(line).includes('Waiting for the test to finish'));
   if (header === -1) return screen;
 
   let afterRegion = header + 1;
@@ -368,12 +371,12 @@ function foldWaitProgress(screen: string): string {
  * clock actually passed it, and a live run's clock is its own.
  */
 function foldTimeoutMinutes(screen: string): string {
-  return screen.replace(/(⏰ Timeout reached after )\d+( minutes\.)/g, '$1<N>$2');
+  return screen.replace(/(! Stopped waiting after )\d+( minutes\.)/g, '$1<N>$2');
 }
 
-/** The HTTP status behind a credential the server refused mid-poll (`🔒 ...`). */
+/** The HTTP status behind a credential the server refused mid-poll (`✖ ...`). */
 function foldAuthFailureStatus(screen: string): string {
-  return screen.replace(/(🔒[^\n]*?)\b\d{3}\b/g, '$1<STATUS>');
+  return screen.replace(/(✖[^\n]*?)\b\d{3}\b/g, '$1<STATUS>');
 }
 
 /**
@@ -383,7 +386,7 @@ function foldAuthFailureStatus(screen: string): string {
  * the whole point of the screen that shows it - is never mistaken for this one.
  */
 function foldRunError(screen: string): string {
-  return screen.replace(/(❌ Build ended in[^\n]*\n[^\n]*?Error: )[^\n\u001b]*/g, '$1<RUN_ERROR>');
+  return screen.replace(/(The test ended as[^\n]*\n[^\n]*?Error: )[^\n\u001b]*/g, '$1<RUN_ERROR>');
 }
 
 /** A commit id: forty hex characters and no more - a longer run is a digest, not a commit. */

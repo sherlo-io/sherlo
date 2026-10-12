@@ -10,19 +10,28 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-🔨 [1mAndroid[22m needs a new app build: 3 native changes since Test 12
+Testing your app...
+
+[2mBuilding the Android app with Gradle...[22m
+[31m✖[39m Building the Android app failed
+
+Native code changed since Test 12's app build:
    [33m~[39m android/app/build.gradle
    [33m~[39m yarn.lock
    [31m-[39m react-native-maps 1.2.0
-[34m➜[39m  building with Gradle... [2m(log: .sherlo/build-android.log)[22m
-[31m✗[39m  [31mAndroid build failed after <DURATION>.[39m Last lines of the log:
 
+The build failed after <DURATION>. Last lines of the log:
 [2m   | > Task :app:compileReleaseKotlin FAILED[22m
 [2m   | e: MainApplication.kt:42: Unresolved reference: MapsPackage[22m
 [2m   | BUILD FAILED in 1m 12s[22m
 
-   Full log: .sherlo/build-android.log
-   Nothing was uploaded and no test ran.
+Full log: .sherlo/build-android.log
+Nothing was uploaded and no test was started. Fix the build, then run [36mnpx sherlo test[39m again.
 
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 2]

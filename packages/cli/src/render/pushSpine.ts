@@ -20,18 +20,18 @@
  */
 import chalk from 'chalk';
 import { DEVICES } from '@sherlo/shared';
-import { Platform } from '@sherlo/api-types';
-import { PLATFORM_LABEL } from '../constants';
 import type { Config } from '../types';
+import { describeDevices, renderTestStep } from './testSteps';
 
 type PlatformDeviceCounts = { android: number; ios: number };
 
 /**
  * How many devices of each platform a config asks for.
  *
- * Lives in the render layer because the COUNT is what gets rendered and nothing
- * upstream needs it: the run header's singular/plural, its per-platform
- * breakdown and its order are all decisions about what the line looks like.
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): no line counts devices by platform any
+ * more - a test names its devices (./testSteps `describeDevices`). It stays only because
+ * ../helpers/printBuildIntroMessage/countDevicesByPlatform re-exports it, outside what plan may
+ * edit; the build task deletes both.
  */
 export function countDevicesByPlatform(configDevices: Config['devices']): PlatformDeviceCounts {
   const platformCounts: PlatformDeviceCounts = { android: 0, ios: 0 };
@@ -45,28 +45,17 @@ export function countDevicesByPlatform(configDevices: Config['devices']): Platfo
   return platformCounts;
 }
 
-/** `Test 3 will run on 2 devices (1 Android, 1 iOS)` + a trailing blank line. */
+/**
+ * `✔ Set up Test 3              on 2 devices (Pixel 7, iPhone 15)` - the test this push will be and
+ * what it runs on, said before its app builds go up.
+ *
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): in init's grammar the test is named once,
+ * by `✔ Started Test 3` after its app builds are up (./testSteps, the staged road's ending). The
+ * push spine that prints this line (../helpers/uploadOrReuseBuildsAndRunTests) is outside what
+ * plan may edit, so the build task moves the line to after `openBuild` and deletes this one.
+ */
 export function renderRunHeader(nextBuildIndex: number, devices: Config['devices']): string {
-  const platformCounts = countDevicesByPlatform(devices);
-  const totalDevices = platformCounts.android + platformCounts.ios;
-  const deviceText = totalDevices === 1 ? 'device' : 'devices';
-
-  const platformBreakdown = [];
-  if (platformCounts.android) {
-    platformBreakdown.push(`${platformCounts.android} ${PLATFORM_LABEL.android}`);
-  }
-  if (platformCounts.ios) {
-    platformBreakdown.push(`${platformCounts.ios} ${PLATFORM_LABEL.ios}`);
-  }
-
-  return `${chalk.green(`Test ${nextBuildIndex}`)} will run on ${chalk.blue(
-    `${totalDevices} ${deviceText}`
-  )} (${platformBreakdown.join(', ')})\n`;
-}
-
-/** `📦 Android` - the header of one platform's binary block. */
-export function renderBinaryPlatformLabel(platform: Platform): string {
-  return '📦 ' + chalk.bold(PLATFORM_LABEL[platform]);
+  return renderTestStep({ name: `Set up Test ${nextBuildIndex}`, detail: describeDevices(devices) });
 }
 
 /**
@@ -84,12 +73,33 @@ export function renderBuildMessageLine(message: string, type: 'info' | 'success'
   return `${chalk[iconColor](icon)}  ${message}`;
 }
 
-/** `✔  reusing unchanged build (Test 1, 7 minutes ago)`. */
+/** `✔ Uploaded app build         the same as Test 1's, 7 minutes ago (reused)`. */
 export function renderBinaryReused(buildIndex: number, timeAgo: string): string {
-  return renderBuildMessageLine(
-    `reusing unchanged build (${chalk.green(`Test ${buildIndex}`)}, ${chalk.blue(timeAgo)})`,
-    'success'
-  );
+  return renderTestStep({
+    name: 'Uploaded app build',
+    detail: `the same as Test ${buildIndex}'s, ${timeAgo}`,
+    reused: true,
+  });
+}
+
+/**
+ * A warning or a note on a test's road, in init's marks: `! <warning>` in yellow, a note as it
+ * is, and the link under either. `renderNotice` below keeps its `WARNING:` / `INFO:` look for the
+ * init sections that call it.
+ */
+export function renderTestNotice({
+  level,
+  message,
+  learnMoreLink,
+}: {
+  level: 'warning' | 'info';
+  message: string;
+  learnMoreLink?: string;
+}): string[] {
+  return [
+    level === 'warning' ? chalk.yellow(`! ${message}`) : message,
+    ...(learnMoreLink ? [chalk.dim(`  Learn more: ${chalk.cyan(learnMoreLink)}`)] : []),
+  ];
 }
 
 /** `WARNING: ...` / `INFO: ...`, with an optional `↳ Learn more:` line under it. */

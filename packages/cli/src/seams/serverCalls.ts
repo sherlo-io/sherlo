@@ -73,7 +73,7 @@ export type ServerCalls = {
     teamId: string;
     /** A single-shot read bounds its own request; the poll loop's own deadline governs there. */
     boundedRead?: boolean;
-  }): Promise<BuildStatus | null>;
+  }): Promise<BuildStatusAnswer | null>;
 
   createProject(request: {
     name: string;
@@ -87,20 +87,27 @@ export type ServerCalls = {
 
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
-  openBuild(request: OpenBuildRequest & { token: string }): Promise<OpenBuildAnswer>;
+  /** `pushFacts`: what only the push knows ({@link PushFacts}) - posed today, sent once the service takes it. */
+  openBuild(
+    request: OpenBuildRequest & { token: string; pushFacts?: PushFacts }
+  ): Promise<OpenBuildAnswer>;
 
   /**
    * One job of a split CI run delivers its platform: the server opens the run the CI run's jobs
    * share, or joins the one the other job opened, fills this platform's slot, and starts the run
    * when every platform the config names is in - never before (operator ruling 2026-10-07).
    */
-  joinBuild(request: JoinBuildRequest & { token: string }): Promise<JoinBuildAnswer>;
+  joinBuild(
+    request: JoinBuildRequest & { token: string; pushFacts?: PushFactsPlatform }
+  ): Promise<JoinBuildAnswer>;
 
   /**
    * An EAS build delivers its platform into the run `sherlo test` opened for it on EAS: the
    * server fills the slot and starts the run when the last platform is in.
    */
-  asyncUpload(request: AsyncUploadRequest & { token: string }): Promise<AsyncUploadAnswer>;
+  asyncUpload(
+    request: AsyncUploadRequest & { token: string; pushFacts?: PushFactsPlatform }
+  ): Promise<AsyncUploadAnswer>;
 
   /** End a run that can never start - an EAS build that failed on Expo's servers. */
   closeBuild(request: CloseBuildRequest & { token: string }): Promise<CloseBuildAnswer>;
@@ -229,7 +236,8 @@ export const liveServerCalls: ServerCalls = {
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
 
-  openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
+  // PLAN-LAYER DEBT: `pushFacts` is held back until the service takes it (see PushFacts).
+  openBuild: ({ token, pushFacts: _heldBack, ...request }) => clientFor(token).openBuild(request),
 
   // PLAN-LAYER DEBT: see JoinBuildRequest. Refused by name until the server has the operation.
   joinBuild: async () => {
@@ -239,7 +247,8 @@ export const liveServerCalls: ServerCalls = {
     );
   },
 
-  asyncUpload: ({ token, ...request }) => clientFor(token).asyncUpload(request),
+  asyncUpload: ({ token, pushFacts: _heldBack, ...request }) =>
+    clientFor(token).asyncUpload(request),
 
   closeBuild: ({ token, ...request }) => clientFor(token).closeBuild(request),
 
@@ -359,11 +368,117 @@ export function installServerCalls(next: ServerCalls): () => void {
 export type ApiError = { error: string };
 
 /**
- * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, aliased rather than re-typed: a pose
+ * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, extended rather than re-typed: a pose
  * describing a build the backend cannot send would let a product design be approved off a state
  * that can never occur.
+ *
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the fields below are what `sherlo view
+ * --json` reads beyond today's wire, drawn here and sent by no server yet. The build task adds them
+ * to sherlo-api's `getBuildStatus`, to both selections of it (the CLI's raw fetch in
+ * helpers/buildStatusRequest.ts and the sdk client's), and folds this intersection back into
+ * `BuildStatus`. Every one is optional: an older API leaves it out, and `view --json` then prints
+ * it absent, never as a zero.
  */
-export type BuildStatusAnswer = BuildStatus;
+export type BuildStatusAnswer = Omit<BuildStatus, 'gitInfo'> & {
+  /**
+   * The platform whose failure ended the run - beside `runError`, which the wire already sends as
+   * the server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...). Absent or
+   * `null` when the error is not one platform's.
+   */
+  runErrorPlatform?: 'android' | 'ios' | null;
+  /** The build's frozen git identity. `isDirty`: whether the push sent uncommitted changes. */
+  gitInfo?: {
+    branchName: string;
+    commitHash: string;
+    isDirty?: boolean | null;
+  };
+  /** The project's main line the build was judged against. `null` while the project has none. */
+  mainBranch?: string | null;
+  /**
+   * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
+   * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
+   * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
+   * `null` for a push from a person's machine.
+   */
+  ciRun?: { provider: string; runId: string } | null;
+  /** The devices the run was asked for, as the config named them. */
+  devices?: { id: string; osVersion: string; platform: 'android' | 'ios' }[] | null;
+  /** Per platform the run was asked for, what it did with it. A platform it was not asked for is absent. */
+  platforms?: {
+    android?: BuildStatusPlatform;
+    ios?: BuildStatusPlatform;
+  } | null;
+};
+
+/**
+ * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it: service-known facts beside the facts the
+ * push reported about itself ({@link PushFacts}).
+ */
+export type BuildStatusPlatform = {
+  /** Whether this platform's app build reached the run. `false`: a split or EAS run still waits for it. */
+  arrived: boolean;
+  /**
+   * The capture plan the service decided for this platform, read off the stored decision
+   * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has it.
+   * `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
+   */
+  capture?: {
+    /** `true`: every story in the bundle was captured. */
+    full: boolean;
+    /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+    reason: string | null;
+    /** The story files captured, as paths. Empty when `full`. */
+    storyFiles: string[];
+  } | null;
+  /** Where the app build came from. `null` before the platform arrived. */
+  appBuild?: {
+    /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
+    from: 'uploaded' | 'stored';
+    /** The test the stored app build was first uploaded in. Only with `from: stored`. */
+    storedFromTest?: number | null;
+    /** How the push made the app build it uploaded, as the push reported it. Only with `from: uploaded`. */
+    madeBy?: PushFactsPlatform['madeBy'] | null;
+    /** Why a new app build was made, as the push reported it. */
+    why?: PushFactsPlatform['why'] | null;
+    /** What changed natively since the stored app build, as the push reported it, with `why: native-changed`. */
+    nativeChanges?: string[] | null;
+  } | null;
+  /** How many stories the pushed bundle holds, as the push counted them. */
+  storiesInBundle?: number | null;
+};
+
+/**
+ * WHAT ONLY THE PUSH KNOWS about one platform it delivers - the machine that made the app build is
+ * the only witness, so the push reports it on `openBuild`, `joinBuild` or the EAS hook's
+ * `asyncUpload`, the service stores it on the build run, and `getBuildStatus` echoes it
+ * ({@link BuildStatusPlatform}). Self-reported: the CLI vouches for itself, so nothing the web app
+ * trusts may be decided from it.
+ *
+ * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the calls' posed `with` names these, and no
+ * push composes them yet. The build task composes them where the push already decides each fact,
+ * sends them, and the service stores them.
+ */
+export type PushFactsPlatform = {
+  /**
+   * How the app build was made: `compiled` on this machine, taken from the local `build-cache`,
+   * made by the project's own build `command`, or by `eas`. Absent when the push sent no app build
+   * (it took a stored one).
+   */
+  madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas';
+  /** Why a new app build was made: `nothing-stored` for this platform yet, or `native-changed` since the stored one. */
+  why?: 'nothing-stored' | 'native-changed';
+  /** The native files and modules that changed since the stored app build, with `why: native-changed`. */
+  nativeChanges?: string[];
+  /** How many stories the pushed bundle holds. */
+  storiesInBundle?: number;
+};
+
+/** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */
+export type PushFacts = {
+  platforms: { android?: PushFactsPlatform; ios?: PushFactsPlatform };
+  /** The CI service and its run id, when the push ran in CI. */
+  ciRun?: { provider: string; runId: string };
+};
 
 /** What the dry-run road's one read-only question answers. */
 export type DiffScopeDryRunAnswer = {
@@ -529,7 +644,8 @@ export type ScriptedCall =
     }
   | {
       call: 'openBuild';
-      with: { platforms: string[] };
+      /** `pushFacts`: what the push reports about itself; a pose that states it is checked against it. */
+      with: { platforms: string[]; pushFacts?: PushFacts };
       answer:
         | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }
         | ApiError;
@@ -541,7 +657,7 @@ export type ScriptedCall =
        * platforms it still waits for - none, and the run is starting.
        */
       call: 'joinBuild';
-      with: { joinKey: string; platform: string };
+      with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform };
       answer: { buildIndex: number; waitingFor: string[] } | ApiError;
     }
   | {
@@ -550,7 +666,7 @@ export type ScriptedCall =
        * the platform; the answer says whether that was the last platform the run waited for.
        */
       call: 'asyncUpload';
-      with: { buildIndex: number; platform: string };
+      with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform };
       answer: { couldRunThisBuildRightNow: boolean } | ApiError;
     }
   | {
@@ -698,7 +814,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     unusedCalls: () => remaining,
 
     getBuildStatus: async ({ buildIndex }) =>
-      answerFor('getBuildStatus', { buildIndex }) as BuildStatus | null,
+      answerFor('getBuildStatus', { buildIndex }) as BuildStatusAnswer | null,
 
     createProject: async ({ name, teamId }) =>
       answerFor('createProject', { teamId, name }) as ProjectCreated,
@@ -717,7 +833,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       // that hold a config, never every key.
       const config = (request.buildRunConfig ?? {}) as Record<string, unknown>;
       const platforms = ['android', 'ios'].filter((platform) => config[platform] !== undefined);
-      const answer = answerFor('openBuild', { platforms }) as {
+      const answer = answerFor('openBuild', { platforms, pushFacts: request.pushFacts }) as {
         buildIndex: number;
         url: string;
         captureDecision?: PosedCaptureDecision;
@@ -726,8 +842,8 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       return openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision);
     },
 
-    joinBuild: async ({ joinKey, platform }) => {
-      const answer = answerFor('joinBuild', { joinKey, platform }) as {
+    joinBuild: async ({ joinKey, platform, pushFacts }) => {
+      const answer = answerFor('joinBuild', { joinKey, platform, pushFacts }) as {
         buildIndex: number;
         waitingFor: Platform[];
       };
@@ -739,6 +855,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       answerFor('asyncUpload', {
         buildIndex: request.buildIndex,
         platform: request.androidS3Key ? 'android' : 'ios',
+        pushFacts: request.pushFacts,
       }) as AsyncUploadAnswer,
 
     closeBuild: async (request) =>

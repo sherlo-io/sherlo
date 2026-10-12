@@ -180,7 +180,7 @@ export const PORT_OPTION = 'port';
  */
 export const TIMEOUT_OPTION = 'timeout';
 export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
-/** `sherlo capture --json` - print the whole record as JSON instead of a screen. */
+/** `sherlo capture --json`, `sherlo view --json` - print the whole record as JSON instead of a screen. */
 export const JSON_OPTION = 'json';
 /**
  * `sherlo capture --logs` - print the app's own log lines after the story. The record already

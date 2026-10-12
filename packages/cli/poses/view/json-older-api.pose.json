@@ -1,6 +1,6 @@
 {
   "pose": 1,
-  "argv": ["view", "7", "--metadata"],
+  "argv": ["view", "7", "--json"],
   "files": {
     "sherlo.config.json": { "devices": [{ "id": "iphone.15", "osVersion": "17" }] }
   },
@@ -11,7 +11,11 @@
     {
       "call": "getBuildStatus",
       "with": { "buildIndex": 7 },
-      "answer": { "runStatus": "error", "runError": "user_runner" }
+      "answer": {
+        "runStatus": "finished",
+        "status": "approved",
+        "viewStatusesCount": { "approved": 4, "noChanges": 40, "reported": 0, "unreviewed": 0 }
+      }
     }
   ],
   "masks": {}
