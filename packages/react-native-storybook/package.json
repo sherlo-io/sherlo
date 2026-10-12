@@ -64,6 +64,8 @@
     "src/specs/**/*",
     "dist/**/*",
     "android/src/**/*",
+    "!android/src/test",
+    "!android/jvm-tests",
     "android/CMakeLists.txt",
     "android/build.gradle",
     "android/consumer-rules.pro",

@@ -139,6 +139,36 @@ jobs:
           SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
 
+      # THE SDK'S ANDROID UNIT TESTS, on a plain JVM with Robolectric (no emulator), inside this job so
+      # the check set stays `package-checks` and `checks`. Gradle's own cache keeps the downloads of
+      # Gradle, the Android plugin and Robolectric out of every run.
+      - name: Set up Java
+        if: matrix.package.name == 'react-native-storybook'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        if: matrix.package.name == 'react-native-storybook'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+
+      # Robolectric downloads its copy of Android into ~/.m2 while the tests run, which Gradle's cache
+      # does not hold. The key is the Robolectric version, so a new version fetches a new copy.
+      - name: Cache Robolectric's Android jars
+        if: matrix.package.name == 'react-native-storybook'
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('packages/react-native-storybook/android/jvm-tests/build.gradle') }}
+
+      - name: Android unit tests
+        if: matrix.package.name == 'react-native-storybook'
+        working-directory: packages/react-native-storybook/android/jvm-tests
+        run: ./gradlew testDebugUnitTest --console=plain
+
       - name: The clock
         if: always()
         env:
