@@ -1,28 +1,14 @@
-
-             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
-             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
-             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
-    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
-    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
-    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
-         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
-    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
-
-[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
-
 Testing your app...
 
-[2mBuilding the iOS app with Xcode...[22m
+Building the iOS app with Xcode...
 [32m✔[39m Built the iOS app      in <DURATION>, no app build stored yet [2m(log: .sherlo/build-ios.log)[22m
 [32m✔[39m Set up Test 1          on 1 device (iPhone 15)
-[2mUploading the app build (<SIZE> MB)...[22m
-[32m✔[39m Uploaded app build
+Uploading the app build (<SIZE> MB)...
 [1m[22m
 [1m📦 Bundling for this run...[22m
 [1m[22m
-[2mBundling the JavaScript for 🍎 iOS...[22m
-[32m✔[39m Uploaded JavaScript    🍎 iOS <SIZE> MB
-[32m✔[39m Started Test 1         🤖 Android and 🍎 iOS have both arrived
+Bundling the JavaScript for 🍎 iOS...
+[32m✔[39m Started Test 1         🤖 Android and 🍎 iOS are both in
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

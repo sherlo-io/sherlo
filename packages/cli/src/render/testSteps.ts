@@ -1,14 +1,14 @@
 /**
- * `sherlo test` IN INIT'S GRAMMAR (epic sherlo-test-builds-apps, operator decision 2026-10-12:
- * Direction C). What a test prints reads like what `sherlo init` prints: the logo, one line saying
- * what the command is doing, one past-tense line per step, `(reused)` dimmed the way init dims
- * `(already done)`, a failed step as `✖ <Step> failed` above its error, and the ending in a titled
- * section - the next step, or the verdict when the command waited for it.
+ * `sherlo test` IN INIT'S GRAMMAR (epic sherlo-test-builds-apps, operator decisions 2026-10-12).
+ * What a test prints reads like what `sherlo init` prints: the logo (in a terminal), one line saying
+ * what the command is doing, one past-tense line per finished step, a long step shown while it runs
+ * (./stepInProgress), a failed step as `✖ <Step> failed` above its error, and ONE section at the
+ * end - the next step, or the verdict when the command waited for it - with the review link last.
  *
  * The shapes are init's own (./initSteps, ./initLines), called rather than copied, so the two
- * commands cannot drift apart. This module holds only what a test adds to them: the intro line,
- * how a step that reused work says so, the platform's emoji, the devices a test runs on, the next
- * step, and the help block a failed run ends with.
+ * commands cannot drift apart. This module holds only what a test adds to them: the intro line, the
+ * platform's emoji, the started test's line, the next step, and the help block a failed run ends
+ * with.
  *
  * Pure, like everything under ./: state in, print-call arguments out. The words are drafts for the
  * content department.
@@ -16,7 +16,7 @@
 import chalk from 'chalk';
 import { DEVICES } from '@sherlo/shared';
 import type { Platform } from '@sherlo/api-types';
-import { CONTACT_EMAIL, DISCORD_URL, PLATFORM_LABEL } from '../constants';
+import { APP_DOMAIN, CONTACT_EMAIL, DISCORD_URL, PLATFORM_LABEL } from '../constants';
 import type { Config } from '../types';
 import { renderSectionTitle } from './initLines';
 import { renderFailedStepLine, renderStepLine, renderStuckBlock } from './initSteps';
@@ -43,28 +43,20 @@ export function platformWithEmoji(platform: Platform): string {
 const PLATFORM_EMOJI: Record<Platform, string> = { android: '🤖', ios: '🍎' };
 
 /**
- * One finished step: init's step line, with a dimmed `(reused)` when the step took work an earlier
- * run did rather than doing it again - the test's `(already done)`. A step with nothing to add
- * after its name ends at its name.
+ * One finished step: init's step line. A step with nothing to add after its name ends at its
+ * name. `alreadyDone` is init's own `(already done)`, for a step this run found already done.
  */
 export function renderTestStep({
   name,
   detail = '',
-  reused = false,
+  alreadyDone = false,
 }: {
   /** What the step did, past tense: "Built the Android app". */
   name: string;
   detail?: string;
-  reused?: boolean;
+  alreadyDone?: boolean;
 }): string {
-  const shownDetail = reused ? `${detail} ${chalk.dim('(reused)')}`.trimStart() : detail;
-
-  return renderStepLine({ outcome: 'done', name, detail: shownDetail }).trimEnd();
-}
-
-/** A long step still running, printed once before it (a spinner in a terminal is build work). */
-export function renderStepInProgress(text: string): string {
-  return chalk.dim(text);
+  return renderStepLine({ outcome: alreadyDone ? 'already' : 'done', name, detail }).trimEnd();
 }
 
 /** `✖ Building the Android app failed`, then the blank line init puts above the error. */
@@ -86,6 +78,88 @@ export function describeDevices(devices: Config['devices']): string {
 }
 
 /**
+ * What one platform's test captures, as openBuild recorded it: every story (`full`), or the
+ * stories a change reaches. The count is of story files, out of the bundle's own story files when
+ * the bundle's module map could count them.
+ */
+export type PlatformCapture = {
+  platform: Platform;
+  /** Every story is captured. Read FIRST: a full capture's story list is empty and means "all". */
+  full: boolean;
+  /** How many stories a partial capture takes. Ignored on a full capture. */
+  capturedStories: number;
+  /** How many stories the bundle holds; absent when no module map could count them. */
+  storiesInBundle?: number;
+  /** The server's own reason, printed only on a full capture (operator ruling 2026-10-12, Q2). */
+  reason?: string;
+};
+
+/**
+ * `✔ Started Test 14        3 of 24 stories on 2 devices (Pixel 7, iPhone 15)` - the one line that
+ * says what the test runs.
+ *
+ * ONE COUNT when every platform captures the same, which is nearly always; one per platform when
+ * they differ. A full capture's reason is kept, after a comma, only when every platform captures
+ * every story for that one reason - it is the reason a person can act on (`no main branch is set`).
+ * A partial capture's reason and its story files are `npx sherlo view <n> --json`'s to say.
+ */
+export function renderTestStarted({
+  buildIndex,
+  devices,
+  capture = [],
+}: {
+  buildIndex: number;
+  devices: Config['devices'];
+  capture?: PlatformCapture[];
+}): string {
+  const stories = describeStoriesOfEveryPlatform(capture);
+  const reason = reasonEveryStoryIsCaptured(capture);
+
+  return renderTestStep({
+    name: `Started Test ${buildIndex}`,
+    detail: `${stories}${describeDevices(devices)}${reason ? `, ${reason}` : ''}`,
+  });
+}
+
+/**
+ * `3 of 24 stories ` when every platform captures the same; `🤖 Android 3 of 24 stories, 🍎 iOS all
+ * 24 stories, ` when they differ; nothing when the server recorded no decision. Ends in the space
+ * or comma that leads into the devices.
+ */
+function describeStoriesOfEveryPlatform(capture: PlatformCapture[]): string {
+  if (capture.length === 0) return '';
+
+  const perPlatform = capture.map((platformCapture) => ({
+    platform: platformCapture.platform,
+    stories: describeCapturedStories(platformCapture),
+  }));
+  const everyPlatformTheSame = perPlatform.every(({ stories }) => stories === perPlatform[0].stories);
+  if (everyPlatformTheSame) return `${perPlatform[0].stories} `;
+
+  return `${perPlatform.map(({ platform, stories }) => `${platformWithEmoji(platform)} ${stories}`).join(', ')}, `;
+}
+
+/** The server's reason, when every platform captures every story for that one reason. */
+function reasonEveryStoryIsCaptured(capture: PlatformCapture[]): string | undefined {
+  if (capture.length === 0 || !capture.every(({ full }) => full)) return undefined;
+
+  const reasons = new Set(capture.map(({ reason }) => reason));
+  return reasons.size === 1 ? capture[0].reason : undefined;
+}
+
+/** `3 of 24 stories`, `all 24 stories`, `3 stories` when the bundle could not be counted. */
+function describeCapturedStories({ full, capturedStories, storiesInBundle }: PlatformCapture): string {
+  if (full) {
+    if (storiesInBundle === undefined) return 'all stories';
+    return storiesInBundle === 1 ? '1 story' : `all ${countStories(storiesInBundle)}`;
+  }
+
+  return storiesInBundle !== undefined
+    ? `${capturedStories} of ${countStories(storiesInBundle)}`
+    : countStories(capturedStories);
+}
+
+/**
  * The link to a test's review page, on a line of its own that STARTS with `🔗` and ENDS with the
  * address: the GitHub Action reads it off exactly that shape (actions/lib/cliOutputs.mjs).
  */
@@ -93,24 +167,64 @@ export function renderReviewLink(url: string): string {
   return `🔗 Review: ${chalk.cyan(url)}`;
 }
 
+/** A project by the two numbers its web app page is addressed by. */
+export type SherloProject = { teamId: string; projectIndex: number };
+
+/** The project's page in the web app, where its CI token is made. */
+export function projectPageUrl(project: SherloProject): string {
+  return `${APP_DOMAIN}/project?t=${project.teamId}&p=${project.projectIndex}`;
+}
+
 /**
- * The ending of a test the command did not wait for: what to do next, in init's section, with
- * the command that waits for the verdict here - an agent cannot click the link.
+ * The ending of a test the command did not wait for, or stopped waiting for: what to do next, in
+ * init's section, with the command that waits for the verdict - an agent cannot click the link.
+ * The command is the same wherever it runs, so the line says nothing about "here".
+ *
+ * A SECOND STEP while the project has no CI token, on a person's terminal only (operator,
+ * 2026-10-12, with epic init-for-agents): setup no longer asks for CI, so the first place a person
+ * hears about pull request tests is here, linking the project's page where the token is made.
+ * Two steps are numbered, under a plural title, as init numbers its own.
  */
-export function renderTestNextStep({ testIndex, url }: { testIndex: number; url: string }): string[] {
-  return [
-    // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
-    ...renderSectionTitle('👉 Next step', 12),
-    chalk.bold(`Review Test ${testIndex} when it finishes`),
+export function renderTestNextStep({
+  testIndex,
+  url,
+  projectWithNoCiToken,
+}: {
+  testIndex: number;
+  url: string;
+  /** Set only when this run should suggest pull request tests: a person's run, no CI token. */
+  projectWithNoCiToken?: SherloProject;
+}): string[] {
+  const reviewLines = [
     `   ${renderReviewLink(url)}`,
-    `   To wait for it here: ${chalk.cyan(`npx sherlo view ${testIndex} --wait`)}`,
+    `   To wait for the result: ${chalk.cyan(`npx sherlo view ${testIndex} --wait`)}`,
+  ];
+  const reviewTitle = `Review Test ${testIndex} when it finishes`;
+
+  if (!projectWithNoCiToken) {
+    return [
+      // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
+      ...renderSectionTitle('👉 Next step', 12),
+      chalk.bold(reviewTitle),
+      ...reviewLines,
+    ];
+  }
+
+  return [
+    ...renderSectionTitle('👉 Next steps', 13),
+    chalk.bold(`1. ${reviewTitle}`),
+    ...reviewLines,
+    '',
+    chalk.bold('2. Run Sherlo on every pull request'),
+    `   ${chalk.cyan(projectPageUrl(projectWithNoCiToken))}`,
   ];
 }
 
 /**
  * The verdict a waited test ends with, as a section: its title, underlined, then what the reader
  * needs under it. The wait loop frames every verdict with one blank line above and below, so the
- * section brings one blank line of its own above, not init's two.
+ * section brings one blank line of its own above, not init's two - and a section with nothing
+ * under its title ends at its underline, so the link under it sits one blank line below.
  *
  * `underlineLength` is init's: for a title whose emoji JavaScript counts as one character and a
  * terminal draws two columns wide (`✅`, where `⚠️` is counted as two).
@@ -120,7 +234,8 @@ export function renderVerdictSection(
   body: string[],
   underlineLength?: number
 ): string[] {
-  return [...renderSectionTitle(title, underlineLength).slice(1), ...body];
+  const [, ...titleLines] = renderSectionTitle(title, underlineLength);
+  return body.length > 0 ? [...titleLines, ...body] : titleLines.slice(0, -1);
 }
 
 /**

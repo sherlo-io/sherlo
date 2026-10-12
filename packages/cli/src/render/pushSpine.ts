@@ -50,9 +50,10 @@ export function countDevicesByPlatform(configDevices: Config['devices']): Platfo
  * what it runs on, said before its app builds go up.
  *
  * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): in init's grammar the test is named once,
- * by `✔ Started Test 3` after its app builds are up (./testSteps, the staged road's ending). The
- * push spine that prints this line (../helpers/uploadOrReuseBuildsAndRunTests) is outside what
- * plan may edit, so the build task moves the line to after `openBuild` and deletes this one.
+ * by `✔ Started Test 3  <stories> on <devices>` after its app builds are up (./testSteps
+ * `renderTestStarted`, the staged road's line). The push spine that prints this line
+ * (../helpers/uploadOrReuseBuildsAndRunTests) is outside what plan may edit, so the build task
+ * prints `test-started` after `openBuild` and deletes this one (build items 52 and 64).
  */
 export function renderRunHeader(nextBuildIndex: number, devices: Config['devices']): string {
   return renderTestStep({ name: `Set up Test ${nextBuildIndex}`, detail: describeDevices(devices) });
@@ -71,15 +72,6 @@ export function renderBuildMessageLine(message: string, type: 'info' | 'success'
 
   // Two spaces after the icon align the text with the section titles.
   return `${chalk[iconColor](icon)}  ${message}`;
-}
-
-/** `✔ Uploaded app build         the same as Test 1's, 7 minutes ago (reused)`. */
-export function renderBinaryReused(buildIndex: number, timeAgo: string): string {
-  return renderTestStep({
-    name: 'Uploaded app build',
-    detail: `the same as Test ${buildIndex}'s, ${timeAgo}`,
-    reused: true,
-  });
 }
 
 /**

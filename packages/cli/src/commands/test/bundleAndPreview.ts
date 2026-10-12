@@ -14,6 +14,7 @@ import type { GitInfo } from '../../helpers/getGitInfo';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
 import type { BundleResult } from './buildBundle';
 import { bundler, liveBundler, type Bundler } from '../../seams/bundler';
+import { whileShowing } from '../shared/terminal';
 import { runDryRunPreview } from './dryRun';
 
 /**
@@ -120,10 +121,11 @@ export async function buildBundles({
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
 
   for (const platform of platformsToTest) {
-    emit({ kind: 'platform-bundle-start', platform });
-
     try {
-      const result = await effects.bundleFor(projectRoot, platform);
+      // A spinner in a terminal, gone when the bundle is made; one plain line in a log.
+      const result = await whileShowing({ kind: 'platform-bundle-start', platform }, () =>
+        effects.bundleFor(projectRoot, platform)
+      );
       results[platform] = result;
 
       emit({

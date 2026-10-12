@@ -12,19 +12,14 @@
 
 Testing your app...
 
-[2mBundling the JavaScript for 🤖 Android...[22m
-[32m✔[39m Built the Android app  stored from Test 1, only JavaScript changed since [2m(reused)[22m
-[32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
-[32m✔[39m Planned the capture    2 of 2 stories: no main branch is set, so every test captures every story
-[32m✔[39m Started Test 2         on 1 device (Pixel 7)
-[2mWaiting for the test to finish (up to 45 min)...[22m
+[32m✔[39m Reused the Android app from Test 1
+[32m✔[39m Started Test 2         all 2 stories on 1 device (Pixel 7), no main branch is set
+Waiting for the test to finish (up to 45 min)...
    <build progress masked>
 
 
 [1m✅ All stories passed[22m
 [2m═════════════════════[22m
-
-No visual changes need review.
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 

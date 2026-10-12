@@ -1,12 +1,7 @@
 import { DOCS_LINK, PROFILE_OPTION, TEST_COMMAND } from '../../constants';
-import {
-  getTokenParts,
-  handleClientError,
-  logInfo,
-  printSherloIntro,
-  throwError,
-} from '../../helpers';
+import { getTokenParts, handleClientError, logInfo, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
+import { printTheLogoInATerminal } from '../shared/terminal';
 import { serverCalls } from '../../seams/serverCalls';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
@@ -45,7 +40,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     return;
   }
 
-  printSherloIntro();
+  // Expo's build log is a log: it starts at the line that says what the hook does (Q1).
+  printTheLogoInATerminal();
   emit({ kind: 'command-intro', command: 'eas-build-on-complete' });
 
   const sherloTempData = getSherloTempData();

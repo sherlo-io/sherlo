@@ -135,7 +135,8 @@ async function asyncUploadBuildAndRunTests({
 
   emit(
     couldRunThisBuildRightNow
-      ? { kind: 'run-starting', buildIndex }
+      ? // PLAN-LAYER STOP: the line names the run's devices once the hook reads them (build item 66).
+        { kind: 'run-starting', buildIndex }
       : {
           kind: 'run-waits-for-builds',
           buildIndex,

@@ -37,22 +37,15 @@ import {
 /**
  * The test a line names: `Test 7` once its number is known, `the test` (lowercase, as a sentence's
  * subject or object) only while it is not - the wait loop does not pass the number yet (build work).
+ * The wait's own line, `Waiting for Test 7 to finish...`, is a step in progress (./stepInProgress).
  */
 function theTest(testIndex: number | undefined): string {
   return testIndex !== undefined ? `Test ${testIndex}` : 'the test';
 }
 
-/** The command that goes on waiting for a test, said at the end of every line that stops waiting. */
-function keepWaiting(testIndex: number): string {
-  return `To keep waiting: ${chalk.cyan(`npx sherlo view ${testIndex} --wait`)}`;
-}
-
-/**
- * `Waiting for Test 7 to finish (up to 45 min)...` - printed once, before the first poll: the
- * line init's grammar prints where a terminal would show a spinner (a spinner is build work).
- */
-export function renderWaitHeader(timeoutMinutes: number, testIndex?: number): string {
-  return chalk.dim(`Waiting for ${theTest(testIndex)} to finish (up to ${timeoutMinutes} min)...`);
+/** The same words opening a sentence: `the test` becomes `The test`. */
+function atSentenceStart(words: string): string {
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /**
@@ -95,43 +88,42 @@ export function renderWaitAuthFailed(message: string): string {
 }
 
 /**
- * The two lines of the deadline closer: the waiting stopped, the test may not have - and the
- * command that goes on waiting for it.
+ * The deadline closer: the waiting stopped, the test may not have. One line; the command that goes
+ * on waiting is the `👉 Next step` section the run ends on (../commands/test/closeTheRun).
  */
 export function renderWaitTimedOut(timeoutMinutes: number, testIndex?: number): string[] {
   const minutes = timeoutMinutes === 1 ? '1 minute' : `${timeoutMinutes} minutes`;
   return [
-    chalk.yellow(`! Stopped waiting after ${minutes}.`),
-    testIndex !== undefined
-      ? `  Test ${testIndex} may still be running. ${keepWaiting(testIndex)}`
-      : chalk.yellow('  The test may still be running in Sherlo.'),
+    chalk.yellow(
+      `! Stopped waiting after ${minutes}. ${atSentenceStart(theTest(testIndex))} may still be running in Sherlo.`
+    ),
   ];
 }
 
-/** The Ctrl-C closer. The run keeps going in Sherlo; only the waiting stops. */
+/** The Ctrl-C closer. The run keeps going in Sherlo; only the waiting stops. Ends like the deadline's. */
 export function renderWaitInterrupted(testIndex?: number): string {
-  return testIndex !== undefined
-    ? chalk.dim(`Stopped waiting. Test ${testIndex} is still running. `) + keepWaiting(testIndex)
-    : chalk.dim('Stopped waiting. The test is still running in Sherlo.');
+  return chalk.yellow(`! Stopped waiting. ${atSentenceStart(theTest(testIndex))} keeps running in Sherlo.`);
 }
 
-/** The green verdict, as a section: every story either matched or was already approved. */
+/**
+ * The green verdict, as a section: every story either matched or was already approved. The title
+ * says it all, so nothing stands under it but the link.
+ */
 export function renderVerdictPassed(): string[] {
   // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
-  return renderVerdictSection('✅ All stories passed', ['No visual changes need review.'], 21);
+  return renderVerdictSection('✅ All stories passed', [], 21);
 }
 
 /**
  * The verdict of a test the SERVER closed without a device run, as init's finished step:
- * `✔ Finished Test 13  no device ran, nothing needed capturing`. No URL - the test has nothing to
- * review. The server's reason is not printed: the step says what a reader needs (content
- * department, review of 2026-10-12).
+ * `✔ Finished Test 15       nothing to capture: no change on this branch reaches any story`. The
+ * reason is the server's own prose, printed verbatim. No URL - the test has nothing to review.
  */
-export function renderVerdictServerBypassed(testIndex?: number): string[] {
+export function renderVerdictServerBypassed(reason: string, testIndex?: number): string[] {
   return [
     renderTestStep({
       name: `Finished ${theTest(testIndex)}`,
-      detail: 'no device ran, nothing needed capturing',
+      detail: reason ? `nothing to capture: ${reason}` : 'nothing to capture',
     }),
   ];
 }

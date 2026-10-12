@@ -149,11 +149,11 @@ describe('sherlo view --help', () => {
 });
 
 describe('sherlo test --help', () => {
-  it('offers --metadata beside the wait flags', async () => {
+  it('does not offer --metadata: npx sherlo view <n> --json is the one read-back', async () => {
     const exitCode = await runCli('test', '--help');
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('--metadata');
+    expect(stdout).not.toContain('--metadata');
   });
 
   it('lists neither --android nor --ios', async () => {

@@ -1,4 +1,3 @@
-import printResultsUrl from '../../helpers/printResultsUrl';
 import throwError from '../../helpers/throwError';
 import { emit } from '../../helpers/transcriptSink';
 import type { ViewJson } from '../../render/buildView';
@@ -50,9 +49,15 @@ export function printBuildView({
     emit({ kind: 'build-view-tally', counts: build.viewStatusesCount });
   }
 
+  // A test still running has no verdict yet: it ends on the next step, which carries the link and
+  // the command that waits for the verdict - the same ending as a `sherlo test` that did not wait.
+  if (isStillRunning(build.runStatus)) {
+    emit({ kind: 'results-url', url, testIndex: buildIndex });
+    return;
+  }
+
   emit({
     kind: 'build-view-status',
-    buildIndex,
     runStatus: build.runStatus,
     status: build.status,
     counts: build.viewStatusesCount,
@@ -66,7 +71,12 @@ export function printBuildView({
   }
 
   emit({ kind: 'blank-line' });
-  printResultsUrl(url);
+  emit({ kind: 'results-url', url });
+}
+
+/** A test that has not ended: queued, waiting for its app builds, or running. */
+function isStillRunning(runStatus: string): boolean {
+  return !['finished', 'error', 'canceled'].includes(runStatus);
 }
 
 /**

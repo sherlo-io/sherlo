@@ -12,9 +12,8 @@
 
 Testing your app...
 
-[32m✔[39m Started an EAS build   🤖 Android, profile "sherlo"
-[32m✔[39m Started an EAS build   🍎 iOS, profile "sherlo"
-[32m✔[39m Opened Test 1          it starts when the EAS builds are uploaded
+[32m✔[39m Started EAS builds     🤖 Android and 🍎 iOS, profile "sherlo"
+[32m✔[39m Opened Test 1          it starts when both EAS builds are uploaded
 
 
 [1m👉 Next step[22m
@@ -22,6 +21,6 @@ Testing your app...
 
 [1mReview Test 1 when it finishes[22m
    🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
-   To wait for it here: [36mnpx sherlo view 1 --wait[39m
+   To wait for the result: [36mnpx sherlo view 1 --wait[39m
 
 [exit 0]

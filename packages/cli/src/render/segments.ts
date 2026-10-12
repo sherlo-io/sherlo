@@ -36,7 +36,7 @@ import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
 import type { AppBuildCommand, RunWaitsFor, WhyANewAppBuild } from './appBuild';
-import type { IntroducedCommand } from './testSteps';
+import type { IntroducedCommand, PlatformCapture, SherloProject } from './testSteps';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -59,11 +59,14 @@ export type TranscriptSegment =
   | { kind: 'command-intro'; command: IntroducedCommand }
   /** `📦 Bundling for dry-run preview...`, wrapped in its own blank lines. */
   | { kind: 'dry-run-bundling-header' }
-  /** `Bundling the JavaScript for Android...` - printed BEFORE the bundler runs. */
+  /**
+   * `Bundling the JavaScript for 🤖 Android...` - a step in progress (./stepInProgress): a spinner
+   * in a terminal, which simply goes when the bundle is made, and one plain line in a log.
+   */
   | { kind: 'platform-bundle-start'; platform: Platform }
   /**
-   * The bundle the bundler made. It prints nothing: the step a person reads is the upload that
-   * follows (`javascript-uploaded`), and a bundle's format and asset count are not theirs to read.
+   * The bundle the bundler made. It prints nothing: bundling and uploading are one wait, and the
+   * step a person reads is the test it starts; a bundle's format and asset count are not theirs.
    */
   | {
       kind: 'platform-bundle-built';
@@ -114,27 +117,38 @@ export type TranscriptSegment =
    * device list contradicts.
    */
   | { kind: 'run-header'; nextBuildIndex: number; devices: Config['devices'] }
-  /** The header of one platform's binary block. Prints nothing: the upload's own step says it. */
+  /** The header of one platform's binary block. Prints nothing: the upload is a step in progress. */
   | { kind: 'binary-platform-label'; platform: Platform }
-  /** `Uploading the app build (41.2 MB)...` - printed BEFORE the bytes go up. */
-  | { kind: 'binary-uploading'; sizeMb: string }
-  /** `✔ Uploaded app build`. */
+  /**
+   * `Uploading the 🤖 Android app build (61.4 MB)...` - a step in progress (./stepInProgress),
+   * printed BEFORE the bytes go up. `platform` is absent until its print site
+   * (helpers/uploadOrPrintBinaryReuse, build work) sends it, and the line then names no platform.
+   */
+  | { kind: 'binary-uploading'; sizeMb: string; platform?: Platform }
+  /**
+   * The upload finished. It prints nothing: an upload is only a wait, and the step a person reads
+   * is the test it starts. The build task stops emitting it.
+   */
   | { kind: 'binary-uploaded' }
   /** `   Upload failed (attempt 1 of 3), trying again...` - the per-attempt notice. */
   | { kind: 'binary-upload-retry'; attempt: number; maxRetries: number }
   /**
-   * `✔ Uploaded app build         the same as Test 1's, 7 minutes ago (reused)`.
-   * `timeAgo` arrives already phrased because computing it reads the
-   * WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
+   * The server already held this app build, so nothing went up. It prints nothing, for the reason
+   * `binary-uploaded` prints nothing. `timeAgo` arrives already phrased because computing it reads
+   * the WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
    */
   | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
-  /** `✔ Uploaded JavaScript        🤖 Android 4.29 MB, 🍎 iOS 4.31 MB` - every bundle this run sent. */
-  | { kind: 'javascript-uploaded'; bundleSizesMb: Partial<Record<Platform, number>> }
   /**
-   * `✔ Started Test 3             on 2 devices (Pixel 7, iPhone 15)` - the test is open and
-   * running, on the devices the config names.
+   * `✔ Started Test 3             3 of 24 stories on 2 devices (Pixel 7, iPhone 15)` - the test is
+   * open and running: what it captures, per platform as openBuild recorded it, and the devices the
+   * config names. `capture` is absent where the server recorded no decision.
    */
-  | { kind: 'test-started'; buildIndex: number; devices: Config['devices'] }
+  | {
+      kind: 'test-started';
+      buildIndex: number;
+      devices: Config['devices'];
+      capture?: PlatformCapture[];
+    }
   /**
    * `! <warning>` in yellow, or a note as it is, optionally with a `Learn more:` line.
    *
@@ -164,8 +178,12 @@ export type TranscriptSegment =
    * ending of a run that waited, a split job whose run starts in the other job, or a print site
    * that does not know the test yet (PLAN-LAYER DEBT: the push spine, helpers/printResultsUrl,
    * which the build task teaches to pass the index).
+   *
+   * `projectWithNoCiToken`, only beside `testIndex`: the section gets a second step, running Sherlo
+   * on every pull request, linking this project's page. Set only on a person's terminal while the
+   * project has no CI token (../commands/test/closeTheRun), so a log never carries it.
    */
-  | { kind: 'results-url'; url: string; testIndex?: number }
+  | { kind: 'results-url'; url: string; testIndex?: number; projectWithNoCiToken?: SherloProject }
   /** Machine-readable `key=value` answer lines. A key with no value is not printed. */
   | { kind: 'output-keys'; entries: Record<string, string | number | boolean | undefined> }
   /* ---------------------------------------------------------------------- *
@@ -174,20 +192,24 @@ export type TranscriptSegment =
    * See ./appBuild. The order below is the order a build prints them.       *
    * ---------------------------------------------------------------------- */
   /**
-   * `✔ Built the iOS app          stored from Test 12, only JavaScript changed since (reused)` - a
-   * platform whose stored app build still matches: the staged road, or the other half of a mixed
-   * run. `storedBuildIndex` is the test the gate named, absent while the service sends none.
+   * `✔ Reused the iOS app     from Test 12` - a platform whose stored app build still matches: the
+   * staged road, or the other half of a mixed run. `storedBuildIndex` is the test the gate named,
+   * absent while the service sends none.
    */
   | { kind: 'app-build-stored-reused'; platform: Platform; storedBuildIndex?: number }
   /**
-   * `✔ Built the Android app      kept in the local build cache, ... (reused)`. `why` is the gate's
-   * reason this run needed a new app build - which words say it is this layer's decision - and the
-   * native changes are listed under the line; `sherlo build` builds with no reason to give.
+   * The app build the local build cache already held. `sherlo test`:
+   * `✔ Reused the Android app from the local build cache, no app build stored yet`, where `why` is
+   * the gate's reason this run needed a new app build and the native changes are listed under the
+   * line. `sherlo build`: `✔ Built the Android app  kept in the local build cache (already done)`.
    */
-  | { kind: 'app-build-cached'; platform: Platform; why?: WhyANewAppBuild }
-  /** `Generating the android folder with expo prebuild...` - only for an Expo app with no native folder. */
+  | { kind: 'app-build-cached'; platform: Platform; why?: WhyANewAppBuild; command: AppBuildCommand }
+  /**
+   * `Generating the Android folder with expo prebuild...` - a step in progress (./stepInProgress),
+   * only for an Expo app with no native folder.
+   */
   | { kind: 'app-build-generating'; platform: Platform }
-  /** `Building the Android app with Gradle...` - printed BEFORE the compile runs. */
+  /** `Building the Android app with Gradle...` - a step in progress, shown while the compile runs. */
   | { kind: 'app-build-compiling'; platform: Platform }
   /**
    * `✔ Built the Android app      in 1m 28s, no app build stored yet (log: ...)`, with the native
@@ -214,11 +236,15 @@ export type TranscriptSegment =
       logPath: string;
       why?: WhyANewAppBuild;
       command: AppBuildCommand;
+      /** The project the run pushes to, when known: the "build on CI" line links its page. */
+      project?: SherloProject;
     }
   /** `sherlo build`'s ending: the `👉 Next step` section naming what the kept app build is for. */
   | { kind: 'app-build-next-step' }
-  /** `✔ Started an EAS build       🤖 Android, profile "sherlo"`. */
-  | { kind: 'eas-build-queued'; platform: Platform; profile: string }
+  /** `Starting EAS builds...` - a step in progress, while Expo is asked to start them. */
+  | { kind: 'eas-builds-starting'; platforms: Platform[] }
+  /** `✔ Started EAS builds     🤖 Android and 🍎 iOS, profile "sherlo"` - one line for every EAS build started. */
+  | { kind: 'eas-builds-started'; platforms: Platform[]; profile: string }
   /** The EAS profile reads variables kept on Expo's servers, which a local build cannot read. */
   | { kind: 'eas-hosted-variables'; profile: string; environment: string }
   /**
@@ -226,8 +252,13 @@ export type TranscriptSegment =
    * still to come: the other job's platform in a split CI run, or the EAS builds.
    */
   | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: RunWaitsFor }
-  /** `✔ Started Test 1             🤖 Android and 🍎 iOS have both arrived` - this job's build was the last one the run waited for. */
-  | { kind: 'run-starting'; buildIndex: number }
+  /**
+   * `✔ Started Test 1         🤖 Android and 🍎 iOS are both in, on 2 devices (Pixel 7, iPhone 15)` -
+   * this job's build was the last one the run waited for. `devices` is absent where the print site
+   * does not know them (the EAS hook reads no config yet - build work), and the line then ends at
+   * "both in".
+   */
+  | { kind: 'run-starting'; buildIndex: number; devices?: Config['devices'] }
   /* ---------------------------------------------------------------------- *
    * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
    * it prints when the build reaches a terminal state.                      *
@@ -242,7 +273,8 @@ export type TranscriptSegment =
    */
   | { kind: 'blank-line' }
   /**
-   * `Waiting for Test 7 to finish (up to 45 min)...`, printed before the first poll.
+   * `Waiting for Test 7 to finish (up to 45 min)...` - a step in progress (./stepInProgress),
+   * started before the first poll.
    *
    * `testIndex` on this and the closers below names the test; the wait loop does not pass it yet
    * (build work, outside what plan may edit), and the lines say "the test" until it does.
@@ -273,9 +305,9 @@ export type TranscriptSegment =
   | { kind: 'verdict-passed' }
   /**
    * The compact closer for a build the server closed without a device run:
-   * `✔ Finished Test 13  no device ran, nothing needed capturing`. `reason` is the
-   * server's prose, no longer printed (content department, 2026-10-12); the build
-   * task stops sending it and passes `testIndex`.
+   * `✔ Finished Test 15       nothing to capture: no change on this branch reaches any story`.
+   * `reason` is the server's own prose, printed verbatim after the colon; the wait loop's print
+   * site does not pass `testIndex` yet (build work).
    */
   | { kind: 'verdict-server-bypassed'; reason: string; testIndex?: number }
   /**
@@ -306,9 +338,8 @@ export type TranscriptSegment =
   /** The build recorded nothing at all, so it is evidence of nothing. Not green. */
   | { kind: 'verdict-nothing-recorded'; testIndex?: number }
   /* ---------------------------------------------------------------------- *
-   * THE BUILD VIEW (F5) - what `sherlo view` prints about one build, its    *
-   * `--json` record, and the `── details ──` block `--metadata` adds to the *
-   * `--wait` roads of `sherlo test`. See ./buildView.                      *
+   * THE BUILD VIEW (F5) - what `sherlo view` prints about one build, and   *
+   * its `--json` record. See ./buildView.                                  *
    * ---------------------------------------------------------------------- */
   /** `Test 7 · finished` - the line `sherlo view` opens with. */
   | { kind: 'build-view-header'; buildIndex: number; runStatus: string }
@@ -318,8 +349,8 @@ export type TranscriptSegment =
       counts: { approved: number; noChanges: number; reported: number; unreviewed: number };
     }
   /**
-   * The verdict section, as `--wait` ends with it, or the command that waits for a test
-   * still running.
+   * The verdict section of a finished test, as `--wait` ends with it. A test still running ends
+   * on the `👉 Next step` section instead (`results-url` with its `testIndex`).
    *
    * It carries the WIRE fields rather than a resolved state, because which verdict
    * they collapse to - and whether they collapse to one at all - is a rendering
@@ -328,14 +359,15 @@ export type TranscriptSegment =
    */
   | {
       kind: 'build-view-status';
-      buildIndex: number;
       runStatus: string;
       status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
       counts?: { approved: number; noChanges: number; reported: number; unreviewed: number };
     }
   /**
-   * The whole `── details ──` block: plain, aligned, colourless, deterministic.
-   * Carries the build's facts, never their formatting - see ./buildView.
+   * The old `── details ──` block. It prints nothing: `--metadata` left `sherlo test` (operator
+   * ruling 2026-10-12, Q4), and `sherlo view <n> --json` is the one read-back. Its only emitter,
+   * the wait loop's `metadata` parameter (helpers/waitForBuildResult), is unreachable now; the build
+   * task deletes both.
    */
   | { kind: 'build-details'; details: BuildDetails }
   /**

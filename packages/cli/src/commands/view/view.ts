@@ -37,8 +37,6 @@
 import {
   getAppBuildUrl,
   getValidatedCommandParams,
-  printResultsUrl,
-  printSherloIntro,
   reporting,
   throwError,
   waitForBuildResult,
@@ -50,6 +48,8 @@ import { captureTranscript, emit } from '../../helpers/transcriptSink';
 import { readBuildStatus } from '../../helpers/waitForBuildResult';
 import { Options } from '../../types';
 import { refuseRejectedLogin } from '../shared';
+import { printTheLogoInATerminal } from '../shared/terminal';
+import { endAfterTheWait } from '../test/closeTheRun';
 import { THIS_COMMAND } from './constants';
 import { printBuildView, refuseBuildNotFound } from './printBuildView';
 
@@ -57,7 +57,8 @@ async function view(
   buildArgument: string | undefined,
   passedOptions: Options<THIS_COMMAND>
 ): Promise<void> {
-  printSherloIntro();
+  // `--json` prints the record and nothing else, so no logo even in a terminal.
+  if (passedOptions[JSON_OPTION] !== true) printTheLogoInATerminal();
 
   const buildIndex = resolveBuildIndex(buildArgument);
 
@@ -151,8 +152,6 @@ async function view(
     if (build) {
       emit({ kind: 'build-view-header', buildIndex, runStatus: build.runStatus });
     }
-    emit({ kind: 'blank-line' });
-    printResultsUrl(url);
 
     const exitCode = await waitForBuildResult({
       token,
@@ -162,6 +161,10 @@ async function view(
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
     });
+
+    // The link prints once, last - under the verdict, or in the next step when the waiting stopped
+    // first - exactly as `sherlo test --wait` ends (../test/closeTheRun).
+    endAfterTheWait({ exitCode, testIndex: buildIndex, url });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
     await reporting.flush().finally(() => {

@@ -1,8 +1,5 @@
 [32mTest 14[39m · finished
-
-🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
-
-[2mWaiting for the test to finish (up to 45 min)...[22m
+Waiting for the test to finish (up to 45 min)...
    <build progress masked>
 
 
@@ -11,6 +8,8 @@
 
 All snapshots match their baselines.
 [2m3 captured on this branch, 41 carried over unchanged.[22m
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 0]

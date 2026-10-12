@@ -529,7 +529,7 @@ describe('live capture plan', () => {
     return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
   }
 
-  it('Case 2: partial capture WITH a per-platform reason - fraction, reuse clause, list, why', async () => {
+  it('Case 2: partial capture WITH a per-platform reason - the fraction on the started line, no reason and no story list', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -561,18 +561,16 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain(
-      [
-        '✔ Planned the capture    2 of 22 stories: SharedButton.tsx changed',
-        '   Storefront/Storefront',
-        '   Cart/Cart',
-      ].join('\n')
-    );
+    expect(out).toContain('✔ Started Test 7         2 of 22 stories on 1 device');
+    // The reason and the story files of a partial capture are `sherlo view <n> --json`'s.
+    expect(out).not.toContain('SharedButton.tsx changed');
+    expect(out).not.toContain('Storefront/Storefront');
+    expect(out).not.toContain('Planned the capture');
 
     logSpy.mockRestore();
   });
 
-  it('Case 4: full capture, taking the reason from fullCaptureTriggerReason (ladder rung 2)', async () => {
+  it('Case 4: full capture - all stories, and never the build-wide fullCaptureTriggerReason (a machine code)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       openBuildReturn: {
@@ -592,9 +590,8 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain(
-      '✔ Planned the capture    22 of 22 stories: native code changed - everything re-shot'
-    );
+    expect(out).toContain('✔ Started Test 7         all 22 stories on 1 device');
+    expect(out).not.toContain('everything re-shot');
     // Inversion: an empty list on a full capture is "everything", never "nothing".
     expect(out).not.toContain('capturing 0');
     expect(out).not.toContain('nothing');
@@ -623,7 +620,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Planned the capture    no change reaches any story');
+    // A decision of none that the server did not close at open still starts the test.
+    expect(out).toContain('✔ Started Test 7         0 of 22 stories on 1 device');
+    expect(out).not.toContain('no change reaches any story');
     // No "Build created" line (SHERLO-1937) - the Review URL is the ending.
     expect(out).not.toContain('Build created');
     expect(out).toContain('🔗 Review: http://app/build');
@@ -632,7 +631,7 @@ describe('live capture plan', () => {
     logSpy.mockRestore();
   });
 
-  it('Case 7: full capture with NO reason degrades to the "couldn\'t compute" safety row', async () => {
+  it('Case 7: full capture with NO reason says all stories and nothing after them', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -648,15 +647,13 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain(
-      "✔ Planned the capture    22 of 22 stories: couldn't work out what changed, so all are captured to be safe"
-    );
-    expect(out).not.toContain('why:');
+    expect(out).toContain('✔ Started Test 7         all 22 stories on 1 device\n');
+    expect(out).not.toContain("couldn't work out");
 
     logSpy.mockRestore();
   });
 
-  it('renders a partial WITHOUT a reason (forward-compat degrade): counts + list, no why line', async () => {
+  it('renders a partial WITHOUT a reason (forward-compat degrade): the count alone', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 8,
@@ -681,9 +678,8 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain(['✔ Planned the capture    1 of 8 stories', '   x/X'].join('\n'));
-    // The block renders in full; it simply carries no why line.
-    expect(out).not.toContain('why:');
+    expect(out).toContain('✔ Started Test 7         1 of 8 stories on 1 device');
+    expect(out).not.toContain('x/X');
 
     logSpy.mockRestore();
   });
@@ -700,9 +696,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    // No plan: no header, no per-platform block, no assertion of a decision.
-    expect(out).not.toContain('Planned the capture');
-    expect(out).not.toContain('capturing');
+    // No count: no assertion of a decision the server never made.
+    expect(out).toContain('✔ Started Test 7         on 1 device');
+    expect(out).not.toContain('stories');
     // No "Build created" line (SHERLO-1937) - the link is never withheld though.
     expect(out).not.toContain('Build created');
     expect(out).not.toContain('running on devices');
@@ -746,11 +742,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      [
-        '✔ Planned the capture    🍎 iOS - 1 of 22 stories: ProductCardPlatformNote.ios.tsx changed',
-        '   Storefront/ProductCard',
-        '✔ Planned the capture    🤖 Android - the change never reaches the Android app',
-      ].join('\n')
+      '✔ Started Test 7         🍎 iOS 1 of 22 stories, 🤖 Android 0 of 22 stories, on 2 devices'
     );
     // No "Build created" line (SHERLO-1937) - even though iOS captured a story,
     // there is no "- running on devices" suffix either.
@@ -786,7 +778,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    const planIdx = out.indexOf('Planned the capture');
+    const planIdx = out.indexOf('1 of 22 stories');
     const urlIdx = out.indexOf('🔗 Review:');
     expect(planIdx).toBeGreaterThanOrEqual(0);
     expect(urlIdx).toBeGreaterThan(planIdx);
@@ -825,11 +817,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      [
-        '✔ Planned the capture    🍎 iOS - 10 of 10 stories: native-changed',
-        '✔ Planned the capture    🤖 Android - 1 of 10 stories: x.tsx changed',
-        '   x/X',
-      ].join('\n')
+      '✔ Started Test 7         🍎 iOS all 10 stories, 🤖 Android 1 of 10 stories, on 2 devices'
     );
 
     logSpy.mockRestore();
@@ -869,7 +857,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // The exact fraction is pinned so the invariant is stated, not inferred.
-    expect(out).toContain('✔ Planned the capture    2 of 22 stories');
+    expect(out).toContain('✔ Started Test 7         2 of 22 stories');
 
     logSpy.mockRestore();
   });
@@ -1002,7 +990,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Finished Test 7        no device ran, nothing needed capturing');
+    expect(out).toContain('✔ Finished Test 7        nothing to capture: no change reaches any story');
     // The whole point: no URL of any kind on the bypassed path.
     expect(out).not.toContain('🔗 Review');
     expect(out).not.toContain('http://app/build');
@@ -1076,7 +1064,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     // The test ends on its one finished step: no started step, no next step, no link.
     const out = printed(logSpy);
     expect(
-      out.endsWith('✔ Finished Test 7        no device ran, nothing needed capturing')
+      out.endsWith('✔ Finished Test 7        nothing to capture: no change reaches any story')
     ).toBe(true);
     expect(out).not.toContain('Started Test');
     expect(out).not.toContain('Next step');
@@ -1112,7 +1100,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
         '',
         'Review Test 7 when it finishes',
         '   🔗 Review: http://app/build',
-        '   To wait for it here: npx sherlo view 7 --wait',
+        '   To wait for the result: npx sherlo view 7 --wait',
       ].join('\n')
     );
   });

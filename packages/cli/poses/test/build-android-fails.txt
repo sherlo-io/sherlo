@@ -12,7 +12,6 @@
 
 Testing your app...
 
-[2mBuilding the Android app with Gradle...[22m
 [31m✖[39m Building the Android app failed
 
 Native code changed since Test 12's app build:
@@ -27,6 +26,7 @@ The build failed after <DURATION>. Last lines of the log:
 
 Full log: .sherlo/build-android.log
 Nothing was uploaded and no test was started. Fix the build, then run [36mnpx sherlo test[39m again.
+Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
 
 [2m──────────[22m
 

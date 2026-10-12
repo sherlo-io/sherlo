@@ -84,7 +84,7 @@
           "platforms": {
             "android": {
               "full": true,
-              "reason": "no main branch is set, so every test captures every story"
+              "reason": "no main branch is set"
             }
           }
         }

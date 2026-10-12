@@ -1,8 +1,5 @@
 [32mTest 16[39m · finished
-
-🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
-
-[2mWaiting for the test to finish (up to 45 min)...[22m
+Waiting for the test to finish (up to 45 min)...
    <build progress masked>
 
 
@@ -11,6 +8,8 @@
 
 The test captured no stories and carried none over, so it does not show that nothing
 changed. Open the test in Sherlo to check.
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 1]

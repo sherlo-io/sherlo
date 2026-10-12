@@ -25,6 +25,7 @@ import { detectEntryFile } from '../../commands/showError/detectBundler';
 import type { BaseFingerprintResult, GateMetadataInput } from '../../helpers/fingerprint';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { bundler } from '../../seams/bundler';
+import { whileShowing } from '../shared/terminal';
 import type { BundleResult } from './buildBundle';
 import {
   SIDECAR_VERSION,
@@ -79,9 +80,9 @@ export async function emitBundleDir({
   emit({ kind: 'bundle-emit-header', bundleDir });
 
   for (const platform of platformsToTest) {
-    emit({ kind: 'platform-bundle-start', platform });
-
-    const result = await bundleFor(projectRoot, platform);
+    const result = await whileShowing({ kind: 'platform-bundle-start', platform }, () =>
+      bundleFor(projectRoot, platform)
+    );
 
     // A triple without its manifest is not a triple. The built road may bail open
     // on a missing manifest because failing there would break a build that would

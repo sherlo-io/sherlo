@@ -470,9 +470,12 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
                   problems
                 );
               }
+              if ('hasCiToken' in object54) {
+                expectBoolean(object54.hasCiToken, at(where53, 'hasCiToken'), problems);
+              }
               reportUnknownFields(
                 object54,
-                ['buildIndex', 'url', 'captureDecision'],
+                ['buildIndex', 'url', 'captureDecision', 'hasCiToken'],
                 where53,
                 problems
               );
@@ -480,7 +483,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
           } else {
             reportWrongShape(
               oneOf52,
-              '`ApiError` or `{ buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }`',
+              '`ApiError` or `{ buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean }`',
               where53,
               problems
             );
@@ -488,7 +491,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         } else {
           reportWrongShape(
             oneOf52,
-            '`ApiError` or `{ buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }`',
+            '`ApiError` or `{ buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean }`',
             where53,
             problems
           );
@@ -889,7 +892,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[] } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'computeDiffScopeDryRun'; with: { branch: string; commit: string }; answer: ApiError | DiffScopeDryRunAnswer }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: StagedGateAnswer | ApiError }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
+      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[] } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'computeDiffScopeDryRun'; with: { branch: string; commit: string }; answer: ApiError | DiffScopeDryRunAnswer }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: StagedGateAnswer | ApiError }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
       path,
       problems
     );

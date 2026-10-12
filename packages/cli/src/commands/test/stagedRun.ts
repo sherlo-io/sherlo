@@ -67,7 +67,7 @@ import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerpri
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
-import { formatDiffScopeReport, type DiffScopePlatformReport } from './diffScopeReport';
+import type { PlatformCapture } from '../../render/testSteps';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -92,15 +92,12 @@ const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
  *   run selected. `full: true` means EVERY story was in scope (an empty
  *   `storyFilePaths` in that case means "everything", not "nothing"). Absent for
  *   a platform -> the report says NOTHING about it (the server made no decision).
- * - `diffScopeInfo.platforms[platform].reason`: the path-legible closure-diff
- *   string, byte-identical to the dashboard's. The api department selects this in
- *   a parallel PR; until it lands the field is absent and the reason ladder falls
- *   through to `fullCaptureTriggerReason` or omits the reason entirely.
+ * - `diffScopeInfo.platforms[platform].reason`: the server's own prose, byte-identical
+ *   to the dashboard's. Absent -> no reason is printed.
  */
 type CaptureScope = { full: boolean; storyFilePaths?: string[] };
 type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
 type DiffScopeInfoWithPlatformReasons = {
-  fullCaptureTriggerReason?: string;
   platforms?: Partial<Record<Platform, { reason?: string }>>;
 };
 
@@ -317,7 +314,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
 
   //    Both checks said every platform takes its stored app build. Said here, after the second
   //    check, so a platform that check refuses is never called reused - which is why this line
-  //    comes after `Bundling the JavaScript...` and not before it.
+  //    comes after `Bundling the JavaScript...` and not before it. In a terminal the bundling is
+  //    a spinner that leaves nothing, so the two read the same; a log shows the bundling first.
   for (const platform of platformsToTest) {
     emit({
       kind: 'app-build-stored-reused',
@@ -447,12 +445,11 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   // print the compact bypassed closer instead (SHERLO-1952).
   const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
 
-  // The command EXPLAINS its own capture plan (SHERLO-1919): which stories this
-  // run is capturing, and why - read straight off the openBuild response, no
-  // extra API call - then the step that started the test (a joined run's own
-  // step was printed by joinTheRun), then its ending (./closeTheRun).
+  // The step that started the test, with how many stories it captures (SHERLO-1919) - read
+  // straight off the openBuild response, no extra API call (a joined run's own step was printed
+  // by joinTheRun) - then its ending (./closeTheRun).
   if (!joinKey) {
-    printCapturePlanAndStart({
+    printTestStarted({
       openBuildReturn,
       moduleManifests: collectModuleManifests(bundles, platformsToTest),
       platformsToTest,
@@ -466,8 +463,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     buildIndex,
     url,
     serverBypassed,
-    gitInfo,
     endsOnNextStep: !joinedRunWaits,
+    hasCiToken: openBuildReturn.hasCiToken,
   });
 
   return { url };
@@ -560,22 +557,20 @@ function collectModuleManifests(
 }
 
 /**
- * Print this run's capture plan, per platform, straight off the openBuild
- * response (SHERLO-1919), then the step that started the test. No extra API
- * call: `captureScope` carries the captured set and `diffScopeInfo` carries the
- * reason. Renders through the SAME shared formatter the dry run uses, so the two
- * modes read identically apart from the step's name. The review link is the
- * ending's (./closeTheRun) - there is no "Build created" line (SHERLO-1937).
+ * The step that started the test, saying what it captures - per platform, straight off the
+ * openBuild response (SHERLO-1919): `✔ Started Test 14  3 of 24 stories on 1 device (Pixel 7)`. No
+ * extra API call: `captureScope` carries the captured set and `diffScopeInfo` the reason. The plan
+ * is one count on this line (operator ruling 2026-10-12): which story files, and why, are
+ * `npx sherlo view <n> --json`'s. The review link is the ending's (./closeTheRun).
  *
- * A platform the server made no decision for (no `captureScope`) is skipped
- * entirely - silence, never an invented "captured everything". If NO platform has
- * a decision, no plan step prints.
+ * A platform the server made no decision for (no `captureScope`) adds no count - silence, never an
+ * invented "captured everything".
  *
  * Exported because the SIM road reuses this exact output road - it has no
- * bundles, so the plan is keyed on each platform's module manifest, the one input
- * the report actually reads.
+ * bundles, so the count is keyed on each platform's module manifest, the one input
+ * the line actually reads.
  */
-export function printCapturePlanAndStart({
+export function printTestStarted({
   openBuildReturn,
   moduleManifests,
   platformsToTest,
@@ -588,68 +583,35 @@ export function printCapturePlanAndStart({
   devices: Config['devices'];
   serverBypassed: boolean;
 }): void {
+  // A test the server closed without a device run never started on one: its ending is the one
+  // finished step that says so (./closeTheRun).
+  if (serverBypassed) return;
+
   const diffScopeInfo = openBuildReturn.build.diffScopeInfo as
     | DiffScopeInfoWithPlatformReasons
     | undefined;
 
-  const platforms: DiffScopePlatformReport[] = [];
+  const capture: PlatformCapture[] = [];
   for (const platform of platformsToTest) {
     const platformConfig = openBuildReturn.buildRun?.config?.[platform] as
       | PlatformConfigWithCaptureScope
       | undefined;
     const captureScope = platformConfig?.captureScope;
-
-    // No decision recorded for this platform -> stay silent. Asserting "captured
-    // everything" here would claim a decision the server never made.
     if (!captureScope) continue;
 
     const manifest = moduleManifests[platform];
-    platforms.push({
-      kind: 'decided',
+    capture.push({
       platform,
       // INVERSION GUARD: full === true is "every story", regardless of the list.
       full: captureScope.full,
-      // A full capture selects everything; its per-story list is not meaningful.
-      capturedStoryFilePaths: captureScope.full ? [] : captureScope.storyFilePaths ?? [],
-      // M is the whole bundle's story set, counted the ONE canonical way.
-      totalStoriesInBundle: manifest ? countBundleStories(manifest) : undefined,
-      reason: resolveLiveReason({ platform, full: captureScope.full, diffScopeInfo }),
+      capturedStories: captureScope.full ? 0 : (captureScope.storyFilePaths ?? []).length,
+      // The whole bundle's story set, counted the ONE canonical way.
+      storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
+      // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
+      // a machine code. The line prints it only for a full capture (Q2).
+      reason: diffScopeInfo?.platforms?.[platform]?.reason,
     });
   }
 
-  if (platforms.length > 0) {
-    console.log(formatDiffScopeReport('live', platforms));
-  }
-
-  // A test the server closed without a device run never started on one: its ending is the one
-  // finished step that says so (./closeTheRun).
-  if (serverBypassed) return;
-
-  emit({ kind: 'test-started', buildIndex: openBuildReturn.build.index, devices });
-}
-
-/**
- * The reason ladder, in strict order (SHERLO-1915). The reason is byte-identical
- * to the persisted server decision or absent - never CLI-invented:
- *   1. the per-platform closure-diff reason, when present -> verbatim;
- *   2. else, on a FULL capture only, the build-wide fullCaptureTriggerReason;
- *   3. else -> omitted.
- */
-function resolveLiveReason({
-  platform,
-  full,
-  diffScopeInfo,
-}: {
-  platform: Platform;
-  full: boolean;
-  diffScopeInfo: DiffScopeInfoWithPlatformReasons | undefined;
-}): string | undefined {
-  const perPlatformReason = diffScopeInfo?.platforms?.[platform]?.reason;
-  if (perPlatformReason) return perPlatformReason;
-
-  if (full && diffScopeInfo?.fullCaptureTriggerReason) {
-    return diffScopeInfo.fullCaptureTriggerReason;
-  }
-
-  return undefined;
+  emit({ kind: 'test-started', buildIndex: openBuildReturn.build.index, devices, capture });
 }

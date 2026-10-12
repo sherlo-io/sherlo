@@ -25,9 +25,8 @@
 import path from 'path';
 import chalk from 'chalk';
 import gradientString from 'gradient-string';
-import { COLOR, PLATFORMS } from '../constants';
+import { COLOR } from '../constants';
 import {
-  renderBuildDetails,
   renderBuildViewHeader,
   renderBuildViewStatus,
   renderBuildViewTally,
@@ -37,33 +36,30 @@ import {
 import { formatDryRunPreview } from './dryRunPlan';
 import {
   renderAppBuildCached,
-  renderAppBuildCompiling,
   renderAppBuildDone,
   renderAppBuildFailed,
-  renderAppBuildGenerating,
   renderAppBuildNextStep,
-  renderEasBuildStarted,
+  renderEasBuildsStarted,
   renderEasHostedVariables,
   renderRunStarting,
   renderRunWaitsForBuilds,
   renderStoredBuildReused,
 } from './appBuild';
 import {
-  renderBinaryReused,
   renderBuildMessageLine,
   renderOutputKeys,
   renderRunHeader,
   renderTestNotice,
 } from './pushSpine';
+import { renderStepInProgress } from './stepInProgress';
 import {
-  describeDevices,
   platformWithEmoji,
   renderCommandIntro,
   renderFailedTestStep,
   renderHelpBlock,
   renderReviewLink,
-  renderStepInProgress,
   renderTestNextStep,
+  renderTestStarted,
   renderTestStep,
 } from './testSteps';
 import { renderProjectCreated } from './projectCreated';
@@ -92,7 +88,6 @@ import {
   renderVerdictServerBypassed,
   renderWaitAuthFailed,
   renderWaitBuildNotFound,
-  renderWaitHeader,
   renderWaitHeartbeat,
   renderWaitInterrupted,
   renderWaitNetworkRetry,
@@ -150,16 +145,19 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // it is a preview (../commands/test/diffScopeReport), so the bundling needs no header of its own.
       return { stream: 'stdout', prints: [] };
 
+    // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts. In a
+    // terminal the same words are a spinner's (../commands/shared/terminal), and this segment is
+    // never emitted there.
     case 'platform-bundle-start':
-      return {
-        stream: 'stdout',
-        prints: [
-          [renderStepInProgress(`Bundling the JavaScript for ${platformWithEmoji(segment.platform)}...`)],
-        ],
-      };
+    case 'app-build-generating':
+    case 'app-build-compiling':
+    case 'binary-uploading':
+    case 'eas-builds-starting':
+    case 'wait-header':
+      return { stream: 'stdout', prints: [[renderStepInProgress(segment)]] };
 
-    // The bundle and its assets print nothing: the step a person reads is the upload that follows
-    // (`javascript-uploaded`), and a bundle's format and asset count are not theirs to read.
+    // The bundle and its assets print nothing: bundling and uploading are one wait, and the step a
+    // person reads is the test it starts; a bundle's format and asset count are not theirs to read.
     case 'platform-bundle-built':
     case 'platform-bundle-assets':
       return { stream: 'stdout', prints: [] };
@@ -232,68 +230,28 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: [[renderRunHeader(segment.nextBuildIndex, segment.devices)]],
       };
 
+    // An upload is only a wait: it shows while it runs (`binary-uploading`, above) and leaves no
+    // line of its own, whether the bytes went up or the server already held them. The step a person
+    // reads is the test it starts. The build task stops emitting these three.
     case 'binary-platform-label':
-      // The upload's own step says it (`binary-uploaded`).
-      return { stream: 'stdout', prints: [] };
-
-    case 'binary-uploading':
-      return {
-        stream: 'stdout',
-        prints: [[renderStepInProgress(`Uploading the app build (${segment.sizeMb} MB)...`)]],
-      };
-
     case 'binary-uploaded':
-      // PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): init's grammar names the platform
-      // and the size here (`✔ Uploaded app build         🤖 Android 61.4 MB`). The segment carries
-      // neither - its print site, helpers/uploadOrPrintBinaryReuse, is outside what plan may edit -
-      // so the build task adds both to it.
-      return { stream: 'stdout', prints: [[renderTestStep({ name: 'Uploaded app build' })]] };
+    case 'binary-reused':
+      return { stream: 'stdout', prints: [] };
 
     case 'binary-upload-retry':
       return {
         stream: 'stdout',
         prints: [
           [
-            renderStepInProgress(
+            chalk.dim(
               `   Upload failed (attempt ${segment.attempt} of ${segment.maxRetries}), trying again...`
             ),
           ],
         ],
       };
 
-    case 'binary-reused':
-      return {
-        stream: 'stdout',
-        prints: [[renderBinaryReused(segment.buildIndex, segment.timeAgo)]],
-      };
-
-    case 'javascript-uploaded':
-      return {
-        stream: 'stdout',
-        prints: [
-          [
-            renderTestStep({
-              name: 'Uploaded JavaScript',
-              detail: PLATFORMS.filter((platform) => segment.bundleSizesMb[platform] !== undefined)
-                .map((platform) => `${platformWithEmoji(platform)} ${segment.bundleSizesMb[platform]} MB`)
-                .join(', '),
-            }),
-          ],
-        ],
-      };
-
     case 'test-started':
-      return {
-        stream: 'stdout',
-        prints: [
-          [
-            renderTestStep({
-              name: `Started Test ${segment.buildIndex}`,
-              detail: describeDevices(segment.devices),
-            }),
-          ],
-        ],
-      };
+      return { stream: 'stdout', prints: [[renderTestStarted(segment)]] };
 
     case 'notice':
       return {
@@ -318,7 +276,11 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: (segment.testIndex !== undefined
-          ? renderTestNextStep({ testIndex: segment.testIndex, url: segment.url })
+          ? renderTestNextStep({
+              testIndex: segment.testIndex,
+              url: segment.url,
+              projectWithNoCiToken: segment.projectWithNoCiToken,
+            })
           : [renderReviewLink(segment.url), '']
         ).map((line) => [line]),
       };
@@ -332,12 +294,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'app-build-cached':
       return { stream: 'stdout', prints: renderAppBuildCached(segment).map((line) => [line]) };
 
-    case 'app-build-generating':
-      return { stream: 'stdout', prints: [[renderAppBuildGenerating(segment.platform)]] };
-
-    case 'app-build-compiling':
-      return { stream: 'stdout', prints: [[renderAppBuildCompiling(segment.platform)]] };
-
     case 'app-build-done':
       return { stream: 'stdout', prints: renderAppBuildDone(segment).map((line) => [line]) };
 
@@ -347,10 +303,10 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'app-build-next-step':
       return { stream: 'stdout', prints: renderAppBuildNextStep().map((line) => [line]) };
 
-    case 'eas-build-queued':
+    case 'eas-builds-started':
       return {
         stream: 'stdout',
-        prints: [[renderEasBuildStarted(segment.platform, segment.profile)]],
+        prints: [[renderEasBuildsStarted(segment.platforms, segment.profile)]],
       };
 
     case 'eas-hosted-variables':
@@ -366,7 +322,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'run-starting':
-      return { stream: 'stdout', prints: [[renderRunStarting(segment.buildIndex)]] };
+      return { stream: 'stdout', prints: [[renderRunStarting(segment.buildIndex, segment.devices)]] };
 
     case 'output-keys':
       return {
@@ -381,12 +337,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // and util.format renders it differently, so the empty argument list is
       // the content here.
       return { stream: 'stdout', prints: [[]] };
-
-    case 'wait-header':
-      return {
-        stream: 'stdout',
-        prints: [[renderWaitHeader(segment.timeoutMinutes, segment.testIndex)]],
-      };
 
     case 'wait-progress':
       return { stream: 'stdout', prints: [[renderWaitProgress(segment.runStatus)]] };
@@ -421,7 +371,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-server-bypassed':
       return {
         stream: 'stdout',
-        prints: renderVerdictServerBypassed(segment.testIndex).map((line) => [line]),
+        prints: renderVerdictServerBypassed(segment.reason, segment.testIndex).map((line) => [line]),
       };
 
     case 'verdict-review-required':
@@ -474,10 +424,8 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'build-details':
-      return {
-        stream: 'stdout',
-        prints: renderBuildDetails(segment.details).map((line) => [line]),
-      };
+      // Unreachable since `--metadata` left `sherlo test` (./segments says why it still exists).
+      return { stream: 'stdout', prints: [] };
 
     case 'build-view-json':
       return { stream: 'stdout', prints: [[renderViewJson(segment.json)]] };

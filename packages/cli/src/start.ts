@@ -48,7 +48,6 @@ import {
   LAYER_OPTION,
   MASK_COMMAND,
   MESSAGE_OPTION,
-  METADATA_OPTION,
   POSE_COMMAND,
   PROFILE_OPTION,
   PROJECT_COMMAND,
@@ -80,9 +79,10 @@ import {
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
 } from './constants';
+import { printTheLogoInATerminal } from './commands/shared/terminal';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
-import { logWarning, printSherloIntro, reporting, throwError, withCommandTimeout } from './helpers';
+import { logWarning, reporting, throwError, withCommandTimeout } from './helpers';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
 import { renderHelpBlock } from './render/testSteps';
@@ -299,14 +299,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'Creates no build and uploads nothing.',
   ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
-  [METADATA_OPTION]: [
-    `--${METADATA_OPTION}`,
-    'Print a `\u2500\u2500 details \u2500\u2500` block after the normal output - ONE LINE PER FACT THE API\n' +
-      '  PROVIDES, and nothing for one it does not: what the build was judged over, what the\n' +
-      '  runner did, the capture accounting, and how many verdicts a human has cast. On\n' +
-      `  \`npx sherlo ${TEST_COMMAND}\` it also names the branch and commit the run was made from, which that run\n` +
-      '  composed itself. Plain aligned text, no colour.',
-  ],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
     `EAS Build profile (must match profile used in \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
@@ -364,8 +356,8 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${WAIT_OPTION}`,
     'Wait for the run to finish rather than returning as soon as it has started.\n' +
       '  On `test` and `view` the exit code then encodes the outcome:\n' +
-      '  0 = GREEN (no changes), 1 = changes require review,\n' +
-      '  2 = build/system error, 3 = timeout (block, never pass), 130 = interrupted (Ctrl-C)',
+      '  0 = all stories passed, 1 = stories need review,\n' +
+      '  2 = the app build or the test failed, 3 = stopped waiting, 130 = interrupted',
   ],
   [WAIT_TIMEOUT_OPTION]: [
     '--wait-timeout <minutes>',
@@ -473,7 +465,6 @@ function addTestCommand(program: Command) {
       DRY_RUN_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
-      METADATA_OPTION,
       PLATFORM_OPTION,
       RUN_ID_OPTION,
       BUILD_CACHE_OPTION,
@@ -481,9 +472,10 @@ function addTestCommand(program: Command) {
       ...devtoolsOptions,
     ],
     // THE INTRO COMES FIRST, as on `sherlo init`: a refused flag or a job with nothing to test is
-    // still a `sherlo test` screen, opening with the logo and `Testing your app...`.
+    // still a `sherlo test` screen, opening with `Testing your app...` - under the logo in a
+    // terminal, and on the first line of a log (operator ruling 2026-10-12, Q1).
     action: (options) => {
-      printSherloIntro();
+      printTheLogoInATerminal();
       emit({ kind: 'command-intro', command: 'test' });
       refuseBinaryPathFlags(options);
       refuseTokenFlag(TEST_COMMAND, options);
@@ -554,7 +546,7 @@ function addBuildCommand(program: Command) {
     options: [CONFIG_OPTION, PROJECT_ROOT_OPTION, PLATFORM_OPTION, BUILD_CACHE_OPTION, PARALLEL_BUILDS_OPTION],
     // The intro comes first, as on `sherlo test`.
     action: (options) => {
-      printSherloIntro();
+      printTheLogoInATerminal();
       emit({ kind: 'command-intro', command: 'build' });
       refuseUnknownPlatform(options);
       return build(options);

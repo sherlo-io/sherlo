@@ -56,7 +56,7 @@ import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
 import { readSimWorld } from './simWorld';
 import { closeTheRun } from './closeTheRun';
-import { printCapturePlanAndStart } from './stagedRun';
+import { printTestStarted } from './stagedRun';
 import { putBuffer, type StagedUploadUrlsWithManifest } from './uploadStagedArtifacts';
 import type { ValidatedModuleManifest } from './readModuleManifest';
 
@@ -188,7 +188,7 @@ async function simRun(
   const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
 
   if (!joinKey) {
-    printCapturePlanAndStart({
+    printTestStarted({
       openBuildReturn,
       moduleManifests: manifestForEveryPlatform(manifest, platformsToTest),
       platformsToTest,

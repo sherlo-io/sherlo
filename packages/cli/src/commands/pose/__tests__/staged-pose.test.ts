@@ -62,10 +62,10 @@ describe('a bare push is posable', () => {
     const M = androidStoryCount(document);
 
     expect(refusals).toEqual([]);
-    expect(screen).toContain('Planned the capture');
-    expect(screen).toContain(
-      `${M} of ${M} stories: no main branch is set, so every test captures every story`
-    );
+    // The plan is one count on the line that started the test, with the reason a full capture
+    // keeps (operator ruling 2026-10-12); no plan step of its own.
+    expect(screen).toContain(`all ${M} stories on 1 device (Pixel 7), no main branch is set`);
+    expect(screen).not.toContain('Planned the capture');
     // The one-line "Diff Scope:" summary repeated the plan in internal words, and is gone.
     expect(screen).not.toContain('Diff Scope');
   });
@@ -82,7 +82,7 @@ describe('a bare push is posable', () => {
     const { screen, refusals } = await runPose(withoutDecision);
 
     expect(refusals).toEqual([]);
-    expect(screen).not.toContain('Planned the capture');
+    expect(screen).not.toContain('stories on');
     expect(screen).toContain('🔗 Review:');
   });
 });

@@ -75,9 +75,13 @@ async function runWaitLoop(build: BuildStatus): Promise<{ exitCode: number; stdo
 /** The two lines every run of the above starts with, before any closer. */
 const WAIT_PREAMBLE = 'Waiting for the test to finish (up to 45 min)...\n   Finished\n';
 
-/** A verdict section (init's grammar): a blank line, the title, its underline, a blank line, the body. */
+/**
+ * A verdict section (init's grammar): a blank line, the title, its underline, then - when it has
+ * one - a blank line and the body. A section with no body ends at its underline.
+ */
 function verdictSection(title: string, underlineLength: number, ...body: string[]): string {
-  return `\n${title}\n${'═'.repeat(underlineLength)}\n\n${body.join('\n')}\n`;
+  const underlined = `\n${title}\n${'═'.repeat(underlineLength)}\n`;
+  return body.length > 0 ? `${underlined}\n${body.join('\n')}\n` : underlined;
 }
 
 /* ========================================================================== */
@@ -101,7 +105,7 @@ describe('a build the server did not mark prints exactly what it always printed'
 
     expect(exitCode).toBe(EXIT_GREEN);
     expect(stdout).toBe(
-      `${WAIT_PREAMBLE}\n${verdictSection('✅ All stories passed', 21, 'No visual changes need review.')}\n`
+      `${WAIT_PREAMBLE}\n${verdictSection('✅ All stories passed', 21)}\n`
     );
   });
 
@@ -244,7 +248,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     const { exitCode, stdout } = await runWaitLoop(bypassed);
 
     expect(exitCode).toBe(EXIT_GREEN);
-    expect(stdout).toContain('no device ran, nothing needed capturing');
+    expect(stdout).toContain('nothing to capture: no change on this branch reaches any story');
     expect(stdout).not.toContain('No visual changes');
   });
 

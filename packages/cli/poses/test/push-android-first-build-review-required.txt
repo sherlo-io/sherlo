@@ -12,18 +12,15 @@
 
 Testing your app...
 
-[32m✔[39m Built the Android app  kept in the local build cache, none stored by Sherlo yet [2m(reused)[22m
+[32m✔[39m Reused the Android app from the local build cache, no app build stored yet
 [32m✔[39m Set up Test 1          on 1 device (Pixel 7)
-[2mUploading the app build (<SIZE> MB)...[22m
-[32m✔[39m Uploaded app build
+Uploading the app build (<SIZE> MB)...
 [1m[22m
 [1m📦 Bundling for this run...[22m
 [1m[22m
-[2mBundling the JavaScript for 🤖 Android...[22m
-[32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
-[2mWaiting for the test to finish (up to 45 min)...[22m
+Waiting for the test to finish (up to 45 min)...
    <build progress masked>
 
 

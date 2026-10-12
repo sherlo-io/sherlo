@@ -12,9 +12,8 @@
 
 Sending your EAS build to Sherlo...
 
-[2mUploading the app build (<SIZE> MB)...[22m
-[32m✔[39m Uploaded app build
-[32m✔[39m Added to Test 1        it starts when the 🍎 iOS EAS build is uploaded
+Uploading the app build (<SIZE> MB)...
+[32m✔[39m Added to Test 1        🤖 Android is in; it starts when the 🍎 iOS EAS build is uploaded
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

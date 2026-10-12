@@ -295,6 +295,7 @@ export type ScriptedCall =
             buildIndex: number;
             url: string;
             captureDecision?: PosedCaptureDecision;
+            hasCiToken?: boolean;
           };
     }
   | {

@@ -40,7 +40,9 @@ export async function joinTheRun({
           buildIndex: build.index,
           waitingFor: { otherJob: waitingFor[0], ciRunId: ciRunIdOf(joinKey) },
         }
-      : { kind: 'run-starting', buildIndex: build.index }
+      : // PLAN-LAYER STOP: the line names the whole test's devices once this job knows them - its
+        // own command params keep only its platform's (build item 66).
+        { kind: 'run-starting', buildIndex: build.index }
   );
 
   return { build, waitingFor };

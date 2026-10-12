@@ -25,7 +25,13 @@ import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
 import { reporting, throwError } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
-import type { AppBuildCommand, WhyANewAppBuild } from '../../../render/appBuild';
+import {
+  type AppBuildCommand,
+  renderRunOnCi,
+  type WhyANewAppBuild,
+} from '../../../render/appBuild';
+import type { SherloProject } from '../../../render/testSteps';
+import { whileShowing } from '../../shared/terminal';
 import { appBuilder } from '../../../seams/appBuilder';
 import {
   BUILD_CACHE_ENV_VAR,
@@ -61,6 +67,7 @@ export async function buildApps({
   baseFingerprint,
   cacheDirFlag,
   command,
+  project,
 }: {
   projectRoot: string;
   toBuild: PlatformToBuild[];
@@ -70,10 +77,15 @@ export async function buildApps({
   cacheDirFlag?: string;
   /** Which command builds: `sherlo build` only keeps the app build in the cache, and says so. */
   command: AppBuildCommand;
+  /**
+   * The project the run pushes to, when it knows one (`sherlo test`; `sherlo build` reads no
+   * credential): a failure to build here points to building on CI, linking its page.
+   */
+  project?: SherloProject;
 }): Promise<Partial<Record<Platform, string>>> {
   const builder = appBuilder();
 
-  await refuseWhatThisMachineCannotBuild({ projectRoot, toBuild, settings });
+  await refuseWhatThisMachineCannotBuild({ projectRoot, toBuild, settings, project });
 
   const cacheDir = cacheDirFlag ?? process.env[BUILD_CACHE_ENV_VAR] ?? DEFAULT_BUILD_CACHE;
   const builtPaths: Partial<Record<Platform, string>> = {};
@@ -85,38 +97,40 @@ export async function buildApps({
 
     const cached = await builder.findCachedBuild({ platform, cacheKey, cacheDir });
     if (cached) {
-      emit({ kind: 'app-build-cached', platform, ...whyThisBuild });
+      emit({ kind: 'app-build-cached', platform, command, ...whyThisBuild });
       builtPaths[platform] = cached;
       continue;
     }
 
+    // Each long step shows while it runs: a spinner in a terminal, one plain line in a log
+    // (../../shared/terminal). The spinner is stopped before the step's own line prints.
     if (needsGeneratedNativeFolder(projectRoot, platform)) {
-      emit({ kind: 'app-build-generating', platform });
-      await builder.generateNativeFolder({ platform, projectRoot, env: settings.env ?? {} });
+      await whileShowing({ kind: 'app-build-generating', platform }, () =>
+        builder.generateNativeFolder({ platform, projectRoot, env: settings.env ?? {} })
+      );
     }
 
     const logPath = buildLogPath(platform);
-    emit({ kind: 'app-build-compiling', platform });
-
     const platformSettings = settings[platform] ?? {};
-    const compiled = await builder.compile({
-      platform,
-      projectRoot,
-      env: settings.env ?? {},
-      logPath,
-      ...(platform === 'android' ? { androidTask: platformSettings.task ?? DEFAULT_ANDROID_TASK } : {}),
-      ...(platform === 'ios'
-        ? {
-            ios: {
-              scheme: await iosSchemeOf(projectRoot, settings),
-              configuration: platformSettings.configuration ?? 'Release',
-            },
-          }
-        : {}),
-      ...(platformSettings.command && platformSettings.output
-        ? { custom: { command: platformSettings.command, output: platformSettings.output } }
-        : {}),
-    });
+    // Asked before the compile is shown: a workspace with several schemes is refused, not compiled.
+    const iosScheme =
+      platform === 'ios' ? await iosSchemeOf(projectRoot, settings, project) : undefined;
+
+    const compiled = await whileShowing({ kind: 'app-build-compiling', platform }, () =>
+      builder.compile({
+        platform,
+        projectRoot,
+        env: settings.env ?? {},
+        logPath,
+        ...(platform === 'android' ? { androidTask: platformSettings.task ?? DEFAULT_ANDROID_TASK } : {}),
+        ...(iosScheme !== undefined
+          ? { ios: { scheme: iosScheme, configuration: platformSettings.configuration ?? 'Release' } }
+          : {}),
+        ...(platformSettings.command && platformSettings.output
+          ? { custom: { command: platformSettings.command, output: platformSettings.output } }
+          : {}),
+      })
+    );
 
     if (!compiled.ok) {
       emit({
@@ -126,6 +140,7 @@ export async function buildApps({
         lastLines: compiled.lastLines,
         logPath,
         command,
+        ...(project ? { project } : {}),
         ...whyThisBuild,
       });
       await reporting.flush().finally(() => process.exit(EXIT_BUILD_FAILED));
@@ -159,12 +174,15 @@ async function refuseWhatThisMachineCannotBuild({
   projectRoot,
   toBuild,
   settings,
+  project,
 }: {
   projectRoot: string;
   toBuild: PlatformToBuild[];
   settings: BuildSettings;
+  project?: SherloProject;
 }): Promise<void> {
   const builder = appBuilder();
+  const refuse = (message: string): never => refuseToBuildHere(message, project);
 
   for (const { platform } of toBuild) {
     // A project's own command builds the way the project knows; the machine is its business.
@@ -172,66 +190,74 @@ async function refuseWhatThisMachineCannotBuild({
 
     if (platform === 'ios') {
       if (builder.hostSystem() !== 'macos') {
-        throwError({
-          message:
-            "Can't build iOS here: iOS builds need macOS, and this machine runs Linux.\n" +
+        refuse(
+          "Can't build iOS here: iOS builds need macOS, and this machine runs Linux.\n" +
             'Run `npx sherlo test --platform android` here and `npx sherlo test --platform ios` on a Mac.\n' +
-            'Both jobs in the same CI run join into one Test.',
-        });
+            'Both jobs in the same CI run join into one Test.'
+        );
       }
 
       if (!(await builder.hasTool('xcode'))) {
-        throwError({
-          message:
-            "Can't build iOS: Xcode was not found.\n" +
-            'Install Xcode, then run `sudo xcode-select -s /Applications/Xcode.app`.',
-        });
+        refuse(
+          "Can't build iOS: Xcode was not found.\n" +
+            'Install Xcode, then run `sudo xcode-select -s /Applications/Xcode.app`.'
+        );
       }
 
-      await iosSchemeOf(projectRoot, settings);
+      await iosSchemeOf(projectRoot, settings, project);
     }
 
     if (platform === 'android') {
       const java = await builder.javaVersion();
       if (java === null) {
-        throwError({
-          message:
-            "Can't build Android: no Java was found.\n" +
-            'Install JDK 17 or newer, or point JAVA_HOME at one.',
-        });
+        return refuse(
+          "Can't build Android: no Java was found.\n" +
+            'Install JDK 17 or newer, or point JAVA_HOME at one.'
+        );
       }
       if (java < MINIMUM_JAVA) {
-        throwError({
-          message:
-            `Can't build Android: Java ${java} was found, and the build needs ${MINIMUM_JAVA} or newer.\n` +
-            'Point JAVA_HOME at a newer JDK.',
-        });
+        refuse(
+          `Can't build Android: Java ${java} was found, and the build needs ${MINIMUM_JAVA} or newer.\n` +
+            'Point JAVA_HOME at a newer JDK.'
+        );
       }
 
       if (!(await builder.hasTool('android-sdk'))) {
-        throwError({
-          message:
-            "Can't build Android: no Android SDK was found.\n" +
-            'Set ANDROID_HOME, or add sdk.dir to android/local.properties.',
-        });
+        refuse(
+          "Can't build Android: no Android SDK was found.\n" +
+            'Set ANDROID_HOME, or add sdk.dir to android/local.properties.'
+        );
       }
     }
   }
 }
 
+/**
+ * Refuse to build on this machine: the refusal's own words, and under them the line that points to
+ * building on CI instead (../../../render/appBuild `renderRunOnCi`), as every failure to build here
+ * ends.
+ */
+function refuseToBuildHere(message: string, project: SherloProject | undefined): never {
+  return throwError({ message, below: renderRunOnCi(project) });
+}
+
 /** The scheme an iOS build uses: the config's, the workspace's only one, or a refusal naming them. */
-async function iosSchemeOf(projectRoot: string, settings: BuildSettings): Promise<string> {
+async function iosSchemeOf(
+  projectRoot: string,
+  settings: BuildSettings,
+  project: SherloProject | undefined
+): Promise<string> {
   const named = settings.ios?.scheme;
   if (named) return named;
 
   const schemes = await appBuilder().listIosSchemes(projectRoot);
   if (schemes.length === 1) return schemes[0];
 
-  throwError({
-    message:
-      `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
+  return refuseToBuildHere(
+    `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
       `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${schemes[0] ?? 'MyApp'}" } }`,
-  });
+    project
+  );
 }
 
 /** `A and B`, `A, B and C`. */

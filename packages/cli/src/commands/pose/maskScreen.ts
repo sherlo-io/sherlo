@@ -349,7 +349,10 @@ function foldBaseFingerprint(screen: string): string {
  */
 function foldWaitProgress(screen: string): string {
   const lines = screen.split('\n');
-  const header = lines.findIndex((line) => visible(line).includes('Waiting for the test to finish'));
+  // `the test` until the wait loop names it, `Test 7` after (build work): both are the same line.
+  const header = lines.findIndex((line) =>
+    /Waiting for (?:the test|Test \d+) to finish/.test(visible(line))
+  );
   if (header === -1) return screen;
 
   let afterRegion = header + 1;

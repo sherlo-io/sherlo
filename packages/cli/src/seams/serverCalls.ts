@@ -54,7 +54,19 @@ export const DRY_RUN_DECISION_UNAVAILABLE =
 /** What `openBuild` is sent, and what it answers - the sdk client's own shapes. */
 type SdkClient = ReturnType<typeof sdkClient>;
 export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
-export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>>;
+export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
+  /**
+   * Whether the project has a CI token, so a person's run can suggest running Sherlo on every pull
+   * request while it has none (operator, 2026-10-12, with epic init-for-agents). Absent means
+   * unknown, and nothing is suggested.
+   *
+   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): posed here, not sent by the service yet.
+   * init-for-agents adds `hasCiToken` to the Project type; the build task reads that field (its name
+   * and where the answer carries it to confirm with init-for-agents), and this becomes the client's
+   * own shape.
+   */
+  hasCiToken?: boolean;
+};
 /** The two questions a real push asks before it opens a build - the sdk client's own shapes. */
 export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
 export type SdkNextBuildInfoAnswer = Awaited<ReturnType<SdkClient['getNextBuildInfo']>>;
@@ -659,7 +671,12 @@ export type ScriptedCall =
       /** `pushFacts`: what the push reports about itself; a pose that states it is checked against it. */
       with: { platforms: string[]; pushFacts?: PushFacts };
       answer:
-        | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }
+        | {
+            buildIndex: number;
+            url: string;
+            captureDecision?: PosedCaptureDecision;
+            hasCiToken?: boolean;
+          }
         | ApiError;
     }
   | {
@@ -849,9 +866,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
         buildIndex: number;
         url: string;
         captureDecision?: PosedCaptureDecision;
+        hasCiToken?: boolean;
       };
 
-      return openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision);
+      return {
+        ...openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision),
+        ...(answer.hasCiToken === undefined ? {} : { hasCiToken: answer.hasCiToken }),
+      };
     },
 
     joinBuild: async ({ joinKey, platform, pushFacts }) => {

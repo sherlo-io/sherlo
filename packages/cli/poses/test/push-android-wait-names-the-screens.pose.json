@@ -79,7 +79,20 @@
       },
       "answer": {
         "buildIndex": 4,
-        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=4"
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=4",
+        "captureDecision": {
+          "platforms": {
+            "android": {
+              "full": false,
+              "storyFilePaths": [
+                "src/components/Storefront/ProductCard.stories.tsx",
+                "src/components/Storefront/Checkout.stories.tsx"
+              ],
+              "reason": "2 files changed - ProductCard.tsx, Checkout.tsx"
+            }
+          },
+          "ancestorBuildIndex": 3
+        }
       }
     },
     {

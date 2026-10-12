@@ -12,19 +12,13 @@
 
 Testing your app...
 
-[32m✔[39m Built the iOS app      stored from Test 3, only JavaScript changed since [2m(reused)[22m
-[2mBuilding the Android app with Gradle...[22m
+[32m✔[39m Reused the iOS app     from Test 3
 [32m✔[39m Built the Android app  in <DURATION>, native code changed since Test 3's app build [2m(log: .sherlo/build-android.log)[22m
 [32m✔[39m Set up Test 4          on 2 devices (Pixel 7, iPhone 15)
-[2mUploading the app build (<SIZE> MB)...[22m
-[32m✔[39m Uploaded app build
+Uploading the app build (<SIZE> MB)...
 [1m[22m
 [1m📦 Bundling for this run...[22m
 [1m[22m
-[2mBundling the JavaScript for 🤖 Android...[22m
-[32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
-[2mBundling the JavaScript for 🍎 iOS...[22m
-[32m✔[39m Uploaded JavaScript    🍎 iOS <SIZE> MB
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

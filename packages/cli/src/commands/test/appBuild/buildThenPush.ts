@@ -106,6 +106,10 @@ export async function buildThenPush({
     baseFingerprint,
     cacheDirFlag: passedOptions.buildCache,
     command: 'test',
+    project: {
+      teamId: commandParams.credential.teamId,
+      projectIndex: commandParams.credential.projectIndex,
+    },
   });
 
   // THE STANDARD ROAD, ON THE BUILDS JUST MADE: the same validation and the same push spine a

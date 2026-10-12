@@ -4,8 +4,8 @@
  * A run's JS bundle reaches the runner through the staged S3 slots
  * (getStagedUploadUrls - never getBuildUploadUrls, which hands out slots for
  * native binaries), and the runner learns where it landed from a handful of
- * fields on the platform's build config. Both roads bundle the same way, upload
- * the same way and describe the upload the same way, so those two steps live
+ * fields on the platform's build config. Both roads bundle the same way and upload
+ * the same way, so those two steps live
  * here ONCE:
  *
  *   - {@link uploadBundles}: request one staged slot set per platform and PUT
@@ -22,7 +22,6 @@
  */
 import { Platform, StagedPlatformUploadUrls } from '@sherlo/api-types';
 import { handleClientError, reporting } from '../../helpers';
-import { emit } from '../../helpers/transcriptSink';
 import { nativeBuild } from '../../seams/nativeBuild';
 import { serverCalls } from '../../seams/serverCalls';
 import type { BundleResult } from './buildBundle';
@@ -114,11 +113,8 @@ export async function uploadBundles({
     keys[platform] = await effects.uploadBundle({ platform, bundleResult, urls });
   }
 
-  // One step for every bundle this run sent, once they are all up.
-  const bundleSizesMb: Partial<Record<Platform, number>> = {};
-  for (const platform of platformsToTest) bundleSizesMb[platform] = bundles[platform]?.bundleSizeMb;
-  emit({ kind: 'javascript-uploaded', bundleSizesMb });
-
+  // No line of its own: bundling and uploading are one wait, and the step a person reads is the
+  // test it starts.
   return keys;
 }
 

@@ -14,6 +14,7 @@ Testing your app...
 
 [31mERROR: Can't pick an iOS scheme: the workspace has Storefront and StorefrontStaging.[39m
 [31mName one in sherlo.config.json: "build": { "ios": { "scheme": "Storefront" } }[39m
+Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
 
 [2m──────────[22m
 

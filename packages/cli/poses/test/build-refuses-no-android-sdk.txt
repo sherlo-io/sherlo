@@ -14,6 +14,7 @@ Testing your app...
 
 [31mERROR: Can't build Android: no Android SDK was found.[39m
 [31mSet ANDROID_HOME, or add sdk.dir to android/local.properties.[39m
+Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
 
 [2m──────────[22m
 

@@ -41,6 +41,7 @@ import { emit } from '../../../helpers/transcriptSink';
 import { serverCalls } from '../../../seams/serverCalls';
 import { appBuilder } from '../../../seams/appBuilder';
 import type { CommandParams } from '../../../types';
+import { whileShowing } from '../../shared/terminal';
 import { createSherloTempDirectory } from '../../testEasCloudBuild/helpers';
 import { closeTheRun } from '../closeTheRun';
 import type { THIS_COMMAND } from '../constants';
@@ -95,12 +96,15 @@ export async function easRun({
   // and each build reads which run it belongs to out of this file.
   createSherloTempDirectory({ projectRoot: commandParams.projectRoot, buildIndex, token, profile });
 
-  for (const platform of platforms) {
-    await appBuilder().startEasBuild({ platform, profile, projectRoot: commandParams.projectRoot });
-    emit({ kind: 'eas-build-queued', platform, profile });
-  }
+  // One act, one line: every EAS build starts with the same profile, so the step is said once for all.
+  await whileShowing({ kind: 'eas-builds-starting', platforms }, async () => {
+    for (const platform of platforms) {
+      await appBuilder().startEasBuild({ platform, profile, projectRoot: commandParams.projectRoot });
+    }
+  });
+  emit({ kind: 'eas-builds-started', platforms, profile });
 
-  emit({ kind: 'run-waits-for-builds', buildIndex, waitingFor: { easBuilds: true } });
+  emit({ kind: 'run-waits-for-builds', buildIndex, waitingFor: { easBuilds: platforms } });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 

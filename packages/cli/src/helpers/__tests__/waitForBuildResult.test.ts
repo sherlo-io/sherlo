@@ -208,7 +208,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       // Pinned inline (epic sherlo-test-builds-apps): the snapshot file beside this test is build
       // work to delete, outside what plan may edit.
       expect(printed).toBe(
-        '\n✔ Finished the test      no device ran, nothing needed capturing\n'
+        '\n✔ Finished the test      nothing to capture: no change reaches any story\n'
       );
 
       // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
@@ -244,10 +244,10 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      // The finished step, in init's grammar; the server's reason is no longer printed (content
-      // department, 2026-10-12).
+      // The finished step, in init's grammar, with the server's own reason after "nothing to
+      // capture" (the capture plan's one line, operator ruling 2026-10-12).
       expect(printed).toContain('Finished the test');
-      expect(printed).toContain('no device ran, nothing needed capturing');
+      expect(printed).toContain('nothing to capture: no change reaches any story');
       expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');
     });
@@ -278,10 +278,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await vi.runAllTimersAsync();
       await promise;
 
-      // The reason picked is no longer printed; the bypassed closer is, and the other platform's
-      // prose never is.
+      // The android reason is the one printed; the other platform's prose never is.
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('no device ran, nothing needed capturing');
+      expect(printed).toContain('nothing to capture: no change reaches any story');
       expect(printed).not.toContain('ios: nothing to capture');
     });
 
@@ -306,7 +305,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await promise;
 
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('no device ran, nothing needed capturing');
+      expect(printed).toContain('nothing to capture: no change reaches any story');
     });
 
     it('falls back to the generic green message when diffScopeInfo is absent', async () => {

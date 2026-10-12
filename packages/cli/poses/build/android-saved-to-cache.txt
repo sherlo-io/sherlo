@@ -12,7 +12,6 @@
 
 Building your app...
 
-[2mBuilding the Android app with Gradle...[22m
 [32m✔[39m Built the Android app  in <DURATION>, kept in the local build cache [2m(log: .sherlo/build-android.log)[22m
 
 
