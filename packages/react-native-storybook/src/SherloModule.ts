@@ -82,6 +82,10 @@ type SherloModule = {
    * getConfigOrDefault()'s answer, the same values the SDK already falls back to.
    */
   openTesting: (storyId: string | undefined, config: Config) => void;
+  /** Start the app's JavaScript again in the same process; the connection stays open. */
+  reloadJavaScript: () => void;
+  /** The memory the app's process uses, in MB, or null when native code cannot measure it. */
+  getMemoryMb: () => Promise<number | null>;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
@@ -232,6 +236,16 @@ function createSherloModule(): SherloModule {
     // to keep in sync between the JS side and the generated native one.
     openTesting: (storyId: string | undefined, config: Config) =>
       module.openTesting(storyId ?? '', JSON.stringify(config)),
+    // A native build from before the connection has neither call: it cannot reload, and it
+    // measures nothing.
+    reloadJavaScript: () => {
+      if (typeof module.reloadJavaScript === 'function') module.reloadJavaScript();
+    },
+    getMemoryMb: async () => {
+      if (typeof module.getMemoryMb !== 'function') return null;
+      const memoryMb = await module.getMemoryMb();
+      return memoryMb < 0 ? null : memoryMb;
+    },
     isScrollable: () => module.isScrollable(),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
       module.scrollToCheckpoint(index, offset, maxIndex),
@@ -277,6 +291,8 @@ function createDummySherloModule(): SherloModule {
     openStorybook: () => {},
     toggleStorybook: () => {},
     openTesting: () => {},
+    reloadJavaScript: () => {},
+    getMemoryMb: async () => null,
     awaitFrameCommit: async () => false,
     isScrollable: async () => ({ scrollable: false }),
     scrollToCheckpoint: async () => ({

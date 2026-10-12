@@ -86,7 +86,7 @@ export function startOpenStoryChannel({
   if (!road) return;
 
   const startTheCore = () =>
-    core.startOpenStoryChannel({ view, channel, atTheStoryBrowser, letterbox: road });
+    core.startOpenStoryChannel({ channel, atTheStoryBrowser, letterbox: road });
 
   if (!atTheStoryBrowser || view._preview?.currentSelection) {
     startTheCore();

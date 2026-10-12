@@ -157,6 +157,7 @@ describe('testing mode with no config on disk still returns a storybook, and sti
     // Still answers a capture: the transport that waits on the bundler's capture address started,
     // and did not get torn down under the config read that follows it.
     expect(mockStartCaptureTransport).toHaveBeenCalledTimes(1);
-    expect(mockStartCaptureTransport).toHaveBeenCalledWith(expect.objectContaining({ view }));
+    const storybooksChannel = (view as unknown as { _channel: unknown })._channel;
+    expect(mockStartCaptureTransport).toHaveBeenCalledWith({ channel: storybooksChannel });
   });
 });

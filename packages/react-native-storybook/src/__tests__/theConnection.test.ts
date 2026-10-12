@@ -2,7 +2,9 @@ import { describe, it } from 'vitest';
 
 // Shells written in plan (epic runner-without-files); task rwf-sdk-app-line-js fills them.
 describe('the connection', () => {
-  it.todo('the JavaScript sends and receives through the native client and opens no socket of its own');
+  it.todo(
+    'the JavaScript sends and receives through the native client and opens no socket of its own'
+  );
   it.todo("a bundle served by a bundler dials that bundler's own Sherlo address");
   it.todo('a bundle loaded from the device with no address handed at launch opens no connection');
   it.todo(

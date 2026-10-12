@@ -48,7 +48,6 @@ function TestingMode({
   });
 
   useTestAllStories({
-    view,
     metadataProviderRef,
   });
   const uiSettings = nextSnapshot

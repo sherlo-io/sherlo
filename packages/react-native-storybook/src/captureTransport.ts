@@ -15,7 +15,6 @@ import { bundlerOrigin } from './bundlerOrigin';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import { sherloFetch } from './mocking/network';
 import type { CaptureInstruction, CaptureTransport, StorybookChannel } from './sealedCore/seam';
-import type { StorybookView } from './types';
 
 /** The one address Sherlo adds to the bundler; the other half of it is metro/captureSocket.js. */
 const CAPTURE_PATH = '/sherlo/capture';
@@ -37,11 +36,9 @@ const HOLD_TIMEOUT_MS = 25000;
  * nothing starts either.
  */
 export function startCaptureTransport({
-  view,
   channel,
   capture,
 }: {
-  view: StorybookView;
   channel: StorybookChannel | null;
   capture?: CaptureTransport | null;
 }): void {
@@ -52,7 +49,7 @@ export function startCaptureTransport({
   const road = capture === undefined ? bundlerCapture() : capture;
   if (!road) return;
 
-  core.startCaptureTransport({ view, channel, capture: road });
+  core.startCaptureTransport({ channel, capture: road });
 }
 
 /** Stop waiting. The request already in flight is left to finish and its answer dropped. */

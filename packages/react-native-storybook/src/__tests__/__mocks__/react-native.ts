@@ -108,7 +108,7 @@ export function __resetSealedCoreNative(): void {
 }
 
 function defaultLoadCore(): string {
-  return nativePickOf(fakeSealedCoreSource(1));
+  return nativePickOf(fakeSealedCoreSource(2));
 }
 
 export const NativeModules: Record<string, any> = {
