@@ -35,7 +35,7 @@ async function init(options: Options<THIS_COMMAND>) {
     const person = await logIn();
     // BUILD DEBT (init-for-agents): `--team` joins init's options type in ../../types.
     const teamFlag = (options as { [TEAM_OPTION]?: string })[TEAM_OPTION];
-    const { projectId, projectPageUrl } = await teamAndProject(person, {
+    const { projectId } = await teamAndProject(person, {
       teamFlag,
       projectFlag: options[PROJECT_OPTION],
     });
@@ -48,7 +48,7 @@ async function init(options: Options<THIS_COMMAND>) {
     await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
     await metroConfig(sessionId);
-    const { hasWorkflow } = await githubWorkflow();
+    await githubWorkflow();
 
     const storybookState = installedNow
       ? 'installed'
@@ -61,8 +61,6 @@ async function init(options: Options<THIS_COMMAND>) {
       renderNextSteps({
         storybook: storybookState,
         storybookVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ?? undefined,
-        addedGithubWorkflow: hasWorkflow,
-        projectPageUrl,
       })
     );
     printLines(renderFeedbackLine({ reader }));
