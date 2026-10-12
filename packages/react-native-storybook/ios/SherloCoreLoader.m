@@ -1,16 +1,17 @@
 #import "SherloCoreLoader.h"
-#import "FileSystemHelper.h"
 #import <Security/Security.h>
 
 static NSString *const LOG_TAG = @"SherloModule:SherloCoreLoader";
 
-static NSString *const CORE_FILE = @"sherlo-core.js";
-static NSString *const SIGNATURE_FILE = @"sherlo-core.js.sig";
 static NSString *const HEADER_PREFIX = @"// sherlo-core ";
 
-// The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in src/sealedCore/loadSealedCore.ts). A core in
-// the storage folder whose header names another seam is never run.
+// The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in src/sealedCore/loadSealedCore.ts). A sent core
+// whose header names another seam is never run.
 static const NSInteger SUPPORTED_SEAM = 2;
+
+// The core the runner sent in its `config`, and its signature; nil until one is sent.
+static NSString *sentCoreSource = nil;
+static NSString *sentCoreSignature = nil;
 
 // THE TEST PUBLIC KEY: PKCS#1 RSAPublicKey DER, base64. Its private half is kept nowhere, so a
 // local pack refuses every override core. A release refuses this key and stamps in Sherlo's real
@@ -20,10 +21,17 @@ static NSString *const SHERLO_CORE_TEST_PUBLIC_KEY =
 
 @implementation SherloCoreLoader
 
++ (void)keepSentCore:(NSString *)source signature:(NSString *)signature {
+  @synchronized(self) {
+    sentCoreSource = [source copy];
+    sentCoreSignature = [signature copy];
+  }
+}
+
 + (NSString *)loadCoreJson {
   NSString *refusal = nil;
   NSString *origin = @"override";
-  NSString *source = [self readOverrideOrRefusal:&refusal];
+  NSString *source = [self sentCoreOrRefusal:&refusal];
 
   if (!source) {
     origin = @"shipped";
@@ -49,30 +57,30 @@ static NSString *const SHERLO_CORE_TEST_PUBLIC_KEY =
   return [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
 }
 
-/** The override core's source, or nil, with why it was refused (no reason: there was none). */
-+ (NSString *)readOverrideOrRefusal:(NSString **)refusal {
-  FileSystemHelper *fileSystemHelper = [[FileSystemHelper alloc] init];
-  NSData *core = [NSData dataWithContentsOfFile:[fileSystemHelper getFileUri:CORE_FILE]];
-  if (!core) return nil;
+/** The sent core's source, or nil, with why it was refused (no reason: none was sent). */
++ (NSString *)sentCoreOrRefusal:(NSString **)refusal {
+  NSString *source;
+  NSString *signatureText;
+  @synchronized(self) {
+    source = sentCoreSource;
+    signatureText = sentCoreSignature;
+  }
+  if (!source) return nil;
 
-  NSString *signatureText = [NSString stringWithContentsOfFile:[fileSystemHelper getFileUri:SIGNATURE_FILE]
-                                                      encoding:NSUTF8StringEncoding
-                                                         error:nil];
   NSString *trimmedSignature = [signatureText stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-  NSData *signature = trimmedSignature ? [[NSData alloc] initWithBase64EncodedString:trimmedSignature options:0] : nil;
+  NSData *signature = trimmedSignature.length > 0 ? [[NSData alloc] initWithBase64EncodedString:trimmedSignature options:0] : nil;
   if (!signature) {
-    *refusal = @"the core in the storage folder has no signature";
+    *refusal = @"the core the runner sent has no signature";
     return nil;
   }
-  if (![self isSignedBySherlo:core signature:signature]) {
-    *refusal = @"the core in the storage folder is not signed by Sherlo";
+  if (![self isSignedBySherlo:[source dataUsingEncoding:NSUTF8StringEncoding] signature:signature]) {
+    *refusal = @"the core the runner sent is not signed by Sherlo";
     return nil;
   }
 
-  NSString *source = [[NSString alloc] initWithData:core encoding:NSUTF8StringEncoding];
   NSNumber *seam = [self headerOf:source][@"seam"];
   if (![seam isKindOfClass:[NSNumber class]] || seam.integerValue != SUPPORTED_SEAM) {
-    *refusal = [NSString stringWithFormat:@"the core in the storage folder speaks seam %@, this SDK speaks %ld",
+    *refusal = [NSString stringWithFormat:@"the core the runner sent speaks seam %@, this SDK speaks %ld",
                                           seam ?: @"none", (long)SUPPORTED_SEAM];
     return nil;
   }
