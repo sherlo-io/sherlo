@@ -27,6 +27,7 @@
     "directory": "packages/cli"
   },
   "main": "dist/index.js",
+  "types": "dist/cli/src/index.d.ts",
   "bin": "./cli.js",
   "files": [
     "dist",
