@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["SpikeNetModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.spikenet.SpikeNetModule"]
+  }
+}

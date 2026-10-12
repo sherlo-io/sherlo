@@ -1,0 +1,9 @@
+{
+  "name": "spike-net",
+  "version": "0.1.0",
+  "description": "Spike release-connection: native WebSocket clients",
+  "license": "MIT",
+  "author": "sherlo",
+  "homepage": "https://sherlo.io",
+  "main": "index.ts"
+}
