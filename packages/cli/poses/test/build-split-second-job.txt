@@ -10,7 +10,7 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-🔨 [1miOS[22m needs a new app build: native code changed since the stored one
+🔨 [1miOS[22m needs a new app build: native code changed since the stored app build
 [34m➜[39m  building with Xcode... [2m(log: .sherlo/build-ios.log)[22m
 [32m✔[39m  iOS built in <DURATION> (<SIZE> MB)
 

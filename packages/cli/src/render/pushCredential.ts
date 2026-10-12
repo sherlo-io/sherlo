@@ -22,8 +22,8 @@ export function renderTokenGone(command: string): { message: string; below: stri
   return {
     message: `\`npx sherlo ${command}\` no longer takes a token in \`--token\` or in sherlo.config.json.`,
     below: [
-      'In CI, set the project token as SHERLO_TOKEN instead.',
-      'On your own computer, run `npx sherlo login` instead.',
+      'In CI, set the project token in the SHERLO_TOKEN environment variable.',
+      'On your own computer, run `npx sherlo login`.',
     ].join('\n'),
   };
 }

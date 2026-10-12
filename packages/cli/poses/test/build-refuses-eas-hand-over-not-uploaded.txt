@@ -11,9 +11,8 @@
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
 [31mERROR: Can't build on EAS: EAS would leave .sherlo/data.json out of the project it uploads.[39m
-[31mSherlo writes the run's hand-over file there, and .gitignore ignores it with the line ".sherlo/".[39m
-[31mEAS reads .easignore instead of .gitignore when there is one, so add one at the root of your git repository:[39m
-[31mcopy .gitignore to .easignore, then remove the line ".sherlo/" from it.[39m
+[31mSherlo writes a data file there for each run, and .gitignore ignores it with the line ".sherlo/".[39m
+[31mEAS reads .easignore instead of .gitignore when there is one. At the root of your git repository, copy .gitignore to .easignore, then remove the line ".sherlo/" from the copy.[39m
 
 [2m══════════[22m
 [2m[22m

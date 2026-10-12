@@ -133,7 +133,7 @@ function refuseNoCredential(): never {
   throwError({
     type: 'auth',
     message:
-      'There is no credential to push with.\n' +
+      'No token or login found to run the test with.\n' +
       `  On your own computer, run \`npx sherlo ${LOGIN_COMMAND}\`.\n` +
       `  In CI, set the project token as ${PROJECT_TOKEN_ENV_VAR}.`,
   });

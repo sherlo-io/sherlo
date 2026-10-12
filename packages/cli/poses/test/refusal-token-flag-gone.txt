@@ -1,6 +1,6 @@
 [31mERROR: `npx sherlo test` no longer takes a token in `--token` or in sherlo.config.json.[39m
-In CI, set the project token as SHERLO_TOKEN instead.
-On your own computer, run `npx sherlo login` instead.
+In CI, set the project token in the SHERLO_TOKEN environment variable.
+On your own computer, run `npx sherlo login`.
 
 [2m══════════[22m
 [2m[22m

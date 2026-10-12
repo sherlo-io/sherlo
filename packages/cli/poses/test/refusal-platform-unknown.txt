@@ -1,5 +1,5 @@
-[31mERROR: `--platform` takes android or ios, and was given `both`.[39m
-Leave `--platform` out to do both platforms in one job.
+[31mERROR: `--platform` takes `android` or `ios`, not `both`.[39m
+Leave `--platform` out to test both platforms in one job.
 
 [2m══════════[22m
 [2m[22m

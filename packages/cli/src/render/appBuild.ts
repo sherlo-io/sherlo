@@ -84,7 +84,7 @@ export function renderAppBuildNeeded(
   const why =
     reason === 'nothing-stored'
       ? 'none is stored for this project yet'
-      : 'native code changed since the stored one';
+      : 'native code changed since the stored app build';
   return [`${head} ${why}`];
 }
 
@@ -239,13 +239,12 @@ export function renderRunWaitsForBuilds(buildIndex: number, waitingFor: RunWaits
 export function renderBinaryPathFlagGone(): { message: string; below: string } {
   return {
     message:
-      '`npx sherlo test` builds your app itself, so it no longer takes --android or --ios, ' +
-      'or `android` / `ios` paths in sherlo.config.json.',
+      '`npx sherlo test` builds your app itself, so it no longer takes `--android` or `--ios`, ' +
+      'or `android` and `ios` paths in sherlo.config.json.',
     below: [
-      'To test, run `npx sherlo test` with no paths.',
-      'To build ahead of time, run `npx sherlo build` - the next `npx sherlo test` takes the app ' +
+      'To build ahead of time, run `npx sherlo build`. The next `npx sherlo test` uses the app ' +
         'from the local build cache.',
-      "For a build Gradle or Xcode can't do on their own, set `build.android.command` and " +
+      "If Gradle or Xcode can't build your app on their own, set `build.android.command` and " +
         '`build.android.output` (or the `ios` ones) in sherlo.config.json.',
     ].join('\n'),
   };
@@ -258,13 +257,13 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
  */
 export function renderPlatformUnknown(givenPlatform: string): { message: string; below: string } {
   return {
-    message: `\`--platform\` takes android or ios, and was given \`${givenPlatform}\`.`,
-    below: 'Leave `--platform` out to do both platforms in one job.',
+    message: `\`--platform\` takes \`android\` or \`ios\`, not \`${givenPlatform}\`.`,
+    below: 'Leave `--platform` out to test both platforms in one job.',
   };
 }
 
 /**
- * `✔  Nothing to test on iOS: sherlo.config.json names no iOS device, so no test waits for this job`.
+ * `✔  Nothing to test on iOS: sherlo.config.json lists no iOS device, so this job has nothing to run`.
  *
  * The one line a `--platform` job prints when the config tests nothing on its platform - the Mac
  * job of an Android-only team running the one workflow every team gets. It exits 0 and joins no
@@ -272,8 +271,8 @@ export function renderPlatformUnknown(givenPlatform: string): { message: string;
  */
 export function renderPlatformNotInConfig(platform: Platform): string {
   return renderBuildMessageLine(
-    `Nothing to test on ${PLATFORM_NAME[platform]}: sherlo.config.json names no ` +
-      `${PLATFORM_NAME[platform]} device, so no test waits for this job`,
+    `Nothing to test on ${PLATFORM_NAME[platform]}: sherlo.config.json lists no ` +
+      `${PLATFORM_NAME[platform]} device, so this job has nothing to run`,
     'success'
   );
 }

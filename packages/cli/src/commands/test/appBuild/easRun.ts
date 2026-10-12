@@ -150,7 +150,9 @@ function refuseWithoutTheHookScripts(projectRoot: string): void {
   throwError({
     message:
       `Can't build on EAS: package.json has no ${named} script.\n` +
-      `EAS builds report to Sherlo through ${missingScripts.length === 1 ? 'it' : 'them'}. Add to "scripts":\n` +
+      (missingScripts.length === 1
+        ? 'EAS builds report back to Sherlo through this script. Add it to "scripts":\n'
+        : 'EAS builds report back to Sherlo through these scripts. Add them to "scripts":\n') +
       lines,
   });
 }

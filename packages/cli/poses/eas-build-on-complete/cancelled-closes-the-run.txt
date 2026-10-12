@@ -10,9 +10,8 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mERROR: Sherlo test can't be executed - the EAS build was cancelled[39m
-[31m[39m
-[31mThe test has been marked as errored in Sherlo web app[39m
+[31mERROR: The EAS build was canceled, so the test can't run.[39m
+[31mSherlo marked Test 1 as errored in the web app.[39m
 
 [2m══════════[22m
 [2m[22m

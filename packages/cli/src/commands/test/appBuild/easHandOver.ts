@@ -47,7 +47,7 @@ export function refuseWhenEasLeavesTheHandOverOut(projectRoot: string): void {
     throwError({
       message:
         `Can't build on EAS: EAS would leave ${HAND_OVER_FILE} out of the project it uploads.\n` +
-        `Sherlo writes the run's hand-over file there, and ${EAS_IGNORE_FILE} leaves it out with the line "${line}".\n` +
+        `Sherlo writes a data file there for each run, and ${EAS_IGNORE_FILE} leaves it out with the line "${line}".\n` +
         `Remove that line from ${EAS_IGNORE_FILE}.`,
     });
   }
@@ -59,9 +59,8 @@ export function refuseWhenEasLeavesTheHandOverOut(projectRoot: string): void {
     throwError({
       message:
         `Can't build on EAS: EAS would leave ${HAND_OVER_FILE} out of the project it uploads.\n` +
-        `Sherlo writes the run's hand-over file there, and ${gitIgnore.file} ignores it with the line "${line}".\n` +
-        `EAS reads ${EAS_IGNORE_FILE} instead of ${GIT_IGNORE_FILE} when there is one, so add one at the root of your git repository:\n` +
-        `copy ${GIT_IGNORE_FILE} to ${EAS_IGNORE_FILE}, then remove the line "${line}" from it.`,
+        `Sherlo writes a data file there for each run, and ${gitIgnore.file} ignores it with the line "${line}".\n` +
+        `EAS reads ${EAS_IGNORE_FILE} instead of ${GIT_IGNORE_FILE} when there is one. At the root of your git repository, copy ${GIT_IGNORE_FILE} to ${EAS_IGNORE_FILE}, then remove the line "${line}" from the copy.`,
     });
   }
 }
@@ -80,8 +79,8 @@ function refuseWhenEasUploadsOnlyCommittedFiles(projectRoot: string): void {
   throwError({
     message:
       'Can\'t build on EAS: eas.json sets "requireCommit": true, so EAS uploads only committed files.\n' +
-      `Sherlo writes the run's hand-over file, ${HAND_OVER_FILE}, just before the builds start, so it is never committed.\n` +
-      'Remove "requireCommit" from "cli" in eas.json.',
+      `Sherlo writes ${HAND_OVER_FILE} for each run just before the builds start, so it is never committed.\n` +
+      'Remove "requireCommit" from the "cli" section of eas.json.',
   });
 }
 

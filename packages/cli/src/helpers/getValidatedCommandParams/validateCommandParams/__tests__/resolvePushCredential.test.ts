@@ -107,7 +107,7 @@ describe('which credential a push spends', () => {
     for (const blank of ['', '   ']) {
       const refusal = refusalIn({ env: { SHERLO_TOKEN: blank } });
 
-      expect(refusal).toContain('There is no credential to push with.');
+      expect(refusal).toContain('No token or login found to run the test with.');
       expect(refusal).not.toContain('Invalid SHERLO_TOKEN value');
 
       // And the login, next in line, is spent instead of it.
@@ -136,7 +136,7 @@ describe('what is refused about the credential', () => {
 
   it('refuses a push with no credential at all, naming sherlo login and SHERLO_TOKEN', () => {
     expect(refusalIn({ config: { project: CONFIG_PROJECT } })).toContain(
-      'AUTH ERROR: There is no credential to push with.\n' +
+      'AUTH ERROR: No token or login found to run the test with.\n' +
         '  On your own computer, run `npx sherlo login`.\n' +
         '  In CI, set the project token as SHERLO_TOKEN.'
     );
