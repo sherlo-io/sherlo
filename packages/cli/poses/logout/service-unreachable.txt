@@ -1,5 +1,5 @@
 [31mERROR: Deleted the login of anna@example.com from this computer, but Sherlo could not be reached to end it there.[39m
-[31m  It ends by itself after 90 days unused.[39m
+  It ends by itself after 90 days unused.
 
 [2m──────────[22m
 

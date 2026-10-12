@@ -205,14 +205,13 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      // Pinned inline (epic sherlo-test-builds-apps): the snapshot file beside this test is build
-      // work to delete, outside what plan may edit.
+      // One finished step, naming the test, directly under the steps above it.
       expect(printed).toBe(
-        '\n✔ Finished the test      nothing to capture: no change reaches any story\n'
+        `✔ Finished Test ${BUILD_INDEX}        nothing to capture: no change reaches any story`
       );
 
       // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
-      expect(printed).not.toContain('Waiting for the test to finish');
+      expect(printed).not.toContain('Waiting for');
       expect(printed).not.toContain('   Finished');
       expect(printed).not.toContain('http'); // neither a review nor a build URL
     });
@@ -246,7 +245,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const printed = printedOutput(logSpy);
       // The finished step, in init's grammar, with the server's own reason after "nothing to
       // capture" (the capture plan's one line, operator ruling 2026-10-12).
-      expect(printed).toContain('Finished the test');
+      expect(printed).toContain(`Finished Test ${BUILD_INDEX}`);
       expect(printed).toContain('nothing to capture: no change reaches any story');
       expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');
@@ -1195,7 +1194,7 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
 
     expect(await erroredPromise).toBe(EXIT_ERROR);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(countPrinted(erroredLog, 'The test ended as "error".')).toBe(1);
+    expect(countPrinted(erroredLog, `Test ${BUILD_INDEX} ended as "error".`)).toBe(1);
     erroredLog.mockRestore();
 
     mockFetch.mockReset();
@@ -1214,7 +1213,7 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
 
     expect(await canceledPromise).toBe(EXIT_ERROR);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(countPrinted(canceledLog, 'The test ended as "canceled".')).toBe(1);
+    expect(countPrinted(canceledLog, `Test ${BUILD_INDEX} ended as "canceled".`)).toBe(1);
     canceledLog.mockRestore();
   });
 

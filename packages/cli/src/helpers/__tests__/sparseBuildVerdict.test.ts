@@ -72,8 +72,11 @@ async function runWaitLoop(build: BuildStatus): Promise<{ exitCode: number; stdo
   return { exitCode, stdout: captured.stdout };
 }
 
-/** The two lines every run of the above starts with, before any closer. */
-const WAIT_PREAMBLE = 'Waiting for the test to finish (up to 45 min)...\n   Finished\n';
+/**
+ * The two lines every run of the above starts with, before any closer: the wait's plain line (a
+ * capture is not a terminal) and the finished step - with no time, as `sherlo view` waits.
+ */
+const WAIT_PREAMBLE = 'Waiting for Test 1 to finish (up to 45 min)...\n✔ Finished Test 1\n';
 
 /**
  * A verdict section (init's grammar): a blank line, the title, its underline, then - when it has

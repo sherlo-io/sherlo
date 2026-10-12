@@ -1,6 +1,6 @@
 import { REJECTED_LOGIN_MESSAGE } from '../commands/shared/refuseRejectedLogin';
-import type { BuildDetailsGitFacts } from '../render/buildView';
-import { buildDetailsOf } from './buildDetails';
+import { printsToATerminal, whileShowing } from '../commands/shared/terminal';
+import type { TranscriptSegment } from '../render/segments';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
@@ -36,6 +36,9 @@ const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
  */
 const SETTLE_CONFIRM_MS = 3_000;
 
+/** The run statuses a test ends in - the ones {@link decideTerminalState} can close on. */
+const RUN_STATUSES_THAT_END_A_TEST = new Set(['finished', 'error', 'canceled']);
+
 /**
  * The `getBuildStatus` wire shape and its one read live in ./buildStatusRequest now - the seam
  * that lets a pose answer these reads has to import them without importing this loop. Re-exported
@@ -51,7 +54,7 @@ async function waitForBuildResult({
   teamId,
   waitTimeoutMinutes,
   serverBypassed = false,
-  metadata,
+  sawTheTestStart = false,
   // THE CLOCK IS THE SURROUNDINGS' - the wall clock on a live run, the pose's instants on a posed
   // one (../seams/surroundings) - and it is read lazily so a seam installed after this module
   // loaded is still the one consulted.
@@ -87,19 +90,11 @@ async function waitForBuildResult({
    */
   serverBypassed?: boolean;
   /**
-   * `--metadata`: print the `── details ──` block after the terminal closer.
-   *
-   * PRESENCE IS THE REQUEST. `undefined` prints no block at all; `{}` prints one
-   * carrying only what the poll answer itself knows. The block is emitted ONLY
-   * for a build that reached a terminal state - a deadline, a Ctrl-C and a
-   * refused credential end the wait with no build to describe, and a details
-   * block about a build nobody looked at would be worse than none.
-   *
-   * `git` is the one fact the poll cannot serve: `getBuildStatus` does not
-   * return the build's git info. A caller that OPENED this build composed that
-   * info itself and hands it over here; `sherlo view` cannot, and passes `{}`.
+   * The caller started this test just before the wait (`sherlo test --wait`), so the time the wait
+   * took is how long the test ran, and the finished step says it: `✔ Finished Test 14  in 3m 5s`.
+   * `sherlo view <n> --wait` did not see the test start, and its finished step says no time.
    */
-  metadata?: { git?: BuildDetailsGitFacts };
+  sawTheTestStart?: boolean;
   /**
    * The ONE effect this loop performs, injectable so a caller can supply the
    * answers instead of the network.
@@ -136,10 +131,70 @@ async function waitForBuildResult({
   }
 
   const timeoutMinutes = waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES;
+  const testIndex = buildIndex;
 
-  if (!serverBypassed) {
-    emit({ kind: 'wait-header', timeoutMinutes });
+  // A server-bypassed build is already closed, so there is nothing to show a wait for: the one
+  // read below returns at once. Every other wait is a step in progress - a spinner in a person's
+  // terminal, one plain line in a log (../commands/shared/terminal) - and how it ended prints after
+  // the spinner has gone.
+  const pollTheTest = () =>
+    pollUntilTheWaitEnds({ poll, now, startTime, deadline, serverBypassed, fromSavedLogin });
+  const ending = serverBypassed
+    ? await pollTheTest()
+    : await whileShowing({ kind: 'wait-header', timeoutMinutes, testIndex }, pollTheTest);
+
+  switch (ending.kind) {
+    case 'interrupted':
+      emit({ kind: 'wait-interrupted', testIndex });
+      return EXIT_SIGINT;
+
+    case 'timed-out':
+      emit({ kind: 'wait-timed-out', timeoutMinutes, testIndex });
+      return EXIT_TIMEOUT;
+
+    case 'login-refused':
+      emit({ kind: 'blank-line' });
+      emit({ kind: 'wait-auth-failed', message: ending.message });
+      emit({ kind: 'blank-line' });
+      return EXIT_ERROR;
+
+    case 'closed':
+      // THE ONE PLACE THE CLOSER PRINTS, at most once per build: every earlier read of a finished
+      // build still settling its stories[] decided and moved on without printing anything.
+      printTerminalCloser(ending.build, {
+        testIndex,
+        secondsItRan: sawTheTestStart ? ending.secondsItRan : undefined,
+      });
+      return ending.exitCode;
   }
+}
+
+/**
+ * Poll until the wait ends - the build closed, the deadline passed, Ctrl-C, or a refused
+ * credential - and say how, printing nothing but the progress lines a log keeps. In a person's
+ * terminal those lines would break the spinner, and the spinner's own words carry the wait; a log
+ * keeps them because nothing there can be redrawn, and a CI service that stops a job which has
+ * been silent too long needs the heartbeat.
+ */
+async function pollUntilTheWaitEnds({
+  poll,
+  now,
+  startTime,
+  deadline,
+  serverBypassed,
+  fromSavedLogin,
+}: {
+  poll: () => Promise<BuildStatus | null>;
+  now: () => number;
+  startTime: number;
+  deadline: number;
+  serverBypassed: boolean;
+  fromSavedLogin: boolean;
+}): Promise<WaitEnding> {
+  const inATerminal = printsToATerminal();
+  const printInALog = (segment: TranscriptSegment): void => {
+    if (!inATerminal) emit(segment);
+  };
 
   let lastStatus = '';
   let pollCount = 0;
@@ -166,21 +221,13 @@ async function waitForBuildResult({
     ]);
   };
 
-  const printSigintCloser = (): number => {
-    emit({ kind: 'blank-line' });
-    emit({ kind: 'wait-interrupted' });
-    emit({ kind: 'blank-line' });
-    return EXIT_SIGINT;
-  };
+  const interrupted: WaitEnding = { kind: 'interrupted' };
 
   try {
     while (true) {
       // Check timeout before each poll
       if (now() >= deadline) {
-        emit({ kind: 'blank-line' });
-        emit({ kind: 'wait-timed-out', timeoutMinutes });
-        emit({ kind: 'blank-line' });
-        return EXIT_TIMEOUT;
+        return { kind: 'timed-out' };
       }
 
       let build: NonNullable<BuildStatusResponse['getBuildStatus']> | null = null;
@@ -192,20 +239,17 @@ async function waitForBuildResult({
         ]);
 
         if (polled.type === 'sigint') {
-          return printSigintCloser();
+          return interrupted;
         }
 
         build = polled.result;
       } catch (error) {
         // Auth failures are not retryable - stop immediately
         if (error instanceof AuthError) {
-          emit({ kind: 'blank-line' });
-          emit({
-            kind: 'wait-auth-failed',
+          return {
+            kind: 'login-refused',
             message: fromSavedLogin ? REJECTED_LOGIN_MESSAGE : error.message,
-          });
-          emit({ kind: 'blank-line' });
-          return EXIT_ERROR;
+          };
         }
 
         // Transient network blips are retried.
@@ -222,17 +266,17 @@ async function waitForBuildResult({
         // (`status`, `showsOnlyBranchChanges`) - it is true of every future
         // field, which is why it is written here at the hazard rather than in
         // the commit that happened to hit it first.
-        emit({ kind: 'wait-network-retry', message: (error as Error).message });
+        printInALog({ kind: 'wait-network-retry', message: (error as Error).message });
         if ((await sleepUnlessInterrupted()) === 'sigint') {
-          return printSigintCloser();
+          return interrupted;
         }
         continue;
       }
 
       if (!build) {
-        emit({ kind: 'wait-build-not-found' });
+        printInALog({ kind: 'wait-build-not-found' });
         if ((await sleepUnlessInterrupted()) === 'sigint') {
-          return printSigintCloser();
+          return interrupted;
         }
         continue;
       }
@@ -243,8 +287,11 @@ async function waitForBuildResult({
       // Deduped on the wire's `runStatus` rather than on the rendered line. The
       // two are equivalent - each status renders to its own distinct label - and
       // deduping on STATE keeps the loop from having to hold a rendered string.
-      if (!serverBypassed && build.runStatus !== lastStatus) {
-        emit({ kind: 'wait-progress', runStatus: build.runStatus });
+      // A status that ends the test gets no progress line: the step or the failure the wait
+      // closes on says it.
+      const endsTheTest = RUN_STATUSES_THAT_END_A_TEST.has(build.runStatus);
+      if (!serverBypassed && !endsTheTest && build.runStatus !== lastStatus) {
+        printInALog({ kind: 'wait-progress', runStatus: build.runStatus });
         lastStatus = build.runStatus;
       }
 
@@ -259,27 +306,22 @@ async function waitForBuildResult({
         if (storiesNow !== null && storiesNow !== storiesLastRead) {
           storiesLastRead = storiesNow;
           if ((await sleepUnlessInterrupted(SETTLE_CONFIRM_MS)) === 'sigint') {
-            return printSigintCloser();
+            return interrupted;
           }
           continue;
         }
-        // THE ONE PLACE THE CLOSER PRINTS. Every earlier read of a finished build
-        // that is still settling its stories[] (the branch above) decided and
-        // moved on without printing anything - this is the only call site that
-        // ever reaches printTerminalCloser, and it is reached at most once per
-        // build.
-        printTerminalCloser(build);
-        if (metadata) {
-          emit({ kind: 'build-details', details: buildDetailsOf(build, metadata.git) });
-          emit({ kind: 'blank-line' });
-        }
-        return exitCode;
+        return {
+          kind: 'closed',
+          build,
+          exitCode,
+          secondsItRan: Math.round((now() - startTime) / 1000),
+        };
       }
 
       // Periodic heartbeat so CI systems never see 5+ min of silence
       pollCount++;
       if (pollCount % 20 === 0) {
-        emit({
+        printInALog({
           kind: 'wait-heartbeat',
           statusLabel: build.runStatus === 'inProgress' ? 'running' : build.runStatus,
           elapsedMinutes: Math.round((now() - startTime) / 60_000),
@@ -287,13 +329,29 @@ async function waitForBuildResult({
       }
 
       if ((await sleepUnlessInterrupted()) === 'sigint') {
-        return printSigintCloser();
+        return interrupted;
       }
     }
   } finally {
     sigint.cleanup();
   }
 }
+
+/** How a wait ended, decided by the poll and printed once the wait's spinner has gone. */
+type WaitEnding =
+  /** Ctrl-C: the waiting stopped, the test did not. */
+  | { kind: 'interrupted' }
+  /** The deadline passed before the test closed. */
+  | { kind: 'timed-out' }
+  /** The service refused the credential mid-wait, which no retry fixes. */
+  | { kind: 'login-refused'; message: string }
+  /** The test reached a terminal state: the read it closed on, its exit code, and how long the wait took. */
+  | {
+      kind: 'closed';
+      build: NonNullable<BuildStatusResponse['getBuildStatus']>;
+      exitCode: number;
+      secondsItRan: number;
+    };
 
 /* ========================================================================== */
 /* INTERNALS                                                                   */
@@ -368,18 +426,22 @@ function decideTerminalState(
  * made from rather than taking a flag, so there is nothing here that can print
  * the wrong words for the exit code just decided.
  */
-function printTerminalCloser(build: NonNullable<BuildStatusResponse['getBuildStatus']>): void {
+function printTerminalCloser(
+  build: NonNullable<BuildStatusResponse['getBuildStatus']>,
+  howItRan: HowTheTestRan
+): void {
   const { runStatus, viewStatusesCount, diffScopeInfo } = build;
+  const { testIndex } = howItRan;
 
   if (runStatus === 'error' || runStatus === 'canceled') {
-    emit({ kind: 'blank-line' });
-    emit({ kind: 'verdict-run-errored', runStatus, runError: build.runError });
+    // A failed step, like any other: directly under the steps, the help block closing the run.
+    emit({ kind: 'verdict-run-errored', runStatus, runError: build.runError, testIndex });
     emit({ kind: 'blank-line' });
     return;
   }
 
   if (routesThroughSparseVerdict(build)) {
-    printSparseCloser(build);
+    printSparseCloser(build, howItRan);
     return;
   }
 
@@ -387,24 +449,22 @@ function printTerminalCloser(build: NonNullable<BuildStatusResponse['getBuildSta
   // state), with viewStatusesCount already confirmed present by the decision.
   const { unreviewed, reported } = viewStatusesCount!;
 
+  const serverBypassReason =
+    unreviewed === 0 && reported === 0 ? getServerBypassReason(diffScopeInfo) : undefined;
+  if (serverBypassReason) {
+    // Server-bypassed build (SHERLO-1952): there is nothing to review (zero new screenshots) and
+    // the review page cannot render this build shape yet (SHERLO-1974), so the run ends on its one
+    // finished step and points at no URL.
+    printServerBypassCloser(serverBypassReason, testIndex);
+    return;
+  }
+
+  printTestFinished(howItRan);
   emit({ kind: 'blank-line' });
   if (unreviewed === 0 && reported === 0) {
-    const serverBypassReason = getServerBypassReason(diffScopeInfo);
-    if (serverBypassReason) {
-      // Server-bypassed build (SHERLO-1952): there is nothing to review (zero
-      // new screenshots) and the review page cannot render this build shape
-      // yet (SHERLO-1974), so the closer stays compact and points at no URL.
-      // The caller (printCapturePlanAndCloser) has already withheld the review
-      // URL for a bypassed build, so omitting it here loses no link.
-      printServerBypassCloser(serverBypassReason);
-    } else {
-      // No verbatim reason -> today's generic message. Covers the
-      // forward-compat degrade of a counts-bypassed build whose poll carries
-      // no prose, and every ordinary green build. The build's link was
-      // already printed once, right when the build became ready - never
-      // repeated here.
-      emit({ kind: 'verdict-passed' });
-    }
+    // No verbatim reason: the generic green. Covers the forward-compat degrade of a
+    // counts-bypassed build whose poll carries no prose, and every ordinary green build.
+    emit({ kind: 'verdict-passed' });
   } else {
     emit({
       kind: 'verdict-review-required',
@@ -413,6 +473,14 @@ function printTerminalCloser(build: NonNullable<BuildStatusResponse['getBuildSta
     });
   }
   emit({ kind: 'blank-line' });
+}
+
+/** Which test the wait closed on, and how long it ran when the wait saw it start. */
+type HowTheTestRan = { testIndex: number; secondsItRan?: number };
+
+/** `✔ Finished Test 14  in 3m 5s` - the wait's own step, printed where its spinner was. */
+function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
+  emit({ kind: 'test-finished', testIndex, seconds: secondsItRan });
 }
 
 /**
@@ -441,24 +509,32 @@ function printTerminalCloser(build: NonNullable<BuildStatusResponse['getBuildSta
  * impossible, because a false closer is the one answer that must never be
  * reachable by accident.
  */
-function printSparseCloser(build: NonNullable<BuildStatusResponse['getBuildStatus']>): void {
+function printSparseCloser(
+  build: NonNullable<BuildStatusResponse['getBuildStatus']>,
+  howItRan: HowTheTestRan
+): void {
   const verdict = decideSparseBuildVerdict(build);
   if (!verdict) {
     return;
   }
 
-  emit({ kind: 'blank-line' });
-
   const serverBypassReason = getServerBypassReason(build.diffScopeInfo);
   if (verdict.exitCode === EXIT_GREEN && serverBypassReason) {
-    printServerBypassCloser(serverBypassReason);
-  } else {
-    for (const segment of verdict.segments) {
-      emit(segment);
-    }
+    printServerBypassCloser(serverBypassReason, howItRan.testIndex);
+    return;
   }
 
+  printTestFinished(howItRan);
   emit({ kind: 'blank-line' });
+  for (const segment of verdict.segments) {
+    emit(namingTheTest(segment, howItRan.testIndex));
+  }
+  emit({ kind: 'blank-line' });
+}
+
+/** The sparse verdict's "nothing was recorded" section names the test it is about. */
+function namingTheTest(segment: TranscriptSegment, testIndex: number): TranscriptSegment {
+  return segment.kind === 'verdict-nothing-recorded' ? { ...segment, testIndex } : segment;
 }
 
 /**
@@ -537,8 +613,8 @@ function getServerBypassReason(
  * (SHERLO-1974). One definition, used by BOTH the --wait terminal path here and
  * the non-wait closer in testBundled, so the two modes print identical text.
  */
-export function printServerBypassCloser(reason: string): void {
-  emit({ kind: 'verdict-server-bypassed', reason });
+export function printServerBypassCloser(reason: string, testIndex: number): void {
+  emit({ kind: 'verdict-server-bypassed', reason, testIndex });
 }
 
 /**

@@ -13,10 +13,10 @@
 Testing your app...
 
 [31mERROR: Config file `<SHERLO_CONFIG_PATH>` not found[39m
-[31m[39m
-[31mPlease:[39m
-[31m1. Make sure the config file exists in your project root[39m
-[31m2. If your project root is different, use the `--projectRoot` option[39m
+
+Please:
+1. Make sure the config file exists in your project root
+2. If your project root is different, use the `--projectRoot` option
 [2m↳ Learn more: [4mhttps://sherlo.io/docs/config[24m[22m
 
 [2m──────────[22m

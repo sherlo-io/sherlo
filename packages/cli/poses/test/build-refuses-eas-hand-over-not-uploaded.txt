@@ -13,8 +13,8 @@
 Testing your app...
 
 [31mERROR: Can't build on EAS: EAS would leave .sherlo/data.json out of the project it uploads.[39m
-[31mSherlo writes a data file there for each run, and .gitignore ignores it with the line ".sherlo/".[39m
-[31mEAS reads .easignore instead of .gitignore when there is one. At the root of your git repository, copy .gitignore to .easignore, then remove the line ".sherlo/" from the copy.[39m
+Sherlo writes a data file there for each run, and .gitignore ignores it with the line ".sherlo/".
+EAS reads .easignore instead of .gitignore when there is one. At the root of your git repository, copy .gitignore to .easignore, then remove the line ".sherlo/" from the copy.
 
 [2m──────────[22m
 

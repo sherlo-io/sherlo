@@ -13,12 +13,15 @@
 Testing your app...
 
 [32m✔[39m Reused the Android app from the local build cache, no app build stored yet
-[32m✔[39m Set up Test 1          on 1 device (Pixel 7)
 Uploading the app build (<SIZE> MB)...
-[1m[22m
-[1m📦 Bundling for this run...[22m
-[1m[22m
-🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+[32m✔[39m Started Test 1         on 1 device (Pixel 7)
 
+
+[1m👉 Next step[22m
+[2m════════════[22m
+
+[1mReview Test 1 when it finishes[22m
+   🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+   To wait for the result: [36mnpx sherlo view 1 --wait[39m
 
 [exit 0]

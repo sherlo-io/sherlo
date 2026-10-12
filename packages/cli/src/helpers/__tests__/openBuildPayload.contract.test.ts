@@ -34,8 +34,8 @@ const mocks = vi.hoisted(() => {
     getGitInfo: vi.fn(),
     getBuildRunConfig: vi.fn(),
     getAppBuildUrl: vi.fn(),
-    printBuildIntroMessage: vi.fn(),
-    printResultsUrl: vi.fn(),
+    printTestStarted: vi.fn(),
+    closeTheRun: vi.fn(),
     handleClientError: vi.fn((error: unknown) => {
       // Mirror the real helper's contract: it never swallows an error.
       throw error;
@@ -43,7 +43,7 @@ const mocks = vi.hoisted(() => {
     reporting: { addBreadcrumb: vi.fn(), setTag: vi.fn(), flush: vi.fn() },
     computeBaseFingerprint: vi.fn(),
     registerBase: vi.fn(),
-    waitForBuildResult: vi.fn(),
+    isServerBypassed: vi.fn(() => false),
     logWarning: vi.fn(),
     uploadFreshBundles: vi.fn(),
     /**
@@ -80,12 +80,14 @@ vi.mock('../../seams/surroundings', async (importOriginal) => ({
 }));
 vi.mock('../getBuildRunConfig', () => ({ default: mocks.getBuildRunConfig }));
 vi.mock('../getAppBuildUrl', () => ({ default: mocks.getAppBuildUrl }));
-vi.mock('../printBuildIntroMessage', () => ({ default: mocks.printBuildIntroMessage }));
-vi.mock('../printResultsUrl', () => ({ default: mocks.printResultsUrl }));
+// The run's started line and its ending are the staged road's own (../../commands/test), stubbed
+// here: what this file pins is the payload the spine sends.
+vi.mock('../../commands/test/stagedRun', () => ({ printTestStarted: mocks.printTestStarted }));
+vi.mock('../../commands/test/closeTheRun', () => ({ closeTheRun: mocks.closeTheRun }));
 vi.mock('../handleClientError', () => ({ default: mocks.handleClientError }));
 vi.mock('../reporting', () => ({ default: mocks.reporting }));
 vi.mock('../logWarning', () => ({ default: mocks.logWarning }));
-vi.mock('../waitForBuildResult', () => ({ default: mocks.waitForBuildResult }));
+vi.mock('../waitForBuildResult', () => ({ isServerBypassed: mocks.isServerBypassed }));
 vi.mock('../fingerprint', () => ({
   computeBaseFingerprint: mocks.computeBaseFingerprint,
   registerBase: mocks.registerBase,

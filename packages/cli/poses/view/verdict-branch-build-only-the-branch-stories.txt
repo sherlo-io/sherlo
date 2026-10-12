@@ -1,6 +1,5 @@
 [32mTest 15[39m · finished
-Waiting for the test to finish (up to 45 min)...
-   <build progress masked>
+[32m✔[39m Finished Test 15
 
 
 [1m⚠️ 2 stories need review[22m

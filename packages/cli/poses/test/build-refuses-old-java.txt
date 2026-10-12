@@ -13,7 +13,7 @@
 Testing your app...
 
 [31mERROR: Can't build Android: Java 11 was found, and the build needs 17 or newer.[39m
-[31mPoint JAVA_HOME at a newer JDK.[39m
+Point JAVA_HOME at a newer JDK.
 Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
 
 [2m──────────[22m

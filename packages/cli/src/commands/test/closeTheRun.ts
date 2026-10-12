@@ -1,7 +1,8 @@
 /**
  * HOW EVERY TEST THIS COMMAND STARTED ENDS ON SCREEN (epic sherlo-test-builds-apps: `sherlo test`
- * in init's grammar). One place, so the staged road, the sim road and an EAS run end the same way,
- * and on ONE section, with the review link printed once, last:
+ * in init's grammar). One place, so the staged road, the build road (the push spine,
+ * ../../helpers/uploadOrReuseBuildsAndRunTests), the sim road and an EAS run end the same way, and
+ * on ONE section, with the review link printed once, last:
  *
  *   - with `--wait`, on the verdict (a section, see ../../render/verdictCloser) and the review link
  *     under it - the line the GitHub Action reads (actions/lib/cliOutputs.mjs) - and the wait's exit
@@ -13,17 +14,14 @@
  *   - a test the server closed without a device run ends on its one finished step, with no link -
  *     there is nothing to review (SHERLO-1952).
  *
- * PLAN-LAYER DEBT, NAMED: the push spine (../../helpers/uploadOrReuseBuildsAndRunTests) ends the
- * build road its own way - the link before the wait, and no next step - because it is outside
- * what plan may edit. The build task ends it here too (build item 52), passing the `openBuild`
- * answer's `hasCiToken`, so a project's very first test - which builds the app - suggests pull
- * request tests too; the EAS road (./appBuild/easRun) passes it the same way.
+ * Every road passes the `openBuild` answer's `hasCiToken`, so a project's very first test - which
+ * builds the app - suggests pull request tests too.
  */
 import { reporting, waitForBuildResult } from '../../helpers';
 import { EXIT_ERROR, EXIT_SIGINT, EXIT_TIMEOUT } from '../../helpers/exitCodes';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
-import { fetchServerBypassReason } from '../../helpers/waitForBuildResult';
+import { fetchServerBypassReason, printServerBypassCloser } from '../../helpers/waitForBuildResult';
 import type { CommandParams } from '../../types';
 import { printsToATerminal } from '../shared/terminal';
 import type { THIS_COMMAND } from './constants';
@@ -64,6 +62,8 @@ export async function closeTheRun({
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
       serverBypassed,
+      // This run started the test just now, so the wait's own time is how long the test ran.
+      sawTheTestStart: true,
     });
 
     if (!serverBypassed) endAfterTheWait({ exitCode, testIndex: buildIndex, url });
@@ -145,10 +145,9 @@ async function printBypassedCloser({
 }): Promise<void> {
   const reason = await fetchServerBypassReason({ token, buildIndex, projectIndex, teamId });
 
-  // The closer names the test it finished: emitted here, where the number is known, rather than
-  // through `printServerBypassCloser`, which the wait loop calls without one (build work).
+  // The same finished step the wait loop ends a bypassed test on, naming the test.
   if (reason) {
-    emit({ kind: 'verdict-server-bypassed', reason, testIndex: buildIndex });
+    printServerBypassCloser(reason, buildIndex);
   } else {
     emit({ kind: 'results-url', url });
   }

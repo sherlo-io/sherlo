@@ -13,7 +13,7 @@
 Testing your app...
 
 [31mERROR: sherlo.config.json names no project, so your login has no project to test against.[39m
-[31m  Run `npx sherlo init` to choose one. It writes `project` into the config.[39m
+  Run `npx sherlo init` to choose one. It writes `project` into the config.
 
 [2m──────────[22m
 

@@ -13,7 +13,7 @@
 Sending your EAS build to Sherlo...
 
 [31mERROR: The EAS build was canceled, so Test 1 can't run.[39m
-[31mTest 1 is marked as failed in the Sherlo web app.[39m
+Test 1 is marked as failed in the Sherlo web app.
 
 [2m──────────[22m
 

@@ -86,6 +86,7 @@ import {
   renderVerdictReviewRequired,
   renderVerdictRunErrored,
   renderVerdictServerBypassed,
+  renderTestFinished,
   renderWaitAuthFailed,
   renderWaitBuildNotFound,
   renderWaitHeartbeat,
@@ -338,6 +339,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // the content here.
       return { stream: 'stdout', prints: [[]] };
 
+    case 'test-finished':
+      return {
+        stream: 'stdout',
+        prints: [[renderTestFinished(segment.testIndex, segment.seconds)]],
+      };
+
     case 'wait-progress':
       return { stream: 'stdout', prints: [[renderWaitProgress(segment.runStatus)]] };
 
@@ -383,7 +390,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-run-errored':
       return {
         stream: 'stdout',
-        prints: renderVerdictRunErrored(segment.runStatus, segment.runError).map((line) => [line]),
+        prints: renderVerdictRunErrored(segment.runStatus, segment.runError, segment.testIndex).map(
+          (line) => [line]
+        ),
       };
 
     /* GATED on showsOnlyBranchChanges - see ./verdictCloser and helpers/sparseBuildVerdict. */

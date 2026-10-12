@@ -1,9 +1,5 @@
 [32mTest 13[39m · finished
-Waiting for the test to finish (up to 45 min)...
-   <build progress masked>
-
-[32m✔[39m Finished the test      nothing to capture: no change on this branch reaches any story
-
+[32m✔[39m Finished Test 13       nothing to capture: no change on this branch reaches any story
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

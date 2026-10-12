@@ -274,13 +274,17 @@ export type TranscriptSegment =
   | { kind: 'blank-line' }
   /**
    * `Waiting for Test 7 to finish (up to 45 min)...` - a step in progress (./stepInProgress),
-   * started before the first poll.
-   *
-   * `testIndex` on this and the closers below names the test; the wait loop does not pass it yet
-   * (build work, outside what plan may edit), and the lines say "the test" until it does.
+   * started before the first poll. `testIndex` on this and the closers below names the test; a
+   * line given none says "the test".
    */
   | { kind: 'wait-header'; timeoutMinutes: number; testIndex?: number }
-  /** `   Running` - reprinted only when the wire's `runStatus` CHANGES. */
+  /**
+   * `✔ Finished Test 14       in 3m 5s` - the wait's own step, printed where its spinner was, above
+   * the verdict. `seconds` is how long the wait took, given only when the wait saw the test start
+   * (`sherlo test --wait`); `sherlo view <n> --wait` did not, and the line ends at the test.
+   */
+  | { kind: 'test-finished'; testIndex: number; seconds?: number }
+  /** `   Running` - reprinted only when the wire's `runStatus` CHANGES. A log's line only. */
   | { kind: 'wait-progress'; runStatus: string }
   /**
    * `   still running... (5m elapsed)`.
@@ -306,8 +310,7 @@ export type TranscriptSegment =
   /**
    * The compact closer for a build the server closed without a device run:
    * `✔ Finished Test 15       nothing to capture: no change on this branch reaches any story`.
-   * `reason` is the server's own prose, printed verbatim after the colon; the wait loop's print
-   * site does not pass `testIndex` yet (build work).
+   * `reason` is the server's own prose, printed verbatim after the colon.
    */
   | { kind: 'verdict-server-bypassed'; reason: string; testIndex?: number }
   /**
@@ -322,8 +325,8 @@ export type TranscriptSegment =
       /** The build's tally, printed when the screens name nobody. */
       counts: { unreviewed: number; reported: number };
     }
-  /** `✖ Running the test failed`, the state it ended in, the server's error blob if any, and help. */
-  | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown }
+  /** `✖ Running Test 14 failed`, the state it ended in, the server's error blob if any, and help. */
+  | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown; testIndex?: number }
   /* ---------------------------------------------------------------------- *
    * GATED. The three kinds below are emitted by the shipped wait loop, but   *
    * ONLY for a build the server marked `showsOnlyBranchChanges` - a project  *

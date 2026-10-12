@@ -21,7 +21,6 @@
  * other failure throws to the caller.
  */
 import { Platform } from '@sherlo/api-types';
-import chalk from 'chalk';
 import { buildBundles, type BundlingEffects } from '../commands/test/bundleAndPreview';
 import { bundler } from '../seams/bundler';
 import type { BundleResult } from '../commands/test/buildBundle';
@@ -34,10 +33,14 @@ import {
 import type { StagedUploadKeys } from '../commands/test/uploadStagedArtifacts';
 import type { GateMetadataInput } from './fingerprint';
 
-/** One platform's uploaded bundle: where it landed, and how big it is. */
+/**
+ * One platform's uploaded bundle: where it landed, how big it is, and its module map - which the
+ * started test's line counts the bundle's stories from.
+ */
 export type UploadedFreshBundle = {
   keys: StagedUploadKeys;
   bundleSizeMb: number;
+  moduleManifest?: BundleResult['moduleManifest'];
 };
 
 /**
@@ -93,9 +96,9 @@ export async function uploadFreshBundles({
 }): Promise<Partial<Record<Platform, UploadedFreshBundle>>> {
   let bundles: Partial<Record<Platform, BundleResult>>;
 
+  // No header of its own: bundling is a step in progress the bundling loop shows (a spinner in a
+  // terminal, one plain line in a log), and a supplied bundle says so on its own line.
   if (bundleDir !== undefined) {
-    console.log(chalk.bold('\n📦 Using the supplied bundle...\n'));
-
     ({ results: bundles } = await resolveSuppliedBundles({
       bundleDir,
       projectRoot,
@@ -107,8 +110,6 @@ export async function uploadFreshBundles({
         effects.bundling.gateMetadataFor(projectRoot, platform, bundleResult),
     }));
   } else {
-    console.log(chalk.bold('\n📦 Bundling for this run...\n'));
-
     ({ results: bundles } = await buildBundles({
       projectRoot,
       platformsToTest: platforms,
@@ -132,7 +133,11 @@ export async function uploadFreshBundles({
     // Unreachable: uploadBundles throws for any platform it has no keys for.
     if (!platformKeys || !bundleResult) continue;
 
-    uploaded[platform] = { keys: platformKeys, bundleSizeMb: bundleResult.bundleSizeMb };
+    uploaded[platform] = {
+      keys: platformKeys,
+      bundleSizeMb: bundleResult.bundleSizeMb,
+      moduleManifest: bundleResult.moduleManifest,
+    };
   }
 
   return uploaded;

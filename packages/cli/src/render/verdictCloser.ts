@@ -22,6 +22,7 @@
  * reaches them, and its output is byte-identical to what it has always been.
  */
 import chalk from 'chalk';
+import { formatBuildDuration } from './appBuild';
 import {
   countStories,
   renderFailedTestStep,
@@ -36,8 +37,8 @@ import {
 
 /**
  * The test a line names: `Test 7` once its number is known, `the test` (lowercase, as a sentence's
- * subject or object) only while it is not - the wait loop does not pass the number yet (build work).
- * The wait's own line, `Waiting for Test 7 to finish...`, is a step in progress (./stepInProgress).
+ * subject or object) only while it is not. The wait's own line, `Waiting for Test 7 to finish...`,
+ * is a step in progress (./stepInProgress).
  */
 function theTest(testIndex: number | undefined): string {
   return testIndex !== undefined ? `Test ${testIndex}` : 'the test';
@@ -103,6 +104,17 @@ export function renderWaitTimedOut(timeoutMinutes: number, testIndex?: number): 
 /** The Ctrl-C closer. The run keeps going in Sherlo; only the waiting stops. Ends like the deadline's. */
 export function renderWaitInterrupted(testIndex?: number): string {
   return chalk.yellow(`! Stopped waiting. ${atSentenceStart(theTest(testIndex))} keeps running in Sherlo.`);
+}
+
+/**
+ * `✔ Finished Test 14       in 3m 5s` - the wait's step, in the place its spinner held, above the
+ * verdict. With no time when the wait did not see the test start (`sherlo view <n> --wait`).
+ */
+export function renderTestFinished(testIndex: number, seconds?: number): string {
+  return renderTestStep({
+    name: `Finished Test ${testIndex}`,
+    detail: seconds !== undefined ? `in ${formatBuildDuration(seconds)}` : '',
+  });
 }
 
 /**
@@ -256,10 +268,14 @@ function renderCountLines(counts: { unreviewed: number; reported: number }): str
  * The infrastructure closer, as init's failed step: the test ended without a verdict. `runError`
  * is server-shaped, so it is stringified, not phrased. The run ends here, so the help block follows.
  */
-export function renderVerdictRunErrored(runStatus: string, runError: unknown): string[] {
+export function renderVerdictRunErrored(
+  runStatus: string,
+  runError: unknown,
+  testIndex?: number
+): string[] {
   return [
-    ...renderFailedTestStep('Running the test'),
-    `The test ended as "${runStatus}".`,
+    ...renderFailedTestStep(`Running ${theTest(testIndex)}`),
+    `${atSentenceStart(theTest(testIndex))} ended as "${runStatus}".`,
     ...(runError ? [chalk.dim(`Error: ${JSON.stringify(runError)}`)] : []),
     '',
     ...renderHelpBlock(),

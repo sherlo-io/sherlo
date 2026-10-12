@@ -13,13 +13,13 @@
 Testing your app...
 
 [31mERROR: Can't build on EAS: eas.json has no "sherlo" build profile.[39m
-[31mSherlo starts its EAS builds with that profile. Add it to "build" in eas.json:[39m
-[31m"sherlo": {[39m
-[31m  "distribution": "internal",[39m
-[31m  "env": { "SHERLO_BUILD": "storybook" },[39m
-[31m  "android": { "buildType": "apk" },[39m
-[31m  "ios": { "simulator": true }[39m
-[31m}[39m
+Sherlo starts its EAS builds with that profile. Add it to "build" in eas.json:
+"sherlo": {
+  "distribution": "internal",
+  "env": { "SHERLO_BUILD": "storybook" },
+  "android": { "buildType": "apk" },
+  "ios": { "simulator": true }
+}
 
 [2m──────────[22m
 

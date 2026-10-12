@@ -115,7 +115,7 @@ export async function buildThenPush({
   // THE STANDARD ROAD, ON THE BUILDS JUST MADE: the same validation and the same push spine a
   // developer gets by passing the paths themselves, so nothing below this line knows who built
   // them. A mixed run hands the spine only the built platforms' paths; its config still names
-  // every device, so the run header counts the whole test.
+  // every device, so the started line names the whole test's devices.
   const pushParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions: { ...passedOptions, ...builtPaths } },
     { requirePlatformPaths: stored.length === 0 }

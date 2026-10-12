@@ -1,13 +1,12 @@
 [32mTest 16[39m · finished
-Waiting for the test to finish (up to 45 min)...
-   <build progress masked>
+[32m✔[39m Finished Test 16
 
 
 [1m⚠️ Nothing was recorded[22m
 [2m═══════════════════════[22m
 
 The test captured no stories and carried none over, so it does not show that nothing
-changed. Open the test in Sherlo to check.
+changed. Open Test 16 in Sherlo to check.
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 

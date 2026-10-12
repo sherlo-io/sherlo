@@ -14,8 +14,7 @@ Testing your app...
 
 [32m✔[39m Reused the Android app from Test 3
 [32m✔[39m Started Test 4         2 of 2 stories on 1 device (Pixel 7)
-Waiting for the test to finish (up to 45 min)...
-   <build progress masked>
+[32m✔[39m Finished Test 4        in <DURATION>
 
 
 [1m⚠️ 3 stories need review[22m

@@ -6,7 +6,11 @@ import {
   realFreshBundleEffects,
   uploadFreshBundles,
   type FreshBundleEffects,
+  type UploadedFreshBundle,
 } from './uploadFreshBundles';
+import { closeTheRun } from '../commands/test/closeTheRun';
+import type { ValidatedModuleManifest } from '../commands/test/readModuleManifest';
+import { printTestStarted } from '../commands/test/stagedRun';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
 import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
@@ -18,27 +22,24 @@ import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import { getGitInfo } from '../seams/surroundings';
 import { nativeBuild } from '../seams/nativeBuild';
-import { serverCalls } from '../seams/serverCalls';
+import { serverCalls, type JoinBuildAnswer, type OpenBuildAnswer } from '../seams/serverCalls';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
-import parseWaitTimeout from './parseWaitTimeout';
-import printBuildIntroMessage from './printBuildIntroMessage';
-import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import throwError from './throwError';
 import { registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
-import waitForBuildResult from './waitForBuildResult';
+import { isServerBypassed } from './waitForBuildResult';
 
 /**
  * EVERY EFFECT THE PUSH SPINE PERFORMS, AS PARAMETERS - which is what lets an
  * expectation producer run THIS function rather than a re-implementation of it.
  *
  * The spine's transcript is emitted from here and from the shipped helpers it
- * calls, interleaved with these awaits: the run header before the binaries go
- * up, each platform's block around its own upload, the fingerprint warnings
- * from inside `registerBase`, the bundle block from inside `uploadFreshBundles`,
- * and the closer after `openBuild` answers. A producer that re-implemented that order
+ * calls, interleaved with these awaits: each platform's upload, the fingerprint
+ * warnings from inside `registerBase`, the bundling from inside
+ * `uploadFreshBundles`, then the started test and the run's ending after
+ * `openBuild` answers. A producer that re-implemented that order
  * could drift from it silently; supplying the effects means the order, the
  * branching and every literal come from the shipped code, unforked.
  *
@@ -64,7 +65,8 @@ export type PushEffects = {
   }>;
   resolveGitInfo: () => Promise<GitInfo>;
   computeFingerprint: () => Promise<BaseFingerprintResult>;
-  openBuild: (input: Record<string, unknown>) => Promise<{ build: { index: number } }>;
+  /** Opens the test, or - for one job of a split CI run - joins the one its CI run shares. */
+  openBuild: (input: Record<string, unknown>) => Promise<OpenBuildAnswer | JoinBuildAnswer>;
   binaryUpload: BinaryUploadEffects;
   baseRegistration: BaseRegistrationEffects;
   /** The fresh bundle spliced into every binary this run renders. */
@@ -83,7 +85,7 @@ async function uploadOrReuseBuildsAndRunTests({
   effects?: PushEffects;
 }): Promise<{ url: string }> {
   // The credential and its project were resolved before any request (./getValidatedCommandParams).
-  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   const command = TEST_COMMAND;
 
@@ -129,9 +131,7 @@ async function uploadOrReuseBuildsAndRunTests({
     freshBundle: realFreshBundleEffects(token),
   };
 
-  const { binariesInfo, nextBuildIndex } = await io.resolveBinaries();
-
-  printBuildIntroMessage({ commandParams, nextBuildIndex });
+  const { binariesInfo } = await io.resolveBinaries();
 
   await uploadOrPrintBinaryReuse({
     binariesInfo,
@@ -283,7 +283,7 @@ async function uploadOrReuseBuildsAndRunTests({
     level: 'info',
   });
 
-  const { build } = await io.openBuild({
+  const opened = await io.openBuild({
     teamId,
     projectIndex,
     binaryHashes: {
@@ -302,7 +302,7 @@ async function uploadOrReuseBuildsAndRunTests({
     ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
   });
 
-  const buildIndex = build.index;
+  const buildIndex = opened.build.index;
   // Sentry tags must be strings; buildIndex is a number from the API response.
   reporting.setTag('build_index', String(buildIndex));
 
@@ -312,27 +312,31 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  printResultsUrl(url);
+  // A joined run's own step was printed when it joined (../commands/test/appBuild/joinTheRun); its
+  // run starts when the last platform is in, so a job whose run still waits has no next step.
+  const joined = 'waitingFor' in opened ? opened : undefined;
+  const serverBypassed = !joined && isServerBypassed(opened.build.diffScopeInfo);
 
-  if (commandParams.wait) {
-    const exitCode = await waitForBuildResult({
-      token,
-      fromSavedLogin,
-      buildIndex: buildIndex,
-      projectIndex,
-      teamId,
-      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
-      // --metadata: the details block, carrying the git identity THIS run
-      // composed and sent at openBuild - `getBuildStatus` does not return it, so
-      // the only honest source is the value that created the build.
-      metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
-    });
-
-    // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
+  // The step that started the test, with how many stories it captures, read off the openBuild
+  // answer - the same line the staged road prints - then the run's one ending.
+  if (!joined) {
+    printTestStarted({
+      openBuildReturn: opened,
+      moduleManifests: moduleManifestsOf(freshBundles),
+      platformsToTest: platformsInTheRun(buildRunConfig),
+      devices: commandParams.devices,
+      serverBypassed,
     });
   }
+
+  await closeTheRun({
+    commandParams,
+    buildIndex,
+    url,
+    serverBypassed,
+    endsOnNextStep: !joined || joined.waitingFor.length === 0,
+    hasCiToken: joined ? undefined : opened.hasCiToken,
+  });
 
   return { url };
 }
@@ -352,6 +356,25 @@ export default uploadOrReuseBuildsAndRunTests;
  * and in what format; the runner later overwrites the same path with the
  * freshly built bundle, which is what actually runs.
  */
+/** The platforms the run's config names a device for - every platform the started test runs on. */
+function platformsInTheRun(buildRunConfig: ReturnType<typeof getBuildRunConfig>): Platform[] {
+  return (['android', 'ios'] as const).filter((platform) => buildRunConfig[platform]);
+}
+
+/** Each fresh bundle's module map, which the started test's line counts the bundle's stories from. */
+function moduleManifestsOf(
+  freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
+): Partial<Record<Platform, ValidatedModuleManifest>> {
+  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
+  for (const [platform, freshBundle] of Object.entries(freshBundles) as [
+    Platform,
+    UploadedFreshBundle
+  ][]) {
+    if (freshBundle.moduleManifest) moduleManifests[platform] = freshBundle.moduleManifest;
+  }
+  return moduleManifests;
+}
+
 /** The platforms the user handed a binary for - the ones this run tests. */
 function platformsWithBinaries(commandParams: CommandParams): Platform[] {
   const platforms: Platform[] = [];

@@ -1,9 +1,5 @@
 [32mTest 7[39m · running
-Waiting for the test to finish (up to 1 min)...
-   <build progress masked>
-
-[33m! Stopped waiting after <N> minute. The test may still be running in Sherlo.[39m
-
+[33m! Stopped waiting after <N> minute. Test 7 may still be running in Sherlo.[39m
 
 
 [1m👉 Next step[22m

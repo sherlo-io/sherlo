@@ -901,6 +901,20 @@ const PINS: Pin[] = [
     ],
   },
   {
+    kind: 'test-finished',
+    what: "the wait's own finished step, saying how long the test ran when the wait saw it start",
+    segment: { kind: 'test-finished', testIndex: 14, seconds: 185 },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m Finished Test 14       in 3m 5s`]],
+  },
+  {
+    kind: 'test-finished',
+    what: 'the finished step of a wait that did not see the test start, ending at the test',
+    segment: { kind: 'test-finished', testIndex: 8 },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m Finished Test 8`]],
+  },
+  {
     kind: 'verdict-server-bypassed',
     what: "the server-bypassed verdict as init's finished step - nothing to capture, and the server's own reason after the colon",
     segment: {
@@ -961,12 +975,13 @@ const PINS: Pin[] = [
       kind: 'verdict-run-errored',
       runStatus: 'error',
       runError: { code: 'RUNNER_CRASH' },
+      testIndex: 14,
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[31m✖${ESC}[39m Running the test failed`],
+      [`${ESC}[31m✖${ESC}[39m Running Test 14 failed`],
       [''],
-      ['The test ended as "error".'],
+      ['Test 14 ended as "error".'],
       [`${ESC}[2mError: {"code":"RUNNER_CRASH"}${ESC}[22m`],
       [''],
       ...HELP_BLOCK_PRINTS,

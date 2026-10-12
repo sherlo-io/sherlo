@@ -13,7 +13,7 @@
 Testing your app...
 
 [31mERROR: Can't build Android: no Java was found.[39m
-[31mInstall JDK 17 or newer, or point JAVA_HOME at one.[39m
+Install JDK 17 or newer, or point JAVA_HOME at one.
 Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
 
 [2m──────────[22m

@@ -76,7 +76,7 @@ export async function easRun({
   refuseWhenEasLeavesTheHandOverOut(commandParams.projectRoot);
   const { token, projectIndex, teamId } = commandParams.credential;
 
-  const { build } = await serverCalls()
+  const { build, hasCiToken } = await serverCalls()
     .openBuild({
       token,
       teamId,
@@ -111,7 +111,7 @@ export async function easRun({
   // FROM A LAPTOP THE DEVELOPER OFTEN STAYS FOR THE ANSWER: `--wait` waits through the EAS builds
   // and the run alike, under the same contract as every other wait - EAS builds take a while, so
   // the deadline is the one `--wait-timeout` names.
-  await closeTheRun({ commandParams, buildIndex, url });
+  await closeTheRun({ commandParams, buildIndex, url, hasCiToken });
 
   return { url };
 }

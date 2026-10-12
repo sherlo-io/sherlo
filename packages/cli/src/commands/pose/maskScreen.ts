@@ -314,12 +314,13 @@ function foldTimeAgo(screen: string): string {
 }
 
 /**
- * How long an app build took - `Built the Android app      in 1m 28s`, `failed after 42s`. Only
- * after those words, so a duration a scenario declares elsewhere (a wait's timeout) is never folded.
+ * How long an app build or a waited test took - `Built the Android app      in 1m 28s`,
+ * `failed after 42s`, `Finished Test 14       in 3m 5s`. Only after those words, so a duration a
+ * scenario declares elsewhere (a wait's timeout) is never folded.
  */
 function foldBuildDuration(screen: string): string {
   return screen.replace(
-    /\b(Built the (?:Android|iOS) app +in|failed after) (?:\d+m )?\d+s\b/g,
+    /\b(Built the (?:Android|iOS) app +in|Finished Test \d+ +in|failed after) (?:\d+m )?\d+s\b/g,
     '$1 <DURATION>'
   );
 }
@@ -343,20 +344,23 @@ function foldBaseFingerprint(screen: string): string {
  * pose of that road prints exactly one. So the whole region collapses to a single line and the
  * count stops being evidence about anything.
  *
- * THE REGION ENDS AT THE FIRST BLANK LINE, which is how the wait loop frames its closer - one
- * bare `console.log()` above it and one below (../../render/verdictCloser). A closer is therefore
- * never swallowed, and the deadline in the header above is left exactly as the pose declared it.
+ * THE REGION IS THE INDENTED LINES UNDER THE HEADER: every progress line starts with three spaces
+ * (../../render/verdictCloser), and what ends the wait - `✔ Finished Test 7`, a `!` line, a blank
+ * line - starts at the margin. A closer is therefore never swallowed, and the deadline in the
+ * header above is left exactly as the pose declared it. Only a log has the region: in a terminal
+ * the wait is a spinner and prints no progress line.
  */
 function foldWaitProgress(screen: string): string {
   const lines = screen.split('\n');
-  // `the test` until the wait loop names it, `Test 7` after (build work): both are the same line.
+  // A line given no test number says `the test`: both are the same line.
   const header = lines.findIndex((line) =>
     /Waiting for (?:the test|Test \d+) to finish/.test(visible(line))
   );
   if (header === -1) return screen;
 
   let afterRegion = header + 1;
-  while (afterRegion < lines.length && visible(lines[afterRegion]).trim() !== '') afterRegion += 1;
+  while (afterRegion < lines.length && /^ {3}\S/.test(visible(lines[afterRegion])))
+    afterRegion += 1;
   if (afterRegion === header + 1) return screen;
 
   return [
