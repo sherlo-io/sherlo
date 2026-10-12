@@ -6,6 +6,8 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URI;
 import java.util.LinkedList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The app's one WebSocket to whoever drives it (the runner, or the bundler in development).
@@ -13,7 +15,7 @@ import java.util.LinkedList;
  * The wire format is WebSocketFrames, RFC 6455 written by hand over java.net.Socket, because an
  * Android release build refuses cleartext traffic through OkHttp, React Native's WebSocket and
  * fetch alike, and a plain Socket is not subject to that policy. This class is the connection's
- * life, and it dials loopback only.
+ * life. It dials the runner's address only on loopback, and the bundler's on any host.
  *
  * Every connection starts with a `hello`. After a drop it dials the same address again, for as
  * long as the process lives, and says `hello` again. Messages sent while it is down wait in order
@@ -28,6 +30,9 @@ public final class SherloSocket {
     static final int MAX_WAITING_LOG_LINES = 1000;
 
     private final long redialDelayMs;
+
+    /** True for the runner's address, which must be on loopback; false for the bundler's. */
+    private final boolean loopbackOnly;
 
     /** What the module knows when a connection opens, asked again on every connection. */
     public interface HelloVersions {
@@ -45,10 +50,13 @@ public final class SherloSocket {
     private static final class WaitingMessage {
         final String text;
         final boolean isLogLine;
+        /** Counted down once the message is written to the socket; null when nobody waits for it. */
+        final CountDownLatch written;
 
-        WaitingMessage(String text, boolean isLogLine) {
+        WaitingMessage(String text, boolean isLogLine, CountDownLatch written) {
             this.text = text;
             this.isLogLine = isLogLine;
+            this.written = written;
         }
     }
 
@@ -63,15 +71,25 @@ public final class SherloSocket {
     private WebSocketFrames currentConnection = null;
     private Thread dialThread = null;
 
-    public SherloSocket(String address, HelloVersions helloVersions, MessageListener messageListener) {
-        this(address, helloVersions, messageListener, 250);
+    /** The runner's address, handed at launch: dialed only when it is on this device's loopback. */
+    public static SherloSocket toTheRunner(String address, HelloVersions helloVersions, MessageListener messageListener) {
+        return new SherloSocket(address, helloVersions, messageListener, true, 250);
+    }
+
+    /**
+     * The address of the bundler the bundle was served from, whatever its host: 10.0.2.2 on an
+     * emulator, or a LAN address for a physical phone. A release build has no bundler.
+     */
+    public static SherloSocket toTheBundler(String address, HelloVersions helloVersions, MessageListener messageListener) {
+        return new SherloSocket(address, helloVersions, messageListener, false, 250);
     }
 
     /** A test shortens the wait before dialing again. */
-    SherloSocket(String address, HelloVersions helloVersions, MessageListener messageListener, long redialDelayMs) {
+    SherloSocket(String address, HelloVersions helloVersions, MessageListener messageListener, boolean loopbackOnly, long redialDelayMs) {
         this.address = URI.create(address);
         this.helloVersions = helloVersions;
         this.messageListener = messageListener;
+        this.loopbackOnly = loopbackOnly;
         this.redialDelayMs = redialDelayMs;
     }
 
@@ -88,10 +106,25 @@ public final class SherloSocket {
         }
     }
 
-    /** Starts dialing. Does nothing for an address that is not loopback. */
+    /** True for any ws:// address with a host: what the bundler's address may be. */
+    public static boolean isWebSocketAddress(String address) {
+        try {
+            URI uri = URI.create(address);
+            return "ws".equals(uri.getScheme()) && uri.getHost() != null;
+        } catch (IllegalArgumentException invalidAddress) {
+            return false;
+        }
+    }
+
+    /**
+     * Starts dialing. Does nothing for an address that is not ws://, nor for a runner's address
+     * that is not loopback.
+     */
     public void start() {
+        String addressText = address.toString();
+        boolean mayDial = loopbackOnly ? isLoopbackAddress(addressText) : isWebSocketAddress(addressText);
         synchronized (lock) {
-            if (dialThread != null || stopped || !isLoopbackAddress(address.toString())) {
+            if (dialThread != null || stopped || !mayDial) {
                 return;
             }
             dialThread = new Thread(new Runnable() {
@@ -122,8 +155,28 @@ public final class SherloSocket {
     /** Sends one JSON message, or keeps it in order until the socket is back. */
     public void send(String messageJson) {
         synchronized (lock) {
-            waitingMessages.addLast(new WaitingMessage(messageJson, false));
+            waitingMessages.addLast(new WaitingMessage(messageJson, false, null));
             lock.notifyAll();
+        }
+    }
+
+    /**
+     * Like send, then waits until the message is written to the socket, at most `timeoutMs`: for an
+     * error caught as the process dies, which must leave before the process is let go.
+     *
+     * @return true when the message was written in time.
+     */
+    public boolean sendAndWaitUntilWritten(String messageJson, long timeoutMs) {
+        CountDownLatch written = new CountDownLatch(1);
+        synchronized (lock) {
+            waitingMessages.addLast(new WaitingMessage(messageJson, false, written));
+            lock.notifyAll();
+        }
+        try {
+            return written.await(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
@@ -134,7 +187,7 @@ public final class SherloSocket {
                 return;
             }
             waitingLogLines++;
-            waitingMessages.addLast(new WaitingMessage(logLineJson, true));
+            waitingMessages.addLast(new WaitingMessage(logLineJson, true, null));
             lock.notifyAll();
         }
     }
@@ -210,6 +263,9 @@ public final class SherloSocket {
                 }
                 try {
                     connection.writeText(message.text);
+                    if (message.written != null) {
+                        message.written.countDown();
+                    }
                 } catch (IOException writeFailed) {
                     putBackAsNext(message);
                     throw writeFailed;

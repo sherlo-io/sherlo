@@ -27,7 +27,7 @@ android {
 }
 
 // Only the classes that have tests here are compiled; the rest of the module needs React Native.
-def classesUnderTest = ['SherloSocket.java', 'WebSocketFrames.java']
+def classesUnderTest = ['SherloSocket.java', 'WebSocketFrames.java', 'RestartHelper.java']
 tasks.withType(JavaCompile).configureEach {
     exclude { element ->
         // A folder is never excluded, or its files would go with it.
@@ -36,6 +36,8 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 dependencies {
+    // RestartHelper restarts the process through it, as the library does (../build.gradle).
+    implementation 'com.jakewharton:process-phoenix:2.2.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.14.1'
 }

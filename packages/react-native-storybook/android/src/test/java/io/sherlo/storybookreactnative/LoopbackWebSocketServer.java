@@ -39,9 +39,22 @@ final class LoopbackWebSocketServer {
         return "ws://127.0.0.1:" + listening.getLocalPort() + "/sherlo/line";
     }
 
+    /**
+     * This server under a host that is not one of the loopback names SherloSocket recognises
+     * (an IPv4-mapped IPv6 address): it stands in for a bundler on 10.0.2.2 or a LAN address.
+     */
+    String addressUnderAnotherHost() {
+        return "ws://[::ffff:127.0.0.1]:" + listening.getLocalPort() + "/sherlo/line";
+    }
+
     /** The next text a client sent on any connection, or null after four seconds. */
     String nextTextReceived() throws InterruptedException {
         return textsReceived.poll(4, TimeUnit.SECONDS);
+    }
+
+    /** The next text a client sent, or null when none arrives within `milliseconds`. */
+    String nextTextReceivedWithin(long milliseconds) throws InterruptedException {
+        return textsReceived.poll(milliseconds, TimeUnit.MILLISECONDS);
     }
 
     /** Hangs up on the newest client without a closing frame. */

@@ -1,11 +1,15 @@
 package io.sherlo.storybookreactnative;
 
+import android.app.Activity;
+import android.app.Application;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.res.AssetManager;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -18,20 +22,25 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Lifecycle-only ContentProvider that triggers Sherlo's native early-init emission
- * before Application.onCreate() (and therefore before the React Native bridge and JS
- * evaluation). This mirrors the iOS __attribute__((constructor)) behavior and ensures
- * NATIVE_INIT_STARTED / NATIVE_LOADED reach protocol.sherlo even when JS crashes at
- * the top of the bundle.
+ * Lifecycle-only ContentProvider that starts Sherlo's native side before Application.onCreate()
+ * (and therefore before the React Native bridge and JS evaluation). This mirrors the iOS
+ * __attribute__((constructor)) behavior.
+ *
+ * It reads the address the runner handed at launch from the first activity's intent, before that
+ * activity's JavaScript starts: an address puts the app in testing mode and opens the connection,
+ * so NATIVE_INIT_STARTED / NATIVE_LOADED reach the runner even when JS crashes at the top of the
+ * bundle. With no address the app opens nothing and runs as built.
  *
  * Manifest merger auto-registers this provider in any host app that installs the SDK;
- * no changes needed in the host app. In production / non-testing mode the provider is
- * still instantiated by the OS but performs a silent no-op.
+ * no changes needed in the host app.
  */
 public class SherloInitProvider extends ContentProvider {
     private static final String TAG = "SherloModule:InitProvider";
 
-    // Native watchdog timer: fires if getStorybook() is never called within 10s of launch.
+    /** The launch intent's extra that carries the connection's address (`--es sherloAddress <url>`). */
+    private static final String ADDRESS_EXTRA = "sherloAddress";
+
+    // Native watchdog timer: fires if getStorybook() is never called within 30s of launch.
     private static final AtomicBoolean getStorybookCalled = new AtomicBoolean(false);
     private static Handler timerHandler;
     private static Runnable timerRunnable;
@@ -42,8 +51,11 @@ public class SherloInitProvider extends ContentProvider {
             Context ctx = getContext();
             if (ctx != null) {
                 SherloModuleCore.performEarlyInit(ctx);
-                checkStorybookDisabledMarker(ctx);
-                scheduleStorybookNotDisplayedTimer();
+                if (SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
+                    startTestingWatch(ctx);
+                } else {
+                    readAddressFromTheFirstActivity(ctx);
+                }
             }
             installJsExceptionHandler();
             installJsBundleEvalHook();
@@ -55,23 +67,78 @@ public class SherloInitProvider extends ContentProvider {
     }
 
     /**
-     * Schedules a 30s native timer that writes ERROR_STORYBOOK_NOT_DISPLAYED if
+     * Reads the launch intent's address as the process's first activity is made: before it is
+     * created on Android 10 and later, as it is created before that - either way before the
+     * activity starts its JavaScript.
+     */
+    private void readAddressFromTheFirstActivity(final Context ctx) {
+        Context appContext = ctx.getApplicationContext();
+        if (!(appContext instanceof Application)) return;
+        final Application application = (Application) appContext;
+
+        application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+            private boolean addressRead = false;
+
+            @Override
+            public void onActivityPreCreated(Activity activity, Bundle savedInstanceState) {
+                readAddressOnce(activity);
+            }
+
+            @Override
+            public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+                // Below Android 10 there is no pre-created callback.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                    readAddressOnce(activity);
+                }
+            }
+
+            private void readAddressOnce(Activity activity) {
+                if (addressRead) return;
+                addressRead = true;
+                application.unregisterActivityLifecycleCallbacks(this);
+                try {
+                    Intent intent = activity.getIntent();
+                    String address = intent != null ? intent.getStringExtra(ADDRESS_EXTRA) : null;
+                    SherloModuleCore.startFromAddressHandedAtLaunch(address);
+                    if (SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
+                        startTestingWatch(ctx);
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "Failed to read the address handed at launch", t);
+                }
+            }
+
+            @Override public void onActivityStarted(Activity activity) {}
+            @Override public void onActivityResumed(Activity activity) {}
+            @Override public void onActivityPaused(Activity activity) {}
+            @Override public void onActivityStopped(Activity activity) {}
+            @Override public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
+            @Override public void onActivityDestroyed(Activity activity) {}
+        });
+    }
+
+    /** What a run in testing mode watches for natively: a switched-off Storybook, and one that never appears. */
+    private void startTestingWatch(Context ctx) {
+        checkStorybookDisabledMarker(ctx);
+        scheduleStorybookNotDisplayedTimer();
+    }
+
+    /**
+     * Schedules a 30s native timer that sends ERROR_STORYBOOK_NOT_DISPLAYED if
      * getStorybook() is never called. Only active in testing mode; no-op otherwise.
      * The cancel signal arrives via notifyGetStorybookCalled() on the native module.
      */
     private void scheduleStorybookNotDisplayedTimer() {
         try {
             if (!SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) return;
-            FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
-            if (fs == null) return;
             timerHandler = new Handler(Looper.getMainLooper());
             timerRunnable = () -> {
                 if (!getStorybookCalled.get()) {
-                    ProtocolHelper.writeNativeError(fs,
+                    SherloModuleCore.sendNativeErrorMessage(
                         "ERROR_STORYBOOK_NOT_DISPLAYED",
                         "Storybook did not appear within 30s of app launch",
-                        "");
-                    Log.i(TAG, "ERROR_STORYBOOK_NOT_DISPLAYED written by native timer");
+                        null);
+                    Log.i(TAG, "ERROR_STORYBOOK_NOT_DISPLAYED sent by native timer");
                 }
             };
             timerHandler.postDelayed(timerRunnable, 30000);
@@ -95,15 +162,12 @@ public class SherloInitProvider extends ContentProvider {
 
     /**
      * Checks for the build-time sherlo-storybook-disabled marker in the APK's assets.
-     * If present AND in testing mode, writes ERROR_STORYBOOK_DISABLED to protocol.sherlo.
-     * The marker is written by applySherloTransforms.js when opts.enabled === false.
+     * If present AND in testing mode, sends ERROR_STORYBOOK_DISABLED over the connection.
      * Mode-gated: no-op in production (non-testing) mode.
      */
     private void checkStorybookDisabledMarker(Context ctx) {
         try {
             if (!SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) return;
-            FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
-            if (fs == null) return;
             boolean markerExists = false;
             try {
                 ctx.getAssets().open("sherlo-storybook-disabled").close();
@@ -112,11 +176,11 @@ public class SherloInitProvider extends ContentProvider {
                 // marker not present - not an error
             }
             if (markerExists) {
-                ProtocolHelper.writeNativeError(fs,
+                SherloModuleCore.sendNativeErrorMessage(
                     "ERROR_STORYBOOK_DISABLED",
                     "Storybook is disabled in metro.config.js. Set enabled: true for Sherlo testing builds.",
-                    "");
-                Log.i(TAG, "ERROR_STORYBOOK_DISABLED written: sherlo-storybook-disabled asset found");
+                    null);
+                Log.i(TAG, "ERROR_STORYBOOK_DISABLED sent: sherlo-storybook-disabled asset found");
             }
         } catch (Throwable t) {
             Log.e(TAG, "checkStorybookDisabledMarker failed", t);
@@ -126,53 +190,31 @@ public class SherloInitProvider extends ContentProvider {
     /**
      * Installs a process-wide uncaught-exception handler as a FALLBACK for bundle-eval crashes
      * on the React Native JS thread. The primary capture path is SherloJSExceptionCapture
-     * (installed via wrapCatalystJsExceptionHandler at PRE_RUN_JS_BUNDLE_START), which writes
+     * (installed via wrapCatalystJsExceptionHandler at PRE_RUN_JS_BUNDLE_START), which sends
      * JS_ERROR with the original JS exception message before the JNI layer swallows it.
      *
-     * This fallback only writes JS_ERROR if SherloJSExceptionCapture did not already write it
-     * (checked via SherloModuleCore.isJsErrorCaptured()), preventing the secondary C++ exception
-     * ("Could not get BatchedBridge") from overwriting the correct JS error message.
-     *
-     * SPIKE: diagnostic logs intentionally verbose; will be trimmed after verification.
+     * This fallback only sends JS_ERROR if no JS_ERROR was sent yet (checked via
+     * SherloModuleCore.isJsErrorCaptured()), so the secondary C++ exception ("Could not get
+     * BatchedBridge") never stands in for the correct JS error message. It waits until the socket
+     * took the error, at most two seconds, before the process is let go.
      */
     private void installJsExceptionHandler() {
         try {
-            Log.i(TAG, "[diag Android] SherloInitProvider.installJsExceptionHandler called - thread=" + Thread.currentThread().getName());
-            FileSystemHelper diagFs = SherloModuleCore.getStaticFsHelper();
-            if (diagFs != null) {
-                try {
-                    diagFs.appendFile("sherlo-diag.log",
-                        "[diag Android] SherloInitProvider.installJsExceptionHandler called - thread=" + Thread.currentThread().getName() + "\n");
-                } catch (Throwable d) { /* ignore */ }
-            }
             Thread.UncaughtExceptionHandler originalHandler = Thread.getDefaultUncaughtExceptionHandler();
             Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-                Log.i(TAG, "UncaughtException on thread: "
-                        + thread.getName() + " | " + throwable);
-
                 // Intercept the RN JS thread (old-arch uses "mqt_js", new-arch uses "js").
                 if (("js".equals(thread.getName()) || "mqt_js".equals(thread.getName()))
                         && SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
-
-                    Log.i(TAG, "handleException fired: "
-                            + (throwable.getMessage() != null ? throwable.getMessage() : throwable.toString()));
                     try {
-                        FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
                         if (SherloModuleCore.isJsErrorCaptured()) {
-                            // Primary path (SherloJSExceptionCapture) already wrote the correct JS_ERROR.
-                            Log.i(TAG, "JS_ERROR already captured via primary path - skipping fallback write");
-                        } else if (fs != null) {
-                            ProtocolHelper.writeJsErrorFromException(fs, throwable);
-                            Log.i(TAG, "writeJsErrorFromException succeeded (fallback path)");
+                            Log.i(TAG, "JS_ERROR already sent via the primary path - skipping the fallback");
                         } else {
-                            Log.w(TAG, "skipped: staticFsHelper is null (performEarlyInit not run?)");
+                            SherloModuleCore.sendJsErrorAndWait(
+                                    throwable.getClass().getSimpleName(), bestMessage(throwable), stackOf(throwable));
                         }
-                    } catch (Throwable writeErr) {
-                        Log.e(TAG, "writeJsErrorFromException failed", writeErr);
+                    } catch (Throwable sendErr) {
+                        Log.e(TAG, "Sending the JS_ERROR failed", sendErr);
                     }
-                } else {
-                    Log.i(TAG, "skipped: thread=" + thread.getName()
-                            + " mode=" + SherloModuleCore.getCurrentMode());
                 }
 
                 // Always chain to the original handler (crash reporters, system default).
@@ -187,9 +229,30 @@ public class SherloInitProvider extends ContentProvider {
     }
 
     /**
+     * Returns the most informative message from the exception chain.
+     * Prefers the top-level message (JavascriptException typically contains the full Hermes stack
+     * including the original JS Error message). Falls back through causes if the top is empty.
+     */
+    private static String bestMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && !message.isEmpty()) return message;
+            current = current.getCause();
+        }
+        return throwable.toString();
+    }
+
+    private static String stackOf(Throwable throwable) {
+        java.io.StringWriter stack = new java.io.StringWriter();
+        throwable.printStackTrace(new java.io.PrintWriter(stack));
+        return stack.toString();
+    }
+
+    /**
      * Registers a ReactMarker listener for PRE_RUN_JS_BUNDLE_START. In testing mode this fires
      * just before the JS bundle is evaluated. We use it to replace CatalystInstanceImpl's
-     * mJSExceptionHandler with SherloJSExceptionCapture, which writes JS_ERROR with the original
+     * mJSExceptionHandler with SherloJSExceptionCapture, which sends JS_ERROR with the original
      * JS exception before rethrowing (preserving crash behavior). This intercepts BEFORE the JNI
      * layer swallows the original exception and replaces it with the secondary "Could not get
      * BatchedBridge" C++ exception.
@@ -201,32 +264,10 @@ public class SherloInitProvider extends ContentProvider {
         try {
             ReactMarker.addListener((name, tag, instanceKey) -> {
                 if (name != ReactMarkerConstants.PRE_RUN_JS_BUNDLE_START) return;
-                if (!SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
-                    Log.i(TAG, "PRE_RUN_JS_BUNDLE_START: not in testing mode, skipping");
-                    return;
-                }
+                if (!SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) return;
                 Log.i(TAG, "PRE_RUN_JS_BUNDLE_START: testing mode - wrapping CatalystInstance JS exception handler");
-                // SPIKE diag: write PRE_RUN event to protocol
-                FileSystemHelper preDiagFs = SherloModuleCore.getStaticFsHelper();
-                if (preDiagFs != null) {
-                    try {
-                        org.json.JSONObject preDiag = new org.json.JSONObject();
-                        preDiag.put("action", "DIAG_PRE_RUN_JS_BUNDLE_START");
-                        preDiag.put("timestamp", System.currentTimeMillis());
-                        preDiag.put("mode", SherloModuleCore.getCurrentMode());
-                        preDiagFs.appendFile("protocol.sherlo", preDiag.toString() + "\n");
-                    } catch (Throwable diagErr2) { /* ignore */ }
-                }
                 wrapCatalystJsExceptionHandler();
             });
-            Log.i(TAG, "[diag Android] mJSExceptionHandler reflected onto ReactInstanceManager: yes (ReactMarker listener installed)");
-            FileSystemHelper preFs = SherloModuleCore.getStaticFsHelper();
-            if (preFs != null) {
-                try {
-                    preFs.appendFile("sherlo-diag.log",
-                        "[diag Android] mJSExceptionHandler reflected onto ReactInstanceManager: yes (ReactMarker listener installed)\n");
-                } catch (Throwable d) { /* ignore */ }
-            }
             Log.i(TAG, "ReactMarker PRE_RUN_JS_BUNDLE_START listener installed");
         } catch (Throwable t) {
             Log.e(TAG, "installJsBundleEvalHook failed", t);
@@ -243,22 +284,8 @@ public class SherloInitProvider extends ContentProvider {
      */
     private void wrapCatalystJsExceptionHandler() {
         try {
-            // Diagnostic: write DIAG entry to protocol.sherlo so we can trace execution
-            // even without logcat. SPIKE: will be removed after verification.
-            FileSystemHelper diagFs = SherloModuleCore.getStaticFsHelper();
-            if (diagFs != null) {
-                try {
-                    org.json.JSONObject diag = new org.json.JSONObject();
-                    diag.put("action", "DIAG_WRAP_CATALYST_CALLED");
-                    diag.put("timestamp", System.currentTimeMillis());
-                    diag.put("mode", SherloModuleCore.getCurrentMode());
-                    diag.put("reactContextNull", SherloModuleCore.getEarlyReactContext() == null);
-                    diagFs.appendFile("protocol.sherlo", diag.toString() + "\n");
-                } catch (Throwable diagErr) { /* ignore */ }
-            }
-
             com.facebook.react.bridge.ReactApplicationContext reactContext =
-                    SherloModuleCore.getEarlyReactContext();
+                    SherloModuleCore.currentReactContext();
             if (reactContext == null) {
                 Log.w(TAG, "wrapCatalystJsHandler: no stored ReactContext (SherloModuleCore not initialized?)");
                 return;
@@ -277,25 +304,8 @@ public class SherloInitProvider extends ContentProvider {
                 return;
             }
             handlerField.setAccessible(true);
-            Object previousHandler = handlerField.get(ci);
             handlerField.set(ci, new SherloJSExceptionCapture());
-            Object newHandler = handlerField.get(ci);
-            // SPIKE diag: report whether set() actually changed the field value
-            String prevClass = previousHandler != null ? previousHandler.getClass().getSimpleName() : "null";
-            String newClass = newHandler != null ? newHandler.getClass().getSimpleName() : "null";
-            boolean setWorked = newHandler instanceof SherloJSExceptionCapture;
-            if (diagFs != null) {
-                try {
-                    org.json.JSONObject diagResult = new org.json.JSONObject();
-                    diagResult.put("action", "DIAG_WRAP_CATALYST_RESULT");
-                    diagResult.put("timestamp", System.currentTimeMillis());
-                    diagResult.put("prevHandler", prevClass);
-                    diagResult.put("newHandler", newClass);
-                    diagResult.put("setWorked", setWorked);
-                    diagFs.appendFile("protocol.sherlo", diagResult.toString() + "\n");
-                } catch (Throwable diagErr3) { /* ignore */ }
-            }
-            Log.i(TAG, "wrapCatalystJsHandler: mJSExceptionHandler replaced with SherloJSExceptionCapture (setWorked=" + setWorked + ")");
+            Log.i(TAG, "wrapCatalystJsHandler: mJSExceptionHandler replaced with SherloJSExceptionCapture");
         } catch (Throwable t) {
             Log.e(TAG, "wrapCatalystJsExceptionHandler failed", t);
         }
@@ -304,8 +314,8 @@ public class SherloInitProvider extends ContentProvider {
     /**
      * Intercepts the original JS exception at CatalystInstanceImpl.mJSExceptionHandler before the
      * JNI rethrow swallows it and replaces it with the secondary "Could not get BatchedBridge"
-     * C++ exception. Writes JS_ERROR to protocol.sherlo with the correct message, then rethrows
-     * to preserve normal crash propagation behavior.
+     * C++ exception. Sends JS_ERROR over the connection with the correct message, waits until the
+     * socket took it, then rethrows to preserve normal crash propagation behavior.
      *
      * <p>On old-arch Android the exception {@code e} typically has message
      * "Could not get BatchedBridge" rather than the original JS error - because Hermes
@@ -321,45 +331,21 @@ public class SherloInitProvider extends ContentProvider {
 
         @Override
         public void handleException(Exception e) {
-            String exMsg = e.getMessage() != null ? e.getMessage() : e.toString();
-            Log.i(CAPTURE_TAG, "[diag Android] SherloJSExceptionCapture.handleException FIRED with: " + exMsg);
             try {
-                FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
-                if (fs != null) {
-                    try {
-                        fs.appendFile("sherlo-diag.log",
-                            "[diag Android] SherloJSExceptionCapture.handleException FIRED with: " + exMsg + "\n");
-                    } catch (Throwable d) { /* ignore */ }
-                }
-            } catch (Throwable d) { /* ignore */ }
-            try {
-                FileSystemHelper fs = SherloModuleCore.getStaticFsHelper();
-                if (fs != null) {
-                    // Try to recover the real JS error from the global written by the polyfill.
-                    // On old-arch Android, 'e' arrives with "Could not get BatchedBridge" instead
-                    // of the original JS error message.  The JSI read bypasses the broken bridge.
-                    SherloJsiReader.JsError jsError =
-                            SherloJsiReader.tryReadLastJsError(SherloModuleCore.getEarlyReactContext());
-                    if (jsError != null) {
-                        Log.i(CAPTURE_TAG, "Recovered real JS error via JSI: " + jsError.message);
-                        ProtocolHelper.writeEarlyJsError(fs, jsError.name, jsError.message, jsError.stack);
-                    } else {
-                        // Fallback: use whatever the bridge provided (may be secondary exception).
-                        ProtocolHelper.writeJsErrorFromException(fs, e);
-                        Log.i(CAPTURE_TAG, "Captured JS error (bridge fallback): "
-                                + (e.getMessage() != null ? e.getMessage() : e.toString()));
-                    }
-                    SherloModuleCore.markJsErrorCaptured();
-                    Log.i(CAPTURE_TAG, "[diag Android] FsHelper.appendProtocol returned");
-                    try {
-                        fs.appendFile("sherlo-diag.log",
-                            "[diag Android] FsHelper.appendProtocol returned\n");
-                    } catch (Throwable d) { /* ignore */ }
+                // Try to recover the real JS error from the global written by the polyfill.
+                // On old-arch Android, 'e' arrives with "Could not get BatchedBridge" instead
+                // of the original JS error message.  The JSI read bypasses the broken bridge.
+                SherloJsiReader.JsError jsError =
+                        SherloJsiReader.tryReadLastJsError(SherloModuleCore.currentReactContext());
+                if (jsError != null) {
+                    Log.i(CAPTURE_TAG, "Recovered real JS error via JSI: " + jsError.message);
+                    SherloModuleCore.sendJsErrorAndWait(jsError.name, jsError.message, jsError.stack);
                 } else {
-                    Log.w(CAPTURE_TAG, "staticFsHelper null - cannot write JS_ERROR");
+                    // Fallback: use whatever the bridge provided (may be secondary exception).
+                    SherloModuleCore.sendJsErrorAndWait(e.getClass().getSimpleName(), bestMessage(e), stackOf(e));
                 }
-            } catch (Throwable writeErr) {
-                Log.e(CAPTURE_TAG, "Failed to write JS_ERROR", writeErr);
+            } catch (Throwable sendErr) {
+                Log.e(CAPTURE_TAG, "Failed to send JS_ERROR", sendErr);
             }
             // Rethrow to preserve normal crash behavior (JNI crash propagation).
             if (e instanceof RuntimeException) throw (RuntimeException) e;

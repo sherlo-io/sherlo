@@ -27,35 +27,57 @@ public class SherloSocketTest {
     private SherloSocket socket;
     private final BlockingQueue<String> textsFromServer = new LinkedBlockingQueue<>();
 
+    private final SherloSocket.HelloVersions testVersions = new SherloSocket.HelloVersions() {
+        @Override
+        public String nativeVersion() {
+            return "3.0.0-test";
+        }
+
+        @Override
+        public String jsVersion() {
+            return null;
+        }
+    };
+
+    private final SherloSocket.MessageListener keepTextsFromServer = new SherloSocket.MessageListener() {
+        @Override
+        public void onMessage(String messageText) {
+            textsFromServer.add(messageText);
+        }
+    };
+
     @Before
     public void startServer() throws Exception {
         server = new LoopbackWebSocketServer();
-        socket = new SherloSocket(
-                server.address(),
-                new SherloSocket.HelloVersions() {
-                    @Override
-                    public String nativeVersion() {
-                        return "3.0.0-test";
-                    }
-
-                    @Override
-                    public String jsVersion() {
-                        return null;
-                    }
-                },
-                new SherloSocket.MessageListener() {
-                    @Override
-                    public void onMessage(String messageText) {
-                        textsFromServer.add(messageText);
-                    }
-                },
-                20);
+        socket = new SherloSocket(server.address(), testVersions, keepTextsFromServer, true, 20);
     }
 
     @After
     public void stopEverything() throws Exception {
         socket.stop();
         server.stop();
+    }
+
+    @Test
+    public void dials_a_bundler_on_any_host_but_the_runner_only_on_loopback() throws Exception {
+        String bundlerOnAnotherHost = server.addressUnderAnotherHost();
+        assertFalse(SherloSocket.isLoopbackAddress(bundlerOnAnotherHost));
+
+        SherloSocket toTheRunner = SherloSocket.toTheRunner(bundlerOnAnotherHost, testVersions, keepTextsFromServer);
+        toTheRunner.start();
+        assertNull(server.nextTextReceivedWithin(400));
+        toTheRunner.stop();
+
+        SherloSocket toTheBundler = SherloSocket.toTheBundler(bundlerOnAnotherHost, testVersions, keepTextsFromServer);
+        toTheBundler.start();
+        assertEquals("hello", new JSONObject(server.nextTextReceived()).getString("action"));
+        toTheBundler.stop();
+
+        SherloSocket notWebSocket = SherloSocket.toTheBundler(
+                bundlerOnAnotherHost.replace("ws://", "http://"), testVersions, keepTextsFromServer);
+        notWebSocket.start();
+        assertNull(server.nextTextReceivedWithin(400));
+        notWebSocket.stop();
     }
 
     @Test
@@ -92,6 +114,19 @@ public class SherloSocketTest {
         assertEquals("hello", new JSONObject(server.nextTextReceived()).getString("action"));
         assertEquals("{\"action\":\"waited\",\"number\":1}", server.nextTextReceived());
         assertEquals("{\"action\":\"waited\",\"number\":2}", server.nextTextReceived());
+    }
+
+    @Test
+    public void an_error_sent_as_the_process_dies_is_waited_for_until_the_socket_took_it() throws Exception {
+        // With nobody connected, the wait gives up at its limit.
+        assertFalse(socket.sendAndWaitUntilWritten("{\"action\":\"JS_ERROR\",\"number\":1}", 50));
+
+        socket.start();
+
+        assertEquals("hello", new JSONObject(server.nextTextReceived()).getString("action"));
+        assertEquals("{\"action\":\"JS_ERROR\",\"number\":1}", server.nextTextReceived());
+        assertTrue(socket.sendAndWaitUntilWritten("{\"action\":\"JS_ERROR\",\"number\":2}", 2000));
+        assertEquals("{\"action\":\"JS_ERROR\",\"number\":2}", server.nextTextReceived());
     }
 
     @Test
