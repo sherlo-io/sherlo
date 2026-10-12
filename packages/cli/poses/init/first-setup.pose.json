@@ -80,7 +80,7 @@
             "expo": "^54.0.0",
             "react": "19.1.0",
             "react-native": "0.81.5",
-            "storybook": "10.6.2"
+            "storybook": "10.6.1"
           },
           "packageManager": "yarn@4.3.1"
         },
