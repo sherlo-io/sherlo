@@ -10,7 +10,9 @@
 import * as fs from 'fs';
 import * as http from 'http';
 import type { AddressInfo } from 'net';
+import * as os from 'os';
 import * as path from 'path';
+import * as ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SherloLine } from '../../metro/sherloLine';
 
@@ -149,6 +151,39 @@ function appSays(
   return { stories, atTheStoryBrowser, showing, threw: null };
 }
 
+/**
+ * Type-check `source` as a file of its own, with `ws`'s and Node's types in reach, and return what
+ * TypeScript says about it. `yarn typecheck` skips tests, so a test makes this check itself.
+ */
+function typeErrorsIn(source: string): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-line-types-'));
+  const sourcePath = path.join(root, 'caller.ts');
+  fs.writeFileSync(sourcePath, source, 'utf8');
+
+  const typesFolder = path.dirname(path.dirname(require.resolve('@types/ws/package.json')));
+  const program = ts.createProgram([sourcePath], {
+    noEmit: true,
+    strict: true,
+    esModuleInterop: true,
+    target: ts.ScriptTarget.ES2018,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Node10,
+    skipLibCheck: true,
+    typeRoots: [typesFolder],
+    types: ['node'],
+    baseUrl: root,
+    paths: { ws: [path.join(typesFolder, 'ws')] },
+  });
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+  fs.rmSync(root, { recursive: true, force: true });
+
+  return diagnostics
+    .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '))
+    .join('\n');
+}
+
+const LINE_MODULE = path.resolve(__dirname, '../../metro/sherloLine');
+
 /* ---- The tests ------------------------------------------------------------------------------ */
 
 describe('the Sherlo line', () => {
@@ -213,6 +248,30 @@ describe('the Sherlo line', () => {
 
     expect(lineSource).not.toMatch(/\brequire\s*\(/);
     expect(lineSource).not.toMatch(/^\s*import\b/m);
+  });
+
+  it("the ws package's own server class is accepted by attach's types with no cast", () => {
+    const typeErrors = typeErrorsIn(`
+      import * as http from 'http';
+      import { WebSocketServer } from 'ws';
+      import { attach } from '${LINE_MODULE}';
+
+      attach(http.createServer(), WebSocketServer);
+    `);
+
+    expect(typeErrors).toBe('');
+  });
+
+  it('CONTROL: the type check refuses a class that is no WebSocket server', () => {
+    const typeErrors = typeErrorsIn(`
+      import * as http from 'http';
+      import { attach } from '${LINE_MODULE}';
+
+      class NotAServer {}
+      attach(http.createServer(), NotAServer);
+    `);
+
+    expect(typeErrors).not.toBe('');
   });
 
   it('CONTROL: a hello in the protocol the line speaks makes the socket an app', async () => {
