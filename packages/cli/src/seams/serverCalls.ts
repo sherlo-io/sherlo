@@ -461,6 +461,14 @@ export type PosedCaptureDecision = {
   fullCaptureTriggerReason?: string;
   /** The build this decision diffed against - the "inheriting N from build #A" clause. */
   ancestorBuildIndex?: number;
+  /**
+   * The snapshot counts the open answer's `build.diffScopeInfo` carries. A build the service closed
+   * as it opened, because no phone has a story to photograph, says 0 captured and some kept - which
+   * is how the tool knows to withhold the review link and end on "Nothing needed capturing"
+   * (`isServerBypassed`, helpers/waitForBuildResult.ts). Absent on every other build.
+   */
+  capturedSnapshotCount?: number;
+  inheritedSnapshotCount?: number;
 };
 
 /** One platform's capture decision, as a pose states it. */
@@ -833,6 +841,8 @@ function diffScopeInfoOf(
   return {
     fullCaptureTriggerReason: captureDecision.fullCaptureTriggerReason,
     ancestorBuildIndex: captureDecision.ancestorBuildIndex,
+    capturedSnapshotCount: captureDecision.capturedSnapshotCount,
+    inheritedSnapshotCount: captureDecision.inheritedSnapshotCount,
     platforms: {
       android: platformReasonOf(captureDecision, 'android'),
       ios: platformReasonOf(captureDecision, 'ios'),

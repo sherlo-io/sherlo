@@ -1389,9 +1389,21 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
     if ('ancestorBuildIndex' in object1) {
       expectNumber(object1.ancestorBuildIndex, at(path, 'ancestorBuildIndex'), problems);
     }
+    if ('capturedSnapshotCount' in object1) {
+      expectNumber(object1.capturedSnapshotCount, at(path, 'capturedSnapshotCount'), problems);
+    }
+    if ('inheritedSnapshotCount' in object1) {
+      expectNumber(object1.inheritedSnapshotCount, at(path, 'inheritedSnapshotCount'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['platforms', 'fullCaptureTriggerReason', 'ancestorBuildIndex'],
+      [
+        'platforms',
+        'fullCaptureTriggerReason',
+        'ancestorBuildIndex',
+        'capturedSnapshotCount',
+        'inheritedSnapshotCount',
+      ],
       path,
       problems
     );
