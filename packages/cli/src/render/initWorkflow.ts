@@ -13,6 +13,14 @@
  * NO FULL-RUN SWITCH: the service photographs every story of a build on the project's main line
  * (Diff Scope's first rung), and infers that line from the repository's default branch - the same
  * branch this file runs on. So both runs are a plain `sherlo test`.
+ *
+ * ONE JOB PER PLATFORM, the shape of epic sherlo-test-builds-apps (operator, 2026-10-11): Android on
+ * Linux, iOS on macOS, through the Sherlo Action; a platform the config names no device of ends
+ * green at once, and fail-fast is off because a cancelled job never joins its test.
+ *
+ * NO TOKEN YET IS NOT A FAILURE (operator, 2026-10-12): setup no longer pitches CI up front, so the
+ * file can sit in a repository for days before anyone saves SHERLO_TOKEN. Until then every job ends
+ * green with one notice saying where the token is made, instead of failing every pull request.
  */
 
 /** Where the workflow goes in the repository - one name for the step that writes it and the lines that name it. */
@@ -26,7 +34,12 @@ const INSTALL_COMMAND: Record<string, string> = {
   bun: 'bun install --frozen-lockfile',
 };
 
+/** The package caches setup-node knows by name; bun has none, so it gets no cache line. */
+const SETUP_NODE_CACHE: Record<string, string> = { npm: 'npm', yarn: 'yarn', pnpm: 'pnpm' };
+
 export function renderSherloWorkflow({ packageManager }: { packageManager: string }): string {
+  const cache = SETUP_NODE_CACHE[packageManager];
+  const cacheLine = cache ? `\n          cache: ${cache}` : '';
   return `# Sherlo visual tests, added by \`npx sherlo init\`.
 #
 # Sherlo photographs your app's Storybook stories on a device and shows what changed, for review.
@@ -52,29 +65,47 @@ jobs:
     # (for example \`dev\`), put its name here in place of github.event.repository.default_branch,
     # and set it as the main branch in your Sherlo project's settings too.
     if: github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-latest
+    name: Sherlo (\${{ matrix.platform }})
+    strategy:
+      # A cancelled job never joins its test, which would then wait for it.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runs-on: ubuntu-latest
+          - platform: ios
+            runs-on: macos-latest
+    runs-on: \${{ matrix.runs-on }}
     env:
       SHERLO_TOKEN: \${{ secrets.SHERLO_TOKEN }}
     steps:
+      # Until the SHERLO_TOKEN secret is added, the job ends here, green, with one notice.
       - name: Check the SHERLO_TOKEN secret
+        id: token
         run: |
           if [ -z "$SHERLO_TOKEN" ]; then
-            echo "::error::Add a SHERLO_TOKEN secret: create a CI token in the Sherlo web app (https://app.sherlo.io), then add it under Settings > Secrets and variables > Actions."
-            exit 1
+            echo "::notice::Sherlo is not set up for pull requests yet: create a CI token in your Sherlo project's settings (https://app.sherlo.io), then add it as the SHERLO_TOKEN secret under Settings > Secrets and variables > Actions."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - if: steps.token.outputs.present == 'true'
+        uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 22${cacheLine}
 
       - name: Install packages
+        if: steps.token.outputs.present == 'true'
         run: ${INSTALL_COMMAND[packageManager] ?? INSTALL_COMMAND.npm}
 
       - name: Run Sherlo
+        if: steps.token.outputs.present == 'true'
         uses: sherlo-io/sherlo@v3
         with:
-          token: \${{ secrets.SHERLO_TOKEN }}
+          platform: \${{ matrix.platform }}
 `;
 }

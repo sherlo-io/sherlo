@@ -6,5 +6,5 @@ describe('the GitHub workflow setup writes', () => {
   it.todo('leaves an existing workflow file as it is');
   it.todo("adds no workflow when the project keeps another CI's config file");
   it.todo('a skipped workflow prints one line naming the CI or the host it found');
-  it.todo('the workflow fails first, with the instruction, when SHERLO_TOKEN is missing');
+  it.todo('with no SHERLO_TOKEN the workflow ends green with one notice saying where the token is made');
 });
