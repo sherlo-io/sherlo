@@ -5,8 +5,8 @@
  * Storybook's files, with Storybook's example stories - the stories the first test photographs until
  * the project has stories of its own.
  *
- * Its line names the package and version, as Sherlo's line does, and says "(lite)", so whoever reads
- * Storybook's docs later knows why its phone browser looks different.
+ * Its line names the package and version, as Sherlo's line does. It does not say "lite": that changes
+ * nothing anyone does next, and the stories guide and `.rnstorybook/index.ts` say it where it matters.
  */
 import { detect, resolveCommand } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
@@ -59,7 +59,7 @@ async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{
     renderStepLine({
       outcome: 'done',
       name: 'Installed Storybook',
-      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)} (lite)`,
+      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)}`,
     }),
   ]);
 
