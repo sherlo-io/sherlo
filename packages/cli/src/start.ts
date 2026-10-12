@@ -244,7 +244,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
   [DIAGNOSTICS_OPTION]: [
     `--${DIAGNOSTICS_OPTION} <names>`,
-    'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames,sherloAtRoot)',
+    'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames)',
   ],
   [EAS_BUILD_SCRIPT_NAME_OPTION]: [
     `--${EAS_BUILD_SCRIPT_NAME_OPTION} <name>`,
