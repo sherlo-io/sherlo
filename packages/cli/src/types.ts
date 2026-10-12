@@ -202,7 +202,7 @@ export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = Invali
 
 /* === OTHERS === */
 
-export type DiagnosticType = 'androidWindowDump' | 'stabilizationFrames' | 'sherloAtRoot';
+export type DiagnosticType = 'androidWindowDump' | 'stabilizationFrames';
 
 export type BuildType = 'preview' | 'development';
 
