@@ -305,51 +305,46 @@ describe('running with no core', () => {
 
     const { getSealedCore } = await import('../sealedCore/loadSealedCore');
     const createMockable = (await import('../mocking/createMockable')).default;
-    const { startInteractiveMockActivation, stopInteractiveMockActivation } = await import(
-      '../getStorybook/interactiveMockActivation'
-    );
+    const { recordStorybookFacts } = await import('../getStorybook/storybookFacts');
+    const sherloAnnotation = (await import('../getStorybook/sherloAnnotation')).default;
     const { clearMocks } = await import('../mocking/registry');
 
-    const storyFile = {
-      default: { title: 'Mocking/Switch' },
-      First: { parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'first-mock' } } } } },
-      Second: { parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'second-mock' } } } } },
-    };
-    const req = Object.assign((_filename: string) => storyFile, {
-      keys: () => ['./Switch.stories.tsx'],
-    });
-    (globalThis as { STORIES?: unknown }).STORIES = [{ directory: './src', req }];
-
-    // Storybook's index holds the file's two stories; mocking finds each one through it.
+    // What Storybook's start() was handed: one file of two stories, which mocking finds each of
+    // through Storybook's index.
     const firstStoryId = 'mocking-switch--first';
     const secondStoryId = 'mocking-switch--second';
     const importPath = './src/Switch.stories.tsx';
-    const view = {
-      _storyIndex: {
-        entries: {
-          [firstStoryId]: { id: firstStoryId, title: 'Mocking/Switch', name: 'First', importPath },
-          [secondStoryId]: {
-            id: secondStoryId,
-            title: 'Mocking/Switch',
-            name: 'Second',
-            importPath,
+    recordStorybookFacts({
+      storyIndex: {
+        [firstStoryId]: { id: firstStoryId, title: 'Mocking/Switch', name: 'First', importPath },
+        [secondStoryId]: { id: secondStoryId, title: 'Mocking/Switch', name: 'Second', importPath },
+      },
+      storyFiles: {
+        [importPath]: {
+          default: { title: 'Mocking/Switch' },
+          First: { parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'first-mock' } } } } },
+          Second: {
+            parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'second-mock' } } } },
           },
         },
       },
-    } as never;
+      previewAnnotations: [],
+    });
     const mockable = createMockable('pkg/switch', { label: 'real-switch' });
-    const channel = makeChannel();
+
+    // Storybook runs Sherlo's loaders for each story the person selects, before it renders it.
+    const runSherlosLoaders = async (storyId: string) => {
+      for (const loader of sherloAnnotation.loaders) await loader({ id: storyId });
+    };
 
     expect(getSealedCore()).toBeNull();
-    startInteractiveMockActivation(view, channel, firstStoryId);
+    await runSherlosLoaders(firstStoryId);
     expect(mockable.label).toBe('first-mock');
 
-    channel.emit('storyChanged', secondStoryId);
+    await runSherlosLoaders(secondStoryId);
     expect(mockable.label).toBe('second-mock');
 
-    stopInteractiveMockActivation();
     clearMocks();
-    delete (globalThis as { STORIES?: unknown }).STORIES;
   });
 });
 

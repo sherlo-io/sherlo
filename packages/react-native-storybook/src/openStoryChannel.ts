@@ -13,6 +13,10 @@ import { bundlerOrigin } from './bundlerOrigin';
 import { bundlerCapture } from './captureTransport';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import { sherloFetch } from './mocking/network';
+import {
+  readStorybooksCurrentStory,
+  readWhetherStorybookNamedItsStory,
+} from './getStorybook/storybookReads';
 import type { BundlerLetterbox, LetterboxAnswer, StorybookChannel } from './sealedCore/seam';
 import type { StorybookView } from './types';
 
@@ -88,7 +92,7 @@ export function startOpenStoryChannel({
   const startTheCore = () =>
     core.startOpenStoryChannel({ channel, atTheStoryBrowser, letterbox: road });
 
-  if (!atTheStoryBrowser || view._preview?.currentSelection) {
+  if (!atTheStoryBrowser || readStorybooksCurrentStory(view).value) {
     startTheCore();
     return;
   }
@@ -122,7 +126,7 @@ function whenStorybookShowsItsFirstStory(
 ): () => void {
   const listeners = STORYBOOK_LANDED_EVENTS.map((event) => {
     const listener = () => {
-      const storybookHasNamedItsStory = Boolean(view._preview?.selectionStore?.selectionSpecifier);
+      const storybookHasNamedItsStory = readWhetherStorybookNamedItsStory(view).value === true;
       if (event === 'storyMissing' && !storybookHasNamedItsStory) return;
       stopWaiting();
       then();

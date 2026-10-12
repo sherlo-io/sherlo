@@ -910,14 +910,21 @@ function generateWrapper(wrapperPath) {
     '// (this wrapper); requiring sherlo lazily inside patchedStart breaks the\n' +
     '// circular-dep partial-init scenario that would otherwise expose empty exports.\n' +
     'Object.keys(real).forEach(function (key) {\n' +
-    "  if (key === 'start') return; // overridden below\n" +
+    "  if (key === 'start' || key === 'updateView') return; // overridden below\n" +
     '  Object.defineProperty(exports, key, {\n' +
     '    enumerable: true,\n' +
     '    get: function () { return real[key]; },\n' +
     '  });\n' +
     '});\n' +
     '\n' +
-    '// Patched start(): wraps view.getStorybookUI to route through sherlo getStorybook\n' +
+    '// The version of @storybook/react-native this bundle was built with, for the errors of\n' +
+    "// Sherlo's reads of Storybook's own fields.\n" +
+    'var STORYBOOK_VERSION = ' +
+    JSON.stringify(installedStorybookVersion(wrapperPath)) +
+    ';\n' +
+    '\n' +
+    '// Patched start(): keeps what Storybook is handed, adds Sherlo\'s annotation last, and\n' +
+    '// wraps view.getStorybookUI to route through sherlo getStorybook\n' +
     'exports.start = function patchedStart(config) {\n' +
     '  // Storybook is disabled when withStorybook({ enabled: false }) is set -\n' +
     '  // in that case real.start is not a function (sb8/sb9 make @storybook/react-native\n' +
@@ -930,10 +937,19 @@ function generateWrapper(wrapperPath) {
     '\n' +
     '  // Lazy-require sherlo AFTER the re-exports above are already set up.\n' +
     '  // This breaks the circular dependency (see comment above).\n' +
-    "  var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js').default;\n" +
+    "  var sherlosStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js');\n" +
+    '  var getStorybook = sherlosStorybook.default;\n' +
     "  var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default;\n" +
     '\n' +
-    '  var view = real.start(config);\n' +
+    '  // Keep the story entries and the annotations Storybook is handed, as plain facts for the\n' +
+    "  // SDK and its core, and hand Storybook the same, with Sherlo's own annotation last.\n" +
+    '  sherlosStorybook.recordWhatStartWasHanded(config, real.prepareStories);\n' +
+    '  var view = real.start(\n' +
+    '    Object.assign({}, config, {\n' +
+    '      annotations: (config.annotations || []).concat([sherlosStorybook.sherloAnnotation]),\n' +
+    '    })\n' +
+    '  );\n' +
+    '  sherlosStorybook.keepStartedStorybook(view, STORYBOOK_VERSION);\n' +
     '\n' +
     '  try {\n' +
     '    addStorybookToDevMenu();\n' +
@@ -957,9 +973,55 @@ function generateWrapper(wrapperPath) {
     '  // the first render commits.\n' +
     '\n' +
     '  return view;\n' +
+    '};\n' +
+    '\n' +
+    '// Patched updateView(): what the generated requires file calls instead of start() on a hot\n' +
+    '// update. Storybook swaps in the annotations it is handed, so Sherlo\'s goes last again, and the\n' +
+    '// facts are recorded afresh from the new stories.\n' +
+    'exports.updateView = function patchedUpdateView(view, annotations, storyEntries, options) {\n' +
+    "  if (typeof real.updateView !== 'function') return;\n" +
+    "  var sherlosStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js');\n" +
+    '  sherlosStorybook.recordWhatStartWasHanded(\n' +
+    '    { annotations: annotations, storyEntries: storyEntries, options: options },\n' +
+    '    real.prepareStories\n' +
+    '  );\n' +
+    '  return real.updateView(\n' +
+    '    view,\n' +
+    '    (annotations || []).concat([sherlosStorybook.sherloAnnotation]),\n' +
+    '    storyEntries,\n' +
+    '    options\n' +
+    '  );\n' +
     '};\n';
 
   fs.writeFileSync(wrapperPath, content, 'utf8');
+}
+
+/**
+ * The version of @storybook/react-native the wrapper at `wrapperPath` requires, or 'unknown'. Its
+ * package.json is not among the files the package exports, so it is found by walking up from the
+ * file the package's own name resolves to. Resolved through createRequire, not a literal
+ * require.resolve, for the reason ensureStorybookRequires.js gives: the published build is bundled.
+ *
+ * @param {string} wrapperPath
+ * @returns {string}
+ */
+function installedStorybookVersion(wrapperPath) {
+  try {
+    var folder = path.dirname(
+      require('module').createRequire(wrapperPath).resolve('@storybook/react-native')
+    );
+    while (folder !== path.dirname(folder)) {
+      var manifestPath = path.join(folder, 'package.json');
+      if (fs.existsSync(manifestPath)) {
+        var manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        if (manifest.name === '@storybook/react-native') return String(manifest.version);
+      }
+      folder = path.dirname(folder);
+    }
+  } catch (_) {
+    // No Storybook to be found from here: the errors say its version is unknown.
+  }
+  return 'unknown';
 }
 
 module.exports = applySherloTransforms;
