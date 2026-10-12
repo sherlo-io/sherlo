@@ -1,0 +1,1296 @@
+{
+  "platform": "android",
+  "startedAt": "2026-10-12T16:10:24.982Z",
+  "fresh": {
+    "hello": {
+      "type": "HELLO",
+      "ctx": 1,
+      "started": {
+        "ctx": 1,
+        "pid": 2113,
+        "processAgeMs": 558,
+        "msSinceReloadRequest": -1,
+        "socketHeld": false
+      },
+      "connection": {
+        "reused": false
+      },
+      "platform": "android",
+      "at": 1277.945125,
+      "serverConnection": 1
+    },
+    "early": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "early",
+      "contextAgeMs": 65,
+      "jsGlobal": null,
+      "moduleValue": "unset",
+      "asyncStorage": "ctx5",
+      "imageCache": "disk",
+      "native": {
+        "staticValues": {},
+        "instanceValue": null,
+        "ticks": {},
+        "tickCounts": {},
+        "contexts": 1,
+        "modulesCreated": 1,
+        "modulesDestroyed": 0,
+        "observing": 0,
+        "reloadsTriggered": 0,
+        "socketsOpened": 1,
+        "socketHeld": true,
+        "msSinceReloadRequest": -1,
+        "pid": 2113
+      },
+      "memory": {
+        "rssKb": 181972,
+        "pssKb": 77847
+      },
+      "at": 1278.818084,
+      "serverConnection": 1
+    },
+    "late": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "late",
+      "contextAgeMs": 4190,
+      "jsGlobal": "ctx1",
+      "moduleValue": "ctx1",
+      "asyncStorage": "ctx1",
+      "imageCache": "disk",
+      "native": {
+        "staticValues": {
+          "lastContext": "ctx1"
+        },
+        "instanceValue": "ctx1",
+        "ticks": {
+          "interval:1": 1,
+          "timeout:1": 1096,
+          "listener:1": 10
+        },
+        "tickCounts": {
+          "interval:1": 19,
+          "timeout:1": 1,
+          "listener:1": 1
+        },
+        "contexts": 1,
+        "modulesCreated": 1,
+        "modulesDestroyed": 0,
+        "observing": 1,
+        "reloadsTriggered": 0,
+        "socketsOpened": 1,
+        "socketHeld": true,
+        "msSinceReloadRequest": -1,
+        "pid": 2113
+      },
+      "memory": {
+        "rssKb": 199716,
+        "pssKb": 90503
+      },
+      "at": 5421.827125,
+      "serverConnection": 1
+    }
+  },
+  "reloadIsolation": {
+    "hello": {
+      "type": "HELLO",
+      "ctx": 2,
+      "started": {
+        "ctx": 2,
+        "pid": 2113,
+        "processAgeMs": 5027,
+        "msSinceReloadRequest": 249,
+        "socketHeld": true
+      },
+      "connection": {
+        "reused": true
+      },
+      "platform": "android",
+      "at": 5721.931417,
+      "serverConnection": 1
+    },
+    "early": {
+      "type": "PROBE",
+      "ctx": 2,
+      "when": "early",
+      "contextAgeMs": 38,
+      "jsGlobal": null,
+      "moduleValue": "unset",
+      "asyncStorage": "ctx1",
+      "imageCache": "disk",
+      "native": {
+        "staticValues": {
+          "lastContext": "ctx1"
+        },
+        "instanceValue": null,
+        "ticks": {
+          "interval:1": 318,
+          "timeout:1": 1413,
+          "listener:1": 327
+        },
+        "tickCounts": {
+          "interval:1": 19,
+          "timeout:1": 1,
+          "listener:1": 1
+        },
+        "contexts": 2,
+        "modulesCreated": 2,
+        "modulesDestroyed": 1,
+        "observing": 1,
+        "reloadsTriggered": 1,
+        "socketsOpened": 1,
+        "socketHeld": true,
+        "msSinceReloadRequest": 287,
+        "pid": 2113
+      },
+      "memory": {
+        "rssKb": 201760,
+        "pssKb": 92149
+      },
+      "at": 5723.560917,
+      "serverConnection": 1
+    },
+    "late": {
+      "type": "PROBE",
+      "ctx": 2,
+      "when": "late",
+      "contextAgeMs": 4137,
+      "jsGlobal": "ctx2",
+      "moduleValue": "ctx2",
+      "asyncStorage": "ctx2",
+      "imageCache": "disk",
+      "native": {
+        "staticValues": {
+          "lastContext": "ctx2"
+        },
+        "instanceValue": "ctx2",
+        "ticks": {
+          "interval:1": 4417,
+          "timeout:1": 5512,
+          "listener:1": 4426,
+          "interval:2": 198,
+          "timeout:2": 1081,
+          "listener:2": 6
+        },
+        "tickCounts": {
+          "interval:1": 19,
+          "timeout:1": 1,
+          "listener:1": 1,
+          "interval:2": 18,
+          "timeout:2": 1,
+          "listener:2": 1
+        },
+        "contexts": 2,
+        "modulesCreated": 2,
+        "modulesDestroyed": 1,
+        "observing": 2,
+        "reloadsTriggered": 1,
+        "socketsOpened": 1,
+        "socketHeld": true,
+        "msSinceReloadRequest": 4386,
+        "pid": 2113
+      },
+      "memory": {
+        "rssKb": 209932,
+        "pssKb": 99787
+      },
+      "at": 9851.759125,
+      "serverConnection": 1
+    }
+  },
+  "memoryBefore": {
+    "app": {
+      "rssKb": 204948,
+      "pssKb": 95120
+    },
+    "host": {
+      "pssKb": 99809,
+      "rssKb": 211960
+    }
+  },
+  "reloads": [
+    {
+      "index": 1,
+      "ms": 312.9,
+      "ctx": 3,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 299,
+      "appMemory": {
+        "rssKb": 203444,
+        "pssKb": 93246
+      }
+    },
+    {
+      "index": 2,
+      "ms": 214,
+      "ctx": 4,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 204,
+      "appMemory": {
+        "rssKb": 203848,
+        "pssKb": 93529
+      }
+    },
+    {
+      "index": 3,
+      "ms": 219,
+      "ctx": 5,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 208,
+      "appMemory": {
+        "rssKb": 206552,
+        "pssKb": 95894
+      }
+    },
+    {
+      "index": 4,
+      "ms": 211,
+      "ctx": 6,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 201,
+      "appMemory": {
+        "rssKb": 208884,
+        "pssKb": 98667
+      }
+    },
+    {
+      "index": 5,
+      "ms": 255.4,
+      "ctx": 7,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 242,
+      "appMemory": {
+        "rssKb": 207784,
+        "pssKb": 97515
+      }
+    },
+    {
+      "index": 6,
+      "ms": 240.8,
+      "ctx": 8,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 229,
+      "appMemory": {
+        "rssKb": 213316,
+        "pssKb": 103327
+      }
+    },
+    {
+      "index": 7,
+      "ms": 236.4,
+      "ctx": 9,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 226,
+      "appMemory": {
+        "rssKb": 211992,
+        "pssKb": 102159
+      }
+    },
+    {
+      "index": 8,
+      "ms": 215.6,
+      "ctx": 10,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 202,
+      "appMemory": {
+        "rssKb": 205692,
+        "pssKb": 95699
+      }
+    },
+    {
+      "index": 9,
+      "ms": 225.2,
+      "ctx": 11,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 214,
+      "appMemory": {
+        "rssKb": 211192,
+        "pssKb": 101563
+      }
+    },
+    {
+      "index": 10,
+      "ms": 240,
+      "ctx": 12,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 230,
+      "appMemory": {
+        "rssKb": 210832,
+        "pssKb": 101127
+      },
+      "hostMemory": {
+        "pssKb": 104005,
+        "rssKb": 217036
+      }
+    },
+    {
+      "index": 11,
+      "ms": 206.5,
+      "ctx": 13,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 196,
+      "appMemory": {
+        "rssKb": 207292,
+        "pssKb": 97311
+      }
+    },
+    {
+      "index": 12,
+      "ms": 212.7,
+      "ctx": 14,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 201,
+      "appMemory": {
+        "rssKb": 206896,
+        "pssKb": 97003
+      }
+    },
+    {
+      "index": 13,
+      "ms": 229.7,
+      "ctx": 15,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 214,
+      "appMemory": {
+        "rssKb": 204672,
+        "pssKb": 106195
+      }
+    },
+    {
+      "index": 14,
+      "ms": 234.1,
+      "ctx": 16,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 223,
+      "appMemory": {
+        "rssKb": 209860,
+        "pssKb": 99803
+      }
+    },
+    {
+      "index": 15,
+      "ms": 220.6,
+      "ctx": 17,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 208,
+      "appMemory": {
+        "rssKb": 209444,
+        "pssKb": 98947
+      }
+    },
+    {
+      "index": 16,
+      "ms": 226.4,
+      "ctx": 18,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 214,
+      "appMemory": {
+        "rssKb": 214416,
+        "pssKb": 104687
+      }
+    },
+    {
+      "index": 17,
+      "ms": 251.4,
+      "ctx": 19,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 240,
+      "appMemory": {
+        "rssKb": 210332,
+        "pssKb": 100507
+      }
+    },
+    {
+      "index": 18,
+      "ms": 243.2,
+      "ctx": 20,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 227,
+      "appMemory": {
+        "rssKb": 209360,
+        "pssKb": 99363
+      }
+    },
+    {
+      "index": 19,
+      "ms": 256.1,
+      "ctx": 21,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 244,
+      "appMemory": {
+        "rssKb": 214364,
+        "pssKb": 104811
+      }
+    },
+    {
+      "index": 20,
+      "ms": 228.1,
+      "ctx": 22,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 216,
+      "appMemory": {
+        "rssKb": 213972,
+        "pssKb": 104775
+      },
+      "hostMemory": {
+        "pssKb": 107657,
+        "rssKb": 220940
+      }
+    },
+    {
+      "index": 21,
+      "ms": 233.8,
+      "ctx": 23,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 222,
+      "appMemory": {
+        "rssKb": 211736,
+        "pssKb": 102647
+      }
+    },
+    {
+      "index": 22,
+      "ms": 231,
+      "ctx": 24,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 213,
+      "appMemory": {
+        "rssKb": 209744,
+        "pssKb": 100667
+      }
+    },
+    {
+      "index": 23,
+      "ms": 231.6,
+      "ctx": 25,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 219,
+      "appMemory": {
+        "rssKb": 215120,
+        "pssKb": 106455
+      }
+    },
+    {
+      "index": 24,
+      "ms": 230.9,
+      "ctx": 26,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 219,
+      "appMemory": {
+        "rssKb": 209896,
+        "pssKb": 101203
+      }
+    },
+    {
+      "index": 25,
+      "ms": 232.6,
+      "ctx": 27,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 221,
+      "appMemory": {
+        "rssKb": 215420,
+        "pssKb": 106295
+      }
+    },
+    {
+      "index": 26,
+      "ms": 231.4,
+      "ctx": 28,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 217,
+      "appMemory": {
+        "rssKb": 212572,
+        "pssKb": 103550
+      }
+    },
+    {
+      "index": 27,
+      "ms": 267,
+      "ctx": 29,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 254,
+      "appMemory": {
+        "rssKb": 218280,
+        "pssKb": 108970
+      }
+    },
+    {
+      "index": 28,
+      "ms": 228,
+      "ctx": 30,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 216,
+      "appMemory": {
+        "rssKb": 209304,
+        "pssKb": 100318
+      }
+    },
+    {
+      "index": 29,
+      "ms": 242.4,
+      "ctx": 31,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 226,
+      "appMemory": {
+        "rssKb": 215612,
+        "pssKb": 106232
+      }
+    },
+    {
+      "index": 30,
+      "ms": 224,
+      "ctx": 32,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 212,
+      "appMemory": {
+        "rssKb": 212912,
+        "pssKb": 103932
+      },
+      "hostMemory": {
+        "pssKb": 107174,
+        "rssKb": 220916
+      }
+    },
+    {
+      "index": 31,
+      "ms": 264,
+      "ctx": 33,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 252,
+      "appMemory": {
+        "rssKb": 209308,
+        "pssKb": 100416
+      }
+    },
+    {
+      "index": 32,
+      "ms": 212.6,
+      "ctx": 34,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 203,
+      "appMemory": {
+        "rssKb": 207732,
+        "pssKb": 99148
+      }
+    },
+    {
+      "index": 33,
+      "ms": 250.2,
+      "ctx": 35,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 239,
+      "appMemory": {
+        "rssKb": 214140,
+        "pssKb": 105068
+      }
+    },
+    {
+      "index": 34,
+      "ms": 269,
+      "ctx": 36,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 256,
+      "appMemory": {
+        "rssKb": 214728,
+        "pssKb": 105496
+      }
+    },
+    {
+      "index": 35,
+      "ms": 245,
+      "ctx": 37,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 234,
+      "appMemory": {
+        "rssKb": 209672,
+        "pssKb": 100416
+      }
+    },
+    {
+      "index": 36,
+      "ms": 218.2,
+      "ctx": 38,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 203,
+      "appMemory": {
+        "rssKb": 215132,
+        "pssKb": 106352
+      }
+    },
+    {
+      "index": 37,
+      "ms": 224.8,
+      "ctx": 39,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 204,
+      "appMemory": {
+        "rssKb": 213720,
+        "pssKb": 104172
+      }
+    },
+    {
+      "index": 38,
+      "ms": 216.6,
+      "ctx": 40,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 205,
+      "appMemory": {
+        "rssKb": 218088,
+        "pssKb": 109448
+      }
+    },
+    {
+      "index": 39,
+      "ms": 212.9,
+      "ctx": 41,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 202,
+      "appMemory": {
+        "rssKb": 209908,
+        "pssKb": 101576
+      }
+    },
+    {
+      "index": 40,
+      "ms": 215,
+      "ctx": 42,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 203,
+      "appMemory": {
+        "rssKb": 215548,
+        "pssKb": 107340
+      },
+      "hostMemory": {
+        "pssKb": 110150,
+        "rssKb": 224008
+      }
+    },
+    {
+      "index": 41,
+      "ms": 203.3,
+      "ctx": 43,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 192,
+      "appMemory": {
+        "rssKb": 209840,
+        "pssKb": 101304
+      }
+    },
+    {
+      "index": 42,
+      "ms": 231.1,
+      "ctx": 44,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 219,
+      "appMemory": {
+        "rssKb": 207240,
+        "pssKb": 105829
+      }
+    },
+    {
+      "index": 43,
+      "ms": 253.9,
+      "ctx": 45,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 230,
+      "appMemory": {
+        "rssKb": 214972,
+        "pssKb": 106444
+      }
+    },
+    {
+      "index": 44,
+      "ms": 267.9,
+      "ctx": 46,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 240,
+      "appMemory": {
+        "rssKb": 209852,
+        "pssKb": 101116
+      }
+    },
+    {
+      "index": 45,
+      "ms": 224.8,
+      "ctx": 47,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 212,
+      "appMemory": {
+        "rssKb": 214688,
+        "pssKb": 106576
+      }
+    },
+    {
+      "index": 46,
+      "ms": 210.9,
+      "ctx": 48,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 199,
+      "appMemory": {
+        "rssKb": 212028,
+        "pssKb": 104212
+      }
+    },
+    {
+      "index": 47,
+      "ms": 341.2,
+      "ctx": 49,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 327,
+      "appMemory": {
+        "rssKb": 217880,
+        "pssKb": 109926
+      }
+    },
+    {
+      "index": 48,
+      "ms": 281.3,
+      "ctx": 50,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 265,
+      "appMemory": {
+        "rssKb": 210092,
+        "pssKb": 101938
+      }
+    },
+    {
+      "index": 49,
+      "ms": 227.4,
+      "ctx": 51,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 215,
+      "appMemory": {
+        "rssKb": 215196,
+        "pssKb": 107350
+      }
+    },
+    {
+      "index": 50,
+      "ms": 211.6,
+      "ctx": 52,
+      "pid": 2113,
+      "reusedSocket": true,
+      "serverConnection": 1,
+      "nativeMsSinceReloadRequest": 199,
+      "appMemory": {
+        "rssKb": 212536,
+        "pssKb": 105074
+      },
+      "hostMemory": {
+        "pssKb": 107976,
+        "rssKb": 222020
+      }
+    }
+  ],
+  "afterReloadsLate": {
+    "type": "PROBE",
+    "ctx": 52,
+    "when": "late",
+    "contextAgeMs": 4205,
+    "jsGlobal": "ctx52",
+    "moduleValue": "ctx52",
+    "asyncStorage": "ctx52",
+    "imageCache": "disk",
+    "native": {
+      "staticValues": {
+        "lastContext": "ctx52"
+      },
+      "instanceValue": "ctx52",
+      "ticks": {
+        "interval:1": 35953,
+        "timeout:1": 37048,
+        "listener:1": 35962,
+        "interval:2": 31081,
+        "timeout:2": 32617,
+        "listener:2": 31542,
+        "interval:3": 30620,
+        "interval:4": 30086,
+        "interval:5": 29570,
+        "interval:6": 29050,
+        "interval:7": 28515,
+        "interval:8": 27952,
+        "interval:9": 27414,
+        "interval:10": 26886,
+        "interval:11": 26367,
+        "interval:12": 25616,
+        "interval:13": 25234,
+        "interval:14": 24719,
+        "interval:15": 24199,
+        "interval:16": 23653,
+        "interval:17": 23129,
+        "interval:18": 22600,
+        "interval:19": 22049,
+        "interval:20": 21518,
+        "interval:21": 20949,
+        "interval:22": 20201,
+        "interval:23": 19782,
+        "interval:24": 19267,
+        "interval:25": 18718,
+        "interval:26": 18185,
+        "interval:27": 17649,
+        "interval:28": 17119,
+        "interval:29": 16545,
+        "interval:30": 16019,
+        "interval:31": 15482,
+        "interval:32": 14736,
+        "interval:33": 14283,
+        "interval:34": 13767,
+        "interval:35": 13217,
+        "interval:36": 12634,
+        "interval:37": 12102,
+        "interval:38": 11578,
+        "interval:39": 11067,
+        "interval:40": 10533,
+        "interval:41": 10014,
+        "interval:42": 9285,
+        "interval:43": 8916,
+        "interval:44": 8386,
+        "interval:45": 7852,
+        "interval:46": 7286,
+        "interval:47": 6734,
+        "interval:48": 6219,
+        "interval:49": 5600,
+        "interval:50": 5003,
+        "interval:51": 4465,
+        "interval:52": 53,
+        "timeout:52": 1152,
+        "listener:52": 2
+      },
+      "tickCounts": {
+        "interval:1": 19,
+        "timeout:1": 1,
+        "listener:1": 1,
+        "interval:2": 21,
+        "timeout:2": 1,
+        "listener:2": 1,
+        "interval:3": 1,
+        "interval:4": 1,
+        "interval:5": 1,
+        "interval:6": 1,
+        "interval:7": 1,
+        "interval:8": 1,
+        "interval:9": 1,
+        "interval:10": 1,
+        "interval:11": 1,
+        "interval:12": 2,
+        "interval:13": 1,
+        "interval:14": 1,
+        "interval:15": 1,
+        "interval:16": 1,
+        "interval:17": 1,
+        "interval:18": 1,
+        "interval:19": 1,
+        "interval:20": 1,
+        "interval:21": 1,
+        "interval:22": 2,
+        "interval:23": 1,
+        "interval:24": 1,
+        "interval:25": 1,
+        "interval:26": 1,
+        "interval:27": 1,
+        "interval:28": 1,
+        "interval:29": 1,
+        "interval:30": 1,
+        "interval:31": 1,
+        "interval:32": 2,
+        "interval:33": 1,
+        "interval:34": 1,
+        "interval:35": 1,
+        "interval:36": 1,
+        "interval:37": 1,
+        "interval:38": 1,
+        "interval:39": 1,
+        "interval:40": 1,
+        "interval:41": 1,
+        "interval:42": 2,
+        "interval:43": 1,
+        "interval:44": 1,
+        "interval:45": 1,
+        "interval:46": 1,
+        "interval:47": 1,
+        "interval:48": 1,
+        "interval:49": 1,
+        "interval:50": 1,
+        "interval:51": 1,
+        "interval:52": 19,
+        "timeout:52": 1,
+        "listener:52": 1
+      },
+      "contexts": 52,
+      "modulesCreated": 52,
+      "modulesDestroyed": 51,
+      "observing": 52,
+      "reloadsTriggered": 51,
+      "socketsOpened": 1,
+      "socketHeld": true,
+      "msSinceReloadRequest": 4309,
+      "pid": 2113
+    },
+    "memory": {
+      "rssKb": 206496,
+      "pssKb": 98850
+    },
+    "at": 41369.303209,
+    "serverConnection": 1
+  },
+  "killIsolation": {
+    "hello": {
+      "type": "HELLO",
+      "ctx": 1,
+      "started": {
+        "ctx": 1,
+        "pid": 2773,
+        "processAgeMs": 325,
+        "msSinceReloadRequest": -1,
+        "socketHeld": false
+      },
+      "connection": {
+        "reused": false
+      },
+      "platform": "android",
+      "at": 42053.099292,
+      "serverConnection": 2
+    },
+    "early": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "early",
+      "contextAgeMs": 97,
+      "jsGlobal": null,
+      "moduleValue": "unset",
+      "asyncStorage": "ctx52",
+      "imageCache": "disk",
+      "native": {
+        "staticValues": {},
+        "instanceValue": null,
+        "ticks": {},
+        "tickCounts": {},
+        "contexts": 1,
+        "modulesCreated": 1,
+        "modulesDestroyed": 0,
+        "observing": 0,
+        "reloadsTriggered": 0,
+        "socketsOpened": 1,
+        "socketHeld": true,
+        "msSinceReloadRequest": -1,
+        "pid": 2773
+      },
+      "memory": {
+        "rssKb": 182704,
+        "pssKb": 78108
+      },
+      "at": 42056.454417,
+      "serverConnection": 2
+    },
+    "late": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "late",
+      "contextAgeMs": 4209,
+      "jsGlobal": "ctx1",
+      "moduleValue": "ctx1",
+      "asyncStorage": "ctx1",
+      "imageCache": "disk",
+      "native": {
+        "staticValues": {
+          "lastContext": "ctx1"
+        },
+        "instanceValue": "ctx1",
+        "ticks": {
+          "interval:1": 203,
+          "timeout:1": 1076,
+          "listener:1": 3
+        },
+        "tickCounts": {
+          "interval:1": 18,
+          "timeout:1": 1,
+          "listener:1": 1
+        },
+        "contexts": 1,
+        "modulesCreated": 1,
+        "modulesDestroyed": 0,
+        "observing": 1,
+        "reloadsTriggered": 0,
+        "socketsOpened": 1,
+        "socketHeld": true,
+        "msSinceReloadRequest": -1,
+        "pid": 2773
+      },
+      "memory": {
+        "rssKb": 199124,
+        "pssKb": 90659
+      },
+      "at": 46183.659417,
+      "serverConnection": 2
+    }
+  },
+  "kills": [
+    {
+      "index": 1,
+      "ms": 628.9,
+      "pid": 2838,
+      "memory": {
+        "rssKb": 192236,
+        "pssKb": 84353
+      }
+    },
+    {
+      "index": 2,
+      "ms": 503.5,
+      "pid": 2903,
+      "memory": {
+        "rssKb": 191892,
+        "pssKb": 84142
+      }
+    },
+    {
+      "index": 3,
+      "ms": 497.5,
+      "pid": 2969,
+      "memory": {
+        "rssKb": 192148,
+        "pssKb": 84307
+      }
+    },
+    {
+      "index": 4,
+      "ms": 465.8,
+      "pid": 3033,
+      "memory": {
+        "rssKb": 191980,
+        "pssKb": 84551
+      }
+    },
+    {
+      "index": 5,
+      "ms": 532.9,
+      "pid": 3096,
+      "memory": {
+        "rssKb": 191572,
+        "pssKb": 83926
+      }
+    },
+    {
+      "index": 6,
+      "ms": 530.1,
+      "pid": 3160,
+      "memory": {
+        "rssKb": 193320,
+        "pssKb": 84750
+      }
+    },
+    {
+      "index": 7,
+      "ms": 524.1,
+      "pid": 3224,
+      "memory": {
+        "rssKb": 194608,
+        "pssKb": 85070
+      }
+    },
+    {
+      "index": 8,
+      "ms": 514.1,
+      "pid": 3286,
+      "memory": {
+        "rssKb": 191764,
+        "pssKb": 84580
+      }
+    },
+    {
+      "index": 9,
+      "ms": 547,
+      "pid": 3352,
+      "memory": {
+        "rssKb": 193892,
+        "pssKb": 85038
+      }
+    },
+    {
+      "index": 10,
+      "ms": 555.7,
+      "pid": 3416,
+      "memory": {
+        "rssKb": 191584,
+        "pssKb": 84441
+      }
+    }
+  ],
+  "summary": {
+    "reloadMedianFirst10Ms": 230.8,
+    "reloadMedianAll50Ms": 231,
+    "reloadInAppMedianMs": 220,
+    "killMedianMs": 527.1,
+    "pidsAcrossReloads": [
+      2113
+    ],
+    "socketReusedOnEveryReload": true,
+    "memoryBefore": {
+      "app": {
+        "rssKb": 204948,
+        "pssKb": 95120
+      },
+      "host": {
+        "pssKb": 99809,
+        "rssKb": 211960
+      }
+    },
+    "memoryEvery10": [
+      {
+        "index": 10,
+        "app": {
+          "rssKb": 210832,
+          "pssKb": 101127
+        },
+        "host": {
+          "pssKb": 104005,
+          "rssKb": 217036
+        }
+      },
+      {
+        "index": 20,
+        "app": {
+          "rssKb": 213972,
+          "pssKb": 104775
+        },
+        "host": {
+          "pssKb": 107657,
+          "rssKb": 220940
+        }
+      },
+      {
+        "index": 30,
+        "app": {
+          "rssKb": 212912,
+          "pssKb": 103932
+        },
+        "host": {
+          "pssKb": 107174,
+          "rssKb": 220916
+        }
+      },
+      {
+        "index": 40,
+        "app": {
+          "rssKb": 215548,
+          "pssKb": 107340
+        },
+        "host": {
+          "pssKb": 110150,
+          "rssKb": 224008
+        }
+      },
+      {
+        "index": 50,
+        "app": {
+          "rssKb": 212536,
+          "pssKb": 105074
+        },
+        "host": {
+          "pssKb": 107976,
+          "rssKb": 222020
+        }
+      }
+    ]
+  },
+  "events": 256
+}

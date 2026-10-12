@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "expo.modules.spikenet.spike-net-release-27:/layout-watch-v20/abc_alert_dialog_title_material.xml",
+        "source": "expo.modules.spikenet.spike-net-appcompat-1.7.0-1:/layout-watch-v20/abc_alert_dialog_title_material.xml"
+    },
+    {
+        "merged": "expo.modules.spikenet.spike-net-release-27:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml",
+        "source": "expo.modules.spikenet.spike-net-appcompat-1.7.0-1:/layout-watch-v20/abc_alert_dialog_button_bar_material.xml"
+    }
+]

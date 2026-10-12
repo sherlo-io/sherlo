@@ -1,0 +1,34 @@
+{
+    "logs": [
+        {
+            "outputFile": "expo.modules.spikenet.spike-net-mergeReleaseResources-25:/values-v18/values-v18.xml",
+            "map": [
+                {
+                    "source": "/Users/michalziolkowski/.gradle/caches/8.14.3/transforms/19c4a7e5db7750419bcfd64d0a0fbd96/transformed/appcompat-1.7.0/res/values-v18/values-v18.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "48",
+                        "endOffsets": "99"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "expo.modules.spikenet.spike-net-release-27:/values-v18/values-v18.xml",
+            "map": [
+                {
+                    "source": "/Users/michalziolkowski/.gradle/caches/8.14.3/transforms/19c4a7e5db7750419bcfd64d0a0fbd96/transformed/appcompat-1.7.0/res/values-v18/values-v18.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "48",
+                        "endOffsets": "99"
+                    }
+                }
+            ]
+        }
+    ]
+}

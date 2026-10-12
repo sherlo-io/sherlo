@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml:2:13-83
+INJECTED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml:2:13-83
+	package
+		INJECTED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml
+	xmlns:android
+		ADDED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml:2:23-81
+uses-sdk
+INJECTED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml reason: use-sdk injection requested
+INJECTED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml
+INJECTED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml
+	android:targetSdkVersion
+		INJECTED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml
+	android:minSdkVersion
+		INJECTED from /Users/michalziolkowski/sherlo-workspace/sherlo-brain/.worktrees/spikes/runner-without-files/bundle-reload/sherlo/examples/standard/modules/spike-net/android/build/intermediates/tmp/ProcessLibraryManifest/release/tempAndroidManifest9937154976797834847.xml

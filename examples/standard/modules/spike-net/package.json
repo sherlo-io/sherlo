@@ -1,0 +1,9 @@
+{
+  "name": "spike-net",
+  "version": "0.1.0",
+  "description": "Spike bundle-reload: a native WebSocket held across JS reloads",
+  "license": "MIT",
+  "author": "sherlo",
+  "homepage": "https://sherlo.io",
+  "main": "index.ts"
+}

@@ -1,0 +1,1201 @@
+{
+  "platform": "ios",
+  "startedAt": "2026-10-12T15:49:47.617Z",
+  "fresh": {
+    "hello": {
+      "type": "HELLO",
+      "ctx": 1,
+      "started": {
+        "msSinceReloadRequest": -1,
+        "ctx": 1,
+        "pid": 47162,
+        "socketHeld": false,
+        "processAgeMs": 1192.255973815918
+      },
+      "connection": 1,
+      "platform": "ios",
+      "at": 1757.253875
+    },
+    "early": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "early",
+      "contextAgeMs": 49,
+      "jsGlobal": null,
+      "moduleValue": "unset",
+      "asyncStorage": null,
+      "imageCache": {},
+      "native": {
+        "instanceValue": null,
+        "pid": 47162,
+        "socketHeld": true,
+        "contexts": 1,
+        "staticValues": {},
+        "tickCounts": {},
+        "modulesCreated": 1,
+        "modulesDestroyed": 0,
+        "observing": 0,
+        "ticks": {},
+        "reloadsTriggered": 0,
+        "socketsOpened": 1,
+        "msSinceReloadRequest": -1
+      },
+      "memory": {
+        "rssKb": 183056,
+        "footprintKb": 34246
+      },
+      "at": 1758.064042,
+      "connection": 1
+    },
+    "late": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "late",
+      "contextAgeMs": 4542,
+      "jsGlobal": "ctx1",
+      "moduleValue": "ctx1",
+      "asyncStorage": "ctx1",
+      "imageCache": "disk/memory",
+      "native": {
+        "socketHeld": true,
+        "modulesDestroyed": 0,
+        "staticValues": {
+          "lastContext": "ctx1"
+        },
+        "tickCounts": {
+          "timeout:1": 1,
+          "interval:1": 21,
+          "listener:1": 1
+        },
+        "observing": 1,
+        "socketsOpened": 1,
+        "instanceValue": "ctx1",
+        "modulesCreated": 1,
+        "pid": 47162,
+        "ticks": {
+          "timeout:1": 1477.4753329753876,
+          "listener:1": 3.6933329105377197,
+          "interval:1": 44.18304204940796
+        },
+        "msSinceReloadRequest": -1,
+        "reloadsTriggered": 0,
+        "contexts": 1
+      },
+      "memory": {
+        "footprintKb": 55078,
+        "rssKb": 189456
+      },
+      "at": 6250.349417,
+      "connection": 1
+    }
+  },
+  "reloadIsolation": {
+    "hello": {
+      "type": "HELLO",
+      "ctx": 2,
+      "started": {
+        "pid": 47162,
+        "processAgeMs": 5822.092056274414,
+        "socketHeld": true,
+        "msSinceReloadRequest": 85.78254199028015,
+        "ctx": 2
+      },
+      "connection": 1,
+      "platform": "ios",
+      "at": 6340.726292
+    },
+    "early": {
+      "type": "PROBE",
+      "ctx": 2,
+      "when": "early",
+      "contextAgeMs": 2,
+      "jsGlobal": null,
+      "moduleValue": "unset",
+      "asyncStorage": "ctx1",
+      "imageCache": "disk/memory",
+      "native": {
+        "ticks": {
+          "timeout:1": 1567.318041086197,
+          "listener:1": 93.53604102134705,
+          "interval:1": 134.02575016021729
+        },
+        "reloadsTriggered": 1,
+        "modulesCreated": 2,
+        "pid": 47162,
+        "socketsOpened": 1,
+        "staticValues": {
+          "lastContext": "ctx1"
+        },
+        "tickCounts": {
+          "timeout:1": 1,
+          "interval:1": 21,
+          "listener:1": 1
+        },
+        "observing": 1,
+        "instanceValue": null,
+        "msSinceReloadRequest": 88.29875016212463,
+        "socketHeld": true,
+        "modulesDestroyed": 0,
+        "contexts": 2
+      },
+      "memory": {
+        "rssKb": 206640,
+        "footprintKb": 50486
+      },
+      "at": 6346.718584,
+      "connection": 1
+    },
+    "late": {
+      "type": "PROBE",
+      "ctx": 2,
+      "when": "late",
+      "contextAgeMs": 4255,
+      "jsGlobal": "ctx2",
+      "moduleValue": "ctx2",
+      "asyncStorage": "ctx2",
+      "imageCache": "disk/memory",
+      "native": {
+        "ticks": {
+          "interval:2": 203.95087504386902,
+          "timeout:2": 1187.6559581756592,
+          "listener:2": 12.271291017532349,
+          "interval:1": 4387.041375160217,
+          "listener:1": 4346.551666021347,
+          "timeout:1": 5820.333666086197
+        },
+        "instanceValue": "ctx2",
+        "msSinceReloadRequest": 4341.314375162125,
+        "reloadsTriggered": 1,
+        "observing": 2,
+        "socketHeld": true,
+        "pid": 47162,
+        "modulesCreated": 2,
+        "modulesDestroyed": 0,
+        "staticValues": {
+          "lastContext": "ctx2"
+        },
+        "tickCounts": {
+          "timeout:2": 1,
+          "interval:1": 21,
+          "listener:1": 1,
+          "interval:2": 19,
+          "timeout:1": 1,
+          "listener:2": 1
+        },
+        "contexts": 2,
+        "socketsOpened": 1
+      },
+      "memory": {
+        "footprintKb": 57702,
+        "rssKb": 185504
+      },
+      "at": 10595.72625,
+      "connection": 1
+    }
+  },
+  "memoryBefore": {
+    "app": {
+      "rssKb": 212160,
+      "footprintKb": 55158
+    },
+    "host": null
+  },
+  "reloads": [
+    {
+      "index": 1,
+      "ms": 167.5,
+      "ctx": 3,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 162.62366580963135,
+      "appMemory": {
+        "footprintKb": 56582,
+        "rssKb": 207696
+      }
+    },
+    {
+      "index": 2,
+      "ms": 140.9,
+      "ctx": 4,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 133.86899995803833,
+      "appMemory": {
+        "footprintKb": 57590,
+        "rssKb": 207760
+      }
+    },
+    {
+      "index": 3,
+      "ms": 128.7,
+      "ctx": 5,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 123.45666694641113,
+      "appMemory": {
+        "footprintKb": 58422,
+        "rssKb": 181280
+      }
+    },
+    {
+      "index": 4,
+      "ms": 128.3,
+      "ctx": 6,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 123.0709171295166,
+      "appMemory": {
+        "footprintKb": 59190,
+        "rssKb": 167712
+      }
+    },
+    {
+      "index": 5,
+      "ms": 184.8,
+      "ctx": 7,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 175.62629199028015,
+      "appMemory": {
+        "footprintKb": 61142,
+        "rssKb": 144464
+      }
+    },
+    {
+      "index": 6,
+      "ms": 117.9,
+      "ctx": 8,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 112.99729108810425,
+      "appMemory": {
+        "footprintKb": 60006,
+        "rssKb": 143568
+      }
+    },
+    {
+      "index": 7,
+      "ms": 133.6,
+      "ctx": 9,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 128.23487496376038,
+      "appMemory": {
+        "footprintKb": 61222,
+        "rssKb": 140976
+      }
+    },
+    {
+      "index": 8,
+      "ms": 125,
+      "ctx": 10,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 119.78345799446106,
+      "appMemory": {
+        "rssKb": 140144,
+        "footprintKb": 61494
+      }
+    },
+    {
+      "index": 9,
+      "ms": 125.9,
+      "ctx": 11,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 120.19137501716614,
+      "appMemory": {
+        "rssKb": 133840,
+        "footprintKb": 62278
+      }
+    },
+    {
+      "index": 10,
+      "ms": 126,
+      "ctx": 12,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 118.74979186058044,
+      "appMemory": {
+        "rssKb": 133920,
+        "footprintKb": 62310
+      },
+      "hostMemory": null
+    },
+    {
+      "index": 11,
+      "ms": 125.6,
+      "ctx": 13,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 120.59991693496704,
+      "appMemory": {
+        "rssKb": 133984,
+        "footprintKb": 62742
+      }
+    },
+    {
+      "index": 12,
+      "ms": 125.7,
+      "ctx": 14,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 116.64791584014893,
+      "appMemory": {
+        "rssKb": 134384,
+        "footprintKb": 63030
+      }
+    },
+    {
+      "index": 13,
+      "ms": 119.7,
+      "ctx": 15,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 114.61408305168152,
+      "appMemory": {
+        "footprintKb": 63270,
+        "rssKb": 131936
+      }
+    },
+    {
+      "index": 14,
+      "ms": 132.9,
+      "ctx": 16,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 128.2497079372406,
+      "appMemory": {
+        "footprintKb": 63366,
+        "rssKb": 131792
+      }
+    },
+    {
+      "index": 15,
+      "ms": 120.1,
+      "ctx": 17,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 115.42670798301697,
+      "appMemory": {
+        "rssKb": 132160,
+        "footprintKb": 63398
+      }
+    },
+    {
+      "index": 16,
+      "ms": 125.9,
+      "ctx": 18,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 121.06462502479553,
+      "appMemory": {
+        "rssKb": 132128,
+        "footprintKb": 63590
+      }
+    },
+    {
+      "index": 17,
+      "ms": 119.3,
+      "ctx": 19,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 114.54095792770386,
+      "appMemory": {
+        "rssKb": 131936,
+        "footprintKb": 63638
+      }
+    },
+    {
+      "index": 18,
+      "ms": 133.8,
+      "ctx": 20,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 128.72587490081787,
+      "appMemory": {
+        "footprintKb": 64006,
+        "rssKb": 124224
+      }
+    },
+    {
+      "index": 19,
+      "ms": 119.4,
+      "ctx": 21,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 114.28291702270508,
+      "appMemory": {
+        "footprintKb": 64006,
+        "rssKb": 125200
+      }
+    },
+    {
+      "index": 20,
+      "ms": 125.5,
+      "ctx": 22,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 119.25116682052612,
+      "appMemory": {
+        "rssKb": 125328,
+        "footprintKb": 64278
+      },
+      "hostMemory": null
+    },
+    {
+      "index": 21,
+      "ms": 124.6,
+      "ctx": 23,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 118.76062488555908,
+      "appMemory": {
+        "footprintKb": 64550,
+        "rssKb": 125504
+      }
+    },
+    {
+      "index": 22,
+      "ms": 124.6,
+      "ctx": 24,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 119.91687488555908,
+      "appMemory": {
+        "rssKb": 124864,
+        "footprintKb": 64678
+      }
+    },
+    {
+      "index": 23,
+      "ms": 120.9,
+      "ctx": 25,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 115.68362498283386,
+      "appMemory": {
+        "rssKb": 125392,
+        "footprintKb": 64662
+      }
+    },
+    {
+      "index": 24,
+      "ms": 123.6,
+      "ctx": 26,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 118.81920790672302,
+      "appMemory": {
+        "footprintKb": 64742,
+        "rssKb": 125296
+      }
+    },
+    {
+      "index": 25,
+      "ms": 123.1,
+      "ctx": 27,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 117.26954197883606,
+      "appMemory": {
+        "footprintKb": 64982,
+        "rssKb": 125424
+      }
+    },
+    {
+      "index": 26,
+      "ms": 123.9,
+      "ctx": 28,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 118.90758299827576,
+      "appMemory": {
+        "footprintKb": 65142,
+        "rssKb": 125248
+      }
+    },
+    {
+      "index": 27,
+      "ms": 118.2,
+      "ctx": 29,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 111.91066598892212,
+      "appMemory": {
+        "footprintKb": 65334,
+        "rssKb": 125168
+      }
+    },
+    {
+      "index": 28,
+      "ms": 123.1,
+      "ctx": 30,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 118.18441605567932,
+      "appMemory": {
+        "footprintKb": 65494,
+        "rssKb": 125776
+      }
+    },
+    {
+      "index": 29,
+      "ms": 121.6,
+      "ctx": 31,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 116.51537489891052,
+      "appMemory": {
+        "footprintKb": 65542,
+        "rssKb": 125888
+      }
+    },
+    {
+      "index": 30,
+      "ms": 129.2,
+      "ctx": 32,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 124.14179182052612,
+      "appMemory": {
+        "footprintKb": 65542,
+        "rssKb": 124800
+      },
+      "hostMemory": null
+    },
+    {
+      "index": 31,
+      "ms": 157.1,
+      "ctx": 33,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 151.79233288764954,
+      "appMemory": {
+        "rssKb": 119664,
+        "footprintKb": 65846
+      }
+    },
+    {
+      "index": 32,
+      "ms": 130.6,
+      "ctx": 34,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 125.33204197883606,
+      "appMemory": {
+        "footprintKb": 66390,
+        "rssKb": 119840
+      }
+    },
+    {
+      "index": 33,
+      "ms": 120.5,
+      "ctx": 35,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 115.57645797729492,
+      "appMemory": {
+        "rssKb": 120544,
+        "footprintKb": 66646
+      }
+    },
+    {
+      "index": 34,
+      "ms": 115.9,
+      "ctx": 36,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 110.69799995422363,
+      "appMemory": {
+        "footprintKb": 66822,
+        "rssKb": 121424
+      }
+    },
+    {
+      "index": 35,
+      "ms": 119.7,
+      "ctx": 37,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 114.59645891189575,
+      "appMemory": {
+        "rssKb": 121648,
+        "footprintKb": 66806
+      }
+    },
+    {
+      "index": 36,
+      "ms": 143.3,
+      "ctx": 38,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 125.8194169998169,
+      "appMemory": {
+        "footprintKb": 66822,
+        "rssKb": 121424
+      }
+    },
+    {
+      "index": 37,
+      "ms": 130,
+      "ctx": 39,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 123.99483323097229,
+      "appMemory": {
+        "footprintKb": 66806,
+        "rssKb": 120832
+      }
+    },
+    {
+      "index": 38,
+      "ms": 123.5,
+      "ctx": 40,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 114.5783748626709,
+      "appMemory": {
+        "rssKb": 121152,
+        "footprintKb": 66822
+      }
+    },
+    {
+      "index": 39,
+      "ms": 119.9,
+      "ctx": 41,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 115.18883299827576,
+      "appMemory": {
+        "footprintKb": 66838,
+        "rssKb": 120400
+      }
+    },
+    {
+      "index": 40,
+      "ms": 120.7,
+      "ctx": 42,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 116.01091599464417,
+      "appMemory": {
+        "rssKb": 120096,
+        "footprintKb": 66934
+      },
+      "hostMemory": null
+    },
+    {
+      "index": 41,
+      "ms": 119,
+      "ctx": 43,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 114.03945803642273,
+      "appMemory": {
+        "rssKb": 120928,
+        "footprintKb": 67030
+      }
+    },
+    {
+      "index": 42,
+      "ms": 127.5,
+      "ctx": 44,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 122.16875004768372,
+      "appMemory": {
+        "rssKb": 120320,
+        "footprintKb": 67062
+      }
+    },
+    {
+      "index": 43,
+      "ms": 125.9,
+      "ctx": 45,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 120.51366591453552,
+      "appMemory": {
+        "rssKb": 120272,
+        "footprintKb": 67014
+      }
+    },
+    {
+      "index": 44,
+      "ms": 116.8,
+      "ctx": 46,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 111.81574988365173,
+      "appMemory": {
+        "rssKb": 120384,
+        "footprintKb": 67062
+      }
+    },
+    {
+      "index": 45,
+      "ms": 117.4,
+      "ctx": 47,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 112.19720816612244,
+      "appMemory": {
+        "rssKb": 120544,
+        "footprintKb": 67078
+      }
+    },
+    {
+      "index": 46,
+      "ms": 115.6,
+      "ctx": 48,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 110.84366703033447,
+      "appMemory": {
+        "rssKb": 121392,
+        "footprintKb": 67318
+      }
+    },
+    {
+      "index": 47,
+      "ms": 114.8,
+      "ctx": 49,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 110.08100008964539,
+      "appMemory": {
+        "rssKb": 121616,
+        "footprintKb": 67446
+      }
+    },
+    {
+      "index": 48,
+      "ms": 116.3,
+      "ctx": 50,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 111.51174998283386,
+      "appMemory": {
+        "footprintKb": 67478,
+        "rssKb": 121360
+      }
+    },
+    {
+      "index": 49,
+      "ms": 120.2,
+      "ctx": 51,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 115.33691716194153,
+      "appMemory": {
+        "rssKb": 122096,
+        "footprintKb": 67510
+      }
+    },
+    {
+      "index": 50,
+      "ms": 120.3,
+      "ctx": 52,
+      "pid": 47162,
+      "connection": 1,
+      "nativeMsSinceReloadRequest": 114.2213339805603,
+      "appMemory": {
+        "rssKb": 121936,
+        "footprintKb": 67558
+      },
+      "hostMemory": null
+    }
+  ],
+  "afterReloadsLate": {
+    "type": "PROBE",
+    "ctx": 52,
+    "when": "late",
+    "contextAgeMs": 4215,
+    "jsGlobal": "ctx52",
+    "moduleValue": "ctx52",
+    "asyncStorage": "ctx52",
+    "imageCache": "disk/memory",
+    "native": {
+      "staticValues": {
+        "lastContext": "ctx52"
+      },
+      "modulesDestroyed": 50,
+      "observing": 52,
+      "reloadsTriggered": 51,
+      "contexts": 52,
+      "modulesCreated": 52,
+      "pid": 47162,
+      "socketHeld": true,
+      "msSinceReloadRequest": 4272.909124851227,
+      "socketsOpened": 1,
+      "tickCounts": {
+        "interval:48": 2,
+        "interval:35": 2,
+        "interval:24": 2,
+        "interval:25": 2,
+        "interval:33": 2,
+        "interval:28": 3,
+        "interval:11": 3,
+        "interval:15": 2,
+        "listener:52": 1,
+        "interval:17": 2,
+        "timeout:2": 1,
+        "interval:42": 2,
+        "interval:7": 2,
+        "interval:1": 21,
+        "interval:40": 2,
+        "interval:22": 2,
+        "interval:4": 3,
+        "interval:29": 2,
+        "listener:1": 1,
+        "interval:43": 2,
+        "interval:5": 2,
+        "interval:47": 2,
+        "interval:20": 2,
+        "interval:6": 2,
+        "interval:18": 2,
+        "interval:13": 2,
+        "interval:23": 2,
+        "interval:41": 2,
+        "timeout:1": 1,
+        "interval:2": 21,
+        "interval:36": 2,
+        "interval:3": 3,
+        "interval:16": 2,
+        "interval:50": 2,
+        "interval:46": 2,
+        "interval:21": 2,
+        "interval:30": 2,
+        "timeout:52": 1,
+        "interval:10": 2,
+        "interval:45": 2,
+        "interval:9": 2,
+        "interval:31": 2,
+        "interval:32": 2,
+        "interval:44": 2,
+        "interval:8": 2,
+        "interval:49": 2,
+        "interval:38": 2,
+        "interval:19": 2,
+        "interval:34": 2,
+        "interval:26": 2,
+        "interval:27": 2,
+        "listener:2": 1,
+        "interval:39": 2,
+        "interval:37": 2,
+        "interval:51": 2,
+        "interval:14": 3,
+        "interval:12": 2,
+        "interval:52": 19
+      },
+      "instanceValue": "ctx52",
+      "ticks": {
+        "interval:22": 21404.683040857315,
+        "interval:26": 19138.007833003998,
+        "interval:50": 4904.534874916077,
+        "interval:32": 15504.428582906723,
+        "interval:41": 10054.254665851593,
+        "interval:37": 12404.272832870483,
+        "interval:11": 28154.86412501335,
+        "listener:52": 1.7672078609466553,
+        "interval:39": 11221.524082899094,
+        "interval:20": 22654.930040836334,
+        "listener:2": 34562.67916584015,
+        "interval:2": 34337.39658284187,
+        "interval:25": 19721.382082939148,
+        "interval:45": 7721.255999803543,
+        "interval:42": 9454.08716583252,
+        "interval:3": 33470.80849981308,
+        "interval:24": 20304.585790872574,
+        "interval:36": 13071.098332881927,
+        "interval:6": 31487.379624843597,
+        "interval:9": 29620.60983300209,
+        "interval:8": 30219.702957868576,
+        "interval:7": 30787.396374940872,
+        "interval:13": 27038.43816590309,
+        "timeout:2": 35738.063832998276,
+        "interval:48": 6037.990082979202,
+        "interval:52": 120.92954087257385,
+        "interval:19": 23254.596915960312,
+        "interval:40": 10637.364207983017,
+        "interval:31": 16087.867040872574,
+        "interval:21": 22004.84420800209,
+        "interval:4": 32687.35204100609,
+        "interval:28": 17787.41504096985,
+        "interval:14": 26271.801707983017,
+        "interval:46": 7154.630374908447,
+        "interval:35": 13754.48104095459,
+        "interval:18": 23821.60412478447,
+        "interval:30": 16671.04783296585,
+        "interval:17": 24503.966374874115,
+        "interval:1": 38937.449249982834,
+        "interval:29": 17204.512707948685,
+        "interval:27": 18571.139249801636,
+        "interval:44": 8287.958290815353,
+        "interval:16": 25188.21866583824,
+        "interval:5": 32153.861707925797,
+        "listener:1": 38896.95954084396,
+        "interval:47": 6604.587415933609,
+        "interval:15": 25738.360957860947,
+        "interval:51": 4321.127915859222,
+        "timeout:1": 40370.74154090881,
+        "interval:23": 20854.755124807358,
+        "interval:43": 8887.363124847412,
+        "interval:49": 5487.878624916077,
+        "timeout:52": 1170.7301659584045,
+        "interval:33": 14920.751540899277,
+        "interval:10": 29037.294165849686,
+        "interval:12": 27620.723707914352,
+        "interval:38": 11820.931165933609,
+        "interval:34": 14354.23412489891
+      }
+    },
+    "memory": {
+      "footprintKb": 68998,
+      "rssKb": 102864
+    },
+    "at": 45144.065459,
+    "connection": 1
+  },
+  "killIsolation": {
+    "hello": {
+      "type": "HELLO",
+      "ctx": 1,
+      "started": {
+        "socketHeld": false,
+        "ctx": 1,
+        "msSinceReloadRequest": -1,
+        "pid": 55606,
+        "processAgeMs": 1229.3171882629395
+      },
+      "connection": 2,
+      "platform": "ios",
+      "at": 47120.470917
+    },
+    "early": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "early",
+      "contextAgeMs": 38,
+      "jsGlobal": null,
+      "moduleValue": "unset",
+      "asyncStorage": "ctx52",
+      "imageCache": "disk/memory",
+      "native": {
+        "ticks": {},
+        "observing": 0,
+        "msSinceReloadRequest": -1,
+        "reloadsTriggered": 0,
+        "pid": 55606,
+        "instanceValue": null,
+        "staticValues": {},
+        "modulesCreated": 1,
+        "socketHeld": true,
+        "tickCounts": {},
+        "contexts": 1,
+        "socketsOpened": 1,
+        "modulesDestroyed": 0
+      },
+      "memory": {
+        "footprintKb": 34182,
+        "rssKb": 186256
+      },
+      "at": 47121.503834,
+      "connection": 2
+    },
+    "late": {
+      "type": "PROBE",
+      "ctx": 1,
+      "when": "late",
+      "contextAgeMs": 4289,
+      "jsGlobal": "ctx1",
+      "moduleValue": "ctx1",
+      "asyncStorage": "ctx1",
+      "imageCache": "disk/memory",
+      "native": {
+        "modulesCreated": 1,
+        "staticValues": {
+          "lastContext": "ctx1"
+        },
+        "observing": 1,
+        "msSinceReloadRequest": -1,
+        "reloadsTriggered": 0,
+        "contexts": 1,
+        "pid": 55606,
+        "socketsOpened": 1,
+        "instanceValue": "ctx1",
+        "ticks": {
+          "interval:1": 199.72679090499878,
+          "timeout:1": 1232.1556658744812,
+          "listener:1": 3.131499767303467
+        },
+        "modulesDestroyed": 0,
+        "tickCounts": {
+          "timeout:1": 1,
+          "listener:1": 1,
+          "interval:1": 19
+        },
+        "socketHeld": true
+      },
+      "memory": {
+        "footprintKb": 54742,
+        "rssKb": 207792
+      },
+      "at": 51371.589167,
+      "connection": 2
+    }
+  },
+  "kills": [
+    {
+      "index": 1,
+      "ms": 1157,
+      "pid": 58074,
+      "memory": {
+        "rssKb": 200736,
+        "footprintKb": 39126
+      }
+    },
+    {
+      "index": 2,
+      "ms": 944.4,
+      "pid": 58355,
+      "memory": {
+        "rssKb": 201088,
+        "footprintKb": 38822
+      }
+    },
+    {
+      "index": 3,
+      "ms": 1002.2,
+      "pid": 58639,
+      "memory": {
+        "footprintKb": 39030,
+        "rssKb": 201792
+      }
+    },
+    {
+      "index": 4,
+      "ms": 1018.9,
+      "pid": 58696,
+      "memory": {
+        "footprintKb": 39286,
+        "rssKb": 201296
+      }
+    },
+    {
+      "index": 5,
+      "ms": 970.6,
+      "pid": 58826,
+      "memory": {
+        "footprintKb": 39158,
+        "rssKb": 201808
+      }
+    },
+    {
+      "index": 6,
+      "ms": 1097.8,
+      "pid": 59439,
+      "memory": {
+        "footprintKb": 39142,
+        "rssKb": 201888
+      }
+    },
+    {
+      "index": 7,
+      "ms": 942.5,
+      "pid": 59850,
+      "memory": {
+        "footprintKb": 39222,
+        "rssKb": 201408
+      }
+    },
+    {
+      "index": 8,
+      "ms": 1061.1,
+      "pid": 60158,
+      "memory": {
+        "rssKb": 201264,
+        "footprintKb": 38870
+      }
+    },
+    {
+      "index": 9,
+      "ms": 1051.4,
+      "pid": 60330,
+      "memory": {
+        "footprintKb": 39414,
+        "rssKb": 201040
+      }
+    },
+    {
+      "index": 10,
+      "ms": 1159.4,
+      "pid": 60709,
+      "memory": {
+        "footprintKb": 39446,
+        "rssKb": 201376
+      }
+    }
+  ],
+  "summary": {
+    "reloadMedianFirst10Ms": 128.5,
+    "reloadMedianAll50Ms": 123.8,
+    "reloadInAppMedianMs": 123.3,
+    "killMedianMs": 1035.2,
+    "pidsAcrossReloads": [
+      47162
+    ],
+    "socketReusedOnEveryReload": false,
+    "memoryBefore": {
+      "app": {
+        "rssKb": 212160,
+        "footprintKb": 55158
+      },
+      "host": null
+    },
+    "memoryEvery10": [
+      {
+        "index": 10,
+        "app": {
+          "rssKb": 133920,
+          "footprintKb": 62310
+        },
+        "host": null
+      },
+      {
+        "index": 20,
+        "app": {
+          "rssKb": 125328,
+          "footprintKb": 64278
+        },
+        "host": null
+      },
+      {
+        "index": 30,
+        "app": {
+          "footprintKb": 65542,
+          "rssKb": 124800
+        },
+        "host": null
+      },
+      {
+        "index": 40,
+        "app": {
+          "rssKb": 120096,
+          "footprintKb": 66934
+        },
+        "host": null
+      },
+      {
+        "index": 50,
+        "app": {
+          "rssKb": 121936,
+          "footprintKb": 67558
+        },
+        "host": null
+      }
+    ]
+  },
+  "events": 256
+}
