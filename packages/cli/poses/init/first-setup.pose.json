@@ -75,17 +75,18 @@
             "storybook:ios": "cross-env STORYBOOK_ENABLED=true expo run:ios"
           },
           "dependencies": {
-            "@storybook/react-native": "^10.6.0",
+            "@storybook/react-native": "10.6.2",
+            "@storybook/react-native-ui-lite": "10.6.2",
             "expo": "^54.0.0",
             "react": "19.1.0",
             "react-native": "0.81.5",
-            "storybook": "^10.6.0"
+            "storybook": "10.6.2"
           },
           "packageManager": "yarn@4.3.1"
         },
-        "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config);\n",
-        ".rnstorybook/index.ts": "import { registerRootComponent } from 'expo';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({});\n\nregisterRootComponent(StorybookUIRoot);\n",
-        "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.0", "main": "index.js" },
+        "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst { withStorybook } = require('@storybook/react-native/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config, { liteMode: true });\n",
+        ".rnstorybook/index.ts": "import { registerRootComponent } from 'expo';\nimport { LiteUI } from '@storybook/react-native-ui-lite';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({ CustomUIComponent: LiteUI });\n\nregisterRootComponent(StorybookUIRoot);\n",
+        "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.2", "main": "index.js" },
         "node_modules/@storybook/react-native/index.js": ""
       }
     }
