@@ -8,6 +8,7 @@ var mockShims = require('./mockShims');
 var createOpenStoryLetterbox = require('./openStoryLetterbox');
 var createCaptureSocket = require('./captureSocket');
 var createCaptureLogSocket = require('./captureLogSocket');
+var createSherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
@@ -834,6 +835,7 @@ function applySherloTransforms(result, opts) {
   var letterbox = createOpenStoryLetterbox();
   var captureSocket = createCaptureSocket();
   var captureLogSocket = createCaptureLogSocket();
+  var sherloLine = createSherloLine({ projectRoot: projectRoot });
 
   var existingEnhanceMiddleware =
     result && result.server && typeof result.server.enhanceMiddleware === 'function'
@@ -846,6 +848,7 @@ function applySherloTransforms(result, opts) {
       : metroMiddleware;
 
     return function sherloMiddleware(request, response, next) {
+      sherloLine.noteRequest(request);
       // Sherlo's addresses first, everything else untouched behind them.
       return captureSocket.middleware(request, response, function () {
         return captureLogSocket.middleware(request, response, function () {
