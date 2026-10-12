@@ -68,6 +68,13 @@ describe('useTestStory', () => {
     expect(testStory).not.toHaveBeenCalled();
   });
 
+  it('a story opened for a single capture keeps its mocks when the app mounts', async () => {
+    useTestStory({ metadataProviderRef, view, enabled: false });
+    await flushPromises();
+
+    expect(mockClearMocks).not.toHaveBeenCalled();
+  });
+
   it("turns the story's mocks off once the core's walk is over", async () => {
     let finishTheWalk!: () => void;
     testStory.mockReturnValue(new Promise<void>((resolve) => (finishTheWalk = resolve)));
