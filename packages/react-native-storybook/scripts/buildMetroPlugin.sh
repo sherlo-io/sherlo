@@ -36,6 +36,13 @@ mv "$WORK_DIR/detectStorybookSetup/index.js" "$OUTPUT_DIR/detectStorybookSetup.j
 yarn run ncc build metro/sherloBuild.js --minify --out "$WORK_DIR/sherloBuild"
 
 mv "$WORK_DIR/sherloBuild/index.js" "$OUTPUT_DIR/sherloBuild.js"
+
+# The line's server half is also loaded on its own, by a program that mounts it on a server of its
+# own (metro/sherloLine.d.ts types it).
+yarn run ncc build metro/sherloLine.js --minify --out "$WORK_DIR/sherloLine"
+
+mv "$WORK_DIR/sherloLine/index.js" "$OUTPUT_DIR/sherloLine.js"
+
 # The polyfill is only minified, never wrapped as a module. toplevel stays off so its writes to
 # global names keep those names. terser is one of this package's own devDependencies.
 node "$(node -p "require.resolve('terser/bin/terser')")" metro/polyfill.js --compress toplevel=false --mangle toplevel=false \

@@ -20,10 +20,10 @@ const log: LogFn = function (key, parameters): void {
   // place left to read a line from outside the connection.
   if (!__DEV__) console.log(`${line}\n`);
 
-  // The live push a capture reads back from (../captureLogSink) - a no-op sink outside a
-  // capture, so this costs a real run nothing (see captureTransport.ts).
+  // A sink a core plugged in (../captureLogSink), if any - a no-op otherwise.
   pushAppLogLine(line);
 
+  // The road a run's runner and a bundler's `sherlo capture` both read each line from.
   send({ action: 'log', line });
 };
 

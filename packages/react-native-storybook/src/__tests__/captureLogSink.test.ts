@@ -1,7 +1,6 @@
 /**
- * THE LIVE LOG PUSH SEAM - a plain plug point, nothing more. captureTransport.ts is what plugs a
- * real pusher in while a capture is waiting; this only proves the seam itself forwards (or, with
- * nothing plugged in, quietly does not).
+ * THE LIVE LOG SINK - a plain plug point, nothing more, offered to a core through the seam's
+ * `setCaptureLogSink`; this only proves it forwards (or, with nothing plugged in, quietly does not).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { pushAppLogLine, setCaptureLogSink } from '../helpers/RunnerBridge/captureLogSink';

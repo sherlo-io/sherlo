@@ -3,32 +3,29 @@
  *
  * The collect loop - wait for a story, put it on screen through Storybook's channel, ask again with
  * what was painted - is in the sealed core, which the SDK packs and does not hold the source of. What
- * stays here is what talks to the developer's bundler: `bundlerLetterbox`, the one request held open
- * against the address the bundler serves (metro/openStoryLetterbox.js). The shapes of what crosses
- * it are the seam's (./sealedCore/seam), because the core writes them.
+ * stays here is what carries it to the developer's bundler: `bundlerLetterbox`, one wait at a time
+ * over the app's connection, answered by the letterbox in the bundler's line (metro/sherloLine.js).
+ * The shapes of what crosses it are the seam's (./sealedCore/seam), because the core writes them.
  *
  * With no core installed there is no `sherlo open`: `startOpenStoryChannel` starts nothing.
  */
 import { bundlerOrigin } from './bundlerOrigin';
 import { bundlerCapture } from './captureTransport';
+import { sendAndAwaitAnswer } from './connection/appLine';
 import { getSealedCore } from './sealedCore/loadSealedCore';
-import { sherloFetch } from './mocking/network';
 import {
   readStorybooksCurrentStory,
   readWhetherStorybookNamedItsStory,
 } from './getStorybook/storybookReads';
-import type { BundlerLetterbox, LetterboxAnswer, StorybookChannel } from './sealedCore/seam';
+import type { BundlerLetterbox, StorybookChannel } from './sealedCore/seam';
 import type { StorybookView } from './types';
 
-/** The one address Sherlo adds to the bundler; the other half of it is metro/openStoryLetterbox.js. */
-const LETTERBOX_PATH = '/sherlo/letterbox';
-
 /**
- * How long the app leaves a request hanging before it gives up on it. Longer than the bundler's own
- * hold, so an unanswered request means the road itself is gone rather than that there was simply no
+ * How long the app waits for the letterbox's answer before it gives up on it. Longer than the
+ * line's own hold, so no answer means the road itself is gone rather than that there was simply no
  * story to hand over.
  */
-const HOLD_TIMEOUT_MS = 25000;
+const ANSWER_TIMEOUT_MS = 25000;
 
 /**
  * The events that tell Storybook has put a story of its own on screen: it drew one, the story
@@ -174,28 +171,14 @@ export function startWaitingAsTheApp(): void {
  * file on the device instead, and a file has no letterbox.
  */
 export function bundlerLetterbox(): BundlerLetterbox | null {
-  const origin = bundlerOrigin();
-  if (!origin) return null;
+  if (!bundlerOrigin()) return null;
 
   return {
-    waitForStory: async (saying) => {
-      const giveUp = new AbortController();
-      const timer = setTimeout(() => giveUp.abort(), HOLD_TIMEOUT_MS);
-
-      try {
-        const response = await sherloFetch(origin + LETTERBOX_PATH, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(saying),
-          // React Native's own declaration of a fetch signal is not the standard one this
-          // controller produces, though the runtime object is the same - hence the cast.
-          signal: giveUp.signal as unknown as RequestInit['signal'],
-        });
-        const answer = (await response.json()) as LetterboxAnswer;
-        return answer && typeof answer === 'object' ? answer : {};
-      } finally {
-        clearTimeout(timer);
-      }
-    },
+    waitForStory: (saying) =>
+      sendAndAwaitAnswer(
+        { action: 'waitForStory', ...saying },
+        'letterboxAnswer',
+        ANSWER_TIMEOUT_MS
+      ),
   };
 }

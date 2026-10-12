@@ -1,6 +1,7 @@
 'use strict';
 
 import * as fs from 'fs';
+import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
 import { readStorybookFacts, recordWhatStartWasHanded } from '../getStorybook/storybookFacts';
@@ -811,14 +812,14 @@ describe('applySherloTransforms - the header is the same wherever the project si
 });
 
 // ---------------------------------------------------------------------------
-// The letterbox's address on the bundler
+// Sherlo's address on the bundler
 // ---------------------------------------------------------------------------
 //
-// The address itself is held by openStoryChannel.test.ts; this holds the one thing that puts it on
-// a developer's bundler at all - the middleware Sherlo adds to the config it hands back. Without
-// it there is no road, and every test either side of it still passes.
+// The line itself is held by sherloLine.test.ts; this holds the one thing that puts it on a
+// developer's bundler at all - the middleware Sherlo adds to the config it hands back. Without it
+// there is no road, and every test either side of it still passes.
 
-describe('applySherloTransforms - the letterbox address', () => {
+describe("applySherloTransforms - Sherlo's address on the bundler", () => {
   function enhancedMiddlewareFor(config: Record<string, unknown>) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-letterbox-address-'));
     const result = applySherloTransforms(
@@ -854,9 +855,10 @@ describe('applySherloTransforms - the letterbox address', () => {
     const enhance = enhancedMiddlewareFor({});
     const middleware = enhance((request: any) => reachedTheBundler.push(request.url));
 
-    const letterbox = requestFor('/sherlo/letterbox', 'GET');
-    middleware(letterbox.request, letterbox.response, () => {});
-    expect(letterbox.response.written).toEqual([JSON.stringify({ kind: 'no-app' })]);
+    // The plain request the command line sends before its WebSocket is answered by Sherlo.
+    const line = requestFor('/sherlo/line', 'GET');
+    middleware(line.request, line.response, () => {});
+    expect(line.response.written).toEqual([JSON.stringify({ protocolVersion: 1 })]);
     expect(reachedTheBundler).toEqual([]);
 
     const bundle = requestFor('/index.bundle?platform=ios', 'GET');
@@ -883,15 +885,69 @@ describe('applySherloTransforms - the letterbox address', () => {
     expect(chain).toEqual(['the project', 'the bundler: /index.bundle']);
   });
 
-  it("serves the capture log feed's own address too, ahead of the letterbox and the bundler", () => {
+  it('serves none of the three addresses the line replaced: each reaches the bundler', () => {
     const reachedTheBundler: string[] = [];
     const enhance = enhancedMiddlewareFor({});
     const middleware = enhance((request: any) => reachedTheBundler.push(request.url));
 
-    const reader = requestFor('/sherlo/capture-log', 'GET');
-    middleware(reader.request, reader.response, () => {});
-    expect(reader.response.written).toEqual([JSON.stringify({ lines: [] })]);
-    expect(reachedTheBundler).toEqual([]);
+    for (const replacedAddress of ['/sherlo/letterbox', '/sherlo/capture', '/sherlo/capture-log']) {
+      const request = requestFor(replacedAddress, 'GET');
+      middleware(request.request, request.response, () => {});
+      expect(request.response.written).toEqual([]);
+    }
+    expect(reachedTheBundler).toEqual([
+      '/sherlo/letterbox',
+      '/sherlo/capture',
+      '/sherlo/capture-log',
+    ]);
+  });
+
+  it("takes the WebSocket upgrade for Sherlo's address and hands every other upgrade to the bundler's own sockets", async () => {
+    const ws = require('ws');
+    // A project folder inside this package, so the line finds Metro, and its `ws`, as it does in
+    // a project: from the project's own folder.
+    const projectRoot = fs.mkdtempSync(path.join(__dirname, '../../node_modules/.sherlo-line-'));
+    const result = applySherloTransforms({ projectRoot, resolver: {} }, { enabled: true });
+
+    // The bundler: a server whose own upgrade listener is in place before any request, as Metro's
+    // is, and whose middleware is Sherlo's in front of the bundle.
+    const upgradesTheBundlerTook: string[] = [];
+    const bundlerServer = http.createServer(
+      result.server.enhanceMiddleware((request: any, response: any) => response.end('the bundle'))
+    );
+    bundlerServer.on('upgrade', (request: any, socket: any) => {
+      upgradesTheBundlerTook.push(request.url);
+      socket.destroy();
+    });
+    await new Promise<void>((resolve) => bundlerServer.listen(0, '127.0.0.1', resolve));
+    const origin = `127.0.0.1:${(bundlerServer.address() as any).port}`;
+
+    try {
+      // One plain request first: it mounts the line, and is answered by Sherlo.
+      const plainAnswer = await fetch(`http://${origin}/sherlo/line`);
+      expect(await plainAnswer.json()).toEqual({ protocolVersion: 1 });
+
+      // Sherlo's address is the line: a driver's question there is answered.
+      const driver = new ws(`ws://${origin}/sherlo/line`);
+      await new Promise((resolve) => driver.once('open', resolve));
+      const reply = new Promise((resolve) =>
+        driver.once('message', (data: unknown) => resolve(JSON.parse(String(data))))
+      );
+      driver.send(JSON.stringify({ action: 'whatIsOnScreen', askId: '1' }));
+      expect(await reply).toEqual({ action: 'reply', askId: '1', reply: { kind: 'no-app' } });
+      driver.terminate();
+
+      // Every other upgrade goes to the bundler's own listener, untouched.
+      const hotReload = new ws(`ws://${origin}/hot`);
+      await new Promise((resolve) => hotReload.once('close', resolve).once('error', resolve));
+      expect(upgradesTheBundlerTook).toEqual(['/hot']);
+
+      // And every other request is still the bundler's.
+      expect(await (await fetch(`http://${origin}/index.bundle`)).text()).toBe('the bundle');
+    } finally {
+      bundlerServer.close();
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
   });
 });
 

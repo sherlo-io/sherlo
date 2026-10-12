@@ -330,6 +330,25 @@ describe('what the published package carries', () => {
     expect(exportsMap['./dist/offStandIn.js']).toBe('./dist/offStandIn.js');
   });
 
+  it("the published line loads with plain Node from the package root, with its types and the seam's", (context) => {
+    if (!hasThePacks) context.skip();
+    const { unpackedPackageDir, packedFiles } = theNpmPack();
+
+    const exportsMap = JSON.parse(
+      fs.readFileSync(path.join(unpackedPackageDir, 'package.json'), 'utf8')
+    ).exports;
+    const { attach, PROTOCOL_VERSION } = require(path.join(
+      unpackedPackageDir,
+      exportsMap['./metro/sherloLine'].require
+    ));
+    expect(typeof attach).toBe('function');
+    expect(PROTOCOL_VERSION).toBe(1);
+
+    // The types import the message shapes from the seam, which is published beside them.
+    expect(packedFiles).toContain('metro/sherloLine.d.ts');
+    expect(packedFiles).toContain('src/sealedCore/seam.ts');
+  });
+
   it('the published polyfill runs as a plain script, with no module or require around it', (context) => {
     if (!hasThePacks) context.skip();
     const { unpackedPackageDir } = theNpmPack();
