@@ -1,11 +1,12 @@
 /**
- * STEP 5 - STORYBOOK. A project that has it keeps it as it is. One that has none gets it from
- * Storybook's own installer, which also writes its example stories - the stories the first test
- * photographs until the project has stories of its own.
+ * STEP 5 - STORYBOOK. A project that has it keeps it as it is. One that has none gets Storybook's
+ * lite setup (operator, 2026-10-12): one native library instead of eight. Storybook's own installer
+ * cannot write it, so setup installs the packages and writes `.rnstorybook` from its own copy of
+ * Storybook's files, with Storybook's example stories - the stories the first test photographs until
+ * the project has stories of its own.
  *
- * Its line names the package and version, as Sherlo's line does; the next steps already say the
- * example stories came with it. The other packages the installer adds are not listed: they are
- * Storybook's own needs.
+ * Its line names the package and version, as Sherlo's line does, and says "(lite)", so whoever reads
+ * Storybook's docs later knows why its phone browser looks different.
  */
 import { detect, resolveCommand } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
@@ -58,7 +59,7 @@ async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{
     renderStepLine({
       outcome: 'done',
       name: 'Installed Storybook',
-      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)}`,
+      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)} (lite)`,
     }),
   ]);
 

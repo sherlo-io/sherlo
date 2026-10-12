@@ -64,8 +64,10 @@ export type Workstation = {
   }): Promise<void>;
 
   /**
-   * Set Storybook up in a project that has none, with Storybook's own installer, which writes its
+   * Set Storybook's lite setup up in a project that has none: install its packages, and write its
    * config folder, its example stories and its Metro wrapper into the project.
+   *
+   * BUILD DEBT: still shaped for Storybook's own installer, which cannot write the lite setup.
    */
   installStorybook(params: {
     /** The whole command line, e.g. `npx create-storybook@latest --yes --type react_native`. */
@@ -223,9 +225,9 @@ export type PosedWorkstation = {
     failed?: { stdout: string; stderr: string };
   };
   /**
-   * What Storybook's own installer wrote, for a project that had no Storybook: relative path ->
+   * The Storybook files setup wrote, for a project that had no Storybook: relative path ->
    * content, laid into the project folder the way the pose's `files` are, so the steps after it
-   * read the project as the installer left it. Left out for a project that already has Storybook,
+   * read the project as the Storybook step left it. Left out for a project that already has Storybook,
    * where setup never runs it; stated for one that does not, it is refused.
    */
   storybook?: { wrote: PosedFiles };
@@ -315,7 +317,7 @@ export function posedWorkstation(
         // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.
         refuse(
           'installStorybook',
-          'the project has no Storybook, so the command ran its installer - say what it wrote ' +
+          'the project has no Storybook, so the command set Storybook up - say what it wrote ' +
             'in `"storybook": {"wrote": {...}}` in the workstation of the pose'
         );
         return;
