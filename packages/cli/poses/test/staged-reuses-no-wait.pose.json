@@ -44,7 +44,8 @@
       },
       "answer": {
         "outcome": "fast",
-        "diff": []
+        "diff": [],
+        "storedBuildIndex": 13
       }
     },
     {
@@ -55,7 +56,8 @@
       },
       "answer": {
         "outcome": "fast",
-        "diff": []
+        "diff": [],
+        "storedBuildIndex": 13
       }
     },
     {

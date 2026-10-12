@@ -56,7 +56,7 @@ export type DiffScopePlatformReport = {
   platform: Platform;
   /**
    * true = EVERY story was in scope (a full capture). The captured-file list is
-   * empty in that case and MUST render as "all N stories", never "nothing" (the
+   * empty in that case and MUST render as "N of N stories", never "nothing" (the
    * inversion hazard). false = the partial closure-diff below.
    */
   full: boolean;
@@ -131,11 +131,11 @@ export function formatDiffScopeReport(
 export function describeDecision(block: DiffScopePlatformReport): string {
   const M = block.totalStoriesInBundle;
 
-  // INVERSION GUARD: `full` is checked FIRST. A full capture is "all N stories",
+  // INVERSION GUARD: `full` is checked FIRST. A full capture is "N of N stories",
   // even with an empty captured-file list - never let the empty list read as
   // "nothing". Only the partial branch below can say "nothing to capture".
   if (block.full) {
-    const allStories = M !== undefined ? `all ${countStories(M)}` : 'all stories';
+    const allStories = M !== undefined ? `${M} of ${countStories(M)}` : 'all stories';
     // No reason for a full capture -> the honest degrade: we could not work out
     // what changed, so everything is captured to be safe.
     return `${allStories}: ${block.reason ?? "couldn't work out what changed, so all are captured to be safe"}`;
@@ -144,8 +144,9 @@ export function describeDecision(block: DiffScopePlatformReport): string {
   const captured = block.capturedStoryFilePaths.length;
   const reasonTail = block.reason ? `: ${block.reason}` : '';
 
-  // PARTIAL zero: nothing your changes touch reaches a story.
-  if (captured === 0) return `nothing to capture${reasonTail}`;
+  // PARTIAL zero: nothing your changes touch reaches a story. The step's name already says
+  // "capture", so the server's reason stands alone.
+  if (captured === 0) return block.reason ?? 'nothing to capture';
 
   // PARTIAL with captures. No manifest -> no honest denominator: a bare count.
   const fraction = M !== undefined ? `${captured} of ${countStories(M)}` : countStories(captured);

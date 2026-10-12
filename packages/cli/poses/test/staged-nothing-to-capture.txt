@@ -13,9 +13,9 @@
 Testing your app...
 
 [2mBundling the JavaScript for 🤖 Android...[22m
-[32m✔[39m Built the Android app  stored by Sherlo, only JavaScript changed since [2m(reused)[22m
+[32m✔[39m Built the Android app  stored from Test 14, only JavaScript changed since [2m(reused)[22m
 [32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
-[32m✔[39m Planned the capture    nothing to capture: no change on this branch reaches any story
-[32m✔[39m Finished the test      with no device run: no change on this branch reaches any story
+[32m✔[39m Planned the capture    no change on this branch reaches any story
+[32m✔[39m Finished Test 15       no device ran, nothing needed capturing
 
 [exit 0]

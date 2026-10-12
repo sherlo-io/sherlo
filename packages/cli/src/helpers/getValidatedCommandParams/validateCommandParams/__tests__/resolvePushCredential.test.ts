@@ -127,7 +127,7 @@ describe('what is refused about the credential', () => {
     const refusal = refusalIn({ env: { SHERLO_TOKEN: personalToken } });
 
     expect(refusal).toContain(
-      'AUTH ERROR: SHERLO_TOKEN wants a project token, and this is a personal token.'
+      'ERROR: SHERLO_TOKEN wants a project token, and this is a personal token.'
     );
     expect(refusal).toContain('To act as yourself, run `npx sherlo login` instead.');
     expect(refusal).not.toContain('SHERLO_PERSONAL_TOKEN');
@@ -136,7 +136,7 @@ describe('what is refused about the credential', () => {
 
   it('refuses a push with no credential at all, naming sherlo login and SHERLO_TOKEN', () => {
     expect(refusalIn({ config: { project: CONFIG_PROJECT } })).toContain(
-      'AUTH ERROR: No token or login found to run the test with.\n' +
+      'ERROR: No token or login found to run the test with.\n' +
         '  On your own computer, run `npx sherlo login`.\n' +
         '  In CI, set the project token as SHERLO_TOKEN.'
     );
@@ -168,7 +168,7 @@ describe('which project a push goes to', () => {
     const refusal = refusalIn({ loggedIn: true });
 
     expect(refusal).toContain(
-      'ERROR: sherlo.config.json names no project, so your login has nowhere to push.'
+      'ERROR: sherlo.config.json names no project, so your login has no project to test against.'
     );
     expect(refusal).toContain('Run `npx sherlo init` to choose one.');
   });
@@ -222,7 +222,7 @@ describe('which project a push goes to', () => {
       });
 
       expect(refusal).toContain(
-        'AUTH ERROR: SHERLO_TOKEN names a different project than `project` in sherlo.config.json.'
+        'ERROR: SHERLO_TOKEN names a different project than `project` in sherlo.config.json.'
       );
       expect(refusal).toContain('This push would land in a project the config does not name.');
       expect(refusal).not.toContain(token);

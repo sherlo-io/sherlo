@@ -35,11 +35,24 @@ import {
 /* ========================================================================== */
 
 /**
- * `Waiting for the test to finish (up to 45 min)...` - printed once, before the first poll: the
+ * The test a line names: `Test 7` once its number is known, `the test` (lowercase, as a sentence's
+ * subject or object) only while it is not - the wait loop does not pass the number yet (build work).
+ */
+function theTest(testIndex: number | undefined): string {
+  return testIndex !== undefined ? `Test ${testIndex}` : 'the test';
+}
+
+/** The command that goes on waiting for a test, said at the end of every line that stops waiting. */
+function keepWaiting(testIndex: number): string {
+  return `To keep waiting: ${chalk.cyan(`npx sherlo view ${testIndex} --wait`)}`;
+}
+
+/**
+ * `Waiting for Test 7 to finish (up to 45 min)...` - printed once, before the first poll: the
  * line init's grammar prints where a terminal would show a spinner (a spinner is build work).
  */
-export function renderWaitHeader(timeoutMinutes: number): string {
-  return chalk.dim(`Waiting for the test to finish (up to ${timeoutMinutes} min)...`);
+export function renderWaitHeader(timeoutMinutes: number, testIndex?: number): string {
+  return chalk.dim(`Waiting for ${theTest(testIndex)} to finish (up to ${timeoutMinutes} min)...`);
 }
 
 /**
@@ -81,17 +94,25 @@ export function renderWaitAuthFailed(message: string): string {
   return chalk.red(`✖ ${message}`);
 }
 
-/** The two lines of the deadline closer: the waiting stopped, the test may not have. */
-export function renderWaitTimedOut(timeoutMinutes: number): string[] {
+/**
+ * The two lines of the deadline closer: the waiting stopped, the test may not have - and the
+ * command that goes on waiting for it.
+ */
+export function renderWaitTimedOut(timeoutMinutes: number, testIndex?: number): string[] {
+  const minutes = timeoutMinutes === 1 ? '1 minute' : `${timeoutMinutes} minutes`;
   return [
-    chalk.yellow(`! Stopped waiting after ${timeoutMinutes} minutes.`),
-    chalk.yellow('  The test may still be running in Sherlo.'),
+    chalk.yellow(`! Stopped waiting after ${minutes}.`),
+    testIndex !== undefined
+      ? `  Test ${testIndex} may still be running. ${keepWaiting(testIndex)}`
+      : chalk.yellow('  The test may still be running in Sherlo.'),
   ];
 }
 
 /** The Ctrl-C closer. The run keeps going in Sherlo; only the waiting stops. */
-export function renderWaitInterrupted(): string {
-  return chalk.dim('Stopped waiting. The test is still running in Sherlo.');
+export function renderWaitInterrupted(testIndex?: number): string {
+  return testIndex !== undefined
+    ? chalk.dim(`Stopped waiting. Test ${testIndex} is still running. `) + keepWaiting(testIndex)
+    : chalk.dim('Stopped waiting. The test is still running in Sherlo.');
 }
 
 /** The green verdict, as a section: every story either matched or was already approved. */
@@ -101,14 +122,18 @@ export function renderVerdictPassed(): string[] {
 }
 
 /**
- * The verdict of a test the SERVER closed without a device run, as init's finished step: the
- * server's own prose reason after it. No URL - the test has nothing to review.
- *
- * The reason is the server's sentence, never one composed here, which is why it
- * arrives as a parameter rather than as a branch.
+ * The verdict of a test the SERVER closed without a device run, as init's finished step:
+ * `✔ Finished Test 13  no device ran, nothing needed capturing`. No URL - the test has nothing to
+ * review. The server's reason is not printed: the step says what a reader needs (content
+ * department, review of 2026-10-12).
  */
-export function renderVerdictServerBypassed(reason: string): string[] {
-  return [renderTestStep({ name: 'Finished the test', detail: `with no device run: ${reason}` })];
+export function renderVerdictServerBypassed(testIndex?: number): string[] {
+  return [
+    renderTestStep({
+      name: `Finished ${theTest(testIndex)}`,
+      detail: 'no device ran, nothing needed capturing',
+    }),
+  ];
 }
 
 /**
@@ -144,17 +169,25 @@ export type VerdictScreen = {
 const SETTLED_STATUSES = new Set(['approved', 'unchanged', 'not-captured']);
 
 /**
- * The word the verdict says beside a screen, per wire status: what happened to it - `new`,
- * `changed` - or what a person already said - `reported` - and `errored` for a capture that
- * failed. A status with no entry is said under its own wire spelling rather than dropped.
+ * The words a story's status is said in, per wire status - here beside a story the verdict names,
+ * and in `sherlo view`'s table: what happened to it (`new`, `changed`, `no changes`), what a person
+ * already said (`approved`, `reported`), `needs review`, and `failed` for a capture that failed.
  */
-const SCREEN_LABEL: Record<string, string> = {
+const STORY_STATUS_WORD: Record<string, string> = {
   new: 'new',
   changed: 'changed',
-  'review-required': 'unreviewed',
+  'review-required': 'needs review',
   rejected: 'reported',
-  error: 'errored',
+  error: 'failed',
+  approved: 'approved',
+  unchanged: 'no changes',
+  'not-captured': 'carried over',
 };
+
+/** A story's status in plain words; a status with no entry is said under its own wire spelling rather than dropped. */
+export function storyStatusWord(status: string): string {
+  return STORY_STATUS_WORD[status] ?? status;
+}
 
 /**
  * How many screens the closer names before it stops naming and counts the rest.
@@ -200,11 +233,11 @@ export function renderVerdictReviewRequired(
 
   return renderVerdictSection(needReviewTitle(needAPerson.length), [
     ...named.map(
-      (screen) => `${screen.name.padEnd(nameWidth)}   ${SCREEN_LABEL[screen.status] ?? screen.status}`
+      (screen) => `${screen.name.padEnd(nameWidth)}   ${storyStatusWord(screen.status)}`
     ),
     ...(unnamed > 0 ? [`And ${unnamed} more to review.`] : []),
     ...(settled > 0
-      ? [chalk.dim(`${settled} more ${settled === 1 ? 'story needs' : 'stories need'} no review.`)]
+      ? [chalk.dim(`${settled} other ${settled === 1 ? 'story has' : 'stories have'} no changes.`)]
       : []),
   ]);
 }
@@ -215,16 +248,16 @@ function needReviewTitle(count: number): string {
 }
 
 /**
- * The tally lines, printed only for a non-zero count - which is why this returns
- * a LIST whose length is itself a function of the state.
+ * The body when the wait could not name the stories: the reported ones counted, when there are
+ * any, then what to do. The title above already counts the ones that need review.
  */
 function renderCountLines(counts: { unreviewed: number; reported: number }): string[] {
   const { unreviewed, reported } = counts;
 
-  const lines: string[] = [];
-  if (unreviewed > 0) lines.push(`${countStories(unreviewed)} unreviewed`);
-  if (reported > 0) lines.push(`${countStories(reported)} reported`);
-  return lines;
+  return [
+    ...(reported > 0 ? [`${countStories(reported)} reported`] : []),
+    `Open ${unreviewed + reported === 1 ? 'it' : 'them'} in Sherlo to approve or report.`,
+  ];
 }
 
 /**
@@ -290,9 +323,10 @@ export function renderVerdictCaptureAccounting(captured: number, inherited: numb
  * story/stories unreviewed", which would be accurate and tell the reader
  * nothing. The verdict is not green either way.
  */
-export function renderVerdictNothingRecorded(): string[] {
+export function renderVerdictNothingRecorded(testIndex?: number): string[] {
+  const openIt = testIndex !== undefined ? `Open Test ${testIndex}` : 'Open the test';
   return renderVerdictSection('⚠️ Nothing was recorded', [
-    'The test captured no story and carried none over, so it is not',
-    'evidence that nothing changed. Check the test in Sherlo.',
+    'The test captured no stories and carried none over, so it does not show that nothing',
+    `changed. ${openIt} in Sherlo to check.`,
   ]);
 }

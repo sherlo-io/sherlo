@@ -12,7 +12,7 @@
 
 Testing your app...
 
-[31mAUTH ERROR: No token or login found to run the test with.[39m
+[31mERROR: No token or login found to run the test with.[39m
 [31m  On your own computer, run `npx sherlo login`.[39m
 [31m  In CI, set the project token as SHERLO_TOKEN.[39m
 

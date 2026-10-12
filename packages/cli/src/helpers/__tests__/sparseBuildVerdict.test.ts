@@ -154,7 +154,7 @@ describe('a build the server did not mark prints exactly what it always printed'
 
     expect(withoutGate.exitCode).toBe(EXIT_BLOCK);
     expect(withoutGate.stdout).toBe(
-      `${WAIT_PREAMBLE}\n${verdictSection('⚠️ 3 stories need review', 24, '2 stories unreviewed', '1 story reported')}\n`
+      `${WAIT_PREAMBLE}\n${verdictSection('⚠️ 3 stories need review', 24, '1 story reported', 'Open them in Sherlo to approve or report.')}\n`
     );
     expect(gateOff.stdout).toBe(withoutGate.stdout);
     expect(gateOff.exitCode).toBe(withoutGate.exitCode);
@@ -225,9 +225,9 @@ describe('an opted-in build takes its verdict from the server, not from the tall
    * The counterweight to the case above, and the ruling the guard must not
    * over-reach on: a build that captured NOTHING but inherited the whole suite
    * has recorded plenty. It is green today and stays green, and it keeps the
-   * server's own prose rather than being flattened into the generic sparse line.
+   * bypassed closer rather than being flattened into the generic sparse line.
    */
-  it('a server-bypassed build stays green and keeps its verbatim reason', async () => {
+  it('a server-bypassed build stays green and keeps its bypassed closer', async () => {
     const bypassed = optedIn(
       {
         runStatus: 'finished',
@@ -244,9 +244,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     const { exitCode, stdout } = await runWaitLoop(bypassed);
 
     expect(exitCode).toBe(EXIT_GREEN);
-    expect(stdout).toContain(
-      'with no device run: no change on this branch reaches any story'
-    );
+    expect(stdout).toContain('no device ran, nothing needed capturing');
     expect(stdout).not.toContain('No visual changes');
   });
 
@@ -295,7 +293,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
 
     expect(exitCode).toBe(EXIT_BLOCK);
     expect(stdout).toContain('⚠️ 2 stories need review');
-    expect(stdout).toContain('2 stories unreviewed');
+    expect(stdout).toContain('Open them in Sherlo to approve or report.');
     expect(stdout).not.toContain('Nothing was recorded');
   });
 

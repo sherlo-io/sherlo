@@ -1,11 +1,11 @@
-[32mBuild #13[39m · finished
+[32mTest 13[39m · finished
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 [2mWaiting for the test to finish (up to 45 min)...[22m
    <build progress masked>
 
-[32m✔[39m Finished the test      with no device run: no change on this branch reaches any story
+[32m✔[39m Finished the test      no device ran, nothing needed capturing
 
 
 [exit 0]

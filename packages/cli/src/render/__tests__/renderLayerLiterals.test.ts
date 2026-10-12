@@ -439,11 +439,11 @@ const PINS: Pin[] = [
   {
     kind: 'app-build-stored-reused',
     what: 'the stored app build taken again - one of the three sources, said apart from the other two',
-    segment: { kind: 'app-build-stored-reused', platform: 'ios' },
+    segment: { kind: 'app-build-stored-reused', platform: 'ios', storedBuildIndex: 12 },
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Built the iOS app      stored by Sherlo, only JavaScript changed since ${ESC}[2m(reused)${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Built the iOS app      stored from Test 12, only JavaScript changed since ${ESC}[2m(reused)${ESC}[22m`,
       ],
     ],
   },
@@ -454,7 +454,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Built the Android app  kept in the local build cache, no app build stored yet ${ESC}[2m(reused)${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Built the Android app  kept in the local build cache, none stored by Sherlo yet ${ESC}[2m(reused)${ESC}[22m`,
       ],
     ],
   },
@@ -615,7 +615,7 @@ const PINS: Pin[] = [
     what: "this job's app build was the last one the run waited for",
     segment: { kind: 'run-starting', buildIndex: 1 },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 1         both platforms are in`]],
+    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 1         🤖 Android and 🍎 iOS have both arrived`]],
   },
   {
     kind: 'output-keys',
@@ -645,6 +645,13 @@ const PINS: Pin[] = [
   {
     kind: 'wait-header',
     what: 'the --wait header, dim, saying what is waited for and for how long',
+    segment: { kind: 'wait-header', timeoutMinutes: 45, testIndex: 7 },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mWaiting for Test 7 to finish (up to 45 min)...${ESC}[22m`]],
+  },
+  {
+    kind: 'wait-header',
+    what: 'the --wait header before the wait loop passes the number - "the test", lowercase',
     segment: { kind: 'wait-header', timeoutMinutes: 45 },
     stream: 'stdout',
     prints: [[`${ESC}[2mWaiting for the test to finish (up to 45 min)...${ESC}[22m`]],
@@ -689,11 +696,21 @@ const PINS: Pin[] = [
   },
   {
     kind: 'wait-timed-out',
-    what: 'the deadline closer: TWO print calls, a yellow bang, and "minutes" spelled out where the header abbreviates',
-    segment: { kind: 'wait-timed-out', timeoutMinutes: 45 },
+    what: 'the deadline closer: TWO print calls, a yellow bang, "minutes" spelled out where the header abbreviates, and the command that goes on waiting',
+    segment: { kind: 'wait-timed-out', timeoutMinutes: 45, testIndex: 7 },
     stream: 'stdout',
     prints: [
       [`${ESC}[33m! Stopped waiting after 45 minutes.${ESC}[39m`],
+      [`  Test 7 may still be running. To keep waiting: ${ESC}[36mnpx sherlo view 7 --wait${ESC}[39m`],
+    ],
+  },
+  {
+    kind: 'wait-timed-out',
+    what: 'the deadline closer for one minute, a real singular, before the wait loop passes the number',
+    segment: { kind: 'wait-timed-out', timeoutMinutes: 1 },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m! Stopped waiting after 1 minute.${ESC}[39m`],
       [`${ESC}[33m  The test may still be running in Sherlo.${ESC}[39m`],
     ],
   },
@@ -703,6 +720,17 @@ const PINS: Pin[] = [
     segment: { kind: 'wait-interrupted' },
     stream: 'stdout',
     prints: [[`${ESC}[2mStopped waiting. The test is still running in Sherlo.${ESC}[22m`]],
+  },
+  {
+    kind: 'wait-interrupted',
+    what: 'the Ctrl-C closer once the number is known, ending on the command that goes on waiting',
+    segment: { kind: 'wait-interrupted', testIndex: 7 },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[2mStopped waiting. Test 7 is still running. ${ESC}[22mTo keep waiting: ${ESC}[36mnpx sherlo view 7 --wait${ESC}[39m`,
+      ],
+    ],
   },
   {
     kind: 'verdict-passed',
@@ -719,21 +747,20 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-server-bypassed',
-    what: "the server-bypassed verdict as init's finished step, with the server's prose verbatim",
+    what: "the server-bypassed verdict as init's finished step - the server's reason is not printed",
     segment: {
       kind: 'verdict-server-bypassed',
       reason: 'no change on this branch reaches any story',
+      testIndex: 13,
     },
     stream: 'stdout',
     prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Finished the test      with no device run: no change on this branch reaches any story`,
-      ],
+      [`${ESC}[32m✔${ESC}[39m Finished Test 13       no device ran, nothing needed capturing`],
     ],
   },
   {
     kind: 'verdict-review-required',
-    what: 'the review verdict of a build whose screens the wait never learned - BOTH counts non-zero, because how many lines it makes is a function of the state',
+    what: 'the review verdict of a build whose screens the wait never learned - the reported ones counted, then what to do',
     segment: { kind: 'verdict-review-required', counts: { unreviewed: 2, reported: 1 } },
     stream: 'stdout',
     prints: [
@@ -741,8 +768,8 @@ const PINS: Pin[] = [
       [`${ESC}[1m⚠️ 3 stories need review${ESC}[22m`],
       [`${ESC}[2m════════════════════════${ESC}[22m`],
       [''],
-      ['2 stories unreviewed'],
       ['1 story reported'],
+      ['Open them in Sherlo to approve or report.'],
     ],
   },
   {
@@ -766,8 +793,8 @@ const PINS: Pin[] = [
       [''],
       ['Storefront - ProductCard   changed'],
       ['Storefront - Checkout      reported'],
-      ['Storefront - Banner        errored'],
-      [`${ESC}[2m1 more story needs no review.${ESC}[22m`],
+      ['Storefront - Banner        failed'],
+      [`${ESC}[2m1 other story has no changes.${ESC}[22m`],
     ],
   },
   {
@@ -816,15 +843,15 @@ const PINS: Pin[] = [
   {
     kind: 'verdict-nothing-recorded',
     what: '⚠⚠ DEPICTS FUTURE: the guard case - an all-zero tally over an all-zero suite, which is evidence of nothing and is deliberately NOT green',
-    segment: { kind: 'verdict-nothing-recorded' },
+    segment: { kind: 'verdict-nothing-recorded', testIndex: 16 },
     stream: 'stdout',
     prints: [
       [''],
       [`${ESC}[1m⚠️ Nothing was recorded${ESC}[22m`],
       [`${ESC}[2m═══════════════════════${ESC}[22m`],
       [''],
-      ['The test captured no story and carried none over, so it is not'],
-      ['evidence that nothing changed. Check the test in Sherlo.'],
+      ['The test captured no stories and carried none over, so it does not show that nothing'],
+      ['changed. Open Test 16 in Sherlo to check.'],
     ],
   },
 
@@ -832,54 +859,64 @@ const PINS: Pin[] = [
 
   {
     kind: 'build-view-header',
-    what: "`sherlo view`'s first line - only the index is coloured, and the separator is a middle dot with a space either side",
-    segment: { kind: 'build-view-header', buildIndex: 7, runStatus: 'finished' },
+    what: "`sherlo view`'s first line - only the test is coloured, the run status is said in plain words, and the separator is a middle dot with a space either side",
+    segment: { kind: 'build-view-header', buildIndex: 7, runStatus: 'inProgress' },
     stream: 'stdout',
-    prints: [[`${ESC}[32mBuild #7${ESC}[39m · finished`]],
+    prints: [[`${ESC}[32mTest 7${ESC}[39m · running`]],
   },
   {
     kind: 'build-view-tally',
-    what: "the review tally - dim, the wire's own four names, in a fixed order that is NOT the wire's alphabetical one",
+    what: 'the review tally - dim, each count before its plain name, in a fixed order that is NOT the wire\'s alphabetical one',
     segment: {
       kind: 'build-view-tally',
       counts: { approved: 5, noChanges: 39, reported: 0, unreviewed: 0 },
     },
     stream: 'stdout',
-    prints: [[`${ESC}[2mapproved 5 · reported 0 · unreviewed 0 · noChanges 39${ESC}[22m`]],
+    prints: [[`${ESC}[2m5 approved · 0 reported · 0 unreviewed · 39 no changes${ESC}[22m`]],
   },
   {
     kind: 'build-view-status',
-    what: "the green status sentence - the GitHub check's own noChanges copy, byte-identical to the sparse closer's",
-    segment: { kind: 'build-view-status', runStatus: 'finished', status: 'noChanges' },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✅ No visual changes - all snapshots match their baselines.${ESC}[39m`]],
-  },
-  {
-    kind: 'build-view-status',
-    what: 'the blocked status sentence - yellow, and the warning emoji carries a trailing space of its own so the text lines up with the green one',
-    segment: { kind: 'build-view-status', runStatus: 'finished', status: 'unreviewed' },
+    what: "a finished test with no changes - the verdict section `--wait` ends with, the check's own words",
+    segment: { kind: 'build-view-status', buildIndex: 7, runStatus: 'finished', status: 'noChanges' },
     stream: 'stdout',
     prints: [
-      [
-        `${ESC}[33m⚠️  Visual changes need review - snapshots changed and are awaiting review in Sherlo.${ESC}[39m`,
-      ],
+      [''],
+      [`${ESC}[1m✅ No visual changes${ESC}[22m`],
+      [`${ESC}[2m════════════════════${ESC}[22m`],
+      [''],
+      ['All snapshots match their baselines.'],
     ],
   },
   {
     kind: 'build-view-status',
-    what: 'a build still running - the review status the wire sent is DELIBERATELY not read, because the server computes it whatever the run is doing',
-    segment: { kind: 'build-view-status', runStatus: 'inProgress', status: 'unreviewed' },
+    what: 'a finished test that needs review - the same section `--wait` ends with, counted off the tally',
+    segment: {
+      kind: 'build-view-status',
+      buildIndex: 7,
+      runStatus: 'finished',
+      status: 'unreviewed',
+      counts: { approved: 0, noChanges: 41, reported: 0, unreviewed: 3 },
+    },
     stream: 'stdout',
     prints: [
-      [
-        `${ESC}[34m🔵 Running visual tests - Sherlo is capturing and comparing snapshots for this commit.${ESC}[39m`,
-      ],
+      [''],
+      [`${ESC}[1m⚠️ 3 stories need review${ESC}[22m`],
+      [`${ESC}[2m════════════════════════${ESC}[22m`],
+      [''],
+      ['Open them in Sherlo to approve or report.'],
     ],
   },
   {
     kind: 'build-view-status',
-    what: 'a finished build whose review status the API did not send - ZERO print calls, which is how this layer says nothing and is not the same as a blank line',
-    segment: { kind: 'build-view-status', runStatus: 'finished' },
+    what: 'a test still running - the review status the wire sent is DELIBERATELY not read, because the server computes it whatever the run is doing; it ends on the command that waits',
+    segment: { kind: 'build-view-status', buildIndex: 7, runStatus: 'inProgress', status: 'unreviewed' },
+    stream: 'stdout',
+    prints: [[''], [`To wait for it here: ${ESC}[36mnpx sherlo view 7 --wait${ESC}[39m`]],
+  },
+  {
+    kind: 'build-view-status',
+    what: 'a finished test whose review status the API did not send - ZERO print calls, which is how this layer says nothing and is not the same as a blank line',
+    segment: { kind: 'build-view-status', buildIndex: 7, runStatus: 'finished' },
     stream: 'stdout',
     prints: [],
   },
@@ -954,9 +991,9 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      ['STORY                 STATUS           BASELINE'],
-      ['Sanity/Hello - Basic  unchanged        build #1'],
-      ['Typography - Scales   review-required  two baselines (#2, #4)'],
+      ['STORY                 STATUS        BASELINE'],
+      ['Sanity/Hello - Basic  no changes    Test 1'],
+      ['Typography - Scales   needs review  two baselines (Test 2, Test 4)'],
     ],
   },
 

@@ -58,10 +58,10 @@ describe('the verdict closer of a wait that ended needing review', () => {
         '⚠️ 5 stories need review',
         'Storefront - ProductCard   changed',
         'Storefront - Banner        new',
-        'Typography - Scales        unreviewed',
+        'Typography - Scales        needs review',
         'Storefront - Checkout      reported',
-        'Storefront - Cart          errored',
-        '1 more story needs no review.'
+        'Storefront - Cart          failed',
+        '1 other story has no changes.'
       )
     );
   });
@@ -83,7 +83,7 @@ describe('the verdict closer of a wait that ended needing review', () => {
       section(
         '⚠️ 1 story needs review',
         'Storefront - ProductCard   changed',
-        '100 more stories need no review.'
+        '100 other stories have no changes.'
       )
     );
     // Said as a number and NOT as a hundred names - the property the case is named for, asserted
@@ -93,24 +93,31 @@ describe('the verdict closer of a wait that ended needing review', () => {
 
   it('a build whose screens the wait never learned prints the counts it always did', () => {
     // An older backend, or a status read that came back without the rows: the new words are an
-    // improvement on having the data, never a requirement to have it.
+    // improvement on having the data, never a requirement to have it. The title counts the stories
+    // that need review; the body counts the reported ones and says what to do.
+    const whatToDo = 'Open them in Sherlo to approve or report.';
     expect(renderVerdictReviewRequired(undefined, SOME_COUNTS)).toEqual(
-      section('⚠️ 3 stories need review', '2 stories unreviewed', '1 story reported')
+      section('⚠️ 3 stories need review', '1 story reported', whatToDo)
     );
 
-    // Each count line is printed only for a non-zero count, exactly as it always was.
+    // The reported line is printed only for a non-zero count.
     expect(renderVerdictReviewRequired(undefined, { unreviewed: 3, reported: 0 })).toEqual(
-      section('⚠️ 3 stories need review', '3 stories unreviewed')
+      section('⚠️ 3 stories need review', whatToDo)
+    );
+
+    // One story is "it", a real singular.
+    expect(renderVerdictReviewRequired(undefined, { unreviewed: 1, reported: 0 })).toEqual(
+      section('⚠️ 1 story needs review', 'Open it in Sherlo to approve or report.')
     );
 
     // And a build whose rows arrived but name NOBODY says less than its own tally does, so it
-    // falls back to the same two lines rather than to a headline standing on its own.
+    // falls back to the same lines rather than to a headline standing on its own.
     expect(
       renderVerdictReviewRequired(
         [{ name: 'Storefront - Footer', status: 'approved' }],
         SOME_COUNTS
       )
-    ).toEqual(section('⚠️ 3 stories need review', '2 stories unreviewed', '1 story reported'));
+    ).toEqual(section('⚠️ 3 stories need review', '1 story reported', whatToDo));
   });
 
   it('a build with more screens needing a person than the closer names says how many more', () => {
@@ -147,7 +154,7 @@ describe('the verdict closer of a wait that ended needing review', () => {
       section(
         '⚠️ 1 story needs review',
         'Storefront - Kiosk   quarantined',
-        '1 more story needs no review.'
+        '1 other story has no changes.'
       )
     );
   });

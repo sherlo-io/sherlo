@@ -593,7 +593,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      '✔ Planned the capture    all 22 stories: native code changed - everything re-shot'
+      '✔ Planned the capture    22 of 22 stories: native code changed - everything re-shot'
     );
     // Inversion: an empty list on a full capture is "everything", never "nothing".
     expect(out).not.toContain('capturing 0');
@@ -623,7 +623,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Planned the capture    nothing to capture: no change reaches any story');
+    expect(out).toContain('✔ Planned the capture    no change reaches any story');
     // No "Build created" line (SHERLO-1937) - the Review URL is the ending.
     expect(out).not.toContain('Build created');
     expect(out).toContain('🔗 Review: http://app/build');
@@ -649,7 +649,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      "✔ Planned the capture    all 22 stories: couldn't work out what changed, so all are captured to be safe"
+      "✔ Planned the capture    22 of 22 stories: couldn't work out what changed, so all are captured to be safe"
     );
     expect(out).not.toContain('why:');
 
@@ -749,7 +749,7 @@ describe('live capture plan', () => {
       [
         '✔ Planned the capture    🍎 iOS - 1 of 22 stories: ProductCardPlatformNote.ios.tsx changed',
         '   Storefront/ProductCard',
-        '✔ Planned the capture    🤖 Android - nothing to capture: the change never reaches the Android app',
+        '✔ Planned the capture    🤖 Android - the change never reaches the Android app',
       ].join('\n')
     );
     // No "Build created" line (SHERLO-1937) - even though iOS captured a story,
@@ -826,7 +826,7 @@ describe('live capture plan', () => {
     const out = printed(logSpy);
     expect(out).toContain(
       [
-        '✔ Planned the capture    🍎 iOS - all 10 stories: native-changed',
+        '✔ Planned the capture    🍎 iOS - 10 of 10 stories: native-changed',
         '✔ Planned the capture    🤖 Android - 1 of 10 stories: x.tsx changed',
         '   x/X',
       ].join('\n')
@@ -994,7 +994,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     logSpy.mockRestore();
   });
 
-  it('NON-wait: prints the compact closer with the verbatim reason and NO Review URL', async () => {
+  it('NON-wait: prints the compact closer naming the test and NO Review URL', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: true });
     mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
@@ -1002,7 +1002,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Finished the test      with no device run: no change reaches any story');
+    expect(out).toContain('✔ Finished Test 7        no device ran, nothing needed capturing');
     // The whole point: no URL of any kind on the bypassed path.
     expect(out).not.toContain('🔗 Review');
     expect(out).not.toContain('http://app/build');
@@ -1076,7 +1076,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     // The test ends on its one finished step: no started step, no next step, no link.
     const out = printed(logSpy);
     expect(
-      out.endsWith('✔ Finished the test      with no device run: no change reaches any story')
+      out.endsWith('✔ Finished Test 7        no device ran, nothing needed capturing')
     ).toBe(true);
     expect(out).not.toContain('Started Test');
     expect(out).not.toContain('Next step');

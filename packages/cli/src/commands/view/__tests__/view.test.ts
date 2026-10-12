@@ -179,7 +179,7 @@ describe('which build `sherlo view` looks at', () => {
   it('refuses a build that does not exist rather than printing an empty view', async () => {
     readBuildStatus.mockResolvedValue(null);
 
-    await expect(runView('99')).rejects.toThrow(/Build #99 does not exist/);
+    await expect(runView('99')).rejects.toThrow(/Test 99 does not exist/);
   });
 
   it('lets a failed read out, instead of reporting all is well', async () => {
@@ -213,7 +213,7 @@ describe('the eager read racing the build it names', () => {
   it('gives a miss no second chance without `--wait`', async () => {
     readBuildStatus.mockResolvedValueOnce(null);
 
-    await expect(runView('99')).rejects.toThrow(/Build #99 does not exist/);
+    await expect(runView('99')).rejects.toThrow(/Test 99 does not exist/);
     expect(
       waitForBuildResult,
       'a bare read never falls back to the wait loop'

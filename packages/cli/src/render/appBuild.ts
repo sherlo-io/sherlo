@@ -8,7 +8,7 @@
  *
  *     in 4m 12s, ...                         built on this machine, in this run
  *     kept in the local build cache          built on this machine earlier, taken from its cache
- *     stored by Sherlo, ...                  the app build Sherlo holds, from an earlier test
+ *     stored from Test 12, ...               the app build Sherlo holds, from an earlier test
  *
  * the last two dimmed `(reused)`. "Stored app build" is the one Sherlo holds and "local build cache"
  * is the one on this machine - two words, so a reader never takes one for the other (content
@@ -65,8 +65,15 @@ export type NativeChange =
 /** What changed since the stored app build, and which test built it. */
 export type ChangesSinceStoredBuild = { storedBuildIndex: number; changes: NativeChange[] };
 
-/** Why this run needed a new app build: what the gate said, and what changed when it can say. */
-export type WhyANewAppBuild = { reason: AppBuildReason; changesSince?: ChangesSinceStoredBuild };
+/**
+ * Why this run needed a new app build: what the gate said, the test the stored app build came
+ * from when one is stored, and what changed when it can say.
+ */
+export type WhyANewAppBuild = {
+  reason: AppBuildReason;
+  storedBuildIndex?: number;
+  changesSince?: ChangesSinceStoredBuild;
+};
 
 /** At most this many changes are listed; the rest are counted in one "and N more" line. */
 export const NATIVE_CHANGES_LISTED = 8;
@@ -101,14 +108,20 @@ function describeChange(change: NativeChange): string {
 
 /**
  * Why the app was built again, as the step's detail says it: "no app build stored yet", or
- * "native code changed since Test 12's app build" (with the list under the step line).
+ * "native code changed since Test 12's app build" (with the list under the step line, when the
+ * gate could say what changed). `nothingStored` is how the line says the first: a line that
+ * already named the local build cache says "none stored by Sherlo yet", so the two stores read
+ * apart.
  */
-function whyBuilt({ reason, changesSince }: WhyANewAppBuild): string {
-  if (changesSince && changesSince.changes.length > 0) {
-    return `native code changed since Test ${changesSince.storedBuildIndex}'s app build`;
-  }
-  return reason === 'nothing-stored'
-    ? 'no app build stored yet'
+function whyBuilt(
+  { reason, storedBuildIndex, changesSince }: WhyANewAppBuild,
+  nothingStored = 'no app build stored yet'
+): string {
+  if (reason === 'nothing-stored') return nothingStored;
+
+  const storedIn = changesSince?.storedBuildIndex ?? storedBuildIndex;
+  return storedIn !== undefined
+    ? `native code changed since Test ${storedIn}'s app build`
     : 'native code changed since the stored app build';
 }
 
@@ -122,16 +135,21 @@ function builtTheApp(platform: Platform): string {
   return `Built the ${PLATFORM_LABEL[platform]} app`;
 }
 
-/** `✔ Built the iOS app          stored by Sherlo, only JavaScript changed since (reused)`. */
-export function renderStoredBuildReused(platform: Platform): string {
+/**
+ * `✔ Built the iOS app          stored from Test 12, only JavaScript changed since (reused)`.
+ * `storedBuildIndex` is absent only while the service does not send it; the line then says
+ * "stored by Sherlo".
+ */
+export function renderStoredBuildReused(platform: Platform, storedBuildIndex?: number): string {
+  const stored = storedBuildIndex !== undefined ? `stored from Test ${storedBuildIndex}` : 'stored by Sherlo';
   return renderTestStep({
     name: builtTheApp(platform),
-    detail: 'stored by Sherlo, only JavaScript changed since',
+    detail: `${stored}, only JavaScript changed since`,
     reused: true,
   });
 }
 
-/** `✔ Built the Android app      kept in the local build cache, no app build stored yet (reused)`. */
+/** `✔ Built the Android app      kept in the local build cache, none stored by Sherlo yet (reused)`. */
 export function renderAppBuildCached({
   platform,
   why,
@@ -141,7 +159,7 @@ export function renderAppBuildCached({
   why?: WhyANewAppBuild;
 }): string[] {
   const detail = why
-    ? `kept in the local build cache, ${whyBuilt(why)}`
+    ? `kept in the local build cache, ${whyBuilt(why, 'none stored by Sherlo yet')}`
     : 'kept in the local build cache';
 
   return [renderTestStep({ name: builtTheApp(platform), detail, reused: true }), ...changesUnder(why)];
@@ -287,9 +305,12 @@ export function renderRunWaitsForBuilds(buildIndex: number, waitingFor: RunWaits
   return renderTestStep({ name: `Opened Test ${buildIndex}`, detail: `it starts when ${when}` });
 }
 
-/** `✔ Started Test 1             both platforms are in` - this job's app build was the last one. */
+/** `✔ Started Test 1             🤖 Android and 🍎 iOS have both arrived` - this job's app build was the last one. */
 export function renderRunStarting(buildIndex: number): string {
-  return renderTestStep({ name: `Started Test ${buildIndex}`, detail: 'both platforms are in' });
+  return renderTestStep({
+    name: `Started Test ${buildIndex}`,
+    detail: `${platformWithEmoji('android')} and ${platformWithEmoji('ios')} have both arrived`,
+  });
 }
 
 /**

@@ -35,112 +35,103 @@
  */
 import chalk from 'chalk';
 import type { BuildStatusAnswer } from '../seams/serverCalls';
+import {
+  storyStatusWord,
+  renderVerdictNoChanges,
+  renderVerdictPassed,
+  renderVerdictReviewRequired,
+} from './verdictCloser';
 
 /* ========================================================================== */
 /* `sherlo view`'s own lines                                                  */
 /* ========================================================================== */
 
 /**
- * `Build #7 · finished` - the first line `sherlo view` prints.
+ * The run status in plain words - never the wire's own (`inProgress`). An unmapped status falls
+ * through to the raw wire value rather than to a blank: a status this table has not learned yet is
+ * information, not nothing.
+ */
+const RUN_STATUS_WORD: Record<string, string> = {
+  queued: 'queued',
+  waiting: 'waiting',
+  inProgress: 'running',
+  finished: 'finished',
+  error: 'failed',
+  canceled: 'canceled',
+};
+
+/**
+ * `Test 7 · running` - the first line `sherlo view` prints.
  *
- * It names the build and its run status and NOTHING ELSE. A branch and a commit
+ * It names the test and its run status and NOTHING ELSE. A branch and a commit
  * belong on this line, but `getBuildStatus` does not carry the build's git info
  * and this checkout's git describes a different commit, so printing either
  * would be a guess dressed as a fact.
  */
 export function renderBuildViewHeader(buildIndex: number, runStatus: string): string {
-  return `${chalk.green(`Build #${buildIndex}`)} · ${runStatus}`;
+  return `${chalk.green(`Test ${buildIndex}`)} · ${RUN_STATUS_WORD[runStatus] ?? runStatus}`;
 }
 
-/** The four review counts, in one dim line, in the wire's own vocabulary. */
-export function renderBuildViewTally(counts: {
-  approved: number;
-  noChanges: number;
-  reported: number;
-  unreviewed: number;
-}): string {
+/**
+ * The refusal of `sherlo view --json --wait`: a wait prints a verdict for a person and a record is
+ * one read for a program, so a script waits with one command and reads with the next. A usage
+ * mistake, so it ends without the help block, the way commander's own refusals do.
+ */
+export function renderJsonWithWaitRefused(buildArgument: string | undefined): string[] {
+  const test = buildArgument ?? '<number>';
+  return [
+    chalk.red(
+      "ERROR: `--json` and `--wait` can't be used together. `--wait` prints a verdict for a person " +
+        'and `--json` prints one record for a program.'
+    ),
+    `Run \`npx sherlo view ${test} --wait\`, then \`npx sherlo view ${test} --json\`.`,
+  ];
+}
+
+/** `0 approved · 0 reported · 3 unreviewed · 41 no changes` - the four review counts, in one dim line. */
+export function renderBuildViewTally(counts: ReviewCounts): string {
   return chalk.dim(
-    `approved ${counts.approved} · reported ${counts.reported} · ` +
-      `unreviewed ${counts.unreviewed} · noChanges ${counts.noChanges}`
+    `${counts.approved} approved · ${counts.reported} reported · ` +
+      `${counts.unreviewed} unreviewed · ${counts.noChanges} no changes`
   );
 }
 
-/**
- * The state a build is in, as the GitHub check names it. Not a wire field - the
- * wire sends a run status and (for a finished build) a review status, and this
- * is the single word those two collapse to.
- */
-type CheckState = 'approved' | 'errored' | 'noChanges' | 'reported' | 'running' | 'unreviewed';
+type ReviewCounts = { approved: number; noChanges: number; reported: number; unreviewed: number };
 
 /**
- * The check's own sentence for each state - `<title> - <summary>`, with the
- * summary's first letter lowered so the two halves read as one line.
+ * The verdict, as the section `--wait` ends with (./verdictCloser): `⚠️ 3 stories need review`,
+ * `✅ No visual changes`, `✅ All stories passed` once every change was approved.
  *
- * THE WORDING IS THE CHECK'S, DELIBERATELY, and this is the same operator ruling
- * that put `No visual changes - all snapshots match their baselines.` into
- * {@link renderVerdictNoChanges}: the CLI and the GitHub check are answering the
- * same question about the same build, so they say the same words rather than two
- * phrasings of one verdict. Each entry below is `describeCheckState`'s title and
- * summary for that state, joined.
- */
-const CHECK_SENTENCE: Record<CheckState, string> = {
-  approved: 'Visual changes approved - all changed snapshots were approved in Sherlo.',
-  errored: 'Visual tests errored - the Sherlo build did not finish. Re-run to try again.',
-  noChanges: 'No visual changes - all snapshots match their baselines.',
-  reported: 'Visual changes reported - a snapshot was reported (rejected) in Sherlo.',
-  running: 'Running visual tests - Sherlo is capturing and comparing snapshots for this commit.',
-  unreviewed: 'Visual changes need review - snapshots changed and are awaiting review in Sherlo.',
-};
-
-/** The icon each state wears, and the colour the whole sentence is printed in. */
-const CHECK_STYLE: Record<
-  CheckState,
-  { icon: string; color: 'green' | 'red' | 'yellow' | 'blue' }
-> = {
-  approved: { icon: '✅', color: 'green' },
-  errored: { icon: '❌', color: 'red' },
-  noChanges: { icon: '✅', color: 'green' },
-  reported: { icon: '⚠️ ', color: 'yellow' },
-  running: { icon: '🔵', color: 'blue' },
-  unreviewed: { icon: '⚠️ ', color: 'yellow' },
-};
-
-/**
- * Which state a build is in, from the two fields the wire sends.
+ * THE REVIEW STATUS IS ONLY READ FOR A FINISHED TEST. The server computes `status` off the review
+ * counts whatever the run is doing, so a test still capturing answers `unreviewed` - and a verdict
+ * over a run that has not finished would be plainly false. A running test ends on the command that
+ * waits for its verdict; a test that failed says so in its header, and nothing more here.
  *
- * THE REVIEW STATUS IS ONLY READ FOR A FINISHED BUILD. The server computes
- * `status` off the review counts whatever the run is doing, so a build that is
- * still capturing answers `unreviewed` - and printing `Visual changes need
- * review` over a run that has not finished would be plainly false. A build that
- * ended in `error` or `canceled` is `errored`; anything else unfinished is
- * `running`.
- *
- * `undefined` means the CLI has no sentence to print: the build finished but the
- * API sent no review status, which is what an older API answers. Saying nothing
- * is the honest rendering of that.
+ * NO LINES when the wire gave the CLI nothing to say: the test finished but the API sent no review
+ * status (an older API). Saying nothing is the honest rendering of that.
  */
-function checkStateOf(
-  runStatus: string,
-  status: 'approved' | 'noChanges' | 'reported' | 'unreviewed' | undefined
-): CheckState | undefined {
-  if (runStatus === 'error' || runStatus === 'canceled') return 'errored';
-  if (runStatus !== 'finished') return 'running';
-  return status;
-}
+export function renderBuildViewStatus({
+  buildIndex,
+  runStatus,
+  status,
+  counts,
+}: {
+  buildIndex: number;
+  runStatus: string;
+  status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
+  counts?: ReviewCounts;
+}): string[] {
+  if (runStatus === 'error' || runStatus === 'canceled') return [];
+  if (runStatus !== 'finished') {
+    return ['', `To wait for it here: ${chalk.cyan(`npx sherlo view ${buildIndex} --wait`)}`];
+  }
 
-/**
- * The check-style status sentence, or NO line at all when the wire gave the CLI
- * nothing to say - see {@link checkStateOf}.
- */
-export function renderBuildViewStatus(
-  runStatus: string,
-  status: 'approved' | 'noChanges' | 'reported' | 'unreviewed' | undefined
-): string[] {
-  const state = checkStateOf(runStatus, status);
-  if (!state) return [];
-
-  const { icon, color } = CHECK_STYLE[state];
-  return [chalk[color](`${icon} ${CHECK_SENTENCE[state]}`)];
+  if (status === 'noChanges') return renderVerdictNoChanges();
+  if (status === 'approved') return renderVerdictPassed();
+  if ((status === 'unreviewed' || status === 'reported') && counts) {
+    return renderVerdictReviewRequired(undefined, counts);
+  }
+  return [];
 }
 
 /* ========================================================================== */
@@ -470,8 +461,11 @@ export type ViewMetadataJson = {
  * for the same reason: three columns, one row per story, widths driven by the
  * widest cell actually present.
  *
+ * The status column says each story's status in plain words (`needs review`,
+ * `no changes`), never the wire's own (./verdictCloser's storyStatusWord).
+ *
  * A `review-required` row's baseline column carries the reason instead of a
- * build index - there IS no baseline for that story (see
+ * test number - there IS no baseline for that story (see
  * ViewStory.baseline), and printing blank there would read as an
  * omission rather than the answer.
  */
@@ -480,7 +474,7 @@ export function renderStoriesTable(stories: ViewStory[]): string[] {
 
   const rows = stories.map((story) => ({
     name: story.name,
-    status: story.status,
+    status: storyStatusWord(story.status),
     baseline: baselineCell(story),
   }));
 
@@ -496,9 +490,9 @@ export function renderStoriesTable(stories: ViewStory[]): string[] {
 }
 
 function baselineCell(story: ViewStory): string {
-  if (story.baseline) return `build #${story.baseline.buildIndex}`;
+  if (story.baseline) return `Test ${story.baseline.buildIndex}`;
   if (story.reason === 'two-baselines' && story.candidates) {
-    return `two baselines (#${story.candidates.map((c) => c.buildIndex).join(', #')})`;
+    return `two baselines (${story.candidates.map((c) => `Test ${c.buildIndex}`).join(', ')})`;
   }
   return '-';
 }

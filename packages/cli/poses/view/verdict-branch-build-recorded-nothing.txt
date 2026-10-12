@@ -1,4 +1,4 @@
-[32mBuild #16[39m · finished
+[32mTest 16[39m · finished
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
@@ -9,8 +9,8 @@
 [1m⚠️ Nothing was recorded[22m
 [2m═══════════════════════[22m
 
-The test captured no story and carried none over, so it is not
-evidence that nothing changed. Check the test in Sherlo.
+The test captured no stories and carried none over, so it does not show that nothing
+changed. Open the test in Sherlo to check.
 
 
 [exit 1]

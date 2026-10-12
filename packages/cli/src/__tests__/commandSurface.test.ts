@@ -190,7 +190,7 @@ describe('a Sherlo 2 app build path', () => {
     expect(exitCode).toBe(1);
     expect(stderr).not.toContain('unknown option');
     expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
-      'no longer takes --android or --ios'
+      'no longer takes `--android` or `--ios`'
     );
   });
 });

@@ -17,7 +17,6 @@ function resolveLogin(thisCommand: string): SavedLogin {
 
   if (!savedLogin) {
     throwError({
-      type: 'auth',
       message:
         `\`npx sherlo ${thisCommand}\` needs you to be logged in. ` +
         `Run \`npx sherlo ${LOGIN_COMMAND}\`.`,

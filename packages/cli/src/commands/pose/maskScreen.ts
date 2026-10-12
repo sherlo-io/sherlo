@@ -371,7 +371,7 @@ function foldWaitProgress(screen: string): string {
  * clock actually passed it, and a live run's clock is its own.
  */
 function foldTimeoutMinutes(screen: string): string {
-  return screen.replace(/(! Stopped waiting after )\d+( minutes\.)/g, '$1<N>$2');
+  return screen.replace(/(! Stopped waiting after )\d+( minutes?\.)/g, '$1<N>$2');
 }
 
 /** The HTTP status behind a credential the server refused mid-poll (`✖ ...`). */
@@ -419,13 +419,28 @@ function foldAndroidBuild(screen: string): string {
   });
 }
 
-/** The iOS build a push was handed, the same way (../../constants, `IOS_FILE_TYPES`). */
+/**
+ * The iOS build a push was handed, the same way (../../constants, `IOS_FILE_TYPES`).
+ *
+ * XCODE IS LEFT AS IT IS: `/Applications/Xcode.app` ends in `.app` too, but it is the machine's
+ * build tool, named in the words that say how to install it, never a build a push was handed.
+ */
 function foldIosBuild(screen: string): string {
-  return foldNativeBuild(screen, ['.tar.gz', '.tar', '.app'], {
-    path: '<SHERLO_IOS_BUILD_PATH>',
-    fileName: '<SHERLO_IOS_BUILD_FILE_NAME>',
-  });
+  return screen
+    .split(XCODE_APP_PATH)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : foldNativeBuild(part, ['.tar.gz', '.tar', '.app'], {
+            path: '<SHERLO_IOS_BUILD_PATH>',
+            fileName: '<SHERLO_IOS_BUILD_FILE_NAME>',
+          })
+    )
+    .join('');
 }
+
+/** Xcode where it is installed, captured so a split keeps it: `/Applications/Xcode.app`, `/Applications/Xcode-beta.app`. */
+const XCODE_APP_PATH = /(\/Applications\/Xcode[^\s"'`/]*\.app)/;
 
 /** Anything a path may be made of: not whitespace, not a quote, not an escape sequence. */
 const PATH_CHARACTER = `[^\\s"'\`${ESCAPE}]`;

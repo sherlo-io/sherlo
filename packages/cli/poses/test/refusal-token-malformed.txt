@@ -12,7 +12,7 @@
 
 Testing your app...
 
-[31mERROR: Invalid SHERLO_TOKEN value. Make sure you copied it correctly or generate a new one in Sherlo web app[39m
+[31mERROR: Invalid SHERLO_TOKEN value. Make sure you copied it correctly or generate a new one in the Sherlo web app.[39m
 [2m↳ Learn more: [4mhttps://sherlo.io/docs/config#token[24m[22m
 
 [2m──────────[22m

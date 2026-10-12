@@ -13,9 +13,9 @@
 Testing your app...
 
 [2mBundling the JavaScript for 🤖 Android...[22m
-[32m✔[39m Built the Android app  stored by Sherlo, only JavaScript changed since [2m(reused)[22m
+[32m✔[39m Built the Android app  stored from Test 1, only JavaScript changed since [2m(reused)[22m
 [32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
-[32m✔[39m Planned the capture    all 2 stories: no main branch set for this project - every build captures every story
+[32m✔[39m Planned the capture    2 of 2 stories: no main branch is set, so every test captures every story
 [32m✔[39m Started Test 2         on 1 device (Pixel 7)
 [2mWaiting for the test to finish (up to 45 min)...[22m
    <build progress masked>

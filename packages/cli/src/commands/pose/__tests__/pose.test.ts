@@ -58,7 +58,7 @@ describe('sherlo pose runs one command against a declared world', () => {
     // person would have been looking at when the run stopped.
     expect(screen).toContain('Make sure your mobile app looks perfect on every device');
     // And nothing the command prints AFTER the read it never got.
-    expect(screen).not.toContain('Build #7');
+    expect(screen).not.toContain('Test 7');
     expect(exitCode).toBe(1);
   });
 

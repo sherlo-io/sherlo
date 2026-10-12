@@ -51,12 +51,15 @@ export async function buildThenPush({
   passedOptions,
   platformsToTest,
   refusals,
+  storedBuildIndexOf,
   baseFingerprint,
   fingerprintPreimage,
 }: {
   passedOptions: Options<THIS_COMMAND> & BuildFlags;
   platformsToTest: Platform[];
   refusals: StagedGateRefusal[];
+  /** Per platform, the test its stored app build was built in, as the gate named it. */
+  storedBuildIndexOf: Partial<Record<Platform, number>>;
   baseFingerprint: string;
   /** The sources `baseFingerprint` was computed over - what a stored app build's list is compared with. */
   fingerprintPreimage?: BaseFingerprintPreimage;
@@ -65,7 +68,11 @@ export async function buildThenPush({
   const stored = platformsToTest.filter((platform) => !refused.includes(platform));
 
   for (const platform of stored) {
-    emit({ kind: 'app-build-stored-reused', platform });
+    emit({
+      kind: 'app-build-stored-reused',
+      platform,
+      storedBuildIndex: storedBuildIndexOf[platform],
+    });
   }
 
   const commandParams = getValidatedCommandParams(
@@ -86,6 +93,7 @@ export async function buildThenPush({
       platform: refusal.platform,
       why: {
         reason: reasonOf(refusal),
+        storedBuildIndex: storedBuildIndexOf[refusal.platform],
         ...(await changesSinceStoredBuildOf(refusal, fingerprintPreimage, commandParams.projectRoot)),
       },
     }))

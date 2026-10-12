@@ -45,7 +45,8 @@
       },
       "answer": {
         "outcome": "fast",
-        "diff": []
+        "diff": [],
+        "storedBuildIndex": 1
       }
     },
     {
@@ -56,7 +57,8 @@
       },
       "answer": {
         "outcome": "fast",
-        "diff": []
+        "diff": [],
+        "storedBuildIndex": 1
       }
     },
     {
@@ -82,7 +84,7 @@
           "platforms": {
             "android": {
               "full": true,
-              "reason": "no main branch set for this project - every build captures every story"
+              "reason": "no main branch is set, so every test captures every story"
             }
           }
         }

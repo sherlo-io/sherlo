@@ -19,10 +19,7 @@ import { reporting, waitForBuildResult } from '../../helpers';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
-import {
-  fetchServerBypassReason,
-  printServerBypassCloser,
-} from '../../helpers/waitForBuildResult';
+import { fetchServerBypassReason } from '../../helpers/waitForBuildResult';
 import type { CommandParams } from '../../types';
 import type { THIS_COMMAND } from './constants';
 
@@ -105,8 +102,10 @@ async function printBypassedCloser({
 }): Promise<void> {
   const reason = await fetchServerBypassReason({ token, buildIndex, projectIndex, teamId });
 
+  // The closer names the test it finished: emitted here, where the number is known, rather than
+  // through `printServerBypassCloser`, which the wait loop calls without one (build work).
   if (reason) {
-    printServerBypassCloser(reason);
+    emit({ kind: 'verdict-server-bypassed', reason, testIndex: buildIndex });
   } else {
     emit({ kind: 'results-url', url });
   }

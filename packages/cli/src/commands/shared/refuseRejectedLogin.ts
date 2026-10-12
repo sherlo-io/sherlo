@@ -20,7 +20,7 @@ export const REJECTED_LOGIN_MESSAGE =
   `  Run \`npx sherlo ${LOGIN_COMMAND}\` to log in again.`;
 
 function refuseRejectedLogin(): never {
-  throwError({ type: 'auth', message: REJECTED_LOGIN_MESSAGE });
+  throwError({ message: REJECTED_LOGIN_MESSAGE });
 }
 
 export default refuseRejectedLogin;

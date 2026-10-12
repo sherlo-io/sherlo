@@ -36,7 +36,7 @@ const MANAGEMENT_COMMANDS: Array<{ name: string; run: () => Promise<void> }> = [
 
 describe('a refused saved login', () => {
   it('answers a refused login by naming sherlo login', async () => {
-    expect(() => refuseRejectedLogin()).toThrow(/AUTH ERROR: .*\n.*\n.*Run `npx sherlo login`/);
+    expect(() => refuseRejectedLogin()).toThrow(/ERROR: .*\n.*\n.*Run `npx sherlo login`/);
 
     for (const command of MANAGEMENT_COMMANDS) {
       const refusal = await refusalOf(command.run);

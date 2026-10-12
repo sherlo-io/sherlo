@@ -125,7 +125,7 @@ describe('formatDryRunPreview', () => {
     );
   });
 
-  it('renders a PARTIAL zero-capture as "nothing to capture" with its verbatim reason', () => {
+  it('renders a PARTIAL zero-capture as its verbatim reason alone', () => {
     const decision: DryRunPlatformDecision = {
       platform: 'android',
       isFullCapture: false,
@@ -137,13 +137,13 @@ describe('formatDryRunPreview', () => {
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
     expect(output).toContain(
-      '✔ Previewed the capture  nothing to capture: no change reaches any story'
+      '✔ Previewed the capture  no change reaches any story'
     );
     // A partial-zero names no count at all.
     expect(output).not.toContain('stories');
   });
 
-  it('renders a FULL capture (isFullCapture=true, EMPTY list) as "would capture all N stories"', () => {
+  it('renders a FULL capture (isFullCapture=true, EMPTY list) as "N of N stories"', () => {
     const decision: DryRunPlatformDecision = {
       platform: 'ios',
       isFullCapture: true,
@@ -154,7 +154,7 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain('✔ Previewed the capture  all 12 stories: main-branch');
+    expect(output).toContain('✔ Previewed the capture  12 of 12 stories: main-branch');
     // The dangerous misreads: never render the empty list as "nothing".
     expect(output).not.toContain('nothing to capture');
     expect(output).not.toContain('0 of');
@@ -173,7 +173,7 @@ describe('formatDryRunPreview', () => {
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
     expect(output).toContain(
-      '✔ Previewed the capture  all 8 stories: dry-run-error: base ancestry lookup timed out'
+      '✔ Previewed the capture  8 of 8 stories: dry-run-error: base ancestry lookup timed out'
     );
   });
 
@@ -410,7 +410,7 @@ describe('runDryRunPreview', () => {
       [
         '✔ Previewed the capture  🍎 iOS - 1 of 4 stories: x.tsx changed',
         '   x/X',
-        '✔ Previewed the capture  🤖 Android - all 4 stories: native-changed',
+        '✔ Previewed the capture  🤖 Android - 4 of 4 stories: native-changed',
       ].join('\n')
     );
 

@@ -82,8 +82,10 @@ import {
 } from './constants';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
-import { logWarning, reporting, throwError, withCommandTimeout } from './helpers';
+import { logWarning, printSherloIntro, reporting, throwError, withCommandTimeout } from './helpers';
+import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
+import { renderJsonWithWaitRefused } from './render/buildView';
 import { renderHelpBlock } from './render/testSteps';
 import { renderTokenGone } from './render/pushCredential';
 
@@ -479,7 +481,11 @@ function addTestCommand(program: Command) {
       PARALLEL_BUILDS_OPTION,
       ...devtoolsOptions,
     ],
+    // THE INTRO COMES FIRST, as on `sherlo init`: a refused flag or a job with nothing to test is
+    // still a `sherlo test` screen, opening with the logo and `Testing your app...`.
     action: (options) => {
+      printSherloIntro();
+      emit({ kind: 'command-intro', command: 'test' });
       refuseBinaryPathFlags(options);
       refuseTokenFlag(TEST_COMMAND, options);
       refuseUnknownPlatform(options);
@@ -547,7 +553,10 @@ function addBuildCommand(program: Command) {
     program,
     command: BUILD_COMMAND,
     options: [CONFIG_OPTION, PROJECT_ROOT_OPTION, PLATFORM_OPTION, BUILD_CACHE_OPTION, PARALLEL_BUILDS_OPTION],
+    // The intro comes first, as on `sherlo test`.
     action: (options) => {
+      printSherloIntro();
+      emit({ kind: 'command-intro', command: 'build' });
       refuseUnknownPlatform(options);
       return build(options);
     },
@@ -575,10 +584,10 @@ function addViewCommand(program: Command) {
   ]);
 
   // `--json` prints one read as a record for a program; `--wait` prints a verdict for a person.
-  // Commander refuses the pair in its own words, before anything runs - a script waits with one
-  // command and reads with the next (`gh run watch`, then `gh run view --json`).
+  // The pair is refused in our own words, before anything runs - a script waits with one command
+  // and reads with the next (`gh run watch`, then `gh run view --json`).
   commandInstance.addOption(
-    new Option(...OPTION_DEFINITION[JSON_OPTION]).conflicts(WAIT_OPTION)
+    new Option(`--${JSON_OPTION}`, 'Print the whole record as JSON, for scripts (not with --wait)')
   );
 
   // Parsed out of sight and refused, as on `sherlo test` (refuseTokenFlag).
@@ -587,6 +596,7 @@ function addViewCommand(program: Command) {
   commandInstance.action(async (build: string | undefined, actionOptions) => {
     setReportingContext(VIEW_COMMAND, actionOptions);
 
+    refuseJsonWithWait(build, actionOptions);
     refuseTokenFlag(VIEW_COMMAND, actionOptions);
 
     // `withCommandTimeout` wraps a one-argument command, and it already skips
@@ -594,6 +604,20 @@ function addViewCommand(program: Command) {
     // legitimately runs longer and owns exit code 3.
     await withCommandTimeout(() => view(build, actionOptions))(actionOptions);
   });
+}
+
+/**
+ * `sherlo view --json --wait` is a usage mistake, refused before anything runs - exit 1 and no help
+ * block, the way commander ends a usage mistake (../render/buildView, renderJsonWithWaitRefused).
+ */
+function refuseJsonWithWait(
+  build: string | undefined,
+  options: { [JSON_OPTION]?: boolean; [WAIT_OPTION]?: boolean }
+) {
+  if (!options[JSON_OPTION] || !options[WAIT_OPTION]) return;
+
+  for (const line of renderJsonWithWaitRefused(build)) console.error(line);
+  process.exit(1);
 }
 
 function addTestEasCloudBuildCommand(program: Command) {

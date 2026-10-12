@@ -22,8 +22,8 @@ import type { BuildStatusAnswer } from '../../seams/serverCalls';
  * header, no colour, no url line - because it is meant to be piped and parsed,
  * the way `gh ... --json` is, and mixing it with the human header would make
  * every consumer re-find the JSON inside prose. Without `--json` the command
- * prints for a person: which build, the tally, the check's own sentence, the
- * per-story table (when the build has stories), then the link.
+ * prints for a person: which test, the tally, the verdict section `--wait` ends
+ * with, the per-story table (when the test has stories), then the link.
  */
 export function printBuildView({
   build,
@@ -50,7 +50,13 @@ export function printBuildView({
     emit({ kind: 'build-view-tally', counts: build.viewStatusesCount });
   }
 
-  emit({ kind: 'build-view-status', runStatus: build.runStatus, status: build.status });
+  emit({
+    kind: 'build-view-status',
+    buildIndex,
+    runStatus: build.runStatus,
+    status: build.status,
+    counts: build.viewStatusesCount,
+  });
 
   // Absent, not empty: a build with no view rows yet (queued, or errored before
   // any capture) prints no table rather than a header with nothing under it.
@@ -109,8 +115,8 @@ export function viewJsonOf(build: BuildStatusAnswer, buildIndex: number): ViewJs
 export function refuseBuildNotFound(buildIndex: number): never {
   throwError({
     message:
-      `Build #${buildIndex} does not exist in this project. ` +
-      'Check the index (it is the `b=` value of a build URL) and the token.',
+      `Test ${buildIndex} does not exist in this project. ` +
+      'Check the number (it is the b= value of a Sherlo URL) and the token.',
   });
 }
 

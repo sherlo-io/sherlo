@@ -13,7 +13,7 @@
 Testing your app...
 
 [2mBundling the JavaScript for 🤖 Android...[22m
-[32m✔[39m Built the Android app  stored by Sherlo, only JavaScript changed since [2m(reused)[22m
+[32m✔[39m Built the Android app  stored from Test 13, only JavaScript changed since [2m(reused)[22m
 [32m✔[39m Uploaded JavaScript    🤖 Android <SIZE> MB
 [32m✔[39m Planned the capture    1 of 2 stories: src/components/Storefront/ProductCard.tsx changed
 [2m   Storefront/ProductCard[22m

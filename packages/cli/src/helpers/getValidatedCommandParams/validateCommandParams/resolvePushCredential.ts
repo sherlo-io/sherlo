@@ -76,7 +76,7 @@ function spendProjectToken(projectToken: string, config: InvalidatedConfig): Pus
 
   if (!isValidToken(projectToken)) {
     throwError({
-      message: `Invalid ${PROJECT_TOKEN_ENV_VAR} value. Make sure you copied it correctly or generate a new one in Sherlo web app`,
+      message: `Invalid ${PROJECT_TOKEN_ENV_VAR} value. Make sure you copied it correctly or generate a new one in the Sherlo web app.`,
       learnMoreLink: DOCS_LINK.configToken,
     });
   }
@@ -131,7 +131,6 @@ export function parseConfigProject(configProject: unknown): {
 
 function refuseNoCredential(): never {
   throwError({
-    type: 'auth',
     message:
       'No token or login found to run the test with.\n' +
       `  On your own computer, run \`npx sherlo ${LOGIN_COMMAND}\`.\n` +
@@ -141,7 +140,6 @@ function refuseNoCredential(): never {
 
 function refuseOnEas(): never {
   throwError({
-    type: 'auth',
     message:
       `\`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` takes a project token only, and found ` +
       'your login.\n' +
@@ -153,7 +151,7 @@ function refuseOnEas(): never {
 function refuseNoProject(): never {
   throwError({
     message:
-      'sherlo.config.json names no project, so your login has nowhere to push.\n' +
+      'sherlo.config.json names no project, so your login has no project to test against.\n' +
       '  Run `npx sherlo init` to choose one. It writes `project` into the config.',
   });
 }
@@ -172,7 +170,6 @@ function refuseMalformedProject(configProject: unknown): never {
 /** Never prints the token: it is a live credential. */
 function refuseTokenProjectMismatch(): never {
   throwError({
-    type: 'auth',
     message:
       `${PROJECT_TOKEN_ENV_VAR} names a different project than \`project\` in sherlo.config.json.\n` +
       '  This push would land in a project the config does not name.\n' +
@@ -183,7 +180,6 @@ function refuseTokenProjectMismatch(): never {
 /** Never prints the token: it is a live credential somebody put in the wrong variable. */
 function refusePersonalTokenInProjectTokenVariable(): never {
   throwError({
-    type: 'auth',
     message:
       `${PROJECT_TOKEN_ENV_VAR} wants a project token, and this is a personal token.\n` +
       `  CI holds the project token for ${PROJECT_TOKEN_ENV_VAR}. Copy it from the project's settings in the Sherlo web app.\n` +

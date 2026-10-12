@@ -384,7 +384,7 @@ export type ScriptedCall =
         platform: string;
         baseFingerprint: string;
       };
-      answer: ApiError | StagedGateAnswer;
+      answer: StagedGateAnswer | ApiError;
     }
   | {
       /**
@@ -906,6 +906,11 @@ export type StagedGateAnswer = {
    * without a list.
    */
   storedBase?: StoredBaseSources;
+  /**
+   * The test the platform's stored app build was built in - "stored from Test 12", "native code
+   * changed since Test 12's app build" - whatever the outcome. Absent when nothing is stored.
+   */
+  storedBuildIndex?: number;
 };
 
 /**

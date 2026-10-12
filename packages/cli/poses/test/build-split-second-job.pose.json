@@ -57,9 +57,7 @@
       },
       "answer": {
         "outcome": "full-build-needed",
-        "diff": [
-          "buildMetadata"
-        ]
+        "diff": []
       }
     },
     {

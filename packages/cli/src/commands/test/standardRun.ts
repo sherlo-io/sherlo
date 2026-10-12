@@ -8,15 +8,12 @@
  */
 import {
   getValidatedCommandParams,
-  printSherloIntro,
   uploadOrReuseBuildsAndRunTests,
 } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
 
 async function standardRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  printSherloIntro();
-
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },
     { requirePlatformPaths: true }

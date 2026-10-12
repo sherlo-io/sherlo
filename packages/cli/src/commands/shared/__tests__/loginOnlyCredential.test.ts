@@ -125,7 +125,7 @@ describe('the login as the only credential a person spends', () => {
       const run = await runOnSeams(command.run, { api: [], logins: {} });
 
       expect(run.refusal, command.name).toBe(
-        `AUTH ERROR: \`npx sherlo ${command.name}\` needs you to be logged in. Run \`npx sherlo login\`.`
+        `ERROR: \`npx sherlo ${command.name}\` needs you to be logged in. Run \`npx sherlo login\`.`
       );
       expect(run.unansweredCalls, command.name).toEqual([]);
     }

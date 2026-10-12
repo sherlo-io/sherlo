@@ -112,7 +112,7 @@ describe('`--metadata` on the wait roads', () => {
         '⚠️ 3 stories need review',
         '═'.repeat(24),
         '',
-        '3 stories unreviewed',
+        'Open them in Sherlo to approve or report.',
         '',
         '── details ──',
         // No branch, no main line.

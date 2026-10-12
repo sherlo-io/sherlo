@@ -35,7 +35,7 @@ Testing your app...
 [1m⚠️ 2 stories need review[22m
 [2m════════════════════════[22m
 
-2 stories unreviewed
+Open them in Sherlo to approve or report.
 
 
 [exit 1]

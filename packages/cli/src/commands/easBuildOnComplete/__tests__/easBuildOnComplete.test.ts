@@ -117,7 +117,7 @@ describe('easBuildOnComplete - EAS build errored', () => {
 
   it('closes the build as errored and throws, without uploading', async () => {
     await expect(easBuildOnComplete({ profile: 'preview' } as any)).rejects.toThrow(
-      "The EAS build failed on Expo's servers, so the test can't run."
+      "The EAS build failed on Expo's servers, so Test 5 can't run."
     );
 
     expect(mocks.closeBuild).toHaveBeenCalledWith({
@@ -139,7 +139,7 @@ describe('easBuildOnComplete - EAS build cancelled', () => {
     process.env.npm_lifecycle_event = 'eas-build-on-cancel';
 
     await expect(easBuildOnComplete({ profile: 'preview' } as any)).rejects.toThrow(
-      "The EAS build was canceled, so the test can't run."
+      "The EAS build was canceled, so Test 5 can't run."
     );
 
     expect(mocks.closeBuild).toHaveBeenCalledWith({

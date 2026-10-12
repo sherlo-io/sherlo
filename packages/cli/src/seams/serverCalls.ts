@@ -129,7 +129,7 @@ export type ServerCalls = {
   /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
   checkStagedGate(
     request: CheckStagedGateRequest & { token: string }
-  ): Promise<CheckStagedGateAnswer & { storedBase?: StoredBaseSources }>;
+  ): Promise<CheckStagedGateAnswer & StoredAppBuildFacts>;
 
   /**
    * One progress report `sherlo init` sends as it walks its steps. It rides this seam like every
@@ -206,6 +206,13 @@ export type CloseBuildAnswer = Awaited<ReturnType<SdkClient['closeBuild']>>;
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
 export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
+
+/**
+ * What the gate says about the platform's stored app build on top of the client's answer: its
+ * source list and the test it was built in. The service does not send the test yet (build work:
+ * the gate's every answer carries it), so a live run reads it as absent.
+ */
+export type StoredAppBuildFacts = Pick<StagedGateAnswer, 'storedBase' | 'storedBuildIndex'>;
 
 /**
  * What the service is sent for the token a push spends: a project token's api part, or a personal
@@ -519,6 +526,11 @@ export type StagedGateAnswer = {
    * without a list.
    */
   storedBase?: StoredBaseSources;
+  /**
+   * The test the platform's stored app build was built in - "stored from Test 12", "native code
+   * changed since Test 12's app build" - whatever the outcome. Absent when nothing is stored.
+   */
+  storedBuildIndex?: number;
 };
 
 /**
@@ -890,7 +902,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       answerFor('checkStagedGate', {
         platform: request.platform,
         baseFingerprint: request.baseFingerprint,
-      }) as CheckStagedGateAnswer & { storedBase?: StoredBaseSources },
+      }) as CheckStagedGateAnswer & StoredAppBuildFacts,
 
     // The step that sent the report is the one thing a pose can meaningfully state about it: the
     // params carry whatever that step measured, which the command composed rather than the pose.

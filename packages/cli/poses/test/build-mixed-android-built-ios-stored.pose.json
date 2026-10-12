@@ -65,7 +65,8 @@
         "outcome": "full-build-needed",
         "diff": [
           "buildMetadata"
-        ]
+        ],
+        "storedBuildIndex": 3
       }
     },
     {
@@ -76,7 +77,8 @@
       },
       "answer": {
         "outcome": "fast",
-        "diff": []
+        "diff": [],
+        "storedBuildIndex": 3
       }
     },
     {

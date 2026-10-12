@@ -1,5 +1,6 @@
-[32mBuild #7[39m · inProgress
-[34m🔵 Running visual tests - Sherlo is capturing and comparing snapshots for this commit.[39m
+[32mTest 7[39m · running
+
+To wait for it here: [36mnpx sherlo view 7 --wait[39m
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 

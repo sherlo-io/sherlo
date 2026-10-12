@@ -324,7 +324,10 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'app-build-stored-reused':
-      return { stream: 'stdout', prints: [[renderStoredBuildReused(segment.platform)]] };
+      return {
+        stream: 'stdout',
+        prints: [[renderStoredBuildReused(segment.platform, segment.storedBuildIndex)]],
+      };
 
     case 'app-build-cached':
       return { stream: 'stdout', prints: renderAppBuildCached(segment).map((line) => [line]) };
@@ -380,7 +383,10 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return { stream: 'stdout', prints: [[]] };
 
     case 'wait-header':
-      return { stream: 'stdout', prints: [[renderWaitHeader(segment.timeoutMinutes)]] };
+      return {
+        stream: 'stdout',
+        prints: [[renderWaitHeader(segment.timeoutMinutes, segment.testIndex)]],
+      };
 
     case 'wait-progress':
       return { stream: 'stdout', prints: [[renderWaitProgress(segment.runStatus)]] };
@@ -403,11 +409,11 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'wait-timed-out':
       return {
         stream: 'stdout',
-        prints: renderWaitTimedOut(segment.timeoutMinutes).map((line) => [line]),
+        prints: renderWaitTimedOut(segment.timeoutMinutes, segment.testIndex).map((line) => [line]),
       };
 
     case 'wait-interrupted':
-      return { stream: 'stdout', prints: [[renderWaitInterrupted()]] };
+      return { stream: 'stdout', prints: [[renderWaitInterrupted(segment.testIndex)]] };
 
     case 'verdict-passed':
       return { stream: 'stdout', prints: renderVerdictPassed().map((line) => [line]) };
@@ -415,7 +421,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-server-bypassed':
       return {
         stream: 'stdout',
-        prints: renderVerdictServerBypassed(segment.reason).map((line) => [line]),
+        prints: renderVerdictServerBypassed(segment.testIndex).map((line) => [line]),
       };
 
     case 'verdict-review-required':
@@ -444,7 +450,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-nothing-recorded':
       return {
         stream: 'stdout',
-        prints: renderVerdictNothingRecorded().map((line) => [line]),
+        prints: renderVerdictNothingRecorded(segment.testIndex).map((line) => [line]),
       };
 
     /* ---------------------- the build view (F5) ---------------------- */
@@ -464,7 +470,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // blank line.
       return {
         stream: 'stdout',
-        prints: renderBuildViewStatus(segment.runStatus, segment.status).map((line) => [line]),
+        prints: renderBuildViewStatus(segment).map((line) => [line]),
       };
 
     case 'build-details':

@@ -13,7 +13,7 @@
 Testing your app...
 
 [2mBuilding the iOS app with Xcode...[22m
-[32m✔[39m Built the iOS app      in <DURATION>, native code changed since the stored app build [2m(log: .sherlo/build-ios.log)[22m
+[32m✔[39m Built the iOS app      in <DURATION>, no app build stored yet [2m(log: .sherlo/build-ios.log)[22m
 [32m✔[39m Set up Test 1          on 1 device (iPhone 15)
 [2mUploading the app build (<SIZE> MB)...[22m
 [32m✔[39m Uploaded app build
@@ -22,7 +22,7 @@ Testing your app...
 [1m[22m
 [2mBundling the JavaScript for 🍎 iOS...[22m
 [32m✔[39m Uploaded JavaScript    🍎 iOS <SIZE> MB
-[32m✔[39m Started Test 1         both platforms are in
+[32m✔[39m Started Test 1         🤖 Android and 🍎 iOS have both arrived
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

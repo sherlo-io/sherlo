@@ -36,7 +36,6 @@ import {
   getPlatformsToTest,
   getValidatedCommandParams,
   handleClientError,
-  printSherloIntro,
   reporting,
   throwError,
 } from '../../helpers';
@@ -110,9 +109,6 @@ type DiffScopeInfoWithPlatformReasons = {
 // ---------------------------------------------------------------------------
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  printSherloIntro();
-  emit({ kind: 'command-intro', command: 'test' });
-
   // 1. Validate params (no platform binary paths required - bundle only).
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },
@@ -246,11 +242,12 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   }
 
   /** A platform the gate refused needs a new app build, and the tool builds it itself. */
-  const buildTheRefusedPlatforms = (refusals: StagedGateRefusal[]): Promise<{ url: string }> =>
+  const buildTheRefusedPlatforms = ({ refusals, storedBuildIndexOf }: GateAnswers): Promise<{ url: string }> =>
     buildThenPush({
       passedOptions,
       platformsToTest,
       refusals,
+      storedBuildIndexOf,
       baseFingerprint,
       fingerprintPreimage: fpResult.preimage,
     });
@@ -258,7 +255,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
   //    alone answers "can this commit reuse the registered base?", so a commit
   //    that needs a native build costs a single API call and no bundler run.
-  const probeRefusals = await checkGate({
+  const probeAnswers = await checkGate({
     token,
     platformsToTest,
     baseFingerprint,
@@ -268,8 +265,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   });
 
   //    A refused platform needs a new app build, and the tool builds it itself (./appBuild).
-  if (probeRefusals.length > 0) {
-    return buildTheRefusedPlatforms(probeRefusals);
+  if (probeAnswers.refusals.length > 0) {
+    return buildTheRefusedPlatforms(probeAnswers);
   }
 
   // 7. Get the bundle + assets for each platform, and construct gate metadata
@@ -302,7 +299,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //    compare fingerprints; only a built bundle carries the engine class,
   //    bundle format, asset inventory and SDK protocol version the gate diffs.
   //    A refusal here is the same routing answer, just better informed.
-  const identityRefusals = await checkGate({
+  const identityAnswers = await checkGate({
     token,
     platformsToTest,
     baseFingerprint,
@@ -314,14 +311,19 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     teamId,
   });
 
-  if (identityRefusals.length > 0) {
-    return buildTheRefusedPlatforms(identityRefusals);
+  if (identityAnswers.refusals.length > 0) {
+    return buildTheRefusedPlatforms(identityAnswers);
   }
 
-  //    Both checks said every platform takes its stored app build: the step a person reads first.
-  //    Said here, after the second check, so a platform that check refuses is never called reused.
+  //    Both checks said every platform takes its stored app build. Said here, after the second
+  //    check, so a platform that check refuses is never called reused - which is why this line
+  //    comes after `Bundling the JavaScript...` and not before it.
   for (const platform of platformsToTest) {
-    emit({ kind: 'app-build-stored-reused', platform });
+    emit({
+      kind: 'app-build-stored-reused',
+      platform,
+      storedBuildIndex: identityAnswers.storedBuildIndexOf[platform],
+    });
   }
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
@@ -415,7 +417,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     // SAME routing answer, so it is published the SAME way.
     const refusal = parseStagedGateRefusal(error);
     if (refusal) {
-      return buildTheRefusedPlatforms([refusal]);
+      return buildTheRefusedPlatforms({
+        refusals: [refusal],
+        storedBuildIndexOf: identityAnswers.storedBuildIndexOf,
+      });
     }
     handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
@@ -497,7 +502,7 @@ async function checkGate({
   gateMetadata: (platform: Platform) => GateMetadataInput;
   projectIndex: number;
   teamId: string;
-}): Promise<StagedGateRefusal[]> {
+}): Promise<GateAnswers> {
   reporting.addBreadcrumb({
     category: 'api',
     message: 'Calling checkStagedGate API',
@@ -506,12 +511,13 @@ async function checkGate({
   });
 
   const refusals: StagedGateRefusal[] = [];
+  const storedBuildIndexOf: GateAnswers['storedBuildIndexOf'] = {};
 
   try {
     for (const platform of platformsToTest) {
       // Through the server seam, so a posed run answers the gate from its pose (the tester's
       // staged storyline) and never reaches the network.
-      const { outcome, diff, storedBase } = await serverCalls().checkStagedGate({
+      const { outcome, diff, storedBase, storedBuildIndex } = await serverCalls().checkStagedGate({
         token,
         baseFingerprint,
         gateMetadata: gateMetadata(platform) as GateMetadata,
@@ -520,6 +526,7 @@ async function checkGate({
         teamId,
       });
 
+      if (storedBuildIndex !== undefined) storedBuildIndexOf[platform] = storedBuildIndex;
       if (outcome !== 'fast') {
         refusals.push({ outcome, platform, diff, ...(storedBase ? { storedBase } : {}) });
       }
@@ -529,8 +536,15 @@ async function checkGate({
     throw error; // unreachable - satisfies control flow / typing
   }
 
-  return refusals;
+  return { refusals, storedBuildIndexOf };
 }
+
+/** What the gate answered for every platform: the ones it refused, and the test each stored app build came from. */
+type GateAnswers = {
+  refusals: StagedGateRefusal[];
+  /** Per platform, the test its stored app build was built in - absent where nothing is stored. */
+  storedBuildIndexOf: Partial<Record<Platform, number>>;
+};
 
 /** The per-platform module manifests the capture plan reads, lifted off the bundles. */
 function collectModuleManifests(

@@ -79,21 +79,23 @@ describe('approved output (verbatim)', () => {
   it('a full capture says all of them, with the reason', () => {
     expect(
       formatDiffScopeReport('live', [
-        decided({ full: true, totalStoriesInBundle: 2, reason: 'no main branch set for this project' }),
+        decided({ full: true, totalStoriesInBundle: 2, reason: 'no main branch is set, so every test captures every story' }),
       ])
-    ).toBe('✔ Planned the capture    all 2 stories: no main branch set for this project');
+    ).toBe('✔ Planned the capture    2 of 2 stories: no main branch is set, so every test captures every story');
   });
 
   it('a full capture with no reason says it could not work out what changed', () => {
     expect(describeDecision(decided({ full: true, totalStoriesInBundle: 1 }))).toBe(
-      "all 1 story: couldn't work out what changed, so all are captured to be safe"
+      "1 of 1 story: couldn't work out what changed, so all are captured to be safe"
     );
   });
 
   it('a partial capture of nothing says there is nothing to capture', () => {
+    // The step's name already says "capture", so the server's reason stands alone.
     expect(
       describeDecision(decided({ totalStoriesInBundle: 24, reason: 'no change on this branch reaches any story' }))
-    ).toBe('nothing to capture: no change on this branch reaches any story');
+    ).toBe('no change on this branch reaches any story');
+    expect(describeDecision(decided({ totalStoriesInBundle: 24 }))).toBe('nothing to capture');
   });
 });
 
@@ -101,7 +103,7 @@ describe('the inversion pin', () => {
   it('a FULL capture with an EMPTY captured-file list reads as all of them, never as nothing', () => {
     const decision = describeDecision(decided({ full: true, capturedStoryFilePaths: [], totalStoriesInBundle: 5 }));
 
-    expect(decision).toMatch(/^all 5 stories/);
+    expect(decision).toMatch(/^5 of 5 stories/);
     expect(decision).not.toContain('nothing');
   });
 });
@@ -126,7 +128,7 @@ describe('a plan for two platforms is one line when they agree and one each when
 
     expect(
       formatDiffScopeReport('live', [decided({ platform: 'android', ...same }), decided({ platform: 'ios', ...same })])
-    ).toBe('✔ Planned the capture    all 3 stories: first test');
+    ).toBe('✔ Planned the capture    3 of 3 stories: first test');
   });
 
   it('one line per platform, each naming it, when they differ', () => {
@@ -137,7 +139,7 @@ describe('a plan for two platforms is one line when they agree and one each when
       ])
     ).toBe(
       [
-        '✔ Planned the capture    🤖 Android - all 3 stories: first test',
+        '✔ Planned the capture    🤖 Android - 3 of 3 stories: first test',
         '✔ Planned the capture    🍎 iOS - nothing to capture',
       ].join('\n')
     );

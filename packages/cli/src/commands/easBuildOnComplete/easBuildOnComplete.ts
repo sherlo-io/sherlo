@@ -109,8 +109,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
 
     throwError({
       message:
-        `${wasCancelled ? 'The EAS build was canceled' : "The EAS build failed on Expo's servers"}, so the test can't run.\n` +
-        `Sherlo marked Test ${buildIndex} as errored in the web app.`,
+        `${wasCancelled ? 'The EAS build was canceled' : "The EAS build failed on Expo's servers"}, so Test ${buildIndex} can't run.\n` +
+        `Test ${buildIndex} is marked as failed in the Sherlo web app.`,
     });
   }
 

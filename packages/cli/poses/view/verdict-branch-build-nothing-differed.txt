@@ -1,4 +1,4 @@
-[32mBuild #14[39m · finished
+[32mTest 14[39m · finished
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 

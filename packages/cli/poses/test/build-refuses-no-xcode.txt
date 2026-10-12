@@ -13,7 +13,7 @@
 Testing your app...
 
 [31mERROR: Can't build iOS: Xcode was not found.[39m
-[31mInstall Xcode, then run `sudo xcode-select -s <SHERLO_IOS_BUILD_PATH>`.[39m
+[31mInstall Xcode, then run `sudo xcode-select -s /Applications/Xcode.app`.[39m
 
 [2m──────────[22m
 

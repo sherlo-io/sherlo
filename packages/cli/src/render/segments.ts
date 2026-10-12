@@ -174,10 +174,11 @@ export type TranscriptSegment =
    * See ./appBuild. The order below is the order a build prints them.       *
    * ---------------------------------------------------------------------- */
   /**
-   * `✔ Built the iOS app          stored by Sherlo, only JavaScript changed since (reused)` - a
-   * platform whose stored app build still matches: the staged road, or the other half of a mixed run.
+   * `✔ Built the iOS app          stored from Test 12, only JavaScript changed since (reused)` - a
+   * platform whose stored app build still matches: the staged road, or the other half of a mixed
+   * run. `storedBuildIndex` is the test the gate named, absent while the service sends none.
    */
-  | { kind: 'app-build-stored-reused'; platform: Platform }
+  | { kind: 'app-build-stored-reused'; platform: Platform; storedBuildIndex?: number }
   /**
    * `✔ Built the Android app      kept in the local build cache, ... (reused)`. `why` is the gate's
    * reason this run needed a new app build - which words say it is this layer's decision - and the
@@ -225,7 +226,7 @@ export type TranscriptSegment =
    * still to come: the other job's platform in a split CI run, or the EAS builds.
    */
   | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: RunWaitsFor }
-  /** `✔ Started Test 1             both platforms are in` - this job's build was the last one the run waited for. */
+  /** `✔ Started Test 1             🤖 Android and 🍎 iOS have both arrived` - this job's build was the last one the run waited for. */
   | { kind: 'run-starting'; buildIndex: number }
   /* ---------------------------------------------------------------------- *
    * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
@@ -240,8 +241,13 @@ export type TranscriptSegment =
    * emits around a closer, which is exactly the shape the shipped code had.
    */
   | { kind: 'blank-line' }
-  /** `Waiting for the test to finish (up to 45 min)...`, printed before the first poll. */
-  | { kind: 'wait-header'; timeoutMinutes: number }
+  /**
+   * `Waiting for Test 7 to finish (up to 45 min)...`, printed before the first poll.
+   *
+   * `testIndex` on this and the closers below names the test; the wait loop does not pass it yet
+   * (build work, outside what plan may edit), and the lines say "the test" until it does.
+   */
+  | { kind: 'wait-header'; timeoutMinutes: number; testIndex?: number }
   /** `   Running` - reprinted only when the wire's `runStatus` CHANGES. */
   | { kind: 'wait-progress'; runStatus: string }
   /**
@@ -260,17 +266,18 @@ export type TranscriptSegment =
   /** `✖ <message>` - a credential refused mid-poll, which is not retryable. */
   | { kind: 'wait-auth-failed'; message: string }
   /** The deadline closer, both lines. */
-  | { kind: 'wait-timed-out'; timeoutMinutes: number }
+  | { kind: 'wait-timed-out'; timeoutMinutes: number; testIndex?: number }
   /** The Ctrl-C closer: the waiting stopped, the run did not. */
-  | { kind: 'wait-interrupted' }
+  | { kind: 'wait-interrupted'; testIndex?: number }
   /** The green verdict, as a section: `✅ All stories passed`. */
   | { kind: 'verdict-passed' }
   /**
-   * The compact closer for a build the server closed without a device run. The
-   * reason is the SERVER's prose, printed verbatim - which is why it is a value
-   * here and not a branch.
+   * The compact closer for a build the server closed without a device run:
+   * `✔ Finished Test 13  no device ran, nothing needed capturing`. `reason` is the
+   * server's prose, no longer printed (content department, 2026-10-12); the build
+   * task stops sending it and passes `testIndex`.
    */
-  | { kind: 'verdict-server-bypassed'; reason: string }
+  | { kind: 'verdict-server-bypassed'; reason: string; testIndex?: number }
   /**
    * `⚠️ 3 stories need review`, as a section, then the screens that
    * need a person BY NAME when the wait learned them, and the build's own tally
@@ -297,31 +304,34 @@ export type TranscriptSegment =
   /** `3 captured on this branch, 41 carried over unchanged.` - the sparse accounting. */
   | { kind: 'verdict-capture-accounting'; captured: number; inherited: number }
   /** The build recorded nothing at all, so it is evidence of nothing. Not green. */
-  | { kind: 'verdict-nothing-recorded' }
+  | { kind: 'verdict-nothing-recorded'; testIndex?: number }
   /* ---------------------------------------------------------------------- *
    * THE BUILD VIEW (F5) - what `sherlo view` prints about one build, its    *
    * `--json` record, and the `── details ──` block `--metadata` adds to the *
    * `--wait` roads of `sherlo test`. See ./buildView.                      *
    * ---------------------------------------------------------------------- */
-  /** `Build #7 · finished` - the line `sherlo view` opens with. */
+  /** `Test 7 · finished` - the line `sherlo view` opens with. */
   | { kind: 'build-view-header'; buildIndex: number; runStatus: string }
-  /** `approved 5 · reported 0 · unreviewed 0 · noChanges 39` - the review tally. */
+  /** `5 approved · 0 reported · 0 unreviewed · 39 no changes` - the review tally. */
   | {
       kind: 'build-view-tally';
       counts: { approved: number; noChanges: number; reported: number; unreviewed: number };
     }
   /**
-   * The check-style status sentence.
+   * The verdict section, as `--wait` ends with it, or the command that waits for a test
+   * still running.
    *
-   * It carries the two WIRE fields rather than a resolved state, because which
-   * state they collapse to - and whether they collapse to one at all - is a
-   * rendering decision the catalog in ./buildView owns. A finished build whose
-   * review status the API did not send renders NO line.
+   * It carries the WIRE fields rather than a resolved state, because which verdict
+   * they collapse to - and whether they collapse to one at all - is a rendering
+   * decision ./buildView owns. A finished test whose review status the API did not
+   * send renders NO line.
    */
   | {
       kind: 'build-view-status';
+      buildIndex: number;
       runStatus: string;
       status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
+      counts?: { approved: number; noChanges: number; reported: number; unreviewed: number };
     }
   /**
    * The whole `── details ──` block: plain, aligned, colourless, deterministic.

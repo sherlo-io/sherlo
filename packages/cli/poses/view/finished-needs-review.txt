@@ -1,6 +1,10 @@
-[32mBuild #7[39m · finished
-[2mapproved 0 · reported 0 · unreviewed 3 · noChanges 41[22m
-[33m⚠️  Visual changes need review - snapshots changed and are awaiting review in Sherlo.[39m
+[32mTest 7[39m · finished
+[2m0 approved · 0 reported · 3 unreviewed · 41 no changes[22m
+
+[1m⚠️ 3 stories need review[22m
+[2m════════════════════════[22m
+
+Open them in Sherlo to approve or report.
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 

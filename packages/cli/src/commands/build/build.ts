@@ -11,7 +11,6 @@
  * another, a team that warms the cache on a schedule, and the tester's own prestage, which builds
  * every fixture app once before its storylines push them.
  */
-import { printSherloIntro } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import getNormalizedConfig from '../../helpers/getValidatedCommandParams/getNormalizedConfig';
 import getNormalizedOptions from '../../helpers/getValidatedCommandParams/getNormalizedOptions';
@@ -25,9 +24,6 @@ import { BUILD_COMMAND, type BuildFlags, type BuildSettings } from '../test/appB
 type BuildOptions = BuildFlags & { config?: string; projectRoot?: string };
 
 async function build(passedOptions: BuildOptions): Promise<void> {
-  printSherloIntro();
-  emit({ kind: 'command-intro', command: 'build' });
-
   const options = getNormalizedOptions(getOptionsWithDefaults(passedOptions as never));
   const config = getNormalizedConfig(options) as Config & { build?: BuildSettings };
 

@@ -43,11 +43,9 @@ import {
   getPlatformsToTest,
   getValidatedCommandParams,
   handleClientError,
-  printSherloIntro,
   reporting,
   throwError,
 } from '../../helpers';
-import { emit } from '../../helpers/transcriptSink';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
@@ -86,9 +84,6 @@ async function simRun(
   passedOptions: Options<THIS_COMMAND>,
   simWorldDirPath: string
 ): Promise<{ url: string }> {
-  printSherloIntro();
-  emit({ kind: 'command-intro', command: 'test' });
-
   // 1. The world tree - strict validation, every problem named at once.
   const world = readSimWorld(simWorldDirPath);
 

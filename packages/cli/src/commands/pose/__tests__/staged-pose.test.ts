@@ -64,7 +64,7 @@ describe('a bare push is posable', () => {
     expect(refusals).toEqual([]);
     expect(screen).toContain('Planned the capture');
     expect(screen).toContain(
-      `all ${M} stories: no main branch set for this project - every build captures every story`
+      `${M} of ${M} stories: no main branch is set, so every test captures every story`
     );
     // The one-line "Diff Scope:" summary repeated the plan in internal words, and is gone.
     expect(screen).not.toContain('Diff Scope');
