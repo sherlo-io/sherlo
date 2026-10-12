@@ -3997,6 +3997,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/ws@npm:^8.5.14":
+  version: 8.18.2
+  resolution: "@types/ws@npm:8.18.2"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10/7d87483731222387ba7d49a752b7eca6c29baeb3439d9c0a2ebe57b06bad0ce868cd850f4794c81aa93a90b2a35d7673c9b0362e7b940aace446144c17a894c2
+  languageName: node
+  linkType: hard
+
 "@types/yargs-parser@npm:*":
   version: 21.0.3
   resolution: "@types/yargs-parser@npm:21.0.3"
@@ -12188,6 +12197,7 @@ __metadata:
     "@types/node-fetch": "npm:^2.6.4"
     "@types/prompts": "npm:^2.4.9"
     "@types/tar": "npm:^6.1.5"
+    "@types/ws": "npm:^8.5.14"
     "@vercel/ncc": "npm:latest"
     ansi-escapes: "npm:^7.2.0"
     chalk: "npm:^4.1.2"
@@ -12205,6 +12215,7 @@ __metadata:
     typescript: "npm:^5.3.3"
     vitest: "npm:^4.1.5"
     wrap-ansi: "npm:^9.0.0"
+    ws: "npm:^8.18.0"
   bin:
     sherlo: ./cli.js
   languageName: unknown

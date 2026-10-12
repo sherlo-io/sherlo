@@ -1,9 +1,9 @@
 /**
  * THE LETTERBOX SEAM - the road `sherlo open` reaches a developer's running app down.
  *
- *     live   - the address Sherlo adds to the bundler: post a story there, and the SDK inside the
- *              running app is handed it. The bundler's half of that address is the SDK's
- *              `metro/openStoryLetterbox.js`, and the app's half its `src/openStoryChannel.ts`.
+ *     live   - the bundler's line (`bundlerLine.ts`): ask it to show a story, and the SDK inside the
+ *              running app is handed it. The bundler's half of the line is the SDK's
+ *              `metro/sherloLine.js`, and the app's half is native code.
  *     posed  - the pose's `letterbox`: whether a bundler is up, whether an app ever connected,
  *              which stories that app has, and what it said about the one it was asked for.
  *
@@ -12,6 +12,7 @@
  * folded into an existing seam: `serverCalls` is Sherlo's backend, and `workstation` is what the
  * tool does to the machine it runs on.
  */
+import { askTheBundlerLine } from './bundlerLine';
 
 /**
  * What a story threw while rendering, as the app recorded it and the letterbox passed it on. The
@@ -51,9 +52,6 @@ export type Letterbox = {
   }): Promise<OpenStoryResult>;
 };
 
-/** The one address the SDK adds to the bundler; the bundler's half of it serves this path. */
-const LETTERBOX_PATH = '/sherlo/letterbox';
-
 /**
  * How long the tool waits for an answer that is not a `--wait`. The letterbox answers these at
  * once, so any real delay here is a port that is serving something else entirely.
@@ -69,9 +67,9 @@ const PATIENCE_BEYOND_THE_WAIT_MS = 2000;
 /** The shipped answers: a real bundler, with a real app attached to it. */
 export const liveLetterbox: Letterbox = {
   openStory: async ({ storyId, wait, port, timeoutSeconds }) => {
-    const answer = await askTheLetterbox({
+    const answer = await askTheBundlerLine({
       port,
-      posting: { storyId, wait, timeoutSeconds },
+      question: { action: 'openStory', storyId, wait, timeoutSeconds },
       patienceMs: wait ? timeoutSeconds * 1000 + PATIENCE_BEYOND_THE_WAIT_MS : REPLY_PATIENCE_MS,
     });
 
@@ -84,70 +82,9 @@ export const liveLetterbox: Letterbox = {
       return wait ? { kind: 'handed-over', storyId, rendered: 'timed-out' } : { kind: 'no-app' };
     }
 
-    return readOpenStoryAnswer(answer.said, storyId);
+    return readOpenStoryAnswer(answer.reply, storyId);
   },
 };
-
-/* ========================================================================== */
-/* Talking to the address                                                     */
-/* ========================================================================== */
-
-/** What came back from the port. */
-type LetterboxAnswer =
-  /** Nothing accepted a connection. */
-  | { kind: 'nothing-on-the-port' }
-  /** Something answered, and not in words this tool can read: a bundler nobody routed through
-   * Sherlo, or a different server on the port entirely. */
-  | { kind: 'not-in-sherlos-words' }
-  /** Nothing answered before the tool stopped listening. */
-  | { kind: 'gave-up-waiting' }
-  /** The letterbox answered, and here is what it said. */
-  | { kind: 'said'; said: unknown };
-
-async function askTheLetterbox({
-  port,
-  posting,
-  patienceMs,
-}: {
-  port: number;
-  posting: unknown;
-  patienceMs: number;
-}): Promise<LetterboxAnswer> {
-  let response: Response;
-
-  try {
-    response = await fetch(`http://localhost:${port}${LETTERBOX_PATH}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(posting),
-      signal: AbortSignal.timeout(patienceMs),
-    });
-  } catch (error) {
-    if (isNothingOnThePort(error)) return { kind: 'nothing-on-the-port' };
-    if ((error as Error | undefined)?.name === 'TimeoutError') return { kind: 'gave-up-waiting' };
-    return { kind: 'not-in-sherlos-words' };
-  }
-
-  if (!response.ok) return { kind: 'not-in-sherlos-words' };
-
-  try {
-    return { kind: 'said', said: await response.json() };
-  } catch (_error) {
-    return { kind: 'not-in-sherlos-words' };
-  }
-}
-
-/**
- * `localhost` is two addresses on most machines, so a refusal can arrive as one code or as a list
- * of them - one per address tried. Both shapes mean the same thing: nothing accepted a connection.
- */
-function isNothingOnThePort(error: unknown): boolean {
-  const cause = (error as { cause?: { code?: unknown; errors?: { code?: unknown }[] } } | undefined)
-    ?.cause;
-  const codes = [cause?.code, ...(cause?.errors ?? []).map((one) => one.code)];
-
-  return codes.some((code) => code === 'ECONNREFUSED' || code === 'ENOTFOUND');
-}
 
 /**
  * What the letterbox said about a posted story, as this seam's answer.

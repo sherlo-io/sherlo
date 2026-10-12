@@ -1,6 +1,7 @@
 /**
  * THE CAPTURE RELAY ON THE BUNDLER - the road `sherlo capture` reaches a running app down, held
- * over real HTTP against the middleware mounted on a real server on a real port.
+ * over a real server on a real port, with the SDK's own line (`metro/sherloLine.js`) mounted on it
+ * by `attach` and a pretend app on a socket of its own, saying hello as native code does.
  *
  * What is pinned here is the ONE thing the relay must NOT do: remember. The letterbox remembers a
  * story across a restart; a capture is a conversation - settings one way, a whole view tree the
@@ -9,19 +10,32 @@
  * the first left nothing behind for it to find.
  */
 import * as http from 'http';
+import type { AddressInfo } from 'net';
+import WebSocket, { WebSocketServer } from 'ws';
 import { afterEach, describe, expect, it } from 'vitest';
+import {
+  attach,
+  LINE_PATH,
+  PROTOCOL_VERSION,
+} from '../../../../react-native-storybook/metro/sherloLine';
+import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
 import { liveCaptureSocket, STABILIZATION_SETTINGS } from '../captureSocket';
-
-const createCaptureSocket = require('../../../../react-native-storybook/metro/captureSocket.js');
-const createCaptureLogSocket = require('../../../../react-native-storybook/metro/captureLogSocket.js');
 
 const STORY_A = 'components-button--primary';
 const STORY_B = 'components-avatar--basic';
 
 type RunningRelay = {
-  origin: string;
   port: number;
+  /** The pretend app on the bundler's line. */
+  app: PretendApp;
   close: () => Promise<void>;
+};
+
+/** An app that said hello on the line, and can wait for a capture and push log lines. */
+type PretendApp = {
+  socket: WebSocket;
+  /** Resolves with the next instruction the line sends this app, without its `action`. */
+  nextInstruction: () => Promise<unknown>;
 };
 
 /** The app's answer to capture A, in the app's own words. */
@@ -40,74 +54,91 @@ const ANSWER_B = {
   tree: { primitive: 'RCTTextView', components: [], children: [] },
 };
 
-/** A bundler with the capture relay on it. */
-async function startRelay(): Promise<RunningRelay> {
-  const relay = createCaptureSocket();
-  return serve((request, response) => {
-    relay.middleware(request, response, () => {
-      response.writeHead(404);
-      response.end();
-    });
+/** The plain-HTTP half of a bundler that has the line on it: the GET answers the protocol. */
+function answerThePlainGet(request: http.IncomingMessage, response: http.ServerResponse): void {
+  if (request.url !== LINE_PATH) {
+    response.writeHead(404);
+    response.end();
+    return;
+  }
+  response.writeHead(200, { 'Content-Type': 'application/json' });
+  response.end(JSON.stringify({ protocolVersion: PROTOCOL_VERSION }));
+}
+
+/** Close a server the way a bundler going away does: every socket and request cut. */
+function closeServer(server: http.Server): Promise<void> {
+  return new Promise<void>((closed) => {
+    (server as { closeAllConnections?: () => void }).closeAllConnections?.();
+    server.close(() => closed());
   });
+}
+
+/** A bundler with the SDK's line on it, and an app that said hello on the line. */
+async function startRelay(): Promise<RunningRelay> {
+  const server = http.createServer(answerThePlainGet);
+  // `ws` types its classes more strictly than the line's own narrow view of the one it uses.
+  attach(server, WebSocketServer as unknown as WebSocketServerClass);
+  await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
+  const port = (server.address() as AddressInfo).port;
+
+  const app = await connectApp(port);
+
+  return {
+    port,
+    app,
+    close: () => {
+      app.socket.terminate();
+      return closeServer(server);
+    },
+  };
+}
+
+/** An app on the line: native code says hello first, and then the JavaScript waits and logs. */
+async function connectApp(port: number): Promise<PretendApp> {
+  const socket = new WebSocket(`ws://127.0.0.1:${port}${LINE_PATH}`);
+  const waitingForInstructions: Array<(instruction: unknown) => void> = [];
+
+  socket.on('message', (data) => {
+    const { action, ...instruction } = JSON.parse(data.toString());
+    if (action === 'captureInstruction') waitingForInstructions.shift()?.(instruction);
+  });
+
+  await new Promise((opened) => socket.once('open', opened));
+  socket.send(
+    JSON.stringify({
+      action: 'hello',
+      protocolVersion: PROTOCOL_VERSION,
+      nativeVersion: 'test',
+      jsVersion: null,
+    })
+  );
+
+  return {
+    socket,
+    nextInstruction: () =>
+      new Promise((resolve) => {
+        waitingForInstructions.push(resolve);
+      }),
+  };
+}
+
+/** Push one line to the line's log feed, the way the app's log sink does. */
+async function appLogs(relay: RunningRelay, line: string): Promise<void> {
+  relay.app.socket.send(JSON.stringify({ action: 'log', line }));
+  await letTheRequestLand();
 }
 
 /**
- * A bundler with BOTH the capture relay and its live log feed on it - the same pairing
- * applySherloTransforms.js mounts on a real bundler (see metro/captureLogSocket.js).
+ * The app's wait for a capture: say what mode and stories I have, and what I last recorded. The
+ * promise is what the line answers it with, once there is something to say.
  */
-async function startRelayWithLogFeed(): Promise<RunningRelay> {
-  const relay = createCaptureSocket();
-  const logFeed = createCaptureLogSocket();
-  return serve((request, response) => {
-    relay.middleware(request, response, () => {
-      logFeed.middleware(request, response, () => {
-        response.writeHead(404);
-        response.end();
-      });
-    });
-  });
-}
-
-function serve(
-  handler: (request: http.IncomingMessage, response: http.ServerResponse) => void
-): Promise<RunningRelay> {
-  const server = http.createServer(handler);
-
-  return new Promise<RunningRelay>((listening) => {
-    server.listen(0, '127.0.0.1', () => {
-      const port = (server.address() as { port: number }).port;
-      listening({
-        origin: `http://127.0.0.1:${port}`,
-        port,
-        close: () =>
-          new Promise<void>((closed) => {
-            (server as { closeAllConnections?: () => void }).closeAllConnections?.();
-            server.close(() => closed());
-          }),
-      });
-    });
-  });
-}
-
-/** Push one line to the app's own live log feed, the way the SDK's captureLogSink.ts does. */
-function appLogs(origin: string, line: string): Promise<unknown> {
-  return fetch(`${origin}/sherlo/capture-log`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ line }),
-  }).then((response) => response.json());
-}
-
-/** The app's side of the address: say what mode and stories I have, and what I last recorded. */
 function appReports(
-  origin: string,
+  relay: RunningRelay,
   saying: { mode: string; stories: string[]; answer: unknown }
 ): Promise<unknown> {
-  return fetch(`${origin}/sherlo/capture`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(saying),
-  }).then((response) => response.json());
+  const instruction = relay.app.nextInstruction();
+  relay.app.socket.send(JSON.stringify({ action: 'waitForACapture', ...saying }));
+  return instruction;
 }
 
 /** Long enough for a request just started to have reached the server on the other side. */
@@ -130,7 +161,7 @@ async function aCapture(
   r: RunningRelay,
   { askedFor, stories, recorded }: { askedFor: string; stories: string[]; recorded: unknown }
 ): Promise<unknown> {
-  const appWaits = appReports(r.origin, { mode: 'testing', stories, answer: null });
+  const appWaits = appReports(r, { mode: 'testing', stories, answer: null });
   await letTheRequestLand();
 
   const toolAsks = liveCaptureSocket.captureStory({
@@ -140,7 +171,7 @@ async function aCapture(
   });
 
   await appWaits;
-  await appReports(r.origin, { mode: 'testing', stories, answer: recorded });
+  await appReports(r, { mode: 'testing', stories, answer: recorded });
 
   return toolAsks;
 }
@@ -163,7 +194,7 @@ describe('the bundler relays the capture between the command and the app, and ho
 
     // Capture A: the app reports story A in testing mode, is handed A with its settings, walks, and
     // answers A.
-    const firstAsk = appReports(r.origin, { mode: 'testing', stories: [STORY_A], answer: null });
+    const firstAsk = appReports(r, { mode: 'testing', stories: [STORY_A], answer: null });
     await letTheRequestLand();
     const firstCapture = liveCaptureSocket.captureStory({
       storyId: STORY_A,
@@ -171,7 +202,7 @@ describe('the bundler relays the capture between the command and the app, and ho
       settings: STABILIZATION_SETTINGS,
     });
     expect(await firstAsk).toEqual({ storyId: STORY_A, settings: STABILIZATION_SETTINGS });
-    await appReports(r.origin, { mode: 'testing', stories: [STORY_A], answer: ANSWER_A });
+    await appReports(r, { mode: 'testing', stories: [STORY_A], answer: ANSWER_A });
     expect(await firstCapture).toEqual({
       kind: 'captured',
       storyId: STORY_A,
@@ -181,7 +212,7 @@ describe('the bundler relays the capture between the command and the app, and ho
 
     // Capture B, straight after: a different story and a different answer. If the relay remembered
     // anything of A, B would come back with A's tree, A's story, or no answer at all.
-    const secondAsk = appReports(r.origin, { mode: 'testing', stories: [STORY_B], answer: null });
+    const secondAsk = appReports(r, { mode: 'testing', stories: [STORY_B], answer: null });
     await letTheRequestLand();
     const secondCapture = liveCaptureSocket.captureStory({
       storyId: STORY_B,
@@ -189,7 +220,7 @@ describe('the bundler relays the capture between the command and the app, and ho
       settings: STABILIZATION_SETTINGS,
     });
     expect(await secondAsk).toEqual({ storyId: STORY_B, settings: STABILIZATION_SETTINGS });
-    await appReports(r.origin, { mode: 'testing', stories: [STORY_B], answer: ANSWER_B });
+    await appReports(r, { mode: 'testing', stories: [STORY_B], answer: ANSWER_B });
     expect(await secondCapture).toEqual({
       kind: 'captured',
       storyId: STORY_B,
@@ -595,15 +626,15 @@ describe("the app's own log lines, drained from its live feed once the answer is
   });
 
   async function relay(): Promise<RunningRelay> {
-    const r = await startRelayWithLogFeed();
+    const r = await startRelay();
     running.push(r);
     return r;
   }
 
   it('carries whatever the app pushed to its live feed during the walk - not merely what its own answer said', async () => {
     const r = await relay();
-    await appLogs(r.origin, '12:00:00: storybook style : {"style":"dark"}');
-    await appLogs(r.origin, '12:00:01: attempt to test story');
+    await appLogs(r, '12:00:00: storybook style : {"style":"dark"}');
+    await appLogs(r, '12:00:01: attempt to test story');
 
     const answer = await aCapture(r, { askedFor: STORY_A, stories: [STORY_A], recorded: ANSWER_A });
 
@@ -626,7 +657,7 @@ describe("the app's own log lines, drained from its live feed once the answer is
 
   it("a second capture's own read never sees the first capture's lines again - the feed is drained, not merely peeked", async () => {
     const r = await relay();
-    await appLogs(r.origin, 'only capture A logged this');
+    await appLogs(r, 'only capture A logged this');
 
     await aCapture(r, { askedFor: STORY_A, stories: [STORY_A], recorded: ANSWER_A });
     const secondAnswer = await aCapture(r, {
@@ -640,7 +671,7 @@ describe("the app's own log lines, drained from its live feed once the answer is
 
   it('the crash ending carries whatever reached the feed before the app said it died', async () => {
     const r = await relay();
-    await appLogs(r.origin, '12:00:00: paint barrier error : {"error":"timed out"}');
+    await appLogs(r, '12:00:00: paint barrier error : {"error":"timed out"}');
     const died = { name: 'RangeError', message: 'Maximum call stack size exceeded' };
 
     const answer = await aCapture(r, {
@@ -657,18 +688,31 @@ describe("the app's own log lines, drained from its live feed once the answer is
     });
   });
 
-  it('a relay with no log feed mounted (an older SDK) is read as silence, not a failure', async () => {
-    // A bundler running an SDK older than this feed never mounts metro/captureLogSocket.js at all -
-    // the same bare double every other describe block in this file already uses.
-    const bareRelay = await startRelay();
-    running.push(bareRelay);
-
-    const answer = await aCapture(bareRelay, {
-      askedFor: STORY_A,
-      stories: [STORY_A],
-      recorded: ANSWER_A,
+  it('a line that cannot read its log lines out is read as silence, not a failure', async () => {
+    // A line that answers the capture and then answers the log read with nothing readable.
+    const server = http.createServer(answerThePlainGet);
+    const sockets = new WebSocketServer({ server, path: LINE_PATH });
+    sockets.on('connection', (socket) => {
+      socket.on('message', (data) => {
+        const { action, askId } = JSON.parse(data.toString());
+        const reply = action === 'captureStory' ? ANSWER_A : { lines: 'not a list' };
+        socket.send(JSON.stringify({ action: 'reply', askId, reply }));
+      });
     });
+    await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
 
-    expect(answer).not.toHaveProperty('logs');
+    try {
+      const answer = await liveCaptureSocket.captureStory({
+        storyId: STORY_A,
+        port: (server.address() as AddressInfo).port,
+        settings: STABILIZATION_SETTINGS,
+      });
+
+      expect(answer).toMatchObject({ kind: 'captured', storyId: STORY_A });
+      expect(answer).not.toHaveProperty('logs');
+    } finally {
+      sockets.clients.forEach((socket) => socket.terminate());
+      await closeServer(server);
+    }
   });
 });
