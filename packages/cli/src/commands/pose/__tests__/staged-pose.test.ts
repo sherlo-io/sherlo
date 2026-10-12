@@ -50,9 +50,8 @@ describe('a bare push is posable', () => {
     const { screen, exitCode, refusals } = await runPose(document);
 
     expect(refusals).toEqual([]);
-    expect(screen).toContain(
-      'reason=the registered base still matches this commit - running JS-only'
-    );
+    expect(screen).not.toContain('native-needed=');
+    expect(screen).not.toContain('running JS-only');
     expect(screen).toContain('🔗 Review:');
     expect(exitCode).toBe(0);
   });

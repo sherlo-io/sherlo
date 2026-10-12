@@ -82,11 +82,8 @@ export default reportNativeNeeded;
  * `native-needed=false` and returns - the run then prints its own capture plan
  * and Review URL as it always has.
  */
-export function reportFastPathRunning({ baseFingerprint }: { baseFingerprint: string }): void {
-  console.log();
-  printOutputKeys({
-    [NATIVE_NEEDED_KEY]: false,
-    reason: 'the registered base still matches this commit - running JS-only',
-    'base-fingerprint': baseFingerprint,
-  });
+export function reportFastPathRunning(_: { baseFingerprint: string }): void {
+  // Prints nothing: the native-needed lines had one reader, the GitHub Action's
+  // ask-first step, which went with --no-build (operator 2026-10-11). The build
+  // task deletes this module whole.
 }

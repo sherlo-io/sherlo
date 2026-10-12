@@ -20,10 +20,6 @@
 [36m[39m
 [36m⬆️  Uploading android bundle...[39m
 
-native-needed=false
-reason=the registered base still matches this commit - running JS-only
-base-fingerprint=<FINGERPRINT>
-
 🔗 Review: [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 [2m⏳ Waiting for build results (timeout: 45min)...[22m
    <build progress masked>

@@ -325,7 +325,7 @@ describe('fast path ran to completion', () => {
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
   });
 
-  it('publishes native-needed=false, opens the build, and returns the review URL - never as a url= line', async () => {
+  it('prints no routing keys, opens the build, and returns the review URL - never as a url= line', async () => {
     // The run reached a build. The address is printed ONCE, on the `🔗 Review:` line, whoever is
     // reading (operator ruling 2026-09-15): there is no `url=` key for a machine, the GitHub
     // Action reads the address off the emoji line (actions/lib/cliOutputs.mjs). The routing keys
@@ -336,8 +336,8 @@ describe('fast path ran to completion', () => {
     const result = await stagedRun({});
 
     const output = outputKeys();
-    expect(output['native-needed']).toBe('false');
-    expect(output['base-fingerprint']).toBe('BASE_FP');
+    expect(output['native-needed']).toBeUndefined();
+    expect(output['base-fingerprint']).toBeUndefined();
     expect(output.url).toBeUndefined();
 
     expect(mockOpenBuild).toHaveBeenCalledTimes(1);
@@ -345,22 +345,21 @@ describe('fast path ran to completion', () => {
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it('publishes the same routing keys for a person, and no url= line either', async () => {
+  it('prints no routing keys for a person either, and no url= line', async () => {
     delete process.env.CI;
 
     await stagedRun({});
 
     const output = outputKeys();
-    expect(output['native-needed']).toBe('false');
-    expect(output['base-fingerprint']).toBe('BASE_FP');
+    expect(output['native-needed']).toBeUndefined();
+    expect(output['base-fingerprint']).toBeUndefined();
     expect(output.url).toBeUndefined();
   });
 
-  it("publishes the answer BEFORE the run's own closer, so the URL is still last", async () => {
+  it('prints no machine lines before the run closer', async () => {
     await stagedRun({});
 
-    const out = printed();
-    expect(out.indexOf('native-needed=false')).toBeLessThan(out.indexOf('🔗 Review:'));
+    expect(printed()).not.toContain('native-needed');
   });
 
   it('asks the gate twice: fingerprint first, then the real bundle identity', async () => {

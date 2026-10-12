@@ -20,10 +20,6 @@
 [36m[39m
 [36m⬆️  Uploading android bundle...[39m
 
-native-needed=false
-reason=the registered base still matches this commit - running JS-only
-base-fingerprint=<FINGERPRINT>
-
 [1m📸 Capture plan[22m
   [36m🤖 Android[39m - [1mcapturing all 2 stories in this bundle[22m
 [2m     why: no main branch set for this project - every build captures every story[22m
