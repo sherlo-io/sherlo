@@ -254,6 +254,28 @@ describe('the exit-code split', () => {
   });
 });
 
+describe('--json --wait', () => {
+  it('waits, then prints only the record read after the wait, and exits with the wait code', async () => {
+    for (const code of [0, 1, 3]) {
+      exitCodes = [];
+      vi.mocked(console.log).mockClear();
+      waitForBuildResult.mockResolvedValue(code);
+      readBuildStatus
+        .mockReset()
+        .mockResolvedValueOnce({ runStatus: 'inProgress' } as never)
+        .mockResolvedValueOnce(FINISHED_BUILD);
+
+      await runView('7', { wait: true, json: true });
+
+      expect(readBuildStatus, 'one read before the wait, one after it').toHaveBeenCalledTimes(2);
+      const printed = vi.mocked(console.log).mock.calls.map((call) => call.join(' '));
+      expect(printed, 'stdout carries the record alone').toHaveLength(1);
+      expect(JSON.parse(printed[0])).toMatchObject({ runStatus: 'finished', buildIndex: 7 });
+      expect(exitCodes).toEqual([code]);
+    }
+  });
+});
+
 describe('--wait', () => {
   it('never asks the wait loop for a details block - `view` reads a build back with `--json`', async () => {
     await runView('7', { wait: true });

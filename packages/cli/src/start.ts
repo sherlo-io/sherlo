@@ -85,7 +85,6 @@ import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { logWarning, printSherloIntro, reporting, throwError, withCommandTimeout } from './helpers';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
-import { renderJsonWithWaitRefused } from './render/buildView';
 import { renderHelpBlock } from './render/testSteps';
 import { renderTokenGone } from './render/pushCredential';
 
@@ -583,11 +582,13 @@ function addViewCommand(program: Command) {
     WAIT_TIMEOUT_OPTION,
   ]);
 
-  // `--json` prints one read as a record for a program; `--wait` prints a verdict for a person.
-  // The pair is refused in our own words, before anything runs - a script waits with one command
-  // and reads with the next (`gh run watch`, then `gh run view --json`).
+  // `--json` prints one read as a record for a program. With `--wait` it waits first and prints the
+  // record once the wait ends, the way `eas build --json --wait` does (./commands/view).
   commandInstance.addOption(
-    new Option(`--${JSON_OPTION}`, 'Print the whole record as JSON, for scripts (not with --wait)')
+    new Option(
+      `--${JSON_OPTION}`,
+      'Print the whole record as JSON, for scripts; with --wait, after the test finishes'
+    )
   );
 
   // Parsed out of sight and refused, as on `sherlo test` (refuseTokenFlag).
@@ -596,7 +597,6 @@ function addViewCommand(program: Command) {
   commandInstance.action(async (build: string | undefined, actionOptions) => {
     setReportingContext(VIEW_COMMAND, actionOptions);
 
-    refuseJsonWithWait(build, actionOptions);
     refuseTokenFlag(VIEW_COMMAND, actionOptions);
 
     // `withCommandTimeout` wraps a one-argument command, and it already skips
@@ -604,20 +604,6 @@ function addViewCommand(program: Command) {
     // legitimately runs longer and owns exit code 3.
     await withCommandTimeout(() => view(build, actionOptions))(actionOptions);
   });
-}
-
-/**
- * `sherlo view --json --wait` is a usage mistake, refused before anything runs - exit 1 and no help
- * block, the way commander ends a usage mistake (../render/buildView, renderJsonWithWaitRefused).
- */
-function refuseJsonWithWait(
-  build: string | undefined,
-  options: { [JSON_OPTION]?: boolean; [WAIT_OPTION]?: boolean }
-) {
-  if (!options[JSON_OPTION] || !options[WAIT_OPTION]) return;
-
-  for (const line of renderJsonWithWaitRefused(build)) console.error(line);
-  process.exit(1);
 }
 
 function addTestEasCloudBuildCommand(program: Command) {

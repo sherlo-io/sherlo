@@ -72,22 +72,6 @@ export function renderBuildViewHeader(buildIndex: number, runStatus: string): st
   return `${chalk.green(`Test ${buildIndex}`)} · ${RUN_STATUS_WORD[runStatus] ?? runStatus}`;
 }
 
-/**
- * The refusal of `sherlo view --json --wait`: a wait prints a verdict for a person and a record is
- * one read for a program, so a script waits with one command and reads with the next. A usage
- * mistake, so it ends without the help block, the way commander's own refusals do.
- */
-export function renderJsonWithWaitRefused(buildArgument: string | undefined): string[] {
-  const test = buildArgument ?? '<number>';
-  return [
-    chalk.red(
-      "ERROR: `--json` and `--wait` can't be used together. `--wait` prints a verdict for a person " +
-        'and `--json` prints one record for a program.'
-    ),
-    `Run \`npx sherlo view ${test} --wait\`, then \`npx sherlo view ${test} --json\`.`,
-  ];
-}
-
 /** `0 approved · 0 reported · 3 unreviewed · 41 no changes` - the four review counts, in one dim line. */
 export function renderBuildViewTally(counts: ReviewCounts): string {
   return chalk.dim(

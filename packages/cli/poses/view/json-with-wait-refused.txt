@@ -1,4 +1,0 @@
-[31mERROR: `--json` and `--wait` can't be used together. `--wait` prints a verdict for a person and `--json` prints one record for a program.[39m
-Run `npx sherlo view 7 --wait`, then `npx sherlo view 7 --json`.
-
-[exit 1]

@@ -46,7 +46,7 @@ import {
 import { JSON_OPTION } from '../../constants';
 import { AuthError } from '../../helpers/buildStatusRequest';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
-import { emit } from '../../helpers/transcriptSink';
+import { captureTranscript, emit } from '../../helpers/transcriptSink';
 import { readBuildStatus } from '../../helpers/waitForBuildResult';
 import { Options } from '../../types';
 import { refuseRejectedLogin } from '../shared';
@@ -106,10 +106,40 @@ async function view(
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  // `--json` never meets `--wait`: commander refuses the pair before anything runs (addViewCommand,
-  // ../../start). A wait prints a verdict for a person and a record is one read for a program, so
-  // a script waits with one command and reads with the next, the way `gh run watch` and
-  // `gh run view --json` are two.
+  const printJson = passedOptions[JSON_OPTION] === true;
+
+  // `--json --wait` waits, then prints the record - and only the record - on stdout, the way
+  // `eas build --json --wait` does: a script reads a test back with one command.
+  if (commandParams.wait && printJson) {
+    const exitCode = await waitWithoutPrinting({
+      token,
+      fromSavedLogin,
+      buildIndex,
+      projectIndex,
+      teamId,
+      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+    });
+
+    // Read AFTER the wait, so the record is the test as the wait left it: finished, or - when the
+    // wait ran out - still running. A test that never appeared has no record to print.
+    const buildAfterWait = await readBuildStatus({ token, buildIndex, projectIndex, teamId }).catch(
+      (error: Error) => {
+        if (error instanceof AuthError && fromSavedLogin) refuseRejectedLogin();
+        throw error;
+      }
+    );
+    if (buildAfterWait) {
+      printBuildView({ build: buildAfterWait, buildIndex, url, printJson: true });
+    }
+
+    // The exit code is the wait's, exactly as on `--wait` alone.
+    await reporting.flush().finally(() => {
+      process.exit(exitCode);
+    });
+
+    return;
+  }
+
   if (commandParams.wait) {
     // The verdict belongs to the wait loop from here on, so the tally and the
     // status sentence are NOT printed first: they would describe a build that is
@@ -147,10 +177,28 @@ async function view(
     refuseBuildNotFound(buildIndex);
   }
 
-  printBuildView({ build, buildIndex, url, printJson: passedOptions[JSON_OPTION] === true });
+  printBuildView({ build, buildIndex, url, printJson });
 }
 
 export default view;
+
+/**
+ * The shipped wait loop, with everything it prints held back, so stdout carries the record alone.
+ *
+ * WORKAROUND (sherlo-test-builds-apps plan layer): the loop prints through the one process sink and
+ * takes no say over where its lines go, so its lines are captured here and dropped. Build moves this
+ * into the loop: in json mode it prints nothing on stdout, and its progress goes to stderr only when
+ * stderr is a terminal, live, as `eas build --json --wait` does.
+ */
+async function waitWithoutPrinting(
+  waitArguments: Parameters<typeof waitForBuildResult>[0]
+): Promise<number> {
+  let exitCode = 0;
+  await captureTranscript(async () => {
+    exitCode = await waitForBuildResult(waitArguments);
+  });
+  return exitCode;
+}
 
 /* ========================================================================== */
 
