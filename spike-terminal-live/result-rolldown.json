@@ -1,0 +1,73 @@
+{
+  "tool": "rolldown",
+  "cpus": 8,
+  "loadAverage": [
+    "18.77",
+    "16.03",
+    "15.84"
+  ],
+  "coldBuildMs": 484,
+  "rssIdleMb": 380,
+  "printedBytes": 3800,
+  "posePrinted": true,
+  "poseAloneMs": [
+    278,
+    310,
+    261,
+    258,
+    261
+  ],
+  "edits": [
+    {
+      "rebuildMs": 360,
+      "poseMs": 263,
+      "totalMs": 628,
+      "shown": true
+    },
+    {
+      "rebuildMs": 403,
+      "poseMs": 258,
+      "totalMs": 691,
+      "shown": true
+    },
+    {
+      "rebuildMs": 367,
+      "poseMs": 259,
+      "totalMs": 632,
+      "shown": true
+    },
+    {
+      "rebuildMs": 339,
+      "poseMs": 269,
+      "totalMs": 609,
+      "shown": true
+    },
+    {
+      "rebuildMs": 366,
+      "poseMs": 264,
+      "totalMs": 632,
+      "shown": true
+    }
+  ],
+  "rssEndMb": 638,
+  "rssPeakMb": 638,
+  "buildsSeen": 7,
+  "restoredPrintMatches": true,
+  "summary": {
+    "rebuildMs": [
+      339,
+      360,
+      366,
+      367,
+      403
+    ],
+    "totalMs": [
+      609,
+      628,
+      632,
+      632,
+      691
+    ],
+    "allShown": true
+  }
+}

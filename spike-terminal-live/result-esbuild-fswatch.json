@@ -1,0 +1,73 @@
+{
+  "tool": "esbuild-fswatch",
+  "cpus": 8,
+  "loadAverage": [
+    "24.47",
+    "16.20",
+    "15.92"
+  ],
+  "coldBuildMs": 303,
+  "rssIdleMb": 255,
+  "printedBytes": 3800,
+  "posePrinted": true,
+  "poseAloneMs": [
+    294,
+    295,
+    295,
+    295,
+    319
+  ],
+  "edits": [
+    {
+      "rebuildMs": 199,
+      "poseMs": 295,
+      "totalMs": 525,
+      "shown": true
+    },
+    {
+      "rebuildMs": 173,
+      "poseMs": 336,
+      "totalMs": 512,
+      "shown": true
+    },
+    {
+      "rebuildMs": 163,
+      "poseMs": 298,
+      "totalMs": 461,
+      "shown": true
+    },
+    {
+      "rebuildMs": 193,
+      "poseMs": 348,
+      "totalMs": 541,
+      "shown": true
+    },
+    {
+      "rebuildMs": 178,
+      "poseMs": 322,
+      "totalMs": 503,
+      "shown": true
+    }
+  ],
+  "rssEndMb": 364,
+  "rssPeakMb": 364,
+  "buildsSeen": 7,
+  "restoredPrintMatches": true,
+  "summary": {
+    "rebuildMs": [
+      163,
+      173,
+      178,
+      193,
+      199
+    ],
+    "totalMs": [
+      461,
+      503,
+      512,
+      525,
+      541
+    ],
+    "allShown": true
+  }
+}

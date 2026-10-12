@@ -1,0 +1,73 @@
+{
+  "tool": "ncc",
+  "cpus": 8,
+  "loadAverage": [
+    "8.28",
+    "12.95",
+    "14.61"
+  ],
+  "coldBuildMs": 3270,
+  "rssIdleMb": 567,
+  "printedBytes": 3800,
+  "posePrinted": true,
+  "poseAloneMs": [
+    302,
+    271,
+    269,
+    281,
+    276
+  ],
+  "edits": [
+    {
+      "rebuildMs": 1997,
+      "poseMs": 306,
+      "totalMs": 2305,
+      "shown": true
+    },
+    {
+      "rebuildMs": 1756,
+      "poseMs": 313,
+      "totalMs": 2074,
+      "shown": true
+    },
+    {
+      "rebuildMs": 3062,
+      "poseMs": 494,
+      "totalMs": 3562,
+      "shown": true
+    },
+    {
+      "rebuildMs": 2282,
+      "poseMs": 376,
+      "totalMs": 2659,
+      "shown": true
+    },
+    {
+      "rebuildMs": 1808,
+      "poseMs": 285,
+      "totalMs": 2093,
+      "shown": true
+    }
+  ],
+  "rssEndMb": 619,
+  "rssPeakMb": 673,
+  "buildsSeen": 7,
+  "restoredPrintMatches": true,
+  "summary": {
+    "rebuildMs": [
+      1756,
+      1808,
+      1997,
+      2282,
+      3062
+    ],
+    "totalMs": [
+      2074,
+      2093,
+      2305,
+      2659,
+      3562
+    ],
+    "allShown": true
+  }
+}

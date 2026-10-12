@@ -1,0 +1,73 @@
+{
+  "tool": "esbuild",
+  "cpus": 8,
+  "loadAverage": [
+    "14.79",
+    "15.25",
+    "15.56"
+  ],
+  "coldBuildMs": 502,
+  "rssIdleMb": 221,
+  "printedBytes": 3800,
+  "posePrinted": true,
+  "poseAloneMs": [
+    729,
+    544,
+    342,
+    315,
+    297
+  ],
+  "edits": [
+    {
+      "rebuildMs": 1772,
+      "poseMs": 316,
+      "totalMs": 2089,
+      "shown": true
+    },
+    {
+      "rebuildMs": 449,
+      "poseMs": 561,
+      "totalMs": 1015,
+      "shown": true
+    },
+    {
+      "rebuildMs": 274,
+      "poseMs": 374,
+      "totalMs": 650,
+      "shown": true
+    },
+    {
+      "rebuildMs": 254,
+      "poseMs": 324,
+      "totalMs": 580,
+      "shown": true
+    },
+    {
+      "rebuildMs": 182,
+      "poseMs": 335,
+      "totalMs": 518,
+      "shown": true
+    }
+  ],
+  "rssEndMb": 326,
+  "rssPeakMb": 329,
+  "buildsSeen": 7,
+  "restoredPrintMatches": true,
+  "summary": {
+    "rebuildMs": [
+      182,
+      254,
+      274,
+      449,
+      1772
+    ],
+    "totalMs": [
+      518,
+      580,
+      650,
+      1015,
+      2089
+    ],
+    "allShown": true
+  }
+}
