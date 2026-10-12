@@ -19,8 +19,9 @@ import { setCaptureLogSink } from '../helpers/RunnerBridge/captureLogSink';
 import { bundlerOrigin } from '../bundlerOrigin';
 import { clearStoryError, readStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
-import { getStorybookChannel } from '../getStorybook/storybookChannel';
+import { readStorybookChannel } from '../getStorybook/storybookReads';
 import { readStorybookFacts } from '../getStorybook/storybookFacts';
+import { activateMocksForStory } from '../getStorybook/storyMockActivation';
 import { mergeStoryMocks } from '../mocking/mergeMocks';
 import type { StoryMocks } from '../mocking/mockDeclaration';
 import { clearMocks } from '../mocking';
@@ -154,10 +155,8 @@ function hostForTheCore(): SealedCoreHost {
       fallbackText: STORY_ERROR_FALLBACK_TEXT,
     },
     storybookFacts: readStorybookFacts,
-    storybookChannel: () => getStorybookChannel(),
-    // The SDK still finds a story's mocks through Storybook's view, which the core never holds, so
-    // a core of this seam turns on none until the SDK reads them from the Storybook facts.
-    activateMocksForStory: () => null,
+    storybookChannel: () => readStorybookChannel().value,
+    activateMocksForStory,
     clearMocks,
     // The seam keeps a story's mocks opaque; what the core hands back here is what the story's
     // parameters handed it, so it is read as the SDK's own again.

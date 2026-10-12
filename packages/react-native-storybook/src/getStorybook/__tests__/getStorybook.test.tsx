@@ -20,7 +20,7 @@ const {
   mockGetLastState,
   mockNotifyGetStorybookCalled,
   mockStartCaptureTransport,
-  mockGetStorybookChannel,
+  effectsOfTheEntry,
 } = vi.hoisted(() => ({
   mockGetMode: vi.fn(),
   mockGetConfig: vi.fn(),
@@ -28,18 +28,21 @@ const {
   mockGetLastState: vi.fn(),
   mockNotifyGetStorybookCalled: vi.fn(),
   mockStartCaptureTransport: vi.fn(),
-  mockGetStorybookChannel: vi.fn(),
+  /** Every effect the entry component asked for, kept for a test to run, as React would. */
+  effectsOfTheEntry: [] as (() => void | (() => void))[],
 }));
 
 // This package only peer-depends on react (see package.json) and no test here renders a
 // component tree, so 'react' itself, and the jsx-runtime esbuild's automatic JSX transform
 // injects for getStorybook.tsx's JSX, need not resolve to anything real - only to something that
 // does not throw on import.
-vi.mock('react', () => ({
-  default: { useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }) },
-  useEffect: () => {},
-  useRef: (initial: unknown) => ({ current: initial }),
-}));
+vi.mock('react', () => {
+  const useEffect = (effect: () => void | (() => void)) => {
+    effectsOfTheEntry.push(effect);
+  };
+  const useRef = (initial: unknown) => ({ current: initial });
+  return { default: { useEffect, useRef }, useEffect, useRef };
+});
 vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: () => null, Fragment: Symbol('Fragment') }));
 vi.mock('react/jsx-runtime', () => ({
   jsx: () => null,
@@ -71,10 +74,6 @@ vi.mock('../../captureTransport', () => ({
   startCaptureTransport: mockStartCaptureTransport,
 }));
 
-vi.mock('../storybookChannel', () => ({
-  getStorybookChannel: mockGetStorybookChannel,
-}));
-
 // The React tree itself is out of scope here (no renderer in this package's test setup) - these
 // stand in for the modules getStorybook.tsx wires the returned entry component to.
 vi.mock('../components', () => ({ TestingMode: () => null }));
@@ -82,10 +81,6 @@ vi.mock('../helpers', () => ({ getStorybookComponent: () => () => null }));
 vi.mock('../hooks', () => ({ useHideSplashScreen: () => {} }));
 vi.mock('../components/SherloStoryErrorBoundary', () => ({
   default: ({ children }: { children: unknown }) => children,
-}));
-vi.mock('../interactiveMockActivation', () => ({
-  startInteractiveMockActivation: vi.fn(),
-  stopInteractiveMockActivation: vi.fn(),
 }));
 vi.mock('../../openStoryChannel', () => ({
   startOpenStoryChannel: vi.fn(),
@@ -96,6 +91,9 @@ vi.mock('../../storyOfTheApp', () => ({
 }));
 
 import getStorybook, { __resetForTests } from '../getStorybook';
+import sherloAnnotation from '../sherloAnnotation';
+import createMockable from '../../mocking/createMockable';
+import { activateStoryMocks } from '../../mocking';
 
 /**
  * What getConfigOrDefault answers when nothing was ever written to the device - the same shape
@@ -112,26 +110,20 @@ const CONFIG_WHEN_NOTHING_IS_ON_DISK = {
   },
 };
 
-/** The app's Storybook view, as much of it as getStorybook.tsx's testing-mode branch reads. */
+/** The app's Storybook view, as much of it as getStorybook.tsx reads: its channel. */
 function makeView() {
   return {
     _channel: { on: vi.fn(), off: vi.fn(), emit: vi.fn() },
-    _preview: {
-      getProjectAnnotations: async () => ({}),
-      onGetProjectAnnotationsChanged: vi.fn(),
-    },
   } as never;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   __resetForTests();
+  effectsOfTheEntry.length = 0;
   mockGetMode.mockReturnValue('testing');
   mockGetConfigOrDefault.mockReturnValue(CONFIG_WHEN_NOTHING_IS_ON_DISK);
   mockGetLastState.mockReturnValue(undefined);
-  mockGetStorybookChannel.mockImplementation(
-    (view: { _channel?: unknown }) => view?._channel ?? null
-  );
   // Nothing was ever written to the device - the throw a capture's restarted app used to hit.
   mockGetConfig.mockImplementation(() => {
     throw new Error('Config is undefined');
@@ -149,9 +141,6 @@ describe('testing mode with no config on disk still returns a storybook, and sti
 
     // Still returns a storybook: the entry point getStorybook always hands the app.
     expect(typeof entry).toBe('function');
-
-    // getStorybook's testing-mode branch reads the app's config, and that read no longer throws.
-    expect(mockGetConfigOrDefault).toHaveBeenCalled();
     expect(mockGetConfig).not.toHaveBeenCalled();
 
     // Still answers a capture: the transport that waits on the bundler's capture address started,
@@ -159,5 +148,33 @@ describe('testing mode with no config on disk still returns a storybook, and sti
     expect(mockStartCaptureTransport).toHaveBeenCalledTimes(1);
     const storybooksChannel = (view as unknown as { _channel: unknown })._channel;
     expect(mockStartCaptureTransport).toHaveBeenCalledWith({ channel: storybooksChannel });
+  });
+
+  it("the run's render delay is read through the config read that never throws", async () => {
+    // The testing-mode config read moved from getStorybook into Sherlo's loaders, which Storybook
+    // runs for every story: they read the run's settings through getConfigOrDefault, never getConfig.
+    for (const loader of sherloAnnotation.loaders) {
+      await expect(loader({ id: 'components-button--primary' })).resolves.toBeUndefined();
+    }
+
+    expect(mockGetConfigOrDefault).toHaveBeenCalled();
+    expect(mockGetConfig).not.toHaveBeenCalled();
+  });
+});
+
+describe('leaving Storybook mode', () => {
+  it('passes every module through to real again', () => {
+    mockGetMode.mockReturnValue('storybook');
+    const mockable = createMockable('pkg/left-behind', { label: 'real' });
+    activateStoryMocks({ 'pkg/left-behind': { label: 'mocked' } });
+    expect(mockable.label).toBe('mocked');
+
+    const SherloStorybookEntry = getStorybook(makeView());
+    SherloStorybookEntry();
+    // React runs the entry's effects once it mounts, and their cleanups once it unmounts.
+    const cleanups = effectsOfTheEntry.map((effect) => effect());
+    cleanups.forEach((cleanup) => cleanup?.());
+
+    expect(mockable.label).toBe('real');
   });
 });
