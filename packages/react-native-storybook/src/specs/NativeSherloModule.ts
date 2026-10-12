@@ -5,8 +5,6 @@ export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
   sendNativeError: (errorCode: string, message: string, dataJson: string) => void;
   reportEarlyJsError: (name: string, message: string, stack: string) => boolean;
-  appendFile: (path: string, content: string) => Promise<void>;
-  readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
   closeStorybook: () => void;
   toggleStorybook: () => void;

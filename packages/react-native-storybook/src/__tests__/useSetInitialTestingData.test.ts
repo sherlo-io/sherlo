@@ -34,9 +34,8 @@ describe('useSetInitialTestingData', () => {
 
   it('returns early and does NOT send START when enabled is false, even with no lastState', () => {
     // The state a capture with no storyId handed over is in: no lastState to stop the session on
-    // its own, so `enabled` (driven by SherloModule.getDriver() in useTestAllStories) is the one
-    // thing standing between this and writing protocol.sherlo for a runner that was never there to
-    // answer it.
+    // its own, so `enabled` (decided in useTestAllStories) is the one thing standing between this
+    // and sending START to a runner that was never there to answer it.
     useSetInitialTestingData({ enabled: false });
 
     expect(startTestSession).not.toHaveBeenCalled();

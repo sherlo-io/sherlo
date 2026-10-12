@@ -9,9 +9,9 @@ function useSetInitialTestingData({
   enabled = true,
 }: {
   /**
-   * Whether this boot may start the protocol-file handshake at all - false for a capture, which
-   * has no runner behind it to answer this (see useTestAllStories, the one place that reads
-   * SherloModule.getDriver() to decide). Defaults to true.
+   * Whether this boot may send the runner its stories at all - false for a capture, which has no
+   * runner behind it to answer this (see useTestAllStories, the one place that decides).
+   * Defaults to true.
    */
   enabled?: boolean;
 }): void {
