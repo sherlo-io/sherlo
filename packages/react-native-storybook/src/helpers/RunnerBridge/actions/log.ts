@@ -1,31 +1,30 @@
+import { send } from '../../../connection/appLine';
 import SherloModule from '../../../SherloModule';
 import type { LogFn } from '../../../sealedCore/seam';
 import { pushAppLogLine } from '../captureLogSink';
 
-function log(path: string): LogFn {
-  return function (key, parameters): void {
-    // Only fire when actually running under the Sherlo runner. Defense-in-depth:
-    // every current caller is already inside a testing-mode-only path, but this
-    // gate ensures a future call site can't accidentally leak log output into a
-    // user's production app.
-    if (SherloModule.getMode() !== 'testing') return;
+/** Form one log line, and send it over the connection. Outside testing mode, nothing happens. */
+const log: LogFn = function (key, parameters): void {
+  // Only fire when actually running under the Sherlo runner. Defense-in-depth:
+  // every current caller is already inside a testing-mode-only path, but this
+  // gate ensures a future call site can't accidentally leak log output into a
+  // user's production app.
+  if (SherloModule.getMode() !== 'testing') return;
 
-    const time = new Date().toTimeString().split(' ')[0];
-    const line = `${time}: ${key}${parameters ? ` : ${JSON.stringify(parameters)}` : ''}`;
-    const logMsg = `${line}\n`;
+  const time = new Date().toTimeString().split(' ')[0];
+  const line = `${time}: ${key}${parameters ? ` : ${JSON.stringify(parameters)}` : ''}`;
 
-    // Polarity is intentional: in dev builds Metro shows logs already, but in
-    // release builds (the kind the runner installs into the simulator) Metro
-    // isn't running and the only way to surface log lines for the runner to
-    // tail is the system log (Console.app / adb logcat).
-    if (!__DEV__) console.log(`${logMsg}\n`);
+  // Polarity is intentional: in dev builds Metro shows logs already, but in
+  // release builds (the kind the runner installs into the simulator) Metro
+  // isn't running and the system log (Console.app / adb logcat) is the one
+  // place left to read a line from outside the connection.
+  if (!__DEV__) console.log(`${line}\n`);
 
-    // The live push a capture reads back from (../captureLogSink) - a no-op sink outside a
-    // capture, so this costs a real run nothing (see captureTransport.ts).
-    pushAppLogLine(line);
+  // The live push a capture reads back from (../captureLogSink) - a no-op sink outside a
+  // capture, so this costs a real run nothing (see captureTransport.ts).
+  pushAppLogLine(line);
 
-    SherloModule.appendFile(path, logMsg);
-  };
-}
+  send({ action: 'log', line });
+};
 
 export default log;

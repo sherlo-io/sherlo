@@ -7,15 +7,27 @@
  * the connection brings comes back as a `SherloMessage` event. Every message's shape is the seam's
  * (../sealedCore/seam). A native build from before the connection has none of these calls, and the
  * line then sends and receives nothing.
+ *
+ * Whose address the socket dials: a launch that was handed one (a run) is connected by native code
+ * before any JavaScript exists. A bundle a bundler served dials that bundler's Sherlo address, which
+ * `startTheLine` asks native code to do. A bundle loaded from the device, with no address handed,
+ * has nothing to dial and opens no connection.
  */
 import { NativeEventEmitter, NativeModules } from 'react-native';
-import TurboModule from '../specs/NativeSherloModule';
+import { bundlerOrigin } from '../bundlerOrigin';
+import { BUNDLER_LINE_PATH } from '../constants';
+import { JS_MODULE_VERSION } from '../sdk-compatibility.json';
+import { SHERLO_PROTOCOL_VERSION } from '../sealedCore/seam';
 import type { MessageFromTheApp, MessageToTheApp } from '../sealedCore/seam';
+import SherloModule from '../SherloModule';
+import TurboModule from '../specs/NativeSherloModule';
 
 /** The event native code raises for each message the connection brings, with its JSON. */
 const MESSAGE_EVENT = 'SherloMessage';
 
 const nativeModule = TurboModule ?? NativeModules.SherloModule ?? null;
+
+let hasStarted = false;
 
 /** Send one message over the connection. */
 export function send(message: MessageFromTheApp): void {
@@ -38,4 +50,28 @@ export function onMessage(listener: (message: MessageToTheApp) => void): () => v
 export function dialBundler(address: string): void {
   if (typeof nativeModule?.dialBundler !== 'function') return;
   nativeModule.dialBundler(address);
+}
+
+/**
+ * Start the line, once per run of the JavaScript: say this JavaScript's `hello`, which native code
+ * keeps and puts in every `hello` it says, then dial the bundler this bundle came from, if it came
+ * from one.
+ */
+export function startTheLine(): void {
+  if (hasStarted) return;
+  hasStarted = true;
+
+  send({
+    action: 'hello',
+    protocolVersion: SHERLO_PROTOCOL_VERSION,
+    nativeVersion: SherloModule.getNativeVersion() ?? '',
+    jsVersion: JS_MODULE_VERSION,
+  });
+
+  const origin = bundlerOrigin();
+  if (origin !== null) dialBundler(`${origin.replace(/^http/, 'ws')}${BUNDLER_LINE_PATH}`);
+}
+
+export function __resetForTests(): void {
+  hasStarted = false;
 }

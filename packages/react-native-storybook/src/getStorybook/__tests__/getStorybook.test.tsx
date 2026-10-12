@@ -1,8 +1,8 @@
 /**
  * getStorybook() is the app's entry factory - the synchronous function that runs at app boot,
- * before any component ever renders. A capture restarts the app into testing mode with nothing
- * ever written to the device (see ../../captureTransport.ts), so this is the first place "no
- * config on disk" has to survive: getStorybook() used to call SherloModule.getConfig() here
+ * before any component ever renders. A capture restarts the app into testing mode with no runner
+ * to hand it settings (see ../../captureTransport.ts), so this is the first place "no settings
+ * from a runner" has to survive: getStorybook() used to call SherloModule.getConfig() here
  * unguarded, which threw and took the app down before a single story could be shown or a capture
  * answered.
  *
@@ -56,7 +56,7 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('../../SherloModule', () => ({
   default: {
     getMode: mockGetMode,
-    // getConfig still throws when there is nothing on disk - the point of this test is that
+    // getConfig still throws when the runner handed no settings - the point of this test is that
     // getStorybook's testing-mode branch no longer calls it.
     getConfig: mockGetConfig,
     getConfigOrDefault: mockGetConfigOrDefault,
@@ -96,7 +96,7 @@ import createMockable from '../../mocking/createMockable';
 import { activateStoryMocks } from '../../mocking';
 
 /**
- * What getConfigOrDefault answers when nothing was ever written to the device - the same shape
+ * What getConfigOrDefault answers when no runner handed any settings - the same shape
  * the SDK's own defaults take (DEFAULT_CONFIG in ../../SherloModule).
  */
 const CONFIG_WHEN_NOTHING_IS_ON_DISK = {
@@ -124,14 +124,14 @@ beforeEach(() => {
   mockGetMode.mockReturnValue('testing');
   mockGetConfigOrDefault.mockReturnValue(CONFIG_WHEN_NOTHING_IS_ON_DISK);
   mockGetLastState.mockReturnValue(undefined);
-  // Nothing was ever written to the device - the throw a capture's restarted app used to hit.
+  // No runner handed any settings - the throw a capture's restarted app used to hit.
   mockGetConfig.mockImplementation(() => {
     throw new Error('Config is undefined');
   });
 });
 
-describe('testing mode with no config on disk still returns a storybook, and still answers a capture', () => {
-  it('testing mode with no config on disk still returns a storybook, and still answers a capture', () => {
+describe('testing mode with no settings from a runner still returns a storybook, and still answers a capture', () => {
+  it('testing mode with no settings from a runner still returns a storybook, and still answers a capture', () => {
     const view = makeView();
 
     let entry: (() => unknown) | undefined;

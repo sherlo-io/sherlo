@@ -1,6 +1,6 @@
 /**
- * THE LIVE LOG PUSH - the second sink log() writes to, beside the file a real run's runner tails
- * (./actions/log).
+ * THE LIVE LOG PUSH - the second sink log() writes to, beside the connection a real run's runner
+ * reads its log lines from (./actions/log).
  *
  * A capture holds a live socket to the same app a run does, and until now everything RunnerBridge.log
  * formed - the story error boundary, the paint barrier, the mocking shims, every "why did this

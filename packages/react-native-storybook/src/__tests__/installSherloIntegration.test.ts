@@ -1,32 +1,24 @@
 /**
  * Tests for installSherloIntegration() - runs at SDK-import time in src/index.ts.
  *
- * Architecture note: installSherloIntegration() uses require('./SherloModule').default at
- * runtime (lazy, to break circular dependencies). In Vitest 4.x SSR mode, CommonJS-style
- * require() calls made inside module function bodies MAY bypass vi.mock() hoisted factories.
- * We work around this by:
- *
- * 1. Controlling the native mode via the react-native stub's __setNativeMode() helper
- *    (the stub is aliased in vitest.config.ts and provides NativeModules.SherloModule).
- * 2. Capturing protocol writes via the stub's NativeModules.SherloModule.appendFile which
- *    writes to a globalThis accumulator (__sherloTestAppendFileCalls).
- * 3. Decoding the base64-encoded content (the SherloModule live wrapper encodes before
- *    calling native appendFile) using atob().
+ * Native code is the react-native stub (vitest.config.ts aliases it), which keeps every message the
+ * JavaScript sends over the connection and lets a test choose the mode native code reports.
  *
  * Test matrix (mode × __sherloWithStorybookApplied × __sherloStorybookDisabledFlag):
- *  - default mode  → no writes
- *  - storybook mode → no writes
- *  - testing + !applied → JS_EVAL_COMPLETE only
- *  - testing + applied  → JS_EVAL_COMPLETE + WITHSTORYBOOK_APPLIED
+ *  - default mode  → says hello only
+ *  - storybook mode → says hello only
+ *  - testing + !applied → hello, JS_EVAL_COMPLETE
+ *  - testing + applied  → + WITHSTORYBOOK_APPLIED
  *  - testing + disabled → + WITHSTORYBOOK_DISABLED
  */
 
-import { PROTOCOL_FILE } from '../constants';
 import {
-  __setNativeMode,
+  __getSentMessages,
+  __resetConnection,
   __resetNativeMode,
-  __resetAppendFileCalls,
+  __setNativeMode,
 } from './__mocks__/react-native';
+import { JS_MODULE_VERSION } from '../sdk-compatibility.json';
 
 vi.mock('../checkSdkCompatibility', () => ({
   default: () => true,
@@ -40,99 +32,61 @@ vi.mock('../openStorybook', () => ({ default: () => {} }));
 beforeEach(() => {
   vi.resetModules();
   __resetNativeMode();
-  __resetAppendFileCalls();
+  __resetConnection();
   delete (global as any).__sherloWithStorybookApplied;
   delete (global as any).__sherloStorybookDisabledFlag;
 });
 
-/**
- * Decode protocol actions from the stub's appendFile accumulator.
- * SherloModule live wrapper encodes with base64(utf8(json)) before calling native.
- */
-function getProtocolActions(): string[] {
-  const allCalls: Array<[string, string]> = (globalThis as any).__sherloTestAppendFileCalls ?? [];
-  const protocolCalls = allCalls.filter(([p]) => p === PROTOCOL_FILE);
-  const actions: string[] = [];
-  for (const [, encoded] of protocolCalls) {
-    try {
-      const decoded = atob(encoded);
-      actions.push(JSON.parse(decoded).action as string);
-    } catch {
-      // raw content (fallback for environments where encoding differs)
-      try {
-        actions.push(JSON.parse(encoded).action as string);
-      } catch {
-        actions.push('DECODE_ERROR');
-      }
-    }
-  }
-  return actions;
+/** The actions of the messages the JavaScript sent over the connection, in order. */
+function getSentActions(): string[] {
+  return __getSentMessages().map((message) => message.action);
 }
 
 describe('installSherloIntegration - mode guard', () => {
-  it('default mode → no protocol writes', async () => {
+  it('default mode → sends only hello', async () => {
     __setNativeMode('default');
     await import('../index');
-    expect(getProtocolActions()).toHaveLength(0);
+    expect(getSentActions()).toEqual(['hello']);
   });
 
-  it('storybook mode → no protocol writes', async () => {
+  it('storybook mode → sends only hello', async () => {
     __setNativeMode('storybook');
     await import('../index');
-    expect(getProtocolActions()).toHaveLength(0);
+    expect(getSentActions()).toEqual(['hello']);
   });
 });
 
-describe('installSherloIntegration - testing mode writes', () => {
-  it('testing + !applied → writes JS_EVAL_COMPLETE only', async () => {
+describe('installSherloIntegration - testing mode messages', () => {
+  it('testing + !applied → sends that the JavaScript loaded, with its version', async () => {
     __setNativeMode('testing');
     await import('../index');
-    const actions = getProtocolActions();
 
-    // If no actions captured, the require() path to SherloModule couldn't observe
-    // the mocked mode - document this as a known Vitest SSR limitation.
-    if (actions.length === 0) {
-      console.warn(
-        '[TEST] installSherloIntegration testing-mode writes not captured via globalThis accumulator. This is a known Vitest 4.x SSR limitation where require() inside module functions may bypass vi.mock(). Mode-guard (no writes in default/storybook) is verified above.'
-      );
-      return; // Skip assertion rather than fail on infrastructure limitation
-    }
-
-    expect(actions).toContain('JS_EVAL_COMPLETE');
-    expect(actions).not.toContain('WITHSTORYBOOK_APPLIED');
-    expect(actions).not.toContain('WITHSTORYBOOK_DISABLED');
+    expect(getSentActions()).toEqual(['hello', 'JS_EVAL_COMPLETE']);
+    expect(__getSentMessages()[1]).toEqual({
+      action: 'JS_EVAL_COMPLETE',
+      jsVersion: JS_MODULE_VERSION,
+    });
   });
 
-  it('testing + applied + !disabled → writes JS_EVAL_COMPLETE and WITHSTORYBOOK_APPLIED', async () => {
+  it('testing + applied + !disabled → sends that the JavaScript loaded and the bundler setup is in place', async () => {
     __setNativeMode('testing');
     (global as any).__sherloWithStorybookApplied = true;
     await import('../index');
-    const actions = getProtocolActions();
 
-    if (actions.length === 0) {
-      console.warn('[TEST] testing-mode write capture not available (SSR require() limitation).');
-      return;
-    }
-
-    expect(actions).toContain('JS_EVAL_COMPLETE');
-    expect(actions).toContain('WITHSTORYBOOK_APPLIED');
-    expect(actions).not.toContain('WITHSTORYBOOK_DISABLED');
+    expect(getSentActions()).toEqual(['hello', 'JS_EVAL_COMPLETE', 'WITHSTORYBOOK_APPLIED']);
   });
 
-  it('testing + applied + disabled → writes JS_EVAL_COMPLETE, WITHSTORYBOOK_APPLIED, and WITHSTORYBOOK_DISABLED', async () => {
+  it('testing + applied + disabled → sends that the JavaScript loaded, the bundler setup is in place and Storybook is switched off', async () => {
     __setNativeMode('testing');
     (global as any).__sherloWithStorybookApplied = true;
     (global as any).__sherloStorybookDisabledFlag = true;
     await import('../index');
-    const actions = getProtocolActions();
 
-    if (actions.length === 0) {
-      console.warn('[TEST] testing-mode write capture not available (SSR require() limitation).');
-      return;
-    }
-
-    expect(actions).toContain('JS_EVAL_COMPLETE');
-    expect(actions).toContain('WITHSTORYBOOK_APPLIED');
-    expect(actions).toContain('WITHSTORYBOOK_DISABLED');
+    expect(getSentActions()).toEqual([
+      'hello',
+      'JS_EVAL_COMPLETE',
+      'WITHSTORYBOOK_APPLIED',
+      'WITHSTORYBOOK_DISABLED',
+    ]);
   });
 });

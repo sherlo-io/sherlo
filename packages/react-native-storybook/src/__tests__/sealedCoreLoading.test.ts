@@ -11,14 +11,12 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import base64 from 'base-64';
 import * as ts from 'typescript';
-import utf8 from 'utf8';
 import {
   NativeModules,
-  __getAppendFileCalls,
   __getNativeErrors,
-  __resetAppendFileCalls,
+  __getSentMessages,
+  __resetConnection,
   __resetNativeMode,
   __resetSealedCoreNative,
   __setNativeCompiledCoreVersion,
@@ -30,7 +28,6 @@ import {
 } from './__mocks__/react-native';
 import { FAKE_CORE_VERSION } from './__mocks__/fakeSealedCore';
 import { REQUIRED_MIN_NATIVE_VERSION } from '../sdk-compatibility.json';
-import { PROTOCOL_FILE } from '../constants';
 import type { SealedCoreHost } from '../sealedCore/seam';
 
 // src: this file is at src/__tests__/.
@@ -395,23 +392,16 @@ describe('the core the SDK suite runs against', () => {
   });
 });
 
-/** The protocol lines the app wrote for the runner, as the runner reads them. */
-function protocolLinesWritten(): Record<string, unknown>[] {
-  return __getAppendFileCalls()
-    .filter(([file]) => file === PROTOCOL_FILE)
-    .map(([, encodedLine]) => JSON.parse(utf8.decode(base64.decode(encodedLine))));
-}
-
 /** The core's START, sent through the runner line the SDK handed the installed core. */
 async function startSentByTheCore(): Promise<Record<string, unknown>> {
   const host = coreOnTheGlobal()!.installedWith as unknown as SealedCoreHost;
-  __resetAppendFileCalls();
-  // The runner never answers here, so its answer is never awaited: the line is written before the
+  __resetConnection();
+  // The runner never answers here, so its answer is never awaited: the message goes out before the
   // SDK starts waiting for it.
   host.runner.send({ action: 'START', snapshots: [] });
   await Promise.resolve();
 
-  const [start] = protocolLinesWritten().filter((line) => line.action === 'START');
+  const [start] = __getSentMessages().filter((message) => message.action === 'START');
   return start;
 }
 

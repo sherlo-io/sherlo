@@ -59,8 +59,8 @@ describe('useTestStory', () => {
 
   it('does nothing when enabled is false, even with a story queued in lastState', async () => {
     // A capture's boot now carries a lastState just like a run's does (see SherloModuleCore on
-    // each platform) - `enabled` (driven by SherloModule.getDriver() in useTestAllStories) is the
-    // one thing standing between this and reporting to a runner that was never there to answer it.
+    // each platform) - `enabled` (decided in useTestAllStories) is the one thing standing between
+    // this and reporting to a runner that was never there to answer it.
     useTestStory({ metadataProviderRef, enabled: false });
     await flushPromises();
 

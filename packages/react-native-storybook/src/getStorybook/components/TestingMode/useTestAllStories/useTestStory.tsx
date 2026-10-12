@@ -15,9 +15,9 @@ function useTestStory({
 }: {
   metadataProviderRef: React.RefObject<MetadataProviderRef>;
   /**
-   * Whether the walk may run at all - false for a capture, which is driven over the socket instead
-   * and reports nothing over protocol files (see useTestAllStories, the one place that reads
-   * SherloModule.getDriver() to decide). Defaults to true.
+   * Whether the walk may run at all - false for a capture, which is driven over the bundler's
+   * capture address instead and reports nothing to a runner (see useTestAllStories, the one place
+   * that decides). Defaults to true.
    */
   enabled?: boolean;
 }): void {

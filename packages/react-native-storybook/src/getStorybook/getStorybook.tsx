@@ -9,7 +9,7 @@ import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LOG_FILE, PROTOCOL_FILE } from '../constants';
+import { send } from '../connection/appLine';
 import { readStorybookChannel } from './storybookReads';
 import { clearMocks } from '../mocking';
 import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
@@ -97,7 +97,6 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
     useHideSplashScreen();
 
     const storybookLoadedReported = useRef(false);
-    const inspectLogReported = useRef(false);
 
     // Emit STORYBOOK_LOADED after the first render commits so the runner only
     // sees the signal once the React tree is actually mounted.  Emitting it
@@ -110,27 +109,8 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       storybookLoadedReported.current = true;
       try {
         if (SherloModule.getMode() === 'testing') {
-          const content = JSON.stringify({
-            action: 'STORYBOOK_LOADED',
-            timestamp: Date.now(),
-            entity: 'app',
-          });
-          SherloModule.appendFile(PROTOCOL_FILE, `${content}\n`);
+          send({ action: 'STORYBOOK_LOADED' });
         }
-      } catch (_e) {}
-    }, []);
-
-    // Emit INSPECT_STORY_OPENED to log.sherlo so the runner can deterministically
-    // observe that the configured inspect.initialStoryId was applied.
-    useEffect(() => {
-      if (!isStorybookMode) return;
-      if (inspectLogReported.current) return;
-      try {
-        const cfg = SherloModule.getConfig();
-        const storyId = cfg.inspect?.initialStoryId;
-        if (!storyId) return;
-        inspectLogReported.current = true;
-        SherloModule.appendFile(LOG_FILE, `INSPECT_STORY_OPENED:${storyId}\n`);
       } catch (_e) {}
     }, []);
 

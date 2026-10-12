@@ -28,14 +28,7 @@ import { clearMocks } from '../mocking';
 import { collectAppMetadata, providerFirstRenderedAt } from '../appMetadata';
 import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
-import type {
-  CoreReport,
-  RunnerProtocolItem,
-  ScrollMessage,
-  SealedCore,
-  SealedCoreHost,
-  StoryMessage,
-} from './seam';
+import type { CoreReport, SealedCore, SealedCoreHost } from './seam';
 
 /** The number of the contract (./seam) this SDK speaks. A core of any other is never installed. */
 const SEAM_THIS_SDK_SPEAKS = 2;
@@ -139,13 +132,10 @@ function hostForTheCore(): SealedCoreHost {
     runner: {
       // START is built inside the core; the SDK adds which core ran to it on its way to the runner.
       // Outside testing mode the report is undefined, and a line written as JSON leaves it out.
-      send: async (message) => {
-        const answer =
-          message.action === 'START'
-            ? await RunnerBridge.send({ ...message, core: reportWhichCoreRan() })
-            : await RunnerBridge.send(message);
-        return asConnectionMessage(answer);
-      },
+      send: (message) =>
+        message.action === 'START'
+          ? RunnerBridge.send({ ...message, core: reportWhichCoreRan() })
+          : RunnerBridge.send(message),
       log: RunnerBridge.log,
     },
     bundlerOrigin,
@@ -169,29 +159,5 @@ function hostForTheCore(): SealedCoreHost {
     warn: (message) => console.warn(message),
     // Sherlo's own fetch is the real one from before any story's mock wrapped it.
     fetch: sherloFetch,
-  };
-}
-
-/**
- * The runner's answer on the file road, as the connection's message for it: the SDK reads its
- * answers from the protocol file until its JavaScript speaks over the connection.
- */
-function asConnectionMessage(answer: RunnerProtocolItem): ScrollMessage | StoryMessage {
-  if (answer.action === 'ACK_SCROLL_REQUEST') {
-    return {
-      action: 'scroll',
-      requestId: answer.requestId,
-      scrollIndex: answer.scrollIndex,
-      offsetPx: answer.offsetPx,
-    };
-  }
-  return {
-    action: 'story',
-    storyId: answer.nextSnapshot.storyId,
-    requestId: answer.requestId,
-    parameters: {
-      theme: answer.nextSnapshot.parameters?.theme,
-      noSafeArea: answer.nextSnapshot.parameters?.noSafeArea,
-    },
   };
 }
