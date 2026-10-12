@@ -185,8 +185,8 @@ export default view;
 /**
  * The shipped wait loop, with everything it prints held back, so stdout carries the record alone.
  *
- * WORKAROUND (sherlo-test-builds-apps plan layer): the loop prints through the one process sink and
- * takes no say over where its lines go, so its lines are captured here and dropped. Build moves this
+ * Drawn in plan (epic sherlo-test-builds-apps, build item 62): the loop prints through the one process
+ * sink and takes no say over where its lines go, so its lines are captured here and dropped. Build moves this
  * into the loop: in json mode it prints nothing on stdout, and its progress goes to stderr only when
  * stderr is a terminal, live, as `eas build --json --wait` does.
  */
