@@ -6,7 +6,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { COMPILED_CORE_NATIVE_METHODS, COMPILED_CORE_R8_KEEP_RULE } from '../sealedCore/seam';
+import {
+  COMPILED_CORE_NATIVE_METHODS,
+  COMPILED_CORE_R8_KEEP_RULE,
+  SHERLO_PROTOCOL_VERSION,
+} from '../sealedCore/seam';
 import type { SealedCoreHost, StorybookFacts } from '../sealedCore/seam';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
@@ -42,6 +46,12 @@ describe('the seam', () => {
     expect([...COMPILED_CORE_NATIVE_METHODS].sort()).toEqual(nativeMethodsOfCompiledCore.sort());
 
     expect(fs.readFileSync(CONSUMER_RULES, 'utf8')).toContain(COMPILED_CORE_R8_KEEP_RULE);
+  });
+
+  it("the line's server half speaks the protocol version the seam names", () => {
+    const { PROTOCOL_VERSION } = require(path.join(SDK_ROOT, 'metro', 'sherloLine.js'));
+
+    expect(PROTOCOL_VERSION).toBe(SHERLO_PROTOCOL_VERSION);
   });
 
   it("the seam hands the core Storybook's stories, mocks and channel as plain facts, never Storybook's view", async () => {

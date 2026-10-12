@@ -1,26 +1,13 @@
 /**
- * THE LIVE LOG PUSH - the second sink log() writes to, beside the connection a real run's runner
- * reads its log lines from (./actions/log).
+ * THE LIVE LOG SINK - the plug the seam's `setCaptureLogSink` offers a core, beside the connection
+ * every log line already goes over (./actions/log).
  *
- * A capture holds a live socket to the same app a run does, and until now everything RunnerBridge.log
- * formed - the story error boundary, the paint barrier, the mocking shims, every "why did this
- * happen" line the SDK already writes - reached nobody down that road (see ../../captureTransport.ts).
+ * A log line reaches `sherlo capture` over the app's connection: log() sends it as a `log` message
+ * the instant it is formed, and the bundler's line keeps it in its log feed (metro/sherloLine.js),
+ * in a process that outlives the app's own crash. That road needs nothing plugged in here.
  *
- * ONE LINE, ONE PUSH, THE INSTANT IT IS FORMED - never batched into the capture's own answer. The
- * failure this exists to help diagnose lives inside a two-second window in the walk itself; an app
- * that hangs or dies inside that window never reaches the point of assembling an answer at all, so a
- * design that carried log lines home INSIDE the answer would lose exactly the lines that matter most.
- * Pushing each line to the bundler as it is formed puts it in a process that outlives the app's own
- * crash (see ../../captureTransport.ts's registration of the sink, and metro/captureLogSocket.js on
- * the other end), so `sherlo capture` can still read back what happened even when the walk itself
- * never finishes.
- *
- * A SINK, NOT A QUEUE. This module holds no lines of its own and remembers nothing between calls -
- * it is only the seam captureTransport.ts plugs a real pusher into while a capture is actually
- * waiting (registered in startCaptureTransport, cleared in stopCaptureTransport). Every other caller
- * of log() - a real runner's test session, a built app with no bundler beside it - has no sink
- * registered, so pushAppLogLine is a no-op for them, the same way appendFile already is a no-op
- * write for a runner that never asked for one.
+ * A SINK, NOT A QUEUE. This module holds no lines of its own and remembers nothing between calls.
+ * With no sink plugged in, pushAppLogLine is a no-op.
  */
 
 let sink: ((line: string) => void) | undefined;
