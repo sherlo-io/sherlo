@@ -10,6 +10,14 @@ export interface Spec extends TurboModule {
   openStorybook: () => void;
   closeStorybook: () => void;
   toggleStorybook: () => void;
+  /**
+   * Restart into testing mode. `storyId` is the story to land the restarted app on directly, or an
+   * empty string when there is none to hand over - codegen has no optional-string shape here, so an
+   * empty string is the sentinel, the same convention sendNativeError's dataJson already uses.
+   * `config` is the JSON-encoded Config to carry across the restart, so the native side that comes
+   * back can produce the same `config` shape a run's own config.sherlo would (see SherloModuleCore).
+   */
+  openTesting: (storyId: string, config: string) => void;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
@@ -44,6 +52,11 @@ export interface Spec extends TurboModule {
    * observed, false if the cap elapsed first. Content-agnostic.
    */
   awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
+  /**
+   * The sealed JS core native code picked, as JSON `{source, origin, version, reason}` (see
+   * SherloCoreLoader on each platform). Synchronous: the SDK evaluates it while it is imported.
+   */
+  loadCore: () => string;
 }
 
 let SherloModule: Spec | null = null;

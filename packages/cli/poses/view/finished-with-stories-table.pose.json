@@ -1,0 +1,27 @@
+{
+  "pose": 1,
+  "argv": ["view", "7"],
+  "files": {
+    "sherlo.config.json": { "token": "posetokenposetokenposetokenpose1tm0000017", "devices": [{ "id": "iphone.15", "osVersion": "17" }] }
+  },
+  "env": { "SKIP_INTRO": "true" },
+  "git": { "branch": "main", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": {
+        "runStatus": "finished",
+        "status": "unreviewed",
+        "viewStatusesCount": { "approved": 1, "noChanges": 1, "reported": 0, "unreviewed": 1 },
+        "stories": [
+          { "name": "Typography - Scales", "status": "review-required", "baseline": null, "reason": "two-baselines", "candidates": [{ "buildIndex": 2 }, { "buildIndex": 4 }] },
+          { "name": "Typography - Dense", "status": "unchanged", "baseline": { "buildIndex": 1 } },
+          { "name": "Sanity/Hello - Basic", "status": "approved", "baseline": { "buildIndex": 1 } }
+        ]
+      }
+    }
+  ],
+  "masks": {}
+}

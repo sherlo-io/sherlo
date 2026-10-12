@@ -1,0 +1,120 @@
+1791835087132 ncc: Version 0.38.4
+1791835087133 ncc: Compiling file index.js into CJS
+1791835087208 File change, rebuilding...
+1791835087613 ncc: Using typescript@5.9.3 (local user-provided)
+1791835093396    1kB  dist/596.index.js
+1791835093398    1kB  dist/170.index.js
+1791835093398    1kB  dist/673.index.js
+1791835093398    2kB  dist/721.index.js
+1791835093398    2kB  dist/252.index.js
+1791835093399 8425kB  dist/index.js
+1791835093399 8432kB  [6163ms] - ncc 0.38.4
+1791835093399 Watching for changes...
+1791835121948 File change, rebuilding...
+1791835123559    1kB  dist/596.index.js
+1791835123559    1kB  dist/170.index.js
+1791835123559    1kB  dist/673.index.js
+1791835123560    2kB  dist/721.index.js
+1791835123560    2kB  dist/252.index.js
+1791835123560 8425kB  dist/index.js
+1791835123560 8432kB  [1603ms] - ncc 0.38.4
+1791835123561 Watching for changes...
+1791835123920 File change, rebuilding...
+1791835125546    1kB  dist/596.index.js
+1791835125546    1kB  dist/170.index.js
+1791835125546    1kB  dist/673.index.js
+1791835125546    2kB  dist/721.index.js
+1791835125546    2kB  dist/252.index.js
+1791835125546 8425kB  dist/index.js
+1791835125546 8432kB  [1617ms] - ncc 0.38.4
+1791835125546 Watching for changes...
+1791835125913 File change, rebuilding...
+1791835127163    1kB  dist/596.index.js
+1791835127164    1kB  dist/170.index.js
+1791835127164    1kB  dist/673.index.js
+1791835127165    2kB  dist/721.index.js
+1791835127165    2kB  dist/252.index.js
+1791835127165 8425kB  dist/index.js
+1791835127165 8432kB  [1242ms] - ncc 0.38.4
+1791835127165 Watching for changes...
+1791835127485 File change, rebuilding...
+1791835128803    1kB  dist/596.index.js
+1791835128803    1kB  dist/170.index.js
+1791835128803    1kB  dist/673.index.js
+1791835128803    2kB  dist/721.index.js
+1791835128803    2kB  dist/252.index.js
+1791835128803 8425kB  dist/index.js
+1791835128803 8432kB  [1310ms] - ncc 0.38.4
+1791835128803 Watching for changes...
+1791835147267 File change, rebuilding...
+1791835148575    1kB  dist/596.index.js
+1791835148575    1kB  dist/170.index.js
+1791835148575    1kB  dist/673.index.js
+1791835148575    2kB  dist/721.index.js
+1791835148575    2kB  dist/252.index.js
+1791835148575 8425kB  dist/index.js
+1791835148575 8432kB  [1301ms] - ncc 0.38.4
+1791835148575 Watching for changes...
+1791835148898 File change, rebuilding...
+1791835150149    1kB  dist/596.index.js
+1791835150149    1kB  dist/170.index.js
+1791835150149    1kB  dist/673.index.js
+1791835150149    2kB  dist/721.index.js
+1791835150149    2kB  dist/252.index.js
+1791835150149 8425kB  dist/index.js
+1791835150149 8432kB  [1243ms] - ncc 0.38.4
+1791835150149 Watching for changes...
+1791835150454 File change, rebuilding...
+1791835151491    1kB  dist/596.index.js
+1791835151491    1kB  dist/170.index.js
+1791835151491    1kB  dist/673.index.js
+1791835151491    2kB  dist/721.index.js
+1791835151491    2kB  dist/252.index.js
+1791835151491 8425kB  dist/index.js
+1791835151491 8432kB  [1029ms] - ncc 0.38.4
+1791835151491 Watching for changes...
+1791835151840 File change, rebuilding...
+1791835153351    1kB  dist/596.index.js
+1791835153351    1kB  dist/170.index.js
+1791835153351    1kB  dist/673.index.js
+1791835153351    2kB  dist/721.index.js
+1791835153351    2kB  dist/252.index.js
+1791835153351 8425kB  dist/index.js
+1791835153351 8432kB  [1503ms] - ncc 0.38.4
+1791835153351 Watching for changes...
+1791835188403 File change, rebuilding...
+1791835189919    1kB  dist/596.index.js
+1791835189920    1kB  dist/170.index.js
+1791835189920    1kB  dist/673.index.js
+1791835189920    2kB  dist/721.index.js
+1791835189920    2kB  dist/252.index.js
+1791835189920 8425kB  dist/index.js
+1791835189920 8432kB  [1509ms] - ncc 0.38.4
+1791835189920 Watching for changes...
+1791835190284 File change, rebuilding...
+1791835191520    1kB  dist/596.index.js
+1791835191521    1kB  dist/170.index.js
+1791835191521    1kB  dist/673.index.js
+1791835191521    2kB  dist/721.index.js
+1791835191521    2kB  dist/252.index.js
+1791835191521 8425kB  dist/index.js
+1791835191521 8432kB  [1227ms] - ncc 0.38.4
+1791835191521 Watching for changes...
+1791835191865 File change, rebuilding...
+1791835193023    1kB  dist/596.index.js
+1791835193023    1kB  dist/170.index.js
+1791835193023    1kB  dist/673.index.js
+1791835193023    2kB  dist/721.index.js
+1791835193023    2kB  dist/252.index.js
+1791835193024 8425kB  dist/index.js
+1791835193024 8432kB  [1150ms] - ncc 0.38.4
+1791835193024 Watching for changes...
+1791835193441 File change, rebuilding...
+1791835194837    1kB  dist/596.index.js
+1791835194839    1kB  dist/170.index.js
+1791835194840    1kB  dist/673.index.js
+1791835194840    2kB  dist/721.index.js
+1791835194840    2kB  dist/252.index.js
+1791835194840 8425kB  dist/index.js
+1791835194840 8432kB  [1388ms] - ncc 0.38.4
+1791835194840 Watching for changes...

@@ -47,7 +47,7 @@ function detectBundler(projectRoot: string): ProjectType {
 
   throw new Error(
     'Cannot determine bundler: no conclusive signal in native build scripts and project does not look like a managed Expo app. ' +
-      'Run expo prebuild first or invoke sherlo show-error from a project root with ios/ or android/ directories.'
+      'Run expo prebuild first or invoke npx sherlo show-error from a project root with ios/ or android/ directories.'
   );
 }
 

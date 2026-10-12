@@ -80,6 +80,53 @@ export class GitFixture {
     return this.commit(message);
   }
 
+  /**
+   * Commits one file change per message on the current branch, pinned like {@link commit}, all
+   * in ONE git process (`git fast-import`). A long history written a commit at a time costs three
+   * processes per commit; this costs three in all.
+   * @returns the full SHA of the last commit.
+   */
+  commitMany(messages: string[], file = 'file.txt'): string {
+    const branchRef = this.git(['symbolic-ref', 'HEAD']);
+    let parent: string | undefined;
+    try {
+      parent = this.git(['rev-parse', '--verify', '--quiet', 'HEAD']);
+    } catch {
+      parent = undefined; // an empty repository: the first commit has no parent
+    }
+
+    const dataBlock = (text: string) => `data ${Buffer.byteLength(text)}\n${text}\n`;
+    const identity = `${FIXTURE_IDENTITY.name} <${FIXTURE_IDENTITY.email}>`;
+    const stream = messages
+      .map((message, index) => {
+        const date = this.commitDateEnv().GIT_COMMITTER_DATE;
+        // Only the first commit names its parent: fast-import chains each later commit onto the
+        // branch tip it just wrote.
+        const parentLine = index === 0 && parent ? `from ${parent}\n` : '';
+        return (
+          `commit ${branchRef}\n` +
+          `author ${identity} ${date}\n` +
+          `committer ${identity} ${date}\n` +
+          // `git commit -m` ends a message in a newline, so the same commit ends in one here.
+          dataBlock(`${message}\n`) +
+          parentLine +
+          `M 100644 inline ${file}\n` +
+          dataBlock(`content for: ${message}\n`)
+        );
+      })
+      .join('');
+
+    execFileSync('git', ['fast-import', '--quiet'], {
+      cwd: this.dir,
+      input: stream,
+      env: this.env({}),
+    });
+    // fast-import moves the branch but not the working tree: bring the tree up to it, so the
+    // repository reads clean, exactly as after a run of commits.
+    this.git(['reset', '-q', '--hard']);
+    return this.head();
+  }
+
   /** Creates a branch (without switching to it by default). */
   branch(name: string, opts: { checkout?: boolean } = {}): void {
     if (opts.checkout) {
@@ -138,6 +185,20 @@ export class GitFixture {
       ['clone', '-q', `--depth=${depth}`, '--branch', ref, `file://${this.dir}`, cloneDir],
       { cwd: os.tmpdir(), encoding: 'utf8', env: this.env({}) }
     );
+    return new GitFixture(cloneDir);
+  }
+
+  /**
+   * A full clone of this repo, as a fixture of its own: one git process, where building the same
+   * history again costs several per commit. The clone shares the same isolated git env.
+   */
+  clone(): GitFixture {
+    const cloneDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-git-clone-'));
+    execFileSync('git', ['clone', '-q', this.dir, cloneDir], {
+      cwd: os.tmpdir(),
+      encoding: 'utf8',
+      env: this.env({}),
+    });
     return new GitFixture(cloneDir);
   }
 

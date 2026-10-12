@@ -1,14 +1,15 @@
 import { log, send } from './actions';
-import { LogFn, SendFn } from './types';
+import type { LogFn, RunnerProtocolItem } from '../../sealedCore/seam';
+import type { AppProtocolItem } from './types';
 import { LOG_FILE, PROTOCOL_FILE } from '../../constants';
 
 export type RunnerBridge = {
   log: LogFn;
-  send: SendFn;
+  send: (protocolItem: AppProtocolItem) => Promise<RunnerProtocolItem>;
 };
 
 const logFn: LogFn = log(LOG_FILE);
-const sendFn: SendFn = send(PROTOCOL_FILE, logFn);
+const sendFn = send(PROTOCOL_FILE, logFn);
 
 const runnerBridge: RunnerBridge = {
   log: logFn,

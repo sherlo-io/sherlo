@@ -1,0 +1,17 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": [
+    "open",
+    "--story",
+    "foundation-typography--scales"
+  ],
+  "letterbox": "no-app"
+}

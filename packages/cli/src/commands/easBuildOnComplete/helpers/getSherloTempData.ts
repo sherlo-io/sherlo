@@ -17,7 +17,7 @@ function getSherloTempData(): { buildIndex: number; token: string } | undefined 
         'You can:\n' +
         '1. Ignore this message if you did not plan to run Sherlo tests\n' +
         '2. If you want to test your builds, make sure to:\n' +
-        `   • Run \`sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` before starting EAS build\n` +
+        `   • Run \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` before starting EAS build\n` +
         `   • Check if ${SHERLO_TEMP_DIRECTORY} directory is not ignored in .gitignore\n`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
