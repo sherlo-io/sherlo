@@ -43,6 +43,9 @@ const CORE_FETCHING_SCRIPTS = ['packSealedCore', 'storedCore'].map((scriptName) 
 const TESTS_OF_THE_PACK = ['sealedCorePin.test.ts', 'sealedCorePackaging.test.ts'].map((testName) =>
   path.join(SDK_SOURCE_DIR, '__tests__', testName)
 );
+// The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in ../sealedCore/loadSealedCore), and one before it.
+const SEAM_THE_SDK_SPEAKS = 2;
+const OLDER_SEAM = 1;
 
 vi.mock('react', () => ({
   default: { useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }) },
@@ -122,7 +125,7 @@ async function sherloFeaturesStart(): Promise<boolean> {
   const waitForStory = vi.fn(() => new Promise<never>(() => {}));
   const view = { _storyIndex: { entries: {} } } as never;
 
-  startCaptureTransport({ view, channel: makeChannel() as never, capture: { waitForACapture } });
+  startCaptureTransport({ channel: makeChannel() as never, capture: { waitForACapture } });
   startOpenStoryChannel({
     view,
     channel: makeChannel() as never,
@@ -151,7 +154,7 @@ afterEach(() => {
 describe('loading the sealed core', () => {
   it('the SDK loads the JS core once, when it is imported, in every mode', async () => {
     for (const mode of ['default', 'storybook', 'testing']) {
-      const loadCore = vi.fn(() => nativePickOf(fakeSealedCoreSource(1)));
+      const loadCore = vi.fn(() => nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)));
       __setNativeLoadCore(loadCore);
       __setNativeMode(mode);
       vi.resetModules();
@@ -167,7 +170,8 @@ describe('loading the sealed core', () => {
   });
 
   it('the JavaScript evaluates the core in global scope with indirect eval', async () => {
-    const source = 'var sherloCoreScopeProbe = "global";\n' + fakeSealedCoreSource(1);
+    const source =
+      'var sherloCoreScopeProbe = "global";\n' + fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS);
     __setNativeLoadCore(() => nativePickOf(source));
 
     (await freshLoader()).getSealedCore();
@@ -179,7 +183,7 @@ describe('loading the sealed core', () => {
   });
 
   it('the SDK installs the core with the host it hands it', async () => {
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)));
     const { getSealedCore } = await freshLoader();
     const core = getSealedCore();
 
@@ -199,7 +203,8 @@ describe('loading the sealed core', () => {
         'runner',
         'setCaptureLogSink',
         'storyErrors',
-        'storybookChannelOf',
+        'storybookChannel',
+        'storybookFacts',
         'storyOfTheAppFiber',
         'warn',
       ].sort()
@@ -212,7 +217,7 @@ describe('loading the sealed core', () => {
     const appsOwnFetch = vi.fn(async () => new Response('from the real network'));
     globalThis.fetch = appsOwnFetch as unknown as typeof fetch;
     __setNativeMode('storybook');
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)));
 
     (await freshLoader()).getSealedCore();
     const host = coreOnTheGlobal()!.installedWith as { fetch: typeof fetch };
@@ -239,7 +244,7 @@ describe('loading the sealed core', () => {
   });
 
   it('a core whose seam this SDK does not speak is never installed', async () => {
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(2)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(OLDER_SEAM)));
 
     const { getSealedCore } = await freshLoader();
 
@@ -256,10 +261,10 @@ describe('loading the sealed core', () => {
     expect((await freshCompatibilityCheck())()).toBe(true);
     expect(__getNativeErrors()).toEqual([]);
 
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(2)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(OLDER_SEAM)));
     expect((await freshCompatibilityCheck())()).toBe(false);
     expect(__getNativeErrors()).toEqual([
-      ['ERROR_SDK_COMPATIBILITY', expect.stringContaining('seam 2')],
+      ['ERROR_SDK_COMPATIBILITY', expect.stringContaining(`seam ${OLDER_SEAM}`)],
     ]);
   });
 });
@@ -388,7 +393,9 @@ describe('the core the SDK suite runs against', () => {
     expect(filesImportedBy(TESTS_OF_THE_PACK[0]).filter(fetchesARealCore)).not.toEqual([]);
 
     // With no answer chosen, native code hands the SDK the fake core, and that is the core it runs.
-    expect(JSON.parse(NativeModules.SherloModule.loadCore()).source).toBe(fakeSealedCoreSource(1));
+    expect(JSON.parse(NativeModules.SherloModule.loadCore()).source).toBe(
+      fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)
+    );
     expect((await freshLoader()).getSealedCore()?.version).toBe(FAKE_CORE_VERSION);
   });
 });
@@ -429,7 +436,9 @@ describe('reporting which core ran', () => {
 
   it("in testing mode the app reports which core ran: its origin, its version and the C core's version", async () => {
     __setNativeMode('testing');
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1), 'override', FAKE_CORE_VERSION));
+    __setNativeLoadCore(() =>
+      nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS), 'override', FAKE_CORE_VERSION)
+    );
     (await freshLoader()).getSealedCore();
 
     const start = await startSentByTheCore();

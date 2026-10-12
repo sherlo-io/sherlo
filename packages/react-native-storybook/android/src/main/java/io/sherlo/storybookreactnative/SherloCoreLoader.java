@@ -34,7 +34,7 @@ public class SherloCoreLoader {
 
     // The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in src/sealedCore/loadSealedCore.ts). A core in
     // the storage folder whose header names another seam is never run.
-    private static final int SUPPORTED_SEAM = 1;
+    private static final int SUPPORTED_SEAM = 2;
 
     // THE TEST PUBLIC KEY: X.509 SubjectPublicKeyInfo DER, base64. Its private half is kept nowhere,
     // so a local pack refuses every override core. A release refuses this key and stamps in

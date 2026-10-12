@@ -233,7 +233,7 @@ function startWaitingOnTheLetterbox(view: StorybookView, atTheStoryBrowser: bool
 
 function startWaitingForACapture(view: StorybookView): void {
   try {
-    startCaptureTransport({ view, channel: getStorybookChannel(view) });
+    startCaptureTransport({ channel: getStorybookChannel(view) });
   } catch (_e) {
     // Ignored: a device with no reachable bundler beside it. That costs `sherlo capture` its road
     // into this app and costs the app nothing else, so it is not worth crashing the app a

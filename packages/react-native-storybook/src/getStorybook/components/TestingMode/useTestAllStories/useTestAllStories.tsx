@@ -1,14 +1,11 @@
 import SherloModule from '../../../../SherloModule';
-import { StorybookView } from '../../../../types';
 import { MetadataProviderRef } from '../MetadataProvider';
 import useSetInitialTestingData from './useSetInitialTestingData';
 import useTestStory from './useTestStory';
 
 function useTestAllStories({
-  view,
   metadataProviderRef,
 }: {
-  view: StorybookView;
   metadataProviderRef: React.RefObject<MetadataProviderRef>;
 }) {
   // THE RUNNER'S OWN LOOP - asking the runner for the first list of stories (below) and reporting
@@ -22,13 +19,11 @@ function useTestAllStories({
   const drivenByRunner = SherloModule.getDriver() !== 'capture';
 
   useSetInitialTestingData({
-    view,
     enabled: drivenByRunner,
   });
 
   useTestStory({
     metadataProviderRef,
-    view,
     enabled: drivenByRunner,
   });
 }

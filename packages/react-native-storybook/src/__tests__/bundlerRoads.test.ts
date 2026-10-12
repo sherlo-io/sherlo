@@ -70,17 +70,17 @@ describe("the SDK's road to the bundler's capture address", () => {
     expect(JSON.parse(init.body as string)).toEqual(saying);
   });
 
-  it('is handed to the core with the view and the channel', () => {
+  it('is handed to the core with the channel, and never the view', () => {
     const capture = { waitForACapture: vi.fn() };
     const channel = makeChannel();
 
-    startCaptureTransport({ view, channel, capture });
+    startCaptureTransport({ channel, capture });
 
-    expect(lastHandedTo('startCaptureTransport')).toEqual({ view, channel, capture });
+    expect(lastHandedTo('startCaptureTransport')).toEqual({ channel, capture });
   });
 
   it("is the bundler's own road when the SDK is handed none", () => {
-    startCaptureTransport({ view, channel: makeChannel() });
+    startCaptureTransport({ channel: makeChannel() });
 
     const { capture } = lastHandedTo('startCaptureTransport') as {
       capture: { waitForACapture: unknown };
@@ -92,7 +92,7 @@ describe("the SDK's road to the bundler's capture address", () => {
     delete NativeModules.SourceCode;
 
     expect(bundlerCapture()).toBeNull();
-    startCaptureTransport({ view, channel: makeChannel() });
+    startCaptureTransport({ channel: makeChannel() });
 
     expect(lastHandedTo('startCaptureTransport')).toBeUndefined();
   });
@@ -113,7 +113,7 @@ describe("the SDK's road to the bundler's letterbox", () => {
     expect(JSON.parse(init.body as string)).toEqual(saying);
   });
 
-  it('is handed to the core with the view, the channel and where the app stands', () => {
+  it('is handed to the core with the channel and where the app stands, and never the view', () => {
     const letterbox = { waitForStory: vi.fn() };
     const channel = makeChannel();
     // A Storybook already showing a story: the letterbox opens once it is (openStoryChannel.test.ts).
@@ -130,7 +130,6 @@ describe("the SDK's road to the bundler's letterbox", () => {
     });
 
     expect(lastHandedTo('startOpenStoryChannel')).toEqual({
-      view: storybookShowingAStory,
       channel,
       atTheStoryBrowser: true,
       letterbox,

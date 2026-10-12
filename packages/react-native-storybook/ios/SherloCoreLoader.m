@@ -10,7 +10,7 @@ static NSString *const HEADER_PREFIX = @"// sherlo-core ";
 
 // The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in src/sealedCore/loadSealedCore.ts). A core in
 // the storage folder whose header names another seam is never run.
-static const NSInteger SUPPORTED_SEAM = 1;
+static const NSInteger SUPPORTED_SEAM = 2;
 
 // THE TEST PUBLIC KEY: PKCS#1 RSAPublicKey DER, base64. Its private half is kept nowhere, so a
 // local pack refuses every override core. A release refuses this key and stamps in Sherlo's real
