@@ -43,7 +43,7 @@ import type { BundleResult } from './buildBundle';
 import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
-import type { BuildFlags } from './appBuild/buildSettings';
+import { type BuildFlags, readBuildSettings } from './appBuild/buildSettings';
 import {
   applyBundleToPlatformConfig,
   realBundleUploadEffects,
@@ -169,6 +169,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       platformsToTest,
       bundleDir: emitBundleDirPath,
       baseFingerprint: fpResult,
+      buildSettings: readBuildSettings(commandParams),
     });
     return { url: '' };
   }
@@ -245,6 +246,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     ({ results: bundles, gateMetadata } = await buildBundles({
       projectRoot: commandParams.projectRoot,
       platformsToTest,
+      buildSettings: readBuildSettings(commandParams),
     }));
   }
 
