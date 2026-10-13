@@ -1,28 +1,24 @@
 /**
- * THE BUNDLING LOOP AND THE WHOLE \`--dry-run\` TRANSCRIPT.
+ * THE BUNDLING LOOP.
  *
  * Lifted out of ./stagedRun so an expectation producer can run THIS code rather
  * than a re-implementation of it, and so importing it does not drag the staged
- * road (and its sdk-client) along. Nothing about what these functions print
- * changed on the way here: every literal they used to spell inline now lives in
- * ../../render, reached through the segment sink.
+ * road (and its sdk-client) along. Every literal it prints lives in ../../render,
+ * reached through the segment sink.
  */
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import { reporting } from '../../helpers';
-import type { GitInfo } from '../../helpers/getGitInfo';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
 import type { BundleResult } from './buildBundle';
 import type { BuildSettings } from './appBuild/buildSettings';
 import { bundler, liveBundler, type Bundler } from '../../seams/bundler';
 import { whileShowing } from '../shared/terminal';
-import { runDryRunPreview } from './dryRun';
 
 /**
  * Build the production bundle + assets for every platform and, alongside each,
- * the REAL gate metadata derived from it. Both the dry run and the live run
- * bundle through this exact path, so a preview can never diverge from the run
- * it is previewing.
+ * the REAL gate metadata derived from it. The live run bundles through this
+ * exact path.
  *
  * A bundling failure is user-facing, so it is printed and exits here rather than
  * propagating as a crash.
@@ -36,71 +32,6 @@ import { runDryRunPreview } from './dryRun';
  * see. Nothing else here is substitutable, and nothing else needs to be.
  */
 export const REAL_BUNDLING_EFFECTS: BundlingEffects = liveBundler;
-
-/**
- * THE WHOLE `--dry-run` TRANSCRIPT, from the bundling header to the closer.
- *
- * Extracted out of {@link stagedRun}'s dry-run branch so an expectation producer
- * runs THIS function rather than a re-implementation of it. The producer supplies
- * the three effects a dry run performs - bundling, the git read, and the
- * read-only decision query (which reaches this code as `token`, a parameter
- * `runDryRunPreview` already had) - and the segment order, the bail-open
- * branching and every literal come from the shipped code, unforked.
- */
-export async function runDryRunFlow({
-  projectRoot,
-  platformsToTest,
-  token,
-  projectIndex,
-  teamId,
-  baseFingerprint,
-  resolveGitInfo,
-  buildSettings,
-  effects,
-  include,
-  exclude,
-}: {
-  projectRoot: string;
-  platformsToTest: Platform[];
-  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
-  token: string;
-  projectIndex: number;
-  teamId: string;
-  baseFingerprint: string;
-  resolveGitInfo: () => Promise<GitInfo>;
-  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
-  buildSettings: BuildSettings;
-  effects?: BundlingEffects;
-  /**
-   * The config's include/exclude lists - the SAME narrowing a real build sends via
-   * getBuildRunConfig, passed straight through to the preview. Absent when the config names none.
-   */
-  include?: string[];
-  exclude?: string[];
-}): Promise<void> {
-  emit({ kind: 'dry-run-bundling-header' });
-
-  const bundles = await buildBundles({
-    projectRoot,
-    platformsToTest,
-    buildSettings,
-    ...(effects ? { effects } : {}),
-  });
-
-  const gitInfo = await resolveGitInfo();
-
-  await runDryRunPreview({
-    token,
-    bundles: bundles.results,
-    platformsToTest,
-    projectIndex,
-    teamId,
-    gitInfo,
-    baseReference: baseFingerprint,
-    include,
-    exclude,
-  });
-}
 
 /**
  * The two awaits the bundling loop wraps its transcript around. Declared by the seam that owns

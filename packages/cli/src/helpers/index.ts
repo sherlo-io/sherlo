@@ -1,6 +1,5 @@
 export { default as getValidatedBinariesInfoAndNextBuildIndex } from './getValidatedBinariesInfoAndNextBuildIndex';
 export { default as getValidatedCommandParams } from './getValidatedCommandParams';
-export { default as printBuildIntroMessage } from './printBuildIntroMessage';
 export { default as runShellCommand } from './runShellCommand';
 export { default as uploadOrPrintBinaryReuse } from './uploadOrPrintBinaryReuse';
 

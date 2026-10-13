@@ -2,7 +2,7 @@ import { emit } from './transcriptSink';
 
 /**
  * The generic `➜ ` / `✔ ` build line, for the call sites that compose their own
- * message string (testEasCloudBuild, getBuildData).
+ * message string (getBuildData).
  *
  * The push spine does NOT go through here any more - its two lines carry data
  * (`binary-uploading`, `binary-reused`) so a scenario cannot hand a rendered

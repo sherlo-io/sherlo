@@ -140,16 +140,6 @@ async function computeRawViolations(): Promise<DoorViolation[]> {
  */
 const DIRECTORY_EXCEPTIONS: { dir: string; door: DoorViolation['door']; reason: string }[] = [
   {
-    dir: 'commands/testEasCloudBuild',
-    door: 'sdk-client',
-    reason: "a command that runs inside Expo's build service and is not posable",
-  },
-  {
-    dir: 'commands/testEasCloudBuild',
-    door: 'node-core',
-    reason: "a command that runs inside Expo's build service and is not posable",
-  },
-  {
     dir: 'commands/pose',
     door: 'fs-root',
     reason: 'the devtools that install the seams',
@@ -373,12 +363,6 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
     of: 'helpers/fingerprint/gateMetadata.ts',
     reason:
       "wraps extractGateMetadata as its own default effect, but the one non-exempt caller (uploadOrReuseBuildsAndRunTests.ts) always overrides it with nativeBuild()'s - this default is never reached",
-  },
-  {
-    file: 'commands/test/dryRun.ts',
-    of: 'helpers/getGitInfo.ts',
-    reason:
-      'imports only isGitInfoUnavailable, a pure predicate over an already-resolved GitInfo - it runs no git command',
   },
 ];
 
