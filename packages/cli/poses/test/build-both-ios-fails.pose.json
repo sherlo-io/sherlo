@@ -1,0 +1,51 @@
+{
+  "pose": 1,
+  "argv": ["test"],
+  "files": {
+    "sherlo.config.json": {
+      "devices": [
+        { "id": "pixel.7", "osVersion": "13" },
+        { "id": "iphone.15", "osVersion": "17" }
+      ]
+    },
+    ".sherlo/builds/android/app-release.apk": "the app build the posed compile wrote - what the tool reads out of it is `push`"
+  },
+  "env": { "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "checkStagedGate",
+      "with": { "platform": "android", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "answer": { "outcome": "full-build-needed", "diff": ["buildMetadata"], "storedBuildIndex": 12 }
+    },
+    {
+      "call": "checkStagedGate",
+      "with": { "platform": "ios", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "answer": { "outcome": "full-build-needed", "diff": ["buildMetadata"], "storedBuildIndex": 12 }
+    }
+  ],
+  "masks": {},
+  "appBuild": {
+    "host": "macos",
+    "tools": ["android-sdk", "xcode"],
+    "java": 17,
+    "iosSchemes": ["Storefront"],
+    "platforms": {
+      "android": { "built": ".sherlo/builds/android/app-release.apk", "sizeMb": "53.90", "seconds": 252 },
+      "ios": {
+        "failed": {
+          "seconds": 95,
+          "lastLines": [
+            "/Storefront/AppDelegate.swift:18:8: error: no such module 'MapsKit'",
+            "** BUILD FAILED **"
+          ]
+        }
+      }
+    }
+  }
+}
