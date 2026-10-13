@@ -34,10 +34,10 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify --external @expo/fingerprint --external @napi-rs/keyring && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "build": "rm -rf dist && esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --minify --keep-names --sourcemap --external:@expo/fingerprint --external:@napi-rs/keyring --outfile=dist/index.js && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
     "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
-    "check:pose-contract": "yarn run -T ts-node --transpile-only scripts/generate-pose-contract.ts --check",
-    "generate:pose-contract": "yarn run -T ts-node --transpile-only scripts/generate-pose-contract.ts",
+    "check:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts --check",
+    "generate:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts",
     "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint --ext .ts,.tsx,.mjs src ../../actions/lib",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
@@ -61,10 +61,10 @@
     "@types/node-fetch": "^2.6.4",
     "@types/prompts": "^2.4.9",
     "@types/tar": "^6.1.5",
-    "@vercel/ncc": "latest",
     "ansi-escapes": "^7.2.0",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
+    "esbuild": "^0.25.0",
     "fast-glob": "^3.3.3",
     "find-up": "^7.0.0",
     "gradient-string": "^2.0.1",

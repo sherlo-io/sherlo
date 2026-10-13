@@ -44,7 +44,7 @@
     "eslint": "8.24.0",
     "lerna": "^9.0.3",
     "prettier": "2.8.8",
-    "ts-node": "^10.9.1",
+    "tsx": "^4.20.0",
     "typescript": "^5.3.3"
   },
   "engines": {

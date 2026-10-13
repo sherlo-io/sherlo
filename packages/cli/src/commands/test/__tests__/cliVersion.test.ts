@@ -3,7 +3,7 @@
  *
  * The sidecar and the fingerprint document both record `cliVersion`, and it has to
  * be the CLI's version wherever the code happens to sit: `src/commands/test` when
- * run from source, `dist` after the ncc build flattens every module into one file,
+ * run from source, `dist` after the bundler flattens every module into one file,
  * and `node_modules/sherlo/dist` once installed in somebody's project. A fixed
  * number of `..` hops cannot be right in all three - in the installed layout it
  * walked past the CLI and read the CONSUMER's package.json, so every sidecar
@@ -44,7 +44,7 @@ function installedCli({
 }
 
 describe('the CLI version recorded in a sidecar', () => {
-  it("is the CLI's own version in the installed, ncc-built layout", () => {
+  it("is the CLI's own version in the installed, bundled layout", () => {
     const { distDir } = installedCli({
       cliManifest: { name: 'sherlo', version: '2.0.2' },
     });

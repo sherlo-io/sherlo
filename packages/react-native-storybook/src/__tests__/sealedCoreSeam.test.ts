@@ -4,9 +4,9 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { COMPILED_CORE_NATIVE_METHODS, COMPILED_CORE_R8_KEEP_RULE } from '../sealedCore/seam';
+import { importedModules } from './importedModules';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -19,15 +19,9 @@ const CONSUMER_RULES = path.join(SDK_ROOT, 'android', 'consumer-rules.pro');
 
 describe('the seam', () => {
   it('the seam imports nothing from the rest of the SDK', () => {
-    const seamSource = fs.readFileSync(SEAM_FILE, 'utf8');
-
     // Every import, `export ... from`, `import()` and `require()` the file makes, as the compiler
     // reads them.
-    const imported = ts
-      .preProcessFile(seamSource, true, true)
-      .importedFiles.map((importedFile) => importedFile.fileName);
-
-    expect(imported).toEqual([]);
+    expect(importedModules(SEAM_FILE)).toEqual([]);
   });
 
   it('the seam lists every native method of CompiledCore and the R8 rule that keeps them', () => {
