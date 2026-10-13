@@ -77,6 +77,8 @@ jobs:
             sdk.name = '@sherlo-io/react-native-storybook';
             sdk.version = '${TEST_VERSION}';
             sdk.publishConfig = { registry: 'https://npm.pkg.github.com', access: 'restricted' };
+            // The test SDK must use the test CLI from the same release.
+            sdk.dependencies.sherlo = 'npm:@sherlo-io/cli@${TEST_VERSION}';
             fs.writeFileSync('packages/react-native-storybook/package.json', JSON.stringify(sdk, null, 2) + '\n');
           "
 

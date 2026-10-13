@@ -57,11 +57,9 @@
 //
 // No customer configuration is required. No env vars. No build flags.
 //
-
-// Protocol file constants - keep in sync with src/constants.ts.
-// polyfill.js cannot import from compiled dist/ (it runs before the bundle is fully evaluated).
-var LOG_FILE = 'log.sherlo';
-var PROTOCOL_FILE = 'protocol.sherlo';
+// What the polyfill reports goes over the app's connection, through native code's sendMessage,
+// as the messages src/sealedCore/seam.ts types. It writes no file.
+//
 
 (function () {
   if (typeof globalThis === 'undefined') return;
@@ -130,22 +128,11 @@ var PROTOCOL_FILE = 'protocol.sherlo';
     }
   }
 
-  // Stash a reference to the SDK's wrapped SherloModule when we see it.
-  // Shape: object with appendFile + getMode + sendNativeError functions.
-  // The SDK wrapper handles utf8 + base64 encoding, which the raw TurboModule
-  // expects. Calling the raw TurboModule directly with a plain JSON string
-  // would write garbled binary to protocol.sherlo (decoded as base64).
-  function maybeCaptureSherloModule(_e) {
-    if (global.__sherloModuleRef) return;
-    if (!_e) return;
-    var candidate = _e.default || _e;
-    if (
-      candidate &&
-      typeof candidate.appendFile === 'function' &&
-      typeof candidate.getMode === 'function' &&
-      typeof candidate.sendNativeError === 'function'
-    ) {
-      global.__sherloModuleRef = candidate;
+  // Send one message over the app's connection, as JSON, through native code's sendMessage.
+  function sendOverTheConnection(message) {
+    var nm = getSherloNativeModule();
+    if (nm && typeof nm.sendMessage === 'function') {
+      nm.sendMessage(JSON.stringify(message));
     }
   }
 
@@ -197,17 +184,15 @@ var PROTOCOL_FILE = 'protocol.sherlo';
         };
         SherloErrorBoundaryP.prototype.componentDidCatch = function (error, _info) {
           try {
-            var sherloMod = global.__sherloModuleRef;
-            if (sherloMod && typeof sherloMod.appendFile === 'function') {
-              var data = {
+            sendOverTheConnection({
+              action: 'JS_ERROR',
+              data: {
                 name: (error && error.name) || 'Error',
                 message: (error && error.message) || String(error),
                 stack: (error && error.stack) || '',
                 componentStack: '',
-              };
-              var entry = { action: 'JS_ERROR', timestamp: Date.now(), entity: 'app', data: data };
-              sherloMod.appendFile(PROTOCOL_FILE, JSON.stringify(entry) + '\n');
-            }
+              },
+            });
           } catch (_) {}
           try {
             if (global.ErrorUtils && typeof global.ErrorUtils.reportFatalError === 'function') {
@@ -397,9 +382,6 @@ var PROTOCOL_FILE = 'protocol.sherlo';
           try {
             maybeCaptureReact(exportsObj);
           } catch (_) {}
-          try {
-            maybeCaptureSherloModule(exportsObj);
-          } catch (_) {}
           // Prong 1 - patch global.RN$AppRegistry directly (new arch).
           // The setter trap on exportsObj.AppRegistry gets overwritten by RN's own
           // getter-only Object.defineProperty redefinition (spike finding #1), so we
@@ -450,13 +432,7 @@ var PROTOCOL_FILE = 'protocol.sherlo';
             (typeof sherloNm.getConstants === 'function' && sherloNm.getConstants()) || {};
           var mode = turboConsts.mode || nativeConsts.mode;
           if (mode !== 'testing') return;
-          var ref = global.__sherloModuleRef;
-          if (ref && typeof ref.sendNativeError === 'function') {
-            ref.sendNativeError(
-              'ERROR_STORYBOOK_NOT_DISPLAYED',
-              'Storybook did not appear within 10s of app launch'
-            );
-          } else if (typeof sherloNm.sendNativeError === 'function') {
+          if (typeof sherloNm.sendNativeError === 'function') {
             sherloNm.sendNativeError(
               'ERROR_STORYBOOK_NOT_DISPLAYED',
               'Storybook did not appear within 10s of app launch',

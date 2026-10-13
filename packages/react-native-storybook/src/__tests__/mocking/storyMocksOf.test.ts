@@ -3,48 +3,38 @@
  * storyMocksOf): the cases a person's Storybook meets that the activation tests do not.
  */
 import { storyMocksOf } from '../../mocking/storyMocksOf';
-import type { StorybookView } from '../../types';
+import {
+  __resetStorybookFactsForTests,
+  recordWhatStartWasHanded,
+} from '../../getStorybook/storybookFacts';
+import { startStorybookHolding } from './storybookHolding';
 
 afterEach(() => {
-  delete (globalThis as { STORIES?: unknown }).STORIES;
+  __resetStorybookFactsForTests();
 });
-
-/** Storybook's view holding `entries` in its index, and `projectMocks` in its composed preview. */
-function storybookView(
-  entries: Record<string, { name: string; importPath: string }>,
-  projectMocks: Record<string, unknown> = {}
-): StorybookView {
-  return {
-    _storyIndex: { entries },
-    _preview: {
-      storyStoreValue: { projectAnnotations: { parameters: { sherlo: { mocks: projectMocks } } } },
-    },
-  } as unknown as StorybookView;
-}
-
-/** One folder of story files, "./src", holding `filename` with `fileExports`. */
-function storyFiles(filename: string, fileExports: Record<string, unknown>): void {
-  const req = Object.assign((_filename: string) => fileExports, { keys: () => [filename] });
-  (globalThis as { STORIES?: unknown }).STORIES = [{ directory: './src', req }];
-}
 
 describe('storyMocksOf finds the selected story through Storybook’s index', () => {
   it('finds the story of a file with no title of its own (auto-titled)', () => {
-    storyFiles('./AutoTitled.stories.tsx', {
-      default: {
-        component: function AutoTitled() {
-          return null;
+    startStorybookHolding(
+      [
+        {
+          importPath: './src/AutoTitled.stories.tsx',
+          fileExports: {
+            default: {
+              component: function AutoTitled() {
+                return null;
+              },
+              parameters: { sherlo: { mocks: { 'pkg/b': { value: 'file-b' } } } },
+            },
+            Basic: { parameters: { sherlo: { mocks: { 'pkg/c': { value: 'story-c' } } } } },
+          },
+          stories: [{ id: 'autotitled--basic', name: 'Basic' }],
         },
-        parameters: { sherlo: { mocks: { 'pkg/b': { value: 'file-b' } } } },
-      },
-      Basic: { parameters: { sherlo: { mocks: { 'pkg/c': { value: 'story-c' } } } } },
-    });
-    const view = storybookView(
-      { 'autotitled--basic': { name: 'Basic', importPath: './src/AutoTitled.stories.tsx' } },
+      ],
       { 'pkg/a': { value: 'project-a' } }
     );
 
-    expect(storyMocksOf(view, 'autotitled--basic')).toEqual({
+    expect(storyMocksOf('autotitled--basic')).toEqual({
       'pkg/a': { value: 'project-a' },
       'pkg/b': { value: 'file-b' },
       'pkg/c': { value: 'story-c' },
@@ -55,30 +45,88 @@ describe('storyMocksOf finds the selected story through Storybook’s index', ()
     const Primary = Object.assign(() => null, {
       story: { parameters: { sherlo: { mocks: { 'pkg/c': { value: 'story-c' } } } } },
     });
-    storyFiles('./Button.stories.tsx', { default: { title: 'Components/Button' }, Primary });
-    const view = storybookView({
-      'components-button--primary': { name: 'Primary', importPath: './src/Button.stories.tsx' },
-    });
+    startStorybookHolding([
+      {
+        importPath: './src/Button.stories.tsx',
+        fileExports: { default: { title: 'Components/Button' }, Primary },
+        stories: [{ id: 'components-button--primary', name: 'Primary' }],
+      },
+    ]);
 
-    expect(storyMocksOf(view, 'components-button--primary')).toEqual({
+    expect(storyMocksOf('components-button--primary')).toEqual({
       'pkg/c': { value: 'story-c' },
     });
   });
 
   it('gives only the project’s mocks to a story whose file is not among the story files', () => {
-    storyFiles('./Other.stories.tsx', { default: { title: 'Other' }, Default: {} });
-    const view = storybookView(
-      { 'missing--default': { name: 'Default', importPath: './src/Missing.stories.tsx' } },
+    startStorybookHolding(
+      [
+        {
+          importPath: './src/Missing.stories.tsx',
+          stories: [{ id: 'missing--default', name: 'Default' }],
+        },
+      ],
       { 'pkg/a': { value: 'project-a' } }
     );
 
-    expect(storyMocksOf(view, 'missing--default')).toEqual({ 'pkg/a': { value: 'project-a' } });
+    expect(storyMocksOf('missing--default')).toEqual({ 'pkg/a': { value: 'project-a' } });
   });
 
   it('gives no mocks to a story id Storybook’s index does not hold', () => {
-    storyFiles('./Button.stories.tsx', { default: { title: 'Components/Button' }, Primary: {} });
-    const view = storybookView({}, { 'pkg/a': { value: 'project-a' } });
+    startStorybookHolding(
+      [
+        {
+          importPath: './src/Button.stories.tsx',
+          fileExports: { default: { title: 'Components/Button' }, Primary: {} },
+          stories: [],
+        },
+      ],
+      { 'pkg/a': { value: 'project-a' } }
+    );
 
-    expect(storyMocksOf(view, 'components-button--primary')).toEqual({});
+    expect(storyMocksOf('components-button--primary')).toEqual({});
+  });
+
+  it('gives no mocks before Storybook has started', () => {
+    expect(storyMocksOf('components-button--primary')).toEqual({});
+  });
+
+  it("reads the project's mocks from the preview annotations Storybook's start was handed, with no wait", () => {
+    // What Storybook's generated requires file hands start(): one folder of story files, and the
+    // project's preview as an ES module, its annotations on its default export.
+    const storyFile = {
+      default: { title: 'Mocking/Config' },
+      Default: { parameters: { sherlo: { mocks: { 'pkg/story': { value: 'story' } } } } },
+    };
+    const req = Object.assign((_filename: string) => storyFile, {
+      keys: () => ['./Config.stories.tsx'],
+    });
+    const preview = {
+      default: { parameters: { sherlo: { mocks: { 'pkg/config': { flag: 'project' } } } } },
+    };
+    // Storybook's own prepareStories, as much of it as indexes this one story.
+    const prepareStories = () => ({
+      index: {
+        entries: {
+          'mocking-config--default': {
+            id: 'mocking-config--default',
+            title: 'Mocking/Config',
+            name: 'Default',
+            importPath: './src/Config.stories.tsx',
+          },
+        },
+      },
+    });
+
+    recordWhatStartWasHanded(
+      { storyEntries: [{ directory: './src', req }], annotations: [preview] },
+      prepareStories
+    );
+
+    // Read at once, in the same turn start() runs - before any story renders.
+    expect(storyMocksOf('mocking-config--default')).toEqual({
+      'pkg/config': { flag: 'project' },
+      'pkg/story': { value: 'story' },
+    });
   });
 });

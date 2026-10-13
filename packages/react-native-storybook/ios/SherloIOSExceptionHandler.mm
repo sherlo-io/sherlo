@@ -1,7 +1,5 @@
 #import "SherloIOSExceptionHandler.h"
 #import "SherloModuleCore.h"
-#import "FileSystemHelper.h"
-#import "ProtocolHelper.h"
 #import <objc/runtime.h>
 
 #if !RCT_NEW_ARCH_ENABLED
@@ -26,8 +24,8 @@
 @end
 #endif
 
-// Dedupe flag - set to YES after the first JS_ERROR is written to protocol.sherlo.
-static BOOL sJsErrorWritten = NO;
+// Dedupe flag - set to YES once the first JS_ERROR was sent over the connection.
+static BOOL sJsErrorSent = NO;
 
 #if !RCT_NEW_ARCH_ENABLED
 
@@ -184,76 +182,56 @@ static SherloJsErrorCpp sherloReadLastJsError(void *runtimePtr) {
 
 #endif
 
-// Helper: append a diag line to sherlo-diag.log via a freshly-allocated FileSystemHelper.
-// Safe to call from any thread; never throws.
-static void sherloAppendDiagLine(NSString *msg) {
-    @try {
-        FileSystemHelper *diagFs = [[FileSystemHelper alloc] init];
-        NSString *line = [NSString stringWithFormat:@"%@\n", msg];
-        [diagFs appendFile:@"sherlo-diag.log" content:line];
-    } @catch (...) {}
-}
-
 @implementation SherloIOSExceptionHandler
 
 // Installs the swizzles once via dispatch_once.
 // On new arch the body is a no-op; on old arch two methods are swizzled.
 + (void)install {
-    NSLog(@"[diag iOS] SherloIOSExceptionHandler initialized at module-load");
-    sherloAppendDiagLine(@"[diag iOS] SherloIOSExceptionHandler initialized at module-load");
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
 #if !RCT_NEW_ARCH_ENABLED
         [self swizzleRCTExceptionsManager];
         [self swizzleRCTCxxBridge];
-#else
-        NSLog(@"[diag iOS] new-arch: skipping swizzle installs (RCT_NEW_ARCH_ENABLED)");
-        sherloAppendDiagLine(@"[diag iOS] new-arch: skipping swizzle installs (RCT_NEW_ARCH_ENABLED)");
 #endif
     });
 }
 
++ (void)javaScriptStarted {
+    sJsErrorSent = NO;
+}
+
 #if !RCT_NEW_ARCH_ENABLED
 
-// Swizzles RCTExceptionsManager.reportFatalException:stack:exceptionId: to write
-// a JS_ERROR protocol entry when a fatal JS exception is thrown.
-// Only writes if in testing mode and no error has been written yet.
+// Swizzles RCTExceptionsManager.reportFatalException:stack:exceptionId: to send
+// a JS_ERROR over the connection when a fatal JS exception is thrown, and wait until
+// the socket took it before the app goes on to die.
+// Only sends if in testing mode and no error has been sent in this start of the JavaScript.
 + (void)swizzleRCTExceptionsManager {
-    NSLog(@"[diag iOS] RCTExceptionsManager.reportFatalException: swizzle installing");
-    sherloAppendDiagLine(@"[diag iOS] RCTExceptionsManager.reportFatalException: swizzle installing");
     Class cls = [RCTExceptionsManager class];
     SEL sel = @selector(reportFatalException:stack:exceptionId:);
     Method method = class_getInstanceMethod(cls, sel);
     if (!method) {
-        NSLog(@"[diag iOS] RCTExceptionsManager.reportFatalException: method not found - swizzle skipped");
-        sherloAppendDiagLine(@"[diag iOS] RCTExceptionsManager.reportFatalException: method not found - swizzle skipped");
+        NSLog(@"[SherloModule:ExceptionHandler] RCTExceptionsManager.reportFatalException: not found - its errors are not reported");
         return;
     }
 
-    FileSystemHelper *fs = [[FileSystemHelper alloc] init];
     IMP originalIMP = method_getImplementation(method);
 
     IMP newIMP = imp_implementationWithBlock(^(id selfObj, NSString *message, NSArray *stack, double exceptionId) {
-        NSLog(@"[diag iOS] reportFatalException: swizzle FIRED with message: %@", message ?: @"(nil)");
-        sherloAppendDiagLine([NSString stringWithFormat:@"[diag iOS] reportFatalException: swizzle FIRED with message: %@", message ?: @"(nil)"]);
-        if (!sJsErrorWritten && [[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
-            sJsErrorWritten = YES;
-            NSString *stackStr = formatStack(stack);
-            [ProtocolHelper writeEarlyJsError:fs
-                                         name:@"Error"
-                                      message:message ?: @"Fatal JS exception"
-                                        stack:stackStr];
+        if (!sJsErrorSent && [[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
+            sJsErrorSent = YES;
+            [SherloModuleCore sendJsErrorAndWait:@"Error"
+                                         message:message ?: @"Fatal JS exception"
+                                           stack:formatStack(stack)];
         }
         typedef void (*Fn)(id, SEL, NSString *, NSArray *, double);
         ((Fn)originalIMP)(selfObj, sel, message, stack, exceptionId);
     });
 
     method_setImplementation(method, newIMP);
-    NSLog(@"[diag iOS] RCTExceptionsManager.reportFatalException: swizzle installed");
-    sherloAppendDiagLine(@"[diag iOS] RCTExceptionsManager.reportFatalException: swizzle installed");
 }
 
-// Swizzles RCTCxxBridge.handleError: to write a JS_ERROR entry for bridge-level
+// Swizzles RCTCxxBridge.handleError: to send a JS_ERROR for bridge-level
 // errors (e.g. bundle eval crashes on old-arch where BatchedBridge is not ready).
 //
 // When a JS module factory throws before BatchedBridge is initialised, the bridge
@@ -267,30 +245,19 @@ static void sherloAppendDiagLine(NSString *msg) {
 // is torn down.  The Runtime is still alive and idle, making JSI reads safe.
 // Falls back to error.localizedDescription if the JSI read fails or finds nothing.
 + (void)swizzleRCTCxxBridge {
-    NSLog(@"[diag iOS] RCTCxxBridge.handleError: swizzle installing");
-    sherloAppendDiagLine(@"[diag iOS] RCTCxxBridge.handleError: swizzle installing");
     Class cls = NSClassFromString(@"RCTCxxBridge");
-    if (!cls) {
-        NSLog(@"[diag iOS] RCTCxxBridge.handleError: class not found - swizzle skipped");
-        sherloAppendDiagLine(@"[diag iOS] RCTCxxBridge.handleError: class not found - swizzle skipped");
-        return;
-    }
     SEL sel = NSSelectorFromString(@"handleError:");
-    Method method = class_getInstanceMethod(cls, sel);
+    Method method = cls ? class_getInstanceMethod(cls, sel) : nil;
     if (!method) {
-        NSLog(@"[diag iOS] RCTCxxBridge.handleError: method not found - swizzle skipped");
-        sherloAppendDiagLine(@"[diag iOS] RCTCxxBridge.handleError: method not found - swizzle skipped");
+        NSLog(@"[SherloModule:ExceptionHandler] RCTCxxBridge.handleError: not found - its errors are not reported");
         return;
     }
 
-    FileSystemHelper *fs = [[FileSystemHelper alloc] init];
     IMP originalIMP = method_getImplementation(method);
 
     IMP newIMP = imp_implementationWithBlock(^(id selfObj, NSError *error) {
-        NSLog(@"[diag iOS] handleError: swizzle FIRED with error: %@", error.localizedDescription ?: @"(nil)");
-        sherloAppendDiagLine([NSString stringWithFormat:@"[diag iOS] handleError: swizzle FIRED with error: %@", error.localizedDescription ?: @"(nil)"]);
-        if (!sJsErrorWritten && [[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
-            sJsErrorWritten = YES;
+        if (!sJsErrorSent && [[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
+            sJsErrorSent = YES;
 
             NSString *name  = @"Error";
             NSString *msg   = nil;
@@ -317,15 +284,13 @@ static void sherloAppendDiagLine(NSString *msg) {
                 msg = error.localizedDescription ?: @"RCTCxxBridge error";
             }
 
-            [ProtocolHelper writeEarlyJsError:fs name:name message:msg stack:stack];
+            [SherloModuleCore sendJsErrorAndWait:name message:msg stack:stack];
         }
         typedef void (*Fn)(id, SEL, NSError *);
         ((Fn)originalIMP)(selfObj, sel, error);
     });
 
     method_setImplementation(method, newIMP);
-    NSLog(@"[diag iOS] RCTCxxBridge.handleError: swizzle installed");
-    sherloAppendDiagLine(@"[diag iOS] RCTCxxBridge.handleError: swizzle installed");
 }
 
 #endif

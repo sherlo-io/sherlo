@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { StorybookView } from '../../../../types';
 import { getSealedCore } from '../../../../sealedCore/loadSealedCore';
 
 /**
@@ -7,14 +6,12 @@ import { getSealedCore } from '../../../../sealedCore/loadSealedCore';
  * startTestSession). With no core, Sherlo's features are off.
  */
 function useSetInitialTestingData({
-  view,
   enabled = true,
 }: {
-  view: StorybookView;
   /**
-   * Whether this boot may start the protocol-file handshake at all - false for a capture, which
-   * has no runner behind it to answer this (see useTestAllStories, the one place that reads
-   * SherloModule.getDriver() to decide). Defaults to true.
+   * Whether this boot may send the runner its stories at all - false for a capture, which has no
+   * runner behind it to answer this (see useTestAllStories, the one place that decides).
+   * Defaults to true.
    */
   enabled?: boolean;
 }): void {
@@ -22,7 +19,7 @@ function useSetInitialTestingData({
     const core = getSealedCore();
     if (!enabled || !core) return;
 
-    core.startTestSession(view);
+    core.startTestSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

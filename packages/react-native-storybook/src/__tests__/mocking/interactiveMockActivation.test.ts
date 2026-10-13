@@ -1,3 +1,8 @@
+/**
+ * A person's Storybook (Storybook mode): every story they open has its mocks installed by Sherlo's
+ * one loader (../../getStorybook/sherloAnnotation), the story Storybook opens on as much as each
+ * one they pick after it. No story-changed event is listened to.
+ */
 vi.mock('../../SherloModule', () => ({
   default: {
     getMode: vi.fn().mockReturnValue('storybook'),
@@ -8,132 +13,95 @@ vi.mock('../../helpers/RunnerBridge', () => ({
   default: { log: vi.fn(), send: vi.fn() },
 }));
 
+// No React is installed beside this package: rendering here is calling each component at once.
+const { renderAtOnce } = vi.hoisted(() => ({
+  renderAtOnce: (type: unknown, props: Record<string, unknown>) =>
+    typeof type === 'function' ? type(props) : null,
+}));
+vi.mock('react', () => ({ default: {} }));
+vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: renderAtOnce, Fragment: Symbol('Fragment') }));
+vi.mock('react/jsx-runtime', () => ({ jsx: renderAtOnce, jsxs: renderAtOnce, Fragment: Symbol() }));
+vi.mock('../../getStorybook/components/SherloStoryErrorBoundary', () => ({
+  default: ({ children }: { children: unknown }) => children,
+}));
+vi.mock('../../storyOfTheApp', () => ({
+  StoryOfTheApp: ({ children }: { children: unknown }) => children,
+}));
+
 import createMockable from '../../mocking/createMockable';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
-import {
-  startInteractiveMockActivation,
-  stopInteractiveMockActivation,
-  __resetInteractiveMockActivationForTests,
-} from '../../getStorybook/interactiveMockActivation';
-import type { StorybookView } from '../../types';
+import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
+import { startStorybookHolding } from './storybookHolding';
+import { storyAsStorybookComposesIt } from './storyComposedByStorybook';
 
-// A minimal stand-in for Storybook's channel: records on()/off() and lets a test
-// emit an event to whatever listener the SDK bound.
-function makeChannel() {
-  const listeners: Record<string, ((...args: unknown[]) => void)[]> = {};
-  return {
-    on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-      (listeners[event] ??= []).push(listener);
-    }),
-    off: vi.fn(),
-    emit(event: string, ...args: unknown[]) {
-      (listeners[event] ?? []).forEach((listener) => listener(...args));
+const TITLE = 'Mocking/Switch';
+
+// A Storybook holding two stories, each declaring a distinct story-level mock for the same module.
+function startStorybookWithTwoStories(): void {
+  startStorybookHolding([
+    {
+      importPath: './src/Switch.stories.tsx',
+      title: TITLE,
+      fileExports: {
+        default: { title: TITLE },
+        Interactive: {
+          parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'interactive-mock' } } } },
+        },
+        Other: {
+          parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'other-mock' } } } },
+        },
+      },
+      stories: [
+        { id: 'mocking-switch--interactive', name: 'Interactive' },
+        { id: 'mocking-switch--other', name: 'Other' },
+      ],
     },
-  };
+  ]);
 }
 
-// Registers a STORIES require.context with two stories, each declaring a distinct
-// story-level mock for the same module key. Returns the fake view plus both story ids.
-function setupTwoStoryView() {
-  const fileExports = {
-    default: { title: 'Mocking/Switch' },
-    Interactive: {
-      parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'interactive-mock' } } } },
-    },
-    Other: {
-      parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'other-mock' } } } },
-    },
-  };
-  const req = Object.assign((_filename: string) => fileExports, {
-    keys: () => ['./Switch.stories.tsx'],
-  });
-  (globalThis as any).STORIES = [{ directory: './src', req }];
-
-  // Storybook's index holds both stories; a story's mocks are found through it.
-  const initialStoryId = 'mocking-switch--interactive';
-  const otherStoryId = 'mocking-switch--other';
-  const importPath = './src/Switch.stories.tsx';
-  const view = {
-    _storyIndex: {
-      entries: {
-        [initialStoryId]: {
-          id: initialStoryId,
-          title: 'Mocking/Switch',
-          name: 'Interactive',
-          importPath,
-        },
-        [otherStoryId]: { id: otherStoryId, title: 'Mocking/Switch', name: 'Other', importPath },
-      },
-    },
-  } as unknown as StorybookView;
-  return { view, initialStoryId, otherStoryId };
+/** Open the story `exportName` as Storybook does: load it, then render it. */
+async function openStory(exportName: string, mockable: { label: string }): Promise<string[]> {
+  const labelsRendered: string[] = [];
+  const story = storyAsStorybookComposesIt(TITLE, exportName, mockable, labelsRendered);
+  await story.load();
+  story();
+  return labelsRendered;
 }
 
 afterEach(() => {
-  __resetInteractiveMockActivationForTests();
   clearMocks();
   __resetShimmedKeysForTests();
-  vi.restoreAllMocks();
+  __resetStorybookFactsForTests();
   vi.clearAllMocks();
-  delete (globalThis as any).STORIES;
 });
 
-describe('startInteractiveMockActivation - initial story activation (EB-06, IS-05)', () => {
-  it('activates the initial story’s mocks immediately, WITHOUT any storyChanged event', () => {
+describe('Storybook mode - the initial story and every story after it (EB-06, IS-05)', () => {
+  it('activates the initial story’s mocks immediately, WITHOUT any storyChanged event', async () => {
     const mockable = createMockable('pkg/switch', { label: 'real-switch' });
-    const { view, initialStoryId } = setupTwoStoryView();
-    const channel = makeChannel();
+    startStorybookWithTwoStories();
 
-    // Before activation the module passes through to the real value.
+    // Before Storybook opens a story the module passes through to the real value.
     expect(mockable.label).toBe('real-switch');
 
-    // Start tracking on the initial story WITHOUT emitting storyChanged - exactly
-    // the device case where the session lands directly on inspect.initialStoryId and
-    // Storybook never fires storyChanged for that first selection. Before the fix the
-    // module still read `real-switch` here (the defect behind EB-06 / IS-05).
-    startInteractiveMockActivation(view, channel, initialStoryId);
-
-    expect(mockable.label).toBe('interactive-mock');
+    // The session lands directly on its initial story, and Storybook never fires storyChanged for
+    // that first selection: its loader is what installs the mocks (the defect behind EB-06 / IS-05).
+    expect(await openStory('Interactive', mockable)).toEqual(['interactive-mock']);
   });
 
-  it('subscribes to storyChanged for subsequent selections and shares one activation path', () => {
+  it('a later selection is mocked through the same loader', async () => {
     const mockable = createMockable('pkg/switch', { label: 'real-switch' });
-    const { view, initialStoryId, otherStoryId } = setupTwoStoryView();
-    const channel = makeChannel();
+    startStorybookWithTwoStories();
 
-    startInteractiveMockActivation(view, channel, initialStoryId);
-    expect(channel.on).toHaveBeenCalledWith('storyChanged', expect.any(Function));
-    expect(mockable.label).toBe('interactive-mock');
-
-    // Navigating to another story routes through the same activation path.
-    channel.emit('storyChanged', otherStoryId);
-    expect(mockable.label).toBe('other-mock');
+    expect(await openStory('Interactive', mockable)).toEqual(['interactive-mock']);
+    // Navigating to another story replaces the first story's mocks, with no event listened to.
+    expect(await openStory('Other', mockable)).toEqual(['other-mock']);
   });
 
-  it('leaves the initial story inactive when no initialStoryId is provided (still binds the listener)', () => {
+  it('with no story named, the story Storybook opens on is mocked too', async () => {
     const mockable = createMockable('pkg/switch', { label: 'real-switch' });
-    const { view, otherStoryId } = setupTwoStoryView();
-    const channel = makeChannel();
+    startStorybookWithTwoStories();
 
-    startInteractiveMockActivation(view, channel);
-    expect(mockable.label).toBe('real-switch');
-
-    // A later storyChanged still activates, proving the listener was bound.
-    channel.emit('storyChanged', otherStoryId);
-    expect(mockable.label).toBe('other-mock');
-  });
-
-  it('stopInteractiveMockActivation clears the active set - modules pass through to real again', () => {
-    const mockable = createMockable('pkg/switch', { label: 'real-switch' });
-    const { view, initialStoryId } = setupTwoStoryView();
-    const channel = makeChannel();
-
-    startInteractiveMockActivation(view, channel, initialStoryId);
-    expect(mockable.label).toBe('interactive-mock');
-
-    stopInteractiveMockActivation();
-
-    expect(channel.off).toHaveBeenCalledWith('storyChanged', expect.any(Function));
-    expect(mockable.label).toBe('real-switch');
+    // Opened from the developer menu: nobody named a story, and Storybook opens on its own pick.
+    expect(await openStory('Other', mockable)).toEqual(['other-mock']);
   });
 });

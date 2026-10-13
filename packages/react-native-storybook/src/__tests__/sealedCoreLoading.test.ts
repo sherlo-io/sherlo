@@ -11,14 +11,12 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import base64 from 'base-64';
 import * as ts from 'typescript';
-import utf8 from 'utf8';
 import {
   NativeModules,
-  __getAppendFileCalls,
   __getNativeErrors,
-  __resetAppendFileCalls,
+  __getSentMessages,
+  __resetConnection,
   __resetNativeMode,
   __resetSealedCoreNative,
   __setNativeCompiledCoreVersion,
@@ -30,7 +28,6 @@ import {
 } from './__mocks__/react-native';
 import { FAKE_CORE_VERSION } from './__mocks__/fakeSealedCore';
 import { REQUIRED_MIN_NATIVE_VERSION } from '../sdk-compatibility.json';
-import { PROTOCOL_FILE } from '../constants';
 import type { SealedCoreHost } from '../sealedCore/seam';
 
 // src: this file is at src/__tests__/.
@@ -43,6 +40,9 @@ const CORE_FETCHING_SCRIPTS = ['packSealedCore', 'storedCore'].map((scriptName) 
 const TESTS_OF_THE_PACK = ['sealedCorePin.test.ts', 'sealedCorePackaging.test.ts'].map((testName) =>
   path.join(SDK_SOURCE_DIR, '__tests__', testName)
 );
+// The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in ../sealedCore/loadSealedCore), and one before it.
+const SEAM_THE_SDK_SPEAKS = 2;
+const OLDER_SEAM = 1;
 
 vi.mock('react', () => ({
   default: { useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }) },
@@ -122,7 +122,7 @@ async function sherloFeaturesStart(): Promise<boolean> {
   const waitForStory = vi.fn(() => new Promise<never>(() => {}));
   const view = { _storyIndex: { entries: {} } } as never;
 
-  startCaptureTransport({ view, channel: makeChannel() as never, capture: { waitForACapture } });
+  startCaptureTransport({ channel: makeChannel() as never, capture: { waitForACapture } });
   startOpenStoryChannel({
     view,
     channel: makeChannel() as never,
@@ -151,7 +151,7 @@ afterEach(() => {
 describe('loading the sealed core', () => {
   it('the SDK loads the JS core once, when it is imported, in every mode', async () => {
     for (const mode of ['default', 'storybook', 'testing']) {
-      const loadCore = vi.fn(() => nativePickOf(fakeSealedCoreSource(1)));
+      const loadCore = vi.fn(() => nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)));
       __setNativeLoadCore(loadCore);
       __setNativeMode(mode);
       vi.resetModules();
@@ -167,7 +167,8 @@ describe('loading the sealed core', () => {
   });
 
   it('the JavaScript evaluates the core in global scope with indirect eval', async () => {
-    const source = 'var sherloCoreScopeProbe = "global";\n' + fakeSealedCoreSource(1);
+    const source =
+      'var sherloCoreScopeProbe = "global";\n' + fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS);
     __setNativeLoadCore(() => nativePickOf(source));
 
     (await freshLoader()).getSealedCore();
@@ -179,7 +180,7 @@ describe('loading the sealed core', () => {
   });
 
   it('the SDK installs the core with the host it hands it', async () => {
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)));
     const { getSealedCore } = await freshLoader();
     const core = getSealedCore();
 
@@ -199,7 +200,8 @@ describe('loading the sealed core', () => {
         'runner',
         'setCaptureLogSink',
         'storyErrors',
-        'storybookChannelOf',
+        'storybookChannel',
+        'storybookFacts',
         'storyOfTheAppFiber',
         'warn',
       ].sort()
@@ -212,7 +214,7 @@ describe('loading the sealed core', () => {
     const appsOwnFetch = vi.fn(async () => new Response('from the real network'));
     globalThis.fetch = appsOwnFetch as unknown as typeof fetch;
     __setNativeMode('storybook');
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)));
 
     (await freshLoader()).getSealedCore();
     const host = coreOnTheGlobal()!.installedWith as { fetch: typeof fetch };
@@ -239,7 +241,7 @@ describe('loading the sealed core', () => {
   });
 
   it('a core whose seam this SDK does not speak is never installed', async () => {
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(2)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(OLDER_SEAM)));
 
     const { getSealedCore } = await freshLoader();
 
@@ -256,10 +258,10 @@ describe('loading the sealed core', () => {
     expect((await freshCompatibilityCheck())()).toBe(true);
     expect(__getNativeErrors()).toEqual([]);
 
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(2)));
+    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(OLDER_SEAM)));
     expect((await freshCompatibilityCheck())()).toBe(false);
     expect(__getNativeErrors()).toEqual([
-      ['ERROR_SDK_COMPATIBILITY', expect.stringContaining('seam 2')],
+      ['ERROR_SDK_COMPATIBILITY', expect.stringContaining(`seam ${OLDER_SEAM}`)],
     ]);
   });
 });
@@ -300,51 +302,46 @@ describe('running with no core', () => {
 
     const { getSealedCore } = await import('../sealedCore/loadSealedCore');
     const createMockable = (await import('../mocking/createMockable')).default;
-    const { startInteractiveMockActivation, stopInteractiveMockActivation } = await import(
-      '../getStorybook/interactiveMockActivation'
-    );
+    const { recordStorybookFacts } = await import('../getStorybook/storybookFacts');
+    const sherloAnnotation = (await import('../getStorybook/sherloAnnotation')).default;
     const { clearMocks } = await import('../mocking/registry');
 
-    const storyFile = {
-      default: { title: 'Mocking/Switch' },
-      First: { parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'first-mock' } } } } },
-      Second: { parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'second-mock' } } } } },
-    };
-    const req = Object.assign((_filename: string) => storyFile, {
-      keys: () => ['./Switch.stories.tsx'],
-    });
-    (globalThis as { STORIES?: unknown }).STORIES = [{ directory: './src', req }];
-
-    // Storybook's index holds the file's two stories; mocking finds each one through it.
+    // What Storybook's start() was handed: one file of two stories, which mocking finds each of
+    // through Storybook's index.
     const firstStoryId = 'mocking-switch--first';
     const secondStoryId = 'mocking-switch--second';
     const importPath = './src/Switch.stories.tsx';
-    const view = {
-      _storyIndex: {
-        entries: {
-          [firstStoryId]: { id: firstStoryId, title: 'Mocking/Switch', name: 'First', importPath },
-          [secondStoryId]: {
-            id: secondStoryId,
-            title: 'Mocking/Switch',
-            name: 'Second',
-            importPath,
+    recordStorybookFacts({
+      storyIndex: {
+        [firstStoryId]: { id: firstStoryId, title: 'Mocking/Switch', name: 'First', importPath },
+        [secondStoryId]: { id: secondStoryId, title: 'Mocking/Switch', name: 'Second', importPath },
+      },
+      storyFiles: {
+        [importPath]: {
+          default: { title: 'Mocking/Switch' },
+          First: { parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'first-mock' } } } } },
+          Second: {
+            parameters: { sherlo: { mocks: { 'pkg/switch': { label: 'second-mock' } } } },
           },
         },
       },
-    } as never;
+      previewAnnotations: [],
+    });
     const mockable = createMockable('pkg/switch', { label: 'real-switch' });
-    const channel = makeChannel();
+
+    // Storybook runs Sherlo's loaders for each story the person selects, before it renders it.
+    const runSherlosLoaders = async (storyId: string) => {
+      for (const loader of sherloAnnotation.loaders) await loader({ id: storyId });
+    };
 
     expect(getSealedCore()).toBeNull();
-    startInteractiveMockActivation(view, channel, firstStoryId);
+    await runSherlosLoaders(firstStoryId);
     expect(mockable.label).toBe('first-mock');
 
-    channel.emit('storyChanged', secondStoryId);
+    await runSherlosLoaders(secondStoryId);
     expect(mockable.label).toBe('second-mock');
 
-    stopInteractiveMockActivation();
     clearMocks();
-    delete (globalThis as { STORIES?: unknown }).STORIES;
   });
 });
 
@@ -388,28 +385,23 @@ describe('the core the SDK suite runs against', () => {
     expect(filesImportedBy(TESTS_OF_THE_PACK[0]).filter(fetchesARealCore)).not.toEqual([]);
 
     // With no answer chosen, native code hands the SDK the fake core, and that is the core it runs.
-    expect(JSON.parse(NativeModules.SherloModule.loadCore()).source).toBe(fakeSealedCoreSource(1));
+    expect(JSON.parse(NativeModules.SherloModule.loadCore()).source).toBe(
+      fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS)
+    );
     expect((await freshLoader()).getSealedCore()?.version).toBe(FAKE_CORE_VERSION);
   });
 });
 
-/** The protocol lines the app wrote for the runner, as the runner reads them. */
-function protocolLinesWritten(): Record<string, unknown>[] {
-  return __getAppendFileCalls()
-    .filter(([file]) => file === PROTOCOL_FILE)
-    .map(([, encodedLine]) => JSON.parse(utf8.decode(base64.decode(encodedLine))));
-}
-
 /** The core's START, sent through the runner line the SDK handed the installed core. */
 async function startSentByTheCore(): Promise<Record<string, unknown>> {
   const host = coreOnTheGlobal()!.installedWith as unknown as SealedCoreHost;
-  __resetAppendFileCalls();
-  // The runner never answers here, so its answer is never awaited: the line is written before the
+  __resetConnection();
+  // The runner never answers here, so its answer is never awaited: the message goes out before the
   // SDK starts waiting for it.
   host.runner.send({ action: 'START', snapshots: [] });
   await Promise.resolve();
 
-  const [start] = protocolLinesWritten().filter((line) => line.action === 'START');
+  const [start] = __getSentMessages().filter((message) => message.action === 'START');
   return start;
 }
 
@@ -429,7 +421,9 @@ describe('reporting which core ran', () => {
 
   it("in testing mode the app reports which core ran: its origin, its version and the C core's version", async () => {
     __setNativeMode('testing');
-    __setNativeLoadCore(() => nativePickOf(fakeSealedCoreSource(1), 'override', FAKE_CORE_VERSION));
+    __setNativeLoadCore(() =>
+      nativePickOf(fakeSealedCoreSource(SEAM_THE_SDK_SPEAKS), 'override', FAKE_CORE_VERSION)
+    );
     (await freshLoader()).getSealedCore();
 
     const start = await startSentByTheCore();
