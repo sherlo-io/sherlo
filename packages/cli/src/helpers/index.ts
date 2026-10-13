@@ -11,24 +11,35 @@ export { default as getDeviceConfigHint } from './getDeviceConfigHint';
 export { default as getBuildRunConfig } from './getBuildRunConfig';
 export { default as getCwd } from './getCwd';
 export { default as getErrorWithCustomMessage } from './getErrorWithCustomMessage';
-export { default as getGitInfo } from './getGitInfo';
+export { getGitInfo } from '../seams/surroundings';
 export { default as getPlatformsToTest } from './getPlatformsToTest';
 export { default as getTokenParts } from './getTokenParts';
 export { default as handleClientError } from './handleClientError';
 export { default as isPackageVersionCompatible } from './isPackageVersionCompatible';
+export { default as isPersonalToken } from './isPersonalToken';
 export { default as isValidToken } from './isValidToken';
+export { default as refuseIfPersonalToken } from './refuseIfPersonalToken';
 export { default as logInfo } from './logInfo';
 export { default as logWarning } from './logWarning';
+export { printNeedHelpEpilogue } from './needHelpEpilogue';
 export { default as printBuildMessage } from './printBuildMessage';
 export { default as printBuildPlatformLabel } from './printBuildPlatformLabel';
 export { default as printLink } from './printLink';
+export { default as printOutputKeys } from './printOutputKeys';
 export { default as printResultsUrl } from './printResultsUrl';
 export { default as printSherloIntro } from './printSherloIntro';
 export { default as reporting } from './reporting';
+export { default as spinner } from './spinner';
+export {
+  describeDiffSources,
+  GATE_DIFF_LABELS,
+  outcomeToMode,
+  resolveOverallMode,
+  type StagedMode,
+} from './stagedGate';
 export { default as stripAnsi } from './stripAnsi';
 export { default as throwError } from './throwError';
 export { default as uploadOrReuseBuildsAndRunTests } from './uploadOrReuseBuildsAndRunTests';
-export { default as validateLocalBinaries } from './validateLocalBinaries';
 export { default as waitForBuildResult } from './waitForBuildResult';
 export { default as withCommandTimeout } from './withCommandTimeout';
 export { default as wrapInBox } from './wrapInBox';

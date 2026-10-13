@@ -5,13 +5,13 @@
  * Since AppProtocolItem and RunnerProtocolItem are TypeScript types,
  * these tests validate the runtime shape of constructed messages.
  */
-import {
-  AppProtocolItem,
+import type { AppProtocolItem } from '../helpers/RunnerBridge/types';
+import type {
   RunnerProtocolItem,
   AckStartProtocolItem,
   AckRequestSnapshotProtocolItem,
   AckScrollRequestProtocolItem,
-} from '../helpers/RunnerBridge/types';
+} from '../sealedCore/seam';
 import { Snapshot } from '../types/types';
 
 const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({

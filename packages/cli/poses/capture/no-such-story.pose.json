@@ -1,0 +1,24 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "foundation-typography--scale"],
+  "capture": {
+    "stories": [
+      "foundation-typography--scales",
+      "foundation-colour--palette",
+      "controls-button--primary",
+      "controls-button--disabled",
+      "controls-input--empty",
+      "layout-card--basic"
+    ],
+    "settled": "timed-out",
+    "tree": { "primitive": "View" }
+  }
+}

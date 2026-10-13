@@ -6,12 +6,24 @@ Public monorepo for Sherlo's React Native SDK. Two published packages live in `p
 
 This repository is public - anything committed here (workflows, scripts, docs) is visible to external contributors, so it must never reference internal-only infrastructure.
 
+## Type Checking
+
+Type-check the whole repository from the root:
+
+```bash
+yarn typecheck
+```
+
+It checks `packages/cli`, `packages/react-native-storybook` and `contracts`, the same projects `.github/workflows/pr_checks.yml` checks.
+
 ## Test Execution
 
-There is no root `test` script in this repo. The unit suites are per-package (both vitest), each invoked via that package's own `yarn test`:
+Tests and checks are fast: a test file fails past 5 seconds and a pull request check past 5 minutes; a slow one is sped up, never given a bigger limit.
+
+There is no root `test` script in this repo. The unit suites are per-package (all vitest), each invoked via that package's own `yarn test`:
 
 - `packages/cli/` - CLI unit tests
-- `packages/react-native-storybook/` - SDK unit tests
+- `packages/react-native-storybook/` - SDK unit tests. They run against a fake core; the packaging rules read the packs `scripts/packAsPublished.js` makes with `PACKAGE_TOKEN`, a step of the pull request check, from the folder `SHERLO_SDK_PACKS` names (without it, outside CI, those rules skip)
 
 Each package's `test` script is guarded by `../../scripts/require-test-exec-optin.sh`, which refuses to run unless `CI=true` (set automatically on GitHub Actions) or `ALLOW_LOCAL_TEST_EXEC=1`. To run a suite on your own machine, set the local override:
 

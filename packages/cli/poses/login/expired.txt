@@ -1,0 +1,15 @@
+Opening your browser to log in to Sherlo...
+[2mIf it doesn't open, use this link on any device:[22m
+
+  [36m<LOGIN_LINK>[39m
+
+[31mERROR: The login expired at 12:10 UTC. Nobody clicked Authorize in time.[39m
+[31m  Run `npx sherlo login` to start a new one.[39m
+
+[2m══════════[22m
+[2m[22m
+[2mNeed Help?[22m
+[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
+[2m➜ [22m[2mcontact@sherlo.io[22m
+
+[exit 1]

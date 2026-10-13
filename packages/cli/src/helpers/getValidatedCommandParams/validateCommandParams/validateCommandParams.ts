@@ -8,20 +8,19 @@ import { validatePlatformPaths } from '../../shared';
 import getPlatformsToTest from '../../getPlatformsToTest';
 import validateConfigProperties from './validateConfigProperties';
 import validateDevices from './validateDevices';
-import validateMaxWaitTime from './validateMaxWaitTime';
-import validateToken from './validateToken';
 
+/**
+ * The checks after the credential: the devices, the binary paths and the config's properties. The
+ * credential comes first, and is resolved apart (./resolvePushCredential), because it is a value
+ * the push spends rather than a property it checks.
+ */
 function validateCommandParams<C extends Command>(
   command: C,
   commandParams: InvalidatedCommandParams<C>,
   config: InvalidatedConfig,
   { requirePlatformPaths }: { requirePlatformPaths: boolean }
 ): asserts commandParams is CommandParams<C> {
-  validateToken(commandParams);
-
   validateDevices(commandParams);
-
-  validateMaxWaitTime(commandParams);
 
   if (requirePlatformPaths) {
     const platformsToValidate = getPlatformsToTest(

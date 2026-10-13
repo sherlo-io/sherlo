@@ -17,6 +17,8 @@ jobs:
   android_build:
     runs-on: ubuntu-latest
     env:
+      # Every install reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
       JAVA_TOOL_OPTIONS: -Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
       GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false
       CMAKE_BUILD_PARALLEL_LEVEL: '2'

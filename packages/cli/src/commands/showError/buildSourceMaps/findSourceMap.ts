@@ -26,7 +26,7 @@ function findSourceMap(projectRoot: string, projectType: ProjectType, platform: 
         if (mapFile.endsWith('.hbc.map')) {
           throw new Error(
             `Found Hermes bytecode source map (${mapFile}) which does not match the plain JS bundle in your error. ` +
-              "Run sherlo show-error again to rebuild via 'expo export:embed'."
+              "Run npx sherlo show-error again to rebuild via 'expo export:embed'."
           );
         }
         logWarning({

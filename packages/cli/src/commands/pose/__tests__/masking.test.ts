@@ -1,0 +1,502 @@
+/**
+ * ONE MASKER, THE TOOL'S OWN (sherlo / Drawing for a plan, "What the tool folds on its own").
+ *
+ * A screen carries values no plan can state and no fixture should pin. The tool folds each of
+ * them to a placeholder by CLASS, on every screen `sherlo pose` prints, and the same folding is
+ * reachable from outside through a hidden devtool verb so the test repository applies it to a real
+ * run's screen. Written as a skeleton in plan (epic pose-road-hardening, task pose-road-masker);
+ * the worker fills the bodies and never renames a case.
+ */
+import fs from 'fs';
+import path from 'path';
+import { describe, expect, it, vi } from 'vitest';
+import start from '../../../start';
+import { CLASSES_THE_TOOL_FOLDS, maskScreen } from '../maskScreen';
+import { applyMasks } from '../pose';
+import { POSES_ROOT, catalogue } from '../catalogue';
+import { readPoseDocument } from '../readPose';
+
+/** The escape byte a styled screen is full of, named so this file carries none of them raw. */
+const ESC = String.fromCharCode(27);
+
+/** The one pose whose committed screen these cases read, and the pose that rendered it. */
+const WAITED_PUSH = path.join(POSES_ROOT, 'test', 'push-android-wait-names-the-screens');
+
+/**
+ * ONE RUN, TWICE: the screen a pose rendered for it, and the screen a live run printed.
+ *
+ * Every line here is the same run said twice. What the SCENARIO declares - which test this is,
+ * how many devices it runs on, the deadline the wait was given, the verdict - is identical in
+ * both, because that is what a pose states and what a reader checks. Everything else differs the
+ * way two real runs of one scenario differ: another binary size, another address, another
+ * fingerprint, another number of polls, and the spinner and diagnostic litter a live terminal
+ * leaves behind.
+ */
+const POSED_SCREEN = [
+  'Test 4 will run on 1 device (1 Android)',
+  '➜  uploading build... (48.12 MB)',
+  '✔  reusing unchanged build (Test 1, 7 minutes ago)',
+  `base-fingerprint=${'a0'.repeat(32)}`,
+  '🔗 https://app.sherlo.io/build?t=tm000001&p=7&b=4',
+  '⏳ Waiting for build results (timeout: 45min)...',
+  '   🟢 Finished',
+  '',
+  '✅ All stories passed - no visual changes require review.',
+].join('\n');
+
+const LIVE_SCREEN = [
+  'Test 4 will run on 1 device (1 Android)',
+  '➜  uploading build... (51.7 MB)',
+  '✔  reusing unchanged build (Test 1, 3 hours ago)',
+  `base-fingerprint=${'b3'.repeat(32)}`,
+  '🔗 https://app.test.sherlo.io/build?t=tm913377&p=2&b=91',
+  '⏳ Waiting for build results (timeout: 45min)...',
+  '   🟡 Queued',
+  '   🔵 Running',
+  '   still running... (5m elapsed)',
+  '   🟢 Finished',
+  '',
+  '[Sherlo] TurboSnap: 14 of 61 stories reachable from the changed files',
+  `✅ All stories passed - no visual changes require review.${ESC}[?25h`,
+].join('\n');
+
+describe('the masker folds every volatile class the tool prints', () => {
+  it('every volatile class the tool prints is folded to one placeholder, by class, on a posed screen and on a live screen alike', () => {
+    // THE WHOLE POINT OF THE MODULE, in one case. A test repository takes the screen a real run
+    // printed, folds it here, and compares it against the screen a pose rendered folded by the
+    // same rule. If those two ever came out different for one run said twice, every storyline
+    // comparing them would be red for nobody's change.
+    expect(maskScreen(LIVE_SCREEN, {})).toBe(maskScreen(POSED_SCREEN, {}));
+
+    const folded = maskScreen(POSED_SCREEN, {});
+
+    expect(folded).toContain('<SIZE> MB');
+    expect(folded).toContain('<TIME_AGO>');
+    expect(folded).toContain('base-fingerprint=<FINGERPRINT>');
+    expect(folded).toContain('https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>');
+    expect(folded).toContain('   <build progress masked>');
+
+    // FOLDING A FOLDED SCREEN CHANGES NOTHING, and every committed screen in the catalogue has
+    // already been through this once. A class that was not idempotent would rewrite them on
+    // every re-mint - a diff nobody made, in the one file a reviewer is meant to read.
+    expect(maskScreen(folded, {})).toBe(folded);
+    expect(maskScreen(fs.readFileSync(`${WAITED_PUSH}.txt`, 'utf8'), {})).toBe(
+      fs.readFileSync(`${WAITED_PUSH}.txt`, 'utf8')
+    );
+  });
+
+  it('folds a token wherever it appears - after --token, after token:, in a build url, in an Authorization header', () => {
+    const projectToken = 'posetokenposetokenposetokenpose1tm0000017';
+    const personalToken = 'sht_apersonaltokennobodyshouldeversee';
+    const headerValue = 'YTp2ZXJ5LXNlY3JldC12YWx1ZQ';
+
+    const folded = maskScreen(
+      [
+        `$ sherlo test --token ${projectToken}`,
+        // An older version's screen: the tool no longer takes `--personal-token`, but a screen
+        // that still shows one keeps being masked - a safety net, not a flag the tool has.
+        `$ sherlo team list --personal-token ${personalToken}`,
+        `  "token": "${projectToken}",`,
+        `🔗 https://app.sherlo.io/build?t=${personalToken}&p=7&b=4`,
+        `Authorization: Basic ${headerValue}`,
+      ].join('\n'),
+      {}
+    );
+
+    expect(folded).not.toContain(projectToken);
+    expect(folded).not.toContain(personalToken);
+    expect(folded).not.toContain(headerValue);
+
+    expect(folded).toContain('--token <MASKED>');
+    expect(folded).toContain('--personal-token <MASKED>');
+    expect(folded).toContain('"token": "<MASKED>"');
+    expect(folded).toContain('Authorization: Basic <MASKED>');
+    // A token that reached the team slot of a build address folds away with the address.
+    expect(folded).toContain('https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>');
+  });
+
+  it('stops folding a --token value at a backtick, keeping the backtick', () => {
+    const folded = maskScreen('run `npx sherlo init --token <token>` or add it', {});
+
+    expect(folded).toBe('run `npx sherlo init --token <MASKED>` or add it');
+  });
+
+  it('folds a build url, a size in megabytes, a duration, the time since a build and a base fingerprint', () => {
+    const folded = maskScreen(
+      [
+        '🔗 https://app.test.sherlo.io/build?t=tm913377&p=2&b=91',
+        '➜  uploading build... (51.7 MB)',
+        '  ✓ Bundle: bundle.android.js (912.40 KB, plain-js, expo)',
+        '   settled in 2.3s over 4 frames · testing mode',
+        '✔  reusing unchanged build (Test 1, 3 hours ago)',
+        `base-fingerprint=${'b3'.repeat(32)}`,
+      ].join('\n'),
+      {}
+    );
+
+    expect(folded).toBe(
+      [
+        '🔗 https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>',
+        '➜  uploading build... (<SIZE> MB)',
+        // THE UNIT FOLDS WITH THE NUMBER: the same bundle reads in kilobytes here and in
+        // megabytes on a printer that scaled it differently.
+        '  ✓ Bundle: bundle.android.js (<SIZE> MB, plain-js, expo)',
+        '   settled in <SETTLED> over 4 frames · testing mode',
+        '✔  reusing unchanged build (Test 1, <TIME_AGO>)',
+        'base-fingerprint=<FINGERPRINT>',
+      ].join('\n')
+    );
+  });
+
+  it('folds the progress lines a wait prints to one placeholder, however many a run printed', () => {
+    const waited = (progress: string[]): string =>
+      [
+        '⏳ Waiting for build results (timeout: 45min)...',
+        ...progress,
+        '',
+        '✅ All stories passed - no visual changes require review.',
+      ].join('\n');
+
+    const onePoll = maskScreen(waited(['   🟢 Finished']), {});
+    const manyPolls = maskScreen(
+      waited([
+        '   🟡 Queued',
+        '   🔵 Running',
+        '   still running... (5m elapsed)',
+        '   Network error, retrying... (socket hang up)',
+        '   🟢 Finished',
+      ]),
+      {}
+    );
+
+    expect(manyPolls).toBe(onePoll);
+    expect(onePoll.split('\n')).toEqual([
+      // THE DEADLINE IN THE HEADER IS THE SCENARIO'S OWN and survives untouched; so does the
+      // closer under the region, because the region ends at the blank line that frames it.
+      '⏳ Waiting for build results (timeout: 45min)...',
+      '   <build progress masked>',
+      '',
+      '✅ All stories passed - no visual changes require review.',
+    ]);
+  });
+
+  it('folds a commit id, a run namespace in a branch name, a team id and a project index', () => {
+    const folded = maskScreen(
+      [
+        '    "sha": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",',
+        '    "branch": "e2e/1758700000000-ab12/dev",',
+        'teamId=tm913377',
+        'projectIndex=12',
+      ].join('\n'),
+      {}
+    );
+
+    expect(folded).toBe(
+      [
+        '    "sha": "<SHA>",',
+        // ONLY THE NAMESPACE. The rest of the branch is the scenario's own word.
+        '    "branch": "e2e/<run>/dev",',
+        'teamId=<TEAM>',
+        'projectIndex=<PROJECT>',
+      ].join('\n')
+    );
+  });
+
+  it('folds the team in the project a setup names', () => {
+    const usingLine = `Using the project from your token: ${ESC}[1mAPiP7Oal/1${ESC}[22m`;
+    // A team id may carry `_` and `-`, as server-made ids do.
+    const addedLine = `Added project ${ESC}[1moGl_kc-A/1${ESC}[22m to sherlo.config.json`;
+
+    expect(maskScreen(usingLine, {})).toBe(
+      `Using the project from your token: ${ESC}[1m<TEAM>/1${ESC}[22m`
+    );
+    expect(maskScreen(addedLine, {})).toBe(
+      `Added project ${ESC}[1m<TEAM>/1${ESC}[22m to sherlo.config.json`
+    );
+
+    // Only those two lines: another `word/number` on a screen is left alone.
+    expect(maskScreen('Compared abc/1 with the last build', {})).toBe(
+      'Compared abc/1 with the last build'
+    );
+  });
+
+  it("folds a CLI login's authorize link to one placeholder", () => {
+    // A posed login and a live one on a test stage: another host, another login id, the link
+    // painted cyan on one of them. All three read the same once folded.
+    const posedLink = `  ${ESC}[36mhttps://app.sherlo.io/cli-login/lg7Qm2Xa${ESC}[39m`;
+    const liveLink = '  https://app.test.sherlo.io/cli-login/8f2c1a9e-4b7d-4e0a-9c1f-2d3e4f5a6b7c';
+    const localLink = '  http://localhost:3000/cli-login/abc123';
+
+    expect(maskScreen(posedLink, {})).toBe(`  ${ESC}[36m<LOGIN_LINK>${ESC}[39m`);
+    expect(maskScreen(liveLink, {})).toBe('  <LOGIN_LINK>');
+    expect(maskScreen(localLink, {})).toBe('  <LOGIN_LINK>');
+
+    // Only a login link: a build address beside it keeps its own fold.
+    expect(maskScreen('https://app.sherlo.io/build?t=tm000001&p=7&b=4', {})).toBe(
+      'https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>'
+    );
+    expect(CLASSES_THE_TOOL_FOLDS).toContain('<LOGIN_LINK>');
+  });
+
+  it("folds a capture record's settle time, screenful count and measured size", () => {
+    const folded = maskScreen(
+      [
+        '   settled in 1.4s over 6 frames · testing mode',
+        '   captured in 3 screenfuls - the story scrolls past the first',
+        '     <ScrollView> (360 x 800)',
+        '       <Text> (328 x 16)',
+      ].join('\n'),
+      {}
+    );
+
+    expect(folded).toBe(
+      [
+        '   settled in <SETTLED> over 6 frames · testing mode',
+        '   captured in <PARTS> screenfuls - the story scrolls past the first',
+        // MEASURED, NOT DECLARED: one story lays out to different points on different devices.
+        '     <ScrollView> (<SIZE>)',
+        '       <Text> (<SIZE>)',
+      ].join('\n')
+    );
+  });
+
+  it('strips the terminal artifacts a live run leaves - spinner redraws and the cursor-show sequence', () => {
+    const posedSpinner =
+      `${ESC}[?25l${ESC}[1G${ESC}[1G⠋ Installing Sherlo${ESC}[1G${ESC}[0K${ESC}[?25h` +
+      '✔ Installed Sherlo';
+    const liveSpinner =
+      `${ESC}[?25l${ESC}[1G⠋ Installing Sherlo${ESC}[1G${ESC}[0K` +
+      `${ESC}[1G⠙ Installing Sherlo${ESC}[1G${ESC}[0K` +
+      `${ESC}[1G⠹ Installing Sherlo${ESC}[1G${ESC}[0K${ESC}[?25h` +
+      `✔ Installed Sherlo${ESC}[?25h`;
+
+    // WHICH FRAME A READER ENDS UP WITH IS WHICHEVER THE MACHINE REACHED, so no frame is kept:
+    // the line the spinner succeeds into says everything the frames were saying.
+    expect(maskScreen(liveSpinner, {})).toBe('✔ Installed Sherlo');
+    expect(maskScreen(posedSpinner, {})).toBe('✔ Installed Sherlo');
+  });
+
+  it('a class that sits right after a colour escape folds the same as one on plain text', () => {
+    // A COLOUR ESCAPE ENDS IN A LETTER (`ESC[34m`), and a letter next to a digit is not a word
+    // boundary - which is exactly where the tool prints its values, right after switching colour.
+    // Every class below is put right there, once with the escapes on and once with them stripped,
+    // and both must fold to the same placeholder.
+    const withEscapes = [
+      `✔  reusing unchanged build (Test 1, ${ESC}[34m1 minute ago${ESC}[39m)`,
+      `➜  uploading build... (${ESC}[2m48.12 MB${ESC}[22m)`,
+      `${ESC}[32m4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c${ESC}[39m`,
+      `${ESC}[32mbase-fingerprint=${'a0'.repeat(32)}${ESC}[39m`,
+      `${ESC}[32mteamId=tm913377${ESC}[39m`,
+      `${ESC}[32mprojectIndex=12${ESC}[39m`,
+    ].join('\n');
+
+    const withoutEscapes = [
+      '✔  reusing unchanged build (Test 1, 1 minute ago)',
+      '➜  uploading build... (48.12 MB)',
+      '4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c',
+      `base-fingerprint=${'a0'.repeat(32)}`,
+      'teamId=tm913377',
+      'projectIndex=12',
+    ].join('\n');
+
+    const foldedWithEscapes = maskScreen(withEscapes, {});
+    const foldedWithoutEscapes = maskScreen(withoutEscapes, {});
+
+    expect(foldedWithEscapes.replace(new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g'), '')).toBe(
+      foldedWithoutEscapes
+    );
+    expect(foldedWithEscapes).toContain('<TIME_AGO>');
+    expect(foldedWithEscapes).toContain('<SIZE> MB');
+    expect(foldedWithEscapes).toContain('<SHA>');
+    expect(foldedWithEscapes).toContain('base-fingerprint=<FINGERPRINT>');
+    expect(foldedWithEscapes).toContain('teamId=<TEAM>');
+    expect(foldedWithEscapes).toContain('projectIndex=<PROJECT>');
+  });
+
+  it('never folds a value the pose declares - a story count, a wait deadline, a branch name', () => {
+    const declared = [
+      'Test 4 will run on 1 device (1 Android)',
+      '⏳ Waiting for build results (timeout: 45min)...',
+      '   🟢 Finished',
+      '',
+      '⚠️  Build finished with changes requiring review.',
+      '   unreviewed: Storefront/ProductCard - Default',
+      '   3 more settled - approved, unchanged or inherited.',
+      '    "branch": "feature/checkout",',
+      '[exit 1]',
+    ].join('\n');
+
+    const folded = maskScreen(declared, {});
+
+    // A story count, a deadline, a screen's name, a branch outside a run namespace, an exit code:
+    // every one of them is something the scenario SAID, and the reason its screen exists.
+    expect(folded).toContain('Test 4 will run on 1 device (1 Android)');
+    expect(folded).toContain('(timeout: 45min)');
+    expect(folded).toContain('unreviewed: Storefront/ProductCard - Default');
+    expect(folded).toContain('3 more settled - approved, unchanged or inherited.');
+    expect(folded).toContain('"branch": "feature/checkout",');
+    expect(folded).toContain('[exit 1]');
+  });
+});
+
+describe('sherlo mask - the same folding for a screen the tool did not print itself', () => {
+  const projectRoot = '/tmp/a-live-run-12345';
+  const configPath = `${projectRoot}/sherlo.config.json`;
+
+  it('reads a screen on stdin and prints it folded, byte for byte what applyMasks would have produced', async () => {
+    const scenario = readPoseDocument(fs.readFileSync(`${WAITED_PUSH}.pose.json`, 'utf8'));
+
+    // BYTE FOR BYTE, which is the only comparison worth making: the test repository folds a live
+    // screen through the verb and holds the result against a screen the pose road folded.
+    expect(printedBy(await runMask(LIVE_SCREEN, []))).toBe(
+      applyMasks(LIVE_SCREEN, scenario, { root: '', configPath: '' })
+    );
+  });
+
+  it('takes the project root and the config path as flags, because a live run has its own', async () => {
+    const folded = printedBy(
+      await runMask(
+        [`✔ Created: ${configPath}`, `ERROR: nothing at ${projectRoot}/builds`].join('\n'),
+        ['--project-root', projectRoot, '--config-path', configPath]
+      )
+    );
+
+    expect(folded).toBe(
+      ['✔ Created: <SHERLO_CONFIG_PATH>', 'ERROR: nothing at <PROJECT_ROOT>/builds'].join('\n')
+    );
+  });
+
+  it('is hidden unless SHERLO_DEVTOOLS=1, like sherlo pose', async () => {
+    // A user who runs `sherlo --help` has no use for a verb that folds a transcript, so the verb
+    // is not there at all for them - the routing never learns it, exactly as `sherlo pose`.
+    const run = await runMask('a screen', [], { devtools: false });
+    expect(() => printedBy(run)).toThrow(/unknown command/i);
+  });
+});
+
+describe('a pose declares only a scenario literal in masks', () => {
+  it('the catalogue refuses a pose whose masks entry duplicates a class the tool already folds', () => {
+    const describingTheMasker = catalogue()
+      .map(({ name, posePath }) => ({
+        name,
+        duplicated: Object.keys(readPoseDocument(fs.readFileSync(posePath, 'utf8')).masks).filter(
+          (placeholder) => CLASSES_THE_TOOL_FOLDS.includes(placeholder)
+        ),
+      }))
+      .filter(({ duplicated }) => duplicated.length > 0)
+      .map(({ name, duplicated }) => `${name} - ${duplicated.join(', ')}`);
+
+    expect(
+      describingTheMasker,
+      'these poses name a placeholder the tool already folds by shape. `masks` is for the one ' +
+        'thing only a scenario knows: a literal the pose itself put on the screen. Drop the entry.'
+    ).toEqual([]);
+  });
+});
+
+/* ========================================================================== */
+
+/** How one `sherlo mask` run ended: what it printed, or why it failed. */
+type MaskRun = { printed: string } | { failure: Error };
+
+/** What a run printed, or its failure thrown - so a case reads a run the way it would read a call. */
+function printedBy(run: MaskRun): string {
+  if ('failure' in run) throw run.failure;
+  return run.printed;
+}
+
+/** Thrown in place of ending this process when the verb exits. */
+class VerbExited extends Error {
+  constructor(code: number) {
+    super(`sherlo mask exited with ${code}`);
+    // The CLI's catch reports what it could not handle to Sentry; an exit is not that.
+    Object.assign(this, { skipReporting: true });
+  }
+}
+
+/**
+ * Run `sherlo mask` through the CLI's own routing with a screen on its stdin, and give back how it
+ * ended.
+ *
+ * Through `start`, the CLI's entry point, rather than a call into the masker, because what these
+ * three cases are about is the VERB: the gate it sits behind, the flags it takes, and the bytes it
+ * puts on stdout. It runs in THIS process, because a process of its own spent seconds loading the
+ * CLI and proved nothing more. So the edges a process would have are stood in for, for the length
+ * of the run: its command line, the gate's setting, its stdin (descriptor 0, the one the verb
+ * reads), its two output streams, and `process.exit` - which throws instead of ending this
+ * process. The FIRST exit is the run's: the CLI's catch keeps running after it, and anything it
+ * prints from there no real run would ever show.
+ */
+async function runMask(
+  screen: string,
+  flags: string[],
+  { devtools = true }: { devtools?: boolean } = {}
+): Promise<MaskRun> {
+  const printed: string[] = [];
+  const said: string[] = [];
+  let exitCode: number | undefined;
+
+  const realArgv = process.argv;
+  const realDevtools = process.env.SHERLO_DEVTOOLS;
+  const realReadFileSync = fs.readFileSync;
+
+  process.argv = [realArgv[0], 'sherlo', 'mask', ...flags];
+  if (devtools) process.env.SHERLO_DEVTOOLS = '1';
+  else delete process.env.SHERLO_DEVTOOLS;
+
+  const keepUntilExit = (into: string[]) => (chunk: unknown) => {
+    if (exitCode === undefined) into.push(String(chunk));
+    return true;
+  };
+  const spies = [
+    vi
+      .spyOn(fs, 'readFileSync')
+      .mockImplementation(((file: unknown, ...rest: unknown[]) =>
+        file === 0
+          ? screen
+          : Reflect.apply(realReadFileSync, fs, [file, ...rest])) as typeof fs.readFileSync),
+    vi.spyOn(process.stdout, 'write').mockImplementation(keepUntilExit(printed)),
+    vi.spyOn(process.stderr, 'write').mockImplementation(keepUntilExit(said)),
+    vi.spyOn(console, 'log').mockImplementation(keepUntilExit(said)),
+    vi.spyOn(console, 'error').mockImplementation(keepUntilExit(said)),
+    vi.spyOn(process, 'exit').mockImplementation((code) => {
+      exitCode ??= Number(code ?? 0);
+      throw new VerbExited(Number(code ?? 0));
+    }),
+  ];
+
+  let threw: unknown;
+  try {
+    await start();
+  } catch (error) {
+    threw = error;
+  } finally {
+    for (const spy of spies) spy.mockRestore();
+    process.argv = realArgv;
+    if (realDevtools === undefined) delete process.env.SHERLO_DEVTOOLS;
+    else process.env.SHERLO_DEVTOOLS = realDevtools;
+  }
+
+  if (exitCode === 0) return { printed: printed.join('') };
+  return {
+    failure: new Error(
+      `\`sherlo mask ${flags.join(' ')}\` exited ${exitCode ?? '(never)'}: ` +
+        (said.join('') || String(threw))
+    ),
+  };
+}
+
+describe('a screen with colour and one without fold alike', () => {
+  it('folds a value the same way on a screen with colour and on one without', () => {
+    // The project line `sherlo init` prints names the team in bold. Without colour the word
+    // "token:" sits right against the value, which is the shape a token line has - the team must
+    // fold as a team there too, not as a token.
+    const withColour = `Using the project from your token: ${ESC}[1mtm000001/4${ESC}[22m`;
+    const withoutColour = 'Using the project from your token: tm000001/4';
+
+    expect(maskScreen(withoutColour, {})).toBe('Using the project from your token: <TEAM>/4');
+    expect(maskScreen(withColour, {})).toBe(
+      `Using the project from your token: ${ESC}[1m<TEAM>/4${ESC}[22m`
+    );
+  });
+});

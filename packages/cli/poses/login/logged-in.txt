@@ -1,0 +1,11 @@
+Opening your browser to log in to Sherlo...
+[2mIf it doesn't open, use this link on any device:[22m
+
+  [36m<LOGIN_LINK>[39m
+
+[32m✔[39m  Logged in as [1manna@example.com[22m
+
+[2mNext: run `npx sherlo init` in your React Native app to set up Sherlo.[22m
+
+
+[exit 0]

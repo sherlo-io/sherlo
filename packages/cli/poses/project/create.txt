@@ -1,0 +1,13 @@
+[32m✔[39m  Created project [1mStorefront App[22m
+
+projectIndex=<PROJECT>
+projectName=Storefront App
+
+[33mProject token - shown once. Store it now; it cannot be shown again.[39m
+
+  <MASKED>
+
+[2mAdd it to your CI as the SHERLO_TOKEN secret.[22m
+
+
+[exit 0]

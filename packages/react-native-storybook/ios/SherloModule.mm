@@ -4,6 +4,7 @@
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
 #import "SherloIOSExceptionHandler.h"
+#import "SherloCoreLoader.h"
 
 @implementation SherloModule
 
@@ -37,6 +38,13 @@ static void SherloEarlyInit(void) {
 #ifdef RCT_NEW_ARCH_ENABLED // ------------------- NEW ARCH -------------------
 
 /**
+ * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+ */
+- (NSString *)loadCore {
+  return [SherloCoreLoader loadCoreJson];
+}
+
+/**
  * Returns the Sherlo constants.
  */
 - (NSDictionary *)getSherloConstants {
@@ -65,6 +73,14 @@ static void SherloEarlyInit(void) {
 - (void)closeStorybook
 {
   [core closeStorybook:self.bridge];
+}
+
+/**
+ * Explicitly switches to testing mode.
+ */
+- (void)openTesting:(NSString *)storyId config:(NSString *)config
+{
+  [core openTesting:self.bridge storyId:storyId configJson:config];
 }
 
 /**
@@ -183,6 +199,13 @@ static void SherloEarlyInit(void) {
 #else // ------------------- OLD ARCH -------------------
 
 /**
+ * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+ */
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(loadCore) {
+  return [SherloCoreLoader loadCoreJson];
+}
+
+/**
  * Returns the Sherlo constants.
  */
 - (NSDictionary *)constantsToExport
@@ -209,6 +232,14 @@ RCT_EXPORT_METHOD(openStorybook) {
  */
 RCT_EXPORT_METHOD(closeStorybook) {
   [core closeStorybook:self.bridge];
+}
+
+/**
+ * Explicitly switches to testing mode.
+ */
+RCT_EXPORT_METHOD(openTesting:(NSString *)storyId
+                  config:(NSString *)config) {
+  [core openTesting:self.bridge storyId:storyId configJson:config];
 }
 
 /**

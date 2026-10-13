@@ -1,0 +1,240 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "react", "jest", "node", "unicorn"],
+  "jsPlugins": [
+    { "name": "eslint-comments", "specifier": "@eslint-community/eslint-plugin-eslint-comments" }
+  ],
+  "categories": {
+    "correctness": "off"
+  },
+  "env": {
+    "builtin": true,
+    "es6": true
+  },
+  "ignorePatterns": [
+    "**/dist",
+    "**/dist-metro",
+    "**/build",
+    "**/coverage",
+    "**/node_modules",
+    "**/*.d.ts",
+    "**/*.bundle.js",
+    "**/metro.config.js",
+    "**/storybook.requires.js"
+  ],
+  "rules": {
+    "curly": ["error", "multi-line"],
+    "no-unused-vars": [
+      "error",
+      {
+        "vars": "all",
+        "args": "after-used",
+        "ignoreRestSiblings": true,
+        "caughtErrors": "none",
+        "varsIgnorePattern": "^_",
+        "argsIgnorePattern": "^_"
+      }
+    ],
+    "no-const-assign": "error",
+    "no-dupe-class-members": "error",
+    "no-dupe-keys": "error",
+    "no-unreachable": "error",
+    "no-eval": "error",
+    "no-new-func": "error",
+    "react/jsx-no-comment-textnodes": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-undef": "error",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+
+    "no-cond-assign": "warn",
+    "no-control-regex": "warn",
+    "no-debugger": "warn",
+    "no-ex-assign": "warn",
+    "no-extra-boolean-cast": "warn",
+    "no-func-assign": "warn",
+    "no-invalid-regexp": "warn",
+    "no-unsafe-negation": "warn",
+    "no-obj-calls": "warn",
+    "no-regex-spaces": "warn",
+    "no-sparse-arrays": "warn",
+    "use-isnan": "warn",
+    "valid-typeof": "warn",
+    "dot-notation": "warn",
+    "eqeqeq": ["warn", "always", { "null": "ignore" }],
+    "no-alert": "warn",
+    "no-caller": "warn",
+    "no-div-regex": "warn",
+    "no-extend-native": "warn",
+    "no-extra-bind": "warn",
+    "no-fallthrough": "warn",
+    "no-implied-eval": "warn",
+    "no-labels": "warn",
+    "no-iterator": "warn",
+    "no-lone-blocks": "warn",
+    "no-new": "warn",
+    "no-new-wrappers": "warn",
+    "no-proto": "warn",
+    "no-return-assign": "warn",
+    "no-script-url": "warn",
+    "no-self-compare": "warn",
+    "no-sequences": "warn",
+    "no-useless-escape": "warn",
+    "no-void": "warn",
+    "no-with": "warn",
+    "radix": "warn",
+    "yoda": "warn",
+    "no-delete-var": "warn",
+    "no-label-var": "warn",
+    "no-shadow": "warn",
+    "no-shadow-restricted-names": "warn",
+    "handle-callback-err": "warn",
+    "no-mixed-requires": "warn",
+    "no-new-require": "warn",
+    "no-path-concat": "warn",
+    "no-array-constructor": "warn",
+    "no-empty-character-class": "warn",
+    "no-object-constructor": "warn",
+    "no-bitwise": "warn",
+    "unicorn/no-abusive-eslint-disable": "warn",
+    "eslint-comments/no-aggregating-enable": "warn",
+    "eslint-comments/no-unused-enable": "warn",
+    "react/no-did-mount-set-state": "warn",
+    "react/no-did-update-set-state": "warn",
+    "react/no-string-refs": "warn",
+    "react/no-unstable-nested-components": "warn",
+    "react/self-closing-comp": "warn",
+    "jest/no-disabled-tests": "warn",
+    "jest/no-focused-tests": "warn",
+    "jest/no-identical-title": "warn",
+    "jest/valid-expect": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["**/__tests__/**", "**/__mocks__/**", "**/*.test.ts", "**/*.test.tsx"],
+      "env": { "jest": true }
+    },
+    {
+      "files": ["**/*.mjs"],
+      "env": { "node": true, "es2022": true }
+    },
+    {
+      "files": ["packages/cli/src/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@sherlo/sdk-client",
+                "importNames": ["default"],
+                "allowTypeImports": true,
+                "message": "A door outside src/seams/ - every real call goes through packages/cli/src/seams/serverCalls.ts, which builds its own client from a token. Take a token, not a client."
+              },
+              {
+                "name": "child_process",
+                "message": "A door outside src/seams/ - this module belongs to the live half of the seam that owns it, reached only from its seam or from another live half (see packages/cli/src/__tests__/doors-are-seams.test.ts)."
+              },
+              {
+                "name": "http",
+                "message": "A door outside src/seams/ - this module belongs to the live half of the seam that owns it, reached only from its seam or from another live half (see packages/cli/src/__tests__/doors-are-seams.test.ts)."
+              },
+              {
+                "name": "https",
+                "message": "A door outside src/seams/ - this module belongs to the live half of the seam that owns it, reached only from its seam or from another live half (see packages/cli/src/__tests__/doors-are-seams.test.ts)."
+              },
+              {
+                "name": "net",
+                "message": "A door outside src/seams/ - this module belongs to the live half of the seam that owns it, reached only from its seam or from another live half (see packages/cli/src/__tests__/doors-are-seams.test.ts)."
+              }
+            ]
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "A door outside src/seams/ - reach the network through packages/cli/src/seams/serverCalls.ts or packages/cli/src/seams/nativeBuild.ts."
+          },
+          {
+            "name": "__dirname",
+            "message": "A file read outside the project folder seam (packages/cli/src/seams/projectFiles.ts) - resolve paths from projectFiles().root() instead."
+          }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "process",
+            "property": "cwd",
+            "message": "A file read outside the project folder seam (packages/cli/src/seams/projectFiles.ts) - resolve paths from projectFiles().root() instead."
+          },
+          {
+            "object": "os",
+            "property": "tmpdir",
+            "message": "A file read outside the project folder seam (packages/cli/src/seams/projectFiles.ts) - resolve paths from projectFiles().root() instead."
+          },
+          {
+            "object": "os",
+            "property": "homedir",
+            "message": "A file read outside the project folder seam (packages/cli/src/seams/projectFiles.ts) - resolve paths from projectFiles().root() instead."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/cli/src/seams/**",
+        "packages/cli/src/**/__tests__/**",
+        "packages/cli/src/commands/easBuildOnComplete/**",
+        "packages/cli/src/commands/testEasCloudBuild/**",
+        "packages/cli/src/commands/showError/**",
+        "packages/cli/src/commands/pose/**"
+      ],
+      "rules": {
+        "no-restricted-imports": "off",
+        "no-restricted-globals": "off",
+        "no-restricted-properties": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/cli/src/helpers/uploadOrPrintBinaryReuse/uploadBuild/uploadBuild.ts",
+        "packages/cli/src/commands/test/buildBundle.ts",
+        "packages/cli/src/helpers/runShellCommand/executeCommand.ts",
+        "packages/cli/src/helpers/runShellCommand/tryToFixPermissionAndRetryOnce.ts",
+        "packages/cli/src/commands/test/uploadStagedArtifacts.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@sherlo/sdk-client",
+                "importNames": ["default"],
+                "allowTypeImports": true,
+                "message": "A door outside src/seams/ - every real call goes through packages/cli/src/seams/serverCalls.ts, which builds its own client from a token. Take a token, not a client."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "packages/cli/src/commands/test/uploadStagedArtifacts.ts",
+        "packages/cli/src/commands/test/bundleSidecar.ts"
+      ],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "A door outside src/seams/ - reach the network through packages/cli/src/seams/serverCalls.ts or packages/cli/src/seams/nativeBuild.ts."
+          }
+        ],
+        "no-restricted-properties": "off"
+      }
+    }
+  ]
+}

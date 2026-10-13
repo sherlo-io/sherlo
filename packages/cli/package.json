@@ -34,16 +34,24 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && ncc build src/index.ts --source-map --minify && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
-    "lint": "NODE_ENV=production yarn run -T eslint --ext .ts,.tsx src",
+    "build": "rm -rf dist && esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --minify --keep-names --sourcemap --external:@expo/fingerprint --external:@napi-rs/keyring --outfile=dist/index.js && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
+    "check:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts --check",
+    "generate:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts",
+    "lint": "yarn run -T oxlint -c ../../.oxlintrc.json src ../../actions/lib && yarn run -T prettier --check 'src/**/*.{ts,tsx}' '../../actions/lib/**/*.mjs'",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
+  },
+  "dependencies": {
+    "@expo/fingerprint": "^0.11.0",
+    "@napi-rs/keyring": "2.1.0"
   },
   "devDependencies": {
     "@babel/parser": "^7.29.3",
-    "@expo/fingerprint": "^0.11.0",
+    "@babel/types": "^7.29.0",
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.8.4",
     "@sentry/node": "10.47.0",
+    "@sherlo-io/time-limits": "^1.2.2",
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types",
     "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client",
     "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client",
@@ -54,21 +62,22 @@
     "@types/node-fetch": "^2.6.4",
     "@types/prompts": "^2.4.9",
     "@types/tar": "^6.1.5",
-    "@vercel/ncc": "latest",
     "ansi-escapes": "^7.2.0",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
+    "esbuild": "^0.25.0",
     "fast-glob": "^3.3.3",
     "find-up": "^7.0.0",
     "gradient-string": "^2.0.1",
     "graphql": "^16.6.0",
+    "js-yaml": "^4.1.0",
     "magicast": "^0.5.2",
     "node-fetch": "^2.6.11",
     "ora": "^8.2.0",
     "package-manager-detector": "^0.2.9",
     "type-fest": "^4.20.1",
-    "typescript": "^5.3.3",
-    "vitest": "^4.1.5",
+    "typescript": "^7.0.0",
+    "vitest": "^5.0.4",
     "wrap-ansi": "^9.0.0"
   },
   "engines": {

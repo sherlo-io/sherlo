@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import ora from 'ora';
+import spinner from '../../../helpers/spinner';
 import { Platform, ProjectType } from '../types';
 import { detectEntryFile } from '../detectBundler';
 import findSourceMap from './findSourceMap';
@@ -15,7 +15,7 @@ function buildSourceMaps(
   if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 
   const entryFile = detectEntryFile(projectRoot);
-  const spinner = ora('Building source maps').start();
+  const buildSpinner = spinner('Building source maps').start();
   const start = Date.now();
 
   let effectiveProjectType = projectType;
@@ -33,7 +33,7 @@ function buildSourceMaps(
           { cwd: projectRoot, stdio: ['pipe', 'pipe', 'pipe'] }
         );
       } catch (expoErr: any) {
-        spinner.warn(
+        buildSpinner.warn(
           `expo build failed (${expoErr.message || String(expoErr)}), retrying with rn bundler...`
         );
         const rnBundleOut = path.join(cacheDir, `bundle.${platform}.jsbundle`);
@@ -54,9 +54,9 @@ function buildSourceMaps(
     }
 
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-    spinner.succeed(`Built source maps (${elapsed}s)`);
+    buildSpinner.succeed(`Built source maps (${elapsed}s)`);
   } catch (err: any) {
-    spinner.fail('Source map build failed');
+    buildSpinner.fail('Source map build failed');
     const errOutput = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
     throw new Error(
       `Source map build failed: ${err.message || String(err)}${errOutput ? '\n' + errOutput : ''}`

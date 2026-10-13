@@ -1,1 +1,1 @@
-export { default } from './getLocalBinariesInfo';
+export { default, type LocalBinariesInfo, type LocalBinaryInfo } from './getLocalBinariesInfo';

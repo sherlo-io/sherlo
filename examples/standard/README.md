@@ -155,11 +155,11 @@ _💡 **Own project?** Run `npx sherlo init` to automatically integrate Sherlo i
 
 ## 📚 Learn More
 
-To learn more about **Standard** testing method, visit our [documentation](https://sherlo.io/docs/testing?method=standard#testing-methods)
+To learn more about testing with Sherlo, visit our [documentation](https://sherlo.io/docs/testing)
 
 <br />
 
 ## 🔗 Other Examples
 
-- ⚡ **[EAS Update](../eas-update)** – Test builds with OTA JavaScript updates - skip rebuilds
+- ⚡ **[Staged](../staged)** – Route CI to a JS-only fast lane when native is unchanged
 - ☁️ **[EAS Cloud Build](../eas-cloud-build)** – Automatically test builds created on Expo servers

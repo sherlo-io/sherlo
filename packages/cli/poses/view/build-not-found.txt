@@ -1,0 +1,9 @@
+[31mERROR: Build #99 does not exist in this project. Check the index (it is the `b=` value of a build URL) and the token.[39m
+
+[2m══════════[22m
+[2m[22m
+[2mNeed Help?[22m
+[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
+[2m➜ [22m[2mcontact@sherlo.io[22m
+
+[exit 1]

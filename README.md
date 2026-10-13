@@ -1,12 +1,12 @@
 <br />
 
 <p align="center">
-  <a href="https://sherlo.io" title="Sherlo - Visual regression testing for React Native">
+  <a href="https://sherlo.io/" title="Sherlo - Visual testing for React Native">
     <picture>
       <source media="(prefers-color-scheme: dark) and (max-width: 500px)" srcset="/assets/logo-dark.svg" width="140">
       <source media="(prefers-color-scheme: dark)" srcset="/assets/logo-dark.svg" width="168">
       <source media="(max-width: 500px)" srcset="/assets/logo-light.svg" width="140">
-      <img src="/assets/logo-light.svg" alt="Sherlo - Visual regression testing for React Native" width="168" />
+      <img src="/assets/logo-light.svg" alt="Sherlo - Visual testing for React Native" width="168" />
     </picture>
   </a>
 </p>
@@ -16,7 +16,7 @@
 <div align="center">
   <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/v/@sherlo/react-native-storybook.svg" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/@sherlo/react-native-storybook"><img src="https://img.shields.io/npm/dm/@sherlo/react-native-storybook.svg" alt="npm downloads"></a>
-  <a href="https://discord.gg/G7eqTBkWZt"><img src="https://img.shields.io/discord/1194981477130190929?label=discord" alt="discord"></a>
+  <a href="https://github.com/sherlo-io/sherlo/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="license"></a>
 </div>
 
 
@@ -39,7 +39,7 @@
 
 ### How It Works
 
-1. **📸 Capture** - Sherlo takes screenshots of your UI on iOS and Android simulators in the cloud
+1. **📸 Capture** - Sherlo takes screenshots of your UI on iOS and Android devices in the cloud
 2. **🔍 Detect** - All visual changes are automatically detected by comparison with previous versions
 3. **👍 Review** - Your team reviews detected changes before they go live
 
@@ -65,8 +65,40 @@ npx sherlo init
 #### 2) Run visual tests
 
 ```bash
-npx sherlo test
+npx sherlo test --android <path> --ios <path>
 ```
+
+That first run registers your builds as the base. After it, plain `npx sherlo
+test` tests JS-only changes with no native rebuild - and tells you when a fresh
+native build is needed.
+
+#### 3) Run it in CI
+
+The same verb, as a GitHub Action:
+
+```yaml
+- uses: sherlo-io/sherlo@v2
+  with:
+    token: ${{ secrets.SHERLO_TOKEN }}
+```
+
+`v2` is the major tag the action is released under, and each release moves it to
+that release's commit. The action ships with the next release, so `v2` does not
+resolve yet and no earlier ref carries the action either. Until that release
+lands, run the CLI directly (`npx sherlo test`) rather than pinning a ref that
+does not exist.
+
+It runs the Sherlo CLI your project has installed. If the job has none, it runs
+the CLI carried at the ref you pinned, so a job needs no install step just to
+give the action a CLI to find. The first line of the log names the one that ran.
+
+Without build paths it tests JS-only and outputs `native-needed`; give it
+`android` / `ios` build paths and it runs the full test that registers a fresh
+base. See [`examples/staged`](./examples/staged) for the two-job workflow.
+
+No `fetch-depth` needed on `actions/checkout` - the action deepens a shallow
+checkout itself, so Sherlo always has the commit history it needs to inherit a
+baseline.
 
 <br />
 
@@ -86,7 +118,7 @@ Try Sherlo with ready-to-run example projects.
 
 - **📱 Minimal Apps** - React Native + Storybook integrated with Sherlo
 - **🤖 GitHub Actions** - CI/CD workflows for automated testing
-- **🔄 Different Workflows** - Standard builds, OTA updates, and Expo cloud builds
+- **🔄 Different Workflows** - Standard builds, a JS-only fast lane, and Expo cloud builds
 
 <br />
 
@@ -101,7 +133,7 @@ Review visual changes across devices in one web app as a team - from developers 
 ### Features
 
 - **📸 Visual Comparison** - Compare before/after screenshots with highlighted changes
-- **💬 Team Feedback** - Approve or report changes and leave comments
+- **💬 Team Feedback** - Approve or reject changes and leave comments
 - **🔍 Code Inspector** - Inspect React Native styles directly in the browser
 - **🎨 Figma Preview** - Compare UI with Figma designs side-by-side
 - …and more

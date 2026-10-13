@@ -1,0 +1,58 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "layout-card--basic", "--json"],
+  "capture": {
+    "stories": [
+      "foundation-typography--scales",
+      "foundation-colour--palette",
+      "controls-button--primary",
+      "controls-button--disabled",
+      "controls-input--empty",
+      "layout-card--basic"
+    ],
+    "settled": { "ms": 900, "frames": 6 },
+    "tree": {
+      "primitive": "View",
+      "components": ["ProductCard"],
+      "size": { "width": 312, "height": 168 },
+      "style": { "padding": 24, "gap": 12, "borderWidth": 1, "borderColor": "#e0e0e0", "borderRadius": 12, "backgroundColor": "#fff" },
+      "children": [
+        {
+          "primitive": "Text",
+          "size": { "width": 264, "height": 27 },
+          "style": { "fontSize": 20, "fontWeight": "700", "color": "#111" },
+          "text": "Sherlo Widget"
+        },
+        {
+          "primitive": "Text",
+          "size": { "width": 264, "height": 24 },
+          "style": { "fontSize": 18, "color": "#555" },
+          "text": "$29.99"
+        },
+        {
+          "primitive": "View",
+          "components": ["SharedButton", "TouchableOpacity"],
+          "size": { "width": 264, "height": 46 },
+          "props": { "testID": "add-to-cart" },
+          "style": { "alignItems": "center", "paddingVertical": 12, "paddingHorizontal": 24, "borderRadius": 8, "backgroundColor": "#0066cc" },
+          "children": [
+            {
+              "primitive": "Text",
+              "size": { "width": 92, "height": 22 },
+              "style": { "fontSize": 16, "fontWeight": "600", "color": "#fff" },
+              "text": "Add to Cart"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
