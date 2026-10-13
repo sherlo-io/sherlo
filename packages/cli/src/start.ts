@@ -175,7 +175,8 @@ const COMMAND_DESCRIPTION = {
     '  A later `npx sherlo test` takes the build from the cache instead of compiling, for as long\n' +
     "  as the app's native code and build settings are unchanged.",
   [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
-  [EAS_BUILD_ON_COMPLETE_COMMAND]: `Process EAS Build (required for \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
+  [EAS_BUILD_ON_COMPLETE_COMMAND]:
+    'Hand a finished EAS build to its Sherlo test (run by EAS, from package.json, in EAS mode)',
   [SHOW_ERROR_COMMAND]:
     'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
   [VIEW_COMMAND]:
@@ -648,9 +649,11 @@ function addShowErrorCommand(program: Command) {
 
 // `sherlo fingerprint` reuses `--bundle-dir` with its own meaning: the directory is
 // READ for its module manifests (the js layer's file list), never checked or run.
+// Hidden from `--help`: it serves Sherlo's own end-to-end tests, and `sherlo test` computes the
+// fingerprints itself (operator ruling 2026-10-13, Q13).
 function addFingerprintCommand(program: Command) {
   const commandInstance = program
-    .command(FINGERPRINT_COMMAND)
+    .command(FINGERPRINT_COMMAND, { hidden: true })
     .description(COMMAND_DESCRIPTION[FINGERPRINT_COMMAND]);
   addOptionsToCommand(commandInstance, [
     PROJECT_ROOT_OPTION,
@@ -681,7 +684,11 @@ function addFingerprintCommand(program: Command) {
  * name included - so nothing is read off its position after the verb.
  */
 function addProjectCommand(program: Command) {
-  const projectGroup = program.command(PROJECT_COMMAND).description('Manage Sherlo projects');
+  // Hidden from `--help`: a customer makes a project through `sherlo init` or the web app; this
+  // group serves Sherlo's own end-to-end tests (operator ruling 2026-10-13, Q13).
+  const projectGroup = program
+    .command(PROJECT_COMMAND, { hidden: true })
+    .description('Manage Sherlo projects');
 
   const createInstance = projectGroup
     .command(PROJECT_CREATE_SUBCOMMAND)
@@ -715,7 +722,8 @@ function addProjectCommand(program: Command) {
  * every team that person belongs to rather than one named team.
  */
 function addTeamCommand(program: Command) {
-  const teamGroup = program.command(TEAM_COMMAND).description('Manage Sherlo teams');
+  // Hidden from `--help`, like the project group (operator ruling 2026-10-13, Q13).
+  const teamGroup = program.command(TEAM_COMMAND, { hidden: true }).description('Manage Sherlo teams');
 
   const createInstance = teamGroup
     .command(TEAM_CREATE_SUBCOMMAND)
