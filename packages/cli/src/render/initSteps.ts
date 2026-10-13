@@ -41,7 +41,9 @@ export function renderStepLine({
   /** The fact worth seeing, e.g. the version installed or the file written. */
   detail: string;
 }): string {
-  const shownDetail = outcome === 'already' ? `${detail} ${chalk.dim('(already done)')}` : detail;
+  // A step with nothing to add but that it was already done reads `(already done)` alone.
+  const alreadyDoneMark = outcome === 'already' ? chalk.dim('(already done)') : '';
+  const shownDetail = [detail, alreadyDoneMark].filter((part) => part !== '').join(' ');
 
   return `${chalk.green('✔')} ${name.padEnd(STEP_NAME_WIDTH)} ${shownDetail}`;
 }

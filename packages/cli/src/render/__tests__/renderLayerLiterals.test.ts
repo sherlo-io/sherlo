@@ -502,12 +502,12 @@ const PINS: Pin[] = [
   },
   {
     kind: 'app-build-cached',
-    what: "`sherlo build` finds its build already in the cache - init's own `(already done)`",
+    what: "`sherlo build` finds its build already in the cache - init's own `(already done)`, alone after the name",
     segment: { kind: 'app-build-cached', platform: 'android' },
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Built the Android app  kept in the local build cache ${ESC}[2m(already done)${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Built the Android app  ${ESC}[2m(already done)${ESC}[22m`,
       ],
     ],
   },
@@ -574,7 +574,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'app-build-done',
-    what: '`sherlo build` says where it kept the app build instead of why it built one',
+    what: '`sherlo build` says how long it took and where the log is - its next step says where the app build is kept',
     segment: {
       kind: 'app-build-done',
       platform: 'ios',
@@ -585,7 +585,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Built the iOS app      in 42s, kept in the local build cache ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Built the iOS app      in 42s ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`,
       ],
     ],
   },

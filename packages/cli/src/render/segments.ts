@@ -190,7 +190,7 @@ export type TranscriptSegment =
    * ---------------------------------------------------------------------- */
   /**
    * `sherlo build` found its app build in the local build cache:
-   * `✔ Built the Android app  kept in the local build cache (already done)`. `sherlo test` emits
+   * `✔ Built the Android app  (already done)`. `sherlo test` emits
    * nothing for a reused app build, from Sherlo or from the cache: it took no time and needs no
    * action (operator ruling 2026-10-13), and `sherlo view <n> --json` says where it came from.
    */

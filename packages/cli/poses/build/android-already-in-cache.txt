@@ -12,7 +12,7 @@
 
 Building your app...
 
-[32m✔[39m Built the Android app  kept in the local build cache [2m(already done)[22m
+[32m✔[39m Built the Android app  [2m(already done)[22m
 
 
 [1m👉 Next step[22m

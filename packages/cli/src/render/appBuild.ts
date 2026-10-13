@@ -130,23 +130,19 @@ function builtTheApp(platform: Platform): string {
 }
 
 /**
- * `sherlo build` found its app build in the local build cache:
- * `✔ Built the Android app  kept in the local build cache (already done)` - init's own words for a
- * step this run found done, since building is what the command was asked for. (`sherlo test` says
- * nothing of a cached app build: it took no time and needs no action.)
+ * `sherlo build` found its app build in the local build cache: `✔ Built the Android app  (already
+ * done)` - init's own words for a step this run found done, since building is what the command was
+ * asked for. Where the app build is kept is the next step's to say. (`sherlo test` says nothing of
+ * a cached app build: it took no time and needs no action.)
  */
 export function renderAppBuildCached(platform: Platform): string {
-  return renderTestStep({
-    name: builtTheApp(platform),
-    detail: 'kept in the local build cache',
-    alreadyDone: true,
-  });
+  return renderTestStep({ name: builtTheApp(platform), alreadyDone: true });
 }
 
 /**
  * `✔ Built the Android app      in 1m 28s, native code changed since Test 12 (log: .sherlo/build-android.log)`,
- * and the native changes under it; a first build gives no reason. `sherlo build` says where it kept
- * the app build instead of why it built one.
+ * and the native changes under it; a first build gives no reason, and neither does `sherlo build`,
+ * whose next step says where the app build is kept.
  */
 export function renderAppBuildDone({
   platform,
@@ -161,7 +157,7 @@ export function renderAppBuildDone({
   why?: WhyANewAppBuild;
   command: AppBuildCommand;
 }): string[] {
-  const after = command === 'build' ? 'kept in the local build cache' : why && whyBuilt(why);
+  const after = command === 'test' && why ? whyBuilt(why) : undefined;
   const detail = `in ${formatBuildDuration(seconds)}${after ? `, ${after}` : ''} ${chalk.dim(
     `(log: ${logPath})`
   )}`;
