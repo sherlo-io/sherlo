@@ -184,4 +184,15 @@ describe('the native modules and their spec', () => {
     );
     expect(offering.map((file) => path.relative(SDK_ROOT, file))).toEqual([]);
   });
+
+  it('the iOS core keeps the JS version until a line opens', () => {
+    const source = fs.readFileSync(path.join(SDK_ROOT, 'ios', 'SherloModuleCore.m'), 'utf8');
+
+    // The hello stores the version in the core, not only on a line that may not exist yet.
+    expect(source).toMatch(/^static NSString \*jsVersion = nil;/m);
+    expect(source).toMatch(/jsVersion = \[helloJsVersion isKindOfClass:\[NSString class\]\]/);
+    // The line-opening path hands the stored version to the new line.
+    const openLineBody = source.match(/\+ \(void\)openLineTo:[\s\S]*?\n\}/)![0];
+    expect(openLineBody).toContain('[line setJsVersion:jsVersion];');
+  });
 });
