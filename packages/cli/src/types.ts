@@ -150,7 +150,14 @@ type CommandOptions = {
 /* === COMMAND PARAMS === */
 
 export type CommandParams<C extends Command | 'any' = 'any'> = Config &
-  Options<C, 'withDefaults', 'normalized'> & { credential: PushCredential };
+  Options<C, 'withDefaults', 'normalized'> & {
+    credential: PushCredential;
+    /**
+     * The config's whole device list. `devices` is cut to a `--platform` job's own platform, while
+     * the test's row names every device of the test, whichever job started it.
+     */
+    testDevices?: Config['devices'];
+  };
 
 /**
  * The credential a push or a view spends, and the project it goes to (sherlo / The credential
