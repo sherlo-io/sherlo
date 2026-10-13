@@ -45,7 +45,8 @@
     "lerna": "^9.0.3",
     "prettier": "2.8.8",
     "tsx": "^4.20.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vite": "^8.0.0"
   },
   "engines": {
     "node": ">=10.24.1",
