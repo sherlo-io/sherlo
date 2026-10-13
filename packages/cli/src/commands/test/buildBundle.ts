@@ -26,6 +26,7 @@ import getPackageVersion from '../../commands/init/requirements/getPackageVersio
 import { dependsOnExpo, readProjectJson } from '../../helpers/projectJson';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
+import { makeProjectSherloFolder } from './appBuild/cacheFolder';
 import {
   BUNDLER_SETUP_ERROR_LINE,
   BUNDLER_SETUP_ERROR_MARKERS,
@@ -144,7 +145,7 @@ export async function buildBundleForPlatform({
     projectType = dependsOnExpo(projectRoot) ? 'expo' : 'rn';
   }
 
-  const cacheDir = path.join(projectRoot, '.sherlo', 'bundled');
+  const cacheDir = path.join(makeProjectSherloFolder(projectRoot), 'bundled');
   fs.mkdirSync(cacheDir, { recursive: true });
 
   const entryFile = detectEntryFile(projectRoot);

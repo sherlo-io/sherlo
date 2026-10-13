@@ -8,10 +8,13 @@
         { "id": "iphone.15", "osVersion": "17" }
       ]
     },
-    ".sherlo/build-cache/android/app-release.apk": "the app build the local build cache held - what the tool reads out of it is `push`",
-    ".sherlo/build-cache/ios/Storefront.tar.gz": "the app build the local build cache held - what the tool reads out of it is `push`"
+    "sherlo-cache/build-cache/android-a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d-b1307e7378ab/app-release.apk": "the app build the local build cache held - what the tool reads out of it is `push`",
+    "sherlo-cache/build-cache/ios-a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d-b1307e7378ab/Storefront.tar.gz": "the app build the local build cache held - what the tool reads out of it is `push`"
   },
-  "env": { "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "env": {
+    "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017",
+    "SHERLO_CACHE_DIR": "sherlo-cache"
+  },
   "git": {
     "branch": "feature/checkout",
     "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
@@ -29,8 +32,14 @@
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": {
+          "title": "Storefront/ProductCard",
+          "stories": 3
+        },
+        "src/components/Storefront/Checkout.stories.tsx": {
+          "title": "Storefront/Checkout",
+          "stories": 2
+        }
       }
     },
     "ios": {
@@ -44,20 +53,32 @@
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": {
+          "title": "Storefront/ProductCard",
+          "stories": 3
+        },
+        "src/components/Storefront/Checkout.stories.tsx": {
+          "title": "Storefront/Checkout",
+          "stories": 2
+        }
       }
     }
   },
   "api": [
     {
       "call": "checkStagedGate",
-      "with": { "platform": "android", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "full-build-needed", "diff": [] }
     },
     {
       "call": "checkStagedGate",
-      "with": { "platform": "ios", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "ios",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "full-build-needed", "diff": [] }
     },
     {
@@ -107,8 +128,12 @@
     "java": 17,
     "iosSchemes": ["Storefront"],
     "platforms": {
-      "android": { "cached": ".sherlo/build-cache/android/app-release.apk" },
-      "ios": { "cached": ".sherlo/build-cache/ios/Storefront.tar.gz" }
+      "android": {
+        "cached": "sherlo-cache/build-cache/android-a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d-b1307e7378ab/app-release.apk"
+      },
+      "ios": {
+        "cached": "sherlo-cache/build-cache/ios-a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d-b1307e7378ab/Storefront.tar.gz"
+      }
     }
   },
   "push": {

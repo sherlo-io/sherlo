@@ -40,6 +40,7 @@ async function build(passedOptions: BuildOptions): Promise<void> {
     settings: config.build ?? {},
     baseFingerprint: fingerprint.hash ?? '',
     cacheDirFlag: passedOptions.buildCache,
+    parallelBuildsFlag: passedOptions.parallelBuilds,
     command: 'build',
     // `sherlo build` prints its own lines and no platform rows.
     storedPlatformRows: [],
