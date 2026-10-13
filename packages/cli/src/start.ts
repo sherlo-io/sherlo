@@ -169,7 +169,7 @@ const COMMAND_DESCRIPTION = {
     'Run visual tests.\n' +
     '  Tests JS-only changes against the stored app build, with no build. When native code\n' +
     '  or build settings changed, builds the app first (with Gradle and Xcode, or on EAS in EAS\n' +
-    '  mode) - or takes it from the local build cache `npx sherlo build` filled.',
+    '  mode).',
   [BUILD_COMMAND]:
     'Build the app into the local build cache, and push nothing.\n' +
     '  A later `npx sherlo test` takes the build from the cache instead of compiling, for as long\n' +
