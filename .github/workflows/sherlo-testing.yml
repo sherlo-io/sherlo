@@ -32,16 +32,6 @@ on:
         required: false
         default: false
         type: boolean
-      staged:
-        description: 'expo app, staged run (JS-only, no builds)'
-        required: false
-        default: false
-        type: boolean
-      eas_cloud_build:
-        description: 'expo app, eas-cloud-build'
-        required: false
-        default: false
-        type: boolean
   schedule:
     - cron: '0 5 * * *' # 5 AM UTC every day (6 AM in Poland)
 
@@ -104,28 +94,3 @@ jobs:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
       app: 'expo'
       sherlo_project: 'expo'
-
-  # The staged road tests against the base a full run registered, so it follows
-  # Standard (Expo) and shares its Sherlo project. When that job is not selected
-  # it is skipped rather than failed, and this one still runs against whatever
-  # base the project already holds.
-  staged:
-    needs: [check_if_monday, standard_expo]
-    uses: ./.github/workflows/test.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.staged == 'true') && always() && !failure() && !cancelled() }}
-    name: Staged (JS-only)
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      app: 'expo'
-      sherlo_project: 'expo'
-      with_builds: false
-
-  eas_cloud_build:
-    needs: check_if_monday
-    uses: ./.github/workflows/test:eas-cloud-build.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_cloud_build == 'true') && always() && !failure() && !cancelled() }}
-    name: EAS Cloud Build
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}

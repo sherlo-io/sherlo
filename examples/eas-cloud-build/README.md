@@ -1,6 +1,6 @@
 # ☁️ EAS Cloud Build Example • Sherlo
 
-A minimal example app showing Sherlo running automated [visual regression testing for React Native](https://sherlo.io). Sherlo captures Storybook stories on iOS and Android simulators in the cloud. App binaries are built with EAS Cloud Build.
+A minimal example app showing Sherlo running automated [visual regression testing for React Native](https://sherlo.io). Sherlo captures Storybook stories on iOS and Android simulators in the cloud. `npx sherlo test` builds the iOS and Android apps with EAS, because this project turns it on.
 
 - Sherlo integration
 - GitHub Actions workflow
@@ -9,23 +9,23 @@ A minimal example app showing Sherlo running automated [visual regression testin
 
 ## 🔄 Workflow
 
-Automatically run visual tests after builds complete on **Expo servers**
+`sherlo test` builds on **Expo servers** and runs the visual tests when the builds complete
 
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
+   Test(🧪 sherlo test)
    subgraph Build[☁️ Build on Expo Servers]
       Android(🤖 Build Android)
       iOS(🍎 Build iOS)
       Android ~~~ iOS
       style Build fill:#4ba9ec1f,stroke:#4ba9ecd9
    end
-   Test(🧪 Run Test)
    Review(👀 Review Results)
 
-   UI --> Build
-   Build --> Test
-   Test --> Review
+   UI --> Test
+   Test --> Build
+   Build --> Review
 ```
 
 <br />
@@ -60,14 +60,25 @@ Set up EAS to build your app binaries:
 npx eas-cli init
 ```
 
-### 3. Get Sherlo Token
+### 3. Log in to Sherlo
 
-This token authenticates your account and links tests to your project
+Log in once with `npx sherlo login`. In CI, the project token is passed as the `SHERLO_TOKEN` secret.
+
+To get a project token:
 
 1. Go to https://app.sherlo.io
 2. Get your token:
    - **New project**: Create a project and copy the token
    - **Existing project**: Reset the token _(Settings → Reset token)_
+
+### 4. EAS mode
+
+This example turns EAS mode on, so `sherlo test` builds the apps on Expo's servers instead of on your computer:
+
+- **[`sherlo.config.json`](./sherlo.config.json)** – `build.tool` is `"eas"` and `build.easProfile` names the profile to build
+- **[`eas.json`](./eas.json)** – the `sherlo` profile builds a simulator app for iOS and an APK for Android, with `SHERLO_BUILD` set to `storybook`
+- **[`package.json`](./package.json)** – the `eas-build-on-complete` and `eas-build-on-cancel` scripts, which Expo runs after each build
+- **[`.gitignore`](./.gitignore)** – keeps `.sherlo/` out of git, while [`.easignore`](./.easignore) lets it into the upload
 
 <br />
 
@@ -75,16 +86,11 @@ This token authenticates your account and links tests to your project
 
 ### Option A: Run from Terminal
 
-#### Trigger cloud builds and run test
-
-Run Sherlo to trigger builds on Expo servers and visually test them when complete:
+Run Sherlo to build on Expo servers and visually test the builds when they complete:
 
 ```bash
-yarn sherlo --token YOUR_SHERLO_TOKEN
-# Or add token to sherlo.config.json and run `yarn sherlo`
+yarn sherlo
 ```
-
-_💡 Sherlo injects test metadata before triggering builds, enabling test identification when Expo sends completed builds (via&nbsp;`eas‑build‑on‑complete`&nbsp;script)_
 
 ---
 
@@ -104,6 +110,7 @@ _💡 Sherlo injects test metadata before triggering builds, enabling test ident
 2. **Add repository secrets**
 
    In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+
    - `SHERLO_TOKEN` – Your Sherlo project token
    - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
@@ -152,5 +159,5 @@ To learn more about **EAS Cloud Build** testing method, visit our [documentation
 
 ## 🔗 Other Examples
 
-- 📦 **[Standard](../standard)** – Test app builds with bundled JavaScript
+- 📦 **[Standard](../standard)** – Build with Gradle and Xcode and test with the Sherlo GitHub Action
 - ⚡ **[EAS Update](../eas-update)** – Test builds with OTA JavaScript updates - skip rebuilds

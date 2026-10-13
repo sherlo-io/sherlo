@@ -19,7 +19,6 @@
   <a href="https://github.com/sherlo-io/sherlo/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="license"></a>
 </div>
 
-
 <br />
 
 <div align="center">
@@ -65,21 +64,31 @@ npx sherlo init
 #### 2) Run visual tests
 
 ```bash
-npx sherlo test --android <path> --ios <path>
+npx sherlo test
 ```
 
-That first run registers your builds as the base. After it, plain `npx sherlo
-test` tests JS-only changes with no native rebuild - and tells you when a fresh
-native build is needed.
+`npx sherlo test` builds the iOS and Android apps itself, with Gradle and Xcode, or with EAS when your project turns it on. Then it uploads them and tests every story. Log in once with `npx sherlo login`; there are no paths to app files to pass.
 
 #### 3) Run it in CI
 
-The same verb, as a GitHub Action:
+CI runs one job per platform with the Sherlo GitHub Action. Set the project token as the SHERLO_TOKEN secret.
 
 ```yaml
-- uses: sherlo-io/sherlo@v2
-  with:
-    token: ${{ secrets.SHERLO_TOKEN }}
+jobs:
+  sherlo:
+    strategy:
+      matrix:
+        include:
+          - { platform: android, runner: ubuntu-latest }
+          - { platform: ios, runner: macos-latest }
+    runs-on: ${{ matrix.runner }}
+    env:
+      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sherlo-io/sherlo@v3
+        with:
+          platform: ${{ matrix.platform }}
 ```
 
 `v2` is the major tag the action is released under, and each release moves it to
@@ -92,9 +101,7 @@ It runs the Sherlo CLI your project has installed. If the job has none, it runs
 the CLI carried at the ref you pinned, so a job needs no install step just to
 give the action a CLI to find. The first line of the log names the one that ran.
 
-Without build paths it tests JS-only and outputs `native-needed`; give it
-`android` / `ios` build paths and it runs the full test that registers a fresh
-base. See [`examples/staged`](./examples/staged) for the two-job workflow.
+See [`examples/standard`](./examples/standard) for the complete workflow.
 
 No `fetch-depth` needed on `actions/checkout` - the action deepens a shallow
 checkout itself, so Sherlo always has the commit history it needs to inherit a
@@ -118,7 +125,7 @@ Try Sherlo with ready-to-run example projects.
 
 - **📱 Minimal Apps** - React Native + Storybook integrated with Sherlo
 - **🤖 GitHub Actions** - CI/CD workflows for automated testing
-- **🔄 Different Workflows** - Standard builds, a JS-only fast lane, and Expo cloud builds
+- **🔄 Different Workflows** - Standard builds and Expo cloud builds
 
 <br />
 
