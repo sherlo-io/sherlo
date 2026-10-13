@@ -18,7 +18,6 @@ import { DEVICES } from '@sherlo/shared';
 import type { Platform } from '@sherlo/api-types';
 import { APP_DOMAIN, CONTACT_EMAIL, DISCORD_URL, PLATFORM_LABEL } from '../constants';
 import type { Config } from '../types';
-import type { StoryFileTitle } from '../commands/test/readModuleManifest';
 import { renderSectionTitle } from './initLines';
 import { renderFailedStepLine, renderStepLine, renderStuckBlock } from './initSteps';
 
@@ -99,8 +98,11 @@ export type PlatformCapture = {
   newStoryFiles?: string[];
   /** Story files a change reaches. */
   changedStoryFiles?: string[];
-  /** Per story file, the Storybook title and story count the bundle's module map recorded. */
-  storyTitles?: Record<string, StoryFileTitle>;
+  /**
+   * The story files that have a Storybook title, and how many stories each holds. `stories` is
+   * absent when the module map recorded no count.
+   */
+  storyTitles?: Array<{ storyFile: string; title?: string; stories?: number }>;
 };
 
 /**

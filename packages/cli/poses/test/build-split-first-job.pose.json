@@ -1,12 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "test",
-    "--platform",
-    "android",
-    "--run-id",
-    "7243105518"
-  ],
+  "argv": ["test", "--platform", "android", "--run-id", "7243105518"],
   "files": {
     "sherlo.config.json": {
       "devices": [
@@ -36,17 +30,18 @@
       "bundleSizeMb": 4.29,
       "bundleFormat": "plain-js",
       "bundler": "expo",
-      "assets": [
-        "icon.png",
-        "splash.png"
-      ],
+      "assets": ["icon.png", "splash.png"],
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     }
   },
@@ -65,9 +60,7 @@
     {
       "call": "getNextBuildInfo",
       "with": {
-        "platforms": [
-          "android"
-        ]
+        "platforms": ["android"]
       },
       "answer": {
         "nextBuildIndex": 1,
@@ -81,9 +74,7 @@
     {
       "call": "getStagedUploadUrls",
       "with": {
-        "platforms": [
-          "android"
-        ]
+        "platforms": ["android"]
       },
       "answer": {}
     },
@@ -95,18 +86,14 @@
       },
       "answer": {
         "buildIndex": 1,
-        "waitingFor": [
-          "ios"
-        ]
+        "waitingFor": ["ios"]
       }
     }
   ],
   "masks": {},
   "appBuild": {
     "host": "linux",
-    "tools": [
-      "android-sdk"
-    ],
+    "tools": ["android-sdk"],
     "java": 17,
     "platforms": {
       "android": {
@@ -128,9 +115,7 @@
         "expoUpdatesEnabled": false,
         "hasExpoDevClient": false,
         "expoSdkVersion": "54.0.0",
-        "androidAbis": [
-          "arm64-v8a"
-        ]
+        "androidAbis": ["arm64-v8a"]
       }
     },
     "fingerprint": {

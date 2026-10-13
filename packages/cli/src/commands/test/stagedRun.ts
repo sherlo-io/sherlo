@@ -59,6 +59,7 @@ import {
   bundleStoryFiles,
   countBundleStories,
   countStoriesIn,
+  titledStoryFilesIn,
   type ValidatedModuleManifest,
 } from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
@@ -584,7 +585,7 @@ export function printTestStarted({
           : []
         : captureScope.storyFilePaths ?? [],
       newStoryFiles: captureScope.newStoryFilePaths ?? [],
-      ...(manifest?.parsed.storyTitles ? { storyTitles: manifest.parsed.storyTitles } : {}),
+      ...(manifest ? { storyTitles: titledStoryFilesIn(manifest) } : {}),
       // A partial capture takes exactly what a change reaches.
       changedStoryFiles: captureScope.full
         ? captureScope.changedStoryFilePaths ?? []

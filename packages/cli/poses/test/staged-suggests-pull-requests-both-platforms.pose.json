@@ -27,8 +27,12 @@
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     },
     "ios": {
@@ -42,30 +46,46 @@
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     }
   },
   "api": [
     {
       "call": "checkStagedGate",
-      "with": { "platform": "android", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "fast", "diff": [], "storedBuildIndex": 13 }
     },
     {
       "call": "checkStagedGate",
-      "with": { "platform": "ios", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "ios",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "fast", "diff": [], "storedBuildIndex": 13 }
     },
     {
       "call": "checkStagedGate",
-      "with": { "platform": "android", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "fast", "diff": [], "storedBuildIndex": 13 }
     },
     {
       "call": "checkStagedGate",
-      "with": { "platform": "ios", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "ios",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "fast", "diff": [], "storedBuildIndex": 13 }
     },
     {

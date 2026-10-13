@@ -32,14 +32,12 @@
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": {
-          "title": "Storefront/ProductCard",
-          "stories": 3
-        },
-        "src/components/Storefront/Checkout.stories.tsx": {
-          "title": "Storefront/Checkout",
-          "stories": 2
-        }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     },
     "ios": {
@@ -53,14 +51,12 @@
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": {
-          "title": "Storefront/ProductCard",
-          "stories": 3
-        },
-        "src/components/Storefront/Checkout.stories.tsx": {
-          "title": "Storefront/Checkout",
-          "stories": 2
-        }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     }
   },

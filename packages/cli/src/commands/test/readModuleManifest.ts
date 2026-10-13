@@ -25,15 +25,11 @@ export type ModuleManifest = {
   header: Record<string, unknown>;
   moduleHashes: Record<string, unknown>;
   storyClosures: Record<string, unknown>;
-  /**
-   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): per story file, its Storybook
-   * title and how many stories it holds. The serializer does not write it yet.
-   */
-  storyTitles?: Record<string, StoryFileTitle>;
+  /** Per story file, the title Storybook shows: `Storefront/ProductCard`. */
+  storyTitles?: Record<string, string>;
+  /** Per story file, how many stories it holds. */
+  storyCounts?: Record<string, number>;
 };
-
-/** A story file as the web app names it: `Storefront/ProductCard`, holding 3 stories. */
-export type StoryFileTitle = { title: string; stories: number };
 
 export type ValidatedModuleManifest = {
   /** The sidecar bytes exactly as written by the serializer (ready to gzip + upload). */
@@ -153,7 +149,10 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
       moduleHashes: parsed.moduleHashes,
       storyClosures: parsed.storyClosures,
       ...(isPlainObject(parsed.storyTitles)
-        ? { storyTitles: parsed.storyTitles as Record<string, StoryFileTitle> }
+        ? { storyTitles: parsed.storyTitles as Record<string, string> }
+        : {}),
+      ...(isPlainObject(parsed.storyCounts)
+        ? { storyCounts: parsed.storyCounts as Record<string, number> }
         : {}),
     },
   };
@@ -178,11 +177,27 @@ export function countBundleStories(manifest: ValidatedModuleManifest): number {
 
 /**
  * How many stories these story files hold: each file's own count where the module map records
- * titles, one per file where it does not.
+ * one, one per file where it does not.
  */
 export function countStoriesIn(manifest: ValidatedModuleManifest, files: string[]): number {
-  const titles = manifest.parsed.storyTitles;
-  return files.reduce((total, file) => total + (titles?.[file]?.stories ?? 1), 0);
+  const counts = manifest.parsed.storyCounts;
+  return files.reduce((total, file) => total + (counts?.[file] ?? 1), 0);
+}
+
+/**
+ * The story files the module map gives a title, each with its story count where one is recorded.
+ * A file with no recorded title is left out: the row prints its path.
+ */
+export function titledStoryFilesIn(
+  manifest: ValidatedModuleManifest
+): Array<{ storyFile: string; title?: string; stories?: number }> {
+  const { storyTitles = {}, storyCounts = {} } = manifest.parsed;
+  const storyFiles = new Set([...Object.keys(storyTitles), ...Object.keys(storyCounts)]);
+  return [...storyFiles].map((storyFile) => ({
+    storyFile,
+    ...(storyTitles[storyFile] !== undefined ? { title: storyTitles[storyFile] } : {}),
+    ...(storyCounts[storyFile] !== undefined ? { stories: storyCounts[storyFile] } : {}),
+  }));
 }
 
 /** Every story file the bundle holds. */
