@@ -304,7 +304,13 @@ describe('sherlo test builds the app on this machine', () => {
         mostAtOnce = Math.max(mostAtOnce, compiling);
         await new Promise((resolve) => setImmediate(resolve));
         compiling -= 1;
-        return { ok: true, path: `/built/${platform}`, sizeMb: '1', seconds: 1, podFilesChanged: [] };
+        return {
+          ok: true,
+          path: `/built/${platform}`,
+          sizeMb: '1',
+          seconds: 1,
+          podFilesChanged: [],
+        };
       },
     });
 
