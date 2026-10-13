@@ -89,7 +89,16 @@ runs:
         git -C libs-inputs fetch -q --depth 1 --filter=blob:none "$SHERLO_API_URL" "$sha"
         inputs_listing=""
         for input in $LIBS_INPUTS; do
-          inputs_listing+="$input $(git -C libs-inputs rev-parse "FETCH_HEAD:$input")"$'\n'
+          if tree_id=$(git -C libs-inputs rev-parse --verify --quiet "FETCH_HEAD:$input"); then
+            inputs_listing+="$input $tree_id"$'\n'
+          elif [[ " $OPTIONAL_LIBS_INPUTS " == *" $input "* ]]; then
+            # Not in this commit: it is on the other Yarn. Left out of the listing, so a branch
+            # on the old Yarn lists exactly what it did before the new Yarn's file was named.
+            continue
+          else
+            echo "Error: sherlo-api $sha holds no '$input'" >&2
+            exit 1
+          fi
         done
         rm -rf libs-inputs
         printf 'The libs are built from:\n%s' "$inputs_listing"
@@ -102,11 +111,14 @@ runs:
         # TypeScript config they build with, the yarn and node versions that build them, and the
         # scripts init-env.sh runs to build them. This list MUST name everything init-env.sh
         # builds the libraries from: a path it leaves out can change while the cache key stays
-        # the same, and the job then installs stale libraries without a word.
+        # the same, and the job then installs stale libraries without a word. sherlo-api's Yarn
+        # config is `.yarnrc` on the old Yarn and `.yarnrc.yml` on the new one, so a commit holds
+        # one of them; those two are the only inputs allowed to be missing.
         LIBS_INPUTS: >-
-          package.json yarn.lock tsconfig.json .yarnrc .yarn/releases .nvmrc
+          package.json yarn.lock tsconfig.json .yarnrc .yarnrc.yml .yarn/releases .nvmrc
           packages/types packages/shared packages/clients/common packages/clients/sdk
           scripts/set-package-env.sh scripts/build.sh scripts/prepare-packages.sh
+        OPTIONAL_LIBS_INPUTS: .yarnrc .yarnrc.yml
 
     # Both caches carry the libs' inputs in their key, never yarn.lock alone: the libs are
     # built from a moving head that yarn.lock knows nothing about, and node_modules links to
