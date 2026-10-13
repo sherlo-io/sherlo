@@ -23,6 +23,11 @@ function jobText(jobId: string): string {
   return nextJob === -1 ? rest : rest.slice(0, nextJob);
 }
 
+const installActionText = fs.readFileSync(
+  path.resolve(WORKFLOWS, '../actions/install-with-libs/action.yml'),
+  'utf8'
+);
+
 describe('the pull request checks workflow', () => {
   it('pr_checks ends in one final job named checks that waits for every package job', () => {
     expect(jobIds[jobIds.length - 1]).toBe('checks');
@@ -62,5 +67,9 @@ describe('the pull request checks workflow', () => {
     );
     expect(triggers).toMatch(/^ {2}workflow_dispatch:/m);
     expect(triggers).toMatch(/^ {2}pull_request:/m);
+    // The install action resolves the libraries for a run started by hand, which has no PR refs.
+    expect(installActionText).toContain('"$EVENT_NAME" = "workflow_dispatch"');
+    expect(installActionText).toContain('HEAD_BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"');
+    expect(installActionText).not.toContain('"$GITHUB_HEAD_REF" == epic/*');
   });
 });
