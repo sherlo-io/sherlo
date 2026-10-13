@@ -14,7 +14,7 @@ Testing your app...
 
 [31m✖[39m Building the Android app failed
 
-Native code changed since Test 12's app build:
+Native code changed since Test 12:
    [33m~[39m android/app/build.gradle
    [33m~[39m yarn.lock
    [31m-[39m react-native-maps 1.2.0

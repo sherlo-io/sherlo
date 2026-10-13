@@ -204,7 +204,7 @@ export function renderAppBuildFailed({
   const changes = changesUnder(why);
   const changesBlock =
     changes.length > 0
-      ? [`Native code changed since Test ${why!.changesSince!.storedBuildIndex}'s app build:`, ...changes, '']
+      ? [`Native code changed since Test ${why!.changesSince!.storedBuildIndex}:`, ...changes, '']
       : [];
   const whatNow =
     command === 'test'
