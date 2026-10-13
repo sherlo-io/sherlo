@@ -83,7 +83,7 @@ function build({
     projectRoot,
     toBuild,
     settings,
-    baseFingerprint: FINGERPRINT,
+    fingerprints: { android: { hash: FINGERPRINT }, ios: { hash: FINGERPRINT } },
     command,
     storedPlatformRows: [],
     ...(cacheDirFlag ? { cacheDirFlag } : {}),

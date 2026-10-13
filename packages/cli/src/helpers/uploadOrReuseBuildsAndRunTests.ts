@@ -1,4 +1,4 @@
-import { Platform } from '@sherlo/api-types';
+import { BaseSourceList, Platform } from '@sherlo/api-types';
 import logWarning from './logWarning';
 import { PLATFORM_LABEL, TEST_COMMAND } from '../constants';
 import { CommandParams } from '../types';
@@ -18,7 +18,8 @@ import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
 import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
-import type { BaseFingerprintResult } from './fingerprint';
+import type { BaseFingerprints } from './fingerprint';
+import { baseFingerprintsOf } from './fingerprint/baseFingerprintsOf';
 import type { GitInfo } from './getGitInfo';
 import type { ValidatedBinariesInfo } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
@@ -72,7 +73,7 @@ export type PushEffects = {
     nextBuildIndex: number;
   }>;
   resolveGitInfo: () => Promise<GitInfo>;
-  computeFingerprint: () => Promise<BaseFingerprintResult>;
+  computeFingerprint: () => Promise<BaseFingerprints>;
   /** Opens the test, or - for one job of a split CI run - joins the one its CI run shares. */
   openBuild: (input: Record<string, unknown>) => Promise<OpenBuildAnswer | JoinBuildAnswer>;
   binaryUpload: BinaryUploadEffects;
@@ -160,6 +161,7 @@ async function uploadOrReuseBuildsAndRunTests({
             platform: splitJob.platform,
             request: input as OpenBuildRequest,
             platformRows,
+            testDevices: commandParams.testDevices,
           })
         : serverCalls()
             .openBuild({ token, ...input } as never)
@@ -187,13 +189,14 @@ async function uploadOrReuseBuildsAndRunTests({
   // base fingerprint no probe (the staged road, which never loads the
   // config first) could ever match.
   //
-  // This is the ONLY `createFingerprintAsync` invocation on this path: both the
-  // `baseFingerprint` value AND the `nativeFingerprint` wire value are sourced
-  // from this single result. `fpResult.nativeFingerprint` is the sanitized
-  // Layer-1 hash, or undefined when the compute fails (fail-soft).
+  // This is the ONLY fingerprint computation on this path: each platform's
+  // base fingerprint AND the `nativeFingerprint` wire value are sourced from
+  // this single result. `nativeFingerprint` covers both platforms, so every
+  // platform's result carries the same one, or undefined when the compute fails
+  // (fail-soft).
   // ------------------------------------------------------------------
-  const fpResult = await io.computeFingerprint();
-  const nativeFingerprint = fpResult.nativeFingerprint;
+  const fingerprints = await io.computeFingerprint();
+  const nativeFingerprint = fingerprints.android.nativeFingerprint;
 
   // The platforms this push uploads an app build for. Each is registered as the
   // native base below and rendered with a fresh bundle.
@@ -201,7 +204,12 @@ async function uploadOrReuseBuildsAndRunTests({
   if (binariesInfo.android && appBuildPaths.android) platforms.push('android');
   if (binariesInfo.ios && appBuildPaths.ios) platforms.push('ios');
 
-  let baseFingerprint: string | undefined;
+  /** A platform whose base fingerprint could not be computed - the run cannot name its base. */
+  const platformWithoutFingerprint = platforms.find((platform) => !fingerprints[platform].hash);
+  /** Each uploaded platform's own base, which its app build is registered under. */
+  const baseFingerprints = baseFingerprintsOf(fingerprints, platforms);
+  /** Each registered platform's source list, stored with its base. */
+  const sourceLists: Partial<Record<Platform, BaseSourceList>> = {};
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
   /**
    * Per platform, why a fresh bundle cannot be spliced into its binary; absent
@@ -212,9 +220,7 @@ async function uploadOrReuseBuildsAndRunTests({
    */
   const notSpliceableReasons: Partial<Record<Platform, string>> = {};
 
-  if (fpResult.hash) {
-    baseFingerprint = fpResult.hash;
-
+  if (platformWithoutFingerprint === undefined) {
     // Extract gate metadata per platform (fail-soft per platform).
     for (const platform of platforms) {
       try {
@@ -228,7 +234,7 @@ async function uploadOrReuseBuildsAndRunTests({
             projectRoot: commandParams.projectRoot,
             bundlePath: defaultEmbeddedBundlePath(platform),
             buildType: binaryInfo.buildType,
-            baseFingerprintHash: fpResult.hash,
+            baseFingerprint: fingerprints[platform],
             command,
           },
           io.baseRegistration
@@ -236,6 +242,9 @@ async function uploadOrReuseBuildsAndRunTests({
 
         if (result.gateMetadata) {
           gateMetadata[platform] = result.gateMetadata;
+        }
+        if (result.sourceList) {
+          sourceLists[platform] = result.sourceList;
         }
         if (!result.registered) {
           notSpliceableReasons[platform] =
@@ -249,7 +258,7 @@ async function uploadOrReuseBuildsAndRunTests({
   } else {
     logWarning({
       message: `Staged uploads unavailable - ${
-        fpResult.debugMessage ?? 'fingerprint computation failed'
+        fingerprints[platformWithoutFingerprint].debugMessage ?? 'fingerprint computation failed'
       }`,
     });
   }
@@ -277,10 +286,14 @@ async function uploadOrReuseBuildsAndRunTests({
   const reasons = platforms
     .filter((platform) => notSpliceableReasons[platform])
     .map((platform) => `${PLATFORM_LABEL[platform]}: ${notSpliceableReasons[platform]}`);
-  if (!baseFingerprint) {
-    reasons.push(`base fingerprint: ${fpResult.debugMessage ?? 'fingerprint computation failed'}`);
+  if (platformWithoutFingerprint !== undefined) {
+    reasons.push(
+      `base fingerprint: ${
+        fingerprints[platformWithoutFingerprint].debugMessage ?? 'fingerprint computation failed'
+      }`
+    );
   }
-  if (reasons.length > 0 || !baseFingerprint) {
+  if (reasons.length > 0) {
     throwError({
       message:
         'This run cannot render a freshly built JS bundle, so it was not started.\n\n' +
@@ -298,7 +311,9 @@ async function uploadOrReuseBuildsAndRunTests({
     platforms: platformsToBundle,
     bundleDir: commandParams.bundleDir,
     buildSettings: readBuildSettings(commandParams),
-    baseFingerprint,
+    // Every bundled platform's own base, a stored one's too: a supplied bundle is checked
+    // against the base of the platform it is for.
+    baseFingerprints: baseFingerprintsOf(fingerprints, platformsToBundle),
     projectIndex,
     teamId,
     effects: io.freshBundle,
@@ -351,7 +366,11 @@ async function uploadOrReuseBuildsAndRunTests({
     sdkVersion: binariesInfo.sdkVersion,
     message: commandParams.message,
     nativeFingerprint,
-    ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
+    // Each platform's own base, so a native change on one platform leaves the other's stored app
+    // build in use, and the source list each base was built from.
+    ...(platformWithoutFingerprint === undefined
+      ? { baseFingerprints, gateMetadata, sourceLists }
+      : {}),
   });
 
   const buildIndex = opened.build.index;

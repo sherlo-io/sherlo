@@ -13,7 +13,7 @@ const HASH_C = 'c'.repeat(64);
 
 function makeDocument(): FingerprintDocument {
   return {
-    formatVersion: 2,
+    formatVersion: 3,
     cliVersion: '2.0.2',
     native: {
       hash: 'native-1',
@@ -43,10 +43,18 @@ function makeDocument(): FingerprintDocument {
       },
     },
     base: {
-      hash: 'base-1',
-      workflow: 'bare',
-      lockfiles: [{ file: 'yarn.lock', digest: HASH_A }],
-      autolinkedModules: ['@scope/native@1.0.0', 'react-native-svg@15.0.0'],
+      android: {
+        hash: 'base-android-1',
+        workflow: 'bare',
+        lockfiles: [],
+        autolinkedModules: ['@scope/native@1.0.0', 'react-native-svg@15.0.0'],
+      },
+      ios: {
+        hash: 'base-ios-1',
+        workflow: 'bare',
+        lockfiles: [{ file: 'Gemfile.lock', digest: HASH_A }],
+        autolinkedModules: ['@scope/native@1.0.0', 'react-native-svg@15.0.0'],
+      },
     },
   };
 }
@@ -60,7 +68,8 @@ describe('diffFingerprintDocuments', () => {
       ['native', false],
       ['dependencies', false],
       ['js android', false],
-      ['base', false],
+      ['base android', false],
+      ['base ios', false],
     ]);
     expect(renderDelta(delta).at(-1)).toBe('0 layer(s) changed');
   });
@@ -90,7 +99,8 @@ describe('diffFingerprintDocuments', () => {
       '  - loose 1.0.1, 1.2.0',
       '  ~ react 18.2.0 -> 18.3.1',
       'js android    unchanged',
-      'base          unchanged',
+      'base android  unchanged',
+      'base ios      unchanged',
       '1 layer(s) changed',
     ]);
   });
@@ -147,7 +157,8 @@ describe('diffFingerprintDocuments', () => {
       `  ~ src/App.tsx ${'a'.repeat(12)} -> ${'b'.repeat(12)}`,
       `  + src/New.tsx ${'c'.repeat(12)}`,
       `  - src/Old.tsx ${'a'.repeat(12)}`,
-      'base          unchanged',
+      'base android  unchanged',
+      'base ios      unchanged',
       '1 layer(s) changed',
     ]);
   });
@@ -173,21 +184,24 @@ describe('diffFingerprintDocuments', () => {
 
   it('diffs lockfiles by path and autolinked modules by package under the base layer', () => {
     const current = makeDocument();
-    current.base.hash = 'base-2';
-    current.base.lockfiles = [
+    current.base.ios.hash = 'base-ios-2';
+    current.base.ios.lockfiles = [
+      { file: 'Gemfile.lock', digest: HASH_B },
       { file: 'ios/Podfile.lock', digest: HASH_C },
-      { file: 'yarn.lock', digest: HASH_B },
     ];
-    current.base.autolinkedModules = ['@scope/native@1.1.0', 'react-native-svg@15.0.0'];
+    current.base.ios.autolinkedModules = ['@scope/native@1.1.0', 'react-native-svg@15.0.0'];
 
     const delta = diffFingerprintDocuments(makeDocument(), current);
-    const base = delta.layers.find((layer) => layer.layer === 'base');
+    const ios = delta.layers.find((layer) => layer.layer === 'base ios');
+    const android = delta.layers.find((layer) => layer.layer === 'base android');
 
-    expect(base?.entries).toEqual([
+    expect(ios?.entries).toEqual([
+      { kind: 'changed', name: 'Gemfile.lock', before: HASH_A, after: HASH_B },
       { kind: 'added', name: 'ios/Podfile.lock', after: HASH_C },
-      { kind: 'changed', name: 'yarn.lock', before: HASH_A, after: HASH_B },
       { kind: 'changed', name: '@scope/native', before: '1.0.0', after: '1.1.0' },
     ]);
+    // Each platform's base is its own layer: the iOS change leaves Android's unchanged.
+    expect(android?.changed).toBe(false);
   });
 
   it('treats a layer computed on one side only as changed', () => {
@@ -203,12 +217,13 @@ describe('diffFingerprintDocuments', () => {
   it('counts every changed layer in the summary line', () => {
     const current = makeDocument();
     current.native.hash = 'native-2';
-    current.base.hash = 'base-2';
+    current.base.android.hash = 'base-android-2';
+    current.base.ios.hash = 'base-ios-2';
     current.dependencies.hash = 'deps-2';
 
     const delta = diffFingerprintDocuments(makeDocument(), current);
 
-    expect(delta.changedLayerCount).toBe(3);
-    expect(renderDelta(delta).at(-1)).toBe('3 layer(s) changed');
+    expect(delta.changedLayerCount).toBe(4);
+    expect(renderDelta(delta).at(-1)).toBe('4 layer(s) changed');
   });
 });

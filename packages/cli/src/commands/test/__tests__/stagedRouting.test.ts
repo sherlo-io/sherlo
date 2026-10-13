@@ -125,7 +125,10 @@ beforeEach(async () => {
     devices: [IOS_DEVICE],
     wait: false,
   } as any);
-  mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+  mockComputeBaseFingerprint.mockResolvedValue({
+    android: { hash: 'BASE_FP' },
+    ios: { hash: 'BASE_FP' },
+  } as any);
   mockBuildBundleForPlatform.mockResolvedValue({
     bundlePath: '/tmp/bundle.ios.js',
     bundleFormat: 'plain-js',

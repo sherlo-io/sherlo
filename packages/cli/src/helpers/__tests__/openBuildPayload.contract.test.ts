@@ -202,13 +202,17 @@ beforeEach(() => {
   // spliceable binary per platform - the state a standard-road run needs to
   // start at all.
   mocks.computeBaseFingerprint.mockResolvedValue({
-    hash: 'base-fp-hash',
-    nativeFingerprint: 'native-fp',
+    android: { hash: 'base-fp-android', nativeFingerprint: 'native-fp' },
+    ios: { hash: 'base-fp-ios', nativeFingerprint: 'native-fp' },
   });
-  mocks.registerBase.mockResolvedValue({
+  mocks.registerBase.mockImplementation(async ({ platform }: { platform: string }) => ({
     registered: true,
     gateMetadata: { engineClass: 'hermes' },
-  });
+    sourceList: {
+      sources: [{ path: platform, hash: `${platform}-folder`, kind: 'dir' }],
+      modules: [],
+    },
+  }));
   mocks.uploadFreshBundles.mockResolvedValue(FRESH_BUNDLES);
   mocks.getAppBuildUrl.mockReturnValue('https://app.sherlo.io/team1234/7/build/42');
   mocks.openBuild.mockResolvedValue({ build: { index: 42 } });
@@ -239,8 +243,10 @@ describe('openBuild payload - core shape', () => {
       sdkVersion: '2.0.0',
       message: 'my build message',
       nativeFingerprint: 'native-fp',
-      baseFingerprint: 'base-fp-hash',
+      baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
     });
+    // Each platform's own base: the single project-wide field is no longer sent.
+    expect(payload).not.toHaveProperty('baseFingerprint');
     // buildRunConfig + gitInfo flow through by identity (no reshaping).
     expect(payload.buildRunConfig).toBe(mocks.getBuildRunConfig.mock.results[0].value);
     expect(payload.gitInfo).toBe(GIT_INFO);
@@ -281,12 +287,22 @@ describe('openBuild payload - baseFingerprint/gateMetadata spread', () => {
     await callSubject();
     const payload = lastOpenBuildPayload();
 
-    expect(payload.baseFingerprint).toBe('base-fp-hash');
+    expect(payload.baseFingerprints).toEqual({ android: 'base-fp-android', ios: 'base-fp-ios' });
     // Both platforms are present + requested, so both carry gate metadata.
     expect(payload.gateMetadata).toEqual({
       android: { engineClass: 'hermes' },
       ios: { engineClass: 'hermes' },
     });
+    // And the source list each stored base keeps, as its registration made it.
+    expect(payload.sourceLists).toEqual({
+      android: { sources: [{ path: 'android', hash: 'android-folder', kind: 'dir' }], modules: [] },
+      ios: { sources: [{ path: 'ios', hash: 'ios-folder', kind: 'dir' }], modules: [] },
+    });
+    // Each platform registers under its own base fingerprint.
+    expect(mocks.registerBase.mock.calls.map(([params]) => params.baseFingerprint.hash)).toEqual([
+      'base-fp-android',
+      'base-fp-ios',
+    ]);
   });
 });
 
@@ -374,7 +390,7 @@ describe('the fresh bundle on the platform config', () => {
       bundleDir: '/tmp/bundles',
       // The config's `build` block reaches the bundler, as it reaches the app build.
       buildSettings,
-      baseFingerprint: 'base-fp-hash',
+      baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
       projectIndex: 7,
       teamId: 'team1234',
       // Asserted ON PURPOSE: the effects bundle is the seam an expectation
@@ -453,10 +469,8 @@ describe('refusal when the fresh bundle cannot render', () => {
   });
 
   it('refuses when there is no base fingerprint to splice against, quoting why', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({
-      hash: null,
-      debugMessage: 'no native project found',
-    });
+    const unavailable = { hash: null, debugMessage: 'no native project found' };
+    mocks.computeBaseFingerprint.mockResolvedValue({ android: unavailable, ios: unavailable });
 
     await expect(callSubject()).rejects.toThrow(/base fingerprint: no native project found/);
 

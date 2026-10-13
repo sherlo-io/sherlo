@@ -37,7 +37,7 @@
       "call": "checkStagedGate",
       "with": {
         "platform": "android",
-        "baseFingerprint": "2f6356d8b500ad8a82cb4b4432cf8913d55dfb7b36076be064994f3bc5e13e3e"
+        "baseFingerprint": "15cb4efb74de7a420576e8ace8c7abc8efc959c1ca5828bf7d51d376db4684f7"
       },
       "answer": {
         "outcome": "full-build-needed",
@@ -62,11 +62,6 @@
               "path": "package:react-native",
               "hash": "044e4b347335c7c23c7813b2df55a571cdc11138",
               "kind": "contents"
-            },
-            {
-              "path": "yarn.lock",
-              "hash": "8c2e4a6f0b1d3e5c7a9f2b4d6e8a0c1f3b5d7e9a2c4f6b8d0e1a3c5f7b9d2e4a",
-              "kind": "file"
             }
           ],
           "modules": [

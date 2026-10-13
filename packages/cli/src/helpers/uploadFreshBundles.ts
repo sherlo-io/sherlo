@@ -85,7 +85,7 @@ export async function uploadFreshBundles({
   platforms,
   bundleDir,
   buildSettings,
-  baseFingerprint,
+  baseFingerprints,
   projectIndex,
   teamId,
   effects,
@@ -96,8 +96,8 @@ export async function uploadFreshBundles({
   bundleDir?: string;
   /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
   buildSettings: BuildSettings;
-  /** The base fingerprint this run registers its binary under. */
-  baseFingerprint: string;
+  /** Per platform, the base fingerprint this run registers its binary under. */
+  baseFingerprints: Partial<Record<Platform, string>>;
   projectIndex: number;
   teamId: string;
   effects: FreshBundleEffects;
@@ -111,7 +111,7 @@ export async function uploadFreshBundles({
       bundleDir,
       projectRoot,
       platformsToTest: platforms,
-      baseFingerprint,
+      baseFingerprints,
       // The metadata the sidecar recorded is not wanted here either - this road
       // registers what it reads out of the binary.
       gateMetadataFor: (platform, bundleResult) =>

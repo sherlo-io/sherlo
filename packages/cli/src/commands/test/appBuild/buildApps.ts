@@ -27,6 +27,7 @@ import path from 'path';
 import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
 import { reporting, throwError } from '../../../helpers';
+import type { BaseFingerprints } from '../../../helpers/fingerprint';
 import { dependsOnExpo } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import {
@@ -74,7 +75,7 @@ export async function buildApps({
   projectRoot,
   toBuild,
   settings,
-  baseFingerprint,
+  fingerprints,
   cacheDirFlag,
   parallelBuildsFlag,
   command,
@@ -84,7 +85,8 @@ export async function buildApps({
   projectRoot: string;
   toBuild: PlatformToBuild[];
   settings: BuildSettings;
-  baseFingerprint: string;
+  /** Each platform's base fingerprint: its app build is kept in the cache under its own. */
+  fingerprints: BaseFingerprints;
   /** `--build-cache <dir>`, when the command line names one. */
   cacheDirFlag?: string;
   /** `--parallel-builds`: build every platform at once, as `build.parallel` does. */
@@ -114,7 +116,11 @@ export async function buildApps({
   async function buildOnePlatform({ platform, why }: PlatformToBuild): Promise<void> {
     // Each platform's row says why it needed a new app build, so the reason rides on it.
     const whyThisBuild = why ? { why } : {};
-    const cacheKey = cacheKeyOf({ baseFingerprint, platform, settings });
+    const cacheKey = cacheKeyOf({
+      baseFingerprint: fingerprints[platform].hash ?? '',
+      platform,
+      settings,
+    });
 
     const cached = await builder.findCachedBuild({ platform, cacheKey, cacheDir });
     if (cached) {

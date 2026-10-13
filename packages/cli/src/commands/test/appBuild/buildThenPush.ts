@@ -23,7 +23,10 @@ import type { Platform } from '@sherlo/api-types';
 import { getValidatedCommandParams, uploadOrReuseBuildsAndRunTests } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
 import { readProjectJson } from '../../../helpers/projectJson';
-import type { BaseFingerprintPreimage } from '../../../helpers/fingerprint/baseFingerprint';
+import type {
+  BaseFingerprintPreimage,
+  BaseFingerprints,
+} from '../../../helpers/fingerprint/baseFingerprint';
 import type { SplitJob } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
 import type { ChangesSinceStoredBuild, WhyANewAppBuild } from '../../../render/appBuild';
 import { appBuilder } from '../../../seams/appBuilder';
@@ -48,17 +51,18 @@ export async function buildThenPush({
   platformsToTest,
   refusals,
   storedBuildIndexOf,
-  baseFingerprint,
-  fingerprintPreimage,
+  fingerprints,
 }: {
   passedOptions: Options<THIS_COMMAND> & BuildFlags;
   platformsToTest: Platform[];
   refusals: StagedGateRefusal[];
   /** Per platform, the test its stored app build was built in, as the gate named it. */
   storedBuildIndexOf: Partial<Record<Platform, number>>;
-  baseFingerprint: string;
-  /** The sources `baseFingerprint` was computed over - what a stored app build's list is compared with. */
-  fingerprintPreimage?: BaseFingerprintPreimage;
+  /**
+   * Each platform's base fingerprint, and the sources it was computed over - what a stored app
+   * build's list is compared with.
+   */
+  fingerprints: BaseFingerprints;
 }): Promise<{ url: string }> {
   const platformsToBuild = refusals.map(({ platform }) => platform);
   const platformsOnStoredBuild = platformsToTest.filter(
@@ -91,7 +95,7 @@ export async function buildThenPush({
       why: await whyANewAppBuild({
         refusal,
         storedBuildIndex: storedBuildIndexOf[refusal.platform],
-        fingerprintPreimage,
+        fingerprintPreimage: fingerprints[refusal.platform].preimage,
         projectRoot: commandParams.projectRoot,
       }),
     }))
@@ -101,7 +105,7 @@ export async function buildThenPush({
     projectRoot: commandParams.projectRoot,
     toBuild,
     settings,
-    baseFingerprint,
+    fingerprints,
     cacheDirFlag: passedOptions.buildCache,
     parallelBuildsFlag: passedOptions.parallelBuilds,
     command: 'test',
