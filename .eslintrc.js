@@ -106,12 +106,11 @@ module.exports = {
       },
     },
     {
-      // THE EAS HOOKS, showError, AND THE POSE DEVTOOLS - not posable, or the tool that poses
+      // THE EAS HOOKS AND THE POSE DEVTOOLS - not posable, or the tool that poses
       // everything else. See doors-are-seams.test.ts for the reason each one holds.
       files: [
         'packages/cli/src/commands/easBuildOnComplete/**',
         'packages/cli/src/commands/testEasCloudBuild/**',
-        'packages/cli/src/commands/showError/**',
         'packages/cli/src/commands/pose/**',
       ],
       rules: {

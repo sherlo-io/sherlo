@@ -24,7 +24,7 @@ import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Platform } from '@sherlo/api-types';
 
-vi.mock('../../showError/detectBundler', () => ({
+vi.mock('../detectBundler', () => ({
   default: vi.fn(() => 'rn'),
   detectEntryFile: vi.fn(() => 'index.js'),
 }));

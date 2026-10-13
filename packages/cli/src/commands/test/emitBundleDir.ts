@@ -21,7 +21,7 @@ import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
-import { detectEntryFile } from '../../commands/showError/detectBundler';
+import { detectEntryFile } from './detectBundler';
 import type { BaseFingerprints, GateMetadataInput } from '../../helpers/fingerprint';
 import { bundler, type Bundler } from '../../seams/bundler';
 import type { BuildSettings } from './appBuild/buildSettings';

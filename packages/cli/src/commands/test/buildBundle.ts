@@ -2,8 +2,7 @@
  * Bundle building, format sniffing, asset collection, and gate-metadata
  * construction for the staged road of `sherlo test`.
  *
- * Detects the project type via the same detectBundler that showError's
- * buildSourceMaps uses, calls the canonical bundler with --dev false
+ * Detects the project type with detectBundler, calls the canonical bundler with --dev false
  * --minify false (unminified, so a crash's stack trace on the error page reads
  * as the source was written), sniffs the bundle format, collects the asset inventory,
  * and constructs the per-platform GateMetadataInput that the openBuild
@@ -21,8 +20,7 @@ import {
   type GateMetadataInput,
   type BundleFormat,
 } from '../../helpers/fingerprint/gateMetadata';
-import detectBundler from '../../commands/showError/detectBundler';
-import { detectEntryFile } from '../../commands/showError/detectBundler';
+import detectBundler, { detectEntryFile } from './detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
 import { dependsOnExpo, readProjectJson } from '../../helpers/projectJson';
 import { buildEnvironment } from '../../seams/appBuilder';
@@ -122,8 +120,7 @@ export async function buildBundleForPlatform({
   }
 
   // ------------------------------------------------------------------
-  // 1. Detect project type via the canonical detectBundler (same as
-  //    showError's buildSourceMaps).  Branch explicitly - do NOT try
+  // 1. Detect project type via the canonical detectBundler.  Branch explicitly - do NOT try
   //    expo export:embed blindly on bare-RN projects (triggers an
   //    interactive expo install and breaks the bare-RN fixture AC).
   // ------------------------------------------------------------------
