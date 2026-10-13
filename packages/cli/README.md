@@ -13,75 +13,42 @@ Sherlo is a [visual regression testing tool for React Native](https://sherlo.io)
 Initialize Sherlo in your project.
 
 ```bash
-npx sherlo init [--token <token>]
+npx sherlo init
 ```
-
-**Options:**
-
-- `--token <token>` - Authentication token for the project
 
 ---
 
 ### `test`
 
-Run visual tests. This is the one testing command; the flags you pass pick which
-of its two roads runs.
+Run visual tests. The command builds the iOS and Android apps itself, uploads them and tests every story.
 
 ```bash
-# Staged road: test this commit against the already-registered native base.
 npx sherlo test [options]
-
-# Standard road: full test on the given builds, and register them as the new base.
-npx sherlo test --android <path> [--ios <path>] [options]
 ```
 
-**Without `--android`/`--ios` (the staged road)** it asks whether this commit can
-be tested without a native rebuild, and publishes the answer as `native-needed`:
+On your own computer, log in once with `npx sherlo login`. In CI, the project token is passed as SHERLO_TOKEN.
 
-- `native-needed=false` - the JS bundle was built and the test **already ran**.
-  No native build was needed. Exit code `0`.
-- `native-needed=true` - native inputs moved (or no base is registered yet).
-  **Nothing** was built and no test ran; build natively and re-run with
-  `--android`/`--ios`. Exit code `4`.
-
-The answers are plain `key=value` lines on stdout, so any CI can read them:
-
-```
-native-needed=false
-reason=the registered base still matches this commit - running JS-only
-base-fingerprint=<hash>
-```
-
-A run that reached a build ends with its review address on one line, `🔗 <review url>`
-(`🔗 Review: <review url>` on the staged road) - printed once, for a person and a machine
-alike; the GitHub Action reads the address off that line.
-
-A genuine tool error (bad token, network failure) throws and publishes **no**
-`native-needed` key at all - that, not the exit code, is how a CI job tells an
-answer from a crash. Route on the output.
+In CI, run one job per platform with the Sherlo GitHub Action. The jobs share one test.
 
 On GitHub Actions the
 [`sherlo-io/sherlo`](https://github.com/sherlo-io/sherlo/blob/main/action.yml)
-action runs this command and republishes those lines as step outputs.
+action runs this command, one platform per job.
 
 **Options:**
 
-- `--android <path>` - Path to Android build (.apk); switches to the standard road
-- `--ios <path>` - Path to iOS build (.app, .tar.gz, .tar); switches to the standard road
-- `--token <token>` - Authentication token for the project
+- `--platform <platform>` - Build and test one platform only (android or ios)
 - `--message <message>` - Custom message to label the test
 - `--include <stories>` - List of story names to include (e.g. "My Story","Another Story")
 - `--config <path>` - Path to the config file (default: sherlo.config.json)
 - `--project-root <path>` - Path to the root directory of your project (default: .)
 - `--wait` - Wait for test results and exit with a code encoding the outcome
 - `--wait-timeout <minutes>` - Max minutes to wait for results (default: 45)
-- `--dry-run` - Staged road only: preview which stories a real run would capture, then exit. Creates no build and uploads nothing.
 - `--emit-bundle-dir <path>` - Bundle, write the result to `<path>`, and exit without testing
 - `--bundle-dir <path>` - Test a bundle written by `--emit-bundle-dir` instead of running the bundler
 
 #### Supplying the bundle instead of building it
 
-By default `test` bundles your JavaScript itself, on both roads. `--emit-bundle-dir`
+By default `test` bundles your JavaScript itself. `--emit-bundle-dir`
 and `--bundle-dir` split that into two steps, so the bundle can be built once and
 reused:
 
@@ -90,7 +57,7 @@ reused:
 npx sherlo test --emit-bundle-dir sherlo-bundle
 
 # Step two, anywhere else: test that bundle. No bundler runs here.
-npx sherlo test --bundle-dir sherlo-bundle --token <token>
+npx sherlo test --bundle-dir sherlo-bundle
 ```
 
 Reach for it when something in your pipeline already builds the bundle:
@@ -111,37 +78,13 @@ action inputs.
 
 ---
 
-### `test:eas-cloud-build`
-
-Test cloud builds created on Expo servers.
-
-```bash
-npx sherlo test:eas-cloud-build [options]
-```
-
-**Options:**
-
-- `--easBuildScriptName <name>` - Name of the package.json script that triggers EAS Build
-- `--waitForEasBuild` - Start waiting for EAS Build to be triggered manually
-- `--token <token>` - Authentication token for the project
-- `--message <message>` - Custom message to label the test
-- `--include <stories>` - List of story names to include (e.g. "My Story","Another Story")
-- `--config <path>` - Path to the config file (default: sherlo.config.json)
-- `--project-root <path>` - Path to the root directory of your project (default: .)
-
----
-
 ### `eas-build-on-complete`
 
-Process EAS Build (required for `test:eas-cloud-build`).
+Hand a finished EAS build to its Sherlo test. Expo runs it from your package.json scripts, when your project turns EAS on (`"build": { "tool": "eas" }` in `sherlo.config.json`).
 
 ```bash
-npx sherlo eas-build-on-complete [--profile <profile>]
+npx sherlo eas-build-on-complete
 ```
-
-**Options:**
-
-- `--profile <profile>` - EAS Build profile (must match profile used in `test:eas-cloud-build`)
 
 <br />
 
@@ -149,9 +92,7 @@ npx sherlo eas-build-on-complete [--profile <profile>]
 
 Test settings live in `sherlo.config.json` (or the file passed to `--config`). Supported properties:
 
-- `token` - Authentication token for the project
-- `android` - Path to the Android build (.apk)
-- `ios` - Path to the iOS build (.app, .tar.gz, .tar)
+- `build` - How the apps are built: `tool` set to `"eas"` builds them on Expo's servers, and `easProfile` names the eas.json profile to build
 - `devices` - Devices to test on, each with its OS version, theme, locale, and font scale
 - `include` - Story names to test; every other story is skipped
 - `exclude` - Story names to skip; every other story is tested

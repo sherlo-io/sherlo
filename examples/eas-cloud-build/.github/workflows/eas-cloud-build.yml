@@ -35,18 +35,19 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   # ☁️ BUILD ON EXPO & TEST
   #
-  # This workflow coordinates a hand-off between Sherlo and Expo:
-  #   ↓ Sherlo injects test metadata and starts waiting for builds
-  #   ↓ EAS builds are triggered on Expo servers
-  #   ↓ Expo pushes completed builds to Sherlo (via `eas-build-on-complete` script)
-  #   ↓ Sherlo runs visual test
-  #
-  # NOTE: Both steps must run in the same job to share local metadata
+  # `sherlo test` does the hand-off between Sherlo and Expo itself, because the
+  # config says `build.tool: "eas"`:
+  #   ↓ Sherlo opens the test and starts the EAS builds on Expo servers
+  #   ↓ Expo runs the `eas-build-on-complete` script after each build, which
+  #     uploads that build into the test
+  #   ↓ Sherlo runs the visual test when both builds are in
   # ────────────────────────────────────────────────────────────────────────────
   sherlo-test:
     name: Build on Expo & Test
     runs-on: ubuntu-latest
     needs: validate
+    env:
+      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
 
     steps:
       - name: 📦 Checkout code
@@ -64,18 +65,8 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # Uses 'test:eas-cloud-build' mode (standard / eas-update / eas-cloud-build)
-      - name: ⏳ Start Sherlo - await Expo builds
-        run: |
-          npx sherlo test:eas-cloud-build \
-            --token ${{ secrets.SHERLO_TOKEN }} \
-            --waitForEasBuild
+      - name: 📥 Install dependencies
+        run: yarn install --immutable
 
-      # Uses 'preview-simulator' profile from eas.json
-      - name: 🚀 Trigger builds on Expo servers
-        run: |
-          eas build \
-            --non-interactive \
-            --no-wait \
-            --platform all \
-            --profile preview-simulator
+      - name: 🧪 Run Sherlo
+        uses: sherlo-io/sherlo@v3
