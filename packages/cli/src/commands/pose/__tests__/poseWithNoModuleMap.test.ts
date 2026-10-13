@@ -42,11 +42,33 @@ describe('a pose can state a bundle with no module map', () => {
   });
 
   it('a preview posed with no module map prints all stories, with no count', async () => {
-    const pose = poseFrom(path.join(POSES_ROOT, 'test', 'dry-run-no-module-map.pose.json'));
+    // The preview (`--dry-run`) is gone, so the bundle with no module map is posed on a staged
+    // push: the catalogue's bare push, its bundle stated with `storyClosureKeys: null` and its new
+    // test capturing every story.
+    const stagedPush = poseFrom(path.join(POSES_ROOT, 'test', 'staged-reuses-no-wait.pose.json'));
+    const { storyTitles: _noTitlesWithoutAMap, ...androidBundle } = stagedPush.bundles.android!;
+    const pose: CommandPose = {
+      ...stagedPush,
+      bundles: { android: { ...androidBundle, storyClosureKeys: null } },
+      api: stagedPush.api.map((scripted) =>
+        scripted.call === 'openBuild'
+          ? {
+              ...scripted,
+              answer: {
+                ...scripted.answer,
+                captureDecision: {
+                  platforms: { android: { full: true, storyFilePaths: [], reason: null } },
+                },
+              },
+            }
+          : scripted
+      ) as CommandPose['api'],
+    };
 
-    const { screen } = await runPose(pose);
+    const { screen, refusals } = await runPose(pose);
 
-    expect(screen).toContain('would capture all stories');
+    expect(refusals).toEqual([]);
+    expect(screen).toContain('Started: all stories');
     // The degrade is a BARE "all stories" - no "all N stories in this bundle", because there was
     // no manifest to count against.
     expect(screen).not.toMatch(/would capture all \d+ stor/);
