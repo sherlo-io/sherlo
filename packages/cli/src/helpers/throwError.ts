@@ -10,7 +10,7 @@ type StandardErrorParams = {
   below?: string;
   errorToReport?: Error;
   learnMoreLink?: string;
-  type?: Extract<ErrorType, 'default' | 'auth'>;
+  type?: Extract<ErrorType, 'default'>;
 };
 
 type UnexpectedErrorParams = {
@@ -18,7 +18,7 @@ type UnexpectedErrorParams = {
   type: Extract<ErrorType, 'unexpected'>;
 };
 
-type ErrorType = 'default' | 'auth' | 'unexpected';
+type ErrorType = 'default' | 'unexpected';
 
 function throwError(params: Params): never {
   reportError(params);
@@ -42,12 +42,10 @@ export default throwError;
 /* ========================================================================== */
 
 /**
- * One prefix for every refusal a person can fix: a refused login reads `ERROR:` like any other
- * (the `auth` type stays only until its last two callers drop it).
+ * One prefix for every refusal a person can fix: a refused login reads `ERROR:` like any other.
  */
 const LABEL: { [type in ErrorType]: string } = {
   default: 'ERROR',
-  auth: 'ERROR',
   unexpected: 'UNEXPECTED ERROR',
 };
 
