@@ -1,24 +1,9 @@
 /**
- * Tests for the ROUTING CONTRACT of `sherlo test`'s staged road.
+ * Tests for the staged road of `sherlo test` when the gate says "fast".
  *
- * The command answers exactly one question - can this commit be tested without a
- * native rebuild? - and publishes the answer two ways that must never drift:
- * machine-readable stdout lines (`native-needed=`, `reason=`, `base-fingerprint=`)
- * and an exit code. These tests pin both against every outcome:
- *
- *   fast-completed   `native-needed=false`, exit 0, the run really happened.
- *   native-needed    `native-needed=true`, exit EXIT_NATIVE_NEEDED, and NOTHING
- *                     was built or uploaded on the way out.
- *   tool error       throws, and prints NO key at all - which is precisely what
- *                     lets a CI gate tell a routing decision from a crash.
- *
- * The keys are plain stdout lines and nothing else: turning them into a
- * particular CI's step outputs is the GitHub Action's job, tested in
- * actions/lib/__tests__/cliOutputs.test.mjs.
- *
- * The gate is asked TWICE on a fast run: once before bundling (fingerprint only)
- * and once after (real bundle-derived identity). Either refusal is the same
- * answer, so both are pinned here.
+ * The run prints no machine-readable routing keys, and a tool error throws and prints none
+ * either. The gate is asked TWICE on a fast run: once before bundling (fingerprint only) and
+ * once after (real bundle-derived identity).
  */
 import chalk from 'chalk';
 chalk.level = 0;
@@ -76,28 +61,20 @@ vi.mock('../buildBundle', () => ({
   buildGateMetadata: vi.fn(),
 }));
 vi.mock('../uploadStagedArtifacts', () => ({ default: vi.fn() }));
-vi.mock('../dryRun', () => ({ runDryRunPreview: vi.fn() }));
 
-import {
-  getValidatedCommandParams as _getValidatedCommandParams,
-  waitForBuildResult as _waitForBuildResult,
-} from '../../../helpers';
+import { getValidatedCommandParams as _getValidatedCommandParams } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
 import {
   buildBundleForPlatform as _buildBundleForPlatform,
   buildGateMetadata as _buildGateMetadata,
 } from '../buildBundle';
 import _uploadStagedArtifacts from '../uploadStagedArtifacts';
-import { runDryRunPreview as _runDryRunPreview } from '../dryRun';
-import { EXIT_NATIVE_NEEDED } from '../constants';
 
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
-const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
 const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
-const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
 
 let stagedRun: (passedOptions: any) => Promise<{ url: string }>;
 let exitSpy: ReturnType<typeof vi.spyOn>;
@@ -200,121 +177,9 @@ function outputKeys(): Record<string, string> {
 // native-needed: the gate refuses BEFORE anything is built
 // ---------------------------------------------------------------------------
 
-describe('native-needed (nothing is built)', () => {
-  it.each([
-    ['a native change', 'full-build-needed', ['engineClass'], 'JS engine (Hermes/JSC)'],
-    ['no registered base', 'not-stageable', [], "can't use the staged fast path"],
-  ])(
-    'routes on %s: publishes native-needed=true and builds NOTHING',
-    async (_name, outcome, diff, expectedReasonFragment) => {
-      mockCheckStagedGate.mockResolvedValue({ outcome, diff });
-
-      await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
-
-      // The machine-readable lines, on stdout, for any CI: the answer, the base
-      // it was measured against, and a reason a human can read.
-      const output = outputKeys();
-      expect(output['native-needed']).toBe('true');
-      expect(output['base-fingerprint']).toBe('BASE_FP');
-      expect(output.reason).toContain(expectedReasonFragment);
-
-      // THE POINT: not one byte of work was done on the way out.
-      expect(mockBuildBundleForPlatform).not.toHaveBeenCalled();
-      expect(mockGetStagedUploadUrls).not.toHaveBeenCalled();
-      expect(mockUploadStagedArtifacts).not.toHaveBeenCalled();
-      expect(mockOpenBuild).not.toHaveBeenCalled();
-    }
-  );
-
-  it('asks the pre-bundle gate with the marker-only probe payload (no fabricated identity)', async () => {
-    mockCheckStagedGate.mockResolvedValue({ outcome: 'full-build-needed', diff: [] });
-
-    await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
-
-    expect(mockCheckStagedGate).toHaveBeenCalledTimes(1);
-    expect(mockCheckStagedGate.mock.calls[0][0]).toEqual({
-      baseFingerprint: 'BASE_FP',
-      gateMetadata: { derivedFrom: 'none' },
-      platform: 'ios',
-      projectIndex: 3,
-      teamId: 'team',
-    });
-  });
-
-  it('routes when the base fingerprint cannot be computed - without asking the gate', async () => {
-    mockComputeBaseFingerprint.mockResolvedValue({
-      hash: null,
-      debugMessage: 'not a React Native project',
-    } as any);
-
-    await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
-
-    expect(outputKeys()['native-needed']).toBe('true');
-    expect(outputKeys().reason).toBe('not a React Native project');
-    expect(mockCheckStagedGate).not.toHaveBeenCalled();
-    expect(mockBuildBundleForPlatform).not.toHaveBeenCalled();
-  });
-
-  it('tells the developer how to come back: the full-run fallback line', async () => {
-    mockCheckStagedGate.mockResolvedValue({ outcome: 'full-build-needed', diff: ['engineClass'] });
-
-    await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
-
-    expect(printed()).toContain('sherlo test --android <path> [--ios <path>]');
-  });
-
-  // The exit code sits OUTSIDE the --wait contract's range (0/1/2/3/130) so a
-  // `sherlo test --wait` gate can never read "native build needed" as GREEN.
-  it('--wait: still exits EXIT_NATIVE_NEEDED, never a wait code, and never polls', async () => {
-    mockGetValidatedCommandParams.mockReturnValue({
-      projectRoot: '/proj',
-      credential: PROJECT_TOKEN_CREDENTIAL,
-      devices: [IOS_DEVICE],
-      wait: true,
-    } as any);
-    mockCheckStagedGate.mockResolvedValue({ outcome: 'full-build-needed', diff: [] });
-
-    await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
-    expect(EXIT_NATIVE_NEEDED).not.toBe(0);
-    expect(mockWaitForBuildResult).not.toHaveBeenCalled();
-  });
-});
-
 // ---------------------------------------------------------------------------
 // native-needed: the gate refuses AFTER bundling, on the real identity
 // ---------------------------------------------------------------------------
-
-describe('native-needed after bundling (real bundle identity)', () => {
-  it('refuses on the post-bundle gate: nothing is uploaded and no build is opened', async () => {
-    mockCheckStagedGate
-      .mockResolvedValueOnce({ outcome: 'fast', diff: [] })
-      .mockResolvedValueOnce({ outcome: 'full-build-needed', diff: ['bundleFormat'] });
-
-    await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
-
-    // It DID bundle - that is how the real identity became knowable.
-    expect(mockBuildBundleForPlatform).toHaveBeenCalledTimes(1);
-    // The second ask carries the real bundle-derived metadata, not the marker.
-    expect(mockCheckStagedGate.mock.calls[1][0].gateMetadata).toEqual({ engineClass: 'hermes' });
-
-    expect(outputKeys()['native-needed']).toBe('true');
-    expect(outputKeys().reason).toContain('JS bundle format');
-    expect(mockGetStagedUploadUrls).not.toHaveBeenCalled();
-    expect(mockOpenBuild).not.toHaveBeenCalled();
-  });
-
-  it('refuses on openBuild (a base registered mid-run) with the SAME published answer', async () => {
-    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
-    mockOpenBuild.mockRejectedValue({
-      message: 'STAGED_GATE_REFUSAL|full-build-needed|ios|assetInventory',
-    });
-
-    await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
-
-    expect(outputKeys()['native-needed']).toBe('true');
-    expect(outputKeys().reason).toContain('bundled assets');
-  });
-});
 
 // ---------------------------------------------------------------------------
 // fast-completed
@@ -383,17 +248,5 @@ describe('nothing is published when there is no routing decision', () => {
 
     expect(outputKeys()).toEqual({});
     expect(printed()).not.toContain('native-needed');
-  });
-
-  it('--dry-run previews without deciding anything: no gate, no key', async () => {
-    mockRunDryRunPreview.mockResolvedValue(undefined);
-
-    const result = await stagedRun({ dryRun: true });
-
-    expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
-    expect(mockCheckStagedGate).not.toHaveBeenCalled();
-    expect(outputKeys()).toEqual({});
-    expect(printed()).not.toContain('native-needed');
-    expect(result).toEqual({ url: '' });
   });
 });

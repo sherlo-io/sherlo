@@ -79,15 +79,45 @@ async function runCli(...args: string[]): Promise<number | undefined> {
 }
 
 describe('sherlo --help', () => {
-  it('lists `test` and the EAS cloud-build commands, and neither removed command', async () => {
+  it('lists test, build and eas-build-on-complete, and no removed command', async () => {
     const exitCode = await runCli('--help');
 
     expect(exitCode).toBe(0);
     expect(stdout).toMatch(/^\s+test\b/m);
-    expect(stdout).toMatch(/^\s+test:eas-cloud-build\b/m);
     expect(stdout).toMatch(/^\s+eas-build-on-complete\b/m);
-    expect(stdout).not.toContain('test:standard');
-    expect(stdout).not.toContain('test:eas-update');
+    for (const removedCommand of [
+      'test:standard',
+      'test:eas-update',
+      'test:eas-cloud-build',
+      'show-error',
+    ]) {
+      expect(stdout, removedCommand).not.toContain(removedCommand);
+    }
+
+    // `build` is registered but kept out of the list (the next case), so it answers its own help.
+    stdout = '';
+    expect(await runCli('build', '--help')).toBe(0);
+    expect(stdout).toContain('Usage: sherlo build');
+  });
+
+  it('keeps build, --build-cache, fingerprint, project and team out of --help', async () => {
+    await runCli('--help');
+    for (const hiddenCommand of ['build', 'fingerprint', 'project', 'team']) {
+      expect(stdout, hiddenCommand).not.toMatch(new RegExp(`^ {2}${hiddenCommand}\\b`, 'm'));
+    }
+
+    // Each still works: it answers its own help instead of "unknown command".
+    for (const hiddenCommand of ['fingerprint', 'project', 'team']) {
+      stdout = '';
+      expect(await runCli(hiddenCommand, '--help'), hiddenCommand).toBe(0);
+      expect(stdout, hiddenCommand).toContain(`Usage: sherlo ${hiddenCommand}`);
+    }
+
+    for (const command of ['test', 'build']) {
+      stdout = '';
+      await runCli(command, '--help');
+      expect(stdout, command).not.toContain('--build-cache');
+    }
   });
 
   it('offers no app build paths: `sherlo test` builds the app itself', async () => {
@@ -156,6 +186,12 @@ describe('sherlo test --help', () => {
     expect(stdout).not.toContain('--metadata');
   });
 
+  it('does not offer --dry-run: the preview is gone', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--dry-run');
+  });
+
   it('lists neither --android nor --ios', async () => {
     await runCli('test', '--help');
 
@@ -196,7 +232,7 @@ describe('a Sherlo 2 app build path', () => {
 });
 
 describe('a removed command', () => {
-  it.each(['test:standard', 'test:eas-update'])(
+  it.each(['test:standard', 'test:eas-update', 'test:eas-cloud-build', 'show-error'])(
     '`sherlo %s` is answered with commander`s unknown-command error and exit 1',
     async (removedCommand) => {
       const exitCode = await runCli(removedCommand, '--android', 'app.apk');
@@ -206,7 +242,7 @@ describe('a removed command', () => {
     }
   );
 
-  it.each(['local-builds', 'expo-update'])(
+  it.each(['local-builds', 'expo-update', 'expo-cloud-builds'])(
     'the hidden alias `%s` of a removed command is gone with it',
     async (alias) => {
       const exitCode = await runCli(alias);
