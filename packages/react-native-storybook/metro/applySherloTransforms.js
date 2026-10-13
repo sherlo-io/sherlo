@@ -546,6 +546,8 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     var storyTitles = {};
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
+    /** @type {Record<string, number>} story source-path -> how many stories the file holds. */
+    var storyCounts = {};
 
     stories.forEach(function (story) {
       var storyRel = toRelativePath(story.absPath, projectRoot);
@@ -558,6 +560,10 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
         closureSet[rel] = true;
       });
       storyClosures[storyRel] = Object.keys(closureSet).sort();
+
+      var storySource = fs.existsSync(story.absPath) ? fs.readFileSync(story.absPath, 'utf8') : null;
+      var storyCount = storySource === null ? null : storyTitleReader.readStoryCount(storySource);
+      if (storyCount !== null) storyCounts[storyRel] = storyCount;
 
       if (!loaderEntriesByRequiresFile[story.requiresAbsPath]) {
         loaderEntriesByRequiresFile[story.requiresAbsPath] = storyTitleReader.readStoryLoaderEntries(
@@ -607,6 +613,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
       storyTitles: storyTitles,
+      storyCounts: storyCounts,
     };
 
     fs.writeFileSync(
