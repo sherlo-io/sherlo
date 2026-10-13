@@ -1,8 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "test"
-  ],
+  "argv": ["test"],
   "files": {
     "sherlo.config.json": {
       "devices": [
@@ -41,9 +39,7 @@
       },
       "answer": {
         "outcome": "full-build-needed",
-        "diff": [
-          "buildMetadata"
-        ],
+        "diff": ["buildMetadata"],
         "storedBase": {
           "buildIndex": 12,
           "sources": [
@@ -77,9 +73,7 @@
   "masks": {},
   "appBuild": {
     "host": "linux",
-    "tools": [
-      "android-sdk"
-    ],
+    "tools": ["android-sdk"],
     "java": 17,
     "nativeFolderFiles": {
       "android/app/build.gradle": "7d3b0e5a92c14f8e6b2d9a0c3f7e1b5d8a4c2f60"
