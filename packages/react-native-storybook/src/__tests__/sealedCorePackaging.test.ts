@@ -30,10 +30,20 @@ const WORKFLOWS_DIR = path.join(REPO_ROOT, '.github', 'workflows');
 const IOS_ASSET = 'ios/Resources/assets/sherlo-core.js';
 const ANDROID_ASSET = 'android/src/main/assets/sherlo-core.js';
 const XCFRAMEWORK = 'ios/SherloCore.xcframework';
-const XCFRAMEWORK_SLICES = [
-  XCFRAMEWORK + '/ios-arm64/libsherlocore.a',
-  XCFRAMEWORK + '/ios-arm64_x86_64-simulator/libsherlocore.a',
-];
+const XCFRAMEWORK_SLICE_NAMES = ['ios-arm64', 'ios-arm64_x86_64-simulator'];
+/** The binary of the dynamic framework each slice holds. */
+const XCFRAMEWORK_SLICES = XCFRAMEWORK_SLICE_NAMES.map(
+  (sliceName) => XCFRAMEWORK + '/' + sliceName + '/SherloCore.framework/SherloCore'
+);
+
+/** The Mach-O file type (MH_DYLIB is 6) of a thin binary, or of the first slice of a fat one. */
+function machOFileType(binary: Buffer): number {
+  const magicBytes = binary.readUInt32BE(0);
+  const isFat = magicBytes === 0xcafebabe;
+  const thinBinary = isFat ? binary.subarray(binary.readUInt32BE(16)) : binary;
+  return thinBinary.readUInt32LE(12);
+}
+const MACH_O_DYLIB = 6;
 const ANDROID_ABIS = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'];
 const ANDROID_LIBRARIES = ANDROID_ABIS.map(
   (abi) => 'android/src/main/jniLibs/' + abi + '/libsherlocore.so'
@@ -215,14 +225,24 @@ describe('what the published package carries', () => {
         context.skip();
       }
       for (const slice of XCFRAMEWORK_SLICES) expect(packedFiles).toContain(slice);
-      // Both slices are named libsherlocore.a, or CocoaPods refuses the xcframework.
+    });
+
+    it('every slice of the C core xcframework holds a dynamic SherloCore framework', (context) => {
+      if (!hasThePacks) context.skip();
+      // Both slices are named SherloCore.framework in the xcframework's Info.plist.
       const infoPlist = fs.readFileSync(
         path.join(unpackedPackageDir, XCFRAMEWORK, 'Info.plist'),
         'utf8'
       );
       const libraryPathPattern = /<key>LibraryPath<\/key>\s*<string>([^<]+)<\/string>/g;
       const libraryPaths = [...infoPlist.matchAll(libraryPathPattern)].map((match) => match[1]);
-      expect(libraryPaths).toEqual(['libsherlocore.a', 'libsherlocore.a']);
+      expect(libraryPaths).toEqual(['SherloCore.framework', 'SherloCore.framework']);
+
+      // And each slice's binary is a dynamic library, not a static archive.
+      for (const slice of XCFRAMEWORK_SLICES) {
+        const binary = fs.readFileSync(path.join(unpackedPackageDir, slice));
+        expect(machOFileType(binary), slice).toBe(MACH_O_DYLIB);
+      }
     });
 
     it('a yarn pack carries the C core xcframework too', (context) => {
@@ -231,8 +251,10 @@ describe('what the published package carries', () => {
       const yarnPackedFiles = filesInTarball(path.join(PACKS_DIR, 'yarn.tgz'));
 
       for (const slice of XCFRAMEWORK_SLICES) expect(yarnPackedFiles).toContain(slice);
-      for (const sliceName of ['ios-arm64', 'ios-arm64_x86_64-simulator']) {
-        expect(yarnPackedFiles).toContain(XCFRAMEWORK + '/' + sliceName + '/Headers/sherlo_core.h');
+      for (const sliceName of XCFRAMEWORK_SLICE_NAMES) {
+        expect(yarnPackedFiles).toContain(
+          XCFRAMEWORK + '/' + sliceName + '/SherloCore.framework/Headers/sherlo_core.h'
+        );
       }
     });
 
@@ -421,6 +443,19 @@ describe('what the published package carries', () => {
       'utf8'
     );
     expect(podspec).toContain('s.private_header_files = "ios/CompiledCore.h"');
+  });
+
+  it("the podspec takes the C core's header from the framework, so a static use_frameworks build carries one copy of it", () => {
+    // Left to CocoaPods, a static use_frameworks! build copies every slice's sherlo_core.h into the
+    // pod's Headers and stops on "Multiple commands produce .../sherlo_core.h".
+    const podspec = fs.readFileSync(
+      path.join(SDK_ROOT, 'sherlo-react-native-storybook.podspec'),
+      'utf8'
+    );
+    expect(podspec).toContain(
+      '${PODS_TARGET_SRCROOT}/' + XCFRAMEWORK + '/ios-arm64/SherloCore.framework/Headers'
+    );
+    expect(podspec).toContain('s.public_header_files = "ios/SherloModule.h"');
   });
 
   it('the sherlo repository tracks no source of either core', () => {

@@ -2789,6 +2789,135 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@napi-rs/keyring-darwin-arm64@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-darwin-arm64@npm:2.1.0"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-darwin-x64@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-darwin-x64@npm:2.1.0"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-freebsd-x64@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-freebsd-x64@npm:2.1.0"
+  conditions: os=freebsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-arm-gnueabihf@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-arm-gnueabihf@npm:2.1.0"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-arm64-gnu@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-arm64-gnu@npm:2.1.0"
+  conditions: os=linux & cpu=arm64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-arm64-musl@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-arm64-musl@npm:2.1.0"
+  conditions: os=linux & cpu=arm64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-riscv64-gnu@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-riscv64-gnu@npm:2.1.0"
+  conditions: os=linux & cpu=riscv64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-x64-gnu@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-x64-gnu@npm:2.1.0"
+  conditions: os=linux & cpu=x64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-x64-musl@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-x64-musl@npm:2.1.0"
+  conditions: os=linux & cpu=x64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-win32-arm64-msvc@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-win32-arm64-msvc@npm:2.1.0"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-win32-ia32-msvc@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-win32-ia32-msvc@npm:2.1.0"
+  conditions: os=win32 & cpu=ia32
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-win32-x64-msvc@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-win32-x64-msvc@npm:2.1.0"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring@npm:2.1.0"
+  dependencies:
+    "@napi-rs/keyring-darwin-arm64": "npm:2.1.0"
+    "@napi-rs/keyring-darwin-x64": "npm:2.1.0"
+    "@napi-rs/keyring-freebsd-x64": "npm:2.1.0"
+    "@napi-rs/keyring-linux-arm-gnueabihf": "npm:2.1.0"
+    "@napi-rs/keyring-linux-arm64-gnu": "npm:2.1.0"
+    "@napi-rs/keyring-linux-arm64-musl": "npm:2.1.0"
+    "@napi-rs/keyring-linux-riscv64-gnu": "npm:2.1.0"
+    "@napi-rs/keyring-linux-x64-gnu": "npm:2.1.0"
+    "@napi-rs/keyring-linux-x64-musl": "npm:2.1.0"
+    "@napi-rs/keyring-win32-arm64-msvc": "npm:2.1.0"
+    "@napi-rs/keyring-win32-ia32-msvc": "npm:2.1.0"
+    "@napi-rs/keyring-win32-x64-msvc": "npm:2.1.0"
+  dependenciesMeta:
+    "@napi-rs/keyring-darwin-arm64":
+      optional: true
+    "@napi-rs/keyring-darwin-x64":
+      optional: true
+    "@napi-rs/keyring-freebsd-x64":
+      optional: true
+    "@napi-rs/keyring-linux-arm-gnueabihf":
+      optional: true
+    "@napi-rs/keyring-linux-arm64-gnu":
+      optional: true
+    "@napi-rs/keyring-linux-arm64-musl":
+      optional: true
+    "@napi-rs/keyring-linux-riscv64-gnu":
+      optional: true
+    "@napi-rs/keyring-linux-x64-gnu":
+      optional: true
+    "@napi-rs/keyring-linux-x64-musl":
+      optional: true
+    "@napi-rs/keyring-win32-arm64-msvc":
+      optional: true
+    "@napi-rs/keyring-win32-ia32-msvc":
+      optional: true
+    "@napi-rs/keyring-win32-x64-msvc":
+      optional: true
+  checksum: 10/7a25412134eec839841e4e695b6157dab2643c1d9fb8737ffc48171f794a27732b6758c2620866dbca387004bda03c8bb9d1f043a1e414888bb4766ac187d423
+  languageName: node
+  linkType: hard
+
 "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1":
   version: 5.1.1-v1
   resolution: "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1"
@@ -3417,8 +3546,8 @@ __metadata:
   linkType: hard
 
 "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz::locator=%40sherlo%2Freact-native%40workspace%3A.":
-  version: 2.0.2
-  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=280a7c&locator=%40sherlo%2Freact-native%40workspace%3A."
+  version: 3.0.0-alpha.0
+  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=776e99&locator=%40sherlo%2Freact-native%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
@@ -3428,9 +3557,9 @@ __metadata:
   peerDependencies:
     "@storybook/react-native": ">=8.0.0"
     react: "*"
-    react-native: ">=0.74.0"
+    react-native: ">=0.81.0"
     react-native-safe-area-context: "*"
-  checksum: 10/4133b87261898d4d73724227f802a2083e6c90c970c940e91fd6bf5ac7a29ee0c25e1f1af0d7bb3cf7e0563a2c77492f595cb74ab612a5cf179d137373125ba2
+  checksum: 10/a1536b94fec3e8d793a9fc1d74733a27b2696562c2b3b8a2899b8117b5e8cd6ca5fdf5b5b6fdf8ea00b7f660edc9069dfa53297617b37fe89d60dea6a952ceeb
   languageName: node
   linkType: hard
 
@@ -12661,6 +12790,7 @@ __metadata:
   resolution: "sherlo@portal:../../packages/cli::locator=%40sherlo%2Freact-native%40workspace%3A."
   dependencies:
     "@expo/fingerprint": "npm:^0.11.0"
+    "@napi-rs/keyring": "npm:2.1.0"
   bin:
     sherlo: ./cli.js
   languageName: node

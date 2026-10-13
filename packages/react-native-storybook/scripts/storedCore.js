@@ -121,6 +121,22 @@ function describeFailure(error) {
   return parts.join(', because: ');
 }
 
+/**
+ * The fingerprint of the core built from `sourceTree`, which sherlo-runner's core build writes at
+ * `cores/by-source/<source tree>.json`, or an error saying no core is stored for that tree.
+ */
+async function readFingerprintBySource(sourceTree, readStoredFile) {
+  const lookupBytes = await readStoredFile('cores/by-source/' + sourceTree + '.json');
+  if (lookupBytes === null) {
+    throw new Error(
+      'no core is stored for the source tree ' +
+        sourceTree +
+        '. sherlo-runner\'s core build writes it last; when it has not finished, wait for it and run again.'
+    );
+  }
+  return JSON.parse(lookupBytes.toString('utf8')).fingerprint;
+}
+
 /** The manifest of the core stored under `fingerprint`, or an error saying none is stored. */
 async function readStoredManifest(fingerprint, readStoredFile) {
   const manifestBytes = await readStoredFile('cores/' + fingerprint + '/' + MANIFEST_FILE);
@@ -170,6 +186,7 @@ module.exports = {
   storageReaderWith,
   describeFailure,
   readStoredManifest,
+  readFingerprintBySource,
   coreFingerprint,
   sha256,
 };
