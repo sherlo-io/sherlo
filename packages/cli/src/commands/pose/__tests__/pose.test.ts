@@ -62,6 +62,28 @@ describe('sherlo pose runs one command against a declared world', () => {
     expect(exitCode).toBe(1);
   });
 
+  it('a posed wait the pose stops answering ends, instead of retrying forever on a clock that stands still', async () => {
+    // The wait retries every error but a refused login, and a posed sleep passes no time. Before,
+    // a `--wait` whose script ran out retried on promises alone: the clock never reached the
+    // deadline and no timer could fire, so the run - and the whole suite with it - hung for hours.
+    const { refusals, exitCode } = await runPose({
+      pose: 1,
+      argv: ['view', '7', '--wait'],
+      files: { 'sherlo.config.json': { devices: [{ id: 'pixel.7', osVersion: '13' }] } },
+      env: { SHERLO_TOKEN: 'posetokenposetokenposetokenpose1tm0000017' },
+      git: 'none',
+      bundles: {},
+      // One read is answered: the test is running. The next is not.
+      api: [
+        { call: 'getBuildStatus', with: { buildIndex: 7 }, answer: { runStatus: 'inProgress' } },
+      ],
+      masks: {},
+    });
+
+    expect(refusals[0].call).toBe('getBuildStatus');
+    expect(exitCode).not.toBe(0);
+  });
+
   it('a push that reaches the machine with no `push` is refused before any binary on this machine is read', async () => {
     const { push: _unstated, ...withoutPush } = poseFrom(
       path.join(POSES_ROOT, 'test', 'push-android-first-build-review-required.pose.json')

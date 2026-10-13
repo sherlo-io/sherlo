@@ -204,6 +204,31 @@ describe('reading a CommandPose', () => {
     expect(problemsOf(viewWithAPush).join()).toContain('never reads a native build');
   });
 
+  it('refuses an appBuild stated for a command that never builds an app', () => {
+    const appBuild = {
+      host: 'linux',
+      tools: ['android-sdk'],
+      java: 17,
+      platforms: { android: { cached: '.sherlo/build-cache/android/app-release.apk' } },
+    };
+    const commandsThatNeverBuildAnApp = [
+      ['login'],
+      ['view', '7'],
+      ['init'],
+      ['eas-build-on-complete'],
+    ];
+
+    for (const argv of commandsThatNeverBuildAnApp) {
+      const posed = { ...validPose(), argv, api: [], appBuild };
+      expect(problemsOf(posed).join(), argv[0]).toContain('never builds an app');
+    }
+
+    // CONTROL: the two commands that do build an app take the same appBuild.
+    for (const argv of [['build'], ['test']]) {
+      expect(readPose({ ...validPose(), argv, api: [], appBuild }).appBuild).toEqual(appBuild);
+    }
+  });
+
   it('accepts a `push` on the command that does, and refuses one that says a binary wrong', () => {
     const push = {
       ...validPose(),
