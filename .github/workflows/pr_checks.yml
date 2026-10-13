@@ -41,7 +41,7 @@ jobs:
           private-key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
           package-token: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Eslint
+      - name: Lint
         working-directory: ${{ matrix.package.dir }}
         run: yarn lint
 
