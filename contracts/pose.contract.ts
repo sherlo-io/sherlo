@@ -190,7 +190,7 @@ export type PosedGit =
       dirty: boolean;
     };
 
-/** One platform's bundle as the bundler reports it - the same fields the dry-run plan prints. */
+/** One platform's bundle as the bundler reports it. */
 export type PosedBundle = {
   bundlePath: string;
   bundleSizeMb: number;
@@ -198,24 +198,16 @@ export type PosedBundle = {
   bundler: 'expo' | 'metro';
   assets: string[];
   /**
-   * The story-file source paths the bundler's module manifest closes over - what the dry-run
-   * plan's "of N stories" counts. `null` poses a bundle that came with no module map at all, which
-   * is what a real bundle is when Metro is configured without Sherlo's wrapper: the plan line then
-   * reads "all stories", with no count.
+   * The story-file source paths the bundler's module manifest closes over - what the plan's "of N
+   * stories" counts. `null` poses a bundle that came with no module map at all, which is what a
+   * real bundle is when Metro is configured without Sherlo's wrapper: the plan line then reads
+   * "all stories", with no count.
    */
   storyClosureKeys: string[] | null;
-  /**
-   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): per story file, its Storybook
-   * title and how many stories it holds, as the module map would record them. The module map does
-   * not record them yet.
-   */
-  storyTitles?: Record<
-    string,
-    {
-      title: string;
-      stories: number;
-    }
-  >;
+  /** The serializer's `storyTitles`: per story file, the title Storybook shows. */
+  storyTitles?: Record<string, string>;
+  /** The serializer's `storyCounts`: per story file, how many stories it holds. */
+  storyCounts?: Record<string, number>;
 };
 
 /**
@@ -947,14 +939,15 @@ export type StartedRun = {
     newStoryFiles?: string[];
     /** Story files a change reaches. */
     changedStoryFiles?: string[];
-    /** Per story file, the Storybook title and story count the bundle's module map recorded. */
-    storyTitles?: Record<
-      string,
-      {
-        title: string;
-        stories: number;
-      }
-    >;
+    /**
+     * The story files that have a Storybook title, and how many stories each holds. `stories` is
+     * absent when the module map recorded no count.
+     */
+    storyTitles?: Array<{
+      storyFile: string;
+      title?: string;
+      stories?: number;
+    }>;
   }>;
 };
 

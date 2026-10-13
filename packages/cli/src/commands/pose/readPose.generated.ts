@@ -189,13 +189,16 @@ function readPosedBundle(value: unknown, path: string, problems: string[]): void
       const map5 = asObject(object1.storyTitles, where4, problems);
       if (map5) {
         for (const key6 of Object.keys(map5)) {
-          const where7 = atKey(where4, key6);
-          const object8 = asObject(map5[key6], where7, problems);
-          if (object8) {
-            expectString(object8.title, at(where7, 'title'), problems);
-            expectNumber(object8.stories, at(where7, 'stories'), problems);
-            reportUnknownFields(object8, ['title', 'stories'], where7, problems);
-          }
+          expectString(map5[key6], atKey(where4, key6), problems);
+        }
+      }
+    }
+    if ('storyCounts' in object1) {
+      const where7 = at(path, 'storyCounts');
+      const map8 = asObject(object1.storyCounts, where7, problems);
+      if (map8) {
+        for (const key9 of Object.keys(map8)) {
+          expectNumber(map8[key9], atKey(where7, key9), problems);
         }
       }
     }
@@ -209,6 +212,7 @@ function readPosedBundle(value: unknown, path: string, problems: string[]): void
         'assets',
         'storyClosureKeys',
         'storyTitles',
+        'storyCounts',
       ],
       path,
       problems
@@ -1723,17 +1727,27 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           }
           if ('storyTitles' in object13) {
             const where14 = at(where12, 'storyTitles');
-            const map15 = asObject(object13.storyTitles, where14, problems);
-            if (map15) {
-              for (const key16 of Object.keys(map15)) {
-                const where17 = atKey(where14, key16);
-                const object18 = asObject(map15[key16], where17, problems);
-                if (object18) {
-                  expectString(object18.title, at(where17, 'title'), problems);
-                  expectNumber(object18.stories, at(where17, 'stories'), problems);
-                  reportUnknownFields(object18, ['title', 'stories'], where17, problems);
+            const list15 = asArray(object13.storyTitles, where14, problems);
+            if (list15) {
+              list15.forEach((entry16, index17) => {
+                const where18 = atIndex(where14, index17);
+                const object19 = asObject(entry16, where18, problems);
+                if (object19) {
+                  expectString(object19.storyFile, at(where18, 'storyFile'), problems);
+                  if ('title' in object19) {
+                    expectString(object19.title, at(where18, 'title'), problems);
+                  }
+                  if ('stories' in object19) {
+                    expectNumber(object19.stories, at(where18, 'stories'), problems);
+                  }
+                  reportUnknownFields(
+                    object19,
+                    ['storyFile', 'title', 'stories'],
+                    where18,
+                    problems
+                  );
                 }
-              }
+              });
             }
           }
           reportUnknownFields(

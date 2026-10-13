@@ -397,12 +397,12 @@ const PINS: Pin[] = [
           ],
           newStoryFiles: ['a/Checkout.stories.tsx'],
           changedStoryFiles: ['a/ProductCard.stories.tsx'],
-          storyTitles: {
-            'a/Cart.stories.tsx': { title: 'Storefront/Cart', stories: 1 },
-            'a/Checkout.stories.tsx': { title: 'Storefront/Checkout', stories: 2 },
-            'a/ProductCard.stories.tsx': { title: 'Storefront/ProductCard', stories: 3 },
-            'a/Maps.stories.tsx': { title: 'Storefront/Maps', stories: 1 },
-          },
+          storyTitles: [
+            { storyFile: 'a/Cart.stories.tsx', title: 'Storefront/Cart', stories: 1 },
+            { storyFile: 'a/Checkout.stories.tsx', title: 'Storefront/Checkout', stories: 2 },
+            { storyFile: 'a/ProductCard.stories.tsx', title: 'Storefront/ProductCard', stories: 3 },
+            { storyFile: 'a/Maps.stories.tsx', title: 'Storefront/Maps', stories: 1 },
+          ],
         },
         {
           platform: 'ios',

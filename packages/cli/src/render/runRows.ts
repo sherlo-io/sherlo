@@ -316,12 +316,17 @@ function storyFilesCaptured(capture: PlatformCapture[]): string[] {
   const captured = filesOfEveryPlatform(capture, ({ storyFiles }) => storyFiles);
 
   const everyPlatform = capture.length;
-  const titleOf = (file: string) =>
-    capture.find(({ storyTitles }) => storyTitles?.[file])?.storyTitles?.[file];
+  const titledFileOf = (file: string) =>
+    capture
+      .flatMap(({ storyTitles }) => storyTitles ?? [])
+      .find((titled) => titled.storyFile === file);
   const describe = (file: string, platforms: Platform[]): string => {
-    // `Storefront/ProductCard (3 stories)`, the name the web app shows; the path when no title is known.
-    const title = titleOf(file);
-    const name = title ? `${title.title} ${chalk.dim(`(${countStories(title.stories)})`)}` : file;
+    // `Storefront/ProductCard (3 stories)`: the name the web app shows, or the path when no title
+    // is recorded, and the count only when one is recorded.
+    const titled = titledFileOf(file);
+    const countNote =
+      titled?.stories !== undefined ? ` ${chalk.dim(`(${countStories(titled.stories)})`)}` : '';
+    const name = `${titled?.title ?? file}${countNote}`;
     return platforms.length < everyPlatform
       ? `${name} ${chalk.dim(`(${platformWithEmoji(platforms[0])} only)`)}`
       : name;

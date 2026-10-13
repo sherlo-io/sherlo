@@ -38,7 +38,13 @@
         "couldRunThisBuildRightNow": true,
         "startedRun": {
           "devices": [
-            { "id": "pixel.7", "osVersion": "13", "theme": "light", "locale": "en_US", "fontScale": "1" }
+            {
+              "id": "pixel.7",
+              "osVersion": "13",
+              "theme": "light",
+              "locale": "en_US",
+              "fontScale": "1"
+            }
           ],
           "capture": [
             {
@@ -54,10 +60,18 @@
                 "src/components/Storefront/ProductCard.stories.tsx",
                 "src/components/Storefront/Checkout.stories.tsx"
               ],
-              "storyTitles": {
-                "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-                "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
-              }
+              "storyTitles": [
+                {
+                  "storyFile": "src/components/Storefront/ProductCard.stories.tsx",
+                  "title": "Storefront/ProductCard",
+                  "stories": 3
+                },
+                {
+                  "storyFile": "src/components/Storefront/Checkout.stories.tsx",
+                  "title": "Storefront/Checkout",
+                  "stories": 2
+                }
+              ]
             }
           ]
         }

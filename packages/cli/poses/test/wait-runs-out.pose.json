@@ -1,11 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "test",
-    "--wait",
-    "--wait-timeout",
-    "1"
-  ],
+  "argv": ["test", "--wait", "--wait-timeout", "1"],
   "files": {
     "sherlo.config.json": {
       "devices": [
@@ -29,17 +24,18 @@
       "bundleSizeMb": 4.29,
       "bundleFormat": "plain-js",
       "bundler": "expo",
-      "assets": [
-        "icon.png",
-        "splash.png"
-      ],
+      "assets": ["icon.png", "splash.png"],
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     }
   },
@@ -58,9 +54,7 @@
     {
       "call": "getNextBuildInfo",
       "with": {
-        "platforms": [
-          "android"
-        ]
+        "platforms": ["android"]
       },
       "answer": {
         "nextBuildIndex": 1,
@@ -74,18 +68,14 @@
     {
       "call": "getStagedUploadUrls",
       "with": {
-        "platforms": [
-          "android"
-        ]
+        "platforms": ["android"]
       },
       "answer": {}
     },
     {
       "call": "openBuild",
       "with": {
-        "platforms": [
-          "android"
-        ]
+        "platforms": ["android"]
       },
       "answer": {
         "buildIndex": 1,
@@ -116,9 +106,7 @@
   "masks": {},
   "appBuild": {
     "host": "linux",
-    "tools": [
-      "android-sdk"
-    ],
+    "tools": ["android-sdk"],
     "java": 17,
     "platforms": {
       "android": {
@@ -138,18 +126,12 @@
         "expoUpdatesEnabled": false,
         "hasExpoDevClient": false,
         "expoSdkVersion": "53.0.0",
-        "androidAbis": [
-          "arm64-v8a"
-        ]
+        "androidAbis": ["arm64-v8a"]
       }
     },
     "fingerprint": {
       "hash": "b4c9e2f7a1d3c5b8e0f2a4c6d8b0e2f4a6c8d0b2e4f6a8c0d2b4e6f8a0c2d4e6"
     }
   },
-  "clock": [
-    "2026-09-15T12:00:00.000Z",
-    "2026-09-15T12:00:00.500Z",
-    "2026-09-15T12:01:01.000Z"
-  ]
+  "clock": ["2026-09-15T12:00:00.000Z", "2026-09-15T12:00:00.500Z", "2026-09-15T12:01:01.000Z"]
 }

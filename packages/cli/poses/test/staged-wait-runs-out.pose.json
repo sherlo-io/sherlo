@@ -5,7 +5,11 @@
     "sherlo.config.json": { "devices": [{ "id": "pixel.7", "osVersion": "13" }] }
   },
   "env": { "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
-  "git": { "branch": "feature/checkout", "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b", "dirty": false },
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
   "bundles": {
     "android": {
       "bundlePath": "node_modules/.cache/sherlo/bundle.android.js",
@@ -18,22 +22,36 @@
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     }
   },
-  "push": { "now": "2026-09-15T12:00:00.000Z", "binaries": {}, "fingerprint": { "hash": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" } },
+  "push": {
+    "now": "2026-09-15T12:00:00.000Z",
+    "binaries": {},
+    "fingerprint": { "hash": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" }
+  },
   "clock": ["2026-09-15T12:00:00.000Z", "2026-09-15T12:00:00.500Z", "2026-09-15T12:01:01.000Z"],
   "api": [
     {
       "call": "checkStagedGate",
-      "with": { "platform": "android", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "fast", "diff": [], "storedBuildIndex": 3 }
     },
     {
       "call": "checkStagedGate",
-      "with": { "platform": "android", "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" },
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
       "answer": { "outcome": "fast", "diff": [], "storedBuildIndex": 3 }
     },
     { "call": "getStagedUploadUrls", "with": { "platforms": ["android"] }, "answer": {} },
@@ -55,7 +73,11 @@
         }
       }
     },
-    { "call": "getBuildStatus", "with": { "buildIndex": 4 }, "answer": { "runStatus": "inProgress" } }
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 4 },
+      "answer": { "runStatus": "inProgress" }
+    }
   ],
   "masks": {}
 }
