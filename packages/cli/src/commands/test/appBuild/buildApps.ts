@@ -17,22 +17,25 @@
  *
  * What a build is made of - the Gradle init script that forces debug signing and switches
  * expo-updates off, the xcodebuild call, the cache - is the app builder seam's
- * (../../../seams/appBuilder). This module decides which of those happen and says so on screen.
+ * (../../../seams/appBuilder). This module decides which of those happen and says so on screen:
+ * `sherlo build` in lines of its own, `sherlo test` in each platform's row (../platformRows).
  */
 import { createHash } from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
 import { reporting, throwError } from '../../../helpers';
+import { dependsOnExpo } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import {
   type AppBuildCommand,
   renderRunOnCi,
   type WhyANewAppBuild,
 } from '../../../render/appBuild';
+import type { PlatformRow } from '../../../render/runRows';
 import type { SherloProject } from '../../../render/testSteps';
 import { whileShowing } from '../../shared/terminal';
-import { recordPlatformRow, takeRowsAbove } from '../platformRows';
+import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { appBuilder } from '../../../seams/appBuilder';
 import {
   BUILD_CACHE_ENV_VAR,
@@ -58,8 +61,9 @@ export type PlatformToBuild = {
 };
 
 /**
- * Build every platform asked for and answer where each app build is. Never returns for a run that
- * cannot finish: a refusal throws, and a failed build exits.
+ * Build every platform asked for and answer where each app build is, with the platforms' rows
+ * `sherlo test` prints above its test's row. Never returns for a run that cannot finish: a refusal
+ * throws, and a failed build exits.
  */
 export async function buildApps({
   projectRoot,
@@ -69,6 +73,7 @@ export async function buildApps({
   cacheDirFlag,
   command,
   project,
+  storedPlatformRows,
 }: {
   projectRoot: string;
   toBuild: PlatformToBuild[];
@@ -83,13 +88,20 @@ export async function buildApps({
    * credential): a failure to build here points to building on CI, linking its page.
    */
   project?: SherloProject;
-}): Promise<Partial<Record<Platform, string>>> {
+  /**
+   * The rows of the platforms that keep the app build Sherlo stores - a mixed run's - which the
+   * built ones' rows join. A failed build stops on every platform's row, so they are shown with
+   * it. None for `sherlo build`, and for a run that builds every platform.
+   */
+  storedPlatformRows: PlatformRow[];
+}): Promise<{ appBuildPaths: Partial<Record<Platform, string>>; platformRows: PlatformRow[] }> {
   const builder = appBuilder();
 
   await refuseWhatThisMachineCannotBuild({ projectRoot, toBuild, settings, project });
 
   const cacheDir = cacheDirFlag ?? process.env[BUILD_CACHE_ENV_VAR] ?? DEFAULT_BUILD_CACHE;
-  const builtPaths: Partial<Record<Platform, string>> = {};
+  const appBuildPaths: Partial<Record<Platform, string>> = {};
+  const platformRows = [...storedPlatformRows];
 
   for (const { platform, why } of toBuild) {
     // Each platform's row says why it needed a new app build, so the reason rides on it.
@@ -100,9 +112,12 @@ export async function buildApps({
     if (cached) {
       // `sherlo build` says it found what it was asked to build; `sherlo test` says it in the
       // platform's row.
-      if (command === 'build') emit({ kind: 'app-build-cached', platform });
-      else recordPlatformRow({ platform, appBuild: 'reused-from-local-build-cache' });
-      builtPaths[platform] = cached;
+      if (command === 'build') {
+        emit({ kind: 'app-build-cached', platform });
+      } else {
+        platformRows.push(printPlatformRowInALog({ platform, appBuild: 'reused-from-local-build-cache' }));
+      }
+      appBuildPaths[platform] = cached;
       continue;
     }
 
@@ -140,7 +155,7 @@ export async function buildApps({
       // `sherlo test` stops on the platforms' rows, the failed one among them, and tests nothing
       // (operator, Q5); `sherlo build` on its own failed step.
       if (command === 'test') {
-        recordPlatformRow({
+        const failedRow = printPlatformRowInALog({
           platform,
           appBuild: 'build-failed',
           seconds: compiled.seconds,
@@ -149,7 +164,7 @@ export async function buildApps({
         });
         emit({
           kind: 'test-stopped-on-failed-build',
-          rowsAbove: takeRowsAbove(),
+          rowsAbove: rowsAbove([...platformRows, failedRow]),
           lastLines: compiled.lastLines,
           ...(project ? { project } : {}),
         });
@@ -171,21 +186,23 @@ export async function buildApps({
     // `sherlo test` says it in the platform's row above the test's (../platformRows);
     // `sherlo build` ends here, so it says it now.
     if (command === 'test') {
-      recordPlatformRow({
-        platform,
-        appBuild: 'built',
-        seconds: compiled.seconds,
-        logPath,
-        ...whyThisBuild,
-      });
+      platformRows.push(
+        printPlatformRowInALog({
+          platform,
+          appBuild: 'built',
+          seconds: compiled.seconds,
+          logPath,
+          ...whyThisBuild,
+        })
+      );
     } else {
       emit({ kind: 'app-build-done', platform, seconds: compiled.seconds, logPath });
     }
 
-    builtPaths[platform] = compiled.path;
+    appBuildPaths[platform] = compiled.path;
   }
 
-  return builtPaths;
+  return { appBuildPaths, platformRows };
 }
 
 /* ========================================================================== */
@@ -298,12 +315,7 @@ function namesInAList(names: string[]): string {
 function needsGeneratedNativeFolder(projectRoot: string, platform: Platform): boolean {
   if (fs.existsSync(path.join(projectRoot, platform))) return false;
 
-  try {
-    const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-    return Boolean(packageJson.dependencies?.expo ?? packageJson.devDependencies?.expo);
-  } catch {
-    return false;
-  }
+  return dependsOnExpo(projectRoot);
 }
 
 /**

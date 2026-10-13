@@ -23,6 +23,7 @@ import {
 import detectBundler from '../../commands/showError/detectBundler';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
+import { dependsOnExpo, readProjectJson } from '../../helpers/projectJson';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
 import {
@@ -140,7 +141,7 @@ export async function buildBundleForPlatform({
   } catch {
     // detectBundler throws when it can't determine the project type.
     // Fall back to checking for expo in dependencies.
-    projectType = hasExpoDep(projectRoot) ? 'expo' : 'rn';
+    projectType = dependsOnExpo(projectRoot) ? 'expo' : 'rn';
   }
 
   const cacheDir = path.join(projectRoot, '.sherlo', 'bundled');
@@ -505,47 +506,21 @@ function collectAssetInventory(assetsDest: string): string[] {
 
 export function getExpoSdkVersion(projectRoot: string): number | null {
   // app.json / app.config.js written sdkVersion.
-  try {
-    const appJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'));
-    const sdk: unknown = appJson?.expo?.sdkVersion;
-    if (typeof sdk === 'string' || typeof sdk === 'number') {
-      const num = parseInt(String(sdk), 10);
-      if (!isNaN(num)) return num;
-    }
-  } catch {
-    /* ignore */
+  const sdk: unknown = readProjectJson(projectRoot, 'app.json')?.expo?.sdkVersion;
+  if (typeof sdk === 'string' || typeof sdk === 'number') {
+    const num = parseInt(String(sdk), 10);
+    if (!isNaN(num)) return num;
   }
 
   // Fall back to the expo package major version as a proxy.
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-    const deps = {
-      ...(pkg.dependencies ?? {}),
-      ...(pkg.devDependencies ?? {}),
-    };
-    const expoVersion = deps.expo;
-    if (expoVersion) {
-      const match = String(expoVersion).match(/(\d+)\./);
-      if (match) return parseInt(match[1], 10);
-    }
-  } catch {
-    /* ignore */
+  const pkg = readProjectJson(projectRoot, 'package.json');
+  const expoVersion = { ...pkg?.dependencies, ...pkg?.devDependencies }.expo;
+  if (expoVersion) {
+    const match = String(expoVersion).match(/(\d+)\./);
+    if (match) return parseInt(match[1], 10);
   }
 
   return null;
-}
-
-function hasExpoDep(projectRoot: string): boolean {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-    const deps = {
-      ...(pkg.dependencies ?? {}),
-      ...(pkg.devDependencies ?? {}),
-    };
-    return 'expo' in deps;
-  } catch {
-    return false;
-  }
 }
 
 function isVersionGte(version: string, minVersion: string): boolean {
@@ -585,14 +560,9 @@ async function detectExpoUpdatesEnabled({
   platform: Platform;
 }): Promise<boolean> {
   // Check app config for updates.enabled.
-  try {
-    const appJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'));
-    const updates = appJson?.expo?.updates;
-    if (updates && typeof updates === 'object' && 'enabled' in updates) {
-      return updates.enabled !== false;
-    }
-  } catch {
-    /* ignore */
+  const updates = readProjectJson(projectRoot, 'app.json')?.expo?.updates;
+  if (updates && typeof updates === 'object' && 'enabled' in updates) {
+    return updates.enabled !== false;
   }
 
   // On Android with bare workflow, check AndroidManifest.xml for

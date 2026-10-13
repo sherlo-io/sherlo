@@ -33,6 +33,7 @@ import type {
   FingerprintSource,
   Options as FingerprintOptions,
 } from '@expo/fingerprint';
+import { readProjectJson } from '../projectJson';
 import reporting from '../reporting';
 import runShellCommand from '../runShellCommand';
 
@@ -393,12 +394,11 @@ function isDependencyInstalled(fromDir: string, name: string): boolean {
  * way).
  */
 function findUninstalledDependency(projectRoot: string): string | null {
-  let packageJson: { dependencies?: Record<string, string> };
-  try {
-    packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
-  } catch {
-    return null;
-  }
+  const packageJson: { dependencies?: Record<string, string> } | undefined = readProjectJson(
+    projectRoot,
+    'package.json'
+  );
+  if (!packageJson) return null;
 
   for (const name of Object.keys(packageJson.dependencies ?? {})) {
     if (!isDependencyInstalled(projectRoot, name)) return name;

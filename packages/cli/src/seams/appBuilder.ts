@@ -4,7 +4,7 @@
  *
  *     live   - the operating system the tool runs on, the build tools it finds, the iOS schemes
  *              the workspace lists, the local build cache, `expo prebuild`, Gradle and xcodebuild,
- *              and `eas build` for a project that builds on EAS.
+ *              and `eas build` for a project that builds on EAS, with the repository it packs.
  *     posed  - the pose's `appBuild`: which machine it was, which tools were there, and what each
  *              platform's build came to - found in the cache, built, failed, or started on EAS.
  *
@@ -25,6 +25,8 @@
  * call, the cache, the EAS start) are build tasks of that epic. A shipped tool that reached this
  * refusal would be a build that never landed - the landing review checks it is gone.
  */
+import fs from 'fs';
+import path from 'path';
 import type { Platform } from '@sherlo/api-types';
 import type { NativeFolderFile } from './serverCalls';
 
@@ -85,6 +87,17 @@ export type AppBuilder = {
   /** Start an EAS build of one platform with one profile, and answer its id without waiting. */
   startEasBuild(params: { platform: Platform; profile: string; projectRoot: string }): Promise<{ buildId: string }>;
   /**
+   * The folder EAS packs the project from: the root of the git repository the project sits in, or
+   * the project itself outside git.
+   */
+  easUploadRoot(projectRoot: string): string;
+  /**
+   * A file of the folder EAS packs - an `.easignore` or a `.gitignore` - by its path from that
+   * folder, or undefined when there is none. With `easUploadRoot`, the one look above the project
+   * a build takes.
+   */
+  readEasUploadFile(params: { easUploadRoot: string; fileFromTheRoot: string }): string | undefined;
+  /**
    * Every file inside the named native folders (`android`, `ios`), one hash each, for the list of
    * what changed since the stored app build - and for the list a stored app build keeps. Asked
    * only on the way to a build, never by the staged gate: the base fingerprint still hashes each
@@ -133,10 +146,32 @@ export const liveAppBuilder: AppBuilder = {
   startEasBuild: async () => {
     throw new Error(NOT_BUILT_YET);
   },
+  easUploadRoot: (projectRoot) => {
+    let folder = path.resolve(projectRoot);
+    while (true) {
+      if (fs.existsSync(path.join(folder, '.git'))) return folder;
+      const parent = path.dirname(folder);
+      if (parent === folder) return path.resolve(projectRoot);
+      folder = parent;
+    }
+  },
+  readEasUploadFile: readFileOfTheEasUpload,
   hashNativeFolderFiles: async () => {
     throw new Error(NOT_BUILT_YET);
   },
 };
+
+/** A file of the folder EAS packs, by its path from that folder, or undefined when there is none. */
+function readFileOfTheEasUpload({
+  easUploadRoot,
+  fileFromTheRoot,
+}: {
+  easUploadRoot: string;
+  fileFromTheRoot: string;
+}): string | undefined {
+  const filePath = path.join(easUploadRoot, fileFromTheRoot);
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : undefined;
+}
 
 let installed: AppBuilder = liveAppBuilder;
 
@@ -298,6 +333,12 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
           'build - say `easBuild`'
       );
     },
+
+    // A posed project is a folder of its own, with no repository around it: EAS would pack it
+    // whole, and its own ignore files are the ones read. Nothing above it on this machine is
+    // looked at, so no pose has to state it.
+    easUploadRoot: (projectRoot) => projectRoot,
+    readEasUploadFile: readFileOfTheEasUpload,
 
     hashNativeFolderFiles: async ({ folders }) => {
       const files = stated('hashNativeFolderFiles').nativeFolderFiles;

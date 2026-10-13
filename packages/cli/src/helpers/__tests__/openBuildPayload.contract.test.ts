@@ -173,6 +173,7 @@ function buildRunConfig() {
 function callSubject(overrides: { commandParams?: any } = {}) {
   return uploadOrReuseBuildsAndRunTests({
     commandParams: overrides.commandParams ?? COMMAND_PARAMS,
+    platformRows: [],
   });
 }
 

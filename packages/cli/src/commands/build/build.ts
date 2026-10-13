@@ -41,6 +41,8 @@ async function build(passedOptions: BuildOptions): Promise<void> {
     baseFingerprint: fingerprint.hash ?? '',
     cacheDirFlag: passedOptions.buildCache,
     command: 'build',
+    // `sherlo build` prints its own lines and no platform rows.
+    storedPlatformRows: [],
   });
 
   emit({ kind: 'app-build-next-step' });

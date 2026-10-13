@@ -22,6 +22,7 @@ import { EXIT_ERROR, EXIT_SIGINT, EXIT_TIMEOUT } from '../../helpers/exitCodes';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
 import { fetchServerBypassReason, printServerBypassCloser } from '../../helpers/waitForBuildResult';
+import type { PlatformRow } from '../../render/runRows';
 import type { CommandParams } from '../../types';
 import { printsToATerminal } from '../shared/terminal';
 import type { THIS_COMMAND } from './constants';
@@ -33,10 +34,13 @@ export async function closeTheRun({
   serverBypassed = false,
   endsOnNextStep = true,
   hasCiToken,
+  platformRows,
 }: {
   commandParams: CommandParams<THIS_COMMAND>;
   buildIndex: number;
   url: string;
+  /** Every platform's row, which the test's first row stands under (see `rowsNotYetShown`). */
+  platformRows: PlatformRow[];
   /**
    * Whether the project has a CI token, as the server's `openBuild` answer said: false, and a
    * person's run suggests running Sherlo on every pull request. Absent means unknown: nothing is
@@ -52,6 +56,10 @@ export async function closeTheRun({
   endsOnNextStep?: boolean;
 }): Promise<void> {
   const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
+  // THE ONE PLACE THAT DECIDES WHICH ROW THE PLATFORMS' ROWS STAND UNDER. A test that started on
+  // devices printed them under its started row (or its waiting row, for a run that waits for
+  // builds); a test the server closed at once has neither, so they stand under its finished row.
+  const rowsNotYetShown = serverBypassed ? platformRows : [];
 
   if (commandParams.wait) {
     const exitCode = await waitForBuildResult({
@@ -64,6 +72,7 @@ export async function closeTheRun({
       serverBypassed,
       // This run started the test just now, so the wait's own time is how long the test ran.
       sawTheTestStart: true,
+      rowsNotYetShown,
     });
 
     if (!serverBypassed) endAfterTheWait({ exitCode, testIndex: buildIndex, url });
@@ -74,7 +83,7 @@ export async function closeTheRun({
   }
 
   if (serverBypassed) {
-    await printBypassedCloser({ token, buildIndex, projectIndex, teamId, url });
+    await printBypassedCloser({ token, buildIndex, projectIndex, teamId, url, rowsNotYetShown });
     return;
   }
 
@@ -136,18 +145,20 @@ async function printBypassedCloser({
   projectIndex,
   teamId,
   url,
+  rowsNotYetShown,
 }: {
   token: string;
   buildIndex: number;
   projectIndex: number;
   teamId: string;
   url: string;
+  rowsNotYetShown: PlatformRow[];
 }): Promise<void> {
   const reason = await fetchServerBypassReason({ token, buildIndex, projectIndex, teamId });
 
   // The same finished step the wait loop ends a bypassed test on, naming the test.
   if (reason) {
-    printServerBypassCloser(reason, buildIndex);
+    printServerBypassCloser(reason, buildIndex, rowsNotYetShown);
   } else {
     emit({ kind: 'results-url', url });
   }

@@ -19,7 +19,8 @@ async function standardRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url:
     { requirePlatformPaths: true }
   );
 
-  return uploadOrReuseBuildsAndRunTests({ commandParams });
+  // The developer passed the app builds, so no platform has a row above the test's.
+  return uploadOrReuseBuildsAndRunTests({ commandParams, platformRows: [] });
 }
 
 export default standardRun;

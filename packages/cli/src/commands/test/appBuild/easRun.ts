@@ -27,9 +27,8 @@
  * project token, as the old command wrote it. The build task replaces it with a ticket for this one
  * run, and the opener then accepts a `sherlo login` too.
  */
-import fs from 'fs';
-import path from 'path';
 import type { Platform } from '@sherlo/api-types';
+import { EAS_BUILD_ON_CANCEL_SCRIPT, EAS_BUILD_ON_COMPLETE_COMMAND } from '../../../constants';
 import {
   getAppBuildUrl,
   getBuildRunConfig,
@@ -37,6 +36,7 @@ import {
   handleClientError,
   throwError,
 } from '../../../helpers';
+import { readProjectJson } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import { serverCalls } from '../../../seams/serverCalls';
 import { appBuilder } from '../../../seams/appBuilder';
@@ -44,8 +44,8 @@ import type { CommandParams } from '../../../types';
 import { whileShowing } from '../../shared/terminal';
 import { createSherloTempDirectory } from '../../testEasCloudBuild/helpers';
 import { closeTheRun } from '../closeTheRun';
-import { recordPlatformRow, takeRowsAbove } from '../platformRows';
-import type { THIS_COMMAND } from '../constants';
+import { SHERLO_BUILD_FOR_PUSH, type THIS_COMMAND } from '../constants';
+import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { type BuildSettings, DEFAULT_EAS_PROFILE } from './buildSettings';
 import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
 
@@ -53,12 +53,14 @@ import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
  * The package.json scripts each EAS build reports to Sherlo through, both running the same command:
  * Expo runs the first when a build ends, finished or errored, and the second when it is cancelled.
  */
-const EAS_HOOK_SCRIPTS = ['eas-build-on-complete', 'eas-build-on-cancel'];
-const EAS_HOOK_COMMAND = 'sherlo eas-build-on-complete';
+const EAS_HOOK_SCRIPTS = [EAS_BUILD_ON_COMPLETE_COMMAND, EAS_BUILD_ON_CANCEL_SCRIPT];
+const EAS_HOOK_COMMAND = `sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}`;
 
-/** The variable, and its value, every Sherlo app build is made with: the app opens into Storybook. */
-const STORYBOOK_BUILD_VARIABLE = 'SHERLO_BUILD';
-const STORYBOOK_BUILD_VALUE = 'storybook';
+/**
+ * The variable every Sherlo app build is made with, set to `SHERLO_BUILD_FOR_PUSH`: the app opens
+ * into Storybook.
+ */
+const SHERLO_BUILD_VARIABLE = 'SHERLO_BUILD';
 
 /** Open the run, start an EAS build of every refused platform, and hand back the run's address. */
 export async function easRun({
@@ -105,14 +107,12 @@ export async function easRun({
     }
   });
 
-  for (const platform of platforms) {
-    recordPlatformRow({ platform, appBuild: 'building-on-eas' });
-  }
+  const platformRows = platforms.map((platform) => printPlatformRowInALog({ platform, appBuild: 'building-on-eas' }));
   emit({
     kind: 'run-waits-for-builds',
     buildIndex,
     waitingFor: { easBuilds: platforms },
-    rowsAbove: takeRowsAbove(),
+    rowsAbove: rowsAbove(platformRows),
   });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
@@ -120,7 +120,7 @@ export async function easRun({
   // FROM A LAPTOP THE DEVELOPER OFTEN STAYS FOR THE ANSWER: `--wait` waits through the EAS builds
   // and the run alike, under the same contract as every other wait - EAS builds take a while, so
   // the deadline is the one `--wait-timeout` names.
-  await closeTheRun({ commandParams, buildIndex, url, hasCiToken });
+  await closeTheRun({ commandParams, buildIndex, url, hasCiToken, platformRows });
 
   return { url };
 }
@@ -130,12 +130,8 @@ export async function easRun({
  * naming every script it lacks and the line to add for each.
  */
 function refuseWithoutTheHookScripts(projectRoot: string): void {
-  let scripts: Record<string, unknown> = {};
-  try {
-    scripts = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')).scripts ?? {};
-  } catch {
-    // No package.json, or one that cannot be read: the scripts are missing either way.
-  }
+  // No package.json, or one that cannot be read: the scripts are missing either way.
+  const scripts: Record<string, unknown> = readProjectJson(projectRoot, 'package.json')?.scripts ?? {};
 
   const missingScripts = EAS_HOOK_SCRIPTS.filter((script) => !scripts[script]);
   if (missingScripts.length === 0) return;
@@ -163,12 +159,9 @@ function refuseWithoutTheHookScripts(projectRoot: string): void {
  * review.
  */
 function refuseWithoutTheProfile(projectRoot: string, profile: string): void {
-  let profiles: Record<string, { env?: Record<string, unknown> } | undefined> = {};
-  try {
-    profiles = JSON.parse(fs.readFileSync(path.join(projectRoot, 'eas.json'), 'utf8')).build ?? {};
-  } catch {
-    // No eas.json, or one that cannot be read: the profile is missing either way.
-  }
+  // No eas.json, or one that cannot be read: the profile is missing either way.
+  const profiles: Record<string, { env?: Record<string, unknown> } | undefined> =
+    readProjectJson(projectRoot, 'eas.json')?.build ?? {};
 
   const found = profiles[profile];
 
@@ -179,19 +172,19 @@ function refuseWithoutTheProfile(projectRoot: string, profile: string): void {
         'Sherlo starts its EAS builds with that profile. Add it to "build" in eas.json:\n' +
         `"${profile}": {\n` +
         '  "distribution": "internal",\n' +
-        `  "env": { "${STORYBOOK_BUILD_VARIABLE}": "${STORYBOOK_BUILD_VALUE}" },\n` +
+        `  "env": { "${SHERLO_BUILD_VARIABLE}": "${SHERLO_BUILD_FOR_PUSH}" },\n` +
         '  "android": { "buildType": "apk" },\n' +
         '  "ios": { "simulator": true }\n' +
         '}',
     });
   }
 
-  if (found.env?.[STORYBOOK_BUILD_VARIABLE] === STORYBOOK_BUILD_VALUE) return;
+  if (found.env?.[SHERLO_BUILD_VARIABLE] === SHERLO_BUILD_FOR_PUSH) return;
 
   throwError({
     message:
-      `Can't build on EAS: the "${profile}" profile in eas.json doesn't set ${STORYBOOK_BUILD_VARIABLE}.\n` +
-      `Sherlo's builds need it set to "${STORYBOOK_BUILD_VALUE}". Add this line to the profile's "env":\n` +
-      `"${STORYBOOK_BUILD_VARIABLE}": "${STORYBOOK_BUILD_VALUE}"`,
+      `Can't build on EAS: the "${profile}" profile in eas.json doesn't set ${SHERLO_BUILD_VARIABLE}.\n` +
+      `Sherlo's builds need it set to "${SHERLO_BUILD_FOR_PUSH}". Add this line to the profile's "env":\n` +
+      `"${SHERLO_BUILD_VARIABLE}": "${SHERLO_BUILD_FOR_PUSH}"`,
   });
 }

@@ -16,8 +16,6 @@
  * There is no asking first (operator decision 2026-10-11): CI always runs one job per platform, and
  * a JavaScript-only change finishes in minutes in each without building.
  */
-import fs from 'fs';
-import path from 'path';
 import type { Platform } from '@sherlo/api-types';
 import {
   getGitInfo,
@@ -27,10 +25,12 @@ import {
 } from '../../../helpers';
 import getBinariesInfoAndNextBuildIndex from '../../../helpers/getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex';
 import { emit } from '../../../helpers/transcriptSink';
+import { readProjectJson } from '../../../helpers/projectJson';
 import { realFreshBundleEffects } from '../../../helpers/uploadFreshBundles';
 import type { PushEffects } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
 import type { BaseFingerprintPreimage } from '../../../helpers/fingerprint/baseFingerprint';
 import type { AppBuildReason, ChangesSinceStoredBuild } from '../../../render/appBuild';
+import type { PlatformRow } from '../../../render/runRows';
 import { appBuilder } from '../../../seams/appBuilder';
 import { nativeBuild } from '../../../seams/nativeBuild';
 import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
@@ -41,12 +41,12 @@ import type { ValidatedModuleManifest } from '../readModuleManifest';
 import { collectModuleManifests } from '../stagedRun';
 import type { StagedGateRefusal } from '../stagedGateRefusal';
 import { applyBundleToPlatformConfig, realBundleUploadEffects, uploadBundles } from '../uploadBundles';
+import { printPlatformRowInALog } from '../platformRows';
 import { buildApps } from './buildApps';
 import { type BuildFlags, type BuildSettings, readBuildSettings } from './buildSettings';
 import { ciRunKey } from './ciRun';
 import { easRun } from './easRun';
 import { joinTheRun } from './joinTheRun';
-import { recordPlatformRow } from '../platformRows';
 import { foldersStoredFileByFile, nativeChangesSince } from './nativeChanges';
 
 /** Build what the gate refused, then run the standard road on the fresh app builds. */
@@ -67,10 +67,7 @@ export async function buildThenPush({
   /** The sources `baseFingerprint` was computed over - what a stored app build's list is compared with. */
   fingerprintPreimage?: BaseFingerprintPreimage;
 }): Promise<{ url: string }> {
-  const refused = refusals.map(({ platform }) => platform);
-  // A stored platform's row says it reused the app build Sherlo holds (../platformRows); the built
-  // one's row comes from ./buildApps.
-  const stored = platformsToTest.filter((platform) => !refused.includes(platform));
+  const { platformsToBuild, platformsOnStoredBuild } = whichPlatformsNeedABuild({ platformsToTest, refusals });
 
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },
@@ -80,14 +77,16 @@ export async function buildThenPush({
 
   // EAS MODE: the refused platforms are built on Expo's servers, and the run waits for them.
   if (settings.tool === 'eas') {
-    return easRun({ commandParams, platforms: refused, settings });
+    return easRun({ commandParams, platforms: platformsToBuild, settings });
   }
 
   warnAboutVariablesOnExpo(commandParams.projectRoot, settings);
 
-  for (const platform of stored) {
-    recordPlatformRow({ platform, appBuild: 'reused-from-test', testIndex: storedBuildIndexOf[platform] });
-  }
+  // A stored platform's row says which test its app build came from; the built ones' rows come
+  // from ./buildApps.
+  const storedPlatformRows = platformsOnStoredBuild.map((platform) =>
+    printPlatformRowInALog({ platform, appBuild: 'reused-from-test', testIndex: storedBuildIndexOf[platform] })
+  );
 
   const toBuild = await Promise.all(
     refusals.map(async (refusal) => ({
@@ -100,7 +99,7 @@ export async function buildThenPush({
     }))
   );
 
-  const builtPaths = await buildApps({
+  const { appBuildPaths, platformRows } = await buildApps({
     projectRoot: commandParams.projectRoot,
     toBuild,
     settings,
@@ -111,6 +110,7 @@ export async function buildThenPush({
       teamId: commandParams.credential.teamId,
       projectIndex: commandParams.credential.projectIndex,
     },
+    storedPlatformRows,
   });
 
   // THE STANDARD ROAD, ON THE BUILDS JUST MADE: the same validation and the same push spine a
@@ -118,19 +118,44 @@ export async function buildThenPush({
   // them. A mixed run hands the spine only the built platforms' paths; its config still names
   // every device, so the test's row names the whole test's devices.
   const pushParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions: { ...passedOptions, ...builtPaths } },
-    { requirePlatformPaths: stored.length === 0 }
+    { command: THIS_COMMAND, passedOptions: { ...passedOptions, ...appBuildPaths } },
+    { requirePlatformPaths: platformsOnStoredBuild.length === 0 }
   );
 
   const joinKey = splitRunKeyOf(passedOptions);
-  if (!joinKey && stored.length === 0) {
-    return uploadOrReuseBuildsAndRunTests({ commandParams: pushParams });
+  if (!joinKey && platformsOnStoredBuild.length === 0) {
+    return uploadOrReuseBuildsAndRunTests({ commandParams: pushParams, platformRows });
   }
 
   return uploadOrReuseBuildsAndRunTests({
     commandParams: pushParams,
-    effects: pushEffects({ commandParams: pushParams, built: refused, stored, joinKey }),
+    platformRows,
+    effects: pushEffects({
+      commandParams: pushParams,
+      platformsToBuild,
+      platformsOnStoredBuild,
+      joinKey,
+      platformRows,
+    }),
   });
+}
+
+/**
+ * Which platforms need a new app build and which stay on the app build Sherlo stores: the ones
+ * the staged gate refused are built, every other platform the run tests keeps its stored one.
+ */
+function whichPlatformsNeedABuild({
+  platformsToTest,
+  refusals,
+}: {
+  platformsToTest: Platform[];
+  refusals: StagedGateRefusal[];
+}): { platformsToBuild: Platform[]; platformsOnStoredBuild: Platform[] } {
+  const platformsToBuild = refusals.map(({ platform }) => platform);
+  return {
+    platformsToBuild,
+    platformsOnStoredBuild: platformsToTest.filter((platform) => !platformsToBuild.includes(platform)),
+  };
 }
 
 /**
@@ -166,14 +191,17 @@ export function splitRunKeyOf(passedOptions: BuildFlags): string | null {
  */
 function pushEffects({
   commandParams,
-  built,
-  stored,
+  platformsToBuild,
+  platformsOnStoredBuild,
   joinKey,
+  platformRows,
 }: {
   commandParams: CommandParams<THIS_COMMAND>;
-  built: Platform[];
-  stored: Platform[];
+  platformsToBuild: Platform[];
+  platformsOnStoredBuild: Platform[];
   joinKey: string | null;
+  /** The platforms' rows, which a joined run's test row stands under (./joinTheRun). */
+  platformRows: PlatformRow[];
 }): PushEffects {
   const { token, projectIndex, teamId } = commandParams.credential;
   const machine = nativeBuild();
@@ -189,7 +217,7 @@ function pushEffects({
         commandParams,
         projectIndex,
         teamId,
-        platforms: built,
+        platforms: platformsToBuild,
         android: commandParams.android,
         ios: commandParams.ios,
       });
@@ -202,12 +230,12 @@ function pushEffects({
     openBuild: async (input) => {
       const request = input as OpenBuildRequest;
 
-      if (stored.length > 0) {
-        storedPlatformManifests = await stageTheStoredPlatforms({ request, stored, commandParams });
+      if (platformsOnStoredBuild.length > 0) {
+        storedPlatformManifests = await stageTheStoredPlatforms({ request, platformsOnStoredBuild, commandParams });
       }
 
       if (joinKey) {
-        return joinTheRun({ token, joinKey, platform: built[0], request });
+        return joinTheRun({ token, joinKey, platform: platformsToBuild[0], request, platformRows });
       }
       return serverCalls()
         .openBuild({ token, ...request })
@@ -235,22 +263,22 @@ function pushEffects({
  */
 async function stageTheStoredPlatforms({
   request,
-  stored,
+  platformsOnStoredBuild,
   commandParams,
 }: {
   request: OpenBuildRequest;
-  stored: Platform[];
+  platformsOnStoredBuild: Platform[];
   commandParams: CommandParams<THIS_COMMAND>;
 }): Promise<Partial<Record<Platform, ValidatedModuleManifest>>> {
   const { token, projectIndex, teamId } = commandParams.credential;
 
   const { results: bundles } = await buildBundles({
     projectRoot: commandParams.projectRoot,
-    platformsToTest: stored,
+    platformsToTest: platformsOnStoredBuild,
   });
 
   const stagedKeys = await uploadBundles({
-    platformsToTest: stored,
+    platformsToTest: platformsOnStoredBuild,
     bundles,
     projectIndex,
     teamId,
@@ -258,7 +286,7 @@ async function stageTheStoredPlatforms({
   });
 
   const config = request.buildRunConfig as Record<string, unknown>;
-  for (const platform of stored) {
+  for (const platform of platformsOnStoredBuild) {
     const platformConfig = config[platform] as Parameters<typeof applyBundleToPlatformConfig>[0]['platformConfig'];
     const keys = stagedKeys[platform];
     const bundle = bundles[platform];
@@ -267,7 +295,7 @@ async function stageTheStoredPlatforms({
     applyBundleToPlatformConfig({ platformConfig, keys, bundleSizeMb: bundle.bundleSizeMb });
   }
 
-  return collectModuleManifests(bundles, stored);
+  return collectModuleManifests(bundles, platformsOnStoredBuild);
 }
 
 /**
@@ -279,14 +307,8 @@ function warnAboutVariablesOnExpo(projectRoot: string, settings: BuildSettings):
   const profileName = settings.easProfile;
   if (!profileName) return;
 
-  let environment: unknown;
-  try {
-    const easJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'eas.json'), 'utf8'));
-    environment = easJson.build?.[profileName]?.environment;
-  } catch {
-    return; // No eas.json, or one that cannot be read: there is nothing to borrow.
-  }
-
+  // No eas.json, or one that cannot be read: there is nothing to borrow.
+  const environment: unknown = readProjectJson(projectRoot, 'eas.json')?.build?.[profileName]?.environment;
   if (typeof environment === 'string') {
     emit({ kind: 'eas-hosted-variables', profile: profileName, environment });
   }

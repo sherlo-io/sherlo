@@ -72,8 +72,9 @@ import {
   type ValidatedModuleManifest,
 } from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
+import type { PlatformRow } from '../../render/runRows';
 import type { PlatformCapture } from '../../render/testSteps';
-import { recordPlatformRow, takeRowsAbove } from './platformRows';
+import { rowsAbove, printPlatformRowInALog } from './platformRows';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -325,13 +326,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
 
   //    Both checks said every platform takes its stored app build: each platform's row says which
   //    test it came from (./platformRows).
-  for (const platform of platformsToTest) {
-    recordPlatformRow({
+  const platformRows = platformsToTest.map((platform) =>
+    printPlatformRowInALog({
       platform,
       appBuild: 'reused-from-test',
       testIndex: identityAnswers.storedBuildIndexOf[platform],
-    });
-  }
+    })
+  );
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
   //    (getStagedUploadUrls - NOT getBuildUploadUrls) and collect its S3 keys.
@@ -409,7 +410,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     if (joinKey) {
       // A joined run decides what it captures when its last platform is in, so this job
       // has no capture plan to print - only the run's link.
-      const joined = await joinTheRun({ token, joinKey, platform: platformsToTest[0], request });
+      const joined = await joinTheRun({
+        token,
+        joinKey,
+        platform: platformsToTest[0],
+        request,
+        platformRows,
+      });
       joinedRunWaits = joined.waitingFor.length > 0;
       openBuildReturn = {
         build: joined.build,
@@ -464,6 +471,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       platformsToTest,
       devices: commandParams.devices,
       serverBypassed,
+      platformRows,
     });
   }
 
@@ -472,6 +480,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     buildIndex,
     url,
     serverBypassed,
+    platformRows,
     endsOnNextStep: !joinedRunWaits,
     hasCiToken: openBuildReturn.hasCiToken,
   });
@@ -574,8 +583,8 @@ export function collectModuleManifests(
  * ending's (./closeTheRun).
  *
  * A platform the server made no decision for (no `captureScope`) adds no count - silence, never an
- * invented "captured everything". A test the server closed without a device run leaves the
- * platforms' rows to the row that says it finished (../../helpers/waitForBuildResult).
+ * invented "captured everything". A test the server closed without a device run has no started row
+ * (./closeTheRun ends it, and decides where its platforms' rows go).
  *
  * Exported because the SIM road reuses this exact output road - it has no
  * bundles, so the count is keyed on each platform's module manifest, the one input
@@ -587,12 +596,15 @@ export function printTestStarted({
   platformsToTest,
   devices,
   serverBypassed,
+  platformRows,
 }: {
   openBuildReturn: OpenBuildAnswer;
   moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
   devices: Config['devices'];
   serverBypassed: boolean;
+  /** What became of each platform's app build: the rows above the test's row. The sim road has none. */
+  platformRows: PlatformRow[];
 }): void {
   // A test the server closed without a device run never started on one: its ending is the one
   // finished step that says so (./closeTheRun).
@@ -645,6 +657,6 @@ export function printTestStarted({
     buildIndex: openBuildReturn.build.index,
     devices,
     capture,
-    rowsAbove: takeRowsAbove(),
+    rowsAbove: rowsAbove(platformRows),
   });
 }

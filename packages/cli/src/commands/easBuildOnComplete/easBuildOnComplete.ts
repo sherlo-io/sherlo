@@ -1,4 +1,4 @@
-import { DOCS_LINK, PROFILE_OPTION, TEST_COMMAND } from '../../constants';
+import { DOCS_LINK, EAS_BUILD_ON_CANCEL_SCRIPT, PROFILE_OPTION, TEST_COMMAND } from '../../constants';
 import { getTokenParts, handleClientError, logInfo, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { printTheLogoInATerminal } from '../shared/terminal';
@@ -87,7 +87,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   // `eas-build-on-cancel` script on a cancel, and it runs this same command (epic
   // sherlo-test-builds-apps, operator decision 2026-10-11); every package manager names the script
   // it runs in `npm_lifecycle_event`, which is how this command tells a cancel from an ending.
-  const wasCancelled = process.env.npm_lifecycle_event === 'eas-build-on-cancel';
+  const wasCancelled = process.env.npm_lifecycle_event === EAS_BUILD_ON_CANCEL_SCRIPT;
   const failed = process.env.EAS_BUILD_STATUS === 'errored';
 
   if (wasCancelled || failed) {
