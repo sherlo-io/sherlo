@@ -3,11 +3,17 @@ import {
   DOCS_LINK,
   SHERLO_TEMP_DATA_FILENAME,
   SHERLO_TEMP_DIRECTORY,
-  TEST_EAS_CLOUD_BUILD_COMMAND,
+  TEST_COMMAND,
 } from '../../../constants';
 import { getCwd, getErrorWithCustomMessage, logWarning, throwError } from '../../../helpers';
+import type { HandOverFile } from '../../test/appBuild/createSherloTempDirectory';
 
-function getSherloTempData(): { buildIndex: number; token: string; profile?: string } | undefined {
+/**
+ * The hand-over file `sherlo test` wrote for this EAS build (../../test/appBuild/createSherloTempDirectory),
+ * read from the folder the hook runs in, or undefined when there is none. A field that is not
+ * what it should be is refused by name, never by repeating its value into the build log.
+ */
+function getSherloTempData(): HandOverFile | undefined {
   const SHERLO_TEMP_FILE_PATH = [getCwd(), SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILENAME].join(
     '/'
   );
@@ -19,7 +25,7 @@ function getSherloTempData(): { buildIndex: number; token: string; profile?: str
         'You can:\n' +
         '1. Ignore this message if you did not plan to run Sherlo tests\n' +
         '2. If you want to test your builds, make sure to:\n' +
-        `   • Run \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\` before starting EAS build\n` +
+        `   • Start the EAS builds with \`npx sherlo ${TEST_COMMAND}\`\n` +
         `   • Check if ${SHERLO_TEMP_DIRECTORY} directory is not ignored in .gitignore\n`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
@@ -39,28 +45,34 @@ function getSherloTempData(): { buildIndex: number; token: string; profile?: str
     });
   }
 
-  const { buildIndex, token, profile } = sherloTempData;
+  const { buildIndex, ticket, teamId, projectIndex, profile, apiUrl } = sherloTempData;
 
-  if (typeof buildIndex !== 'number') {
+  const invalidField = [
+    typeof buildIndex === 'number' ? undefined : 'buildIndex',
+    typeof ticket === 'string' && ticket !== '' ? undefined : 'ticket',
+    typeof teamId === 'string' && teamId !== '' ? undefined : 'teamId',
+    typeof projectIndex === 'number' ? undefined : 'projectIndex',
+  ].find((field) => field !== undefined);
+
+  if (invalidField) {
     throwError({
       type: 'unexpected',
       error: new Error(
-        `Field \`buildIndex\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`
+        `Field \`${invalidField}\` in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`
       ),
     });
   }
 
-  const tokenRegex = /^[A-Za-z0-9_-]{40}[0-9]{1,4}$/;
-  if (!tokenRegex.test(token)) {
-    throwError({
-      type: 'unexpected',
-      error: new Error(
-        `Passed \`token\` ("${token}") in temporary file "${SHERLO_TEMP_FILE_PATH}" is not valid`
-      ),
-    });
-  }
-
-  return { buildIndex, token, ...(typeof profile === 'string' ? { profile } : {}) };
+  return {
+    buildIndex,
+    ticket,
+    teamId,
+    projectIndex,
+    // The profile and the address may be absent: `--profile` may name the profile instead, and a
+    // run opened on the tool's own address names none.
+    ...(typeof profile === 'string' && profile !== '' ? { profile } : {}),
+    ...(typeof apiUrl === 'string' && apiUrl !== '' ? { apiUrl } : {}),
+  };
 }
 
 export default getSherloTempData;

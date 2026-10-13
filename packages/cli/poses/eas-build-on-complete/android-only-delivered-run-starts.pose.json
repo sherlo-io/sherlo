@@ -4,7 +4,9 @@
   "files": {
     ".sherlo/data.json": {
       "buildIndex": 1,
-      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "ticket": "sbt_posedticketoftest1",
+      "teamId": "tm000001",
+      "projectIndex": 7,
       "profile": "sherlo"
     },
     "eas.json": {
@@ -38,7 +40,13 @@
         "couldRunThisBuildRightNow": true,
         "startedRun": {
           "devices": [
-            { "id": "pixel.7", "osVersion": "13", "theme": "light", "locale": "en_US", "fontScale": "1" }
+            {
+              "id": "pixel.7",
+              "osVersion": "13",
+              "theme": "light",
+              "locale": "en_US",
+              "fontScale": "1"
+            }
           ],
           "capture": [
             {
@@ -55,8 +63,14 @@
                 "src/components/Storefront/Checkout.stories.tsx"
               ],
               "storyTitles": {
-                "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-                "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+                "src/components/Storefront/ProductCard.stories.tsx": {
+                  "title": "Storefront/ProductCard",
+                  "stories": 3
+                },
+                "src/components/Storefront/Checkout.stories.tsx": {
+                  "title": "Storefront/Checkout",
+                  "stories": 2
+                }
               }
             }
           ]

@@ -4,7 +4,7 @@ import {
   PROFILE_OPTION,
   TEST_COMMAND,
 } from '../../constants';
-import { getTokenParts, handleClientError, logInfo, throwError } from '../../helpers';
+import { handleClientError, logInfo, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { printTheLogoInATerminal } from '../shared/terminal';
 import { serverCalls } from '../../seams/serverCalls';
@@ -55,7 +55,12 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     return;
   }
 
-  const { buildIndex, token } = sherloTempData;
+  const { buildIndex, ticket, teamId, projectIndex } = sherloTempData;
+
+  // EXPO'S MACHINE KNOWS NO SHERLO ADDRESS OF ITS OWN: the run's ticket goes back to the service
+  // that issued it, so the address the hand-over file names wins over SHERLO_API_URL and the
+  // tool's own. Every request reads its address from SHERLO_API_URL, so that is where it goes.
+  if (sherloTempData.apiUrl) process.env.SHERLO_API_URL = sherloTempData.apiUrl;
 
   // The profile `sherlo test` started the EAS builds with, unless the script names others.
   const passedProfiles = passedOptions.profile
@@ -98,17 +103,15 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   const failed = process.env.EAS_BUILD_STATUS === 'errored';
 
   if (wasCancelled || failed) {
-    const { projectIndex, teamId } = getTokenParts(token);
-
     await serverCalls()
       .closeBuild({
-        token,
+        token: ticket,
         buildIndex,
         projectIndex,
         teamId,
         runError: 'user_easCloudBuild',
       })
-      .catch((error) => handleClientError(error, token));
+      .catch((error) => handleClientError(error, ticket));
 
     throwError({
       message:
@@ -119,7 +122,13 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     });
   }
 
-  await asyncUploadBuildAndRunTests({ buildIndex, easBuildProfile, token });
+  await asyncUploadBuildAndRunTests({
+    buildIndex,
+    easBuildProfile,
+    ticket,
+    teamId,
+    projectIndex,
+  });
 }
 
 export default easBuildOnComplete;

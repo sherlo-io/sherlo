@@ -308,6 +308,8 @@ export type ScriptedCall =
             url: string;
             captureDecision?: PosedCaptureDecision;
             hasCiToken?: boolean;
+            /** The one-build ticket of a run that waits for EAS builds. */
+            buildTicket?: string;
           };
     }
   | {

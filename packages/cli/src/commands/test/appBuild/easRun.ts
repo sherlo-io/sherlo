@@ -13,7 +13,9 @@
  *      one whose eas.json has no profile named `build.easProfile` (default "sherlo") - setup writes
  *      none - and one whose upload to EAS would leave `.sherlo/data.json` out (./easHandOver.ts).
  *   2. The run is opened with one empty slot per platform, and `.sherlo/data.json` is written so
- *      the EAS builds carry which run they belong to.
+ *      the EAS builds carry which run they belong to, with the one-build ticket the service
+ *      answered - never the token this push spent, which may be a person's login
+ *      (./createSherloTempDirectory).
  *   3. One EAS build per refused platform is started with the profile `build.easProfile`
  *      (default "sherlo"), without waiting.
  *   4. The run starts on Sherlo when the last slot is filled - never before (operator ruling
@@ -21,11 +23,6 @@
  *
  * This replaces the separate `test:eas-cloud-build` command, which the Sherlo 3 CLI no longer has;
  * the server still serves older CLIs that call it.
- *
- * ------------------------------------------------------------------------
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): `.sherlo/data.json` still carries the
- * project token, as the old command wrote it. The build task replaces it with a ticket for this one
- * run, and the opener then accepts a `sherlo login` too.
  */
 import type { Platform } from '@sherlo/api-types';
 import { EAS_BUILD_ON_CANCEL_SCRIPT, EAS_BUILD_ON_COMPLETE_COMMAND } from '../../../constants';
@@ -42,11 +39,11 @@ import { serverCalls } from '../../../seams/serverCalls';
 import { appBuilder } from '../../../seams/appBuilder';
 import type { CommandParams } from '../../../types';
 import { whileShowing } from '../../shared/terminal';
-import { createSherloTempDirectory } from '../../testEasCloudBuild/helpers';
 import { closeTheRun } from '../closeTheRun';
 import { SHERLO_BUILD_FOR_PUSH, type THIS_COMMAND } from '../constants';
 import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { type BuildSettings, DEFAULT_EAS_PROFILE } from './buildSettings';
+import createSherloTempDirectory from './createSherloTempDirectory';
 import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
 
 /**
@@ -79,7 +76,7 @@ export async function easRun({
   refuseWhenEasLeavesTheHandOverOut(commandParams.projectRoot);
   const { token, projectIndex, teamId } = commandParams.credential;
 
-  const { build, hasCiToken } = await serverCalls()
+  const { build, hasCiToken, buildTicket } = await serverCalls()
     .openBuild({
       token,
       teamId,
@@ -95,9 +92,28 @@ export async function easRun({
 
   const buildIndex = build.index;
 
+  // The hand-over file travels to Expo's machine, so it carries the run's own ticket and never
+  // the token this push spent. A service that answered none cannot take the EAS builds' uploads.
+  if (!buildTicket) {
+    throwError({
+      type: 'unexpected',
+      error: new Error(
+        `The Sherlo service opened Test ${buildIndex} for EAS builds without a build ticket`
+      ),
+    });
+  }
+
   // Written BEFORE the EAS builds start: EAS uploads the project as it is when the build starts,
   // and each build reads which run it belongs to out of this file.
-  createSherloTempDirectory({ projectRoot: commandParams.projectRoot, buildIndex, token, profile });
+  const apiUrl = process.env.SHERLO_API_URL;
+  createSherloTempDirectory(commandParams.projectRoot, {
+    buildIndex,
+    ticket: buildTicket,
+    teamId,
+    projectIndex,
+    profile,
+    ...(apiUrl ? { apiUrl } : {}),
+  });
 
   // Starting them is only a wait, so it leaves no line of its own: each platform's row says it is
   // building on EAS, and the test's row that it starts when they finish.

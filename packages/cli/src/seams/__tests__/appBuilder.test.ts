@@ -450,3 +450,60 @@ describe('app builder, iOS', () => {
     });
   });
 });
+
+describe('app builder, EAS', () => {
+  /** A stand-in `eas` that answers the way Expo's does: its log lines, then the JSON list of builds. */
+  const easRunProcess: RunProcess = async (call) => {
+    calls.push(call);
+    fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+    fs.appendFileSync(
+      call.logPath,
+      '[expo-cli] Resolved "sherlo" environment\n' +
+        JSON.stringify(
+          [{ id: '6c1f2a9e-build', platform: 'ANDROID', status: 'IN_QUEUE' }],
+          null,
+          2
+        ) +
+        '\n'
+    );
+    return 0;
+  };
+
+  it("starts an EAS build with Expo's own command, without waiting, and answers its id", async () => {
+    const builder = makeLiveAppBuilder(easRunProcess);
+
+    const started = await builder.startEasBuild({
+      platform: 'android',
+      profile: 'sherlo',
+      projectRoot,
+    });
+
+    expect(started).toEqual({ buildId: '6c1f2a9e-build' });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].command).toBe('eas');
+    expect(calls[0].args).toEqual([
+      'build',
+      '--platform',
+      'android',
+      '--profile',
+      'sherlo',
+      '--no-wait',
+      '--json',
+      '--non-interactive',
+    ]);
+    expect(calls[0].cwd).toBe(projectRoot);
+    // EAS packs the project from git, as it always does.
+    expect(calls[0].env.EAS_NO_VCS).toBeUndefined();
+  });
+
+  it('refuses when eas build could not start the build, naming its log', async () => {
+    const failing: RunProcess = async (call) => {
+      calls.push(call);
+      return 1;
+    };
+
+    await expect(
+      makeLiveAppBuilder(failing).startEasBuild({ platform: 'ios', profile: 'sherlo', projectRoot })
+    ).rejects.toThrow('`eas build` could not start the ios build - see .sherlo/eas-build-ios.log');
+  });
+});

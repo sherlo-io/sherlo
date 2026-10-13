@@ -26,6 +26,7 @@ import {
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
 import getTokenParts from '../helpers/getTokenParts';
+import isBuildTicket from '../helpers/isBuildTicket';
 import isPersonalToken from '../helpers/isPersonalToken';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
@@ -68,6 +69,16 @@ export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
    * own shape.
    */
   hasCiToken?: boolean;
+  /**
+   * The one-build ticket (BUILD_TICKET_PREFIX) the service answers when it opens a run that waits
+   * for EAS builds: the credential the EAS hook spends, in place of any token (sherlo-api / Tokens
+   * and the request gate).
+   *
+   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): posed here; sherlo-api task
+   * stb-api-eas-ticket adds it to `openBuild`'s answer and the sdk client's selection, and this
+   * becomes the client's own shape.
+   */
+  buildTicket?: string;
 };
 /** The two questions a real push asks before it opens a build - the sdk client's own shapes. */
 export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
@@ -230,7 +241,17 @@ export type JoinBuildAnswer = {
 };
 
 /** What an EAS build's delivery and a run's closing are sent and answer - the sdk client's own shapes. */
-export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0];
+export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0] & {
+  /**
+   * Where the hook staged the module map its EAS build wrote, the slot `getStagedUploadUrls`
+   * offered for it - the same field a split CI job sends in its platform's config, so an EAS run
+   * captures only what changed (sherlo-api / One run from many uploaders).
+   *
+   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): sherlo-api task stb-api-eas-ticket adds
+   * it to `asyncUpload`; until the sdk client declares it, the service never reads it.
+   */
+  manifestS3Key?: string;
+};
 /** The client's answer, and the started run when this EAS build was the last one in ({@link StartedRun}). */
 export type AsyncUploadAnswer = Awaited<ReturnType<SdkClient['asyncUpload']>> & {
   startedRun?: StartedRun;
@@ -251,10 +272,10 @@ export type StoredAppBuildFacts = Pick<StagedGateAnswer, 'storedBase' | 'storedB
 
 /**
  * What the service is sent for the token a push spends: a project token's api part, or a personal
- * token whole - a personal token, the saved login's included, has no parts.
+ * token or a build ticket whole - neither has parts.
  */
 function authTokenFor(token: string): string {
-  return isPersonalToken(token) ? token : getTokenParts(token).apiToken;
+  return isPersonalToken(token) || isBuildTicket(token) ? token : getTokenParts(token).apiToken;
 }
 
 /** The one place a push's token becomes a real sdk client - every live operation below goes through it. */
@@ -672,6 +693,8 @@ export type ScriptedCall =
             url: string;
             captureDecision?: PosedCaptureDecision;
             hasCiToken?: boolean;
+            /** The one-build ticket of a run that waits for EAS builds. */
+            buildTicket?: string;
           }
         | ApiError;
     }
@@ -864,11 +887,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
         url: string;
         captureDecision?: PosedCaptureDecision;
         hasCiToken?: boolean;
+        buildTicket?: string;
       };
 
       return {
         ...openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision),
         ...(answer.hasCiToken === undefined ? {} : { hasCiToken: answer.hasCiToken }),
+        ...(answer.buildTicket === undefined ? {} : { buildTicket: answer.buildTicket }),
       };
     },
 

@@ -219,6 +219,14 @@ export const LOGS_OPTION = 'logs';
  */
 export const PERSONAL_TOKEN_PREFIX = 'sht_';
 
+/**
+ * How a BUILD TICKET starts: the credential `openBuild` answers when it opens a run that waits for
+ * EAS builds, good only for filling that one run's slots and closing it, for about a day (sherlo-api
+ * / Tokens and the request gate). `sherlo test` writes it into `.sherlo/data.json` in place of any
+ * token, and the EAS hook spends it whole. Must match the prefix sherlo-api issues it with.
+ */
+export const BUILD_TICKET_PREFIX = 'sbt_';
+
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
