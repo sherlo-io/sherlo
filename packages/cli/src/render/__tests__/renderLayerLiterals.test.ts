@@ -59,8 +59,7 @@ import type { RenderedSegment } from '../renderSegment';
 import type { TranscriptSegment } from '../segments';
 
 /**
- * The layer bakes chalk into module-level constants at IMPORT time
- * (`DRY_RUN_CLOSER` in dryRunPlan.ts says so in its own header), so colour must be
+ * The layer bakes chalk into module-level constants at IMPORT time, so colour must be
  * pinned BEFORE the first import of any CLI module - hence the dynamic import.
  */
 let renderSegment: (segment: TranscriptSegment) => RenderedSegment;
@@ -135,13 +134,6 @@ type Pin = {
 };
 
 const PINS: Pin[] = [
-  {
-    kind: 'dry-run-bundling-header',
-    what: 'the dry run opens like every test, so its bundling has no header of its own - zero print calls',
-    segment: { kind: 'dry-run-bundling-header' },
-    stream: 'stdout',
-    prints: [],
-  },
   {
     kind: 'command-intro',
     what: "the line under the logo saying what the command is doing, then init's blank line",
@@ -243,37 +235,6 @@ const PINS: Pin[] = [
       ...HELP_BLOCK_PRINTS,
     ],
   },
-  {
-    kind: 'dry-run-capture-plan',
-    what: 'the whole capture plan and its closer - one step per platform when they differ, the stories under a partial one, and the dry-run line',
-    segment: {
-      kind: 'dry-run-capture-plan',
-      previews: [
-        {
-          status: 'decided',
-          decision: {
-            platform: 'android',
-            isFullCapture: false,
-            capturedStoryFilePaths: ['src/components/Storefront/ProductCard.stories.tsx'],
-            totalStories: 12,
-            reason: '1 file changed - a.tsx',
-          },
-        },
-        { status: 'bailed-open', platform: 'ios', reason: 'the decision query timed out' },
-      ],
-    },
-    stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Previewed the capture  🤖 Android - 1 of 12 stories: 1 file changed - a.tsx\n` +
-          `${ESC}[2m   Storefront/ProductCard${ESC}[22m\n` +
-          `${ESC}[32m✔${ESC}[39m Previewed the capture  🍎 iOS - all stories: couldn't work out what changed, so all are captured to be safe\n` +
-          `\n` +
-          `This was a dry run: nothing was uploaded and no test was started.`,
-      ],
-    ],
-  },
-
   /* ---------------------------------------------------------------------- *
    * THE PUSH SPINE (F1).                                                   *
    *                                                                        *
@@ -285,40 +246,6 @@ const PINS: Pin[] = [
    * branches (the upload retry, the INFO notice, the generic build         *
    * message, `output-keys`), which no committed transcript watches at all. *
    * ---------------------------------------------------------------------- */
-  {
-    kind: 'run-header',
-    what: "the run header for two devices - init's step line, the plural noun, and the devices by the names the web app shows",
-    segment: {
-      kind: 'run-header',
-      nextBuildIndex: 3,
-      devices: [
-        { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
-        { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
-      ],
-    },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Set up Test 3          on 2 devices (Pixel 4 XL, iPhone 14)`]],
-  },
-  {
-    kind: 'run-header',
-    what: 'the run header for ONE device - the singular noun, which is a different word and not a different style',
-    segment: {
-      kind: 'run-header',
-      nextBuildIndex: 1,
-      devices: [
-        { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
-      ],
-    },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Set up Test 1          on 1 device (Pixel 4 XL)`]],
-  },
-  {
-    kind: 'binary-platform-label',
-    what: 'the binary-block label prints nothing - an upload is a step in progress, with no line of its own',
-    segment: { kind: 'binary-platform-label', platform: 'android' },
-    stream: 'stdout',
-    prints: [],
-  },
   {
     kind: 'binary-uploading',
     what: "the upload as a log shows it - a step in progress, plain, with the size (a terminal shows the same words as a spinner's)",
@@ -339,13 +266,6 @@ const PINS: Pin[] = [
     segment: { kind: 'binary-upload-retry', attempt: 1, maxRetries: 3 },
     stream: 'stdout',
     prints: [[`${ESC}[2m   Upload failed (attempt 1 of 3), trying again...${ESC}[22m`]],
-  },
-  {
-    kind: 'binary-reused',
-    what: 'an upload the server did not need prints nothing either - the same wait, ended early',
-    segment: { kind: 'binary-reused', buildIndex: 1, timeAgo: '7 minutes ago' },
-    stream: 'stdout',
-    prints: [],
   },
   {
     kind: 'test-started',
@@ -1280,20 +1200,6 @@ const PINS: Pin[] = [
     kind: 'build-view-status',
     what: 'a finished test whose review status the API did not send - ZERO print calls, which is how this layer says nothing and is not the same as a blank line',
     segment: { kind: 'build-view-status', runStatus: 'finished' },
-    stream: 'stdout',
-    prints: [],
-  },
-  {
-    kind: 'build-details',
-    what: 'the old details block prints nothing - `--metadata` left `sherlo test`, and `sherlo view <n> --json` is the one read-back',
-    segment: {
-      kind: 'build-details',
-      details: {
-        runStatus: 'error',
-        runError: 'user_runner',
-        viewStatusesCount: { approved: 0, noChanges: 0, reported: 0, unreviewed: 0 },
-      },
-    },
     stream: 'stdout',
     prints: [],
   },

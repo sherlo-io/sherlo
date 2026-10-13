@@ -75,7 +75,6 @@ async function asyncUploadBuildAndRunTests({
         machine.readBinaryForUpload(binaryPath, binaryPlatform, root),
       putBinary: (uploadUrl, data) => machine.putBinary(uploadUrl, data),
     },
-    now: machine.now(),
   });
 
   // The base fingerprint FIRST, before anything could load the Expo app config (SHERLO-1756).

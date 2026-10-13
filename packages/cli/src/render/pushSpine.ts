@@ -19,48 +19,6 @@
  *   - TWO SPACES AFTER AN ICON align the text with the section titles above it.
  */
 import chalk from 'chalk';
-import { DEVICES } from '@sherlo/shared';
-import type { Config } from '../types';
-import { describeDevices, renderTestStep } from './testSteps';
-
-type PlatformDeviceCounts = { android: number; ios: number };
-
-/**
- * How many devices of each platform a config asks for.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): no line counts devices by platform any
- * more - a test names its devices (./testSteps `describeDevices`). It stays only because
- * ../helpers/printBuildIntroMessage/countDevicesByPlatform re-exports it, outside what plan may
- * edit; the build task deletes both.
- */
-export function countDevicesByPlatform(configDevices: Config['devices']): PlatformDeviceCounts {
-  const platformCounts: PlatformDeviceCounts = { android: 0, ios: 0 };
-
-  configDevices.forEach((deviceConfig) => {
-    const device = DEVICES[deviceConfig.id];
-
-    if (device) platformCounts[device.os] += 1;
-  });
-
-  return platformCounts;
-}
-
-/**
- * `✔ Set up Test 3              on 2 devices (Pixel 7, iPhone 15)` - the test this push will be and
- * what it runs on, said before its app builds go up.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): in init's grammar the test is named once,
- * by its row, `Test 3      ✔ Started: <stories> on <devices>`, after its app builds are up
- * (./runRows `renderTestStarted`). The push spine that prints this line
- * (../helpers/uploadOrReuseBuildsAndRunTests) is outside what plan may edit, so the build task
- * prints `test-started` after `openBuild` and deletes this one (build items 52 and 64).
- */
-export function renderRunHeader(nextBuildIndex: number, devices: Config['devices']): string {
-  return renderTestStep({
-    name: `Set up Test ${nextBuildIndex}`,
-    detail: describeDevices(devices),
-  });
-}
 
 /**
  * The `➜ ` / `✔ ` build line every binary block is made of.

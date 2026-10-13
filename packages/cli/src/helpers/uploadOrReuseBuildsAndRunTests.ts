@@ -63,13 +63,6 @@ import { isServerBypassed } from './waitForBuildResult';
  */
 export type PushEffects = {
   /**
-   * The instant a reuse line's "N minutes ago" is measured against - the ONE
-   * wall-clock read on this transcript's path, and an effect for exactly the
-   * reason the network ones are: a fixed scripted state that read the real clock
-   * would render different bytes tomorrow.
-   */
-  now: () => Date;
-  /**
    * `ValidatedBinariesInfo`, not `BinariesInfo`: the `openBuild` call below
    * reads `binariesInfo.sdkVersion`, which only the VALIDATED shape carries.
    */
@@ -140,7 +133,6 @@ async function uploadOrReuseBuildsAndRunTests({
   // server (../seams/nativeBuild, ../seams/serverCalls) and this spine never learns which it got.
   const machine = nativeBuild();
   const io: PushEffects = effects ?? {
-    now: () => machine.now(),
     resolveBinaries: () =>
       getValidatedBinariesInfoAndNextBuildIndex({
         token,
@@ -338,7 +330,6 @@ async function uploadOrReuseBuildsAndRunTests({
     android: appBuildPaths.android,
     ios: appBuildPaths.ios,
     uploadEffects: io.binaryUpload,
-    now: io.now(),
   });
 
   // A built platform's bundle is spliced into THIS binary, which keeps its own `s3Key` (set by

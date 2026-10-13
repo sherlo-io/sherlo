@@ -2,8 +2,8 @@
  * THE RENDER LAYER: state in, bytes out. Pure - no `console.`, no `process.`, no
  * `await`, no `@sherlo/sdk-client`.
  *
- * This module holds EVERY literal, emoji, chalk call and blank line the
- * `--dry-run` family prints. Nothing upstream of it spells a sentence, and
+ * This module holds EVERY literal, emoji, chalk call and blank line the CLI
+ * prints. Nothing upstream of it spells a sentence, and
  * nothing downstream of it edits one: the logic decides WHICH segments happen
  * and in WHAT ORDER, this decides what each one LOOKS like, and a sink decides
  * where the result lands.
@@ -33,7 +33,6 @@ import {
   renderStoriesTable,
   renderViewJson,
 } from './buildView';
-import { formatDryRunPreview } from './dryRunPlan';
 import {
   renderAppBuildCached,
   renderAppBuildDone,
@@ -41,12 +40,7 @@ import {
   renderAppBuildNextStep,
   renderEasHostedVariables,
 } from './appBuild';
-import {
-  renderBuildMessageLine,
-  renderOutputKeys,
-  renderRunHeader,
-  renderTestNotice,
-} from './pushSpine';
+import { renderBuildMessageLine, renderOutputKeys, renderTestNotice } from './pushSpine';
 import { renderStepInProgress } from './stepInProgress';
 import {
   renderFinishedUnderTheTestRow,
@@ -146,11 +140,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: renderCommandIntro(segment.command).map((line) => [line]),
       };
 
-    case 'dry-run-bundling-header':
-      // The dry run opens like every test, with `Testing your app...` under the logo; its plan says
-      // it is a preview (../commands/test/diffScopeReport), so the bundling needs no header of its own.
-      return { stream: 'stdout', prints: [] };
-
     // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts. In a
     // terminal the same words are a spinner's (../commands/shared/terminal), and this segment is
     // never emitted there.
@@ -218,12 +207,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         ].map((line) => [line]),
       };
 
-    case 'dry-run-capture-plan':
-      return {
-        stream: 'stdout',
-        prints: [[formatDryRunPreview(segment.previews)]],
-      };
-
     case 'git-info-unavailable':
       return {
         stream: 'stderr',
@@ -231,19 +214,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     /* ---------------------- the push spine (F1) ---------------------- */
-
-    case 'run-header':
-      return {
-        stream: 'stdout',
-        prints: [[renderRunHeader(segment.nextBuildIndex, segment.devices)]],
-      };
-
-    // An upload is only a wait: it shows while it runs (`binary-uploading`, above) and leaves no
-    // line of its own, whether the bytes went up or the server already held them. The step a person
-    // reads is the test it starts. The build task stops emitting these two.
-    case 'binary-platform-label':
-    case 'binary-reused':
-      return { stream: 'stdout', prints: [] };
 
     case 'binary-upload-retry':
       return {
@@ -437,10 +407,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         stream: 'stdout',
         prints: renderBuildViewStatus(segment).map((line) => [line]),
       };
-
-    case 'build-details':
-      // Unreachable since `--metadata` left `sherlo test` (./segments says why it still exists).
-      return { stream: 'stdout', prints: [] };
 
     case 'build-view-json':
       return { stream: 'stdout', prints: [[renderViewJson(segment.json)]] };

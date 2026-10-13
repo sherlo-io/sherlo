@@ -38,21 +38,6 @@ import type { TeamCreated } from '../render/teamCreated';
 import type { TeamList } from '../render/teamList';
 import type { PlatformCapture } from '../render/testSteps';
 import type { Config } from '../types';
-// TYPE-ONLY, and it has to stay that way: `dryRunDecision` mirrors the `computeDiffScopeDryRun`
-// SDL and calls this seam, so a VALUE imported from it here would be a load-time cycle. A type
-// import is erased, which is why the shapes can be named where they are declared.
-import type {
-  ComputeDiffScopeDryRunRequest,
-  ComputeDiffScopeDryRunResult,
-  DryRunDecisionClient,
-} from '../commands/test/dryRunDecision';
-
-/**
- * Raised when the `computeDiffScopeDryRun` query method is not present on the sdk-client at
- * runtime. The dry-run road catches it and bails open - see ../commands/test/dryRunDecision.
- */
-export const DRY_RUN_DECISION_UNAVAILABLE =
-  'The Diff Scope dry-run decision query (computeDiffScopeDryRun) is not available on this sdk-client build.';
 
 /** What `openBuild` is sent, and what it answers - the sdk client's own shapes. */
 type SdkClient = ReturnType<typeof sdkClient>;
@@ -112,7 +97,7 @@ export type ServerCalls = {
 
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
-  /** `pushFacts`: what only the push knows ({@link PushFacts}) - posed today, sent once the service takes it. */
+  /** `pushFacts`: what only the push knows ({@link PushFacts}), sent with the call. */
   openBuild(
     request: OpenBuildRequest & { token: string; pushFacts?: PushFacts }
   ): Promise<OpenBuildAnswer>;
@@ -146,10 +131,6 @@ export type ServerCalls = {
   getStagedUploadUrls(
     request: StagedUploadUrlsRequest & { token: string }
   ): Promise<StagedUploadUrlsAnswer>;
-
-  computeDiffScopeDryRun(
-    request: ComputeDiffScopeDryRunRequest & { token: string }
-  ): Promise<ComputeDiffScopeDryRunResult>;
 
   /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
   checkStagedGate(
@@ -299,8 +280,7 @@ export const liveServerCalls: ServerCalls = {
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
 
-  // PLAN-LAYER DEBT: `pushFacts` is held back until the service takes it (see PushFacts).
-  openBuild: ({ token, pushFacts: _heldBack, ...request }) => clientFor(token).openBuild(request),
+  openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
   // PLAN-LAYER DEBT: see JoinBuildRequest. Refused by name until the server has the operation.
   joinBuild: async () => {
@@ -310,8 +290,7 @@ export const liveServerCalls: ServerCalls = {
     );
   },
 
-  asyncUpload: ({ token, pushFacts: _heldBack, ...request }) =>
-    clientFor(token).asyncUpload(request),
+  asyncUpload: ({ token, ...request }) => clientFor(token).asyncUpload(request),
 
   closeBuild: ({ token, ...request }) => clientFor(token).closeBuild(request),
 
@@ -320,20 +299,6 @@ export const liveServerCalls: ServerCalls = {
   getStagedUploadUrls: ({ token, ...request }) => clientFor(token).getStagedUploadUrls(request),
 
   trackCliInit: ({ token, ...request }) => clientFor(token).trackCliInit(request),
-
-  computeDiffScopeDryRun: ({ token, ...request }) => {
-    const client = clientFor(token) as DryRunDecisionClient;
-
-    // The published sdk-client this repo typechecks against may not carry the query yet, so the
-    // method is reached defensively - exactly as ../commands/test/dryRunDecision does.
-    const query = client.computeDiffScopeDryRun;
-
-    if (typeof query !== 'function') {
-      throw new Error(DRY_RUN_DECISION_UNAVAILABLE);
-    }
-
-    return query(request);
-  },
 
   checkStagedGate: ({ token, ...request }) => clientFor(token).checkStagedGate(request),
 
@@ -507,16 +472,6 @@ export type PushFacts = {
   platforms: { android?: PushFactsPlatform; ios?: PushFactsPlatform };
   /** The CI service and its run id, when the push ran in CI. */
   ciRun?: { provider: string; runId: string };
-};
-
-/** What the dry-run road's one read-only question answers. */
-export type DiffScopeDryRunAnswer = {
-  platforms: Array<{
-    platform: 'android' | 'ios';
-    isFullCapture: boolean;
-    reason: string;
-    capturedStoryFilePaths: string[];
-  }>;
 };
 
 /**
@@ -723,11 +678,6 @@ export type ScriptedCall =
       call: 'closeBuild';
       with: { buildIndex: number; runError: string };
       answer: Record<string, never> | ApiError;
-    }
-  | {
-      call: 'computeDiffScopeDryRun';
-      with: { branch: string; commit: string };
-      answer: DiffScopeDryRunAnswer | ApiError;
     }
   | {
       /** A real push's first question: has the server seen these binaries, and which build is next. */
@@ -937,12 +887,6 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
       return stagedUploadUrlsAnswerOf(request.platforms);
     },
-
-    computeDiffScopeDryRun: async (request) =>
-      answerFor('computeDiffScopeDryRun', {
-        branch: request.gitInfo.branchName,
-        commit: request.gitInfo.commitHash,
-      }) as ComputeDiffScopeDryRunResult,
 
     // The gate is asked per platform with the base fingerprint the tool computed; the pose states
     // both, so a pose cannot answer a question about a base the run never measured.

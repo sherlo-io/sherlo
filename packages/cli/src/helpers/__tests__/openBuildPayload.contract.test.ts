@@ -324,7 +324,7 @@ describe('openBuild payload - nativeFingerprint', () => {
 // ---------------------------------------------------------------------------
 
 describe('reuse-vs-upload branch selection', () => {
-  it('delegates the reuse/upload decision to uploadOrPrintBinaryReuse with binaries + platform paths, the upload effects and an injected clock', async () => {
+  it('delegates the reuse/upload decision to uploadOrPrintBinaryReuse with binaries + platform paths and the upload effects', async () => {
     await callSubject();
 
     expect(mocks.uploadOrPrintBinaryReuse).toHaveBeenCalledWith({
@@ -332,22 +332,12 @@ describe('reuse-vs-upload branch selection', () => {
       projectRoot: '/proj',
       android: '/builds/app.apk',
       ios: '/builds/app.app',
-      // Both seams are asserted ON PURPOSE, so a refactor that silently stops
-      // injecting either one reds here:
-      //
-      // - `uploadEffects` is the mechanism the whole render/expectation layer
-      //   rests on: a posed run swaps the machine seam (../../seams/nativeBuild)
-      //   and the upload block runs offline through it. The subject hands over
-      //   two thunks onto whichever machine is in force, so the shape is what
-      //   is asserted here; the seam's own tests pin where the thunks lead.
-      // - `now` fixes the instant a reuse line's "N minutes ago" is measured
-      //   against. It exists because `getTimeAgo` used to read the wall clock
-      //   directly, so a captured reuse line drifted from "7 minutes ago" to
-      //   "1 week ago" as the calendar moved. Dropping the injection would
-      //   reintroduce that bug; only the seam is contractual here, not the
-      //   value, so the type is what is asserted.
+      // `uploadEffects` is asserted ON PURPOSE, so a refactor that silently stops injecting it reds
+      // here. It is the mechanism the whole render/expectation layer rests on: a posed run swaps
+      // the machine seam (../../seams/nativeBuild) and the upload block runs offline through it.
+      // The subject hands over two thunks onto whichever machine is in force, so the shape is what
+      // is asserted here; the seam's own tests pin where the thunks lead.
       uploadEffects: { readBinary: expect.any(Function), putBinary: expect.any(Function) },
-      now: expect.any(Date),
     });
   });
 
