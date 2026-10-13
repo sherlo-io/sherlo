@@ -71,6 +71,11 @@ export type PushEffects = {
   baseRegistration: BaseRegistrationEffects;
   /** The fresh bundle spliced into every binary this run renders. */
   freshBundle: FreshBundleEffects;
+  /**
+   * A mixed run's other half: the module maps of the platforms it staged onto their stored app
+   * builds, known once `openBuild` has run. The started line counts their stories with them.
+   */
+  moduleManifestsOfStoredPlatforms?: () => Partial<Record<Platform, ValidatedModuleManifest>>;
 };
 
 /**
@@ -322,7 +327,10 @@ async function uploadOrReuseBuildsAndRunTests({
   if (!joined) {
     printTestStarted({
       openBuildReturn: opened,
-      moduleManifests: moduleManifestsOf(freshBundles),
+      moduleManifests: {
+        ...moduleManifestsOf(freshBundles),
+        ...io.moduleManifestsOfStoredPlatforms?.(),
+      },
       platformsToTest: platformsInTheRun(buildRunConfig),
       devices: commandParams.devices,
       serverBypassed,

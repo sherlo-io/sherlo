@@ -35,6 +35,8 @@ import type { ProjectCreated } from '../render/projectCreated';
 import type { ProjectList } from '../render/projectList';
 import type { TeamCreated } from '../render/teamCreated';
 import type { TeamList } from '../render/teamList';
+import type { PlatformCapture } from '../render/testSteps';
+import type { Config } from '../types';
 // TYPE-ONLY, and it has to stay that way: `dryRunDecision` mirrors the `computeDiffScopeDryRun`
 // SDL and calls this seam, so a VALUE imported from it here would be a load-time cycle. A type
 // import is erased, which is why the shapes can be named where they are declared.
@@ -203,15 +205,34 @@ export type JoinBuildRequest = OpenBuildRequest & {
   platform: Platform;
 };
 
-/** What `joinBuild` answers: the run, and the platforms it still waits for (empty: it is starting). */
+/**
+ * The run that just started, as the service tells the upload that brought its last platform in:
+ * the devices of the whole test (both platforms, from the run's config) and what each platform
+ * captures (its decision, and the story count its push reported). It is what the ordinary
+ * `✔ Started Test N  all 24 stories on 2 devices (Pixel 7, iPhone 15)` line is printed from, by
+ * a job or an EAS build that knows only its own platform.
+ *
+ * PLAN-LAYER DEBT, NAMED (build item 66): posed here; the service sends it on `joinBuild` and
+ * `asyncUpload` once the build task adds it. Until then a live run prints the bare `✔ Started Test N`.
+ */
+export type StartedRun = { devices: Config['devices']; capture: PlatformCapture[] };
+
+/**
+ * What `joinBuild` answers: the run, the platforms it still waits for (empty: it is starting), and
+ * the started run when this job brought its last platform in.
+ */
 export type JoinBuildAnswer = {
   build: { index: number };
   waitingFor: Platform[];
+  startedRun?: StartedRun;
 };
 
 /** What an EAS build's delivery and a run's closing are sent and answer - the sdk client's own shapes. */
 export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0];
-export type AsyncUploadAnswer = Awaited<ReturnType<SdkClient['asyncUpload']>>;
+/** The client's answer, and the started run when this EAS build was the last one in ({@link StartedRun}). */
+export type AsyncUploadAnswer = Awaited<ReturnType<SdkClient['asyncUpload']>> & {
+  startedRun?: StartedRun;
+};
 export type CloseBuildRequest = Parameters<SdkClient['closeBuild']>[0];
 export type CloseBuildAnswer = Awaited<ReturnType<SdkClient['closeBuild']>>;
 
@@ -683,20 +704,21 @@ export type ScriptedCall =
       /**
        * One job of a split CI run delivering its platform into the run its CI run shares: `with`
        * names the key the jobs share and this job's platform; the answer is the run and the
-       * platforms it still waits for - none, and the run is starting.
+       * platforms it still waits for - none, and the run is starting, with `startedRun`.
        */
       call: 'joinBuild';
       with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform };
-      answer: { buildIndex: number; waitingFor: string[] } | ApiError;
+      answer: { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } | ApiError;
     }
   | {
       /**
        * An EAS build delivering its platform into the run opened for it: `with` names the run and
-       * the platform; the answer says whether that was the last platform the run waited for.
+       * the platform; the answer says whether that was the last platform the run waited for, and
+       * then the started run.
        */
       call: 'asyncUpload';
       with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform };
-      answer: { couldRunThisBuildRightNow: boolean } | ApiError;
+      answer: { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } | ApiError;
     }
   | {
       /** A run closed before it started, and why (`user_easCloudBuild`: the EAS build failed). */
@@ -879,8 +901,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       const answer = answerFor('joinBuild', { joinKey, platform, pushFacts }) as {
         buildIndex: number;
         waitingFor: Platform[];
+        startedRun?: StartedRun;
       };
-      return { build: { index: answer.buildIndex }, waitingFor: answer.waitingFor };
+      return {
+        build: { index: answer.buildIndex },
+        waitingFor: answer.waitingFor,
+        ...(answer.startedRun ? { startedRun: answer.startedRun } : {}),
+      };
     },
 
     // The platform is the one whose storage key the delivery carries - the request names no other.

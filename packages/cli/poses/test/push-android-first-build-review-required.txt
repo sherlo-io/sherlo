@@ -12,7 +12,7 @@
 
 Testing your app...
 
-[32m✔[39m Started Test 1         on 1 device (Pixel 7)
+[32m✔[39m Started Test 1         all 2 stories on 1 device (Pixel 7)
 [32m✔[39m Finished Test 1        in <DURATION>
 
 

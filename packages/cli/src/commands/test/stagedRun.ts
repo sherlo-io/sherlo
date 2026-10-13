@@ -536,7 +536,7 @@ type GateAnswers = {
 };
 
 /** The per-platform module manifests the capture plan reads, lifted off the bundles. */
-function collectModuleManifests(
+export function collectModuleManifests(
   bundles: Partial<Record<Platform, BundleResult>>,
   platformsToTest: Platform[]
 ): Partial<Record<Platform, ValidatedModuleManifest>> {

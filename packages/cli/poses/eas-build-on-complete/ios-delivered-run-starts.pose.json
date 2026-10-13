@@ -55,7 +55,17 @@
         "platform": "ios"
       },
       "answer": {
-        "couldRunThisBuildRightNow": true
+        "couldRunThisBuildRightNow": true,
+        "startedRun": {
+          "devices": [
+            { "id": "pixel.7", "osVersion": "13", "theme": "light", "locale": "en_US", "fontScale": "1" },
+            { "id": "iphone.15", "osVersion": "17", "theme": "light", "locale": "en_US", "fontScale": "1" }
+          ],
+          "capture": [
+            { "platform": "android", "full": true, "capturedStories": 0, "storiesInBundle": 2 },
+            { "platform": "ios", "full": true, "capturedStories": 0, "storiesInBundle": 2 }
+          ]
+        }
       }
     }
   ],

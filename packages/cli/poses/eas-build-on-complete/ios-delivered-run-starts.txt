@@ -12,7 +12,7 @@
 
 Sending your EAS build to Sherlo...
 
-[32m✔[39m Started Test 1
+[32m✔[39m Started Test 1         all 2 stories on 2 devices (Pixel 7, iPhone 15)
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

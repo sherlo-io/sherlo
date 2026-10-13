@@ -37,6 +37,8 @@ import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
 import type { CommandParams, Options } from '../../../types';
 import { buildBundles } from '../bundleAndPreview';
 import { THIS_COMMAND } from '../constants';
+import type { ValidatedModuleManifest } from '../readModuleManifest';
+import { collectModuleManifests } from '../stagedRun';
 import type { StagedGateRefusal } from '../stagedGateRefusal';
 import { applyBundleToPlatformConfig, realBundleUploadEffects, uploadBundles } from '../uploadBundles';
 import { buildApps } from './buildApps';
@@ -170,6 +172,8 @@ function pushEffects({
 }): PushEffects {
   const { token, projectIndex, teamId } = commandParams.credential;
   const machine = nativeBuild();
+  // Filled when openBuild stages the stored platforms, read by the started line after it.
+  let storedPlatformManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
 
   return {
     now: () => machine.now(),
@@ -193,7 +197,9 @@ function pushEffects({
     openBuild: async (input) => {
       const request = input as OpenBuildRequest;
 
-      if (stored.length > 0) await stageTheStoredPlatforms({ request, stored, commandParams });
+      if (stored.length > 0) {
+        storedPlatformManifests = await stageTheStoredPlatforms({ request, stored, commandParams });
+      }
 
       if (joinKey) {
         return joinTheRun({ token, joinKey, platform: built[0], request });
@@ -211,6 +217,7 @@ function pushEffects({
       extractGateMetadataFor: (params) => machine.extractGateMetadataFor(params),
     },
     freshBundle: realFreshBundleEffects(token),
+    moduleManifestsOfStoredPlatforms: () => storedPlatformManifests,
   };
 }
 
@@ -218,7 +225,8 @@ function pushEffects({
  * The other half of a mixed run: bundle the platforms whose stored app build still matches, upload
  * each bundle to its staged slot, and put it on the run's config - the stored app build is named by
  * the async-upload placeholder the config already carries for a platform with no binary, and the
- * runner splices the bundle into it, exactly as on the staged road.
+ * runner splices the bundle into it, exactly as on the staged road. Answers the stored platforms'
+ * module maps, so the started line counts their stories too.
  */
 async function stageTheStoredPlatforms({
   request,
@@ -228,7 +236,7 @@ async function stageTheStoredPlatforms({
   request: OpenBuildRequest;
   stored: Platform[];
   commandParams: CommandParams<THIS_COMMAND>;
-}): Promise<void> {
+}): Promise<Partial<Record<Platform, ValidatedModuleManifest>>> {
   const { token, projectIndex, teamId } = commandParams.credential;
 
   const { results: bundles } = await buildBundles({
@@ -253,6 +261,8 @@ async function stageTheStoredPlatforms({
 
     applyBundleToPlatformConfig({ platformConfig, keys, bundleSizeMb: bundle.bundleSizeMb });
   }
+
+  return collectModuleManifests(bundles, stored);
 }
 
 /**

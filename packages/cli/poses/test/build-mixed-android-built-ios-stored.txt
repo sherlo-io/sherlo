@@ -13,7 +13,7 @@
 Testing your app...
 
 [32m✔[39m Built the Android app  in <DURATION>, native code changed since Test 3 [2m(log: .sherlo/build-android.log)[22m
-[32m✔[39m Started Test 4         on 2 devices (Pixel 7, iPhone 15)
+[32m✔[39m Started Test 4         all 2 stories on 2 devices (Pixel 7, iPhone 15)
 
 
 [1m👉 Next step[22m

@@ -125,7 +125,8 @@
       },
       "answer": {
         "buildIndex": 4,
-        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=4"
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=4",
+        "captureDecision": { "platforms": { "android": { "full": true }, "ios": { "full": true } } }
       }
     }
   ],

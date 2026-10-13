@@ -16,7 +16,7 @@ Testing your app...
    [33m~[39m yarn.lock
    [31m-[39m react-native-maps 1.2.0
    [33m~[39m react-native (installed version)
-[32m✔[39m Started Test 13        on 1 device (Pixel 7)
+[32m✔[39m Started Test 13        all 2 stories on 1 device (Pixel 7)
 [32m✔[39m Finished Test 13       in <DURATION>
 
 

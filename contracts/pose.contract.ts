@@ -302,7 +302,7 @@ export type ScriptedCall =
       /**
        * One job of a split CI run delivering its platform into the run its CI run shares: `with` names
        * the key the jobs share and this job's platform; the answer is the run and the platforms it
-       * still waits for - none, and the run is starting.
+       * still waits for - none, and the run is starting, with `startedRun`.
        */
       call: 'joinBuild';
       with: {
@@ -315,12 +315,14 @@ export type ScriptedCall =
         | {
             buildIndex: number;
             waitingFor: string[];
+            startedRun?: StartedRun;
           };
     }
   | {
       /**
        * An EAS build delivering its platform into the run opened for it: `with` names the run and the
-       * platform; the answer says whether that was the last platform the run waited for.
+       * platform; the answer says whether that was the last platform the run waited for, and then the
+       * started run.
        */
       call: 'asyncUpload';
       with: {
@@ -332,6 +334,7 @@ export type ScriptedCall =
         | ApiError
         | {
             couldRunThisBuildRightNow: boolean;
+            startedRun?: StartedRun;
           };
     }
   | {
@@ -855,6 +858,74 @@ export type PushFactsPlatform = {
   nativeChanges?: string[];
   /** How many stories the pushed bundle holds. */
   storiesInBundle?: number;
+};
+
+/**
+ * The run that just started, as the service tells the upload that brought its last platform in:
+ * the devices of the whole test (both platforms, from the run's config) and what each platform
+ * captures (its decision, and the story count its push reported). It is what the ordinary `✔
+ * Started Test N all 24 stories on 2 devices (Pixel 7, iPhone 15)` line is printed from, by a job
+ * or an EAS build that knows only its own platform.
+ *
+ * PLAN-LAYER DEBT, NAMED (build item 66): posed here; the service sends it on `joinBuild` and
+ * `asyncUpload` once the build task adds it. Until then a live run prints the bare `✔ Started Test
+ * N`.
+ */
+export type StartedRun = {
+  devices: Array<{
+    id:
+      | 'iphone.13'
+      | 'iphone.13.mini'
+      | 'iphone.13.pro'
+      | 'iphone.13.pro.max'
+      | 'iphone.14'
+      | 'iphone.14.plus'
+      | 'iphone.14.pro'
+      | 'iphone.14.pro.max'
+      | 'iphone.15'
+      | 'iphone.15.plus'
+      | 'iphone.15.pro'
+      | 'iphone.15.pro.max'
+      | 'iphone.se.3.gen'
+      | 'ipad.9.gen'
+      | 'ipad.10.gen'
+      | 'ipad.air.5.gen'
+      | 'ipad.air.11.m2'
+      | 'ipad.air.13.m2'
+      | 'ipad.mini.6.gen'
+      | 'ipad.pro.11.4.gen'
+      | 'ipad.pro.11.m4'
+      | 'ipad.pro.12.9.6.gen'
+      | 'ipad.pro.13.m4'
+      | 'pixel.4'
+      | 'pixel.4.xl'
+      | 'pixel.4a'
+      | 'pixel.5'
+      | 'pixel.6'
+      | 'pixel.6.pro'
+      | 'pixel.6a'
+      | 'pixel.7'
+      | 'pixel.7.pro'
+      | 'pixel.7a'
+      | 'pixel.8'
+      | 'pixel.8.pro'
+      | 'pixel.tablet';
+    osVersion: string;
+    theme: 'light' | 'dark';
+    locale: string;
+    fontScale: string;
+  }>;
+  capture: Array<{
+    platform: 'android' | 'ios';
+    /** Every story is captured. Read FIRST: a full capture's story list is empty and means "all". */
+    full: boolean;
+    /** How many stories a partial capture takes. Ignored on a full capture. */
+    capturedStories: number;
+    /** How many stories the bundle holds; absent when no module map could count them. */
+    storiesInBundle?: number;
+    /** The server's own reason, printed only on a full capture (operator ruling 2026-10-12, Q2). */
+    reason?: string;
+  }>;
 };
 
 /** What the dry-run road's one read-only question answers. */

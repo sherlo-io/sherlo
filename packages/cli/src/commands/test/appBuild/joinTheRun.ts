@@ -28,10 +28,12 @@ export async function joinTheRun({
   /** Everything an `openBuild` of this job would have been sent. */
   request: OpenBuildRequest;
 }): Promise<{ build: { index: number }; waitingFor: Platform[] }> {
-  const { build, waitingFor } = await serverCalls()
+  const { build, waitingFor, startedRun } = await serverCalls()
     .joinBuild({ token, joinKey, platform, ...request })
     .catch((error) => handleClientError(error, token));
 
+  // The last job in starts the test with the ordinary started line. This job knows only its own
+  // platform, so the whole test's devices and capture come from the service's answer.
   emit(
     waitingFor.length > 0
       ? {
@@ -39,9 +41,7 @@ export async function joinTheRun({
           buildIndex: build.index,
           waitingFor: { otherJob: waitingFor[0] },
         }
-      : // PLAN-LAYER STOP: the line names the whole test's devices once this job knows them - its
-        // own command params keep only its platform's (build item 66).
-        { kind: 'test-started', buildIndex: build.index }
+      : { kind: 'test-started', buildIndex: build.index, ...startedRun }
   );
 
   return { build, waitingFor };

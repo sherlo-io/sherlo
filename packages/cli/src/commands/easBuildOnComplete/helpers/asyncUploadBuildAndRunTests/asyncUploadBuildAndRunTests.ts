@@ -114,7 +114,7 @@ async function asyncUploadBuildAndRunTests({
     level: 'info',
   });
 
-  const { couldRunThisBuildRightNow } = await serverCalls()
+  const { couldRunThisBuildRightNow, startedRun } = await serverCalls()
     .asyncUpload({
       token,
       buildIndex,
@@ -133,10 +133,11 @@ async function asyncUploadBuildAndRunTests({
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
+  // The last EAS build in starts the test with the ordinary started line; the whole test's devices
+  // and capture come from the service's answer, since this build knows only its own platform.
   emit(
     couldRunThisBuildRightNow
-      ? // PLAN-LAYER STOP: the line names the run's devices once the hook reads them (build item 66).
-        { kind: 'test-started', buildIndex }
+      ? { kind: 'test-started', buildIndex, ...startedRun }
       : {
           kind: 'run-waits-for-builds',
           buildIndex,
