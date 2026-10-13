@@ -20,14 +20,13 @@ import {
   view,
 } from './commands';
 import {
-  BUILD_CACHE_ENV_VAR,
   BUILD_CACHE_OPTION,
   BUILD_COMMAND,
-  DEFAULT_BUILD_CACHE,
   PARALLEL_BUILDS_OPTION,
   PLATFORM_OPTION,
   RUN_ID_OPTION,
 } from './commands/test/appBuild/buildSettings';
+import { CACHE_DIR_ENV_VAR } from './commands/test/appBuild/cacheFolder';
 import {
   ANDROID_OPTION,
   BASELINE_OPTION,
@@ -377,8 +376,8 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
   [BUILD_CACHE_OPTION]: [
     '--build-cache <dir>',
-    `Where app builds are kept between runs (default: ${DEFAULT_BUILD_CACHE}, ` +
-      `or ${BUILD_CACHE_ENV_VAR}). A build whose native code and build settings are ` +
+    'Where app builds are kept between runs (default: build-cache in ' +
+      `${CACHE_DIR_ENV_VAR}, else in the computer's cache folder). A build whose native code and build settings are ` +
       'unchanged is taken from here instead of compiled.',
   ],
   [PARALLEL_BUILDS_OPTION]: [

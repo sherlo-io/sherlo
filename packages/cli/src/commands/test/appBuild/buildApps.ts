@@ -6,21 +6,23 @@
  *
  *   1. CHECK THE MACHINE for every platform it will build: iOS needs macOS and Xcode, Android needs
  *      Java 17 or newer and an Android SDK, and an iOS workspace with more than one scheme needs the
- *      config to name one. A run that cannot finish stops here, having spent nothing.
- *   2. PER PLATFORM, ONE AFTER THE OTHER (operator ruling 2026-10-07: sequential unless the config
- *      says `parallel` - two compilers at once fight for the same cores and memory):
- *        - the local build cache, keyed by the base fingerprint, the platform and the build
- *          settings - a hit compiles nothing;
+ *      config to name one. A run that cannot finish stops here, having spent nothing. A platform
+ *      built by the project's own command is not checked: the machine is that command's business.
+ *   2. PER PLATFORM, ONE AFTER THE OTHER (operator ruling 2026-10-07: sequential unless
+ *      `build.parallel` or `--parallel-builds` asks for both at once - two compilers at once fight
+ *      for the same cores and memory):
+ *        - the local build cache (./cacheFolder), keyed by the platform, the base fingerprint and
+ *          the build settings - a hit compiles nothing;
  *        - `expo prebuild` for an Expo app whose native folder is not there, taken away again after;
  *        - the compile, with everything the build tool says written to `.sherlo/build-<p>.log`;
  *        - a failure prints the log's last lines and ends the run with exit 2, nothing uploaded.
  *
  * What a build is made of - the Gradle init script that forces debug signing and switches
- * expo-updates off, the xcodebuild call, the cache - is the app builder seam's
- * (../../../seams/appBuilder). This module decides which of those happen and says so on screen:
- * `sherlo build` in lines of its own, `sherlo test` in each platform's row (../platformRows).
+ * expo-updates off, the xcodebuild call, the cache, the environment a build runs with - is the app
+ * builder seam's (../../../seams/appBuilder). This module decides which of those happen and says so
+ * on screen: `sherlo build` in lines of its own, `sherlo test` in each platform's row
+ * (../platformRows).
  */
-import { createHash } from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
@@ -38,18 +40,21 @@ import { whileShowing } from '../../shared/terminal';
 import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { appBuilder } from '../../../seams/appBuilder';
 import {
-  BUILD_CACHE_ENV_VAR,
   type BuildSettings,
   DEFAULT_ANDROID_TASK,
-  DEFAULT_BUILD_CACHE,
   buildLogPath,
+  buildSettingsDigest,
 } from './buildSettings';
+import { localBuildCacheFolder, makeProjectSherloFolder } from './cacheFolder';
 
 /** The Java a React Native Gradle build needs at the least. */
 const MINIMUM_JAVA = 17;
 
 /** The exit code of a run whose app build failed - the wait contract's "build/system error". */
 const EXIT_BUILD_FAILED = 2;
+
+/** How many hex characters of the build settings digest a cache key carries. */
+const SETTINGS_DIGEST_IN_KEY = 12;
 
 /**
  * A platform to build, and why - with what changed since the stored app build when the gate
@@ -71,6 +76,7 @@ export async function buildApps({
   settings,
   baseFingerprint,
   cacheDirFlag,
+  parallelBuildsFlag,
   command,
   project,
   storedPlatformRows,
@@ -81,6 +87,8 @@ export async function buildApps({
   baseFingerprint: string;
   /** `--build-cache <dir>`, when the command line names one. */
   cacheDirFlag?: string;
+  /** `--parallel-builds`: build every platform at once, as `build.parallel` does. */
+  parallelBuildsFlag?: boolean;
   /** Which command builds: `sherlo build` only keeps the app build in the cache, and says so. */
   command: AppBuildCommand;
   /**
@@ -99,11 +107,11 @@ export async function buildApps({
 
   await refuseWhatThisMachineCannotBuild({ projectRoot, toBuild, settings, project });
 
-  const cacheDir = cacheDirFlag ?? process.env[BUILD_CACHE_ENV_VAR] ?? DEFAULT_BUILD_CACHE;
+  const cacheDir = localBuildCacheFolder(cacheDirFlag);
   const appBuildPaths: Partial<Record<Platform, string>> = {};
   const platformRows = [...storedPlatformRows];
 
-  for (const { platform, why } of toBuild) {
+  async function buildOnePlatform({ platform, why }: PlatformToBuild): Promise<void> {
     // Each platform's row says why it needed a new app build, so the reason rides on it.
     const whyThisBuild = why ? { why } : {};
     const cacheKey = cacheKeyOf({ baseFingerprint, platform, settings });
@@ -120,28 +128,44 @@ export async function buildApps({
         );
       }
       appBuildPaths[platform] = cached;
-      continue;
+      return;
     }
+
+    // What the seam composes the build's environment from (its `buildEnvironment`), the same for
+    // Sherlo's build and for the project's own command.
+    const env = settings.env ?? {};
+    const easProfile = settings.easProfile ? { easProfile: settings.easProfile } : {};
 
     // Each long step shows while it runs: a spinner in a terminal, one plain line in a log
     // (../../shared/terminal). The spinner is stopped before the step's own line prints.
     if (needsGeneratedNativeFolder(projectRoot, platform)) {
       await whileShowing({ kind: 'app-build-generating', platform }, () =>
-        builder.generateNativeFolder({ platform, projectRoot, env: settings.env ?? {} })
+        builder.generateNativeFolder({ platform, projectRoot, env, ...easProfile })
       );
     }
 
     const logPath = buildLogPath(platform);
     const platformSettings = settings[platform] ?? {};
-    // Asked before the compile is shown: a workspace with several schemes is refused, not compiled.
+    const ownCommand =
+      platformSettings.command && platformSettings.output
+        ? { command: platformSettings.command, output: platformSettings.output }
+        : undefined;
+    // Asked before the compile is shown: a workspace with several schemes is refused, not
+    // compiled. The project's own command needs no scheme of Sherlo's.
     const iosScheme =
-      platform === 'ios' ? await iosSchemeOf(projectRoot, settings, project) : undefined;
+      platform === 'ios' && !ownCommand
+        ? await iosSchemeOf(projectRoot, settings, project)
+        : undefined;
+
+    // The build log is the first thing written into the project's `.sherlo/` folder.
+    makeProjectSherloFolder(projectRoot);
 
     const compiled = await whileShowing({ kind: 'app-build-compiling', platform }, () =>
       builder.compile({
         platform,
         projectRoot,
-        env: settings.env ?? {},
+        env,
+        ...easProfile,
         logPath,
         ...(platform === 'android'
           ? { androidTask: platformSettings.task ?? DEFAULT_ANDROID_TASK }
@@ -154,9 +178,7 @@ export async function buildApps({
               },
             }
           : {}),
-        ...(platformSettings.command && platformSettings.output
-          ? { custom: { command: platformSettings.command, output: platformSettings.output } }
-          : {}),
+        ...(ownCommand ? { custom: ownCommand } : {}),
       })
     );
 
@@ -209,6 +231,14 @@ export async function buildApps({
     }
 
     appBuildPaths[platform] = compiled.path;
+  }
+
+  if (settings.parallel || parallelBuildsFlag) {
+    await Promise.all(toBuild.map(buildOnePlatform));
+  } else {
+    for (const platformToBuild of toBuild) {
+      await buildOnePlatform(platformToBuild);
+    }
   }
 
   return { appBuildPaths, platformRows };
@@ -330,11 +360,13 @@ function needsGeneratedNativeFolder(projectRoot: string, platform: Platform): bo
 }
 
 /**
- * The key the local build cache files an app build under: what makes two builds the same build.
- * The base fingerprint names the native code, and the build settings are hashed beside it because
- * the fingerprint never sees them - a changed `build.env` must not reuse an app built without it.
+ * The key the local build cache files an app build under, and the name of its folder there: what
+ * makes two builds the same build - `<platform>-<base fingerprint>-<12 hex of the settings digest>`.
+ * The base fingerprint names the native code, and the build settings are hashed beside it
+ * (./buildSettings `buildSettingsDigest`) because the fingerprint never sees them - a changed
+ * `build.env` must not reuse an app built without it.
  */
-function cacheKeyOf({
+export function cacheKeyOf({
   baseFingerprint,
   platform,
   settings,
@@ -343,15 +375,6 @@ function cacheKeyOf({
   platform: Platform;
   settings: BuildSettings;
 }): string {
-  const platformSettings = settings[platform] ?? {};
-  const settingsThatShapeTheBuild = JSON.stringify({
-    env: settings.env ?? {},
-    ...platformSettings,
-  });
-  return `${platform}-${baseFingerprint}-${shortDigest(settingsThatShapeTheBuild)}`;
-}
-
-/** A short stable digest of a string, for a cache key. */
-function shortDigest(text: string): string {
-  return createHash('sha256').update(text).digest('hex').slice(0, 12);
+  const settingsDigest = buildSettingsDigest(settings, platform).slice(0, SETTINGS_DIGEST_IN_KEY);
+  return `${platform}-${baseFingerprint}-${settingsDigest}`;
 }
