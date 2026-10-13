@@ -108,12 +108,22 @@ public class SherloSocketTest {
         assertEquals("hello", new JSONObject(server.nextTextReceived()).getString("action"));
 
         server.dropClient();
+        // A message sent before the socket noticed the drop goes onto the dead connection and is lost.
+        waitUntilTheSocketNoticedTheDrop();
         socket.send("{\"action\":\"waited\",\"number\":1}");
         socket.send("{\"action\":\"waited\",\"number\":2}");
 
         assertEquals("hello", new JSONObject(server.nextTextReceived()).getString("action"));
         assertEquals("{\"action\":\"waited\",\"number\":1}", server.nextTextReceived());
         assertEquals("{\"action\":\"waited\",\"number\":2}", server.nextTextReceived());
+    }
+
+    private void waitUntilTheSocketNoticedTheDrop() throws InterruptedException {
+        long giveUpAt = System.currentTimeMillis() + 4000;
+        while (socket.connectionsEnded() == 0) {
+            assertTrue("the socket never noticed the drop", System.currentTimeMillis() < giveUpAt);
+            Thread.sleep(1);
+        }
     }
 
     @Test

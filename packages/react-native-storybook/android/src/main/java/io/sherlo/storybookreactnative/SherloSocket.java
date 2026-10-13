@@ -19,7 +19,8 @@ import java.util.concurrent.TimeUnit;
  *
  * Every connection starts with a `hello`. After a drop it dials the same address again, for as
  * long as the process lives, and says `hello` again. Messages sent while it is down wait in order
- * behind that `hello`.
+ * behind that `hello`. A message sent after the server hung up but before the socket noticed is
+ * written to the dead connection and lost: TCP accepts the write and never says it was not read.
  */
 public final class SherloSocket {
 
@@ -69,6 +70,7 @@ public final class SherloSocket {
     private int waitingLogLines = 0;
     private boolean stopped = false;
     private WebSocketFrames currentConnection = null;
+    private int connectionsEnded = 0;
     private Thread dialThread = null;
 
     /** The runner's address, handed at launch: dialed only when it is on this device's loopback. */
@@ -192,6 +194,13 @@ public final class SherloSocket {
         }
     }
 
+    /** How many connections the socket has seen end: a test waits on it to know a drop was noticed. */
+    int connectionsEnded() {
+        synchronized (lock) {
+            return connectionsEnded;
+        }
+    }
+
     private void dialUntilStopped() {
         while (!isStopped()) {
             try {
@@ -243,6 +252,7 @@ public final class SherloSocket {
             connection.close();
             synchronized (lock) {
                 currentConnection = null;
+                connectionsEnded++;
                 lock.notifyAll();
             }
             try {
