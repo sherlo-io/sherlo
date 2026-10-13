@@ -5,9 +5,7 @@ var path = require('path');
 var crypto = require('crypto');
 
 var mockShims = require('./mockShims');
-var createOpenStoryLetterbox = require('./openStoryLetterbox');
-var createCaptureSocket = require('./captureSocket');
-var createCaptureLogSocket = require('./captureLogSocket');
+var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
@@ -352,11 +350,7 @@ function selectBundleInliningEnv() {
   var picked = {};
   Object.keys(process.env).forEach(function (name) {
     if (name === EXPO_PROJECT_ROOT_ENV_VAR) return;
-    if (
-      name === 'NODE_ENV' ||
-      name === 'BABEL_ENV' ||
-      name.indexOf('EXPO_PUBLIC_') === 0
-    ) {
+    if (name === 'NODE_ENV' || name === 'BABEL_ENV' || name.indexOf('EXPO_PUBLIC_') === 0) {
       picked[name] = process.env[name];
     }
   });
@@ -393,10 +387,7 @@ function buildManifestHeader(projectRoot) {
 
   var env = selectBundleInliningEnv();
   var envKeys = Object.keys(env).sort();
-  var envDigest = crypto
-    .createHash('sha256')
-    .update(stableStringify(env))
-    .digest('hex');
+  var envDigest = crypto.createHash('sha256').update(stableStringify(env)).digest('hex');
 
   return {
     metroVersion: metroVersion,
@@ -560,9 +551,8 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       storyClosures[storyRel] = Object.keys(closureSet).sort();
 
       if (!loaderEntriesByRequiresFile[story.requiresAbsPath]) {
-        loaderEntriesByRequiresFile[story.requiresAbsPath] = storyTitleReader.readStoryLoaderEntries(
-          story.requiresAbsPath
-        );
+        loaderEntriesByRequiresFile[story.requiresAbsPath] =
+          storyTitleReader.readStoryLoaderEntries(story.requiresAbsPath);
       }
       var loaderEntry = storyTitleReader.findLoaderEntry(
         loaderEntriesByRequiresFile[story.requiresAbsPath],
@@ -627,10 +617,11 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
  */
 function getMetroDefaultSerializer() {
   try {
-    var baseJSBundle = require('metro/src/DeltaBundler/Serializers/baseJSBundle').default
-      || require('metro/src/DeltaBundler/Serializers/baseJSBundle');
-    var bundleToString = require('metro/src/lib/bundleToString').default
-      || require('metro/src/lib/bundleToString');
+    var baseJSBundle =
+      require('metro/src/DeltaBundler/Serializers/baseJSBundle').default ||
+      require('metro/src/DeltaBundler/Serializers/baseJSBundle');
+    var bundleToString =
+      require('metro/src/lib/bundleToString').default || require('metro/src/lib/bundleToString');
     return function defaultSerializer(entryPoint, preModules, graph, options) {
       return bundleToString(baseJSBundle(entryPoint, preModules, graph, options)).code;
     };
@@ -655,8 +646,8 @@ function writeDisabledFlagPolyfill(cacheDir) {
   fs.writeFileSync(
     flagPath,
     "'use strict';\n" +
-    "global.__sherloWithStorybookApplied = true;\n" +
-    "global.__sherloStorybookDisabledFlag = true;\n",
+      'global.__sherloWithStorybookApplied = true;\n' +
+      'global.__sherloStorybookDisabledFlag = true;\n',
     'utf8'
   );
   return flagPath;
@@ -692,6 +683,85 @@ function resolveThroughConfig(config) {
       ? configResolveRequest(context, moduleName, platform)
       : context.resolveRequest(context, moduleName, platform);
   };
+}
+
+// ---------------------------------------------------------------------------
+// The line, on the bundler's own port
+// ---------------------------------------------------------------------------
+
+/**
+ * Mounts Sherlo's line (sherloLine.js) on the bundler, through the one door a Metro config has:
+ * the middleware.
+ *
+ * Metro owns its HTTP server's 'upgrade' event, and a config has no way into the table of sockets
+ * it serves there. The middleware is handed no server either, but every plain request it sees
+ * carries it, as `request.socket.server`. So the first request that passes mounts the line on that
+ * server, and the line hands every other upgrade (/hot, /message, /events, the debugger) to Metro's
+ * own listeners, untouched. A WebSocket that arrives before any plain request finds no line: the
+ * command line asks once over plain HTTP first, at the line's own path, which this answers.
+ *
+ * The WebSocketServer is the `ws` Metro itself loads. The SDK does not depend on `ws`, and this
+ * file is bundled, so it is required at run time from Metro's own folder in the project. It is
+ * required on the first request, never as the config loads: loading a config must never fail on it.
+ *
+ * @param {string} projectRoot
+ * @returns {{ middleware: Function }}
+ */
+function mountTheLineOnTheBundler(projectRoot) {
+  var mountedOn = null;
+
+  function mountOn(httpServer) {
+    if (!httpServer || httpServer === mountedOn) return;
+    mountedOn = httpServer;
+
+    var WebSocketServer;
+    try {
+      WebSocketServer = webSocketServerOfMetro(projectRoot);
+    } catch (error) {
+      console.warn(
+        '@sherlo/react-native-storybook: Sherlo could not load the WebSocket server of this ' +
+          "project's Metro, so `sherlo open` and `sherlo capture` cannot reach the app. " +
+          (error && error.message)
+      );
+      return;
+    }
+
+    sherloLine.attach(httpServer, WebSocketServer, {
+      warn: function (message) {
+        console.warn('@sherlo/react-native-storybook: ' + message);
+      },
+    });
+  }
+
+  function middleware(request, response, next) {
+    mountOn(request.socket && request.socket.server);
+
+    if (pathOfRequest(request.url) !== sherloLine.LINE_PATH) return next();
+
+    var body = JSON.stringify({ protocolVersion: sherloLine.PROTOCOL_VERSION });
+    response.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(body),
+    });
+    response.end(body);
+  }
+
+  return { middleware: middleware };
+}
+
+/** `ws`'s WebSocketServer, as the project's Metro loads it. ws 7 calls it `Server`. */
+function webSocketServerOfMetro(projectRoot) {
+  var requireFromProject = require('module').createRequire(path.join(projectRoot, 'package.json'));
+  var metroManifest = requireFromProject.resolve('metro/package.json');
+  var ws = require('module').createRequire(metroManifest)('ws');
+  return ws.WebSocketServer || ws.Server;
+}
+
+/** The path part of a request url, without the query a bundler request may carry. */
+function pathOfRequest(url) {
+  if (typeof url !== 'string') return '';
+  var queryStart = url.indexOf('?');
+  return queryStart === -1 ? url : url.slice(0, queryStart);
 }
 
 /**
@@ -761,9 +831,7 @@ function applySherloTransforms(result, opts) {
       resolution.filePath &&
       !isShimPath(context.originModulePath)
     ) {
-      var shimPath = mockedPathToShim.get(
-        mockShims.canonicalizeModulePath(resolution.filePath)
-      );
+      var shimPath = mockedPathToShim.get(mockShims.canonicalizeModulePath(resolution.filePath));
       if (shimPath && shimPath !== resolution.filePath) {
         return { type: 'sourceFile', filePath: shimPath };
       }
@@ -773,9 +841,10 @@ function applySherloTransforms(result, opts) {
   }
 
   var polyfillPath = path.join(__dirname, 'polyfill.js');
-  var sherloPolyfills = (opts && opts.enabled === false)
-    ? [writeDisabledFlagPolyfill(cacheDir)]   // minimal only
-    : [polyfillPath];                          // full polyfill for enabled: true
+  var sherloPolyfills =
+    opts && opts.enabled === false
+      ? [writeDisabledFlagPolyfill(cacheDir)] // minimal only
+      : [polyfillPath]; // full polyfill for enabled: true
 
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'
@@ -813,8 +882,7 @@ function applySherloTransforms(result, opts) {
     if (delegateSerializer) {
       sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
         // Emit the manifest as a pure side-effect; never affects bundle output.
-        var serializerProjectRoot =
-          (options && options.projectRoot) || projectRoot;
+        var serializerProjectRoot = (options && options.projectRoot) || projectRoot;
         emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
         // Delegate to the original serializer and return its output unchanged.
         return delegateSerializer(entryPoint, preModules, graph, options);
@@ -822,18 +890,12 @@ function applySherloTransforms(result, opts) {
     }
   }
 
-  // ---- Sherlo's addresses on the bundler ----
-  // Three addresses served beside the bundle: the letterbox, the capture socket, and the capture
-  // socket's own live log feed. The letterbox is the road `sherlo open` and `sherlo inspect` reach a
-  // running app down (see openStoryLetterbox.js); the capture socket is the road `sherlo capture`
-  // reaches it down (see captureSocket.js); the log feed is the app's own RunnerBridge.log lines,
-  // pushed here the instant they are formed rather than carried home inside the capture's own answer
-  // (see captureLogSocket.js). All three are installed unconditionally: with no Sherlo app attached
-  // an address simply has nobody to answer, and a developer never has to add anything for them to be
-  // there.
-  var letterbox = createOpenStoryLetterbox();
-  var captureSocket = createCaptureSocket();
-  var captureLogSocket = createCaptureLogSocket();
+  // ---- Sherlo's address on the bundler ----
+  // One WebSocket address, /sherlo/line (sherloLine.js): the app's connection to the bundler, and
+  // the road `sherlo open` and `sherlo capture` reach a running app down. It is mounted
+  // unconditionally: with no Sherlo app attached it simply has nobody to answer, and a developer
+  // never adds anything for it to be there.
+  var bundlerLine = mountTheLineOnTheBundler(projectRoot);
 
   var existingEnhanceMiddleware =
     result && result.server && typeof result.server.enhanceMiddleware === 'function'
@@ -846,13 +908,9 @@ function applySherloTransforms(result, opts) {
       : metroMiddleware;
 
     return function sherloMiddleware(request, response, next) {
-      // Sherlo's addresses first, everything else untouched behind them.
-      return captureSocket.middleware(request, response, function () {
-        return captureLogSocket.middleware(request, response, function () {
-          return letterbox.middleware(request, response, function () {
-            return enhanced(request, response, next);
-          });
-        });
+      // Sherlo's address first, everything else untouched behind it.
+      return bundlerLine.middleware(request, response, function () {
+        return enhanced(request, response, next);
       });
     };
   }
@@ -910,14 +968,21 @@ function generateWrapper(wrapperPath) {
     '// (this wrapper); requiring sherlo lazily inside patchedStart breaks the\n' +
     '// circular-dep partial-init scenario that would otherwise expose empty exports.\n' +
     'Object.keys(real).forEach(function (key) {\n' +
-    "  if (key === 'start') return; // overridden below\n" +
+    "  if (key === 'start' || key === 'updateView') return; // overridden below\n" +
     '  Object.defineProperty(exports, key, {\n' +
     '    enumerable: true,\n' +
     '    get: function () { return real[key]; },\n' +
     '  });\n' +
     '});\n' +
     '\n' +
-    '// Patched start(): wraps view.getStorybookUI to route through sherlo getStorybook\n' +
+    '// The version of @storybook/react-native this bundle was built with, for the errors of\n' +
+    "// Sherlo's reads of Storybook's own fields.\n" +
+    'var STORYBOOK_VERSION = ' +
+    JSON.stringify(installedStorybookVersion(wrapperPath)) +
+    ';\n' +
+    '\n' +
+    "// Patched start(): keeps what Storybook is handed, adds Sherlo's annotation last, and\n" +
+    '// wraps view.getStorybookUI to route through sherlo getStorybook\n' +
     'exports.start = function patchedStart(config) {\n' +
     '  // Storybook is disabled when withStorybook({ enabled: false }) is set -\n' +
     '  // in that case real.start is not a function (sb8/sb9 make @storybook/react-native\n' +
@@ -925,15 +990,24 @@ function generateWrapper(wrapperPath) {
     '  // Return a stub view with getStorybookUI so .rnstorybook/index.tsx does not crash\n' +
     '  // when it calls view.getStorybookUI({...}) at module-evaluation time.\n' +
     "  if (typeof real.start !== 'function') {\n" +
-    "    return { getStorybookUI: function () { return function SherloDisabledUI() { return null; }; } };\n" +
+    '    return { getStorybookUI: function () { return function SherloDisabledUI() { return null; }; } };\n' +
     '  }\n' +
     '\n' +
     '  // Lazy-require sherlo AFTER the re-exports above are already set up.\n' +
     '  // This breaks the circular dependency (see comment above).\n' +
-    "  var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js').default;\n" +
+    "  var sherlosStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js');\n" +
+    '  var getStorybook = sherlosStorybook.default;\n' +
     "  var addStorybookToDevMenu = require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default;\n" +
     '\n' +
-    '  var view = real.start(config);\n' +
+    '  // Keep the story entries and the annotations Storybook is handed, as plain facts for the\n' +
+    "  // SDK and its core, and hand Storybook the same, with Sherlo's own annotation last.\n" +
+    '  sherlosStorybook.recordWhatStartWasHanded(config, real.prepareStories);\n' +
+    '  var view = real.start(\n' +
+    '    Object.assign({}, config, {\n' +
+    '      annotations: (config.annotations || []).concat([sherlosStorybook.sherloAnnotation]),\n' +
+    '    })\n' +
+    '  );\n' +
+    '  sherlosStorybook.keepStartedStorybook(view, STORYBOOK_VERSION);\n' +
     '\n' +
     '  try {\n' +
     '    addStorybookToDevMenu();\n' +
@@ -957,9 +1031,55 @@ function generateWrapper(wrapperPath) {
     '  // the first render commits.\n' +
     '\n' +
     '  return view;\n' +
+    '};\n' +
+    '\n' +
+    '// Patched updateView(): what the generated requires file calls instead of start() on a hot\n' +
+    "// update. Storybook swaps in the annotations it is handed, so Sherlo's goes last again, and the\n" +
+    '// facts are recorded afresh from the new stories.\n' +
+    'exports.updateView = function patchedUpdateView(view, annotations, storyEntries, options) {\n' +
+    "  if (typeof real.updateView !== 'function') return;\n" +
+    "  var sherlosStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js');\n" +
+    '  sherlosStorybook.recordWhatStartWasHanded(\n' +
+    '    { annotations: annotations, storyEntries: storyEntries, options: options },\n' +
+    '    real.prepareStories\n' +
+    '  );\n' +
+    '  return real.updateView(\n' +
+    '    view,\n' +
+    '    (annotations || []).concat([sherlosStorybook.sherloAnnotation]),\n' +
+    '    storyEntries,\n' +
+    '    options\n' +
+    '  );\n' +
     '};\n';
 
   fs.writeFileSync(wrapperPath, content, 'utf8');
+}
+
+/**
+ * The version of @storybook/react-native the wrapper at `wrapperPath` requires, or 'unknown'. Its
+ * package.json is not among the files the package exports, so it is found by walking up from the
+ * file the package's own name resolves to. Resolved through createRequire, not a literal
+ * require.resolve, for the reason ensureStorybookRequires.js gives: the published build is bundled.
+ *
+ * @param {string} wrapperPath
+ * @returns {string}
+ */
+function installedStorybookVersion(wrapperPath) {
+  try {
+    var folder = path.dirname(
+      require('module').createRequire(wrapperPath).resolve('@storybook/react-native')
+    );
+    while (folder !== path.dirname(folder)) {
+      var manifestPath = path.join(folder, 'package.json');
+      if (fs.existsSync(manifestPath)) {
+        var manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        if (manifest.name === '@storybook/react-native') return String(manifest.version);
+      }
+      folder = path.dirname(folder);
+    }
+  } catch (_) {
+    // No Storybook to be found from here: the errors say its version is unknown.
+  }
+  return 'unknown';
 }
 
 module.exports = applySherloTransforms;
@@ -968,9 +1088,6 @@ module.exports.generateWrapper = generateWrapper;
 module.exports.resolveThroughConfig = resolveThroughConfig;
 module.exports.isInsideFolder = isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
-module.exports.createOpenStoryLetterbox = createOpenStoryLetterbox;
-module.exports.createCaptureSocket = createCaptureSocket;
-module.exports.createCaptureLogSocket = createCaptureLogSocket;
 // Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
 module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;
 module.exports.stableStringify = stableStringify;

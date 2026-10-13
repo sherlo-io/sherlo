@@ -16,6 +16,7 @@ import accessFileInArchive, {
 import accessFileInDirectory from '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInDirectory';
 import runShellCommand from '../runShellCommand';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
+import { toBaseSemver } from '../../commands/test/readBundledSdkProtocolVersion';
 
 // ---------------------------------------------------------------------------
 // Types - canonical per-platform GateMetadataInput (matches sherlo-api #261)
@@ -1053,7 +1054,7 @@ async function detectExpoUpdatesAndroid({
 // Build metadata + SDK protocol version
 // ---------------------------------------------------------------------------
 
-async function getBuildMetadata({
+export async function getBuildMetadata({
   binaryPath,
   fileName,
   platform,
@@ -1099,7 +1100,11 @@ async function getBuildMetadata({
 
     if (sherloContent) {
       const parsed = JSON.parse(sherloContent);
-      sdkProtocolVersion = parsed.version;
+      // Recorded as major.minor.patch, the same form a code-only push sends, so a base built
+      // with a prerelease SDK (`3.0.0-alpha.0`) matches the push that installed it (`3.0.0`).
+      const bakedVersion: unknown = parsed.version;
+      sdkProtocolVersion =
+        typeof bakedVersion === 'string' ? toBaseSemver(bakedVersion) ?? bakedVersion : undefined;
     }
   } catch {
     // No sherlo.json - that's fine.

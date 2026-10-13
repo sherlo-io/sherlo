@@ -33,7 +33,9 @@ vi.mock('../../init/requirements/getPackageVersion', () => ({
   default: vi.fn(),
 }));
 
-vi.mock('../readBundledSdkProtocolVersion', () => ({
+// Only the reader of the installed package is faked; the version stripper stays real.
+vi.mock('../readBundledSdkProtocolVersion', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../readBundledSdkProtocolVersion')>()),
   readBundledSdkProtocolVersion: vi.fn(),
 }));
 

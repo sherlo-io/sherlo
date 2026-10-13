@@ -9,10 +9,11 @@
  * a change of shape raises the seam number on both sides (SEAM_THIS_SDK_SPEAKS in
  * ./loadSealedCore, the seam number each core states, and SUPPORTED_SEAM in both native loaders).
  *
- * The SDK's own modules import these types from here; they do not declare them again.
+ * The SDK's own modules import these types from here; they do not declare them again. So does
+ * every party to the app's connection: each message that crosses it is typed here, once.
  *
- * Nothing here runs, except the two constants at the end that say what the C core's JNI face on
- * Android must answer to.
+ * Nothing here runs, except the constants that say which protocol the connection speaks and what
+ * the C core's JNI face on Android must answer to.
  */
 
 /* ---- The core and its host ------------------------------------------------------------------ */
@@ -20,7 +21,7 @@
 export type SealedCoreHost = {
   /** Sherlo's native module: the calls of it the core makes. */
   native: NativeCalls;
-  /** The runner's two lines: a protocol message it answers, and a log line it reads. */
+  /** The driver's two lines: a protocol message it answers, and a log line it reads. */
   runner: { send: SendFn; log: LogFn };
   /** The address of the bundler the app's JavaScript came from, or null in a built app. */
   bundlerOrigin: () => string | null;
@@ -31,13 +32,12 @@ export type SealedCoreHost = {
     /** The words Sherlo's error boundary draws in place of a story that threw. */
     fallbackText: string;
   };
-  /** The Storybook channel of a `view`, or null when nothing usable is reachable. */
-  storybookChannelOf: (view: OpaqueStorybookView | undefined) => StorybookChannel | null;
+  /** What Storybook's start() was handed, or null in a launch where Storybook has not started. */
+  storybookFacts: () => StorybookFacts | null;
+  /** Storybook's channel, or null when nothing usable is reachable. */
+  storybookChannel: () => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
-  activateMocksForStory: (
-    view: OpaqueStorybookView,
-    storyId: string | undefined
-  ) => Promise<void> | null;
+  activateMocksForStory: (storyId: string | undefined) => Promise<void> | null;
   /** Put every mocked module, the clock, the randomness and the network back the way they are. */
   clearMocks: () => void;
   /** One story's mocks from its project's, its file's and its own, the most specific winning. */
@@ -72,16 +72,15 @@ export type SealedCore = {
   mergeGenerations: (roots: WalkedFiber[]) => Metadata;
 
   /**
-   * A run's first launch: list every story, keep the ones the run asked for, and send them to the
-   * runner. A launch that already has a story does nothing.
+   * A run's first launch: list every story from the Storybook facts, keep the ones the run asked
+   * for, and send them to the runner. A launch that already has a story does nothing.
    */
-  startTestSession: (view: OpaqueStorybookView) => Promise<void>;
+  startTestSession: () => Promise<void>;
   /**
    * A launch with a story: wait until it is ready, report it, and report every further part of a
    * tall screen the runner asks for. A launch with no story does nothing. Never throws.
    */
   testStory: (story: {
-    view: OpaqueStorybookView | undefined;
     insets: SafeAreaInsets;
     collectMetadata: () => Metadata | undefined;
   }) => Promise<void>;
@@ -94,11 +93,7 @@ export type SealedCore = {
    * hands in, and walk every story it asks for. A second start while one is collecting does
    * nothing.
    */
-  startCaptureTransport: (start: {
-    view: OpaqueStorybookView;
-    channel: StorybookChannel;
-    capture: CaptureTransport;
-  }) => void;
+  startCaptureTransport: (start: { channel: StorybookChannel; capture: CaptureTransport }) => void;
   /** Stop waiting for captures. */
   stopCaptureTransport: () => void;
   /**
@@ -107,7 +102,6 @@ export type SealedCore = {
    * nothing.
    */
   startOpenStoryChannel: (start: {
-    view: OpaqueStorybookView;
     channel: StorybookChannel;
     atTheStoryBrowser: boolean;
     letterbox: BundlerLetterbox;
@@ -140,6 +134,16 @@ export interface NativeCalls {
   /** Restart into testing mode, landing on `storyId` when it is given, carrying `config` along. */
   openTesting: (storyId: string | undefined, config: Config) => void;
   openStorybook: () => void;
+  /**
+   * Start the app's JavaScript again in the same process. The connection stays open, and the mode
+   * and the story native code keeps are read again by the JavaScript that starts.
+   */
+  reloadJavaScript: () => void;
+  /**
+   * The memory the app's process uses, in MB, as native code measures it (iOS phys_footprint,
+   * Android total PSS); null when native code cannot measure it.
+   */
+  getMemoryMb: () => Promise<number | null>;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
@@ -172,7 +176,7 @@ export interface NativeCalls {
 /** Where the story's scroll view sits on screen, in pixels. */
 export type ScrollViewFrame = { x: number; y: number; width: number; height: number };
 
-/** The runner's config.sherlo, as native code hands it over. */
+/** The run's settings, as native code hands them over: what the runner's `config` carried. */
 export type Config = {
   stabilization: {
     requiredMatches: number;
@@ -252,14 +256,18 @@ export type InspectorData = {
   fontScale: number;
 };
 
-/* ---- The runner's lines --------------------------------------------------------------------- */
+/* ---- The core's lines to the runner --------------------------------------------------------- */
 
 export type LogFn = (key: string, parameters?: Record<string, any>) => void;
 
-/** Write one protocol line the core sends, and resolve with the runner's answer to it. */
+/**
+ * Send one message the core writes, and resolve with what the runner answers about the story: a
+ * scroll to its next part, or the next story. Native code acts on a story itself, by reloading the
+ * JavaScript, so a core rarely lives to read one.
+ */
 export type SendFn = (
-  protocolItem: StartProtocolItem | RequestSnapshotProtocolItem
-) => Promise<RunnerProtocolItem>;
+  message: StartProtocolItem | RequestSnapshotProtocolItem
+) => Promise<ScrollMessage | StoryMessage>;
 
 /** A run's first launch: every story the run takes, one entry per screen mode. */
 export type StartProtocolItem = {
@@ -271,6 +279,11 @@ export type StartProtocolItem = {
 export type RequestSnapshotProtocolItem = {
   action: 'REQUEST_SNAPSHOT';
   storyId: string;
+  /**
+   * The memory the app's process uses, in MB, as native code measured it. The runner restarts an
+   * app past its limit before the next story; a report without it never restarts the app.
+   */
+  memoryMb?: number;
   error?: {
     name: string;
     message: string;
@@ -292,6 +305,8 @@ export type RequestSnapshotProtocolItem = {
     insetTop: number;
   };
 };
+
+/* The runner's answers on the file road, where it writes them into the app's protocol file. */
 
 export type AckStartProtocolItem = {
   action: 'ACK_START';
@@ -316,6 +331,119 @@ export type RunnerProtocolItem =
   | AckStartProtocolItem
   | AckRequestSnapshotProtocolItem
   | AckScrollRequestProtocolItem;
+
+/* ---- The app's connection ------------------------------------------------------------------- */
+
+/**
+ * The version of the message set below. Every party says it: the app in its `hello`, and the
+ * bundler's and the runner's server half, which refuse a `hello` in a version they do not speak.
+ */
+export const SHERLO_PROTOCOL_VERSION = 1;
+
+/** The app's first message on every connection, said by its native code. */
+export type HelloMessage = {
+  action: 'hello';
+  protocolVersion: number;
+  /** The version of the SDK's native code. */
+  nativeVersion: string;
+  /**
+   * The version of the SDK's JavaScript, or null when native code says hello before any
+   * JavaScript exists; JS_EVAL_COMPLETE then carries it.
+   */
+  jsVersion: string | null;
+};
+
+/** How far the app got as it started, each said once as it gets there. */
+export type LoadEventMessage =
+  | { action: 'NATIVE_INIT_STARTED' }
+  | { action: 'NATIVE_LOADED'; requestId?: string }
+  /** `jsVersion` on the connection, for a `hello` said before the JavaScript existed. */
+  | { action: 'JS_EVAL_COMPLETE'; jsVersion?: string }
+  | { action: 'WITHSTORYBOOK_APPLIED' }
+  | { action: 'WITHSTORYBOOK_DISABLED' }
+  | { action: 'STORYBOOK_LOADED' }
+  | { action: 'STORYBOOK_RENDERED'; requestId?: string };
+
+/**
+ * Which sealed core ran in this launch, as START reports it to the runner in testing mode: where
+ * the JS core came from (`none` when no core ran), the JS core's version, and the C core's.
+ */
+export type CoreReport = {
+  origin: 'shipped' | 'override' | 'none';
+  version: string | null;
+  cVersion: string | null;
+};
+
+/** The core's START, with the report of which core ran that the SDK adds in testing mode. */
+export type StartMessage = StartProtocolItem & { core?: CoreReport };
+
+/** An error native code caught. */
+export type NativeErrorMessage = {
+  action: 'NATIVE_ERROR';
+  errorCode: string;
+  message: string;
+  data?: Record<string, unknown>;
+};
+
+/** The first uncaught error of the app's JavaScript. */
+export type JsErrorMessage = {
+  action: 'JS_ERROR';
+  data: StoryError;
+};
+
+/** One log line, for people. */
+export type LogMessage = {
+  action: 'log';
+  line: string;
+};
+
+/** Every message the app sends over its connection. */
+export type MessageFromTheApp =
+  | HelloMessage
+  | LoadEventMessage
+  | StartMessage
+  | RequestSnapshotProtocolItem
+  | NativeErrorMessage
+  | JsErrorMessage
+  | LogMessage;
+
+/** The answer to `hello`: the run's settings and, in a run that swaps it, the JS core. */
+export type ConfigMessage = {
+  action: 'config';
+  /** The run's stillness settings, and the EAS update deeplink when the run sets one. */
+  settings: Config;
+  /** The JS core to run in place of the one shipped in the SDK, and Sherlo's signature of it. */
+  jsCore?: {
+    source: string;
+    /** A base64 RSA-SHA256 signature of `source`, by Sherlo's key. */
+    signature: string;
+  };
+};
+
+/**
+ * The story to show next. Native code keeps it, reloads the JavaScript, and hands it back through
+ * its last-state call as `{ nextSnapshot: { storyId, parameters }, requestId }`.
+ */
+export type StoryMessage = {
+  action: 'story';
+  storyId: StoryId;
+  /** The id the story's REQUEST_SNAPSHOT answers with. */
+  requestId: string;
+  /** The two of the story's parameters the app draws it with: its theme, and no safe area. */
+  parameters: { theme?: Record<string, unknown>; noSafeArea?: boolean };
+};
+
+/** Scroll a tall story to its next part, and report that part. */
+export type ScrollMessage = {
+  action: 'scroll';
+  /** The story's own requestId: every part of a story answers with it. */
+  requestId: string;
+  scrollIndex: number;
+  offsetPx: number;
+};
+
+/** Every message the app is sent over its connection. */
+export type MessageToTheApp = ConfigMessage | StoryMessage | ScrollMessage;
 
 export type StoryId = `${string}--${string}`;
 
@@ -348,10 +476,39 @@ export type Snapshot = {
 /* ---- Storybook and the stories -------------------------------------------------------------- */
 
 /**
- * Storybook's view, the object `@storybook/react-native`'s `start()` answers. This file names
- * nothing of Storybook's, so the view is opaque here: whoever reads a field of it says which.
+ * What Storybook's start() was handed, as plain data: the stories, their files with every
+ * parameter and mock they declare, and the project's preview annotations. The core reads no field
+ * of Storybook's own.
  */
-export type OpaqueStorybookView = object;
+export type StorybookFacts = {
+  /** Every story, by id, as Storybook's exported prepareStories indexes the story files. */
+  storyIndex: Record<string, StorybookIndexEntry>;
+  /** Each story file's exports, by the import path the index names. */
+  storyFiles: Record<string, StoryFileExports>;
+  /**
+   * The preview annotations start() was handed, in order, each a preview file's annotations (its
+   * default export when it has one). The project's own preview is among them, with the parameters
+   * and mocks of every story.
+   */
+  previewAnnotations: StorybookAnnotations[];
+};
+
+/** One story in Storybook's index. */
+export type StorybookIndexEntry = {
+  id: string;
+  title: string;
+  /** The story's display name, which also finds its export in its file. */
+  name: string;
+  /** Project-root-relative path of the story's file (e.g. "./src/Button.stories.tsx"). */
+  importPath: string;
+  tags?: string[];
+};
+
+/** A story file's exports: the default export is the file's meta, and every other a story. */
+export type StoryFileExports = Record<string, StorybookAnnotations | undefined>;
+
+/** As much of a meta, a story or a preview file as Sherlo reads: its parameters. */
+export type StorybookAnnotations = { parameters?: Record<string, any>; [other: string]: unknown };
 
 /**
  * As much of the Storybook channel as Sherlo uses. `emit` is how a story asked for from outside is
