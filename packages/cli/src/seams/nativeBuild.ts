@@ -5,9 +5,10 @@
  *     posed  - the pose's `push`: what the binary would have said, what the fingerprint would
  *              have hashed to, what time it was. The uploads send nothing.
  *
- * `sherlo test --android <apk>` is the one command that opens a compiled binary - for its hash,
- * the Sherlo SDK baked into it, whether it embeds a JS bundle, its ABIs, its gate metadata - and
- * hashes a React Native project's native inputs to name the base it registers. None of that
+ * `sherlo test` opens a compiled binary - one handed over with `--android <apk>`, or the app build
+ * it made itself (the app builder seam) - for its hash, the Sherlo SDK baked into it, whether it
+ * embeds a JS bundle, its ABIs, its gate metadata - and hashes a React Native project's native
+ * inputs to name the base it registers. None of that
  * exists on a machine that only has the pose. So every read of that kind is here, behind one
  * answer, and the shipped code between the reads - the validation, the reuse-or-upload branch,
  * the not-stageable rule, every printed line - runs unforked over what the pose states.

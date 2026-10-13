@@ -19,15 +19,25 @@
  * text, and they are the BUILD TOOL's words, not the tool's, exactly as a server's reason is.
  *
  * ------------------------------------------------------------------------
- * PLAN-LAYER ONLY, FOR NOW. The live half below refuses every call, naming itself: the epic
- * sherlo-test-builds-apps drew its screens through the posed half in plan, and the real builders
- * (the Gradle init script that forces debug signing and switches expo-updates off, the xcodebuild
- * call, the cache, the EAS start) are build tasks of that epic. A shipped tool that reached this
- * refusal would be a build that never landed - the landing review checks it is gone.
+ * NOT ALL BUILT YET. The live half builds Android (Gradle, the init script that forces debug
+ * signing and switches expo-updates off, `expo prebuild`) and keeps builds in the local build
+ * cache. What still refuses, naming itself, is the rest of epic sherlo-test-builds-apps's build
+ * tasks (xcodebuild, a project's own build command, the EAS start, the machine checks): a shipped
+ * tool that reached that refusal would be a build that never landed - the landing review checks
+ * it is gone.
  */
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import type { Platform } from '@sherlo/api-types';
+import { SHERLO_BUILD_FOR_PUSH } from '../commands/test/constants';
+import {
+  buildLogPath,
+  DEFAULT_ANDROID_TASK,
+  DEFAULT_EAS_PROFILE,
+} from '../commands/test/appBuild/buildSettings';
+import { readProjectJson } from '../helpers/projectJson';
+import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
 import type { NativeFolderFile } from './serverCalls';
 
 /** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
@@ -54,6 +64,8 @@ export type CompiledApp =
       /** The last lines the build tool wrote, as it wrote them. */
       lastLines: string[];
     };
+
+type CompileParams = Parameters<AppBuilder['compile']>[0];
 
 /** Every act a build performs on the machine, and every question it asks of it. */
 export type AppBuilder = {
@@ -83,12 +95,16 @@ export type AppBuilder = {
     platform: Platform;
     projectRoot: string;
     env: Record<string, string>;
+    /** The eas.json profile whose env joins the build's variables (default `sherlo`). */
+    easProfile?: string;
   }): Promise<void>;
   /** Compile one platform's app, writing everything the build tool says to `logPath`. */
   compile(params: {
     platform: Platform;
     projectRoot: string;
     env: Record<string, string>;
+    /** The eas.json profile whose env joins the build's variables (default `sherlo`). */
+    easProfile?: string;
     logPath: string;
     /** The Gradle task for Android, e.g. `:app:assembleRelease`. */
     androidTask?: string;
@@ -135,52 +151,259 @@ export type AppBuilder = {
   }): Promise<NativeFolderFile[]>;
 };
 
-/** The error the live half throws until the real builders land. */
+/** The error the live half throws for what is not built yet. */
 const NOT_BUILT_YET =
   'building apps is drawn in plan and not built yet (epic sherlo-test-builds-apps)';
 
-/** The shipped answers. PLAN-LAYER ONLY: every act refuses until the epic's build tasks land. */
-export const liveAppBuilder: AppBuilder = {
-  hostSystem: () =>
-    process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
-  hasTool: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  javaVersion: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  listIosSchemes: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  findCachedBuild: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  keepInCache: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  generateNativeFolder: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  compile: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  startEasBuild: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-  easUploadRoot: (projectRoot) => {
-    let folder = path.resolve(projectRoot);
-    while (true) {
-      if (fs.existsSync(path.join(folder, '.git'))) return folder;
-      const parent = path.dirname(folder);
-      if (parent === folder) return path.resolve(projectRoot);
-      folder = parent;
+/* ========================================================================== */
+/* The build environment                                                      */
+/* ========================================================================== */
+
+/**
+ * The variables a build and the bundler run with, in order: the shell, then the env of the
+ * eas.json profile (a profile's `extends` is followed), then `build.env`, then `SHERLO_BUILD`
+ * set to storybook last, so no setting of the project can turn Sherlo off. The one place this is
+ * composed: the app build and the bundle `sherlo test` builds both call it.
+ */
+export function buildEnvironment({
+  projectRoot,
+  easProfile = DEFAULT_EAS_PROFILE,
+  buildEnv = {},
+  shellEnv = process.env,
+}: {
+  projectRoot: string;
+  /** The eas.json profile whose env is borrowed. */
+  easProfile?: string;
+  /** The config's `build.env`. */
+  buildEnv?: Record<string, string>;
+  shellEnv?: NodeJS.ProcessEnv;
+}): NodeJS.ProcessEnv {
+  return {
+    ...shellEnv,
+    ...easProfileEnv(projectRoot, easProfile),
+    ...buildEnv,
+    SHERLO_BUILD: SHERLO_BUILD_FOR_PUSH,
+  };
+}
+
+/** The `env` of an eas.json profile, its `extends` chain laid under it. Empty when there is none. */
+function easProfileEnv(projectRoot: string, profileName: string): Record<string, string> {
+  const profiles = readProjectJson(projectRoot, 'eas.json')?.build ?? {};
+  const chain: Record<string, string>[] = [];
+  const seen = new Set<string>();
+  for (
+    let name: string | undefined = profileName;
+    name && profiles[name] && !seen.has(name);
+    name = profiles[name].extends
+  ) {
+    seen.add(name);
+    chain.unshift(profiles[name].env ?? {});
+  }
+  return Object.assign({}, ...chain);
+}
+
+/* ========================================================================== */
+/* The live builder                                                           */
+/* ========================================================================== */
+
+/** How many of a failed build's last lines the run shows. */
+const LAST_LINES_SHOWN = 30;
+
+/** Gradle's home keeps its own build cache; these flags turn it on and size the daemon. */
+const GRADLE_FLAGS = [
+  '-PreactNativeArchitectures=arm64-v8a',
+  '--build-cache',
+  '-Dorg.gradle.jvmargs=-Xmx8192m -XX:MaxMetaspaceSize=2048m',
+  '--console=plain',
+];
+
+/**
+ * Gradle's saved answer to which native modules the app links, from the project's root. Its answer
+ * depends on SHERLO_BUILD, so it is removed before every build and decided again.
+ */
+const AUTOLINKING_ANSWER_PATH = 'android/build/generated/autolinking/autolinking.json';
+
+/** Runs a program with its output appended to a log file, and answers its exit code. */
+export type RunProcess = (params: {
+  command: string;
+  args: string[];
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+  logPath: string;
+}) => Promise<number>;
+
+/** The shipped process runner. */
+const runProcessForReal: RunProcess = ({ command, args, cwd, env, logPath }) =>
+  new Promise((resolve) => {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    const logFile = fs.openSync(logPath, 'a');
+    const child = spawn(command, args, { cwd, env, stdio: ['ignore', logFile, logFile] });
+    child.on('error', (error) => {
+      fs.appendFileSync(logPath, `${error.message}\n`);
+      fs.closeSync(logFile);
+      resolve(1);
+    });
+    child.on('close', (exitCode) => {
+      fs.closeSync(logFile);
+      resolve(exitCode ?? 1);
+    });
+  });
+
+/** The module and variant a Gradle task such as `:app:assembleRelease` builds. */
+function moduleAndVariantOf(task: string): { module: string; variant: string } {
+  const match = /^:?(?:(.+):)?assemble(\w+)$/.exec(task);
+  if (!match) {
+    throw new Error(
+      `Cannot tell which app \`${task}\` builds: expected :<module>:assemble<Variant>`
+    );
+  }
+  const [, module = 'app', variantName] = match;
+  return { module, variant: variantName.charAt(0).toLowerCase() + variantName.slice(1) };
+}
+
+/** The folder Gradle writes a variant's APK to: `release`, or `<flavor>/<buildType>`. */
+function apkFolderOf(variant: string): string {
+  const flavorAndBuildType = /^(.+?)([A-Z][a-z]+)$/.exec(variant);
+  if (!flavorAndBuildType) return variant;
+  return path.join(flavorAndBuildType[1], flavorAndBuildType[2].toLowerCase());
+}
+
+/** The shipped answers, over a process runner (a test hands in its own). */
+export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
+  /** The package.json of each project `expo prebuild` ran in, as it was, until its build ends. */
+  const packageJsonBeforePrebuild = new Map<string, Buffer>();
+
+  /** Take away the native folder `expo prebuild` made and put package.json back as it was. */
+  function undoPrebuild(projectRoot: string, platform: Platform): void {
+    const key = `${projectRoot}\0${platform}`;
+    const original = packageJsonBeforePrebuild.get(key);
+    if (!original) return;
+    packageJsonBeforePrebuild.delete(key);
+    fs.rmSync(path.join(projectRoot, platform), { recursive: true, force: true });
+    fs.writeFileSync(path.join(projectRoot, 'package.json'), original);
+  }
+
+  /** The last lines of a build's log, as the build tool wrote them. */
+  function lastLinesOf(logPath: string): string[] {
+    if (!fs.existsSync(logPath)) return [];
+    return fs.readFileSync(logPath, 'utf8').trimEnd().split('\n').slice(-LAST_LINES_SHOWN);
+  }
+
+  async function compileAndroid(params: CompileParams): Promise<CompiledApp> {
+    const { projectRoot, env, easProfile, androidTask = DEFAULT_ANDROID_TASK } = params;
+    const logPath = path.resolve(projectRoot, params.logPath);
+    const startedAt = Date.now();
+    const secondsSince = () => Math.round((Date.now() - startedAt) / 1000);
+
+    const initScriptPath = path.join(projectRoot, GRADLE_INIT_SCRIPT_PATH);
+    fs.mkdirSync(path.dirname(initScriptPath), { recursive: true });
+    fs.writeFileSync(initScriptPath, GRADLE_INIT_SCRIPT);
+    fs.rmSync(path.join(projectRoot, AUTOLINKING_ANSWER_PATH), { force: true });
+
+    const androidFolder = path.join(projectRoot, 'android');
+    const exitCode = await runProcess({
+      command: path.join(androidFolder, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'),
+      args: ['-I', initScriptPath, androidTask, ...GRADLE_FLAGS],
+      cwd: androidFolder,
+      env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
+      logPath,
+    });
+    if (exitCode !== 0) {
+      return { ok: false, seconds: secondsSince(), lastLines: lastLinesOf(logPath) };
     }
-  },
-  readEasUploadFile: readFileOfTheEasUpload,
-  hashNativeFolderFiles: async () => {
-    throw new Error(NOT_BUILT_YET);
-  },
-};
+
+    const { module, variant } = moduleAndVariantOf(androidTask);
+    const apkFolder = path.join(androidFolder, module, 'build/outputs/apk', apkFolderOf(variant));
+    const metadataPath = path.join(apkFolder, 'output-metadata.json');
+    if (!fs.existsSync(metadataPath)) {
+      return {
+        ok: false,
+        seconds: secondsSince(),
+        lastLines: [`Gradle finished, and wrote no ${metadataPath}`],
+      };
+    }
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    const apkPath = path.join(apkFolder, metadata.elements[0].outputFile);
+    const sizeMb = (fs.statSync(apkPath).size / (1024 * 1024)).toFixed(2);
+    return { ok: true, path: apkPath, sizeMb, seconds: secondsSince() };
+  }
+
+  return {
+    hostSystem: () =>
+      process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
+    hasTool: async () => {
+      throw new Error(NOT_BUILT_YET);
+    },
+    javaVersion: async () => {
+      throw new Error(NOT_BUILT_YET);
+    },
+    listIosSchemes: async () => {
+      throw new Error(NOT_BUILT_YET);
+    },
+    findCachedBuild: async ({ cacheKey, cacheDir }) => {
+      const buildFolder = path.join(cacheDir, cacheKey);
+      if (!fs.existsSync(buildFolder)) return null;
+      const [appFile] = fs.readdirSync(buildFolder).filter((name) => !name.startsWith('.'));
+      return appFile ? path.join(buildFolder, appFile) : null;
+    },
+    keepInCache: async ({ cacheKey, cacheDir, path: appPath }) => {
+      const buildFolder = path.join(cacheDir, cacheKey);
+      // A build is written under its key once; a second job that built the same one leaves it be.
+      if (fs.existsSync(buildFolder)) return;
+      // Copied beside the final folder and renamed into place, so a job reading the cache never
+      // sees half a file.
+      const unfinishedFolder = path.join(cacheDir, `.${cacheKey}-${process.pid}`);
+      fs.mkdirSync(unfinishedFolder, { recursive: true });
+      fs.copyFileSync(appPath, path.join(unfinishedFolder, path.basename(appPath)));
+      fs.renameSync(unfinishedFolder, buildFolder);
+    },
+    generateNativeFolder: async ({ platform, projectRoot, env, easProfile }) => {
+      const packageJsonPath = path.join(projectRoot, 'package.json');
+      packageJsonBeforePrebuild.set(
+        `${projectRoot}\0${platform}`,
+        fs.readFileSync(packageJsonPath)
+      );
+      const exitCode = await runProcess({
+        command: 'npx',
+        args: ['expo', 'prebuild', '--platform', platform, '--no-install'],
+        cwd: projectRoot,
+        env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
+        logPath: path.join(projectRoot, buildLogPath(platform)),
+      });
+      if (exitCode !== 0) {
+        undoPrebuild(projectRoot, platform);
+        throw new Error(`\`expo prebuild\` failed - see ${buildLogPath(platform)}`);
+      }
+    },
+    compile: async (params) => {
+      if (params.platform !== 'android' || params.custom) throw new Error(NOT_BUILT_YET);
+      try {
+        return await compileAndroid(params);
+      } finally {
+        undoPrebuild(params.projectRoot, params.platform);
+      }
+    },
+    startEasBuild: async () => {
+      throw new Error(NOT_BUILT_YET);
+    },
+    easUploadRoot: (projectRoot) => {
+      let folder = path.resolve(projectRoot);
+      while (true) {
+        if (fs.existsSync(path.join(folder, '.git'))) return folder;
+        const parent = path.dirname(folder);
+        if (parent === folder) return path.resolve(projectRoot);
+        folder = parent;
+      }
+    },
+    readEasUploadFile: readFileOfTheEasUpload,
+    hashNativeFolderFiles: async () => {
+      throw new Error(NOT_BUILT_YET);
+    },
+  };
+}
+
+/** The shipped builder: the machine, for real. */
+export const liveAppBuilder: AppBuilder = makeLiveAppBuilder(runProcessForReal);
 
 /** A file of the folder EAS packs, by its path from that folder, or undefined when there is none. */
 function readFileOfTheEasUpload({
