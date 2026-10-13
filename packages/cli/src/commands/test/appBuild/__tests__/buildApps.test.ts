@@ -34,6 +34,7 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
       path: `/built/${platform}`,
       sizeMb: '53.90',
       seconds: 88,
+      podFilesChanged: [],
     })),
     startEasBuild: vi.fn(async () => {
       throw new Error('no EAS build here');
@@ -303,7 +304,7 @@ describe('sherlo test builds the app on this machine', () => {
         mostAtOnce = Math.max(mostAtOnce, compiling);
         await new Promise((resolve) => setImmediate(resolve));
         compiling -= 1;
-        return { ok: true, path: `/built/${platform}`, sizeMb: '1', seconds: 1 };
+        return { ok: true, path: `/built/${platform}`, sizeMb: '1', seconds: 1, podFilesChanged: [] };
       },
     });
 
