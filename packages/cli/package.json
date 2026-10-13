@@ -50,7 +50,7 @@
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.8.4",
     "@sentry/node": "10.47.0",
-    "@sherlo-io/time-limits": "^1.2.1",
+    "@sherlo-io/time-limits": "^1.2.2",
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types",
     "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client",
     "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client",
@@ -76,7 +76,7 @@
     "package-manager-detector": "^0.2.9",
     "type-fest": "^4.20.1",
     "typescript": "^5.3.3",
-    "vitest": "^4.1.5",
+    "vitest": "^5.0.4",
     "wrap-ansi": "^9.0.0"
   },
   "engines": {
