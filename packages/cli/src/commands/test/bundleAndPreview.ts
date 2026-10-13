@@ -13,6 +13,7 @@ import { reporting } from '../../helpers';
 import type { GitInfo } from '../../helpers/getGitInfo';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
 import type { BundleResult } from './buildBundle';
+import type { BuildSettings } from './appBuild/buildSettings';
 import { bundler, liveBundler, type Bundler } from '../../seams/bundler';
 import { whileShowing } from '../shared/terminal';
 import { runDryRunPreview } from './dryRun';
@@ -23,8 +24,8 @@ import { runDryRunPreview } from './dryRun';
  * bundle through this exact path, so a preview can never diverge from the run
  * it is previewing.
  *
- * A bundling failure is user-facing and already carries the fallback line, so it
- * is printed and exits here rather than propagating as a crash.
+ * A bundling failure is user-facing, so it is printed and exits here rather than
+ * propagating as a crash.
  *
  * THE TWO EFFECTS ARE A SEAM SO AN EXPECTATION PRODUCER RUNS THIS EXACT LOOP.
  * The transcript's per-platform block is emitted from HERE, in this order, around
@@ -54,6 +55,7 @@ export async function runDryRunFlow({
   teamId,
   baseFingerprint,
   resolveGitInfo,
+  buildSettings,
   effects,
   include,
   exclude,
@@ -66,6 +68,8 @@ export async function runDryRunFlow({
   teamId: string;
   baseFingerprint: string;
   resolveGitInfo: () => Promise<GitInfo>;
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings: BuildSettings;
   effects?: BundlingEffects;
   /**
    * The config's include/exclude lists - the SAME narrowing a real build sends via
@@ -79,6 +83,7 @@ export async function runDryRunFlow({
   const bundles = await buildBundles({
     projectRoot,
     platformsToTest,
+    buildSettings,
     ...(effects ? { effects } : {}),
   });
 
@@ -106,12 +111,15 @@ export type BundlingEffects = Bundler;
 export async function buildBundles({
   projectRoot,
   platformsToTest,
+  buildSettings,
   // The bundler IN FORCE, not the real one by name: a posed run installs its own and this loop
   // never learns which it got.
   effects = bundler(),
 }: {
   projectRoot: string;
   platformsToTest: Platform[];
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings: BuildSettings;
   effects?: BundlingEffects;
 }): Promise<{
   results: Partial<Record<Platform, BundleResult>>;
@@ -124,7 +132,7 @@ export async function buildBundles({
     try {
       // A spinner in a terminal, gone when the bundle is made; one plain line in a log.
       const result = await whileShowing({ kind: 'platform-bundle-start', platform }, () =>
-        effects.bundleFor(projectRoot, platform)
+        effects.bundleFor(projectRoot, platform, buildSettings)
       );
       results[platform] = result;
 
@@ -141,8 +149,7 @@ export async function buildBundles({
 
       gateMetadata[platform] = await effects.gateMetadataFor(projectRoot, platform, result);
     } catch (err) {
-      // buildBundleForPlatform throws user-facing messages that already include
-      // the fallback line.
+      // buildBundleForPlatform throws user-facing messages.
       const message = err instanceof Error ? err.message : String(err);
       emit({ kind: 'platform-bundle-failed', message });
       await reporting.flush().finally(() => process.exit(1));

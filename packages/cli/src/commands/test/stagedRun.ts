@@ -43,7 +43,7 @@ import type { BundleResult } from './buildBundle';
 import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
-import type { BuildFlags } from './appBuild/buildSettings';
+import { type BuildFlags, readBuildSettings } from './appBuild/buildSettings';
 import {
   applyBundleToPlatformConfig,
   realBundleUploadEffects,
@@ -167,6 +167,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       platformsToTest,
       bundleDir: emitBundleDirPath,
       baseFingerprint: fpResult,
+      buildSettings: readBuildSettings(commandParams),
     });
     return { url: '' };
   }
@@ -243,6 +244,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     ({ results: bundles, gateMetadata } = await buildBundles({
       projectRoot: commandParams.projectRoot,
       platformsToTest,
+      buildSettings: readBuildSettings(commandParams),
     }));
   }
 
@@ -306,7 +308,15 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //     uploaded no binary, so `s3Key` carries the async-upload placeholder: the
   //     server mirrors it back and the runner splices the bundle into the
   //     registered base instead.
-  const buildRunConfig = getBuildRunConfig({ commandParams });
+  //
+  //     ONE JOB OF A SPLIT CI RUN joins the run its CI run shares instead of opening one
+  //     (./appBuild), and its config names every device of the test: the platform the other job
+  //     brings carries the async-upload placeholder, so the run waits for it.
+  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+  const buildRunConfig = getBuildRunConfig({
+    commandParams,
+    ...(joinKey ? { wholeTest: true } : {}),
+  });
 
   for (const platform of platformsToTest) {
     const platformConfig = buildRunConfig[platform];
@@ -330,9 +340,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     data: { teamId, projectIndex, command: THIS_COMMAND },
     level: 'info',
   });
-
-  // ONE JOB OF A SPLIT CI RUN joins the run its CI run shares instead of opening one (./appBuild).
-  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
 
   let openBuildReturn;
   /** A split job whose test starts in the other job: its run waits for that job's platform. */

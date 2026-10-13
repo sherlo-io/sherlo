@@ -130,14 +130,7 @@
     {
       "call": "getStagedUploadUrls",
       "with": {
-        "platforms": ["android"]
-      },
-      "answer": {}
-    },
-    {
-      "call": "getStagedUploadUrls",
-      "with": {
-        "platforms": ["ios"]
+        "platforms": ["android", "ios"]
       },
       "answer": {}
     },

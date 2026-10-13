@@ -11,6 +11,8 @@ import {
 import { closeTheRun } from '../commands/test/closeTheRun';
 import type { ValidatedModuleManifest } from '../commands/test/readModuleManifest';
 import { printTestStarted } from '../commands/test/stagedRun';
+import { readBuildSettings } from '../commands/test/appBuild/buildSettings';
+import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
 import type { PlatformRow } from '../render/runRows';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
 import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
@@ -23,7 +25,12 @@ import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import { getGitInfo } from '../seams/surroundings';
 import { nativeBuild } from '../seams/nativeBuild';
-import { serverCalls, type JoinBuildAnswer, type OpenBuildAnswer } from '../seams/serverCalls';
+import {
+  serverCalls,
+  type JoinBuildAnswer,
+  type OpenBuildAnswer,
+  type OpenBuildRequest,
+} from '../seams/serverCalls';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
 import reporting from './reporting';
@@ -37,12 +44,12 @@ import { isServerBypassed } from './waitForBuildResult';
  * expectation producer run THIS function rather than a re-implementation of it.
  *
  * The spine's transcript is emitted from here and from the shipped helpers it
- * calls, interleaved with these awaits: each platform's upload, the fingerprint
- * warnings from inside `registerBase`, the bundling from inside
- * `uploadFreshBundles`, then the started test and the run's ending after
- * `openBuild` answers. A producer that re-implemented that order
- * could drift from it silently; supplying the effects means the order, the
- * branching and every literal come from the shipped code, unforked.
+ * calls, interleaved with these awaits: the fingerprint warnings from inside
+ * `registerBase`, the bundling from inside `uploadFreshBundles`, each platform's
+ * upload, then the started test and the run's ending after `openBuild` answers.
+ * A producer that re-implemented that order could drift from it silently;
+ * supplying the effects means the order, the branching and every literal come
+ * from the shipped code, unforked.
  *
  * WHAT IS *NOT* HERE IS THE POINT. There is no substitute for a formatter, a
  * print site, a segment or a branch - only for the things that touch the
@@ -72,34 +79,50 @@ export type PushEffects = {
   baseRegistration: BaseRegistrationEffects;
   /** The fresh bundle spliced into every binary this run renders. */
   freshBundle: FreshBundleEffects;
-  /**
-   * A mixed run's other half: the module maps of the platforms it staged onto their stored app
-   * builds, known once `openBuild` has run. The test's row counts their stories with them.
-   */
-  moduleManifestsOfStoredPlatforms?: () => Partial<Record<Platform, ValidatedModuleManifest>>;
 };
 
+/** One job of a split CI run: the key its CI run's jobs share, and the platform this job brings. */
+export type SplitJob = { joinKey: string; platform: Platform };
+
 /**
- * The standard road of `sherlo test`: upload (or reuse) the binaries, register
- * them as the native base, splice a freshly built bundle in and open the build.
+ * The standard road of `sherlo test`: upload (or reuse) the app builds this run made, register
+ * them as the native base, splice a freshly built bundle in and open the test.
+ *
+ * Two shapes of the same push are the spine's too, so nothing calling it copies its defaults:
+ *
+ *   - a MIXED run (`platformsOnStoredBuild`): a platform whose stored app build still matches gets
+ *     its fresh bundle spliced into that stored app build, as on the staged road, in the same test;
+ *   - one job of a SPLIT CI run (`splitJob`): the test is joined, not opened (joinTheRun).
  */
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
+  appBuildPaths,
+  platformsOnStoredBuild = [],
+  splitJob,
   effects,
   platformRows,
 }: {
   commandParams: CommandParams;
+  /** The app builds this push uploads, per platform: the ones this run just built. */
+  appBuildPaths: Partial<Record<Platform, string>>;
+  /** The platforms that keep the app build Sherlo stores, and take only a fresh bundle. */
+  platformsOnStoredBuild?: Platform[];
+  /** Set for one job of a split CI run, which joins the test its CI run shares. */
+  splitJob?: SplitJob;
   effects?: PushEffects;
-  /**
-   * What became of each platform's app build before the push: the rows above the test's row. None
-   * when the developer passed the app builds.
-   */
+  /** What became of each platform's app build before the push: the rows above the test's row. */
   platformRows: PlatformRow[];
 }): Promise<{ url: string }> {
   // The credential and its project were resolved before any request (./getValidatedCommandParams).
   const { token, projectIndex, teamId } = commandParams.credential;
 
   const command = TEST_COMMAND;
+
+  /** Every platform this push renders a fresh bundle for: the built ones, then the stored ones. */
+  const platformsToBundle: Platform[] = [
+    ...platformsWithAppBuilds(appBuildPaths),
+    ...platformsOnStoredBuild,
+  ];
 
   // THE SEAMS IN FORCE, not the real machine by name: a posed run installs its own machine and
   // server (../seams/nativeBuild, ../seams/serverCalls) and this spine never learns which it got.
@@ -111,6 +134,7 @@ async function uploadOrReuseBuildsAndRunTests({
         token,
         command,
         commandParams,
+        appBuildPaths,
         projectIndex,
         teamId,
       }),
@@ -124,14 +148,22 @@ async function uploadOrReuseBuildsAndRunTests({
         ? resolveBaseFingerprintForSuppliedBundle({
             bundleDir: commandParams.bundleDir,
             projectRoot: commandParams.projectRoot,
-            platforms: platformsWithBinaries(commandParams),
+            platforms: platformsToBundle,
             command,
           })
         : machine.computeFingerprint(commandParams.projectRoot, command),
     openBuild: (input) =>
-      serverCalls()
-        .openBuild({ token, ...input } as never)
-        .catch((error) => handleClientError(error, token)),
+      splitJob
+        ? joinTheRun({
+            token,
+            joinKey: splitJob.joinKey,
+            platform: splitJob.platform,
+            request: input as OpenBuildRequest,
+            platformRows,
+          })
+        : serverCalls()
+            .openBuild({ token, ...input } as never)
+            .catch((error) => handleClientError(error, token)),
     binaryUpload: {
       readBinary: (buildPath, platform, projectRoot) =>
         machine.readBinaryForUpload(buildPath, platform, projectRoot),
@@ -144,15 +176,6 @@ async function uploadOrReuseBuildsAndRunTests({
   };
 
   const { binariesInfo } = await io.resolveBinaries();
-
-  await uploadOrPrintBinaryReuse({
-    binariesInfo,
-    projectRoot: commandParams.projectRoot,
-    android: commandParams.android,
-    ios: commandParams.ios,
-    uploadEffects: io.binaryUpload,
-    now: io.now(),
-  });
 
   const gitInfo = await io.resolveGitInfo();
 
@@ -172,11 +195,11 @@ async function uploadOrReuseBuildsAndRunTests({
   const fpResult = await io.computeFingerprint();
   const nativeFingerprint = fpResult.nativeFingerprint;
 
-  // The platforms the user handed a binary for. Each is registered as the
+  // The platforms this push uploads an app build for. Each is registered as the
   // native base below and rendered with a fresh bundle.
   const platforms: Platform[] = [];
-  if (binariesInfo.android && commandParams.android) platforms.push('android');
-  if (binariesInfo.ios && commandParams.ios) platforms.push('ios');
+  if (binariesInfo.android && appBuildPaths.android) platforms.push('android');
+  if (binariesInfo.ios && appBuildPaths.ios) platforms.push('ios');
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
@@ -195,8 +218,8 @@ async function uploadOrReuseBuildsAndRunTests({
     // Extract gate metadata per platform (fail-soft per platform).
     for (const platform of platforms) {
       try {
-        const binaryPath = platform === 'android' ? commandParams.android! : commandParams.ios!;
-        const binaryInfo = platform === 'android' ? binariesInfo.android! : binariesInfo.ios!;
+        const binaryPath = appBuildPaths[platform]!;
+        const binaryInfo = binariesInfo[platform]!;
 
         const result = await registerBase(
           {
@@ -231,12 +254,16 @@ async function uploadOrReuseBuildsAndRunTests({
     });
   }
 
+  // A split job's test names every device of the test, so the platform the other job brings is
+  // waited for rather than left out; a platform with no app build here carries the async-upload
+  // placeholder, as the stored ones of a mixed run do.
   const buildRunConfig = getBuildRunConfig({
     commandParams,
     binaryS3Keys: {
       android: binariesInfo.android?.s3Key,
       ios: binariesInfo.ios?.s3Key,
     },
+    ...(splitJob ? { wholeTest: true } : {}),
   });
 
   // THE RUN RENDERS A FRESHLY BUILT BUNDLE, OR IT DOES NOT RUN.
@@ -264,19 +291,32 @@ async function uploadOrReuseBuildsAndRunTests({
     });
   }
 
+  // The bundles first, then the app builds: a bundle the run refuses (one that holds no stories)
+  // stops it before anything is uploaded.
   const freshBundles = await uploadFreshBundles({
     projectRoot: commandParams.projectRoot,
-    platforms,
+    platforms: platformsToBundle,
     bundleDir: commandParams.bundleDir,
+    buildSettings: readBuildSettings(commandParams),
     baseFingerprint,
     projectIndex,
     teamId,
     effects: io.freshBundle,
   });
 
-  // The binary keeps its own `s3Key` (set by getBuildRunConfig above): the
-  // bundle is spliced into THIS binary, not into a registered base.
-  for (const platform of platforms) {
+  await uploadOrPrintBinaryReuse({
+    binariesInfo,
+    projectRoot: commandParams.projectRoot,
+    android: appBuildPaths.android,
+    ios: appBuildPaths.ios,
+    uploadEffects: io.binaryUpload,
+    now: io.now(),
+  });
+
+  // A built platform's bundle is spliced into THIS binary, which keeps its own `s3Key` (set by
+  // getBuildRunConfig above); a stored platform's into its stored app build, named by the
+  // async-upload placeholder its config carries.
+  for (const platform of platformsToBundle) {
     const platformConfig = buildRunConfig[platform];
     const uploaded = freshBundles[platform];
     if (!platformConfig || !uploaded) continue;
@@ -334,10 +374,7 @@ async function uploadOrReuseBuildsAndRunTests({
   if (!joined) {
     printTestStarted({
       openBuildReturn: opened,
-      moduleManifests: {
-        ...moduleManifestsOf(freshBundles),
-        ...io.moduleManifestsOfStoredPlatforms?.(),
-      },
+      moduleManifests: moduleManifestsOf(freshBundles),
       platformsToTest: platformsInTheRun(buildRunConfig),
       devices: commandParams.devices,
       serverBypassed,
@@ -362,17 +399,6 @@ export default uploadOrReuseBuildsAndRunTests;
 
 /* ========================================================================== */
 
-/**
- * Where a React Native binary embeds its JS bundle by default:
- * `assets/index.android.bundle` on Android, `main.jsbundle` on iOS. It is the
- * default set by React Native's Gradle bundle task and `expo export:embed`, and
- * does NOT vary with the JS entry file.
- *
- * This is base-registration metadata, not the bundle a run renders. Base
- * registration probes this path to learn whether the binary embeds a bundle
- * and in what format; the runner later overwrites the same path with the
- * freshly built bundle, which is what actually runs.
- */
 /** The platforms the run's config names a device for - every platform the started test runs on. */
 function platformsInTheRun(buildRunConfig: ReturnType<typeof getBuildRunConfig>): Platform[] {
   return (['android', 'ios'] as const).filter((platform) => buildRunConfig[platform]);
@@ -392,14 +418,22 @@ function moduleManifestsOf(
   return moduleManifests;
 }
 
-/** The platforms the user handed a binary for - the ones this run tests. */
-function platformsWithBinaries(commandParams: CommandParams): Platform[] {
-  const platforms: Platform[] = [];
-  if (commandParams.android) platforms.push('android');
-  if (commandParams.ios) platforms.push('ios');
-  return platforms;
+/** The platforms this push uploads an app build for, Android first. */
+function platformsWithAppBuilds(appBuildPaths: Partial<Record<Platform, string>>): Platform[] {
+  return (['android', 'ios'] as const).filter((platform) => appBuildPaths[platform]);
 }
 
+/**
+ * Where a React Native binary embeds its JS bundle by default:
+ * `assets/index.android.bundle` on Android, `main.jsbundle` on iOS. It is the
+ * default set by React Native's Gradle bundle task and `expo export:embed`, and
+ * does NOT vary with the JS entry file.
+ *
+ * This is base-registration metadata, not the bundle a run renders. Base
+ * registration probes this path to learn whether the binary embeds a bundle
+ * and in what format; the runner later overwrites the same path with the
+ * freshly built bundle, which is what actually runs.
+ */
 function defaultEmbeddedBundlePath(platform: Platform): string {
   if (platform === 'android') {
     return 'assets/index.android.bundle';

@@ -240,6 +240,7 @@ async function emit(
     platformsToTest: platforms,
     bundleDir,
     ...(opts.baseFingerprint ? { baseFingerprint: opts.baseFingerprint } : {}),
+    buildSettings: {},
     bundleFor: async (_root, platform) => scriptedBundle(platform, opts),
     gateMetadataFor: async () => EMITTED_GATE_METADATA,
   });

@@ -31,7 +31,7 @@ describe('a pose can state a bundle with no module map', () => {
     );
 
     try {
-      const result = await bundler().bundleFor('/project', 'android');
+      const result = await bundler().bundleFor('/project', 'android', {});
 
       // Exactly what the real bundler yields when Metro is configured without Sherlo's wrapper -
       // no manifest at all, not an empty one.

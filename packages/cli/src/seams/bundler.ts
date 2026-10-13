@@ -11,6 +11,7 @@
  */
 import { Platform } from '@sherlo/api-types';
 import type { GateMetadataInput } from '../helpers/fingerprint';
+import type { BuildSettings } from '../commands/test/appBuild/buildSettings';
 import {
   buildBundleForPlatform,
   buildGateMetadata,
@@ -19,7 +20,15 @@ import {
 
 /** The two awaits the bundling loop wraps its transcript around. */
 export type Bundler = {
-  bundleFor: (projectRoot: string, platform: Platform) => Promise<BundleResult>;
+  /**
+   * `buildSettings` is the config's `build` block: its `env` and its eas.json profile reach the
+   * bundler as they reach the app build.
+   */
+  bundleFor: (
+    projectRoot: string,
+    platform: Platform,
+    buildSettings: BuildSettings
+  ) => Promise<BundleResult>;
   gateMetadataFor: (
     projectRoot: string,
     platform: Platform,
@@ -29,7 +38,8 @@ export type Bundler = {
 
 /** The shipped answer: the project's own bundler. */
 export const liveBundler: Bundler = {
-  bundleFor: (projectRoot, platform) => buildBundleForPlatform({ projectRoot, platform }),
+  bundleFor: (projectRoot, platform, buildSettings) =>
+    buildBundleForPlatform({ projectRoot, platform, buildSettings }),
   gateMetadataFor: (projectRoot, platform, bundleResult) =>
     buildGateMetadata({ projectRoot, platform, bundleResult }),
 };
