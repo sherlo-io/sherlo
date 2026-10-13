@@ -13,7 +13,14 @@
 Testing your app...
 
 [32m✔[39m Built the Android app  in <DURATION>, native code changed since Test 12 [2m(log: .sherlo/build-android.log)[22m
+   [33m~[39m yarn.lock
+   [31m-[39m react-native-maps 1.2.0
+   [33m~[39m react-native (installed version)
 [32m✔[39m Built the iOS app      in <DURATION>, native code changed since Test 12 [2m(log: .sherlo/build-ios.log)[22m
+   [33m~[39m ios/Podfile.lock
+   [33m~[39m yarn.lock
+   [31m-[39m react-native-maps 1.2.0
+   [33m~[39m react-native (installed version)
 [32m✔[39m Started Test 13        all 2 stories on 2 devices (Pixel 7, iPhone 15)
 
 
