@@ -2,15 +2,11 @@ package io.sherlo.storybookreactnative;
 
 // Android Framework Imports
 import android.app.Activity;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.WritableMap;
-
-// Java Utility and IO Imports
-import java.util.Map;
 
 /**
  * This implementation works with the New Architecture as a TurboModule.
@@ -29,8 +25,7 @@ public class SherloModule extends NativeSherloModuleSpec {
      */
     public SherloModule(ReactApplicationContext reactContext) {
         super(reactContext);
-        Activity activity = getCurrentActivity();
-        this.moduleCore = new SherloModuleCore(reactContext, activity);
+        this.moduleCore = new SherloModuleCore(reactContext);
     }
 
     /**
@@ -59,7 +54,55 @@ public class SherloModule extends NativeSherloModuleSpec {
      */
     @Override
     public String loadCore() {
-        return SherloCoreLoader.loadCoreJson(getReactApplicationContext());
+        return SherloModuleCore.loadCore(getReactApplicationContext());
+    }
+
+    // ==== The Connection ====
+
+    /**
+     * Sends one message over the app's connection.
+     */
+    @Override
+    public void sendMessage(String messageJson) {
+        moduleCore.sendMessage(messageJson);
+    }
+
+    /**
+     * Opens the connection to the bundler's Sherlo address, unless one is open.
+     */
+    @Override
+    public void dialBundler(String address) {
+        moduleCore.dialBundler(address);
+    }
+
+    /**
+     * The memory the app's process uses, in MB.
+     */
+    @Override
+    public void getMemoryMb(Promise promise) {
+        moduleCore.getMemoryMb(promise);
+    }
+
+    /**
+     * Starts the app's JavaScript again in the same process.
+     */
+    @Override
+    public void reloadJavaScript() {
+        moduleCore.reloadJavaScript();
+    }
+
+    /**
+     * NativeEventEmitter's call: the connection raises its events whether or not anyone listens.
+     */
+    @Override
+    public void addListener(String eventName) {
+    }
+
+    /**
+     * NativeEventEmitter's call: the connection raises its events whether or not anyone listens.
+     */
+    @Override
+    public void removeListeners(double count) {
     }
 
     // ==== Storybook Methods ====
@@ -69,7 +112,7 @@ public class SherloModule extends NativeSherloModuleSpec {
      */
     @Override
     public void toggleStorybook() {
-        moduleCore.toggleStorybook();
+        moduleCore.toggleStorybook(getCurrentActivity());
     }
 
     /**
@@ -77,7 +120,7 @@ public class SherloModule extends NativeSherloModuleSpec {
      */
     @Override
     public void openStorybook() {
-        moduleCore.openStorybook();
+        moduleCore.openStorybook(getCurrentActivity());
     }
 
     /**
@@ -85,14 +128,14 @@ public class SherloModule extends NativeSherloModuleSpec {
      */
     @Override
     public void closeStorybook() {
-        moduleCore.closeStorybook();
+        moduleCore.closeStorybook(getCurrentActivity());
     }
 
     /**
-     * Explicitly switches to testing mode.
+     * Explicitly switches to testing mode, by reloading the JavaScript.
      *
-     * @param storyId    the story to land the restarted app on directly, or empty when there is none.
-     * @param configJson the config to hand the restarted app over as `config`.
+     * @param storyId    the story to land the reloaded app on directly, or empty when there is none.
+     * @param configJson the settings to hand the reloaded app over as `config`.
      */
     @Override
     public void openTesting(String storyId, String configJson) {
@@ -102,7 +145,7 @@ public class SherloModule extends NativeSherloModuleSpec {
     // ==== Error Reporting ====
 
     /**
-     * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
+     * Sends a NATIVE_ERROR over the app's connection.
      *
      * @param errorCode The error code
      * @param message Human-readable error description
@@ -113,36 +156,12 @@ public class SherloModule extends NativeSherloModuleSpec {
     }
 
     /**
-     * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
+     * Sends a JS_ERROR for module-eval errors caught by the metro __r polyfill, and waits until the
+     * socket took it.
      */
     @Override
     public boolean reportEarlyJsError(String name, String message, String stack) {
         return moduleCore.reportEarlyJsError(name, message, stack);
-    }
-
-    // ==== File System Methods ====
-
-    /**
-     * Appends base64 encoded content to a file.
-     *
-     * @param filename The name of the file to append to
-     * @param base64Content The base64 encoded content to append
-     * @param promise Promise to resolve when the operation is complete
-     */
-    @Override
-    public void appendFile(String filename, String base64Content, Promise promise) {
-        moduleCore.appendFile(filename, base64Content, promise);
-    }
-
-    /**
-     * Reads a file and returns its content as a base64 encoded string.
-     *
-     * @param filename The name of the file to read
-     * @param promise Promise to resolve with the file content
-     */
-    @Override
-    public void readFile(String filename, Promise promise) {
-        moduleCore.readFile(filename, promise);
     }
 
     // ==== Inspector Methods ====
@@ -165,7 +184,7 @@ public class SherloModule extends NativeSherloModuleSpec {
      * @param minScreenshotsCount The minimum number of screenshots to take when checking for stability
      * @param intervalMs The interval between each screenshot in milliseconds
      * @param timeoutMs The overall timeout in milliseconds
-     * @param saveScreenshots Whether to save screenshots to the file system
+     * @param saveScreenshots Ignored: the app keeps no Sherlo file, screenshots included
      * @param threshold Matching threshold (0.0 to 1.0); smaller values are more sensitive
      * @param includeAA If false, ignore anti-aliased pixels when counting differences
      * @param promise Promise to resolve with true if UI becomes stable, false if timeout occurs
@@ -173,7 +192,7 @@ public class SherloModule extends NativeSherloModuleSpec {
     @Override
     public void stabilize(double requiredMatches, double minScreenshotsCount, double intervalMs, double timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
         Activity activity = getCurrentActivity();
-        moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, saveScreenshots, threshold, includeAA, promise);
+        moduleCore.stabilize(activity, (int)requiredMatches, (int)minScreenshotsCount, (int)intervalMs, (int)timeoutMs, threshold, includeAA, promise);
     }
 
     /**

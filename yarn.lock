@@ -3102,7 +3102,7 @@ __metadata:
     its-fine: "npm:2.0.0"
     react: "npm:^19.2.3"
     react-native-safe-area-context: "npm:4.11.0"
-    sherlo: "npm:^2.0.2"
+    sherlo: "npm:^3.0.0-alpha.0"
     storybook: "npm:^9.1.20"
     terser: "npm:^5.46.0"
     typescript: "npm:7.0.2"
@@ -3733,6 +3733,15 @@ __metadata:
   version: 3.0.3
   resolution: "@types/utf8@npm:3.0.3"
   checksum: 10/06df2ea08e5711116582896373f0bbc4bf26e29d5e3f1a6aa366a24bce847a9b5b5d49ab7445e83181fe0493a5fb0ccf77176219bdecc98b9ca41c53fedefa42
+  languageName: node
+  linkType: hard
+
+"@types/ws@npm:^8.5.14":
+  version: 8.18.2
+  resolution: "@types/ws@npm:8.18.2"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10/7d87483731222387ba7d49a752b7eca6c29baeb3439d9c0a2ebe57b06bad0ce868cd850f4794c81aa93a90b2a35d7673c9b0362e7b940aace446144c17a894c2
   languageName: node
   linkType: hard
 
@@ -10493,7 +10502,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sherlo@npm:^2.0.2, sherlo@workspace:packages/cli":
+"sherlo@npm:^3.0.0-alpha.0, sherlo@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "sherlo@workspace:packages/cli"
   dependencies:
@@ -10515,6 +10524,7 @@ __metadata:
     "@types/node-fetch": "npm:^2.6.4"
     "@types/prompts": "npm:^2.4.9"
     "@types/tar": "npm:^6.1.5"
+    "@types/ws": "npm:^8.5.14"
     ansi-escapes: "npm:^7.2.0"
     chalk: "npm:^4.1.2"
     commander: "npm:^12.0.0"
@@ -10532,6 +10542,7 @@ __metadata:
     typescript: "npm:7.0.2"
     vitest: "npm:^5.0.4"
     wrap-ansi: "npm:^9.0.0"
+    ws: "npm:^8.18.0"
   bin:
     sherlo: ./cli.js
   languageName: unknown

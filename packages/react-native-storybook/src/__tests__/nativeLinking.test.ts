@@ -130,3 +130,69 @@ describe("the SDK's shared C++ linking on Android", () => {
     }
   });
 });
+
+/** The methods of the native module spec: the names inside `Spec`. */
+function specMethodNames(): string[] {
+  const spec = fs.readFileSync(
+    path.join(SDK_ROOT, 'src', 'specs', 'NativeSherloModule.ts'),
+    'utf8'
+  );
+  const specBody = spec.match(/export interface Spec extends TurboModule \{([\s\S]*?)\n\}/)![1];
+  return [...specBody.matchAll(/^ {2}(\w+): \(/gm)].map((match) => match[1]);
+}
+
+/** Every file under `folder`, as full paths. */
+function filesUnder(folder: string): string[] {
+  return fs.readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(folder, entry.name);
+    return entry.isDirectory() ? filesUnder(entryPath) : [entryPath];
+  });
+}
+
+describe('the native modules and their spec', () => {
+  // Overrides of the base class and of TurboModule, which the spec does not name.
+  const overridesOutsideTheSpec = ['getName'];
+
+  it('every method the new-architecture Android module overrides is in the native module spec', () => {
+    const source = fs.readFileSync(
+      path.join(ANDROID_DIR, 'src/newarch/java/io/sherlo/storybookreactnative/SherloModule.java'),
+      'utf8'
+    );
+    const overridden = [
+      ...source.matchAll(/@Override\s+(?:@\w+\s+)*public\s+[\w<>[\], ]+?\s+(\w+)\s*\(/g),
+    ].map((match) => match[1]);
+
+    expect(overridden.length).toBeGreaterThan(0);
+    const specNames = specMethodNames();
+    expect(specNames.length).toBeGreaterThan(0);
+    expect(
+      overridden.filter(
+        (name) => !overridesOutsideTheSpec.includes(name) && !specNames.includes(name)
+      )
+    ).toEqual([]);
+  });
+
+  it('no native module offers a file method', () => {
+    const sources = [
+      ...filesUnder(path.join(SDK_ROOT, 'android', 'src')),
+      ...filesUnder(path.join(SDK_ROOT, 'ios')),
+    ].filter((file) => /\.(java|kt|m|mm|h)$/.test(file));
+
+    expect(sources.length).toBeGreaterThan(0);
+    const offering = sources.filter((file) =>
+      /\b(appendFile|readFile)\b/.test(fs.readFileSync(file, 'utf8'))
+    );
+    expect(offering.map((file) => path.relative(SDK_ROOT, file))).toEqual([]);
+  });
+
+  it('the iOS core keeps the JS version until a line opens', () => {
+    const source = fs.readFileSync(path.join(SDK_ROOT, 'ios', 'SherloModuleCore.m'), 'utf8');
+
+    // The hello stores the version in the core, not only on a line that may not exist yet.
+    expect(source).toMatch(/^static NSString \*jsVersion = nil;/m);
+    expect(source).toMatch(/jsVersion = \[helloJsVersion isKindOfClass:\[NSString class\]\]/);
+    // The line-opening path hands the stored version to the new line.
+    const openLineBody = source.match(/\+ \(void\)openLineTo:[\s\S]*?\n\}/)![0];
+    expect(openLineBody).toContain('[line setJsVersion:jsVersion];');
+  });
+});

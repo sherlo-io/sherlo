@@ -15,12 +15,12 @@ import { NativeModules } from 'react-native';
 import TurboModule from '../specs/NativeSherloModule';
 import SherloModule from '../SherloModule';
 import RunnerBridge from '../helpers/RunnerBridge';
-import type { CoreReport } from '../helpers/RunnerBridge/types';
 import { setCaptureLogSink } from '../helpers/RunnerBridge/captureLogSink';
 import { bundlerOrigin } from '../bundlerOrigin';
 import { clearStoryError, readStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
-import { getStorybookChannel } from '../getStorybook/storybookChannel';
+import { readStorybookChannel } from '../getStorybook/storybookReads';
+import { readStorybookFacts } from '../getStorybook/storybookFacts';
 import { activateMocksForStory } from '../getStorybook/storyMockActivation';
 import { mergeStoryMocks } from '../mocking/mergeMocks';
 import type { StoryMocks } from '../mocking/mockDeclaration';
@@ -28,11 +28,10 @@ import { clearMocks } from '../mocking';
 import { collectAppMetadata, providerFirstRenderedAt } from '../appMetadata';
 import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
-import type { StorybookView } from '../types';
-import type { SealedCore, SealedCoreHost } from './seam';
+import type { CoreReport, SealedCore, SealedCoreHost } from './seam';
 
 /** The number of the contract (./seam) this SDK speaks. A core of any other is never installed. */
-const SEAM_THIS_SDK_SPEAKS = 1;
+const SEAM_THIS_SDK_SPEAKS = 2;
 
 /** What native code's `loadCore()` answers, as JSON (SherloCoreLoader on iOS and Android). */
 type NativeCorePick =
@@ -133,10 +132,10 @@ function hostForTheCore(): SealedCoreHost {
     runner: {
       // START is built inside the core; the SDK adds which core ran to it on its way to the runner.
       // Outside testing mode the report is undefined, and a line written as JSON leaves it out.
-      send: (protocolItem) => {
-        if (protocolItem.action !== 'START') return RunnerBridge.send(protocolItem);
-        return RunnerBridge.send({ ...protocolItem, core: reportWhichCoreRan() });
-      },
+      send: (message) =>
+        message.action === 'START'
+          ? RunnerBridge.send({ ...message, core: reportWhichCoreRan() })
+          : RunnerBridge.send(message),
       log: RunnerBridge.log,
     },
     bundlerOrigin,
@@ -145,11 +144,12 @@ function hostForTheCore(): SealedCoreHost {
       clear: clearStoryError,
       fallbackText: STORY_ERROR_FALLBACK_TEXT,
     },
-    storybookChannelOf: getStorybookChannel,
-    // The seam keeps Storybook's view and a story's mocks opaque; what the core hands back here
-    // is what the SDK and the story's parameters handed it, so it is read as the SDK's own again.
-    activateMocksForStory: (view, storyId) => activateMocksForStory(view as StorybookView, storyId),
+    storybookFacts: readStorybookFacts,
+    storybookChannel: () => readStorybookChannel().value,
+    activateMocksForStory,
     clearMocks,
+    // The seam keeps a story's mocks opaque; what the core hands back here is what the story's
+    // parameters handed it, so it is read as the SDK's own again.
     mergeStoryMocks: (global, meta, story) =>
       mergeStoryMocks(global as StoryMocks, meta as StoryMocks, story as StoryMocks),
     collectAppMetadata,

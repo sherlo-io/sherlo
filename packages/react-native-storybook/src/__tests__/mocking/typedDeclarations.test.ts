@@ -23,7 +23,8 @@ import { mergeStoryMocks } from '../../mocking/mergeMocks';
 import { activateStoryMocks } from '../../mocking';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
-import type { StorybookView } from '../../types';
+import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
+import { startStorybookHolding } from './storybookHolding';
 
 const mockScan = require('../../../metro/mockScan');
 const applySherloTransforms = require('../../../metro/applySherloTransforms');
@@ -34,7 +35,7 @@ afterEach(() => {
   clearMocks();
   __resetShimmedKeysForTests();
   vi.clearAllMocks();
-  delete (globalThis as any).STORIES;
+  __resetStorybookFactsForTests();
 });
 
 // ---------------------------------------------------------------------------
@@ -139,36 +140,22 @@ function realModulePathIn(root: string): string {
   return path.join(root, 'node_modules', 'expo-localization', 'index.js');
 }
 
-// A Storybook view holding one story, "Mocking/Declared", that declares `mocks`. The preview
-// is already composed, so no global-level second pass is scheduled and the only thing the
-// activation waits on is the declaration's own import.
-function viewDeclaring(mocks: unknown): { view: StorybookView; storyId: string } {
-  const fileExports = {
-    default: { title: 'Mocking/Declared' },
-    Default: { parameters: { sherlo: { mocks } } },
-  };
-  const req = Object.assign(() => fileExports, { keys: () => ['./Declared.stories.tsx'] });
-  (globalThis as any).STORIES = [{ directory: './src', req }];
-
+// A Storybook holding one story, "Mocking/Declared", that declares `mocks`. The only thing the
+// activation waits on is the declaration's own import. Answers the story's id.
+function storybookDeclaring(mocks: unknown): string {
   const storyId = 'mocking-declared--default';
-  const view = {
-    _storyIndex: {
-      entries: {
-        [storyId]: {
-          id: storyId,
-          title: 'Mocking/Declared',
-          name: 'Default',
-          importPath: './src/Declared.stories.tsx',
-        },
+  startStorybookHolding([
+    {
+      importPath: './src/Declared.stories.tsx',
+      title: 'Mocking/Declared',
+      fileExports: {
+        default: { title: 'Mocking/Declared' },
+        Default: { parameters: { sherlo: { mocks } } },
       },
+      stories: [{ id: storyId, name: 'Default' }],
     },
-    _preview: {
-      storyStoreValue: { projectAnnotations: { parameters: {} } },
-      ready: () => Promise.resolve(),
-    },
-  } as unknown as StorybookView;
-
-  return { view, storyId };
+  ]);
+  return storyId;
 }
 
 describe('a mock is declared by its import expression', () => {
@@ -468,12 +455,13 @@ describe('a declaration is installed before the story renders', () => {
       finishImport = resolve;
     });
 
-    const { view, storyId } = viewDeclaring([mock(() => lateImport, { label: 'mocked' })]);
+    const storyId = storybookDeclaring([mock(() => lateImport, { label: 'mocked' })]);
 
-    const installingMocks = activateMocksForStory(view, storyId);
+    const installingMocks = activateMocksForStory(storyId);
 
     // The caller is handed a promise instead of null, which is what tells it there IS
-    // something to wait for - TestingMode holds its Storybook tree back on exactly this.
+    // something to wait for - Sherlo's loader hands exactly this to Storybook, which renders the
+    // story only once it settles.
     expect(installingMocks).toBeInstanceOf(Promise);
     expect(shim.label).toBe('real');
 
@@ -487,11 +475,11 @@ describe('a declaration is installed before the story renders', () => {
   it('the object form has nothing to wait for, so the story is never held back', () => {
     const shim = createMockable('pkg/prompt', { label: 'real' });
 
-    const { view, storyId } = viewDeclaring({ 'pkg/prompt': { label: 'mocked' } });
+    const storyId = storybookDeclaring({ 'pkg/prompt': { label: 'mocked' } });
 
     // Null, and the mock is already in - the synchronous guarantee the object form has always
     // had, unchanged.
-    expect(activateMocksForStory(view, storyId)).toBeNull();
+    expect(activateMocksForStory(storyId)).toBeNull();
     expect(shim.label).toBe('mocked');
   });
 });

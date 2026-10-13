@@ -34,6 +34,15 @@ const { sherloCacheFolder } = require('../../../metro/projectPaths');
 const PACKAGE_ROOT = path.resolve(__dirname, '../../..');
 const SDK_DIST_FRAGMENT = path.join('node_modules', '@sherlo', 'react-native-storybook', 'dist');
 const STORYBOOK_FRAGMENT = path.join('node_modules', '@storybook') + path.sep;
+// What the app's connection code is known by in a bundle: the event native code raises for each
+// message, and the path a bundler mounts the connection at (src/connection/appLine, src/constants).
+const CONNECTION_EVENT = 'SherloMessage';
+const CONNECTION_PATH = '/sherlo/line';
+
+// The source of the stand-in a build without Sherlo gets in place of the SDK.
+function standInSource(): string {
+  return fs.readFileSync(path.join(PACKAGE_ROOT, 'src', 'offStandIn.ts'), 'utf8');
+}
 
 // The fixture project on disk, and its root directory.
 function createOldSetupApp(): string {
@@ -70,14 +79,22 @@ function createOldSetupApp(): string {
 
   // The SDK: its real package.json, so its exports map is what resolves, and the real stand-in.
   writeSdkPackageJson(write);
-  const standInSource = fs.readFileSync(path.join(PACKAGE_ROOT, 'src', 'offStandIn.ts'), 'utf8');
   write(
     `${SDK_FOLDER_IN_FIXTURE}/dist/offStandIn.js`,
-    transformSync(standInSource, { loader: 'ts', format: 'cjs', target: 'es2018' }).code
+    transformSync(standInSource(), { loader: 'ts', format: 'cjs', target: 'es2018' }).code
   );
-  // The full SDK's entry, and the two files Sherlo's Storybook wrapper reaches, as small stand-ins:
-  // what matters is that they are SDK modules a bundle with Sherlo in it holds.
-  write(`${SDK_FOLDER_IN_FIXTURE}/dist/index.js`, 'exports.isStorybookMode = false;\n');
+  // The full SDK's entry, and the files Sherlo's Storybook wrapper reaches, as small stand-ins:
+  // what matters is that they are SDK modules a bundle with Sherlo in it holds. The entry reaches
+  // the app's connection (src/connection/appLine) as the real entry does, and the stand-in for it
+  // holds the two literals that code is known by in a bundle.
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/index.js`,
+    "exports.isStorybookMode = false;\nrequire('./connection/appLine');\n"
+  );
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/connection/appLine.js`,
+    `exports.messageEvent = '${CONNECTION_EVENT}';\nexports.bundlerLinePath = '${CONNECTION_PATH}';\n`
+  );
   write(
     `${SDK_FOLDER_IN_FIXTURE}/dist/getStorybook/index.js`,
     'exports.default = function () {};\n'
@@ -207,6 +224,28 @@ describe('what a release bundle carries', () => {
     );
     expect(sdkModulesIn(bundledModules)).not.toContain('offStandIn.js');
     expect(storybookModulesIn(bundledModules).length).toBeGreaterThan(0);
+  });
+
+  it("a release bundle with the setting off or unset holds none of the app's connection code", () => {
+    for (const road of OFF_ROADS) {
+      const { bundledModules, code } = bundleOfOffRoad.get(road.name)!;
+      expect(
+        sdkModulesIn(bundledModules).filter((modulePath) => modulePath.startsWith('connection')),
+        road.name
+      ).toEqual([]);
+      expect(code, road.name).not.toContain(CONNECTION_EVENT);
+      expect(code, road.name).not.toContain(CONNECTION_PATH);
+    }
+
+    // CONTROL: the same app with the setting at app-and-storybook holds that code, or the above
+    // proves nothing.
+    expect(sdkModulesIn(controlBundle.bundledModules)).toContain(
+      path.join('connection', 'appLine.js')
+    );
+    expect(controlBundle.code).toContain(CONNECTION_EVENT);
+
+    // The stand-in a build without Sherlo gets reaches none of it.
+    expect(standInSource()).not.toMatch(/connection|appLine/);
   });
 
   it('with the setting off or unset in a release bundle the Storybook config folder resolves to nothing', () => {

@@ -1,8 +1,16 @@
 'use strict';
 
 import * as fs from 'fs';
+import * as http from 'http';
 import * as os from 'os';
 import * as path from 'path';
+import { readStorybookFacts, recordWhatStartWasHanded } from '../getStorybook/storybookFacts';
+import {
+  keepStartedStorybook,
+  readStorybookChannel,
+  readStorybooksCurrentStory,
+} from '../getStorybook/storybookReads';
+import { loadStartWrapper, storyFolder } from './sherlosStartWrapper';
 
 const applySherloTransforms = require('../../metro/applySherloTransforms');
 
@@ -804,14 +812,14 @@ describe('applySherloTransforms - the header is the same wherever the project si
 });
 
 // ---------------------------------------------------------------------------
-// The letterbox's address on the bundler
+// Sherlo's address on the bundler
 // ---------------------------------------------------------------------------
 //
-// The address itself is held by openStoryChannel.test.ts; this holds the one thing that puts it on
-// a developer's bundler at all - the middleware Sherlo adds to the config it hands back. Without
-// it there is no road, and every test either side of it still passes.
+// The line itself is held by sherloLine.test.ts; this holds the one thing that puts it on a
+// developer's bundler at all - the middleware Sherlo adds to the config it hands back. Without it
+// there is no road, and every test either side of it still passes.
 
-describe('applySherloTransforms - the letterbox address', () => {
+describe("applySherloTransforms - Sherlo's address on the bundler", () => {
   function enhancedMiddlewareFor(config: Record<string, unknown>) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-letterbox-address-'));
     const result = applySherloTransforms(
@@ -847,9 +855,10 @@ describe('applySherloTransforms - the letterbox address', () => {
     const enhance = enhancedMiddlewareFor({});
     const middleware = enhance((request: any) => reachedTheBundler.push(request.url));
 
-    const letterbox = requestFor('/sherlo/letterbox', 'GET');
-    middleware(letterbox.request, letterbox.response, () => {});
-    expect(letterbox.response.written).toEqual([JSON.stringify({ kind: 'no-app' })]);
+    // The plain request the command line sends before its WebSocket is answered by Sherlo.
+    const line = requestFor('/sherlo/line', 'GET');
+    middleware(line.request, line.response, () => {});
+    expect(line.response.written).toEqual([JSON.stringify({ protocolVersion: 1 })]);
     expect(reachedTheBundler).toEqual([]);
 
     const bundle = requestFor('/index.bundle?platform=ios', 'GET');
@@ -876,15 +885,69 @@ describe('applySherloTransforms - the letterbox address', () => {
     expect(chain).toEqual(['the project', 'the bundler: /index.bundle']);
   });
 
-  it("serves the capture log feed's own address too, ahead of the letterbox and the bundler", () => {
+  it('serves none of the three addresses the line replaced: each reaches the bundler', () => {
     const reachedTheBundler: string[] = [];
     const enhance = enhancedMiddlewareFor({});
     const middleware = enhance((request: any) => reachedTheBundler.push(request.url));
 
-    const reader = requestFor('/sherlo/capture-log', 'GET');
-    middleware(reader.request, reader.response, () => {});
-    expect(reader.response.written).toEqual([JSON.stringify({ lines: [] })]);
-    expect(reachedTheBundler).toEqual([]);
+    for (const replacedAddress of ['/sherlo/letterbox', '/sherlo/capture', '/sherlo/capture-log']) {
+      const request = requestFor(replacedAddress, 'GET');
+      middleware(request.request, request.response, () => {});
+      expect(request.response.written).toEqual([]);
+    }
+    expect(reachedTheBundler).toEqual([
+      '/sherlo/letterbox',
+      '/sherlo/capture',
+      '/sherlo/capture-log',
+    ]);
+  });
+
+  it("takes the WebSocket upgrade for Sherlo's address and hands every other upgrade to the bundler's own sockets", async () => {
+    const ws = require('ws');
+    // A project folder inside this package, so the line finds Metro, and its `ws`, as it does in
+    // a project: from the project's own folder.
+    const projectRoot = fs.mkdtempSync(path.join(__dirname, '../../node_modules/.sherlo-line-'));
+    const result = applySherloTransforms({ projectRoot, resolver: {} }, { enabled: true });
+
+    // The bundler: a server whose own upgrade listener is in place before any request, as Metro's
+    // is, and whose middleware is Sherlo's in front of the bundle.
+    const upgradesTheBundlerTook: string[] = [];
+    const bundlerServer = http.createServer(
+      result.server.enhanceMiddleware((request: any, response: any) => response.end('the bundle'))
+    );
+    bundlerServer.on('upgrade', (request: any, socket: any) => {
+      upgradesTheBundlerTook.push(request.url);
+      socket.destroy();
+    });
+    await new Promise<void>((resolve) => bundlerServer.listen(0, '127.0.0.1', resolve));
+    const origin = `127.0.0.1:${(bundlerServer.address() as any).port}`;
+
+    try {
+      // One plain request first: it mounts the line, and is answered by Sherlo.
+      const plainAnswer = await fetch(`http://${origin}/sherlo/line`);
+      expect(await plainAnswer.json()).toEqual({ protocolVersion: 1 });
+
+      // Sherlo's address is the line: a driver's question there is answered.
+      const driver = new ws(`ws://${origin}/sherlo/line`);
+      await new Promise((resolve) => driver.once('open', resolve));
+      const reply = new Promise((resolve) =>
+        driver.once('message', (data: unknown) => resolve(JSON.parse(String(data))))
+      );
+      driver.send(JSON.stringify({ action: 'whatIsOnScreen', askId: '1' }));
+      expect(await reply).toEqual({ action: 'reply', askId: '1', reply: { kind: 'no-app' } });
+      driver.terminate();
+
+      // Every other upgrade goes to the bundler's own listener, untouched.
+      const hotReload = new ws(`ws://${origin}/hot`);
+      await new Promise((resolve) => hotReload.once('close', resolve).once('error', resolve));
+      expect(upgradesTheBundlerTook).toEqual(['/hot']);
+
+      // And every other request is still the bundler's.
+      expect(await (await fetch(`http://${origin}/index.bundle`)).text()).toBe('the bundle');
+    } finally {
+      bundlerServer.close();
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
   });
 });
 
@@ -936,17 +999,137 @@ describe('the swap', () => {
 
     const view = wrapper.exports.start({ storybook: 'config' });
     expect(view).toBe(realStorybookView);
-    expect(realStorybook.startedWith).toEqual({ storybook: 'config' });
+    // Storybook is started with what it was handed, and Sherlo's own annotation after it.
+    expect(realStorybook.startedWith).toEqual({
+      storybook: 'config',
+      annotations: [sherlosAnnotation],
+    });
 
     const params = { theme: 'dark' };
     view.getStorybookUI(params);
     expect(sherloGetStorybookCalls).toEqual([[realStorybookView, params]]);
+  });
+
+  it("the start wrapper keeps the story entries and annotations Storybook was handed, and adds Sherlo's annotation last", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-start-wrapper-'));
+    // The project's own Storybook, whose version the wrapper is written with.
+    const storybookPackage = path.join(tmpDir, 'node_modules', '@storybook', 'react-native');
+    fs.mkdirSync(path.join(storybookPackage, 'dist'), { recursive: true });
+    fs.writeFileSync(
+      path.join(storybookPackage, 'package.json'),
+      JSON.stringify({
+        name: '@storybook/react-native',
+        version: '9.1.4',
+        exports: { '.': './dist/index.js' },
+      })
+    );
+    fs.writeFileSync(path.join(storybookPackage, 'dist', 'index.js'), '');
+    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
+    const wrapperSource = fs.readFileSync(
+      path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js'),
+      'utf8'
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const wrapper = loadWrapper(wrapperSource);
+
+    // What Storybook's generated requires file hands start(): its story folders, and the
+    // project's preview first among the annotations, an addon's after it.
+    const storyFile = {
+      default: { title: 'Components/Button' },
+      Primary: { parameters: { sherlo: { mocks: { 'pkg/a': { value: 'a' } } } } },
+    };
+    const req = Object.assign((_filename: string) => storyFile, {
+      keys: () => ['./Button.stories.tsx'],
+    });
+    const storyEntries = [{ directory: './src', req }];
+    const projectsPreview = { default: { parameters: { sherlo: { mocks: {} } } } };
+    const addonsPreview = { decorators: [] };
+
+    const view = wrapper.exports.start({
+      storyEntries,
+      annotations: [projectsPreview, addonsPreview],
+    });
+
+    // Storybook gets the same story entries, and the same annotations in the same order, with
+    // Sherlo's annotation last.
+    expect(realStorybook.startedWith.storyEntries).toBe(storyEntries);
+    expect(realStorybook.startedWith.annotations).toEqual([
+      projectsPreview,
+      addonsPreview,
+      sherlosAnnotation,
+    ]);
+    expect(realStorybook.startedWith.annotations[0]).toBe(projectsPreview);
+
+    // The SDK keeps them as plain facts: the index Storybook's own prepareStories builds, every
+    // story file by the import path the index names, and each preview's annotations.
+    expect(readStorybookFacts()).toEqual({
+      storyIndex: realStorybook.prepareStories({ storyEntries }).index.entries,
+      storyFiles: { './src/Button.stories.tsx': storyFile },
+      previewAnnotations: [projectsPreview.default, addonsPreview],
+    });
+
+    // ...and the view Storybook returned, for the few reads that have no public way, whose errors
+    // name the version the bundle was built with.
+    expect(readStorybookChannel().value).toBe(view._channel);
+    expect(readStorybooksCurrentStory({}).error).toContain('@storybook/react-native 9.1.4');
+  });
+
+  it("a hot update keeps Sherlo's annotation last and records the new stories", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-hot-update-'));
+    applySherloTransforms({ projectRoot: tmpDir, resolver: {} }, { enabled: true });
+    const wrapperSource = fs.readFileSync(
+      path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'storybook-wrapper.js'),
+      'utf8'
+    );
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    const wrapper = loadWrapper(wrapperSource);
+
+    const buttonFile = { default: { title: 'Components/Button' }, Primary: {} };
+    const view = wrapper.exports.start({
+      storyEntries: [storyFolder('./src', { './Button.stories.tsx': buttonFile })],
+      annotations: [{ parameters: {} }],
+    });
+
+    // A developer edits a story file and adds another: the generated requires file runs again and,
+    // Storybook having started, hands updateView the view and everything afresh.
+    const cardFile = {
+      default: { title: 'Components/Card' },
+      Tall: { parameters: { sherlo: { mocks: { 'pkg/a': { value: 'tall' } } } } },
+    };
+    const updatedEntries = [
+      storyFolder('./src', { './Button.stories.tsx': buttonFile, './Card.stories.tsx': cardFile }),
+    ];
+    const projectsPreview = { default: { parameters: { sherlo: { mocks: {} } } } };
+    const options = { playFn: false };
+    wrapper.exports.updateView(view, [projectsPreview], updatedEntries, options);
+
+    // Storybook updates the same view with the same stories and options, and with Sherlo's
+    // annotation still last among the annotations, which it would otherwise replace without it.
+    expect(realStorybook.updatedWith).toEqual([
+      view,
+      [projectsPreview, sherlosAnnotation],
+      updatedEntries,
+      options,
+    ]);
+    expect(realStorybook.updatedWith[2]).toBe(updatedEntries);
+
+    // The SDK's facts are the new ones: the new story is in the index, its file among the files.
+    expect(readStorybookFacts()).toEqual({
+      storyIndex: realStorybook.prepareStories({ storyEntries: updatedEntries }).index.entries,
+      storyFiles: {
+        './src/Button.stories.tsx': buttonFile,
+        './src/Card.stories.tsx': cardFile,
+      },
+      previewAnnotations: [projectsPreview.default],
+    });
+    expect(readStorybookFacts()?.storyIndex['components-card--tall']).toBeDefined();
   });
 });
 
 /* ========================================================================== */
 
 const realStorybookView: any = {
+  _channel: { on: () => {}, off: () => {}, emit: () => {} },
   getStorybookUI: () => () => null,
 };
 
@@ -957,7 +1140,36 @@ const realStorybook: any = {
     realStorybook.startedWith = config;
     return realStorybookView;
   },
+  updatedWith: undefined,
+  // What the generated requires file calls on a hot update, instead of start().
+  updateView: (...args: unknown[]) => {
+    realStorybook.updatedWith = args;
+  },
+  // Storybook's exported prepareStories, as much of it as indexes the story files it is handed:
+  // one entry per export of each file but its default, which names the title.
+  prepareStories: ({ storyEntries }: { storyEntries?: FakeStoryEntry[] }) => {
+    const entries: Record<string, unknown> = {};
+    for (const { directory, req } of storyEntries ?? []) {
+      for (const filename of req.keys()) {
+        const { default: meta, ...stories } = req(filename);
+        for (const name of Object.keys(stories)) {
+          const id = `${meta.title.toLowerCase().replace('/', '-')}--${name.toLowerCase()}`;
+          const importPath = `${directory}/${filename.substring(2)}`;
+          entries[id] = { id, title: meta.title, name, importPath };
+        }
+      }
+    }
+    return { index: { entries } };
+  },
 };
+
+type FakeStoryEntry = {
+  directory: string;
+  req: { keys(): string[]; (filename: string): { default: { title: string } } };
+};
+
+/** Sherlo's annotation, as the wrapper takes it from the SDK. */
+const sherlosAnnotation = { decorators: [], loaders: [] };
 
 const sherloGetStorybookCalls: unknown[][] = [];
 
@@ -966,25 +1178,18 @@ const sherloGetStorybookCalls: unknown[][] = [];
  * requires: the real Storybook, and Sherlo's own story screen.
  */
 function loadWrapper(source: string): { exports: any } {
-  const wrapper = { exports: {} as any };
-
-  const answerRequire = (name: string): unknown => {
-    if (name === '@storybook/react-native') return realStorybook;
-    if (name === '@sherlo/react-native-storybook/dist/getStorybook/index.js') {
-      return {
-        default: (...args: unknown[]) => {
-          sherloGetStorybookCalls.push(args);
-          return () => null;
-        },
-      };
-    }
-    if (name === '@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js') {
-      return { default: () => {} };
-    }
-    throw new Error(`the wrapper asked for an unexpected module: ${name}`);
-  };
-
-  // eslint-disable-next-line no-new-func
-  new Function('exports', 'require', 'module', source)(wrapper.exports, answerRequire, wrapper);
-  return wrapper;
+  return loadStartWrapper(source, {
+    '@storybook/react-native': realStorybook,
+    '@sherlo/react-native-storybook/dist/getStorybook/index.js': {
+      default: (...args: unknown[]) => {
+        sherloGetStorybookCalls.push(args);
+        return () => null;
+      },
+      sherloAnnotation: sherlosAnnotation,
+      // The SDK's own, which keep what the wrapper hands them.
+      recordWhatStartWasHanded,
+      keepStartedStorybook,
+    },
+    '@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js': { default: () => {} },
+  });
 }

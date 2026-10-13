@@ -1,6 +1,6 @@
 {
   "name": "sherlo",
-  "version": "2.0.2",
+  "version": "3.0.0-alpha.0",
   "description": "Visual regression testing for React Native - Sherlo CLI",
   "keywords": [
     "react-native",
@@ -27,6 +27,7 @@
     "directory": "packages/cli"
   },
   "main": "dist/index.js",
+  "types": "dist/cli/src/index.d.ts",
   "bin": "./cli.js",
   "files": [
     "dist",
@@ -62,6 +63,7 @@
     "@types/node-fetch": "^2.6.4",
     "@types/prompts": "^2.4.9",
     "@types/tar": "^6.1.5",
+    "@types/ws": "^8.5.14",
     "ansi-escapes": "^7.2.0",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
@@ -78,7 +80,8 @@
     "type-fest": "^4.20.1",
     "typescript": "7.0.2",
     "vitest": "^5.0.4",
-    "wrap-ansi": "^9.0.0"
+    "wrap-ansi": "^9.0.0",
+    "ws": "^8.18.0"
   },
   "engines": {
     "node": ">=18.0.0"

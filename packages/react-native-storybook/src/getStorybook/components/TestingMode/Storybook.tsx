@@ -1,7 +1,8 @@
 import type { Theme } from '@storybook/react-native-theming';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VERIFICATION_TEST_ID, PROTOCOL_FILE } from '../../../constants';
+import { VERIFICATION_TEST_ID } from '../../../constants';
+import { send } from '../../../connection/appLine';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
@@ -92,18 +93,10 @@ function Storybook({
   if (!reportedSherloJSLoaded.current) {
     reportedSherloJSLoaded.current = true;
     (global as any).__sherloStorybookRendered = true;
-    const content: any = {
+    send({
       action: 'STORYBOOK_RENDERED',
-      timestamp: Date.now(),
-      entity: 'app',
-    };
-
-    if (lastState?.requestId) {
-      content.requestId = lastState.requestId;
-    }
-
-    const contentString = JSON.stringify(content);
-    SherloModule.appendFile(PROTOCOL_FILE, `${contentString}\n`);
+      ...(lastState?.requestId && { requestId: lastState.requestId }),
+    });
   }
 
   RunnerBridge.log('storybook style', { style });

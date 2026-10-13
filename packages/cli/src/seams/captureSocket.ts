@@ -1,7 +1,7 @@
 /**
  * THE CAPTURE SOCKET SEAM - the road `sherlo capture` reaches a developer's running app down.
  *
- *     live   - a socket at the bundler's own address, relayed by the bundler between this command
+ *     live   - the bundler's line (`bundlerLine.ts`), relayed by the bundler between this command
  *              and the SDK inside the running app. The command asks for one story and sends the
  *              stabilization settings; the app restarts into testing mode, walks the same story
  *              path a test run walks, and answers with what it recorded.
@@ -13,6 +13,7 @@
  * roads fail differently.
  */
 import type { CapturedView } from '../render/capturedStory';
+import { askTheBundlerLine } from './bundlerLine';
 
 /**
  * The stabilization settings a capture sends, as the runner sends them today.
@@ -152,15 +153,11 @@ export type CaptureSocket = {
   }): Promise<CaptureResult>;
 };
 
-/** The one address the SDK adds to the bundler; the bundler's half of it serves this path. */
-const CAPTURE_PATH = '/sherlo/capture';
-
 /**
- * The app's own live log feed, beside the capture address - the other half is the SDK's
- * captureLogSink.ts and metro/captureLogSocket.js. Drained once per capture, after the app's answer
- * is known (or given up on) - see drainCaptureLog.
+ * How long the command waits for the bundler's line to read out the app's log lines. The line
+ * answers this at once, so any real delay is a bundler that went away.
  */
-const CAPTURE_LOG_PATH = '/sherlo/capture-log';
+const LOG_FEED_PATIENCE_MS = 5000;
 
 /**
  * How long the command stays on the line for the app to answer. A capture restarts the app and
@@ -172,9 +169,9 @@ const CAPTURE_PATIENCE_MS = 60_000;
 /** The shipped answers: a real bundler, with a real app attached to it. */
 export const liveCaptureSocket: CaptureSocket = {
   captureStory: async ({ storyId, port, settings }) => {
-    const answer = await askTheCaptureSocket({
+    const answer = await askTheBundlerLine({
       port,
-      posting: { storyId, settings },
+      question: { action: 'captureStory', storyId, settings },
       patienceMs: CAPTURE_PATIENCE_MS,
     });
 
@@ -190,7 +187,7 @@ export const liveCaptureSocket: CaptureSocket = {
       return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
     }
 
-    const result = readCaptureAnswer(answer.said, storyId);
+    const result = readCaptureAnswer(answer.reply, storyId);
     if (result.kind === 'captured' || result.kind === 'crashed') {
       const logs = await drainCaptureLog(port);
       if (logs.length > 0) result.logs = logs;
@@ -207,22 +204,16 @@ export const liveCaptureSocket: CaptureSocket = {
  * failure to report - it already has its answer.
  */
 async function drainCaptureLog(port: number): Promise<string[]> {
-  let response: Response;
+  const answer = await askTheBundlerLine({
+    port,
+    question: { action: 'readLogLines' },
+    patienceMs: LOG_FEED_PATIENCE_MS,
+  });
 
-  try {
-    response = await fetch(`http://localhost:${port}${CAPTURE_LOG_PATH}`);
-  } catch (_error) {
-    return [];
-  }
+  if (answer.kind !== 'said') return [];
 
-  if (!response.ok) return [];
-
-  try {
-    const said = (await response.json()) as { lines?: unknown };
-    return Array.isArray(said.lines) ? said.lines.filter(isString) : [];
-  } catch (_error) {
-    return [];
-  }
+  const lines: unknown = answer.reply?.lines;
+  return Array.isArray(lines) ? lines.filter(isString) : [];
 }
 
 let installed: CaptureSocket = liveCaptureSocket;
@@ -239,72 +230,6 @@ export function installCaptureSocket(next: CaptureSocket): () => void {
   return () => {
     installed = previous;
   };
-}
-
-/* ========================================================================== */
-/* Talking to the address                                                     */
-/* ========================================================================== */
-
-/** What came back from the port. */
-type CaptureSocketAnswer =
-  /** Nothing accepted a connection. */
-  | { kind: 'nothing-on-the-port' }
-  /** Something answered, and not in words this tool can read: a bundler nobody routed through
-   * Sherlo, or a different server on the port entirely. */
-  | { kind: 'not-in-sherlos-words' }
-  /** Nothing answered before the tool stopped listening. */
-  | { kind: 'gave-up-waiting' }
-  /** The relay answered, and here is what it said. */
-  | { kind: 'said'; said: unknown };
-
-/**
- * Post one capture to the relay and hold the line until the app answers. The relay keeps the post
- * open across the app's restart into testing mode, so the only waits here are a port with nothing
- * on it and an app that never comes back.
- */
-async function askTheCaptureSocket({
-  port,
-  posting,
-  patienceMs,
-}: {
-  port: number;
-  posting: unknown;
-  patienceMs: number;
-}): Promise<CaptureSocketAnswer> {
-  let response: Response;
-
-  try {
-    response = await fetch(`http://localhost:${port}${CAPTURE_PATH}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(posting),
-      signal: AbortSignal.timeout(patienceMs),
-    });
-  } catch (error) {
-    if (isNothingOnThePort(error)) return { kind: 'nothing-on-the-port' };
-    if ((error as Error | undefined)?.name === 'TimeoutError') return { kind: 'gave-up-waiting' };
-    return { kind: 'not-in-sherlos-words' };
-  }
-
-  if (!response.ok) return { kind: 'not-in-sherlos-words' };
-
-  try {
-    return { kind: 'said', said: await response.json() };
-  } catch (_error) {
-    return { kind: 'not-in-sherlos-words' };
-  }
-}
-
-/**
- * `localhost` is two addresses on most machines, so a refusal can arrive as one code or as a list
- * of them - one per address tried. Both shapes mean the same thing: nothing accepted a connection.
- */
-function isNothingOnThePort(error: unknown): boolean {
-  const cause = (error as { cause?: { code?: unknown; errors?: { code?: unknown }[] } } | undefined)
-    ?.cause;
-  const codes = [cause?.code, ...(cause?.errors ?? []).map((one) => one.code)];
-
-  return codes.some((code) => code === 'ECONNREFUSED' || code === 'ENOTFOUND');
 }
 
 /**

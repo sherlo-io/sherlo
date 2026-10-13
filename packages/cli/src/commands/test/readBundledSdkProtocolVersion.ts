@@ -26,7 +26,11 @@ import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../constants';
  */
 const BASE_SEMVER_PATTERN = /^(\d+\.\d+\.\d+)(?:[-+]|$)/;
 
-function toBaseSemver(version: string): string | undefined {
+/**
+ * The major.minor.patch of a version, or undefined when it has none. Every place that records or
+ * sends an SDK protocol version goes through it, so a base build and a push compare alike.
+ */
+export function toBaseSemver(version: string): string | undefined {
   return BASE_SEMVER_PATTERN.exec(version)?.[1];
 }
 

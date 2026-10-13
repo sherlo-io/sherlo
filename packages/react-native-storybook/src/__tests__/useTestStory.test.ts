@@ -1,6 +1,6 @@
 /**
  * What is left of useTestStory in the SDK: it hands the sealed core's walk of one story (testStory,
- * tested where the core is built) the view, the screen's insets and the app's metadata, runs it
+ * tested where the core is built) the screen's insets and the app's metadata, runs it
  * only for a launch a runner drives, and turns the story's mocks off when it is over. The core is
  * the suite's fake (./__mocks__/fakeSealedCore).
  */
@@ -35,7 +35,6 @@ const testStory = vi.spyOn(getSealedCore()!, 'testStory');
 
 const METADATA = { viewProps: {}, texts: ['components-button--primary'], generations: [] };
 const metadataProviderRef = { current: { collectMetadata: () => METADATA } };
-const view = { _channel: undefined } as any;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -47,29 +46,29 @@ async function flushPromises(): Promise<void> {
 }
 
 describe('useTestStory', () => {
-  it('hands the core the view, the insets and a reading of the app metadata', async () => {
-    useTestStory({ metadataProviderRef, view });
+  it('hands the core the insets and a reading of the app metadata, and never the view', async () => {
+    useTestStory({ metadataProviderRef });
     await flushPromises();
 
     expect(testStory).toHaveBeenCalledTimes(1);
     const story = testStory.mock.calls[0][0];
-    expect(story.view).toBe(view);
+    expect(Object.keys(story).sort()).toEqual(['collectMetadata', 'insets']);
     expect(story.insets).toBe(INSETS);
     expect(story.collectMetadata()).toBe(METADATA);
   });
 
   it('does nothing when enabled is false, even with a story queued in lastState', async () => {
     // A capture's boot now carries a lastState just like a run's does (see SherloModuleCore on
-    // each platform) - `enabled` (driven by SherloModule.getDriver() in useTestAllStories) is the
-    // one thing standing between this and reporting to a runner that was never there to answer it.
-    useTestStory({ metadataProviderRef, view, enabled: false });
+    // each platform) - `enabled` (decided in useTestAllStories) is the one thing standing between
+    // this and reporting to a runner that was never there to answer it.
+    useTestStory({ metadataProviderRef, enabled: false });
     await flushPromises();
 
     expect(testStory).not.toHaveBeenCalled();
   });
 
   it('a story opened for a single capture keeps its mocks when the app mounts', async () => {
-    useTestStory({ metadataProviderRef, view, enabled: false });
+    useTestStory({ metadataProviderRef, enabled: false });
     await flushPromises();
 
     expect(mockClearMocks).not.toHaveBeenCalled();
@@ -79,7 +78,7 @@ describe('useTestStory', () => {
     let finishTheWalk!: () => void;
     testStory.mockReturnValue(new Promise<void>((resolve) => (finishTheWalk = resolve)));
 
-    useTestStory({ metadataProviderRef, view });
+    useTestStory({ metadataProviderRef });
     await flushPromises();
     expect(mockClearMocks).not.toHaveBeenCalled();
 

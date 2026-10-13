@@ -1,0 +1,18 @@
+// The SDK's Android unit tests, run on a plain JVM with Robolectric. This is its own Gradle project,
+// not part of the library's build, so a customer's app never sees it and the tests need no emulator.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'sherlo-android-jvm-tests'
