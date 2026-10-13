@@ -1,6 +1,6 @@
 /**
- * The STAGED ROAD of `sherlo test` - the JS-only fast path, taken when the
- * command is given no native build paths (see ./test.ts for the routing).
+ * The STAGED ROAD of `sherlo test` - the JS-only fast path, taken whenever the
+ * config declares no simulation (see ./test.ts for the routing).
  *
  * It asks ONE question first: can this commit be tested without a native
  * rebuild? The gate answers from the source fingerprint alone, BEFORE anything
@@ -14,11 +14,6 @@
  * a staged build. The server-side gate may still refuse at openBuild with a
  * machine-parseable STAGED_GATE_REFUSAL payload; that is the same answer,
  * arriving later, and is published the same way.
- *
- * --dry-run (SHERLO-1895 Phase C) short-circuits before the gate: it produces
- * the manifest via the SAME real bundling path, previews the server's read-only
- * Diff Scope decision (which stories a real run would capture), and STOPS - no
- * gate check, no upload, no build, no routing output. See ./dryRun.
  *
  * Upload-slot decision: staged runs use getStagedUploadUrls (NOT
  * getBuildUploadUrls) - a bundled run has no native binary, so the per-platform
@@ -46,7 +41,6 @@ import { closeTheRun } from './closeTheRun';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
 import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
-import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
 import type { BuildFlags } from './appBuild/buildSettings';
@@ -57,7 +51,7 @@ import {
   uploadBundles,
 } from './uploadBundles';
 import type { StagedUploadKeys } from './uploadStagedArtifacts';
-import { buildBundles, runDryRunFlow } from './bundleAndPreview';
+import { buildBundles } from './bundleAndPreview';
 import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
@@ -120,11 +114,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     { requirePlatformPaths: false }
   );
 
-  // --dry-run (SHERLO-1895 Phase C): bundle + produce the manifest exactly as a
-  // normal run, then preview the server's Diff Scope decision and STOP. Resolved
-  // here so the branch below is unmistakable; the bundling path is identical.
-  const isDryRun = passedOptions.dryRun === true;
-
   // The two bundle-supply roads. They are opposites and only one can run, so the
   // combination is refused rather than resolved by precedence - a caller who passed
   // both is asking for two different things and should be told, not guessed at.
@@ -135,28 +124,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       message:
         '`--bundle-dir` accepts a prebuilt bundle and `--emit-bundle-dir` produces one, ' +
         'so they cannot be combined. Pass whichever one this run is doing.',
-    });
-  }
-
-  // A dry run bundles for real - that is what makes its preview trustworthy - and
-  // it does not read a supplied directory. Accepting `--bundle-dir` here would
-  // bundle anyway and print a transcript claiming it had, which is the silent
-  // fallback the supplied road exists to rule out. Refuse instead of lying.
-  if (isDryRun && bundleDir !== undefined) {
-    throwError({
-      message:
-        '`--dry-run` bundles for real to preview what a run would capture, so it cannot ' +
-        'use `--bundle-dir`. Drop one of the two.',
-    });
-  }
-
-  // Emitting is not a preview and a preview does not emit; running both would beg
-  // the question of which one the exit code belongs to.
-  if (isDryRun && emitBundleDirPath !== undefined) {
-    throwError({
-      message:
-        '`--emit-bundle-dir` produces a bundle directory and exits, so it cannot be ' +
-        'combined with `--dry-run`. Drop one of the two.',
     });
   }
 
@@ -175,12 +142,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     await reporting.flush().finally(() => process.exit(1));
   }
 
-  // 3. Compute the base fingerprint - identifies which base binary to stage
-  //    against. A null hash means this project has no staged fast path to take,
-  //    which IS a routing answer: a native build is needed.
-  //    A dry run does NOT stage a binary, so a missing fingerprint is a
-  //    staged-only concern that must not stop the preview - it bails open
-  //    downstream (a real run would capture everything) rather than routing.
+  // 3. Compute the base fingerprint - identifies which app build to stage
+  //    against. A null hash means this project has no staged fast path to take:
+  //    every platform goes to the build road (step 4b).
   //    A run that supplies its bundle takes the fingerprint the bundle recorded
   //    when this tree's native inputs still match - the machine that accepts a
   //    bundle has no install to compute one with. See ./recordedBaseFingerprint.
@@ -193,13 +157,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
           command: THIS_COMMAND,
         })
       : await computeBaseFingerprint(commandParams.projectRoot, { command: THIS_COMMAND });
-  //    An emit run does not stage a binary either - it only writes a directory to
-  //    disk - so like a dry run it must not route on a missing fingerprint.
-  if (!fpResult.hash && !isDryRun && emitBundleDirPath === undefined) {
-    return reportNativeNeeded({
-      reason: fpResult.debugMessage ?? 'the base fingerprint could not be computed',
-    });
-  }
   const baseFingerprint = fpResult.hash ?? '';
 
   // 5-emit. --emit-bundle-dir: bundle for real, write the triple + sidecar, STOP.
@@ -217,34 +174,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   }
 
   // 4. The credential and its project, resolved before any request (getValidatedCommandParams).
-  //    The endpoint every call this road makes - including the read-only dry-run decision
-  //    query - is resolved inside the server seam itself (../../seams/serverCalls), from the
-  //    token this road hands it.
+  //    The endpoint every call this road makes is resolved inside the server seam itself
+  //    (../../seams/serverCalls), from the token this road hands it.
   const { token, projectIndex, teamId } = commandParams.credential;
-
-  // 5-dry. --dry-run (SHERLO-1895 Phase C): bundle for real, preview which
-  //   stories a real run would capture, and STOP here. A dry run never runs the
-  //   staged gate, uploads nothing, opens no build, and advances no ancestry -
-  //   so it also works with the Diff Scope flag OFF, and publishes no routing
-  //   output (it decided nothing to route on). Bail-open lives inside
-  //   runDryRunPreview; it prints a preview even when the decision is unsure.
-  if (isDryRun) {
-    await runDryRunFlow({
-      projectRoot: commandParams.projectRoot,
-      platformsToTest,
-      token,
-      projectIndex,
-      teamId,
-      baseFingerprint,
-      // Reuse the SAME git info openBuild is given (step 10 below) - the read-only
-      // decision query takes the identical GitInfoInput; do not build a second one.
-      resolveGitInfo: () =>
-        getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
-      include: commandParams.include,
-      exclude: commandParams.exclude,
-    });
-    return { url: '' };
-  }
 
   /** A platform the gate refused needs a new app build, and the tool builds it itself. */
   const buildTheRefusedPlatforms = ({
@@ -259,6 +191,19 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       baseFingerprint,
       fingerprintPreimage: fpResult.preimage,
     });
+
+  // 4b. Without a fingerprint no stored app build can be matched to this one, so every platform
+  //    goes to the build road (./appBuild), as if the gate had refused it.
+  if (!fpResult.hash) {
+    return buildTheRefusedPlatforms({
+      refusals: platformsToTest.map((platform) => ({
+        outcome: 'not-stageable',
+        platform,
+        diff: [],
+      })),
+      storedBuildIndexOf: {},
+    });
+  }
 
   // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
   //    alone answers "can this commit reuse the registered base?", so a commit
@@ -438,10 +383,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
   }
-
-  // 13. The fast path is committed: this commit is being tested with no native
-  //     rebuild. Publish that answer before the run's own output.
-  reportFastPathRunning({ baseFingerprint });
 
   const { build } = openBuildReturn;
   const buildIndex = build.index;

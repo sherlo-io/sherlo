@@ -140,11 +140,6 @@ async function computeRawViolations(): Promise<DoorViolation[]> {
  */
 const DIRECTORY_EXCEPTIONS: { dir: string; door: DoorViolation['door']; reason: string }[] = [
   {
-    dir: 'commands/easBuildOnComplete',
-    door: 'sdk-client',
-    reason: "a command that runs inside Expo's build service and is not posable",
-  },
-  {
     dir: 'commands/testEasCloudBuild',
     door: 'sdk-client',
     reason: "a command that runs inside Expo's build service and is not posable",
@@ -153,21 +148,6 @@ const DIRECTORY_EXCEPTIONS: { dir: string; door: DoorViolation['door']; reason: 
     dir: 'commands/testEasCloudBuild',
     door: 'node-core',
     reason: "a command that runs inside Expo's build service and is not posable",
-  },
-  {
-    dir: 'commands/showError',
-    door: 'fetch',
-    reason: 'reads a crash from the machine it happened on, not posable',
-  },
-  {
-    dir: 'commands/showError',
-    door: 'node-core',
-    reason: 'reads a crash from the machine it happened on, not posable',
-  },
-  {
-    dir: 'commands/showError',
-    door: 'fs-root',
-    reason: 'reads a crash from the machine it happened on, not posable',
   },
   {
     dir: 'commands/pose',
@@ -454,7 +434,7 @@ describe('every door is a seam', () => {
     ).toEqual([]);
   }, 20_000);
 
-  it('the named exceptions are exactly the modules a pose can never reach - the EAS hooks, showError, and the devtools - each with its reason', async () => {
+  it('the named exceptions are exactly the modules a pose can never reach - the EAS hooks and the devtools - each with its reason', async () => {
     const violations = await findRawViolations();
 
     for (const exception of DIRECTORY_EXCEPTIONS) {
