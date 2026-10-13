@@ -17,7 +17,7 @@
  * (../commands/test/platformRows), and a platform's progress line starts in the same column
  * (./stepInProgress).
  *
- * Pure, like everything under ./. The words are drafts for the content department.
+ * Pure, like everything under ./. The words are the content department's approved wording.
  */
 import chalk from 'chalk';
 import type { Platform } from '@sherlo/api-types';
