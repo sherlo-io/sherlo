@@ -8,7 +8,8 @@
  * - no PACKAGE_TOKEN;
  * - a sherlo-core.json that is not a pin;
  * - a pin to a core that is not stored;
- * - a core that lacks one of the four parts, or a C core library for one of the four Android ABIs;
+ * - a core that lacks one of the four parts, a dynamic SherloCore framework in either iOS slice of
+ *   the xcframework, or a C core library for one of the four Android ABIs;
  * - a stored file whose sha256 is not the one its manifest lists;
  * - a pin whose version, runnerSha, sourceTree or seamHash differs from the stored core's manifest;
  * - a core typed against another seam: its manifest's seamHash must be the sha256 of this commit's
@@ -47,6 +48,9 @@ const LAID_PATHS = [
   { stored: 'SherloCore.xcframework', inSdk: 'ios/SherloCore.xcframework' },
   { stored: 'jniLibs', inSdk: 'android/src/main/jniLibs' },
 ];
+
+/** The iOS slices of the xcframework, each of which holds a dynamic SherloCore framework. */
+const IOS_SLICES = ['ios-arm64', 'ios-arm64_x86_64-simulator'];
 
 /** Every Android ABI the SDK ships a C core library for. */
 const ANDROID_ABIS = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'];
@@ -122,6 +126,19 @@ async function packSealedCore({ sdkRoot = SDK_ROOT, readStoredFile } = {}) {
   for (const { stored } of LAID_PATHS) {
     const storesIt = manifest.files.some((file) => isStoredUnder(file.path, stored));
     if (!storesIt) throw new Error('core ' + pin.fingerprint + ' stores no ' + stored);
+  }
+  const slicesWithoutFramework = IOS_SLICES.filter(
+    (slice) =>
+      !manifest.files.some(
+        (file) =>
+          file.path === 'SherloCore.xcframework/' + slice + '/SherloCore.framework/SherloCore'
+      )
+  );
+  if (slicesWithoutFramework.length > 0) {
+    throw new Error(
+      'core ' + pin.fingerprint + ' stores no SherloCore framework for ' +
+        slicesWithoutFramework.join(', ')
+    );
   }
   const missingAbis = ANDROID_ABIS.filter(
     (abi) => !manifest.files.some((file) => file.path === 'jniLibs/' + abi + '/libsherlocore.so')

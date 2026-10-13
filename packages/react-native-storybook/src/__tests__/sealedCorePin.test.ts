@@ -13,7 +13,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { LAID_PATHS, packSealedCore } from '../../scripts/packSealedCore.js';
 import { PIN_FILE, pinCore } from '../../scripts/pinCore.js';
-import { coreFingerprint, describeFailure, storageReaderWith } from '../../scripts/storedCore.js';
+import {
+  coreFingerprint,
+  describeFailure,
+  readFingerprintBySource,
+  storageReaderWith,
+} from '../../scripts/storedCore.js';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -43,10 +48,10 @@ function fakeCoreFiles(): Map<string, Buffer> {
     'sherlo-core.js',
     'sherlo-core.js.sig',
     'SherloCore.xcframework/Info.plist',
-    'SherloCore.xcframework/ios-arm64/libsherlocore.a',
-    'SherloCore.xcframework/ios-arm64/Headers/sherlo_core.h',
-    'SherloCore.xcframework/ios-arm64_x86_64-simulator/libsherlocore.a',
-    'SherloCore.xcframework/ios-arm64_x86_64-simulator/Headers/sherlo_core.h',
+    'SherloCore.xcframework/ios-arm64/SherloCore.framework/SherloCore',
+    'SherloCore.xcframework/ios-arm64/SherloCore.framework/Headers/sherlo_core.h',
+    'SherloCore.xcframework/ios-arm64_x86_64-simulator/SherloCore.framework/SherloCore',
+    'SherloCore.xcframework/ios-arm64_x86_64-simulator/SherloCore.framework/Headers/sherlo_core.h',
     ...ANDROID_ABIS.map((abi) => 'jniLibs/' + abi + '/libsherlocore.so'),
   ];
   return new Map(paths.map((filePath) => [filePath, Buffer.from('fake ' + filePath)]));
@@ -183,6 +188,17 @@ describe('the pin tool', () => {
     });
   });
 
+  it('the by-source lookup names the fingerprint of the core built from a source tree', async () => {
+    const lookup = Buffer.from(JSON.stringify({ fingerprint: 'e'.repeat(64) }));
+    const readStoredFile = async (objectKey: string) =>
+      objectKey === 'cores/by-source/' + 'f'.repeat(40) + '.json' ? lookup : null;
+
+    expect(await readFingerprintBySource('f'.repeat(40), readStoredFile)).toBe('e'.repeat(64));
+    await expect(readFingerprintBySource('0'.repeat(40), readStoredFile)).rejects.toThrow(
+      'no core is stored for the source tree ' + '0'.repeat(40)
+    );
+  });
+
   it('the pin tool refuses a core that is not stored yet', async () => {
     const { readStoredFile } = fakeStorage([]);
     const pinFile = path.join(temporaryFolder('sherlo-pin-'), 'sherlo-core.json');
@@ -249,6 +265,18 @@ describe('a pack', () => {
 
     await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
       'sherlo-core.json is not a pin: it names no fingerprint of 64 hex characters'
+    );
+  });
+
+  it('a pack refuses a core that lacks a SherloCore framework in an iOS slice', async () => {
+    const files = fakeCoreFiles();
+    files.delete('SherloCore.xcframework/ios-arm64/SherloCore.framework/SherloCore');
+    const manifest = manifestOf(files);
+    const { readStoredFile } = fakeStorage([{ manifest, files }]);
+    const sdkRoot = fakeSdkPinnedTo(manifest);
+
+    await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
+      'core ' + manifest.fingerprint + ' stores no SherloCore framework for ios-arm64'
     );
   });
 
@@ -345,7 +373,7 @@ describe('a pack', () => {
     expect(laidFile('ios/Resources/assets/sherlo-core.js')).toBe('fake sherlo-core.js');
     expect(laidFile('android/src/main/assets/sherlo-core.js')).toBe('fake sherlo-core.js');
     for (const slice of ['ios-arm64', 'ios-arm64_x86_64-simulator']) {
-      const sliceFile = 'SherloCore.xcframework/' + slice + '/libsherlocore.a';
+      const sliceFile = 'SherloCore.xcframework/' + slice + '/SherloCore.framework/SherloCore';
       expect(laidFile('ios/' + sliceFile)).toBe('fake ' + sliceFile);
     }
     expect(laidFile('ios/SherloCore.xcframework/Info.plist')).toBe(

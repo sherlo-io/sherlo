@@ -54,6 +54,20 @@ describe('the seam', () => {
     expect(PROTOCOL_VERSION).toBe(SHERLO_PROTOCOL_VERSION);
   });
 
+  it('the iOS and Android clients repeat the protocol version the seam exports', () => {
+    const iosClient = fs.readFileSync(path.join(SDK_ROOT, 'ios/SherloLine.h'), 'utf8');
+    const androidClient = fs.readFileSync(
+      path.join(SDK_ROOT, 'android/src/main/java/io/sherlo/storybookreactnative/SherloSocket.java'),
+      'utf8'
+    );
+
+    const iosVersion = iosClient.match(/SHERLO_PROTOCOL_VERSION\s*=\s*(\d+);/)?.[1];
+    const androidVersion = androidClient.match(/SHERLO_PROTOCOL_VERSION\s*=\s*(\d+);/)?.[1];
+
+    expect(Number(iosVersion)).toBe(SHERLO_PROTOCOL_VERSION);
+    expect(Number(androidVersion)).toBe(SHERLO_PROTOCOL_VERSION);
+  });
+
   it("the seam hands the core Storybook's stories, mocks and channel as plain facts, never Storybook's view", async () => {
     // Nothing the seam types names Storybook's view: no type of one, and no field or argument
     // that carries one, in the host the core is handed or in any call the SDK makes of the core.
