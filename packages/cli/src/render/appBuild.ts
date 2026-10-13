@@ -1,18 +1,14 @@
 /**
- * THE APP BUILD LINES - what `sherlo test` prints when it builds a platform's app itself, what
- * `sherlo build` prints, and the lines that say a run is waiting for builds still to come.
+ * THE APP BUILD LINES - what `sherlo build` prints, and the pieces of an app build that
+ * `sherlo test`'s platform rows (./runRows) say too: how long it took, and what native code changed.
  *
- * In init's grammar (./testSteps): one past-tense line per step, and a step exists only for what
- * took time or needs action (operator ruling 2026-10-13). So `sherlo test` prints a line only for an
- * app it BUILT here - minutes spent, why, and where the log is:
+ * `sherlo build` speaks in init's grammar (./testSteps), one past-tense line per platform:
  *
- *     ✔ Built the Android app  in 4m 12s, native code changed since Test 12 (log: ...)
+ *     ✔ Built the Android app  in 4m 12s (log: .sherlo/build-android.log)
  *
- * An app build it reused - the one Sherlo holds, or one from the local build cache - gets no line:
- * the test's own `Started` line follows, and `sherlo view <n> --json` says where each app build came
- * from. `sherlo build` still says it found its app build in the cache, `(already done)`, because
- * building is what that command was asked for. The words a build shows while it runs are
- * ./stepInProgress's.
+ * and `(already done)` for an app build it found in the local build cache, because building is what
+ * that command was asked for. `sherlo test` says what became of each platform's app build in that
+ * platform's row instead. The words a build shows while it runs are ./stepInProgress's.
  *
  * Pure, like the rest of the layer: a duration arrives in seconds and is phrased here, never read
  * off a clock. The words are drafts for the content department.
@@ -22,7 +18,6 @@ import type { Platform } from '@sherlo/api-types';
 import { DOCS_LINK, PLATFORM_LABEL } from '../constants';
 import { renderSectionTitle } from './initLines';
 import {
-  platformWithEmoji,
   projectPageUrl,
   renderFailedTestStep,
   renderHelpBlock,
@@ -35,15 +30,6 @@ export type AppBuildReason = 'nothing-stored' | 'native-changed';
 
 /** Which command built the app: a test goes on to upload it, `sherlo build` only keeps it. */
 export type AppBuildCommand = 'test' | 'build';
-
-/** What an open run is still waiting for. */
-export type RunWaitsFor =
-  /** The other job of a split CI run, building the named platform. */
-  | { otherJob: Platform }
-  /** The EAS builds this run started, one per platform named. */
-  | { easBuilds: Platform[] }
-  /** The one EAS build still to come, seen from inside the EAS build that just delivered its platform. */
-  | { easBuild: Platform };
 
 /** `1m 28s`, or `42s` under a minute. */
 export function formatBuildDuration(seconds: number): string {
@@ -105,26 +91,6 @@ function describeChange(change: NativeChange): string {
   return `${change.module} ${change.version}`;
 }
 
-/**
- * Why the app was built again, as the step's detail says it: "native code changed since Test 12"
- * (with the list under the step line, when the gate could say what changed). A first build needs no
- * reason - there was nothing to reuse - so it says none.
- */
-function whyBuilt({ reason, storedBuildIndex, changesSince }: WhyANewAppBuild): string | undefined {
-  if (reason === 'nothing-stored') return undefined;
-
-  const storedIn = changesSince?.storedBuildIndex ?? storedBuildIndex;
-  return storedIn !== undefined
-    ? `native code changed since Test ${storedIn}`
-    : 'native code changed since the stored app build';
-}
-
-/** The native changes under a step line, when the gate could say what they were. */
-function changesUnder(why: WhyANewAppBuild | undefined): string[] {
-  const changes = why?.changesSince?.changes ?? [];
-  return changes.length > 0 ? renderNativeChanges(changes) : [];
-}
-
 function builtTheApp(platform: Platform): string {
   return `Built the ${PLATFORM_LABEL[platform]} app`;
 }
@@ -132,37 +98,29 @@ function builtTheApp(platform: Platform): string {
 /**
  * `sherlo build` found its app build in the local build cache: `✔ Built the Android app  (already
  * done)` - init's own words for a step this run found done, since building is what the command was
- * asked for. Where the app build is kept is the next step's to say. (`sherlo test` says nothing of
- * a cached app build: it took no time and needs no action.)
+ * asked for. Where the app build is kept is the next step's to say.
  */
 export function renderAppBuildCached(platform: Platform): string {
   return renderTestStep({ name: builtTheApp(platform), alreadyDone: true });
 }
 
 /**
- * `✔ Built the Android app      in 1m 28s, native code changed since Test 12 (log: .sherlo/build-android.log)`,
- * and the native changes under it; a first build gives no reason, and neither does `sherlo build`,
- * whose next step says where the app build is kept.
+ * `sherlo build` built an app: `✔ Built the Android app      in 1m 28s (log: .sherlo/build-android.log)`.
+ * It gives no reason: its next step says where the app build is kept.
  */
 export function renderAppBuildDone({
   platform,
   seconds,
   logPath,
-  why,
-  command,
 }: {
   platform: Platform;
   seconds: number;
   logPath: string;
-  why?: WhyANewAppBuild;
-  command: AppBuildCommand;
-}): string[] {
-  const after = command === 'test' && why ? whyBuilt(why) : undefined;
-  const detail = `in ${formatBuildDuration(seconds)}${after ? `, ${after}` : ''} ${chalk.dim(
-    `(log: ${logPath})`
-  )}`;
-
-  return [renderTestStep({ name: builtTheApp(platform), detail }), ...changesUnder(why)];
+}): string {
+  return renderTestStep({
+    name: builtTheApp(platform),
+    detail: `in ${formatBuildDuration(seconds)} ${chalk.dim(`(log: ${logPath})`)}`,
+  });
 }
 
 /**
@@ -179,47 +137,29 @@ export function renderAppBuildNextStep(): string[] {
 }
 
 /**
- * The failed build, in init's failed-step shape: what changed since the stored app build (the
- * likely cause, so it sits right above the error), the build tool's last lines quoted, where the
- * whole log is, what to do - and the help block, because the run ends here.
+ * `sherlo build`'s failed build, in init's failed-step shape: the build tool's last lines quoted,
+ * where the whole log is, what to do - and the help block, because the run ends here.
+ * (`sherlo test`'s failed build is the failed platform's row, ./runRows.)
  */
 export function renderAppBuildFailed({
   platform,
   seconds,
   lastLines,
   logPath,
-  why,
-  command,
-  project,
 }: {
   platform: Platform;
   seconds: number;
   lastLines: string[];
   logPath: string;
-  why?: WhyANewAppBuild;
-  command: AppBuildCommand;
-  /** The project the run pushes to, when it knows one: the CI pointer links its page. */
-  project?: SherloProject;
 }): string[] {
-  const changes = changesUnder(why);
-  const changesBlock =
-    changes.length > 0
-      ? [`Native code changed since Test ${why!.changesSince!.storedBuildIndex}:`, ...changes, '']
-      : [];
-  const whatNow =
-    command === 'test'
-      ? `Nothing was uploaded and no test was started. Fix the build, then run ${chalk.cyan('npx sherlo test')} again.`
-      : `Fix the build, then run ${chalk.cyan('npx sherlo build')} again.`;
-
   return [
     ...renderFailedTestStep(`Building the ${PLATFORM_LABEL[platform]} app`),
-    ...changesBlock,
     `The build failed after ${formatBuildDuration(seconds)}. Last lines of the log:`,
     ...lastLines.map((line) => chalk.dim(`   | ${line}`)),
     '',
     `Full log: ${logPath}`,
-    whatNow,
-    renderRunOnCi(project),
+    `Fix the build, then run ${chalk.cyan('npx sherlo build')} again.`,
+    renderRunOnCi(),
     '',
     ...renderHelpBlock(),
   ];
@@ -241,11 +181,6 @@ export function renderRunOnCi(project?: SherloProject): string {
   return `Can't build here? Run Sherlo on your CI instead: ${chalk.cyan(link)}`;
 }
 
-/** `🤖 Android`, `🤖 Android and 🍎 iOS`. */
-function namePlatforms(platforms: Platform[]): string {
-  return platforms.map(platformWithEmoji).join(' and ');
-}
-
 /** The profile reads variables kept on Expo's servers, which a build on this machine cannot read. */
 export function renderEasHostedVariables(profile: string, environment: string): string[] {
   return [
@@ -255,44 +190,6 @@ export function renderEasHostedVariables(profile: string, environment: string): 
     chalk.yellow("  A build on this machine can't read them."),
     chalk.yellow('  If the app needs them, set them in sherlo.config.json "build.env".'),
   ];
-}
-
-/**
- * The run is open and waits for app builds still to come - what became of the test, so it is the
- * one line these runs print about it:
- *
- *     ✔ Opened Test 1          starts when 🍎 iOS arrives from the other job
- *     ✔ Opened Test 1          starts when the 🤖 Android and 🍎 iOS EAS builds finish
- *     ✔ Added to Test 1        🤖 Android is in, waiting for 🍎 iOS
- *
- * The last is the EAS build that delivered its own platform first: the run was opened by
- * `sherlo test`, and this build only joined it. The last app build in starts the test, and says so
- * with the ordinary `Started Test N` line (./testSteps `renderTestStarted`).
- */
-export function renderRunWaitsForBuilds(buildIndex: number, waitingFor: RunWaitsFor): string {
-  if ('easBuild' in waitingFor) {
-    const arrived: Platform = waitingFor.easBuild === 'ios' ? 'android' : 'ios';
-    return renderTestStep({
-      name: `Added to Test ${buildIndex}`,
-      detail: `${platformWithEmoji(arrived)} is in, waiting for ${platformWithEmoji(waitingFor.easBuild)}`,
-    });
-  }
-
-  return renderTestStep({
-    name: `Opened Test ${buildIndex}`,
-    detail: `starts when ${whatTheRunWaitsFor(waitingFor)}`,
-  });
-}
-
-/** What an opened run still waits for: the other job's platform, or the EAS builds it started. */
-function whatTheRunWaitsFor(waitingFor: Exclude<RunWaitsFor, { easBuild: Platform }>): string {
-  if ('otherJob' in waitingFor) {
-    return `${platformWithEmoji(waitingFor.otherJob)} arrives from the other job`;
-  }
-
-  return waitingFor.easBuilds.length > 1
-    ? `the ${namePlatforms(waitingFor.easBuilds)} EAS builds finish`
-    : `the ${namePlatforms(waitingFor.easBuilds)} EAS build finishes`;
 }
 
 /**
@@ -325,19 +222,4 @@ export function renderPlatformUnknown(givenPlatform: string): { message: string;
     message: `\`--platform\` takes \`android\` or \`ios\`, not \`${givenPlatform}\`.`,
     below: 'Leave `--platform` out to test both platforms in one job.',
   };
-}
-
-/**
- * `✔ Skipped iOS            sherlo.config.json lists no iOS device` - "Skipped" already says this
- * job has nothing to run.
- *
- * The one line a `--platform` job prints when the config tests nothing on its platform - the Mac
- * job of an Android-only team running the one workflow every team gets. It exits 0 and joins no
- * run, so the other job's run never waits for it. Draft words, for the content department's review.
- */
-export function renderPlatformNotInConfig(platform: Platform): string {
-  return renderTestStep({
-    name: `Skipped ${PLATFORM_LABEL[platform]}`,
-    detail: `sherlo.config.json lists no ${PLATFORM_LABEL[platform]} device`,
-  });
 }

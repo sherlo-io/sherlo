@@ -529,7 +529,7 @@ describe('live capture plan', () => {
     return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
   }
 
-  it('Case 2: partial capture WITH a per-platform reason - the fraction on the started line, no reason and no story list', async () => {
+  it('Case 2: partial capture WITH a per-platform reason - the fraction on the test's row, the story files under it, and no reason', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -561,10 +561,12 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Started Test 7         2 of 22 stories on 1 device');
-    // The reason and the story files of a partial capture are `sherlo view <n> --json`'s.
+    expect(out).toContain('Test 7      ✔ Started: 2 of 22 stories on 1 device');
+    // The reason a partial capture took what it took is `sherlo view <n> --json`'s; the story files
+    // it captures are listed under the test's row, each one a change reaches marked `~`.
     expect(out).not.toContain('SharedButton.tsx changed');
-    expect(out).not.toContain('Storefront/Storefront');
+    expect(out).toContain('~ src/components/Storefront/Storefront.stories.tsx');
+    expect(out).toContain('~ src/components/Cart/Cart.stories.tsx');
     expect(out).not.toContain('Planned the capture');
 
     logSpy.mockRestore();
@@ -590,7 +592,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Started Test 7         all 22 stories on 1 device');
+    expect(out).toContain('Test 7      ✔ Started: all 22 stories on 1 device');
     expect(out).not.toContain('everything re-shot');
     // Inversion: an empty list on a full capture is "everything", never "nothing".
     expect(out).not.toContain('capturing 0');
@@ -621,7 +623,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // A decision of none that the server did not close at open still starts the test.
-    expect(out).toContain('✔ Started Test 7         0 of 22 stories on 1 device');
+    expect(out).toContain('Test 7      ✔ Started: 0 of 22 stories on 1 device');
     expect(out).not.toContain('no change reaches any story');
     // No "Build created" line (SHERLO-1937) - the Review URL is the ending.
     expect(out).not.toContain('Build created');
@@ -647,7 +649,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Started Test 7         all 22 stories on 1 device\n');
+    expect(out).toContain('Test 7      ✔ Started: all 22 stories on 1 device\n');
     expect(out).not.toContain("couldn't work out");
 
     logSpy.mockRestore();
@@ -678,8 +680,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Started Test 7         1 of 8 stories on 1 device');
-    expect(out).not.toContain('x/X');
+    expect(out).toContain('Test 7      ✔ Started: 1 of 8 stories on 1 device');
+    // The story file is listed under the row, by its path while the module map gives no title.
+    expect(out).toContain('~ src/components/x/X.stories.tsx');
 
     logSpy.mockRestore();
   });
@@ -697,7 +700,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // No count: no assertion of a decision the server never made.
-    expect(out).toContain('✔ Started Test 7         on 1 device');
+    expect(out).toContain('Test 7      ✔ Started: on 1 device');
     expect(out).not.toContain('stories');
     // No "Build created" line (SHERLO-1937) - the link is never withheld though.
     expect(out).not.toContain('Build created');
@@ -742,7 +745,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      '✔ Started Test 7         🍎 iOS 1 of 22 stories, 🤖 Android 0 of 22 stories, on 2 devices'
+      'Test 7      ✔ Started: 🍎 iOS 1 of 22 stories, 🤖 Android 0 of 22 stories, on 2 devices'
     );
     // No "Build created" line (SHERLO-1937) - even though iOS captured a story,
     // there is no "- running on devices" suffix either.
@@ -817,7 +820,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      '✔ Started Test 7         🍎 iOS all 10 stories, 🤖 Android 1 of 10 stories, on 2 devices'
+      'Test 7      ✔ Started: 🍎 iOS all 10 stories, 🤖 Android 1 of 10 stories, on 2 devices'
     );
 
     logSpy.mockRestore();
@@ -857,7 +860,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // The exact fraction is pinned so the invariant is stated, not inferred.
-    expect(out).toContain('✔ Started Test 7         2 of 22 stories');
+    expect(out).toContain('Test 7      ✔ Started: 2 of 22 stories');
 
     logSpy.mockRestore();
   });
@@ -990,7 +993,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Finished Test 7        nothing to test: no change reaches any story');
+    expect(out).toContain('Test 7      ✔ Finished: nothing to test: no change reaches any story');
     // The whole point: no URL of any kind on the bypassed path.
     expect(out).not.toContain('🔗 Review');
     expect(out).not.toContain('http://app/build');
@@ -1061,12 +1064,12 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
     await stagedRun(mockOptions());
 
-    // The test ends on its one finished step: no started step, no next step, no link.
+    // The test ends on its row, finished: no started row, no next step, no link.
     const out = printed(logSpy);
     expect(
-      out.endsWith('✔ Finished Test 7        nothing to test: no change reaches any story')
+      out.endsWith('Test 7      ✔ Finished: nothing to test: no change reaches any story')
     ).toBe(true);
-    expect(out).not.toContain('Started Test');
+    expect(out).not.toContain('Started:');
     expect(out).not.toContain('Next step');
 
     logSpy.mockRestore();

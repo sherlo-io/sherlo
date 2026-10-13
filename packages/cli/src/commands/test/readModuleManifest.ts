@@ -25,7 +25,15 @@ export type ModuleManifest = {
   header: Record<string, unknown>;
   moduleHashes: Record<string, unknown>;
   storyClosures: Record<string, unknown>;
+  /**
+   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): per story file, its Storybook
+   * title and how many stories it holds. The serializer does not write it yet.
+   */
+  storyTitles?: Record<string, StoryFileTitle>;
 };
+
+/** A story file as the web app names it: `Storefront/ProductCard`, holding 3 stories. */
+export type StoryFileTitle = { title: string; stories: number };
 
 export type ValidatedModuleManifest = {
   /** The sidecar bytes exactly as written by the serializer (ready to gzip + upload). */
@@ -144,6 +152,9 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
       header: parsed.header,
       moduleHashes: parsed.moduleHashes,
       storyClosures: parsed.storyClosures,
+      ...(isPlainObject(parsed.storyTitles)
+        ? { storyTitles: parsed.storyTitles as Record<string, StoryFileTitle> }
+        : {}),
     },
   };
 }
@@ -162,7 +173,21 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
  * number "in this bundle" to say so.
  */
 export function countBundleStories(manifest: ValidatedModuleManifest): number {
-  return Object.keys(manifest.parsed.storyClosures).length;
+  return countStoriesIn(manifest, bundleStoryFiles(manifest));
+}
+
+/**
+ * How many stories these story files hold: each file's own count where the module map records
+ * titles, one per file where it does not.
+ */
+export function countStoriesIn(manifest: ValidatedModuleManifest, files: string[]): number {
+  const titles = manifest.parsed.storyTitles;
+  return files.reduce((total, file) => total + (titles?.[file]?.stories ?? 1), 0);
+}
+
+/** Every story file the bundle holds. */
+export function bundleStoryFiles(manifest: ValidatedModuleManifest): string[] {
+  return Object.keys(manifest.parsed.storyClosures);
 }
 
 export default readValidatedModuleManifest;

@@ -40,7 +40,26 @@
           "devices": [
             { "id": "pixel.7", "osVersion": "13", "theme": "light", "locale": "en_US", "fontScale": "1" }
           ],
-          "capture": [{ "platform": "android", "full": true, "capturedStories": 0, "storiesInBundle": 2 }]
+          "capture": [
+            {
+              "platform": "android",
+              "full": true,
+              "capturedStories": 0,
+              "storiesInBundle": 5,
+              "storyFiles": [
+                "src/components/Storefront/ProductCard.stories.tsx",
+                "src/components/Storefront/Checkout.stories.tsx"
+              ],
+              "newStoryFiles": [
+                "src/components/Storefront/ProductCard.stories.tsx",
+                "src/components/Storefront/Checkout.stories.tsx"
+              ],
+              "storyTitles": {
+                "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
+                "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+              }
+            }
+          ]
         }
       }
     }

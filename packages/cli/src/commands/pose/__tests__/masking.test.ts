@@ -315,7 +315,7 @@ describe('the masker folds every volatile class the tool prints', () => {
 
   it('never folds a value the pose declares - a story count, a wait deadline, a branch name', () => {
     const declared = [
-      '✔ Started Test 4         on 1 device (Pixel 7)',
+      'Test 4      ✔ Started: all 5 stories on 1 device (Pixel 7)',
       'Waiting for the test to finish (up to 45 min)...',
       '   Finished',
       '',
@@ -330,7 +330,7 @@ describe('the masker folds every volatile class the tool prints', () => {
 
     // A story count, a deadline, a screen's name, a branch outside a run namespace, an exit code:
     // every one of them is something the scenario SAID, and the reason its screen exists.
-    expect(folded).toContain('✔ Started Test 4         on 1 device (Pixel 7)');
+    expect(folded).toContain('Test 4      ✔ Started: all 5 stories on 1 device (Pixel 7)');
     expect(folded).toContain('(up to 45 min)');
     expect(folded).toContain('Storefront/ProductCard - Default   changed');
     expect(folded).toContain('3 more stories need no review.');

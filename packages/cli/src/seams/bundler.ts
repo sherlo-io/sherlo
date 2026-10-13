@@ -11,6 +11,7 @@
  */
 import { Platform } from '@sherlo/api-types';
 import type { GateMetadataInput } from '../helpers/fingerprint';
+import type { StoryFileTitle } from '../commands/test/readModuleManifest';
 import {
   buildBundleForPlatform,
   buildGateMetadata,
@@ -64,6 +65,12 @@ export type PosedBundle = {
    * line then reads "all stories", with no count.
    */
   storyClosureKeys: string[] | null;
+  /**
+   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): per story file, its Storybook
+   * title and how many stories it holds, as the module map would record them. The module map does
+   * not record them yet.
+   */
+  storyTitles?: Record<string, StoryFileTitle>;
 };
 
 /**
@@ -102,7 +109,9 @@ export function posedBundler(bundles: Record<string, PosedBundle>): Bundler {
         // `null` poses a bundle that came with no module map at all - the same shape a real
         // bundle carries when Metro is configured without Sherlo's wrapper.
         moduleManifest:
-          posed.storyClosureKeys === null ? undefined : moduleManifestOf(posed.storyClosureKeys),
+          posed.storyClosureKeys === null
+            ? undefined
+            : moduleManifestOf(posed.storyClosureKeys, posed.storyTitles),
       };
     },
 
@@ -116,12 +125,16 @@ export function posedBundler(bundles: Record<string, PosedBundle>): Bundler {
 /* ========================================================================== */
 
 /** The module manifest a posed bundle carries: its story closures, and nothing invented. */
-function moduleManifestOf(storyClosureKeys: string[]): BundleResult['moduleManifest'] {
+function moduleManifestOf(
+  storyClosureKeys: string[],
+  storyTitles: Record<string, StoryFileTitle> | undefined
+): BundleResult['moduleManifest'] {
   const parsed = {
     version: 1,
     header: {},
     moduleHashes: {},
     storyClosures: Object.fromEntries(storyClosureKeys.map((key) => [key, []])),
+    ...(storyTitles ? { storyTitles } : {}),
   };
 
   return { raw: Buffer.from(JSON.stringify(parsed)), parsed };

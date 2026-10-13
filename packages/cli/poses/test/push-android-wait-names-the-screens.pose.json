@@ -32,8 +32,14 @@
       ],
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
-        "src/components/Storefront/Checkout.stories.tsx"
-      ]
+        "src/components/Storefront/Checkout.stories.tsx",
+        "src/components/Typography.stories.tsx"
+      ],
+      "storyTitles": {
+        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 2 },
+        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 3 },
+        "src/components/Typography.stories.tsx": { "title": "Typography", "stories": 1 }
+      }
     }
   },
   "api": [

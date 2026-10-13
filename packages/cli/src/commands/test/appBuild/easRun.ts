@@ -44,6 +44,7 @@ import type { CommandParams } from '../../../types';
 import { whileShowing } from '../../shared/terminal';
 import { createSherloTempDirectory } from '../../testEasCloudBuild/helpers';
 import { closeTheRun } from '../closeTheRun';
+import { recordPlatformRow, takeRowsAbove } from '../platformRows';
 import type { THIS_COMMAND } from '../constants';
 import { type BuildSettings, DEFAULT_EAS_PROFILE } from './buildSettings';
 import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
@@ -96,15 +97,23 @@ export async function easRun({
   // and each build reads which run it belongs to out of this file.
   createSherloTempDirectory({ projectRoot: commandParams.projectRoot, buildIndex, token, profile });
 
-  // Starting them is only a wait, so it leaves no line: the `Opened Test N` line names the EAS
-  // builds the test waits for (operator ruling 2026-10-13).
+  // Starting them is only a wait, so it leaves no line of its own: each platform's row says it is
+  // building on EAS, and the test's row that it starts when they finish.
   await whileShowing({ kind: 'eas-builds-starting', platforms }, async () => {
     for (const platform of platforms) {
       await appBuilder().startEasBuild({ platform, profile, projectRoot: commandParams.projectRoot });
     }
   });
 
-  emit({ kind: 'run-waits-for-builds', buildIndex, waitingFor: { easBuilds: platforms } });
+  for (const platform of platforms) {
+    recordPlatformRow({ platform, appBuild: 'building-on-eas' });
+  }
+  emit({
+    kind: 'run-waits-for-builds',
+    buildIndex,
+    waitingFor: { easBuilds: platforms },
+    rowsAbove: takeRowsAbove(),
+  });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 

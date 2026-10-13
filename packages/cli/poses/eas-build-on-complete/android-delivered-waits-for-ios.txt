@@ -12,7 +12,10 @@
 
 Sending your EAS build to Sherlo...
 
-[32m✔[39m Added to Test 1        🤖 Android is in, waiting for 🍎 iOS
+🤖 Android  [32m✔[39m Built on EAS
+🍎 iOS      [2m…[22m Still building on EAS
+
+Test 1      [32m✔[39m Added: starts when the 🍎 iOS EAS build finishes
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

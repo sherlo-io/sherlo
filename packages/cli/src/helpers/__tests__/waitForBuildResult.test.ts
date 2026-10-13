@@ -205,9 +205,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      // One finished step, naming the test, directly under the steps above it.
+      // The test's row, finished - with no platform rows, since `sherlo view` recorded none.
       expect(printed).toBe(
-        `✔ Finished Test ${BUILD_INDEX}        nothing to test: no change reaches any story`
+        `Test ${BUILD_INDEX}      ✔ Finished: nothing to test: no change reaches any story`
       );
 
       // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
@@ -243,9 +243,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      // The finished step, in init's grammar, with the server's own reason after "nothing to
-      // test" (operator rulings 2026-10-12 and 2026-10-13).
-      expect(printed).toContain(`Finished Test ${BUILD_INDEX}`);
+      // The test's row, finished, with the server's own reason after "nothing to test" (operator
+      // rulings 2026-10-12 and 2026-10-13).
+      expect(printed).toContain(`Test ${BUILD_INDEX}      ✔ Finished:`);
       expect(printed).toContain('nothing to test: no change reaches any story');
       expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');

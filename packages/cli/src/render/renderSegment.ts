@@ -40,7 +40,6 @@ import {
   renderAppBuildFailed,
   renderAppBuildNextStep,
   renderEasHostedVariables,
-  renderRunWaitsForBuilds,
 } from './appBuild';
 import {
   renderBuildMessageLine,
@@ -50,13 +49,20 @@ import {
 } from './pushSpine';
 import { renderStepInProgress } from './stepInProgress';
 import {
+  renderFinishedUnderTheTestRow,
+  renderPlatformRow,
+  renderTestFinishedWithNothingToTest,
+  renderTestStarted,
+  renderTestStoppedOnFailedBuild,
+  renderTestWaiting,
+} from './runRows';
+import {
   platformWithEmoji,
   renderCommandIntro,
   renderFailedTestStep,
   renderHelpBlock,
   renderReviewLink,
   renderTestNextStep,
-  renderTestStarted,
   renderTestStep,
 } from './testSteps';
 import { renderProjectCreated } from './projectCreated';
@@ -82,7 +88,6 @@ import {
   renderVerdictPassed,
   renderVerdictReviewRequired,
   renderVerdictRunErrored,
-  renderVerdictServerBypassed,
   renderTestFinished,
   renderWaitAuthFailed,
   renderWaitBuildNotFound,
@@ -247,8 +252,11 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         ],
       };
 
+    case 'platform-row':
+      return { stream: 'stdout', prints: renderPlatformRow(segment.row).map((line) => [line]) };
+
     case 'test-started':
-      return { stream: 'stdout', prints: [[renderTestStarted(segment)]] };
+      return { stream: 'stdout', prints: renderTestStarted(segment).map((line) => [line]) };
 
     case 'notice':
       return {
@@ -286,10 +294,16 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return { stream: 'stdout', prints: [[renderAppBuildCached(segment.platform)]] };
 
     case 'app-build-done':
-      return { stream: 'stdout', prints: renderAppBuildDone(segment).map((line) => [line]) };
+      return { stream: 'stdout', prints: [[renderAppBuildDone(segment)]] };
 
     case 'app-build-failed':
       return { stream: 'stdout', prints: renderAppBuildFailed(segment).map((line) => [line]) };
+
+    case 'test-stopped-on-failed-build':
+      return {
+        stream: 'stdout',
+        prints: renderTestStoppedOnFailedBuild(segment).map((line) => [line]),
+      };
 
     case 'app-build-next-step':
       return { stream: 'stdout', prints: renderAppBuildNextStep().map((line) => [line]) };
@@ -301,10 +315,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'run-waits-for-builds':
-      return {
-        stream: 'stdout',
-        prints: [[renderRunWaitsForBuilds(segment.buildIndex, segment.waitingFor)]],
-      };
+      return { stream: 'stdout', prints: renderTestWaiting(segment).map((line) => [line]) };
 
     case 'output-keys':
       return {
@@ -321,9 +332,16 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return { stream: 'stdout', prints: [[]] };
 
     case 'test-finished':
+      // `sherlo test --wait` printed the test's row, and the step stands under it.
       return {
         stream: 'stdout',
-        prints: [[renderTestFinished(segment.testIndex, segment.seconds)]],
+        prints: [
+          [
+            segment.seconds !== undefined
+              ? renderFinishedUnderTheTestRow(segment.seconds)
+              : renderTestFinished(segment.testIndex),
+          ],
+        ],
       };
 
     case 'wait-progress':
@@ -359,7 +377,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-server-bypassed':
       return {
         stream: 'stdout',
-        prints: renderVerdictServerBypassed(segment.reason, segment.testIndex).map((line) => [line]),
+        prints: renderTestFinishedWithNothingToTest(segment).map((line) => [line]),
       };
 
     case 'verdict-review-required':

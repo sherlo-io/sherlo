@@ -154,14 +154,14 @@ const PINS: Pin[] = [
     what: "the android bundle-start line as a log shows it - a step in progress, plain, printed once (a terminal shows the same words as a spinner's)",
     segment: { kind: 'platform-bundle-start', platform: 'android' },
     stream: 'stdout',
-    prints: [['Bundling the JavaScript for 🤖 Android...']],
+    prints: [['🤖 Android  Bundling the JavaScript...']],
   },
   {
     kind: 'platform-bundle-start',
-    what: 'the ios bundle-start line (the apple emoji, and the platform as the product spells it)',
+    what: "the ios bundle-start line - the platform's label padded to the rows' column, so the words line up with Android's",
     segment: { kind: 'platform-bundle-start', platform: 'ios' },
     stream: 'stdout',
-    prints: [['Bundling the JavaScript for 🍎 iOS...']],
+    prints: [['🍎 iOS      Bundling the JavaScript...']],
   },
   {
     kind: 'platform-bundle-built',
@@ -333,7 +333,7 @@ const PINS: Pin[] = [
     what: 'the upload naming its platform, as a log shows it',
     segment: { kind: 'binary-uploading', sizeMb: '61.4', platform: 'android' },
     stream: 'stdout',
-    prints: [['Uploading the 🤖 Android app build (61.4 MB)...']],
+    prints: [['🤖 Android  Uploading the app build (61.4 MB)...']],
   },
   {
     kind: 'binary-upload-retry',
@@ -351,7 +351,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'test-started',
-    what: 'the step that started the test, with no capture decision recorded - only the devices the config names',
+    what: "the test's row with no capture decision recorded and no platform rows - only the devices the config names",
     segment: {
       kind: 'test-started',
       buildIndex: 3,
@@ -359,37 +359,103 @@ const PINS: Pin[] = [
         { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
         { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
       ],
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
     },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 3         on 2 devices (Pixel 4 XL, iPhone 14)`]],
+    prints: [[`Test 3      ${ESC}[32m✔${ESC}[39m Started: on 2 devices (Pixel 4 XL, iPhone 14)`]],
   },
   {
     kind: 'test-started',
-    what: 'the last app build in starts the test from a print site that knows neither devices nor capture - the line ends at the test',
-    segment: { kind: 'test-started', buildIndex: 1 },
+    what: 'a print site that knows neither devices nor capture - the row ends at Started',
+    segment: { kind: 'test-started', buildIndex: 1, rowsAbove: { rows: [], printedAsTheyHappened: false } },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 1`]],
+    prints: [[`Test 1      ${ESC}[32m✔${ESC}[39m Started`]],
   },
   {
     kind: 'test-started',
-    what: 'both platforms capture the same part of the bundle - one count, and no reason or story files',
+    what: "the platforms' rows, Android first, a blank line, the test's row, and under it the story files by title - new first, then changed, then the rest unmarked; a file one platform has says which",
     segment: {
       kind: 'test-started',
-      buildIndex: 14,
+      buildIndex: 4,
       devices: [
         { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
         { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
       ],
       capture: [
-        { platform: 'android', full: false, capturedStories: 3, storiesInBundle: 24, reason: 'a.tsx changed' },
-        { platform: 'ios', full: false, capturedStories: 3, storiesInBundle: 24, reason: 'a.tsx changed' },
+        {
+          platform: 'android',
+          full: true,
+          capturedStories: 0,
+          storiesInBundle: 7,
+          storyFiles: ['a/Cart.stories.tsx', 'a/Checkout.stories.tsx', 'a/ProductCard.stories.tsx', 'a/Maps.stories.tsx'],
+          newStoryFiles: ['a/Checkout.stories.tsx'],
+          changedStoryFiles: ['a/ProductCard.stories.tsx'],
+          storyTitles: {
+            'a/Cart.stories.tsx': { title: 'Storefront/Cart', stories: 1 },
+            'a/Checkout.stories.tsx': { title: 'Storefront/Checkout', stories: 2 },
+            'a/ProductCard.stories.tsx': { title: 'Storefront/ProductCard', stories: 3 },
+            'a/Maps.stories.tsx': { title: 'Storefront/Maps', stories: 1 },
+          },
+        },
+        {
+          platform: 'ios',
+          full: true,
+          capturedStories: 0,
+          storiesInBundle: 6,
+          storyFiles: ['a/Cart.stories.tsx', 'a/Checkout.stories.tsx', 'a/ProductCard.stories.tsx'],
+          newStoryFiles: ['a/Checkout.stories.tsx'],
+          changedStoryFiles: ['a/ProductCard.stories.tsx'],
+        },
       ],
+      rowsAbove: {
+        rows: [
+          { platform: 'ios', appBuild: 'reused-from-test', testIndex: 3 },
+          { platform: 'android', appBuild: 'reused-from-local-build-cache' },
+        ],
+        printedAsTheyHappened: false,
+      },
     },
     stream: 'stdout',
     prints: [
+      [`🤖 Android  ${ESC}[32m✔${ESC}[39m Reused from the local build cache`],
+      [`🍎 iOS      ${ESC}[32m✔${ESC}[39m Reused from Test 3`],
+      [''],
       [
-        `${ESC}[32m✔${ESC}[39m Started Test 14        3 of 24 stories on 2 devices (Pixel 4 XL, iPhone 14)`,
+        `Test 4      ${ESC}[32m✔${ESC}[39m Started: 🤖 Android all 7 stories, 🍎 iOS all 6 stories, on 2 devices (Pixel 4 XL, iPhone 14)`,
       ],
+      [`              ${ESC}[32m+${ESC}[39m Storefront/Checkout ${ESC}[2m(2 stories)${ESC}[22m`],
+      [`              ${ESC}[33m~${ESC}[39m Storefront/ProductCard ${ESC}[2m(3 stories)${ESC}[22m`],
+      [`                Storefront/Cart ${ESC}[2m(1 story)${ESC}[22m`],
+      [
+        `                Storefront/Maps ${ESC}[2m(1 story)${ESC}[22m ${ESC}[2m(🤖 Android only)${ESC}[22m`,
+      ],
+    ],
+  },
+  {
+    kind: 'test-started',
+    what: 'a story file with no title known is named by its path; past ten files the rest are counted - and in a log only the blank line under the rows is left to print',
+    segment: {
+      kind: 'test-started',
+      buildIndex: 14,
+      capture: [
+        {
+          platform: 'android',
+          full: false,
+          capturedStories: 11,
+          storyFiles: Array.from({ length: 11 }, (_, file) => `s/${file}.stories.tsx`),
+        },
+      ],
+      rowsAbove: {
+        rows: [{ platform: 'android', appBuild: 'reused-from-test', testIndex: 13 }],
+        printedAsTheyHappened: true,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`Test 14     ${ESC}[32m✔${ESC}[39m Started: 11 stories`],
+      ...Array.from({ length: 10 }, (_, file) => [`                s/${file}.stories.tsx`]),
+      [`              ${ESC}[2m  and 1 more${ESC}[22m`],
     ],
   },
   {
@@ -408,33 +474,35 @@ const PINS: Pin[] = [
           reason: 'no main branch is set',
         },
       ],
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
     },
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Started Test 1         all 24 stories on 1 device (Pixel 4 XL), no main branch is set`,
+        `Test 1      ${ESC}[32m✔${ESC}[39m Started: all 24 stories on 1 device (Pixel 4 XL), no main branch is set`,
       ],
     ],
   },
   {
     kind: 'test-started',
-    what: 'the platforms capture differently - each its own count, and no reason, since not every story is captured',
+    what: 'both platforms capture the same part of the bundle - one count, and no reason',
     segment: {
       kind: 'test-started',
-      buildIndex: 4,
+      buildIndex: 14,
       devices: [
         { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
         { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
       ],
       capture: [
-        { platform: 'android', full: false, capturedStories: 3, storiesInBundle: 24 },
-        { platform: 'ios', full: true, capturedStories: 0, storiesInBundle: 24, reason: 'no main branch is set' },
+        { platform: 'android', full: false, capturedStories: 3, storiesInBundle: 24, reason: 'a.tsx changed' },
+        { platform: 'ios', full: false, capturedStories: 3, storiesInBundle: 24, reason: 'a.tsx changed' },
       ],
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
     },
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Started Test 4         🤖 Android 3 of 24 stories, 🍎 iOS all 24 stories, on 2 devices (Pixel 4 XL, iPhone 14)`,
+        `Test 14     ${ESC}[32m✔${ESC}[39m Started: 3 of 24 stories on 2 devices (Pixel 4 XL, iPhone 14)`,
       ],
     ],
   },
@@ -516,61 +584,14 @@ const PINS: Pin[] = [
     what: 'expo prebuild as a log shows it - a step in progress, plain',
     segment: { kind: 'app-build-generating', platform: 'android' },
     stream: 'stdout',
-    prints: [['Generating the Android folder with expo prebuild...']],
+    prints: [['🤖 Android  Generating the native folder with expo prebuild...']],
   },
   {
     kind: 'app-build-compiling',
     what: 'the compile as a log shows it - a step in progress, plain, naming the build tool',
     segment: { kind: 'app-build-compiling', platform: 'ios' },
     stream: 'stdout',
-    prints: [['Building the iOS app with Xcode...']],
-  },
-  {
-    kind: 'app-build-done',
-    what: 'an app build made here, with the time it took, why, the log, and the native changes under it',
-    segment: {
-      kind: 'app-build-done',
-      platform: 'android',
-      seconds: 88,
-      logPath: '.sherlo/build-android.log',
-      command: 'test',
-      why: {
-        reason: 'native-changed',
-        changesSince: {
-          storedBuildIndex: 12,
-          changes: [
-            { change: 'changed', file: 'android/app/build.gradle' },
-            { change: 'added', module: 'react-native-maps', version: '1.3.0' },
-          ],
-        },
-      },
-    },
-    stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Built the Android app  in 1m 28s, native code changed since Test 12 ${ESC}[2m(log: .sherlo/build-android.log)${ESC}[22m`,
-      ],
-      [`   ${ESC}[33m~${ESC}[39m android/app/build.gradle`],
-      [`   ${ESC}[32m+${ESC}[39m react-native-maps 1.3.0`],
-    ],
-  },
-  {
-    kind: 'app-build-done',
-    what: 'a first app build made here gives no reason - there was nothing to reuse',
-    segment: {
-      kind: 'app-build-done',
-      platform: 'android',
-      seconds: 252,
-      logPath: '.sherlo/build-android.log',
-      command: 'test',
-      why: { reason: 'nothing-stored' },
-    },
-    stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Built the Android app  in 4m 12s ${ESC}[2m(log: .sherlo/build-android.log)${ESC}[22m`,
-      ],
-    ],
+    prints: [['🍎 iOS      Building the app with Xcode...']],
   },
   {
     kind: 'app-build-done',
@@ -580,7 +601,6 @@ const PINS: Pin[] = [
       platform: 'ios',
       seconds: 42,
       logPath: '.sherlo/build-ios.log',
-      command: 'build',
     },
     stream: 'stdout',
     prints: [
@@ -591,15 +611,13 @@ const PINS: Pin[] = [
   },
   {
     kind: 'app-build-failed',
-    what: "the failed build in init's failed-step shape, the log's last lines, what to do, and the help block",
+    what: "`sherlo build`'s failed build in init's failed-step shape, the log's last lines, what to do, and the help block",
     segment: {
       kind: 'app-build-failed',
       platform: 'android',
       seconds: 72,
       lastLines: ['BUILD FAILED in 1m 12s'],
       logPath: '.sherlo/build-android.log',
-      command: 'test',
-      why: { reason: 'nothing-stored' },
     },
     stream: 'stdout',
     prints: [
@@ -609,6 +627,81 @@ const PINS: Pin[] = [
       [`${ESC}[2m   | BUILD FAILED in 1m 12s${ESC}[22m`],
       [''],
       ['Full log: .sherlo/build-android.log'],
+      [`Fix the build, then run ${ESC}[36mnpx sherlo build${ESC}[39m again.`],
+      [
+        `Can't build here? Run Sherlo on your CI instead: ${ESC}[36mhttps://sherlo.io/docs/testing${ESC}[39m`,
+      ],
+      [''],
+      ...HELP_BLOCK_PRINTS,
+    ],
+  },
+  {
+    kind: 'test-stopped-on-failed-build',
+    what: "`sherlo test` stopped on a failed build: the platforms' rows, Android first, the failed one with what changed, then the log's last lines, what to do - building on CI from the project's page - and help",
+    segment: {
+      kind: 'test-stopped-on-failed-build',
+      rowsAbove: {
+        rows: [
+          {
+            platform: 'ios',
+            appBuild: 'build-failed',
+            seconds: 30,
+            logPath: '.sherlo/build-ios.log',
+            why: {
+              reason: 'native-changed',
+              changesSince: {
+                storedBuildIndex: 12,
+                changes: [{ change: 'changed', file: 'ios/Podfile.lock' }],
+              },
+            },
+          },
+          { platform: 'android', appBuild: 'reused-from-test', testIndex: 12 },
+        ],
+        printedAsTheyHappened: false,
+      },
+      lastLines: ['** BUILD FAILED **'],
+      project: { teamId: 'tm000001', projectIndex: 7 },
+    },
+    stream: 'stdout',
+    prints: [
+      [`🤖 Android  ${ESC}[32m✔${ESC}[39m Reused from Test 12`],
+      [
+        `🍎 iOS      ${ESC}[31m✖${ESC}[39m Build failed after 30s, native code changed since Test 12 ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`,
+      ],
+      [`              ${ESC}[33m~${ESC}[39m ios/Podfile.lock`],
+      [''],
+      ['Last lines of the log:'],
+      [`${ESC}[2m   | ** BUILD FAILED **${ESC}[22m`],
+      [''],
+      [
+        `Nothing was uploaded and no test was started. Fix the build, then run ${ESC}[36mnpx sherlo test${ESC}[39m again.`,
+      ],
+      [
+        `Can't build here? Run Sherlo on your CI instead: ${ESC}[36mhttps://app.sherlo.io/project?t=tm000001&p=7${ESC}[39m`,
+      ],
+      [''],
+      ...HELP_BLOCK_PRINTS,
+    ],
+  },
+  {
+    kind: 'test-stopped-on-failed-build',
+    what: 'in a log the rows already printed when they happened: only the blank line under them is left, then the details',
+    segment: {
+      kind: 'test-stopped-on-failed-build',
+      rowsAbove: {
+        rows: [
+          { platform: 'android', appBuild: 'build-failed', seconds: 72, logPath: '.sherlo/build-android.log' },
+        ],
+        printedAsTheyHappened: true,
+      },
+      lastLines: ['BUILD FAILED in 1m 12s'],
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      ['Last lines of the log:'],
+      [`${ESC}[2m   | BUILD FAILED in 1m 12s${ESC}[22m`],
+      [''],
       [
         `Nothing was uploaded and no test was started. Fix the build, then run ${ESC}[36mnpx sherlo test${ESC}[39m again.`,
       ],
@@ -620,34 +713,100 @@ const PINS: Pin[] = [
     ],
   },
   {
-    kind: 'app-build-failed',
-    what: "a failed build whose run knows its project points to building on CI from the project's page in the web app",
+    kind: 'platform-row',
+    what: "a platform built here: its label padded to the rows' column, the time it took, why, the log, and the native changes under it, starting where the row's words start",
     segment: {
-      kind: 'app-build-failed',
-      platform: 'ios',
-      seconds: 30,
-      lastLines: ['** BUILD FAILED **'],
-      logPath: '.sherlo/build-ios.log',
-      command: 'test',
-      project: { teamId: 'tm000001', projectIndex: 7 },
+      kind: 'platform-row',
+      row: {
+        platform: 'android',
+        appBuild: 'built',
+        seconds: 88,
+        logPath: '.sherlo/build-android.log',
+        why: {
+          reason: 'native-changed',
+          changesSince: {
+            storedBuildIndex: 12,
+            changes: [
+              { change: 'changed', file: 'android/app/build.gradle' },
+              { change: 'added', module: 'react-native-maps', version: '1.3.0' },
+            ],
+          },
+        },
+      },
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[31m✖${ESC}[39m Building the iOS app failed`],
-      [''],
-      ['The build failed after 30s. Last lines of the log:'],
-      [`${ESC}[2m   | ** BUILD FAILED **${ESC}[22m`],
-      [''],
-      ['Full log: .sherlo/build-ios.log'],
       [
-        `Nothing was uploaded and no test was started. Fix the build, then run ${ESC}[36mnpx sherlo test${ESC}[39m again.`,
+        `🤖 Android  ${ESC}[32m✔${ESC}[39m Built in 1m 28s, native code changed since Test 12 ${ESC}[2m(log: .sherlo/build-android.log)${ESC}[22m`,
       ],
-      [
-        `Can't build here? Run Sherlo on your CI instead: ${ESC}[36mhttps://app.sherlo.io/project?t=tm000001&p=7${ESC}[39m`,
-      ],
-      [''],
-      ...HELP_BLOCK_PRINTS,
+      [`              ${ESC}[33m~${ESC}[39m android/app/build.gradle`],
+      [`              ${ESC}[32m+${ESC}[39m react-native-maps 1.3.0`],
     ],
+  },
+  {
+    kind: 'platform-row',
+    what: 'a first app build gives no reason - there was nothing to reuse',
+    segment: {
+      kind: 'platform-row',
+      row: {
+        platform: 'ios',
+        appBuild: 'built',
+        seconds: 252,
+        logPath: '.sherlo/build-ios.log',
+        why: { reason: 'nothing-stored' },
+      },
+    },
+    stream: 'stdout',
+    prints: [[`🍎 iOS      ${ESC}[32m✔${ESC}[39m Built in 4m 12s ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`]],
+  },
+  {
+    kind: 'platform-row',
+    what: 'the app build Sherlo holds, reused, naming the test it was built in',
+    segment: { kind: 'platform-row', row: { platform: 'ios', appBuild: 'reused-from-test', testIndex: 3 } },
+    stream: 'stdout',
+    prints: [[`🍎 iOS      ${ESC}[32m✔${ESC}[39m Reused from Test 3`]],
+  },
+  {
+    kind: 'platform-row',
+    what: 'an app build from the local build cache',
+    segment: { kind: 'platform-row', row: { platform: 'android', appBuild: 'reused-from-local-build-cache' } },
+    stream: 'stdout',
+    prints: [[`🤖 Android  ${ESC}[32m✔${ESC}[39m Reused from the local build cache`]],
+  },
+  {
+    kind: 'platform-row',
+    what: "the other job's platform, in the split job that starts the test",
+    segment: { kind: 'platform-row', row: { platform: 'android', appBuild: 'arrived-from-other-job' } },
+    stream: 'stdout',
+    prints: [[`🤖 Android  ${ESC}[32m✔${ESC}[39m Arrived from the other job`]],
+  },
+  {
+    kind: 'platform-row',
+    what: 'an EAS build `sherlo test` started',
+    segment: { kind: 'platform-row', row: { platform: 'ios', appBuild: 'building-on-eas' } },
+    stream: 'stdout',
+    prints: [[`🍎 iOS      ${ESC}[32m✔${ESC}[39m Building on EAS`]],
+  },
+  {
+    kind: 'platform-row',
+    what: 'an EAS build that is in',
+    segment: { kind: 'platform-row', row: { platform: 'android', appBuild: 'built-on-eas' } },
+    stream: 'stdout',
+    prints: [[`🤖 Android  ${ESC}[32m✔${ESC}[39m Built on EAS`]],
+  },
+  {
+    kind: 'platform-row',
+    what: 'the EAS build still to come, seen from the one that is in - a dim ellipsis where the tick stands',
+    segment: { kind: 'platform-row', row: { platform: 'ios', appBuild: 'still-building-on-eas' } },
+    stream: 'stdout',
+    prints: [[`🍎 iOS      ${ESC}[2m…${ESC}[22m Still building on EAS`]],
+  },
+  {
+    kind: 'platform-row',
+    what: 'a `--platform` job whose config tests nothing on that platform - its one row',
+    segment: { kind: 'platform-row', row: { platform: 'ios', appBuild: 'skipped-not-in-config' } },
+    stream: 'stdout',
+    prints: [[`🍎 iOS      ${ESC}[32m✔${ESC}[39m Skipped: sherlo.config.json lists no iOS device`]],
   },
   {
     kind: 'app-build-next-step',
@@ -684,43 +843,80 @@ const PINS: Pin[] = [
   },
   {
     kind: 'run-waits-for-builds',
-    what: "a split job's run, waiting for the other job's platform",
+    what: "a split job's test, waiting for the other job's platform, under this job's platform row",
     segment: {
       kind: 'run-waits-for-builds',
       buildIndex: 1,
       waitingFor: { otherJob: 'ios' },
-    },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Opened Test 1          starts when 🍎 iOS arrives from the other job`]],
-  },
-  {
-    kind: 'run-waits-for-builds',
-    what: 'an EAS run, waiting for both of its EAS builds',
-    segment: {
-      kind: 'run-waits-for-builds',
-      buildIndex: 1,
-      waitingFor: { easBuilds: ['android', 'ios'] },
+      rowsAbove: {
+        rows: [{ platform: 'android', appBuild: 'reused-from-local-build-cache' }],
+        printedAsTheyHappened: false,
+      },
     },
     stream: 'stdout',
     prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Opened Test 1          starts when the 🤖 Android and 🍎 iOS EAS builds finish`,
-      ],
+      [`🤖 Android  ${ESC}[32m✔${ESC}[39m Reused from the local build cache`],
+      [''],
+      [`Test 1      ${ESC}[32m✔${ESC}[39m Opened: starts when 🍎 iOS arrives from the other job`],
     ],
   },
   {
     kind: 'run-waits-for-builds',
-    what: 'an EAS run, waiting for its one EAS build',
-    segment: { kind: 'run-waits-for-builds', buildIndex: 1, waitingFor: { easBuilds: ['ios'] } },
+    what: 'an EAS test, waiting for both of its EAS builds - the rows above name them',
+    segment: {
+      kind: 'run-waits-for-builds',
+      buildIndex: 1,
+      waitingFor: { easBuilds: ['android', 'ios'] },
+      rowsAbove: {
+        rows: [
+          { platform: 'ios', appBuild: 'building-on-eas' },
+          { platform: 'android', appBuild: 'building-on-eas' },
+        ],
+        printedAsTheyHappened: false,
+      },
+    },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Opened Test 1          starts when the 🍎 iOS EAS build finishes`]],
+    prints: [
+      [`🤖 Android  ${ESC}[32m✔${ESC}[39m Building on EAS`],
+      [`🍎 iOS      ${ESC}[32m✔${ESC}[39m Building on EAS`],
+      [''],
+      [`Test 1      ${ESC}[32m✔${ESC}[39m Opened: starts when both EAS builds finish`],
+    ],
   },
   {
     kind: 'run-waits-for-builds',
-    what: 'the EAS build that delivered first: it says it is in, and what the run waits for',
-    segment: { kind: 'run-waits-for-builds', buildIndex: 1, waitingFor: { easBuild: 'ios' } },
+    what: 'an EAS test, waiting for its one EAS build, in a log that printed the row already',
+    segment: {
+      kind: 'run-waits-for-builds',
+      buildIndex: 1,
+      waitingFor: { easBuilds: ['ios'] },
+      rowsAbove: { rows: [{ platform: 'ios', appBuild: 'building-on-eas' }], printedAsTheyHappened: true },
+    },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Added to Test 1        🤖 Android is in, waiting for 🍎 iOS`]],
+    prints: [[''], [`Test 1      ${ESC}[32m✔${ESC}[39m Opened: starts when the EAS build finishes`]],
+  },
+  {
+    kind: 'run-waits-for-builds',
+    what: 'the EAS build that delivered first: the test it was added to starts when the other one finishes',
+    segment: {
+      kind: 'run-waits-for-builds',
+      buildIndex: 1,
+      waitingFor: { easBuild: 'ios' },
+      rowsAbove: {
+        rows: [
+          { platform: 'android', appBuild: 'built-on-eas' },
+          { platform: 'ios', appBuild: 'still-building-on-eas' },
+        ],
+        printedAsTheyHappened: false,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`🤖 Android  ${ESC}[32m✔${ESC}[39m Built on EAS`],
+      [`🍎 iOS      ${ESC}[2m…${ESC}[22m Still building on EAS`],
+      [''],
+      [`Test 1      ${ESC}[32m✔${ESC}[39m Added: starts when the 🍎 iOS EAS build finishes`],
+    ],
   },
   {
     kind: 'output-keys',
@@ -844,30 +1040,36 @@ const PINS: Pin[] = [
   },
   {
     kind: 'test-finished',
-    what: "the wait's own finished step, saying how long the test ran when the wait saw it start",
+    what: "`sherlo test --wait`'s own finished step, under the test's row with its label column blank, saying how long the test ran",
     segment: { kind: 'test-finished', testIndex: 14, seconds: 185 },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Finished Test 14       in 3m 5s`]],
+    prints: [[`            ${ESC}[32m✔${ESC}[39m Finished in 3m 5s`]],
   },
   {
     kind: 'test-finished',
-    what: 'the finished step of a wait that did not see the test start, ending at the test',
+    what: "`sherlo view --wait`'s finished step, which did not see the test start: it names the test",
     segment: { kind: 'test-finished', testIndex: 8 },
     stream: 'stdout',
     prints: [[`${ESC}[32m✔${ESC}[39m Finished Test 8`]],
   },
   {
     kind: 'verdict-server-bypassed',
-    what: "the server-bypassed verdict as init's finished step - nothing to test, and the server's own reason after the colon",
+    what: "the server-bypassed verdict as the test's row, finished, under the platforms' rows - nothing to test, and the server's own reason after the colon",
     segment: {
       kind: 'verdict-server-bypassed',
       reason: 'no change on this branch reaches any story',
       testIndex: 13,
+      rowsAbove: {
+        rows: [{ platform: 'android', appBuild: 'reused-from-test', testIndex: 12 }],
+        printedAsTheyHappened: false,
+      },
     },
     stream: 'stdout',
     prints: [
+      [`🤖 Android  ${ESC}[32m✔${ESC}[39m Reused from Test 12`],
+      [''],
       [
-        `${ESC}[32m✔${ESC}[39m Finished Test 13       nothing to test: no change on this branch reaches any story`,
+        `Test 13     ${ESC}[32m✔${ESC}[39m Finished: nothing to test: no change on this branch reaches any story`,
       ],
     ],
   },
@@ -1670,7 +1872,7 @@ describe('the sink concatenates segments without editing them', () => {
       emit({ kind: 'git-info-unavailable', error });
     });
 
-    const expected = 'Testing your app...\n\nBundling the JavaScript for 🤖 Android...\n';
+    const expected = 'Testing your app...\n\n🤖 Android  Bundling the JavaScript...\n';
     expect(
       captured.stdout,
       mismatch('the buffered stdout transcript', 'helpers/transcriptSink.ts', expected, captured.stdout)

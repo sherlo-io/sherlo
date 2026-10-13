@@ -22,7 +22,6 @@
  * reaches them, and its output is byte-identical to what it has always been.
  */
 import chalk from 'chalk';
-import { formatBuildDuration } from './appBuild';
 import {
   countStories,
   renderFailedTestStep,
@@ -107,14 +106,11 @@ export function renderWaitInterrupted(testIndex?: number): string {
 }
 
 /**
- * `✔ Finished Test 14       in 3m 5s` - the wait's step, in the place its spinner held, above the
- * verdict. With no time when the wait did not see the test start (`sherlo view <n> --wait`).
+ * `✔ Finished Test 14` - `sherlo view <n> --wait`'s step, in the place its spinner held, above the
+ * verdict. (`sherlo test --wait` says it under the test's row, with how long it ran: ./runRows.)
  */
-export function renderTestFinished(testIndex: number, seconds?: number): string {
-  return renderTestStep({
-    name: `Finished Test ${testIndex}`,
-    detail: seconds !== undefined ? `in ${formatBuildDuration(seconds)}` : '',
-  });
+export function renderTestFinished(testIndex: number): string {
+  return renderTestStep({ name: `Finished Test ${testIndex}` });
 }
 
 /**
@@ -126,19 +122,6 @@ export function renderVerdictPassed(): string[] {
   return renderVerdictSection('✅ All stories passed', [], 21);
 }
 
-/**
- * The verdict of a test the SERVER closed without a device run, as init's finished step:
- * `✔ Finished Test 15       nothing to test: no change reaches any story`. The reason is the
- * server's own prose, printed verbatim. No URL - the test has nothing to review.
- */
-export function renderVerdictServerBypassed(reason: string, testIndex?: number): string[] {
-  return [
-    renderTestStep({
-      name: `Finished ${theTest(testIndex)}`,
-      detail: reason ? `nothing to test: ${reason}` : 'nothing to test',
-    }),
-  ];
-}
 
 /**
  * One screen of the build a wait is closing on - the two fields this closer

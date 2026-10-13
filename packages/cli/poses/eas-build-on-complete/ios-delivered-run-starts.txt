@@ -12,7 +12,12 @@
 
 Sending your EAS build to Sherlo...
 
-[32m✔[39m Started Test 1         all 2 stories on 2 devices (Pixel 7, iPhone 15)
+🤖 Android  [32m✔[39m Built on EAS
+🍎 iOS      [32m✔[39m Built on EAS
+
+Test 1      [32m✔[39m Started: all 5 stories on 2 devices (Pixel 7, iPhone 15)
+              [32m+[39m Storefront/ProductCard [2m(3 stories)[22m
+              [32m+[39m Storefront/Checkout [2m(2 stories)[22m
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

@@ -50,8 +50,8 @@ export function countDevicesByPlatform(configDevices: Config['devices']): Platfo
  * what it runs on, said before its app builds go up.
  *
  * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): in init's grammar the test is named once,
- * by `✔ Started Test 3  <stories> on <devices>` after its app builds are up (./testSteps
- * `renderTestStarted`, the staged road's line). The push spine that prints this line
+ * by its row, `Test 3      ✔ Started: <stories> on <devices>`, after its app builds are up
+ * (./runRows `renderTestStarted`). The push spine that prints this line
  * (../helpers/uploadOrReuseBuildsAndRunTests) is outside what plan may edit, so the build task
  * prints `test-started` after `openBuild` and deletes this one (build items 52 and 64).
  */

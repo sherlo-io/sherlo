@@ -12,7 +12,10 @@
 
 Testing your app...
 
-[32m✔[39m Started Test 4         1 of 2 stories on 1 device (Pixel 7)
+🤖 Android  [32m✔[39m Reused from Test 3
+
+Test 4      [32m✔[39m Started: 3 of 5 stories on 1 device (Pixel 7)
+              [33m~[39m Storefront/ProductCard [2m(3 stories)[22m
 [33m! Stopped waiting after <N> minute. Test 4 may still be running in Sherlo.[39m
 
 

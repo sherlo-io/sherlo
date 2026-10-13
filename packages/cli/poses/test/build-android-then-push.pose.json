@@ -50,7 +50,11 @@
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
-      ]
+      ],
+      "storyTitles": {
+        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
+        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+      }
     }
   },
   "api": [
@@ -121,7 +125,17 @@
       "answer": {
         "buildIndex": 13,
         "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=13",
-        "captureDecision": { "platforms": { "android": { "full": true } } }
+        "captureDecision": {
+          "platforms": {
+            "android": {
+              "full": true,
+              "changedStoryFilePaths": [
+                "src/components/Storefront/ProductCard.stories.tsx",
+                "src/components/Storefront/Checkout.stories.tsx"
+              ]
+            }
+          }
+        }
       }
     },
     {
@@ -133,7 +147,7 @@
         "runStatus": "finished",
         "viewStatusesCount": {
           "approved": 0,
-          "noChanges": 0,
+          "noChanges": 3,
           "reported": 0,
           "unreviewed": 2
         }

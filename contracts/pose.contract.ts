@@ -204,6 +204,18 @@ export type PosedBundle = {
    * reads "all stories", with no count.
    */
   storyClosureKeys: string[] | null;
+  /**
+   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): per story file, its Storybook
+   * title and how many stories it holds, as the module map would record them. The module map does
+   * not record them yet.
+   */
+  storyTitles?: Record<
+    string,
+    {
+      title: string;
+      stories: number;
+    }
+  >;
 };
 
 /**
@@ -863,13 +875,14 @@ export type PushFactsPlatform = {
 /**
  * The run that just started, as the service tells the upload that brought its last platform in:
  * the devices of the whole test (both platforms, from the run's config) and what each platform
- * captures (its decision, and the story count its push reported). It is what the ordinary `✔
- * Started Test N all 24 stories on 2 devices (Pixel 7, iPhone 15)` line is printed from, by a job
- * or an EAS build that knows only its own platform.
+ * captures (its decision, the story count its push reported, and the story files it captures with
+ * their titles). It is what the ordinary `Test N ✔ Started: all 24 stories on 2 devices (Pixel 7,
+ * iPhone 15)` row and its story list are printed from, by a job or an EAS build that knows only
+ * its own platform.
  *
  * PLAN-LAYER DEBT, NAMED (build item 66): posed here; the service sends it on `joinBuild` and
- * `asyncUpload` once the build task adds it. Until then a live run prints the bare `✔ Started Test
- * N`.
+ * `asyncUpload` once the build task adds it. Until then a live run prints the bare `Test N ✔
+ * Started`.
  */
 export type StartedRun = {
   devices: Array<{
@@ -925,6 +938,23 @@ export type StartedRun = {
     storiesInBundle?: number;
     /** The server's own reason, printed only on a full capture (operator ruling 2026-10-12, Q2). */
     reason?: string;
+    /**
+     * The story files the test captures: a partial capture's as openBuild recorded them, or the
+     * bundle's.
+     */
+    storyFiles?: string[];
+    /** Story files the build it diffed against did not have. */
+    newStoryFiles?: string[];
+    /** Story files a change reaches. */
+    changedStoryFiles?: string[];
+    /** Per story file, the Storybook title and story count the bundle's module map recorded. */
+    storyTitles?: Record<
+      string,
+      {
+        title: string;
+        stories: number;
+      }
+    >;
   }>;
 };
 
@@ -1132,6 +1162,13 @@ export type PosedPlatformCaptureDecision = {
    * colon).
    */
   reason?: string;
+  /**
+   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): of the story files captured,
+   * those the build it diffed against did not have, and those a change reaches. A partial
+   * capture's own list is what a change reaches. The service does not send them yet.
+   */
+  newStoryFilePaths?: string[];
+  changedStoryFilePaths?: string[];
 };
 
 /**

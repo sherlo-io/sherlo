@@ -3,6 +3,7 @@ import { Platform } from '@sherlo/api-types';
 import {
   getAppBuildUrl,
   getCwd,
+  getPlatformsToTest,
   getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError,
@@ -14,6 +15,7 @@ import { registerBase, type GateMetadataInput } from '../../../../helpers/finger
 import { emit } from '../../../../helpers/transcriptSink';
 import { nativeBuild } from '../../../../seams/nativeBuild';
 import { serverCalls } from '../../../../seams/serverCalls';
+import { forgetPlatformRows, recordPlatformRow, takeRowsAbove } from '../../../test/platformRows';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -133,17 +135,28 @@ async function asyncUploadBuildAndRunTests({
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  // The last EAS build in starts the test with the ordinary started line; the whole test's devices
-  // and capture come from the service's answer, since this build knows only its own platform.
-  emit(
-    couldRunThisBuildRightNow
-      ? { kind: 'test-started', buildIndex, ...startedRun }
-      : {
-          kind: 'run-waits-for-builds',
-          buildIndex,
-          waitingFor: { easBuild: platform === 'android' ? 'ios' : 'android' },
-        }
-  );
+  // Every platform's row, then the test's. The last EAS build in starts the test with the ordinary
+  // Started row; the whole test's devices and capture come from the service's answer, since this
+  // build knows only its own platform. A build that is not the last says the other one is still
+  // building on EAS.
+  const otherPlatform: Platform = platform === 'android' ? 'ios' : 'android';
+  forgetPlatformRows();
+  recordPlatformRow({ platform, appBuild: 'built-on-eas' });
+
+  if (couldRunThisBuildRightNow) {
+    if (getPlatformsToTest(startedRun?.devices ?? []).includes(otherPlatform)) {
+      recordPlatformRow({ platform: otherPlatform, appBuild: 'built-on-eas' });
+    }
+    emit({ kind: 'test-started', buildIndex, ...startedRun, rowsAbove: takeRowsAbove() });
+  } else {
+    recordPlatformRow({ platform: otherPlatform, appBuild: 'still-building-on-eas' });
+    emit({
+      kind: 'run-waits-for-builds',
+      buildIndex,
+      waitingFor: { easBuild: otherPlatform },
+      rowsAbove: takeRowsAbove(),
+    });
+  }
   emit({ kind: 'results-url', url });
 
   return { buildIndex, url };

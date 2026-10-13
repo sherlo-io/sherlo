@@ -12,7 +12,11 @@
 
 Testing your app...
 
-[32m✔[39m Started Test 14        1 of 2 stories on 2 devices (Pixel 7, iPhone 15)
+🤖 Android  [32m✔[39m Reused from Test 13
+🍎 iOS      [32m✔[39m Reused from Test 13
+
+Test 14     [32m✔[39m Started: 3 of 5 stories on 2 devices (Pixel 7, iPhone 15)
+              [33m~[39m Storefront/ProductCard [2m(3 stories)[22m
 
 
 [1m👉 Next steps[22m

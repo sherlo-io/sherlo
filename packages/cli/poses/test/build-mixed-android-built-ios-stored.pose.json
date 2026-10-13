@@ -48,7 +48,11 @@
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
-      ]
+      ],
+      "storyTitles": {
+        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
+        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+      }
     },
     "ios": {
       "bundlePath": "node_modules/.cache/sherlo/bundle.ios.js",
@@ -62,7 +66,11 @@
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
-      ]
+      ],
+      "storyTitles": {
+        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
+        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+      }
     }
   },
   "api": [
@@ -142,7 +150,20 @@
       "answer": {
         "buildIndex": 4,
         "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=4",
-        "captureDecision": { "platforms": { "android": { "full": true }, "ios": { "full": true } } }
+        "captureDecision": {
+          "platforms": {
+            "android": {
+              "full": true,
+              "newStoryFilePaths": ["src/components/Storefront/Checkout.stories.tsx"],
+              "changedStoryFilePaths": ["src/components/Storefront/ProductCard.stories.tsx"]
+            },
+            "ios": {
+              "full": true,
+              "newStoryFilePaths": ["src/components/Storefront/Checkout.stories.tsx"],
+              "changedStoryFilePaths": ["src/components/Storefront/ProductCard.stories.tsx"]
+            }
+          }
+        }
       }
     }
   ],

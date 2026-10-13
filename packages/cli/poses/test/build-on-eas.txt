@@ -12,7 +12,10 @@
 
 Testing your app...
 
-[32m✔[39m Opened Test 1          starts when the 🤖 Android and 🍎 iOS EAS builds finish
+🤖 Android  [32m✔[39m Building on EAS
+🍎 iOS      [32m✔[39m Building on EAS
+
+Test 1      [32m✔[39m Opened: starts when both EAS builds finish
 
 
 [1m👉 Next step[22m

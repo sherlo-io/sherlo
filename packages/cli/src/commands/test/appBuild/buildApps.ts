@@ -32,6 +32,7 @@ import {
 } from '../../../render/appBuild';
 import type { SherloProject } from '../../../render/testSteps';
 import { whileShowing } from '../../shared/terminal';
+import { recordPlatformRow, takeRowsAbove } from '../platformRows';
 import { appBuilder } from '../../../seams/appBuilder';
 import {
   BUILD_CACHE_ENV_VAR,
@@ -91,15 +92,16 @@ export async function buildApps({
   const builtPaths: Partial<Record<Platform, string>> = {};
 
   for (const { platform, why } of toBuild) {
-    // The step line of each platform says why it needed a new app build, so the reason rides on it.
+    // Each platform's row says why it needed a new app build, so the reason rides on it.
     const whyThisBuild = why ? { why } : {};
     const cacheKey = cacheKeyOf({ baseFingerprint, platform, settings });
 
     const cached = await builder.findCachedBuild({ platform, cacheKey, cacheDir });
     if (cached) {
-      // Only `sherlo build` says so, since building is what it was asked for; for `sherlo test` a
-      // cached app build took no time and needs no action (operator ruling 2026-10-13).
+      // `sherlo build` says it found what it was asked to build; `sherlo test` says it in the
+      // platform's row.
       if (command === 'build') emit({ kind: 'app-build-cached', platform });
+      else recordPlatformRow({ platform, appBuild: 'reused-from-local-build-cache' });
       builtPaths[platform] = cached;
       continue;
     }
@@ -135,30 +137,50 @@ export async function buildApps({
     );
 
     if (!compiled.ok) {
-      emit({
-        kind: 'app-build-failed',
-        platform,
-        seconds: compiled.seconds,
-        lastLines: compiled.lastLines,
-        logPath,
-        command,
-        ...(project ? { project } : {}),
-        ...whyThisBuild,
-      });
+      // `sherlo test` stops on the platforms' rows, the failed one among them, and tests nothing
+      // (operator, Q5); `sherlo build` on its own failed step.
+      if (command === 'test') {
+        recordPlatformRow({
+          platform,
+          appBuild: 'build-failed',
+          seconds: compiled.seconds,
+          logPath,
+          ...whyThisBuild,
+        });
+        emit({
+          kind: 'test-stopped-on-failed-build',
+          rowsAbove: takeRowsAbove(),
+          lastLines: compiled.lastLines,
+          ...(project ? { project } : {}),
+        });
+      } else {
+        emit({
+          kind: 'app-build-failed',
+          platform,
+          seconds: compiled.seconds,
+          lastLines: compiled.lastLines,
+          logPath,
+        });
+      }
       await reporting.flush().finally(() => process.exit(EXIT_BUILD_FAILED));
       throw new Error('unreachable'); // process.exit above never returns
     }
 
     await builder.keepInCache({ platform, cacheKey, cacheDir, path: compiled.path });
 
-    emit({
-      kind: 'app-build-done',
-      platform,
-      seconds: compiled.seconds,
-      logPath,
-      command,
-      ...whyThisBuild,
-    });
+    // `sherlo test` says it in the platform's row above the test's (../platformRows);
+    // `sherlo build` ends here, so it says it now.
+    if (command === 'test') {
+      recordPlatformRow({
+        platform,
+        appBuild: 'built',
+        seconds: compiled.seconds,
+        logPath,
+        ...whyThisBuild,
+      });
+    } else {
+      emit({ kind: 'app-build-done', platform, seconds: compiled.seconds, logPath });
+    }
 
     builtPaths[platform] = compiled.path;
   }

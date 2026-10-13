@@ -12,19 +12,16 @@
 
 Testing your app...
 
-[31m✖[39m Building the Android app failed
+🤖 Android  [31m✖[39m Build failed after <DURATION>, native code changed since Test 12 [2m(log: .sherlo/build-android.log)[22m
+              [33m~[39m android/app/build.gradle
+              [33m~[39m yarn.lock
+              [31m-[39m react-native-maps 1.2.0
 
-Native code changed since Test 12:
-   [33m~[39m android/app/build.gradle
-   [33m~[39m yarn.lock
-   [31m-[39m react-native-maps 1.2.0
-
-The build failed after <DURATION>. Last lines of the log:
+Last lines of the log:
 [2m   | > Task :app:compileReleaseKotlin FAILED[22m
 [2m   | e: MainApplication.kt:42: Unresolved reference: MapsPackage[22m
 [2m   | BUILD FAILED in 1m 12s[22m
 
-Full log: .sherlo/build-android.log
 Nothing was uploaded and no test was started. Fix the build, then run [36mnpx sherlo test[39m again.
 Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
 

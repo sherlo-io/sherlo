@@ -16,7 +16,11 @@
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
-      ]
+      ],
+      "storyTitles": {
+        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
+        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+      }
     }
   },
   "push": { "now": "2026-09-15T12:00:00.000Z", "binaries": {}, "fingerprint": { "hash": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d" } },

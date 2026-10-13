@@ -314,13 +314,14 @@ function foldTimeAgo(screen: string): string {
 }
 
 /**
- * How long an app build or a waited test took - `Built the Android app      in 1m 28s`,
- * `failed after 42s`, `Finished Test 14       in 3m 5s`. Only after those words, so a duration a
- * scenario declares elsewhere (a wait's timeout) is never folded.
+ * How long an app build or a waited test took - a platform's row's `Built in 1m 28s` and
+ * `Build failed after 42s`, `sherlo build`'s `Built the Android app      in 1m 28s`, and the
+ * `Finished in 3m 5s` under a test's row. Only after those words, so a duration a scenario declares
+ * elsewhere (a wait's timeout) is never folded.
  */
 function foldBuildDuration(screen: string): string {
   return screen.replace(
-    /\b(Built the (?:Android|iOS) app +in|Finished Test \d+ +in|failed after) (?:\d+m )?\d+s\b/g,
+    /\b(Built the (?:Android|iOS) app +in|Built in|Finished in|failed after) (?:\d+m )?\d+s\b/g,
     '$1 <DURATION>'
   );
 }
@@ -345,8 +346,9 @@ function foldBaseFingerprint(screen: string): string {
  * count stops being evidence about anything.
  *
  * THE REGION IS THE INDENTED LINES UNDER THE HEADER: every progress line starts with three spaces
- * (../../render/verdictCloser), and what ends the wait - `✔ Finished Test 7`, a `!` line, a blank
- * line - starts at the margin. A closer is therefore never swallowed, and the deadline in the
+ * (../../render/verdictCloser), and what ends the wait - `✔ Finished Test 7` at the margin, the
+ * `✔ Finished in` under a test's row in the rows' mark column, a `!` line, a blank line - does not
+ * start with three spaces and a word. A closer is therefore never swallowed, and the deadline in the
  * header above is left exactly as the pose declared it. Only a log has the region: in a terminal
  * the wait is a spinner and prints no progress line.
  */

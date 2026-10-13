@@ -184,9 +184,32 @@ function readPosedBundle(value: unknown, path: string, problems: string[]): void
     } else {
       reportWrongShape(oneOf2, 'an array of strings or `null`', where3, problems);
     }
+    if ('storyTitles' in object1) {
+      const where4 = at(path, 'storyTitles');
+      const map5 = asObject(object1.storyTitles, where4, problems);
+      if (map5) {
+        for (const key6 of Object.keys(map5)) {
+          const where7 = atKey(where4, key6);
+          const object8 = asObject(map5[key6], where7, problems);
+          if (object8) {
+            expectString(object8.title, at(where7, 'title'), problems);
+            expectNumber(object8.stories, at(where7, 'stories'), problems);
+            reportUnknownFields(object8, ['title', 'stories'], where7, problems);
+          }
+        }
+      }
+    }
     reportUnknownFields(
       object1,
-      ['bundlePath', 'bundleSizeMb', 'bundleFormat', 'bundler', 'assets', 'storyClosureKeys'],
+      [
+        'bundlePath',
+        'bundleSizeMb',
+        'bundleFormat',
+        'bundler',
+        'assets',
+        'storyClosureKeys',
+        'storyTitles',
+      ],
       path,
       problems
     );
@@ -1685,9 +1708,47 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           if ('reason' in object13) {
             expectString(object13.reason, at(where12, 'reason'), problems);
           }
+          if ('storyFiles' in object13) {
+            expectStringArray(object13.storyFiles, at(where12, 'storyFiles'), problems);
+          }
+          if ('newStoryFiles' in object13) {
+            expectStringArray(object13.newStoryFiles, at(where12, 'newStoryFiles'), problems);
+          }
+          if ('changedStoryFiles' in object13) {
+            expectStringArray(
+              object13.changedStoryFiles,
+              at(where12, 'changedStoryFiles'),
+              problems
+            );
+          }
+          if ('storyTitles' in object13) {
+            const where14 = at(where12, 'storyTitles');
+            const map15 = asObject(object13.storyTitles, where14, problems);
+            if (map15) {
+              for (const key16 of Object.keys(map15)) {
+                const where17 = atKey(where14, key16);
+                const object18 = asObject(map15[key16], where17, problems);
+                if (object18) {
+                  expectString(object18.title, at(where17, 'title'), problems);
+                  expectNumber(object18.stories, at(where17, 'stories'), problems);
+                  reportUnknownFields(object18, ['title', 'stories'], where17, problems);
+                }
+              }
+            }
+          }
           reportUnknownFields(
             object13,
-            ['platform', 'full', 'capturedStories', 'storiesInBundle', 'reason'],
+            [
+              'platform',
+              'full',
+              'capturedStories',
+              'storiesInBundle',
+              'reason',
+              'storyFiles',
+              'newStoryFiles',
+              'changedStoryFiles',
+              'storyTitles',
+            ],
             where12,
             problems
           );
@@ -2133,7 +2194,18 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
     if ('reason' in object1) {
       expectString(object1.reason, at(path, 'reason'), problems);
     }
-    reportUnknownFields(object1, ['full', 'storyFilePaths', 'reason'], path, problems);
+    if ('newStoryFilePaths' in object1) {
+      expectStringArray(object1.newStoryFilePaths, at(path, 'newStoryFilePaths'), problems);
+    }
+    if ('changedStoryFilePaths' in object1) {
+      expectStringArray(object1.changedStoryFilePaths, at(path, 'changedStoryFilePaths'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      ['full', 'storyFilePaths', 'reason', 'newStoryFilePaths', 'changedStoryFilePaths'],
+      path,
+      problems
+    );
   }
 }
 

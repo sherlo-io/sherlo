@@ -25,8 +25,13 @@ function stagedPose(name: string) {
  * to the count is optional the whole way down. A bundle with no map counts zero stories here, which
  * is the same answer this returned for a platform the pose does not state at all.
  */
+/** The stories the pose's Android bundle holds: each story file's own count, one where it names none. */
 function androidStoryCount(document: CommandPose): number {
-  return document.bundles.android?.storyClosureKeys?.length ?? 0;
+  const bundle = document.bundles.android;
+  return (bundle?.storyClosureKeys ?? []).reduce(
+    (total, file) => total + (bundle?.storyTitles?.[file]?.stories ?? 1),
+    0
+  );
 }
 
 describe('a bare push is posable', () => {
@@ -62,8 +67,8 @@ describe('a bare push is posable', () => {
     const M = androidStoryCount(document);
 
     expect(refusals).toEqual([]);
-    // The plan is one count on the line that started the test, with the reason a full capture
-    // keeps (operator ruling 2026-10-12); no plan step of its own.
+    // The plan is one count on the test's row, with the reason a full capture keeps (operator
+    // ruling 2026-10-12); no plan step of its own.
     expect(screen).toContain(`all ${M} stories on 1 device (Pixel 7), no main branch is set`);
     expect(screen).not.toContain('Planned the capture');
     // The one-line "Diff Scope:" summary repeated the plan in internal words, and is gone.

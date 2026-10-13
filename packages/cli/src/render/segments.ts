@@ -35,8 +35,8 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
-import type { AppBuildCommand, RunWaitsFor, WhyANewAppBuild } from './appBuild';
 import type { IntroducedCommand, PlatformCapture, SherloProject } from './testSteps';
+import type { PlatformRow, RowsAbove, TestWaitsFor } from './runRows';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -134,17 +134,24 @@ export type TranscriptSegment =
    */
   | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
   /**
-   * `✔ Started Test 3             3 of 24 stories on 2 devices (Pixel 7, iPhone 15)` - the test is
-   * open and running: what it captures, per platform as openBuild recorded it, and the devices the
-   * config names. `capture` is absent where the server recorded no decision; `devices` is absent
-   * where the print site does not know them (the second job of a split run, and the last EAS build
-   * in - build item 66), and the line then ends at the test.
+   * `🤖 Android  ✔ Reused from Test 3` - one platform's row (./runRows), printed alone: in a log,
+   * the moment the run knows it (../commands/test/platformRows), and as the whole of a `--platform`
+   * job whose config tests nothing on that platform.
+   */
+  | { kind: 'platform-row'; row: PlatformRow }
+  /**
+   * `Test 3      ✔ Started: 3 of 24 stories on 2 devices (Pixel 7, iPhone 15)`, under the platforms'
+   * rows, with the story files it captures under it (./runRows) - the test is open and running.
+   * `capture` is per platform as openBuild recorded it, absent where the server recorded no
+   * decision; `devices` is absent where the print site does not know them, and the row then ends at
+   * what it captures.
    */
   | {
       kind: 'test-started';
       buildIndex: number;
       devices?: Config['devices'];
       capture?: PlatformCapture[];
+      rowsAbove: RowsAbove;
     }
   /**
    * `! <warning>` in yellow, or a note as it is, optionally with a `Learn more:` line.
@@ -190,9 +197,7 @@ export type TranscriptSegment =
    * ---------------------------------------------------------------------- */
   /**
    * `sherlo build` found its app build in the local build cache:
-   * `✔ Built the Android app  (already done)`. `sherlo test` emits
-   * nothing for a reused app build, from Sherlo or from the cache: it took no time and needs no
-   * action (operator ruling 2026-10-13), and `sherlo view <n> --json` says where it came from.
+   * `✔ Built the Android app  (already done)`. `sherlo test` says it in the platform's row.
    */
   | { kind: 'app-build-cached'; platform: Platform }
   /**
@@ -203,21 +208,14 @@ export type TranscriptSegment =
   /** `Building the Android app with Gradle...` - a step in progress, shown while the compile runs. */
   | { kind: 'app-build-compiling'; platform: Platform }
   /**
-   * `✔ Built the Android app      in 1m 28s, native code changed since Test 12 (log: ...)`, with the
-   * native changes under it. The duration arrives in whole seconds, measured by logic: the renderer
-   * reads no clock.
+   * `sherlo build` built an app: `✔ Built the Android app      in 1m 28s (log: ...)`. The duration
+   * arrives in whole seconds, measured by logic: the renderer reads no clock. (`sherlo test` says it
+   * in the platform's row.)
    */
-  | {
-      kind: 'app-build-done';
-      platform: Platform;
-      seconds: number;
-      logPath: string;
-      why?: WhyANewAppBuild;
-      command: AppBuildCommand;
-    }
+  | { kind: 'app-build-done'; platform: Platform; seconds: number; logPath: string }
   /**
-   * The failed build: what changed since the stored app build, its duration, the build tool's last
-   * lines verbatim, where the full log is - and the help block, since the run ends there.
+   * `sherlo build`'s failed build: its duration, the build tool's last lines verbatim, where the
+   * full log is - and the help block, since the run ends there.
    */
   | {
       kind: 'app-build-failed';
@@ -225,26 +223,33 @@ export type TranscriptSegment =
       seconds: number;
       lastLines: string[];
       logPath: string;
-      why?: WhyANewAppBuild;
-      command: AppBuildCommand;
-      /** The project the run pushes to, when known: the "build on CI" line links its page. */
+    }
+  /**
+   * `sherlo test` stopped on a failed app build, testing nothing: the platforms' rows (the failed
+   * one with what changed under it), the build tool's last lines, what to do, and help (./runRows).
+   */
+  | {
+      kind: 'test-stopped-on-failed-build';
+      rowsAbove: RowsAbove;
+      lastLines: string[];
+      /** The project the run pushes to: the "build on CI" line links its page. */
       project?: SherloProject;
     }
   /** `sherlo build`'s ending: the `👉 Next step` section naming what the kept app build is for. */
   | { kind: 'app-build-next-step' }
   /**
    * `Starting EAS builds...` - a step in progress, while Expo is asked to start them. It leaves no
-   * line: the `Opened Test N` line after it names the EAS builds the test waits for.
+   * line: each platform's row says it is building on EAS.
    */
   | { kind: 'eas-builds-starting'; platforms: Platform[] }
   /** The EAS profile reads variables kept on Expo's servers, which a local build cannot read. */
   | { kind: 'eas-hosted-variables'; profile: string; environment: string }
   /**
-   * `✔ Opened Test 1              starts when ...` - the run is open and waits for the builds
-   * still to come: the other job's platform in a split CI run, or the EAS builds. The build that
-   * comes in last emits `test-started`, like any run that starts.
+   * `Test 1      ✔ Opened: starts when ...`, under the platforms' rows - the test is open and
+   * waits for the builds still to come: the other job's platform in a split CI run, or the EAS
+   * builds (./runRows). The build that comes in last emits `test-started`, like any test that starts.
    */
-  | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: RunWaitsFor }
+  | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: TestWaitsFor; rowsAbove: RowsAbove }
   /* ---------------------------------------------------------------------- *
    * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
    * it prints when the build reaches a terminal state.                      *
@@ -265,9 +270,10 @@ export type TranscriptSegment =
    */
   | { kind: 'wait-header'; timeoutMinutes: number; testIndex?: number }
   /**
-   * `✔ Finished Test 14       in 3m 5s` - the wait's own step, printed where its spinner was, above
-   * the verdict. `seconds` is how long the wait took, given only when the wait saw the test start
-   * (`sherlo test --wait`); `sherlo view <n> --wait` did not, and the line ends at the test.
+   * The wait's own step, printed where its spinner was, above the verdict. `seconds` is how long the
+   * wait took, given only when the wait saw the test start - `sherlo test --wait`, which printed the
+   * test's row, so the step stands under it: `            ✔ Finished in 3m 5s` (./runRows).
+   * `sherlo view <n> --wait` did not, and its step names the test: `✔ Finished Test 14`.
    */
   | { kind: 'test-finished'; testIndex: number; seconds?: number }
   /** `   Running` - reprinted only when the wire's `runStatus` CHANGES. A log's line only. */
@@ -294,11 +300,11 @@ export type TranscriptSegment =
   /** The green verdict, as a section: `✅ All stories passed`. */
   | { kind: 'verdict-passed' }
   /**
-   * The compact closer for a build the server closed without a device run:
-   * `✔ Finished Test 15       nothing to test: no change reaches any story`.
+   * The compact closer for a build the server closed without a device run, under the platforms'
+   * rows: `Test 15     ✔ Finished: nothing to test: no change reaches any story` (./runRows).
    * `reason` is the server's own prose, printed verbatim after the colon.
    */
-  | { kind: 'verdict-server-bypassed'; reason: string; testIndex?: number }
+  | { kind: 'verdict-server-bypassed'; reason: string; testIndex: number; rowsAbove: RowsAbove }
   /**
    * `⚠️ 3 stories need review`, as a section, then the screens that
    * need a person BY NAME when the wait learned them, and the build's own tally

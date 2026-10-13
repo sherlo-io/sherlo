@@ -65,9 +65,15 @@ import { buildBundles, runDryRunFlow } from './bundleAndPreview';
 import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
-import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
+import {
+  bundleStoryFiles,
+  countBundleStories,
+  countStoriesIn,
+  type ValidatedModuleManifest,
+} from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
 import type { PlatformCapture } from '../../render/testSteps';
+import { recordPlatformRow, takeRowsAbove } from './platformRows';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -95,7 +101,12 @@ const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
  * - `diffScopeInfo.platforms[platform].reason`: the server's own prose, byte-identical
  *   to the dashboard's. Absent -> no reason is printed.
  */
-type CaptureScope = { full: boolean; storyFilePaths?: string[] };
+type CaptureScope = {
+  full: boolean;
+  storyFilePaths?: string[];
+  newStoryFilePaths?: string[];
+  changedStoryFilePaths?: string[];
+};
 type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
 type DiffScopeInfoWithPlatformReasons = {
   platforms?: Partial<Record<Platform, { reason?: string }>>;
@@ -312,9 +323,15 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return buildTheRefusedPlatforms(identityAnswers);
   }
 
-  //    Both checks said every platform takes its stored app build. Nothing is printed for it: a
-  //    reused app build took no time and needs no action (operator ruling 2026-10-13), and
-  //    `sherlo view <n> --json` says which test it came from.
+  //    Both checks said every platform takes its stored app build: each platform's row says which
+  //    test it came from (./platformRows).
+  for (const platform of platformsToTest) {
+    recordPlatformRow({
+      platform,
+      appBuild: 'reused-from-test',
+      testIndex: identityAnswers.storedBuildIndexOf[platform],
+    });
+  }
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
   //    (getStagedUploadUrls - NOT getBuildUploadUrls) and collect its S3 keys.
@@ -437,9 +454,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   // print the compact bypassed closer instead (SHERLO-1952).
   const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
 
-  // The step that started the test, with how many stories it captures (SHERLO-1919) - read
-  // straight off the openBuild response, no extra API call (a joined run's own step was printed
-  // by joinTheRun) - then its ending (./closeTheRun).
+  // The test's row, with what it captures (SHERLO-1919) - read straight off the openBuild response,
+  // no extra API call (a joined run's row was printed by joinTheRun) - then its ending
+  // (./closeTheRun).
   if (!joinKey) {
     printTestStarted({
       openBuildReturn,
@@ -549,14 +566,16 @@ export function collectModuleManifests(
 }
 
 /**
- * The step that started the test, saying what it captures - per platform, straight off the
- * openBuild response (SHERLO-1919): `✔ Started Test 14  3 of 24 stories on 1 device (Pixel 7)`. No
- * extra API call: `captureScope` carries the captured set and `diffScopeInfo` the reason. The plan
- * is one count on this line (operator ruling 2026-10-12): which story files, and why, are
- * `npx sherlo view <n> --json`'s. The review link is the ending's (./closeTheRun).
+ * The test's row under the platforms' rows, saying what it captures - per platform, straight off
+ * the openBuild response (SHERLO-1919): `Test 14     ✔ Started: 3 of 24 stories on 1 device
+ * (Pixel 7)`, with the story files it captures under it, new and changed marked (../../render/runRows).
+ * No extra API call: `captureScope` carries the captured set and `diffScopeInfo` the reason. Why a
+ * partial capture took what it took is `npx sherlo view <n> --json`'s. The review link is the
+ * ending's (./closeTheRun).
  *
  * A platform the server made no decision for (no `captureScope`) adds no count - silence, never an
- * invented "captured everything".
+ * invented "captured everything". A test the server closed without a device run leaves the
+ * platforms' rows to the row that says it finished (../../helpers/waitForBuildResult).
  *
  * Exported because the SIM road reuses this exact output road - it has no
  * bundles, so the count is keyed on each platform's module manifest, the one input
@@ -596,14 +615,36 @@ export function printTestStarted({
       platform,
       // INVERSION GUARD: full === true is "every story", regardless of the list.
       full: captureScope.full,
-      capturedStories: captureScope.full ? 0 : (captureScope.storyFilePaths ?? []).length,
+      capturedStories: captureScope.full
+        ? 0
+        : manifest
+          ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
+          : (captureScope.storyFilePaths ?? []).length,
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
       // a machine code. The line prints it only for a full capture (Q2).
       reason: diffScopeInfo?.platforms?.[platform]?.reason,
+      // A full capture takes every story file the bundle holds.
+      storyFiles: captureScope.full
+        ? manifest
+          ? bundleStoryFiles(manifest)
+          : []
+        : (captureScope.storyFilePaths ?? []),
+      newStoryFiles: captureScope.newStoryFilePaths ?? [],
+      ...(manifest?.parsed.storyTitles ? { storyTitles: manifest.parsed.storyTitles } : {}),
+      // A partial capture takes exactly what a change reaches.
+      changedStoryFiles: captureScope.full
+        ? (captureScope.changedStoryFilePaths ?? [])
+        : (captureScope.storyFilePaths ?? []),
     });
   }
 
-  emit({ kind: 'test-started', buildIndex: openBuildReturn.build.index, devices, capture });
+  emit({
+    kind: 'test-started',
+    buildIndex: openBuildReturn.build.index,
+    devices,
+    capture,
+    rowsAbove: takeRowsAbove(),
+  });
 }

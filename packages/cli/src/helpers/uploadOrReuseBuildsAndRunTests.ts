@@ -73,7 +73,7 @@ export type PushEffects = {
   freshBundle: FreshBundleEffects;
   /**
    * A mixed run's other half: the module maps of the platforms it staged onto their stored app
-   * builds, known once `openBuild` has run. The started line counts their stories with them.
+   * builds, known once `openBuild` has run. The test's row counts their stories with them.
    */
   moduleManifestsOfStoredPlatforms?: () => Partial<Record<Platform, ValidatedModuleManifest>>;
 };
@@ -369,7 +369,7 @@ function platformsInTheRun(buildRunConfig: ReturnType<typeof getBuildRunConfig>)
   return (['android', 'ios'] as const).filter((platform) => buildRunConfig[platform]);
 }
 
-/** Each fresh bundle's module map, which the started test's line counts the bundle's stories from. */
+/** Each fresh bundle's module map, which the test's row counts the bundle's stories from. */
 function moduleManifestsOf(
   freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
 ): Partial<Record<Platform, ValidatedModuleManifest>> {

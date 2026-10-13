@@ -46,6 +46,7 @@ import { type BuildFlags, type BuildSettings, readBuildSettings } from './buildS
 import { ciRunKey } from './ciRun';
 import { easRun } from './easRun';
 import { joinTheRun } from './joinTheRun';
+import { recordPlatformRow } from '../platformRows';
 import { foldersStoredFileByFile, nativeChangesSince } from './nativeChanges';
 
 /** Build what the gate refused, then run the standard road on the fresh app builds. */
@@ -67,8 +68,8 @@ export async function buildThenPush({
   fingerprintPreimage?: BaseFingerprintPreimage;
 }): Promise<{ url: string }> {
   const refused = refusals.map(({ platform }) => platform);
-  // A stored platform prints nothing: a reused app build took no time and needs no action
-  // (operator ruling 2026-10-13). Only the built one gets a line, from ./buildApps.
+  // A stored platform's row says it reused the app build Sherlo holds (../platformRows); the built
+  // one's row comes from ./buildApps.
   const stored = platformsToTest.filter((platform) => !refused.includes(platform));
 
   const commandParams = getValidatedCommandParams(
@@ -83,6 +84,10 @@ export async function buildThenPush({
   }
 
   warnAboutVariablesOnExpo(commandParams.projectRoot, settings);
+
+  for (const platform of stored) {
+    recordPlatformRow({ platform, appBuild: 'reused-from-test', testIndex: storedBuildIndexOf[platform] });
+  }
 
   const toBuild = await Promise.all(
     refusals.map(async (refusal) => ({
@@ -111,7 +116,7 @@ export async function buildThenPush({
   // THE STANDARD ROAD, ON THE BUILDS JUST MADE: the same validation and the same push spine a
   // developer gets by passing the paths themselves, so nothing below this line knows who built
   // them. A mixed run hands the spine only the built platforms' paths; its config still names
-  // every device, so the started line names the whole test's devices.
+  // every device, so the test's row names the whole test's devices.
   const pushParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions: { ...passedOptions, ...builtPaths } },
     { requirePlatformPaths: stored.length === 0 }
@@ -172,7 +177,7 @@ function pushEffects({
 }): PushEffects {
   const { token, projectIndex, teamId } = commandParams.credential;
   const machine = nativeBuild();
-  // Filled when openBuild stages the stored platforms, read by the started line after it.
+  // Filled when openBuild stages the stored platforms, read by the test's row after it.
   let storedPlatformManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
 
   return {
@@ -226,7 +231,7 @@ function pushEffects({
  * each bundle to its staged slot, and put it on the run's config - the stored app build is named by
  * the async-upload placeholder the config already carries for a platform with no binary, and the
  * runner splices the bundle into it, exactly as on the staged road. Answers the stored platforms'
- * module maps, so the started line counts their stories too.
+ * module maps, so the test's row counts their stories too.
  */
 async function stageTheStoredPlatforms({
   request,

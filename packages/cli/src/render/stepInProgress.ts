@@ -9,15 +9,18 @@
  * run shows is decided by ONE check (../commands/shared/terminal), never here: this module only
  * says the words.
  *
+ * A step of one platform starts with that platform's label, padded to the column its row's mark
+ * stands in (./runRows), so a log reads down each platform: `🤖 Android  Building the app with
+ * Gradle...`, then `🤖 Android  ✔ Built in 4m 12s`.
+ *
  * Plain text, no colour: a spinner draws its own frame beside it, and a log has no colour to give.
  *
  * Pure, like everything under ./: state in, words out. The words are drafts for the content
  * department.
  */
 import type { Platform } from '@sherlo/api-types';
-import { PLATFORM_LABEL } from '../constants';
 import type { TranscriptSegment } from './segments';
-import { platformWithEmoji } from './testSteps';
+import { platformLabelColumn } from './runRows';
 
 /** Every step that shows while it runs (./segments says what each one is). */
 export type StepInProgress = Extract<
@@ -35,22 +38,22 @@ export type StepInProgress = Extract<
 
 const BUILD_TOOL: Record<Platform, string> = { android: 'Gradle', ios: 'Xcode' };
 
-/** The words a running step shows: `Building the Android app with Gradle...`. */
+/** The words a running step shows: `🤖 Android  Building the app with Gradle...`. */
 export function renderStepInProgress(step: StepInProgress): string {
   switch (step.kind) {
     case 'app-build-generating':
-      return `Generating the ${PLATFORM_LABEL[step.platform]} folder with expo prebuild...`;
+      return `${platformLabelColumn(step.platform)}Generating the native folder with expo prebuild...`;
 
     case 'app-build-compiling':
-      return `Building the ${PLATFORM_LABEL[step.platform]} app with ${BUILD_TOOL[step.platform]}...`;
+      return `${platformLabelColumn(step.platform)}Building the app with ${BUILD_TOOL[step.platform]}...`;
 
     case 'platform-bundle-start':
-      return `Bundling the JavaScript for ${platformWithEmoji(step.platform)}...`;
+      return `${platformLabelColumn(step.platform)}Bundling the JavaScript...`;
 
-    case 'binary-uploading':
-      return step.platform
-        ? `Uploading the ${platformWithEmoji(step.platform)} app build (${step.sizeMb} MB)...`
-        : `Uploading the app build (${step.sizeMb} MB)...`;
+    case 'binary-uploading': {
+      const uploading = `Uploading the app build (${step.sizeMb} MB)...`;
+      return step.platform ? `${platformLabelColumn(step.platform)}${uploading}` : uploading;
+    }
 
     case 'eas-builds-starting':
       return step.platforms.length > 1 ? 'Starting EAS builds...' : 'Starting an EAS build...';

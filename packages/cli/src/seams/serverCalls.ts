@@ -208,12 +208,14 @@ export type JoinBuildRequest = OpenBuildRequest & {
 /**
  * The run that just started, as the service tells the upload that brought its last platform in:
  * the devices of the whole test (both platforms, from the run's config) and what each platform
- * captures (its decision, and the story count its push reported). It is what the ordinary
- * `✔ Started Test N  all 24 stories on 2 devices (Pixel 7, iPhone 15)` line is printed from, by
- * a job or an EAS build that knows only its own platform.
+ * captures (its decision, the story count its push reported, and the story files it captures with
+ * their titles). It is what the ordinary `Test N      ✔ Started: all 24 stories on 2 devices
+ * (Pixel 7, iPhone 15)` row and its story list are printed from, by a job or an EAS build that knows
+ * only its own platform.
  *
  * PLAN-LAYER DEBT, NAMED (build item 66): posed here; the service sends it on `joinBuild` and
- * `asyncUpload` once the build task adds it. Until then a live run prints the bare `✔ Started Test N`.
+ * `asyncUpload` once the build task adds it. Until then a live run prints the bare
+ * `Test N      ✔ Started`.
  */
 export type StartedRun = { devices: Config['devices']; capture: PlatformCapture[] };
 
@@ -639,6 +641,13 @@ export type PosedPlatformCaptureDecision = {
   storyFilePaths?: string[];
   /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
   reason?: string;
+  /**
+   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): of the story files captured,
+   * those the build it diffed against did not have, and those a change reaches. A partial capture's
+   * own list is what a change reaches. The service does not send them yet.
+   */
+  newStoryFilePaths?: string[];
+  changedStoryFilePaths?: string[];
 };
 
 /**
@@ -1006,7 +1015,14 @@ function platformConfigOf(
   const decision = captureDecision?.platforms[platform];
   if (!decision) return {};
 
-  return { captureScope: { full: decision.full, storyFilePaths: decision.storyFilePaths } };
+  return {
+    captureScope: {
+      full: decision.full,
+      storyFilePaths: decision.storyFilePaths,
+      newStoryFilePaths: decision.newStoryFilePaths,
+      changedStoryFilePaths: decision.changedStoryFilePaths,
+    },
+  };
 }
 
 /** `build.diffScopeInfo`, from the pose's capture decision - undefined when the pose states none. */

@@ -1,5 +1,6 @@
 import { REJECTED_LOGIN_MESSAGE } from '../commands/shared/refuseRejectedLogin';
 import { printsToATerminal, whileShowing } from '../commands/shared/terminal';
+import { takeRowsAbove } from '../commands/test/platformRows';
 import type { TranscriptSegment } from '../render/segments';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
 import { serverCalls } from '../seams/serverCalls';
@@ -91,8 +92,9 @@ async function waitForBuildResult({
   serverBypassed?: boolean;
   /**
    * The caller started this test just before the wait (`sherlo test --wait`), so the time the wait
-   * took is how long the test ran, and the finished step says it: `✔ Finished Test 14  in 3m 5s`.
-   * `sherlo view <n> --wait` did not see the test start, and its finished step says no time.
+   * took is how long the test ran, and the finished step says it under the test's row:
+   * `            ✔ Finished in 3m 5s`. `sherlo view <n> --wait` did not see the test start, and its
+   * finished step names the test and says no time: `✔ Finished Test 14`.
    */
   sawTheTestStart?: boolean;
   /**
@@ -478,7 +480,7 @@ function printTerminalCloser(
 /** Which test the wait closed on, and how long it ran when the wait saw it start. */
 type HowTheTestRan = { testIndex: number; secondsItRan?: number };
 
-/** `✔ Finished Test 14  in 3m 5s` - the wait's own step, printed where its spinner was. */
+/** The wait's own finished step, printed where its spinner was (../render/segments `test-finished`). */
 function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
   emit({ kind: 'test-finished', testIndex, seconds: secondsItRan });
 }
@@ -607,14 +609,14 @@ function getServerBypassReason(
 }
 
 /**
- * The compact closer for a server-bypassed build (SHERLO-1952): the server's
- * verbatim reason inline in the headline, then the fixed dim line. No URL - the
- * build has nothing to review and the review page cannot render this shape yet
- * (SHERLO-1974). One definition, used by BOTH the --wait terminal path here and
- * the non-wait closer in testBundled, so the two modes print identical text.
+ * The compact closer for a server-bypassed build (SHERLO-1952): the test's row, finished, with the
+ * server's verbatim reason, under the platforms' rows the run recorded (none for `sherlo view`). No
+ * URL - the build has nothing to review and the review page cannot render this shape yet
+ * (SHERLO-1974). One definition, used by BOTH the --wait terminal path here and the non-wait closer
+ * (../commands/test/closeTheRun), so the two modes print identical text.
  */
 export function printServerBypassCloser(reason: string, testIndex: number): void {
-  emit({ kind: 'verdict-server-bypassed', reason, testIndex });
+  emit({ kind: 'verdict-server-bypassed', reason, testIndex, rowsAbove: takeRowsAbove() });
 }
 
 /**

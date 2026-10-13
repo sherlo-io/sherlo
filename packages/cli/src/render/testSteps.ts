@@ -1,13 +1,13 @@
 /**
  * `sherlo test` IN INIT'S GRAMMAR (epic sherlo-test-builds-apps, operator decisions 2026-10-12).
  * What a test prints reads like what `sherlo init` prints: the logo (in a terminal), one line saying
- * what the command is doing, one past-tense line per finished step, a long step shown while it runs
- * (./stepInProgress), a failed step as `✖ <Step> failed` above its error, and ONE section at the
- * end - the next step, or the verdict when the command waited for it - with the review link last.
+ * what the command is doing, then a row per platform and one for the test (./runRows, operator
+ * 2026-10-13), a long step shown while it runs (./stepInProgress), and ONE section at the end - the
+ * next step, or the verdict when the command waited for it - with the review link last.
  *
  * The shapes are init's own (./initSteps, ./initLines), called rather than copied, so the two
  * commands cannot drift apart. This module holds only what a test adds to them: the intro line, the
- * platform's emoji, the started test's line, the next step, and the help block a failed run ends
+ * platform's emoji, what a started test runs, the next step, and the help block a failed run ends
  * with.
  *
  * Pure, like everything under ./: state in, print-call arguments out. The words are drafts for the
@@ -18,6 +18,7 @@ import { DEVICES } from '@sherlo/shared';
 import type { Platform } from '@sherlo/api-types';
 import { APP_DOMAIN, CONTACT_EMAIL, DISCORD_URL, PLATFORM_LABEL } from '../constants';
 import type { Config } from '../types';
+import type { StoryFileTitle } from '../commands/test/readModuleManifest';
 import { renderSectionTitle } from './initLines';
 import { renderFailedStepLine, renderStepLine, renderStuckBlock } from './initSteps';
 
@@ -79,8 +80,8 @@ export function describeDevices(devices: Config['devices']): string {
 
 /**
  * What one platform's test captures, as openBuild recorded it: every story (`full`), or the
- * stories a change reaches. The count is of story files, out of the bundle's own story files when
- * the bundle's module map could count them.
+ * stories a change reaches. The counts are of stories - each story file counted by the stories its
+ * module map records, one where it records none - out of the bundle's own when it could count them.
  */
 export type PlatformCapture = {
   platform: Platform;
@@ -92,27 +93,30 @@ export type PlatformCapture = {
   storiesInBundle?: number;
   /** The server's own reason, printed only on a full capture (operator ruling 2026-10-12, Q2). */
   reason?: string;
+  /** The story files the test captures: a partial capture's as openBuild recorded them, or the bundle's. */
+  storyFiles?: string[];
+  /** Story files the build it diffed against did not have. */
+  newStoryFiles?: string[];
+  /** Story files a change reaches. */
+  changedStoryFiles?: string[];
+  /** Per story file, the Storybook title and story count the bundle's module map recorded. */
+  storyTitles?: Record<string, StoryFileTitle>;
 };
 
 /**
- * `✔ Started Test 14        3 of 24 stories on 2 devices (Pixel 7, iPhone 15)` - the one line that
- * says what the test runs.
+ * `3 of 24 stories on 2 devices (Pixel 7, iPhone 15)` - what a started test runs, the words of its
+ * `Started` row (./runRows).
  *
  * ONE COUNT when every platform captures the same, which is nearly always; one per platform when
  * they differ. A full capture's reason is kept, after a comma, only when every platform captures
  * every story for that one reason - it is the reason a person can act on (`no main branch is set`).
- * A partial capture's reason and its story files are `npx sherlo view <n> --json`'s to say.
- *
- * The same line starts a test whichever job or EAS build brought its last app build in. A print
- * site that knows neither the devices nor the capture (the second job of a split run, the last EAS
- * build in) prints the bare `✔ Started Test 1` (build item 66 gives it the devices).
+ * A partial capture's reason is `npx sherlo view <n> --json`'s to say; its story files are listed
+ * under the row.
  */
-export function renderTestStarted({
-  buildIndex,
+export function describeWhatRuns({
   devices,
   capture = [],
 }: {
-  buildIndex: number;
   devices?: Config['devices'];
   capture?: PlatformCapture[];
 }): string {
@@ -124,10 +128,7 @@ export function renderTestStarted({
   const whatRuns = [stories, onDevices].filter((part) => part !== '').join(beforeDevices);
   const reason = reasonEveryStoryIsCaptured(capture);
 
-  return renderTestStep({
-    name: `Started Test ${buildIndex}`,
-    detail: reason ? `${whatRuns}, ${reason}` : whatRuns,
-  });
+  return reason ? `${whatRuns}, ${reason}` : whatRuns;
 }
 
 /**
