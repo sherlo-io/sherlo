@@ -85,7 +85,8 @@ export function renderNativeChanges(changes: NativeChange[]): string[] {
   return lines;
 }
 
-function describeChange(change: NativeChange): string {
+/** A native change as a line of words: the file, `name version`, or `name old → new`. */
+export function describeChange(change: NativeChange): string {
   if ('file' in change) return change.file;
   if ('from' in change) return `${change.module} ${change.from} → ${change.to}`;
   return `${change.module} ${change.version}`;

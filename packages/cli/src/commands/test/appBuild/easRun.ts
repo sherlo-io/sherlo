@@ -45,6 +45,7 @@ import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { type BuildSettings, DEFAULT_EAS_PROFILE } from './buildSettings';
 import createSherloTempDirectory from './createSherloTempDirectory';
 import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
+import { pushFactsOf } from './pushFacts';
 
 /**
  * The package.json scripts each EAS build reports to Sherlo through, both running the same command:
@@ -64,10 +65,13 @@ export async function easRun({
   commandParams,
   platforms,
   settings,
+  runIdFlag,
 }: {
   commandParams: CommandParams<THIS_COMMAND>;
   platforms: Platform[];
   settings: BuildSettings;
+  /** `--run-id`, which names the CI run the push reports when the CI service does not. */
+  runIdFlag?: string;
 }): Promise<{ url: string }> {
   refuseWithoutTheHookScripts(commandParams.projectRoot);
 
@@ -87,6 +91,13 @@ export async function easRun({
         branchOverride: commandParams.gitBranch,
       }),
       message: commandParams.message,
+      // Built on Expo's servers; each build's story count comes with its delivery (the EAS hook).
+      pushFacts: pushFactsOf({
+        appBuilds: Object.fromEntries(platforms.map((platform) => [platform, { madeBy: 'eas' }])),
+        storiesInBundle: {},
+        env: process.env,
+        runIdFlag,
+      }),
     })
     .catch((error) => handleClientError(error, token));
 

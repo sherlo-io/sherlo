@@ -205,6 +205,12 @@ describe('sherlo test in EAS mode opens a run and lets EAS build', () => {
       expect(request).not.toHaveProperty(binaryField);
     }
 
+    // The record says both app builds were made on EAS.
+    expect(request.pushFacts.platforms).toEqual({
+      android: { madeBy: 'eas' },
+      ios: { madeBy: 'eas' },
+    });
+
     expect(handOverWhenTheFirstBuildStarted).toMatchObject({ buildIndex: 1, profile: 'sherlo' });
     // Written through the project's one `.sherlo/` writer, which keeps it in EAS's upload.
     expect(fs.readFileSync(path.join(projectRoot, '.sherlo', '.gitignore'), 'utf8')).toContain(
