@@ -171,8 +171,11 @@ function buildRunConfig() {
 }
 
 function callSubject(overrides: { commandParams?: any } = {}) {
+  const commandParams = overrides.commandParams ?? COMMAND_PARAMS;
   return uploadOrReuseBuildsAndRunTests({
-    commandParams: overrides.commandParams ?? COMMAND_PARAMS,
+    commandParams,
+    // The app builds the push uploads arrive beside the params, as the build road hands them over.
+    appBuildPaths: { android: commandParams.android, ios: commandParams.ios },
     platformRows: [],
   });
 }
@@ -375,13 +378,18 @@ describe('reuse-vs-upload branch selection', () => {
 
 describe('the fresh bundle on the platform config', () => {
   it('runs the fresh-bundle step with the registered platforms, the base fingerprint, the caller`s --bundle-dir and the effects built from the client', async () => {
-    await callSubject({ commandParams: { ...COMMAND_PARAMS, bundleDir: '/tmp/bundles' } });
+    const buildSettings = { env: { STORYBOOK_ENABLED: 'true' } };
+    await callSubject({
+      commandParams: { ...COMMAND_PARAMS, bundleDir: '/tmp/bundles', buildSettings },
+    });
 
     expect(mocks.uploadFreshBundles).toHaveBeenCalledTimes(1);
     expect(mocks.uploadFreshBundles).toHaveBeenCalledWith({
       projectRoot: '/proj',
       platforms: ['android', 'ios'],
       bundleDir: '/tmp/bundles',
+      // The config's `build` block reaches the bundler, as it reaches the app build.
+      buildSettings,
       baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
       projectIndex: 7,
       teamId: 'team1234',

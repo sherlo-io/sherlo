@@ -361,8 +361,9 @@ function foldWaitProgress(screen: string): string {
   if (header === -1) return screen;
 
   let afterRegion = header + 1;
-  while (afterRegion < lines.length && /^ {3}\S/.test(visible(lines[afterRegion])))
+  while (afterRegion < lines.length && /^ {3}\S/.test(visible(lines[afterRegion]))) {
     afterRegion += 1;
+  }
   if (afterRegion === header + 1) return screen;
 
   return [

@@ -5,6 +5,8 @@
  * Covers:
  *  - "No devices configured" is a TOOL ERROR, not a routing answer: it exits
  *    non-zero and publishes no `native-needed` key.
+ *  - a fingerprint that cannot be computed hands every platform to the build road.
+ *  - a joined staged job prints no capture plan, only the run's link.
  *  - gitInfo parity: the staged road captures git info with the SAME getGitInfo
  *    call as the standard road and forwards that exact object to openBuild.
  *  - the capture plan + closer, and the server-bypassed build's closer.
@@ -94,8 +96,16 @@ vi.mock('../uploadStagedArtifacts', () => ({
   default: vi.fn(),
 }));
 
-vi.mock('../dryRun', () => ({
-  runDryRunPreview: vi.fn(),
+// The build road and the joined run are other files' tests: here only WHAT reaches them matters.
+// A job with a `--platform` joins the run its `--run-id` names; any other job joins none.
+vi.mock('../appBuild/buildThenPush', () => ({
+  buildThenPush: vi.fn(),
+  splitRunKeyOf: (options: { platform?: string; runId?: string }) =>
+    options.platform ? `run:${options.runId}` : null,
+}));
+
+vi.mock('../appBuild/joinTheRun', () => ({
+  joinTheRun: vi.fn(),
 }));
 
 // stagedRun imports isServerBypassed / printServerBypassCloser / the network
@@ -128,7 +138,8 @@ import {
   buildGateMetadata as _buildGateMetadata,
 } from '../buildBundle';
 import _uploadStagedArtifacts from '../uploadStagedArtifacts';
-import { runDryRunPreview as _runDryRunPreview } from '../dryRun';
+import { buildThenPush as _buildThenPush } from '../appBuild/buildThenPush';
+import { joinTheRun as _joinTheRun } from '../appBuild/joinTheRun';
 import { fetchServerBypassReason as _fetchServerBypassReason } from '../../../helpers/waitForBuildResult';
 
 const mockGetAppBuildUrl = vi.mocked(_getAppBuildUrl);
@@ -142,7 +153,8 @@ const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
-const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
+const mockBuildThenPush = vi.mocked(_buildThenPush);
+const mockJoinTheRun = vi.mocked(_joinTheRun);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
 const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
 
@@ -387,82 +399,38 @@ describe('gitInfo parity with the standard road', () => {
 });
 
 // ---------------------------------------------------------------------------
-// --dry-run: preview only, creates nothing (SHERLO-1895 Phase C)
+// A fingerprint that cannot be computed: no stored app build can be matched, so the build road
+// takes every platform. Nothing is exited, asked of the gate or bundled (ruling item 23).
 // ---------------------------------------------------------------------------
 
-describe('--dry-run', () => {
-  beforeEach(() => {
+describe('a fingerprint that cannot be computed', () => {
+  it('hands every platform to the build road, with no exit and no gate question', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`);
+    });
     mockGetValidatedCommandParams.mockReturnValue({
       projectRoot: '/proj',
       credential: PROJECT_TOKEN_CREDENTIAL,
       devices: [IOS_DEVICE],
     } as any);
-    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockComputeBaseFingerprint.mockResolvedValue({
-      android: { hash: 'BASE_FP' },
-      ios: { hash: 'BASE_FP' },
-    } as any);
-    mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
-    mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
-    mockRunDryRunPreview.mockResolvedValue(undefined);
-  });
-
-  it('runs the preview and creates NO build: no gate check, no upload, no openBuild', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    const result = await stagedRun({ dryRun: true });
-
-    expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
-    const arg = mockRunDryRunPreview.mock.calls[0][0];
-    expect(arg.platformsToTest).toEqual(['ios']);
-    expect(arg.projectIndex).toBe(3);
-    expect(arg.teamId).toBe('team');
-    expect(arg.bundles.ios).toBeDefined();
-
-    // The whole build-creating pipeline is skipped.
-    expect(mockCheckStagedGate).not.toHaveBeenCalled();
-    expect(mockGetStagedUploadUrls).not.toHaveBeenCalled();
-    expect(mockUploadStagedArtifacts).not.toHaveBeenCalled();
-    expect(mockOpenBuild).not.toHaveBeenCalled();
-
-    expect(result).toEqual({ url: '' });
-
-    logSpy.mockRestore();
-  });
-
-  it('bundles via the SAME real path (buildBundleForPlatform) before previewing', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    await stagedRun({ dryRun: true });
-
-    // The manifest comes from the real bundle path, not a synthetic one.
-    expect(mockBuildBundleForPlatform).toHaveBeenCalledTimes(1);
-    expect(mockBuildBundleForPlatform).toHaveBeenCalledWith({
-      projectRoot: '/proj',
-      platform: 'ios',
-    });
-
-    logSpy.mockRestore();
-  });
-
-  // A missing base fingerprint hard-fails a real staged run, but for a preview it
-  // is a staged-only concern: the dry run proceeds and still produces its preview.
-  it('does NOT hard-fail on a missing base fingerprint (staged-only concern)', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
-      throw new Error(`process.exit(${code})`);
-    });
+    mockGetPlatformsToTest.mockReturnValue(['ios', 'android'] as any);
     const unavailable = { hash: '', debugMessage: 'No base binary found' };
     mockComputeBaseFingerprint.mockResolvedValue({ android: unavailable, ios: unavailable } as any);
+    mockBuildThenPush.mockResolvedValue({ url: 'http://app/built' });
 
-    const result = await stagedRun({ dryRun: true });
+    const result = await stagedRun(mockOptions());
 
-    expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
+    expect(mockBuildThenPush).toHaveBeenCalledTimes(1);
+    expect(mockBuildThenPush.mock.calls[0][0].refusals.map((r) => r.platform)).toEqual([
+      'ios',
+      'android',
+    ]);
+    expect(mockCheckStagedGate).not.toHaveBeenCalled();
+    expect(mockBuildBundleForPlatform).not.toHaveBeenCalled();
     expect(exitSpy).not.toHaveBeenCalled();
-    expect(result).toEqual({ url: '' });
+    expect(result).toEqual({ url: 'http://app/built' });
 
     exitSpy.mockRestore();
-    logSpy.mockRestore();
   });
 });
 
@@ -536,7 +504,7 @@ describe('live capture plan', () => {
     return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
   }
 
-  it('Case 2: partial capture WITH a per-platform reason - the fraction on the test row, the story files under it, and no reason', async () => {
+  it("Case 2: partial capture WITH a per-platform reason - the fraction on the test's row, the story files under it, and no reason", async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -575,6 +543,25 @@ describe('live capture plan', () => {
     expect(out).toContain('~ src/components/Storefront/Storefront.stories.tsx');
     expect(out).toContain('~ src/components/Cart/Cart.stories.tsx');
     expect(out).not.toContain('Planned the capture');
+
+    logSpy.mockRestore();
+  });
+
+  it("a joined staged job prints no capture plan, only the run's link", async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({
+      openBuildReturn: undefined,
+    });
+    mockJoinTheRun.mockResolvedValue({ build: { index: 7 }, waitingFor: [] });
+
+    await stagedRun({ platform: 'ios', runId: 'one-ci-run' });
+
+    expect(mockJoinTheRun).toHaveBeenCalledTimes(1);
+    expect(mockOpenBuild).not.toHaveBeenCalled();
+    const out = printed(logSpy);
+    expect(out).not.toContain('Started:');
+    expect(out).not.toContain('stories');
+    expect(out).toContain('http://app/build');
 
     logSpy.mockRestore();
   });

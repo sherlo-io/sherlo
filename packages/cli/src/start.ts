@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import { Command, Option } from 'commander';
 import { version } from '../package.json';
 import {
@@ -10,24 +9,21 @@ import {
   logout,
   projectCreate,
   projectList,
-  showError,
   teamCreate,
   teamList,
   capture,
   open,
   test,
-  testEasCloudBuild,
   view,
 } from './commands';
 import {
-  BUILD_CACHE_ENV_VAR,
   BUILD_CACHE_OPTION,
   BUILD_COMMAND,
-  DEFAULT_BUILD_CACHE,
   PARALLEL_BUILDS_OPTION,
   PLATFORM_OPTION,
   RUN_ID_OPTION,
 } from './commands/test/appBuild/buildSettings';
+import { CACHE_DIR_ENV_VAR } from './commands/test/appBuild/cacheFolder';
 import {
   ANDROID_OPTION,
   BASELINE_OPTION,
@@ -36,10 +32,8 @@ import {
   DEFAULT_PROJECT_ROOT,
   DIAGNOSTICS_OPTION,
   BUNDLE_DIR_OPTION,
-  DRY_RUN_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
-  EAS_BUILD_SCRIPT_NAME_OPTION,
   FINGERPRINT_COMMAND,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
@@ -60,9 +54,7 @@ import {
   TEAM_CREATE_SUBCOMMAND,
   TEAM_LIST_SUBCOMMAND,
   TEAM_OPTION,
-  SHOW_ERROR_COMMAND,
   TEST_COMMAND,
-  TEST_EAS_CLOUD_BUILD_COMMAND,
   TOKEN_OPTION,
   VERBOSE_OPTION,
   VIEW_COMMAND,
@@ -74,7 +66,6 @@ import {
   PORT_OPTION,
   TIMEOUT_OPTION,
   DEFAULT_BUNDLER_PORT,
-  WAIT_FOR_EAS_BUILD_OPTION,
   WAIT_OPTION,
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
@@ -82,7 +73,7 @@ import {
 import { printTheLogoInATerminal } from './commands/shared/terminal';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
-import { logWarning, reporting, throwError, withCommandTimeout } from './helpers';
+import { reporting, throwError, withCommandTimeout } from './helpers';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
 import { renderHelpBlock } from './render/testSteps';
@@ -114,9 +105,7 @@ async function start() {
 
     addViewCommand(program);
 
-    addTestEasCloudBuildCommand(program);
-
-    addShowErrorCommand(program);
+    addEasBuildOnCompleteCommand(program);
 
     addFingerprintCommand(program);
 
@@ -174,11 +163,8 @@ const COMMAND_DESCRIPTION = {
     'Build the app into the local build cache, and push nothing.\n' +
     '  A later `npx sherlo test` takes the build from the cache instead of compiling, for as long\n' +
     "  as the app's native code and build settings are unchanged.",
-  [TEST_EAS_CLOUD_BUILD_COMMAND]: 'Test cloud builds created on Expo servers',
   [EAS_BUILD_ON_COMPLETE_COMMAND]:
     'Hand a finished EAS build to its Sherlo test (run by EAS, from package.json, in EAS mode)',
-  [SHOW_ERROR_COMMAND]:
-    'Decode a minified JS error stack trace using the slug printed on the Sherlo build error page',
   [VIEW_COMMAND]:
     'Look at a build without touching it: its run status, its review tally, the same\n' +
     '  status sentence the GitHub check posts, and its link. Opens nothing and uploads\n' +
@@ -251,10 +237,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${DIAGNOSTICS_OPTION} <names>`,
     'Diagnostics to collect, comma-separated (e.g. androidWindowDump,stabilizationFrames)',
   ],
-  [EAS_BUILD_SCRIPT_NAME_OPTION]: [
-    `--${EAS_BUILD_SCRIPT_NAME_OPTION} <name>`,
-    'Name of the package.json script that triggers EAS Build',
-  ],
   [INCLUDE_OPTION]: [
     `--${INCLUDE_OPTION} <stories>`,
     'List of story names to include in the test (e.g. "My Story","Another Story")',
@@ -292,17 +274,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       'build the bundle once (in CI, in a monorepo pipeline) and hand it to every run ' +
       'that follows.',
   ],
-  [DRY_RUN_OPTION]: [
-    '--dry-run',
-    'Preview which stories a real run would capture (Diff Scope), then exit. ' +
-      'Bundles and produces the manifest locally, asks the server for a read-only ' +
-      'decision, and prints the per-platform "would capture" lists with reasons. ' +
-      'Creates no build and uploads nothing.',
-  ],
   [MESSAGE_OPTION]: [`--${MESSAGE_OPTION} <message>`, 'Custom message to label the test'],
   [PROFILE_OPTION]: [
     `--${PROFILE_OPTION} <profile>`,
-    `EAS Build profile (must match profile used in \`npx sherlo ${TEST_EAS_CLOUD_BUILD_COMMAND}\`)`,
+    'EAS Build profile the finished build was made with',
   ],
   [PROJECT_ROOT_OPTION]: [
     `--${PROJECT_ROOT_OPTION} <path>`,
@@ -325,10 +300,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [VERBOSE_OPTION]: [
     `--${VERBOSE_OPTION}`,
     'List every native source, package and file under its layer, with its digest',
-  ],
-  [WAIT_FOR_EAS_BUILD_OPTION]: [
-    `--${WAIT_FOR_EAS_BUILD_OPTION}`,
-    'Start waiting for EAS Build to be triggered manually',
   ],
   [STORY_OPTION]: [
     `--${STORY_OPTION} <id>`,
@@ -377,8 +348,8 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
   [BUILD_CACHE_OPTION]: [
     '--build-cache <dir>',
-    `Where app builds are kept between runs (default: ${DEFAULT_BUILD_CACHE}, ` +
-      `or ${BUILD_CACHE_ENV_VAR}). A build whose native code and build settings are ` +
+    'Where app builds are kept between runs (default: build-cache in ' +
+      `${CACHE_DIR_ENV_VAR}, else in the computer's cache folder). A build whose native code and build settings are ` +
       'unchanged is taken from here instead of compiled.',
   ],
   [PARALLEL_BUILDS_OPTION]: [
@@ -451,8 +422,7 @@ function addInitCommand(program: Command) {
 }
 
 // `sherlo test` is the ONE testing command, and it makes every app build it tests (operator
-// decision 2026-10-07): the staged road runs, builds what the gate refuses, and --dry-run previews
-// its bundling decision.
+// decision 2026-10-07): the staged road runs and builds what the gate refuses.
 function addTestCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
@@ -463,7 +433,6 @@ function addTestCommand(program: Command) {
       ...getTestCommonOptions(),
       BUNDLE_DIR_OPTION,
       EMIT_BUNDLE_DIR_OPTION,
-      DRY_RUN_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
       PLATFORM_OPTION,
@@ -608,49 +577,13 @@ function addViewCommand(program: Command) {
   });
 }
 
-function addTestEasCloudBuildCommand(program: Command) {
-  const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
-
-  const easCommand = addCommand({
-    program,
-    command: TEST_EAS_CLOUD_BUILD_COMMAND,
-    oldCommand: 'expo-cloud-builds',
-    options: [
-      EAS_BUILD_SCRIPT_NAME_OPTION,
-      WAIT_FOR_EAS_BUILD_OPTION,
-      ...getTestCommonOptions(),
-      ...devtoolsOptions,
-    ],
-    action: (options) => {
-      refuseTokenFlag(TEST_EAS_CLOUD_BUILD_COMMAND, options);
-      return testEasCloudBuild(options);
-    },
-  });
-
-  // Parsed out of sight and refused, as on `sherlo test` (refuseTokenFlag).
-  easCommand.addOption(new Option(`--${TOKEN_OPTION} <token>`).hideHelp());
-
+function addEasBuildOnCompleteCommand(program: Command) {
   addCommand({
     program,
     command: EAS_BUILD_ON_COMPLETE_COMMAND,
     options: [PROFILE_OPTION],
     action: easBuildOnComplete,
   });
-}
-
-function addShowErrorCommand(program: Command) {
-  // show-error takes a single positional <slug> arg, no options - bypass addCommand
-  program
-    .command(`${SHOW_ERROR_COMMAND} <slug>`)
-    .description(
-      `${COMMAND_DESCRIPTION[SHOW_ERROR_COMMAND]}\n` +
-        '  Slug format: <teamId>-<projectIndex>-(ios|android)-<timestamp>\n' +
-        '  Example:     PsS5H1B1-30-android-1777491220857'
-    )
-    .action(async (slug: string) => {
-      setReportingContext(SHOW_ERROR_COMMAND, { slug });
-      await showError(slug);
-    });
 }
 
 // `sherlo fingerprint` reuses `--bundle-dir` with its own meaning: the directory is
@@ -809,7 +742,6 @@ function addMaskCommand(program: Command) {
 function addCommand({
   program,
   command,
-  oldCommand,
   options,
   action: handler,
   withTimeout = true,
@@ -817,18 +749,13 @@ function addCommand({
 }: {
   program: Command;
   command: keyof typeof COMMAND_DESCRIPTION;
-  oldCommand?: string;
   options: (keyof typeof OPTION_DEFINITION)[];
   action: (options: any) => Promise<any>;
   withTimeout?: boolean;
   /** Runs, but is not listed in `--help`. */
   hidden?: boolean;
 }) {
-  const action = async (actionOptions: any, commandInstance: Command) => {
-    if (oldCommand && commandInstance.name() === oldCommand) {
-      showDeprecationWarning({ oldCommand, newCommand: command });
-    }
-
+  const action = async (actionOptions: any) => {
     setReportingContext(command, actionOptions);
 
     if (withTimeout) {
@@ -838,35 +765,12 @@ function addCommand({
     }
   };
 
-  if (oldCommand) {
-    const deprecatedCommand = program.command(oldCommand, { hidden: true });
-    addOptionsToCommand(deprecatedCommand, options);
-    deprecatedCommand.action(action);
-  }
-
   const commandInstance = program
     .command(command, { hidden })
     .description(COMMAND_DESCRIPTION[command]);
   addOptionsToCommand(commandInstance, options);
   commandInstance.action(action);
   return commandInstance;
-}
-
-function showDeprecationWarning({
-  oldCommand,
-  newCommand,
-}: {
-  oldCommand: string;
-  newCommand: string;
-}) {
-  console.log();
-  logWarning({
-    message: `"${oldCommand}" command is deprecated and will be removed in a future version`,
-  });
-  console.warn(chalk.yellow(`  Please use "${newCommand}" instead`));
-  console.log();
-
-  process.env.SKIP_INTRO = 'true';
 }
 
 /**

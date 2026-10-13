@@ -5,7 +5,6 @@ import {
   CONFIG_OPTION,
   DIAGNOSTICS_OPTION,
   BUNDLE_DIR_OPTION,
-  DRY_RUN_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -16,7 +15,6 @@ import {
   IOS_OPTION,
   JSON_OPTION,
   MESSAGE_OPTION,
-  METADATA_OPTION,
   PROFILE_OPTION,
   PROJECT_OPTION,
   PROJECT_ROOT_OPTION,
@@ -91,11 +89,6 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
   [WAIT_OPTION]?: boolean;
   [WAIT_TIMEOUT_OPTION]?: F extends 'raw' ? string : string;
-  /**
-   * Print the `-- details --` block after the `--wait` roads of `sherlo test`.
-   * (`sherlo view` reads a build back with `--json` instead.)
-   */
-  [METADATA_OPTION]?: boolean;
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
@@ -116,13 +109,6 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
-    /**
-     * Preview-only mode (SHERLO-1895 Diff Scope Phase C): bundle + produce the
-     * manifest locally, ask the server which stories a real run WOULD capture, print
-     * the per-platform decision, and create NO build. Never enables Diff Scope; it
-     * is a read-only preview. Staged road only.
-     */
-    [DRY_RUN_OPTION]?: boolean;
     /**
      * Accept a prebuilt bundle directory instead of running the bundler. The
      * directory holds, per platform, the bundle, its assets, its module manifest
@@ -164,7 +150,14 @@ type CommandOptions = {
 /* === COMMAND PARAMS === */
 
 export type CommandParams<C extends Command | 'any' = 'any'> = Config &
-  Options<C, 'withDefaults', 'normalized'> & { credential: PushCredential };
+  Options<C, 'withDefaults', 'normalized'> & {
+    credential: PushCredential;
+    /**
+     * The config's whole device list. `devices` is cut to a `--platform` job's own platform, while
+     * the test's row names every device of the test, whichever job started it.
+     */
+    testDevices?: Config['devices'];
+  };
 
 /**
  * The credential a push or a view spends, and the project it goes to (sherlo / The credential

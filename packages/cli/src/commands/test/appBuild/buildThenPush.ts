@@ -1,59 +1,48 @@
 /**
  * WHERE `sherlo test` USED TO STOP, IT BUILDS - the staged gate said a platform needs a new app
- * build, so the tool builds it here and pushes it down the standard road, exactly as if the
- * developer had built it and passed `--android`/`--ios` themselves.
+ * build, so the tool builds it here and pushes it down the standard road in the same run.
  *
- * Three shapes of the same push:
+ * Three shapes of the same push, all on the one push spine (../../../helpers/uploadOrReuseBuildsAndRunTests):
  *
- *   - every platform needs a build: build them all, then the standard road as it is;
+ *   - every platform needs a build: build them all, then the standard road;
  *   - a MIXED run: one platform needs a build and the other can still take the stored app build
  *     (only JavaScript changed there) - the built one is uploaded, the other gets its fresh bundle
- *     spliced into the stored app build, and both are one run (operator ruling 2026-10-07: build
+ *     spliced into the stored app build, and both are one test (operator ruling 2026-10-07: build
  *     only the platform that needs it);
- *   - one job of a SPLIT CI run (`--platform`): the run it ends on is the one its CI run's jobs
+ *   - one job of a SPLIT CI run (`--platform`): the test it ends on is the one its CI run's jobs
  *     share, joined rather than opened (./joinTheRun).
+ *
+ * In EAS mode (`build.tool: "eas"`) a refused platform is built on Expo's servers instead
+ * (./easRun), and nothing is compiled here.
  *
  * There is no asking first (operator decision 2026-10-11): CI always runs one job per platform, and
  * a JavaScript-only change finishes in minutes in each without building.
  */
+import path from 'path';
 import type { Platform } from '@sherlo/api-types';
-import {
-  getGitInfo,
-  getValidatedCommandParams,
-  handleClientError,
-  uploadOrReuseBuildsAndRunTests,
-} from '../../../helpers';
-import getBinariesInfoAndNextBuildIndex from '../../../helpers/getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex';
+import { getValidatedCommandParams, uploadOrReuseBuildsAndRunTests } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
 import { readProjectJson } from '../../../helpers/projectJson';
-import { realFreshBundleEffects } from '../../../helpers/uploadFreshBundles';
-import type { PushEffects } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
 import type {
   BaseFingerprintPreimage,
   BaseFingerprints,
 } from '../../../helpers/fingerprint/baseFingerprint';
-import type { AppBuildReason, ChangesSinceStoredBuild } from '../../../render/appBuild';
-import type { PlatformRow } from '../../../render/runRows';
+import type { SplitJob } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
+import type { ChangesSinceStoredBuild, WhyANewAppBuild } from '../../../render/appBuild';
 import { appBuilder } from '../../../seams/appBuilder';
-import { nativeBuild } from '../../../seams/nativeBuild';
-import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
-import type { CommandParams, Options } from '../../../types';
-import { buildBundles } from '../bundleAndPreview';
+import type { Options } from '../../../types';
 import { THIS_COMMAND } from '../constants';
-import type { ValidatedModuleManifest } from '../readModuleManifest';
-import { collectModuleManifests } from '../stagedRun';
 import type { StagedGateRefusal } from '../stagedGateRefusal';
-import {
-  applyBundleToPlatformConfig,
-  realBundleUploadEffects,
-  uploadBundles,
-} from '../uploadBundles';
 import { printPlatformRowInALog } from '../platformRows';
 import { buildApps } from './buildApps';
-import { type BuildFlags, type BuildSettings, readBuildSettings } from './buildSettings';
+import {
+  type BuildFlags,
+  type BuildSettings,
+  DEFAULT_EAS_PROFILE,
+  readBuildSettings,
+} from './buildSettings';
 import { ciRunKey } from './ciRun';
 import { easRun } from './easRun';
-import { joinTheRun } from './joinTheRun';
 import { foldersStoredFileByFile, nativeChangesSince } from './nativeChanges';
 
 /** Build what the gate refused, then run the standard road on the fresh app builds. */
@@ -75,15 +64,12 @@ export async function buildThenPush({
    */
   fingerprints: BaseFingerprints;
 }): Promise<{ url: string }> {
-  const { platformsToBuild, platformsOnStoredBuild } = whichPlatformsNeedABuild({
-    platformsToTest,
-    refusals,
-  });
-
-  const commandParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions },
-    { requirePlatformPaths: false }
+  const platformsToBuild = refusals.map(({ platform }) => platform);
+  const platformsOnStoredBuild = platformsToTest.filter(
+    (platform) => !platformsToBuild.includes(platform)
   );
+
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
   const settings = readBuildSettings(commandParams);
 
   // EAS MODE: the refused platforms are built on Expo's servers, and the run waits for them.
@@ -106,15 +92,12 @@ export async function buildThenPush({
   const toBuild = await Promise.all(
     refusals.map(async (refusal) => ({
       platform: refusal.platform,
-      why: {
-        reason: reasonOf(refusal),
+      why: await whyANewAppBuild({
+        refusal,
         storedBuildIndex: storedBuildIndexOf[refusal.platform],
-        ...(await changesSinceStoredBuildOf(
-          refusal,
-          fingerprints[refusal.platform].preimage,
-          commandParams.projectRoot
-        )),
-      },
+        fingerprintPreimage: fingerprints[refusal.platform].preimage,
+        projectRoot: commandParams.projectRoot,
+      }),
     }))
   );
 
@@ -124,6 +107,7 @@ export async function buildThenPush({
     settings,
     fingerprints,
     cacheDirFlag: passedOptions.buildCache,
+    parallelBuildsFlag: passedOptions.parallelBuilds,
     command: 'test',
     project: {
       teamId: commandParams.credential.teamId,
@@ -132,51 +116,17 @@ export async function buildThenPush({
     storedPlatformRows,
   });
 
-  // THE STANDARD ROAD, ON THE BUILDS JUST MADE: the same validation and the same push spine a
-  // developer gets by passing the paths themselves, so nothing below this line knows who built
-  // them. A mixed run hands the spine only the built platforms' paths; its config still names
-  // every device, so the test's row names the whole test's devices.
-  const pushParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions: { ...passedOptions, ...appBuildPaths } },
-    { requirePlatformPaths: platformsOnStoredBuild.length === 0 }
-  );
-
-  const joinKey = splitRunKeyOf(passedOptions);
-  if (!joinKey && platformsOnStoredBuild.length === 0) {
-    return uploadOrReuseBuildsAndRunTests({ commandParams: pushParams, platformRows });
-  }
-
+  // THE STANDARD ROAD, ON THE BUILDS JUST MADE: the push spine takes the app builds as they are,
+  // the stored platforms of a mixed run, and the split job's join, so nothing below this line
+  // knows who built them.
+  const splitJob = splitJobOf(passedOptions);
   return uploadOrReuseBuildsAndRunTests({
-    commandParams: pushParams,
+    commandParams,
+    appBuildPaths: resolvedFrom(commandParams.projectRoot, appBuildPaths),
+    platformsOnStoredBuild,
+    ...(splitJob ? { splitJob } : {}),
     platformRows,
-    effects: pushEffects({
-      commandParams: pushParams,
-      platformsToBuild,
-      platformsOnStoredBuild,
-      joinKey,
-      platformRows,
-    }),
   });
-}
-
-/**
- * Which platforms need a new app build and which stay on the app build Sherlo stores: the ones
- * the staged gate refused are built, every other platform the run tests keeps its stored one.
- */
-function whichPlatformsNeedABuild({
-  platformsToTest,
-  refusals,
-}: {
-  platformsToTest: Platform[];
-  refusals: StagedGateRefusal[];
-}): { platformsToBuild: Platform[]; platformsOnStoredBuild: Platform[] } {
-  const platformsToBuild = refusals.map(({ platform }) => platform);
-  return {
-    platformsToBuild,
-    platformsOnStoredBuild: platformsToTest.filter(
-      (platform) => !platformsToBuild.includes(platform)
-    ),
-  };
 }
 
 /**
@@ -200,139 +150,33 @@ export function splitRunKeyOf(passedOptions: BuildFlags): string | null {
   return key;
 }
 
-/**
- * The push spine's own effects, with two changes it cannot make itself: the binaries read are only
- * the built platforms' (a mixed run has no app build for the other), and the build it ends on
- * carries the stored platforms' fresh bundles too - joined into the CI run's shared run for a split
- * job, opened for anything else.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): a copy of the spine's defaults
- * (../../../helpers/uploadOrReuseBuildsAndRunTests), because the spine is outside what plan may
- * edit. The build task teaches the spine both changes and deletes this copy.
- */
-function pushEffects({
-  commandParams,
-  platformsToBuild,
-  platformsOnStoredBuild,
-  joinKey,
-  platformRows,
-}: {
-  commandParams: CommandParams<THIS_COMMAND>;
-  platformsToBuild: Platform[];
-  platformsOnStoredBuild: Platform[];
-  joinKey: string | null;
-  /** The platforms' rows, which a joined run's test row stands under (./joinTheRun). */
-  platformRows: PlatformRow[];
-}): PushEffects {
-  const { token, projectIndex, teamId } = commandParams.credential;
-  const machine = nativeBuild();
-  // Filled when openBuild stages the stored platforms, read by the test's row after it.
-  let storedPlatformManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
-
-  return {
-    now: () => machine.now(),
-    resolveBinaries: async () => {
-      const { binariesInfo, nextBuildIndex } = await getBinariesInfoAndNextBuildIndex({
-        token,
-        command: THIS_COMMAND,
-        commandParams,
-        projectIndex,
-        teamId,
-        platforms: platformsToBuild,
-        android: commandParams.android,
-        ios: commandParams.ios,
-      });
-      const sdkVersion = binariesInfo.android?.sdkVersion || binariesInfo.ios?.sdkVersion || '';
-      return { binariesInfo: { ...binariesInfo, sdkVersion }, nextBuildIndex };
-    },
-    resolveGitInfo: () =>
-      getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
-    computeFingerprint: () => machine.computeFingerprint(commandParams.projectRoot, THIS_COMMAND),
-    openBuild: async (input) => {
-      const request = input as OpenBuildRequest;
-
-      if (platformsOnStoredBuild.length > 0) {
-        storedPlatformManifests = await stageTheStoredPlatforms({
-          request,
-          platformsOnStoredBuild,
-          commandParams,
-        });
-      }
-
-      if (joinKey) {
-        return joinTheRun({ token, joinKey, platform: platformsToBuild[0], request, platformRows });
-      }
-      return serverCalls()
-        .openBuild({ token, ...request })
-        .catch((error) => handleClientError(error, token));
-    },
-    binaryUpload: {
-      readBinary: (buildPath, platform, projectRoot) =>
-        machine.readBinaryForUpload(buildPath, platform, projectRoot),
-      putBinary: (uploadUrl, data) => machine.putBinary(uploadUrl, data),
-    },
-    baseRegistration: {
-      extractGateMetadataFor: (params) => machine.extractGateMetadataFor(params),
-    },
-    freshBundle: realFreshBundleEffects(token),
-    moduleManifestsOfStoredPlatforms: () => storedPlatformManifests,
-  };
+/** This job of a split CI run - its key and its platform - or nothing for a test of its own. */
+function splitJobOf(passedOptions: BuildFlags): SplitJob | undefined {
+  const joinKey = splitRunKeyOf(passedOptions);
+  if (!joinKey) return undefined;
+  return { joinKey, platform: passedOptions.platform as Platform };
 }
 
-/**
- * The other half of a mixed run: bundle the platforms whose stored app build still matches, upload
- * each bundle to its staged slot, and put it on the run's config - the stored app build is named by
- * the async-upload placeholder the config already carries for a platform with no binary, and the
- * runner splices the bundle into it, exactly as on the staged road. Answers the stored platforms'
- * module maps, so the test's row counts their stories too.
- */
-async function stageTheStoredPlatforms({
-  request,
-  platformsOnStoredBuild,
-  commandParams,
-}: {
-  request: OpenBuildRequest;
-  platformsOnStoredBuild: Platform[];
-  commandParams: CommandParams<THIS_COMMAND>;
-}): Promise<Partial<Record<Platform, ValidatedModuleManifest>>> {
-  const { token, projectIndex, teamId } = commandParams.credential;
-
-  const { results: bundles } = await buildBundles({
-    projectRoot: commandParams.projectRoot,
-    platformsToTest: platformsOnStoredBuild,
-  });
-
-  const stagedKeys = await uploadBundles({
-    platformsToTest: platformsOnStoredBuild,
-    bundles,
-    projectIndex,
-    teamId,
-    effects: realBundleUploadEffects(token),
-  });
-
-  const config = request.buildRunConfig as Record<string, unknown>;
-  for (const platform of platformsOnStoredBuild) {
-    const platformConfig = config[platform] as Parameters<
-      typeof applyBundleToPlatformConfig
-    >[0]['platformConfig'];
-    const keys = stagedKeys[platform];
-    const bundle = bundles[platform];
-    if (!platformConfig || !keys || !bundle) continue;
-
-    applyBundleToPlatformConfig({ platformConfig, keys, bundleSizeMb: bundle.bundleSizeMb });
-  }
-
-  return collectModuleManifests(bundles, platformsOnStoredBuild);
+/** Each app build's path, from the project root when the builder named it relative to it. */
+function resolvedFrom(
+  projectRoot: string,
+  appBuildPaths: Partial<Record<Platform, string>>
+): Partial<Record<Platform, string>> {
+  return Object.fromEntries(
+    Object.entries(appBuildPaths).map(([platform, appBuildPath]) => [
+      platform,
+      path.resolve(projectRoot, appBuildPath),
+    ])
+  );
 }
 
 /**
  * A local build borrows the eas.json profile's `env`, and cannot borrow the variables a profile
  * keeps on Expo's servers (`environment`) without an Expo login. Said once, before the build, so a
- * developer whose app needs them knows where to put them.
+ * developer whose app needs them knows where to put them - the build goes on.
  */
 function warnAboutVariablesOnExpo(projectRoot: string, settings: BuildSettings): void {
-  const profileName = settings.easProfile;
-  if (!profileName) return;
+  const profileName = settings.easProfile ?? DEFAULT_EAS_PROFILE;
 
   // No eas.json, or one that cannot be read: there is nothing to borrow.
   const environment: unknown = readProjectJson(projectRoot, 'eas.json')?.build?.[profileName]
@@ -343,17 +187,31 @@ function warnAboutVariablesOnExpo(projectRoot: string, settings: BuildSettings):
 }
 
 /**
- * The gate's refusal, in the developer's words: a refusal that hands back a stored app build's
- * source list, or names what moved, is native code that changed since the stored app build, and
- * one that does neither is a project Sherlo holds no app build for yet - the gate has nothing to
- * compare with.
- *
- * PLAN-LAYER DEBT: a moved base fingerprint whose stored app build kept no list (an older CLI
- * stored it) is refused with an empty diff too, so the gate cannot tell "nothing stored" from
- * "native code changed" there. The build task reads the gate's own reason instead of guessing.
+ * Why a refused platform needs a new app build, in the developer's words. Only a change of native
+ * code since a stored app build is a reason worth a word (`native code changed since Test 12`),
+ * and the gate says there is one by naming the test that stored app build came from. A platform
+ * with nothing stored gives no reason at all.
  */
-function reasonOf(refusal: StagedGateRefusal): AppBuildReason {
-  return refusal.storedBase || refusal.diff.length > 0 ? 'native-changed' : 'nothing-stored';
+async function whyANewAppBuild({
+  refusal,
+  storedBuildIndex,
+  fingerprintPreimage,
+  projectRoot,
+}: {
+  refusal: StagedGateRefusal;
+  /** The test the stored app build came from, as the gate named it; none when nothing is stored. */
+  storedBuildIndex: number | undefined;
+  fingerprintPreimage: BaseFingerprintPreimage | undefined;
+  projectRoot: string;
+}): Promise<WhyANewAppBuild> {
+  const storedIn = storedBuildIndex ?? refusal.storedBase?.buildIndex;
+  if (storedIn === undefined) return { reason: 'nothing-stored' };
+
+  return {
+    reason: 'native-changed',
+    storedBuildIndex: storedIn,
+    ...(await changesSinceStoredBuildOf(refusal, fingerprintPreimage, projectRoot)),
+  };
 }
 
 /**

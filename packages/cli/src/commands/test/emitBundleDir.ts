@@ -24,7 +24,8 @@ import { emit } from '../../helpers/transcriptSink';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import type { BaseFingerprints, GateMetadataInput } from '../../helpers/fingerprint';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
-import { bundler } from '../../seams/bundler';
+import { bundler, type Bundler } from '../../seams/bundler';
+import type { BuildSettings } from './appBuild/buildSettings';
 import { whileShowing } from '../shared/terminal';
 import type { BundleResult } from './buildBundle';
 import {
@@ -57,9 +58,10 @@ export async function emitBundleDir({
   platformsToTest,
   bundleDir,
   baseFingerprints,
+  buildSettings,
   // The bundler IN FORCE, not the real one by name - a posed `--emit-bundle-dir` installs its own
   // (../../seams/bundler), exactly like the built road's own bundling loop (./bundleAndPreview).
-  bundleFor = (root, platform) => bundler().bundleFor(root, platform),
+  bundleFor = (root, platform, settings) => bundler().bundleFor(root, platform, settings),
   gateMetadataFor = (root, platform, bundleResult) =>
     bundler().gateMetadataFor(root, platform, bundleResult),
 }: {
@@ -68,7 +70,9 @@ export async function emitBundleDir({
   bundleDir: string;
   /** Per platform, the base fingerprint this machine computed for the tree, when it could. */
   baseFingerprints?: BaseFingerprints;
-  bundleFor?: (projectRoot: string, platform: Platform) => Promise<BundleResult>;
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings: BuildSettings;
+  bundleFor?: Bundler['bundleFor'];
   gateMetadataFor?: (
     projectRoot: string,
     platform: Platform,
@@ -81,7 +85,7 @@ export async function emitBundleDir({
 
   for (const platform of platformsToTest) {
     const result = await whileShowing({ kind: 'platform-bundle-start', platform }, () =>
-      bundleFor(projectRoot, platform)
+      bundleFor(projectRoot, platform, buildSettings)
     );
 
     // A triple without its manifest is not a triple. The built road may bail open

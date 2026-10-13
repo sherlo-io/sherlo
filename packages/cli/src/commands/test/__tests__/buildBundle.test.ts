@@ -371,17 +371,21 @@ describe('buildBundleForPlatform - version-floor refusal', () => {
     expect(result.bundleFormat).toBe('plain-js');
   });
 
-  it('includes the full-run fallback line in version refusal', async () => {
+  it('names no Sherlo 2 binary path flag in the version refusal', async () => {
     mockGetPackageVersion.mockReturnValue('0.69.0');
     mockDetectBundler.mockReturnValue('rn');
     mockDetectEntryFile.mockReturnValue('index.js');
 
-    await expect(
-      buildBundleForPlatform({
-        projectRoot: tempDir,
-        platform: 'android' as Platform,
-      })
-    ).rejects.toThrow('sherlo test --android <path>');
+    const message = await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+    }).then(
+      () => '',
+      (err: Error) => err.message
+    );
+
+    expect(message).toContain('React Native 0.69.0 is below the minimum version');
+    expect(message).not.toContain('--android');
   });
 });
 
@@ -466,52 +470,45 @@ describe('buildBundleForPlatform - asset inventory', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Refusal messages include full-run fallback
+// Refusal messages name no Sherlo 2 binary path: `sherlo test` builds the app itself
 // ---------------------------------------------------------------------------
 
-describe('refusal messages include full-run fallback', () => {
-  it('HBC refusal ends with the fallback line', async () => {
+/** The refusal a bundle step throws, or '' when it did not refuse. */
+async function refusalOf(platform: Platform): Promise<string> {
+  return buildBundleForPlatform({ projectRoot: tempDir, platform }).then(
+    () => '',
+    (err: Error) => err.message
+  );
+}
+
+describe('refusal messages name no Sherlo 2 binary path flag', () => {
+  it('HBC refusal names no binary path flag', async () => {
     setupBundleBuild(hbcBundle());
 
-    try {
-      await buildBundleForPlatform({
-        projectRoot: tempDir,
-        platform: 'android' as Platform,
-      });
-      expect.unreachable('Should have thrown');
-    } catch (err: any) {
-      expect(err.message).toContain('sherlo test --android <path>');
-    }
+    const message = await refusalOf('android' as Platform);
+
+    expect(message).toContain('Hermes bytecode (.hbc) bundle detected.');
+    expect(message).not.toContain('--android');
   });
 
-  it('RAM refusal ends with the fallback line', async () => {
+  it('RAM refusal names no binary path flag', async () => {
     setupBundleBuild(ramBundle());
 
-    try {
-      await buildBundleForPlatform({
-        projectRoot: tempDir,
-        platform: 'android' as Platform,
-      });
-      expect.unreachable('Should have thrown');
-    } catch (err: any) {
-      expect(err.message).toContain('sherlo test --android <path>');
-    }
+    const message = await refusalOf('android' as Platform);
+
+    expect(message).toContain('RAM/indexed bundle format detected.');
+    expect(message).not.toContain('--android');
   });
 
-  it('version-floor refusal ends with the fallback line', async () => {
+  it('version-floor refusal names no binary path flag', async () => {
     mockGetPackageVersion.mockReturnValue('0.69.0');
     mockDetectBundler.mockReturnValue('rn');
     mockDetectEntryFile.mockReturnValue('index.js');
 
-    try {
-      await buildBundleForPlatform({
-        projectRoot: tempDir,
-        platform: 'ios' as Platform,
-      });
-      expect.unreachable('Should have thrown');
-    } catch (err: any) {
-      expect(err.message).toContain('sherlo test --android <path>');
-    }
+    const message = await refusalOf('ios' as Platform);
+
+    expect(message).toContain('React Native 0.69.0 is below the minimum version');
+    expect(message).not.toContain('--android');
   });
 });
 
@@ -741,6 +738,54 @@ describe('buildBundleForPlatform - bundler environment', () => {
 
     const options = mockExecSync.mock.calls[0][1] as { env: NodeJS.ProcessEnv };
     expect(options.env.SHERLO_BUILD).toBe('storybook');
+  });
+
+  it('runs the bundler with the shell, then the eas.json profile env and build.env, then SHERLO_BUILD', async () => {
+    vi.stubEnv('FROM_THE_SHELL', 'shell');
+    vi.stubEnv('SET_BY_ALL_THREE', 'shell');
+    vi.stubEnv('SHERLO_BUILD', 'off');
+    fs.writeFileSync(
+      path.join(tempDir, 'eas.json'),
+      JSON.stringify({
+        build: {
+          sherlo: {
+            env: {
+              FROM_THE_PROFILE: 'profile',
+              SET_BY_ALL_THREE: 'profile',
+              SHERLO_BUILD: 'off',
+            },
+          },
+        },
+      })
+    );
+    setupBundleBuild(plainJsBundle());
+
+    await buildBundleForPlatform({
+      projectRoot: tempDir,
+      platform: 'android' as Platform,
+      buildSettings: { env: { SET_BY_ALL_THREE: 'build.env', SHERLO_BUILD: 'off' } },
+    });
+
+    const options = mockExecSync.mock.calls[0][1] as { env: NodeJS.ProcessEnv };
+    expect(options.env.FROM_THE_SHELL).toBe('shell');
+    expect(options.env.FROM_THE_PROFILE).toBe('profile');
+    expect(options.env.SET_BY_ALL_THREE).toBe('build.env');
+    expect(options.env.SHERLO_BUILD).toBe('storybook');
+  });
+
+  it("bundles unminified, so a crash's stack trace reads as written", async () => {
+    setupBundleBuild(plainJsBundle(), { projectType: 'expo' });
+    await buildBundleForPlatform({ projectRoot: tempDir, platform: 'android' as Platform });
+    setupBundleBuild(plainJsBundle(), { projectType: 'rn' });
+    await buildBundleForPlatform({ projectRoot: tempDir, platform: 'ios' as Platform });
+
+    const [expoCommand, reactNativeCommand] = mockExecSync.mock.calls.map(([command]) => command);
+    expect(expoCommand).toContain('npx expo export:embed');
+    expect(expoCommand).toContain('--minify=false');
+    expect(expoCommand).toContain('--dev=false');
+    expect(reactNativeCommand).toContain('npx react-native bundle');
+    expect(reactNativeCommand).toContain('--minify false');
+    expect(reactNativeCommand).toContain('--dev false');
   });
 
   const BUNDLER_SETUP_ERROR_LINE =

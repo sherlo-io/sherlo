@@ -29,7 +29,7 @@ function stagedPose(name: string) {
 function androidStoryCount(document: CommandPose): number {
   const bundle = document.bundles.android;
   return (bundle?.storyClosureKeys ?? []).reduce(
-    (total, file) => total + (bundle?.storyTitles?.[file]?.stories ?? 1),
+    (total, file) => total + (bundle?.storyCounts?.[file] ?? 1),
     0
   );
 }

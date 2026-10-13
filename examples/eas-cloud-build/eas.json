@@ -3,13 +3,16 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "preview-simulator": {
+    "sherlo": {
       "android": {
         "buildType": "apk",
         "withoutCredentials": true
       },
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "SHERLO_BUILD": "storybook"
       }
     }
   }

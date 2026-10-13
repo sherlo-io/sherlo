@@ -16,5 +16,8 @@ builds/
 sherlo-lib/
 .env
 
+# Holds the project token for Expo's machine: never in git (.easignore leaves it in the upload)
+.sherlo/
+
 *storybook.log
 storybook-static

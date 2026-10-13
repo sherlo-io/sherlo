@@ -1,5 +1,8 @@
 import { REJECTED_LOGIN_MESSAGE } from '../commands/shared/refuseRejectedLogin';
-import { printsToATerminal, whileShowing } from '../commands/shared/terminal';
+import { printsToATerminal, whileShowing, type SayMore } from '../commands/shared/terminal';
+import { runStatusWord } from '../render/buildView';
+import { formatBuildDuration } from '../render/appBuild';
+import { renderSegment } from '../render/renderSegment';
 import { rowsAbove } from '../commands/test/platformRows';
 import type { PlatformRow } from '../render/runRows';
 import type { TranscriptSegment } from '../render/segments';
@@ -48,7 +51,24 @@ const RUN_STATUSES_THAT_END_A_TEST = new Set(['finished', 'error', 'canceled']);
  */
 export type { BuildStatus, BuildStatusResponse } from './buildStatusRequest';
 
-async function waitForBuildResult({
+/**
+ * Wait for a test to end and say how it went; resolves to the exit code. The wait every command
+ * runs - see {@link waitForTest} for the arguments, and for the read that decided it.
+ */
+async function waitForBuildResult(waitArguments: WaitArguments): Promise<number> {
+  return (await waitForTest(waitArguments)).exitCode;
+}
+
+type WaitArguments = Parameters<typeof waitForTest>[0];
+
+/** How a wait ended: the exit code, and the last read of the test (`null` if it never appeared). */
+export type WaitResult = { exitCode: number; lastRead: BuildStatus | null };
+
+/**
+ * The wait itself. It returns its last read of the test with the exit code, so a command that
+ * prints the test's record after the wait (`sherlo view --json --wait`) needs no read of its own.
+ */
+export async function waitForTest({
   token,
   fromSavedLogin = false,
   buildIndex,
@@ -63,6 +83,7 @@ async function waitForBuildResult({
   // loaded is still the one consulted.
   now = () => surroundings().now(),
   pollBuildStatus,
+  json = false,
 }: {
   token: string;
   /**
@@ -120,7 +141,13 @@ async function waitForBuildResult({
    * needs neither a real token nor a resolvable SDK env file.
    */
   pollBuildStatus?: () => Promise<BuildStatus | null>;
-}): Promise<number> {
+  /**
+   * stdout is one JSON record and nothing else (`sherlo view --json --wait`, as `eas build --json
+   * --wait` does): the wait prints nothing on stdout, shows its progress as a spinner on stderr
+   * only when stderr is a terminal, and says a refused login once on stderr.
+   */
+  json?: boolean;
+}): Promise<WaitResult> {
   const timeoutMs = (waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES) * 60 * 1000;
   const startTime = now();
   const deadline = startTime + timeoutMs;
@@ -146,39 +173,66 @@ async function waitForBuildResult({
   // read below returns at once. Every other wait is a step in progress - a spinner in a person's
   // terminal, one plain line in a log (../commands/shared/terminal) - and how it ended prints after
   // the spinner has gone.
-  const pollTheTest = () =>
-    pollUntilTheWaitEnds({ poll, now, startTime, deadline, serverBypassed, fromSavedLogin });
+  const lastRead: { build: BuildStatus | null } = { build: null };
+  const pollTheTest = (sayMore: SayMore) =>
+    pollUntilTheWaitEnds({
+      poll,
+      now,
+      startTime,
+      deadline,
+      serverBypassed,
+      fromSavedLogin,
+      json,
+      sayMore,
+      lastRead,
+    });
   const ending = serverBypassed
-    ? await pollTheTest()
-    : await whileShowing({ kind: 'wait-header', timeoutMinutes, testIndex }, pollTheTest);
+    ? await pollTheTest(() => {})
+    : await whileShowing({ kind: 'wait-header', timeoutMinutes, testIndex }, pollTheTest, {
+        forJson: json,
+      });
+
+  // A JSON wait prints nothing on stdout: how it ended is the exit code, and the record is the
+  // caller's to print.
+  const endWith = (exitCode: number): WaitResult => ({ exitCode, lastRead: lastRead.build });
 
   switch (ending.kind) {
     case 'interrupted':
-      emit({ kind: 'wait-interrupted', testIndex });
-      return EXIT_SIGINT;
+      if (!json) emit({ kind: 'wait-interrupted', testIndex });
+      return endWith(EXIT_SIGINT);
 
     case 'timed-out':
-      emit({ kind: 'wait-timed-out', timeoutMinutes, testIndex });
-      return EXIT_TIMEOUT;
+      if (!json) emit({ kind: 'wait-timed-out', timeoutMinutes, testIndex });
+      return endWith(EXIT_TIMEOUT);
 
     case 'login-refused':
-      emit({ kind: 'blank-line' });
-      emit({ kind: 'wait-auth-failed', message: ending.message });
-      emit({ kind: 'blank-line' });
-      return EXIT_ERROR;
+      if (json) {
+        // Once, on stderr: stdout stays a record a program can parse, and the refusal is not lost.
+        for (const args of renderSegment({ kind: 'wait-auth-failed', message: ending.message })
+          .prints) {
+          console.warn(...args);
+        }
+      } else {
+        emit({ kind: 'blank-line' });
+        emit({ kind: 'wait-auth-failed', message: ending.message });
+        emit({ kind: 'blank-line' });
+      }
+      return endWith(EXIT_ERROR);
 
     case 'closed':
       // THE ONE PLACE THE CLOSER PRINTS, at most once per build: every earlier read of a finished
       // build still settling its stories[] decided and moved on without printing anything.
-      printTerminalCloser(
-        ending.build,
-        {
-          testIndex,
-          secondsItRan: sawTheTestStart ? ending.secondsItRan : undefined,
-        },
-        rowsNotYetShown
-      );
-      return ending.exitCode;
+      if (!json) {
+        printTerminalCloser(
+          ending.build,
+          {
+            testIndex,
+            secondsItRan: sawTheTestStart ? ending.secondsItRan : undefined,
+          },
+          rowsNotYetShown
+        );
+      }
+      return endWith(ending.exitCode);
   }
 }
 
@@ -196,6 +250,9 @@ async function pollUntilTheWaitEnds({
   deadline,
   serverBypassed,
   fromSavedLogin,
+  json,
+  sayMore,
+  lastRead,
 }: {
   poll: () => Promise<BuildStatus | null>;
   now: () => number;
@@ -203,10 +260,16 @@ async function pollUntilTheWaitEnds({
   deadline: number;
   serverBypassed: boolean;
   fromSavedLogin: boolean;
+  /** stdout is a JSON record: no line of a log is printed, whatever the terminal. */
+  json: boolean;
+  /** Says what the test is doing beside the wait's spinner (a no-op where there is none). */
+  sayMore: SayMore;
+  /** Filled with every read of the test that found it, so the caller has the last one. */
+  lastRead: { build: BuildStatus | null };
 }): Promise<WaitEnding> {
   const inATerminal = printsToATerminal();
   const printInALog = (segment: TranscriptSegment): void => {
-    if (!inATerminal) emit(segment);
+    if (!inATerminal && !json) emit(segment);
   };
 
   let lastStatus = '';
@@ -280,6 +343,7 @@ async function pollUntilTheWaitEnds({
         // field, which is why it is written here at the hazard rather than in
         // the commit that happened to hit it first.
         printInALog({ kind: 'wait-network-retry', message: (error as Error).message });
+        sayMore('Network error, retrying');
         if ((await sleepUnlessInterrupted()) === 'sigint') {
           return interrupted;
         }
@@ -288,11 +352,19 @@ async function pollUntilTheWaitEnds({
 
       if (!build) {
         printInALog({ kind: 'wait-build-not-found' });
+        sayMore('Test not found yet, retrying');
         if ((await sleepUnlessInterrupted()) === 'sigint') {
           return interrupted;
         }
         continue;
       }
+
+      lastRead.build = build;
+      sayMore(
+        `${capitalized(runStatusWord(build.runStatus))}, ${formatBuildDuration(
+          Math.round((now() - startTime) / 1000)
+        )}`
+      );
 
       // Print progress when status changes. Suppressed for a server-bypassed build
       // (SHERLO-1952): its only progress line would be "🟢 Finished", which implies
@@ -348,6 +420,10 @@ async function pollUntilTheWaitEnds({
   } finally {
     sigint.cleanup();
   }
+}
+
+function capitalized(words: string): string {
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /** How a wait ended, decided by the poll and printed once the wait's spinner has gone. */

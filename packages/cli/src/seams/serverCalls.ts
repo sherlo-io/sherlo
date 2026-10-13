@@ -26,6 +26,7 @@ import {
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
 import getTokenParts from '../helpers/getTokenParts';
+import isBuildTicket from '../helpers/isBuildTicket';
 import isPersonalToken from '../helpers/isPersonalToken';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
@@ -68,6 +69,16 @@ export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
    * own shape.
    */
   hasCiToken?: boolean;
+  /**
+   * The one-build ticket (BUILD_TICKET_PREFIX) the service answers when it opens a run that waits
+   * for EAS builds: the credential the EAS hook spends, in place of any token (sherlo-api / Tokens
+   * and the request gate).
+   *
+   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): posed here; sherlo-api task
+   * stb-api-eas-ticket adds it to `openBuild`'s answer and the sdk client's selection, and this
+   * becomes the client's own shape.
+   */
+  buildTicket?: string;
 };
 /** The two questions a real push asks before it opens a build - the sdk client's own shapes. */
 export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
@@ -87,7 +98,7 @@ export type ServerCalls = {
     teamId: string;
     /** A single-shot read bounds its own request; the poll loop's own deadline governs there. */
     boundedRead?: boolean;
-  }): Promise<BuildStatusAnswer | null>;
+  }): Promise<BuildStatus | null>;
 
   createProject(request: {
     name: string;
@@ -230,7 +241,17 @@ export type JoinBuildAnswer = {
 };
 
 /** What an EAS build's delivery and a run's closing are sent and answer - the sdk client's own shapes. */
-export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0];
+export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0] & {
+  /**
+   * Where the hook staged the module map its EAS build wrote, the slot `getStagedUploadUrls`
+   * offered for it - the same field a split CI job sends in its platform's config, so an EAS run
+   * captures only what changed (sherlo-api / One run from many uploaders).
+   *
+   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): sherlo-api task stb-api-eas-ticket adds
+   * it to `asyncUpload`; until the sdk client declares it, the service never reads it.
+   */
+  manifestS3Key?: string;
+};
 /** The client's answer, and the started run when this EAS build was the last one in ({@link StartedRun}). */
 export type AsyncUploadAnswer = Awaited<ReturnType<SdkClient['asyncUpload']>> & {
   startedRun?: StartedRun;
@@ -251,10 +272,10 @@ export type StoredAppBuildFacts = Pick<StagedGateAnswer, 'storedBase' | 'storedB
 
 /**
  * What the service is sent for the token a push spends: a project token's api part, or a personal
- * token whole - a personal token, the saved login's included, has no parts.
+ * token or a build ticket whole - neither has parts.
  */
 function authTokenFor(token: string): string {
-  return isPersonalToken(token) ? token : getTokenParts(token).apiToken;
+  return isPersonalToken(token) || isBuildTicket(token) ? token : getTokenParts(token).apiToken;
 }
 
 /** The one place a push's token becomes a real sdk client - every live operation below goes through it. */
@@ -410,51 +431,17 @@ export function installServerCalls(next: ServerCalls): () => void {
 export type ApiError = { error: string };
 
 /**
- * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, extended rather than re-typed: a pose
- * describing a build the backend cannot send would let a product design be approved off a state
- * that can never occur.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the fields below are what `sherlo view
- * --json` reads beyond today's wire, drawn here and sent by no server yet. The build task adds them
- * to sherlo-api's `getBuildStatus`, to both selections of it (the CLI's raw fetch in
- * helpers/buildStatusRequest.ts and the sdk client's), and folds this intersection back into
- * `BuildStatus`. Every one is optional: an older API leaves it out, and `view --json` then prints
- * it absent, never as a zero.
+ * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
+ * because a pose scripts it and the pose contract publishes it under this name. A pose describing a
+ * build the backend cannot send would let a product design be approved off a state that can never
+ * occur, which is why this is the wire's type and not a copy of it.
  */
-export type BuildStatusAnswer = Omit<BuildStatus, 'gitInfo'> & {
-  /**
-   * The platform whose failure ended the run - beside `runError`, which the wire already sends as
-   * the server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...). Absent or
-   * `null` when the error is not one platform's.
-   */
-  runErrorPlatform?: 'android' | 'ios' | null;
-  /** The build's frozen git identity. `isDirty`: whether the push sent uncommitted changes. */
-  gitInfo?: {
-    branchName: string;
-    commitHash: string;
-    isDirty?: boolean | null;
-  };
-  /** The project's main line the build was judged against. `null` while the project has none. */
-  mainBranch?: string | null;
-  /**
-   * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
-   * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
-   * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
-   * `null` for a push from a person's machine.
-   */
-  ciRun?: { provider: string; runId: string } | null;
-  /** The devices the run was asked for, as the config named them. */
-  devices?: { id: string; osVersion: string; platform: 'android' | 'ios' }[] | null;
-  /** Per platform the run was asked for, what it did with it. A platform it was not asked for is absent. */
-  platforms?: {
-    android?: BuildStatusPlatform;
-    ios?: BuildStatusPlatform;
-  } | null;
-};
+export type BuildStatusAnswer = BuildStatus;
 
 /**
- * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it: service-known facts beside the facts the
- * push reported about itself ({@link PushFacts}).
+ * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
+ * ../helpers/buildStatusRequest): service-known facts beside the facts the push reported about
+ * itself ({@link PushFacts}).
  */
 export type BuildStatusPlatform = {
   /** Whether this platform's app build reached the run. `false`: a split or EAS run still waits for it. */
@@ -563,7 +550,7 @@ export type StagedGateAnswer = {
   storedBase?: StoredBaseSources;
   /**
    * The test the platform's stored app build was built in - "stored from Test 12", "native code
-   * changed since Test 12's app build" - whatever the outcome. Absent when nothing is stored.
+   * changed since Test 12" - whatever the outcome. Absent when nothing is stored.
    */
   storedBuildIndex?: number;
 };
@@ -706,6 +693,8 @@ export type ScriptedCall =
             url: string;
             captureDecision?: PosedCaptureDecision;
             hasCiToken?: boolean;
+            /** The one-build ticket of a run that waits for EAS builds. */
+            buildTicket?: string;
           }
         | ApiError;
     }
@@ -874,7 +863,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     unusedCalls: () => remaining,
 
     getBuildStatus: async ({ buildIndex }) =>
-      answerFor('getBuildStatus', { buildIndex }) as BuildStatusAnswer | null,
+      answerFor('getBuildStatus', { buildIndex }) as BuildStatus | null,
 
     createProject: async ({ name, teamId }) =>
       answerFor('createProject', { teamId, name }) as ProjectCreated,
@@ -898,11 +887,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
         url: string;
         captureDecision?: PosedCaptureDecision;
         hasCiToken?: boolean;
+        buildTicket?: string;
       };
 
       return {
         ...openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision),
         ...(answer.hasCiToken === undefined ? {} : { hasCiToken: answer.hasCiToken }),
+        ...(answer.buildTicket === undefined ? {} : { buildTicket: answer.buildTicket }),
       };
     },
 

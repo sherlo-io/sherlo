@@ -244,6 +244,7 @@ async function emit(
     ...(opts.baseFingerprint
       ? { baseFingerprints: { android: opts.baseFingerprint, ios: opts.baseFingerprint } }
       : {}),
+    buildSettings: {},
     bundleFor: async (_root, platform) => scriptedBundle(platform, opts),
     gateMetadataFor: async () => EMITTED_GATE_METADATA,
   });

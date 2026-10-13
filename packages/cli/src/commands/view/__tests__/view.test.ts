@@ -40,7 +40,7 @@ vi.mock('../../../helpers/getValidatedCommandParams', () => ({ default: vi.fn() 
 // this module - the wire shape, the exit codes - stays real.
 vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
   const actual = await importActual<typeof import('../../../helpers/waitForBuildResult')>();
-  return { ...actual, default: vi.fn(), readBuildStatus: vi.fn() };
+  return { ...actual, default: vi.fn(), waitForTest: vi.fn(), readBuildStatus: vi.fn() };
 });
 
 // ---------------------------------------------------------------------------
@@ -50,6 +50,7 @@ vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
 import _getValidatedCommandParams from '../../../helpers/getValidatedCommandParams';
 import _waitForBuildResult, {
   readBuildStatus as _readBuildStatus,
+  waitForTest as _waitForTest,
 } from '../../../helpers/waitForBuildResult';
 import resolvePushCredential from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
 import { installSavedLogins, posedSavedLogins } from '../../../seams/savedLogins';
@@ -57,6 +58,7 @@ import view from '../view';
 
 const getValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
 const waitForBuildResult = vi.mocked(_waitForBuildResult);
+const waitForTest = vi.mocked(_waitForTest);
 const readBuildStatus = vi.mocked(_readBuildStatus);
 
 /**
@@ -259,20 +261,33 @@ describe('--json --wait', () => {
     for (const code of [0, 1, 3]) {
       exitCodes = [];
       vi.mocked(console.log).mockClear();
-      waitForBuildResult.mockResolvedValue(code);
-      readBuildStatus
-        .mockReset()
-        .mockResolvedValueOnce({ runStatus: 'inProgress' } as never)
-        .mockResolvedValueOnce(FINISHED_BUILD);
+      readBuildStatus.mockReset().mockResolvedValue({ runStatus: 'inProgress' } as never);
+      waitForTest.mockReset().mockResolvedValue({ exitCode: code, lastRead: FINISHED_BUILD });
 
       await runView('7', { wait: true, json: true });
 
-      expect(readBuildStatus, 'one read before the wait, one after it').toHaveBeenCalledTimes(2);
+      expect(
+        waitForTest,
+        'the JSON wait is the loop in json mode, not a captured human one'
+      ).toHaveBeenLastCalledWith(expect.objectContaining({ json: true, buildIndex: 7 }));
+      expect(
+        readBuildStatus,
+        "the record is the wait's last read: only the first read"
+      ).toHaveBeenCalledTimes(1);
       const printed = vi.mocked(console.log).mock.calls.map((call) => call.join(' '));
       expect(printed, 'stdout carries the record alone').toHaveLength(1);
       expect(JSON.parse(printed[0])).toMatchObject({ runStatus: 'finished', buildIndex: 7 });
       expect(exitCodes).toEqual([code]);
     }
+  });
+
+  it('prints no record when the test never appeared, and still exits with the wait code', async () => {
+    waitForTest.mockReset().mockResolvedValue({ exitCode: 3, lastRead: null });
+
+    await runView('7', { wait: true, json: true });
+
+    expect(vi.mocked(console.log)).not.toHaveBeenCalled();
+    expect(exitCodes).toEqual([3]);
   });
 });
 

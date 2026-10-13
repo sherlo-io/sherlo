@@ -14,8 +14,6 @@ export const DOCS_LINK = {
   config: `${DOCS_BASE_URL}/config`,
   configProperties: `${DOCS_BASE_URL}/config#properties`,
   configToken: `${DOCS_BASE_URL}/config#token`,
-  configAndroid: `${DOCS_BASE_URL}/config#android`,
-  configIos: `${DOCS_BASE_URL}/config#ios`,
   configDevices: `${DOCS_BASE_URL}/config#devices`,
 
   builds: `${DOCS_BASE_URL}/builds`,
@@ -93,7 +91,6 @@ export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
  * `sherlo eas-build-on-complete` too, which tells the two apart by the script it was run as.
  */
 export const EAS_BUILD_ON_CANCEL_SCRIPT = 'eas-build-on-cancel';
-export const SHOW_ERROR_COMMAND = 'show-error';
 export const FINGERPRINT_COMMAND = 'fingerprint';
 export const VIEW_COMMAND = 'view';
 /** The `project` resource group. It does nothing on its own - see the subcommands below. */
@@ -137,7 +134,6 @@ export const BASELINE_OPTION = 'baseline';
 export const BUNDLE_DIR_OPTION = 'bundleDir';
 /** Produce a bundle directory `--bundle-dir` will accept (see commands/test/emitBundleDir). */
 export const EMIT_BUNDLE_DIR_OPTION = 'emitBundleDir';
-export const DRY_RUN_OPTION = 'dryRun';
 export const GIT_BRANCH_OPTION = 'gitBranch';
 export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';
@@ -148,8 +144,6 @@ export const IOS_OPTION = 'ios';
  * a shell that captures a single value (see commands/fingerprint/fingerprint).
  */
 export const LAYER_OPTION = 'layer';
-/** `sherlo view` / `sherlo test --wait`: print the `-- details --` block. */
-export const METADATA_OPTION = 'metadata';
 export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
@@ -224,6 +218,14 @@ export const LOGS_OPTION = 'logs';
  * copy once it does.
  */
 export const PERSONAL_TOKEN_PREFIX = 'sht_';
+
+/**
+ * How a BUILD TICKET starts: the credential `openBuild` answers when it opens a run that waits for
+ * EAS builds, good only for filling that one run's slots and closing it, for about a day (sherlo-api
+ * / Tokens and the request gate). `sherlo test` writes it into `.sherlo/data.json` in place of any
+ * token, and the EAS hook spends it whole. Must match the prefix sherlo-api issues it with.
+ */
+export const BUILD_TICKET_PREFIX = 'sbt_';
 
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;

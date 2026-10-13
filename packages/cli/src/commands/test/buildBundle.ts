@@ -4,7 +4,8 @@
  *
  * Detects the project type via the same detectBundler that showError's
  * buildSourceMaps uses, calls the canonical bundler with --dev false
- * --minify true, sniffs the bundle format, collects the asset inventory,
+ * --minify false (unminified, so a crash's stack trace on the error page reads
+ * as the source was written), sniffs the bundle format, collects the asset inventory,
  * and constructs the per-platform GateMetadataInput that the openBuild
  * resolver compares against the registered base.
  */
@@ -24,13 +25,11 @@ import detectBundler from '../../commands/showError/detectBundler';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
 import { dependsOnExpo, readProjectJson } from '../../helpers/projectJson';
-import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
+import { buildEnvironment } from '../../seams/appBuilder';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
-import {
-  BUNDLER_SETUP_ERROR_LINE,
-  BUNDLER_SETUP_ERROR_MARKERS,
-  SHERLO_BUILD_FOR_PUSH,
-} from './constants';
+import { makeProjectSherloFolder } from './appBuild/cacheFolder';
+import type { BuildSettings } from './appBuild/buildSettings';
+import { BUNDLER_SETUP_ERROR_LINE, BUNDLER_SETUP_ERROR_MARKERS } from './constants';
 import {
   deleteModuleManifestSidecar,
   readValidatedModuleManifest,
@@ -80,30 +79,25 @@ const MIN_RN_VERSION = '0.71.0';
 /** Minimum Expo SDK version for staged uploads. */
 const MIN_EXPO_SDK = 50;
 
-/**
- * The full-run fallback line appended to every refusal message. The sentence
- * itself is owned by ./stagedGateRefusal so every staged exit path says the same
- * thing; only the leading blank line is local formatting.
- */
-const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
-
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 /**
- * Build a production (dev=false, minify=true) plain-JS bundle for a single
+ * Build a production (dev=false), unminified plain-JS bundle for a single
  * platform and collect its metadata + asset inventory.
  *
- * Throws with a user-facing message that already includes the full-run fallback
- * line.  Callers catch, print, and exit.
+ * Throws with a user-facing message. Callers catch, print, and exit.
  */
 export async function buildBundleForPlatform({
   projectRoot,
   platform,
+  buildSettings = {},
 }: {
   projectRoot: string;
   platform: Platform;
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings?: BuildSettings;
 }): Promise<BundleResult> {
   // ------------------------------------------------------------------
   // 0. Version-floor refusal - guard before we shell out to a bundler
@@ -114,8 +108,7 @@ export async function buildBundleForPlatform({
     throw new Error(
       `React Native ${rnVersion} is below the minimum version ` +
         `(${MIN_RN_VERSION}) required for staged uploads.\n\n` +
-        'Upgrade react-native or use a full build instead.' +
-        FALLBACK_LINE
+        'Upgrade react-native or use a full build instead.'
     );
   }
 
@@ -124,8 +117,7 @@ export async function buildBundleForPlatform({
     throw new Error(
       `Expo SDK ${expoSdkVersion} is below the minimum version ` +
         `(${MIN_EXPO_SDK}) required for staged uploads.\n\n` +
-        'Upgrade expo or use a full build instead.' +
-        FALLBACK_LINE
+        'Upgrade expo or use a full build instead.'
     );
   }
 
@@ -144,7 +136,7 @@ export async function buildBundleForPlatform({
     projectType = dependsOnExpo(projectRoot) ? 'expo' : 'rn';
   }
 
-  const cacheDir = path.join(projectRoot, '.sherlo', 'bundled');
+  const cacheDir = path.join(makeProjectSherloFolder(projectRoot), 'bundled');
   fs.mkdirSync(cacheDir, { recursive: true });
 
   const entryFile = detectEntryFile(projectRoot);
@@ -169,23 +161,15 @@ export async function buildBundleForPlatform({
   deleteModuleManifestSidecar(projectRoot);
 
   // ------------------------------------------------------------------
-  // 2. Build the bundle with --dev false --minify true (design §5).
+  // 2. Build the bundle with --dev false --minify false.
   // ------------------------------------------------------------------
-  if (projectType === 'expo') {
-    execBundler(platform, 'expo', {
-      projectRoot,
-      entryFile,
-      bundleOut,
-      assetsDest,
-    });
-  } else {
-    execBundler(platform, 'rn', {
-      projectRoot,
-      entryFile,
-      bundleOut,
-      assetsDest,
-    });
-  }
+  execBundler(platform, projectType, {
+    projectRoot,
+    entryFile,
+    bundleOut,
+    assetsDest,
+    buildSettings,
+  });
 
   // ------------------------------------------------------------------
   // 3-8. Accept the artifacts the bundler just produced. These checks are
@@ -211,7 +195,7 @@ export async function buildBundleForPlatform({
  * implementation of the same intent. Two copies of a safety check drift, and the
  * copy that drifts is the one nobody is watching.
  *
- * Throws user-facing messages that already carry the full-run fallback line.
+ * Throws user-facing messages.
  */
 export function inspectBundleArtifacts({
   bundlePath,
@@ -226,12 +210,12 @@ export function inspectBundleArtifacts({
 }): BundleResult {
   // 3. Verify the bundle file exists and is non-empty.
   if (!fs.existsSync(bundlePath)) {
-    throw new Error(`Bundle file was not produced at ${bundlePath}` + FALLBACK_LINE);
+    throw new Error(`Bundle file was not produced at ${bundlePath}`);
   }
 
   const bundleBuffer = fs.readFileSync(bundlePath);
   if (bundleBuffer.length === 0) {
-    throw new Error(`Bundle file is empty: ${bundlePath}` + FALLBACK_LINE);
+    throw new Error(`Bundle file is empty: ${bundlePath}`);
   }
 
   // 4. Sniff the bundle header for HBC magic (12-byte sniff, design §4).
@@ -251,8 +235,7 @@ export function inspectBundleArtifacts({
         'expo export:embed with --dev=false produces plain-JS even with ' +
         'Hermes.\n' +
         '  - If using a custom Metro config, disable Hermes bytecode ' +
-        'precompilation for the staging build.\n' +
-        FALLBACK_LINE
+        'precompilation for the staging build.'
     );
   }
 
@@ -270,8 +253,7 @@ export function inspectBundleArtifacts({
       'RAM/indexed bundle format detected.\n\n' +
         'Staged uploads require a single-file plain-JS bundle. ' +
         'Disable RAM bundling in your Metro config ' +
-        '(set "ramBundle" to false or remove the option).\n' +
-        FALLBACK_LINE
+        '(set "ramBundle" to false or remove the option).'
     );
   }
 
@@ -377,6 +359,11 @@ export default buildBundleForPlatform;
 // Bundler execution
 // ---------------------------------------------------------------------------
 
+/**
+ * Run the project's bundler. The bundle is left unminified (`--dev false` still makes it a
+ * production bundle), so a crash's stack trace on the error page names the functions as they were
+ * written.
+ */
 function execBundler(
   platform: Platform,
   bundler: 'expo' | 'rn',
@@ -385,75 +372,62 @@ function execBundler(
     entryFile: string;
     bundleOut: string;
     assetsDest: string;
+    buildSettings: BuildSettings;
   }
 ): void {
-  const { projectRoot, entryFile, bundleOut, assetsDest } = opts;
+  const { projectRoot, entryFile, bundleOut, assetsDest, buildSettings } = opts;
 
-  // Turn the module manifest ON for the staged road ONLY (SHERLO-1894 Phase B).
-  // The Sherlo Metro serializer reads SHERLO_MODULE_MANIFEST; setting it here scopes
-  // emission to this spawned bundler process, so every other build (local dev,
-  // non-Sherlo CI) is unaffected. Nothing else in this env changes, so the bundle
-  // output is byte-for-byte what it would be without it (SHERLO_BUILD below aside).
+  // The variables the app build runs with, composed in one place (../../seams/appBuilder): the
+  // shell, the eas.json profile's env, `build.env`, then SHERLO_BUILD set to storybook - a push
+  // always bundles Storybook alone.
+  //
+  // The module manifest is turned ON for this bundler process only (SHERLO-1894 Phase B): the
+  // Sherlo Metro serializer reads SHERLO_MODULE_MANIFEST, so every other build (local dev,
+  // non-Sherlo CI) is unaffected, and the bundle's bytes are the same with it or without it.
   const bundlerEnv: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...buildEnvironment({
+      projectRoot,
+      easProfile: buildSettings.easProfile,
+      buildEnv: buildSettings.env,
+    }),
     SHERLO_MODULE_MANIFEST: '1',
-    // Listed after the spread so it wins over the developer's shell: a push always
-    // bundles Storybook alone.
-    SHERLO_BUILD: SHERLO_BUILD_FOR_PUSH,
   };
 
-  if (bundler === 'expo') {
-    const cmd = [
-      'npx expo export:embed',
-      `--platform=${platform}`,
-      `--entry-file=${entryFile}`,
-      `--bundle-output=${bundleOut}`,
-      `--assets-dest=${assetsDest}`,
-      '--dev=false',
-      '--minify=true',
-    ].join(' ');
+  const command =
+    bundler === 'expo'
+      ? [
+          'npx expo export:embed',
+          `--platform=${platform}`,
+          `--entry-file=${entryFile}`,
+          `--bundle-output=${bundleOut}`,
+          `--assets-dest=${assetsDest}`,
+          '--dev=false',
+          '--minify=false',
+        ]
+      : [
+          'npx react-native bundle',
+          `--platform ${platform}`,
+          '--dev false',
+          '--minify false',
+          `--entry-file ${entryFile}`,
+          `--bundle-output ${bundleOut}`,
+          `--assets-dest ${assetsDest}`,
+        ];
+  const bundlerName = bundler === 'expo' ? 'expo export:embed' : 'react-native bundle';
 
-    try {
-      execSync(cmd, {
-        cwd: projectRoot,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: bundlerEnv,
-      });
-    } catch (err: any) {
-      const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
-      throw new Error(
-        `expo export:embed failed for ${platform}:\n` +
-          `${detail.slice(0, 500)}\n` +
-          setupErrorLineFor(detail) +
-          FALLBACK_LINE
-      );
-    }
-  } else {
-    const cmd = [
-      'npx react-native bundle',
-      `--platform ${platform}`,
-      '--dev false',
-      '--minify true',
-      `--entry-file ${entryFile}`,
-      `--bundle-output ${bundleOut}`,
-      `--assets-dest ${assetsDest}`,
-    ].join(' ');
-
-    try {
-      execSync(cmd, {
-        cwd: projectRoot,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: bundlerEnv,
-      });
-    } catch (err: any) {
-      const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
-      throw new Error(
-        `react-native bundle failed for ${platform}:\n` +
-          `${detail.slice(0, 500)}\n` +
-          setupErrorLineFor(detail) +
-          FALLBACK_LINE
-      );
-    }
+  try {
+    execSync(command.join(' '), {
+      cwd: projectRoot,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: bundlerEnv,
+    });
+  } catch (err: any) {
+    const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
+    throw new Error(
+      `${bundlerName} failed for ${platform}:\n` +
+        `${detail.slice(0, 500)}\n` +
+        setupErrorLineFor(detail)
+    );
   }
 }
 

@@ -8,7 +8,7 @@
  */
 import { PROJECT_API_TOKEN_LENGTH } from '@sherlo/shared';
 import { describe, expect, it } from 'vitest';
-import { TEST_COMMAND, TEST_EAS_CLOUD_BUILD_COMMAND } from '../../../../constants';
+import { TEST_COMMAND, TEST_EAS_CLOUD_BUILD_COMMAND, VIEW_COMMAND } from '../../../../constants';
 import { installSavedLogins, PosedLogins, posedSavedLogins } from '../../../../seams/savedLogins';
 import { installSurroundings, posedSurroundings } from '../../../../seams/surroundings';
 import { InvalidatedConfig, PushCredential } from '../../../../types';
@@ -34,6 +34,8 @@ type World = {
   command?: string;
   env?: Record<string, string>;
   config?: Record<string, unknown>;
+  /** The command line's options; `token` is the Sherlo 2 `--token`. */
+  options?: { token?: string };
   loggedIn?: boolean;
 };
 
@@ -56,7 +58,8 @@ function resolveIn(world: World): PushCredential {
   try {
     return resolvePushCredential(
       world.command ?? TEST_COMMAND,
-      (world.config ?? {}) as InvalidatedConfig
+      (world.config ?? {}) as InvalidatedConfig,
+      world.options
     );
   } finally {
     for (const undo of uninstall.reverse()) undo();
@@ -76,7 +79,7 @@ function refusalIn(world: World): string {
 describe('which credential a push spends', () => {
   it('spends SHERLO_TOKEN before the saved login', () => {
     // Both at once, then the project token taken away: the one left is the one spent.
-    const bothCredentials: Required<Omit<World, 'command'>> = {
+    const bothCredentials: Required<Omit<World, 'command' | 'options'>> = {
       env: { SHERLO_TOKEN: TOKEN_IN_SHERLO_TOKEN },
       config: { project: CONFIG_PROJECT },
       loggedIn: true,
@@ -132,6 +135,33 @@ describe('what is refused about the credential', () => {
     expect(refusal).toContain('To act as yourself, run `npx sherlo login` instead.');
     expect(refusal).not.toContain('SHERLO_PERSONAL_TOKEN');
     expect(refusal).not.toContain(personalToken);
+  });
+
+  it('refuses --token on sherlo test and sherlo view before anything runs, naming SHERLO_TOKEN and sherlo login', () => {
+    for (const command of [TEST_COMMAND, VIEW_COMMAND]) {
+      const refusal = refusalIn({
+        command,
+        options: { token: TOKEN_IN_SHERLO_TOKEN },
+        env: { SHERLO_TOKEN: projectToken('c') },
+        config: { project: CONFIG_PROJECT },
+        loggedIn: true,
+      });
+
+      expect(refusal).toContain(`\`npx sherlo ${command}\` no longer takes a token in \`--token\``);
+      expect(refusal).toContain('SHERLO_TOKEN');
+      expect(refusal).toContain('`npx sherlo login`');
+      expect(refusal).not.toContain(TOKEN_IN_SHERLO_TOKEN);
+    }
+  });
+
+  it('refuses a token in sherlo.config.json with the same words as --token, whatever it holds', () => {
+    const wordsOfTheFlag = refusalIn({ options: { token: 'anything' } });
+
+    for (const token of [TOKEN_IN_SHERLO_TOKEN, '', 0, null, { a: 1 }]) {
+      expect(refusalIn({ config: { project: CONFIG_PROJECT, token }, loggedIn: true })).toBe(
+        wordsOfTheFlag
+      );
+    }
   });
 
   it('refuses a push with no credential at all, naming sherlo login and SHERLO_TOKEN', () => {

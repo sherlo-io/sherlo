@@ -46,6 +46,9 @@ const EFFECTS = {
 };
 
 const BUNDLES = { android: bundleResult(1.5), ios: bundleResult(2.5) };
+
+/** The config's `build` block, which reaches the bundler as it reaches the app build. */
+const BUILD_SETTINGS = { env: { STORYBOOK_ENABLED: 'true' } };
 const KEYS = {
   android: { jsBundleS3Key: 'android-js-key', assetsS3Key: 'android-assets-key' },
   ios: { jsBundleS3Key: 'ios-js-key' },
@@ -63,6 +66,7 @@ describe('uploadFreshBundles - built', () => {
   it('bundles through the staged bundling loop, uploads through the staged upload step, and returns keys + size per platform', async () => {
     const uploaded = await uploadFreshBundles({
       projectRoot: '/proj',
+      buildSettings: BUILD_SETTINGS,
       platforms: ['android', 'ios'],
       baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
       projectIndex: 7,
@@ -73,6 +77,7 @@ describe('uploadFreshBundles - built', () => {
     expect(mocks.buildBundles).toHaveBeenCalledWith({
       projectRoot: '/proj',
       platformsToTest: ['android', 'ios'],
+      buildSettings: BUILD_SETTINGS,
       effects: EFFECTS.bundling,
     });
     expect(mocks.resolveSuppliedBundles).not.toHaveBeenCalled();
@@ -95,6 +100,7 @@ describe('uploadFreshBundles - built', () => {
     await expect(
       uploadFreshBundles({
         projectRoot: '/proj',
+        buildSettings: BUILD_SETTINGS,
         platforms: ['ios'],
         baseFingerprints: { ios: 'base-fp-ios' },
         projectIndex: 7,
@@ -109,6 +115,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
   it('resolves the supplied directory through the staged road checks instead of bundling', async () => {
     const uploaded = await uploadFreshBundles({
       projectRoot: '/proj',
+      buildSettings: BUILD_SETTINGS,
       platforms: ['android'],
       bundleDir: '/tmp/bundles',
       baseFingerprints: { android: 'base-fp-android' },
@@ -148,6 +155,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
     await expect(
       uploadFreshBundles({
         projectRoot: '/proj',
+        buildSettings: BUILD_SETTINGS,
         platforms: ['android'],
         bundleDir: '/tmp/bundles',
         baseFingerprints: { android: 'base-fp-android' },
@@ -173,8 +181,8 @@ describe('the real fresh-bundle effects bundle through the seam and upload throu
     // this is proved by CALLING it, not by comparing function identities: a posed run installs
     // its own bundler, and a road that had captured the real one at module load would bundle for
     // real inside a pose.
-    await effects.bundling.bundleFor('/proj', 'ios');
-    expect(mocks.buildBundleForPlatform).toHaveBeenCalledWith('/proj', 'ios');
+    await effects.bundling.bundleFor('/proj', 'ios', BUILD_SETTINGS);
+    expect(mocks.buildBundleForPlatform).toHaveBeenCalledWith('/proj', 'ios', BUILD_SETTINGS);
     // The binary's own gate metadata is what gets registered; the bundle probe
     // the shared loops build alongside is declared absent, not fabricated.
     await expect(effects.bundling.gateMetadataFor('/proj', 'ios', {} as any)).resolves.toEqual({

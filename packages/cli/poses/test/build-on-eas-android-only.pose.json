@@ -34,13 +34,20 @@
   "api": [
     {
       "call": "checkStagedGate",
-      "with": { "platform": "android", "baseFingerprint": "54eb6acc9bba3d54601180f33489518d391e3151d69eb16bc3175b486b8f770f" },
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "54eb6acc9bba3d54601180f33489518d391e3151d69eb16bc3175b486b8f770f"
+      },
       "answer": { "outcome": "full-build-needed", "diff": [] }
     },
     {
       "call": "openBuild",
       "with": { "platforms": ["android"] },
-      "answer": { "buildIndex": 1, "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=1" }
+      "answer": {
+        "buildIndex": 1,
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=1",
+        "buildTicket": "sbt_posedticketoftest1"
+      }
     }
   ],
   "masks": {},

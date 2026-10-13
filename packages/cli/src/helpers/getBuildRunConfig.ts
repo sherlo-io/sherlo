@@ -5,11 +5,18 @@ import { CommandParams, Config } from '../types';
 function getBuildRunConfig({
   commandParams,
   binaryS3Keys,
+  wholeTest = false,
 }: {
   commandParams: CommandParams;
   binaryS3Keys?: { android?: string; ios?: string };
+  /**
+   * For one job of a split CI run (`--platform`): name every device of the test, not only this
+   * job's, so the test waits for the platform the other job brings instead of leaving it out.
+   */
+  wholeTest?: boolean;
 }): BuildRun<'withS3KeyNoDebug'>['config'] & { diagnostics?: string[] } {
-  const { devices, include, exclude, diagnostics } = commandParams;
+  const { include, exclude, diagnostics } = commandParams;
+  const devices = wholeTest ? testDevicesOf(commandParams) : commandParams.devices;
 
   const androidDevices = getPlatformDevices(devices, 'android');
   const iosDevices = getPlatformDevices(devices, 'ios');
@@ -38,6 +45,16 @@ function getBuildRunConfig({
 export default getBuildRunConfig;
 
 /* ========================================================================== */
+
+/**
+ * The config's whole device list, which ./getValidatedCommandParams/getCommandParams keeps beside
+ * the job's own `devices` (cut to `--platform`).
+ */
+function testDevicesOf(commandParams: CommandParams): Config['devices'] {
+  return (
+    (commandParams as { testDevices?: Config['devices'] }).testDevices ?? commandParams.devices
+  );
+}
 
 function getPlatformDevices(configDevices: Config['devices'], platform: Platform): Device[] {
   return configDevices

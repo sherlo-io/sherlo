@@ -155,11 +155,13 @@ describe('the login as the only credential a person spends', () => {
   it('every command the tool names in its messages is written as npx sherlo', () => {
     // Every string the shipped source holds - refusals, hints, next steps, help - read off the
     // syntax tree, so a comment naming `sherlo login` is not a message and is not read.
-    const unprefixedMentions = shippedSourceFiles().flatMap((file) =>
-      stringsIn(file)
-        .filter(({ text }) => namesACommandWithoutNpx(text))
-        .map(({ line, text }) => `${path.relative(CLI_SRC, file)}:${line}: ${text}`)
-    );
+    const unprefixedMentions = shippedSourceFiles()
+      .filter((file) => !isSourceForAnotherTool(file))
+      .flatMap((file) =>
+        stringsIn(file)
+          .filter(({ text }) => namesACommandWithoutNpx(text))
+          .map(({ line, text }) => `${path.relative(CLI_SRC, file)}:${line}: ${text}`)
+      );
 
     expect(unprefixedMentions).toEqual([]);
 
@@ -324,6 +326,53 @@ function routingPose(argv: string[]): CommandPose {
 
 const CLI_SRC = path.resolve(__dirname, '../../..');
 
+/**
+ * Templates that name a command without `npx` on purpose, each one named by its file and its
+ * source text. Never a pattern: a real message cannot slip through by matching one.
+ */
+const UNPREFIXED_ON_PURPOSE: Array<{ file: string; text: string; reason: string }> = [
+  {
+    file: 'commands/test/appBuild/easRun.ts',
+    text: '`sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}`',
+    reason:
+      'The VALUE of the package.json script the refusal shows ("eas-build-on-complete": "sherlo eas-build-on-complete"). A package.json script runs with node_modules/.bin on its path, so it needs no npx; it is not a command a person types.',
+  },
+  {
+    file: 'commands/test/appBuild/easRun.ts',
+    text: '`"${script}": "${EAS_HOOK_COMMAND}"`',
+    reason:
+      'The same package.json script line, shown whole in the refusal: EAS_HOOK_COMMAND is the script value above, not a command a person types.',
+  },
+];
+
+/**
+ * Files whose strings are source code for another tool, not messages a person reads: no string in
+ * them names a command to type.
+ */
+const SOURCE_FOR_ANOTHER_TOOL: Array<{ file: string; reason: string }> = [
+  {
+    file: 'seams/gradleInitScript.ts',
+    reason:
+      "The Gradle init script the Android build runs, held as one string; its comments say 'Written by sherlo', which names no command.",
+  },
+];
+
+/** Is this file one whose strings are another tool's source? */
+function isSourceForAnotherTool(file: string): boolean {
+  const relativeFile = path.relative(CLI_SRC, file);
+
+  return SOURCE_FOR_ANOTHER_TOOL.some((exception) => exception.file === relativeFile);
+}
+
+/** Is this template, in this file, one of the named exceptions? */
+function isUnprefixedOnPurpose(file: string, templateText: string): boolean {
+  const relativeFile = path.relative(CLI_SRC, file);
+
+  return UNPREFIXED_ON_PURPOSE.some(
+    (exception) => exception.file === relativeFile && exception.text === templateText
+  );
+}
+
 /** Every `.ts` file the tool ships: everything under src but the tests. */
 function shippedSourceFiles(folder = CLI_SRC): string[] {
   return fs.readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
@@ -352,7 +401,7 @@ function stringsIn(file: string): Array<{ line: number; text: string }> {
 
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) keep(node, node.text);
 
-    if (ts.isTemplateExpression(node)) {
+    if (ts.isTemplateExpression(node) && !isUnprefixedOnPurpose(file, node.getText(source))) {
       keep(node.head, node.head.text);
       for (const span of node.templateSpans) keep(span.literal, span.literal.text);
     }
@@ -393,7 +442,11 @@ function commandSubstitutionsWithoutNpx(file: string): Array<{ line: number; tex
   const offenders: Array<{ line: number; text: string }> = [];
 
   const visit = (node: ts.Node): void => {
-    if (ts.isTemplateExpression(node) && !isOnlyACommandName(node)) {
+    if (
+      ts.isTemplateExpression(node) &&
+      !isOnlyACommandName(node) &&
+      !isUnprefixedOnPurpose(file, node.getText(source))
+    ) {
       let textInFront = node.head.text;
 
       for (const span of node.templateSpans) {

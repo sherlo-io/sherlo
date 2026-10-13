@@ -18,6 +18,7 @@
  *     <platform>.command    a build command of the project's own, run instead of Sherlo's
  *     <platform>.output     where that command writes the app build
  */
+import { createHash } from 'crypto';
 import type { Platform } from '@sherlo/api-types';
 
 /** The flags that steer a build, as commander hands them over. */
@@ -26,7 +27,7 @@ export type BuildFlags = {
   platform?: string;
   /** `--run-id <id>`: the CI run the two jobs of a split share, where no CI provider names one. */
   runId?: string;
-  /** `--build-cache <dir>`: where the local build cache is kept. */
+  /** `--build-cache <dir>`: where the local build cache is kept (./cacheFolder). */
   buildCache?: string;
   /** `--parallel-builds`: build both platforms at once. */
   parallelBuilds?: boolean;
@@ -60,12 +61,6 @@ export const RUN_ID_OPTION = 'runId';
 export const BUILD_CACHE_OPTION = 'buildCache';
 export const PARALLEL_BUILDS_OPTION = 'parallelBuilds';
 
-/** The default local build cache, inside the project's own `.sherlo` folder. */
-export const DEFAULT_BUILD_CACHE = '.sherlo/build-cache';
-
-/** The setting that names the build cache when no flag does. */
-export const BUILD_CACHE_ENV_VAR = 'SHERLO_BUILD_CACHE';
-
 /** The eas.json profile a project builds on EAS with when the config names none. */
 export const DEFAULT_EAS_PROFILE = 'sherlo';
 
@@ -75,6 +70,27 @@ export const DEFAULT_ANDROID_TASK = ':app:assembleRelease';
 /** Where one platform's build writes everything its build tool says. */
 export function buildLogPath(platform: Platform): string {
   return `.sherlo/build-${platform}.log`;
+}
+
+/**
+ * A digest of the build settings that shape one platform's app build: every key of the `build`
+ * block but `tool` and `parallel`, which say how and when to build, not what - and of the
+ * platform-keyed ones, only this platform's. Keys are sorted first, so the same settings written
+ * in another order are the same build.
+ */
+export function buildSettingsDigest(settings: BuildSettings, platform: Platform): string {
+  const settingsThatShapeTheBuild = {
+    env: sortedByKey(settings.env ?? {}),
+    easProfile: settings.easProfile ?? null,
+    platform: sortedByKey(settings[platform] ?? {}),
+  };
+  return createHash('sha256').update(JSON.stringify(settingsThatShapeTheBuild)).digest('hex');
+}
+
+function sortedByKey<Value>(record: Record<string, Value>): Record<string, Value> {
+  return Object.fromEntries(
+    Object.entries(record).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  );
 }
 
 /** The `build` block a command's params carry, read off the config file it came from. */

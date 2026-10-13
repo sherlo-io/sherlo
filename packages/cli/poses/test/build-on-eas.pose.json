@@ -1,8 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "test"
-  ],
+  "argv": ["test"],
   "files": {
     "sherlo.config.json": {
       "devices": [
@@ -76,14 +74,12 @@
     {
       "call": "openBuild",
       "with": {
-        "platforms": [
-          "android",
-          "ios"
-        ]
+        "platforms": ["android", "ios"]
       },
       "answer": {
         "buildIndex": 1,
-        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=1"
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=1",
+        "buildTicket": "sbt_posedticketoftest1"
       }
     }
   ],

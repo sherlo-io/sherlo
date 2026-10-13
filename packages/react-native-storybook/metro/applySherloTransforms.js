@@ -76,7 +76,10 @@ function toRelativePath(absPath, projectRoot) {
 //                      story certainly - the runner matches a PER-EXPORT display
 //                      name and this is per file - see the header of
 //                      metro/storyTitleReader.js before narrowing by it.
-//   4. header        - toolchain/env fingerprint (metro version, transformer/
+//   4. storyCounts   - story source-path -> how many stories the file holds, by
+//                      Storybook's own rule. OMITTED when it cannot be read
+//                      without evaluating the file (an `export *`, say).
+//   5. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
 //                      different toolchain/env is never mistaken for an unchanged one,
 //                      plus `generatedFiles`: the graph files a tool wrote at
@@ -535,6 +538,8 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
      * an absent key as "unknown", never as "untitled".
      */
     var storyTitles = {};
+    /** @type {Record<string, number>} story source-path -> how many stories the file holds. */
+    var storyCounts = {};
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
 
@@ -549,6 +554,12 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
         closureSet[rel] = true;
       });
       storyClosures[storyRel] = Object.keys(closureSet).sort();
+
+      var storySource = fs.existsSync(story.absPath)
+        ? fs.readFileSync(story.absPath, 'utf8')
+        : null;
+      var storyCount = storySource === null ? null : storyTitleReader.readStoryCount(storySource);
+      if (storyCount !== null) storyCounts[storyRel] = storyCount;
 
       if (!loaderEntriesByRequiresFile[story.requiresAbsPath]) {
         loaderEntriesByRequiresFile[story.requiresAbsPath] =
@@ -597,6 +608,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
       storyTitles: storyTitles,
+      storyCounts: storyCounts,
     };
 
     fs.writeFileSync(

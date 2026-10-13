@@ -1,0 +1,80 @@
+name: 'fingerprint-across-machines'
+
+# ══════════════════════════════════════════════════════════════════════════════
+# THE SAME APP, THE SAME BASE FINGERPRINT, ON A MAC AND ON LINUX.
+#
+# An app build is found again by its base fingerprint, so a build made on one
+# machine serves a test on the other only when both compute the same value. This
+# workflow fingerprints one fixture app (testing/expo) for Android on both
+# machines and fails when the two differ.
+# ══════════════════════════════════════════════════════════════════════════════
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # 4 AM UTC every day
+  workflow_dispatch:
+
+env:
+  FIXTURE_APP: testing/expo
+
+jobs:
+  fingerprint:
+    name: Fingerprint on ${{ matrix.runner }}
+    environment: dev
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        runner: [macos-latest, ubuntu-latest]
+    env:
+      # Every install reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: dev
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn && cd packages/cli && yarn build
+
+      - name: Install project dependencies
+        working-directory: ${{ env.FIXTURE_APP }}
+        run: yarn install --immutable
+
+      - name: Fingerprint the app
+        working-directory: ${{ env.FIXTURE_APP }}
+        run: yarn --silent sherlo fingerprint --layer base:android > "$RUNNER_TEMP/${{ matrix.runner }}.txt"
+
+      - name: Keep the fingerprint for the comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: fingerprint-${{ matrix.runner }}
+          path: ${{ runner.temp }}/${{ matrix.runner }}.txt
+
+  compare:
+    name: Compare the two fingerprints
+    needs: fingerprint
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - name: Fail when they differ
+        run: |
+          ON_MAC=$(cat fingerprint-macos-latest/macos-latest.txt)
+          ON_LINUX=$(cat fingerprint-ubuntu-latest/ubuntu-latest.txt)
+          echo "macOS:  $ON_MAC"
+          echo "Linux:  $ON_LINUX"
+          if [ -z "$ON_MAC" ] || [ "$ON_MAC" != "$ON_LINUX" ]; then
+            echo "::error::The base fingerprint of ${{ env.FIXTURE_APP }} differs between macOS and Linux."
+            exit 1
+          fi

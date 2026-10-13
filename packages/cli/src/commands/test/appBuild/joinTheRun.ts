@@ -11,11 +11,15 @@
  * road when its platform needed no build at all.
  */
 import type { Platform } from '@sherlo/api-types';
-import { getPlatformsToTest, handleClientError } from '../../../helpers';
+import { getPlatformsToTest, handleClientError, throwError } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
 import type { PlatformRow } from '../../../render/runRows';
+import type { Config } from '../../../types';
 import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
 import { rowsAbove, printPlatformRowInALog } from '../platformRows';
+
+/** The service's refusal when this job built another commit than the run it joins. */
+export const JOIN_MISMATCH_ERROR = 'resolvers:mutations:joinBuild:joinMismatch';
 
 /** Join the run this job's CI run shares, and say what the run is waiting for. */
 export async function joinTheRun({
@@ -24,6 +28,7 @@ export async function joinTheRun({
   platform,
   request,
   platformRows,
+  testDevices,
 }: {
   token: string;
   joinKey: string;
@@ -35,10 +40,15 @@ export async function joinTheRun({
    * no app build, and passes none.
    */
   platformRows: PlatformRow[];
+  /** The config's whole device list (`CommandParams.testDevices`), used when the answer carries none. */
+  testDevices?: Config['devices'];
 }): Promise<{ build: { index: number }; waitingFor: Platform[] }> {
   const { build, waitingFor, startedRun } = await serverCalls()
     .joinBuild({ token, joinKey, platform, ...request })
-    .catch((error) => handleClientError(error, token));
+    .catch((error) => {
+      if (error.message === JOIN_MISMATCH_ERROR) refuseJoinMismatch();
+      return handleClientError(error, token);
+    });
 
   if (waitingFor.length > 0) {
     emit({
@@ -53,7 +63,7 @@ export async function joinTheRun({
   // The last job in starts the test with the ordinary Started row. This job knows only its own
   // platform, so the whole test's devices and capture come from the service's answer, and every
   // other platform of the test arrived from the other job.
-  const arrivedRows = getPlatformsToTest(startedRun?.devices ?? [])
+  const arrivedRows = getPlatformsToTest(startedRun?.devices ?? testDevices ?? [])
     .filter((otherPlatform) => otherPlatform !== platform)
     .map((otherPlatform) =>
       printPlatformRowInALog({ platform: otherPlatform, appBuild: 'arrived-from-other-job' })
@@ -66,4 +76,13 @@ export async function joinTheRun({
   });
 
   return { build, waitingFor };
+}
+
+/** The service refused the join: the run was opened on another commit than this job's. */
+function refuseJoinMismatch(): never {
+  return throwError({
+    message:
+      'Both jobs of one CI run must build the same commit\n\n' +
+      'This job joined a run opened on another commit. Make sure both jobs check out the same commit.',
+  });
 }

@@ -8,6 +8,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { makeProjectSherloFolder } from '../cacheFolder';
 import { refuseWhenEasLeavesTheHandOverOut } from '../easHandOver';
 
 let projectRoot: string;
@@ -59,6 +60,13 @@ describe('EAS mode refuses before a run opens when EAS would leave the hand-over
     expect(() => refuseWhenEasLeavesTheHandOverOut(appRoot)).toThrow(
       /the line "\*\*\/\.sherlo\/\*"/
     );
+  });
+
+  it("lets the hand-over file through when only Sherlo's own .sherlo/.gitignore governs the folder", () => {
+    write('.gitignore', 'node_modules/\n');
+    makeProjectSherloFolder(projectRoot);
+
+    expect(() => refuseWhenEasLeavesTheHandOverOut(projectRoot)).not.toThrow();
   });
 
   it('lets a later ! line bring the hand-over file back', () => {

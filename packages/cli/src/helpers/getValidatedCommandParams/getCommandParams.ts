@@ -1,10 +1,13 @@
 import path from 'path';
 import { DEVICES } from '@sherlo/shared';
+import { renderPlatformUnknown } from '../../render/appBuild';
 import { InvalidatedConfig, Options } from '../../types';
+import throwError from '../throwError';
 
 /**
- * 1. `android` and `ios` can be defined as any value in the config.
- *    Converting to string is required as path.resolve accepts only strings.
+ * 1. The config's `android` and `ios` are never read: a Sherlo 2 binary path in the config is
+ *    refused (validateConfigProperties). The only app paths here are the ones a push hands itself
+ *    for the builds it just made, which arrive as options.
  */
 function getCommandParams<
   O extends Options<'any', 'withDefaults', 'normalized'>,
@@ -12,23 +15,28 @@ function getCommandParams<
 >(options: O, config: C): C & O {
   const { projectRoot } = options;
 
-  const android = options.android ?? config.android;
-  const androidFullPath = android
-    ? path.resolve(projectRoot, android.toString() /* 1 */)
-    : undefined;
-
-  const ios = options.ios ?? config.ios;
-  const iosFullPath = ios ? path.resolve(projectRoot, ios.toString() /* 1 */) : undefined;
+  refuseUnknownPlatform(options);
 
   return {
     ...config,
     ...options,
-    android: androidFullPath,
-    ios: iosFullPath,
+    android: options.android ? path.resolve(projectRoot, options.android) /* 1 */ : undefined,
+    ios: options.ios ? path.resolve(projectRoot, options.ios) /* 1 */ : undefined,
     ...onlyThePlatformAsked(options, config),
+    // THE CONFIG'S WHOLE DEVICE LIST: `devices` above is cut to the job's own platform, while the
+    // test's row names every device of the test, whichever job started it.
+    testDevices: (config as { devices?: unknown[] }).devices,
     // THE CONFIG'S `build` BLOCK, under the name every reader of it uses (readBuildSettings).
     buildSettings: (config as { build?: unknown }).build,
   };
+}
+
+/** `--platform` names one of the two platforms, or is left out for both. */
+function refuseUnknownPlatform(options: object): void {
+  const { platform } = options as { platform?: string };
+  if (platform === undefined || platform === 'android' || platform === 'ios') return;
+
+  throwError(renderPlatformUnknown(platform));
 }
 
 /**
