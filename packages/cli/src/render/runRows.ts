@@ -46,6 +46,8 @@ export type PlatformRow =
       seconds: number;
       logPath: string;
       why?: WhyANewAppBuild;
+      /** An iOS build's files that pod install changed and git does not track, relative to the project root. */
+      podFilesChanged?: string[];
     }
   | { platform: Platform; appBuild: 'reused-from-test'; testIndex?: number }
   | {
@@ -113,6 +115,7 @@ export function renderPlatformRow(row: PlatformRow): string[] {
           mark
         ),
         ...underTheRow(changeLines),
+        ...underTheRow(podFilesWarning(row.podFilesChanged ?? [])),
       ];
     }
 
@@ -276,6 +279,16 @@ function whyBuilt(why: WhyANewAppBuild | undefined): string | undefined {
   return storedIn !== undefined
     ? `native code changed since Test ${storedIn}`
     : 'native code changed';
+}
+
+/** The warning to commit what pod install changed, then the files; nothing when it changed none. */
+function podFilesWarning(podFilesChanged: string[]): string[] {
+  if (podFilesChanged.length === 0) return [];
+
+  return [
+    'Pod install changed files that git does not track. Commit them so the next run can reuse the iOS app build:',
+    ...podFilesChanged,
+  ];
 }
 
 /** `Opened: starts when ...` / `Added: starts when ...`. */

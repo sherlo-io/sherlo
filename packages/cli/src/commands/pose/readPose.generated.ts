@@ -1964,7 +1964,15 @@ function readPosedPlatformBuild(value: unknown, path: string, problems: string[]
         expectString(object3.built, at(path, 'built'), problems);
         expectString(object3.sizeMb, at(path, 'sizeMb'), problems);
         expectNumber(object3.seconds, at(path, 'seconds'), problems);
-        reportUnknownFields(object3, ['built', 'sizeMb', 'seconds'], path, problems);
+        if ('podFilesChanged' in object3) {
+          expectStringArray(object3.podFilesChanged, at(path, 'podFilesChanged'), problems);
+        }
+        reportUnknownFields(
+          object3,
+          ['built', 'sizeMb', 'seconds', 'podFilesChanged'],
+          path,
+          problems
+        );
       }
     } else if ('failed' in oneOf1) {
       const object4 = asObject(oneOf1, path, problems);
@@ -1987,7 +1995,7 @@ function readPosedPlatformBuild(value: unknown, path: string, problems: string[]
     } else {
       reportWrongShape(
         oneOf1,
-        '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
+        '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number; podFilesChanged?: string[] }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
         path,
         problems
       );
@@ -1995,7 +2003,7 @@ function readPosedPlatformBuild(value: unknown, path: string, problems: string[]
   } else {
     reportWrongShape(
       oneOf1,
-      '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
+      '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number; podFilesChanged?: string[] }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
       path,
       problems
     );

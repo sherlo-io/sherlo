@@ -651,6 +651,8 @@ export type PosedPlatformBuild =
       sizeMb: string;
       /** How long the compile took, in whole seconds. */
       seconds: number;
+      /** An iOS build's files that pod install changed and git does not track; none when absent. */
+      podFilesChanged?: string[];
     }
   | {
       /** The compile failed. */
@@ -741,7 +743,7 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
           path: build.built,
           sizeMb: build.sizeMb,
           seconds: build.seconds,
-          podFilesChanged: [],
+          podFilesChanged: build.podFilesChanged ?? [],
         };
       }
       if ('failed' in build) {
