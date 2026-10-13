@@ -6,6 +6,7 @@ on:
       - main
       - feature/sherlo-3
       - epic/**
+  workflow_dispatch:
 
 jobs:
   package-checks:

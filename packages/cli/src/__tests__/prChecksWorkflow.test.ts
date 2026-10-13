@@ -55,6 +55,12 @@ describe('the pull request checks workflow', () => {
     expect(triggers).toContain('- epic/**');
   });
 
-  // A shell written in plan for epic tests-catch-early; the task fills the `it.todo` as a real `it(...)`.
-  it.todo('pr_checks also starts by hand');
+  it('pr_checks also starts by hand', () => {
+    const triggers = workflowWithoutComments.slice(
+      workflowWithoutComments.search(/^on:/m),
+      workflowWithoutComments.search(/^jobs:/m)
+    );
+    expect(triggers).toMatch(/^ {2}workflow_dispatch:/m);
+    expect(triggers).toMatch(/^ {2}pull_request:/m);
+  });
 });
