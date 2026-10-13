@@ -553,10 +553,12 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       // A build is written under its key once; a second job that built the same one leaves it be.
       if (fs.existsSync(buildFolder)) return;
       // Copied beside the final folder and renamed into place, so a job reading the cache never
-      // sees half a file.
+      // sees half a build.
       const unfinishedFolder = path.join(cacheDir, `.${cacheKey}-${process.pid}`);
       fs.mkdirSync(unfinishedFolder, { recursive: true });
-      fs.copyFileSync(appPath, path.join(unfinishedFolder, path.basename(appPath)));
+      // One copy for both: an Android `.apk` is a file, an iOS `.app` is a folder, and `cpSync`
+      // with `recursive` copies either whole.
+      fs.cpSync(appPath, path.join(unfinishedFolder, path.basename(appPath)), { recursive: true });
       fs.renameSync(unfinishedFolder, buildFolder);
     },
     generateNativeFolder: async ({ platform, projectRoot, env, easProfile }) => {
