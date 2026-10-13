@@ -46,6 +46,8 @@ static NSString *driver = nil;
 static NSString *addressHandedAtLaunch = nil;
 static SherloLine *line = nil;
 static NSString *nativeVersion = nil;
+/** The JS version the JavaScript said in its `hello`; kept here because the line may not be open yet. */
+static NSString *jsVersion = nil;
 /** The `settings` of the runner's `config`, or a capture's; nil until either arrives. */
 static NSDictionary *runSettings = nil;
 /** The story the runner named last, as the last-state call hands it to the JavaScript. */
@@ -130,6 +132,7 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
                                      onMessage:^(NSDictionary *message) {
         [SherloModuleCore receiveMessage:message];
     }];
+    [line setJsVersion:jsVersion];
     [line open];
 }
 
@@ -262,8 +265,9 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
     }
 
     if ([message[@"action"] isEqual:@"hello"]) {
-        id jsVersion = message[@"jsVersion"];
-        [line setJsVersion:[jsVersion isKindOfClass:[NSString class]] ? jsVersion : nil];
+        id helloJsVersion = message[@"jsVersion"];
+        jsVersion = [helloJsVersion isKindOfClass:[NSString class]] ? helloJsVersion : nil;
+        [line setJsVersion:jsVersion];
         return;
     }
     [SherloModuleCore send:message];
