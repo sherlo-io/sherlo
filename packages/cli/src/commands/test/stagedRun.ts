@@ -59,6 +59,7 @@ import {
   bundleStoryFiles,
   countBundleStories,
   countStoriesIn,
+  titledStoryFilesIn,
   type ValidatedModuleManifest,
 } from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
@@ -108,11 +109,8 @@ type DiffScopeInfoWithPlatformReasons = {
 // ---------------------------------------------------------------------------
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  // 1. Validate params (no platform binary paths required - bundle only).
-  const commandParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions },
-    { requirePlatformPaths: false }
-  );
+  // 1. Validate params.
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // The two bundle-supply roads. They are opposites and only one can run, so the
   // combination is refused rather than resolved by precedence - a caller who passed
@@ -310,7 +308,15 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //     uploaded no binary, so `s3Key` carries the async-upload placeholder: the
   //     server mirrors it back and the runner splices the bundle into the
   //     registered base instead.
-  const buildRunConfig = getBuildRunConfig({ commandParams });
+  //
+  //     ONE JOB OF A SPLIT CI RUN joins the run its CI run shares instead of opening one
+  //     (./appBuild), and its config names every device of the test: the platform the other job
+  //     brings carries the async-upload placeholder, so the run waits for it.
+  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+  const buildRunConfig = getBuildRunConfig({
+    commandParams,
+    ...(joinKey ? { wholeTest: true } : {}),
+  });
 
   for (const platform of platformsToTest) {
     const platformConfig = buildRunConfig[platform];
@@ -334,9 +340,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     data: { teamId, projectIndex, command: THIS_COMMAND },
     level: 'info',
   });
-
-  // ONE JOB OF A SPLIT CI RUN joins the run its CI run shares instead of opening one (./appBuild).
-  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
 
   let openBuildReturn;
   /** A split job whose test starts in the other job: its run waits for that job's platform. */
@@ -586,7 +589,7 @@ export function printTestStarted({
           : []
         : captureScope.storyFilePaths ?? [],
       newStoryFiles: captureScope.newStoryFilePaths ?? [],
-      ...(manifest?.parsed.storyTitles ? { storyTitles: manifest.parsed.storyTitles } : {}),
+      ...(manifest ? { storyTitles: titledStoryFilesIn(manifest) } : {}),
       // A partial capture takes exactly what a change reaches.
       changedStoryFiles: captureScope.full
         ? captureScope.changedStoryFilePaths ?? []

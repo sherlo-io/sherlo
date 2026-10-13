@@ -31,6 +31,10 @@ import {
   type BundleUploadEffects,
 } from '../commands/test/uploadBundles';
 import type { StagedUploadKeys } from '../commands/test/uploadStagedArtifacts';
+import type { BuildSettings } from '../commands/test/appBuild/buildSettings';
+import { countBundleStories } from '../commands/test/readModuleManifest';
+import { renderBundleHoldsNoStories } from '../render/appBuild';
+import throwError from './throwError';
 import type { GateMetadataInput } from './fingerprint';
 
 /**
@@ -64,7 +68,8 @@ export function realFreshBundleEffects(token: string): FreshBundleEffects {
   return {
     bundling: {
       // The bundler IN FORCE - a posed run installs its own (../seams/bundler).
-      bundleFor: (projectRoot, platform) => bundler().bundleFor(projectRoot, platform),
+      bundleFor: (projectRoot, platform, buildSettings) =>
+        bundler().bundleFor(projectRoot, platform, buildSettings),
       gateMetadataFor: async () => NO_BUNDLE_DERIVED_GATE_METADATA,
     },
     upload: realBundleUploadEffects(token),
@@ -79,6 +84,7 @@ export async function uploadFreshBundles({
   projectRoot,
   platforms,
   bundleDir,
+  buildSettings,
   baseFingerprint,
   projectIndex,
   teamId,
@@ -88,6 +94,8 @@ export async function uploadFreshBundles({
   platforms: Platform[];
   /** `--bundle-dir`: use this prebuilt bundle directory instead of bundling. */
   bundleDir?: string;
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings: BuildSettings;
   /** The base fingerprint this run registers its binary under. */
   baseFingerprint: string;
   projectIndex: number;
@@ -113,9 +121,12 @@ export async function uploadFreshBundles({
     ({ results: bundles } = await buildBundles({
       projectRoot,
       platformsToTest: platforms,
+      buildSettings,
       effects: effects.bundling,
     }));
   }
+
+  refuseABundleWithNoStories(bundles);
 
   const keys = await uploadBundles({
     platformsToTest: platforms,
@@ -144,3 +155,15 @@ export async function uploadFreshBundles({
 }
 
 export default uploadFreshBundles;
+
+/**
+ * A bundle whose module map counts no stories is refused before anything is uploaded: Storybook
+ * was switched off by a variable the build never saw, and a run that photographed nothing would
+ * read green. A bundle with no module map says nothing about its stories, and goes on.
+ */
+function refuseABundleWithNoStories(bundles: Partial<Record<Platform, BundleResult>>): void {
+  const holdsNoStories = Object.values(bundles).some(
+    (bundle) => bundle?.moduleManifest && countBundleStories(bundle.moduleManifest) === 0
+  );
+  if (holdsNoStories) throwError(renderBundleHoldsNoStories());
+}

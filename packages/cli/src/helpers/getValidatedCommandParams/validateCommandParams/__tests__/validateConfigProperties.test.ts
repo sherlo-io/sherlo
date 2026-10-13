@@ -11,6 +11,7 @@ import chalk from 'chalk';
 chalk.level = 0;
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderBinaryPathFlagGone } from '../../../../render/appBuild';
 import validateConfigProperties from '../validateConfigProperties';
 
 describe('validateConfigProperties', () => {
@@ -49,14 +50,32 @@ describe('validateConfigProperties', () => {
   it('does NOT warn for any of the supported properties together', () => {
     validateConfigProperties({
       project: 'k3j9x2ab/4',
-      android: 'app.apk',
-      ios: 'app.app',
       devices: [],
       include: ['a'],
       exclude: ['b'],
+      simulation: 'world',
     } as any);
 
     expect(warnings()).toEqual([]);
+  });
+
+  it('knows the build block and earns no warning for it', () => {
+    validateConfigProperties({
+      project: 'k3j9x2ab/4',
+      build: { android: { command: './gradlew assembleDebug', output: 'app.apk' } },
+    } as any);
+
+    expect(warnings()).toEqual([]);
+  });
+
+  it("refuses the config's android and ios binary paths from Sherlo 2 with the same words as the flags", () => {
+    const wordsOfTheFlags = renderBinaryPathFlagGone().message;
+
+    for (const config of [{ android: 'app.apk' }, { ios: 'app.tar.gz' }, { android: 1, ios: 2 }]) {
+      expect(() => validateConfigProperties({ project: 'k3j9x2ab/4', ...config } as any)).toThrow(
+        wordsOfTheFlags
+      );
+    }
   });
 
   // `staged.fullBuild` configured the removed `test:bundled --on-stale=build`

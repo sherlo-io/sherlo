@@ -1,8 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "test"
-  ],
+  "argv": ["test"],
   "files": {
     "sherlo.config.json": {
       "devices": [
@@ -41,17 +39,18 @@
       "bundleSizeMb": 4.29,
       "bundleFormat": "plain-js",
       "bundler": "expo",
-      "assets": [
-        "icon.png",
-        "splash.png"
-      ],
+      "assets": ["icon.png", "splash.png"],
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     },
     "ios": {
@@ -59,17 +58,18 @@
       "bundleSizeMb": 4.31,
       "bundleFormat": "plain-js",
       "bundler": "expo",
-      "assets": [
-        "icon.png",
-        "splash.png"
-      ],
+      "assets": ["icon.png", "splash.png"],
       "storyClosureKeys": [
         "src/components/Storefront/ProductCard.stories.tsx",
         "src/components/Storefront/Checkout.stories.tsx"
       ],
       "storyTitles": {
-        "src/components/Storefront/ProductCard.stories.tsx": { "title": "Storefront/ProductCard", "stories": 3 },
-        "src/components/Storefront/Checkout.stories.tsx": { "title": "Storefront/Checkout", "stories": 2 }
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 3,
+        "src/components/Storefront/Checkout.stories.tsx": 2
       }
     }
   },
@@ -86,8 +86,16 @@
         "storedBase": {
           "buildIndex": 3,
           "sources": [
-            { "path": "package:react-native", "hash": "9b1d0c4e2a7f3b5d8e6c1a0f4b2d7e9c3a5f8b1d", "kind": "contents" },
-            { "path": "yarn.lock", "hash": "3e5a9c1f7b2d4e6a8c0b1d3f5e7a9c2b4d6f8e0a1c3b5d7f9e2a4c6b8d0f1e3a", "kind": "file" }
+            {
+              "path": "package:react-native",
+              "hash": "9b1d0c4e2a7f3b5d8e6c1a0f4b2d7e9c3a5f8b1d",
+              "kind": "contents"
+            },
+            {
+              "path": "yarn.lock",
+              "hash": "3e5a9c1f7b2d4e6a8c0b1d3f5e7a9c2b4d6f8e0a1c3b5d7f9e2a4c6b8d0f1e3a",
+              "kind": "file"
+            }
           ],
           "modules": [{ "name": "react-native-maps", "version": "1.2.0" }]
         }
@@ -108,9 +116,7 @@
     {
       "call": "getNextBuildInfo",
       "with": {
-        "platforms": [
-          "android"
-        ]
+        "platforms": ["android"]
       },
       "answer": {
         "nextBuildIndex": 4,
@@ -124,28 +130,14 @@
     {
       "call": "getStagedUploadUrls",
       "with": {
-        "platforms": [
-          "android"
-        ]
-      },
-      "answer": {}
-    },
-    {
-      "call": "getStagedUploadUrls",
-      "with": {
-        "platforms": [
-          "ios"
-        ]
+        "platforms": ["android", "ios"]
       },
       "answer": {}
     },
     {
       "call": "openBuild",
       "with": {
-        "platforms": [
-          "android",
-          "ios"
-        ]
+        "platforms": ["android", "ios"]
       },
       "answer": {
         "buildIndex": 4,
@@ -170,10 +162,7 @@
   "masks": {},
   "appBuild": {
     "host": "macos",
-    "tools": [
-      "android-sdk",
-      "xcode"
-    ],
+    "tools": ["android-sdk", "xcode"],
     "java": 17,
     "platforms": {
       "android": {
@@ -195,9 +184,7 @@
         "expoUpdatesEnabled": false,
         "hasExpoDevClient": false,
         "expoSdkVersion": "54.0.0",
-        "androidAbis": [
-          "arm64-v8a"
-        ]
+        "androidAbis": ["arm64-v8a"]
       }
     },
     "fingerprint": {
