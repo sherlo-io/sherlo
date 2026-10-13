@@ -1,5 +1,5 @@
 /**
- * THE STANDARD ROAD'S FRESH BUNDLE - `sherlo test --android <apk> [--ios <app>]`.
+ * THE STANDARD ROAD'S FRESH BUNDLE - the bundle a push of app binaries uploads next to them.
  *
  * Every `sherlo test` run renders a JS bundle built from the tree it runs in,
  * never the bundle embedded in the native binary. On the staged road that is the
