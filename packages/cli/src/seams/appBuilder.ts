@@ -20,9 +20,9 @@
  *
  * ------------------------------------------------------------------------
  * NOT ALL BUILT YET. The live half builds Android (Gradle, the init script that forces debug
- * signing and switches expo-updates off, `expo prebuild`) and keeps builds in the local build
- * cache. What still refuses, naming itself, is the rest of epic sherlo-test-builds-apps's build
- * tasks (xcodebuild, a project's own build command, the EAS start, the machine checks): a shipped
+ * signing and switches expo-updates off, `expo prebuild`) and iOS (pod install, xcodebuild, the
+ * Expo.plist switch) and keeps builds in the local build cache. What still refuses, naming itself,
+ * is the rest of epic sherlo-test-builds-apps's build tasks (a project's own build command, the EAS start, the machine checks): a shipped
  * tool that reached that refusal would be a build that never landed - the landing review checks
  * it is gone.
  */
@@ -56,6 +56,13 @@ export type CompiledApp =
       sizeMb: string;
       /** How long the compile took, in whole seconds. */
       seconds: number;
+      /**
+       * The files `pod install` changed that git does not hold the change of (`Podfile.lock`,
+       * `project.pbxproj`), by path from the project root; empty when there are none, and always
+       * on Android. The change moves the base fingerprint, so the render layer tells the person
+       * to commit it - the builder only answers.
+       */
+      podFilesChanged: string[];
     }
   | {
       ok: false;
@@ -268,6 +275,57 @@ function apkFolderOf(variant: string): string {
   return path.join(flavorAndBuildType[1], flavorAndBuildType[2].toLowerCase());
 }
 
+/** The workspace `xcodebuild` builds from the iOS folder, or else its project. */
+function xcodeContainerArguments(iosFolder: string): string[] {
+  const names = fs.readdirSync(iosFolder);
+  const workspace = names.find((name) => name.endsWith('.xcworkspace'));
+  if (workspace) return ['-workspace', workspace];
+  const project = names.find((name) => name.endsWith('.xcodeproj'));
+  return project ? ['-project', project] : [];
+}
+
+/** The `.app` the first app target of an `xcodebuild -showBuildSettings -json` answer builds. */
+function appPathFromBuildSettings(settingsPath: string): string | undefined {
+  const text = readTextIfThere(settingsPath);
+  // xcodebuild may print warnings before the JSON.
+  const targets: { buildSettings: Record<string, string> }[] = JSON.parse(
+    text.slice(text.indexOf('['))
+  );
+  const app = targets.find((target) => target.buildSettings.WRAPPER_NAME?.endsWith('.app'));
+  return app && path.join(app.buildSettings.TARGET_BUILD_DIR, app.buildSettings.WRAPPER_NAME);
+}
+
+/** The files `pod install` writes, by path from the project root, with the bytes each holds. */
+function readPodTouchedFiles(projectRoot: string): Map<string, Buffer> {
+  const iosFolder = path.join(projectRoot, 'ios');
+  const files = ['ios/Podfile.lock'];
+  if (fs.existsSync(iosFolder)) {
+    for (const name of fs.readdirSync(iosFolder)) {
+      if (name.endsWith('.xcodeproj')) files.push(`ios/${name}/project.pbxproj`);
+    }
+  }
+  const contents = new Map<string, Buffer>();
+  for (const file of files) {
+    const filePath = path.join(projectRoot, file);
+    if (fs.existsSync(filePath)) contents.set(file, fs.readFileSync(filePath));
+  }
+  return contents;
+}
+
+function readTextIfThere(filePath: string): string {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+}
+
+/** The bytes of every file under a folder. */
+function folderSizeBytes(folder: string): number {
+  return fs.readdirSync(folder, { withFileTypes: true }).reduce((total, entry) => {
+    const entryPath = path.join(folder, entry.name);
+    return (
+      total + (entry.isDirectory() ? folderSizeBytes(entryPath) : fs.lstatSync(entryPath).size)
+    );
+  }, 0);
+}
+
 /** The shipped answers, over a process runner (a test hands in its own). */
 export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
   /** The package.json of each project `expo prebuild` ran in, as it was, until its build ends. */
@@ -325,7 +383,122 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
     const apkPath = path.join(apkFolder, metadata.elements[0].outputFile);
     const sizeMb = (fs.statSync(apkPath).size / (1024 * 1024)).toFixed(2);
-    return { ok: true, path: apkPath, sizeMb, seconds: secondsSince() };
+    return { ok: true, path: apkPath, sizeMb, seconds: secondsSince(), podFilesChanged: [] };
+  }
+
+  /** Whether git holds the file as it is now: tracked, and the same as the last commit. */
+  async function gitHoldsFileAsItIs(projectRoot: string, file: string, logPath: string) {
+    const git = (args: string[]) =>
+      runProcess({ command: 'git', args, cwd: projectRoot, env: process.env, logPath });
+    const isTracked = (await git(['ls-files', '--error-unmatch', '--', file])) === 0;
+    return isTracked && (await git(['diff', '--quiet', 'HEAD', '--', file])) === 0;
+  }
+
+  /** `pod install` before the build, and the files it changed that git does not hold. */
+  async function installPods(params: {
+    projectRoot: string;
+    iosFolder: string;
+    env: NodeJS.ProcessEnv;
+    logPath: string;
+  }): Promise<string[] | 'failed'> {
+    const { projectRoot, iosFolder, env, logPath } = params;
+    const filesBefore = readPodTouchedFiles(projectRoot);
+    const usesBundler = [projectRoot, iosFolder].some((folder) =>
+      /cocoapods/i.test(readTextIfThere(path.join(folder, 'Gemfile')))
+    );
+    // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` with no locale.
+    const hasLocale = Boolean(env.LANG || env.LC_ALL);
+    const exitCode = await runProcess({
+      command: usesBundler ? 'bundle' : 'pod',
+      args: usesBundler ? ['exec', 'pod', 'install'] : ['install'],
+      cwd: iosFolder,
+      env: hasLocale ? env : { ...env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' },
+      logPath,
+    });
+    if (exitCode !== 0) return 'failed';
+
+    const filesAfter = readPodTouchedFiles(projectRoot);
+    const changedFiles = [...filesAfter.keys()].filter(
+      (file) => !filesAfter.get(file)!.equals(filesBefore.get(file) ?? Buffer.alloc(0))
+    );
+    const notHeld: string[] = [];
+    for (const file of changedFiles) {
+      if (!(await gitHoldsFileAsItIs(projectRoot, file, logPath))) notHeld.push(file);
+    }
+    return notHeld;
+  }
+
+  async function compileIos(params: CompileParams): Promise<CompiledApp> {
+    const { projectRoot, env, easProfile, ios } = params;
+    if (!ios) throw new Error('Cannot build iOS without a scheme');
+    const logPath = path.resolve(projectRoot, params.logPath);
+    const startedAt = Date.now();
+    const secondsSince = () => Math.round((Date.now() - startedAt) / 1000);
+    const failed = (lastLines = lastLinesOf(logPath)): CompiledApp => ({
+      ok: false,
+      seconds: secondsSince(),
+      lastLines,
+    });
+
+    const iosFolder = path.join(projectRoot, 'ios');
+    const buildEnv = buildEnvironment({ projectRoot, easProfile, buildEnv: env });
+
+    const podFilesChanged = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
+    if (podFilesChanged === 'failed') return failed();
+
+    // No -derivedDataPath: Xcode keeps its derived data, and the compilation cache, in its own folder.
+    const xcodebuildArguments = [
+      ...xcodeContainerArguments(iosFolder),
+      '-scheme',
+      ios.scheme,
+      '-configuration',
+      ios.configuration,
+      '-sdk',
+      'iphonesimulator',
+      'ARCHS=arm64',
+      'CODE_SIGNING_ALLOWED=NO',
+      'COMPILATION_CACHE_ENABLE_CACHING=YES',
+      'DEBUG_INFORMATION_FORMAT=dwarf',
+    ];
+    const exitCode = await runProcess({
+      command: 'xcodebuild',
+      args: [...xcodebuildArguments, 'build'],
+      cwd: iosFolder,
+      env: buildEnv,
+      logPath,
+    });
+    if (exitCode !== 0) return failed();
+
+    // Where the app is written is asked of xcodebuild with the build's own arguments.
+    const settingsPath = `${logPath}.build-settings.json`;
+    fs.rmSync(settingsPath, { force: true });
+    const settingsExitCode = await runProcess({
+      command: 'xcodebuild',
+      args: [...xcodebuildArguments, '-showBuildSettings', '-json'],
+      cwd: iosFolder,
+      env: buildEnv,
+      logPath: settingsPath,
+    });
+    const appPath = settingsExitCode === 0 ? appPathFromBuildSettings(settingsPath) : undefined;
+    if (!appPath || !fs.existsSync(appPath)) {
+      return failed([`xcodebuild finished, and its build settings name no app in ${settingsPath}`]);
+    }
+
+    const expoPlistPath = path.join(appPath, 'Expo.plist');
+    if (fs.existsSync(expoPlistPath)) {
+      // plutil reads and writes both plist formats; EXUpdatesEnabled false switches expo-updates off.
+      const plistExitCode = await runProcess({
+        command: 'plutil',
+        args: ['-replace', 'EXUpdatesEnabled', '-bool', 'NO', expoPlistPath],
+        cwd: iosFolder,
+        env: buildEnv,
+        logPath,
+      });
+      if (plistExitCode !== 0) return failed();
+    }
+
+    const sizeMb = (folderSizeBytes(appPath) / (1024 * 1024)).toFixed(2);
+    return { ok: true, path: appPath, sizeMb, seconds: secondsSince(), podFilesChanged };
   }
 
   return {
@@ -344,7 +517,11 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       const buildFolder = path.join(cacheDir, cacheKey);
       if (!fs.existsSync(buildFolder)) return null;
       const [appFile] = fs.readdirSync(buildFolder).filter((name) => !name.startsWith('.'));
-      return appFile ? path.join(buildFolder, appFile) : null;
+      if (!appFile) return null;
+      // A hit marks the folder as just used, so whoever prunes the cache by age keeps it.
+      const now = new Date();
+      fs.utimesSync(buildFolder, now, now);
+      return path.join(buildFolder, appFile);
     },
     keepInCache: async ({ cacheKey, cacheDir, path: appPath }) => {
       const buildFolder = path.join(cacheDir, cacheKey);
@@ -376,9 +553,9 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       }
     },
     compile: async (params) => {
-      if (params.platform !== 'android' || params.custom) throw new Error(NOT_BUILT_YET);
+      if (params.custom) throw new Error(NOT_BUILT_YET);
       try {
-        return await compileAndroid(params);
+        return await (params.platform === 'ios' ? compileIos(params) : compileAndroid(params));
       } finally {
         undoPrebuild(params.projectRoot, params.platform);
       }
@@ -559,7 +736,13 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
     compile: async ({ platform }) => {
       const build = platformOf('compile', platform);
       if ('built' in build) {
-        return { ok: true, path: build.built, sizeMb: build.sizeMb, seconds: build.seconds };
+        return {
+          ok: true,
+          path: build.built,
+          sizeMb: build.sizeMb,
+          seconds: build.seconds,
+          podFilesChanged: [],
+        };
       }
       if ('failed' in build) {
         return { ok: false, seconds: build.failed.seconds, lastLines: build.failed.lastLines };
