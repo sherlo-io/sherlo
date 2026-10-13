@@ -41,7 +41,7 @@ import { baseFingerprintsOf } from '../../helpers/fingerprint/baseFingerprintsOf
 import { closeTheRun } from './closeTheRun';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
-import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
+import { parseStagedGateRefusal, type StagedGateRefusal } from './stagedGateRefusal';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
 import { type BuildFlags, readBuildSettings } from './appBuild/buildSettings';
@@ -300,7 +300,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     if (!(error instanceof StagedSlotMissingError)) throw error;
 
     console.log(chalk.red(`\n${error.message}`));
-    console.log(chalk.yellow(FALLBACK_LINE));
     await reporting.flush().finally(() => process.exit(1));
     return { url: '' }; // unreachable - satisfies control flow when exit is stubbed
   }

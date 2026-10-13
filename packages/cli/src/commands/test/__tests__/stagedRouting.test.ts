@@ -61,6 +61,10 @@ vi.mock('../buildBundle', () => ({
   buildGateMetadata: vi.fn(),
 }));
 vi.mock('../uploadStagedArtifacts', () => ({ default: vi.fn() }));
+vi.mock('../appBuild/buildThenPush', () => ({
+  buildThenPush: vi.fn(),
+  splitRunKeyOf: vi.fn(() => null),
+}));
 
 import { getValidatedCommandParams as _getValidatedCommandParams } from '../../../helpers';
 import { computeBaseFingerprint as _computeBaseFingerprint } from '../../../helpers/fingerprint';
@@ -69,12 +73,14 @@ import {
   buildGateMetadata as _buildGateMetadata,
 } from '../buildBundle';
 import _uploadStagedArtifacts from '../uploadStagedArtifacts';
+import { buildThenPush as _buildThenPush } from '../appBuild/buildThenPush';
 
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
 const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
+const mockBuildThenPush = vi.mocked(_buildThenPush);
 
 let stagedRun: (passedOptions: any) => Promise<{ url: string }>;
 let exitSpy: ReturnType<typeof vi.spyOn>;
@@ -177,12 +183,51 @@ function outputKeys(): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------
-// native-needed: the gate refuses BEFORE anything is built
+// The app build: a platform the run cannot stage is built, never stopped on
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// native-needed: the gate refuses AFTER bundling, on the real identity
-// ---------------------------------------------------------------------------
+describe('a platform that cannot take the staged road goes to the app build', () => {
+  beforeEach(() => {
+    mockBuildThenPush.mockResolvedValue({ url: 'http://built' });
+  });
+
+  it('a push whose base fingerprint cannot be computed builds the app instead of stopping', async () => {
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: null },
+      ios: { hash: null },
+    } as any);
+
+    const result = await stagedRun({});
+
+    expect(mockBuildThenPush).toHaveBeenCalledTimes(1);
+    expect(mockBuildThenPush.mock.calls[0][0].refusals).toEqual([
+      { outcome: 'not-stageable', platform: 'ios', diff: [] },
+    ]);
+    expect(mockCheckStagedGate).not.toHaveBeenCalled();
+    expect(result).toEqual({ url: 'http://built' });
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(printed()).not.toContain('native-needed');
+  });
+
+  it('a staged gate that refuses a platform hands it to the app build, and prints no native-needed line', async () => {
+    mockCheckStagedGate.mockResolvedValue({
+      outcome: 'full-build-needed',
+      diff: ['engineClass'],
+    });
+
+    const result = await stagedRun({});
+
+    expect(mockBuildThenPush).toHaveBeenCalledTimes(1);
+    expect(mockBuildThenPush.mock.calls[0][0].refusals).toEqual([
+      { outcome: 'full-build-needed', platform: 'ios', diff: ['engineClass'] },
+    ]);
+    expect(mockOpenBuild).not.toHaveBeenCalled();
+    expect(result).toEqual({ url: 'http://built' });
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(printed()).not.toContain('native-needed');
+    expect(printed()).not.toContain('--android <path>');
+  });
+});
 
 // ---------------------------------------------------------------------------
 // fast-completed
