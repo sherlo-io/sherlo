@@ -505,7 +505,7 @@ describe('the base identity a dry run states (computeBaseFingerprint)', () => {
       // Before: the declared dependency set the ancestor build was fingerprinted
       // with - nothing native-linking added yet.
       writePackageJson(dir, {});
-      const before = await computeBaseFingerprint(dir);
+      const before = (await computeBaseFingerprint(dir)).android;
       expect(before.hash).toMatch(/^[a-f0-9]{64}$/);
 
       // After: package.json now declares a native-linking dependency (exactly
@@ -513,7 +513,7 @@ describe('the base identity a dry run states (computeBaseFingerprint)', () => {
       // without ever running an install - node_modules never gains it, so
       // neither the lockfile nor the autolinked-module resolve can see it.
       writePackageJson(dir, { 'expo-crypto': '~1.0.0' });
-      const after = await computeBaseFingerprint(dir);
+      const after = (await computeBaseFingerprint(dir)).android;
 
       // The identity MOVES: from a confirmed match to a confirmed "cannot say" -
       // never the old, now-stale, hash repeated as if nothing had changed. A
@@ -539,7 +539,7 @@ describe('the base identity a dry run states (computeBaseFingerprint)', () => {
       );
       writePackageJson(dir, { 'expo-crypto': '~1.0.0' });
 
-      const result = await computeBaseFingerprint(dir);
+      const result = (await computeBaseFingerprint(dir)).android;
 
       expect(result.hash).toMatch(/^[a-f0-9]{64}$/);
     } finally {

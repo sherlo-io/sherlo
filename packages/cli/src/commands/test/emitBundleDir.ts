@@ -22,7 +22,7 @@ import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
-import type { BaseFingerprintResult, GateMetadataInput } from '../../helpers/fingerprint';
+import type { BaseFingerprints, GateMetadataInput } from '../../helpers/fingerprint';
 import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { bundler } from '../../seams/bundler';
 import { whileShowing } from '../shared/terminal';
@@ -56,7 +56,7 @@ export async function emitBundleDir({
   projectRoot,
   platformsToTest,
   bundleDir,
-  baseFingerprint,
+  baseFingerprints,
   // The bundler IN FORCE, not the real one by name - a posed `--emit-bundle-dir` installs its own
   // (../../seams/bundler), exactly like the built road's own bundling loop (./bundleAndPreview).
   bundleFor = (root, platform) => bundler().bundleFor(root, platform),
@@ -66,8 +66,8 @@ export async function emitBundleDir({
   projectRoot: string;
   platformsToTest: Platform[];
   bundleDir: string;
-  /** The base fingerprint this machine computed for the tree, when it could. */
-  baseFingerprint?: BaseFingerprintResult;
+  /** Per platform, the base fingerprint this machine computed for the tree, when it could. */
+  baseFingerprints?: BaseFingerprints;
   bundleFor?: (projectRoot: string, platform: Platform) => Promise<BundleResult>;
   gateMetadataFor?: (
     projectRoot: string,
@@ -150,7 +150,9 @@ export async function emitBundleDir({
       project: identity,
       appSource,
       gateMetadata: await gateMetadataFor(projectRoot, platform, result),
-      baseFingerprint: baseFingerprint ? recordBaseFingerprint(baseFingerprint, projectRoot) : null,
+      baseFingerprint: baseFingerprints
+        ? recordBaseFingerprint(baseFingerprints[platform], projectRoot)
+        : null,
       createdAt: new Date().toISOString(),
       createdBy: { cliVersion: readCliVersion() },
     };

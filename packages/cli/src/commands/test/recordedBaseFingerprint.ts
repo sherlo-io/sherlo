@@ -36,7 +36,11 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
-import { computeBaseFingerprint, type BaseFingerprintResult } from '../../helpers/fingerprint';
+import {
+  computeBaseFingerprint,
+  type BaseFingerprintResult,
+  type BaseFingerprints,
+} from '../../helpers/fingerprint';
 import type { BaseFingerprintPreimage } from '../../helpers/fingerprint/baseFingerprint';
 import { parseBundleSidecar, sha256OfBuffer, sidecarFileName } from './bundleSidecar';
 
@@ -194,17 +198,14 @@ function digestDirectory(directory: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * The base fingerprint for a run that supplies its bundle: the sidecar's recorded
- * one when its native inputs still match this tree, otherwise a fresh
- * computation - which needs the project installed, and says so when it fails.
- *
- * Every tested platform's sidecar must record the same fingerprint: the number
- * is a property of the tree, not of a platform, and two sidecars that disagree
- * came from two different trees.
+ * The base fingerprints for a run that supplies its bundle: each tested
+ * platform's sidecar records its own platform's, taken when its native inputs
+ * still match this tree; otherwise a fresh computation - which needs the project
+ * installed, and says so when it fails.
  *
  * Reads the sidecars fail-soft: a directory the supplied-bundle road is about to
  * refuse (missing files, an unreadable sidecar) is left for that road to refuse
- * with its full message, and the fingerprint is simply computed here.
+ * with its full message, and the fingerprints are simply computed here.
  */
 export async function resolveBaseFingerprintForSuppliedBundle({
   bundleDir,
@@ -216,64 +217,67 @@ export async function resolveBaseFingerprintForSuppliedBundle({
   projectRoot: string;
   platforms: Platform[];
   command: string;
-}): Promise<BaseFingerprintResult> {
+}): Promise<BaseFingerprints> {
   const recorded = readRecordedBaseFingerprints({ bundleDir, platforms });
 
-  if (recorded.length === platforms.length && recorded.length > 0) {
-    const [first] = recorded;
-    const allAgree = recorded.every((entry) => entry.hash === first.hash);
-    const inputsUnchanged =
-      allAgree &&
-      digestNativeInputs({ projectRoot, paths: first.nativeInputs.paths }) ===
-        first.nativeInputs.digest;
+  const reusable = (platform: Platform): boolean => {
+    const entry = recorded[platform];
+    return (
+      entry !== undefined &&
+      digestNativeInputs({ projectRoot, paths: entry.nativeInputs.paths }) ===
+        entry.nativeInputs.digest
+    );
+  };
 
-    if (inputsUnchanged) {
+  if (platforms.length > 0 && platforms.every(reusable)) {
+    const takenFromTheBundle = (platform: Platform): BaseFingerprintResult => {
+      const entry = recorded[platform];
+      if (!entry) return { hash: null, debugMessage: `this run does not test ${platform}` };
       return {
-        hash: first.hash,
-        nativeFingerprint: first.nativeFingerprint,
+        hash: entry.hash,
+        nativeFingerprint: entry.nativeFingerprint,
         debugMessage:
           'base fingerprint taken from the supplied bundle: its native inputs are unchanged in this tree',
       };
-    }
+    };
+    return { android: takenFromTheBundle('android'), ios: takenFromTheBundle('ios') };
   }
 
   const computed = await computeBaseFingerprint(projectRoot, { command });
-  if (computed.hash) return computed;
+  const whyNotReused = platforms.some((platform) => !recorded[platform])
+    ? 'not every platform sidecar records one'
+    : 'the native inputs it was computed over have changed in this tree';
 
-  return {
-    ...computed,
-    debugMessage:
-      `${computed.debugMessage ?? 'the base fingerprint could not be computed'} ` +
-      '(the supplied bundle recorded no fingerprint this tree can reuse: ' +
-      `${describeWhyNotReused(recorded, platforms)}, so it had to be computed here, ` +
-      'which needs the project installed)',
-  };
+  const explained = (fingerprint: BaseFingerprintResult): BaseFingerprintResult =>
+    fingerprint.hash
+      ? fingerprint
+      : {
+          ...fingerprint,
+          debugMessage:
+            `${fingerprint.debugMessage ?? 'the base fingerprint could not be computed'} ` +
+            '(the supplied bundle recorded no fingerprint this tree can reuse: ' +
+            `${whyNotReused}, so it had to be computed here, ` +
+            'which needs the project installed)',
+        };
+
+  return { android: explained(computed.android), ios: explained(computed.ios) };
 }
 
+/** Each tested platform's recorded fingerprint, from its own sidecar, where it records one. */
 function readRecordedBaseFingerprints({
   bundleDir,
   platforms,
 }: {
   bundleDir: string;
   platforms: Platform[];
-}): RecordedBaseFingerprint[] {
-  const recorded: RecordedBaseFingerprint[] = [];
+}): Partial<Record<Platform, RecordedBaseFingerprint>> {
+  const recorded: Partial<Record<Platform, RecordedBaseFingerprint>> = {};
 
   for (const platform of platforms) {
     const parsed = parseBundleSidecar(path.join(bundleDir, sidecarFileName(platform)));
     if (!parsed.ok || !parsed.sidecar.baseFingerprint) continue;
-    recorded.push(parsed.sidecar.baseFingerprint);
+    recorded[platform] = parsed.sidecar.baseFingerprint;
   }
 
   return recorded;
-}
-
-function describeWhyNotReused(recorded: RecordedBaseFingerprint[], platforms: Platform[]): string {
-  if (recorded.length < platforms.length) {
-    return 'not every platform sidecar records one';
-  }
-  if (recorded.some((entry) => entry.hash !== recorded[0].hash)) {
-    return 'the platform sidecars record different fingerprints';
-  }
-  return 'the native inputs it was computed over have changed in this tree';
 }

@@ -32,13 +32,13 @@ async function build(passedOptions: BuildOptions): Promise<void> {
     (platform) => !passedOptions.platform || platform === passedOptions.platform
   );
 
-  const fingerprint = await nativeBuild().computeFingerprint(options.projectRoot, BUILD_COMMAND);
+  const fingerprints = await nativeBuild().computeFingerprint(options.projectRoot, BUILD_COMMAND);
 
   await buildApps({
     projectRoot: options.projectRoot,
     toBuild: platforms.map((platform) => ({ platform })),
     settings: config.build ?? {},
-    baseFingerprint: fingerprint.hash ?? '',
+    fingerprints,
     cacheDirFlag: passedOptions.buildCache,
     command: 'build',
     // `sherlo build` prints its own lines and no platform rows.

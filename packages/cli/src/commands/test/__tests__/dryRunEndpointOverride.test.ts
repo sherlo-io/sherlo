@@ -97,7 +97,10 @@ beforeEach(() => {
 
   mockGetGitInfo.mockResolvedValue({ branchName: 'feature', commitHash: 'abc', commitName: 'msg' });
 
-  mockComputeBaseFingerprint.mockResolvedValue({ hash: 'fp-123' });
+  mockComputeBaseFingerprint.mockResolvedValue({
+    android: { hash: 'fp-123' },
+    ios: { hash: 'fp-123' },
+  });
 
   mockBuildBundleForPlatform.mockResolvedValue({
     bundlePath: '/tmp/bundle.ios.js',

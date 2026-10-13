@@ -148,7 +148,10 @@ beforeEach(async () => {
     devices: [IOS_DEVICE],
     wait: false,
   } as any);
-  mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+  mockComputeBaseFingerprint.mockResolvedValue({
+    android: { hash: 'BASE_FP' },
+    ios: { hash: 'BASE_FP' },
+  } as any);
   mockBuildBundleForPlatform.mockResolvedValue({
     bundlePath: '/tmp/bundle.ios.js',
     bundleFormat: 'plain-js',
@@ -242,10 +245,8 @@ describe('native-needed (nothing is built)', () => {
   });
 
   it('routes when the base fingerprint cannot be computed - without asking the gate', async () => {
-    mockComputeBaseFingerprint.mockResolvedValue({
-      hash: null,
-      debugMessage: 'not a React Native project',
-    } as any);
+    const unavailable = { hash: null, debugMessage: 'not a React Native project' };
+    mockComputeBaseFingerprint.mockResolvedValue({ android: unavailable, ios: unavailable } as any);
 
     await expect(stagedRun({})).rejects.toThrow(`process.exit(${EXIT_NATIVE_NEEDED})`);
 

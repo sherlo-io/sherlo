@@ -65,17 +65,14 @@
   "api": [
     {
       "call": "checkStagedGate",
-      "with": { "platform": "android", "baseFingerprint": "abd8d47f0a29897fbc32371c150d3ff560637d4a2ed1fc6883bbb8f548983e34" },
+      "with": { "platform": "android", "baseFingerprint": "86a3b9dafbb646eab6ac2cf94c0a9224ef6250f99999956c8cece78f609eaf27" },
       "answer": {
         "outcome": "full-build-needed",
         "diff": [],
         "storedBase": {
           "buildIndex": 12,
           "sources": [
-            { "path": "package:react-native", "hash": "9b1d0c4e2a7f3b5d8e6c1a0f4b2d7e9c3a5f8b1d", "kind": "contents" },
-            { "path": "yarn.lock", "hash": "3e5a9c1f7b2d4e6a8c0b1d3f5e7a9c2b4d6f8e0a1c3b5d7f9e2a4c6b8d0f1e3a", "kind": "file" },
-            { "path": "ios", "hash": "5f2a8c4e1b7d3f9a0c6e2b8d4f1a7c3e9b5d0f2a", "kind": "dir", "files": [{ "path": "ios/Storefront/AppDelegate.swift", "hash": "7d3b0e5a92c14f8e6b2d9a0c3f7e1b5d8a4c2f60" }] },
-            { "path": "ios/Podfile.lock", "hash": "7537d546a725d0ca00683f65f8feb84f06950f61340d2a2a8a8b0b9b5e30005d", "kind": "file" }
+            { "path": "package:react-native", "hash": "9b1d0c4e2a7f3b5d8e6c1a0f4b2d7e9c3a5f8b1d", "kind": "contents" }
           ],
           "modules": [{ "name": "react-native-maps", "version": "1.2.0" }]
         }
@@ -83,7 +80,7 @@
     },
     {
       "call": "checkStagedGate",
-      "with": { "platform": "ios", "baseFingerprint": "abd8d47f0a29897fbc32371c150d3ff560637d4a2ed1fc6883bbb8f548983e34" },
+      "with": { "platform": "ios", "baseFingerprint": "c983c75a4f1a53c4abded5c758e8ed1cf91a4e4b80f1acdb40a59b05d9bf0b81" },
       "answer": {
         "outcome": "full-build-needed",
         "diff": [],
@@ -91,7 +88,6 @@
           "buildIndex": 12,
           "sources": [
             { "path": "package:react-native", "hash": "9b1d0c4e2a7f3b5d8e6c1a0f4b2d7e9c3a5f8b1d", "kind": "contents" },
-            { "path": "yarn.lock", "hash": "3e5a9c1f7b2d4e6a8c0b1d3f5e7a9c2b4d6f8e0a1c3b5d7f9e2a4c6b8d0f1e3a", "kind": "file" },
             { "path": "ios", "hash": "5f2a8c4e1b7d3f9a0c6e2b8d4f1a7c3e9b5d0f2a", "kind": "dir", "files": [{ "path": "ios/Storefront/AppDelegate.swift", "hash": "7d3b0e5a92c14f8e6b2d9a0c3f7e1b5d8a4c2f60" }] },
             { "path": "ios/Podfile.lock", "hash": "c8e1f4a7b0d3e6a9c2f5b8d1e4a7c0f3b6d9e2a5c8f1b4d7e0a3c6f9b2d5e8a1", "kind": "file" }
           ],

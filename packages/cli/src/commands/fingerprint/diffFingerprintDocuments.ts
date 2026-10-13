@@ -17,6 +17,7 @@
  *   - a `contents`-type native source: `~ <id>` and nothing finer, by design -
  *     its value is never retained anywhere.
  */
+import { PLATFORMS } from '../../constants';
 import type {
   FingerprintSourceDigest,
   LockfileDigest,
@@ -35,7 +36,7 @@ export type DeltaEntry = {
 };
 
 export type LayerDelta = {
-  /** `native`, `dependencies`, `js <platform>` or `base`. */
+  /** `native`, `dependencies`, `js <platform>` or `base <platform>`. */
   layer: string;
   before: string | null;
   after: string | null;
@@ -61,16 +62,17 @@ export function diffFingerprintDocuments(
       ...diffPackages(baseline.dependencies.packages ?? [], current.dependencies.packages ?? []),
     ]),
     ...diffJsLayers(baseline, current),
-    layerDelta('base', baseline.base.hash, current.base.hash, [
-      ...diffFiles(
-        lockfilesAsFiles(baseline.base.lockfiles),
-        lockfilesAsFiles(current.base.lockfiles)
-      ),
-      ...diffPackages(
-        autolinkedAsPackages(baseline.base.autolinkedModules),
-        autolinkedAsPackages(current.base.autolinkedModules)
-      ),
-    ]),
+    ...PLATFORMS.map((platform) => {
+      const before = baseline.base[platform];
+      const after = current.base[platform];
+      return layerDelta(`base ${platform}`, before.hash, after.hash, [
+        ...diffFiles(lockfilesAsFiles(before.lockfiles), lockfilesAsFiles(after.lockfiles)),
+        ...diffPackages(
+          autolinkedAsPackages(before.autolinkedModules),
+          autolinkedAsPackages(after.autolinkedModules)
+        ),
+      ]);
+    }),
   ];
 
   return {

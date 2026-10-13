@@ -274,7 +274,10 @@ describe('gitInfo parity with the standard road', () => {
       wait: false,
     } as any);
     mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: 'BASE_FP' },
+      ios: { hash: 'BASE_FP' },
+    } as any);
     // Gate says fast so the happy path proceeds to upload + openBuild.
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
@@ -317,7 +320,7 @@ describe('gitInfo parity with the standard road', () => {
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     // Identity check: parity means the SAME object the standard road would send.
     expect(openBuildArg.gitInfo).toBe(GIT_INFO);
-    expect(openBuildArg.baseFingerprint).toBe('BASE_FP');
+    expect(openBuildArg.baseFingerprints).toEqual({ ios: 'BASE_FP' });
     expect(openBuildArg.gateMetadata.ios).toEqual({ engineClass: 'hermes' });
     expect(result).toEqual({ url: 'http://app/build?x=1' });
 
@@ -395,7 +398,10 @@ describe('--dry-run', () => {
       devices: [IOS_DEVICE],
     } as any);
     mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: 'BASE_FP' },
+      ios: { hash: 'BASE_FP' },
+    } as any);
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
     mockRunDryRunPreview.mockResolvedValue(undefined);
@@ -446,10 +452,8 @@ describe('--dry-run', () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
       throw new Error(`process.exit(${code})`);
     });
-    mockComputeBaseFingerprint.mockResolvedValue({
-      hash: '',
-      debugMessage: 'No base binary found',
-    } as any);
+    const unavailable = { hash: '', debugMessage: 'No base binary found' };
+    mockComputeBaseFingerprint.mockResolvedValue({ android: unavailable, ios: unavailable } as any);
 
     const result = await stagedRun({ dryRun: true });
 
@@ -499,7 +503,10 @@ describe('live capture plan', () => {
       wait: false,
     } as any);
     mockGetPlatformsToTest.mockReturnValue(platforms as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: 'BASE_FP' },
+      ios: { hash: 'BASE_FP' },
+    } as any);
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(
       bundleResult({ moduleManifest: manifest(storyCount) })
@@ -928,7 +935,10 @@ describe('server-bypassed build (SHERLO-1952)', () => {
       waitTimeout: undefined,
     } as any);
     mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: 'BASE_FP' },
+      ios: { hash: 'BASE_FP' },
+    } as any);
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);

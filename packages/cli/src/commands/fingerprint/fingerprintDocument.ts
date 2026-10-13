@@ -35,12 +35,14 @@ import type {
  *
  * 2: the dependencies layer is read from the lockfile and its per-package
  *    pre-image is `packages` (was `installedPackages`, node_modules only).
+ * 3: the base layer is one per platform (`base.android`, `base.ios`).
  */
-export const FINGERPRINT_DOCUMENT_FORMAT_VERSION = 2;
+export const FINGERPRINT_DOCUMENT_FORMAT_VERSION = 3;
 
 /**
- * The `native` layer: the version-suppressed `@expo/fingerprint` hash - the same
- * number `sherlo test` sends as `nativeFingerprint` - and the sources it covered.
+ * The `native` layer: the version-suppressed `@expo/fingerprint` hash of both
+ * platforms - the same number `sherlo test` sends as `nativeFingerprint` - and
+ * the sources it covered.
  */
 export type NativeLayer = {
   /** null when the fingerprint could not be computed (see `reason`). */
@@ -51,10 +53,10 @@ export type NativeLayer = {
 };
 
 /**
- * The `base` layer: the base fingerprint `sherlo test` stages against. It is the
- * native hash combined with the lockfiles and the autolinked native modules, so
- * this layer records only those two extra inputs - the native sources are already
- * under `native`.
+ * One platform's `base` layer: the base fingerprint `sherlo test` stages that
+ * platform against. It is the platform's native hash combined with its native
+ * lockfiles and native modules, so this layer records only those two extra
+ * inputs - the native sources are already under `native`.
  */
 export type BaseLayer = {
   hash: string | null;
@@ -94,7 +96,8 @@ export type FingerprintDocument = {
   dependencies: DependenciesLayer;
   /** One entry per platform whose module manifest was available; may be empty. */
   js: Partial<Record<Platform, JsLayer>>;
-  base: BaseLayer;
+  /** Every platform's, as each platform's app build is reused or rebuilt on its own. */
+  base: Record<Platform, BaseLayer>;
 };
 
 /**

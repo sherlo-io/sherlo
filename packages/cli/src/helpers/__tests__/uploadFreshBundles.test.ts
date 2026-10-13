@@ -64,7 +64,7 @@ describe('uploadFreshBundles - built', () => {
     const uploaded = await uploadFreshBundles({
       projectRoot: '/proj',
       platforms: ['android', 'ios'],
-      baseFingerprint: 'base-fp',
+      baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
       projectIndex: 7,
       teamId: 'team1234',
       effects: EFFECTS,
@@ -96,7 +96,7 @@ describe('uploadFreshBundles - built', () => {
       uploadFreshBundles({
         projectRoot: '/proj',
         platforms: ['ios'],
-        baseFingerprint: 'base-fp',
+        baseFingerprints: { ios: 'base-fp-ios' },
         projectIndex: 7,
         teamId: 'team1234',
         effects: EFFECTS,
@@ -111,7 +111,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
       projectRoot: '/proj',
       platforms: ['android'],
       bundleDir: '/tmp/bundles',
-      baseFingerprint: 'base-fp',
+      baseFingerprints: { android: 'base-fp-android' },
       projectIndex: 7,
       teamId: 'team1234',
       effects: EFFECTS,
@@ -122,7 +122,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
       projectRoot: '/proj',
       platformsToTest: ['android'],
       // The advisory pairing note compares against the base this run registers.
-      baseFingerprint: 'base-fp',
+      baseFingerprints: { android: 'base-fp-android' },
       gateMetadataFor: expect.any(Function),
     });
     // The metadata the sidecar recorded is ignored: this road registers what it
@@ -150,7 +150,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
         projectRoot: '/proj',
         platforms: ['android'],
         bundleDir: '/tmp/bundles',
-        baseFingerprint: 'base-fp',
+        baseFingerprints: { android: 'base-fp-android' },
         projectIndex: 7,
         teamId: 'team1234',
         effects: EFFECTS,

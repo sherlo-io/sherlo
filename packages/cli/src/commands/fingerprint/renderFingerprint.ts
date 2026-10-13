@@ -4,6 +4,7 @@
  * line (they are the values to compare) and shortened everywhere they merely
  * name a file, since a 64-character digest per file would bury the file.
  */
+import { PLATFORMS } from '../../constants';
 import type { FingerprintDelta, DeltaEntry } from './diffFingerprintDocuments';
 import type { FingerprintDocument } from './fingerprintDocument';
 
@@ -56,14 +57,18 @@ export function renderLayers(
     }
   }
 
-  lines.push(layerLine('base', document.base.hash, document.base.reason));
-  if (verbose) {
-    lines.push(`  workflow ${document.base.workflow ?? 'unknown'}`);
-    for (const lockfile of document.base.lockfiles) {
-      lines.push(`  lockfile ${lockfile.file}  ${short(lockfile.digest)}`);
-    }
-    for (const module of document.base.autolinkedModules) {
-      lines.push(`  autolinked ${module}`);
+  // One base line per platform: each platform's app build is reused or rebuilt on its own.
+  for (const platform of PLATFORMS) {
+    const base = document.base[platform];
+    lines.push(layerLine(`base ${platform}`, base.hash, base.reason));
+    if (verbose) {
+      lines.push(`  workflow ${base.workflow ?? 'unknown'}`);
+      for (const lockfile of base.lockfiles) {
+        lines.push(`  lockfile ${lockfile.file}  ${short(lockfile.digest)}`);
+      }
+      for (const module of base.autolinkedModules) {
+        lines.push(`  autolinked ${module}`);
+      }
     }
   }
 

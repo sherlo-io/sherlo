@@ -37,7 +37,10 @@ const mocks = vi.hoisted(() => {
     uploadOrPrintBinaryReuse: vi.fn().mockResolvedValue(undefined),
     reporting: { addBreadcrumb: vi.fn() },
     getAppBuildUrl: vi.fn().mockReturnValue('https://app.sherlo.io/test/1'),
-    computeBaseFingerprint: vi.fn().mockResolvedValue({ hash: null, nativeFingerprint: 'fp-abc' }),
+    computeBaseFingerprint: vi.fn().mockResolvedValue({
+      android: { hash: null, nativeFingerprint: 'fp-abc' },
+      ios: { hash: null, nativeFingerprint: 'fp-abc' },
+    }),
     registerBase: vi.fn().mockResolvedValue({ registered: false }),
     getBuildPath: vi.fn().mockReturnValue('/tmp/app.apk'),
   };

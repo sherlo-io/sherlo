@@ -262,13 +262,14 @@ export async function resolveSuppliedBundles({
   bundleDir,
   projectRoot,
   platformsToTest,
-  baseFingerprint,
+  baseFingerprints,
   gateMetadataFor,
 }: {
   bundleDir: string;
   projectRoot: string;
   platformsToTest: Platform[];
-  baseFingerprint?: string;
+  /** Per platform, the base fingerprint of this run, for the advisory pairing note. */
+  baseFingerprints?: Partial<Record<Platform, string>>;
   gateMetadataFor: (
     platform: Platform,
     bundleResult: BundleResult,
@@ -282,6 +283,7 @@ export async function resolveSuppliedBundles({
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
 
   for (const platform of platformsToTest) {
+    const baseFingerprint = baseFingerprints?.[platform];
     const {
       result,
       gateMetadata: recordedGateMetadata,

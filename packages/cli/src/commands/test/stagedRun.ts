@@ -46,7 +46,7 @@ import { closeTheRun } from './closeTheRun';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
 import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
-import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
+import reportNativeNeeded from './nativeNeeded';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
 import type { BuildFlags } from './appBuild/buildSettings';
@@ -184,7 +184,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   //    A run that supplies its bundle takes the fingerprint the bundle recorded
   //    when this tree's native inputs still match - the machine that accepts a
   //    bundle has no install to compute one with. See ./recordedBaseFingerprint.
-  const fpResult =
+  //    Each platform has its own: a native change rebuilds its platform alone.
+  const fingerprints =
     bundleDir !== undefined
       ? await resolveBaseFingerprintForSuppliedBundle({
           bundleDir,
@@ -193,14 +194,24 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
           command: THIS_COMMAND,
         })
       : await computeBaseFingerprint(commandParams.projectRoot, { command: THIS_COMMAND });
+  const platformWithoutFingerprint = platformsToTest.find(
+    (platform) => !fingerprints[platform].hash
+  );
   //    An emit run does not stage a binary either - it only writes a directory to
   //    disk - so like a dry run it must not route on a missing fingerprint.
-  if (!fpResult.hash && !isDryRun && emitBundleDirPath === undefined) {
+  if (platformWithoutFingerprint !== undefined && !isDryRun && emitBundleDirPath === undefined) {
     return reportNativeNeeded({
-      reason: fpResult.debugMessage ?? 'the base fingerprint could not be computed',
+      reason:
+        fingerprints[platformWithoutFingerprint].debugMessage ??
+        'the base fingerprint could not be computed',
     });
   }
-  const baseFingerprint = fpResult.hash ?? '';
+  /** Each tested platform's base fingerprint. */
+  const baseFingerprints: Partial<Record<Platform, string>> = {};
+  for (const platform of platformsToTest) {
+    const hash = fingerprints[platform].hash;
+    if (hash) baseFingerprints[platform] = hash;
+  }
 
   // 5-emit. --emit-bundle-dir: bundle for real, write the triple + sidecar, STOP.
   //   It runs before the routing gate on purpose - producing a bundle directory is
@@ -211,7 +222,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       projectRoot: commandParams.projectRoot,
       platformsToTest,
       bundleDir: emitBundleDirPath,
-      baseFingerprint: fpResult,
+      baseFingerprints: fingerprints,
     });
     return { url: '' };
   }
@@ -235,7 +246,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       token,
       projectIndex,
       teamId,
-      baseFingerprint,
+      // WORKAROUND: the dry run's decision query names one base, so it names the first tested
+      // platform's. The dry run is deleted whole by stb-cli-drop-dead-commands.
+      baseFingerprint: baseFingerprints[platformsToTest[0]] ?? '',
       // Reuse the SAME git info openBuild is given (step 10 below) - the read-only
       // decision query takes the identical GitInfoInput; do not build a second one.
       resolveGitInfo: () =>
@@ -256,8 +269,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       platformsToTest,
       refusals,
       storedBuildIndexOf,
-      baseFingerprint,
-      fingerprintPreimage: fpResult.preimage,
+      fingerprints,
     });
 
   // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
@@ -266,7 +278,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   const probeAnswers = await checkGate({
     token,
     platformsToTest,
-    baseFingerprint,
+    baseFingerprints,
     gateMetadata: () => PROBE_GATE_METADATA,
     projectIndex,
     teamId,
@@ -290,7 +302,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       bundleDir,
       projectRoot: commandParams.projectRoot,
       platformsToTest,
-      ...(baseFingerprint ? { baseFingerprint } : {}),
+      baseFingerprints,
       // The source-derived metadata was derived beside the bundle, on the machine
       // that had the install to derive it; the acceptor verified the source it
       // came from, so it is sent as recorded.
@@ -310,7 +322,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   const identityAnswers = await checkGate({
     token,
     platformsToTest,
-    baseFingerprint,
+    baseFingerprints,
     // Unreachable fallback: buildBundles fills every tested platform or exits.
     // If it ever were empty, the marker is the honest thing to send - "I know
     // nothing about this bundle's identity" - never a fabricated dimension.
@@ -403,7 +415,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       buildRunConfig,
       gitInfo,
       message: commandParams.message,
-      baseFingerprint,
+      baseFingerprints,
       gateMetadata: gateMetadata as GateMetadataByPlatform,
     };
     if (joinKey) {
@@ -438,10 +450,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
   }
-
-  // 13. The fast path is committed: this commit is being tested with no native
-  //     rebuild. Publish that answer before the run's own output.
-  reportFastPathRunning({ baseFingerprint });
 
   const { build } = openBuildReturn;
   const buildIndex = build.index;
@@ -504,7 +512,7 @@ export default stagedRun;
 async function checkGate({
   token,
   platformsToTest,
-  baseFingerprint,
+  baseFingerprints,
   gateMetadata,
   projectIndex,
   teamId,
@@ -512,7 +520,8 @@ async function checkGate({
   /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
   token: string;
   platformsToTest: Platform[];
-  baseFingerprint: string;
+  /** Each platform's own base fingerprint, which its stored app build is looked up by. */
+  baseFingerprints: Partial<Record<Platform, string>>;
   gateMetadata: (platform: Platform) => GateMetadataInput;
   projectIndex: number;
   teamId: string;
@@ -533,7 +542,7 @@ async function checkGate({
       // staged storyline) and never reaches the network.
       const { outcome, diff, storedBase, storedBuildIndex } = await serverCalls().checkStagedGate({
         token,
-        baseFingerprint,
+        baseFingerprint: baseFingerprints[platform] ?? '',
         gateMetadata: gateMetadata(platform) as GateMetadata,
         platform,
         projectIndex,

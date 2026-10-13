@@ -28,7 +28,10 @@ import { emit } from '../../../helpers/transcriptSink';
 import { readProjectJson } from '../../../helpers/projectJson';
 import { realFreshBundleEffects } from '../../../helpers/uploadFreshBundles';
 import type { PushEffects } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
-import type { BaseFingerprintPreimage } from '../../../helpers/fingerprint/baseFingerprint';
+import type {
+  BaseFingerprintPreimage,
+  BaseFingerprints,
+} from '../../../helpers/fingerprint/baseFingerprint';
 import type { AppBuildReason, ChangesSinceStoredBuild } from '../../../render/appBuild';
 import type { PlatformRow } from '../../../render/runRows';
 import { appBuilder } from '../../../seams/appBuilder';
@@ -59,17 +62,18 @@ export async function buildThenPush({
   platformsToTest,
   refusals,
   storedBuildIndexOf,
-  baseFingerprint,
-  fingerprintPreimage,
+  fingerprints,
 }: {
   passedOptions: Options<THIS_COMMAND> & BuildFlags;
   platformsToTest: Platform[];
   refusals: StagedGateRefusal[];
   /** Per platform, the test its stored app build was built in, as the gate named it. */
   storedBuildIndexOf: Partial<Record<Platform, number>>;
-  baseFingerprint: string;
-  /** The sources `baseFingerprint` was computed over - what a stored app build's list is compared with. */
-  fingerprintPreimage?: BaseFingerprintPreimage;
+  /**
+   * Each platform's base fingerprint, and the sources it was computed over - what a stored app
+   * build's list is compared with.
+   */
+  fingerprints: BaseFingerprints;
 }): Promise<{ url: string }> {
   const { platformsToBuild, platformsOnStoredBuild } = whichPlatformsNeedABuild({
     platformsToTest,
@@ -107,7 +111,7 @@ export async function buildThenPush({
         storedBuildIndex: storedBuildIndexOf[refusal.platform],
         ...(await changesSinceStoredBuildOf(
           refusal,
-          fingerprintPreimage,
+          fingerprints[refusal.platform].preimage,
           commandParams.projectRoot
         )),
       },
@@ -118,7 +122,7 @@ export async function buildThenPush({
     projectRoot: commandParams.projectRoot,
     toBuild,
     settings,
-    baseFingerprint,
+    fingerprints,
     cacheDirFlag: passedOptions.buildCache,
     command: 'test',
     project: {

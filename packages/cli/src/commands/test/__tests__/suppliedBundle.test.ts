@@ -122,6 +122,7 @@ const EMITTED_BASE_FINGERPRINT: BaseFingerprintResult = {
     nativeSources: [{ type: 'dir', id: 'ios', hash: 'h' }],
     lockfiles: [],
     autolinkedModules: [],
+    nativeFolderFiles: [],
   },
 };
 
@@ -232,6 +233,7 @@ async function emit(
   opts: {
     withManifest?: boolean;
     withAssets?: boolean;
+    /** The emitting machine's base fingerprint, the same on every platform here. */
     baseFingerprint?: BaseFingerprintResult;
   } = {}
 ): Promise<void> {
@@ -239,7 +241,9 @@ async function emit(
     projectRoot,
     platformsToTest: platforms,
     bundleDir,
-    ...(opts.baseFingerprint ? { baseFingerprint: opts.baseFingerprint } : {}),
+    ...(opts.baseFingerprint
+      ? { baseFingerprints: { android: opts.baseFingerprint, ios: opts.baseFingerprint } }
+      : {}),
     bundleFor: async (_root, platform) => scriptedBundle(platform, opts),
     gateMetadataFor: async () => EMITTED_GATE_METADATA,
   });

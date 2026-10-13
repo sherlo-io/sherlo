@@ -68,14 +68,15 @@ async function asyncUploadBuildAndRunTests({
   });
 
   // The base fingerprint FIRST, before anything could load the Expo app config (SHERLO-1756).
-  const fpResult = await machine.computeFingerprint(projectRoot, THIS_COMMAND);
-  const nativeFingerprint = fpResult.nativeFingerprint;
+  // This build is one platform's, so it registers that platform's own base.
+  const fingerprint = (await machine.computeFingerprint(projectRoot, THIS_COMMAND))[platform];
+  const nativeFingerprint = fingerprint.nativeFingerprint;
 
   let baseFingerprint: string | undefined;
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
 
-  if (fpResult.hash) {
-    baseFingerprint = fpResult.hash;
+  if (fingerprint.hash) {
+    baseFingerprint = fingerprint.hash;
 
     // Extract gate metadata for this single platform (fail-soft).
     try {
@@ -89,7 +90,7 @@ async function asyncUploadBuildAndRunTests({
           projectRoot,
           bundlePath,
           buildType: binaryBuildType ?? 'preview',
-          baseFingerprintHash: fpResult.hash,
+          baseFingerprint: fingerprint,
           command: THIS_COMMAND,
         },
         { extractGateMetadataFor: (params) => machine.extractGateMetadataFor(params) }
@@ -104,7 +105,7 @@ async function asyncUploadBuildAndRunTests({
   } else {
     logWarning({
       message: `Staged uploads unavailable - ${
-        fpResult.debugMessage ?? 'fingerprint computation failed'
+        fingerprint.debugMessage ?? 'fingerprint computation failed'
       }`,
     });
   }
