@@ -71,5 +71,9 @@ describe('the pull request checks workflow', () => {
     expect(installActionText).toContain('"$EVENT_NAME" = "workflow_dispatch"');
     expect(installActionText).toContain('HEAD_BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"');
     expect(installActionText).not.toContain('"$GITHUB_HEAD_REF" == epic/*');
+    // The tester checkout compares against the branch name when there is no PR base.
+    expect(workflowWithoutComments).toContain(
+      'checkout-tester.sh "${GITHUB_BASE_REF:-$GITHUB_REF_NAME}"'
+    );
   });
 });
