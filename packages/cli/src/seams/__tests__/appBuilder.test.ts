@@ -224,6 +224,25 @@ describe('app builder, Android', () => {
     ).toBe(path.join(cacheDir, 'android-fp-abc', 'built.apk'));
   });
 
+  it('keeps an iOS app build, a folder, in the local build cache and finds it again', async () => {
+    const app = path.join(projectRoot, 'Built.app');
+    fs.mkdirSync(path.join(app, 'Frameworks'), { recursive: true });
+    fs.writeFileSync(path.join(app, 'Info.plist'), 'plist bytes');
+    fs.writeFileSync(path.join(app, 'Frameworks', 'inner.bin'), 'inner bytes');
+    const builder = liveBuilder();
+    await builder.keepInCache({ platform: 'ios', cacheKey: 'ios-fp-abc', cacheDir, path: app });
+    const cachedApp = await builder.findCachedBuild({
+      platform: 'ios',
+      cacheKey: 'ios-fp-abc',
+      cacheDir,
+    });
+    expect(cachedApp).toBe(path.join(cacheDir, 'ios-fp-abc', 'Built.app'));
+    expect(fs.readFileSync(path.join(cachedApp!, 'Info.plist'), 'utf8')).toBe('plist bytes');
+    expect(fs.readFileSync(path.join(cachedApp!, 'Frameworks', 'inner.bin'), 'utf8')).toBe(
+      'inner bytes'
+    );
+  });
+
   it('keeping an app build in the local build cache removes nothing from it', async () => {
     const apk = path.join(projectRoot, 'second.apk');
     fs.writeFileSync(apk, 'apk bytes');
