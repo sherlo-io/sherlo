@@ -529,7 +529,7 @@ describe('live capture plan', () => {
     return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
   }
 
-  it('Case 2: partial capture WITH a per-platform reason - the fraction on the test's row, the story files under it, and no reason', async () => {
+  it('Case 2: partial capture WITH a per-platform reason - the fraction on the test row, the story files under it, and no reason', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
