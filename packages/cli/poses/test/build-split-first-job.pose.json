@@ -3,7 +3,9 @@
   "argv": [
     "test",
     "--platform",
-    "android"
+    "android",
+    "--run-id",
+    "7243105518"
   ],
   "files": {
     "sherlo.config.json": {
@@ -21,11 +23,7 @@
     ".sherlo/builds/android/app-release.apk": "the app build the posed compile wrote - what the tool reads out of it is `push`"
   },
   "env": {
-    "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017",
-    "CI": "true",
-    "GITHUB_ACTIONS": "true",
-    "GITHUB_REPOSITORY": "acme/storefront",
-    "GITHUB_RUN_ID": "7243105518"
+    "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017"
   },
   "git": {
     "branch": "feature/checkout",
@@ -92,7 +90,7 @@
     {
       "call": "joinBuild",
       "with": {
-        "joinKey": "github:acme/storefront/7243105518",
+        "joinKey": "run:7243105518",
         "platform": "android"
       },
       "answer": {
