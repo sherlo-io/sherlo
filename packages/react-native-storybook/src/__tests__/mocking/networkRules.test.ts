@@ -21,7 +21,8 @@ import { sherloFetch } from '../../mocking/network';
 import { UnmockedRequestError } from '../../mocking/networkRules';
 import { __resetShimmedKeysForTests, clearMocks } from '../../mocking/registry';
 import type { StoryMocks } from '../../mocking/mockDeclaration';
-import type { StorybookView } from '../../types';
+import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
+import { startStorybookHolding } from './storybookHolding';
 
 const BASE = 'https://mocking.sherlo.invalid';
 const STORY_ID = 'mocking-network--default';
@@ -83,7 +84,7 @@ afterEach(() => {
   clearStoryError(STORY_ID);
   globals.fetch = realFetch;
   delete (globalThis as { XMLHttpRequest?: unknown }).XMLHttpRequest;
-  delete (globalThis as { STORIES?: unknown }).STORIES;
+  __resetStorybookFactsForTests();
   vi.clearAllMocks();
 });
 
@@ -97,39 +98,25 @@ async function activateStory(levels: {
   file?: StoryMocks;
   story?: StoryMocks;
 }): Promise<void> {
-  const fileExports = {
-    default: {
-      title: 'Mocking/Network',
-      ...(levels.file ? { parameters: { sherlo: { mocks: levels.file } } } : {}),
-    },
-    Default: levels.story ? { parameters: { sherlo: { mocks: levels.story } } } : {},
-  };
-  const req = Object.assign(() => fileExports, { keys: () => ['./Network.stories.tsx'] });
-  (globalThis as { STORIES?: unknown }).STORIES = [{ directory: './src', req }];
-
-  const view = {
-    _storyIndex: {
-      entries: {
-        [STORY_ID]: {
-          id: STORY_ID,
-          title: 'Mocking/Network',
-          name: 'Default',
-          importPath: './src/Network.stories.tsx',
+  startStorybookHolding(
+    [
+      {
+        importPath: './src/Network.stories.tsx',
+        title: 'Mocking/Network',
+        fileExports: {
+          default: {
+            title: 'Mocking/Network',
+            ...(levels.file ? { parameters: { sherlo: { mocks: levels.file } } } : {}),
+          },
+          Default: levels.story ? { parameters: { sherlo: { mocks: levels.story } } } : {},
         },
+        stories: [{ id: STORY_ID, name: 'Default' }],
       },
-    },
-    _preview: {
-      // Composed upfront, so the first pass already reads the project's own mocks.
-      storyStoreValue: {
-        projectAnnotations: {
-          parameters: levels.project ? { sherlo: { mocks: levels.project } } : {},
-        },
-      },
-      ready: () => Promise.resolve(),
-    },
-  } as unknown as StorybookView;
+    ],
+    levels.project
+  );
 
-  await activateMocksForStory(view, STORY_ID);
+  await activateMocksForStory(STORY_ID);
 }
 
 /** What the rules answer a GET with, as text. */

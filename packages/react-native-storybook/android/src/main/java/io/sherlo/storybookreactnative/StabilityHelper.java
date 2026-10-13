@@ -21,12 +21,6 @@ import com.facebook.react.bridge.Promise;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,7 +48,6 @@ public class StabilityHelper {
      *                        consider UI stable
      * @param intervalMs      Time interval between screenshots in milliseconds
      * @param timeoutMs       Maximum time to wait for stability in milliseconds
-     * @param saveScreenshots Whether to save screenshots to filesystem during tests
      * @param threshold       Matching threshold (0.0 to 1.0); smaller values are
      *                        more sensitive
      * @param includeAA       If false, ignore anti-aliased pixels when counting
@@ -63,9 +56,9 @@ public class StabilityHelper {
      *                        false if timeout occurs
      */
     public static void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs,
-            int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
+            int timeoutMs, double threshold, boolean includeAA, Promise promise) {
         StabilityHelper helper = new StabilityHelper();
-        helper.checkIfStable(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots,
+        helper.checkIfStable(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs,
                 threshold, includeAA, new StabilityCallback() {
                     @Override
                     public void onResult(boolean isStable) {
@@ -151,7 +144,7 @@ public class StabilityHelper {
      * This must NOT block the UI thread; it performs UI nudges on the main thread
      * but waits on a background thread.
      */
-    public Bitmap captureScreenshot(Activity activity, boolean saveToFile, int screenshotNumber) {
+    public Bitmap captureScreenshot(Activity activity) {
         final View rootView = activity.getWindow().getDecorView().getRootView();
         final int width = rootView.getWidth();
         final int height = rootView.getHeight();
@@ -234,39 +227,7 @@ public class StabilityHelper {
             });
         }
 
-        // 5) Save if requested
-        if (saveToFile) {
-            saveBitmapToFile(activity, bitmap, screenshotNumber);
-        }
-
         return bitmap;
-    }
-
-    /**
-     * Saves a bitmap to a file in the app's external files directory.
-     */
-    private void saveBitmapToFile(Context context, Bitmap bitmap, int screenshotNumber) {
-        try {
-            // Create directory if it doesn't exist
-            File externalDirectory = context.getExternalFilesDir(null);
-            File storageDir = new File(externalDirectory.getAbsolutePath() + "/sherlo/stabilization_screenshots");
-            if (!storageDir.exists()) {
-                storageDir.mkdirs();
-            }
-
-            // Create file with timestamp
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(new Date());
-            File imageFile = new File(storageDir, timestamp + "_screenshot_" + screenshotNumber + ".png");
-
-            // Save bitmap to file
-            FileOutputStream fos = new FileOutputStream(imageFile);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            fos.close();
-
-            Log.d(TAG, "Saved screenshot to: " + imageFile.getAbsolutePath());
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to save screenshot", e);
-        }
     }
 
     /**
@@ -279,9 +240,7 @@ public class StabilityHelper {
      * @param intervalMs          The interval between each screenshot (in
      *                            milliseconds).
      * @param timeoutMs           The overall timeout (in milliseconds).
-     * @param saveScreenshots     Whether to save screenshots to filesystem during
-     *                            tests
-     * @param threshold           Matching threshold (0.0 to 1.0); smaller values
+     * @param threshold          Matching threshold (0.0 to 1.0); smaller values
      *                            are more sensitive
      * @param includeAA           If false, ignore anti-aliased pixels when counting
      *                            differences
@@ -289,7 +248,7 @@ public class StabilityHelper {
      *                            otherwise.
      */
     public void checkIfStable(final Activity activity, final int requiredMatches, final int minScreenshotsCount,
-            final int intervalMs, final int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA,
+            final int intervalMs, final int timeoutMs, double threshold, boolean includeAA,
             final StabilityCallback callback) {
         String unusableReason = CompiledCore.unusableReason();
         if (unusableReason != null) {
@@ -314,13 +273,12 @@ public class StabilityHelper {
         final Handler captureHandler = new Handler(captureThread.getLooper());
 
         final Bitmap[] lastScreenshot = new Bitmap[1];
-        final AtomicInteger screenshotCounter = new AtomicInteger(0);
         final long[] differentPixels = new long[1];
 
         // Initial capture on background thread
         captureHandler.post(() -> {
             try {
-                lastScreenshot[0] = captureScreenshot(activity, saveScreenshots, screenshotCounter.getAndIncrement());
+                lastScreenshot[0] = captureScreenshot(activity);
             } catch (RuntimeException firstCaptureFailed) {
                 stillness.end();
                 throw firstCaptureFailed;
@@ -330,8 +288,7 @@ public class StabilityHelper {
                 @Override
                 public void run() {
                     try {
-                        Bitmap current = captureScreenshot(activity, saveScreenshots,
-                                screenshotCounter.incrementAndGet());
+                        Bitmap current = captureScreenshot(activity);
                         // Android reads its clock once the screenshot is taken.
                         long capturedMs = System.currentTimeMillis();
 

@@ -7,26 +7,58 @@
  * by SherloModule.getMode() when the real SherloModule is loaded via require()
  * (not a vi.mock override).
  *
- * __appendFileCalls is a global accumulator used by installSherloIntegration tests
- * to capture protocol writes without needing to intercept vi.mock + require paths.
+ * The app's connection is native code's: sendMessage keeps every message the JavaScript sends, and
+ * dialBundler every address it asks native code to dial, on globalThis so they persist across
+ * module resets (__getSentMessages, __getDialedAddresses). __emitMessageFromTheConnection plays a
+ * message the connection brings, to whoever listens through NativeEventEmitter.
  */
 import { fakeSealedCoreSource } from './fakeSealedCore';
 
 export { fakeSealedCoreSource };
 
-// Use globalThis so the accumulator persists across module resets
-(globalThis as any).__sherloTestAppendFileCalls =
-  (globalThis as any).__sherloTestAppendFileCalls || [];
-
 function getMode(): string {
   return (globalThis as any).__sherloTestNativeMode || 'default';
 }
 
-function getNativeAppendFile() {
-  return (path: string, content: string) => {
-    (globalThis as any).__sherloTestAppendFileCalls.push([path, content]);
-    return Promise.resolve();
-  };
+/** Every message the JavaScript sent over the connection, as sent (parsed from its JSON). */
+export function __getSentMessages(): Array<Record<string, any>> {
+  return ((globalThis as any).__sherloTestSentMessages ?? []).map((json: string) =>
+    JSON.parse(json)
+  );
+}
+
+/** Every address the JavaScript asked native code to dial. */
+export function __getDialedAddresses(): string[] {
+  return (globalThis as any).__sherloTestDialedAddresses ?? [];
+}
+
+export function __resetConnection(): void {
+  (globalThis as any).__sherloTestSentMessages = [];
+  (globalThis as any).__sherloTestDialedAddresses = [];
+  (globalThis as any).__sherloTestMessageListeners = [];
+}
+
+/** Bring one message over the connection, as native code raises its `SherloMessage` event. */
+export function __emitMessageFromTheConnection(message: Record<string, unknown>): void {
+  const listeners: Array<(messageJson: string) => void> =
+    (globalThis as any).__sherloTestMessageListeners ?? [];
+  listeners.forEach((listener) => listener(JSON.stringify(message)));
+}
+
+export class NativeEventEmitter {
+  constructor(_nativeModule?: unknown) {}
+
+  addListener(_eventName: string, listener: (messageJson: string) => void) {
+    const listeners: Array<(messageJson: string) => void> = ((
+      globalThis as any
+    ).__sherloTestMessageListeners ??= []);
+    listeners.push(listener);
+    return {
+      remove: () => {
+        listeners.splice(listeners.indexOf(listener), 1);
+      },
+    };
+  }
 }
 
 export function __setNativeMode(mode: string): void {
@@ -108,7 +140,7 @@ export function __resetSealedCoreNative(): void {
 }
 
 function defaultLoadCore(): string {
-  return nativePickOf(fakeSealedCoreSource(1));
+  return nativePickOf(fakeSealedCoreSource(2));
 }
 
 export const NativeModules: Record<string, any> = {
@@ -125,8 +157,14 @@ export const NativeModules: Record<string, any> = {
       nativeVersion: (globalThis as any).__sherloTestNativeVersion ?? '2.0.0',
       compiledCoreVersion: (globalThis as any).__sherloTestNativeCompiledCoreVersion ?? null,
     }),
-    appendFile: getNativeAppendFile(),
-    readFile: (_path: string) => Promise.resolve(''),
+    sendMessage: (messageJson: string) => {
+      const sent: string[] = ((globalThis as any).__sherloTestSentMessages ??= []);
+      sent.push(messageJson);
+    },
+    dialBundler: (address: string) => {
+      const dialed: string[] = ((globalThis as any).__sherloTestDialedAddresses ??= []);
+      dialed.push(address);
+    },
     sendNativeError: (errorCode: string, message: string) => {
       (globalThis as any).__sherloTestNativeErrors = [...__getNativeErrors(), [errorCode, message]];
     },

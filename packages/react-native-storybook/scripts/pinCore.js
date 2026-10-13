@@ -18,6 +18,7 @@ const path = require('node:path');
 const {
   describeFailure,
   packageTokenFrom,
+  readFingerprintBySource,
   readStoredManifest,
   storageReaderWith,
 } = require('./storedCore.js');
@@ -38,20 +39,32 @@ async function pinCore({ fingerprint, readStoredFile, pinFile = PIN_FILE }) {
   return pin;
 }
 
-/** The value after `--fingerprint` in the command's arguments. */
-function fingerprintArgument(commandArguments) {
-  const flagPosition = commandArguments.indexOf('--fingerprint');
-  const fingerprint = flagPosition >= 0 ? commandArguments[flagPosition + 1] : undefined;
-  if (!fingerprint) throw new Error('usage: yarn core:pin --fingerprint <fingerprint>');
-  return fingerprint;
+const USAGE = 'usage: yarn core:pin --fingerprint <fingerprint> | --source-tree <source tree>';
+
+/** The value after `flag` in the command's arguments, if the flag is there. */
+function valueAfter(flag, commandArguments) {
+  const flagPosition = commandArguments.indexOf(flag);
+  return flagPosition >= 0 ? commandArguments[flagPosition + 1] : undefined;
+}
+
+/**
+ * The fingerprint the command names: `--fingerprint` itself, or the one sherlo-runner's by-source
+ * lookup names for the `--source-tree`.
+ */
+async function fingerprintArgument(commandArguments, readStoredFile) {
+  const fingerprint = valueAfter('--fingerprint', commandArguments);
+  if (fingerprint) return fingerprint;
+  const sourceTree = valueAfter('--source-tree', commandArguments);
+  if (!sourceTree) throw new Error(USAGE);
+  return readFingerprintBySource(sourceTree, readStoredFile);
 }
 
 module.exports = { pinCore, PIN_FILE };
 
 if (require.main === module) {
   (async () => {
-    const fingerprint = fingerprintArgument(process.argv.slice(2));
     const readStoredFile = storageReaderWith(packageTokenFrom(process.env));
+    const fingerprint = await fingerprintArgument(process.argv.slice(2), readStoredFile);
     const pin = await pinCore({ fingerprint, readStoredFile });
     console.log('pinned core ' + pin.version + ' (' + pin.fingerprint + ') in sherlo-core.json');
   })().catch((error) => {

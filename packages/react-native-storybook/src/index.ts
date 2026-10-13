@@ -1,5 +1,7 @@
 import checkSdkCompatibility from './checkSdkCompatibility';
-import { PROTOCOL_FILE } from './constants';
+import { send, startTheLine } from './connection/appLine';
+import { JS_MODULE_VERSION } from './sdk-compatibility.json';
+import SherloModule from './SherloModule';
 import { loadSealedCore } from './sealedCore/loadSealedCore';
 
 export { default as isRunningVisualTests } from './isRunningVisualTests';
@@ -30,20 +32,16 @@ try {
 } catch (_) {}
 
 function installSherloIntegration(): void {
-  const SherloModule = require('./SherloModule').default;
+  const isTesting = SherloModule.getMode() === 'testing';
 
-  const isTesting =
-    SherloModule &&
-    typeof SherloModule.getMode === 'function' &&
-    SherloModule.getMode() === 'testing';
+  // The line starts in every mode: a bundler's `sherlo open` and `sherlo capture` reach an app that
+  // is not in testing mode over it. Starting it sends this JavaScript's `hello`, and nothing else.
+  startTheLine();
 
   if (isTesting) {
-    SherloModule.appendFile(
-      PROTOCOL_FILE,
-      JSON.stringify({ action: 'JS_EVAL_COMPLETE', timestamp: Date.now(), entity: 'app' }) + '\n'
-    );
+    send({ action: 'JS_EVAL_COMPLETE', jsVersion: JS_MODULE_VERSION });
 
-    // Run SDK compatibility check BEFORE writing WITHSTORYBOOK_APPLIED.
+    // Run SDK compatibility check BEFORE sending WITHSTORYBOOK_APPLIED.
     // checkSdkCompatibility() is idempotent: a second call from getStorybook.tsx returns
     // the cached result without calling sendNativeError again.
     let isSdkCompatible: boolean | null = null;
@@ -51,33 +49,16 @@ function installSherloIntegration(): void {
       isSdkCompatible = checkSdkCompatibility();
     } catch (_) {}
 
-    // Only write WITHSTORYBOOK_APPLIED when SDK is compatible.
-    // When incompatible, sendNativeError(ERROR_SDK_COMPATIBILITY) was dispatched async on iOS
-    // (methodQueue = RCTGetUIManagerQueue). appendFile goes through a different (faster) queue
-    // on iOS new-arch, so WITHSTORYBOOK_APPLIED can land in the file before NATIVE_ERROR,
-    // causing waitForAnyProtocolEntry to resolve prematurely and miss the compat error.
+    // Only send WITHSTORYBOOK_APPLIED when SDK is compatible, so the runner reads the
+    // compatibility error (NATIVE_ERROR) in place of a setup that looks in place.
     if ((global as any).__sherloWithStorybookApplied === true && isSdkCompatible !== false) {
       try {
-        SherloModule.appendFile(
-          PROTOCOL_FILE,
-          JSON.stringify({
-            action: 'WITHSTORYBOOK_APPLIED',
-            timestamp: Date.now(),
-            entity: 'app',
-          }) + '\n'
-        );
+        send({ action: 'WITHSTORYBOOK_APPLIED' });
       } catch (_) {}
     }
     if ((global as any).__sherloStorybookDisabledFlag === true) {
       try {
-        SherloModule.appendFile(
-          PROTOCOL_FILE,
-          JSON.stringify({
-            action: 'WITHSTORYBOOK_DISABLED',
-            timestamp: Date.now(),
-            entity: 'app',
-          }) + '\n'
-        );
+        send({ action: 'WITHSTORYBOOK_DISABLED' });
       } catch (_) {}
     }
   }

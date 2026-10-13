@@ -28,10 +28,6 @@ describe('SherloModule dummy (no native module)', () => {
     expect(SherloModule.getLastState()).toBeUndefined();
   });
 
-  it('getDriver() returns undefined', () => {
-    expect(SherloModule.getDriver()).toBeUndefined();
-  });
-
   it('getConfig() returns an object with stabilization defaults', () => {
     const config = SherloModule.getConfig();
     expect(config).toBeDefined();
@@ -46,14 +42,6 @@ describe('SherloModule dummy (no native module)', () => {
 
   it('sendNativeError() does not throw', () => {
     expect(() => SherloModule.sendNativeError('ERROR_CODE', 'message')).not.toThrow();
-  });
-
-  it('appendFile() resolves without throwing', async () => {
-    await expect(SherloModule.appendFile('foo.txt', 'data')).resolves.not.toThrow();
-  });
-
-  it('readFile() resolves to an empty string', async () => {
-    await expect(SherloModule.readFile('foo.txt')).resolves.toBe('');
   });
 
   it('openStorybook() does not throw', () => {

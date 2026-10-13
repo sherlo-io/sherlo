@@ -34,7 +34,7 @@ import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import type { GateMetadataInput } from '../../helpers/fingerprint/gateMetadata';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
-import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
+import { readBundledSdkProtocolVersion, toBaseSemver } from './readBundledSdkProtocolVersion';
 import { getExpoSdkVersion, type BundleFormat } from './buildBundle';
 import { findLockfile, readLockfilePackages, type PackageVersions } from './lockfilePackages';
 import type { RecordedBaseFingerprint } from './recordedBaseFingerprint';
@@ -318,7 +318,7 @@ function resolvedSdkProtocolVersion(closure: DependencyClosure): string | null {
     if (version === null) continue;
     // The base semver only: a `-test.<run>` suffix says how the build was
     // produced, not which protocol it implements (see readBundledSdkProtocolVersion).
-    return /^(\d+\.\d+\.\d+)(?:[-+]|$)/.exec(version)?.[1] ?? version;
+    return toBaseSemver(version) ?? version;
   }
   return null;
 }

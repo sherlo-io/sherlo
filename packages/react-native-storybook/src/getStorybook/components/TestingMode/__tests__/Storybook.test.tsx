@@ -38,10 +38,10 @@ const { useRefMock, resetReactHookInstance, startReactRender } = vi.hoisted(() =
   };
 });
 
-const { mockGetStorybookComponent, mockGetLastState, mockAppendFile } = vi.hoisted(() => ({
+const { mockGetStorybookComponent, mockGetLastState, mockSend } = vi.hoisted(() => ({
   mockGetStorybookComponent: vi.fn(() => () => null),
   mockGetLastState: vi.fn(),
-  mockAppendFile: vi.fn(),
+  mockSend: vi.fn(),
 }));
 
 vi.mock('react', () => ({ useRef: useRefMock, default: { useRef: useRefMock } }));
@@ -57,9 +57,8 @@ vi.mock('react-native-safe-area-context', () => ({
 }));
 vi.mock('../../../helpers', () => ({ getStorybookComponent: mockGetStorybookComponent }));
 vi.mock('../../../../helpers', () => ({ RunnerBridge: { log: vi.fn() } }));
-vi.mock('../../../../SherloModule', () => ({
-  default: { getLastState: mockGetLastState, appendFile: mockAppendFile },
-}));
+vi.mock('../../../../SherloModule', () => ({ default: { getLastState: mockGetLastState } }));
+vi.mock('../../../../connection/appLine', () => ({ send: mockSend }));
 
 import Storybook from '../Storybook';
 

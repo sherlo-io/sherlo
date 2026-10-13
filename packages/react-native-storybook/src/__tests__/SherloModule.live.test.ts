@@ -1,20 +1,15 @@
 /**
  * Tests for the live SherloModule wrapper (createSherloModule).
  * Mocks the underlying TurboModule (NativeSherloModule spec) and asserts:
- *  - appendFile base64-encodes the content before calling native
- *  - readFile base64-decodes the native return value
+ *  - the module has no file calls
  *  - getMode/getConfig/getLastState delegate to getConstants()
  *  - constants merge correctly across new-arch (getSherloConstants) and old-arch (getConstants)
  */
-import base64 from 'base-64';
-import utf8 from 'utf8';
 
 // vi.hoisted() runs before mock factories, making these safe to use in factory closures.
 const {
   mockGetSherloConstants,
   mockGetConstants,
-  mockAppendFile,
-  mockReadFile,
   mockSendNativeError,
   mockGetInspectorData,
   mockStabilize,
@@ -24,8 +19,6 @@ const {
 } = vi.hoisted(() => ({
   mockGetSherloConstants: vi.fn(),
   mockGetConstants: vi.fn(),
-  mockAppendFile: vi.fn(),
-  mockReadFile: vi.fn(),
   mockSendNativeError: vi.fn(),
   mockGetInspectorData: vi.fn(),
   mockStabilize: vi.fn(),
@@ -38,8 +31,6 @@ vi.mock('../specs/NativeSherloModule', () => ({
   default: {
     getSherloConstants: mockGetSherloConstants,
     getConstants: mockGetConstants,
-    appendFile: mockAppendFile,
-    readFile: mockReadFile,
     sendNativeError: mockSendNativeError,
     getInspectorData: mockGetInspectorData,
     stabilize: mockStabilize,
@@ -97,30 +88,11 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('SherloModule live - appendFile base64 encoding', () => {
-  it('encodes the data with base64(utf8(content)) before calling native', async () => {
-    mockAppendFile.mockResolvedValue(undefined);
-    await SherloModule.appendFile('protocol.sherlo', 'hello world');
-    const expectedEncoded = base64.encode(utf8.encode('hello world'));
-    expect(mockAppendFile).toHaveBeenCalledWith('protocol.sherlo', expectedEncoded);
-  });
-
-  it('encodes JSON content correctly (round-trips through base64)', async () => {
-    mockAppendFile.mockResolvedValue(undefined);
-    const content = '{"action":"START","timestamp":1234567890}';
-    await SherloModule.appendFile('protocol.sherlo', content);
-    const expectedEncoded = base64.encode(utf8.encode(content));
-    expect(mockAppendFile).toHaveBeenCalledWith('protocol.sherlo', expectedEncoded);
-  });
-});
-
-describe('SherloModule live - readFile base64 decoding', () => {
-  it('decodes the native return value with utf8.decode(base64.decode())', async () => {
-    const original = 'hello world\n';
-    const encoded = base64.encode(utf8.encode(original));
-    mockReadFile.mockResolvedValue(encoded);
-    const result = await SherloModule.readFile('protocol.sherlo');
-    expect(result).toBe(original);
+describe('SherloModule live - no file calls', () => {
+  it('has no way to write or read a file, and no driver to ask', () => {
+    expect(SherloModule).not.toHaveProperty('appendFile');
+    expect(SherloModule).not.toHaveProperty('readFile');
+    expect(SherloModule).not.toHaveProperty('getDriver');
   });
 });
 
@@ -194,21 +166,6 @@ describe('SherloModule live - getConfig / getLastState', () => {
 
   it('isTurboModule is true when TurboModule is present', () => {
     expect(SherloModule.isTurboModule).toBe(true);
-  });
-
-  it("getDriver() reads the `driver` constant a run's config-based boot reports", () => {
-    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'runner' });
-    expect(SherloModule.getDriver()).toBe('runner');
-  });
-
-  it("getDriver() reads the `driver` constant a capture's restart reports", () => {
-    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'capture' });
-    expect(SherloModule.getDriver()).toBe('capture');
-  });
-
-  it('getDriver() returns undefined outside testing mode, where native reports no driver', () => {
-    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: null });
-    expect(SherloModule.getDriver()).toBeUndefined();
   });
 });
 
