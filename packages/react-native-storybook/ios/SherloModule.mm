@@ -161,27 +161,6 @@ static void SherloEarlyInit(void) {
 }
 
 /**
- * Refuses: the app keeps no Sherlo file.
- */
-- (void)appendFile:(NSString *)path
-          content:(NSString *)content
-          resolve:(RCTPromiseResolveBlock)resolve
-           reject:(RCTPromiseRejectBlock)reject
-{
-  [core appendFile:path withContent:content resolve:resolve reject:reject];
-}
-
-/**
- * Refuses: the app keeps no Sherlo file.
- */
-- (void)readFile:(NSString *)path
-        resolve:(RCTPromiseResolveBlock)resolve
-         reject:(RCTPromiseRejectBlock)reject
-{
-  [core readFile:path resolve:resolve reject:reject];
-}
-
-/**
  * Gets UI inspector data from the current view hierarchy.
  */
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve
@@ -344,25 +323,6 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
                                        message:(NSString *)message
                                          stack:(NSString *)stack) {
   return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
-}
-
-/**
- * Refuses: the app keeps no Sherlo file.
- */
-RCT_EXPORT_METHOD(appendFile:(NSString *)path
-                  withContent:(NSString *)content
-                     resolver:(RCTPromiseResolveBlock)resolve
-                     rejecter:(RCTPromiseRejectBlock)reject) {
-  [core appendFile:path withContent:content resolve:resolve reject:reject];
-}
-
-/**
- * Refuses: the app keeps no Sherlo file.
- */
-RCT_EXPORT_METHOD(readFile:(NSString *)path
-                  resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core readFile:path resolve:resolve reject:reject];
 }
 
 /**

@@ -456,14 +456,6 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
     return [SherloModuleCore sendJsErrorAndWait:name message:message stack:stack];
 }
 
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
-    reject(@"ERROR_NO_FILES", @"Sherlo keeps no file in the app: its messages travel over the app's connection.", nil);
-}
-
-- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
-    reject(@"ERROR_NO_FILES", @"Sherlo keeps no file in the app: its messages travel over the app's connection.", nil);
-}
-
 /**
  * Gets UI inspector data from the current view hierarchy.
  * Returns a promise with serialized JSON containing detailed view information.

@@ -120,15 +120,6 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack;
 
 /**
- * Refuses: the app keeps no Sherlo file. Still answered, because the JavaScript's spec still names
- * it, until that JavaScript sends over the connection instead.
- */
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
-
-/** Refuses, as appendFile does. */
-- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
-
-/**
  * Gets inspector data from the current UI hierarchy
  * @param resolve Promise resolver
  * @param reject Promise rejecter
