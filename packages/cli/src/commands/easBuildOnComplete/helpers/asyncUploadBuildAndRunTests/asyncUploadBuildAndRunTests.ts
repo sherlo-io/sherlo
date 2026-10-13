@@ -144,7 +144,9 @@ async function asyncUploadBuildAndRunTests({
 
   if (couldRunThisBuildRightNow) {
     if (getPlatformsToTest(startedRun?.devices ?? []).includes(otherPlatform)) {
-      platformRows.push(printPlatformRowInALog({ platform: otherPlatform, appBuild: 'built-on-eas' }));
+      platformRows.push(
+        printPlatformRowInALog({ platform: otherPlatform, appBuild: 'built-on-eas' })
+      );
     }
     emit({ kind: 'test-started', buildIndex, ...startedRun, rowsAbove: rowsAbove(platformRows) });
   } else {

@@ -249,7 +249,12 @@ export type TranscriptSegment =
    * waits for the builds still to come: the other job's platform in a split CI run, or the EAS
    * builds (./runRows). The build that comes in last emits `test-started`, like any test that starts.
    */
-  | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: TestWaitsFor; rowsAbove: RowsAbove }
+  | {
+      kind: 'run-waits-for-builds';
+      buildIndex: number;
+      waitingFor: TestWaitsFor;
+      rowsAbove: RowsAbove;
+    }
   /* ---------------------------------------------------------------------- *
    * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
    * it prints when the build reaches a terminal state.                      *

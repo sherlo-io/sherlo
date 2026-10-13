@@ -51,7 +51,12 @@ import easBuildOnComplete from '../easBuildOnComplete';
 // ---------------------------------------------------------------------------
 
 // `npm_lifecycle_event` too: the package manager running this suite sets it to its own script.
-const ENV_KEYS = ['EAS_BUILD_RUNNER', 'EAS_BUILD_PROFILE', 'EAS_BUILD_STATUS', 'npm_lifecycle_event'] as const;
+const ENV_KEYS = [
+  'EAS_BUILD_RUNNER',
+  'EAS_BUILD_PROFILE',
+  'EAS_BUILD_STATUS',
+  'npm_lifecycle_event',
+] as const;
 let savedEnv: Record<string, string | undefined>;
 
 beforeEach(() => {

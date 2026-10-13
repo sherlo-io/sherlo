@@ -123,7 +123,12 @@ function fileChange(entry: DeltaEntry): NativeChange {
 
 function moduleChange(entry: DeltaEntry): NativeChange {
   if (entry.kind === 'changed') {
-    return { change: 'changed', module: entry.name, from: entry.before ?? '', to: entry.after ?? '' };
+    return {
+      change: 'changed',
+      module: entry.name,
+      from: entry.before ?? '',
+      to: entry.after ?? '',
+    };
   }
   return {
     change: entry.kind,

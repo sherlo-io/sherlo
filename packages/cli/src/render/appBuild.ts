@@ -132,7 +132,9 @@ export function renderAppBuildNextStep(): string[] {
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...renderSectionTitle('👉 Next step', 12),
     chalk.bold('Test your app'),
-    `   ${chalk.cyan('npx sherlo test')} skips building the app until native code or build settings change.`,
+    `   ${chalk.cyan(
+      'npx sherlo test'
+    )} skips building the app until native code or build settings change.`,
   ];
 }
 

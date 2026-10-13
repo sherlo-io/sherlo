@@ -546,7 +546,13 @@ function addBuildCommand(program: Command) {
   addCommand({
     program,
     command: BUILD_COMMAND,
-    options: [CONFIG_OPTION, PROJECT_ROOT_OPTION, PLATFORM_OPTION, BUILD_CACHE_OPTION, PARALLEL_BUILDS_OPTION],
+    options: [
+      CONFIG_OPTION,
+      PROJECT_ROOT_OPTION,
+      PLATFORM_OPTION,
+      BUILD_CACHE_OPTION,
+      PARALLEL_BUILDS_OPTION,
+    ],
     // The intro comes first, as on `sherlo test`.
     action: (options) => {
       printTheLogoInATerminal();
@@ -723,7 +729,9 @@ function addProjectCommand(program: Command) {
  */
 function addTeamCommand(program: Command) {
   // Hidden from `--help`, like the project group (operator ruling 2026-10-13, Q13).
-  const teamGroup = program.command(TEAM_COMMAND, { hidden: true }).description('Manage Sherlo teams');
+  const teamGroup = program
+    .command(TEAM_COMMAND, { hidden: true })
+    .description('Manage Sherlo teams');
 
   const createInstance = teamGroup
     .command(TEAM_CREATE_SUBCOMMAND)
@@ -836,7 +844,9 @@ function addCommand({
     deprecatedCommand.action(action);
   }
 
-  const commandInstance = program.command(command, { hidden }).description(COMMAND_DESCRIPTION[command]);
+  const commandInstance = program
+    .command(command, { hidden })
+    .description(COMMAND_DESCRIPTION[command]);
   addOptionsToCommand(commandInstance, options);
   commandInstance.action(action);
   return commandInstance;
@@ -896,11 +906,5 @@ function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_
 }
 
 function getTestCommonOptions() {
-  return [
-    MESSAGE_OPTION,
-    GIT_BRANCH_OPTION,
-    INCLUDE_OPTION,
-    CONFIG_OPTION,
-    PROJECT_ROOT_OPTION,
-  ];
+  return [MESSAGE_OPTION, GIT_BRANCH_OPTION, INCLUDE_OPTION, CONFIG_OPTION, PROJECT_ROOT_OPTION];
 }

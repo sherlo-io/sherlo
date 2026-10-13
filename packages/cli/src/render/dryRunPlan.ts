@@ -8,7 +8,10 @@
  */
 import { Platform } from '@sherlo/api-types';
 import type { DryRunPlatformDecision } from '../commands/test/dryRunDecision';
-import { formatDiffScopeReport, type DiffScopePlatformReport } from '../commands/test/diffScopeReport';
+import {
+  formatDiffScopeReport,
+  type DiffScopePlatformReport,
+} from '../commands/test/diffScopeReport';
 
 /**
  * One platform's preview outcome: either a decision from the server (which may

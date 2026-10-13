@@ -633,7 +633,12 @@ export function printServerBypassCloser(
   testIndex: number,
   rowsNotYetShown: PlatformRow[]
 ): void {
-  emit({ kind: 'verdict-server-bypassed', reason, testIndex, rowsAbove: rowsAbove(rowsNotYetShown) });
+  emit({
+    kind: 'verdict-server-bypassed',
+    reason,
+    testIndex,
+    rowsAbove: rowsAbove(rowsNotYetShown),
+  });
 }
 
 /**

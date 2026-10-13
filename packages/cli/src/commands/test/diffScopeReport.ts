@@ -111,14 +111,18 @@ export function formatDiffScopeReport(
   );
 
   if (lines.length > 0 && everyPlatformDecidedTheSame) {
-    return [renderTestStep({ name: STEP_NAME[mode], detail: lines[0].decision }), ...lines[0].stories].join(
-      '\n'
-    );
+    return [
+      renderTestStep({ name: STEP_NAME[mode], detail: lines[0].decision }),
+      ...lines[0].stories,
+    ].join('\n');
   }
 
   return lines
     .flatMap(({ platform, decision, stories }) => [
-      renderTestStep({ name: STEP_NAME[mode], detail: `${platformWithEmoji(platform)} - ${decision}` }),
+      renderTestStep({
+        name: STEP_NAME[mode],
+        detail: `${platformWithEmoji(platform)} - ${decision}`,
+      }),
       ...stories,
     ])
     .join('\n');
@@ -138,7 +142,9 @@ export function describeDecision(block: DiffScopePlatformReport): string {
     const allStories = M !== undefined ? `${M} of ${countStories(M)}` : 'all stories';
     // No reason for a full capture -> the honest degrade: we could not work out
     // what changed, so everything is captured to be safe.
-    return `${allStories}: ${block.reason ?? "couldn't work out what changed, so all are captured to be safe"}`;
+    return `${allStories}: ${
+      block.reason ?? "couldn't work out what changed, so all are captured to be safe"
+    }`;
   }
 
   const captured = block.capturedStoryFilePaths.length;
@@ -156,7 +162,9 @@ export function describeDecision(block: DiffScopePlatformReport): string {
 /** The captured stories, named under a partial capture's step line. */
 function storiesUnder(block: DiffScopePlatformReport): string[] {
   if (block.full) return [];
-  return block.capturedStoryFilePaths.map((filePath) => chalk.dim(`   ${cleanStoryPath(filePath)}`));
+  return block.capturedStoryFilePaths.map((filePath) =>
+    chalk.dim(`   ${cleanStoryPath(filePath)}`)
+  );
 }
 
 /**

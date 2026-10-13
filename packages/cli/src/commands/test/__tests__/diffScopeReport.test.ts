@@ -79,9 +79,15 @@ describe('approved output (verbatim)', () => {
   it('a full capture says all of them, with the reason', () => {
     expect(
       formatDiffScopeReport('live', [
-        decided({ full: true, totalStoriesInBundle: 2, reason: 'no main branch is set, so every test captures every story' }),
+        decided({
+          full: true,
+          totalStoriesInBundle: 2,
+          reason: 'no main branch is set, so every test captures every story',
+        }),
       ])
-    ).toBe('✔ Planned the capture    2 of 2 stories: no main branch is set, so every test captures every story');
+    ).toBe(
+      '✔ Planned the capture    2 of 2 stories: no main branch is set, so every test captures every story'
+    );
   });
 
   it('a full capture with no reason says it could not work out what changed', () => {
@@ -93,7 +99,9 @@ describe('approved output (verbatim)', () => {
   it('a partial capture of nothing says there is nothing to capture', () => {
     // The step's name already says "capture", so the server's reason stands alone.
     expect(
-      describeDecision(decided({ totalStoriesInBundle: 24, reason: 'no change on this branch reaches any story' }))
+      describeDecision(
+        decided({ totalStoriesInBundle: 24, reason: 'no change on this branch reaches any story' })
+      )
     ).toBe('no change on this branch reaches any story');
     expect(describeDecision(decided({ totalStoriesInBundle: 24 }))).toBe('nothing to capture');
   });
@@ -101,7 +109,9 @@ describe('approved output (verbatim)', () => {
 
 describe('the inversion pin', () => {
   it('a FULL capture with an EMPTY captured-file list reads as all of them, never as nothing', () => {
-    const decision = describeDecision(decided({ full: true, capturedStoryFilePaths: [], totalStoriesInBundle: 5 }));
+    const decision = describeDecision(
+      decided({ full: true, capturedStoryFilePaths: [], totalStoriesInBundle: 5 })
+    );
 
     expect(decision).toMatch(/^5 of 5 stories/);
     expect(decision).not.toContain('nothing');
@@ -111,7 +121,9 @@ describe('the inversion pin', () => {
 describe('the fraction', () => {
   it('is denominated by the whole bundle', () => {
     expect(
-      describeDecision(decided({ capturedStoryFilePaths: ['a/B.stories.tsx'], totalStoriesInBundle: 40 }))
+      describeDecision(
+        decided({ capturedStoryFilePaths: ['a/B.stories.tsx'], totalStoriesInBundle: 40 })
+      )
     ).toBe('1 of 40 stories');
   });
 
@@ -127,7 +139,10 @@ describe('a plan for two platforms is one line when they agree and one each when
     const same = { full: true, totalStoriesInBundle: 3, reason: 'first test' };
 
     expect(
-      formatDiffScopeReport('live', [decided({ platform: 'android', ...same }), decided({ platform: 'ios', ...same })])
+      formatDiffScopeReport('live', [
+        decided({ platform: 'android', ...same }),
+        decided({ platform: 'ios', ...same }),
+      ])
     ).toBe('✔ Planned the capture    3 of 3 stories: first test');
   });
 

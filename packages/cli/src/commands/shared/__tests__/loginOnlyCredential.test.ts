@@ -103,8 +103,7 @@ describe('the login as the only credential a person spends', () => {
 
     const pushCredential = withSeams(
       { logins: LOGGED_IN, env: { SHERLO_PERSONAL_TOKEN: PERSONAL_TOKEN } },
-      () =>
-        resolvePushCredential(TEST_COMMAND, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
+      () => resolvePushCredential(TEST_COMMAND, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
     );
     expect(pushCredential).toMatchObject({ kind: 'person', token: LOGIN_TOKEN });
 

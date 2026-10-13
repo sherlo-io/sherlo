@@ -297,9 +297,7 @@ const PINS: Pin[] = [
       ],
     },
     stream: 'stdout',
-    prints: [
-      [`${ESC}[32m✔${ESC}[39m Set up Test 3          on 2 devices (Pixel 4 XL, iPhone 14)`],
-    ],
+    prints: [[`${ESC}[32m✔${ESC}[39m Set up Test 3          on 2 devices (Pixel 4 XL, iPhone 14)`]],
   },
   {
     kind: 'run-header',
@@ -367,7 +365,11 @@ const PINS: Pin[] = [
   {
     kind: 'test-started',
     what: 'a print site that knows neither devices nor capture - the row ends at Started',
-    segment: { kind: 'test-started', buildIndex: 1, rowsAbove: { rows: [], printedAsTheyHappened: false } },
+    segment: {
+      kind: 'test-started',
+      buildIndex: 1,
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
+    },
     stream: 'stdout',
     prints: [[`Test 1      ${ESC}[32m✔${ESC}[39m Started`]],
   },
@@ -387,7 +389,12 @@ const PINS: Pin[] = [
           full: true,
           capturedStories: 0,
           storiesInBundle: 7,
-          storyFiles: ['a/Cart.stories.tsx', 'a/Checkout.stories.tsx', 'a/ProductCard.stories.tsx', 'a/Maps.stories.tsx'],
+          storyFiles: [
+            'a/Cart.stories.tsx',
+            'a/Checkout.stories.tsx',
+            'a/ProductCard.stories.tsx',
+            'a/Maps.stories.tsx',
+          ],
           newStoryFiles: ['a/Checkout.stories.tsx'],
           changedStoryFiles: ['a/ProductCard.stories.tsx'],
           storyTitles: {
@@ -464,7 +471,9 @@ const PINS: Pin[] = [
     segment: {
       kind: 'test-started',
       buildIndex: 1,
-      devices: [{ id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' }],
+      devices: [
+        { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
+      ],
       capture: [
         {
           platform: 'android',
@@ -494,8 +503,20 @@ const PINS: Pin[] = [
         { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
       ],
       capture: [
-        { platform: 'android', full: false, capturedStories: 3, storiesInBundle: 24, reason: 'a.tsx changed' },
-        { platform: 'ios', full: false, capturedStories: 3, storiesInBundle: 24, reason: 'a.tsx changed' },
+        {
+          platform: 'android',
+          full: false,
+          capturedStories: 3,
+          storiesInBundle: 24,
+          reason: 'a.tsx changed',
+        },
+        {
+          platform: 'ios',
+          full: false,
+          capturedStories: 3,
+          storiesInBundle: 24,
+          reason: 'a.tsx changed',
+        },
       ],
       rowsAbove: { rows: [], printedAsTheyHappened: false },
     },
@@ -550,7 +571,10 @@ const PINS: Pin[] = [
       url: 'https://app.sherlo.io/build?t=tm000001&p=7&b=1',
     },
     stream: 'stdout',
-    prints: [[`🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[39m`], ['']],
+    prints: [
+      [`🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=1${ESC}[39m`],
+      [''],
+    ],
   },
   {
     kind: 'results-url',
@@ -573,11 +597,7 @@ const PINS: Pin[] = [
     what: "`sherlo build` finds its build already in the cache - init's own `(already done)`, alone after the name",
     segment: { kind: 'app-build-cached', platform: 'android' },
     stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Built the Android app  ${ESC}[2m(already done)${ESC}[22m`,
-      ],
-    ],
+    prints: [[`${ESC}[32m✔${ESC}[39m Built the Android app  ${ESC}[2m(already done)${ESC}[22m`]],
   },
   {
     kind: 'app-build-generating',
@@ -690,7 +710,12 @@ const PINS: Pin[] = [
       kind: 'test-stopped-on-failed-build',
       rowsAbove: {
         rows: [
-          { platform: 'android', appBuild: 'build-failed', seconds: 72, logPath: '.sherlo/build-android.log' },
+          {
+            platform: 'android',
+            appBuild: 'build-failed',
+            seconds: 72,
+            logPath: '.sherlo/build-android.log',
+          },
         ],
         printedAsTheyHappened: true,
       },
@@ -757,26 +782,39 @@ const PINS: Pin[] = [
       },
     },
     stream: 'stdout',
-    prints: [[`🍎 iOS      ${ESC}[32m✔${ESC}[39m Built in 4m 12s ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`]],
+    prints: [
+      [
+        `🍎 iOS      ${ESC}[32m✔${ESC}[39m Built in 4m 12s ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`,
+      ],
+    ],
   },
   {
     kind: 'platform-row',
     what: 'the app build Sherlo holds, reused, naming the test it was built in',
-    segment: { kind: 'platform-row', row: { platform: 'ios', appBuild: 'reused-from-test', testIndex: 3 } },
+    segment: {
+      kind: 'platform-row',
+      row: { platform: 'ios', appBuild: 'reused-from-test', testIndex: 3 },
+    },
     stream: 'stdout',
     prints: [[`🍎 iOS      ${ESC}[32m✔${ESC}[39m Reused from Test 3`]],
   },
   {
     kind: 'platform-row',
     what: 'an app build from the local build cache',
-    segment: { kind: 'platform-row', row: { platform: 'android', appBuild: 'reused-from-local-build-cache' } },
+    segment: {
+      kind: 'platform-row',
+      row: { platform: 'android', appBuild: 'reused-from-local-build-cache' },
+    },
     stream: 'stdout',
     prints: [[`🤖 Android  ${ESC}[32m✔${ESC}[39m Reused from the local build cache`]],
   },
   {
     kind: 'platform-row',
     what: "the other job's platform, in the split job that starts the test",
-    segment: { kind: 'platform-row', row: { platform: 'android', appBuild: 'arrived-from-other-job' } },
+    segment: {
+      kind: 'platform-row',
+      row: { platform: 'android', appBuild: 'arrived-from-other-job' },
+    },
     stream: 'stdout',
     prints: [[`🤖 Android  ${ESC}[32m✔${ESC}[39m Arrived from the other job`]],
   },
@@ -890,10 +928,16 @@ const PINS: Pin[] = [
       kind: 'run-waits-for-builds',
       buildIndex: 1,
       waitingFor: { easBuilds: ['ios'] },
-      rowsAbove: { rows: [{ platform: 'ios', appBuild: 'building-on-eas' }], printedAsTheyHappened: true },
+      rowsAbove: {
+        rows: [{ platform: 'ios', appBuild: 'building-on-eas' }],
+        printedAsTheyHappened: true,
+      },
     },
     stream: 'stdout',
-    prints: [[''], [`Test 1      ${ESC}[32m✔${ESC}[39m Opened: starts when the EAS build finishes`]],
+    prints: [
+      [''],
+      [`Test 1      ${ESC}[32m✔${ESC}[39m Opened: starts when the EAS build finishes`],
+    ],
   },
   {
     kind: 'run-waits-for-builds',
@@ -1001,7 +1045,9 @@ const PINS: Pin[] = [
     segment: { kind: 'wait-timed-out', timeoutMinutes: 45, testIndex: 7 },
     stream: 'stdout',
     prints: [
-      [`${ESC}[33m! Stopped waiting after 45 minutes. Test 7 may still be running in Sherlo.${ESC}[39m`],
+      [
+        `${ESC}[33m! Stopped waiting after 45 minutes. Test 7 may still be running in Sherlo.${ESC}[39m`,
+      ],
     ],
   },
   {
@@ -1010,7 +1056,9 @@ const PINS: Pin[] = [
     segment: { kind: 'wait-timed-out', timeoutMinutes: 1 },
     stream: 'stdout',
     prints: [
-      [`${ESC}[33m! Stopped waiting after 1 minute. The test may still be running in Sherlo.${ESC}[39m`],
+      [
+        `${ESC}[33m! Stopped waiting after 1 minute. The test may still be running in Sherlo.${ESC}[39m`,
+      ],
     ],
   },
   {
@@ -1182,7 +1230,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'build-view-tally',
-    what: 'the review tally - dim, each count before its plain name, in a fixed order that is NOT the wire\'s alphabetical one',
+    what: "the review tally - dim, each count before its plain name, in a fixed order that is NOT the wire's alphabetical one",
     segment: {
       kind: 'build-view-tally',
       counts: { approved: 5, noChanges: 39, reported: 0, unreviewed: 0 },
@@ -1223,7 +1271,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'build-view-status',
-    what: "a test still running - the review status the wire sent is DELIBERATELY not read, because the server computes it whatever the run is doing; the view ends on the next step instead (`results-url` with its test)",
+    what: 'a test still running - the review status the wire sent is DELIBERATELY not read, because the server computes it whatever the run is doing; the view ends on the next step instead (`results-url` with its test)',
     segment: { kind: 'build-view-status', runStatus: 'inProgress', status: 'unreviewed' },
     stream: 'stdout',
     prints: [],
@@ -1875,7 +1923,12 @@ describe('the sink concatenates segments without editing them', () => {
     const expected = 'Testing your app...\n\n🤖 Android  Bundling the JavaScript...\n';
     expect(
       captured.stdout,
-      mismatch('the buffered stdout transcript', 'helpers/transcriptSink.ts', expected, captured.stdout)
+      mismatch(
+        'the buffered stdout transcript',
+        'helpers/transcriptSink.ts',
+        expected,
+        captured.stdout
+      )
     ).toBe(expected);
 
     expect(

@@ -107,9 +107,7 @@ describe('a build the server did not mark prints exactly what it always printed'
     const { exitCode, stdout } = await runWaitLoop(allZeroGreen);
 
     expect(exitCode).toBe(EXIT_GREEN);
-    expect(stdout).toBe(
-      `${WAIT_PREAMBLE}\n${verdictSection('✅ All stories passed', 21)}\n`
-    );
+    expect(stdout).toBe(`${WAIT_PREAMBLE}\n${verdictSection('✅ All stories passed', 21)}\n`);
   });
 
   it('is unchanged when the server sends the gate explicitly false', async () => {
@@ -161,7 +159,12 @@ describe('a build the server did not mark prints exactly what it always printed'
 
     expect(withoutGate.exitCode).toBe(EXIT_BLOCK);
     expect(withoutGate.stdout).toBe(
-      `${WAIT_PREAMBLE}\n${verdictSection('⚠️ 3 stories need review', 24, '1 story reported', 'Open them in Sherlo to approve or report.')}\n`
+      `${WAIT_PREAMBLE}\n${verdictSection(
+        '⚠️ 3 stories need review',
+        24,
+        '1 story reported',
+        'Open them in Sherlo to approve or report.'
+      )}\n`
     );
     expect(gateOff.stdout).toBe(withoutGate.stdout);
     expect(gateOff.exitCode).toBe(withoutGate.exitCode);

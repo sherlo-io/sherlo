@@ -115,7 +115,9 @@ export async function buildApps({
       if (command === 'build') {
         emit({ kind: 'app-build-cached', platform });
       } else {
-        platformRows.push(printPlatformRowInALog({ platform, appBuild: 'reused-from-local-build-cache' }));
+        platformRows.push(
+          printPlatformRowInALog({ platform, appBuild: 'reused-from-local-build-cache' })
+        );
       }
       appBuildPaths[platform] = cached;
       continue;
@@ -141,9 +143,16 @@ export async function buildApps({
         projectRoot,
         env: settings.env ?? {},
         logPath,
-        ...(platform === 'android' ? { androidTask: platformSettings.task ?? DEFAULT_ANDROID_TASK } : {}),
+        ...(platform === 'android'
+          ? { androidTask: platformSettings.task ?? DEFAULT_ANDROID_TASK }
+          : {}),
         ...(iosScheme !== undefined
-          ? { ios: { scheme: iosScheme, configuration: platformSettings.configuration ?? 'Release' } }
+          ? {
+              ios: {
+                scheme: iosScheme,
+                configuration: platformSettings.configuration ?? 'Release',
+              },
+            }
           : {}),
         ...(platformSettings.command && platformSettings.output
           ? { custom: { command: platformSettings.command, output: platformSettings.output } }
@@ -296,7 +305,9 @@ async function iosSchemeOf(
 
   return refuseToBuildHere(
     `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
-      `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${schemes[0] ?? 'MyApp'}" } }`,
+      `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${
+        schemes[0] ?? 'MyApp'
+      }" } }`,
     project
   );
 }
@@ -333,7 +344,10 @@ function cacheKeyOf({
   settings: BuildSettings;
 }): string {
   const platformSettings = settings[platform] ?? {};
-  const settingsThatShapeTheBuild = JSON.stringify({ env: settings.env ?? {}, ...platformSettings });
+  const settingsThatShapeTheBuild = JSON.stringify({
+    env: settings.env ?? {},
+    ...platformSettings,
+  });
   return `${platform}-${baseFingerprint}-${shortDigest(settingsThatShapeTheBuild)}`;
 }
 

@@ -136,9 +136,7 @@ describe('formatDryRunPreview', () => {
 
     const output = formatDryRunPreview([{ status: 'decided', decision }]);
 
-    expect(output).toContain(
-      '✔ Previewed the capture  no change reaches any story'
-    );
+    expect(output).toContain('✔ Previewed the capture  no change reaches any story');
     // A partial-zero names no count at all.
     expect(output).not.toContain('stories');
   });

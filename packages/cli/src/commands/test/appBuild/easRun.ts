@@ -103,11 +103,17 @@ export async function easRun({
   // building on EAS, and the test's row that it starts when they finish.
   await whileShowing({ kind: 'eas-builds-starting', platforms }, async () => {
     for (const platform of platforms) {
-      await appBuilder().startEasBuild({ platform, profile, projectRoot: commandParams.projectRoot });
+      await appBuilder().startEasBuild({
+        platform,
+        profile,
+        projectRoot: commandParams.projectRoot,
+      });
     }
   });
 
-  const platformRows = platforms.map((platform) => printPlatformRowInALog({ platform, appBuild: 'building-on-eas' }));
+  const platformRows = platforms.map((platform) =>
+    printPlatformRowInALog({ platform, appBuild: 'building-on-eas' })
+  );
   emit({
     kind: 'run-waits-for-builds',
     buildIndex,
@@ -131,7 +137,8 @@ export async function easRun({
  */
 function refuseWithoutTheHookScripts(projectRoot: string): void {
   // No package.json, or one that cannot be read: the scripts are missing either way.
-  const scripts: Record<string, unknown> = readProjectJson(projectRoot, 'package.json')?.scripts ?? {};
+  const scripts: Record<string, unknown> =
+    readProjectJson(projectRoot, 'package.json')?.scripts ?? {};
 
   const missingScripts = EAS_HOOK_SCRIPTS.filter((script) => !scripts[script]);
   if (missingScripts.length === 0) return;

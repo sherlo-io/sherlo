@@ -56,10 +56,14 @@ const ANDROID_RELEASE_APK = 'android/app/build/outputs/apk/release/app-release.a
 
 describe('getBuildPath - the profile names the archive', () => {
   it("reads a profile's applicationArchivePath where eas.json keeps it, under the profile and then the platform", () => {
-    writeEasJson({ build: { sherlo: { android: { applicationArchivePath: 'custom/out/my-app.apk' } } } });
+    writeEasJson({
+      build: { sherlo: { android: { applicationArchivePath: 'custom/out/my-app.apk' } } },
+    });
     touch('custom/out/my-app.apk');
 
-    expect(getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toBe('custom/out/my-app.apk');
+    expect(getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toBe(
+      'custom/out/my-app.apk'
+    );
   });
 
   it("matches a profile's applicationArchivePath as a pattern, as EAS does", () => {
@@ -81,7 +85,9 @@ describe("getBuildPath - EAS's default", () => {
     writeEasJson({ build: { sherlo: { android: {} } } });
     touch(ANDROID_RELEASE_APK);
 
-    expect(getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toBe(ANDROID_RELEASE_APK);
+    expect(getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toBe(
+      ANDROID_RELEASE_APK
+    );
   });
 
   it("finds the iOS simulator app in any configuration's -iphonesimulator folder when no override is set", () => {
@@ -112,11 +118,15 @@ describe('getBuildPath - error cases', () => {
   it('throws an "Invalid" message when eas.json is malformed JSON', () => {
     fs.writeFileSync(path.join(tmpDir, 'eas.json'), '{ not valid json');
 
-    expect(() => getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toThrow('Invalid');
+    expect(() => getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toThrow(
+      'Invalid'
+    );
   });
 
   it('throws an "Invalid" message when eas.json is missing entirely', () => {
-    expect(() => getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toThrow('Invalid');
+    expect(() => getBuildPath({ easBuildProfile: 'sherlo', platform: 'android' })).toThrow(
+      'Invalid'
+    );
   });
 
   it('throws for an unsupported platform', () => {

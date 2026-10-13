@@ -107,14 +107,21 @@ export function renderPlatformRow(row: PlatformRow): string[] {
       const changeLines = renderNativeChanges(changes).map((line) => line.trimStart());
 
       return [
-        renderRow(label, `${words}${why ? `, ${why}` : ''} ${chalk.dim(`(log: ${row.logPath})`)}`, mark),
+        renderRow(
+          label,
+          `${words}${why ? `, ${why}` : ''} ${chalk.dim(`(log: ${row.logPath})`)}`,
+          mark
+        ),
         ...underTheRow(changeLines),
       ];
     }
 
     case 'reused-from-test':
       return [
-        renderRow(label, row.testIndex !== undefined ? `Reused from Test ${row.testIndex}` : 'Reused'),
+        renderRow(
+          label,
+          row.testIndex !== undefined ? `Reused from Test ${row.testIndex}` : 'Reused'
+        ),
       ];
 
     case 'reused-from-local-build-cache':
@@ -135,7 +142,10 @@ export function renderPlatformRow(row: PlatformRow): string[] {
     case 'skipped-not-in-config':
       // The one row a `--platform` job prints when its config tests nothing on that platform.
       return [
-        renderRow(label, `Skipped: sherlo.config.json lists no ${PLATFORM_LABEL[row.platform]} device`),
+        renderRow(
+          label,
+          `Skipped: sherlo.config.json lists no ${PLATFORM_LABEL[row.platform]} device`
+        ),
       ];
   }
 }
@@ -182,7 +192,10 @@ export function renderTestWaiting({
   buildIndex: number;
   waitingFor: TestWaitsFor;
 }): string[] {
-  return [...renderRowsAbove(rowsAbove), renderRow(testLabel(buildIndex), whatTheTestWaitsFor(waitingFor))];
+  return [
+    ...renderRowsAbove(rowsAbove),
+    renderRow(testLabel(buildIndex), whatTheTestWaitsFor(waitingFor)),
+  ];
 }
 
 /** `Test 15     ✔ Finished: nothing to test: <the server's reason>` - a test the server closed. */
@@ -197,7 +210,10 @@ export function renderTestFinishedWithNothingToTest({
 }): string[] {
   return [
     ...renderRowsAbove(rowsAbove),
-    renderRow(testLabel(testIndex), reason ? `Finished: nothing to test: ${reason}` : 'Finished: nothing to test'),
+    renderRow(
+      testLabel(testIndex),
+      reason ? `Finished: nothing to test: ${reason}` : 'Finished: nothing to test'
+    ),
   ];
 }
 
@@ -225,7 +241,9 @@ export function renderTestStoppedOnFailedBuild({
     'Last lines of the log:',
     ...lastLines.map((line) => chalk.dim(`   | ${line}`)),
     '',
-    `Nothing was uploaded and no test was started. Fix the build, then run ${chalk.cyan('npx sherlo test')} again.`,
+    `Nothing was uploaded and no test was started. Fix the build, then run ${chalk.cyan(
+      'npx sherlo test'
+    )} again.`,
     renderRunOnCi(project),
     '',
     ...renderHelpBlock(),
@@ -255,7 +273,9 @@ function whyBuilt(why: WhyANewAppBuild | undefined): string | undefined {
   if (!why || why.reason === 'nothing-stored') return undefined;
 
   const storedIn = why.changesSince?.storedBuildIndex ?? why.storedBuildIndex;
-  return storedIn !== undefined ? `native code changed since Test ${storedIn}` : 'native code changed';
+  return storedIn !== undefined
+    ? `native code changed since Test ${storedIn}`
+    : 'native code changed';
 }
 
 /** `Opened: starts when ...` / `Added: starts when ...`. */
@@ -264,7 +284,9 @@ function whatTheTestWaitsFor(waitingFor: TestWaitsFor): string {
     return `Added: starts when the ${platformWithEmoji(waitingFor.easBuild)} EAS build finishes`;
   }
   if ('otherJob' in waitingFor) {
-    return `Opened: starts when ${platformWithEmoji(waitingFor.otherJob)} arrives from the other job`;
+    return `Opened: starts when ${platformWithEmoji(
+      waitingFor.otherJob
+    )} arrives from the other job`;
   }
   // The platforms' rows above name the EAS builds.
   return waitingFor.easBuilds.length > 1

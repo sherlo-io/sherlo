@@ -56,7 +56,10 @@ export function countDevicesByPlatform(configDevices: Config['devices']): Platfo
  * prints `test-started` after `openBuild` and deletes this one (build items 52 and 64).
  */
 export function renderRunHeader(nextBuildIndex: number, devices: Config['devices']): string {
-  return renderTestStep({ name: `Set up Test ${nextBuildIndex}`, detail: describeDevices(devices) });
+  return renderTestStep({
+    name: `Set up Test ${nextBuildIndex}`,
+    detail: describeDevices(devices),
+  });
 }
 
 /**

@@ -40,7 +40,11 @@ import { THIS_COMMAND } from '../constants';
 import type { ValidatedModuleManifest } from '../readModuleManifest';
 import { collectModuleManifests } from '../stagedRun';
 import type { StagedGateRefusal } from '../stagedGateRefusal';
-import { applyBundleToPlatformConfig, realBundleUploadEffects, uploadBundles } from '../uploadBundles';
+import {
+  applyBundleToPlatformConfig,
+  realBundleUploadEffects,
+  uploadBundles,
+} from '../uploadBundles';
 import { printPlatformRowInALog } from '../platformRows';
 import { buildApps } from './buildApps';
 import { type BuildFlags, type BuildSettings, readBuildSettings } from './buildSettings';
@@ -67,7 +71,10 @@ export async function buildThenPush({
   /** The sources `baseFingerprint` was computed over - what a stored app build's list is compared with. */
   fingerprintPreimage?: BaseFingerprintPreimage;
 }): Promise<{ url: string }> {
-  const { platformsToBuild, platformsOnStoredBuild } = whichPlatformsNeedABuild({ platformsToTest, refusals });
+  const { platformsToBuild, platformsOnStoredBuild } = whichPlatformsNeedABuild({
+    platformsToTest,
+    refusals,
+  });
 
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },
@@ -85,7 +92,11 @@ export async function buildThenPush({
   // A stored platform's row says which test its app build came from; the built ones' rows come
   // from ./buildApps.
   const storedPlatformRows = platformsOnStoredBuild.map((platform) =>
-    printPlatformRowInALog({ platform, appBuild: 'reused-from-test', testIndex: storedBuildIndexOf[platform] })
+    printPlatformRowInALog({
+      platform,
+      appBuild: 'reused-from-test',
+      testIndex: storedBuildIndexOf[platform],
+    })
   );
 
   const toBuild = await Promise.all(
@@ -94,7 +105,11 @@ export async function buildThenPush({
       why: {
         reason: reasonOf(refusal),
         storedBuildIndex: storedBuildIndexOf[refusal.platform],
-        ...(await changesSinceStoredBuildOf(refusal, fingerprintPreimage, commandParams.projectRoot)),
+        ...(await changesSinceStoredBuildOf(
+          refusal,
+          fingerprintPreimage,
+          commandParams.projectRoot
+        )),
       },
     }))
   );
@@ -154,7 +169,9 @@ function whichPlatformsNeedABuild({
   const platformsToBuild = refusals.map(({ platform }) => platform);
   return {
     platformsToBuild,
-    platformsOnStoredBuild: platformsToTest.filter((platform) => !platformsToBuild.includes(platform)),
+    platformsOnStoredBuild: platformsToTest.filter(
+      (platform) => !platformsToBuild.includes(platform)
+    ),
   };
 }
 
@@ -231,7 +248,11 @@ function pushEffects({
       const request = input as OpenBuildRequest;
 
       if (platformsOnStoredBuild.length > 0) {
-        storedPlatformManifests = await stageTheStoredPlatforms({ request, platformsOnStoredBuild, commandParams });
+        storedPlatformManifests = await stageTheStoredPlatforms({
+          request,
+          platformsOnStoredBuild,
+          commandParams,
+        });
       }
 
       if (joinKey) {
@@ -287,7 +308,9 @@ async function stageTheStoredPlatforms({
 
   const config = request.buildRunConfig as Record<string, unknown>;
   for (const platform of platformsOnStoredBuild) {
-    const platformConfig = config[platform] as Parameters<typeof applyBundleToPlatformConfig>[0]['platformConfig'];
+    const platformConfig = config[platform] as Parameters<
+      typeof applyBundleToPlatformConfig
+    >[0]['platformConfig'];
     const keys = stagedKeys[platform];
     const bundle = bundles[platform];
     if (!platformConfig || !keys || !bundle) continue;
@@ -308,7 +331,8 @@ function warnAboutVariablesOnExpo(projectRoot: string, settings: BuildSettings):
   if (!profileName) return;
 
   // No eas.json, or one that cannot be read: there is nothing to borrow.
-  const environment: unknown = readProjectJson(projectRoot, 'eas.json')?.build?.[profileName]?.environment;
+  const environment: unknown = readProjectJson(projectRoot, 'eas.json')?.build?.[profileName]
+    ?.environment;
   if (typeof environment === 'string') {
     emit({ kind: 'eas-hosted-variables', profile: profileName, environment });
   }

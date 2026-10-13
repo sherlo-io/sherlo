@@ -41,7 +41,9 @@ function getBuildPath({
     getArchivePathFromEasJson({ easBuildProfile, platform }) ?? DEFAULT_ARCHIVE_PATTERN[platform];
 
   // An iOS app build is a folder, so folders are matched as well as files.
-  const [firstMatch] = fg.sync(archivePattern, { cwd: getCwd(), onlyFiles: false, dot: true }).sort();
+  const [firstMatch] = fg
+    .sync(archivePattern, { cwd: getCwd(), onlyFiles: false, dot: true })
+    .sort();
 
   if (!firstMatch) {
     throwError({

@@ -42,10 +42,14 @@ const BUILD_TOOL: Record<Platform, string> = { android: 'Gradle', ios: 'Xcode' }
 export function renderStepInProgress(step: StepInProgress): string {
   switch (step.kind) {
     case 'app-build-generating':
-      return `${platformLabelColumn(step.platform)}Generating the native folder with expo prebuild...`;
+      return `${platformLabelColumn(
+        step.platform
+      )}Generating the native folder with expo prebuild...`;
 
     case 'app-build-compiling':
-      return `${platformLabelColumn(step.platform)}Building the app with ${BUILD_TOOL[step.platform]}...`;
+      return `${platformLabelColumn(step.platform)}Building the app with ${
+        BUILD_TOOL[step.platform]
+      }...`;
 
     case 'platform-bundle-start':
       return `${platformLabelColumn(step.platform)}Bundling the JavaScript...`;

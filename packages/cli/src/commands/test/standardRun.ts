@@ -6,10 +6,7 @@
  * test on them with a freshly built bundle spliced in. Everything after the
  * option validation is the push spine, `uploadOrReuseBuildsAndRunTests`.
  */
-import {
-  getValidatedCommandParams,
-  uploadOrReuseBuildsAndRunTests,
-} from '../../helpers';
+import { getValidatedCommandParams, uploadOrReuseBuildsAndRunTests } from '../../helpers';
 import { Options } from '../../types';
 import { THIS_COMMAND } from './constants';
 

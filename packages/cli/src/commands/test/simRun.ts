@@ -169,10 +169,22 @@ async function simRun(
 
   let openBuildReturn;
   try {
-    const request = { teamId, projectIndex, buildRunConfig, gitInfo, message: commandParams.message };
+    const request = {
+      teamId,
+      projectIndex,
+      buildRunConfig,
+      gitInfo,
+      message: commandParams.message,
+    };
     openBuildReturn = joinKey
       ? ({
-          ...(await joinTheRun({ token, joinKey, platform: platformsToTest[0], request, platformRows })),
+          ...(await joinTheRun({
+            token,
+            joinKey,
+            platform: platformsToTest[0],
+            request,
+            platformRows,
+          })),
           buildRun: { config: {} },
         } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>)
       : await serverCalls().openBuild({ token, ...request });

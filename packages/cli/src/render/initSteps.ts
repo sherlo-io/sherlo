@@ -157,7 +157,9 @@ export function renderNextSteps({
   const ciLines = addedGithubWorkflow
     ? [
         `${chalk.bold(GITHUB_WORKFLOW_PATH)} tests every pull request once it has a CI token.`,
-        `Create one in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} repository secret:`,
+        `Create one in the Sherlo web app and save it as the ${chalk.bold(
+          'SHERLO_TOKEN'
+        )} repository secret:`,
         chalk.cyan(projectPageUrl),
       ]
     : [
@@ -168,7 +170,9 @@ export function renderNextSteps({
 
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
-    ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
+    ...(steps.length === 1
+      ? renderSectionTitle('👉 Next step', 12)
+      : renderSectionTitle('👉 Next steps', 13)),
     // The last step's blank line goes: the section title brings its own two.
     ...stepLines.slice(0, -1),
     ...renderSectionTitle('🔁 Test every pull request', 26),
@@ -243,7 +247,9 @@ export function renderStuckBlock({
   const agentLines =
     reader === 'agent'
       ? [
-          `AI agents: this error can usually be fixed without the person, and ${chalk.cyan('npx sherlo init')} run again picks up where it stopped.`,
+          `AI agents: this error can usually be fixed without the person, and ${chalk.cyan(
+            'npx sherlo init'
+          )} run again picks up where it stopped.`,
           'Only a fix that is a real choice between options needs the person.',
           '',
         ]

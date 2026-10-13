@@ -45,11 +45,7 @@ import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fi
 import { closeTheRun } from './closeTheRun';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
-import {
-  parseStagedGateRefusal,
-  FALLBACK_LINE,
-  type StagedGateRefusal,
-} from './stagedGateRefusal';
+import { parseStagedGateRefusal, FALLBACK_LINE, type StagedGateRefusal } from './stagedGateRefusal';
 import reportNativeNeeded, { reportFastPathRunning } from './nativeNeeded';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
@@ -251,7 +247,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   }
 
   /** A platform the gate refused needs a new app build, and the tool builds it itself. */
-  const buildTheRefusedPlatforms = ({ refusals, storedBuildIndexOf }: GateAnswers): Promise<{ url: string }> =>
+  const buildTheRefusedPlatforms = ({
+    refusals,
+    storedBuildIndexOf,
+  }: GateAnswers): Promise<{ url: string }> =>
     buildThenPush({
       passedOptions,
       platformsToTest,
@@ -630,8 +629,8 @@ export function printTestStarted({
       capturedStories: captureScope.full
         ? 0
         : manifest
-          ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
-          : (captureScope.storyFilePaths ?? []).length,
+        ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
+        : (captureScope.storyFilePaths ?? []).length,
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
@@ -642,13 +641,13 @@ export function printTestStarted({
         ? manifest
           ? bundleStoryFiles(manifest)
           : []
-        : (captureScope.storyFilePaths ?? []),
+        : captureScope.storyFilePaths ?? [],
       newStoryFiles: captureScope.newStoryFilePaths ?? [],
       ...(manifest?.parsed.storyTitles ? { storyTitles: manifest.parsed.storyTitles } : {}),
       // A partial capture takes exactly what a change reaches.
       changedStoryFiles: captureScope.full
-        ? (captureScope.changedStoryFilePaths ?? [])
-        : (captureScope.storyFilePaths ?? []),
+        ? captureScope.changedStoryFilePaths ?? []
+        : captureScope.storyFilePaths ?? [],
     });
   }
 

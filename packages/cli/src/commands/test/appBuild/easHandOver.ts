@@ -38,9 +38,14 @@ export function refuseWhenEasLeavesTheHandOverOut(projectRoot: string): void {
   refuseWhenEasUploadsOnlyCommittedFiles(projectRoot);
 
   const easUploadRoot = appBuilder().easUploadRoot(projectRoot);
-  const handOverFromTheRoot = toPosix(path.relative(easUploadRoot, path.join(projectRoot, HAND_OVER_FILE)));
+  const handOverFromTheRoot = toPosix(
+    path.relative(easUploadRoot, path.join(projectRoot, HAND_OVER_FILE))
+  );
 
-  const easIgnore = appBuilder().readEasUploadFile({ easUploadRoot, fileFromTheRoot: EAS_IGNORE_FILE });
+  const easIgnore = appBuilder().readEasUploadFile({
+    easUploadRoot,
+    fileFromTheRoot: EAS_IGNORE_FILE,
+  });
   if (easIgnore !== undefined) {
     const line = lineThatIgnores(easIgnore, handOverFromTheRoot);
     if (line === undefined) return;
@@ -97,7 +102,11 @@ function gitIgnoresAbove(
     const contents = appBuilder().readEasUploadFile({ easUploadRoot, fileFromTheRoot: file });
     if (contents === undefined) continue;
 
-    found.push({ file, contents, handOverFromHere: folders.slice(depth).concat(SHERLO_TEMP_DATA_FILENAME).join('/') });
+    found.push({
+      file,
+      contents,
+      handOverFromHere: folders.slice(depth).concat(SHERLO_TEMP_DATA_FILENAME).join('/'),
+    });
   }
 
   return found;

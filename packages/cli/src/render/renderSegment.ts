@@ -141,7 +141,10 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'command-intro':
-      return { stream: 'stdout', prints: renderCommandIntro(segment.command).map((line) => [line]) };
+      return {
+        stream: 'stdout',
+        prints: renderCommandIntro(segment.command).map((line) => [line]),
+      };
 
     case 'dry-run-bundling-header':
       // The dry run opens like every test, with `Testing your app...` under the logo; its plan says
@@ -172,7 +175,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
           [
             renderTestStep({
               name: 'Used your JavaScript',
-              detail: `${platformWithEmoji(segment.platform)} ${path.basename(segment.bundlePath)}, from --bundle-dir`,
+              detail: `${platformWithEmoji(segment.platform)} ${path.basename(
+                segment.bundlePath
+              )}, from --bundle-dir`,
             }),
           ],
         ],
@@ -311,7 +316,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'eas-hosted-variables':
       return {
         stream: 'stdout',
-        prints: renderEasHostedVariables(segment.profile, segment.environment).map((line) => [line]),
+        prints: renderEasHostedVariables(segment.profile, segment.environment).map((line) => [
+          line,
+        ]),
       };
 
     case 'run-waits-for-builds':

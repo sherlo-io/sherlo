@@ -95,14 +95,18 @@ export function renderWaitTimedOut(timeoutMinutes: number, testIndex?: number): 
   const minutes = timeoutMinutes === 1 ? '1 minute' : `${timeoutMinutes} minutes`;
   return [
     chalk.yellow(
-      `! Stopped waiting after ${minutes}. ${atSentenceStart(theTest(testIndex))} may still be running in Sherlo.`
+      `! Stopped waiting after ${minutes}. ${atSentenceStart(
+        theTest(testIndex)
+      )} may still be running in Sherlo.`
     ),
   ];
 }
 
 /** The Ctrl-C closer. The run keeps going in Sherlo; only the waiting stops. Ends like the deadline's. */
 export function renderWaitInterrupted(testIndex?: number): string {
-  return chalk.yellow(`! Stopped waiting. ${atSentenceStart(theTest(testIndex))} keeps running in Sherlo.`);
+  return chalk.yellow(
+    `! Stopped waiting. ${atSentenceStart(theTest(testIndex))} keeps running in Sherlo.`
+  );
 }
 
 /**
@@ -121,7 +125,6 @@ export function renderVerdictPassed(): string[] {
   // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
   return renderVerdictSection('✅ All stories passed', [], 21);
 }
-
 
 /**
  * One screen of the build a wait is closing on - the two fields this closer
@@ -210,7 +213,10 @@ export function renderVerdictReviewRequired(
   const allScreens = screens ?? [];
   const needAPerson = allScreens.filter((screen) => !SETTLED_STATUSES.has(screen.status));
   if (needAPerson.length === 0) {
-    return renderVerdictSection(needReviewTitle(counts.unreviewed + counts.reported), renderCountLines(counts));
+    return renderVerdictSection(
+      needReviewTitle(counts.unreviewed + counts.reported),
+      renderCountLines(counts)
+    );
   }
 
   const named = needAPerson.slice(0, NAMED_SCREEN_LIMIT);

@@ -1,4 +1,9 @@
-import { DOCS_LINK, EAS_BUILD_ON_CANCEL_SCRIPT, PROFILE_OPTION, TEST_COMMAND } from '../../constants';
+import {
+  DOCS_LINK,
+  EAS_BUILD_ON_CANCEL_SCRIPT,
+  PROFILE_OPTION,
+  TEST_COMMAND,
+} from '../../constants';
 import { getTokenParts, handleClientError, logInfo, throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { printTheLogoInATerminal } from '../shared/terminal';
@@ -56,8 +61,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   const passedProfiles = passedOptions.profile
     ? passedOptions.profile.split(',')
     : sherloTempData.profile
-      ? [sherloTempData.profile]
-      : undefined;
+    ? [sherloTempData.profile]
+    : undefined;
 
   if (!passedProfiles) {
     throwError({
@@ -73,7 +78,9 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     logInfo({
       message:
         'Sherlo tests skipped - EAS profiles mismatch\n\n' +
-        `Current build used "${easBuildProfile}" profile while Sherlo is waiting for "${passedProfiles.join(', ')}"\n`,
+        `Current build used "${easBuildProfile}" profile while Sherlo is waiting for "${passedProfiles.join(
+          ', '
+        )}"\n`,
       learnMoreLink: DOCS_LINK.testEasCloudBuild,
     });
 
@@ -105,7 +112,9 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
 
     throwError({
       message:
-        `${wasCancelled ? 'The EAS build was canceled' : "The EAS build failed on Expo's servers"}, so Test ${buildIndex} can't run.\n` +
+        `${
+          wasCancelled ? 'The EAS build was canceled' : "The EAS build failed on Expo's servers"
+        }, so Test ${buildIndex} can't run.\n` +
         `Test ${buildIndex} is marked as failed in the Sherlo web app.`,
     });
   }

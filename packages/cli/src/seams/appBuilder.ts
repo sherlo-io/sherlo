@@ -66,11 +66,24 @@ export type AppBuilder = {
   /** The schemes the iOS workspace lists, apart from the CocoaPods ones. */
   listIosSchemes(projectRoot: string): Promise<string[]>;
   /** The app build the cache holds under a key, or null. */
-  findCachedBuild(params: { platform: Platform; cacheKey: string; cacheDir: string }): Promise<string | null>;
+  findCachedBuild(params: {
+    platform: Platform;
+    cacheKey: string;
+    cacheDir: string;
+  }): Promise<string | null>;
   /** Keep a fresh app build in the cache under its key. */
-  keepInCache(params: { platform: Platform; cacheKey: string; cacheDir: string; path: string }): Promise<void>;
+  keepInCache(params: {
+    platform: Platform;
+    cacheKey: string;
+    cacheDir: string;
+    path: string;
+  }): Promise<void>;
   /** Run `expo prebuild` for one platform, and put the project back as it was afterwards. */
-  generateNativeFolder(params: { platform: Platform; projectRoot: string; env: Record<string, string> }): Promise<void>;
+  generateNativeFolder(params: {
+    platform: Platform;
+    projectRoot: string;
+    env: Record<string, string>;
+  }): Promise<void>;
   /** Compile one platform's app, writing everything the build tool says to `logPath`. */
   compile(params: {
     platform: Platform;
@@ -85,7 +98,11 @@ export type AppBuilder = {
     custom?: { command: string; output: string };
   }): Promise<CompiledApp>;
   /** Start an EAS build of one platform with one profile, and answer its id without waiting. */
-  startEasBuild(params: { platform: Platform; profile: string; projectRoot: string }): Promise<{ buildId: string }>;
+  startEasBuild(params: {
+    platform: Platform;
+    profile: string;
+    projectRoot: string;
+  }): Promise<{ buildId: string }>;
   /**
    * The folder EAS packs the project from: the root of the git repository the project sits in, or
    * the project itself outside git.
@@ -112,11 +129,15 @@ export type AppBuilder = {
    * xcuserdata - plus the project's `.fingerprintignore`), and the same version-stripping
    * transform, so a version bump alone changes no file's hash here either.
    */
-  hashNativeFolderFiles(params: { projectRoot: string; folders: string[] }): Promise<NativeFolderFile[]>;
+  hashNativeFolderFiles(params: {
+    projectRoot: string;
+    folders: string[];
+  }): Promise<NativeFolderFile[]>;
 };
 
 /** The error the live half throws until the real builders land. */
-const NOT_BUILT_YET = 'building apps is drawn in plan and not built yet (epic sherlo-test-builds-apps)';
+const NOT_BUILT_YET =
+  'building apps is drawn in plan and not built yet (epic sherlo-test-builds-apps)';
 
 /** The shipped answers. PLAN-LAYER ONLY: every act refuses until the epic's build tasks land. */
 export const liveAppBuilder: AppBuilder = {
@@ -293,7 +314,10 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
     listIosSchemes: async () => {
       const schemes = stated('listIosSchemes').iosSchemes;
       if (!schemes) {
-        throw refuse('listIosSchemes', 'the run builds iOS - say `iosSchemes` in the `appBuild` of the pose');
+        throw refuse(
+          'listIosSchemes',
+          'the run builds iOS - say `iosSchemes` in the `appBuild` of the pose'
+        );
       }
       return schemes;
     },
@@ -345,8 +369,9 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
       if (!files) {
         throw refuse(
           'hashNativeFolderFiles',
-          `the stored app build keeps the files of ${folders.map((folder) => `\`${folder}\``).join(', ')} ` +
-            '- say `nativeFolderFiles` in the `appBuild` of the pose'
+          `the stored app build keeps the files of ${folders
+            .map((folder) => `\`${folder}\``)
+            .join(', ')} ` + '- say `nativeFolderFiles` in the `appBuild` of the pose'
         );
       }
       return Object.entries(files)

@@ -30,7 +30,8 @@ export function ciRunKey(env: NodeJS.ProcessEnv, runIdFlag?: string): string | n
   const joined = (...values: Array<string | undefined>): string | null =>
     values.every(Boolean) ? values.join('/') : null;
 
-  if (env.GITHUB_ACTIONS === 'true') return prefixed('github', joined(env.GITHUB_REPOSITORY, env.GITHUB_RUN_ID));
+  if (env.GITHUB_ACTIONS === 'true')
+    return prefixed('github', joined(env.GITHUB_REPOSITORY, env.GITHUB_RUN_ID));
   if (env.GITLAB_CI) return prefixed('gitlab', joined(env.CI_PIPELINE_ID));
   if (env.CIRCLECI) return prefixed('circleci', joined(env.CIRCLE_WORKFLOW_WORKSPACE_ID));
   if (env.BITRISE_IO) return prefixed('bitrise', joined(env.BITRISEIO_PIPELINE_ID));

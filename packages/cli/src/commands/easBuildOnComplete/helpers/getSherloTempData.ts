@@ -8,7 +8,9 @@ import {
 import { getCwd, getErrorWithCustomMessage, logWarning, throwError } from '../../../helpers';
 
 function getSherloTempData(): { buildIndex: number; token: string; profile?: string } | undefined {
-  const SHERLO_TEMP_FILE_PATH = [getCwd(), SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILENAME].join('/');
+  const SHERLO_TEMP_FILE_PATH = [getCwd(), SHERLO_TEMP_DIRECTORY, SHERLO_TEMP_DATA_FILENAME].join(
+    '/'
+  );
 
   if (!fs.existsSync(SHERLO_TEMP_FILE_PATH)) {
     logWarning({

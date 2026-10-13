@@ -39,6 +39,9 @@ export function endsAsPlatformNotInConfig(passedOptions: Options<THIS_COMMAND>):
   if (configuredPlatforms.length === 0) return false;
   if (configuredPlatforms.includes(askedPlatform)) return false;
 
-  emit({ kind: 'platform-row', row: { platform: askedPlatform, appBuild: 'skipped-not-in-config' } });
+  emit({
+    kind: 'platform-row',
+    row: { platform: askedPlatform, appBuild: 'skipped-not-in-config' },
+  });
   return true;
 }

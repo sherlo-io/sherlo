@@ -142,7 +142,9 @@ function describeStoriesOfEachPlatform(capture: PlatformCapture[]): string[] {
     platform: platformCapture.platform,
     stories: describeCapturedStories(platformCapture),
   }));
-  const everyPlatformTheSame = perPlatform.every(({ stories }) => stories === perPlatform[0].stories);
+  const everyPlatformTheSame = perPlatform.every(
+    ({ stories }) => stories === perPlatform[0].stories
+  );
   if (everyPlatformTheSame) return [perPlatform[0].stories];
 
   return perPlatform.map(({ platform, stories }) => `${platformWithEmoji(platform)} ${stories}`);
@@ -157,7 +159,11 @@ function reasonEveryStoryIsCaptured(capture: PlatformCapture[]): string | undefi
 }
 
 /** `3 of 24 stories`, `all 24 stories`, `3 stories` when the bundle could not be counted. */
-function describeCapturedStories({ full, capturedStories, storiesInBundle }: PlatformCapture): string {
+function describeCapturedStories({
+  full,
+  capturedStories,
+  storiesInBundle,
+}: PlatformCapture): string {
   if (full) {
     if (storiesInBundle === undefined) return 'all stories';
     return storiesInBundle === 1 ? '1 story' : `all ${countStories(storiesInBundle)}`;

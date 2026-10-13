@@ -56,7 +56,9 @@ describe('EAS mode refuses before a run opens when EAS would leave the hand-over
     fs.mkdirSync(appRoot, { recursive: true });
     write('.gitignore', '**/.sherlo/*\n');
 
-    expect(() => refuseWhenEasLeavesTheHandOverOut(appRoot)).toThrow(/the line "\*\*\/\.sherlo\/\*"/);
+    expect(() => refuseWhenEasLeavesTheHandOverOut(appRoot)).toThrow(
+      /the line "\*\*\/\.sherlo\/\*"/
+    );
   });
 
   it('lets a later ! line bring the hand-over file back', () => {
