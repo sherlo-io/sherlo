@@ -237,6 +237,9 @@ export async function buildApps({
           seconds: compiled.seconds,
           logPath,
           ...whyThisBuild,
+          ...(compiled.podFilesChanged.length > 0
+            ? { podFilesChanged: compiled.podFilesChanged }
+            : {}),
         })
       );
     } else {

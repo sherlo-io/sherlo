@@ -1041,6 +1041,8 @@ export type PosedPlatformBuild =
       sizeMb: string;
       /** How long the compile took, in whole seconds. */
       seconds: number;
+      /** An iOS build's files that pod install changed and git does not track; none when absent. */
+      podFilesChanged?: string[];
     }
   | {
       /** The compile failed. */

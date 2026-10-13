@@ -349,6 +349,33 @@ describe('sherlo test builds the app on this machine', () => {
     expect(builder.compile).toHaveBeenCalledTimes(1);
   });
 
+  it('prints the pod install warning once, under the iOS row, naming the files to commit', async () => {
+    fakeBuilder({
+      compile: async ({ platform }) => ({
+        ok: true,
+        path: `/built/${platform}`,
+        sizeMb: '1',
+        seconds: 1,
+        podFilesChanged:
+          platform === 'ios'
+            ? ['ios/Podfile.lock', 'ios/Storefront.xcodeproj/project.pbxproj']
+            : [],
+      }),
+    });
+
+    const { stdout } = await captureTranscript(async () => {
+      await build({ toBuild: BOTH });
+    });
+
+    const warning =
+      'Pod install changed files that git does not track. Commit them so the next run can reuse the iOS app build:';
+    expect(stdout.split(warning)).toHaveLength(2);
+    const iosRowAt = stdout.indexOf('iOS');
+    expect(stdout.indexOf(warning)).toBeGreaterThan(iosRowAt);
+    expect(stdout.indexOf('ios/Podfile.lock')).toBeGreaterThan(stdout.indexOf(warning));
+    expect(stdout).toContain('ios/Storefront.xcodeproj/project.pbxproj');
+  });
+
   it("on a failed build, the list of native changes sits above the log's last lines", async () => {
     fakeBuilder({
       compile: async () => ({
