@@ -43,6 +43,7 @@ import {
 } from './buildSettings';
 import { ciRunKey } from './ciRun';
 import { easRun } from './easRun';
+import type { AppBuildAccount } from './pushFacts';
 import { foldersStoredFileByFile, nativeChangesSince } from './nativeChanges';
 
 /** Build what the gate refused, then run the standard road on the fresh app builds. */
@@ -74,7 +75,12 @@ export async function buildThenPush({
 
   // EAS MODE: the refused platforms are built on Expo's servers, and the run waits for them.
   if (settings.tool === 'eas') {
-    return easRun({ commandParams, platforms: platformsToBuild, settings });
+    return easRun({
+      commandParams,
+      platforms: platformsToBuild,
+      settings,
+      runIdFlag: passedOptions.runId,
+    });
   }
 
   warnAboutVariablesOnExpo(commandParams.projectRoot, settings);
@@ -101,7 +107,7 @@ export async function buildThenPush({
     }))
   );
 
-  const { appBuildPaths, platformRows } = await buildApps({
+  const { appBuildPaths, platformRows, madeBy } = await buildApps({
     projectRoot: commandParams.projectRoot,
     toBuild,
     settings,
@@ -126,7 +132,22 @@ export async function buildThenPush({
     platformsOnStoredBuild,
     ...(splitJob ? { splitJob } : {}),
     platformRows,
+    appBuilds: appBuildAccountsOf(toBuild, madeBy),
+    runIdFlag: passedOptions.runId,
   });
+}
+
+/** What the push reports about each app build it made or took from the cache: how, and why a new one. */
+function appBuildAccountsOf(
+  toBuild: Array<{ platform: Platform; why: WhyANewAppBuild }>,
+  madeBy: Partial<Record<Platform, AppBuildAccount['madeBy']>>
+): Partial<Record<Platform, AppBuildAccount>> {
+  const accounts: Partial<Record<Platform, AppBuildAccount>> = {};
+  for (const { platform, why } of toBuild) {
+    const madeByThisPlatform = madeBy[platform];
+    if (madeByThisPlatform) accounts[platform] = { madeBy: madeByThisPlatform, why };
+  }
+  return accounts;
 }
 
 /**

@@ -17,7 +17,12 @@ import { emit } from '../../../../helpers/transcriptSink';
 import { nativeBuild } from '../../../../seams/nativeBuild';
 import { serverCalls } from '../../../../seams/serverCalls';
 import { rowsAbove, printPlatformRowInALog } from '../../../test/platformRows';
-import { readValidatedModuleManifest } from '../../../test/readModuleManifest';
+import { pushFactsPlatformOf } from '../../../test/appBuild/pushFacts';
+import {
+  countBundleStories,
+  readValidatedModuleManifest,
+  type ValidatedModuleManifest,
+} from '../../../test/readModuleManifest';
 import { putBuffer, type StagedUploadUrlsWithManifest } from '../../../test/uploadStagedArtifacts';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
@@ -123,8 +128,9 @@ async function asyncUploadBuildAndRunTests({
     level: 'info',
   });
 
+  const moduleMap = readValidatedModuleManifest(projectRoot);
   const manifestS3Key = await stageTheModuleMap({
-    projectRoot,
+    moduleMap,
     platform,
     ticket,
     teamId,
@@ -146,6 +152,10 @@ async function asyncUploadBuildAndRunTests({
       nativeFingerprint,
       ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
       ...(manifestS3Key ? { manifestS3Key } : {}),
+      pushFacts: pushFactsPlatformOf({
+        appBuild: { madeBy: 'eas' },
+        storiesInBundle: moduleMap ? countBundleStories(moduleMap) : undefined,
+      }),
     } as Parameters<ReturnType<typeof serverCalls>['asyncUpload']>[0])
     .catch((error) => handleClientError(error, ticket));
 
@@ -196,19 +206,19 @@ export default asyncUploadBuildAndRunTests;
  * its narrowing - it captures every story - and never fails the hook.
  */
 async function stageTheModuleMap({
-  projectRoot,
+  moduleMap,
   platform,
   ticket,
   teamId,
   projectIndex,
 }: {
-  projectRoot: string;
+  /** The module map the EAS build wrote; none when there is none to stage. */
+  moduleMap: ValidatedModuleManifest | null;
   platform: Platform;
   ticket: string;
   teamId: string;
   projectIndex: number;
 }): Promise<string | undefined> {
-  const moduleMap = readValidatedModuleManifest(projectRoot);
   if (!moduleMap) return undefined;
 
   try {

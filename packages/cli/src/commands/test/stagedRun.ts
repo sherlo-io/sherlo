@@ -44,6 +44,7 @@ import type { BundleResult } from './buildBundle';
 import { parseStagedGateRefusal, type StagedGateRefusal } from './stagedGateRefusal';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
+import { pushFactsOf } from './appBuild/pushFacts';
 import { type BuildFlags, readBuildSettings } from './appBuild/buildSettings';
 import {
   applyBundleToPlatformConfig,
@@ -361,6 +362,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       baseFingerprints,
       gateMetadata: gateMetadata as GateMetadataByPlatform,
     };
+    // Nothing was built on this road: the facts are the bundles' story counts and the CI run.
+    const pushFacts = pushFactsOf({
+      appBuilds: {},
+      storiesInBundle: storiesInBundleOf(bundles, platformsToTest),
+      env: process.env,
+      runIdFlag: (passedOptions as BuildFlags).runId,
+    });
     if (joinKey) {
       // A joined run decides what it captures when its last platform is in, so this job
       // has no capture plan to print - only the run's link.
@@ -369,6 +377,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
         joinKey,
         platform: platformsToTest[0],
         request,
+        pushFacts: pushFacts.platforms[platformsToTest[0]],
         platformRows,
         testDevices: commandParams.testDevices,
       });
@@ -378,7 +387,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
         buildRun: { config: {} },
       } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>;
     } else {
-      openBuildReturn = await serverCalls().openBuild({ token, ...request });
+      openBuildReturn = await serverCalls().openBuild({ token, pushFacts, ...request });
     }
   } catch (error) {
     // Safety net: the server gate may still refuse at openBuild even though the
@@ -512,6 +521,20 @@ type GateAnswers = {
   /** Per platform, the test its stored app build was built in - absent where nothing is stored. */
   storedBuildIndexOf: Partial<Record<Platform, number>>;
 };
+
+/** How many stories each platform's bundle holds, counted off its module map. */
+function storiesInBundleOf(
+  bundles: Partial<Record<Platform, BundleResult>>,
+  platformsToTest: Platform[]
+): Partial<Record<Platform, number>> {
+  const counts: Partial<Record<Platform, number>> = {};
+  for (const [platform, moduleManifest] of Object.entries(
+    collectModuleManifests(bundles, platformsToTest)
+  ) as Array<[Platform, ValidatedModuleManifest]>) {
+    counts[platform] = countBundleStories(moduleManifest);
+  }
+  return counts;
+}
 
 /** The per-platform module manifests the capture plan reads, lifted off the bundles. */
 export function collectModuleManifests(

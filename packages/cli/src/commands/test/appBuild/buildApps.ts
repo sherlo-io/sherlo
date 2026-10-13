@@ -104,7 +104,12 @@ export async function buildApps({
    * it. None for `sherlo build`, and for a run that builds every platform.
    */
   storedPlatformRows: PlatformRow[];
-}): Promise<{ appBuildPaths: Partial<Record<Platform, string>>; platformRows: PlatformRow[] }> {
+}): Promise<{
+  appBuildPaths: Partial<Record<Platform, string>>;
+  platformRows: PlatformRow[];
+  /** Per platform, how its app build was got: compiled here, the project's own command, or the cache. */
+  madeBy: Partial<Record<Platform, 'compiled' | 'command' | 'build-cache'>>;
+}> {
   const builder = appBuilder();
 
   await refuseWhatThisMachineCannotBuild({ projectRoot, toBuild, settings, project });
@@ -112,6 +117,7 @@ export async function buildApps({
   const cacheDir = localBuildCacheFolder(cacheDirFlag);
   const appBuildPaths: Partial<Record<Platform, string>> = {};
   const platformRows = [...storedPlatformRows];
+  const madeBy: Partial<Record<Platform, 'compiled' | 'command' | 'build-cache'>> = {};
 
   async function buildOnePlatform({ platform, why }: PlatformToBuild): Promise<void> {
     // Each platform's row says why it needed a new app build, so the reason rides on it.
@@ -134,6 +140,7 @@ export async function buildApps({
         );
       }
       appBuildPaths[platform] = cached;
+      madeBy[platform] = 'build-cache';
       return;
     }
 
@@ -237,6 +244,7 @@ export async function buildApps({
     }
 
     appBuildPaths[platform] = compiled.path;
+    madeBy[platform] = ownCommand ? 'command' : 'compiled';
   }
 
   if (settings.parallel || parallelBuildsFlag) {
@@ -247,7 +255,7 @@ export async function buildApps({
     }
   }
 
-  return { appBuildPaths, platformRows };
+  return { appBuildPaths, platformRows, madeBy };
 }
 
 /* ========================================================================== */

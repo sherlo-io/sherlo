@@ -79,7 +79,10 @@ vi.mock('../../../../../helpers', () => ({
 vi.mock('../getBuildPath', () => ({ default: mocks.getBuildPath }));
 
 // The module map the EAS build wrote, and the staged upload every road puts it through.
-vi.mock('../../../../test/readModuleManifest', () => ({
+vi.mock('../../../../test/readModuleManifest', async (importActual) => ({
+  // The story count is the real one, read off whatever module map the case hands back.
+  countBundleStories: (await importActual<typeof import('../../../../test/readModuleManifest')>())
+    .countBundleStories,
   readValidatedModuleManifest: mocks.readValidatedModuleManifest,
 }));
 vi.mock('../../../../test/uploadStagedArtifacts', () => ({ putBuffer: mocks.putBuffer }));
@@ -89,6 +92,7 @@ vi.mock('../../../../../helpers/fingerprint', () => ({
   registerBase: mocks.registerBase,
 }));
 
+import { installServerCalls, liveServerCalls } from '../../../../../seams/serverCalls';
 import asyncUploadBuildAndRunTests from '../asyncUploadBuildAndRunTests';
 
 // The hook spends the run's one-build ticket, with the team and project the hand-over file names.
@@ -134,9 +138,20 @@ describe('asyncUploadBuildAndRunTests - asyncUpload payload contract', () => {
     const moduleMapBytes = Buffer.from(
       '{"version":1,"header":{},"moduleHashes":{},"storyClosures":{}}'
     );
-    mocks.readValidatedModuleManifest.mockReturnValue({ raw: moduleMapBytes, parsed: {} });
+    mocks.readValidatedModuleManifest.mockReturnValue({
+      raw: moduleMapBytes,
+      parsed: { storyClosures: { 'A.stories.tsx': [], 'B.stories.tsx': [] } },
+    });
+    const sentToTheSeam: Array<Record<string, any>> = [];
+    const uninstall = installServerCalls({
+      ...liveServerCalls,
+      asyncUpload: (request) => {
+        sentToTheSeam.push(request);
+        return liveServerCalls.asyncUpload(request);
+      },
+    });
 
-    await asyncUploadBuildAndRunTests(BASE_ARGS);
+    await asyncUploadBuildAndRunTests(BASE_ARGS).finally(uninstall);
 
     // Read from the project the hook runs in, staged in the slot the service offered, gzipped.
     expect(mocks.readValidatedModuleManifest).toHaveBeenCalledWith('/tmp/project');
@@ -150,5 +165,10 @@ describe('asyncUploadBuildAndRunTests - asyncUpload payload contract', () => {
     // And named on the delivery, so the run's Diff Scope reads it.
     const payload = mocks.asyncUploadSpy.mock.calls[0][0];
     expect(payload.manifestS3Key).toBe('staged/android-module-map.json.gz');
+
+    // The delivery also says how the app build was made and how many stories its bundle holds.
+    // The live seam holds it back from the client until the service takes it, so it is read where
+    // the hook hands it to the seam.
+    expect(sentToTheSeam[0].pushFacts).toEqual({ madeBy: 'eas', storiesInBundle: 2 });
   });
 });

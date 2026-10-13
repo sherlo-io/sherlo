@@ -9,7 +9,11 @@ import {
   type UploadedFreshBundle,
 } from './uploadFreshBundles';
 import { closeTheRun } from '../commands/test/closeTheRun';
-import type { ValidatedModuleManifest } from '../commands/test/readModuleManifest';
+import {
+  countBundleStories,
+  type ValidatedModuleManifest,
+} from '../commands/test/readModuleManifest';
+import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
 import { printTestStarted } from '../commands/test/stagedRun';
 import { readBuildSettings } from '../commands/test/appBuild/buildSettings';
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
@@ -31,6 +35,7 @@ import {
   type JoinBuildAnswer,
   type OpenBuildAnswer,
   type OpenBuildRequest,
+  type PushFacts,
 } from '../seams/serverCalls';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
@@ -102,6 +107,8 @@ async function uploadOrReuseBuildsAndRunTests({
   splitJob,
   effects,
   platformRows,
+  appBuilds = {},
+  runIdFlag,
 }: {
   commandParams: CommandParams;
   /** The app builds this push uploads, per platform: the ones this run just built. */
@@ -113,6 +120,10 @@ async function uploadOrReuseBuildsAndRunTests({
   effects?: PushEffects;
   /** What became of each platform's app build before the push: the rows above the test's row. */
   platformRows: PlatformRow[];
+  /** How each of those app builds was made, and why a new one: what the push reports about itself. */
+  appBuilds?: Partial<Record<Platform, AppBuildAccount>>;
+  /** `--run-id`, which names the CI run the push reports when the CI service does not. */
+  runIdFlag?: string;
 }): Promise<{ url: string }> {
   // The credential and its project were resolved before any request (./getValidatedCommandParams).
   const { token, projectIndex, teamId } = commandParams.credential;
@@ -153,18 +164,20 @@ async function uploadOrReuseBuildsAndRunTests({
             command,
           })
         : machine.computeFingerprint(commandParams.projectRoot, command),
-    openBuild: (input) =>
+    openBuild: ({ pushFacts, ...input }) =>
       splitJob
         ? joinTheRun({
             token,
             joinKey: splitJob.joinKey,
             platform: splitJob.platform,
             request: input as OpenBuildRequest,
+            // The job reports its own platform's facts; the CI run is already its join key.
+            pushFacts: (pushFacts as PushFacts).platforms[splitJob.platform],
             platformRows,
             testDevices: commandParams.testDevices,
           })
         : serverCalls()
-            .openBuild({ token, ...input } as never)
+            .openBuild({ token, pushFacts, ...input } as never)
             .catch((error) => handleClientError(error, token)),
     binaryUpload: {
       readBinary: (buildPath, platform, projectRoot) =>
@@ -366,6 +379,12 @@ async function uploadOrReuseBuildsAndRunTests({
     sdkVersion: binariesInfo.sdkVersion,
     message: commandParams.message,
     nativeFingerprint,
+    pushFacts: pushFactsOf({
+      appBuilds,
+      storiesInBundle: storiesInBundleOf(freshBundles),
+      env: process.env,
+      runIdFlag,
+    }),
     // Each platform's own base, so a native change on one platform leaves the other's stored app
     // build in use, and the source list each base was built from.
     ...(platformWithoutFingerprint === undefined
@@ -435,6 +454,18 @@ function moduleManifestsOf(
     if (freshBundle.moduleManifest) moduleManifests[platform] = freshBundle.moduleManifest;
   }
   return moduleManifests;
+}
+
+/** How many stories each fresh bundle holds, counted off its module map. */
+function storiesInBundleOf(
+  freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
+): Partial<Record<Platform, number>> {
+  return Object.fromEntries(
+    Object.entries(moduleManifestsOf(freshBundles)).map(([platform, moduleManifest]) => [
+      platform,
+      countBundleStories(moduleManifest),
+    ])
+  );
 }
 
 /** The platforms this push uploads an app build for, Android first. */

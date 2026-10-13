@@ -15,7 +15,11 @@ import { getPlatformsToTest, handleClientError, throwError } from '../../../help
 import { emit } from '../../../helpers/transcriptSink';
 import type { PlatformRow } from '../../../render/runRows';
 import type { Config } from '../../../types';
-import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
+import {
+  type OpenBuildRequest,
+  type PushFactsPlatform,
+  serverCalls,
+} from '../../../seams/serverCalls';
 import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 
 /** The service's refusal when this job built another commit than the run it joins. */
@@ -27,6 +31,7 @@ export async function joinTheRun({
   joinKey,
   platform,
   request,
+  pushFacts,
   platformRows,
   testDevices,
 }: {
@@ -35,6 +40,8 @@ export async function joinTheRun({
   platform: Platform;
   /** Everything an `openBuild` of this job would have been sent. */
   request: OpenBuildRequest;
+  /** What only the push knows about this job's own platform (./pushFacts). */
+  pushFacts?: PushFactsPlatform;
   /**
    * This job's own platform's row: built here, or reused from a stored app build. A sim world has
    * no app build, and passes none.
@@ -44,7 +51,7 @@ export async function joinTheRun({
   testDevices?: Config['devices'];
 }): Promise<{ build: { index: number }; waitingFor: Platform[] }> {
   const { build, waitingFor, startedRun } = await serverCalls()
-    .joinBuild({ token, joinKey, platform, ...request })
+    .joinBuild({ token, joinKey, platform, pushFacts, ...request })
     .catch((error) => {
       if (error.message === JOIN_MISMATCH_ERROR) refuseJoinMismatch();
       return handleClientError(error, token);
