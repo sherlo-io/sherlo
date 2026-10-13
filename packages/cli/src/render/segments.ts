@@ -121,32 +121,29 @@ export type TranscriptSegment =
   | { kind: 'binary-platform-label'; platform: Platform }
   /**
    * `Uploading the 🤖 Android app build (61.4 MB)...` - a step in progress (./stepInProgress),
-   * printed BEFORE the bytes go up. `platform` is absent until its print site
-   * (helpers/uploadOrPrintBinaryReuse, build work) sends it, and the line then names no platform.
+   * a spinner in a terminal that leaves no line, and one plain line in a log, printed BEFORE the
+   * bytes go up. A print site that sends no `platform` gets a line that names none.
    */
   | { kind: 'binary-uploading'; sizeMb: string; platform?: Platform }
-  /**
-   * The upload finished. It prints nothing: an upload is only a wait, and the step a person reads
-   * is the test it starts. The build task stops emitting it.
-   */
-  | { kind: 'binary-uploaded' }
   /** `   Upload failed (attempt 1 of 3), trying again...` - the per-attempt notice. */
   | { kind: 'binary-upload-retry'; attempt: number; maxRetries: number }
   /**
-   * The server already held this app build, so nothing went up. It prints nothing, for the reason
-   * `binary-uploaded` prints nothing. `timeAgo` arrives already phrased because computing it reads
+   * The server already held this app build, so nothing went up. It prints nothing: an upload is only a
+   * wait, and the step a person reads is the test it starts. `timeAgo` arrives already phrased because computing it reads
    * the WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
    */
   | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
   /**
    * `✔ Started Test 3             3 of 24 stories on 2 devices (Pixel 7, iPhone 15)` - the test is
    * open and running: what it captures, per platform as openBuild recorded it, and the devices the
-   * config names. `capture` is absent where the server recorded no decision.
+   * config names. `capture` is absent where the server recorded no decision; `devices` is absent
+   * where the print site does not know them (the second job of a split run, and the last EAS build
+   * in - build item 66), and the line then ends at the test.
    */
   | {
       kind: 'test-started';
       buildIndex: number;
-      devices: Config['devices'];
+      devices?: Config['devices'];
       capture?: PlatformCapture[];
     }
   /**
@@ -192,18 +189,12 @@ export type TranscriptSegment =
    * See ./appBuild. The order below is the order a build prints them.       *
    * ---------------------------------------------------------------------- */
   /**
-   * `✔ Reused the iOS app     from Test 12` - a platform whose stored app build still matches: the
-   * staged road, or the other half of a mixed run. `storedBuildIndex` is the test the gate named,
-   * absent while the service sends none.
+   * `sherlo build` found its app build in the local build cache:
+   * `✔ Built the Android app  kept in the local build cache (already done)`. `sherlo test` emits
+   * nothing for a reused app build, from Sherlo or from the cache: it took no time and needs no
+   * action (operator ruling 2026-10-13), and `sherlo view <n> --json` says where it came from.
    */
-  | { kind: 'app-build-stored-reused'; platform: Platform; storedBuildIndex?: number }
-  /**
-   * The app build the local build cache already held. `sherlo test`:
-   * `✔ Reused the Android app from the local build cache, no app build stored yet`, where `why` is
-   * the gate's reason this run needed a new app build and the native changes are listed under the
-   * line. `sherlo build`: `✔ Built the Android app  kept in the local build cache (already done)`.
-   */
-  | { kind: 'app-build-cached'; platform: Platform; why?: WhyANewAppBuild; command: AppBuildCommand }
+  | { kind: 'app-build-cached'; platform: Platform }
   /**
    * `Generating the Android folder with expo prebuild...` - a step in progress (./stepInProgress),
    * only for an Expo app with no native folder.
@@ -212,9 +203,9 @@ export type TranscriptSegment =
   /** `Building the Android app with Gradle...` - a step in progress, shown while the compile runs. */
   | { kind: 'app-build-compiling'; platform: Platform }
   /**
-   * `✔ Built the Android app      in 1m 28s, no app build stored yet (log: ...)`, with the native
-   * changes under it. The duration arrives in whole seconds, measured by logic: the renderer reads
-   * no clock.
+   * `✔ Built the Android app      in 1m 28s, native code changed since Test 12 (log: ...)`, with the
+   * native changes under it. The duration arrives in whole seconds, measured by logic: the renderer
+   * reads no clock.
    */
   | {
       kind: 'app-build-done';
@@ -241,24 +232,19 @@ export type TranscriptSegment =
     }
   /** `sherlo build`'s ending: the `👉 Next step` section naming what the kept app build is for. */
   | { kind: 'app-build-next-step' }
-  /** `Starting EAS builds...` - a step in progress, while Expo is asked to start them. */
+  /**
+   * `Starting EAS builds...` - a step in progress, while Expo is asked to start them. It leaves no
+   * line: the `Opened Test N` line after it names the EAS builds the test waits for.
+   */
   | { kind: 'eas-builds-starting'; platforms: Platform[] }
-  /** `✔ Started EAS builds     🤖 Android and 🍎 iOS, profile "sherlo"` - one line for every EAS build started. */
-  | { kind: 'eas-builds-started'; platforms: Platform[]; profile: string }
   /** The EAS profile reads variables kept on Expo's servers, which a local build cannot read. */
   | { kind: 'eas-hosted-variables'; profile: string; environment: string }
   /**
-   * `✔ Opened Test 1              it starts when ...` - the run is open and waits for the builds
-   * still to come: the other job's platform in a split CI run, or the EAS builds.
+   * `✔ Opened Test 1              starts when ...` - the run is open and waits for the builds
+   * still to come: the other job's platform in a split CI run, or the EAS builds. The build that
+   * comes in last emits `test-started`, like any run that starts.
    */
   | { kind: 'run-waits-for-builds'; buildIndex: number; waitingFor: RunWaitsFor }
-  /**
-   * `✔ Started Test 1         🤖 Android and 🍎 iOS are both in, on 2 devices (Pixel 7, iPhone 15)` -
-   * this job's build was the last one the run waited for. `devices` is absent where the print site
-   * does not know them (the EAS hook reads no config yet - build work), and the line then ends at
-   * "both in".
-   */
-  | { kind: 'run-starting'; buildIndex: number; devices?: Config['devices'] }
   /* ---------------------------------------------------------------------- *
    * THE VERDICT FAMILY (F4) - what `--wait` prints while it polls, and what  *
    * it prints when the build reaches a terminal state.                      *
@@ -309,7 +295,7 @@ export type TranscriptSegment =
   | { kind: 'verdict-passed' }
   /**
    * The compact closer for a build the server closed without a device run:
-   * `✔ Finished Test 15       nothing to capture: no change on this branch reaches any story`.
+   * `✔ Finished Test 15       nothing to test: no change reaches any story`.
    * `reason` is the server's own prose, printed verbatim after the colon.
    */
   | { kind: 'verdict-server-bypassed'; reason: string; testIndex?: number }

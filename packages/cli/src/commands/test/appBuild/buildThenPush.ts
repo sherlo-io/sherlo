@@ -65,15 +65,9 @@ export async function buildThenPush({
   fingerprintPreimage?: BaseFingerprintPreimage;
 }): Promise<{ url: string }> {
   const refused = refusals.map(({ platform }) => platform);
+  // A stored platform prints nothing: a reused app build took no time and needs no action
+  // (operator ruling 2026-10-13). Only the built one gets a line, from ./buildApps.
   const stored = platformsToTest.filter((platform) => !refused.includes(platform));
-
-  for (const platform of stored) {
-    emit({
-      kind: 'app-build-stored-reused',
-      platform,
-      storedBuildIndex: storedBuildIndexOf[platform],
-    });
-  }
 
   const commandParams = getValidatedCommandParams(
     { command: THIS_COMMAND, passedOptions },

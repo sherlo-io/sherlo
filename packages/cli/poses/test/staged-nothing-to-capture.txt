@@ -12,7 +12,6 @@
 
 Testing your app...
 
-[32m✔[39m Reused the Android app from Test 14
-[32m✔[39m Finished Test 15       nothing to capture: no change on this branch reaches any story
+[32m✔[39m Finished Test 15       nothing to test: no change on this branch reaches any story
 
 [exit 0]

@@ -102,6 +102,10 @@ export type PlatformCapture = {
  * they differ. A full capture's reason is kept, after a comma, only when every platform captures
  * every story for that one reason - it is the reason a person can act on (`no main branch is set`).
  * A partial capture's reason and its story files are `npx sherlo view <n> --json`'s to say.
+ *
+ * The same line starts a test whichever job or EAS build brought its last app build in. A print
+ * site that knows neither the devices nor the capture (the second job of a split run, the last EAS
+ * build in) prints the bare `✔ Started Test 1` (build item 66 gives it the devices).
  */
 export function renderTestStarted({
   buildIndex,
@@ -109,34 +113,38 @@ export function renderTestStarted({
   capture = [],
 }: {
   buildIndex: number;
-  devices: Config['devices'];
+  devices?: Config['devices'];
   capture?: PlatformCapture[];
 }): string {
-  const stories = describeStoriesOfEveryPlatform(capture);
+  const storiesOfEachPlatform = describeStoriesOfEachPlatform(capture);
+  const stories = storiesOfEachPlatform.join(', ');
+  const onDevices = devices ? describeDevices(devices) : '';
+  // `3 of 24 stories on 1 device`, but `🤖 Android 3 of 24 stories, 🍎 iOS all 24 stories, on 2 devices`.
+  const beforeDevices = storiesOfEachPlatform.length > 1 ? ', ' : ' ';
+  const whatRuns = [stories, onDevices].filter((part) => part !== '').join(beforeDevices);
   const reason = reasonEveryStoryIsCaptured(capture);
 
   return renderTestStep({
     name: `Started Test ${buildIndex}`,
-    detail: `${stories}${describeDevices(devices)}${reason ? `, ${reason}` : ''}`,
+    detail: reason ? `${whatRuns}, ${reason}` : whatRuns,
   });
 }
 
 /**
- * `3 of 24 stories ` when every platform captures the same; `🤖 Android 3 of 24 stories, 🍎 iOS all
- * 24 stories, ` when they differ; nothing when the server recorded no decision. Ends in the space
- * or comma that leads into the devices.
+ * `['3 of 24 stories']` when every platform captures the same; `['🤖 Android 3 of 24 stories',
+ * '🍎 iOS all 24 stories']` when they differ; none when the server recorded no decision.
  */
-function describeStoriesOfEveryPlatform(capture: PlatformCapture[]): string {
-  if (capture.length === 0) return '';
+function describeStoriesOfEachPlatform(capture: PlatformCapture[]): string[] {
+  if (capture.length === 0) return [];
 
   const perPlatform = capture.map((platformCapture) => ({
     platform: platformCapture.platform,
     stories: describeCapturedStories(platformCapture),
   }));
   const everyPlatformTheSame = perPlatform.every(({ stories }) => stories === perPlatform[0].stories);
-  if (everyPlatformTheSame) return `${perPlatform[0].stories} `;
+  if (everyPlatformTheSame) return [perPlatform[0].stories];
 
-  return `${perPlatform.map(({ platform, stories }) => `${platformWithEmoji(platform)} ${stories}`).join(', ')}, `;
+  return perPlatform.map(({ platform, stories }) => `${platformWithEmoji(platform)} ${stories}`);
 }
 
 /** The server's reason, when every platform captures every story for that one reason. */

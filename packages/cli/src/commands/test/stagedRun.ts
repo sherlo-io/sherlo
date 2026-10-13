@@ -312,17 +312,9 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return buildTheRefusedPlatforms(identityAnswers);
   }
 
-  //    Both checks said every platform takes its stored app build. Said here, after the second
-  //    check, so a platform that check refuses is never called reused - which is why this line
-  //    comes after `Bundling the JavaScript...` and not before it. In a terminal the bundling is
-  //    a spinner that leaves nothing, so the two read the same; a log shows the bundling first.
-  for (const platform of platformsToTest) {
-    emit({
-      kind: 'app-build-stored-reused',
-      platform,
-      storedBuildIndex: identityAnswers.storedBuildIndexOf[platform],
-    });
-  }
+  //    Both checks said every platform takes its stored app build. Nothing is printed for it: a
+  //    reused app build took no time and needs no action (operator ruling 2026-10-13), and
+  //    `sherlo view <n> --json` says which test it came from.
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
   //    (getStagedUploadUrls - NOT getBuildUploadUrls) and collect its S3 keys.

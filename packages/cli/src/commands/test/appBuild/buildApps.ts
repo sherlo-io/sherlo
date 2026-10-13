@@ -97,7 +97,9 @@ export async function buildApps({
 
     const cached = await builder.findCachedBuild({ platform, cacheKey, cacheDir });
     if (cached) {
-      emit({ kind: 'app-build-cached', platform, command, ...whyThisBuild });
+      // Only `sherlo build` says so, since building is what it was asked for; for `sherlo test` a
+      // cached app build took no time and needs no action (operator ruling 2026-10-13).
+      if (command === 'build') emit({ kind: 'app-build-cached', platform });
       builtPaths[platform] = cached;
       continue;
     }

@@ -251,7 +251,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     const { exitCode, stdout } = await runWaitLoop(bypassed);
 
     expect(exitCode).toBe(EXIT_GREEN);
-    expect(stdout).toContain('nothing to capture: no change on this branch reaches any story');
+    expect(stdout).toContain('nothing to test: no change on this branch reaches any story');
     expect(stdout).not.toContain('No visual changes');
   });
 

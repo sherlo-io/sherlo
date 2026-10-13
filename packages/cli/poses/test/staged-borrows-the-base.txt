@@ -12,7 +12,6 @@
 
 Testing your app...
 
-[32m✔[39m Reused the Android app from Test 1
 [32m✔[39m Started Test 2         all 2 stories on 1 device (Pixel 7), no main branch is set
 [32m✔[39m Finished Test 2        in <DURATION>
 

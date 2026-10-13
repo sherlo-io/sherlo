@@ -96,13 +96,13 @@ export async function easRun({
   // and each build reads which run it belongs to out of this file.
   createSherloTempDirectory({ projectRoot: commandParams.projectRoot, buildIndex, token, profile });
 
-  // One act, one line: every EAS build starts with the same profile, so the step is said once for all.
+  // Starting them is only a wait, so it leaves no line: the `Opened Test N` line names the EAS
+  // builds the test waits for (operator ruling 2026-10-13).
   await whileShowing({ kind: 'eas-builds-starting', platforms }, async () => {
     for (const platform of platforms) {
       await appBuilder().startEasBuild({ platform, profile, projectRoot: commandParams.projectRoot });
     }
   });
-  emit({ kind: 'eas-builds-started', platforms, profile });
 
   emit({ kind: 'run-waits-for-builds', buildIndex, waitingFor: { easBuilds: platforms } });
 

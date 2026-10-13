@@ -12,8 +12,7 @@
 
 Testing your app...
 
-[32m✔[39m Started EAS builds     🤖 Android and 🍎 iOS, profile "sherlo"
-[32m✔[39m Opened Test 1          it starts when both EAS builds are uploaded
+[32m✔[39m Opened Test 1          starts when the 🤖 Android and 🍎 iOS EAS builds finish
 
 
 [1m👉 Next step[22m

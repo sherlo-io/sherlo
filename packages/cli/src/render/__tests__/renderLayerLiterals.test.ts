@@ -330,17 +330,10 @@ const PINS: Pin[] = [
   },
   {
     kind: 'binary-uploading',
-    what: 'the upload naming its platform, once its print site sends it',
+    what: 'the upload naming its platform, as a log shows it',
     segment: { kind: 'binary-uploading', sizeMb: '61.4', platform: 'android' },
     stream: 'stdout',
     prints: [['Uploading the 🤖 Android app build (61.4 MB)...']],
-  },
-  {
-    kind: 'binary-uploaded',
-    what: 'a finished upload prints nothing - it was only a wait, and the step a person reads is the test it starts',
-    segment: { kind: 'binary-uploaded' },
-    stream: 'stdout',
-    prints: [],
   },
   {
     kind: 'binary-upload-retry',
@@ -369,6 +362,13 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [[`${ESC}[32m✔${ESC}[39m Started Test 3         on 2 devices (Pixel 4 XL, iPhone 14)`]],
+  },
+  {
+    kind: 'test-started',
+    what: 'the last app build in starts the test from a print site that knows neither devices nor capture - the line ends at the test',
+    segment: { kind: 'test-started', buildIndex: 1 },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 1`]],
   },
   {
     kind: 'test-started',
@@ -501,39 +501,9 @@ const PINS: Pin[] = [
     ],
   },
   {
-    kind: 'app-build-stored-reused',
-    what: 'the stored app build taken again - "Reused", since this run did not build it, and the test it came from',
-    segment: { kind: 'app-build-stored-reused', platform: 'ios', storedBuildIndex: 12 },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Reused the iOS app     from Test 12`]],
-  },
-  {
-    kind: 'app-build-stored-reused',
-    what: 'the stored app build taken again while the service names no test for it',
-    segment: { kind: 'app-build-stored-reused', platform: 'android' },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Reused the Android app from the stored app build`]],
-  },
-  {
-    kind: 'app-build-cached',
-    what: '`sherlo test` takes the app build from the local build cache, and says why the stored one would not do',
-    segment: {
-      kind: 'app-build-cached',
-      platform: 'android',
-      why: { reason: 'nothing-stored' },
-      command: 'test',
-    },
-    stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Reused the Android app from the local build cache, no app build stored yet`,
-      ],
-    ],
-  },
-  {
     kind: 'app-build-cached',
     what: "`sherlo build` finds its build already in the cache - init's own `(already done)`",
-    segment: { kind: 'app-build-cached', platform: 'android', command: 'build' },
+    segment: { kind: 'app-build-cached', platform: 'android' },
     stream: 'stdout',
     prints: [
       [
@@ -578,10 +548,28 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Built the Android app  in 1m 28s, native code changed since Test 12's app build ${ESC}[2m(log: .sherlo/build-android.log)${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Built the Android app  in 1m 28s, native code changed since Test 12 ${ESC}[2m(log: .sherlo/build-android.log)${ESC}[22m`,
       ],
       [`   ${ESC}[33m~${ESC}[39m android/app/build.gradle`],
       [`   ${ESC}[32m+${ESC}[39m react-native-maps 1.3.0`],
+    ],
+  },
+  {
+    kind: 'app-build-done',
+    what: 'a first app build made here gives no reason - there was nothing to reuse',
+    segment: {
+      kind: 'app-build-done',
+      platform: 'android',
+      seconds: 252,
+      logPath: '.sherlo/build-android.log',
+      command: 'test',
+      why: { reason: 'nothing-stored' },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m Built the Android app  in 4m 12s ${ESC}[2m(log: .sherlo/build-android.log)${ESC}[22m`,
+      ],
     ],
   },
   {
@@ -683,20 +671,6 @@ const PINS: Pin[] = [
     prints: [['Starting EAS builds...']],
   },
   {
-    kind: 'eas-builds-started',
-    what: 'every EAS build started, in one line - the same act with the same profile',
-    segment: { kind: 'eas-builds-started', platforms: ['android', 'ios'], profile: 'sherlo' },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Started EAS builds     🤖 Android and 🍎 iOS, profile "sherlo"`]],
-  },
-  {
-    kind: 'eas-builds-started',
-    what: 'one EAS build started, its platform and profile',
-    segment: { kind: 'eas-builds-started', platforms: ['android'], profile: 'sherlo' },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Started an EAS build   🤖 Android, profile "sherlo"`]],
-  },
-  {
     kind: 'eas-hosted-variables',
     what: "the profile's variables kept on Expo's servers - a yellow bang, three lines",
     segment: { kind: 'eas-hosted-variables', profile: 'sherlo', environment: 'preview' },
@@ -715,14 +689,10 @@ const PINS: Pin[] = [
     segment: {
       kind: 'run-waits-for-builds',
       buildIndex: 1,
-      waitingFor: { otherJob: 'ios', ciRunId: '123' },
+      waitingFor: { otherJob: 'ios' },
     },
     stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Opened Test 1          it starts when 🍎 iOS arrives from the other job (CI run 123)`,
-      ],
-    ],
+    prints: [[`${ESC}[32m✔${ESC}[39m Opened Test 1          starts when 🍎 iOS arrives from the other job`]],
   },
   {
     kind: 'run-waits-for-builds',
@@ -733,52 +703,25 @@ const PINS: Pin[] = [
       waitingFor: { easBuilds: ['android', 'ios'] },
     },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Opened Test 1          it starts when both EAS builds are uploaded`]],
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m Opened Test 1          starts when the 🤖 Android and 🍎 iOS EAS builds finish`,
+      ],
+    ],
   },
   {
     kind: 'run-waits-for-builds',
     what: 'an EAS run, waiting for its one EAS build',
     segment: { kind: 'run-waits-for-builds', buildIndex: 1, waitingFor: { easBuilds: ['ios'] } },
     stream: 'stdout',
-    prints: [
-      [`${ESC}[32m✔${ESC}[39m Opened Test 1          it starts when the 🍎 iOS EAS build is uploaded`],
-    ],
+    prints: [[`${ESC}[32m✔${ESC}[39m Opened Test 1          starts when the 🍎 iOS EAS build finishes`]],
   },
   {
     kind: 'run-waits-for-builds',
-    what: 'the EAS build that delivered first: it says it is in, and the run waits for the other',
+    what: 'the EAS build that delivered first: it says it is in, and what the run waits for',
     segment: { kind: 'run-waits-for-builds', buildIndex: 1, waitingFor: { easBuild: 'ios' } },
     stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Added to Test 1        🤖 Android is in; it starts when the 🍎 iOS EAS build is uploaded`,
-      ],
-    ],
-  },
-  {
-    kind: 'run-starting',
-    what: "this job's app build was the last one the run waited for, and the devices it runs on",
-    segment: {
-      kind: 'run-starting',
-      buildIndex: 1,
-      devices: [
-        { id: 'pixel.4.xl', osVersion: '13', theme: 'light', locale: 'en_US', fontScale: '1' },
-        { id: 'iphone.14', osVersion: '16.4', theme: 'light', locale: 'en_US', fontScale: '1' },
-      ],
-    },
-    stream: 'stdout',
-    prints: [
-      [
-        `${ESC}[32m✔${ESC}[39m Started Test 1         🤖 Android and 🍎 iOS are both in, on 2 devices (Pixel 4 XL, iPhone 14)`,
-      ],
-    ],
-  },
-  {
-    kind: 'run-starting',
-    what: 'the run starting from a print site that reads no config - the line ends at "both in"',
-    segment: { kind: 'run-starting', buildIndex: 1 },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Started Test 1         🤖 Android and 🍎 iOS are both in`]],
+    prints: [[`${ESC}[32m✔${ESC}[39m Added to Test 1        🤖 Android is in, waiting for 🍎 iOS`]],
   },
   {
     kind: 'output-keys',
@@ -916,7 +859,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-server-bypassed',
-    what: "the server-bypassed verdict as init's finished step - nothing to capture, and the server's own reason after the colon",
+    what: "the server-bypassed verdict as init's finished step - nothing to test, and the server's own reason after the colon",
     segment: {
       kind: 'verdict-server-bypassed',
       reason: 'no change on this branch reaches any story',
@@ -925,7 +868,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Finished Test 13       nothing to capture: no change on this branch reaches any story`,
+        `${ESC}[32m✔${ESC}[39m Finished Test 13       nothing to test: no change on this branch reaches any story`,
       ],
     ],
   },

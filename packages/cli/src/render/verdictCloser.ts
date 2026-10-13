@@ -128,14 +128,14 @@ export function renderVerdictPassed(): string[] {
 
 /**
  * The verdict of a test the SERVER closed without a device run, as init's finished step:
- * `✔ Finished Test 15       nothing to capture: no change on this branch reaches any story`. The
- * reason is the server's own prose, printed verbatim. No URL - the test has nothing to review.
+ * `✔ Finished Test 15       nothing to test: no change reaches any story`. The reason is the
+ * server's own prose, printed verbatim. No URL - the test has nothing to review.
  */
 export function renderVerdictServerBypassed(reason: string, testIndex?: number): string[] {
   return [
     renderTestStep({
       name: `Finished ${theTest(testIndex)}`,
-      detail: reason ? `nothing to capture: ${reason}` : 'nothing to capture',
+      detail: reason ? `nothing to test: ${reason}` : 'nothing to test',
     }),
   ];
 }

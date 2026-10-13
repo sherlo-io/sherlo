@@ -207,7 +207,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const printed = printedOutput(logSpy);
       // One finished step, naming the test, directly under the steps above it.
       expect(printed).toBe(
-        `✔ Finished Test ${BUILD_INDEX}        nothing to capture: no change reaches any story`
+        `✔ Finished Test ${BUILD_INDEX}        nothing to test: no change reaches any story`
       );
 
       // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
@@ -244,9 +244,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       const printed = printedOutput(logSpy);
       // The finished step, in init's grammar, with the server's own reason after "nothing to
-      // capture" (the capture plan's one line, operator ruling 2026-10-12).
+      // test" (operator rulings 2026-10-12 and 2026-10-13).
       expect(printed).toContain(`Finished Test ${BUILD_INDEX}`);
-      expect(printed).toContain('nothing to capture: no change reaches any story');
+      expect(printed).toContain('nothing to test: no change reaches any story');
       expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');
     });
@@ -279,7 +279,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       // The android reason is the one printed; the other platform's prose never is.
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('nothing to capture: no change reaches any story');
+      expect(printed).toContain('nothing to test: no change reaches any story');
       expect(printed).not.toContain('ios: nothing to capture');
     });
 
@@ -304,7 +304,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await promise;
 
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('nothing to capture: no change reaches any story');
+      expect(printed).toContain('nothing to test: no change reaches any story');
     });
 
     it('falls back to the generic green message when diffScopeInfo is absent', async () => {

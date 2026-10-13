@@ -12,8 +12,7 @@
 
 Sending your EAS build to Sherlo...
 
-Uploading the app build (<SIZE> MB)...
-[32m✔[39m Started Test 1         🤖 Android and 🍎 iOS are both in
+[32m✔[39m Started Test 1
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 

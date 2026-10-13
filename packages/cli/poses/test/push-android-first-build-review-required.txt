@@ -12,8 +12,6 @@
 
 Testing your app...
 
-[32m✔[39m Reused the Android app from the local build cache, no app build stored yet
-Uploading the app build (<SIZE> MB)...
 [32m✔[39m Started Test 1         on 1 device (Pixel 7)
 [32m✔[39m Finished Test 1        in <DURATION>
 

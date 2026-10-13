@@ -39,11 +39,8 @@ import {
   renderAppBuildDone,
   renderAppBuildFailed,
   renderAppBuildNextStep,
-  renderEasBuildsStarted,
   renderEasHostedVariables,
-  renderRunStarting,
   renderRunWaitsForBuilds,
-  renderStoredBuildReused,
 } from './appBuild';
 import {
   renderBuildMessageLine,
@@ -233,9 +230,8 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     // An upload is only a wait: it shows while it runs (`binary-uploading`, above) and leaves no
     // line of its own, whether the bytes went up or the server already held them. The step a person
-    // reads is the test it starts. The build task stops emitting these three.
+    // reads is the test it starts. The build task stops emitting these two.
     case 'binary-platform-label':
-    case 'binary-uploaded':
     case 'binary-reused':
       return { stream: 'stdout', prints: [] };
 
@@ -286,14 +282,8 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         ).map((line) => [line]),
       };
 
-    case 'app-build-stored-reused':
-      return {
-        stream: 'stdout',
-        prints: [[renderStoredBuildReused(segment.platform, segment.storedBuildIndex)]],
-      };
-
     case 'app-build-cached':
-      return { stream: 'stdout', prints: renderAppBuildCached(segment).map((line) => [line]) };
+      return { stream: 'stdout', prints: [[renderAppBuildCached(segment.platform)]] };
 
     case 'app-build-done':
       return { stream: 'stdout', prints: renderAppBuildDone(segment).map((line) => [line]) };
@@ -303,12 +293,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     case 'app-build-next-step':
       return { stream: 'stdout', prints: renderAppBuildNextStep().map((line) => [line]) };
-
-    case 'eas-builds-started':
-      return {
-        stream: 'stdout',
-        prints: [[renderEasBuildsStarted(segment.platforms, segment.profile)]],
-      };
 
     case 'eas-hosted-variables':
       return {
@@ -321,9 +305,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         stream: 'stdout',
         prints: [[renderRunWaitsForBuilds(segment.buildIndex, segment.waitingFor)]],
       };
-
-    case 'run-starting':
-      return { stream: 'stdout', prints: [[renderRunStarting(segment.buildIndex, segment.devices)]] };
 
     case 'output-keys':
       return {

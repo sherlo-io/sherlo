@@ -12,7 +12,6 @@
 
 Testing your app...
 
-[32m✔[39m Reused the Android app from Test 3
 [32m✔[39m Started Test 4         1 of 2 stories on 1 device (Pixel 7)
 [33m! Stopped waiting after <N> minute. Test 4 may still be running in Sherlo.[39m
 

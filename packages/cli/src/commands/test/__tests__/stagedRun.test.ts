@@ -990,7 +990,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✔ Finished Test 7        nothing to capture: no change reaches any story');
+    expect(out).toContain('✔ Finished Test 7        nothing to test: no change reaches any story');
     // The whole point: no URL of any kind on the bypassed path.
     expect(out).not.toContain('🔗 Review');
     expect(out).not.toContain('http://app/build');
@@ -1064,7 +1064,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     // The test ends on its one finished step: no started step, no next step, no link.
     const out = printed(logSpy);
     expect(
-      out.endsWith('✔ Finished Test 7        nothing to capture: no change reaches any story')
+      out.endsWith('✔ Finished Test 7        nothing to test: no change reaches any story')
     ).toBe(true);
     expect(out).not.toContain('Started Test');
     expect(out).not.toContain('Next step');

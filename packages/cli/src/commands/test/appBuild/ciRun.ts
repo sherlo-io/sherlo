@@ -43,11 +43,6 @@ export function ciRunKey(env: NodeJS.ProcessEnv, runIdFlag?: string): string | n
   return null;
 }
 
-/** The run id alone, as the waiting line shows it to the developer. */
-export function ciRunIdOf(key: string): string {
-  return key.slice(Math.max(key.lastIndexOf('/'), key.indexOf(':')) + 1);
-}
-
 function prefixed(service: string, id: string | null): string | null {
   return id ? `${service}:${id}` : null;
 }

@@ -14,7 +14,6 @@ import type { Platform } from '@sherlo/api-types';
 import { handleClientError } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
 import { type OpenBuildRequest, serverCalls } from '../../../seams/serverCalls';
-import { ciRunIdOf } from './ciRun';
 
 /** Join the run this job's CI run shares, and say what the run is waiting for. */
 export async function joinTheRun({
@@ -38,11 +37,11 @@ export async function joinTheRun({
       ? {
           kind: 'run-waits-for-builds',
           buildIndex: build.index,
-          waitingFor: { otherJob: waitingFor[0], ciRunId: ciRunIdOf(joinKey) },
+          waitingFor: { otherJob: waitingFor[0] },
         }
       : // PLAN-LAYER STOP: the line names the whole test's devices once this job knows them - its
         // own command params keep only its platform's (build item 66).
-        { kind: 'run-starting', buildIndex: build.index }
+        { kind: 'test-started', buildIndex: build.index }
   );
 
   return { build, waitingFor };

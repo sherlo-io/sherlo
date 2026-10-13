@@ -1,5 +1,5 @@
 Testing your app...
 
-[32m✔[39m Skipped iOS            sherlo.config.json lists no iOS device, so this job has nothing to run
+[32m✔[39m Skipped iOS            sherlo.config.json lists no iOS device
 
 [exit 0]
