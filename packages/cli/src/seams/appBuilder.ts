@@ -22,7 +22,7 @@
  * NOT ALL BUILT YET. The live half builds Android (Gradle, the init script that forces debug
  * signing and switches expo-updates off, `expo prebuild`) and iOS (pod install, xcodebuild, the
  * Expo.plist switch) and keeps builds in the local build cache. What still refuses, naming itself,
- * is the rest of epic sherlo-test-builds-apps's build tasks (a project's own build command, the EAS start, the machine checks): a shipped
+ * is the rest of epic sherlo-test-builds-apps's build tasks (a project's own build command, the machine checks): a shipped
  * tool that reached that refusal would be a build that never landed - the landing review checks
  * it is gone.
  */
@@ -312,6 +312,31 @@ function readPodTouchedFiles(projectRoot: string): Map<string, Buffer> {
   return contents;
 }
 
+/** Where starting one platform's EAS build writes everything `eas build` says. */
+function easStartLogPath(platform: Platform): string {
+  return `.sherlo/eas-build-${platform}.log`;
+}
+
+/**
+ * The id of the build `eas build --no-wait --json` started, out of what it wrote: its answer is a
+ * JSON list of the builds it started, `[{ "id": ..., "platform": "ANDROID", ... }]`, printed last,
+ * after whatever it said on the way. Undefined when no such list is there.
+ */
+function easBuildIdIn(output: string): string | undefined {
+  // The list starts on a line of its own; the last one that reads as a list of builds is the answer.
+  const listStarts = [...output.matchAll(/^\[/gm)].map((match) => match.index ?? 0).reverse();
+  for (const start of listStarts) {
+    try {
+      const builds: unknown = JSON.parse(output.slice(start, output.lastIndexOf(']') + 1));
+      const id = Array.isArray(builds) ? (builds[0] as { id?: unknown })?.id : undefined;
+      if (typeof id === 'string') return id;
+    } catch {
+      // Not the answer: a line of its log that happened to start with a bracket.
+    }
+  }
+  return undefined;
+}
+
 function readTextIfThere(filePath: string): string {
   return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
 }
@@ -560,8 +585,35 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         undoPrebuild(params.projectRoot, params.platform);
       }
     },
-    startEasBuild: async () => {
-      throw new Error(NOT_BUILT_YET);
+    // Expo's own command, asked to start the build and answer at once, as JSON, with no question
+    // for a person. It packs the project from git as it always does, so nothing here sets
+    // EAS_NO_VCS.
+    startEasBuild: async ({ platform, profile, projectRoot }) => {
+      const logPath = path.join(projectRoot, easStartLogPath(platform));
+      fs.rmSync(logPath, { force: true });
+      const exitCode = await runProcess({
+        command: 'eas',
+        args: [
+          'build',
+          '--platform',
+          platform,
+          '--profile',
+          profile,
+          '--no-wait',
+          '--json',
+          '--non-interactive',
+        ],
+        cwd: projectRoot,
+        env: process.env,
+        logPath,
+      });
+      const buildId = exitCode === 0 ? easBuildIdIn(readTextIfThere(logPath)) : undefined;
+      if (!buildId) {
+        throw new Error(
+          `\`eas build\` could not start the ${platform} build - see ${easStartLogPath(platform)}`
+        );
+      }
+      return { buildId };
     },
     easUploadRoot: (projectRoot) => {
       let folder = path.resolve(projectRoot);

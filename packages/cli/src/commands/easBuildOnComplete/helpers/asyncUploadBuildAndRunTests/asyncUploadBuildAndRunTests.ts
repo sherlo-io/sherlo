@@ -1,10 +1,11 @@
 import path from 'path';
+import zlib from 'zlib';
 import { Platform } from '@sherlo/api-types';
+import { PLATFORM_LABEL } from '../../../../constants';
 import {
   getAppBuildUrl,
   getCwd,
   getPlatformsToTest,
-  getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError,
   logWarning,
@@ -16,6 +17,8 @@ import { emit } from '../../../../helpers/transcriptSink';
 import { nativeBuild } from '../../../../seams/nativeBuild';
 import { serverCalls } from '../../../../seams/serverCalls';
 import { rowsAbove, printPlatformRowInALog } from '../../../test/platformRows';
+import { readValidatedModuleManifest } from '../../../test/readModuleManifest';
+import { putBuffer, type StagedUploadUrlsWithManifest } from '../../../test/uploadStagedArtifacts';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -31,11 +34,16 @@ import getBuildPath from './getBuildPath';
 async function asyncUploadBuildAndRunTests({
   buildIndex,
   easBuildProfile,
-  token,
+  ticket,
+  teamId,
+  projectIndex,
 }: {
   buildIndex: number;
   easBuildProfile: string;
-  token: string;
+  /** The run's one-build ticket, from the hand-over file: every request here spends it. */
+  ticket: string;
+  teamId: string;
+  projectIndex: number;
 }) {
   const platform = process.env.EAS_BUILD_PLATFORM as Platform;
   const projectRoot = getCwd();
@@ -43,11 +51,9 @@ async function asyncUploadBuildAndRunTests({
 
   const buildPath = path.resolve(projectRoot, getBuildPath({ easBuildProfile, platform }));
 
-  const { projectIndex, teamId } = getTokenParts(token);
-
   const { binariesInfo } = await getValidatedBinariesInfoAndNextBuildIndex({
     buildPath,
-    token,
+    token: ticket,
     command: THIS_COMMAND,
     platform,
     projectIndex,
@@ -116,9 +122,17 @@ async function asyncUploadBuildAndRunTests({
     level: 'info',
   });
 
+  const manifestS3Key = await stageTheModuleMap({
+    projectRoot,
+    platform,
+    ticket,
+    teamId,
+    projectIndex,
+  });
+
   const { couldRunThisBuildRightNow, startedRun } = await serverCalls()
     .asyncUpload({
-      token,
+      token: ticket,
       buildIndex,
       projectIndex,
       teamId,
@@ -130,8 +144,9 @@ async function asyncUploadBuildAndRunTests({
       binaryFileName: binariesInfo[platform]?.fileName,
       nativeFingerprint,
       ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
+      ...(manifestS3Key ? { manifestS3Key } : {}),
     } as Parameters<ReturnType<typeof serverCalls>['asyncUpload']>[0])
-    .catch((error) => handleClientError(error, token));
+    .catch((error) => handleClientError(error, ticket));
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
@@ -166,3 +181,60 @@ async function asyncUploadBuildAndRunTests({
 }
 
 export default asyncUploadBuildAndRunTests;
+
+/* ========================================================================== */
+
+/**
+ * THE MODULE MAP THE EAS BUILD WROTE, staged where the service offers it, so the run captures only
+ * what changed (Diff Scope on EAS, operator decision). The Sherlo bundler step wrote it into the
+ * project while EAS bundled the app; it is read the way every other road reads it and uploaded the
+ * way every other staged module map is (../../../test/uploadStagedArtifacts). Answers the staged
+ * key, or undefined when there is no map or no slot for it.
+ *
+ * BAIL-OPEN, as on every road: a missing or broken map, or one that fails to upload, costs the run
+ * its narrowing - it captures every story - and never fails the hook.
+ */
+async function stageTheModuleMap({
+  projectRoot,
+  platform,
+  ticket,
+  teamId,
+  projectIndex,
+}: {
+  projectRoot: string;
+  platform: Platform;
+  ticket: string;
+  teamId: string;
+  projectIndex: number;
+}): Promise<string | undefined> {
+  const moduleMap = readValidatedModuleManifest(projectRoot);
+  if (!moduleMap) return undefined;
+
+  try {
+    const { stagedPresignedUploadUrls } = await serverCalls().getStagedUploadUrls({
+      token: ticket,
+      platforms: [platform],
+      projectIndex,
+      teamId,
+    });
+    const slot = (stagedPresignedUploadUrls[platform] as StagedUploadUrlsWithManifest | undefined)
+      ?.manifest;
+    if (!slot) return undefined;
+
+    await putBuffer({
+      platform,
+      label: 'module manifest',
+      uploadUrl: slot.url,
+      buffer: zlib.gzipSync(moduleMap.raw),
+    });
+    return slot.s3Key;
+  } catch (error) {
+    logWarning({
+      message:
+        `Failed to upload the ${PLATFORM_LABEL[platform]} module manifest ` +
+        `(${error instanceof Error ? error.message : String(error)}); ` +
+        'continuing without it.',
+    });
+    return undefined;
+  }
+}

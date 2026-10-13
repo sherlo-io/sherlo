@@ -14,13 +14,29 @@
  * (The openBuild sender is pinned the same way in
  * helpers/__tests__/openBuildPayload.contract.test.ts.)
  */
+import zlib from 'zlib';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const asyncUploadSpy = vi.fn().mockResolvedValue({ couldRunThisBuildRightNow: false });
+  const getStagedUploadUrlsSpy = vi.fn().mockResolvedValue({
+    stagedPresignedUploadUrls: {
+      android: {
+        jsBundle: { url: 'https://s3/bundle', s3Key: 'staged/bundle' },
+        assets: { url: 'https://s3/assets', s3Key: 'staged/assets' },
+        manifest: { url: 'https://s3/manifest', s3Key: 'staged/android-module-map.json.gz' },
+      },
+    },
+  });
   return {
     asyncUploadSpy,
-    sdkClient: vi.fn().mockReturnValue({ asyncUpload: asyncUploadSpy }),
+    getStagedUploadUrlsSpy,
+    sdkClient: vi.fn().mockReturnValue({
+      asyncUpload: asyncUploadSpy,
+      getStagedUploadUrls: getStagedUploadUrlsSpy,
+    }),
+    readValidatedModuleManifest: vi.fn().mockReturnValue(null),
+    putBuffer: vi.fn().mockResolvedValue(undefined),
     getTokenParts: vi
       .fn()
       .mockReturnValue({ apiToken: 'tok123', projectIndex: 1, teamId: 'team1' }),
@@ -59,6 +75,12 @@ vi.mock('../../../../../helpers', () => ({
 
 vi.mock('../getBuildPath', () => ({ default: mocks.getBuildPath }));
 
+// The module map the EAS build wrote, and the staged upload every road puts it through.
+vi.mock('../../../../test/readModuleManifest', () => ({
+  readValidatedModuleManifest: mocks.readValidatedModuleManifest,
+}));
+vi.mock('../../../../test/uploadStagedArtifacts', () => ({ putBuffer: mocks.putBuffer }));
+
 vi.mock('../../../../../helpers/fingerprint', () => ({
   computeBaseFingerprint: mocks.computeBaseFingerprint,
   registerBase: mocks.registerBase,
@@ -66,16 +88,21 @@ vi.mock('../../../../../helpers/fingerprint', () => ({
 
 import asyncUploadBuildAndRunTests from '../asyncUploadBuildAndRunTests';
 
+// The hook spends the run's one-build ticket, with the team and project the hand-over file names.
 const BASE_ARGS = {
   buildIndex: 1,
   easBuildProfile: 'preview',
-  token: 'AbCdEfGhIjKlMnOpQrStUvWxYzAbCdEfGhIjKlMn1',
+  ticket: 'sbt_theticketofrun1',
+  teamId: 'team1',
+  projectIndex: 1,
 };
 
 describe('asyncUploadBuildAndRunTests - asyncUpload payload contract', () => {
   beforeEach(() => {
     process.env.EAS_BUILD_PLATFORM = 'android';
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    // Most EAS builds write no module map: the bundler writes one only when asked to.
+    mocks.readValidatedModuleManifest.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -90,5 +117,35 @@ describe('asyncUploadBuildAndRunTests - asyncUpload payload contract', () => {
     expect(mocks.asyncUploadSpy).toHaveBeenCalledTimes(1);
     const payload = mocks.asyncUploadSpy.mock.calls[0][0];
     expect(payload).not.toHaveProperty('changedFiles');
+  });
+
+  it("sends the app build's file name as binaryFileName", async () => {
+    await asyncUploadBuildAndRunTests(BASE_ARGS);
+
+    const payload = mocks.asyncUploadSpy.mock.calls[0][0];
+    expect(payload.binaryFileName).toBe('app.apk');
+    expect(payload).not.toHaveProperty('fileName');
+  });
+
+  it('uploads the module map the EAS build wrote, so the run captures only what changed', async () => {
+    const moduleMapBytes = Buffer.from(
+      '{"version":1,"header":{},"moduleHashes":{},"storyClosures":{}}'
+    );
+    mocks.readValidatedModuleManifest.mockReturnValue({ raw: moduleMapBytes, parsed: {} });
+
+    await asyncUploadBuildAndRunTests(BASE_ARGS);
+
+    // Read from the project the hook runs in, staged in the slot the service offered, gzipped.
+    expect(mocks.readValidatedModuleManifest).toHaveBeenCalledWith('/tmp/project');
+    expect(mocks.getStagedUploadUrlsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ platforms: ['android'], projectIndex: 1, teamId: 'team1' })
+    );
+    const upload = mocks.putBuffer.mock.calls[0][0];
+    expect(upload.uploadUrl).toBe('https://s3/manifest');
+    expect(zlib.gunzipSync(upload.buffer)).toEqual(moduleMapBytes);
+
+    // And named on the delivery, so the run's Diff Scope reads it.
+    const payload = mocks.asyncUploadSpy.mock.calls[0][0];
+    expect(payload.manifestS3Key).toBe('staged/android-module-map.json.gz');
   });
 });

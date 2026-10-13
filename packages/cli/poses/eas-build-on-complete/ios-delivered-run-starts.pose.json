@@ -4,7 +4,9 @@
   "files": {
     ".sherlo/data.json": {
       "buildIndex": 1,
-      "token": "posetokenposetokenposetokenpose1tm0000017",
+      "ticket": "sbt_posedticketoftest1",
+      "teamId": "tm000001",
+      "projectIndex": 7,
       "profile": "sherlo"
     },
     "eas.json": {
