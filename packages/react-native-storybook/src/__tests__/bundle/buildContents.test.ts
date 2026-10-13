@@ -16,8 +16,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as ts from 'typescript';
 import * as vm from 'vm';
+import { transformSync } from 'esbuild';
 
 import {
   SDK_FOLDER_IN_FIXTURE,
@@ -73,9 +73,7 @@ function createOldSetupApp(): string {
   const standInSource = fs.readFileSync(path.join(PACKAGE_ROOT, 'src', 'offStandIn.ts'), 'utf8');
   write(
     `${SDK_FOLDER_IN_FIXTURE}/dist/offStandIn.js`,
-    ts.transpileModule(standInSource, {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2018 },
-    }).outputText
+    transformSync(standInSource, { loader: 'ts', format: 'cjs', target: 'es2018' }).code
   );
   // The full SDK's entry, and the two files Sherlo's Storybook wrapper reaches, as small stand-ins:
   // what matters is that they are SDK modules a bundle with Sherlo in it holds.
