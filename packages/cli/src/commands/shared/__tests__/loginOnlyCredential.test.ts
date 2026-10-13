@@ -12,7 +12,9 @@
  */
 import fs from 'fs';
 import path from 'path';
-import * as ts from 'typescript';
+import { parse } from '@babel/parser';
+import { traverseFast } from '@babel/types';
+import type * as babel from '@babel/types';
 import { describe, expect, it } from 'vitest';
 import { NAME_OPTION, TEAM_OPTION, TEST_COMMAND, TOKEN_OPTION } from '../../../constants';
 import resolvePushCredential from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
@@ -355,29 +357,37 @@ function shippedSourceFiles(folder = CLI_SRC): string[] {
  * template between its substitutions. Import paths are not text a person reads, and are left out.
  */
 function stringsIn(file: string): Array<{ line: number; text: string }> {
-  const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest);
   const pieces: Array<{ line: number; text: string }> = [];
 
-  const keep = (node: ts.Node, text: string) => {
-    const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
-    pieces.push({ line: line + 1, text });
+  const keep = (node: babel.Node, text: string) => {
+    pieces.push({ line: node.loc?.start.line ?? 0, text });
   };
 
-  const visit = (node: ts.Node): void => {
-    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return;
+  traverseFast(parseTypeScript(file).program, (node) => {
+    if (isImportOrReExport(node)) return traverseFast.skip;
 
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) keep(node, node.text);
+    if (node.type === 'StringLiteral' || node.type === 'DirectiveLiteral') keep(node, node.value);
 
-    if (ts.isTemplateExpression(node)) {
-      keep(node.head, node.head.text);
-      for (const span of node.templateSpans) keep(span.literal, span.literal.text);
+    if (node.type === 'TemplateLiteral') {
+      for (const piece of node.quasis) keep(piece, piece.value.cooked ?? piece.value.raw);
     }
-
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
+  });
 
   return pieces;
+}
+
+/** A file's syntax tree, read the way the compiler reads a `.ts` file. */
+function parseTypeScript(file: string): babel.File {
+  return parse(fs.readFileSync(file, 'utf8'), { sourceType: 'module', plugins: ['typescript'] });
+}
+
+/** `import ... from`, `export ... from` and `export { ... }`: module plumbing, not text. */
+function isImportOrReExport(node: babel.Node): boolean {
+  return (
+    node.type === 'ImportDeclaration' ||
+    node.type === 'ExportAllDeclaration' ||
+    (node.type === 'ExportNamedDeclaration' && !node.declaration)
+  );
 }
 
 /**
@@ -405,42 +415,35 @@ function namesACommandWithoutNpx(text: string): boolean {
  * or a command's name put together (`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`).
  */
 function commandSubstitutionsWithoutNpx(file: string): Array<{ line: number; text: string }> {
-  const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest);
+  const sourceText = fs.readFileSync(file, 'utf8');
+  const textOf = (node: babel.Node) => sourceText.slice(node.start ?? 0, node.end ?? 0);
   const offenders: Array<{ line: number; text: string }> = [];
 
-  const visit = (node: ts.Node): void => {
-    if (ts.isTemplateExpression(node) && !isOnlyACommandName(node)) {
-      let textInFront = node.head.text;
+  traverseFast(parseTypeScript(file).program, (node) => {
+    if (node.type !== 'TemplateLiteral' || node.expressions.length === 0) return;
+    if (isOnlyACommandName(node)) return;
 
-      for (const span of node.templateSpans) {
-        const constantName = span.expression.getText(source).split('.').pop() ?? '';
-        const namesACommand =
-          constantName.endsWith('COMMAND') &&
-          !constantName.endsWith('SUBCOMMAND') &&
-          constantName !== 'FULL_INIT_COMMAND';
+    node.expressions.forEach((expression, index) => {
+      const textInFront = node.quasis[index].value.cooked ?? '';
+      const constantName = textOf(expression).split('.').pop() ?? '';
+      const namesACommand =
+        constantName.endsWith('COMMAND') &&
+        !constantName.endsWith('SUBCOMMAND') &&
+        constantName !== 'FULL_INIT_COMMAND';
 
-        if (namesACommand && !textInFront.endsWith('npx sherlo ')) {
-          const { line } = source.getLineAndCharacterOfPosition(span.expression.getStart(source));
-          offenders.push({ line: line + 1, text: node.getText(source) });
-        }
-
-        textInFront = span.literal.text;
+      if (namesACommand && !textInFront.endsWith('npx sherlo ')) {
+        offenders.push({ line: expression.loc?.start.line ?? 0, text: textOf(node) });
       }
-    }
-
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
+    });
+  });
 
   return offenders;
 }
 
 /** Is a template's own text only spaces, and at most one `<arg>` or `[arg]` placeholder? */
-function isOnlyACommandName(template: ts.TemplateExpression): boolean {
-  const literalText = [
-    template.head.text,
-    ...template.templateSpans.map((span) => span.literal.text),
-  ]
+function isOnlyACommandName(template: babel.TemplateLiteral): boolean {
+  const literalText = template.quasis
+    .map((piece) => piece.value.cooked ?? '')
     .join('')
     .trim();
 

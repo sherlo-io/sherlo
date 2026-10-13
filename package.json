@@ -45,7 +45,7 @@
     "oxlint": "1.88.0",
     "prettier": "2.8.8",
     "tsx": "^4.20.0",
-    "typescript": "^5.3.3",
+    "typescript": "7.0.2",
     "vite": "^8.0.0"
   },
   "engines": {
@@ -54,6 +54,7 @@
   },
   "packageManager": "yarn@4.18.1",
   "resolutions": {
-    "tar": ">=7.5.10"
+    "tar": ">=7.5.10",
+    "typescript": "7.0.2"
   }
 }

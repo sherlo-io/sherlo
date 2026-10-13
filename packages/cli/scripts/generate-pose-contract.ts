@@ -26,7 +26,24 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import prettier from 'prettier';
-import ts from 'typescript';
+import {
+  SyntaxKind,
+  type LiteralTypeNode,
+  type Node,
+  type NumericLiteral,
+  type StringLiteral,
+  type UnionTypeNode,
+} from 'typescript/unstable/ast';
+import {
+  API,
+  SymbolFlags,
+  TypeFlags,
+  type Checker,
+  type Program,
+  type Symbol as TypeSymbol,
+  type Type,
+  type TypeReference,
+} from 'typescript/unstable/sync';
 
 const CLI_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(CLI_ROOT, '..', '..');
@@ -152,34 +169,44 @@ function readOrEmpty(file: string): string {
  * contract has no import to resolve it with.
  */
 function readSeamTypes(seamSources: Record<string, string>): NamedShape[] {
-  const config = ts.readConfigFile(path.join(CLI_ROOT, 'tsconfig.json'), ts.sys.readFile);
-  const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, CLI_ROOT);
-  const host = ts.createCompilerHost(parsed.options);
-  const readFromDisk = host.readFile;
-  host.readFile = (file) => seamSources[path.resolve(file)] ?? readFromDisk(file);
-  const program = ts.createProgram(parsed.fileNames, parsed.options, host);
-  const checker = program.getTypeChecker();
+  // The compiler runs as its own process; a stood-in seam's text is handed to it as the file's.
+  const api = new API({
+    cwd: CLI_ROOT,
+    fs: { readFile: (file) => seamSources[path.resolve(file)] },
+  });
+  try {
+    const configFile = path.join(CLI_ROOT, 'tsconfig.json');
+    const project = api.updateSnapshot({ openProjects: [configFile] }).getProject(configFile);
+    if (!project) throw new Error(`the compiler opened no project for ${configFile}`);
+    return publishedTypes(project.program, project.checker);
+  } finally {
+    api.close();
+  }
+}
 
-  const nameOfType = new Map<ts.Type, string>();
-  const typeOfName = new Map<string, ts.Type>();
+function publishedTypes(program: Program, checker: Checker): NamedShape[] {
+  const nameOfType = new Map<number, string>();
+  const typeOfName = new Map<string, Type>();
   const docOfName = new Map<string, string>();
+  wordsAsWritten.clear();
 
   for (const file of seamModulesInOrder()) {
     const source = program.getSourceFile(path.join(SEAMS_DIR, file));
     if (!source) throw new Error(`the seam ${file} is not in the program`);
+    rememberLiteralsAsWritten(source);
 
     const moduleSymbol = checker.getSymbolAtLocation(source);
     if (!moduleSymbol) continue;
 
     for (const exported of checker.getExportsOfModule(moduleSymbol)) {
-      const declaration = exported.declarations?.[0];
-      if (!declaration || !ts.isTypeAliasDeclaration(declaration)) continue;
+      const declaration = exported.declarations[0];
+      if (!declaration || declaration.kind !== SyntaxKind.TypeAliasDeclaration) continue;
       if (typeOfName.has(exported.name)) continue;
 
       const type = checker.getDeclaredTypeOfSymbol(exported);
       typeOfName.set(exported.name, type);
       docOfName.set(exported.name, documentationOf(exported, checker));
-      if (!nameOfType.has(type)) nameOfType.set(type, exported.name);
+      if (!nameOfType.has(type.id)) nameOfType.set(type.id, exported.name);
     }
   }
 
@@ -192,7 +219,7 @@ function readSeamTypes(seamSources: Record<string, string>): NamedShape[] {
 
   while (queue.length > 0) {
     const name = queue.shift() as string;
-    const type = typeOfName.get(name) as ts.Type;
+    const type = typeOfName.get(name) as Type;
     const shape = shapeOf(type, checker, nameOfType, true, (reference) => {
       if (queued.has(reference)) return;
       queued.add(reference);
@@ -215,8 +242,8 @@ function seamModulesInOrder(): string[] {
   return [COMPOSING_MODULE, ...seams];
 }
 
-function documentationOf(symbol: ts.Symbol, checker: ts.TypeChecker): string {
-  return ts.displayPartsToString(symbol.getDocumentationComment(checker)).trim();
+function documentationOf(symbol: TypeSymbol, checker: Checker): string {
+  return checker.getDocumentationCommentOfSymbol(symbol).trim();
 }
 
 /**
@@ -226,38 +253,42 @@ function documentationOf(symbol: ts.Symbol, checker: ts.TypeChecker): string {
  * its own body is expanded once, and every OTHER mention of it anywhere becomes the name.
  */
 function shapeOf(
-  type: ts.Type,
-  checker: ts.TypeChecker,
-  nameOfType: Map<ts.Type, string>,
+  type: Type,
+  checker: Checker,
+  nameOfType: Map<number, string>,
   atRootOfNamedType: boolean,
   publish: (name: string) => void
 ): Shape {
-  const recur = (next: ts.Type) => shapeOf(next, checker, nameOfType, false, publish);
+  const recur = (next: Type) => shapeOf(next, checker, nameOfType, false, publish);
 
   if (!atRootOfNamedType) {
-    const name = nameOfType.get(type);
+    const name = nameOfType.get(type.id);
     if (name) {
       publish(name);
       return { kind: 'named', name };
     }
   }
 
-  if (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) return { kind: 'unknown' };
-  if (type.flags & ts.TypeFlags.Never) return { kind: 'never' };
-  if (type.flags & ts.TypeFlags.Null) return { kind: 'null' };
-  if (type.flags & ts.TypeFlags.Boolean) return { kind: 'boolean' };
-  if (type.flags & ts.TypeFlags.BooleanLiteral) {
+  if (type.flags & (TypeFlags.Any | TypeFlags.Unknown)) return { kind: 'unknown' };
+  if (type.flags & TypeFlags.Never) return { kind: 'never' };
+  if (type.flags & TypeFlags.Null) return { kind: 'null' };
+  if (type.flags & TypeFlags.Boolean) return { kind: 'boolean' };
+  if (type.flags & TypeFlags.BooleanLiteral) {
     return { kind: 'literal', value: checker.typeToString(type) === 'true' };
   }
-  if (type.isStringLiteral()) return { kind: 'literal', value: type.value };
-  if (type.isNumberLiteral()) return { kind: 'literal', value: type.value };
-  if (type.flags & ts.TypeFlags.String) return { kind: 'string' };
-  if (type.flags & ts.TypeFlags.Number) return { kind: 'number' };
+  if (type.isStringLiteralType()) return { kind: 'literal', value: type.value };
+  if (type.isNumberLiteralType()) return { kind: 'literal', value: type.value };
+  if (type.flags & TypeFlags.String) return { kind: 'string' };
+  if (type.flags & TypeFlags.Number) return { kind: 'number' };
 
-  if (type.isUnion()) {
+  if (type.isUnionType()) {
     const members = settledOrder(
       collapseBooleans(
-        type.types.filter((member) => (member.flags & ts.TypeFlags.Undefined) === 0).map(recur)
+        inWrittenOrder(
+          (type.getTypes() ?? [])
+            .filter((member) => (member.flags & TypeFlags.Undefined) === 0)
+            .map(recur)
+        )
       )
     );
 
@@ -265,12 +296,14 @@ function shapeOf(
   }
 
   if (checker.isArrayType(type)) {
-    const element = checker.getTypeArguments(type as ts.TypeReference)[0];
+    const element = checker.getTypeArguments(type as TypeReference)[0];
     return { kind: 'array', of: recur(element) };
   }
 
-  const properties = type.getProperties();
-  const entryType = type.getStringIndexType();
+  const properties = checker.getPropertiesOfType(type);
+  const entryType = checker
+    .getIndexInfosOfType(type)
+    .find((index) => index.keyType.flags & TypeFlags.String)?.valueType;
   if (properties.length === 0 && entryType) return { kind: 'map', of: recur(entryType) };
 
   return {
@@ -319,12 +352,56 @@ function settledOrder(members: Shape[]): Shape[] {
   ).map((one) => one.member);
 }
 
+/**
+ * A union's words in the order the seam wrote them.
+ *
+ * The checker hands a union's literals back sorted, so `'plain-js' | 'hermes-bytecode'` would come
+ * out the other way round - in the contract, and in every refusal the reader prints. The words a
+ * seam wrote are read off its source by {@link rememberLiteralsAsWritten}, keyed by which words
+ * they are; a union with no written match keeps the checker's order.
+ */
+function inWrittenOrder(members: Shape[]): Shape[] {
+  const words = members.flatMap((member) => (member.kind === 'literal' ? [member.value] : []));
+  const written = wordsAsWritten.get(keyOfWords(words));
+  if (!written) return members;
+
+  const rest = members.filter((member) => member.kind !== 'literal');
+  return [...written.map((value): Shape => ({ kind: 'literal', value })), ...rest];
+}
+
+/** Every union of words a seam writes, keyed by which words they are, in the order written. */
+const wordsAsWritten = new Map<string, Array<string | number>>();
+
+function rememberLiteralsAsWritten(node: Node): void {
+  if (node.kind === SyntaxKind.UnionType) {
+    const words = (node as UnionTypeNode).types.flatMap(wordOf);
+    const key = keyOfWords(words);
+    if (words.length > 1 && !wordsAsWritten.has(key)) wordsAsWritten.set(key, words);
+  }
+  node.forEachChild((child) => rememberLiteralsAsWritten(child));
+}
+
+/** The word a union member writes - `'ram'` or `3` - or nothing for any other member. */
+function wordOf(member: Node): Array<string | number> {
+  if (member.kind !== SyntaxKind.LiteralType) return [];
+
+  const literal = (member as LiteralTypeNode).literal;
+  if (literal.kind === SyntaxKind.StringLiteral) return [(literal as StringLiteral).text];
+  if (literal.kind === SyntaxKind.NumericLiteral) return [Number((literal as NumericLiteral).text)];
+  return [];
+}
+
+/** The same words give the same key, whatever order they come in. */
+function keyOfWords(words: Array<string | number | boolean>): string {
+  return JSON.stringify(words.map((word) => JSON.stringify(word)).sort());
+}
+
 function fieldOf(
-  property: ts.Symbol,
-  checker: ts.TypeChecker,
-  recur: (type: ts.Type) => Shape
+  property: TypeSymbol,
+  checker: Checker,
+  recur: (type: Type) => Shape
 ): Field {
-  const declaration = property.declarations?.[0];
+  const declaration = property.declarations[0]?.resolve();
   if (!declaration) throw new Error(`\`${property.name}\` has no declaration to read`);
 
   // READ THE TYPE THE FIELD WAS WRITTEN WITH, not the type the field HAS: an optional field has
@@ -332,13 +409,14 @@ function fieldOf(
   // `capture?: PosedCapture` would come back as PosedCapture's four branches with the name it was
   // written under gone, and the contract would write the shape out again instead of naming it.
   const written =
-    ts.isPropertySignature(declaration) && declaration.type
+    declaration.kind === SyntaxKind.PropertySignature && declaration.type
       ? checker.getTypeFromTypeNode(declaration.type)
       : checker.getTypeOfSymbolAtLocation(property, declaration);
+  if (!written) throw new Error(`\`${property.name}\` has no type to read`);
 
   return {
     name: property.name,
-    optional: (property.flags & ts.SymbolFlags.Optional) !== 0,
+    optional: (property.flags & SymbolFlags.Optional) !== 0,
     doc: documentationOf(property, checker),
     shape: recur(written),
   };

@@ -19,7 +19,8 @@ import { execFileSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import * as ts from 'typescript';
+import { parse } from '@babel/parser';
+import type * as babel from '@babel/types';
 import { describe, it, expect, afterAll } from 'vitest';
 
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
@@ -279,29 +280,23 @@ function findValueImportEdges(): ValueImportEdge[] {
 
   const edges: ValueImportEdge[] = [];
   for (const file of listSourceFiles(CLI_SRC)) {
-    const text = fs.readFileSync(file, 'utf8');
-    const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+    for (const statement of importsIn(fs.readFileSync(file, 'utf8'))) {
+      if (statement.importKind === 'type') continue;
 
-    sourceFile.statements.forEach((statement) => {
-      if (!ts.isImportDeclaration(statement)) return;
-      if (statement.importClause?.isTypeOnly) return;
-      if (!ts.isStringLiteral(statement.moduleSpecifier)) return;
+      const target = resolveRelativeImport(file, statement.source.value);
+      if (!target) continue;
 
-      const target = resolveRelativeImport(file, statement.moduleSpecifier.text);
-      if (!target) return;
-
-      const clause = statement.importClause;
       const hasValueBinding =
-        !clause || // a side-effecting `import '...'` still runs the module
-        Boolean(clause.name) || // default import
-        (clause.namedBindings &&
-          (ts.isNamespaceImport(clause.namedBindings) ||
-            clause.namedBindings.elements.some((el) => !el.isTypeOnly)));
+        statement.specifiers.length === 0 || // a side-effecting `import '...'` still runs the module
+        statement.specifiers.some(
+          // a default or namespace import, or a name not marked `type`
+          (specifier) => specifier.type !== 'ImportSpecifier' || specifier.importKind !== 'type'
+        );
 
       if (hasValueBinding) {
         edges.push({ from: path.relative(REPO_ROOT, file), to: path.relative(REPO_ROOT, target) });
       }
-    });
+    }
   }
 
   valueImportEdges = edges;
@@ -420,30 +415,39 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
  */
 function shellRunnerImports(file: string, text: string): string[] {
   const liveHalfFiles = new Set(LIVE_HALF_SET.map((entry) => `packages/cli/src/${entry.file}`));
-  const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
   const reaches: string[] = [];
 
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
-    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
-
-    const namedBindings = statement.importClause?.namedBindings;
-    const namesTheRunner =
-      namedBindings !== undefined &&
-      ts.isNamedImports(namedBindings) &&
-      namedBindings.elements.some(
-        (element) => (element.propertyName ?? element.name).text === 'runShellCommand'
-      );
-    const target = resolveRelativeImport(file, statement.moduleSpecifier.text);
+  for (const statement of importsIn(text)) {
+    const namesTheRunner = statement.specifiers.some(
+      (specifier) =>
+        specifier.type === 'ImportSpecifier' && importedName(specifier) === 'runShellCommand'
+    );
+    const target = resolveRelativeImport(file, statement.source.value);
     const reachesALiveHalf =
       target !== undefined && liveHalfFiles.has(path.relative(REPO_ROOT, target));
 
     if (namesTheRunner || reachesALiveHalf) {
-      reaches.push(`${path.relative(REPO_ROOT, file)}: ${statement.getText()}`);
+      const statementText = text.slice(statement.start ?? 0, statement.end ?? 0);
+      reaches.push(`${path.relative(REPO_ROOT, file)}: ${statementText}`);
     }
   }
 
   return reaches;
+}
+
+/** Every top-level `import ... from '...'` statement of a TypeScript source, in written order. */
+function importsIn(text: string): babel.ImportDeclaration[] {
+  const { program } = parse(text, { sourceType: 'module', plugins: ['typescript'] });
+  return program.body.filter(
+    (statement): statement is babel.ImportDeclaration => statement.type === 'ImportDeclaration'
+  );
+}
+
+/** The name an `import { a as b }` takes from its module: `a`. */
+function importedName(specifier: babel.ImportSpecifier): string {
+  return specifier.imported.type === 'Identifier'
+    ? specifier.imported.name
+    : specifier.imported.value;
 }
 
 /** `packages/cli/src/commands/showError/foo.ts` -> true for the directory `commands/showError`. */
