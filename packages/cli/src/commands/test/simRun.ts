@@ -47,6 +47,7 @@ import {
   throwError,
 } from '../../helpers';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
+import type { PlatformRow } from '../../render/runRows';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
 import { splitRunKeyOf } from './appBuild/buildThenPush';
@@ -163,13 +164,15 @@ async function simRun(
   // ONE JOB OF A SPLIT CI RUN joins the run its CI run shares, exactly as on the other roads - which
   // is what lets the branching storylines prove the join with a sim world on two cheap jobs.
   const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+  // A sim world has no app build, so no platform has a row above the test's.
+  const platformRows: PlatformRow[] = [];
 
   let openBuildReturn;
   try {
     const request = { teamId, projectIndex, buildRunConfig, gitInfo, message: commandParams.message };
     openBuildReturn = joinKey
       ? ({
-          ...(await joinTheRun({ token, joinKey, platform: platformsToTest[0], request })),
+          ...(await joinTheRun({ token, joinKey, platform: platformsToTest[0], request, platformRows })),
           buildRun: { config: {} },
         } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>)
       : await serverCalls().openBuild({ token, ...request });
@@ -194,10 +197,11 @@ async function simRun(
       platformsToTest,
       devices: commandParams.devices,
       serverBypassed,
+      platformRows,
     });
   }
 
-  await closeTheRun({ commandParams, buildIndex, url, serverBypassed });
+  await closeTheRun({ commandParams, buildIndex, url, serverBypassed, platformRows });
 
   return { url };
 }

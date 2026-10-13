@@ -1,6 +1,7 @@
 import { REJECTED_LOGIN_MESSAGE } from '../commands/shared/refuseRejectedLogin';
 import { printsToATerminal, whileShowing } from '../commands/shared/terminal';
-import { takeRowsAbove } from '../commands/test/platformRows';
+import { rowsAbove } from '../commands/test/platformRows';
+import type { PlatformRow } from '../render/runRows';
 import type { TranscriptSegment } from '../render/segments';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
 import { serverCalls } from '../seams/serverCalls';
@@ -56,6 +57,7 @@ async function waitForBuildResult({
   waitTimeoutMinutes,
   serverBypassed = false,
   sawTheTestStart = false,
+  rowsNotYetShown = [],
   // THE CLOCK IS THE SURROUNDINGS' - the wall clock on a live run, the pose's instants on a posed
   // one (../seams/surroundings) - and it is read lazily so a seam installed after this module
   // loaded is still the one consulted.
@@ -97,6 +99,11 @@ async function waitForBuildResult({
    * finished step names the test and says no time: `✔ Finished Test 14`.
    */
   sawTheTestStart?: boolean;
+  /**
+   * The platforms' rows no test row has shown yet (../commands/test/closeTheRun decides which),
+   * printed above the row that says the server closed the test. `sherlo view <n> --wait` has none.
+   */
+  rowsNotYetShown?: PlatformRow[];
   /**
    * The ONE effect this loop performs, injectable so a caller can supply the
    * answers instead of the network.
@@ -163,10 +170,14 @@ async function waitForBuildResult({
     case 'closed':
       // THE ONE PLACE THE CLOSER PRINTS, at most once per build: every earlier read of a finished
       // build still settling its stories[] decided and moved on without printing anything.
-      printTerminalCloser(ending.build, {
-        testIndex,
-        secondsItRan: sawTheTestStart ? ending.secondsItRan : undefined,
-      });
+      printTerminalCloser(
+        ending.build,
+        {
+          testIndex,
+          secondsItRan: sawTheTestStart ? ending.secondsItRan : undefined,
+        },
+        rowsNotYetShown
+      );
       return ending.exitCode;
   }
 }
@@ -430,7 +441,8 @@ function decideTerminalState(
  */
 function printTerminalCloser(
   build: NonNullable<BuildStatusResponse['getBuildStatus']>,
-  howItRan: HowTheTestRan
+  howItRan: HowTheTestRan,
+  rowsNotYetShown: PlatformRow[]
 ): void {
   const { runStatus, viewStatusesCount, diffScopeInfo } = build;
   const { testIndex } = howItRan;
@@ -443,7 +455,7 @@ function printTerminalCloser(
   }
 
   if (routesThroughSparseVerdict(build)) {
-    printSparseCloser(build, howItRan);
+    printSparseCloser(build, howItRan, rowsNotYetShown);
     return;
   }
 
@@ -457,7 +469,7 @@ function printTerminalCloser(
     // Server-bypassed build (SHERLO-1952): there is nothing to review (zero new screenshots) and
     // the review page cannot render this build shape yet (SHERLO-1974), so the run ends on its one
     // finished step and points at no URL.
-    printServerBypassCloser(serverBypassReason, testIndex);
+    printServerBypassCloser(serverBypassReason, testIndex, rowsNotYetShown);
     return;
   }
 
@@ -513,7 +525,8 @@ function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
  */
 function printSparseCloser(
   build: NonNullable<BuildStatusResponse['getBuildStatus']>,
-  howItRan: HowTheTestRan
+  howItRan: HowTheTestRan,
+  rowsNotYetShown: PlatformRow[]
 ): void {
   const verdict = decideSparseBuildVerdict(build);
   if (!verdict) {
@@ -522,7 +535,7 @@ function printSparseCloser(
 
   const serverBypassReason = getServerBypassReason(build.diffScopeInfo);
   if (verdict.exitCode === EXIT_GREEN && serverBypassReason) {
-    printServerBypassCloser(serverBypassReason, howItRan.testIndex);
+    printServerBypassCloser(serverBypassReason, howItRan.testIndex, rowsNotYetShown);
     return;
   }
 
@@ -610,13 +623,17 @@ function getServerBypassReason(
 
 /**
  * The compact closer for a server-bypassed build (SHERLO-1952): the test's row, finished, with the
- * server's verbatim reason, under the platforms' rows the run recorded (none for `sherlo view`). No
- * URL - the build has nothing to review and the review page cannot render this shape yet
+ * server's verbatim reason, under the platforms' rows no test row has shown yet (none for `sherlo
+ * view`). No URL - the build has nothing to review and the review page cannot render this shape yet
  * (SHERLO-1974). One definition, used by BOTH the --wait terminal path here and the non-wait closer
  * (../commands/test/closeTheRun), so the two modes print identical text.
  */
-export function printServerBypassCloser(reason: string, testIndex: number): void {
-  emit({ kind: 'verdict-server-bypassed', reason, testIndex, rowsAbove: takeRowsAbove() });
+export function printServerBypassCloser(
+  reason: string,
+  testIndex: number,
+  rowsNotYetShown: PlatformRow[]
+): void {
+  emit({ kind: 'verdict-server-bypassed', reason, testIndex, rowsAbove: rowsAbove(rowsNotYetShown) });
 }
 
 /**

@@ -11,6 +11,7 @@ import {
 import { closeTheRun } from '../commands/test/closeTheRun';
 import type { ValidatedModuleManifest } from '../commands/test/readModuleManifest';
 import { printTestStarted } from '../commands/test/stagedRun';
+import type { PlatformRow } from '../render/runRows';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
 import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
@@ -85,9 +86,15 @@ export type PushEffects = {
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
   effects,
+  platformRows,
 }: {
   commandParams: CommandParams;
   effects?: PushEffects;
+  /**
+   * What became of each platform's app build before the push: the rows above the test's row. None
+   * when the developer passed the app builds.
+   */
+  platformRows: PlatformRow[];
 }): Promise<{ url: string }> {
   // The credential and its project were resolved before any request (./getValidatedCommandParams).
   const { token, projectIndex, teamId } = commandParams.credential;
@@ -334,6 +341,7 @@ async function uploadOrReuseBuildsAndRunTests({
       platformsToTest: platformsInTheRun(buildRunConfig),
       devices: commandParams.devices,
       serverBypassed,
+      platformRows,
     });
   }
 
@@ -342,6 +350,7 @@ async function uploadOrReuseBuildsAndRunTests({
     buildIndex,
     url,
     serverBypassed,
+    platformRows,
     endsOnNextStep: !joined || joined.waitingFor.length === 0,
     hasCiToken: joined ? undefined : opened.hasCiToken,
   });

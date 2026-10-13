@@ -15,7 +15,7 @@ import { registerBase, type GateMetadataInput } from '../../../../helpers/finger
 import { emit } from '../../../../helpers/transcriptSink';
 import { nativeBuild } from '../../../../seams/nativeBuild';
 import { serverCalls } from '../../../../seams/serverCalls';
-import { forgetPlatformRows, recordPlatformRow, takeRowsAbove } from '../../../test/platformRows';
+import { rowsAbove, printPlatformRowInALog } from '../../../test/platformRows';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -140,21 +140,22 @@ async function asyncUploadBuildAndRunTests({
   // build knows only its own platform. A build that is not the last says the other one is still
   // building on EAS.
   const otherPlatform: Platform = platform === 'android' ? 'ios' : 'android';
-  forgetPlatformRows();
-  recordPlatformRow({ platform, appBuild: 'built-on-eas' });
+  const platformRows = [printPlatformRowInALog({ platform, appBuild: 'built-on-eas' })];
 
   if (couldRunThisBuildRightNow) {
     if (getPlatformsToTest(startedRun?.devices ?? []).includes(otherPlatform)) {
-      recordPlatformRow({ platform: otherPlatform, appBuild: 'built-on-eas' });
+      platformRows.push(printPlatformRowInALog({ platform: otherPlatform, appBuild: 'built-on-eas' }));
     }
-    emit({ kind: 'test-started', buildIndex, ...startedRun, rowsAbove: takeRowsAbove() });
+    emit({ kind: 'test-started', buildIndex, ...startedRun, rowsAbove: rowsAbove(platformRows) });
   } else {
-    recordPlatformRow({ platform: otherPlatform, appBuild: 'still-building-on-eas' });
+    platformRows.push(
+      printPlatformRowInALog({ platform: otherPlatform, appBuild: 'still-building-on-eas' })
+    );
     emit({
       kind: 'run-waits-for-builds',
       buildIndex,
       waitingFor: { easBuild: otherPlatform },
-      rowsAbove: takeRowsAbove(),
+      rowsAbove: rowsAbove(platformRows),
     });
   }
   emit({ kind: 'results-url', url });

@@ -20,10 +20,11 @@
  * `*`, `?` and `**`. The build task swaps it for the `ignore` package, the matcher EAS itself uses,
  * so Sherlo's answer and EAS's can never differ. Draft words, for the content department's review.
  */
-import fs from 'fs';
 import path from 'path';
 import { SHERLO_TEMP_DATA_FILENAME, SHERLO_TEMP_DIRECTORY } from '../../../constants';
 import { throwError } from '../../../helpers';
+import { readProjectJson } from '../../../helpers/projectJson';
+import { appBuilder } from '../../../seams/appBuilder';
 
 /** The file EAS reads instead of every `.gitignore` when the repository has one at its root. */
 const EAS_IGNORE_FILE = '.easignore';
@@ -36,12 +37,12 @@ const HAND_OVER_FILE = `${SHERLO_TEMP_DIRECTORY}/${SHERLO_TEMP_DATA_FILENAME}`;
 export function refuseWhenEasLeavesTheHandOverOut(projectRoot: string): void {
   refuseWhenEasUploadsOnlyCommittedFiles(projectRoot);
 
-  const repositoryRoot = repositoryRootOf(projectRoot);
-  const handOverFromTheRoot = toPosix(path.relative(repositoryRoot, path.join(projectRoot, HAND_OVER_FILE)));
+  const easUploadRoot = appBuilder().easUploadRoot(projectRoot);
+  const handOverFromTheRoot = toPosix(path.relative(easUploadRoot, path.join(projectRoot, HAND_OVER_FILE)));
 
-  const easIgnorePath = path.join(repositoryRoot, EAS_IGNORE_FILE);
-  if (fs.existsSync(easIgnorePath)) {
-    const line = lineThatIgnores(fs.readFileSync(easIgnorePath, 'utf8'), handOverFromTheRoot);
+  const easIgnore = appBuilder().readEasUploadFile({ easUploadRoot, fileFromTheRoot: EAS_IGNORE_FILE });
+  if (easIgnore !== undefined) {
+    const line = lineThatIgnores(easIgnore, handOverFromTheRoot);
     if (line === undefined) return;
 
     throwError({
@@ -52,8 +53,8 @@ export function refuseWhenEasLeavesTheHandOverOut(projectRoot: string): void {
     });
   }
 
-  for (const gitIgnore of gitIgnoresAbove(repositoryRoot, handOverFromTheRoot)) {
-    const line = lineThatIgnores(fs.readFileSync(path.join(repositoryRoot, gitIgnore.file), 'utf8'), gitIgnore.handOverFromHere);
+  for (const gitIgnore of gitIgnoresAbove(easUploadRoot, handOverFromTheRoot)) {
+    const line = lineThatIgnores(gitIgnore.contents, gitIgnore.handOverFromHere);
     if (line === undefined) continue;
 
     throwError({
@@ -67,14 +68,8 @@ export function refuseWhenEasLeavesTheHandOverOut(projectRoot: string): void {
 
 /** `cli.requireCommit` makes EAS upload committed files only, and the hand-over file never is one. */
 function refuseWhenEasUploadsOnlyCommittedFiles(projectRoot: string): void {
-  let requireCommit: unknown;
-  try {
-    requireCommit = JSON.parse(fs.readFileSync(path.join(projectRoot, 'eas.json'), 'utf8')).cli?.requireCommit;
-  } catch {
-    // No eas.json, or one that cannot be read: nothing requires a commit.
-  }
-
-  if (requireCommit !== true) return;
+  // No eas.json, or one that cannot be read: nothing requires a commit.
+  if (readProjectJson(projectRoot, 'eas.json')?.cli?.requireCommit !== true) return;
 
   throwError({
     message:
@@ -84,34 +79,25 @@ function refuseWhenEasUploadsOnlyCommittedFiles(projectRoot: string): void {
   });
 }
 
-/** The folder EAS packs from: the git repository's root, or the project itself outside git. */
-function repositoryRootOf(projectRoot: string): string {
-  let folder = path.resolve(projectRoot);
-  while (true) {
-    if (fs.existsSync(path.join(folder, '.git'))) return folder;
-    const parent = path.dirname(folder);
-    if (parent === folder) return path.resolve(projectRoot);
-    folder = parent;
-  }
-}
-
 /**
  * Every `.gitignore` that can touch the hand-over file - the ones in the folders from the repository's
- * root down to `.sherlo/` itself - with the hand-over file's path as seen from each, root first.
+ * root down to `.sherlo/` itself - with what it says and the hand-over file's path as seen from it,
+ * root first.
  */
 function gitIgnoresAbove(
-  repositoryRoot: string,
+  easUploadRoot: string,
   handOverFromTheRoot: string
-): Array<{ file: string; handOverFromHere: string }> {
+): Array<{ file: string; contents: string; handOverFromHere: string }> {
   const folders = handOverFromTheRoot.split('/').slice(0, -1);
-  const found: Array<{ file: string; handOverFromHere: string }> = [];
+  const found: Array<{ file: string; contents: string; handOverFromHere: string }> = [];
 
   for (let depth = 0; depth <= folders.length; depth += 1) {
     const folder = folders.slice(0, depth).join('/');
     const file = folder === '' ? GIT_IGNORE_FILE : `${folder}/${GIT_IGNORE_FILE}`;
-    if (!fs.existsSync(path.join(repositoryRoot, file))) continue;
+    const contents = appBuilder().readEasUploadFile({ easUploadRoot, fileFromTheRoot: file });
+    if (contents === undefined) continue;
 
-    found.push({ file, handOverFromHere: folders.slice(depth).concat(SHERLO_TEMP_DATA_FILENAME).join('/') });
+    found.push({ file, contents, handOverFromHere: folders.slice(depth).concat(SHERLO_TEMP_DATA_FILENAME).join('/') });
   }
 
   return found;

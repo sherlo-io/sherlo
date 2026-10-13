@@ -88,6 +88,11 @@ export const INIT_COMMAND = 'init';
 export const TEST_COMMAND = 'test';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
+/**
+ * The package.json script Expo runs when an EAS build is cancelled. It runs
+ * `sherlo eas-build-on-complete` too, which tells the two apart by the script it was run as.
+ */
+export const EAS_BUILD_ON_CANCEL_SCRIPT = 'eas-build-on-cancel';
 export const SHOW_ERROR_COMMAND = 'show-error';
 export const FINGERPRINT_COMMAND = 'fingerprint';
 export const VIEW_COMMAND = 'view';
