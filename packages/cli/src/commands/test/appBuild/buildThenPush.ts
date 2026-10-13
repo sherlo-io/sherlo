@@ -28,8 +28,7 @@ import type {
   BaseFingerprints,
 } from '../../../helpers/fingerprint/baseFingerprint';
 import type { SplitJob } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
-import type { ChangesSinceStoredBuild, WhyANewAppBuild } from '../../../render/appBuild';
-import { appBuilder } from '../../../seams/appBuilder';
+import type { WhyANewAppBuild } from '../../../render/appBuild';
 import type { Options } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 import type { StagedGateRefusal } from '../stagedGateRefusal';
@@ -43,7 +42,7 @@ import {
 } from './buildSettings';
 import { ciRunKey } from './ciRun';
 import { easRun } from './easRun';
-import { foldersStoredFileByFile, nativeChangesSince } from './nativeChanges';
+import { changesSinceStoredBuild } from './nativeChanges';
 
 /** Build what the gate refused, then run the standard road on the fresh app builds. */
 export async function buildThenPush({
@@ -210,31 +209,10 @@ async function whyANewAppBuild({
   return {
     reason: 'native-changed',
     storedBuildIndex: storedIn,
-    ...(await changesSinceStoredBuildOf(refusal, fingerprintPreimage, projectRoot)),
-  };
-}
-
-/**
- * What changed since the stored app build, when the gate handed back its source list and this
- * run knows its own: nothing to say otherwise, and the build line gives only its reason. When the
- * stored list keeps a native folder's files, this run hashes its own files in that folder too, so
- * the list names the file that changed rather than the folder.
- */
-async function changesSinceStoredBuildOf(
-  refusal: StagedGateRefusal,
-  fingerprintPreimage: BaseFingerprintPreimage | undefined,
-  projectRoot: string
-): Promise<{ changesSince?: ChangesSinceStoredBuild }> {
-  if (!refusal.storedBase || !fingerprintPreimage) return {};
-
-  const folders = foldersStoredFileByFile(refusal.storedBase);
-  const thisRunFolderFiles =
-    folders.length > 0 ? await appBuilder().hashNativeFolderFiles({ projectRoot, folders }) : [];
-
-  return {
-    changesSince: {
-      storedBuildIndex: refusal.storedBase.buildIndex,
-      changes: nativeChangesSince(refusal.storedBase, fingerprintPreimage, thisRunFolderFiles),
-    },
+    ...(await changesSinceStoredBuild({
+      storedBase: refusal.storedBase,
+      fingerprintPreimage,
+      projectRoot,
+    })),
   };
 }

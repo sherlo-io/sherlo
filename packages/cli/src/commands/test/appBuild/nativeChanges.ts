@@ -18,7 +18,8 @@
  * stored without its files is compared as one entry, as before.
  */
 import type { BaseFingerprintPreimage } from '../../../helpers/fingerprint/baseFingerprint';
-import type { NativeChange } from '../../../render/appBuild';
+import type { ChangesSinceStoredBuild, NativeChange } from '../../../render/appBuild';
+import { appBuilder } from '../../../seams/appBuilder';
 import type { NativeFolderFile, StoredBaseSources } from '../../../seams/serverCalls';
 import {
   autolinkedAsPackages,
@@ -115,6 +116,35 @@ export function nativeChangesSince(
       fileChange({ ...entry, name: settingName(entry.name) })
     ),
   ];
+}
+
+/**
+ * What changed since the stored app build, when the gate handed back its source list and this
+ * run knows its own: nothing to say otherwise, and the build line gives only its reason. When the
+ * stored list keeps a native folder's files, this run hashes its own files in that folder too, so
+ * the list names the file that changed rather than the folder.
+ */
+export async function changesSinceStoredBuild({
+  storedBase,
+  fingerprintPreimage,
+  projectRoot,
+}: {
+  storedBase: StoredBaseSources | undefined;
+  fingerprintPreimage: BaseFingerprintPreimage | undefined;
+  projectRoot: string;
+}): Promise<{ changesSince?: ChangesSinceStoredBuild }> {
+  if (!storedBase || !fingerprintPreimage) return {};
+
+  const folders = foldersStoredFileByFile(storedBase);
+  const thisRunFolderFiles =
+    folders.length > 0 ? await appBuilder().hashNativeFolderFiles({ projectRoot, folders }) : [];
+
+  return {
+    changesSince: {
+      storedBuildIndex: storedBase.buildIndex,
+      changes: nativeChangesSince(storedBase, fingerprintPreimage, thisRunFolderFiles),
+    },
+  };
 }
 
 function fileChange(entry: DeltaEntry): NativeChange {
