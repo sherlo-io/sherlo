@@ -109,11 +109,8 @@ type DiffScopeInfoWithPlatformReasons = {
 // ---------------------------------------------------------------------------
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
-  // 1. Validate params (no platform binary paths required - bundle only).
-  const commandParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions },
-    { requirePlatformPaths: false }
-  );
+  // 1. Validate params.
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // The two bundle-supply roads. They are opposites and only one can run, so the
   // combination is refused rather than resolved by precedence - a caller who passed

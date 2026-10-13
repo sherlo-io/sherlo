@@ -76,10 +76,7 @@ export async function buildThenPush({
     refusals,
   });
 
-  const commandParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions },
-    { requirePlatformPaths: false }
-  );
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
   const settings = readBuildSettings(commandParams);
 
   // EAS MODE: the refused platforms are built on Expo's servers, and the run waits for them.
@@ -132,10 +129,10 @@ export async function buildThenPush({
   // developer gets by passing the paths themselves, so nothing below this line knows who built
   // them. A mixed run hands the spine only the built platforms' paths; its config still names
   // every device, so the test's row names the whole test's devices.
-  const pushParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions: { ...passedOptions, ...appBuildPaths } },
-    { requirePlatformPaths: platformsOnStoredBuild.length === 0 }
-  );
+  const pushParams = getValidatedCommandParams({
+    command: THIS_COMMAND,
+    passedOptions: { ...passedOptions, ...appBuildPaths },
+  });
 
   const joinKey = splitRunKeyOf(passedOptions);
   if (!joinKey && platformsOnStoredBuild.length === 0) {

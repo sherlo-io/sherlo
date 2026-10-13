@@ -26,16 +26,10 @@ import {
 async function testEasCloudBuild(passedOptions: Options<THIS_COMMAND>) {
   printSherloIntro();
 
-  const commandParams = getValidatedCommandParams(
-    { command: TEST_EAS_CLOUD_BUILD_COMMAND, passedOptions },
-    {
-      /*
-       * We don't require platform paths here because builds are uploaded later
-       * from Expo servers using the easBuildOnComplete command
-       */
-      requirePlatformPaths: false,
-    }
-  );
+  const commandParams = getValidatedCommandParams({
+    command: TEST_EAS_CLOUD_BUILD_COMMAND,
+    passedOptions,
+  });
 
   validatePackageJsonScripts(commandParams);
 
