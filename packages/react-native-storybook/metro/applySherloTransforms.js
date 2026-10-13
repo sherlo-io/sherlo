@@ -12,6 +12,7 @@ var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
+var handOverFilePath = require('./projectPaths').handOverFilePath;
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -872,8 +873,11 @@ function applySherloTransforms(result, opts) {
   // The manifest is emitted on the test:bundled bundling path ONLY: the CLI sets
   // SHERLO_MODULE_MANIFEST=1 in the bundler subprocess it spawns, scoping emission
   // to that one child process so every normal build / every other user is
-  // unaffected. INDEPENDENT of opts.enabled.
-  var moduleManifestEnabled = process.env.SHERLO_MODULE_MANIFEST === '1';
+  // unaffected. On Expo's cloud nothing sets that variable, so a project that holds Sherlo's
+  // hand-over file (written by `sherlo test` in EAS mode, uploaded with the project) switches it
+  // on too. INDEPENDENT of opts.enabled.
+  var moduleManifestEnabled =
+    process.env.SHERLO_MODULE_MANIFEST === '1' || fs.existsSync(handOverFilePath(projectRoot));
 
   // Off the bundling path the manifest is never emitted, so there is nothing for
   // the serializer wrapper to do. Skip installing it entirely - Sherlo does not
