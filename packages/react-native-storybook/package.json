@@ -87,7 +87,7 @@
     "prepack": "node scripts/packSealedCore.js && yarn build:metro",
     "core:pin": "node scripts/pinCore.js",
     "dev": "yarn build --watch",
-    "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint --ext .ts,.tsx src",
+    "lint": "yarn run -T oxlint -c ../../.oxlintrc.json src && yarn run -T prettier --check 'src/**/*.{ts,tsx}'",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "dependencies": {

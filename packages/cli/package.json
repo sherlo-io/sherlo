@@ -38,7 +38,7 @@
     "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
     "check:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts --check",
     "generate:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts",
-    "lint": "NODE_ENV=production yarn run -T eslint --cache --cache-location=.cache/eslint --ext .ts,.tsx,.mjs src ../../actions/lib",
+    "lint": "yarn run -T oxlint -c ../../.oxlintrc.json src ../../actions/lib && yarn run -T prettier --check 'src/**/*.{ts,tsx}' '../../actions/lib/**/*.mjs'",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "dependencies": {
