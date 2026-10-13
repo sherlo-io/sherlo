@@ -6,6 +6,7 @@ on:
       - main
       - feature/sherlo-3
       - epic/**
+  workflow_dispatch:
 
 jobs:
   package-checks:
@@ -110,7 +111,8 @@ jobs:
 
       - name: Check out sherlo-tester (byte-ratchet fixtures)
         if: matrix.package.name == 'cli'
-        run: ./scripts/checkout-tester.sh "$GITHUB_BASE_REF" "${{ runner.temp }}/sherlo-tester"
+        # A run started by hand has no PR base, so it compares against the branch it runs on.
+        run: ./scripts/checkout-tester.sh "${GITHUB_BASE_REF:-$GITHUB_REF_NAME}" "${{ runner.temp }}/sherlo-tester"
         env:
           TESTER_CLONE_TOKEN: ${{ steps.tester_token.outputs.token }}
 
