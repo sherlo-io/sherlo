@@ -15,8 +15,9 @@
  * push takes.
  *
  * Sherlo 2 also took `--token` and a `token` in the config. The flag is refused before the command
- * runs (refuseTokenFlag in ../../../start); the config key is refused here, in the same words,
- * before anything is read off it - a credential ignored in silence would push somewhere its author
+ * runs (refuseTokenFlag in ../../../start), and again here for a caller that reaches this resolver
+ * another way; the config key is refused here, in the same words, before anything is read off it
+ * - a credential ignored in silence would push somewhere its author
  * did not mean.
  */
 import { TEAM_ID_LENGTH } from '@sherlo/shared';
@@ -34,10 +35,16 @@ import throwError from '../../throwError';
 /** The variable CI keeps the project token in. */
 const PROJECT_TOKEN_ENV_VAR = 'SHERLO_TOKEN';
 
-function resolvePushCredential(command: string, config: InvalidatedConfig): PushCredential {
-  // The config file is JSON a person wrote, so its `token` may be anything at all - and whatever it
-  // is, it is refused, never read.
-  if ((config as { token?: unknown }).token !== undefined) throwError(renderTokenGone(command));
+function resolvePushCredential(
+  command: string,
+  config: InvalidatedConfig,
+  passedOptions: { token?: string } = {}
+): PushCredential {
+  // `--token` and the config's `token` are both refused, never read. The config file is JSON a
+  // person wrote, so its `token` may be anything at all.
+  if (passedOptions.token !== undefined || (config as { token?: unknown }).token !== undefined) {
+    throwError(renderTokenGone(command));
+  }
 
   const projectToken = process.env[PROJECT_TOKEN_ENV_VAR];
 
