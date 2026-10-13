@@ -539,6 +539,8 @@ function refuseBinaryPathFlags(options: { [ANDROID_OPTION]?: string; [IOS_OPTION
 // `sherlo build` builds the app into the local build cache and pushes nothing, so a later
 // `sherlo test` - in this job or a later one that restores the cache - compiles nothing.
 // `withTimeout: false`: a release build is the slowest thing the tool does, and it ends on its own.
+// Hidden from `--help`: kept for Sherlo's own end-to-end tests, not offered to customers (operator
+// ruling 2026-10-13, Q12) - Sherlo's servers already keep each project's app builds.
 function addBuildCommand(program: Command) {
   addCommand({
     program,
@@ -552,6 +554,7 @@ function addBuildCommand(program: Command) {
       return build(options);
     },
     withTimeout: false,
+    hidden: true,
   });
 }
 
@@ -794,6 +797,7 @@ function addCommand({
   options,
   action: handler,
   withTimeout = true,
+  hidden = false,
 }: {
   program: Command;
   command: keyof typeof COMMAND_DESCRIPTION;
@@ -801,6 +805,8 @@ function addCommand({
   options: (keyof typeof OPTION_DEFINITION)[];
   action: (options: any) => Promise<any>;
   withTimeout?: boolean;
+  /** Runs, but is not listed in `--help`. */
+  hidden?: boolean;
 }) {
   const action = async (actionOptions: any, commandInstance: Command) => {
     if (oldCommand && commandInstance.name() === oldCommand) {
@@ -822,7 +828,7 @@ function addCommand({
     deprecatedCommand.action(action);
   }
 
-  const commandInstance = program.command(command).description(COMMAND_DESCRIPTION[command]);
+  const commandInstance = program.command(command, { hidden }).description(COMMAND_DESCRIPTION[command]);
   addOptionsToCommand(commandInstance, options);
   commandInstance.action(action);
   return commandInstance;
@@ -863,9 +869,21 @@ function setReportingContext(command: string, options: any) {
   reporting.setContext('Command', { command, commandOptions });
 }
 
+/**
+ * Options that work but are not listed in `--help`: the local build cache is kept quietly, for
+ * Sherlo's own end-to-end tests and the rebuild a failed run would otherwise cost (operator ruling
+ * 2026-10-13, Q12).
+ */
+const OPTIONS_HIDDEN_FROM_HELP = new Set<keyof typeof OPTION_DEFINITION>([BUILD_CACHE_OPTION]);
+
 function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_DEFINITION)[]) {
   optionKeys.forEach((optionKey) => {
-    command.option(...OPTION_DEFINITION[optionKey]);
+    if (!OPTIONS_HIDDEN_FROM_HELP.has(optionKey)) {
+      command.option(...OPTION_DEFINITION[optionKey]);
+      return;
+    }
+    const [flags, description] = OPTION_DEFINITION[optionKey];
+    command.addOption(new Option(flags, description).hideHelp());
   });
 }
 
