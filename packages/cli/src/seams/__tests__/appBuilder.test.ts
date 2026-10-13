@@ -240,6 +240,20 @@ describe('app builder, Android', () => {
     expect(fs.readFileSync(path.join(earlier, 'first.apk'), 'utf8')).toBe('earlier');
   });
 
+  it("a cache hit marks the build's folder as just used", async () => {
+    const buildFolder = path.join(cacheDir, 'android-old-key');
+    fs.mkdirSync(buildFolder, { recursive: true });
+    fs.writeFileSync(path.join(buildFolder, 'old.apk'), 'apk bytes');
+    const longAgo = new Date('2020-01-01T00:00:00Z');
+    fs.utimesSync(buildFolder, longAgo, longAgo);
+    await liveBuilder().findCachedBuild({
+      platform: 'android',
+      cacheKey: 'android-old-key',
+      cacheDir,
+    });
+    expect(fs.statSync(buildFolder).mtimeMs).toBeGreaterThan(Date.now() - 60_000);
+  });
+
   it('a run that reaches the app builder with no appBuild in the pose is refused before anything on this machine is looked at', async () => {
     const builder = posedAppBuilder(undefined);
     await expect(builder.hasTool('android-sdk')).rejects.toThrow('states no `appBuild`');
@@ -250,10 +264,189 @@ describe('app builder, Android', () => {
 });
 
 describe('app builder, iOS', () => {
-  it.todo('builds iOS with xcodebuild in Release for the arm64 simulator, with code signing off');
-  it.todo("builds iOS with Xcode's compilation cache on in Xcode's own folder, and no dSYM");
-  it.todo("finds the iOS app build through xcodebuild's build settings, never by scanning");
-  it.todo('runs pod install before every iOS build, with SHERLO_BUILD set to storybook');
-  it.todo('warns once when pod install changes files the project does not commit');
-  it.todo("switches expo-updates off in the built iOS app's Expo.plist");
+  /** Where the fake Xcode says it builds the app: outside the project, in Xcode's own folder. */
+  let xcodeProductsDir: string;
+  /** Whether git tracks and holds the files pod install writes. */
+  let gitHoldsPodFiles: boolean;
+  /** What the fake `pod install` writes to Podfile.lock. */
+  let podfileLockAfterInstall: string;
+
+  /** The process runner of the iOS tests: it plays pod install, git, xcodebuild and plutil. */
+  const iosRunProcess: RunProcess = async (call) => {
+    calls.push(call);
+    // The shipped runner makes the log's folder.
+    fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+    const lockPath = path.join(call.cwd, 'Podfile.lock');
+    if (call.command === 'pod' || call.args[0] === 'exec') {
+      fs.writeFileSync(lockPath, podfileLockAfterInstall);
+      return 0;
+    }
+    if (call.command === 'git') return gitHoldsPodFiles ? 0 : 1;
+    if (call.command === 'xcodebuild' && call.args.includes('-showBuildSettings')) {
+      fs.writeFileSync(
+        call.logPath,
+        `warning: something\n${JSON.stringify([
+          { target: 'Pods', buildSettings: { WRAPPER_NAME: 'Pods.framework' } },
+          {
+            target: 'App',
+            buildSettings: { TARGET_BUILD_DIR: xcodeProductsDir, WRAPPER_NAME: 'App.app' },
+          },
+        ])}`
+      );
+      return 0;
+    }
+    if (call.command === 'xcodebuild') {
+      fs.mkdirSync(path.join(xcodeProductsDir, 'App.app'), { recursive: true });
+      fs.writeFileSync(path.join(xcodeProductsDir, 'App.app/Expo.plist'), 'plist');
+      fs.writeFileSync(path.join(xcodeProductsDir, 'App.app/App'), 'binary bytes');
+    }
+    return 0;
+  };
+
+  function compileIos(
+    extra: Partial<Parameters<AppBuilder['compile']>[0]> = {},
+    runProcess: RunProcess = iosRunProcess
+  ) {
+    return makeLiveAppBuilder(runProcess).compile({
+      platform: 'ios',
+      projectRoot,
+      env: {},
+      logPath: '.sherlo/build-ios.log',
+      ios: { scheme: 'App', configuration: 'Release' },
+      ...extra,
+    });
+  }
+
+  function callsOf(command: string): ProcessCall[] {
+    return calls.filter((call) => call.command === command);
+  }
+
+  /** The build, as opposed to the question about its settings. */
+  function xcodebuildBuildCall(): ProcessCall {
+    const call = callsOf('xcodebuild').find((candidate) => candidate.args.includes('build'));
+    if (!call) throw new Error('xcodebuild never built');
+    return call;
+  }
+
+  beforeEach(() => {
+    fs.rmSync(path.join(projectRoot, 'android'), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, 'ios/App.xcworkspace'), { recursive: true });
+    xcodeProductsDir = path.join(projectRoot, 'xcode-products');
+    gitHoldsPodFiles = false;
+    podfileLockAfterInstall = 'PODS: one';
+  });
+
+  it('builds iOS with xcodebuild in Release for the arm64 simulator, with code signing off', async () => {
+    await compileIos();
+    const { args, cwd } = xcodebuildBuildCall();
+    expect(cwd).toBe(path.join(projectRoot, 'ios'));
+    expect(args).toEqual(expect.arrayContaining(['-workspace', 'App.xcworkspace']));
+    expect(args).toEqual(expect.arrayContaining(['-scheme', 'App']));
+    expect(args).toEqual(expect.arrayContaining(['-configuration', 'Release']));
+    expect(args).toEqual(expect.arrayContaining(['-sdk', 'iphonesimulator']));
+    expect(args).toContain('ARCHS=arm64');
+    expect(args).toContain('CODE_SIGNING_ALLOWED=NO');
+    // A derived data path would move Xcode's compilation cache out of its own folder.
+    expect(args).not.toContain('-derivedDataPath');
+  });
+
+  it("builds iOS with Xcode's compilation cache on in Xcode's own folder, and no dSYM", async () => {
+    await compileIos();
+    const { args } = xcodebuildBuildCall();
+    expect(args).toContain('COMPILATION_CACHE_ENABLE_CACHING=YES');
+    expect(args).toContain('DEBUG_INFORMATION_FORMAT=dwarf');
+    expect(args.join(' ')).not.toMatch(/COMPILATION_CACHE_CAS_PATH|SWIFT_ENABLE_EXPLICIT_MODULES/);
+  });
+
+  it("finds the iOS app build through xcodebuild's build settings, never by scanning", async () => {
+    const result = await compileIos();
+    const settingsCall = callsOf('xcodebuild').find((call) =>
+      call.args.includes('-showBuildSettings')
+    );
+    expect(settingsCall?.args).toContain('-json');
+    // Asked with the arguments of the build, so it answers for the same build.
+    for (const argument of xcodebuildBuildCall().args.filter((arg) => arg !== 'build')) {
+      expect(settingsCall?.args).toContain(argument);
+    }
+    expect(result).toMatchObject({ ok: true, path: path.join(xcodeProductsDir, 'App.app') });
+  });
+
+  it('runs pod install before every iOS build, with SHERLO_BUILD set to storybook', async () => {
+    fs.writeFileSync(path.join(projectRoot, 'Gemfile'), "gem 'cocoapods', '~> 1.15'\n");
+    await compileIos({ env: { FROM_CONFIG: 'config' } });
+    await compileIos();
+    const installs = calls.filter((call) => call.args.includes('install'));
+    expect(installs).toHaveLength(2);
+    // The Gemfile names cocoapods, so it runs through bundler.
+    expect(installs[0]).toMatchObject({ command: 'bundle', args: ['exec', 'pod', 'install'] });
+    expect(installs[0].cwd).toBe(path.join(projectRoot, 'ios'));
+    expect(installs[0].env).toMatchObject({ SHERLO_BUILD: 'storybook', FROM_CONFIG: 'config' });
+    // With no locale in the environment, CocoaPods gets a UTF-8 one.
+    const withoutLocale = installs[0].env;
+    if (!process.env.LANG && !process.env.LC_ALL) expect(withoutLocale.LANG).toBe('en_US.UTF-8');
+    expect(calls.indexOf(installs[0])).toBeLessThan(calls.indexOf(xcodebuildBuildCall()));
+  });
+
+  it('runs plain pod install when no Gemfile names cocoapods', async () => {
+    await compileIos();
+    expect(callsOf('pod')).toHaveLength(1);
+    expect(callsOf('bundle')).toHaveLength(0);
+  });
+
+  it('warns once when pod install changes files the project does not commit', async () => {
+    const builder = makeLiveAppBuilder(iosRunProcess);
+    const compile = () =>
+      builder.compile({
+        platform: 'ios',
+        projectRoot,
+        env: {},
+        logPath: '.sherlo/build-ios.log',
+        ios: { scheme: 'App', configuration: 'Release' },
+      });
+    // The first build writes a Podfile.lock git does not hold: the seam names it.
+    expect(await compile()).toMatchObject({ ok: true, podFilesChanged: ['ios/Podfile.lock'] });
+    // The next install changes nothing, so it names nothing.
+    expect(await compile()).toMatchObject({ ok: true, podFilesChanged: [] });
+    // A change git holds is named by nobody.
+    podfileLockAfterInstall = 'PODS: two';
+    gitHoldsPodFiles = true;
+    expect(await compile()).toMatchObject({ ok: true, podFilesChanged: [] });
+  });
+
+  it("switches expo-updates off in the built iOS app's Expo.plist", async () => {
+    await compileIos();
+    const plutil = callsOf('plutil');
+    expect(plutil).toHaveLength(1);
+    expect(plutil[0].args).toEqual([
+      '-replace',
+      'EXUpdatesEnabled',
+      '-bool',
+      'NO',
+      path.join(xcodeProductsDir, 'App.app/Expo.plist'),
+    ]);
+  });
+
+  it('leaves an app with no Expo.plist as it is', async () => {
+    const withoutPlist: RunProcess = async (call) => {
+      const exitCode = await iosRunProcess(call);
+      fs.rmSync(path.join(xcodeProductsDir, 'App.app/Expo.plist'), { force: true });
+      return exitCode;
+    };
+    expect(await compileIos({}, withoutPlist)).toMatchObject({ ok: true });
+    expect(callsOf('plutil')).toHaveLength(0);
+  });
+
+  it('answers a failed build with the last lines xcodebuild wrote', async () => {
+    const failing: RunProcess = async (call) => {
+      if (call.command !== 'xcodebuild') return iosRunProcess(call);
+      calls.push(call);
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      fs.appendFileSync(call.logPath, '** BUILD FAILED **\n');
+      return 65;
+    };
+    expect(await compileIos({}, failing)).toMatchObject({
+      ok: false,
+      lastLines: ['** BUILD FAILED **'],
+    });
+  });
 });
