@@ -82,8 +82,7 @@ const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
  * The per-platform Diff Scope decision the server records at openBuild, read
  * forward-compatibly off the openBuild response (SHERLO-1915). Two fields are
  * involved and BOTH are declared locally + read defensively, the same pattern as
- * the `manifestS3Key` bridge in ./uploadBundles and the optional
- * `computeDiffScopeDryRun` method - the published @sherlo/api-types this repo
+ * the `manifestS3Key` bridge in ./uploadBundles - the published @sherlo/api-types this repo
  * typechecks against does not carry them yet, so a cast to `any` is avoided in
  * favour of a precise local extension. Absent at runtime -> the live report
  * degrades cleanly (see below).

@@ -93,71 +93,12 @@ export function renderBuildViewStatus({
 }
 
 /* ========================================================================== */
-/* The old `── details ──` block's facts (`--metadata`, gone from `sherlo test`) */
-/* ========================================================================== */
-
-/*
- * DEBT, NAMED (epic sherlo-test-builds-apps, operator ruling 2026-10-12 Q4): `--metadata` left
- * `sherlo test`, so nothing builds or prints the details block any more. These two types stay only
- * because the `build-details` segment kind (./segments) is typed by them; stb-cli-render-sweep and
- * stb-cli-retire-show-error remove the kind, and these types with it.
- */
-
-/** The build's git identity, as the run that CREATED the build composed and sent it at openBuild. */
-export type BuildDetailsGitFacts = {
-  branchName: string;
-  commitHash: string;
-  /** Whether the working tree had uncommitted changes. Absent -> not captured. */
-  isDirty?: boolean;
-  /** The repository's default branch, as the run resolved it from the remote. */
-  defaultBranch?: string;
-};
-
-/**
- * Everything the details block can say about a build.
- *
- * Structurally a subset of the `getBuildStatus` wire shape plus the git facts
- * above, so the mapper that fills it (helpers/buildDetails) is a field lift and
- * not a translation - and so the render layer does not have to import from the
- * poll loop, which would be a cycle.
- */
-export type BuildDetails = {
-  git?: BuildDetailsGitFacts;
-  runStatus: string;
-  runError?: unknown;
-  showsOnlyBranchChanges?: boolean;
-  viewStatusesCount?: {
-    approved: number;
-    noChanges: number;
-    reported: number;
-    unreviewed: number;
-  };
-  diffScopeInfo?: {
-    capturedSnapshotCount?: number;
-    inheritedSnapshotCount?: number;
-  };
-  /**
-   * The Diff Scope block (view-metadata, operator ruling 2026-09-03) - the
-   * same shape `sherlo view --json` prints as `diffScope`, reused here so
-   * `sherlo test --wait --metadata` says the same thing about the same build.
-   * Absent on an older API (no `diffScope` field) or a gate-off build.
-   */
-  diffScope?: {
-    reason: string;
-    captured: string[];
-    inherited: string[];
-    ancestorBuildIndex: number | null;
-  };
-};
-
-/* ========================================================================== */
 /* `sherlo view --json`: the record (operator decision 2026-10-12)            */
 /* ========================================================================== */
 
 /**
  * One row of `stories[]`, exactly as `getBuildStatus` sends it and exactly as
- * the JSON prints it - a field lift, like {@link BuildDetails} above, never a
- * translation. `status` stays a plain string (not a narrowed union) for the
+ * the JSON prints it - a field lift, never a translation. `status` stays a plain string (not a narrowed union) for the
  * same reason it does on the wire type in helpers/waitForBuildResult: a status
  * this CLI has not learned yet must still pass through.
  */

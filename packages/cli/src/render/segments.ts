@@ -1,6 +1,6 @@
 /**
  * THE TRANSCRIPT SEGMENT UNION - what the CLI emits, before anyone decides where
- * it goes (SHERLO CLI render layer, slice S0a: the `--dry-run` family).
+ * it goes (SHERLO CLI render layer).
  *
  * A CLI transcript is not one string. The CLI prints PROGRESSIVELY - a developer
  * watches `🤖 Building android bundle...` while the bundler runs, and only then
@@ -26,8 +26,7 @@
 import { Platform } from '@sherlo/api-types';
 import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
-import type { BuildDetails, ViewJson, ViewStory } from './buildView';
-import type { DryRunPlatformPreview } from './dryRunPlan';
+import type { ViewJson, ViewStory } from './buildView';
 import type { ProjectCreated } from './projectCreated';
 import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
@@ -46,19 +45,14 @@ export type TranscriptStream = 'stdout' | 'stderr';
 /**
  * One printable block of a sherlo CLI transcript.
  *
- * Two families live here now - the `--dry-run` preview (slice S0a) and the PUSH
- * SPINE (slice S0b/F1), which is the transcript `sherlo test --android/--ios` emits and
- * the one every other family's preamble is a subset of. They share ONE union and
- * ONE renderer on purpose: the intro is the same intro, and a second union would
- * be a second place for a literal to drift.
+ * Every family shares ONE union and ONE renderer on purpose: the intro is the same intro, and a
+ * second union would be a second place for a literal to drift.
  */
 export type TranscriptSegment =
   /** The gradient wordmark, the tagline and the trailing blank line. */
   | { kind: 'intro' }
   /** `Testing your app...` - the line under the logo saying what the command is doing. See ./testSteps. */
   | { kind: 'command-intro'; command: IntroducedCommand }
-  /** `📦 Bundling for dry-run preview...`, wrapped in its own blank lines. */
-  | { kind: 'dry-run-bundling-header' }
   /**
    * `Bundling the JavaScript for 🤖 Android...` - a step in progress (./stepInProgress): a spinner
    * in a terminal, which simply goes when the bundle is made, and one plain line in a log.
@@ -101,24 +95,11 @@ export type TranscriptSegment =
   | { kind: 'platform-bundle-emitted'; platform: Platform; bundleDir: string; assetCount: number }
   /** `  ✗ <message>` - a bundling failure, already carrying its own fallback line. */
   | { kind: 'platform-bundle-failed'; message: string }
-  /** The whole `✔ Previewed the capture` plan plus the dry-run line under it. */
-  | { kind: 'dry-run-capture-plan'; previews: DryRunPlatformPreview[] }
   /** `Couldn't get git info <error>` - on stderr, the one degrade the family shows. */
   | { kind: 'git-info-unavailable'; error: unknown }
   /* ---------------------------------------------------------------------- *
    * THE PUSH SPINE (F1). The order below is the order a push prints them.   *
    * ---------------------------------------------------------------------- */
-  /**
-   * `✔ Set up Test 3              on 2 devices (Pixel 7, iPhone 15)`.
-   *
-   * It carries the DEVICE LIST, not the counts: counting is a rendering
-   * decision (which devices appear, in which order, singular or plural), and
-   * a scenario that could hand over "2 devices" could claim a count its own
-   * device list contradicts.
-   */
-  | { kind: 'run-header'; nextBuildIndex: number; devices: Config['devices'] }
-  /** The header of one platform's binary block. Prints nothing: the upload is a step in progress. */
-  | { kind: 'binary-platform-label'; platform: Platform }
   /**
    * `Uploading the 🤖 Android app build (61.4 MB)...` - a step in progress (./stepInProgress),
    * a spinner in a terminal that leaves no line, and one plain line in a log, printed BEFORE the
@@ -127,12 +108,6 @@ export type TranscriptSegment =
   | { kind: 'binary-uploading'; sizeMb: string; platform?: Platform }
   /** `   Upload failed (attempt 1 of 3), trying again...` - the per-attempt notice. */
   | { kind: 'binary-upload-retry'; attempt: number; maxRetries: number }
-  /**
-   * The server already held this app build, so nothing went up. It prints nothing: an upload is only a
-   * wait, and the step a person reads is the test it starts. `timeAgo` arrives already phrased because computing it reads
-   * the WALL CLOCK, which a renderer may not do - see helpers/.../getTimeAgo.
-   */
-  | { kind: 'binary-reused'; buildIndex: number; timeAgo: string }
   /**
    * `🤖 Android  ✔ Reused from Test 3` - one platform's row (./runRows), printed alone: in a log,
    * the moment the run knows it (../commands/test/platformRows), and as the whole of a `--platform`
@@ -180,8 +155,7 @@ export type TranscriptSegment =
    * With `testIndex`, the run did not wait for its verdict, and the link sits in init's `👉 Next
    * step` section with the command that waits for it. Without it, the link stands alone: the
    * ending of a run that waited, a split job whose run starts in the other job, or a print site
-   * that does not know the test yet (PLAN-LAYER DEBT: the push spine, helpers/printResultsUrl,
-   * which the build task teaches to pass the index).
+   * that does not know the test yet.
    *
    * `projectWithNoCiToken`, only beside `testIndex`: the section gets a second step, running Sherlo
    * on every pull request, linking this project's page. Set only on a person's terminal while the
@@ -363,13 +337,6 @@ export type TranscriptSegment =
       status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
       counts?: { approved: number; noChanges: number; reported: number; unreviewed: number };
     }
-  /**
-   * The old `── details ──` block. It prints nothing: `--metadata` left `sherlo test` (operator
-   * ruling 2026-10-12, Q4), and `sherlo view <n> --json` is the one read-back. Its only emitter,
-   * the wait loop's `metadata` parameter (helpers/waitForBuildResult), is unreachable now; the build
-   * task deletes both.
-   */
-  | { kind: 'build-details'; details: BuildDetails }
   /**
    * `sherlo view --json`'s WHOLE output (operator decision 2026-10-12): the
    * record, pretty-printed, and nothing around it - no header, no url line.

@@ -49,7 +49,6 @@ const mocks = vi.hoisted(() => {
     }),
     handleClientError: vi.fn(),
     logWarning: vi.fn(),
-    printResultsUrl: vi.fn(),
     uploadOrPrintBinaryReuse: vi.fn().mockResolvedValue(undefined),
     reporting: { addBreadcrumb: vi.fn() },
     getAppBuildUrl: vi.fn().mockReturnValue('https://app.sherlo.io/test/1'),
@@ -71,7 +70,6 @@ vi.mock('../../../../../helpers', () => ({
   getValidatedBinariesInfoAndNextBuildIndex: mocks.getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError: mocks.handleClientError,
   logWarning: mocks.logWarning,
-  printResultsUrl: mocks.printResultsUrl,
   uploadOrPrintBinaryReuse: mocks.uploadOrPrintBinaryReuse,
   reporting: mocks.reporting,
 }));

@@ -57,7 +57,7 @@ export type CommandPose = {
   git: PosedGit;
   /**
    * What bundling the app answers, per platform, for the commands that bundle (`sherlo test` on
-   * the staged road, `--dry-run`). `{}` for a command that never reaches the bundler - a refusal,
+   * the staged road). `{}` for a command that never reaches the bundler - a refusal,
    * a `view`, a `project create` - and a pose that supplies bundles to such a command is refused.
    * The story files are the closure keys the bundler reports, which is what Diff Scope diffs.
    */
@@ -89,7 +89,7 @@ export type CommandPose = {
    */
   masks: Record<string, string>;
   /**
-   * What a real push (`sherlo test --android <apk> [--ios <app>]`) read off the machine: the
+   * What a real push (`sherlo test`) read off the machine: the
    * binaries it was handed, the base fingerprint over the project's native inputs, and the clock.
    * THE ONE OPTIONAL FIELD, because only that road reads the machine - a refusal on it never gets
    * that far, and no other command opens a binary. A pose that states it for a command that never

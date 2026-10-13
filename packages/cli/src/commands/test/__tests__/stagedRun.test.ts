@@ -69,7 +69,6 @@ vi.mock('../../../helpers', async () => {
       throw error;
     }),
     logWarning: vi.fn(),
-    printResultsUrl: vi.fn(),
     printSherloIntro: vi.fn(),
     reporting: {
       flush: vi.fn().mockResolvedValue(undefined),
@@ -128,7 +127,6 @@ import {
   getGitInfo as _getGitInfo,
   getPlatformsToTest as _getPlatformsToTest,
   getValidatedCommandParams as _getValidatedCommandParams,
-  printResultsUrl as _printResultsUrl,
   printSherloIntro as _printSherloIntro,
   waitForBuildResult as _waitForBuildResult,
 } from '../../../helpers';
@@ -147,7 +145,6 @@ const mockGetBuildRunConfig = vi.mocked(_getBuildRunConfig);
 const mockGetGitInfo = vi.mocked(_getGitInfo);
 const mockGetPlatformsToTest = vi.mocked(_getPlatformsToTest);
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
-const mockPrintResultsUrl = vi.mocked(_printResultsUrl);
 const mockPrintSherloIntro = vi.mocked(_printSherloIntro);
 const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
@@ -309,7 +306,6 @@ describe('gitInfo parity with the standard road', () => {
     mockGetGitInfo.mockResolvedValue(GIT_INFO as any);
     mockOpenBuild.mockResolvedValue({ build: { index: 7 } });
     mockGetAppBuildUrl.mockReturnValue('http://app/build?x=1');
-    mockPrintResultsUrl.mockImplementation(() => {});
   });
 
   it('calls getGitInfo with projectRoot + branchOverride (same signature as the standard road)', async () => {

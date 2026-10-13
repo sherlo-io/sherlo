@@ -70,9 +70,9 @@ export type CommandPose = {
   git: PosedGit;
   /**
    * What bundling the app answers, per platform, for the commands that bundle (`sherlo test` on
-   * the staged road, `--dry-run`). `{}` for a command that never reaches the bundler - a refusal,
-   * a `view`, a `project create` - and a pose that supplies bundles to such a command is refused.
-   * The story files are the closure keys the bundler reports, which is what Diff Scope diffs.
+   * the staged road). `{}` for a command that never reaches the bundler - a refusal, a `view`, a
+   * `project create` - and a pose that supplies bundles to such a command is refused. The story
+   * files are the closure keys the bundler reports, which is what Diff Scope diffs.
    */
   bundles: Record<string, PosedBundle>;
   /**
@@ -102,12 +102,12 @@ export type CommandPose = {
    */
   masks: Record<string, string>;
   /**
-   * What a real push (`sherlo test --android <apk> [--ios <app>]`) read off the machine: the
-   * binaries it was handed, the base fingerprint over the project's native inputs, and the clock.
-   * THE ONE OPTIONAL FIELD, because only that road reads the machine - a refusal on it never gets
-   * that far, and no other command opens a binary. A pose that states it for a command that never
-   * reads a native build is refused; a push that reaches the machine with no `push` is refused at
-   * run time, exactly like a call the pose did not script.
+   * What a real push (`sherlo test`) read off the machine: the binaries it was handed, the base
+   * fingerprint over the project's native inputs, and the clock. THE ONE OPTIONAL FIELD, because
+   * only that road reads the machine - a refusal on it never gets that far, and no other command
+   * opens a binary. A pose that states it for a command that never reads a native build is
+   * refused; a push that reaches the machine with no `push` is refused at run time, exactly like a
+   * call the pose did not script.
    */
   push?: PosedPush;
   /**
@@ -351,14 +351,6 @@ export type ScriptedCall =
         runError: string;
       };
       answer: ApiError | Record<string, never>;
-    }
-  | {
-      call: 'computeDiffScopeDryRun';
-      with: {
-        branch: string;
-        commit: string;
-      };
-      answer: ApiError | DiffScopeDryRunAnswer;
     }
   | {
       /** A real push's first question: has the server seen these binaries, and which build is next. */
@@ -950,16 +942,6 @@ export type StartedRun = {
       title?: string;
       stories?: number;
     }>;
-  }>;
-};
-
-/** What the dry-run road's one read-only question answers. */
-export type DiffScopeDryRunAnswer = {
-  platforms: Array<{
-    platform: 'android' | 'ios';
-    isFullCapture: boolean;
-    reason: string;
-    capturedStoryFilePaths: string[];
   }>;
 };
 

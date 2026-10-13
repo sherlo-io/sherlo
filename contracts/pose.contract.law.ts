@@ -35,7 +35,6 @@ import type {
 } from '../packages/cli/src/seams/nativeBuild';
 import type { PosedFiles as CliPosedFiles } from '../packages/cli/src/seams/projectFiles';
 import type {
-  DiffScopeDryRunAnswer as CliDiffScopeDryRunAnswer,
   NextBuildInfoAnswer as CliNextBuildInfoAnswer,
   ScriptedCall as CliScriptedCall,
 } from '../packages/cli/src/seams/serverCalls';
@@ -45,7 +44,6 @@ import type { BuildStatus } from '../packages/cli/src/helpers/waitForBuildResult
 import type {
   BuildStatusAnswer,
   CommandPose,
-  DiffScopeDryRunAnswer,
   NextBuildInfoAnswer,
   PosedBinary,
   PosedBundle,
@@ -89,9 +87,6 @@ type CliMatchesScriptedCall = Assert<IsAssignable<CliScriptedCall, ScriptedCall>
 
 type PosedBundleMatchesCli = Assert<IsAssignable<PosedBundle, CliPosedBundle>>;
 type CliMatchesPosedBundle = Assert<IsAssignable<CliPosedBundle, PosedBundle>>;
-
-type DryRunAnswerMatchesCli = Assert<IsAssignable<DiffScopeDryRunAnswer, CliDiffScopeDryRunAnswer>>;
-type CliMatchesDryRunAnswer = Assert<IsAssignable<CliDiffScopeDryRunAnswer, DiffScopeDryRunAnswer>>;
 
 type PosedPushMatchesCli = Assert<IsAssignable<PosedPush, CliPosedPush>>;
 type CliMatchesPosedPush = Assert<IsAssignable<CliPosedPush, PosedPush>>;
@@ -141,8 +136,6 @@ export const POSE_CONTRACT_LAWS: [
   CliMatchesScriptedCall,
   PosedBundleMatchesCli,
   CliMatchesPosedBundle,
-  DryRunAnswerMatchesCli,
-  CliMatchesDryRunAnswer,
   PosedPushMatchesCli,
   CliMatchesPosedPush,
   PosedBinaryMatchesCli,
@@ -158,8 +151,6 @@ export const POSE_CONTRACT_LAWS: [
   PosedBuildMatchesWire,
   WireMatchesPosedBuild
 ] = [
-  true,
-  true,
   true,
   true,
   true,

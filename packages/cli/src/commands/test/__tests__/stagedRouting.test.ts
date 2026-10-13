@@ -41,7 +41,6 @@ vi.mock('../../../helpers', async () => {
       throw error;
     }),
     logWarning: vi.fn(),
-    printResultsUrl: vi.fn(),
     printSherloIntro: vi.fn(),
     reporting: {
       flush: vi.fn().mockResolvedValue(undefined),
