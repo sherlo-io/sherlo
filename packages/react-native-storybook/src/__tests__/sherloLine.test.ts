@@ -7,12 +7,12 @@
  * The line is mounted on a plain http server with `ws`'s own WebSocketServer, as the runner mounts
  * it; how the bundler mounts it is applySherloTransforms.test.ts's.
  */
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as http from 'http';
 import type { AddressInfo } from 'net';
 import * as os from 'os';
 import * as path from 'path';
-import * as ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SherloLine } from '../../metro/sherloLine';
 
@@ -153,33 +153,48 @@ function appSays(
 
 /**
  * Type-check `source` as a file of its own, with `ws`'s and Node's types in reach, and return what
- * TypeScript says about it. `yarn typecheck` skips tests, so a test makes this check itself.
+ * the TypeScript compiler (run as a program, `tsc`) says about it. `yarn typecheck` skips tests, so
+ * a test makes this check itself.
  */
 function typeErrorsIn(source: string): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-line-types-'));
-  const sourcePath = path.join(root, 'caller.ts');
-  fs.writeFileSync(sourcePath, source, 'utf8');
+  fs.writeFileSync(path.join(root, 'caller.ts'), source, 'utf8');
 
   const typesFolder = path.dirname(path.dirname(require.resolve('@types/ws/package.json')));
-  const program = ts.createProgram([sourcePath], {
-    noEmit: true,
-    strict: true,
-    esModuleInterop: true,
-    target: ts.ScriptTarget.ES2018,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Node10,
-    skipLibCheck: true,
-    typeRoots: [typesFolder],
-    types: ['node'],
-    baseUrl: root,
-    paths: { ws: [path.join(typesFolder, 'ws')] },
-  });
-  const diagnostics = ts.getPreEmitDiagnostics(program);
-  fs.rmSync(root, { recursive: true, force: true });
+  fs.writeFileSync(
+    path.join(root, 'tsconfig.json'),
+    JSON.stringify({
+      files: ['caller.ts'],
+      compilerOptions: {
+        noEmit: true,
+        strict: true,
+        esModuleInterop: true,
+        target: 'ES2018',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        skipLibCheck: true,
+        typeRoots: [typesFolder],
+        types: ['node'],
+        paths: { ws: [path.join(typesFolder, 'ws')] },
+      },
+    }),
+    'utf8'
+  );
 
-  return diagnostics
-    .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '))
-    .join('\n');
+  const compilerFile = path.join(
+    path.dirname(require.resolve('typescript/package.json')),
+    'bin/tsc'
+  );
+  try {
+    execFileSync(process.execPath, [compilerFile, '--project', root, '--pretty', 'false'], {
+      encoding: 'utf8',
+    });
+    return '';
+  } catch (failure) {
+    return (failure as { stdout: string }).stdout;
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 }
 
 const LINE_MODULE = path.resolve(__dirname, '../../metro/sherloLine');
