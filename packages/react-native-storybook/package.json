@@ -108,10 +108,11 @@
     "@types/utf8": "^3.0.1",
     "@vercel/ncc": "latest",
     "esbuild": "^0.25.0",
+    "react": "^19.2.3",
     "react-native-safe-area-context": "4.11.0",
     "storybook": "^9.1.20",
     "terser": "^5.46.0",
-    "typescript": "^5.3.3",
+    "typescript": "7.0.2",
     "vitest": "^5.0.4"
   },
   "peerDependencies": {
