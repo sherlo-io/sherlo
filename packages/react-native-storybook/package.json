@@ -98,7 +98,7 @@
     "utf8": "3.0.0"
   },
   "devDependencies": {
-    "@sherlo-io/time-limits": "^1.2.1",
+    "@sherlo-io/time-limits": "^1.2.2",
     "@storybook/react-native": "9.1.4",
     "@types/base-64": "^1.0.0",
     "@types/react": "^18.2.0",
@@ -109,7 +109,7 @@
     "storybook": "^9.1.20",
     "terser": "^5.46.0",
     "typescript": "^5.3.3",
-    "vitest": "^4.0.0"
+    "vitest": "^5.0.4"
   },
   "peerDependencies": {
     "@storybook/react-native": ">=8.0.0",

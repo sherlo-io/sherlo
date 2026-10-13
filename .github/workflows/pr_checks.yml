@@ -145,9 +145,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          printf '@sherlo-io:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GH_TOKEN" > "$RUNNER_TEMP/sherlo-packages.npmrc"
-          NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/sherlo-packages.npmrc" npx --yes @sherlo-io/time-limits@1 clock
+        run: node node_modules/@sherlo-io/time-limits/bin.js clock
 
   # THE FINAL CHECK, named exactly `checks`: the one check a branch rule requires. `always()` makes
   # it report even when a package job failed or was cancelled, and it fails when either did.
