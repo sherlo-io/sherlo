@@ -1,6 +1,6 @@
 import { describe, it } from "vitest";
 
-describe("ciRun", () => {
+describe("the jobs of one CI run find the same join key",() => {
   it.todo("reads the join key of each CI service from the run id all its jobs share");
   it.todo("reads the GitHub join key as the repository and the run id, never the attempt");
   it.todo("--run-id, then SHERLO_RUN_ID, wins over the CI service's own run id");

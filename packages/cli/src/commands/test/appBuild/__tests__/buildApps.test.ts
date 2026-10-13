@@ -1,6 +1,6 @@
 import { describe, it } from "vitest";
 
-describe("buildApps", () => {
+describe("sherlo test builds the app on this machine",() => {
   it.todo("refuses iOS on a machine that is not a Mac, naming --platform android here and --platform ios on a Mac");
   it.todo("refuses iOS when Xcode is not found, naming xcode-select");
   it.todo("refuses a workspace with several iOS schemes and none named, listing them and the config line that names one");

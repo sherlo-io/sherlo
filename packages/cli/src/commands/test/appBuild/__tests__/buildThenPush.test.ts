@@ -1,6 +1,6 @@
 import { describe, it } from "vitest";
 
-describe("buildThenPush", () => {
+describe("sherlo test builds what the gate refused, then pushes",() => {
   it.todo("builds every platform the staged gate refused, then pushes the builds on the standard road");
   it.todo("a mixed run builds only the refused platform and stages the other onto its stored app build, in one test");
   it.todo("names why a platform needed a new app build only when native code changed");

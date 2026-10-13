@@ -1,6 +1,6 @@
 import { describe, it } from "vitest";
 
-describe("easRun", () => {
+describe("sherlo test in EAS mode opens a run and lets EAS build",() => {
   it.todo("refuses EAS mode when package.json lacks the eas-build-on-complete or eas-build-on-cancel script, naming each one missing, before opening a run");
   it.todo("refuses EAS mode when eas.json has no profile build.easProfile names, showing the profile to add, before opening a run");
   it.todo("refuses EAS mode when the profile's env does not set SHERLO_BUILD to storybook, showing the line to add, before opening a run");
