@@ -8,7 +8,6 @@ export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
 
 export const DOCS_LINK = {
   setupMetroConfig: `${DOCS_BASE_URL}/setup#metro-config`,
-  setupStorybookComponent: `${DOCS_BASE_URL}/setup#storybook-component`,
   setupStorybookAccess: `${DOCS_BASE_URL}/setup#storybook-access`,
 
   config: `${DOCS_BASE_URL}/config`,
@@ -16,13 +15,10 @@ export const DOCS_LINK = {
   configToken: `${DOCS_BASE_URL}/config#token`,
   configDevices: `${DOCS_BASE_URL}/config#devices`,
 
-  builds: `${DOCS_BASE_URL}/builds`,
   buildPreview: `${DOCS_BASE_URL}/builds?type=preview-simulator#build-types`,
-  buildDevelopment: `${DOCS_BASE_URL}/builds?type=development-simulator#build-types`,
   buildAndroidAbiRequirements: `${DOCS_BASE_URL}/builds#android-abi-requirements`,
 
   testing: `${DOCS_BASE_URL}/testing`,
-  testingMethods: `${DOCS_BASE_URL}/testing#testing-methods`,
   testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
 
   devices: `${DOCS_BASE_URL}/devices`,
@@ -35,7 +31,6 @@ export const PLATFORM_LABEL: { [platform in Platform]: string } = {
   ios: 'iOS',
 };
 
-export const ANDROID_FILE_TYPES = ['.apk'] as const;
 export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 
 // Mirrors sherlo-runner src/executor/android/constants.ts
@@ -50,7 +45,6 @@ export const SHERLO_TEMP_DATA_FILENAME = 'data.json';
 /* PACKAGES */
 
 export const EXPO_PACKAGE_NAME = 'expo';
-export const EXPO_DEV_CLIENT_PACKAGE_NAME = 'expo-dev-client';
 export const REACT_NATIVE_PACKAGE_NAME = 'react-native';
 export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';

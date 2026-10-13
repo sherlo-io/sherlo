@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ProjectType } from '../types';
+import { ProjectType } from './types';
 
 function parseAndroidBundleCommand(projectRoot: string): ProjectType | null {
   const buildGradlePath = path.join(projectRoot, 'android', 'app', 'build.gradle');

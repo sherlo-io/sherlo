@@ -27,7 +27,7 @@ vi.mock('child_process', () => ({
   execSync: vi.fn(),
 }));
 
-vi.mock('../../showError/detectBundler', () => ({
+vi.mock('../detectBundler', () => ({
   default: vi.fn(),
   detectEntryFile: vi.fn(),
 }));
@@ -41,8 +41,8 @@ vi.mock('../readBundledSdkProtocolVersion', () => ({
 }));
 
 // The local imports resolve the mocked modules because vi.mock is hoisted.
-import detectBundlerDefault from '../../showError/detectBundler';
-import { detectEntryFile as detectEntryFileNamed } from '../../showError/detectBundler';
+import detectBundlerDefault from '../detectBundler';
+import { detectEntryFile as detectEntryFileNamed } from '../detectBundler';
 import getPackageVersionDefault from '../../init/requirements/getPackageVersion';
 import { readBundledSdkProtocolVersion } from '../readBundledSdkProtocolVersion';
 

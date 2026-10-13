@@ -38,7 +38,7 @@ const DOOR_RULES = [
 ] as const;
 
 type DoorViolation = {
-  /** Repo-relative path, e.g. `packages/cli/src/commands/showError/showError.ts`. */
+  /** Repo-relative path, e.g. `packages/cli/src/commands/test/buildBundle.ts`. */
   file: string;
   ruleId: (typeof DOOR_RULES)[number];
   /** Which door this particular message is about - see `categorize` below. */
@@ -398,7 +398,7 @@ function shellRunnerImports(file: string, text: string): string[] {
   return reaches;
 }
 
-/** `packages/cli/src/commands/showError/foo.ts` -> true for the directory `commands/showError`. */
+/** `packages/cli/src/commands/pose/foo.ts` -> true for the directory `commands/pose`. */
 function isUnderDir(file: string, dir: string): boolean {
   const prefix = `packages/cli/src/${dir}/`;
   return file.startsWith(prefix) || file === `packages/cli/src/${dir}`;
@@ -424,7 +424,7 @@ describe('every door is a seam', () => {
     ).toEqual([]);
   }, 20_000);
 
-  it('the named exceptions are exactly the modules a pose can never reach - the EAS hooks and the devtools - each with its reason', async () => {
+  it('the named exceptions are exactly the modules a pose can never reach - the devtools - each with its reason', async () => {
     const violations = await findRawViolations();
 
     for (const exception of DIRECTORY_EXCEPTIONS) {

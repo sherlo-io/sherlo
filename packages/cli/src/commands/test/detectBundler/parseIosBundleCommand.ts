@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ProjectType } from '../types';
+import { ProjectType } from './types';
 
 function parseIosBundleCommand(projectRoot: string): ProjectType | null {
   const iosDir = path.join(projectRoot, 'ios');
