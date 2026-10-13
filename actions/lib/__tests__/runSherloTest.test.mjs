@@ -179,6 +179,11 @@ describe('the action body', () => {
   });
 });
 
+describe('the action step, one platform per job', () => {
+  it.todo("the step exits with the CLI's own exit code");
+  it.todo('publishes the review URL of the run it opened or joined as url');
+});
+
 /* ========================================================================== */
 
 function git(cwd, args) {

@@ -86,3 +86,8 @@ describe('buildTestArgs', () => {
     expect(() => buildTestArgs({ token: '' })).toThrow(/secrets.SHERLO_TOKEN/);
   });
 });
+
+describe('buildTestArgs, one platform per job', () => {
+  it.todo('passes the platform input as --platform');
+  it.todo('never passes --token');
+});

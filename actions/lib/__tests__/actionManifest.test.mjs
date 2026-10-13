@@ -62,6 +62,15 @@ describe('the root action manifest', () => {
   });
 });
 
+describe('the action manifest, one platform per job', () => {
+  it.todo('declares no android or ios input');
+  it.todo('declares no token input and sets no SHERLO_TOKEN on its step');
+  it.todo("keeps Xcode's compilation cache on an iOS job, with a rolling key per runner");
+  it.todo("keeps Gradle's home on an Android job through setup-gradle");
+  it.todo('keeps no app build cache on CI');
+  it.todo('publishes url as its only output');
+});
+
 describe('the deprecated staged-gate action manifest', () => {
   it('still parses and still delegates to the same runner script', () => {
     expect(stagedGateAction.runs.using).toBe('composite');
