@@ -25,7 +25,7 @@ public class SherloModulePackage extends TurboReactPackage {
     /**
      * On old-arch, TurboReactPackage.getModule() is only called lazily (when JS requires the
      * module). We override createNativeModules() to force eager instantiation of SherloModule
-     * so its constructor - and therefore storeEarlyReactContext() / performEarlyInit() - runs
+     * so its constructor - and therefore rememberReactContext() / performEarlyInit() - runs
      * during processPackages(), which happens BEFORE the JS bundle is evaluated.
      *
      * On new-arch (TurboModules) createNativeModules() is not used; we return empty so there

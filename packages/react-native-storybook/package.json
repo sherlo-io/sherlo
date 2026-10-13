@@ -1,6 +1,6 @@
 {
   "name": "@sherlo/react-native-storybook",
-  "version": "2.0.2",
+  "version": "3.0.0-alpha.0",
   "description": "Visual regression testing for React Native - Sherlo Storybook integration SDK",
   "keywords": [
     "react-native",
@@ -53,6 +53,11 @@
       "require": "./dist-metro/polyfill.js",
       "default": "./dist-metro/polyfill.js"
     },
+    "./metro/sherloLine": {
+      "types": "./metro/sherloLine.d.ts",
+      "require": "./dist-metro/sherloLine.js",
+      "default": "./dist-metro/sherloLine.js"
+    },
     "./dist/getStorybook/index.js": "./dist/getStorybook/index.js",
     "./dist/addStorybookToDevMenu.js": "./dist/addStorybookToDevMenu.js",
     "./dist/SherloModule.js": "./dist/SherloModule.js",
@@ -64,6 +69,8 @@
     "src/specs/**/*",
     "dist/**/*",
     "android/src/**/*",
+    "!android/src/test",
+    "!android/jvm-tests",
     "android/CMakeLists.txt",
     "android/build.gradle",
     "android/consumer-rules.pro",
@@ -79,7 +86,10 @@
     "dist-metro/detectStorybookSetup.js",
     "dist-metro/polyfill.js",
     "dist-metro/sherloBuild.js",
-    "metro/withStorybook.d.ts"
+    "dist-metro/sherloLine.js",
+    "metro/withStorybook.d.ts",
+    "metro/sherloLine.d.ts",
+    "src/sealedCore/seam.ts"
   ],
   "scripts": {
     "build": "rm -rf dist && tsc -p . && yarn build:metro",
@@ -94,7 +104,7 @@
     "base-64": "1.0.0",
     "deepmerge": "4.3.1",
     "its-fine": "2.0.0",
-    "sherlo": "^2.0.2",
+    "sherlo": "^3.0.0-alpha.0",
     "utf8": "3.0.0"
   },
   "devDependencies": {

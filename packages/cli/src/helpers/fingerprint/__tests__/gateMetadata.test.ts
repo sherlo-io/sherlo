@@ -8,7 +8,10 @@
  * Finding 4: iOS expo-updates detection must parse the VALUE of
  * EXUpdatesEnabled, not just check for key presence.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -911,4 +914,41 @@ describe('parseAxmlExpoUpdatesEnabled - meta-data ORDERING (SHERLO-1744 AC5)', (
       expect(parseAxmlExpoUpdatesEnabled(buf)).toBe(expected);
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// SDK protocol version baked into the binary
+// ---------------------------------------------------------------------------
+
+describe('getBuildMetadata - SDK protocol version', () => {
+  // A built .app is a plain folder, so the binary's `assets/sherlo.json` is a real file here and
+  // the read takes no unzip. The APK and the iOS tar share the same line that records the version.
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-metadata-sdk-version-'));
+  const appPath = path.join(tempDir, 'Demo.app');
+
+  beforeAll(() => {
+    fs.mkdirSync(path.join(appPath, 'assets'), { recursive: true });
+    fs.writeFileSync(
+      path.join(appPath, 'assets/sherlo.json'),
+      JSON.stringify({ version: '3.0.0-alpha.0' })
+    );
+  });
+
+  afterAll(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('an app built with a prerelease SDK records the version without its prerelease suffix', async () => {
+    const { getBuildMetadata } = await import('../gateMetadata');
+
+    const { sdkProtocolVersion } = await getBuildMetadata({
+      binaryPath: appPath,
+      fileName: 'Demo.app',
+      platform: 'ios',
+      projectRoot: tempDir,
+    });
+
+    // A code-only push sends the installed SDK's major.minor.patch, so the base must record the same.
+    expect(sdkProtocolVersion).toBe('3.0.0');
+  });
 });

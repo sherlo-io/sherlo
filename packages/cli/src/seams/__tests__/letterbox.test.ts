@@ -8,37 +8,53 @@
  * who asked to see a story.
  */
 import * as http from 'http';
+import { WebSocketServer } from 'ws';
 import { afterEach, describe, expect, it } from 'vitest';
 import { liveLetterbox } from '../letterbox';
 import { endingFor, storyIsOnScreen } from '../../commands/open/open';
 
 const STORY = 'components-button--primary';
 
+/** What a bundler was asked, in the order it was asked it. */
+type BundlerAsk =
+  /** The plain HTTP request that comes before the socket. */
+  | { step: 'plain-get'; url: string }
+  /** The WebSocket upgrade. */
+  | { step: 'web-socket-opened'; url: string }
+  /** A question sent down the socket, without the id the tool numbers it with. */
+  | { step: 'question'; question: unknown };
+
 type PretendBundler = {
   port: number;
-  asked: Array<{ method: string; posted: unknown }>;
+  asked: BundlerAsk[];
   close: () => Promise<void>;
 };
 
-/** A bundler that answers the letterbox address with whatever this test wants it to say. */
-async function pretendBundler(say: (posted: unknown) => unknown): Promise<PretendBundler> {
-  const asked: PretendBundler['asked'] = [];
+/**
+ * A bundler with the Sherlo line on it, answering every question with whatever this test wants it to
+ * say: a plain GET on the line says which protocol it speaks, and a socket on it takes one question
+ * and replies to it.
+ */
+async function pretendBundler(say: (question: unknown) => unknown): Promise<PretendBundler> {
+  const asked: BundlerAsk[] = [];
 
   const server = http.createServer((request, response) => {
-    let body = '';
-    request.on('data', (chunk) => {
-      body += chunk;
-    });
-    request.on('end', () => {
-      if (request.url !== '/sherlo/letterbox') {
-        response.writeHead(404);
-        return response.end();
-      }
-      const posted = body ? JSON.parse(body) : undefined;
-      asked.push({ method: request.method ?? '', posted });
-      const answer = JSON.stringify(say(posted));
-      response.writeHead(200, { 'Content-Type': 'application/json' });
-      response.end(answer);
+    if (request.url !== '/sherlo/line') {
+      response.writeHead(404);
+      return response.end();
+    }
+    asked.push({ step: 'plain-get', url: request.url });
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ protocolVersion: 1 }));
+  });
+
+  const sockets = new WebSocketServer({ server, path: '/sherlo/line' });
+  sockets.on('connection', (socket, request) => {
+    asked.push({ step: 'web-socket-opened', url: request.url ?? '' });
+    socket.on('message', (data) => {
+      const { askId, ...question } = JSON.parse(data.toString());
+      asked.push({ step: 'question', question });
+      socket.send(JSON.stringify({ action: 'reply', askId, reply: say(question) }));
     });
   });
 
@@ -49,6 +65,7 @@ async function pretendBundler(say: (posted: unknown) => unknown): Promise<Preten
     asked,
     close: () =>
       new Promise<void>((closed) => {
+        sockets.clients.forEach((socket) => socket.terminate());
         // Cut any request still held open, so the server can actually close. Typed loosely
         // because older @types/node do not declare it.
         (server as { closeAllConnections?: () => void }).closeAllConnections?.();
@@ -116,11 +133,34 @@ describe('the tool posting to the letterbox', () => {
     while (running.length) await running.pop()!.close();
   });
 
-  async function bundlerSaying(say: (posted: unknown) => unknown): Promise<PretendBundler> {
+  async function bundlerSaying(say: (question: unknown) => unknown): Promise<PretendBundler> {
     const bundler = await pretendBundler(say);
     running.push(bundler);
     return bundler;
   }
+
+  it('asks the bundler once over plain HTTP before it opens the WebSocket', async () => {
+    const bundler = await bundlerSaying(() => ({
+      kind: 'handed-over',
+      storyId: STORY,
+      rendered: 'not-waited',
+    }));
+
+    await liveLetterbox.openStory({
+      storyId: STORY,
+      wait: false,
+      port: bundler.port,
+      timeoutSeconds: 30,
+    });
+
+    expect(bundler.asked.map((ask) => ask.step)).toEqual([
+      'plain-get',
+      'web-socket-opened',
+      'question',
+    ]);
+    expect(bundler.asked[0]).toEqual({ step: 'plain-get', url: '/sherlo/line' });
+    expect(bundler.asked[1]).toEqual({ step: 'web-socket-opened', url: '/sherlo/line' });
+  });
 
   it('posts the story, the wait and the timeout, and reads back what happened to it', async () => {
     const bundler = await bundlerSaying(() => ({
@@ -136,8 +176,11 @@ describe('the tool posting to the letterbox', () => {
       timeoutSeconds: 5,
     });
 
-    expect(bundler.asked).toEqual([
-      { method: 'POST', posted: { storyId: STORY, wait: true, timeoutSeconds: 5 } },
+    expect(bundler.asked.filter((ask) => ask.step === 'question')).toEqual([
+      {
+        step: 'question',
+        question: { action: 'openStory', storyId: STORY, wait: true, timeoutSeconds: 5 },
+      },
     ]);
     expect(answer).toEqual({ kind: 'handed-over', storyId: STORY, rendered: 'yes' });
   });

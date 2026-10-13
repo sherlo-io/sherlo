@@ -34,8 +34,8 @@ export function makeFakeSealedCore(seam: number): FakeSealedCore {
       fake.calls.push({ method: 'mergeGenerations', args: [roots] });
       return NO_METADATA;
     },
-    startTestSession: async (view) => {
-      fake.calls.push({ method: 'startTestSession', args: [view] });
+    startTestSession: async () => {
+      fake.calls.push({ method: 'startTestSession', args: [] });
     },
     testStory: async (story) => {
       fake.calls.push({ method: 'testStory', args: [story] });

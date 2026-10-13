@@ -1,6 +1,4 @@
-import base64 from 'base-64';
 import { NativeModules } from 'react-native';
-import utf8 from 'utf8';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData } from './types/types';
 import type { Config, LastState } from './sealedCore/seam';
@@ -11,27 +9,15 @@ interface SherloConstants {
   config: string;
   lastState: string;
   nativeVersion: string | null;
-  driver: string | null;
   /** The C core's version, read in testing mode only; null outside it, or with no usable C core. */
   compiledCoreVersion?: string | null;
 }
 
 /**
- * Who drives a testing-mode boot's own walk: a runner, polling the app over protocol files it
- * wrote to disk (see RunnerBridge), or a capture, driving the app over the socket in
- * captureTransport.ts and writing nothing. Both boots now produce the same `config`/`lastState`
- * shape (see SherloModuleCore on each platform), so this is the one explicit fact that still tells
- * them apart - checked once, in useTestAllStories, to decide whether the runner's own report loop
- * may run at all.
- */
-export type TestDriver = 'runner' | 'capture';
-
-/**
- * What a test run leaves behind is config.sherlo; its absence means no run is in progress, which
- * is a normal state (a capture is exactly that state - see captureTransport.ts) rather than an
- * error. These are the same numbers the SDK answers with when it is not wired into a build at all
- * (createDummySherloModule below), so a device with no config on disk behaves the way a device
- * with no native module at all already does.
+ * A run's settings come from the runner over the connection, and native code hands them over.
+ * With none handed (a capture is exactly that state - see captureTransport.ts) the app falls back
+ * to these, which are also the numbers the SDK answers with when it is not wired into a build at
+ * all (createDummySherloModule below).
  */
 const DEFAULT_CONFIG: Config = {
   stabilization: {
@@ -52,13 +38,11 @@ const DEFAULT_CONFIG: Config = {
 type SherloModule = {
   isTurboModule: boolean;
   getMode: () => StorybookViewMode;
-  /** Throws when there is no config.sherlo on disk - use getConfigOrDefault where that is normal. */
+  /** Throws when the runner handed no settings - use getConfigOrDefault where that is normal. */
   getConfig: () => Config;
-  /** The app's own config, or the SDK's defaults when there is none. Never throws. */
+  /** The runner's settings, or the SDK's own when it handed none. Never throws. */
   getConfigOrDefault: () => Config;
   getLastState: () => LastState | undefined;
-  /** Who drives this boot's testing walk, or undefined outside testing mode - see TestDriver. */
-  getDriver: () => TestDriver | undefined;
   getNativeVersion: () => string | null;
   /** The C core's version, in testing mode; null outside it, or with no usable C core. */
   getCompiledCoreVersion: () => string | null;
@@ -68,8 +52,6 @@ type SherloModule = {
     data?: Record<string, string | null>
   ) => void;
   getInspectorData: () => Promise<InspectorData>;
-  appendFile: (path: string, base64: string) => Promise<void>;
-  readFile: (path: string) => Promise<string>;
   openStorybook: () => void;
   toggleStorybook: () => void;
   /**
@@ -82,6 +64,10 @@ type SherloModule = {
    * getConfigOrDefault()'s answer, the same values the SDK already falls back to.
    */
   openTesting: (storyId: string | undefined, config: Config) => void;
+  /** Start the app's JavaScript again in the same process; the connection stays open. */
+  reloadJavaScript: () => void;
+  /** The memory the app's process uses, in MB, or null when native code cannot measure it. */
+  getMemoryMb: () => Promise<number | null>;
   stabilize: (
     requiredMatches: number,
     minScreenshotsCount: number,
@@ -212,19 +198,6 @@ function createSherloModule(): SherloModule {
 
       return parsedLastState;
     },
-    getDriver: () => {
-      const driver = getConstants().driver;
-      return driver === 'runner' || driver === 'capture' ? driver : undefined;
-    },
-    appendFile: (filename: string, data: string) => {
-      const encodedData = base64.encode(utf8.encode(data));
-      const result = module.appendFile(filename, encodedData);
-      return result;
-    },
-    readFile: (filename: string) => {
-      const decodeData = (data: string) => utf8.decode(base64.decode(data));
-      return module.readFile(filename).then(decodeData);
-    },
     openStorybook: () => module.openStorybook(),
     toggleStorybook: () => module.toggleStorybook(),
     // The turbo module spec takes required strings, following the same empty-string-for-"nothing"
@@ -232,6 +205,16 @@ function createSherloModule(): SherloModule {
     // to keep in sync between the JS side and the generated native one.
     openTesting: (storyId: string | undefined, config: Config) =>
       module.openTesting(storyId ?? '', JSON.stringify(config)),
+    // A native build from before the connection has neither call: it cannot reload, and it
+    // measures nothing.
+    reloadJavaScript: () => {
+      if (typeof module.reloadJavaScript === 'function') module.reloadJavaScript();
+    },
+    getMemoryMb: async () => {
+      if (typeof module.getMemoryMb !== 'function') return null;
+      const memoryMb = await module.getMemoryMb();
+      return memoryMb < 0 ? null : memoryMb;
+    },
     isScrollable: () => module.isScrollable(),
     scrollToCheckpoint: (index: number, offset: number, maxIndex: number) =>
       module.scrollToCheckpoint(index, offset, maxIndex),
@@ -269,14 +252,13 @@ function createDummySherloModule(): SherloModule {
     getCompiledCoreVersion: () => null,
     sendNativeError: () => {},
     getLastState: () => undefined,
-    getDriver: () => undefined,
     getConfig: () => DEFAULT_CONFIG,
     getConfigOrDefault: () => DEFAULT_CONFIG,
-    appendFile: async () => {},
-    readFile: async () => '',
     openStorybook: () => {},
     toggleStorybook: () => {},
     openTesting: () => {},
+    reloadJavaScript: () => {},
+    getMemoryMb: async () => null,
     awaitFrameCommit: async () => false,
     isScrollable: async () => ({ scrollable: false }),
     scrollToCheckpoint: async () => ({
