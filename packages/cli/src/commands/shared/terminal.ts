@@ -42,23 +42,40 @@ export function printTheLogoInATerminal(): void {
 }
 
 /**
+ * Changes what a running step says after its own words: the wait adds the test's live status and
+ * the time it has run (`Running, 1m 40s`). In a log nothing can be redrawn, so it does nothing there.
+ */
+export type SayMore = (words: string) => void;
+
+/**
  * Do `work` while showing `step`: a spinner in a terminal, stopped when the work ends however it
  * ends, so whatever prints next takes its place; anywhere else the step's one plain line, printed
- * before the work starts.
+ * before the work starts. `work` may call the {@link SayMore} it is given to change the words
+ * beside the step's own while it runs.
+ *
+ * `forJson` is for a run whose stdout is one JSON record and nothing else (`--json --wait`): the
+ * step shows as a spinner on stderr when stderr is a terminal, as `eas build --json --wait` does,
+ * and is not shown at all anywhere else.
  */
 export async function whileShowing<Result>(
   step: StepInProgress,
-  work: () => Promise<Result>
+  work: (sayMore: SayMore) => Promise<Result>,
+  { forJson = false }: { forJson?: boolean } = {}
 ): Promise<Result> {
-  if (!printsToATerminal()) {
-    emit(step);
-    return work();
+  const showsSpinner = forJson ? Boolean(process.stderr.isTTY) : printsToATerminal();
+
+  if (!showsSpinner) {
+    if (!forJson) emit(step);
+    return work(() => {});
   }
 
   // Enabled outright: whether this is a terminal was just decided, and ora's own guess differs.
-  const shown = spinner({ text: renderStepInProgress(step), isEnabled: true }).start();
+  const stepWords = renderStepInProgress(step);
+  const shown = spinner({ text: stepWords, isEnabled: true }).start();
   try {
-    return await work();
+    return await work((words) => {
+      shown.text = `${stepWords} ${words}`;
+    });
   } finally {
     shown.stop();
   }

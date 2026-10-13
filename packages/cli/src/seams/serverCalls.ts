@@ -87,7 +87,7 @@ export type ServerCalls = {
     teamId: string;
     /** A single-shot read bounds its own request; the poll loop's own deadline governs there. */
     boundedRead?: boolean;
-  }): Promise<BuildStatusAnswer | null>;
+  }): Promise<BuildStatus | null>;
 
   createProject(request: {
     name: string;
@@ -410,51 +410,17 @@ export function installServerCalls(next: ServerCalls): () => void {
 export type ApiError = { error: string };
 
 /**
- * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, extended rather than re-typed: a pose
- * describing a build the backend cannot send would let a product design be approved off a state
- * that can never occur.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the fields below are what `sherlo view
- * --json` reads beyond today's wire, drawn here and sent by no server yet. The build task adds them
- * to sherlo-api's `getBuildStatus`, to both selections of it (the CLI's raw fetch in
- * helpers/buildStatusRequest.ts and the sdk client's), and folds this intersection back into
- * `BuildStatus`. Every one is optional: an older API leaves it out, and `view --json` then prints
- * it absent, never as a zero.
+ * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
+ * because a pose scripts it and the pose contract publishes it under this name. A pose describing a
+ * build the backend cannot send would let a product design be approved off a state that can never
+ * occur, which is why this is the wire's type and not a copy of it.
  */
-export type BuildStatusAnswer = Omit<BuildStatus, 'gitInfo'> & {
-  /**
-   * The platform whose failure ended the run - beside `runError`, which the wire already sends as
-   * the server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...). Absent or
-   * `null` when the error is not one platform's.
-   */
-  runErrorPlatform?: 'android' | 'ios' | null;
-  /** The build's frozen git identity. `isDirty`: whether the push sent uncommitted changes. */
-  gitInfo?: {
-    branchName: string;
-    commitHash: string;
-    isDirty?: boolean | null;
-  };
-  /** The project's main line the build was judged against. `null` while the project has none. */
-  mainBranch?: string | null;
-  /**
-   * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
-   * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
-   * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
-   * `null` for a push from a person's machine.
-   */
-  ciRun?: { provider: string; runId: string } | null;
-  /** The devices the run was asked for, as the config named them. */
-  devices?: { id: string; osVersion: string; platform: 'android' | 'ios' }[] | null;
-  /** Per platform the run was asked for, what it did with it. A platform it was not asked for is absent. */
-  platforms?: {
-    android?: BuildStatusPlatform;
-    ios?: BuildStatusPlatform;
-  } | null;
-};
+export type BuildStatusAnswer = BuildStatus;
 
 /**
- * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it: service-known facts beside the facts the
- * push reported about itself ({@link PushFacts}).
+ * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
+ * ../helpers/buildStatusRequest): service-known facts beside the facts the push reported about
+ * itself ({@link PushFacts}).
  */
 export type BuildStatusPlatform = {
   /** Whether this platform's app build reached the run. `false`: a split or EAS run still waits for it. */
@@ -874,7 +840,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     unusedCalls: () => remaining,
 
     getBuildStatus: async ({ buildIndex }) =>
-      answerFor('getBuildStatus', { buildIndex }) as BuildStatusAnswer | null,
+      answerFor('getBuildStatus', { buildIndex }) as BuildStatus | null,
 
     createProject: async ({ name, teamId }) =>
       answerFor('createProject', { teamId, name }) as ProjectCreated,

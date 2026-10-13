@@ -10,7 +10,6 @@
   "clock": ["2026-09-15T12:00:00.000Z", "2026-09-15T12:00:00.500Z", "2026-09-15T12:01:01.000Z"],
   "api": [
     { "call": "getBuildStatus", "with": { "buildIndex": 7 }, "answer": { "runStatus": "inProgress", "status": "unreviewed" } },
-    { "call": "getBuildStatus", "with": { "buildIndex": 7 }, "answer": { "runStatus": "inProgress", "status": "unreviewed" } },
     {
       "call": "getBuildStatus",
       "with": { "buildIndex": 7 },

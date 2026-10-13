@@ -7,7 +7,7 @@
  * like.
  */
 import chalk from 'chalk';
-import type { BuildStatusAnswer } from '../seams/serverCalls';
+import type { BuildStatus } from '../helpers/buildStatusRequest';
 import {
   storyStatusWord,
   renderVerdictNoChanges,
@@ -33,6 +33,11 @@ const RUN_STATUS_WORD: Record<string, string> = {
   canceled: 'canceled',
 };
 
+/** The run status in plain words: `running`, `queued`, `waiting`. */
+export function runStatusWord(runStatus: string): string {
+  return RUN_STATUS_WORD[runStatus] ?? runStatus;
+}
+
 /**
  * `Test 7 · running` - the first line `sherlo view` prints.
  *
@@ -42,7 +47,7 @@ const RUN_STATUS_WORD: Record<string, string> = {
  * would be a guess dressed as a fact.
  */
 export function renderBuildViewHeader(buildIndex: number, runStatus: string): string {
-  return `${chalk.green(`Test ${buildIndex}`)} · ${RUN_STATUS_WORD[runStatus] ?? runStatus}`;
+  return `${chalk.green(`Test ${buildIndex}`)} · ${runStatusWord(runStatus)}`;
 }
 
 /** `0 approved · 0 reported · 3 unreviewed · 41 no changes` - the four review counts, in one dim line. */
@@ -92,10 +97,10 @@ export function renderBuildViewStatus({
 /* ========================================================================== */
 
 /*
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps, operator ruling 2026-10-12 Q4): `--metadata`
- * left `sherlo test`, so nothing prints the details block any more and its renderer is gone. These
- * two types stay only because helpers/buildDetails and the wait loop's `metadata` parameter, outside
- * what plan may edit, still build the block's facts; the build task deletes all three.
+ * DEBT, NAMED (epic sherlo-test-builds-apps, operator ruling 2026-10-12 Q4): `--metadata` left
+ * `sherlo test`, so nothing builds or prints the details block any more. These two types stay only
+ * because the `build-details` segment kind (./segments) is typed by them; stb-cli-render-sweep and
+ * stb-cli-retire-show-error remove the kind, and these types with it.
  */
 
 /** The build's git identity, as the run that CREATED the build composed and sent it at openBuild. */
@@ -189,18 +194,23 @@ export type ViewJson = {
   /** Why the run ended in `error`: the service's code, and the platform when it was one platform's. */
   runError?: { code: string; platform?: 'android' | 'ios' };
   /** The devices the run was asked for. */
-  devices?: BuildStatusAnswer['devices'];
-  viewStatusesCount?: ViewMetadataJson['viewStatusesCount'];
+  devices?: BuildStatus['devices'];
+  viewStatusesCount?: BuildStatus['viewStatusesCount'];
   /** `null` is what the wire sends for a build whose run errored before any view row existed. */
   stories?: ViewStory[] | null;
-  /** The Diff Scope block, build-wide, as today: see {@link ViewMetadataJson}'s `diffScope`. */
-  diffScope?: ViewMetadataJson['diffScope'];
+  /**
+   * The Diff Scope block, build-wide (view-metadata, operator ruling 2026-09-03). `reason` is the
+   * primary platform's prose, `captured`/`inherited` are story display names, and
+   * `ancestorBuildIndex` is the build this decision diffed against (`null` when there was none).
+   * Absent whenever the API sent no `diffScope` (an older API, or a gate-off build).
+   */
+  diffScope?: BuildStatus['diffScope'];
   /**
    * Per platform the run was asked for: whether its app build `arrived`, where the app build came
    * from (`appBuild`), the capture plan (`capture`, read off the stored decision, so a canceled
    * build still has it) and `storiesInBundle`. See ../seams/serverCalls' BuildStatusPlatform.
    */
-  platforms?: BuildStatusAnswer['platforms'];
+  platforms?: BuildStatus['platforms'];
 };
 
 /**
@@ -211,46 +221,6 @@ export type ViewJson = {
 export function renderViewJson(json: ViewJson): string {
   return JSON.stringify(json, null, 2);
 }
-
-/**
- * The record `--metadata` printed before it became `--json`.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): nothing prints it any more; only
- * helpers/buildDetails' `buildViewMetadataJson` still builds it, and the build task deletes both.
- */
-export type ViewMetadataJson = {
-  runStatus: string;
-  buildIndex: number;
-  /**
-   * The build's frozen git identity. Unlike the old `── details ──` block (see
-   * {@link BuildDetailsGitFacts}'s doc), this DOES come from the wire now -
-   * `getBuildStatus` carries it - so it is present whenever the API sent
-   * `gitInfo`, for `sherlo view` exactly as for `sherlo test`.
-   */
-  commit?: { sha: string; branch: string };
-  viewStatusesCount?: {
-    approved: number;
-    noChanges: number;
-    reported: number;
-    unreviewed: number;
-  };
-  /** `null` is what the wire sends for a build whose run errored before any view row existed. */
-  stories?: ViewStory[] | null;
-  /**
-   * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
-   * `sherlo view --json` prints as `diffScope`. `reason` is the primary
-   * platform's prose, `captured`/`inherited` are story display names, and
-   * `ancestorBuildIndex` is the build this decision diffed against (`null`
-   * when there was none). Absent whenever the API sent no `diffScope` (an
-   * older API, or a gate-off build).
-   */
-  diffScope?: {
-    reason: string;
-    captured: string[];
-    inherited: string[];
-    ancestorBuildIndex: number | null;
-  };
-};
 
 /* ========================================================================== */
 /* The stories table (human-readable, no `--json`)                           */

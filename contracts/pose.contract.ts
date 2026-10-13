@@ -635,16 +635,10 @@ export type ApiError = {
 };
 
 /**
- * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, extended rather than re-typed: a pose
- * describing a build the backend cannot send would let a product design be approved off a state
- * that can never occur.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the fields below are what `sherlo view
- * --json` reads beyond today's wire, drawn here and sent by no server yet. The build task adds
- * them to sherlo-api's `getBuildStatus`, to both selections of it (the CLI's raw fetch in
- * helpers/buildStatusRequest.ts and the sdk client's), and folds this intersection back into
- * `BuildStatus`. Every one is optional: an older API leaves it out, and `view --json` then prints
- * it absent, never as a zero.
+ * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
+ * because a pose scripts it and the pose contract publishes it under this name. A pose describing
+ * a build the backend cannot send would let a product design be approved off a state that can
+ * never occur, which is why this is the wire's type and not a copy of it.
  */
 export type BuildStatusAnswer = {
   runStatus: 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
@@ -691,7 +685,16 @@ export type BuildStatusAnswer = {
     reported: number;
     unreviewed: number;
   };
-  runError?: unknown;
+  /**
+   * The server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...) of a run
+   * that ended in `error`. `null` for a run that did not.
+   */
+  runError?: string | null;
+  /**
+   * The platform whose failure ended the run - beside `runError`. Absent or `null` when the error
+   * is not one platform's.
+   */
+  runErrorPlatform?: 'android' | 'ios' | null;
   /**
    * Build-wide Diff Scope capture accounting, mirrored off Build.diffScopeInfo (same shape already
    * used by BuildFragment/CloseBuildFragment elsewhere in the API). Absent on older API responses
@@ -719,6 +722,41 @@ export type BuildStatusAnswer = {
       };
     };
   };
+  /**
+   * The build's frozen git identity (view-metadata, operator ruling 2026-09-03). `isDirty`:
+   * whether the push sent uncommitted changes. Absent on an older API.
+   */
+  gitInfo?: {
+    branchName: string;
+    commitHash: string;
+    isDirty?: boolean | null;
+  };
+  /** The project's main line the build was judged against. `null` while the project has none. */
+  mainBranch?: string | null;
+  /**
+   * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
+   * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
+   * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
+   * `null` for a push from a person's machine.
+   */
+  ciRun?: {
+    provider: string;
+    runId: string;
+  } | null;
+  /** The devices the run was asked for, as the config named them. */
+  devices?: Array<{
+    id: string;
+    osVersion: string;
+    platform: 'android' | 'ios';
+  }> | null;
+  /**
+   * Per platform the run was asked for, what it did with it. A platform it was not asked for is
+   * absent.
+   */
+  platforms?: {
+    android?: BuildStatusPlatform;
+    ios?: BuildStatusPlatform;
+  } | null;
   /**
    * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo view --metadata`
    * prints as `stories[]`. `status` is spelled as the plain string the wire sends (including the
@@ -755,44 +793,6 @@ export type BuildStatusAnswer = {
     inherited: string[];
     ancestorBuildIndex: number | null;
   };
-  /**
-   * The platform whose failure ended the run - beside `runError`, which the wire already sends as
-   * the server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...). Absent or
-   * `null` when the error is not one platform's.
-   */
-  runErrorPlatform?: 'android' | 'ios' | null;
-  /** The build's frozen git identity. `isDirty`: whether the push sent uncommitted changes. */
-  gitInfo?: {
-    branchName: string;
-    commitHash: string;
-    isDirty?: boolean | null;
-  };
-  /** The project's main line the build was judged against. `null` while the project has none. */
-  mainBranch?: string | null;
-  /**
-   * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
-   * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
-   * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
-   * `null` for a push from a person's machine.
-   */
-  ciRun?: {
-    provider: string;
-    runId: string;
-  } | null;
-  /** The devices the run was asked for, as the config named them. */
-  devices?: Array<{
-    id: string;
-    osVersion: string;
-    platform: 'android' | 'ios';
-  }> | null;
-  /**
-   * Per platform the run was asked for, what it did with it. A platform it was not asked for is
-   * absent.
-   */
-  platforms?: {
-    android?: BuildStatusPlatform;
-    ios?: BuildStatusPlatform;
-  } | null;
 };
 
 /** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */
@@ -1100,8 +1100,9 @@ export type PosedView = {
 };
 
 /**
- * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it: service-known facts beside the facts
- * the push reported about itself ({@link PushFacts}).
+ * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
+ * ../helpers/buildStatusRequest): service-known facts beside the facts the push reported about
+ * itself ({@link PushFacts}).
  */
 export type BuildStatusPlatform = {
   /**

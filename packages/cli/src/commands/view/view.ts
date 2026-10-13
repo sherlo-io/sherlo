@@ -44,8 +44,8 @@ import {
 import { JSON_OPTION } from '../../constants';
 import { AuthError } from '../../helpers/buildStatusRequest';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
-import { captureTranscript, emit } from '../../helpers/transcriptSink';
-import { readBuildStatus } from '../../helpers/waitForBuildResult';
+import { emit } from '../../helpers/transcriptSink';
+import { readBuildStatus, waitForTest } from '../../helpers/waitForBuildResult';
 import { Options } from '../../types';
 import { refuseRejectedLogin } from '../shared';
 import { printTheLogoInATerminal } from '../shared/terminal';
@@ -112,25 +112,20 @@ async function view(
   // `--json --wait` waits, then prints the record - and only the record - on stdout, the way
   // `eas build --json --wait` does: a script reads a test back with one command.
   if (commandParams.wait && printJson) {
-    const exitCode = await waitWithoutPrinting({
+    const { exitCode, lastRead } = await waitForTest({
       token,
       fromSavedLogin,
       buildIndex,
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+      json: true,
     });
 
-    // Read AFTER the wait, so the record is the test as the wait left it: finished, or - when the
-    // wait ran out - still running. A test that never appeared has no record to print.
-    const buildAfterWait = await readBuildStatus({ token, buildIndex, projectIndex, teamId }).catch(
-      (error: Error) => {
-        if (error instanceof AuthError && fromSavedLogin) refuseRejectedLogin();
-        throw error;
-      }
-    );
-    if (buildAfterWait) {
-      printBuildView({ build: buildAfterWait, buildIndex, url, printJson: true });
+    // The wait's last read is the test as the wait left it: finished, or - when the wait ran out -
+    // still running. A test that never appeared has no record to print.
+    if (lastRead) {
+      printBuildView({ build: lastRead, buildIndex, url, printJson: true });
     }
 
     // The exit code is the wait's, exactly as on `--wait` alone.
@@ -184,24 +179,6 @@ async function view(
 }
 
 export default view;
-
-/**
- * The shipped wait loop, with everything it prints held back, so stdout carries the record alone.
- *
- * Drawn in plan (epic sherlo-test-builds-apps, build item 62): the loop prints through the one process
- * sink and takes no say over where its lines go, so its lines are captured here and dropped. Build moves this
- * into the loop: in json mode it prints nothing on stdout, and its progress goes to stderr only when
- * stderr is a terminal, live, as `eas build --json --wait` does.
- */
-async function waitWithoutPrinting(
-  waitArguments: Parameters<typeof waitForBuildResult>[0]
-): Promise<number> {
-  let exitCode = 0;
-  await captureTranscript(async () => {
-    exitCode = await waitForBuildResult(waitArguments);
-  });
-  return exitCode;
-}
 
 /* ========================================================================== */
 
