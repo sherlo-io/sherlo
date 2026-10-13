@@ -23,7 +23,6 @@ import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import { detectEntryFile } from '../../commands/showError/detectBundler';
 import type { BaseFingerprints, GateMetadataInput } from '../../helpers/fingerprint';
-import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { bundler, type Bundler } from '../../seams/bundler';
 import type { BuildSettings } from './appBuild/buildSettings';
 import { whileShowing } from '../shared/terminal';
@@ -42,8 +41,6 @@ import {
   type BundleSidecar,
 } from './bundleSidecar';
 import { recordBaseFingerprint } from './recordedBaseFingerprint';
-
-const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
 
 /**
  * Build each platform's bundle and write it, its assets, its module manifest and
@@ -101,8 +98,7 @@ export async function emitBundleDir({
           'run that used this directory would silently capture every story instead ' +
           'of only what changed.\n\n' +
           'The manifest is emitted by the Sherlo Metro serializer. Check that ' +
-          "@sherlo/react-native-storybook's Metro config is applied in this project." +
-          FALLBACK_LINE
+          "@sherlo/react-native-storybook's Metro config is applied in this project."
       );
     }
 

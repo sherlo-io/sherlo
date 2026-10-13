@@ -36,7 +36,6 @@ import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
 import { diffFiles, diffPackages, type DeltaEntry } from '../fingerprint/diffFingerprintDocuments';
-import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
 import { inspectBundleArtifacts, type BundleResult } from './buildBundle';
 import { validateModuleManifestBuffer } from './readModuleManifest';
 import {
@@ -53,8 +52,6 @@ import {
   type SidecarProjectIdentity,
 } from './bundleSidecar';
 
-const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
-
 /** How many moved packages or files a refusal names before summarizing the rest. */
 const MAX_NAMED_ENTRIES = 20;
 
@@ -67,7 +64,7 @@ const MAX_NAMED_ENTRIES = 20;
  * Alongside it comes the gate metadata the emitting machine derived beside the
  * bundle, which is the staged road's to send.
  *
- * Throws user-facing messages carrying the full-run fallback line.
+ * Throws user-facing messages.
  */
 export async function resolveSuppliedBundle({
   bundleDir,
@@ -89,8 +86,7 @@ export async function resolveSuppliedBundle({
   if (!fs.existsSync(bundleDir)) {
     throw new Error(
       `The supplied bundle directory does not exist: ${bundleDir}` +
-        '\n\nPoint `--bundle-dir` at a directory produced by `npx sherlo test --emit-bundle-dir <dir>`.' +
-        FALLBACK_LINE
+        '\n\nPoint `--bundle-dir` at a directory produced by `npx sherlo test --emit-bundle-dir <dir>`.'
     );
   }
 
@@ -111,8 +107,7 @@ export async function resolveSuppliedBundle({
         'Without the manifest every run would silently capture every story instead ' +
         'of only what changed, so an incomplete directory is refused rather than ' +
         'quietly rebuilt.\n\n' +
-        'Produce a complete directory with `npx sherlo test --emit-bundle-dir <dir>`.' +
-        FALLBACK_LINE
+        'Produce a complete directory with `npx sherlo test --emit-bundle-dir <dir>`.'
     );
   }
 
@@ -124,8 +119,7 @@ export async function resolveSuppliedBundle({
     throw new Error(
       `The supplied ${platform} bundle cannot be verified: ${parseResult.message}.\n\n` +
         'A bundle carries no record of the platform, app, or toolchain it was built ' +
-        'for, so without a readable sidecar there is nothing to check it against.' +
-        FALLBACK_LINE
+        'for, so without a readable sidecar there is nothing to check it against.'
     );
   }
   const { sidecar } = parseResult;
@@ -180,8 +174,7 @@ export async function resolveSuppliedBundle({
     throw new Error(
       `The supplied ${platform} module manifest at ${manifestPath} is not a valid ` +
         'manifest (expected version, header, moduleHashes, storyClosures).\n\n' +
-        'Re-emit the bundle directory with `npx sherlo test --emit-bundle-dir <dir>`.' +
-        FALLBACK_LINE
+        'Re-emit the bundle directory with `npx sherlo test --emit-bundle-dir <dir>`.'
     );
   }
 
@@ -206,8 +199,7 @@ export async function resolveSuppliedBundle({
         `${mismatches.map((m) => `  - ${m}`).join('\n')}\n\n` +
         'Running a bundle built from different inputs would test code that is not ' +
         'this commit, so it is refused rather than uploaded. Re-emit the bundle ' +
-        'directory from this project with `npx sherlo test --emit-bundle-dir <dir>`.' +
-        FALLBACK_LINE
+        'directory from this project with `npx sherlo test --emit-bundle-dir <dir>`.'
     );
   }
 

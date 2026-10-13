@@ -692,13 +692,14 @@ describe('a sidecar that does not match is refused by field', () => {
     await expect(accept('android')).rejects.toThrow(/not valid JSON/);
   });
 
-  it('every refusal carries the full-run fallback line', async () => {
+  it('no refusal names an app file a person built', async () => {
     await emit(['android']);
     mockGetPackageVersion.mockReturnValue('0.77.0');
 
     const error = await refusalFrom('android');
 
-    expect(error.message).toMatch(/full build/i);
+    expect(error.message).not.toMatch(/full build/i);
+    expect(error.message).not.toContain('--android <path>');
   });
 });
 

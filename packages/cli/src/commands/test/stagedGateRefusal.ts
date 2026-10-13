@@ -9,25 +9,14 @@
  *   e.g. STAGED_GATE_REFUSAL|full-build-needed|android|engineClass,assetInventory
  *
  * The wire format is defined by the openBuild resolver (@sherlo/api-types,
- * `StagedGateRefusal`). This module extracts it back into a typed struct and
- * renders the user-facing refusal (named diff sources + the full-run fallback
- * line). Keep the prefix + field order in lock-step with the resolver.
+ * `StagedGateRefusal`). This module extracts it back into a typed struct. Keep
+ * the prefix + field order in lock-step with the resolver.
  */
 import { GateDiffSource, GateOutcome } from '@sherlo/api-types';
-import { ANDROID_OPTION, IOS_OPTION, TEST_COMMAND } from '../../constants';
 import type { StoredBaseSources } from '../../seams/serverCalls';
 
 /** Machine-parseable prefix emitted by the openBuild resolver on refusal. */
 export const STAGED_GATE_REFUSAL_PREFIX = 'STAGED_GATE_REFUSAL';
-
-/**
- * The full-run fallback line: the ONE sentence that tells a developer what to do
- * when the JS-only road is unavailable. Defined once and imported by every exit
- * path that needs it (the gate refusals here, the bundling refusals in
- * ./buildBundle, the routing output in ./nativeNeeded) so the guidance can never
- * differ between them.
- */
-export const FALLBACK_LINE = `Run \`npx sherlo ${TEST_COMMAND} --${ANDROID_OPTION} <path> [--${IOS_OPTION} <path>]\` for a full build with the same options.`;
 
 export type StagedGateRefusal = {
   /** Machine-readable gate outcome (never "fast" - that path doesn't refuse). */
@@ -80,43 +69,4 @@ function extractMessage(error: unknown): string | undefined {
     return typeof message === 'string' ? message : undefined;
   }
   return undefined;
-}
-
-/** Human-readable labels for the machine-readable diff sources. */
-const DIFF_LABELS: Record<GateDiffSource, string> = {
-  engineClass: 'JS engine (Hermes/JSC)',
-  assetInventory: 'bundled assets',
-  expoUpdatesEnabled: 'expo-updates configuration',
-  sdkProtocolVersion: 'Sherlo SDK protocol version',
-  buildMetadata: 'native build metadata',
-  bundleFormat: 'JS bundle format (hbc/plain-js/ram)',
-};
-
-/** Human-readable reason per non-fast outcome. */
-const OUTCOME_REASON: Record<Exclude<GateOutcome, 'fast'>, string> = {
-  'full-build-needed': 'the native binary needs to be rebuilt',
-  'not-stageable': "this project can't use the staged fast path",
-};
-
-/**
- * Render a refusal into the user-facing message: a one-line reason, the named
- * diff sources that changed (when present), and the full-run fallback line.
- */
-export function formatStagedGateRefusal(refusal: StagedGateRefusal): string {
-  const platformLabel = refusal.platform === 'android' ? 'Android' : 'iOS';
-  const reason =
-    refusal.outcome === 'fast'
-      ? 'the staged gate refused'
-      : OUTCOME_REASON[refusal.outcome] ?? 'the staged gate refused';
-
-  const lines = [`✗ Staged upload not possible for ${platformLabel}: ${reason}.`];
-
-  if (refusal.diff.length > 0) {
-    const named = refusal.diff.map((source) => DIFF_LABELS[source] ?? source).join(', ');
-    lines.push(`Changed since the base build: ${named}.`);
-  }
-
-  lines.push(FALLBACK_LINE);
-
-  return lines.join('\n');
 }
