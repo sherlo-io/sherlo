@@ -1,7 +1,7 @@
 import throwError from '../../helpers/throwError';
 import { emit } from '../../helpers/transcriptSink';
 import type { ViewJson } from '../../render/buildView';
-import type { BuildStatusAnswer } from '../../seams/serverCalls';
+import type { BuildStatus } from '../../helpers/buildStatusRequest';
 
 /**
  * EVERYTHING `sherlo view` PRINTS about a build it has already read - and it
@@ -30,7 +30,7 @@ export function printBuildView({
   url,
   printJson,
 }: {
-  build: BuildStatusAnswer;
+  build: BuildStatus;
   buildIndex: number;
   url: string;
   /** `--json`: print the record instead of the human view. */
@@ -87,7 +87,7 @@ function isStillRunning(runStatus: string): boolean {
  * own plain words: `commit` from the frozen `gitInfo` (`sherlo view` opened nothing, so the build's
  * own git identity is the only one it can print), and `runError` with the platform it names.
  */
-export function viewJsonOf(build: BuildStatusAnswer, buildIndex: number): ViewJson {
+export function viewJsonOf(build: BuildStatus, buildIndex: number): ViewJson {
   return {
     runStatus: build.runStatus,
     buildIndex,
@@ -101,10 +101,9 @@ export function viewJsonOf(build: BuildStatusAnswer, buildIndex: number): ViewJs
     showsOnlyBranchChanges: build.showsOnlyBranchChanges,
     mainBranch: build.mainBranch,
     ciRun: build.ciRun,
-    runError:
-      typeof build.runError === 'string'
-        ? { code: build.runError, platform: build.runErrorPlatform ?? undefined }
-        : undefined,
+    runError: build.runError
+      ? { code: build.runError, platform: build.runErrorPlatform ?? undefined }
+      : undefined,
     devices: build.devices,
     viewStatusesCount: build.viewStatusesCount,
     stories: build.stories,
