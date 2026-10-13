@@ -658,9 +658,8 @@ const PINS: Pin[] = [
       ...NEXT_STEP_TITLE_PRINTS,
       [`${ESC}[1mTest your app${ESC}[22m`],
       [
-        `   ${ESC}[36mnpx sherlo test${ESC}[39m takes this app build from the local build cache instead of building,`,
+        `   ${ESC}[36mnpx sherlo test${ESC}[39m skips building the app until native code or build settings change.`,
       ],
-      ['   until native code or build settings change.'],
     ],
   },
   {

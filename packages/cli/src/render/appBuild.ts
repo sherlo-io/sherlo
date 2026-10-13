@@ -166,16 +166,15 @@ export function renderAppBuildDone({
 }
 
 /**
- * `sherlo build` ends on what the app build it kept is for: the next `sherlo test` takes it from the
- * local build cache instead of building.
+ * `sherlo build` ends on what the app builds it kept are for: the next `sherlo test` skips building.
+ * One sentence that reads right whether it built one platform or two.
  */
 export function renderAppBuildNextStep(): string[] {
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...renderSectionTitle('👉 Next step', 12),
     chalk.bold('Test your app'),
-    `   ${chalk.cyan('npx sherlo test')} takes this app build from the local build cache instead of building,`,
-    '   until native code or build settings change.',
+    `   ${chalk.cyan('npx sherlo test')} skips building the app until native code or build settings change.`,
   ];
 }
 
