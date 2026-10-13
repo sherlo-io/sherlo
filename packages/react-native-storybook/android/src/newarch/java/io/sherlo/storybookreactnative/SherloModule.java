@@ -164,24 +164,6 @@ public class SherloModule extends NativeSherloModuleSpec {
         return moduleCore.reportEarlyJsError(name, message, stack);
     }
 
-    // ==== File System Methods ====
-
-    /**
-     * Refuses: the app keeps no Sherlo file.
-     */
-    @Override
-    public void appendFile(String filename, String base64Content, Promise promise) {
-        moduleCore.appendFile(filename, base64Content, promise);
-    }
-
-    /**
-     * Refuses: the app keeps no Sherlo file.
-     */
-    @Override
-    public void readFile(String filename, Promise promise) {
-        moduleCore.readFile(filename, promise);
-    }
-
     // ==== Inspector Methods ====
 
     /**

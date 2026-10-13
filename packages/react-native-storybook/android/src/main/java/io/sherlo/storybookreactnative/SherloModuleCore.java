@@ -659,18 +659,6 @@ public class SherloModuleCore {
         }
     }
 
-    // ============ Files ============
-
-    /** Refuses: the app keeps no Sherlo file, its messages travel over the connection. */
-    public void appendFile(String filename, String base64Content, Promise promise) {
-        promise.reject("ERROR_NO_FILES", "Sherlo keeps no file in the app: its messages travel over the app's connection.");
-    }
-
-    /** Refuses: the app keeps no Sherlo file, its messages travel over the connection. */
-    public void readFile(String filename, Promise promise) {
-        promise.reject("ERROR_NO_FILES", "Sherlo keeps no file in the app: its messages travel over the app's connection.");
-    }
-
     /**
      * Gets UI inspector data from the current view hierarchy.
      * 
