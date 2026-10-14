@@ -7,6 +7,7 @@
  * Three layers per platform, combined into a final SHA-256:
  *
  *   Layer 1 – @expo/fingerprint over the platform alone, with version suppression
+ *     Both:    the resolved Expo config is hashed without the other platform's key.
  *     Managed: SourceSkips.ExpoConfigVersions + ExpoConfigRuntimeVersionIfString
  *     Bare:    streaming fileHookTransform that strips version lines from
  *              *.plist (CFBundleVersion / MARKETING_VERSION) and build.gradle*
@@ -351,7 +352,10 @@ function unavailableOnEveryPlatform(debugMessage: string): BaseFingerprints {
 
 /**
  * One platform's Layer 1: `@expo/fingerprint` told to read that platform's native
- * files alone, so an edit to the other platform's folder cannot move it.
+ * files alone, so an edit to the other platform's folder cannot move it. The library
+ * hashes the resolved Expo config as one source for every platform, so its transform
+ * also takes the other platform's key out of that config
+ * ({@link expoConfigWithoutOtherPlatform}).
  *
  * `debug: true` adds nothing to the hash: it only hands back, under each folder
  * source's `debugInfo`, the per-file hashes the folder hash was made of - kept for
@@ -376,16 +380,54 @@ function createPlatformFingerprint({
           sourceSkips:
             SourceSkips.ExpoConfigVersions | SourceSkips.ExpoConfigRuntimeVersionIfString,
         }
-      : {
-          fileHookTransform: createVersionStrippingTransform(),
-        };
+      : {};
+  const stripVersionLinesFromFiles = workflow === 'bare' ? createVersionStrippingTransform() : null;
+
+  const transformForThisPlatform: FileHookTransformFunction = (
+    source,
+    chunk,
+    isEndOfFile,
+    encoding
+  ) => {
+    if (source.type === 'contents' && source.id === EXPO_CONFIG_SOURCE_ID) {
+      return expoConfigWithoutOtherPlatform(chunk, platform);
+    }
+    if (stripVersionLinesFromFiles) {
+      return stripVersionLinesFromFiles(source, chunk, isEndOfFile, encoding);
+    }
+    return chunk;
+  };
 
   return createFingerprintAsync(projectRoot, {
     ...versionSuppression,
+    fileHookTransform: transformForThisPlatform,
     platforms: [platform],
     debug: true,
   });
 }
+
+/** The id `@expo/fingerprint` gives the resolved Expo config (`expo config --json`). */
+const EXPO_CONFIG_SOURCE_ID = 'expoConfig';
+
+/**
+ * The resolved Expo config as one platform's build reads it: without the other platform's
+ * top-level key (`ios` for Android, `android` for iOS), so a setting only the other platform
+ * builds from cannot move this platform's fingerprint. Every key both platforms read stays.
+ *
+ * The library hands the config over whole, as JSON with its keys already sorted, so removing a
+ * key and writing it back keeps that order: the same config always hashes the same.
+ */
+function expoConfigWithoutOtherPlatform(
+  resolvedConfig: Buffer | string | null,
+  platform: Platform
+): string | null {
+  if (resolvedConfig === null) return null;
+  const config = JSON.parse(resolvedConfig.toString());
+  delete config[OTHER_PLATFORM[platform]];
+  return JSON.stringify(config);
+}
+
+const OTHER_PLATFORM: Record<Platform, Platform> = { android: 'ios', ios: 'android' };
 
 /**
  * The sources `@expo/fingerprint` already computed, reduced to identifier + hash.
@@ -552,15 +594,20 @@ function hasNativeProject(projectRoot: string, folder: Platform): boolean {
 
 /**
  * The native folders (`android`, `ios`) the project's last commit holds, or null
- * when git cannot say: not a repository, no commit yet, or no git at all.
+ * when git cannot say: not a repository, no commit yet, no git at all, or a project
+ * the last commit does not hold (its `package.json` untracked, as in a folder an
+ * enclosing repository ignores) - such a project commits nothing yet, so git cannot
+ * tell a generated native folder from a written one.
  */
 async function nativeFoldersTheProjectCommits(projectRoot: string): Promise<string[] | null> {
   try {
     const output = await runShellCommand({
-      command: `git ls-tree -d --name-only HEAD -- ${PLATFORMS.join(' ')}`,
+      command: `git ls-tree --name-only HEAD -- package.json ${PLATFORMS.join(' ')}`,
       projectRoot,
     });
-    return output.split('\n').filter((line) => line.length > 0);
+    const committedPaths = output.split('\n').filter((line) => line.length > 0);
+    if (!committedPaths.includes('package.json')) return null;
+    return committedPaths.filter((committedPath) => committedPath !== 'package.json');
   } catch {
     return null;
   }
