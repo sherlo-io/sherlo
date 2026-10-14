@@ -666,14 +666,35 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
  * Returns null if Metro internals cannot be resolved (non-fatal, just skip wrapping).
  */
 function getMetroDefaultSerializer() {
+  var metroFiles = requireMetroFiles();
+  if (!metroFiles) return null;
+  var baseJSBundle = metroFiles.baseJSBundle.default || metroFiles.baseJSBundle;
+  var bundleToString = metroFiles.bundleToString.default || metroFiles.bundleToString;
+  return function defaultSerializer(entryPoint, preModules, graph, options) {
+    return bundleToString(baseJSBundle(entryPoint, preModules, graph, options)).code;
+  };
+}
+
+/**
+ * The two Metro files the default serializer is made of. Metro 0.83 and later let another package
+ * reach its files only under metro/private/; an older Metro has no such path and keeps them under
+ * metro/src/. Each require names its path in full, so the plugin's build keeps both external.
+ *
+ * @returns {{ baseJSBundle: any, bundleToString: any } | null} null when neither Metro is found
+ */
+function requireMetroFiles() {
   try {
-    var baseJSBundle =
-      require('metro/src/DeltaBundler/Serializers/baseJSBundle').default ||
-      require('metro/src/DeltaBundler/Serializers/baseJSBundle');
-    var bundleToString =
-      require('metro/src/lib/bundleToString').default || require('metro/src/lib/bundleToString');
-    return function defaultSerializer(entryPoint, preModules, graph, options) {
-      return bundleToString(baseJSBundle(entryPoint, preModules, graph, options)).code;
+    return {
+      baseJSBundle: require('metro/private/DeltaBundler/Serializers/baseJSBundle'),
+      bundleToString: require('metro/private/lib/bundleToString'),
+    };
+  } catch (_) {
+    // An older Metro, without metro/private/.
+  }
+  try {
+    return {
+      baseJSBundle: require('metro/src/DeltaBundler/Serializers/baseJSBundle'),
+      bundleToString: require('metro/src/lib/bundleToString'),
     };
   } catch (_) {
     return null;
