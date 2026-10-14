@@ -43,10 +43,10 @@ if [ -n "${LIBS_REF:-}" ]; then
   # trap above), but is the mode meant for an ephemeral caller, matching upstream usage.
   (cd "$API_BUILD_DIR" && bash scripts/set-package-env.sh "$STAGE" --caller-restores)
 
-  # sherlo-api pins yarn@1.22.22 (Classic) via its own package.json `packageManager` -
-  # unrelated to this repo's yarn@4 (Berry). Bare `yarn` here resolves whatever this
-  # runner has on PATH for a repo with no `.yarnrc.yml`/`yarnPath` override, which is
-  # sherlo-api's own pin.
+  # sherlo-api chooses its own Yarn - Classic (1.x) or Berry (4) - through its package.json
+  # `packageManager` and its `yarnPath`, unrelated to this repo's yarn@4. Bare `yarn` run
+  # inside it follows those. A Berry sherlo-api reads its @sherlo-io packages from GitHub's
+  # package registry with GITHUB_PACKAGES_TOKEN, which this script's caller exports.
   #
   # `yarn install`'s postinstall (scripts/build-unless-ci.sh) skips the build whenever
   # CI=true (GitHub Actions sets this) - it exists purely for a local bare `yarn` to

@@ -26,7 +26,7 @@ describe('building the CLI', () => {
       execFileSync(
         process.execPath,
         [
-          require.resolve('typescript/bin/tsc'),
+          path.join(path.dirname(require.resolve('typescript/package.json')), 'bin/tsc'),
           '--project',
           bundlerLineOnlyConfig,
           '--emitDeclarationOnly',

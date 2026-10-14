@@ -3,38 +3,37 @@
  *
  * A command reaches the world only through `src/seams/`. A read written straight into a command
  * answers from the machine a pose ran on, and the screen looks right - which is why this is a lint
- * and a census rather than a review note. The lint lives in the root `.eslintrc.js` (the
+ * and a census rather than a review note. The lint lives in the root `.oxlintrc.json` (the
  * `packages/cli/src/**` override); this file is the census that proves it holds on the whole tree
  * and lists every exception with its reason, so a new one is a visible decision, never a silent
  * default.
  *
  * THE CENSUS RE-RUNS THE LINT WITH NO EXCEPTIONS. It reads the root config's own rule objects (so
  * there is one definition of the rule, not two that can drift) and lints the tree as if none of
- * the later `excludedFiles`/`off` overrides existed, so what comes back is the RAW violation set -
+ * the later exception overrides existed, so what comes back is the RAW violation set -
  * every module that reaches the SDK client, a socket, a process, or a file outside the project
  * folder, directly. Each test below checks a different shape of that set against the exceptions
  * named here.
  */
+import { execFileSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
-import * as ts from 'typescript';
+import { parse } from '@babel/parser';
+import type * as babel from '@babel/types';
 import { describe, it, expect, afterAll } from 'vitest';
-
-// `eslint` ships no type declarations of its own, so it is reached through `require` (typed
-// `any` by @types/node) rather than an `import` TypeScript cannot resolve a declaration for.
-
-const { ESLint } = require('eslint');
 
 const REPO_ROOT = path.resolve(__dirname, '../../../..');
 const CLI_SRC = path.join(REPO_ROOT, 'packages/cli/src');
 
-/** One rule's config, as `.eslintrc.js` writes it - the shape `ESLint`'s `overrideConfig.rules` wants. */
-type RuleConfig = string | number | unknown[];
+/** One rule's config, as `.oxlintrc.json` writes it. */
+type RuleConfig = string | unknown[];
 
 const DOOR_RULES = [
-  '@typescript-eslint/no-restricted-imports',
+  'no-restricted-imports',
+  'doors/no-require-of-a-door',
   'no-restricted-globals',
-  'no-restricted-syntax',
+  'no-restricted-properties',
 ] as const;
 
 type DoorViolation = {
@@ -45,54 +44,77 @@ type DoorViolation = {
   door: 'sdk-client' | 'fetch' | 'node-core' | 'fs-root';
 };
 
-/** A message's own words say which door it is - the four rule objects below never state it directly. */
-function categorize(ruleId: string, message: string): DoorViolation['door'] {
-  if (ruleId === '@typescript-eslint/no-restricted-imports') return 'sdk-client';
+/** A message's own words say which door it is - the rule objects below never state it directly. */
+function categorize(ruleId: string, words: string): DoorViolation['door'] {
+  if (words.includes('A file read outside the project folder seam')) return 'fs-root';
   if (ruleId === 'no-restricted-globals') return 'fetch';
-  if (message.startsWith('A file read outside the project folder seam')) return 'fs-root';
+  if (words.includes('@sherlo/sdk-client')) return 'sdk-client';
   return 'node-core';
 }
 
 /**
- * The root `.eslintrc.js`'s own "EVERY DOOR IS A SEAM" rule objects - the override for every
- * `.ts` file under `packages/cli/src`, excluding the seams themselves and any `__tests__`
- * directory. Read off the real config rather than retyped here, so the census can never drift
- * from the lint it is proving.
+ * The root `.oxlintrc.json`'s own "EVERY DOOR IS A SEAM" rule objects - the override for every
+ * `.ts` file under `packages/cli/src`; the overrides after it name the exceptions. Read off the
+ * real config rather than retyped here, so the census can never drift from the lint it is proving.
  */
 function readDoorRules(): Record<string, RuleConfig> {
-  const rootConfig = require(path.join(REPO_ROOT, '.eslintrc.js'));
+  const rootConfig = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, '.oxlintrc.json'), 'utf8'));
   const baseOverride = (
-    rootConfig.overrides as {
-      files: string[];
-      excludedFiles?: string[];
-      rules?: Record<string, RuleConfig>;
-    }[]
-  ).find((o) => o.files.includes('packages/cli/src/**/*.ts') && o.excludedFiles);
+    rootConfig.overrides as { files: string[]; rules?: Record<string, RuleConfig> }[]
+  ).find((o) => o.files.length === 1 && o.files[0] === 'packages/cli/src/**/*.ts');
   if (!baseOverride?.rules) {
     throw new Error(
-      'doors-are-seams.test.ts could not find the "EVERY DOOR IS A SEAM" override in the root .eslintrc.js'
+      'doors-are-seams.test.ts could not find the "EVERY DOOR IS A SEAM" override in the root .oxlintrc.json'
     );
   }
   return baseOverride.rules;
 }
 
+type OxlintDiagnostic = { code: string; message: string; help?: string; filename: string };
+
 /**
- * A linter that runs the door rules and nothing else. The census asks only which doors a module
- * opens, so it parses TypeScript the way the lint does and skips every other rule of the
- * project's config, which are most of a whole-config lint's time.
+ * Lint files with the door rules and nothing else - no exception, no other rule. The census asks
+ * only which doors a module opens. Each finding comes back with its rule's plain name
+ * (`no-restricted-imports`, `doors/no-require-of-a-door`).
  */
-function doorLinter() {
-  return new ESLint({
-    cwd: REPO_ROOT,
-    useEslintrc: false,
-    overrideConfig: {
-      root: true,
-      parser: '@typescript-eslint/parser',
-      parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
-      plugins: ['@typescript-eslint'],
+function lintWithTheDoorRulesAlone(
+  targets: string[]
+): { file: string; ruleId: string; words: string }[] {
+  const configFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'doors-census-'));
+  const configFile = path.join(configFolder, '.oxlintrc.json');
+  fs.writeFileSync(
+    configFile,
+    JSON.stringify({
+      categories: { correctness: 'off' },
+      plugins: ['eslint'],
+      jsPlugins: [{ name: 'doors', specifier: path.join(REPO_ROOT, '.oxlint/doors-plugin.js') }],
       rules: readDoorRules(),
-    },
-  });
+    })
+  );
+
+  try {
+    const oxlint = path.join(path.dirname(require.resolve('oxlint/package.json')), 'bin', 'oxlint');
+    let printed: string;
+    try {
+      printed = execFileSync(
+        process.execPath,
+        [oxlint, '-c', configFile, '--format', 'json', '--no-ignore', ...targets],
+        { cwd: REPO_ROOT, encoding: 'utf8' }
+      );
+    } catch (failure) {
+      // oxlint exits 1 when it finds an error: the findings are the point, on stdout all the same.
+      printed = (failure as { stdout: string }).stdout;
+    }
+    const diagnostics: OxlintDiagnostic[] = JSON.parse(printed).diagnostics;
+
+    return diagnostics.map((diagnostic) => ({
+      file: path.relative(REPO_ROOT, path.resolve(REPO_ROOT, diagnostic.filename)),
+      ruleId: diagnostic.code.replace(/^eslint\((.*)\)$/, '$1').replace(/^(\w+)\((.*)\)$/, '$1/$2'),
+      words: `${diagnostic.message} ${diagnostic.help ?? ''}`,
+    }));
+  } finally {
+    fs.rmSync(configFolder, { recursive: true, force: true });
+  }
 }
 
 // Linting the whole tree is the slow part of this file - memoized so the two tests that both need
@@ -106,26 +128,23 @@ function findRawViolations(): Promise<DoorViolation[]> {
 }
 
 async function computeRawViolations(): Promise<DoorViolation[]> {
-  const results = await doorLinter().lintFiles(['packages/cli/src/**/*.ts']);
   const violations: DoorViolation[] = [];
 
-  for (const result of results) {
-    const file = path.relative(REPO_ROOT, result.filePath);
+  for (const finding of lintWithTheDoorRulesAlone(['packages/cli/src'])) {
+    if (!finding.file.endsWith('.ts')) continue;
     if (
-      file.includes(`${path.sep}seams${path.sep}`) ||
-      file.includes(`${path.sep}__tests__${path.sep}`)
+      finding.file.includes(`${path.sep}seams${path.sep}`) ||
+      finding.file.includes(`${path.sep}__tests__${path.sep}`)
     ) {
       continue;
     }
+    if (!(DOOR_RULES as readonly string[]).includes(finding.ruleId)) continue;
 
-    for (const message of result.messages) {
-      if (!message.ruleId || !(DOOR_RULES as readonly string[]).includes(message.ruleId)) continue;
-      violations.push({
-        file,
-        ruleId: message.ruleId as DoorViolation['ruleId'],
-        door: categorize(message.ruleId, message.message),
-      });
-    }
+    violations.push({
+      file: finding.file,
+      ruleId: finding.ruleId as DoorViolation['ruleId'],
+      door: categorize(finding.ruleId, finding.words),
+    });
   }
 
   return violations;
@@ -231,29 +250,23 @@ function findValueImportEdges(): ValueImportEdge[] {
 
   const edges: ValueImportEdge[] = [];
   for (const file of listSourceFiles(CLI_SRC)) {
-    const text = fs.readFileSync(file, 'utf8');
-    const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+    for (const statement of importsIn(fs.readFileSync(file, 'utf8'))) {
+      if (statement.importKind === 'type') continue;
 
-    sourceFile.statements.forEach((statement) => {
-      if (!ts.isImportDeclaration(statement)) return;
-      if (statement.importClause?.isTypeOnly) return;
-      if (!ts.isStringLiteral(statement.moduleSpecifier)) return;
+      const target = resolveRelativeImport(file, statement.source.value);
+      if (!target) continue;
 
-      const target = resolveRelativeImport(file, statement.moduleSpecifier.text);
-      if (!target) return;
-
-      const clause = statement.importClause;
       const hasValueBinding =
-        !clause || // a side-effecting `import '...'` still runs the module
-        Boolean(clause.name) || // default import
-        (clause.namedBindings &&
-          (ts.isNamespaceImport(clause.namedBindings) ||
-            clause.namedBindings.elements.some((el) => !el.isTypeOnly)));
+        statement.specifiers.length === 0 || // a side-effecting `import '...'` still runs the module
+        statement.specifiers.some(
+          // a default or namespace import, or a name not marked `type`
+          (specifier) => specifier.type !== 'ImportSpecifier' || specifier.importKind !== 'type'
+        );
 
       if (hasValueBinding) {
         edges.push({ from: path.relative(REPO_ROOT, file), to: path.relative(REPO_ROOT, target) });
       }
-    });
+    }
   }
 
   valueImportEdges = edges;
@@ -377,30 +390,39 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
  */
 function shellRunnerImports(file: string, text: string): string[] {
   const liveHalfFiles = new Set(LIVE_HALF_SET.map((entry) => `packages/cli/src/${entry.file}`));
-  const sourceFile = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
   const reaches: string[] = [];
 
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
-    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
-
-    const namedBindings = statement.importClause?.namedBindings;
-    const namesTheRunner =
-      namedBindings !== undefined &&
-      ts.isNamedImports(namedBindings) &&
-      namedBindings.elements.some(
-        (element) => (element.propertyName ?? element.name).text === 'runShellCommand'
-      );
-    const target = resolveRelativeImport(file, statement.moduleSpecifier.text);
+  for (const statement of importsIn(text)) {
+    const namesTheRunner = statement.specifiers.some(
+      (specifier) =>
+        specifier.type === 'ImportSpecifier' && importedName(specifier) === 'runShellCommand'
+    );
+    const target = resolveRelativeImport(file, statement.source.value);
     const reachesALiveHalf =
       target !== undefined && liveHalfFiles.has(path.relative(REPO_ROOT, target));
 
     if (namesTheRunner || reachesALiveHalf) {
-      reaches.push(`${path.relative(REPO_ROOT, file)}: ${statement.getText()}`);
+      const statementText = text.slice(statement.start ?? 0, statement.end ?? 0);
+      reaches.push(`${path.relative(REPO_ROOT, file)}: ${statementText}`);
     }
   }
 
   return reaches;
+}
+
+/** Every top-level `import ... from '...'` statement of a TypeScript source, in written order. */
+function importsIn(text: string): babel.ImportDeclaration[] {
+  const { program } = parse(text, { sourceType: 'module', plugins: ['typescript'] });
+  return program.body.filter(
+    (statement): statement is babel.ImportDeclaration => statement.type === 'ImportDeclaration'
+  );
+}
+
+/** The name an `import { a as b }` takes from its module: `a`. */
+function importedName(specifier: babel.ImportSpecifier): string {
+  return specifier.imported.type === 'Identifier'
+    ? specifier.imported.name
+    : specifier.imported.value;
 }
 
 /** `packages/cli/src/commands/pose/foo.ts` -> true for the directory `commands/pose`. */
@@ -467,11 +489,10 @@ describe('every door is a seam', () => {
     );
 
     try {
-      const results = await doorLinter().lintFiles([path.relative(REPO_ROOT, scratchFile)]);
-      const messages: { ruleId: string | null }[] = results[0]?.messages ?? [];
+      const findings = lintWithTheDoorRulesAlone([path.relative(REPO_ROOT, scratchFile)]);
 
       expect(
-        messages.some((m) => m.ruleId === '@typescript-eslint/no-restricted-imports'),
+        findings.some((finding) => finding.ruleId === 'no-restricted-imports'),
         `expected the new module ${path.relative(
           REPO_ROOT,
           scratchFile

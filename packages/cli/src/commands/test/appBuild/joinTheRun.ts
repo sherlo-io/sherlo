@@ -51,7 +51,8 @@ export async function joinTheRun({
   testDevices?: Config['devices'];
 }): Promise<{ build: { index: number }; waitingFor: Platform[] }> {
   const { build, waitingFor, startedRun } = await serverCalls()
-    .joinBuild({ token, joinKey, platform, pushFacts, ...request })
+    // This job's own platform's facts, never the whole push's that an `openBuild` request carries.
+    .joinBuild({ ...request, token, joinKey, platform, pushFacts })
     .catch((error) => {
       if (error.message === JOIN_MISMATCH_ERROR) refuseJoinMismatch();
       return handleClientError(error, token);

@@ -12,10 +12,10 @@ vi.mock('../../helpers/RunnerBridge', () => ({
   default: { log: vi.fn(), send: vi.fn() },
 }));
 
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import * as ts from 'typescript';
 
 import createMockable from '../../mocking/createMockable';
 import { declarationsOf, mock, resolveDeclarations } from '../../mocking/mockDeclaration';
@@ -62,22 +62,36 @@ function typeErrorsIn(storySource: string): string {
   fs.writeFileSync(path.join(root, 'module.ts'), MOCKED_MODULE_SOURCE, 'utf8');
   fs.writeFileSync(storyPath, storySource, 'utf8');
 
-  const program = ts.createProgram([storyPath], {
-    noEmit: true,
-    strict: true,
-    target: ts.ScriptTarget.ES2018,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Node10,
-    skipLibCheck: true,
-    // No ambient @types: the snippet is checked against this package's own source alone.
-    types: [],
-  });
-  const diagnostics = ts.getPreEmitDiagnostics(program);
-  fs.rmSync(root, { recursive: true, force: true });
+  fs.writeFileSync(
+    path.join(root, 'tsconfig.json'),
+    JSON.stringify({
+      compilerOptions: {
+        noEmit: true,
+        strict: true,
+        target: 'ES2018',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        skipLibCheck: true,
+        // No ambient @types: the snippet is checked against this package's own source alone.
+        types: [],
+      },
+      files: [storyPath],
+    }),
+    'utf8'
+  );
 
-  return diagnostics
-    .map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '))
-    .join('\n');
+  // The compiler's own command line: what it prints is what the editor says.
+  const tsc = path.join(path.dirname(require.resolve('typescript/package.json')), 'bin', 'tsc');
+  let printed = '';
+  try {
+    execFileSync(process.execPath, [tsc, '-p', root, '--pretty', 'false'], { encoding: 'utf8' });
+  } catch (failure) {
+    printed = (failure as { stdout: string }).stdout;
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+
+  return printed.trim();
 }
 
 function storyDeclaring(definition: string): string {

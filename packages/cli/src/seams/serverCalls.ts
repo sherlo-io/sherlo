@@ -481,7 +481,8 @@ export type StoredBaseSources = {
 export type StoredBaseSource = {
   path: string;
   hash: string | null;
-  kind: 'file' | 'dir' | 'contents';
+  /** `file`, `dir`, or `contents` for a resolved setting - a plain string, as the service stores it. */
+  kind: string;
   /**
    * A native folder's files, one hash each (`android/app/build.gradle`), so the list can name the
    * file that changed rather than the folder (operator decision 2026-10-11). Kept for the list
@@ -801,11 +802,12 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
         waitingFor: Platform[];
         startedRun?: StartedRun;
       };
+      // Only what the tool reads of the answer, as `openBuildAnswerOf` poses `openBuild`'s.
       return {
         build: { index: answer.buildIndex },
         waitingFor: answer.waitingFor,
         ...(answer.startedRun ? { startedRun: answer.startedRun } : {}),
-      };
+      } as unknown as JoinBuildAnswer;
     },
 
     // The platform is the one whose storage key the delivery carries - the request names no other.

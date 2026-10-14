@@ -238,7 +238,7 @@ function recordThroughAPty(
   const command = [
     process.execPath,
     '-r',
-    require.resolve('ts-node/register/transpile-only'),
+    require.resolve('tsx/cjs'),
     path.join(__dirname, 'support', 'cliEntry.ts'),
     ...argv,
   ];

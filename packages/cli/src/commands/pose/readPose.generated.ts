@@ -727,15 +727,15 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         const oneOf87 = object84.answer;
         const where88 = at(path, 'answer');
         if (isPlainObject(oneOf87)) {
-          if ('outcome' in oneOf87) {
-            readStagedGateAnswer(oneOf87, where88, problems);
-          } else if ('error' in oneOf87) {
+          if ('error' in oneOf87) {
             readApiError(oneOf87, where88, problems);
+          } else if ('outcome' in oneOf87) {
+            readStagedGateAnswer(oneOf87, where88, problems);
           } else {
-            reportWrongShape(oneOf87, '`StagedGateAnswer` or `ApiError`', where88, problems);
+            reportWrongShape(oneOf87, '`ApiError` or `StagedGateAnswer`', where88, problems);
           }
         } else {
-          reportWrongShape(oneOf87, '`StagedGateAnswer` or `ApiError`', where88, problems);
+          reportWrongShape(oneOf87, '`ApiError` or `StagedGateAnswer`', where88, problems);
         }
         reportUnknownFields(object84, ['call', 'with', 'answer'], path, problems);
       }
@@ -911,7 +911,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: StagedGateAnswer | ApiError }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
+      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
       path,
       problems
     );
@@ -1628,6 +1628,16 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           expectOneOf(
             object7.id,
             [
+              'ipad.10.gen',
+              'ipad.9.gen',
+              'ipad.air.11.m2',
+              'ipad.air.13.m2',
+              'ipad.air.5.gen',
+              'ipad.mini.6.gen',
+              'ipad.pro.11.4.gen',
+              'ipad.pro.11.m4',
+              'ipad.pro.12.9.6.gen',
+              'ipad.pro.13.m4',
               'iphone.13',
               'iphone.13.mini',
               'iphone.13.pro',
@@ -1641,16 +1651,6 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
               'iphone.15.pro',
               'iphone.15.pro.max',
               'iphone.se.3.gen',
-              'ipad.9.gen',
-              'ipad.10.gen',
-              'ipad.air.5.gen',
-              'ipad.air.11.m2',
-              'ipad.air.13.m2',
-              'ipad.mini.6.gen',
-              'ipad.pro.11.4.gen',
-              'ipad.pro.11.m4',
-              'ipad.pro.12.9.6.gen',
-              'ipad.pro.13.m4',
               'pixel.4',
               'pixel.4.xl',
               'pixel.4a',
@@ -1669,7 +1669,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
             problems
           );
           expectString(object7.osVersion, at(where6, 'osVersion'), problems);
-          expectOneOf(object7.theme, ['light', 'dark'], at(where6, 'theme'), problems);
+          expectOneOf(object7.theme, ['dark', 'light'], at(where6, 'theme'), problems);
           expectString(object7.locale, at(where6, 'locale'), problems);
           expectString(object7.fontScale, at(where6, 'fontScale'), problems);
           reportUnknownFields(
@@ -2225,7 +2225,7 @@ function readStoredBaseSource(value: unknown, path: string, problems: string[]):
     } else {
       reportWrongShape(oneOf2, 'a string or `null`', where3, problems);
     }
-    expectOneOf(object1.kind, ['file', 'dir', 'contents'], at(path, 'kind'), problems);
+    expectString(object1.kind, at(path, 'kind'), problems);
     if ('files' in object1) {
       const where4 = at(path, 'files');
       const list5 = asArray(object1.files, where4, problems);

@@ -32,7 +32,6 @@ import { getGitInfo } from '../seams/surroundings';
 import { nativeBuild } from '../seams/nativeBuild';
 import {
   serverCalls,
-  type JoinBuildAnswer,
   type OpenBuildAnswer,
   type OpenBuildRequest,
   type PushFacts,
@@ -73,7 +72,9 @@ export type PushEffects = {
   resolveGitInfo: () => Promise<GitInfo>;
   computeFingerprint: () => Promise<BaseFingerprints>;
   /** Opens the test, or - for one job of a split CI run - joins the one its CI run shares. */
-  openBuild: (input: Record<string, unknown>) => Promise<OpenBuildAnswer | JoinBuildAnswer>;
+  openBuild: (
+    input: Record<string, unknown>
+  ) => Promise<OpenBuildAnswer | Awaited<ReturnType<typeof joinTheRun>>>;
   binaryUpload: BinaryUploadEffects;
   baseRegistration: BaseRegistrationEffects;
   /** The fresh bundle spliced into every binary this run renders. */
@@ -396,13 +397,15 @@ async function uploadOrReuseBuildsAndRunTests({
   // A joined run's own step was printed when it joined (../commands/test/appBuild/joinTheRun); its
   // run starts when the last platform is in, so a job whose run still waits has no next step.
   const joined = 'waitingFor' in opened ? opened : undefined;
-  const serverBypassed = !joined && isServerBypassed(opened.build.diffScopeInfo);
+  const openedAlone = 'waitingFor' in opened ? undefined : opened;
+  const serverBypassed =
+    openedAlone !== undefined && isServerBypassed(openedAlone.build.diffScopeInfo);
 
   // The step that started the test, with how many stories it captures, read off the openBuild
   // answer - the same line the staged road prints - then the run's one ending.
-  if (!joined) {
+  if (openedAlone) {
     printTestStarted({
-      openBuildReturn: opened,
+      openBuildReturn: openedAlone,
       moduleManifests: moduleManifestsOf(freshBundles),
       platformsToTest: platformsInTheRun(buildRunConfig),
       devices: commandParams.devices,
@@ -418,7 +421,7 @@ async function uploadOrReuseBuildsAndRunTests({
     serverBypassed,
     platformRows,
     endsOnNextStep: !joined || joined.waitingFor.length === 0,
-    hasCiToken: joined ? undefined : opened.hasCiToken,
+    hasCiToken: openedAlone?.hasCiToken,
   });
 
   return { url };

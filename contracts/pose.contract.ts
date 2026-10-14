@@ -386,7 +386,7 @@ export type ScriptedCall =
         platform: string;
         baseFingerprint: string;
       };
-      answer: StagedGateAnswer | ApiError;
+      answer: ApiError | StagedGateAnswer;
     }
   | {
       /**
@@ -829,8 +829,8 @@ export type PosedCaptureDecision = {
 /**
  * WHAT ONLY THE PUSH KNOWS about one platform it delivers - the machine that made the app build is
  * the only witness, so the push reports it on `openBuild`, `joinBuild` or the EAS hook's
- * `asyncUpload`, the service stores it on the build run, and `getBuildStatus` echoes it ({@link
- * BuildStatusPlatform}). Self-reported: the CLI vouches for itself, so nothing the web app trusts
+ * `asyncUpload`, the service stores it on the build run, and `getBuildStatus` echoes it
+ * (BuildStatusPlatform). Self-reported: the CLI vouches for itself, so nothing the web app trusts
  * may be decided from it.
  *
  * The push composes them where it already decides each fact (./commands/test/appBuild/pushFacts)
@@ -867,6 +867,16 @@ export type PushFactsPlatform = {
 export type StartedRun = {
   devices: Array<{
     id:
+      | 'ipad.10.gen'
+      | 'ipad.9.gen'
+      | 'ipad.air.11.m2'
+      | 'ipad.air.13.m2'
+      | 'ipad.air.5.gen'
+      | 'ipad.mini.6.gen'
+      | 'ipad.pro.11.4.gen'
+      | 'ipad.pro.11.m4'
+      | 'ipad.pro.12.9.6.gen'
+      | 'ipad.pro.13.m4'
       | 'iphone.13'
       | 'iphone.13.mini'
       | 'iphone.13.pro'
@@ -880,16 +890,6 @@ export type StartedRun = {
       | 'iphone.15.pro'
       | 'iphone.15.pro.max'
       | 'iphone.se.3.gen'
-      | 'ipad.9.gen'
-      | 'ipad.10.gen'
-      | 'ipad.air.5.gen'
-      | 'ipad.air.11.m2'
-      | 'ipad.air.13.m2'
-      | 'ipad.mini.6.gen'
-      | 'ipad.pro.11.4.gen'
-      | 'ipad.pro.11.m4'
-      | 'ipad.pro.12.9.6.gen'
-      | 'ipad.pro.13.m4'
       | 'pixel.4'
       | 'pixel.4.xl'
       | 'pixel.4a'
@@ -904,7 +904,7 @@ export type StartedRun = {
       | 'pixel.8.pro'
       | 'pixel.tablet';
     osVersion: string;
-    theme: 'light' | 'dark';
+    theme: 'dark' | 'light';
     locale: string;
     fontScale: string;
   }>;
@@ -1075,7 +1075,7 @@ export type PosedView = {
 /**
  * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
  * ../helpers/buildStatusRequest): service-known facts beside the facts the push reported about
- * itself ({@link PushFacts}).
+ * itself (PushFacts).
  */
 export type BuildStatusPlatform = {
   /**
@@ -1171,7 +1171,11 @@ export type StoredBaseSources = {
 export type StoredBaseSource = {
   path: string;
   hash: string | null;
-  kind: 'file' | 'dir' | 'contents';
+  /**
+   * `file`, `dir`, or `contents` for a resolved setting - a plain string, as the service stores
+   * it.
+   */
+  kind: string;
   /**
    * A native folder's files, one hash each (`android/app/build.gradle`), so the list can name the
    * file that changed rather than the folder (operator decision 2026-10-11). Kept for the list
