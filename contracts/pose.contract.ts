@@ -833,9 +833,8 @@ export type PosedCaptureDecision = {
  * BuildStatusPlatform}). Self-reported: the CLI vouches for itself, so nothing the web app trusts
  * may be decided from it.
  *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the calls' posed `with` names these, and
- * no push composes them yet. The build task composes them where the push already decides each
- * fact, sends them, and the service stores them.
+ * The push composes them where it already decides each fact (./commands/test/appBuild/pushFacts)
+ * and sends them with these calls; the calls' posed `with` names them.
  */
 export type PushFactsPlatform = {
   /**
@@ -859,16 +858,11 @@ export type PushFactsPlatform = {
 };
 
 /**
- * The run that just started, as the service tells the upload that brought its last platform in:
- * the devices of the whole test (both platforms, from the run's config) and what each platform
- * captures (its decision, the story count its push reported, and the story files it captures with
- * their titles). It is what the ordinary `Test N ✔ Started: all 24 stories on 2 devices (Pixel 7,
- * iPhone 15)` row and its story list are printed from, by a job or an EAS build that knows only
- * its own platform.
+ * The run that just started, as the service tells the EAS upload that brought its last platform
+ * in: the devices of the whole test and what each platform captures. The sdk client's
+ * `asyncUpload` does not select it yet, so a live EAS run prints the bare `Test N ✔ Started`.
  *
- * PLAN-LAYER DEBT, NAMED (build item 66): posed here; the service sends it on `joinBuild` and
- * `asyncUpload` once the build task adds it. Until then a live run prints the bare `Test N ✔
- * Started`.
+ * PLAN-LAYER DEBT, NAMED (build item 66): posed here, for `asyncUpload` only.
  */
 export type StartedRun = {
   devices: Array<{
