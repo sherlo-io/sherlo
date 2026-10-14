@@ -6,8 +6,9 @@
   "compilerOptions": {
     "noEmit": true,
     "target": "es2021",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,

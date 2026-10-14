@@ -5,7 +5,8 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as ts from 'typescript';
+import { parse } from '@babel/parser';
+import { traverseFast } from '@babel/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   __resetStartedStorybookForTests,
@@ -109,29 +110,34 @@ function sdkSourceFiles(): string[] {
 
 /**
  * The fields of Storybook's own that `file` reads: every `a._field`, `a['_field']` and
- * `{ _field } = a`, as the compiler reads the file.
+ * `{ _field } = a`.
  */
 function storybookFieldsReadIn(file: string): string[] {
-  const source = ts.createSourceFile(
-    file,
-    fs.readFileSync(file, 'utf8'),
-    ts.ScriptTarget.Latest,
-    true
-  );
+  const { program } = parse(fs.readFileSync(file, 'utf8'), {
+    sourceType: 'module',
+    plugins: file.endsWith('.tsx') ? ['typescript', 'jsx'] : ['typescript'],
+  });
   const fields: string[] = [];
-  const visit = (node: ts.Node): void => {
-    let field: string | undefined;
-    if (ts.isPropertyAccessExpression(node)) field = node.name.text;
-    if (ts.isElementAccessExpression(node) && ts.isStringLiteral(node.argumentExpression)) {
-      field = node.argumentExpression.text;
-    }
-    if (ts.isBindingElement(node)) {
-      const name = node.propertyName ?? node.name;
-      if (ts.isIdentifier(name)) field = name.text;
-    }
-    if (field && STORYBOOKS_OWN_FIELD.test(field)) fields.push(field);
-    ts.forEachChild(node, visit);
+  const keepIfStorybooks = (field: string) => {
+    if (STORYBOOKS_OWN_FIELD.test(field)) fields.push(field);
   };
-  visit(source);
+
+  traverseFast(program, (node) => {
+    if (node.type === 'MemberExpression' || node.type === 'OptionalMemberExpression') {
+      if (!node.computed && node.property.type === 'Identifier') {
+        keepIfStorybooks(node.property.name);
+      }
+      if (node.computed && node.property.type === 'StringLiteral') {
+        keepIfStorybooks(node.property.value);
+      }
+    }
+    if (node.type === 'ObjectPattern') {
+      for (const property of node.properties) {
+        if (property.type === 'ObjectProperty' && property.key.type === 'Identifier') {
+          keepIfStorybooks(property.key.name);
+        }
+      }
+    }
+  });
   return [...new Set(fields)];
 }
