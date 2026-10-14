@@ -31,6 +31,7 @@ import {
 } from '../commands/test/appBuild/buildSettings';
 import { makeProjectSherloFolder } from '../commands/test/appBuild/cacheFolder';
 import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
+import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
 import type { NativeFolderFile } from './serverCalls';
@@ -677,29 +678,31 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
   return {
     hostSystem: () =>
       process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
-    hasTool: async (tool, projectRoot) => {
-      if (tool === 'android-sdk') {
-        // Where Gradle looks: the project's sdk.dir line, or the environment.
-        return [
-          sdkDirOfLocalProperties(projectRoot),
-          process.env.ANDROID_HOME,
-          process.env.ANDROID_SDK_ROOT,
-        ].some(isFolder);
-      }
-      if (process.platform !== 'darwin') return false;
-      const { exitCode } = await askProgram({ command: 'xcodebuild', args: ['-version'] });
-      return exitCode === 0;
-    },
-    javaVersion: async () => {
-      // Gradle runs on JAVA_HOME's Java when it is set, and on the one on PATH otherwise.
-      const javaHome = process.env.JAVA_HOME;
-      const { exitCode, output } = await askProgram({
-        command: javaHome ? path.join(javaHome, 'bin', 'java') : 'java',
-        args: ['-version'],
-      });
-      if (exitCode !== 0) return null;
-      return javaMajorVersionIn(output);
-    },
+    hasTool: (tool, projectRoot) =>
+      withTheMachineEnv(async () => {
+        if (tool === 'android-sdk') {
+          // Where Gradle looks: the project's sdk.dir line, or the environment.
+          return [
+            sdkDirOfLocalProperties(projectRoot),
+            process.env.ANDROID_HOME,
+            process.env.ANDROID_SDK_ROOT,
+          ].some(isFolder);
+        }
+        if (process.platform !== 'darwin') return false;
+        const { exitCode } = await askProgram({ command: 'xcodebuild', args: ['-version'] });
+        return exitCode === 0;
+      }),
+    javaVersion: () =>
+      withTheMachineEnv(async () => {
+        // Gradle runs on JAVA_HOME's Java when it is set, and on the one on PATH otherwise.
+        const javaHome = process.env.JAVA_HOME;
+        const { exitCode, output } = await askProgram({
+          command: javaHome ? path.join(javaHome, 'bin', 'java') : 'java',
+          args: ['-version'],
+        });
+        if (exitCode !== 0) return null;
+        return javaMajorVersionIn(output);
+      }),
     listIosSchemes: async (projectRoot) => {
       const iosFolder = path.join(projectRoot, 'ios');
       const schemes = await listSchemes(iosFolder, xcodeContainerArguments(iosFolder));

@@ -120,7 +120,7 @@ async function answerGitForReal(): Promise<void> {
 
 describe('computeBaseFingerprint', () => {
   let computeBaseFingerprint: typeof import('../baseFingerprint').computeBaseFingerprint;
-  let buildDeterministicEnv: typeof import('../baseFingerprint').buildDeterministicEnv;
+  let buildDeterministicEnv: typeof import('../deterministicEnv').buildDeterministicEnv;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -130,7 +130,7 @@ describe('computeBaseFingerprint', () => {
 
     const mod = await import('../baseFingerprint');
     computeBaseFingerprint = mod.computeBaseFingerprint;
-    buildDeterministicEnv = mod.buildDeterministicEnv;
+    buildDeterministicEnv = (await import('../deterministicEnv')).buildDeterministicEnv;
   });
 
   // AC1: Determinism - same project produces same hash.
