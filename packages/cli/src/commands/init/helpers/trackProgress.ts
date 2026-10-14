@@ -40,7 +40,7 @@ async function trackProgress({
       stringifiedParams,
       hasStarted,
       hasFinished,
-      sessionId,
+      sessionId: sessionId ?? undefined,
       teamId,
       projectIndex,
     })

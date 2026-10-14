@@ -18,6 +18,9 @@ export default defineConfig({
       '../../actions/lib/__tests__/**/*.test.mjs',
     ],
     globals: true,
+    // Vitest 5 clears every mock between tests by default; these tests rely on mocks keeping
+    // their calls and results from one test to the next.
+    clearMocks: false,
     maxWorkers,
     setupFiles: ['@sherlo-io/time-limits/vitest-setup'],
     // A test file over five seconds fails the run, naming itself: the limit every suite shares.

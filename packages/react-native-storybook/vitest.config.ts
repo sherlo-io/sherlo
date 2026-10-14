@@ -22,6 +22,8 @@ export default defineConfig({
     // of this SDK's source tree is organized per-feature rather than flat.
     include: ['src/__tests__/**/*.test.ts', 'src/**/__tests__/**/*.test.tsx'],
     globals: true,
+    // Vitest 5 clears every mock between tests by default; these tests read calls a beforeAll made.
+    clearMocks: false,
     maxWorkers,
     setupFiles: ['@sherlo-io/time-limits/vitest-setup'],
     // A test file over five seconds fails the run, naming itself: the limit every suite shares.
