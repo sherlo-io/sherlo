@@ -4,6 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
 
+var getBabelParser = require('./babelParser');
 var mockShims = require('./mockShims');
 var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
@@ -55,7 +56,8 @@ function toRelativePath(absPath, projectRoot) {
 // The manifest answers one empirical question: are per-module content hashes,
 // keyed by SOURCE PATH, deterministic across clean rebuilds of unchanged source?
 // It records:
-//   1. moduleHashes  - source-path -> sha256 of the module's TRANSFORMED output.
+//   1. moduleHashes  - source-path -> sha256 of the module's TRANSFORMED output,
+//                      without its comments and positions (hashModuleOutput).
 //                      Keyed by source path (never Metro's ordinal module id,
 //                      which renumbers on any import add/remove/reorder).
 //   2. storyClosures - story source-path -> its transitive forward dependency
@@ -90,13 +92,48 @@ function toRelativePath(absPath, projectRoot) {
 // bundle.
 
 /**
- * sha256 of a module's transformed output code.
+ * The parts of a Babel syntax tree that record how the code was written, not what it does:
+ * where each node stood, the comments around it, and its raw spelling (quotes, parentheses).
+ */
+var KEYS_THAT_ARE_NOT_BEHAVIOUR = {
+  start: true,
+  end: true,
+  loc: true,
+  range: true,
+  extra: true,
+  leadingComments: true,
+  trailingComments: true,
+  innerComments: true,
+  comments: true,
+};
+
+/**
+ * What a module's transformed code does, written without its comments, spacing or line
+ * positions: its Babel syntax tree with those parts left out. The test bundle is built
+ * unminified, so the code itself keeps the source's comments and the blank lines a stripped
+ * type stood on - and a change no screen can show must not count as a change.
+ * Code Babel cannot read is returned as it is.
+ */
+function behaviourOf(code) {
+  try {
+    var syntaxTree = getBabelParser().parse(code, { sourceType: 'unambiguous' });
+    return JSON.stringify(syntaxTree.program, function (key, value) {
+      return KEYS_THAT_ARE_NOT_BEHAVIOUR[key] ? undefined : value;
+    });
+  } catch (_) {
+    return code;
+  }
+}
+
+/**
+ * sha256 of what a module's transformed output code does.
  *
  * Metro puts transformed code on module.output[].data.code. We hash the code of
  * every output entry in array order (a module can have >1 output, e.g. js/module
- * + js/script). The code references dependencies through a per-module dependency
- * map by LOCAL index, not by global module id, so this hash is stable across the
- * ordinal-id renumbering that import add/remove/reorder causes elsewhere.
+ * + js/script), through behaviourOf, so a comment, a re-indent or a type hint
+ * leaves the hash as it was. The code references dependencies through a per-module
+ * dependency map by LOCAL index, not by global module id, so this hash is stable
+ * across the ordinal-id renumbering that import add/remove/reorder causes elsewhere.
  *
  * @returns {string|null} hex digest, or null if the module has no hashable output.
  */
@@ -107,7 +144,7 @@ function hashModuleOutput(module) {
   module.output.forEach(function (out) {
     var code = out && out.data && out.data.code;
     if (typeof code === 'string') {
-      hash.update(code);
+      hash.update(behaviourOf(code));
       hashedAnything = true;
     }
   });
@@ -1106,4 +1143,5 @@ module.exports.isInsideFolder = isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
 // Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
 module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;
+module.exports.hashModuleOutput = hashModuleOutput;
 module.exports.stableStringify = stableStringify;
