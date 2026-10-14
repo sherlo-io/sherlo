@@ -11,6 +11,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { execFileSync } from 'child_process';
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -203,6 +204,62 @@ describe('computeBaseFingerprint', () => {
     }
   });
 
+  it('an android key in the Expo config moves the Android base fingerprint only, and an ios key the iOS one only', async () => {
+    // The real library resolves the Expo config only where `expo` is installed, which a fixture
+    // is not, so this stands in for it: the resolved config of app.json is one `contents` source,
+    // run through the caller's transform and hashed the way `@expo/fingerprint` hashes it.
+    mockCreateFingerprintAsync.mockImplementation(
+      async (projectRoot: string, options: { fileHookTransform?: Function }) => {
+        const appJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'));
+        const resolvedConfig = JSON.stringify(appJson.expo);
+        const hashedContents = options.fileHookTransform
+          ? options.fileHookTransform(
+              { type: 'contents', id: 'expoConfig' },
+              resolvedConfig,
+              true,
+              'utf8'
+            )
+          : resolvedConfig;
+        const hash = crypto.createHash('sha1').update(hashedContents).digest('hex');
+        return { hash, sources: [{ type: 'contents', id: 'expoConfig', hash }] };
+      }
+    );
+    const dir = makeTempDir();
+    const writeExpoConfig = (expo: object) => writeFile(dir, 'app.json', JSON.stringify({ expo }));
+    try {
+      writeFile(dir, 'package.json', JSON.stringify({ name: 'expo-app' }));
+      writeExpoConfig({ name: 'expo-app', android: {}, ios: {} });
+      const before = await computeBaseFingerprint(dir);
+
+      writeExpoConfig({ name: 'expo-app', android: { permissions: ['CAMERA'] }, ios: {} });
+      const afterAndroidKey = await computeBaseFingerprint(dir);
+
+      writeExpoConfig({
+        name: 'expo-app',
+        android: { permissions: ['CAMERA'] },
+        ios: { bitcode: false },
+      });
+      const afterIosKey = await computeBaseFingerprint(dir);
+
+      writeExpoConfig({
+        name: 'renamed-app',
+        android: { permissions: ['CAMERA'] },
+        ios: { bitcode: false },
+      });
+      const afterSharedKey = await computeBaseFingerprint(dir);
+
+      expect(afterAndroidKey.android.hash).not.toBe(before.android.hash);
+      expect(afterAndroidKey.ios.hash).toBe(before.ios.hash);
+      expect(afterIosKey.ios.hash).not.toBe(afterAndroidKey.ios.hash);
+      expect(afterIosKey.android.hash).toBe(afterAndroidKey.android.hash);
+      // A key both platforms read moves both.
+      expect(afterSharedKey.android.hash).not.toBe(afterIosKey.android.hash);
+      expect(afterSharedKey.ios.hash).not.toBe(afterIosKey.ios.hash);
+    } finally {
+      cleanup(dir);
+    }
+  });
+
   it("lists a managed project's native modules from expo-modules-autolinking's modules answer", async () => {
     mockRunShellCommand.mockImplementation(async ({ command }: { command: string }) => {
       if (!command.startsWith('npx expo-modules-autolinking resolve')) throw new Error('no');
@@ -316,9 +373,18 @@ describe('computeBaseFingerprint', () => {
 
       expect(afterPrebuild.android.preimage?.workflow).toBe('managed');
       expect(afterPrebuild.ios.preimage?.workflow).toBe('managed');
-      // Managed: the app config leaves its versions out, no file transform.
+      // Managed: the app config leaves its versions out, and no file has its version lines
+      // stripped (its transform only narrows the Expo config to the platform).
       expect(mockCreateFingerprintAsync.mock.calls[0][1].sourceSkips).toBe(3);
-      expect(mockCreateFingerprintAsync.mock.calls[0][1].fileHookTransform).toBeUndefined();
+      const plistWithVersion = '<key>CFBundleVersion</key>\n<string>7</string>';
+      expect(
+        mockCreateFingerprintAsync.mock.calls[0][1].fileHookTransform(
+          { type: 'file', filePath: 'ios/App/Info.plist' },
+          plistWithVersion,
+          true,
+          'utf8'
+        )
+      ).toBe(plistWithVersion);
 
       expect(bareProject.android.preimage?.workflow).toBe('bare');
       expect(mockCreateFingerprintAsync.mock.calls[managedCalls][1].fileHookTransform).toEqual(
@@ -327,6 +393,29 @@ describe('computeBaseFingerprint', () => {
     } finally {
       cleanup(managed);
       cleanup(bare);
+    }
+  });
+
+  it('a bare project in a folder its enclosing repository does not track is bare, as it is once it commits itself', async () => {
+    await answerGitForReal();
+    const enclosingRepository = makeTempDir();
+    try {
+      writeFile(enclosingRepository, 'package.json', JSON.stringify({ name: 'tools' }));
+      writeFile(enclosingRepository, '.gitignore', 'apps/\n');
+      commitEverything(enclosingRepository);
+      const project = path.join(enclosingRepository, 'apps', 'bare-app');
+      writeFile(project, 'package.json', JSON.stringify({ name: 'bare-app' }));
+      writeFile(project, 'android/app/build.gradle', 'android {}');
+
+      const untracked = await computeBaseFingerprint(project);
+      commitEverything(project);
+      const committed = await computeBaseFingerprint(project);
+
+      expect(committed.android.preimage?.workflow).toBe('bare');
+      expect(untracked.android.preimage?.workflow).toBe('bare');
+      expect(untracked.android.hash).toBe(committed.android.hash);
+    } finally {
+      cleanup(enclosingRepository);
     }
   });
 
