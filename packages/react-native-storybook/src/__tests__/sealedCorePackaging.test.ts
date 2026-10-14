@@ -21,6 +21,7 @@ import {
   stampPublicKey,
   TEST_KEY_NAME,
 } from '../../scripts/sealedCoreKey.js';
+import { namedStepsOf, workflowWithoutComments } from './workflowSteps';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -145,31 +146,6 @@ function failureOfPackWithoutToken(): string {
     return (error as { stderr: string }).stderr;
   }
   throw new Error('a pack succeeded with no package token');
-}
-
-/**
- * A workflow's named steps, in order: each one's name and the lines of YAML under it. Text, not a
- * YAML parse - every step these tests read starts with `- name:`.
- */
-function namedStepsOf(workflowFile: string): Array<{ name: string; body: string }> {
-  const workflow = fs.readFileSync(path.join(WORKFLOWS_DIR, workflowFile), 'utf8');
-  return workflow
-    .split(/\n(?=[ \t]+- name: )/)
-    .slice(1)
-    .map((stepText) => {
-      const [firstLine, ...rest] = stepText.split('\n');
-      const name = firstLine.replace(/^[ \t]+- name: /, '').replace(/^'(.*)'$/, '$1');
-      return { name, body: rest.join('\n') };
-    });
-}
-
-/** The YAML lines of a workflow that are not comments. */
-function workflowWithoutComments(workflowFile: string): string {
-  return fs
-    .readFileSync(path.join(WORKFLOWS_DIR, workflowFile), 'utf8')
-    .split('\n')
-    .filter((line) => !/^\s*#/.test(line))
-    .join('\n');
 }
 
 /**
@@ -594,39 +570,6 @@ describe('what CI and a release check', () => {
       )
       .map(({ workflowFile, stepName }) => workflowFile + ': ' + stepName);
     expect(stepsWithoutToken).toEqual([]);
-  });
-
-  it("a release whose pinned core's source tree is on no commit of sherlo-runner's default branch stops before it commits anything", () => {
-    const steps = namedStepsOf('release-sherlo-packages.yml');
-    const positionOf = (stepName: string) => {
-      const position = steps.findIndex((step) => step.name === stepName);
-      expect(position, stepName).toBeGreaterThanOrEqual(0);
-      return position;
-    };
-    const mergeCheckPosition = steps.findIndex(
-      (step) =>
-        step.body.includes('.sourceTree packages/react-native-storybook/sherlo-core.json') &&
-        step.body.includes('repos/sherlo-io/sherlo-runner/commits?sha=') &&
-        step.body.includes('path=core') &&
-        step.body.includes('repos/sherlo-io/sherlo-runner/git/trees/') &&
-        step.body.includes('exit 1')
-    );
-    expect(mergeCheckPosition).toBeGreaterThanOrEqual(0);
-    const mergeCheck = steps[mergeCheckPosition];
-
-    // It reads sherlo-runner with the bot's token, minted before it...
-    expect(mergeCheck.body).toContain('GH_TOKEN: ${{ steps.github_app_token.outputs.token }}');
-    expect(positionOf('Create GH App Token')).toBeLessThan(mergeCheckPosition);
-    // ...on the checked-out pin, which only exists after the checkout...
-    const checkoutPosition = steps.findIndex((step) => step.body.includes('actions/checkout'));
-    expect(checkoutPosition).toBeLessThan(mergeCheckPosition);
-    // ...and passes only a source tree that a commit changing `core` on the default branch holds,
-    // however that commit was merged: the commit's own `core` tree entry is compared to the pin.
-    expect(mergeCheck.body).toContain('select(.path == "core")');
-    expect(mergeCheck.body).toContain('"$CORE_TREE" = "$SOURCE_TREE"');
-    // Before anything is installed or committed.
-    expect(mergeCheckPosition).toBeLessThan(positionOf('Install dependencies'));
-    expect(mergeCheckPosition).toBeLessThan(positionOf('Commit and push version updates'));
   });
 
   it('no release workflow builds or signs a core', () => {
