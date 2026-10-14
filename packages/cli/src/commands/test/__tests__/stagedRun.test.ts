@@ -26,6 +26,7 @@ chalk.level = 0;
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
+import { buildSettingsDigest } from '../appBuild/buildSettings';
 import { keysTheApiRejects } from '../../../helpers/__tests__/openBuildPlatformConfigKeys';
 
 // ---------------------------------------------------------------------------
@@ -398,6 +399,28 @@ describe('gitInfo parity with the standard road', () => {
 // A fingerprint that cannot be computed: no stored app build can be matched, so the build road
 // takes every platform. Nothing is exited, asked of the gate or bundled (ruling item 23).
 // ---------------------------------------------------------------------------
+
+describe('the build settings of the app build', () => {
+  it('the staged gate is asked with the build settings digest, so a changed build setting builds the app again', async () => {
+    const buildSettings = { env: { API_URL: 'https://staging.example.com' } };
+    mockGetValidatedCommandParams.mockReturnValue({
+      projectRoot: '/proj',
+      credential: PROJECT_TOKEN_CREDENTIAL,
+      devices: [IOS_DEVICE],
+      buildSettings,
+    } as any);
+    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
+    mockComputeBaseFingerprint.mockResolvedValue({ ios: { hash: 'BASE_FP' } } as any);
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'not-stageable', diff: [] });
+    mockBuildThenPush.mockResolvedValue({ url: 'http://app/built' });
+
+    await stagedRun(mockOptions());
+
+    expect(mockCheckStagedGate).toHaveBeenCalledWith(
+      expect.objectContaining({ buildSettingsDigest: buildSettingsDigest(buildSettings, 'ios') })
+    );
+  });
+});
 
 describe('a fingerprint that cannot be computed', () => {
   it('hands every platform to the build road, with no exit and no gate question', async () => {
