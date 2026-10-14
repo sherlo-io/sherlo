@@ -107,6 +107,11 @@ android {
     }
 }
 
+// fast-image brings com.caverock:androidsvg and turbo-image (coil-svg) brings androidsvg-aar: the same classes twice.
+configurations.configureEach {
+    exclude group: "com.caverock", module: "androidsvg-aar"
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
