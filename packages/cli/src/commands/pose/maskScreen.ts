@@ -73,8 +73,10 @@ export type MaskContext = {
  *
  * Pure: text in, text out. The order below is the order the book page lists the classes in, and
  * it is load-bearing in three places - the machine paths go first because every other class may
- * sit inside one, a native build's PATH is folded before its bare NAME, and the wait's progress
- * region is collapsed before the closers under it are folded.
+ * sit inside one, a native build's PATH is folded before its bare NAME, the spinner is stripped
+ * before the wait's progress region is collapsed (a header inside a spinner's span is gone, and
+ * must not leave a placeholder behind), and that region is collapsed before the closers under it
+ * are folded.
  */
 export function maskScreen(screen: string, context: MaskContext): string {
   let folded = foldMachinePaths(screen, context);
@@ -90,6 +92,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldTimeAgo(folded);
   folded = foldBuildDuration(folded);
   folded = foldBaseFingerprint(folded);
+  folded = stripTerminalArtifacts(folded);
   folded = foldWaitProgress(folded);
   folded = foldTimeoutMinutes(folded);
   folded = foldAuthFailureStatus(folded);
@@ -102,7 +105,6 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldCaptureScreenfuls(folded);
   folded = foldCaptureMeasuredSize(folded);
   folded = foldInstalledSdkVersion(folded);
-  folded = stripTerminalArtifacts(folded);
   folded = stripTurboSnapDiagnostic(folded);
 
   return folded;
@@ -342,7 +344,8 @@ function foldBaseFingerprint(screen: string): string {
  *
  * HOW MANY PROGRESS LINES A RUN PRINTS IS THE SERVER'S BUSINESS, not the scenario's: a build that
  * queued, then ran, then finished prints three, the same build on a quieter day prints one, and a
- * pose of that road prints exactly one. So the whole region collapses to a single line and the
+ * pose of that road prints exactly one. A test that finished before the first status check prints
+ * none at all. So the whole region collapses to a single line, an empty region included, and the
  * count stops being evidence about anything.
  *
  * THE REGION IS THE INDENTED LINES UNDER THE HEADER: every progress line starts with three spaces
@@ -364,7 +367,6 @@ function foldWaitProgress(screen: string): string {
   while (afterRegion < lines.length && /^ {3}\S/.test(visible(lines[afterRegion]))) {
     afterRegion += 1;
   }
-  if (afterRegion === header + 1) return screen;
 
   return [
     ...lines.slice(0, header + 1),
