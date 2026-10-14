@@ -283,10 +283,12 @@ function xcodeContainerArguments(iosFolder: string): string[] {
 /** The `.app` the first app target of an `xcodebuild -showBuildSettings -json` answer builds. */
 function appPathFromBuildSettings(settingsPath: string): string | undefined {
   const text = readTextIfThere(settingsPath);
-  // xcodebuild may print warnings before the JSON.
-  const targets: { buildSettings: Record<string, string> }[] = JSON.parse(
-    text.slice(text.indexOf('['))
-  );
+  // xcodebuild may print warnings before the JSON, and a warning may hold a bracket of its own
+  // ("variant:Designed for [iPad,iPhone]"), so the JSON starts at a bracket that opens its line and
+  // ends it or opens an object.
+  const jsonStart = text.search(/^\[\s*(\{|$)/m);
+  if (jsonStart === -1) return undefined;
+  const targets: { buildSettings: Record<string, string> }[] = JSON.parse(text.slice(jsonStart));
   const app = targets.find((target) => target.buildSettings.WRAPPER_NAME?.endsWith('.app'));
   return app && path.join(app.buildSettings.TARGET_BUILD_DIR, app.buildSettings.WRAPPER_NAME);
 }
@@ -379,10 +381,11 @@ function javaMajorVersionIn(output: string): number | null {
 
 /**
  * The schemes an `xcodebuild -list -json` answer lists, for a workspace or a project. xcodebuild
- * may print warnings before the JSON.
+ * may print warnings before the JSON, and a destination warning's line opens with a brace of its
+ * own (`{ platform:macOS, ... }`), so the JSON starts at a brace that ends its line or opens a key.
  */
 function schemesInXcodeList(output: string): string[] {
-  const jsonStart = output.search(/^\{/m);
+  const jsonStart = output.search(/^\{\s*("|$)/m);
   if (jsonStart === -1) return [];
   const list: { workspace?: { schemes?: string[] }; project?: { schemes?: string[] } } = JSON.parse(
     output.slice(jsonStart, output.lastIndexOf('}') + 1)

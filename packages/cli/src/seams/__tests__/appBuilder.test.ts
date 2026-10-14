@@ -306,13 +306,16 @@ describe('app builder, iOS', () => {
     if (call.command === 'xcodebuild' && call.args.includes('-showBuildSettings')) {
       fs.writeFileSync(
         call.logPath,
-        `warning: something\n${JSON.stringify([
-          { target: 'Pods', buildSettings: { WRAPPER_NAME: 'Pods.framework' } },
-          {
-            target: 'App',
-            buildSettings: { TARGET_BUILD_DIR: xcodeProductsDir, WRAPPER_NAME: 'App.app' },
-          },
-        ])}`
+        // A destination warning as xcodebuild prints it, brackets and all, before the JSON.
+        '--- xcodebuild: WARNING: Using the first of multiple matching destinations:\n' +
+          '{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], id:0000 }\n' +
+          `${JSON.stringify([
+            { target: 'Pods', buildSettings: { WRAPPER_NAME: 'Pods.framework' } },
+            {
+              target: 'App',
+              buildSettings: { TARGET_BUILD_DIR: xcodeProductsDir, WRAPPER_NAME: 'App.app' },
+            },
+          ])}`
       );
       return 0;
     }

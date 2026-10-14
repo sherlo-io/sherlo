@@ -164,8 +164,11 @@ describe('live app builder, the machine', () => {
         return { exitCode: 0, output: JSON.stringify({ project: { schemes: podSchemes } }) };
       }
       const workspace = { schemes: ['Storefront', 'StorefrontStaging', ...podSchemes] };
-      // xcodebuild may warn before the JSON.
-      return { exitCode: 0, output: `warning: stale\n${JSON.stringify({ workspace })}\n` };
+      // xcodebuild may warn before the JSON, with a brace of the warning's own.
+      const warning =
+        '--- xcodebuild: WARNING: Using the first of multiple matching destinations:\n' +
+        '{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], id:0000 }\n';
+      return { exitCode: 0, output: `${warning}${JSON.stringify({ workspace }, null, 2)}\n` };
     });
 
     const schemes = await makeLiveAppBuilder(xcodebuild).listIosSchemes(projectRoot);
