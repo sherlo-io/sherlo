@@ -467,10 +467,7 @@ function addTestCommand(program: Command) {
  * 2026-10-11), so a token on the command line is refused before anything runs - exit 1, naming the
  * two that remain. The same words refuse a `token` in sherlo.config.json (resolvePushCredential).
  *
- * `sherlo init --token` is another epic's, and keeps its flag.
- *
- * PLAN-LAYER STOP (epic sherlo-test-builds-apps): this draws the refusal. The build task proves it,
- * and deletes the `token` key of the push's config and option types, which nothing reads any more.
+ * `sherlo init --token` keeps its flag.
  */
 function refuseTokenFlag(command: string, options: { [TOKEN_OPTION]?: string }) {
   if (options[TOKEN_OPTION] === undefined) return;
@@ -481,8 +478,6 @@ function refuseTokenFlag(command: string, options: { [TOKEN_OPTION]?: string }) 
 /**
  * `--platform` names one of the two platforms, or is left out for both. Any other value is refused
  * before anything runs - exit 1, naming the two - rather than read as "no platform matched".
- *
- * PLAN-LAYER STOP (epic sherlo-test-builds-apps): this draws the refusal. The build task proves it.
  */
 function refuseUnknownPlatform(options: { [PLATFORM_OPTION]?: string }) {
   const givenPlatform = options[PLATFORM_OPTION];
@@ -493,12 +488,8 @@ function refuseUnknownPlatform(options: { [PLATFORM_OPTION]?: string }) {
 
 /**
  * Sherlo 3 tests only app builds it made itself, so a path handed in is refused before anything
- * runs - exit 1, like every other refused argument.
- *
- * PLAN-LAYER STOP (epic sherlo-test-builds-apps): this draws the refusal. The build task deletes
- * the standard road behind it - `--android`/`--ios` routing in ./commands/test/test.ts,
- * standardRun, the path validation, and the `android`/`ios` keys of sherlo.config.json, which it
- * refuses with the same words.
+ * runs - exit 1, like every other refused argument. The `android` and `ios` keys of
+ * sherlo.config.json are refused with the same words (validateConfigProperties).
  */
 function refuseBinaryPathFlags(options: { [ANDROID_OPTION]?: string; [IOS_OPTION]?: string }) {
   if (options[ANDROID_OPTION] === undefined && options[IOS_OPTION] === undefined) return;

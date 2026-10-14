@@ -231,6 +231,29 @@ describe('a Sherlo 2 app build path', () => {
   });
 });
 
+describe('a Sherlo 2 token on the command line', () => {
+  it('`sherlo test --token <token>` is refused in words, with exit 1, naming the two that remain', async () => {
+    const exitCode = await runCli('test', '--token', 'abc');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).not.toContain('unknown option');
+    const printed = vi.mocked(console.error).mock.calls.flat().join('\n');
+    expect(printed).toContain('no longer takes a token');
+    expect(printed).toContain('SHERLO_TOKEN');
+  });
+});
+
+describe('a `--platform` that is neither android nor ios', () => {
+  it('`sherlo test --platform windows` is refused in words, with exit 1', async () => {
+    const exitCode = await runCli('test', '--platform', 'windows');
+
+    expect(exitCode).toBe(1);
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
+      '`--platform` takes `android` or `ios`, not `windows`'
+    );
+  });
+});
+
 describe('a removed command', () => {
   it.each(['test:standard', 'test:eas-update', 'test:eas-cloud-build', 'show-error'])(
     '`sherlo %s` is answered with commander`s unknown-command error and exit 1',

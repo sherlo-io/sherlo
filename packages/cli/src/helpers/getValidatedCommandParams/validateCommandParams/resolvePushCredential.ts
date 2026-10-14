@@ -38,11 +38,13 @@ const PROJECT_TOKEN_ENV_VAR = 'SHERLO_TOKEN';
 function resolvePushCredential(
   command: string,
   config: InvalidatedConfig,
-  passedOptions: { token?: string } = {}
+  passedOptions: object = {}
 ): PushCredential {
-  // `--token` and the config's `token` are both refused, never read. The config file is JSON a
-  // person wrote, so its `token` may be anything at all.
-  if (passedOptions.token !== undefined || (config as { token?: unknown }).token !== undefined) {
+  // `--token` and the config's `token` are both refused, never read. The option and the config key
+  // are in no type, and the config file is JSON a person wrote, so its `token` may be anything.
+  const givenToken = (passedOptions as { token?: unknown }).token;
+  const configToken = (config as { token?: unknown }).token;
+  if (givenToken !== undefined || configToken !== undefined) {
     throwError(renderTokenGone(command));
   }
 
