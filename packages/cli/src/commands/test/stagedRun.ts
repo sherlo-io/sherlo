@@ -45,7 +45,13 @@ import { parseStagedGateRefusal, type StagedGateRefusal } from './stagedGateRefu
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import { joinTheRun } from './appBuild/joinTheRun';
 import { pushFactsOf } from './appBuild/pushFacts';
-import { type BuildFlags, readBuildSettings } from './appBuild/buildSettings';
+import {
+  type BuildFlags,
+  type BuildSettings,
+  buildSettingsDigest,
+  buildSettingsDigestsOf,
+  readBuildSettings,
+} from './appBuild/buildSettings';
 import {
   applyBundleToPlatformConfig,
   realBundleUploadEffects,
@@ -217,6 +223,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     token,
     platformsToTest,
     baseFingerprints,
+    buildSettings: readBuildSettings(commandParams),
     gateMetadata: () => PROBE_GATE_METADATA,
     projectIndex,
     teamId,
@@ -262,6 +269,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     token,
     platformsToTest,
     baseFingerprints,
+    buildSettings: readBuildSettings(commandParams),
     // Unreachable fallback: buildBundles fills every tested platform or exits.
     // If it ever were empty, the marker is the honest thing to send - "I know
     // nothing about this bundle's identity" - never a fabricated dimension.
@@ -359,6 +367,10 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       gitInfo,
       message: commandParams.message,
       baseFingerprints,
+      buildSettingsDigests: buildSettingsDigestsOf(
+        readBuildSettings(commandParams),
+        platformsToTest
+      ),
       gateMetadata: gateMetadata as GateMetadataByPlatform,
     };
     // Nothing was built on this road: the facts are the bundles' story counts and the CI run.
@@ -465,6 +477,7 @@ async function checkGate({
   token,
   platformsToTest,
   baseFingerprints,
+  buildSettings,
   gateMetadata,
   projectIndex,
   teamId,
@@ -474,6 +487,8 @@ async function checkGate({
   platformsToTest: Platform[];
   /** Each platform's own base fingerprint, which its stored app build is looked up by. */
   baseFingerprints: Partial<Record<Platform, string>>;
+  /** The build settings, whose digest a stored app build is looked up by beside its fingerprint. */
+  buildSettings: BuildSettings;
   gateMetadata: (platform: Platform) => GateMetadataInput;
   projectIndex: number;
   teamId: string;
@@ -495,6 +510,7 @@ async function checkGate({
       const { outcome, diff, storedBase, storedBuildIndex } = await serverCalls().checkStagedGate({
         token,
         baseFingerprint: baseFingerprints[platform] ?? '',
+        buildSettingsDigest: buildSettingsDigest(buildSettings, platform),
         gateMetadata: gateMetadata(platform) as GateMetadata,
         platform,
         projectIndex,

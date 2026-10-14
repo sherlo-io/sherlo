@@ -398,6 +398,32 @@ describe('sherlo test builds the app on this machine', () => {
     expect(stdout).toContain('ios/Storefront.xcodeproj/project.pbxproj');
   });
 
+  it('an iOS folder expo prebuild made gets no pod install warning', async () => {
+    fakeBuilder({
+      generateNativeFolder: async () => {
+        fs.mkdirSync(path.join(projectRoot, 'ios'));
+      },
+      compile: async () => ({
+        ok: true,
+        path: '/built/ios',
+        sizeMb: '1',
+        seconds: 1,
+        podFilesChanged: ['ios/Podfile.lock'],
+      }),
+    });
+    fs.writeFileSync(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({ dependencies: { expo: '54.0.0' } })
+    );
+
+    const { stdout } = await captureTranscript(async () => {
+      await build({ toBuild: IOS });
+    });
+
+    expect(stdout).not.toContain('Pod install changed files');
+    expect(stdout).not.toContain('ios/Podfile.lock');
+  });
+
   it("on a failed build, the list of native changes sits above the log's last lines", async () => {
     fakeBuilder({
       compile: async () => ({

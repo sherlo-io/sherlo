@@ -87,6 +87,16 @@ export function buildSettingsDigest(settings: BuildSettings, platform: Platform)
   return createHash('sha256').update(JSON.stringify(settingsThatShapeTheBuild)).digest('hex');
 }
 
+/** The digest of each of `platforms`, which the service files each registered base under. */
+export function buildSettingsDigestsOf(
+  settings: BuildSettings,
+  platforms: Platform[]
+): Partial<Record<Platform, string>> {
+  return Object.fromEntries(
+    platforms.map((platform) => [platform, buildSettingsDigest(settings, platform)])
+  );
+}
+
 function sortedByKey<Value>(record: Record<string, Value>): Record<string, Value> {
   return Object.fromEntries(
     Object.entries(record).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))

@@ -151,7 +151,8 @@ export async function buildApps({
 
     // Each long step shows while it runs: a spinner in a terminal, one plain line in a log
     // (../../shared/terminal). The spinner is stopped before the step's own line prints.
-    if (needsGeneratedNativeFolder(projectRoot, platform)) {
+    const nativeFolderIsGenerated = needsGeneratedNativeFolder(projectRoot, platform);
+    if (nativeFolderIsGenerated) {
       await whileShowing({ kind: 'app-build-generating', platform }, () =>
         builder.generateNativeFolder({ platform, projectRoot, env, ...easProfile })
       );
@@ -237,7 +238,8 @@ export async function buildApps({
           seconds: compiled.seconds,
           logPath,
           ...whyThisBuild,
-          ...(compiled.podFilesChanged.length > 0
+          // A folder `expo prebuild` generated is deleted after the build: there is nothing to commit.
+          ...(compiled.podFilesChanged.length > 0 && !nativeFolderIsGenerated
             ? { podFilesChanged: compiled.podFilesChanged }
             : {}),
         })

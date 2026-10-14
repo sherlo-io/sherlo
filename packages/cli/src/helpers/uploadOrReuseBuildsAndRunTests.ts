@@ -15,7 +15,7 @@ import {
 } from '../commands/test/readModuleManifest';
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
 import { printTestStarted } from '../commands/test/stagedRun';
-import { readBuildSettings } from '../commands/test/appBuild/buildSettings';
+import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
 import type { PlatformRow } from '../render/runRows';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
@@ -380,7 +380,12 @@ async function uploadOrReuseBuildsAndRunTests({
     // Each platform's own base, so a native change on one platform leaves the other's stored app
     // build in use, and the source list each base was built from.
     ...(platformWithoutFingerprint === undefined
-      ? { baseFingerprints, gateMetadata, sourceLists }
+      ? {
+          baseFingerprints,
+          buildSettingsDigests: buildSettingsDigestsOf(readBuildSettings(commandParams), platforms),
+          gateMetadata,
+          sourceLists,
+        }
       : {}),
   });
 

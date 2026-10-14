@@ -241,15 +241,19 @@ const runProcessForReal: RunProcess = ({ command, args, cwd, env, logPath, shell
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
     const logFile = fs.openSync(logPath, 'a');
     const child = spawn(command, args, { cwd, env, shell, stdio: ['ignore', logFile, logFile] });
+    // A program that cannot start emits `error` and then `close`: the first one answers.
+    let answered = false;
+    const answer = (exitCode: number) => {
+      if (answered) return;
+      answered = true;
+      fs.closeSync(logFile);
+      resolve(exitCode);
+    };
     child.on('error', (error) => {
       fs.appendFileSync(logPath, `${error.message}\n`);
-      fs.closeSync(logFile);
-      resolve(1);
+      answer(1);
     });
-    child.on('close', (exitCode) => {
-      fs.closeSync(logFile);
-      resolve(exitCode ?? 1);
-    });
+    child.on('close', (exitCode) => answer(exitCode ?? 1));
   });
 
 /** The module and variant a Gradle task such as `:app:assembleRelease` builds. */

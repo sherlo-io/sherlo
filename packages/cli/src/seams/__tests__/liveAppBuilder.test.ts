@@ -11,7 +11,7 @@ import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computeBaseFingerprint } from '../../helpers/fingerprint/baseFingerprint';
-import { makeLiveAppBuilder, type RunProcess } from '../appBuilder';
+import { liveAppBuilder, makeLiveAppBuilder, type RunProcess } from '../appBuilder';
 
 // The base fingerprint also asks React Native which modules the app links; a tiny project has
 // none to tell, so only git is answered for real.
@@ -152,6 +152,17 @@ describe('live app builder, the machine', () => {
     );
     expect(await noJava.javaVersion()).toBeNull();
     expect(await javaSays('Unable to locate a Java Runtime.\n').javaVersion()).toBeNull();
+  });
+
+  it('a program that cannot start is answered with a non-zero exit, and its log is closed once', async () => {
+    // The shipped runner, over a JAVA_HOME with no java in it: spawn emits `error` and then `close`.
+    vi.stubEnv('JAVA_HOME', path.join(projectRoot, 'no-jdk'));
+    const closeSync = vi.spyOn(fs, 'closeSync');
+
+    expect(await liveAppBuilder.javaVersion()).toBeNull();
+
+    expect(closeSync).toHaveBeenCalledTimes(1);
+    closeSync.mockRestore();
   });
 
   it("lists the iOS workspace's schemes without the CocoaPods ones", async () => {
