@@ -104,6 +104,52 @@ jobs:
           git tag ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           git push origin ${{ github.event.inputs.NEW_VERSION_NUMBER }}
 
+      # ────────────────────────────────────────────────────────────────────────
+      # THE ACTION RELEASE REF - what `uses: sherlo-io/sherlo@v2` runs.
+      #
+      # `uses:` checks this repository out at the ref and runs what is committed
+      # there, so the ref customers pin has to carry a built CLI: with one, a job
+      # that installed no dependencies still works; without one, the action needs
+      # the project's own installed CLI (which is still preferred when present).
+      #
+      # `v2` is the moving major tag customers pin (README's Quick Start). It is
+      # force-updated to each release's commit; `action-release/v2` is the branch
+      # holding the same commit, so the history of the ref is readable.
+      # ────────────────────────────────────────────────────────────────────────
+      - name: Push the action release ref
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
+        run: |
+          VERSION=$(node -p "require('./lerna.json').version")
+          MAJOR_TAG="v${VERSION%%.*}"
+          BRANCH="action-release/${MAJOR_TAG}"
+
+          ./scripts/build-carried-cli.sh "$VERSION"
+
+          git config user.name "Sherlo Bot"
+          git config user.email "admin@sherlo.io"
+
+          git checkout -B "$BRANCH"
+          git add -f actions/carried-cli
+          git commit -m "Action release: sherlo@${VERSION}"
+
+          git push --force origin "$BRANCH"
+          git tag -f "$MAJOR_TAG"
+          git push --force origin "$MAJOR_TAG"
+
+          ACTION_SHA=$(git rev-parse HEAD)
+
+          # Back to the branch this release is being cut from: every step after this
+          # one still commits and reads there.
+          git checkout -
+
+          {
+            echo "### Action release ref"
+            echo ""
+            echo "- tag: \`$MAJOR_TAG\` (what \`uses: ${{ github.repository }}@$MAJOR_TAG\` resolves to)"
+            echo "- branch: \`$BRANCH\`"
+            echo "- sha: \`$ACTION_SHA\`"
+          } >> $GITHUB_STEP_SUMMARY
+
       - name: Create Release
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         uses: softprops/action-gh-release@v2
