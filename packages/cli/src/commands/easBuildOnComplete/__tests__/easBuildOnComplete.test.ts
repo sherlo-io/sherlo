@@ -52,6 +52,7 @@ const ENV_KEYS = [
   'EAS_BUILD_RUNNER',
   'EAS_BUILD_PROFILE',
   'EAS_BUILD_STATUS',
+  'EAS_BUILD_PLATFORM',
   'npm_lifecycle_event',
   'SHERLO_API_URL',
 ] as const;
@@ -174,6 +175,28 @@ describe('easBuildOnComplete - EAS build errored', () => {
       runError: 'user_easCloudBuild',
     });
     expect(mocks.asyncUploadBuildAndRunTests).not.toHaveBeenCalled();
+  });
+});
+
+describe('easBuildOnComplete - the platform of a failed build', () => {
+  it('a failed or cancelled EAS build closes its test naming its own platform', async () => {
+    process.env.EAS_BUILD_PLATFORM = 'android';
+    process.env.EAS_BUILD_STATUS = 'errored';
+    await expect(easBuildOnComplete({ profile: 'preview' } as any)).rejects.toThrow();
+
+    delete process.env.EAS_BUILD_STATUS;
+    process.env.EAS_BUILD_PLATFORM = 'ios';
+    process.env.npm_lifecycle_event = 'eas-build-on-cancel';
+    await expect(easBuildOnComplete({ profile: 'preview' } as any)).rejects.toThrow();
+
+    expect(mocks.closeBuild).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ runError: 'user_easCloudBuild', runErrorPlatform: 'android' })
+    );
+    expect(mocks.closeBuild).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ runError: 'user_easCloudBuild', runErrorPlatform: 'ios' })
+    );
   });
 });
 
