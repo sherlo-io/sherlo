@@ -54,16 +54,6 @@ export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
    * own shape.
    */
   hasCiToken?: boolean;
-  /**
-   * The one-build ticket (BUILD_TICKET_PREFIX) the service answers when it opens a run that waits
-   * for EAS builds: the credential the EAS hook spends, in place of any token (sherlo-api / Tokens
-   * and the request gate).
-   *
-   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): posed here; sherlo-api task
-   * stb-api-eas-ticket adds it to `openBuild`'s answer and the sdk client's selection, and this
-   * becomes the client's own shape.
-   */
-  buildTicket?: string;
 };
 /** The two questions a real push asks before it opens a build - the sdk client's own shapes. */
 export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
@@ -107,9 +97,7 @@ export type ServerCalls = {
    * share, or joins the one the other job opened, fills this platform's slot, and starts the run
    * when every platform the config names is in - never before (operator ruling 2026-10-07).
    */
-  joinBuild(
-    request: JoinBuildRequest & { token: string; pushFacts?: PushFactsPlatform }
-  ): Promise<JoinBuildAnswer>;
+  joinBuild(request: JoinBuildRequest & { token: string }): Promise<JoinBuildAnswer>;
 
   /**
    * An EAS build delivers its platform into the run `sherlo test` opened for it on EAS: the
@@ -183,56 +171,24 @@ export type CliLoginAnswer =
   | { status: 'approved'; email: string; token: string };
 
 /**
- * What `joinBuild` is sent: everything `openBuild` is, plus the key the jobs of one CI run share and
- * the platform this job delivers.
- *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): declared here, not by the sdk client,
- * because the operation does not exist on the server yet. The build task adds it to sherlo-api,
- * and this type becomes the client's own shape, as `openBuild`'s is.
+ * What `joinBuild` is sent, and what it answers - the sdk client's own shapes. The answer's
+ * `startedRun` is set for the job whose upload brought the run's last platform in: the devices of
+ * the whole test and what each platform captures.
  */
-export type JoinBuildRequest = OpenBuildRequest & {
-  /** The key the jobs of one CI run share: the CI service and its run id, or `--run-id`. */
-  joinKey: string;
-  /** The platform this job built and uploaded. */
-  platform: Platform;
-};
+export type JoinBuildRequest = Parameters<SdkClient['joinBuild']>[0];
+export type JoinBuildAnswer = Awaited<ReturnType<SdkClient['joinBuild']>>;
 
 /**
- * The run that just started, as the service tells the upload that brought its last platform in:
- * the devices of the whole test (both platforms, from the run's config) and what each platform
- * captures (its decision, the story count its push reported, and the story files it captures with
- * their titles). It is what the ordinary `Test N      ✔ Started: all 24 stories on 2 devices
- * (Pixel 7, iPhone 15)` row and its story list are printed from, by a job or an EAS build that knows
- * only its own platform.
+ * The run that just started, as the service tells the EAS upload that brought its last platform
+ * in: the devices of the whole test and what each platform captures. The sdk client's `asyncUpload`
+ * does not select it yet, so a live EAS run prints the bare `Test N      ✔ Started`.
  *
- * PLAN-LAYER DEBT, NAMED (build item 66): posed here; the service sends it on `joinBuild` and
- * `asyncUpload` once the build task adds it. Until then a live run prints the bare
- * `Test N      ✔ Started`.
+ * PLAN-LAYER DEBT, NAMED (build item 66): posed here, for `asyncUpload` only.
  */
 export type StartedRun = { devices: Config['devices']; capture: PlatformCapture[] };
 
-/**
- * What `joinBuild` answers: the run, the platforms it still waits for (empty: it is starting), and
- * the started run when this job brought its last platform in.
- */
-export type JoinBuildAnswer = {
-  build: { index: number };
-  waitingFor: Platform[];
-  startedRun?: StartedRun;
-};
-
 /** What an EAS build's delivery and a run's closing are sent and answer - the sdk client's own shapes. */
-export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0] & {
-  /**
-   * Where the hook staged the module map its EAS build wrote, the slot `getStagedUploadUrls`
-   * offered for it - the same field a split CI job sends in its platform's config, so an EAS run
-   * captures only what changed (sherlo-api / One run from many uploaders).
-   *
-   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): sherlo-api task stb-api-eas-ticket adds
-   * it to `asyncUpload`; until the sdk client declares it, the service never reads it.
-   */
-  manifestS3Key?: string;
-};
+export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0];
 /** The client's answer, and the started run when this EAS build was the last one in ({@link StartedRun}). */
 export type AsyncUploadAnswer = Awaited<ReturnType<SdkClient['asyncUpload']>> & {
   startedRun?: StartedRun;
@@ -282,13 +238,7 @@ export const liveServerCalls: ServerCalls = {
 
   openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
-  // PLAN-LAYER DEBT: see JoinBuildRequest. Refused by name until the server has the operation.
-  joinBuild: async () => {
-    throw new Error(
-      'joining the jobs of a split CI run is drawn in plan and not built yet ' +
-        '(epic sherlo-test-builds-apps)'
-    );
-  },
+  joinBuild: ({ token, ...request }) => clientFor(token).joinBuild(request),
 
   asyncUpload: ({ token, ...request }) => clientFor(token).asyncUpload(request),
 
@@ -448,9 +398,8 @@ export type BuildStatusPlatform = {
  * ({@link BuildStatusPlatform}). Self-reported: the CLI vouches for itself, so nothing the web app
  * trusts may be decided from it.
  *
- * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): the calls' posed `with` names these, and no
- * push composes them yet. The build task composes them where the push already decides each fact,
- * sends them, and the service stores them.
+ * The push composes them where it already decides each fact (./commands/test/appBuild/pushFacts)
+ * and sends them with these calls; the calls' posed `with` names them.
  */
 export type PushFactsPlatform = {
   /**
