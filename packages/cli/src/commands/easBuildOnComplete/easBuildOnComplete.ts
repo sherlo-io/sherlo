@@ -1,3 +1,4 @@
+import { Platform } from '@sherlo/api-types';
 import {
   DOCS_LINK,
   EAS_BUILD_ON_CANCEL_SCRIPT,
@@ -110,6 +111,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
         projectIndex,
         teamId,
         runError: 'user_easCloudBuild',
+        runErrorPlatform: process.env.EAS_BUILD_PLATFORM as Platform,
       })
       .catch((error) => handleClientError(error, ticket));
 
