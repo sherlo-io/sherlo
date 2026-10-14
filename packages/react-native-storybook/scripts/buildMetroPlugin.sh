@@ -19,6 +19,8 @@ yarn run ncc build metro/withStorybook.js --minify --out "$WORK_DIR/withStoryboo
   --external @babel/parser \
   --external metro-babel-transformer/node_modules/@babel/parser \
   --external metro/package.json \
+  --external metro/private/DeltaBundler/Serializers/baseJSBundle \
+  --external metro/private/lib/bundleToString \
   --external metro/src/DeltaBundler/Serializers/baseJSBundle \
   --external metro/src/lib/bundleToString
 
