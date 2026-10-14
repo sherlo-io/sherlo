@@ -141,7 +141,8 @@ async function start() {
       // place of the old `══════════ Need Help?` footer, so a failure reads the same everywhere.
       for (const line of renderHelpBlock()) console.log(line);
 
-      process.exit(error.code || 1);
+      // A Node file-system error's `code` is a string (`'ENOENT'`), which `process.exit` refuses.
+      process.exit(typeof error.code === 'number' && error.code !== 0 ? error.code : 1);
     });
   }
 }
