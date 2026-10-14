@@ -206,14 +206,19 @@ async function uploadOrReuseBuildsAndRunTests({
 
   // The platforms this push uploads an app build for. Each is registered as the
   // native base below and rendered with a fresh bundle.
-  const platforms: Platform[] = [];
-  if (binariesInfo.android && appBuildPaths.android) platforms.push('android');
-  if (binariesInfo.ios && appBuildPaths.ios) platforms.push('ios');
+  const uploadedPlatforms: Platform[] = [];
+  if (binariesInfo.android && appBuildPaths.android) uploadedPlatforms.push('android');
+  if (binariesInfo.ios && appBuildPaths.ios) uploadedPlatforms.push('ios');
 
   /** A platform whose base fingerprint could not be computed - the run cannot name its base. */
-  const platformWithoutFingerprint = platforms.find((platform) => !fingerprints[platform].hash);
-  /** Each uploaded platform's own base, which its app build is registered under. */
-  const baseFingerprints = baseFingerprintsOf(fingerprints, platforms);
+  const platformWithoutFingerprint = uploadedPlatforms.find(
+    (platform) => !fingerprints[platform].hash
+  );
+  /**
+   * Every bundled platform's own base, a stored one's too: an uploaded platform's app build is
+   * registered under its base, and a stored platform's is found by it.
+   */
+  const bundledBaseFingerprints = baseFingerprintsOf(fingerprints, platformsToBundle);
   /** Each registered platform's source list, stored with its base. */
   const sourceLists: Partial<Record<Platform, BaseSourceList>> = {};
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
@@ -228,7 +233,7 @@ async function uploadOrReuseBuildsAndRunTests({
 
   if (platformWithoutFingerprint === undefined) {
     // Extract gate metadata per platform (fail-soft per platform).
-    for (const platform of platforms) {
+    for (const platform of uploadedPlatforms) {
       try {
         const binaryPath = appBuildPaths[platform]!;
         const binaryInfo = binariesInfo[platform]!;
@@ -289,7 +294,7 @@ async function uploadOrReuseBuildsAndRunTests({
   // name the splice against. Either way the binary's own embedded bundle would
   // render instead - a run this command never performs - so the run is
   // refused, naming every reason at once.
-  const reasons = platforms
+  const reasons = uploadedPlatforms
     .filter((platform) => notSpliceableReasons[platform])
     .map((platform) => `${PLATFORM_LABEL[platform]}: ${notSpliceableReasons[platform]}`);
   if (platformWithoutFingerprint !== undefined) {
@@ -319,7 +324,7 @@ async function uploadOrReuseBuildsAndRunTests({
     buildSettings: readBuildSettings(commandParams),
     // Every bundled platform's own base, a stored one's too: a supplied bundle is checked
     // against the base of the platform it is for.
-    baseFingerprints: baseFingerprintsOf(fingerprints, platformsToBundle),
+    baseFingerprints: bundledBaseFingerprints,
     projectIndex,
     teamId,
     effects: io.freshBundle,
@@ -377,12 +382,16 @@ async function uploadOrReuseBuildsAndRunTests({
       env: process.env,
       runIdFlag,
     }),
-    // Each platform's own base, so a native change on one platform leaves the other's stored app
-    // build in use, and the source list each base was built from.
+    // Each bundled platform's own base and build settings digest, so a native change on one
+    // platform leaves the other's stored app build in use; the gate metadata and source list
+    // are the uploaded platforms' only, the ones that register a base.
     ...(platformWithoutFingerprint === undefined
       ? {
-          baseFingerprints,
-          buildSettingsDigests: buildSettingsDigestsOf(readBuildSettings(commandParams), platforms),
+          baseFingerprints: bundledBaseFingerprints,
+          buildSettingsDigests: buildSettingsDigestsOf(
+            readBuildSettings(commandParams),
+            platformsToBundle
+          ),
           gateMetadata,
           sourceLists,
         }
