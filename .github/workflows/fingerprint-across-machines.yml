@@ -43,14 +43,16 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Download Sherlo packages
-        run: ./scripts/init-env.sh
-        env:
-          CLIENT_STAGE: dev
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+      - name: Install with the sherlo libraries
+        uses: ./.github/actions/install-with-libs
+        with:
+          app-id: ${{ secrets.SHERLO_BOT_APP_ID }}
+          private-key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
+          package-token: ${{ secrets.PACKAGE_TOKEN }}
 
-      - name: Install dependencies
-        run: yarn && cd packages/cli && yarn build
+      - name: Build the CLI
+        working-directory: packages/cli
+        run: yarn build
 
       - name: Install project dependencies
         working-directory: ${{ env.FIXTURE_APP }}
