@@ -1,7 +1,6 @@
 /**
  * THE APP BUILDER SEAM, posed - `sherlo test` builds a platform the gate refused and `sherlo build`
- * builds into the local build cache, answered from the pose's `appBuild` (epic
- * sherlo-test-builds-apps). Each committed build pose runs with no refusal and no unused call, so
+ * builds into the local build cache, answered from the pose's `appBuild`. Each committed build pose runs with no refusal and no unused call, so
  * its screen is the tool's own road and not a pose that fell short of it.
  */
 import fs from 'fs';
@@ -22,8 +21,8 @@ const BUILD_POSES = [
       .filter((name) => name.endsWith('.pose.json'))
       .map((name) => path.join(folder, name))
   ),
-  // The pushes take their app build from the local build cache (operator decision 2026-10-07:
-  // `sherlo test` takes no `--android`/`--ios`), and a Sherlo 2 command line that still passes one
+  // The pushes take their app build from the local build cache (`sherlo test` takes no
+  // `--android`/`--ios`), and a Sherlo 2 command line that still passes one
   // is refused.
   ...[
     'push-android-first-build-review-required',

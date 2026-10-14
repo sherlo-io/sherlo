@@ -23,6 +23,7 @@ import {
 import detectBundler, { detectEntryFile } from './detectBundler';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
 import { dependsOnExpo, readProjectJson } from '../../helpers/projectJson';
+import getSizeInMB from '../../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
 import { buildEnvironment } from '../../seams/appBuilder';
 import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
 import { makeProjectSherloFolder } from './appBuild/cacheFolder';
@@ -255,7 +256,7 @@ export function inspectBundleArtifacts({
   }
 
   // 6. Compute bundle metadata.
-  const bundleSizeMb = parseFloat((bundleBuffer.length / (1024 * 1024)).toFixed(2));
+  const bundleSizeMb = parseFloat(getSizeInMB({ bytes: bundleBuffer.length }));
   const bundleHash = crypto.createHash('sha256').update(bundleBuffer).digest('hex');
   const bundleFormat: BundleFormat = 'plain-js';
 

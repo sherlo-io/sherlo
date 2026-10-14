@@ -46,7 +46,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     return;
   }
 
-  // Expo's build log is a log: it starts at the line that says what the hook does (Q1).
+  // Expo's build log is a log: it starts at the line that says what the hook does.
   printTheLogoInATerminal();
   emit({ kind: 'command-intro', command: 'eas-build-on-complete' });
 
@@ -97,9 +97,9 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
 
   // THE BUILD FAILED OR WAS CANCELLED ON EXPO'S SERVERS: either way no app build is coming, so the
   // run is closed now rather than left waiting until its deadline. Expo runs the
-  // `eas-build-on-cancel` script on a cancel, and it runs this same command (epic
-  // sherlo-test-builds-apps, operator decision 2026-10-11); every package manager names the script
-  // it runs in `npm_lifecycle_event`, which is how this command tells a cancel from an ending.
+  // `eas-build-on-cancel` script on a cancel, and it runs this same command; every package manager
+  // names the script it runs in `npm_lifecycle_event`, which is how this command tells a cancel
+  // from an ending.
   const wasCancelled = process.env.npm_lifecycle_event === EAS_BUILD_ON_CANCEL_SCRIPT;
   const failed = process.env.EAS_BUILD_STATUS === 'errored';
 

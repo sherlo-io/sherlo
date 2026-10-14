@@ -1,6 +1,5 @@
 /**
- * THE CREDENTIAL A PUSH SPENDS, AND THE PROJECT IT GOES TO (sherlo / The credential and the
- * project of a push).
+ * THE CREDENTIAL A PUSH SPENDS, AND THE PROJECT IT GOES TO.
  *
  * Each case states the whole world the resolver reads - the settings, the config and the logins
  * saved on this computer - through the same seams a posed run uses, so nothing on the machine

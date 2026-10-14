@@ -1,6 +1,5 @@
 /**
- * A STEP STILL RUNNING - its words, in one place (epic sherlo-test-builds-apps, the output rebuilt
- * on init's grammar).
+ * A STEP STILL RUNNING - its words, in one place, in the same grammar `sherlo init` prints.
  *
  * A long step is said in the present tense with `...` while it runs, and the same words serve both
  * readers: in a terminal they are the text of a spinner that the step's `✔` line replaces (or that
@@ -15,8 +14,7 @@
  *
  * Plain text, no colour: a spinner draws its own frame beside it, and a log has no colour to give.
  *
- * Pure, like everything under ./: state in, words out. The words are drafts for the content
- * department.
+ * Pure, like everything under ./: state in, words out.
  */
 import type { Platform } from '@sherlo/api-types';
 import type { TranscriptSegment } from './segments';

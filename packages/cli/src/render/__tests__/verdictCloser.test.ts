@@ -1,8 +1,8 @@
 /**
- * THE CLOSER A WAIT ENDS ON, AND WHAT IT NAMES (epic git-is-a-beat, 2026-09-21).
+ * THE CLOSER A WAIT ENDS ON, AND WHAT IT NAMES.
  *
  * `sherlo test --wait` and `sherlo view` are meant to tell a developer the same thing about a
- * finished build (operator intent, 2026-09-21). They do not: the wait polls the build's status and
+ * finished build. They do not: the wait polls the build's status and
  * gets every screen back with its status and its baseline - the same data `view --json` renders
  * - then discards it and prints `1 story/stories unreviewed`. A developer who waited has to run a
  * second command to learn WHICH screen is waiting for them.
@@ -30,7 +30,7 @@ beforeAll(() => {
 const SOME_COUNTS = { unreviewed: 2, reported: 1 };
 
 /**
- * The verdict as init's section (epic sherlo-test-builds-apps): one blank line (the wait loop
+ * The verdict as init's section: one blank line (the wait loop
  * frames it with the other), the title, its underline, a blank line, then the body.
  */
 function section(title: string, ...body: string[]): string[] {

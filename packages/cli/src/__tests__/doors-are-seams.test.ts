@@ -1,5 +1,5 @@
 /**
- * EVERY DOOR IS A SEAM (sherlo / The seams, "Every door is a seam").
+ * EVERY DOOR IS A SEAM.
  *
  * A command reaches the world only through `src/seams/`. A read written straight into a command
  * answers from the machine a pose ran on, and the screen looks right - which is why this is a lint

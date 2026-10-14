@@ -239,7 +239,7 @@ describe('fast path ran to completion', () => {
 
   it('prints no routing keys, opens the build, and returns the review URL - never as a url= line', async () => {
     // The run reached a build. The address is printed ONCE, on the `🔗 Review:` line, whoever is
-    // reading (operator ruling 2026-09-15): there is no `url=` key for a machine, the GitHub
+    // reading: there is no `url=` key for a machine, the GitHub
     // Action reads the address off the emoji line (actions/lib/cliOutputs.mjs). The routing keys
     // this file is about are published either way, so `CI` is stated here rather than inherited
     // from whatever machine runs the suite.

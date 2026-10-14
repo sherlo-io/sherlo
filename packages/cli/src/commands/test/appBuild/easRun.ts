@@ -7,8 +7,7 @@
  *
  *   1. package.json must hold the `eas-build-on-complete` script - each EAS build uploads itself
  *      to Sherlo through it when it finishes - and the `eas-build-on-cancel` script, the same line,
- *      through which a cancelled EAS build closes the run (epic sherlo-test-builds-apps, operator
- *      decision 2026-10-11). A project without either is refused before anything starts, naming
+ *      through which a cancelled EAS build closes the run. A project without either is refused before anything starts, naming
  *      every one it lacks, because a run would otherwise wait for builds that never arrive. So is
  *      one whose eas.json has no profile named `build.easProfile` (default "sherlo") - setup writes
  *      none - and one whose upload to EAS would leave `.sherlo/data.json` out (./easHandOver.ts).
@@ -18,8 +17,7 @@
  *      (./createSherloTempDirectory).
  *   3. One EAS build per refused platform is started with the profile `build.easProfile`
  *      (default "sherlo"), without waiting.
- *   4. The run starts on Sherlo when the last slot is filled - never before (operator ruling
- *      2026-10-07).
+ *   4. The run starts on Sherlo when the last slot is filled - never before.
  *
  * This replaces the separate `test:eas-cloud-build` command, which the Sherlo 3 CLI no longer has;
  * the server still serves older CLIs that call it.
@@ -184,13 +182,11 @@ function refuseWithoutTheHookScripts(projectRoot: string): void {
 }
 
 /**
- * EAS builds start with an eas.json profile, and `sherlo init` writes none (operator decision
- * 2026-10-07: setup asks nothing about EAS), so a project without it is refused first and shown the
- * profile to add - an APK for Android and a simulator build for iOS, the two shapes a Sherlo device
- * runs, with `SHERLO_BUILD=storybook`, the variable that builds the app with Storybook in it (settled
- * with the Storybook epic, 2026-10-07). A profile that is there but leaves the variable out is
- * refused the same way, naming the one line it lacks. Draft words, for the content department's
- * review.
+ * EAS builds start with an eas.json profile, and `sherlo init` writes none (setup asks nothing
+ * about EAS), so a project without it is refused first and shown the profile to add - an APK for
+ * Android and a simulator build for iOS, the two shapes a Sherlo device runs, with
+ * `SHERLO_BUILD=storybook`, the variable that builds the app with Storybook in it. A profile that
+ * is there but leaves the variable out is refused the same way, naming the one line it lacks.
  */
 function refuseWithoutTheProfile(projectRoot: string, profile: string): void {
   // No eas.json, or one that cannot be read: the profile is missing either way.

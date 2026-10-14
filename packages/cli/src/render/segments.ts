@@ -140,7 +140,7 @@ export type TranscriptSegment =
   | { kind: 'notice'; level: 'warning' | 'info'; message: string; learnMoreLink?: string }
   /**
    * The closer of a run that reached a build: `🔗 Review: <url>` - the address printed once, on
-   * the line with the emoji, for a machine and a person alike (operator ruling 2026-09-15); the
+   * the line with the emoji, for a machine and a person alike; the
    * GitHub Action reads it off that line (actions/lib/cliOutputs.mjs).
    *
    * With `testIndex`, the run did not wait for its verdict, and the link sits in init's `👉 Next
@@ -329,7 +329,7 @@ export type TranscriptSegment =
       counts?: { approved: number; noChanges: number; reported: number; unreviewed: number };
     }
   /**
-   * `sherlo view --json`'s WHOLE output (operator decision 2026-10-12): the
+   * `sherlo view --json`'s WHOLE output: the
    * record, pretty-printed, and nothing around it - no header, no url line.
    * See ./buildView's ViewJson.
    */

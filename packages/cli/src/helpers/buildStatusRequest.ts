@@ -97,7 +97,7 @@ export type BuildStatusResponse = {
      * `platforms.<platform>.reason` carrying the server's plain-prose explanation.
      *
      * We read `platforms.<platform>.reason`, NOT `fullCaptureTriggerReason`.
-     * Per the API schema (build.graphql) `reason` is the operator-approved prose
+     * Per the API schema (build.graphql) `reason` is the reviewed prose
      * the CLI prints verbatim, while `fullCaptureTriggerReason` is a machine enum
      * code that (a) is only set for FULL captures and so is always absent on a
      * bypassed build - which is a partial capture by definition - and (b) would
@@ -112,7 +112,7 @@ export type BuildStatusResponse = {
       };
     };
     /**
-     * The build's frozen git identity (view-metadata, operator ruling 2026-09-03). `isDirty`:
+     * The build's frozen git identity. `isDirty`:
      * whether the push sent uncommitted changes. Absent on an older API.
      */
     gitInfo?: {
@@ -137,7 +137,7 @@ export type BuildStatusResponse = {
       ios?: BuildStatusPlatform;
     } | null;
     /**
-     * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo
+     * Per-story rows: what `sherlo
      * view --metadata` prints as `stories[]`. `status` is spelled as the plain
      * string the wire sends (including the hyphenated `"review-required"`)
      * rather than a narrowed union, because `@sherlo/api-types` is not the
@@ -160,7 +160,7 @@ export type BuildStatusResponse = {
         }[]
       | null;
     /**
-     * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
+     * The Diff Scope block: what
      * `sherlo view --metadata` prints as `diffScope`. Hand-typed rather than
      * imported from `@sherlo/api-types` for the same reason every other field
      * of this wire shape is (see this file's module doc) - server commit

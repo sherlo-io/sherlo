@@ -1,6 +1,5 @@
 /**
- * WHERE SHERLO KEEPS FILES - the one home of every cache path the tool spells (operator rulings
- * 2026-10-13 Q16 A and Q17 A; sherlo book `building/build-cache.md`).
+ * WHERE SHERLO KEEPS FILES - the one home of every cache path the tool spells.
  *
  *   - SHERLO'S CACHE FOLDER, the machine's: `SHERLO_CACHE_DIR` when it is set, else the computer's
  *     own cache folder - `~/Library/Caches/sherlo` on a Mac, `$XDG_CACHE_HOME/sherlo` else
@@ -39,7 +38,7 @@ export function sherloCacheFolder(): string {
   if (!isMac && xdgCacheHome) return path.join(xdgCacheHome, 'sherlo');
 
   // The home folder is read from the environment, never asked of the system, so a posed run sees
-  // the pose's settings and not this machine's (sherlo / The seams, "Every door is a seam").
+  // the pose's settings and not this machine's.
   // A machine with no home folder keeps the cache in the project's own `.sherlo/`, which ignores
   // itself.
   const home = process.env.HOME;

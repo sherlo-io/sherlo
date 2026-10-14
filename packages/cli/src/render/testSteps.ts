@@ -1,8 +1,7 @@
 /**
- * `sherlo test` IN INIT'S GRAMMAR (epic sherlo-test-builds-apps, operator decisions 2026-10-12).
+ * `sherlo test` IN INIT'S GRAMMAR.
  * What a test prints reads like what `sherlo init` prints: the logo (in a terminal), one line saying
- * what the command is doing, then a row per platform and one for the test (./runRows, operator
- * 2026-10-13), a long step shown while it runs (./stepInProgress), and ONE section at the end - the
+ * what the command is doing, then a row per platform and one for the test (./runRows), a long step shown while it runs (./stepInProgress), and ONE section at the end - the
  * next step, or the verdict when the command waited for it - with the review link last.
  *
  * The shapes are init's own (./initSteps, ./initLines), called rather than copied, so the two
@@ -10,8 +9,7 @@
  * platform's emoji, what a started test runs, the next step, and the help block a failed run ends
  * with.
  *
- * Pure, like everything under ./: state in, print-call arguments out. The words are drafts for the
- * content department.
+ * Pure, like everything under ./: state in, print-call arguments out.
  */
 import chalk from 'chalk';
 import { DEVICES } from '@sherlo/shared';
@@ -90,7 +88,7 @@ export type PlatformCapture = {
   capturedStories: number;
   /** How many stories the bundle holds; absent when no module map could count them. */
   storiesInBundle?: number;
-  /** The server's own reason, printed only on a full capture (operator ruling 2026-10-12, Q2). */
+  /** The server's own reason, printed only on a full capture. */
   reason?: string;
   /** The story files the test captures: a partial capture's as openBuild recorded them, or the bundle's. */
   storyFiles?: string[];
@@ -197,8 +195,8 @@ export function projectPageUrl(project: SherloProject): string {
  * init's section, with the command that waits for the verdict - an agent cannot click the link.
  * The command is the same wherever it runs, so the line says nothing about "here".
  *
- * A SECOND STEP while the project has no CI token, on a person's terminal only (operator,
- * 2026-10-12, with epic init-for-agents): setup no longer asks for CI, so the first place a person
+ * A SECOND STEP while the project has no CI token, on a person's terminal only: setup does not ask
+ * for CI, so the first place a person
  * hears about pull request tests is here, linking the project's page where the token is made.
  * Two steps are numbered, under a plural title, as init numbers its own.
  */
@@ -258,7 +256,7 @@ export function renderVerdictSection(
 /**
  * The block a failed run ends with: init's help block, as a person reads it. The two lines init
  * adds for an agent - that `npx sherlo init` picks up where it stopped, and the feedback command -
- * are init's own (the feedback command invites from no other command, operator 2026-10-09), so
+ * are init's own (the feedback command invites from no other command), so
  * every other command shows every reader the person's block.
  */
 export function renderHelpBlock(): string[] {

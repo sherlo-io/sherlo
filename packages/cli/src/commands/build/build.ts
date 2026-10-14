@@ -7,7 +7,7 @@
  * compiling, for as long as the native code and the build settings are unchanged. It needs no
  * token: nothing leaves the machine.
  *
- * Why it exists (epic sherlo-test-builds-apps): a CI pipeline that builds in one job and tests in
+ * Why it exists: a CI pipeline that builds in one job and tests in
  * another, a team that warms the cache on a schedule, and the tester's own prestage, which builds
  * every fixture app once before its storylines push them.
  */

@@ -14,8 +14,7 @@ import type { BuildStatus } from '../../helpers/buildStatusRequest';
  * re-implementation of it (see ./renderViewTranscript). Nothing here awaits,
  * fetches, or reads the process.
  *
- * TWO DISTINCT OUTPUTS, NOT ONE OUTPUT WITH AN OPTIONAL TAIL (view-metadata,
- * operator ruling 2026-09-03; `--json` since 2026-10-12).
+ * TWO DISTINCT OUTPUTS, NOT ONE OUTPUT WITH AN OPTIONAL TAIL.
  *
  * `--json` prints ONLY the record (see render/buildView's ViewJson) - no
  * header, no colour, no url line - because it is meant to be piped and parsed,

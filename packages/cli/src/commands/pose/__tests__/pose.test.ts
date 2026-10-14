@@ -1,5 +1,5 @@
 /**
- * `sherlo pose` (sherlo / Drawing for a plan).
+ * `sherlo pose`.
  *
  * Two rules live here, and the second is the proof the emit road never had.
  *

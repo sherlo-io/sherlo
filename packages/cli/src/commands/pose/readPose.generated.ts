@@ -2162,6 +2162,12 @@ function readBuildStatusPlatform(value: unknown, path: string, problems: string[
 function readPosedPlatformCaptureDecision(value: unknown, path: string, problems: string[]): void {
   const object1 = asObject(value, path, problems);
   if (object1) {
+    if ('changedStoryFilePaths' in object1) {
+      expectStringArray(object1.changedStoryFilePaths, at(path, 'changedStoryFilePaths'), problems);
+    }
+    if ('newStoryFilePaths' in object1) {
+      expectStringArray(object1.newStoryFilePaths, at(path, 'newStoryFilePaths'), problems);
+    }
     expectBoolean(object1.full, at(path, 'full'), problems);
     if ('storyFilePaths' in object1) {
       expectStringArray(object1.storyFilePaths, at(path, 'storyFilePaths'), problems);
@@ -2169,15 +2175,9 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
     if ('reason' in object1) {
       expectString(object1.reason, at(path, 'reason'), problems);
     }
-    if ('newStoryFilePaths' in object1) {
-      expectStringArray(object1.newStoryFilePaths, at(path, 'newStoryFilePaths'), problems);
-    }
-    if ('changedStoryFilePaths' in object1) {
-      expectStringArray(object1.changedStoryFilePaths, at(path, 'changedStoryFilePaths'), problems);
-    }
     reportUnknownFields(
       object1,
-      ['full', 'storyFilePaths', 'reason', 'newStoryFilePaths', 'changedStoryFilePaths'],
+      ['changedStoryFilePaths', 'newStoryFilePaths', 'full', 'storyFilePaths', 'reason'],
       path,
       problems
     );

@@ -38,7 +38,7 @@ export type BinaryUploadEffects = {
 export const REAL_BINARY_UPLOAD_EFFECTS: BinaryUploadEffects = {
   readBinary: async (buildPath, platform, projectRoot) => {
     const data = await getBuildData({ buildPath, platform, projectRoot });
-    return { data, sizeMb: getSizeInMB({ buffer: data }) };
+    return { data, sizeMb: getSizeInMB({ bytes: data.length }) };
   },
   putBinary: (uploadUrl, data) => {
     // Use protocol-appropriate agent (HTTP for local S3, HTTPS for AWS)
@@ -85,8 +85,8 @@ async function uploadBuild({
     level: 'info',
   });
 
-  // An upload is only a wait: a spinner in a terminal that leaves no line, one plain line in a log
-  // (operator ruling 2026-10-13). The step a person reads is the test it starts.
+  // An upload is only a wait: a spinner in a terminal that leaves no line, one plain line in a log.
+  // The step a person reads is the test it starts.
   await whileShowing({ kind: 'binary-uploading', sizeMb: buildSizeMB, platform }, () =>
     putWithRetries({ platform, uploadUrl, buildData, effects })
   );

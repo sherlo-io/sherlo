@@ -20,7 +20,7 @@ function getValidatedCommandParams<C extends Command>({
 
   const config = getNormalizedConfig(options);
 
-  // Before the devices: the credential and the project it pushes into (sherlo / Before a push).
+  // Before the devices: the credential and the project it pushes into.
   const credential = resolvePushCredential(command, config, options);
 
   const commandParams = { ...getCommandParams(options, config), credential };

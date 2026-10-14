@@ -1,11 +1,10 @@
 /**
- * ONE MASKER, THE TOOL'S OWN (sherlo / Drawing for a plan, "What the tool folds on its own").
+ * ONE MASKER, THE TOOL'S OWN.
  *
  * A screen carries values no plan can state and no fixture should pin. The tool folds each of
  * them to a placeholder by CLASS, on every screen `sherlo pose` prints, and the same folding is
  * reachable from outside through a hidden devtool verb so the test repository applies it to a real
- * run's screen. Written as a skeleton in plan (epic pose-road-hardening, task pose-road-masker);
- * the worker fills the bodies and never renames a case.
+ * run's screen.
  */
 import fs from 'fs';
 import path from 'path';

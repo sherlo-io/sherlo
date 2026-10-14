@@ -159,9 +159,8 @@ export type CommandParams<C extends Command | 'any' = 'any'> = Config &
   };
 
 /**
- * The credential a push or a view spends, and the project it goes to (sherlo / The credential
- * and the project of a push). Resolved once, before any request, by
- * helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
+ * The credential a push or a view spends, and the project it goes to. Resolved once, before any
+ * request, by helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
  *
  * `token` is what the push hands the server seam on both: the project token whole, or the saved
  * login's token.

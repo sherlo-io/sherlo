@@ -1,7 +1,7 @@
 /**
  * WHAT ONLY THE PUSH KNOWS, composed in one place for every road that delivers a platform: how its
  * app build was made, why a new one was needed, what changed natively since the stored one, how many
- * stories its bundle holds, and the CI run the push ran in (sherlo / After a push / The record).
+ * stories its bundle holds, and the CI run the push ran in.
  *
  * The push reports these facts when it opens or joins the run, or when an EAS build delivers; the
  * service stores them and never checks them (../../../seams/serverCalls `PushFacts`). Every fact is

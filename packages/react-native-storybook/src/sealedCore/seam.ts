@@ -682,8 +682,8 @@ export type WindowReason =
    * (sherlo-capture-the-reading-never-names-the-first-story). A capture measured on a real device
    * found the app's own reading published and ANSWERING, seconds before its poll even started, and
    * still never naming the first story of the boot - a state the old single cause could not tell
-   * apart from "nothing published at all", which is why ten rounds of this epic kept aiming fixes at
-   * the wrong target. The two are different failures with different next steps: this one asks why
+   * apart from "nothing published at all", which is why earlier fixes kept aiming at the wrong
+   * target. The two are different failures with different next steps: this one asks why
    * MetadataProvider never rendered (or was torn down); `'story-unnamed'` below asks why a reading
    * that DID exist never grew this story's testID.
    */

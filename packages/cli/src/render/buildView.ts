@@ -93,7 +93,7 @@ export function renderBuildViewStatus({
 }
 
 /* ========================================================================== */
-/* `sherlo view --json`: the record (operator decision 2026-10-12)            */
+/* `sherlo view --json`: the record            */
 /* ========================================================================== */
 
 /**
@@ -113,8 +113,7 @@ export type ViewStory = {
 };
 
 /**
- * THE WHOLE `sherlo view <n> --json` RECORD - one read-back for everything about a test (operator
- * decision 2026-10-12, epic sherlo-test-builds-apps). Every key is one the JSON prints under its own
+ * THE WHOLE `sherlo view <n> --json` RECORD - one read-back for everything about a test. Every key is one the JSON prints under its own
  * name, in this order, and agents read them, so a name never changes once shipped.
  *
  * A FIELD LIFT OFF `getBuildStatus` (commands/view/printBuildView's `viewJsonOf`), never a
@@ -140,7 +139,7 @@ export type ViewJson = {
   /** `null` is what the wire sends for a build whose run errored before any view row existed. */
   stories?: ViewStory[] | null;
   /**
-   * The Diff Scope block, build-wide (view-metadata, operator ruling 2026-09-03). `reason` is the
+   * The Diff Scope block, build-wide. `reason` is the
    * primary platform's prose, `captured`/`inherited` are story display names, and
    * `ancestorBuildIndex` is the build this decision diffed against (`null` when there was none).
    * Absent whenever the API sent no `diffScope` (an older API, or a gate-off build).

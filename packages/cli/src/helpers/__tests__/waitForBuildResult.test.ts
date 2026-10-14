@@ -265,8 +265,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      // The test's row, finished, with the server's own reason after "nothing to test" (operator
-      // rulings 2026-10-12 and 2026-10-13).
+      // The test's row, finished, with the server's own reason after "nothing to test".
       expect(printed).toContain(`Test ${BUILD_INDEX}      ✔ Finished:`);
       expect(printed).toContain('nothing to test: no change reaches any story');
       expect(printed).not.toContain('every screenshot was reused');

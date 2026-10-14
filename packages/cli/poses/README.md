@@ -87,9 +87,9 @@ A REAL PUSH IS POSABLE (2026-09-15): `test/push-*` pose `sherlo test --wait` fro
 through the verdict, through `src/seams/nativeBuild.ts` - what the tool reads off the machine. The
 app build comes from the local build cache, posed in `appBuild` (`src/seams/appBuilder.ts`): Sherlo 3
 tests only app builds it made itself, and `test/refusal-binary-path-flag-gone` is what a Sherlo 2
-`--android <apk>` meets (operator decision 2026-10-07). A push's credential is posed as `SHERLO_TOKEN`
+`--android <apk>` meets. A push's credential is posed as `SHERLO_TOKEN`
 in `env` or as a saved login in `logins`, never on the command line or in the config:
-`test/refusal-token-flag-gone` is what a Sherlo 2 `--token` meets (operator decision 2026-10-11). `binary-abi-x86-only` (a native build whose libraries carry no arm64 slice) is a pose
+`test/refusal-token-flag-gone` is what a Sherlo 2 `--token` meets. `binary-abi-x86-only` (a native build whose libraries carry no arm64 slice) is a pose
 away: `push.binaries.android.androidAbis` without `arm64-v8a`. The `── details ──` block after
 `sherlo test --wait --metadata` is reachable through a push pose too, since the run that opened the
 build has the git rows to give.
@@ -101,7 +101,7 @@ A REAL SETUP IS POSABLE (2026-09-17): `init/*` pose `sherlo init` end to end, th
 in `files` like any other pose's.
 
 `sherlo test --wait` WITHOUT build paths - the staged road's own screen - is posable since
-2026-09-18 (epic legacy-road-closed): the gate the road asks before it bundles is a scripted call
+2026-09-18: the gate the road asks before it bundles is a scripted call
 (`checkStagedGate`, asked once per platform before the bundle and once after it with the bundle's
 real identity), and a wait that runs out is posed through the pose's `clock` - the instants the
 wait reads, in order, so a deadline can pass without a timer. The tester's push saga poses both;

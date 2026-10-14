@@ -1,8 +1,6 @@
 /**
  * A WAIT THAT RUNS OUT AGAINST A POSE - the posed clock passes the deadline while the build is
- * still running, and the tool prints its deadline closer and exits 3. Written as a skeleton in
- * plan (epic legacy-road-closed, task push-pose-staged-and-deadline); the worker fills the bodies
- * and never renames a case.
+ * still running, and the tool prints its deadline closer and exits 3.
  */
 import fs from 'fs';
 import path from 'path';

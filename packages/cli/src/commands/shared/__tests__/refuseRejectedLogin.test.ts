@@ -1,5 +1,5 @@
 /**
- * A REFUSED SAVED LOGIN (sherlo / Logging in from the terminal, "When does a login stop working?").
+ * A REFUSED SAVED LOGIN.
  *
  * The four management commands spend the saved login alone, so a token the service refused is a
  * refused login, and the answer is to log in again. Each command is called straight, on posed

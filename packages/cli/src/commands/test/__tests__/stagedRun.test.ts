@@ -1091,7 +1091,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     logSpy.mockRestore();
   });
 
-  // Init's grammar (epic sherlo-test-builds-apps): both endings carry the same steps and the same
+  // Init's grammar: both endings carry the same steps and the same
   // link; without --wait the link sits in the `👉 Next step` section with the command that waits,
   // and with it the link comes LAST, after the verdict the (mocked) wait prints.
   it('non-bypassed output ends on the next step without --wait and on the link with it', async () => {
@@ -1126,7 +1126,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
   /* ------------------------------------------------------------------------ *
    * THE CLOSER PRINTS THE ADDRESS ONCE, ON THE LINE WITH THE EMOJI, WHOEVER   *
-   * IS READING (operator ruling 2026-09-15). The `url=` line a machine used   *
+   * IS READING. The `url=` line a machine used                                *
    * to get above the link is gone: the same address twice on a screen was the *
    * defect. The staged road closes with its own wording, so it needs its own  *
    * cases: the render layer's `results-url` pins say nothing about this line. *

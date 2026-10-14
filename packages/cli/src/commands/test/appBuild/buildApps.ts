@@ -8,8 +8,7 @@
  *      Java 17 or newer and an Android SDK, and an iOS workspace with more than one scheme needs the
  *      config to name one. A run that cannot finish stops here, having spent nothing. A platform
  *      built by the project's own command is not checked: the machine is that command's business.
- *   2. PER PLATFORM, ONE AFTER THE OTHER (operator ruling 2026-10-07: sequential unless
- *      `build.parallel` or `--parallel-builds` asks for both at once - two compilers at once fight
+ *   2. PER PLATFORM, ONE AFTER THE OTHER (unless `build.parallel` or `--parallel-builds` asks for both at once - two compilers at once fight
  *      for the same cores and memory):
  *        - the local build cache (./cacheFolder), keyed by the platform, the base fingerprint and
  *          the build settings - a hit compiles nothing;
@@ -197,8 +196,8 @@ export async function buildApps({
     );
 
     if (!compiled.ok) {
-      // `sherlo test` stops on the platforms' rows, the failed one among them, and tests nothing
-      // (operator, Q5); `sherlo build` on its own failed step.
+      // `sherlo test` stops on the platforms' rows, the failed one among them, and tests nothing;
+      // `sherlo build` on its own failed step.
       if (command === 'test') {
         const failedRow = printPlatformRowInALog({
           platform,

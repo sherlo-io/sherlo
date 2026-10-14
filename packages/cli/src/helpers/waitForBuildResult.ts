@@ -674,7 +674,7 @@ export function isServerBypassed(
  * Recognized off the SAME shape closeBuild persists (see the API unit test
  * closeAsZeroCaptureNoOp.unit.test.ts): the {@link isServerBypassed} counts plus
  * a per-platform prose `reason`. The reason is taken from
- * `platforms.<platform>.reason` - the operator-approved prose the CLI prints
+ * `platforms.<platform>.reason` - the reviewed prose the CLI prints
  * verbatim - never from `fullCaptureTriggerReason`, which is a machine enum
  * code and is always absent on a bypassed (partial-capture) build anyway
  * (SHERLO-1963). An older API response with no `diffScopeInfo` (or no

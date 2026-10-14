@@ -1,6 +1,5 @@
 /**
- * THE LOGIN IS THE ONLY CREDENTIAL A PERSON SPENDS (sherlo / Teams, projects and the personal
- * token, The credential and the project of a push).
+ * THE LOGIN IS THE ONLY CREDENTIAL A PERSON SPENDS.
  *
  * The four management commands, setup and a push take the saved login and nothing else of a
  * person's: no flag and no variable carries a personal token. A personal token handed to a

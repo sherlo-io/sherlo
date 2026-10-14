@@ -1,6 +1,5 @@
 /**
- * THE SERVICE REFUSED THE SAVED LOGIN (sherlo / Logging in from the terminal, "When does a login
- * stop working?").
+ * THE SERVICE REFUSED THE SAVED LOGIN.
  *
  * A login stops working when it goes 90 days unused, is revoked, or its owner leaves the team. The
  * service does not say which, and none of them is the person's typing, so the answer is the same

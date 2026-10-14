@@ -1,5 +1,5 @@
 /**
- * `sherlo test` in EAS mode (sherlo / Cloud builds on EAS): each case lays a project out on disk,
+ * `sherlo test` in EAS mode: each case lays a project out on disk,
  * fakes the service through the server seam and `eas` through the app builder seam, and runs
  * `easRun` - the part of the test that takes over when the staged gate refused a platform.
  */

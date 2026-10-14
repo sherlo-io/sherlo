@@ -1,16 +1,14 @@
 /**
- * THE REFUSAL A SHERLO 2 CREDENTIAL MEETS (sherlo / The credential and the project of a push).
+ * THE REFUSAL A SHERLO 2 CREDENTIAL MEETS.
  *
- * Sherlo 3 takes a push's credential from two places only (operator decision 2026-10-11): the
- * project token in SHERLO_TOKEN, which CI sets from its secrets, and the login a person saved with
- * `sherlo login`. A command line that still passes `--token`, and a sherlo.config.json that still
+ * Sherlo 3 takes a push's credential from two places only: the project token in SHERLO_TOKEN, which
+ * CI sets from its secrets, and the login a person saved with `sherlo login`. A command line that still passes `--token`, and a sherlo.config.json that still
  * holds `token`, are refused before anything runs, naming the two that remain - not commander's
  * bare "unknown option", and never skipped in silence, because a credential quietly ignored is a
  * push that lands somewhere its author did not mean.
  *
  * Pure, like the rest of the layer. THE TOKEN IS NOT AN INPUT: it is a live credential, and a
- * renderer that is never handed it cannot print it. Draft words, for the content department's
- * review.
+ * renderer that is never handed it cannot print it.
  */
 
 /**

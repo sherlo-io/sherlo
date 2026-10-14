@@ -84,33 +84,6 @@ import { rowsAbove, printPlatformRowInALog } from './platformRows';
  */
 const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
 
-/**
- * The per-platform Diff Scope decision the server records at openBuild, read
- * forward-compatibly off the openBuild response (SHERLO-1915). Two fields are
- * involved and BOTH are declared locally + read defensively, the same pattern as
- * the `manifestS3Key` bridge in ./uploadBundles - the published @sherlo/api-types this repo
- * typechecks against does not carry them yet, so a cast to `any` is avoided in
- * favour of a precise local extension. Absent at runtime -> the live report
- * degrades cleanly (see below).
- *
- * - `captureScope` on the per-platform buildRun config: the captured set this
- *   run selected. `full: true` means EVERY story was in scope (an empty
- *   `storyFilePaths` in that case means "everything", not "nothing"). Absent for
- *   a platform -> the report says NOTHING about it (the server made no decision).
- * - `diffScopeInfo.platforms[platform].reason`: the server's own prose, byte-identical
- *   to the dashboard's. Absent -> no reason is printed.
- */
-type CaptureScope = {
-  full: boolean;
-  storyFilePaths?: string[];
-  newStoryFilePaths?: string[];
-  changedStoryFilePaths?: string[];
-};
-type PlatformConfigWithCaptureScope = { captureScope?: CaptureScope };
-type DiffScopeInfoWithPlatformReasons = {
-  platforms?: Partial<Record<Platform, { reason?: string }>>;
-};
-
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -572,8 +545,9 @@ export function collectModuleManifests(
  * partial capture took what it took is `npx sherlo view <n> --json`'s. The review link is the
  * ending's (./closeTheRun).
  *
- * A platform the server made no decision for (no `captureScope`) adds no count - silence, never an
- * invented "captured everything". A test the server closed without a device run has no started row
+ * `full: true` means EVERY story was in scope: an empty `storyFilePaths` then means "everything",
+ * not "nothing". A platform the server made no decision for (no `captureScope`) adds no count -
+ * silence, never an invented "captured everything". A test the server closed without a device run has no started row
  * (./closeTheRun ends it, and decides where its platforms' rows go).
  *
  * Exported because the SIM road reuses this exact output road - it has no
@@ -600,16 +574,11 @@ export function printTestStarted({
   // finished step that says so (./closeTheRun).
   if (serverBypassed) return;
 
-  const diffScopeInfo = openBuildReturn.build.diffScopeInfo as
-    | DiffScopeInfoWithPlatformReasons
-    | undefined;
+  const diffScopeInfo = openBuildReturn.build.diffScopeInfo;
 
   const capture: PlatformCapture[] = [];
   for (const platform of platformsToTest) {
-    const platformConfig = openBuildReturn.buildRun?.config?.[platform] as
-      | PlatformConfigWithCaptureScope
-      | undefined;
-    const captureScope = platformConfig?.captureScope;
+    const captureScope = openBuildReturn.buildRun?.config?.[platform]?.captureScope;
     if (!captureScope) continue;
 
     const manifest = moduleManifests[platform];
@@ -625,7 +594,7 @@ export function printTestStarted({
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
-      // a machine code. The line prints it only for a full capture (Q2).
+      // a machine code. The line prints it only for a full capture.
       reason: diffScopeInfo?.platforms?.[platform]?.reason,
       // A full capture takes every story file the bundle holds.
       storyFiles: captureScope.full

@@ -29,7 +29,7 @@ describe('validateConfigProperties', () => {
     return (
       logSpy.mock.calls
         .map((call: unknown[]) => String(call[0] ?? ''))
-        // A warning is a line with init's yellow bang (epic sherlo-test-builds-apps).
+        // A warning is a line with init's yellow bang.
         .filter((line: string) => line.includes('! '))
     );
   }

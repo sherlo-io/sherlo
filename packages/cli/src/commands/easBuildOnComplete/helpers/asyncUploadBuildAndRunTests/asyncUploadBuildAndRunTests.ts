@@ -33,8 +33,7 @@ import getBuildPath from './getBuildPath';
  * run starts on Sherlo when the last platform is in, and this says which it was.
  *
  * Every read of the machine and every request goes through the seams (../../../../seams), so the
- * hook can be posed like every other command (epic sherlo-test-builds-apps: it used to reach the
- * service and the files around them directly, and was the one road a plan could not draw).
+ * hook can be posed like every other command.
  */
 async function asyncUploadBuildAndRunTests({
   buildIndex,
@@ -196,7 +195,7 @@ export default asyncUploadBuildAndRunTests;
 
 /**
  * THE MODULE MAP THE EAS BUILD WROTE, staged where the service offers it, so the run captures only
- * what changed (Diff Scope on EAS, operator decision). The Sherlo bundler step wrote it into the
+ * what changed, as Diff Scope does on every other road. The Sherlo bundler step wrote it into the
  * project while EAS bundled the app; it is read the way every other road reads it and uploaded the
  * way every other staged module map is (../../../test/uploadStagedArtifacts). Answers the staged
  * key, or undefined when there is no map or no slot for it.

@@ -8,9 +8,7 @@ import { POSES_ROOT } from '../catalogue';
 import { bundler, installBundler, posedBundler } from '../../../seams/bundler';
 
 /**
- * A POSE CAN STATE A BUNDLE THAT CAME WITH NO MODULE MAP - written as a skeleton in plan (epic
- * diff-scope-closure, task pose-states-no-module-map). The worker fills the bodies and never renames
- * a case.
+ * A POSE CAN STATE A BUNDLE THAT CAME WITH NO MODULE MAP.
  *
  * The posed bundler always made a map from `storyClosureKeys`, so a pose could not show what the
  * tool prints when Metro was configured without Sherlo's wrapper: "all stories", with no count.
