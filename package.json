@@ -26,7 +26,8 @@
   "scripts": {
     "build": "lerna run build",
     "repo": "node scripts/repo.mjs",
-    "lint": "oxlint packages/cli/src packages/react-native-storybook/src && yarn format:check",
+    "lint": "yarn --cwd packages/cli lint && yarn --cwd packages/react-native-storybook lint",
+    "check:pose-contract": "yarn --cwd packages/cli check:pose-contract",
     "format:check": "prettier --check 'packages/cli/src/**/*.{ts,tsx}' 'packages/react-native-storybook/src/**/*.{ts,tsx}'",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:js": "oxlint --report-unused-disable-directives",
