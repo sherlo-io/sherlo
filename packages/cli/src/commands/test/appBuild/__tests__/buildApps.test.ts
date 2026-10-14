@@ -281,6 +281,28 @@ describe('sherlo test builds the app on this machine', () => {
     expect(builder.generateNativeFolder).not.toHaveBeenCalled();
   });
 
+  it("asks for an Expo app's iOS schemes only after expo prebuild made its ios folder", async () => {
+    const schemesListed: boolean[] = [];
+    const builder = fakeBuilder({
+      listIosSchemes: async () => {
+        schemesListed.push(fs.existsSync(path.join(projectRoot, 'ios')));
+        return ['Storefront'];
+      },
+      generateNativeFolder: async () => {
+        fs.mkdirSync(path.join(projectRoot, 'ios'));
+      },
+    });
+    fs.writeFileSync(
+      path.join(projectRoot, 'package.json'),
+      JSON.stringify({ dependencies: { expo: '54.0.0' } })
+    );
+
+    await build({ toBuild: IOS });
+
+    expect(builder.compile).toHaveBeenCalledTimes(1);
+    expect(schemesListed).toEqual([true]);
+  });
+
   it('never runs expo prebuild over a native folder that is there', async () => {
     const builder = fakeBuilder();
     fs.writeFileSync(

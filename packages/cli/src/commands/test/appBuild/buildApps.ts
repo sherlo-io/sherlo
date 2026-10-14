@@ -301,7 +301,11 @@ async function refuseWhatThisMachineCannotBuild({
         );
       }
 
-      await iosSchemeOf(projectRoot, settings, project);
+      // An Expo app's ios folder is made by `expo prebuild`, just before the build, so its one
+      // scheme is asked for then, when there is a folder to list.
+      if (!needsGeneratedNativeFolder(projectRoot, 'ios')) {
+        await iosSchemeOf(projectRoot, settings, project);
+      }
     }
 
     if (platform === 'android') {
