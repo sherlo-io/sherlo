@@ -135,7 +135,14 @@ async function simRun(
   // 6. Build the run config. `s3Key` mirrors the manifest key (prefix-valid, a
   //    real object - the HeadObject check passes with no bypass), and the sim
   //    fields tell the server to dispatch the sim executor instead of a runner.
-  const buildRunConfig = getBuildRunConfig({ commandParams });
+  //    ONE JOB OF A SPLIT CI RUN joins the run its CI run shares, exactly as on the other roads - which
+  //    is what lets the branching storylines prove the join with a sim world on two cheap jobs. Its
+  //    config names every device of the test, so the run waits for the other platform's job.
+  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+  const buildRunConfig = getBuildRunConfig({
+    commandParams,
+    ...(joinKey ? { wholeTest: true } : {}),
+  });
 
   for (const platform of platformsToTest) {
     const platformConfig = buildRunConfig[platform] as
@@ -158,9 +165,6 @@ async function simRun(
     level: 'info',
   });
 
-  // ONE JOB OF A SPLIT CI RUN joins the run its CI run shares, exactly as on the other roads - which
-  // is what lets the branching storylines prove the join with a sim world on two cheap jobs.
-  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
   // A sim world has no app build, so no platform has a row above the test's.
   const platformRows: PlatformRow[] = [];
 
