@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: "Which package(s) to test"
+        description: 'Which package(s) to test'
         type: choice
         options:
           - cli
@@ -12,20 +12,20 @@ on:
           - both
         default: cli
       path_filter:
-        description: "Space-separated vitest path substrings, e.g. getTokenParts commands/test"
+        description: 'Space-separated vitest path substrings, e.g. getTokenParts commands/test'
         type: string
         required: false
-        default: ""
+        default: ''
       test_name:
-        description: "Vitest -t title pattern (may be multiple words)"
+        description: 'Vitest -t title pattern (may be multiple words)'
         type: string
         required: false
-        default: ""
+        default: ''
       tester_ref:
         description: "sherlo-tester ref to ratchet the CLI's render layer against (empty = the branch this runs on, falling back to sherlo-tester's dev)"
         type: string
         required: false
-        default: ""
+        default: ''
 
 jobs:
   cli:
