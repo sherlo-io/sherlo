@@ -33,7 +33,7 @@ describe('test apps', () => {
         if (typeof packageManager === 'string') {
           const releaseVersion = /yarn-(\d+\.\d+\.\d+)\.cjs$/.exec(releaseFile)?.[1];
           expect(`yarn@${releaseVersion}`, `${entry.name}: packageManager vs ${yarnPath}`).toBe(
-            packageManager.split('+')[0],
+            packageManager.split('+')[0]
           );
         }
       }
