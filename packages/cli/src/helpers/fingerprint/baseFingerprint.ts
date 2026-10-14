@@ -352,6 +352,39 @@ export async function computeBaseFingerprint(
   return fingerprints;
 }
 
+/**
+ * Every file inside the named native folders (`android`, `ios`), one hash each, hashed exactly as
+ * the base fingerprint hashes the folder: the same Layer 1 call, workflow and deterministic env,
+ * so the same ignore list and the same version stripping. Never enters any fingerprint.
+ */
+export async function hashNativeFolderFiles({
+  projectRoot,
+  folders,
+}: {
+  projectRoot: string;
+  folders: string[];
+}): Promise<BaseSourceFile[]> {
+  const resolvedProjectRoot = path.resolve(projectRoot);
+  const workflow = await detectWorkflow(resolvedProjectRoot);
+  const expoFingerprint = await loadExpoFingerprint();
+  // Each native folder is its own platform's: Layer 1 hashes it only for that platform.
+  const platforms = PLATFORMS.filter((platform) => folders.includes(platform));
+
+  const files: BaseSourceFile[] = [];
+  await withDeterministicEnv(async () => {
+    for (const platform of platforms) {
+      const fingerprint = await createPlatformFingerprint({
+        expoFingerprint,
+        projectRoot: resolvedProjectRoot,
+        workflow,
+        platform,
+      });
+      files.push(...nativeFolderFilesOf(fingerprint));
+    }
+  });
+  return files;
+}
+
 /** Every platform's answer when the fingerprint cannot be computed at all, with the one reason. */
 function unavailableOnEveryPlatform(debugMessage: string): BaseFingerprints {
   return {

@@ -364,6 +364,12 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
     reason:
       "wraps extractGateMetadata as its own default effect, but the one non-exempt caller (uploadOrReuseBuildsAndRunTests.ts) always overrides it with nativeBuild()'s - this default is never reached",
   },
+  {
+    file: 'seams/appBuilder.ts',
+    of: 'helpers/fingerprint/baseFingerprint.ts',
+    reason:
+      "imports only hashNativeFolderFiles, for the live half of the app builder seam itself - a posed run installs the posed app builder, which answers from the pose's nativeFolderFiles and never reaches it",
+  },
 ];
 
 /**

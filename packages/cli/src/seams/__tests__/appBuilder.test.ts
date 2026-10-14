@@ -275,7 +275,9 @@ describe('app builder, Android', () => {
 
   it('a run that reaches the app builder with no appBuild in the pose is refused before anything on this machine is looked at', async () => {
     const builder = posedAppBuilder(undefined);
-    await expect(builder.hasTool('android-sdk')).rejects.toThrow('states no `appBuild`');
+    await expect(builder.hasTool('android-sdk', projectRoot)).rejects.toThrow(
+      'states no `appBuild`'
+    );
     await expect(compileAndroid(builder)).rejects.toThrow('states no `appBuild`');
     expect(builder.refusals().map((refusal) => refusal.call)).toEqual(['hasTool', 'compile']);
     expect(calls).toEqual([]);
