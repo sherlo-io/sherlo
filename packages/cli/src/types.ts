@@ -48,7 +48,6 @@ export type Config = {
     locale: string;
     fontScale: string;
   }[];
-  token?: string;
   /**
    * The project a push on a person's credential goes to: the team id, a slash and the project's
    * number, such as `k3j9x2ab/4`. Not a secret. Its shape is checked where the credential is
@@ -83,7 +82,6 @@ type OptionsFormat = 'raw' | 'normalized';
 
 type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [MESSAGE_OPTION]?: string;
-  [TOKEN_OPTION]?: string;
   [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
@@ -127,7 +125,7 @@ type CommandOptions = {
   };
   /**
    * `sherlo view` takes its build as a POSITIONAL argument (see commands/view). Its own option is
-   * `--json`, the whole record for a program to read; everything else it accepts - the token, the
+   * `--json`, the whole record for a program to read; everything else it accepts - the
    * config, `--wait`, `--wait-timeout` - is common to every command.
    */
   [VIEW_COMMAND]: {
@@ -135,9 +133,10 @@ type CommandOptions = {
   };
   /**
    * `sherlo init` names the project with `--project`, and spends the saved login to check it or to
-   * choose one (commands/init/project). `--token` is common to every command.
+   * choose one (commands/init/project). `--token` is init's own: a push takes no token flag.
    */
   [INIT_COMMAND]: {
+    [TOKEN_OPTION]?: string;
     [PROJECT_OPTION]?: string;
   };
   any: Partial<

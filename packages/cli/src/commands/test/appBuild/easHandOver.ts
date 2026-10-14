@@ -17,7 +17,7 @@
  *
  * PLAN-LAYER DEBT, NAMED: the pattern matching below covers the forms ignore files are written in -
  * comments, `!` negation, a leading or middle `/` anchoring the pattern, a trailing `/` for a folder,
- * `*`, `?` and `**`. The build task swaps it for the `ignore` package, the matcher EAS itself uses,
+ * `*`, `?` and `**`. It is to be swapped for the `ignore` package, the matcher EAS itself uses,
  * so Sherlo's answer and EAS's can never differ. Draft words, for the content department's review.
  */
 import path from 'path';

@@ -29,7 +29,8 @@ async function config({
       action = 'updated';
     }
 
-    const configWithoutToken = { ...configValue };
+    // A `token` an older setup wrote stays in the file (updateConfig) but is never reported.
+    const configWithoutToken: Record<string, unknown> = { ...configValue };
     delete configWithoutToken.token;
 
     await trackProgress({

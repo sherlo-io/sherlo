@@ -10,9 +10,6 @@
  * Only a config that names devices, none of them on this platform, ends here. A config with no
  * devices at all, or with devices the tool does not know, goes on to the ordinary checks, which
  * refuse it in their own words.
- *
- * PLAN-LAYER STOP (epic sherlo-test-builds-apps): this draws the line. The build task keeps it
- * and proves it.
  */
 import type { Platform } from '@sherlo/api-types';
 import getPlatformsToTest from '../../helpers/getPlatformsToTest';

@@ -49,9 +49,8 @@ export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
    * unknown, and nothing is suggested.
    *
    * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): posed here, not sent by the service yet.
-   * init-for-agents adds `hasCiToken` to the Project type; the build task reads that field (its name
-   * and where the answer carries it to confirm with init-for-agents), and this becomes the client's
-   * own shape.
+   * init-for-agents adds `hasCiToken` to the Project type; once the client selects it (its name and
+   * where the answer carries it confirmed with init-for-agents), this becomes the client's own shape.
    */
   hasCiToken?: boolean;
 };
