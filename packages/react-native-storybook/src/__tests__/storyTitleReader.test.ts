@@ -2,7 +2,7 @@
 
 const { readDeclaredTitle, readStoryCount } = require('../../metro/storyTitleReader');
 
-describe('storyTitleReader', () => {
+describe('reading a story file title and count', () => {
   it('a story file whose decorator has a typed arrow still gives its title and count', () => {
     const source = [
       "import React from 'react';",
