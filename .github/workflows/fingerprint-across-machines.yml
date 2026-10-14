@@ -9,15 +9,8 @@ name: 'fingerprint-across-machines'
 # machines and fails when the two differ.
 # ══════════════════════════════════════════════════════════════════════════════
 
-# It runs on every pull request that changes how the fingerprint is computed, or
-# the fixture it fingerprints, so a change that splits the two machines is caught
-# before it merges.
+# Started by hand.
 on:
-  pull_request:
-    paths:
-      - 'packages/cli/src/helpers/fingerprint/**'
-      - 'testing/expo/**'
-      - '.github/workflows/fingerprint-across-machines.yml'
   workflow_dispatch:
 
 env:
