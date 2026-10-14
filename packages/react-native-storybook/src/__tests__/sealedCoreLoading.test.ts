@@ -11,7 +11,6 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as ts from 'typescript';
 import {
   NativeModules,
   __getNativeErrors,
@@ -27,6 +26,7 @@ import {
   nativePickOf,
 } from './__mocks__/react-native';
 import { FAKE_CORE_VERSION } from './__mocks__/fakeSealedCore';
+import { importedModules } from './importedModules';
 import { REQUIRED_MIN_NATIVE_VERSION } from '../sdk-compatibility.json';
 import type { SealedCoreHost } from '../sealedCore/seam';
 
@@ -359,9 +359,7 @@ function sdkTestFiles(): string[] {
 
 /** Every file a test file imports by a relative path, as an absolute path. */
 function filesImportedBy(testFile: string): string[] {
-  return ts
-    .preProcessFile(fs.readFileSync(testFile, 'utf8'), true, true)
-    .importedFiles.map((importedFile) => importedFile.fileName)
+  return importedModules(testFile)
     .filter((specifier) => specifier.startsWith('.'))
     .map((specifier) => path.resolve(path.dirname(testFile), specifier));
 }

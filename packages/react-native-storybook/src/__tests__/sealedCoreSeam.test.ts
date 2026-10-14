@@ -4,14 +4,17 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { parse } from '@babel/parser';
+import { traverseFast } from '@babel/types';
+import type { Node } from '@babel/types';
 import {
   COMPILED_CORE_NATIVE_METHODS,
   COMPILED_CORE_R8_KEEP_RULE,
   SHERLO_PROTOCOL_VERSION,
 } from '../sealedCore/seam';
 import type { SealedCoreHost, StorybookFacts } from '../sealedCore/seam';
+import { importedModules } from './importedModules';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -24,15 +27,9 @@ const CONSUMER_RULES = path.join(SDK_ROOT, 'android', 'consumer-rules.pro');
 
 describe('the seam', () => {
   it('the seam imports nothing from the rest of the SDK', () => {
-    const seamSource = fs.readFileSync(SEAM_FILE, 'utf8');
-
     // Every import, `export ... from`, `import()` and `require()` the file makes, as the compiler
     // reads them.
-    const imported = ts
-      .preProcessFile(seamSource, true, true)
-      .importedFiles.map((importedFile) => importedFile.fileName);
-
-    expect(imported).toEqual([]);
+    expect(importedModules(SEAM_FILE)).toEqual([]);
   });
 
   it('the seam lists every native method of CompiledCore and the R8 rule that keeps them', () => {
@@ -115,12 +112,15 @@ describe('the seam', () => {
 
 /** Every name `source` declares: its types, their fields, and every argument they take. */
 function everyNameDeclaredIn(source: string): string[] {
+  const { program } = parse(source, { sourceType: 'module', plugins: ['typescript'] });
   const names: string[] = [];
-  const visit = (node: ts.Node): void => {
-    const declaredName = (node as { name?: ts.Node }).name;
-    if (declaredName && ts.isIdentifier(declaredName)) names.push(declaredName.text);
-    ts.forEachChild(node, visit);
-  };
-  visit(ts.createSourceFile('seam.ts', source, ts.ScriptTarget.Latest, true));
+  traverseFast(program, (node) => {
+    // A declaration's own name: a type, a field, a function, a variable.
+    const { id, key } = node as { id?: Node | null; key?: Node };
+    const declaredName = id ?? key;
+    if (declaredName?.type === 'Identifier') names.push(declaredName.name);
+    // An argument a function or a function type takes: a typed name.
+    if (node.type === 'Identifier' && node.typeAnnotation) names.push(node.name);
+  });
   return names;
 }

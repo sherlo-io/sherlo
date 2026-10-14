@@ -61,7 +61,7 @@ rm -f "$CARRIED_ROOT/runtime-dependencies.txt"
 mkdir -p "$CARRIED_CLI_DIR"
 cp -R "$CLI_DIR/dist" "$CARRIED_CLI_DIR/dist"
 
-# Only what RUNS. The published tarball also carries the ncc source map (about
+# Only what RUNS. The published tarball also carries the bundle's source map (about
 # 9 MB) and the emitted type declarations; neither is read when the action executes
 # the bundle, and every release commits this tree onto a release ref, so keeping
 # them would grow that ref by an order of magnitude per release for nothing.
