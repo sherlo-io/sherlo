@@ -180,6 +180,26 @@ describe('the masker folds every volatile class the tool prints', () => {
     ]);
   });
 
+  it('a wait that printed no progress line folds to the same placeholder as one that printed several', () => {
+    const waited = (progress: string[]): string =>
+      [
+        'Waiting for Test 1 to finish (up to 45 min)...',
+        ...progress,
+        '            ✔ Finished in 1m 34s',
+      ].join('\n');
+
+    const printedNone = maskScreen(waited([]), {});
+    const printedSeveral = maskScreen(waited(['   Queued', '   Running']), {});
+
+    expect(printedNone).toBe(printedSeveral);
+    expect(printedNone.split('\n')).toEqual([
+      'Waiting for Test 1 to finish (up to 45 min)...',
+      '   <build progress masked>',
+      '            ✔ Finished in <DURATION>',
+    ]);
+    expect(maskScreen(printedNone, {})).toBe(printedNone);
+  });
+
   it('folds a commit id, a run namespace in a branch name, a team id and a project index', () => {
     const folded = maskScreen(
       [
