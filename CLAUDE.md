@@ -34,7 +34,7 @@ It runs oxlint with the rules in `.oxlintrc.json` (the door rules under `package
 
 Tests and checks are fast: a test file fails past 5 seconds and a pull request check past 5 minutes; a slow one is sped up, never given a bigger limit.
 
-There is no root `test` script in this repo. The unit suites are per-package (all vitest), each invoked via that package's own `yarn test`:
+The root has `test:related` (handed file paths, runs the unit tests that reach them), `test:all-units` (both packages' whole suites) and `test:guards` (the whole-tree guard tests); there is no plain root `test` script. The unit suites are per-package (all vitest), each invoked via that package's own `yarn test`:
 
 - `packages/cli/` - CLI unit tests
 - `packages/react-native-storybook/` - SDK unit tests. They run against a fake core; the packaging rules read the packs `scripts/packAsPublished.js` makes with `PACKAGE_TOKEN`, a step of the pull request check, from the folder `SHERLO_SDK_PACKS` names (without it, outside CI, those rules skip)
