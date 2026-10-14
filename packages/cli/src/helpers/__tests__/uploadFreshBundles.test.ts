@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   uploadBundles: vi.fn(),
   realBundleUploadEffects: vi.fn(),
   buildBundleForPlatform: vi.fn(),
+  gateMetadataFor: vi.fn(),
 }));
 
 vi.mock('../../commands/test/bundleAndPreview', () => ({
@@ -24,7 +25,10 @@ vi.mock('../../commands/test/bundleAndPreview', () => ({
 // file stubs - `realFreshBundleEffects` asks the seam for the bundler IN FORCE rather than
 // naming the real one.
 vi.mock('../../seams/bundler', () => ({
-  bundler: () => ({ bundleFor: mocks.buildBundleForPlatform, gateMetadataFor: vi.fn() }),
+  bundler: () => ({
+    bundleFor: mocks.buildBundleForPlatform,
+    gateMetadataFor: mocks.gateMetadataFor,
+  }),
 }));
 vi.mock('../../commands/test/suppliedBundle', () => ({
   resolveSuppliedBundles: mocks.resolveSuppliedBundles,
@@ -47,6 +51,9 @@ const EFFECTS = {
 
 const BUNDLES = { android: bundleResult(1.5), ios: bundleResult(2.5) };
 
+/** The gate facts a stored platform's fresh bundle carries. */
+const STORED_GATE_METADATA = { derivedFrom: 'source', engineClass: 'hermes', bundleFormat: 'hbc' };
+
 /** The config's `build` block, which reaches the bundler as it reaches the app build. */
 const BUILD_SETTINGS = { env: { STORYBOOK_ENABLED: 'true' } };
 const KEYS = {
@@ -60,6 +67,7 @@ beforeEach(() => {
   mocks.buildBundles.mockResolvedValue({ results: BUNDLES, gateMetadata: {} });
   mocks.resolveSuppliedBundles.mockResolvedValue({ results: BUNDLES, gateMetadata: {} });
   mocks.uploadBundles.mockResolvedValue(KEYS);
+  mocks.gateMetadataFor.mockResolvedValue(STORED_GATE_METADATA);
 });
 
 describe('uploadFreshBundles - built', () => {
@@ -68,6 +76,7 @@ describe('uploadFreshBundles - built', () => {
       projectRoot: '/proj',
       buildSettings: BUILD_SETTINGS,
       platforms: ['android', 'ios'],
+      platformsOnStoredBuild: [],
       baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
       projectIndex: 7,
       teamId: 'team1234',
@@ -78,7 +87,11 @@ describe('uploadFreshBundles - built', () => {
       projectRoot: '/proj',
       platformsToTest: ['android', 'ios'],
       buildSettings: BUILD_SETTINGS,
-      effects: EFFECTS.bundling,
+      // The bundler handed in, behind a gate that derives no facts for an uploaded platform.
+      effects: {
+        bundleFor: EFFECTS.bundling.bundleFor,
+        gateMetadataFor: expect.any(Function),
+      },
     });
     expect(mocks.resolveSuppliedBundles).not.toHaveBeenCalled();
     expect(mocks.uploadBundles).toHaveBeenCalledWith({
@@ -94,6 +107,41 @@ describe('uploadFreshBundles - built', () => {
     });
   });
 
+  it("derives a stored platform's gate facts from its fresh bundle, and none for an uploaded one", async () => {
+    // The shared loop asks its effects for each platform's gate facts, as the real one does.
+    mocks.buildBundles.mockImplementation(async ({ platformsToTest, effects }) => {
+      const gateMetadata: Record<string, unknown> = {};
+      for (const platform of platformsToTest) {
+        gateMetadata[platform] = await effects.gateMetadataFor(
+          '/proj',
+          platform,
+          BUNDLES[platform as 'ios']
+        );
+      }
+      return { results: BUNDLES, gateMetadata };
+    });
+    EFFECTS.bundling.gateMetadataFor.mockResolvedValue(STORED_GATE_METADATA);
+
+    const uploaded = await uploadFreshBundles({
+      projectRoot: '/proj',
+      buildSettings: BUILD_SETTINGS,
+      platforms: ['android', 'ios'],
+      platformsOnStoredBuild: ['ios'],
+      baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
+      projectIndex: 7,
+      teamId: 'team1234',
+      effects: EFFECTS,
+    });
+
+    // Derived for the stored platform alone: an uploaded one's come out of its binary.
+    expect(EFFECTS.bundling.gateMetadataFor).toHaveBeenCalledTimes(1);
+    expect(EFFECTS.bundling.gateMetadataFor).toHaveBeenCalledWith('/proj', 'ios', BUNDLES.ios);
+    expect(uploaded).toEqual({
+      android: { keys: KEYS.android, bundleSizeMb: 1.5 },
+      ios: { keys: KEYS.ios, bundleSizeMb: 2.5, storedBuildGateMetadata: STORED_GATE_METADATA },
+    });
+  });
+
   it('lets an upload failure end the run (nothing is fail-soft here)', async () => {
     mocks.uploadBundles.mockRejectedValue(new Error('Staged upload slot missing for ios.'));
 
@@ -102,6 +150,7 @@ describe('uploadFreshBundles - built', () => {
         projectRoot: '/proj',
         buildSettings: BUILD_SETTINGS,
         platforms: ['ios'],
+        platformsOnStoredBuild: [],
         baseFingerprints: { ios: 'base-fp-ios' },
         projectIndex: 7,
         teamId: 'team1234',
@@ -117,6 +166,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
       projectRoot: '/proj',
       buildSettings: BUILD_SETTINGS,
       platforms: ['android'],
+      platformsOnStoredBuild: [],
       bundleDir: '/tmp/bundles',
       baseFingerprints: { android: 'base-fp-android' },
       projectIndex: 7,
@@ -132,17 +182,48 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
       baseFingerprints: { android: 'base-fp-android' },
       gateMetadataFor: expect.any(Function),
     });
-    // The metadata the sidecar recorded is ignored: this road registers what it
-    // reads out of the binary, through its own effect.
+    // The metadata the sidecar recorded is ignored for an uploaded platform: this road registers
+    // what it reads out of the binary, and derives nothing from the bundle.
     const { gateMetadataFor } = mocks.resolveSuppliedBundles.mock.calls[0][0];
-    await gateMetadataFor('android', BUNDLES.android, { derivedFrom: 'source' });
-    expect(EFFECTS.bundling.gateMetadataFor).toHaveBeenCalledWith(
-      '/proj',
-      'android',
-      BUNDLES.android
-    );
+    await expect(
+      gateMetadataFor('android', BUNDLES.android, { derivedFrom: 'source' })
+    ).resolves.toEqual({ derivedFrom: 'none' });
+    expect(EFFECTS.bundling.gateMetadataFor).not.toHaveBeenCalled();
     expect(mocks.buildBundles).not.toHaveBeenCalled();
     expect(uploaded).toEqual({ android: { keys: KEYS.android, bundleSizeMb: 1.5 } });
+  });
+
+  it("sends a stored platform's gate facts as the sidecar recorded them, as the staged road does", async () => {
+    mocks.resolveSuppliedBundles.mockImplementation(
+      async ({ platformsToTest, gateMetadataFor }) => {
+        const gateMetadata: Record<string, unknown> = {};
+        for (const platform of platformsToTest) {
+          gateMetadata[platform] = await gateMetadataFor(
+            platform,
+            BUNDLES[platform as 'ios'],
+            STORED_GATE_METADATA
+          );
+        }
+        return { results: BUNDLES, gateMetadata };
+      }
+    );
+
+    const uploaded = await uploadFreshBundles({
+      projectRoot: '/proj',
+      buildSettings: BUILD_SETTINGS,
+      platforms: ['android', 'ios'],
+      platformsOnStoredBuild: ['ios'],
+      bundleDir: '/tmp/bundles',
+      baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
+      projectIndex: 7,
+      teamId: 'team1234',
+      effects: EFFECTS,
+    });
+
+    expect(uploaded).toEqual({
+      android: { keys: KEYS.android, bundleSizeMb: 1.5 },
+      ios: { keys: KEYS.ios, bundleSizeMb: 2.5, storedBuildGateMetadata: STORED_GATE_METADATA },
+    });
   });
 
   it('propagates a supplied-bundle refusal (a stale directory) and uploads nothing', async () => {
@@ -157,6 +238,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
         projectRoot: '/proj',
         buildSettings: BUILD_SETTINGS,
         platforms: ['android'],
+        platformsOnStoredBuild: [],
         bundleDir: '/tmp/bundles',
         baseFingerprints: { android: 'base-fp-android' },
         projectIndex: 7,
@@ -170,7 +252,7 @@ describe('uploadFreshBundles - supplied (--bundle-dir)', () => {
 });
 
 describe('the real fresh-bundle effects bundle through the seam and upload through the client', () => {
-  it('asks the seam for the bundler in force, declares no bundle-side gate metadata, and hands the upload the client', async () => {
+  it('asks the seam for the bundler in force, for the bundle and its gate metadata, and hands the upload the client', async () => {
     const client = { getStagedUploadUrls: vi.fn() };
     const uploadEffects = { requestUploadSlots: vi.fn(), uploadBundle: vi.fn() };
     mocks.realBundleUploadEffects.mockReturnValue(uploadEffects);
@@ -183,11 +265,13 @@ describe('the real fresh-bundle effects bundle through the seam and upload throu
     // real inside a pose.
     await effects.bundling.bundleFor('/proj', 'ios', BUILD_SETTINGS);
     expect(mocks.buildBundleForPlatform).toHaveBeenCalledWith('/proj', 'ios', BUILD_SETTINGS);
-    // The binary's own gate metadata is what gets registered; the bundle probe
-    // the shared loops build alongside is declared absent, not fabricated.
-    await expect(effects.bundling.gateMetadataFor('/proj', 'ios', {} as any)).resolves.toEqual({
-      derivedFrom: 'none',
-    });
+    // A stored platform's gate facts are derived from its bundle by the bundler in force, as on
+    // the staged road (uploadFreshBundles asks only for a stored platform's).
+    const bundled = { bundlePath: '/proj/ios.js' } as any;
+    await expect(effects.bundling.gateMetadataFor('/proj', 'ios', bundled)).resolves.toEqual(
+      STORED_GATE_METADATA
+    );
+    expect(mocks.gateMetadataFor).toHaveBeenCalledWith('/proj', 'ios', bundled);
     expect(mocks.realBundleUploadEffects).toHaveBeenCalledWith(client);
     expect(effects.upload).toBe(uploadEffects);
   });

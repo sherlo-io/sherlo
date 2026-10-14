@@ -221,6 +221,7 @@ async function uploadOrReuseBuildsAndRunTests({
   const bundledBaseFingerprints = baseFingerprintsOf(fingerprints, platformsToBundle);
   /** Each registered platform's source list, stored with its base. */
   const sourceLists: Partial<Record<Platform, BaseSourceList>> = {};
+  /** Each bundled platform's gate facts: an uploaded one's read from its binary, a stored one's from its fresh bundle. */
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
   /**
    * Per platform, why a fresh bundle cannot be spliced into its binary; absent
@@ -320,6 +321,7 @@ async function uploadOrReuseBuildsAndRunTests({
   const freshBundles = await uploadFreshBundles({
     projectRoot: commandParams.projectRoot,
     platforms: platformsToBundle,
+    platformsOnStoredBuild,
     bundleDir: commandParams.bundleDir,
     buildSettings: readBuildSettings(commandParams),
     // Every bundled platform's own base, a stored one's too: a supplied bundle is checked
@@ -329,6 +331,13 @@ async function uploadOrReuseBuildsAndRunTests({
     teamId,
     effects: io.freshBundle,
   });
+
+  // A stored platform's gate facts come from its fresh bundle: the service checks that bundle fits
+  // the stored app build it is spliced into, as on the staged road.
+  for (const platform of platformsOnStoredBuild) {
+    const storedBuildGateMetadata = freshBundles[platform]?.storedBuildGateMetadata;
+    if (storedBuildGateMetadata) gateMetadata[platform] = storedBuildGateMetadata;
+  }
 
   await uploadOrPrintBinaryReuse({
     binariesInfo,
@@ -383,8 +392,9 @@ async function uploadOrReuseBuildsAndRunTests({
       runIdFlag,
     }),
     // Each bundled platform's own base and build settings digest, so a native change on one
-    // platform leaves the other's stored app build in use; the gate metadata and source list
-    // are the uploaded platforms' only, the ones that register a base.
+    // platform leaves the other's stored app build in use; each bundled platform's gate metadata,
+    // an uploaded one's read from its binary and a stored one's from its fresh bundle; and the
+    // source list of the uploaded platforms only, the ones that register a base.
     ...(platformWithoutFingerprint === undefined
       ? {
           baseFingerprints: bundledBaseFingerprints,
