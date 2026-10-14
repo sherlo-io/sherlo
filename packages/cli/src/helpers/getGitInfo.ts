@@ -304,7 +304,8 @@ async function getAdditionalGitInfo(
   //
   // `prHeadCommitHash` must carry the real PR head in BOTH cases: the server
   // keys the commit-hash GSI on it, so a wrong value (e.g. the ephemeral merge
-  // SHA) makes an approved PR build invisible to later builds. It also signals
+  // SHA) makes an approved PR build invisible to later builds. It is the
+  // `commitHash` too, so the two jobs of one run name one commit. It also signals
   // that this build originates from a synthetic merge ref - without it a
   // canonicalised commitHash is indistinguishable from a direct push.
   //
@@ -445,9 +446,12 @@ export async function readGitInfoFromDisk(
   try {
     const { additional, canonicalSha } = await getAdditionalGitInfo(projectRoot);
 
-    const commitHash = canonicalSha
-      ? canonicalSha
-      : await runShellCommand({ command: 'git rev-parse HEAD', projectRoot });
+    // On a merge ref the commit is the PR head, read locally or from the event payload, so every
+    // job of one pull request run names the same commit whether its checkout is shallow or
+    // deepened. Never the merge commit: its parents are grafted away on a shallow checkout only.
+    const commitHash =
+      additional.prHeadCommitHash ??
+      (await runShellCommand({ command: 'git rev-parse HEAD', projectRoot }));
 
     const commitName = await runShellCommand({
       command: 'git log -1 --pretty=format:%s ' + (canonicalSha ?? 'HEAD'),
