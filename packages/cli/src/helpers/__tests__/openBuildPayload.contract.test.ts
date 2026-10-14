@@ -290,9 +290,37 @@ describe('openBuild payload - a platform that reuses its stored build', () => {
 
     expect(payload.baseFingerprints).toEqual({ android: 'base-fp-android', ios: 'base-fp-ios' });
     expect(Object.keys(payload.buildSettingsDigests).sort()).toEqual(['android', 'ios']);
-    // Only the uploaded platform registers a base, so only it carries gate metadata and a source list.
-    expect(Object.keys(payload.gateMetadata)).toEqual(['android']);
+    // Only the uploaded platform registers a base, so only it carries a source list.
     expect(Object.keys(payload.sourceLists)).toEqual(['android']);
+  });
+
+  it("a push that reuses one platform's stored build sends that platform's gate facts read from its fresh bundle", async () => {
+    const storedGateMetadata = {
+      derivedFrom: 'source',
+      engineClass: 'hermes',
+      bundleFormat: 'hbc',
+    };
+    mocks.uploadFreshBundles.mockResolvedValue({
+      android: FRESH_BUNDLES.android,
+      ios: { ...FRESH_BUNDLES.ios, storedBuildGateMetadata: storedGateMetadata },
+    });
+
+    await uploadOrReuseBuildsAndRunTests({
+      commandParams: COMMAND_PARAMS,
+      appBuildPaths: { android: COMMAND_PARAMS.android },
+      platformsOnStoredBuild: ['ios'],
+      platformRows: [],
+    });
+
+    // The fresh-bundle step derives gate facts for the stored platform alone.
+    expect(mocks.uploadFreshBundles.mock.calls[0][0].platformsOnStoredBuild).toEqual(['ios']);
+    // The uploaded platform keeps the facts read out of its binary; the stored one sends its
+    // fresh bundle's, which the service diffs against its stored base.
+    expect(lastOpenBuildPayload().gateMetadata).toEqual({
+      android: { engineClass: 'hermes' },
+      ios: storedGateMetadata,
+    });
+    expect(mocks.registerBase).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -395,6 +423,8 @@ describe('the fresh bundle on the platform config', () => {
     expect(mocks.uploadFreshBundles).toHaveBeenCalledWith({
       projectRoot: '/proj',
       platforms: ['android', 'ios'],
+      // Both platforms upload an app build, so no bundle's gate facts are derived.
+      platformsOnStoredBuild: [],
       bundleDir: '/tmp/bundles',
       // The config's `build` block reaches the bundler, as it reaches the app build.
       buildSettings,
