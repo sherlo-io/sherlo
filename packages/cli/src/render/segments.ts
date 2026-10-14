@@ -139,15 +139,6 @@ export type TranscriptSegment =
    */
   | { kind: 'notice'; level: 'warning' | 'info'; message: string; learnMoreLink?: string }
   /**
-   * The generic `➜ ` / `✔ ` build line, for the print sites OUTSIDE the push
-   * spine that still call `printBuildMessage` with a pre-composed string
-   * (testEasCloudBuild, getBuildData). It exists so the icon-and-spacing
-   * framing has exactly ONE implementation, in this layer, rather than a second
-   * copy that could drift from the spine's. Everything F1 fixtures watch uses
-   * the data-carrying variants above.
-   */
-  | { kind: 'build-message'; message: string; type: 'info' | 'success'; endsWithNewLine?: boolean }
-  /**
    * The closer of a run that reached a build: `🔗 Review: <url>` - the address printed once, on
    * the line with the emoji, for a machine and a person alike (operator ruling 2026-09-15); the
    * GitHub Action reads it off that line (actions/lib/cliOutputs.mjs).

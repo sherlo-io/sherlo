@@ -20,7 +20,6 @@ export { default as isValidToken } from './isValidToken';
 export { default as refuseIfPersonalToken } from './refuseIfPersonalToken';
 export { default as logInfo } from './logInfo';
 export { default as logWarning } from './logWarning';
-export { default as printBuildMessage } from './printBuildMessage';
 export { default as printLink } from './printLink';
 export { default as printOutputKeys } from './printOutputKeys';
 export { default as printSherloIntro } from './printSherloIntro';

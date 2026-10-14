@@ -21,21 +21,6 @@
 import chalk from 'chalk';
 
 /**
- * The `➜ ` / `✔ ` build line every binary block is made of.
- *
- * ONE implementation, used by the spine's own segments AND by the generic
- * `build-message` passthrough, so the icon and the two-space alignment cannot
- * drift between a fixtured call site and an unfixtured one.
- */
-export function renderBuildMessageLine(message: string, type: 'info' | 'success'): string {
-  const iconColor = type === 'success' ? 'green' : 'blue';
-  const icon = type === 'success' ? '✔' : '➜';
-
-  // Two spaces after the icon align the text with the section titles.
-  return `${chalk[iconColor](icon)}  ${message}`;
-}
-
-/**
  * A warning or a note on a test's road, in init's marks: `! <warning>` in yellow, a note as it
  * is, and the link under either. `renderNotice` below keeps its `WARNING:` / `INFO:` look for the
  * init sections that call it.

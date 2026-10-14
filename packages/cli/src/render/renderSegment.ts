@@ -40,7 +40,7 @@ import {
   renderAppBuildNextStep,
   renderEasHostedVariables,
 } from './appBuild';
-import { renderBuildMessageLine, renderOutputKeys, renderTestNotice } from './pushSpine';
+import { renderOutputKeys, renderTestNotice } from './pushSpine';
 import { renderStepInProgress } from './stepInProgress';
 import {
   renderFinishedUnderTheTestRow,
@@ -237,15 +237,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderTestNotice(segment).map((line) => [line]),
-      };
-
-    case 'build-message':
-      return {
-        stream: 'stdout',
-        prints: [
-          [renderBuildMessageLine(segment.message, segment.type)],
-          ...(segment.endsWithNewLine ? [[]] : []),
-        ],
       };
 
     case 'results-url':
