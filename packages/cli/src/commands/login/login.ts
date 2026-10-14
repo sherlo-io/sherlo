@@ -1,6 +1,5 @@
 /**
- * `sherlo login` - sign this terminal in to Sherlo through the browser, once (sherlo / Logging in
- * from the terminal).
+ * `sherlo login` - sign this terminal in to Sherlo through the browser, once.
  *
  *   1. A saved login the service still accepts ends here: "Already logged in", exit 0.
  *   2. Otherwise it picks up the pending login an earlier run left, while that one has not

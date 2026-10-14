@@ -137,8 +137,7 @@ async function start() {
     await reporting.flush().finally(() => {
       console.error((error as Error).message);
 
-      // INIT'S HELP BLOCK ENDS EVERY FAILED COMMAND (epic sherlo-test-builds-apps, Direction C), in
-      // place of the old `══════════ Need Help?` footer, so a failure reads the same everywhere.
+      // INIT'S HELP BLOCK ENDS EVERY FAILED COMMAND, in place of the old `══════════ Need Help?` footer, so a failure reads the same everywhere.
       for (const line of renderHelpBlock()) console.log(line);
 
       // A Node file-system error's `code` is a string (`'ENOENT'`), which `process.exit` refuses.
@@ -422,8 +421,7 @@ function addInitCommand(program: Command) {
   });
 }
 
-// `sherlo test` is the ONE testing command, and it makes every app build it tests (operator
-// decision 2026-10-07): the staged road runs and builds what the gate refuses.
+// `sherlo test` is the ONE testing command, and it makes every app build it tests: the staged road runs and builds what the gate refuses.
 function addTestCommand(program: Command) {
   const devtoolsOptions = process.env.SHERLO_DEVTOOLS === '1' ? [DIAGNOSTICS_OPTION] : [];
 
@@ -444,7 +442,7 @@ function addTestCommand(program: Command) {
     ],
     // THE INTRO COMES FIRST, as on `sherlo init`: a refused flag or a job with nothing to test is
     // still a `sherlo test` screen, opening with `Testing your app...` - under the logo in a
-    // terminal, and on the first line of a log (operator ruling 2026-10-12, Q1).
+    // terminal, and on the first line of a log.
     action: (options) => {
       printTheLogoInATerminal();
       emit({ kind: 'command-intro', command: 'test' });
@@ -464,8 +462,7 @@ function addTestCommand(program: Command) {
 }
 
 /**
- * Sherlo 3 takes a push's credential from SHERLO_TOKEN or the saved login only (operator decision
- * 2026-10-11), so a token on the command line is refused before anything runs - exit 1, naming the
+ * Sherlo 3 takes a push's credential from SHERLO_TOKEN or the saved login only, so a token on the command line is refused before anything runs - exit 1, naming the
  * two that remain. The same words refuse a `token` in sherlo.config.json (resolvePushCredential).
  *
  * `sherlo init --token` keeps its flag.
@@ -501,8 +498,8 @@ function refuseBinaryPathFlags(options: { [ANDROID_OPTION]?: string; [IOS_OPTION
 // `sherlo build` builds the app into the local build cache and pushes nothing, so a later
 // `sherlo test` - in this job or a later one that restores the cache - compiles nothing.
 // `withTimeout: false`: a release build is the slowest thing the tool does, and it ends on its own.
-// Hidden from `--help`: kept for Sherlo's own end-to-end tests, not offered to customers (operator
-// ruling 2026-10-13, Q12) - Sherlo's servers already keep each project's app builds.
+// Hidden from `--help`: kept for Sherlo's own end-to-end tests, not offered to customers -
+// Sherlo's servers already keep each project's app builds.
 function addBuildCommand(program: Command) {
   addCommand({
     program,
@@ -581,7 +578,7 @@ function addEasBuildOnCompleteCommand(program: Command) {
 // `sherlo fingerprint` reuses `--bundle-dir` with its own meaning: the directory is
 // READ for its module manifests (the js layer's file list), never checked or run.
 // Hidden from `--help`: it serves Sherlo's own end-to-end tests, and `sherlo test` computes the
-// fingerprints itself (operator ruling 2026-10-13, Q13).
+// fingerprints itself.
 function addFingerprintCommand(program: Command) {
   const commandInstance = program
     .command(FINGERPRINT_COMMAND, { hidden: true })
@@ -616,7 +613,7 @@ function addFingerprintCommand(program: Command) {
  */
 function addProjectCommand(program: Command) {
   // Hidden from `--help`: a customer makes a project through `sherlo init` or the web app; this
-  // group serves Sherlo's own end-to-end tests (operator ruling 2026-10-13, Q13).
+  // group serves Sherlo's own end-to-end tests.
   const projectGroup = program
     .command(PROJECT_COMMAND, { hidden: true })
     .description('Manage Sherlo projects');
@@ -653,7 +650,7 @@ function addProjectCommand(program: Command) {
  * every team that person belongs to rather than one named team.
  */
 function addTeamCommand(program: Command) {
-  // Hidden from `--help`, like the project group (operator ruling 2026-10-13, Q13).
+  // Hidden from `--help`, like the project group.
   const teamGroup = program
     .command(TEAM_COMMAND, { hidden: true })
     .description('Manage Sherlo teams');
@@ -785,8 +782,7 @@ function setReportingContext(command: string, options: any) {
 
 /**
  * Options that work but are not listed in `--help`: the local build cache is kept quietly, for
- * Sherlo's own end-to-end tests and the rebuild a failed run would otherwise cost (operator ruling
- * 2026-10-13, Q12).
+ * Sherlo's own end-to-end tests and the rebuild a failed run would otherwise cost.
  */
 const OPTIONS_HIDDEN_FROM_HELP = new Set<keyof typeof OPTION_DEFINITION>([BUILD_CACHE_OPTION]);
 

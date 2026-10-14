@@ -33,6 +33,7 @@ import { makeProjectSherloFolder } from '../commands/test/appBuild/cacheFolder';
 import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
+import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
 import type { NativeFolderFile } from './serverCalls';
 
@@ -287,7 +288,7 @@ function xcodeContainerArguments(iosFolder: string): string[] {
 
 /** The `.app` the first app target of an `xcodebuild -showBuildSettings -json` answer builds. */
 function appPathFromBuildSettings(settingsPath: string): string | undefined {
-  const text = readTextIfThere(settingsPath);
+  const text = readTextIfThere(settingsPath) ?? '';
   // xcodebuild may print warnings before the JSON, and a warning may hold a bracket of its own
   // ("variant:Designed for [iPad,iPhone]"), so the JSON starts at a bracket that opens its line and
   // ends it or opens an object.
@@ -340,8 +341,9 @@ function easBuildIdIn(output: string): string | undefined {
   return undefined;
 }
 
-function readTextIfThere(filePath: string): string {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+/** A text file, or undefined when there is none. */
+function readTextIfThere(filePath: string): string | undefined {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : undefined;
 }
 
 /** The bytes of every file under a folder. */
@@ -366,7 +368,7 @@ function isFolder(folderPath: string | undefined): boolean {
  */
 function sdkDirOfLocalProperties(projectRoot: string): string | undefined {
   const androidFolder = path.join(projectRoot, 'android');
-  const properties = readTextIfThere(path.join(androidFolder, 'local.properties'));
+  const properties = readTextIfThere(path.join(androidFolder, 'local.properties')) ?? '';
   const sdkDirLine = /^\s*sdk\.dir\s*[=:]\s*(.*?)\s*$/m.exec(properties);
   if (!sdkDirLine) return undefined;
   const sdkDir = sdkDirLine[1].replace(/\\(.)/g, '$1');
@@ -406,7 +408,7 @@ function appBuildSizeMb(appPath: string): string {
   const bytes = fs.statSync(appPath).isDirectory()
     ? folderSizeBytes(appPath)
     : fs.statSync(appPath).size;
-  return (bytes / (1024 * 1024)).toFixed(2);
+  return getSizeInMB({ bytes });
 }
 
 /** The shipped answers, over a process runner (a test hands in its own). */
@@ -498,7 +500,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     const { projectRoot, iosFolder, env, logPath } = params;
     const filesBefore = readPodTouchedFiles(projectRoot);
     const usesBundler = [projectRoot, iosFolder].some((folder) =>
-      /cocoapods/i.test(readTextIfThere(path.join(folder, 'Gemfile')))
+      /cocoapods/i.test(readTextIfThere(path.join(folder, 'Gemfile')) ?? '')
     );
     // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` with no locale.
     const hasLocale = Boolean(env.LANG || env.LC_ALL);
@@ -656,7 +658,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         env: process.env,
         logPath,
       });
-      return { exitCode, output: readTextIfThere(logPath) };
+      return { exitCode, output: readTextIfThere(logPath) ?? '' };
     } finally {
       fs.rmSync(answerFolder, { recursive: true, force: true });
     }
@@ -784,7 +786,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         env: process.env,
         logPath,
       });
-      const buildId = exitCode === 0 ? easBuildIdIn(readTextIfThere(logPath)) : undefined;
+      const buildId = exitCode === 0 ? easBuildIdIn(readTextIfThere(logPath) ?? '') : undefined;
       if (!buildId) {
         throw new Error(
           `\`eas build\` could not start the ${platform} build - see ${easStartLogPath(platform)}`
@@ -817,8 +819,7 @@ function readFileOfTheEasUpload({
   easUploadRoot: string;
   fileFromTheRoot: string;
 }): string | undefined {
-  const filePath = path.join(easUploadRoot, fileFromTheRoot);
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : undefined;
+  return readTextIfThere(path.join(easUploadRoot, fileFromTheRoot));
 }
 
 let installed: AppBuilder = liveAppBuilder;

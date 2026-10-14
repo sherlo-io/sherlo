@@ -1,6 +1,5 @@
 /**
- * A TEST, ONE ROW PER PLATFORM AND ONE FOR THE TEST (operator, 2026-10-13, Q6 - drawn live on the
- * mixed run first, then rolled out to every `sherlo test` screen):
+ * A TEST, ONE ROW PER PLATFORM AND ONE FOR THE TEST, on every `sherlo test` screen:
  *
  *     🤖 Android  ✔ Built in 4m 12s, native code changed since Test 3 (log: ...)
  *                   ~ yarn.lock
@@ -17,7 +16,7 @@
  * (../commands/test/platformRows), and a platform's progress line starts in the same column
  * (./stepInProgress).
  *
- * Pure, like everything under ./. The words are the content department's approved wording.
+ * Pure, like everything under ./.
  */
 import chalk from 'chalk';
 import type { Platform } from '@sherlo/api-types';
@@ -226,7 +225,7 @@ export function renderFinishedUnderTheTestRow(seconds: number): string {
 }
 
 /**
- * A platform's app build failed, so nothing was tested (operator, Q5): the platforms' rows - the
+ * A platform's app build failed, so nothing was tested: the platforms' rows - the
  * failed one with what changed under it - then the build tool's last lines, what to do, and help.
  */
 export function renderTestStoppedOnFailedBuild({

@@ -1,5 +1,5 @@
 /**
- * Unit tests for getBuildPath (sherlo / Cloud builds on EAS, "What does the hook do?").
+ * Unit tests for getBuildPath.
  *
  * getBuildPath finds the app build an EAS build left, the way EAS itself finds it:
  *  - a profile's `applicationArchivePath` in eas.json (`build.<profile>.<platform>`), which may be a

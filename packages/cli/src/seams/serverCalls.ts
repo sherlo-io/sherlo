@@ -45,12 +45,8 @@ export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
 export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
   /**
    * Whether the project has a CI token, so a person's run can suggest running Sherlo on every pull
-   * request while it has none (operator, 2026-10-12, with epic init-for-agents). Absent means
-   * unknown, and nothing is suggested.
-   *
-   * PLAN-LAYER DEBT, NAMED (epic sherlo-test-builds-apps): posed here, not sent by the service yet.
-   * init-for-agents adds `hasCiToken` to the Project type; once the client selects it (its name and
-   * where the answer carries it confirmed with init-for-agents), this becomes the client's own shape.
+   * request while it has none. The service may say whether the project has a CI token; absent
+   * means unknown, and nothing is suggested.
    */
   hasCiToken?: boolean;
 };
@@ -94,7 +90,7 @@ export type ServerCalls = {
   /**
    * One job of a split CI run delivers its platform: the server opens the run the CI run's jobs
    * share, or joins the one the other job opened, fills this platform's slot, and starts the run
-   * when every platform the config names is in - never before (operator ruling 2026-10-07).
+   * when every platform the config names is in - never before.
    */
   joinBuild(request: JoinBuildRequest & { token: string }): Promise<JoinBuildAnswer>;
 
@@ -163,7 +159,7 @@ export type PendingCliLogin = {
 
 /**
  * What a poll of a pending login answers. Only `approved` carries the token, and only once: a
- * later poll of the same login answers `used` (sherlo-api / Logging in from the CLI).
+ * later poll of the same login answers `used`.
  */
 export type CliLoginAnswer =
   | { status: 'pending' | 'cancelled' | 'expired' | 'used' }
@@ -180,9 +176,8 @@ export type JoinBuildAnswer = Awaited<ReturnType<SdkClient['joinBuild']>>;
 /**
  * The run that just started, as the service tells the EAS upload that brought its last platform
  * in: the devices of the whole test and what each platform captures. The sdk client's `asyncUpload`
- * does not select it yet, so a live EAS run prints the bare `Test N      ✔ Started`.
- *
- * PLAN-LAYER DEBT, NAMED (build item 66): posed here, for `asyncUpload` only.
+ * does not select it yet, so a live EAS run prints the bare `Test N      ✔ Started`; a pose can
+ * state it for `asyncUpload` only.
  */
 export type StartedRun = { devices: Config['devices']; capture: PlatformCapture[] };
 
@@ -485,7 +480,7 @@ export type StoredBaseSource = {
   kind: string;
   /**
    * A native folder's files, one hash each (`android/app/build.gradle`), so the list can name the
-   * file that changed rather than the folder (operator decision 2026-10-11). Kept for the list
+   * file that changed rather than the folder. Kept for the list
    * ALONE: the base fingerprint still hashes the folder as one source, and these never enter it.
    * Only on a `dir` source the fingerprint hashed whole - a bare project's `android` and `ios` -
    * and absent on a folder an older CLI stored, which is then compared as one entry.
@@ -524,21 +519,25 @@ export type PosedCaptureDecision = {
   inheritedSnapshotCount?: number;
 };
 
-/** One platform's capture decision, as a pose states it. */
-export type PosedPlatformCaptureDecision = {
+/** One platform's capture scope, as `openBuild` answers it - the sdk client's own shape. */
+type OpenBuildCaptureScope = NonNullable<
+  NonNullable<OpenBuildAnswer['buildRun']['config'][Platform]>['captureScope']
+>;
+
+/**
+ * One platform's capture decision, as a pose states it, its new and changed story files in the
+ * service's own shape. A partial capture's own list is what a change reaches.
+ */
+export type PosedPlatformCaptureDecision = Pick<
+  OpenBuildCaptureScope,
+  'newStoryFilePaths' | 'changedStoryFilePaths'
+> & {
   /** `true` prints "capturing all N stories in this bundle"; `false` prints the partial closure-diff. */
   full: boolean;
   /** The story files captured, when `full` is `false`. Ignored (the block reads "all N") when `full` is `true`. */
   storyFilePaths?: string[];
   /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
   reason?: string;
-  /**
-   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): of the story files captured,
-   * those the build it diffed against did not have, and those a change reaches. A partial capture's
-   * own list is what a change reaches. The service does not send them yet.
-   */
-  newStoryFilePaths?: string[];
-  changedStoryFilePaths?: string[];
 };
 
 /**

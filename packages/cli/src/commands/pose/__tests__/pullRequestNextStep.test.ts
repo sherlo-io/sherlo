@@ -1,6 +1,5 @@
 /**
- * THE PULL REQUEST NEXT STEP (operator, 2026-10-12, with epic init-for-agents): setup no longer asks
- * for CI, so a test a PERSON started, on a project with no CI token, ends on a second next step -
+ * THE PULL REQUEST NEXT STEP: setup does not ask for CI, so a test a PERSON started, on a project with no CI token, ends on a second next step -
  * run Sherlo on every pull request, with the project's page linked. A log never shows it, and a
  * project whose CI token is unknown gets nothing extra.
  */

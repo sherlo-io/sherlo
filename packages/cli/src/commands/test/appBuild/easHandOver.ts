@@ -1,6 +1,5 @@
 /**
- * WILL EAS UPLOAD THE HAND-OVER FILE? - asked by EAS mode before it opens a run (epic
- * sherlo-test-builds-apps, operator decision 2026-10-11).
+ * WILL EAS UPLOAD THE HAND-OVER FILE? - asked by EAS mode before it opens a run.
  *
  * `sherlo test` writes `.sherlo/data.json` just before it starts the EAS builds, and each build's
  * `eas-build-on-complete` script reads it on Expo's machine to learn which run it belongs to. A
@@ -15,12 +14,11 @@
  *   - otherwise, with an `.easignore` at the repository's root it applies that file alone;
  *   - and without one it applies every `.gitignore` in the tree, each to the folder it sits in.
  *
- * PLAN-LAYER DEBT, NAMED: the pattern matching below covers the forms ignore files are written in -
- * comments, `!` negation, a leading or middle `/` anchoring the pattern, a trailing `/` for a folder,
- * `*`, `?` and `**`. It is to be swapped for the `ignore` package, the matcher EAS itself uses,
- * so Sherlo's answer and EAS's can never differ. Draft words, for the content department's review.
+ * Each file is read with the `ignore` package, the matcher EAS itself uses, so Sherlo's answer and
+ * EAS's cannot differ.
  */
 import path from 'path';
+import ignore from 'ignore';
 import { SHERLO_TEMP_DATA_FILENAME, SHERLO_TEMP_DIRECTORY } from '../../../constants';
 import { throwError } from '../../../helpers';
 import { readProjectJson } from '../../../helpers/projectJson';
@@ -119,57 +117,7 @@ function gitIgnoresAbove(
  * brought back. Within one path the last matching line decides, so a `!` line can bring it back.
  */
 function lineThatIgnores(ignoreFile: string, filePath: string): string | undefined {
-  const lines = ignoreFile
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line !== '' && !line.startsWith('#'));
-
-  const parts = filePath.split('/');
-  for (let length = 1; length <= parts.length; length += 1) {
-    const candidate = parts.slice(0, length).join('/');
-    const isFolder = length < parts.length;
-
-    let decidingLine: string | undefined;
-    for (const line of lines) {
-      const bringsBack = line.startsWith('!');
-      if (!patternMatches(bringsBack ? line.slice(1) : line, candidate, isFolder)) continue;
-      decidingLine = bringsBack ? undefined : line;
-    }
-
-    if (decidingLine !== undefined) return decidingLine;
-  }
-
-  return undefined;
-}
-
-/** Whether one ignore pattern matches one path, read the way git reads it. */
-function patternMatches(pattern: string, candidate: string, isFolder: boolean): boolean {
-  const onlyFolders = pattern.endsWith('/');
-  if (onlyFolders && !isFolder) return false;
-
-  const body = onlyFolders ? pattern.slice(0, -1) : pattern;
-  const anchored = body.includes('/');
-  const glob = body.startsWith('/') ? body.slice(1) : body;
-
-  const expression = glob
-    .split('/')
-    .map((segment) => (segment === '**' ? '(?:.*)' : segmentToExpression(segment)))
-    .join('/')
-    .replace(/\(\?:\.\*\)\//g, '(?:.*/)?');
-
-  return new RegExp(anchored ? `^${expression}$` : `^(?:.*/)?${expression}$`).test(candidate);
-}
-
-/** One path segment of a pattern: `*` is any run of characters but `/`, `?` is one of them. */
-function segmentToExpression(segment: string): string {
-  return segment
-    .split('')
-    .map((character) => {
-      if (character === '*') return '[^/]*';
-      if (character === '?') return '[^/]';
-      return character.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-    })
-    .join('');
+  return ignore().add(ignoreFile).test(filePath).rule?.pattern;
 }
 
 function toPosix(filePath: string): string {

@@ -1,5 +1,5 @@
 /**
- * WHAT THE PUSH REPORTS ABOUT ITSELF (sherlo / After a push / The record), and what it reads back.
+ * WHAT THE PUSH REPORTS ABOUT ITSELF, and what it reads back.
  *
  * Each case runs a catalogued `sherlo test` pose, or one changed for the case, end to end: the posed
  * server answers every call and records what it was sent, which is the question here.

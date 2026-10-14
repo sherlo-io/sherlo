@@ -5,8 +5,7 @@ import { join } from 'path';
 import { getCwd, getErrorWithCustomMessage, throwError } from '../../../../helpers';
 
 /**
- * WHERE EAS LEFT THE APP BUILD, read the way EAS itself reads it (epic sherlo-test-builds-apps,
- * operator decision 2026-10-11): a profile's `applicationArchivePath` is a path OR A PATTERN
+ * WHERE EAS LEFT THE APP BUILD, read the way EAS itself reads it: a profile's `applicationArchivePath` is a path OR A PATTERN
  * ("EAS Build uses glob patterns for pattern matching", docs.expo.dev/eas/json), so it is matched,
  * never only checked for existence. With none, the pattern is EAS's own default for the build
  * Sherlo asks for - an APK on Android, a simulator app on iOS, in whichever configuration the

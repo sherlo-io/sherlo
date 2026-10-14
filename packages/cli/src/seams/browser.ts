@@ -6,8 +6,8 @@
  *
  * Opening a browser is an act on this machine, and a machine that only has the pose has no browser
  * to open - so it is here, behind one answer. The command prints the link on its own line whether
- * or not the browser came up (sherlo / Logging in from the terminal); what the answer changes is
- * only the line that says the browser did not open.
+ * or not the browser came up; what the answer changes is only the line that says the browser did
+ * not open.
  *
  * THE POSED HALF NEVER PRINTS. What a pose answers is whether the browser came up, never a word on
  * the screen.

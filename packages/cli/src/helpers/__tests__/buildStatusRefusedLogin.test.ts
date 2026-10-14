@@ -1,6 +1,5 @@
 /**
- * A REFUSED SAVED LOGIN WHILE WAITING (sherlo / Logging in from the terminal, "When does a login
- * stop working?").
+ * A REFUSED SAVED LOGIN WHILE WAITING.
  *
  * `sherlo test --wait` and `sherlo view --wait` read the build until it ends. When the service
  * refuses the credential at that point, a saved login is answered the way every command answers

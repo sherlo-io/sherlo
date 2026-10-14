@@ -1,9 +1,9 @@
 /**
- * THE CREDENTIAL A PUSH SPENDS, AND THE PROJECT IT GOES TO (sherlo / The credential and the
- * project of a push). `sherlo test`, `sherlo view` and `sherlo test:eas-cloud-build` resolve it
- * here, once, and every refusal of it happens here, before any request.
+ * THE CREDENTIAL A PUSH SPENDS, AND THE PROJECT IT GOES TO. `sherlo test`, `sherlo view` and
+ * `sherlo test:eas-cloud-build` resolve it here, once, and every refusal of it happens here,
+ * before any request.
  *
- * The first of two is spent, in this order (operator decision 2026-10-11):
+ * The first of two is spent, in this order:
  *
  *     1. SHERLO_TOKEN     - a project token: the project is the one the token names
  *     2. the saved login  - a person's credential: the project is the config's `project`

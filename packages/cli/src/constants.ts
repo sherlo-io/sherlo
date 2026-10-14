@@ -146,7 +146,7 @@ export const TOKEN_OPTION = 'token';
 export const TEAM_OPTION = 'team';
 /**
  * `sherlo init --project <teamId>/<projectIndex>`: the project the app belongs to, the same line
- * setup writes into the config's `project` (sherlo / How setup names the project).
+ * setup writes into the config's `project`.
  */
 export const PROJECT_OPTION = 'project';
 /**
@@ -181,43 +181,13 @@ export const JSON_OPTION = 'json';
  */
 export const LOGS_OPTION = 'logs';
 
-/* TOKENS - there are two kinds and they must never be confusable */
-
-/**
- * THE PREFIX THAT TELLS THE TWO CREDENTIALS APART, and the reason the CLI can
- * refuse the wrong one BY NAME instead of sending it and letting the backend
- * say no.
- *
- *   A PROJECT TOKEN is a composite the CLI parses locally: 32 random chars,
- *   then an 8-char teamId, then the project index (helpers/getTokenParts). It
- *   carries NO prefix, it names one project, and it is what `--token` /
- *   `SHERLO_TOKEN` / `sherlo.config.json` mean everywhere in this CLI. It runs
- *   tests and reads builds.
- *
- *   A PERSONAL TOKEN is `sht_` + 32 opaque chars. It carries NO team and NO
- *   project - it is resolved server-side to the PERSON it belongs to, and what
- *   it may do is cut to that person's current role on the team the request
- *   names. The login `sherlo login` saves is one, and the tool takes no other:
- *   no flag and no variable carries a personal token (sherlo / Logging in from
- *   the terminal).
- *
- * SLICING A PERSONAL TOKEN THE WAY A PROJECT TOKEN IS SLICED WOULD PRODUCE A
- * PLAUSIBLE-LOOKING TEAM ID out of eight characters of random. That is the
- * failure this constant exists to make impossible: every place that takes a
- * project token checks the prefix first and refuses a personal one by name.
- *
- * Source of truth: sherlo-api `packages/types/src/model/personalToken.ts`
- * (PERSONAL_TOKEN_PREFIX). Copied rather than imported because the published
- * `@sherlo/api-types` this repo builds against does not carry it yet; drop the
- * copy once it does.
- */
-export const PERSONAL_TOKEN_PREFIX = 'sht_';
+/* TOKENS */
 
 /**
  * How a BUILD TICKET starts: the credential `openBuild` answers when it opens a run that waits for
- * EAS builds, good only for filling that one run's slots and closing it, for about a day (sherlo-api
- * / Tokens and the request gate). `sherlo test` writes it into `.sherlo/data.json` in place of any
- * token, and the EAS hook spends it whole. Must match the prefix sherlo-api issues it with.
+ * EAS builds, good only for filling that one run's slots and closing it, for about a day.
+ * `sherlo test` writes it into `.sherlo/data.json` in place of any token, and the EAS hook spends
+ * it whole. Must match the prefix the service issues it with.
  */
 export const BUILD_TICKET_PREFIX = 'sbt_';
 

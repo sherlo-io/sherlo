@@ -1,6 +1,6 @@
 /**
  * THE HAND-OVER FILE, `.sherlo/data.json` - what `sherlo test` in EAS mode leaves in the project for
- * each EAS build to find on Expo's machine (sherlo / The EAS hook on Expo's machine).
+ * each EAS build to find on Expo's machine.
  *
  * It travels with the uploaded project, so it carries no token: only the one-build ticket the
  * service answered when it opened the run, which can fill that run's slots and close it, for about a

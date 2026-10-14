@@ -1,6 +1,6 @@
 /**
  * A TERMINAL OR A LOG - the one check that decides it, and the one way a long step shows while it
- * runs (epic sherlo-test-builds-apps, operator decisions 2026-10-12).
+ * runs.
  *
  * A person at a terminal sees a long step as a spinner, and the spinner is stopped before the
  * step's `✔` line, so the terminal keeps only the `✔` lines. Anywhere else - a CI log, an agent's
@@ -10,7 +10,7 @@
  * ONE CHECK, for every spinner and every progress line `sherlo test`, `sherlo build`, `sherlo view`
  * and the EAS hook show, and for whether they open with the logo. It replaces the three different
  * guesses the CLI made (`stdout.isTTY`, `stderr.isTTY`, and ora's own); `sherlo init` and
- * `sherlo login` move onto it once init-for-agents has merged (its named build debt).
+ * `sherlo login` do not use it yet.
  */
 import { renderStepInProgress, type StepInProgress } from '../../render/stepInProgress';
 import printSherloIntro from '../../helpers/printSherloIntro';
@@ -33,9 +33,9 @@ export function printsToATerminal(): boolean {
 }
 
 /**
- * The logo and tagline open a run only in a terminal (operator ruling 2026-10-12, Q1): a log - a
- * CI job, an agent's shell, Expo's build log - starts at the line that says what the command does.
- * `sherlo init` and `sherlo login` keep theirs until init-for-agents has merged.
+ * The logo and tagline open a run only in a terminal: a log - a CI job, an agent's shell, Expo's
+ * build log - starts at the line that says what the command does. `sherlo init` and `sherlo login`
+ * still print theirs everywhere.
  */
 export function printTheLogoInATerminal(): void {
   if (printsToATerminal()) printSherloIntro();

@@ -240,10 +240,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'results-url':
-      // THE ADDRESS IS PRINTED ONCE, ON THE LINE WITH THE EMOJI (operator ruling 2026-09-15). The
-      // closer printed it twice under CI - a `url=` line for a machine above the link for a
-      // person - and the ruling is that no screen ever carries the second copy, whoever is
-      // reading. The GitHub Action reads the address off this line (actions/lib/cliOutputs.mjs).
+      // THE ADDRESS IS PRINTED ONCE, ON THE LINE WITH THE EMOJI. The closer printed it twice under
+      // CI - a `url=` line for a machine above the link for a person - and no screen ever carries
+      // the second copy, whoever is reading. The GitHub Action reads the address off this line (actions/lib/cliOutputs.mjs).
       return {
         stream: 'stdout',
         prints: (segment.testIndex !== undefined

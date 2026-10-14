@@ -6,11 +6,6 @@
  * first because the index is what every other command takes (`sherlo view`,
  * `sherlo test --project`), then the name, then how many builds it has and its
  * main branch, both dimmed because they are context rather than the answer.
- *
- * PLAN-LAYER PRESENTATION (2026-09-07). This renderer is the page the operator
- * signs; the command that produces the state it prints - the API query, the
- * `project list` verb itself - is build work and does not exist yet. A transcript
- * rendered from here is a designed pose, not a captured run.
  */
 import chalk from 'chalk';
 

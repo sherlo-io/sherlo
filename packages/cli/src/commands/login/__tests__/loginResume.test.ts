@@ -1,5 +1,5 @@
 /**
- * `npx sherlo login` AS IT WAITS AND RESUMES (sherlo / Logging in from the terminal).
+ * `npx sherlo login` AS IT WAITS AND RESUMES.
  *
  * Each case calls the command straight, on posed seams installed by hand, so it can run the
  * command twice against ONE set of saved logins - the second run of a person, or of an agent whose

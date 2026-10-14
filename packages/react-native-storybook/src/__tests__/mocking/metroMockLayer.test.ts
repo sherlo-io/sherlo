@@ -350,7 +350,7 @@ describe('mockShims.resolveMockKey', () => {
     writeFile(root, 'src/utils/localization.ts', 'export default {};');
     const realRoot = fs.realpathSync(root);
 
-    // No './' prefix - the canonical app-module key form from the epic. It is
+    // No './' prefix - the canonical app-module key form. It is
     // not an installed package, so require.resolve fails and we fall back to the
     // project-root-relative app-module file.
     const resolved = mockShims.resolveMockKey('src/utils/localization', root);

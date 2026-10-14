@@ -1,11 +1,10 @@
 /**
- * THE POSE CONTRACT IS GENERATED FROM THE SEAMS (sherlo / Drawing for a plan).
+ * THE POSE CONTRACT IS GENERATED FROM THE SEAMS.
  *
  * `contracts/pose.contract.ts` and the shape reader in `readPose.ts` used to be written by hand,
  * so a field added to a seam's answer was written three times and drifted the first time somebody
  * forgot one. Both are generated from the seams' own types now, and a hand edit to either fails
- * this check. Written as a skeleton in plan (epic pose-road-hardening, task
- * pose-road-contract-generated); the worker fills the bodies and never renames a case.
+ * this check.
  */
 import fs from 'fs';
 import path from 'path';

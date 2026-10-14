@@ -1,7 +1,6 @@
 /**
  * WHAT CHANGED SINCE THE STORED APP BUILD - the list `sherlo test` prints under "Android needs a
- * new app build", so the developer sees which native change cost them a build (operator decision
- * 2026-10-11).
+ * new app build", so the developer sees which native change cost them a build.
  *
  * Pure: the stored app build's source list, as the staged gate handed it back, against the
  * sources this run's own base fingerprint was computed over. Both sides are paths, hashes and
@@ -57,7 +56,7 @@ function isInsideFolder(filePath: string, folder: string): boolean {
  * The native folders the stored list keeps file by file - the ones whose files this run hashes
  * before comparing. Empty for a managed project, and for a list an older CLI stored.
  */
-export function foldersStoredFileByFile(storedBase: StoredBaseSources): string[] {
+function foldersStoredFileByFile(storedBase: StoredBaseSources): string[] {
   return storedBase.sources
     .filter((source) => source.kind === 'dir' && source.files !== undefined)
     .map((source) => source.path);

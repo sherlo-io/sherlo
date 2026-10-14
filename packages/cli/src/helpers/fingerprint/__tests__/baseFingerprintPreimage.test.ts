@@ -7,8 +7,8 @@
  *      below are PINNED, so a change that alters them fails here rather than
  *      silently invalidating every fingerprint already registered against the
  *      staged gate. They were re-pinned ONCE when the base fingerprint became one
- *      per platform and the JavaScript lockfiles left it (epic
- *      sherlo-test-builds-apps; Sherlo 3 is unreleased, so no stored base moves).
+ *      per platform and the JavaScript lockfiles left it (Sherlo 3 is
+ *      unreleased, so no stored base moves).
  *   2. The pre-image must never carry SOURCE TEXT. `@expo/fingerprint` emits
  *      `contents` sources whose value IS the hashed input - a resolved Expo
  *      config, which routinely holds customer secrets in `extra`. Only the id and

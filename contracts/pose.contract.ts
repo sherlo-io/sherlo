@@ -691,7 +691,7 @@ export type BuildStatusAnswer = {
    * server's plain-prose explanation.
    *
    * We read `platforms.<platform>.reason`, NOT `fullCaptureTriggerReason`. Per the API schema
-   * (build.graphql) `reason` is the operator-approved prose the CLI prints verbatim, while
+   * (build.graphql) `reason` is the reviewed prose the CLI prints verbatim, while
    * `fullCaptureTriggerReason` is a machine enum code that (a) is only set for FULL captures and
    * so is always absent on a bypassed build - which is a partial capture by definition - and (b)
    * would print a raw machine code if it ever were surfaced (SHERLO-1919/1963).
@@ -709,8 +709,8 @@ export type BuildStatusAnswer = {
     };
   };
   /**
-   * The build's frozen git identity (view-metadata, operator ruling 2026-09-03). `isDirty`:
-   * whether the push sent uncommitted changes. Absent on an older API.
+   * The build's frozen git identity. `isDirty`: whether the push sent uncommitted changes. Absent
+   * on an older API.
    */
   gitInfo?: {
     branchName: string;
@@ -744,14 +744,13 @@ export type BuildStatusAnswer = {
     ios?: BuildStatusPlatform;
   } | null;
   /**
-   * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo view --metadata`
-   * prints as `stories[]`. `status` is spelled as the plain string the wire sends (including the
-   * hyphenated `"review-required"`) rather than a narrowed union, because `@sherlo/api-types` is
-   * not the source of this hand-written wire shape (see this file's module doc) and a value this
-   * CLI has not learned yet must still pass through rather than fail to parse. Absent for a build
-   * with no view rows yet on an older API. `null` is what the server sends for a build whose run
-   * ended in `error` before any view row existed (run 36186659445, sherlo-tester's Honest Failure
-   * storyline, slot `errored-build`).
+   * Per-story rows: what `sherlo view --metadata` prints as `stories[]`. `status` is spelled as
+   * the plain string the wire sends (including the hyphenated `"review-required"`) rather than a
+   * narrowed union, because `@sherlo/api-types` is not the source of this hand-written wire shape
+   * (see this file's module doc) and a value this CLI has not learned yet must still pass through
+   * rather than fail to parse. Absent for a build with no view rows yet on an older API. `null` is
+   * what the server sends for a build whose run ended in `error` before any view row existed (run
+   * 36186659445, sherlo-tester's Honest Failure storyline, slot `errored-build`).
    */
   stories?: Array<{
     name: string;
@@ -767,11 +766,11 @@ export type BuildStatusAnswer = {
     }> | null;
   }> | null;
   /**
-   * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what `sherlo view
-   * --metadata` prints as `diffScope`. Hand-typed rather than imported from `@sherlo/api-types`
-   * for the same reason every other field of this wire shape is (see this file's module doc) -
-   * server commit e7c7d5a (sherlo-api `feature/sherlo-3`) added it and the portal tarball this
-   * repo builds against may not carry it yet. Absent on an older API.
+   * The Diff Scope block: what `sherlo view --metadata` prints as `diffScope`. Hand-typed rather
+   * than imported from `@sherlo/api-types` for the same reason every other field of this wire
+   * shape is (see this file's module doc) - server commit e7c7d5a (sherlo-api `feature/sherlo-3`)
+   * added it and the portal tarball this repo builds against may not carry it yet. Absent on an
+   * older API.
    */
   diffScope?: {
     reason: string;
@@ -860,9 +859,8 @@ export type PushFactsPlatform = {
 /**
  * The run that just started, as the service tells the EAS upload that brought its last platform
  * in: the devices of the whole test and what each platform captures. The sdk client's
- * `asyncUpload` does not select it yet, so a live EAS run prints the bare `Test N ✔ Started`.
- *
- * PLAN-LAYER DEBT, NAMED (build item 66): posed here, for `asyncUpload` only.
+ * `asyncUpload` does not select it yet, so a live EAS run prints the bare `Test N ✔ Started`; a
+ * pose can state it for `asyncUpload` only.
  */
 export type StartedRun = {
   devices: Array<{
@@ -916,7 +914,7 @@ export type StartedRun = {
     capturedStories: number;
     /** How many stories the bundle holds; absent when no module map could count them. */
     storiesInBundle?: number;
-    /** The server's own reason, printed only on a full capture (operator ruling 2026-10-12, Q2). */
+    /** The server's own reason, printed only on a full capture. */
     reason?: string;
     /**
      * The story files the test captures: a partial capture's as openBuild recorded them, or the
@@ -1119,8 +1117,24 @@ export type BuildStatusPlatform = {
   storiesInBundle?: number | null;
 };
 
-/** One platform's capture decision, as a pose states it. */
+/**
+ * One platform's capture decision, as a pose states it, its new and changed story files in the
+ * service's own shape. A partial capture's own list is what a change reaches.
+ */
 export type PosedPlatformCaptureDecision = {
+  /**
+   * Of the story files this platform captures, those a change reaches: their file or a module they
+   * reach differs from the compared build's, or the compared build left them out of testing.
+   * Absent when the maps cannot be compared or none is reached; a new story file is never listed
+   * here.
+   */
+  changedStoryFilePaths?: string[];
+  /**
+   * Of the story files this platform captures, those the compared build did not have (every one,
+   * when there was nothing to compare with). Absent when there are none or this build sent no
+   * module map.
+   */
+  newStoryFilePaths?: string[];
   /**
    * `true` prints "capturing all N stories in this bundle"; `false` prints the partial
    * closure-diff.
@@ -1136,13 +1150,6 @@ export type PosedPlatformCaptureDecision = {
    * colon).
    */
   reason?: string;
-  /**
-   * PLAN-LAYER PROTOTYPE (epic sherlo-test-builds-apps, 2026-10-13): of the story files captured,
-   * those the build it diffed against did not have, and those a change reaches. A partial
-   * capture's own list is what a change reaches. The service does not send them yet.
-   */
-  newStoryFilePaths?: string[];
-  changedStoryFilePaths?: string[];
 };
 
 /**
@@ -1178,10 +1185,10 @@ export type StoredBaseSource = {
   kind: string;
   /**
    * A native folder's files, one hash each (`android/app/build.gradle`), so the list can name the
-   * file that changed rather than the folder (operator decision 2026-10-11). Kept for the list
-   * ALONE: the base fingerprint still hashes the folder as one source, and these never enter it.
-   * Only on a `dir` source the fingerprint hashed whole - a bare project's `android` and `ios` -
-   * and absent on a folder an older CLI stored, which is then compared as one entry.
+   * file that changed rather than the folder. Kept for the list ALONE: the base fingerprint still
+   * hashes the folder as one source, and these never enter it. Only on a `dir` source the
+   * fingerprint hashed whole - a bare project's `android` and `ios` - and absent on a folder an
+   * older CLI stored, which is then compared as one entry.
    */
   files?: NativeFolderFile[];
 };

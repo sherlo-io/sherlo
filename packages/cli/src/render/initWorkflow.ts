@@ -2,7 +2,11 @@
  * THE GITHUB WORKFLOW `sherlo init` WRITES, as the file's text.
  *
  * Pure, like everything under ./: state in, the file out. Its comments are words a person - or their
- * agent - reads in their own repository, so they are drafts for the content department.
+ * agent - reads in their own repository.
+ *
+ * THE SHAPE IS THE ONE THE DOCS GIVE AND THE ACTION TAKES: a matrix job, Android on `ubuntu-latest`
+ * and iOS on `macos-latest`, `SHERLO_TOKEN` in the job's env, and the action told only its
+ * `platform` - the token is not one of the action's inputs (see `action.yml`).
  *
  * THE PUSH RUN FOLLOWS THE REPOSITORY'S DEFAULT BRANCH, read by GitHub when the workflow runs
  * (`github.event.repository.default_branch`), so setup never guesses a branch name. A push trigger
@@ -52,7 +56,17 @@ jobs:
     # (for example \`dev\`), put its name here in place of github.event.repository.default_branch,
     # and set it as the main branch in your Sherlo project's settings too.
     if: github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch
-    runs-on: ubuntu-latest
+    name: Sherlo (\${{ matrix.platform }})
+    # One job per platform: iOS builds only on macOS. The two jobs join into one test.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runs-on: ubuntu-latest
+          - platform: ios
+            runs-on: macos-latest
+    runs-on: \${{ matrix.runs-on }}
     env:
       SHERLO_TOKEN: \${{ secrets.SHERLO_TOKEN }}
     steps:
@@ -75,6 +89,6 @@ jobs:
       - name: Run Sherlo
         uses: sherlo-io/sherlo@v3
         with:
-          token: \${{ secrets.SHERLO_TOKEN }}
+          platform: \${{ matrix.platform }}
 `;
 }

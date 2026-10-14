@@ -1,5 +1,5 @@
 /**
- * ONE MASKER, THE TOOL'S OWN (sherlo / Drawing for a plan, "What the tool folds on its own").
+ * ONE MASKER, THE TOOL'S OWN.
  *
  * A screen carries values no plan can state and no fixture should pin: a temporary folder, a
  * token, a build's address, a size in megabytes, a duration, the time since a build, a commit id,
@@ -17,8 +17,8 @@
  * cover true randomness and time, and nothing else; a fold that reached a declared value would
  * hide the very thing the pose was written to show.
  *
- * ONE FUNCTION PER CLASS, in the order the book page lists them, each named for what it folds. A
- * single function holding every pattern would be unreadable within a month.
+ * ONE FUNCTION PER CLASS, in the order {@link maskScreen} folds them, each named for what it
+ * folds. A single function holding every pattern would be unreadable within a month.
  */
 /*
  * A SCREEN IS FULL OF ANSI ESCAPES and nearly every pattern below has to say where one ends,
@@ -71,9 +71,8 @@ export type MaskContext = {
 /**
  * Fold every volatile class out of one screen.
  *
- * Pure: text in, text out. The order below is the order the book page lists the classes in, and
- * it is load-bearing in three places - the machine paths go first because every other class may
- * sit inside one, a native build's PATH is folded before its bare NAME, the spinner is stripped
+ * Pure: text in, text out. The order below is load-bearing in three places - the machine paths go
+ * first because every other class may sit inside one, a native build's PATH is folded before its bare NAME, the spinner is stripped
  * before the wait's progress region is collapsed (a header inside a spinner's span is gone, and
  * must not leave a placeholder behind), and that region is collapsed before the closers under it
  * are folded.
@@ -159,7 +158,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
 ];
 
 /* ========================================================================== */
-/* THE CLASSES, in the order the book page lists them.                        */
+/* THE CLASSES, in the order maskScreen folds them.                           */
 /* ========================================================================== */
 
 /**

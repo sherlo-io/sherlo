@@ -1,6 +1,6 @@
 /**
- * HOW EVERY TEST THIS COMMAND STARTED ENDS ON SCREEN (epic sherlo-test-builds-apps: `sherlo test`
- * in init's grammar). One place, so the staged road, the build road (the push spine,
+ * HOW EVERY TEST THIS COMMAND STARTED ENDS ON SCREEN, in the same grammar `sherlo init` prints.
+ * One place, so the staged road, the build road (the push spine,
  * ../../helpers/uploadOrReuseBuildsAndRunTests), the sim road and an EAS run end the same way, and
  * on ONE section, with the review link printed once, last:
  *
@@ -92,8 +92,8 @@ export async function closeTheRun({
     return;
   }
 
-  // A PERSON WHOSE PROJECT HAS NO CI TOKEN hears about pull request tests here (operator, 2026-10-12,
-  // with epic init-for-agents: setup no longer asks for CI). A log never does: a CI job already
+  // A PERSON WHOSE PROJECT HAS NO CI TOKEN hears about pull request tests here, because setup does
+  // not ask for CI. A log never does: a CI job already
   // runs on CI, and an agent's shell is told by setup.
   const suggestsPullRequests = hasCiToken === false && printsToATerminal();
   emit({

@@ -75,7 +75,7 @@ describe('THE CLOSER PRINTS THE ADDRESS ONCE, ON THE LINE WITH THE EMOJI, WHOEVE
   const url = 'https://app.sherlo.io/build?t=tm000001&p=7&b=1';
 
   it('the link is printed once and nothing else - no url= line, under CI or not', () => {
-    // Operator ruling 2026-09-15: the same address twice on a screen was the defect. `CI` is set
+    // The same address twice on a screen was the defect. `CI` is set
     // on the runner these tests run on, and the closer no longer reads it - the segment carries
     // no reader flag at all, so there is nothing for the environment to change.
     process.env.CI = 'true';
@@ -1087,8 +1087,8 @@ const PINS: Pin[] = [
   },
 
   /* ⚠⚠ DEPICTS FUTURE. Pinned exactly like the rest, because a drawing whose
-   * bytes can drift silently is worse than no drawing: these are the bytes an
-   * operator is being asked to approve a product design from. */
+   * bytes can drift silently is worse than no drawing: these are the bytes a
+   * product design is approved from. */
 
   {
     kind: 'verdict-no-changes',
@@ -1792,8 +1792,7 @@ describe('CONTROL: the pin catches what the masker hides', () => {
     expect(hoisted).not.toBe(shipped);
   });
 
-  // The header this example was taken from no longer prints (epic sherlo-test-builds-apps: the dry
-  // run opens with `Testing your app...` like every test), so the example stays a worked one, and
+  // The header this example was taken from no longer prints (the dry run opens with `Testing your app...` like every test), so the example stays a worked one, and
   // the pins above are what compare against the shipped renderer.
 });
 

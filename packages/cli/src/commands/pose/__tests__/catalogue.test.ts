@@ -1,5 +1,5 @@
 /**
- * THE POSE CATALOGUE LAW (sherlo / Drawing for a plan).
+ * THE POSE CATALOGUE LAW.
  *
  * Every pose under `packages/cli/poses/` renders, and the bytes it renders are committed beside
  * it as `<name>.txt`. Nothing here regenerates those bytes from a formula: the committed file IS

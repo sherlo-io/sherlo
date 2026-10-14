@@ -11,7 +11,7 @@
  * platform's row instead. The words a build shows while it runs are ./stepInProgress's.
  *
  * Pure, like the rest of the layer: a duration arrives in seconds and is phrased here, never read
- * off a clock. The words are drafts for the content department.
+ * off a clock.
  */
 import chalk from 'chalk';
 import type { Platform } from '@sherlo/api-types';
@@ -169,15 +169,10 @@ export function renderAppBuildFailed({
 }
 
 /**
- * The one line every failure to build on this machine ends with, just above the help block
- * (operator, 2026-10-12, through epic init-for-agents): the app can be built on CI instead. It
- * links the project's page in the web app, where a CI token is made, when the run knows its
- * project; otherwise (`sherlo build`, which reads no credential) the docs. Draft words, for the
- * content department.
- *
- * PLAN-LAYER DEBT, NAMED (build item 73): init-for-agents writes the same project address inline
- * (`commands/init/steps/teamAndProject.ts`, `askWhichProject.ts`, `projectCreate.ts`); after it
- * merges, one helper (`projectPageUrl`, ./testSteps) builds it for all of them.
+ * The one line every failure to build on this machine ends with, just above the help block: the
+ * app can be built on CI instead. It links the project's page in the web app, where a CI token is
+ * made, when the run knows its project; otherwise (`sherlo build`, which reads no credential) the
+ * docs.
  */
 export function renderRunOnCi(project?: SherloProject): string {
   const link = project ? projectPageUrl(project) : DOCS_LINK.testing;
@@ -196,10 +191,9 @@ export function renderEasHostedVariables(profile: string, environment: string): 
 }
 
 /**
- * The refusal a Sherlo 2 command line meets: `sherlo test --android <path>` (operator decision
- * 2026-10-07 - Sherlo 3 tests only app builds it made itself). A CI script that still passes the
- * flag is told what to run instead, not commander's bare "unknown option". Draft words, for the
- * content department's review.
+ * The refusal a Sherlo 2 command line meets: `sherlo test --android <path>` (Sherlo 3 tests only
+ * app builds it made itself). A CI script that still passes the flag is told what to run instead,
+ * not commander's bare "unknown option".
  */
 export function renderBinaryPathFlagGone(): { message: string; below: string } {
   return {
@@ -218,7 +212,7 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
 /**
  * The refusal of a `--platform` that is neither `android` nor `ios` - a typo in a CI matrix, or
  * `--platform both`. It names the two values and says what leaving the flag out does, so the job is
- * fixed in one edit. Draft words, for the content department's review.
+ * fixed in one edit.
  */
 /**
  * A bundle whose module map counts no stories: Storybook was switched off by a variable the

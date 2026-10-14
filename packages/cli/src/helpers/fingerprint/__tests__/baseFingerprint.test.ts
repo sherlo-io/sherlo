@@ -737,7 +737,7 @@ describe('computeBaseFingerprint', () => {
   });
 
   // Layer 2: the JavaScript lockfiles are not native inputs. (Was "lockfile changes DO
-  // change baseFingerprint (Layer 2)", inverted by the operator's ruling of 2026-10-11.)
+  // change baseFingerprint (Layer 2)", inverted on 2026-10-11.)
   it('a JavaScript-only lockfile change leaves the base fingerprint alone', async () => {
     const dir = makeTempDir();
     try {

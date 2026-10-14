@@ -1,7 +1,6 @@
 /**
- * Will EAS upload the hand-over file? (sherlo / Cloud builds on EAS, "What does `sherlo test` do in
- * EAS mode?") - each case lays a project folder out on disk and asks the refusal, the way EAS packs
- * it: `cli.requireCommit` uploads only committed files, an `.easignore` at the root is read alone, and
+ * Will EAS upload the hand-over file? - each case lays a project folder out on disk and asks the
+ * refusal, the way EAS packs it: `cli.requireCommit` uploads only committed files, an `.easignore` at the root is read alone, and
  * without one every `.gitignore` applies.
  */
 import fs from 'fs';

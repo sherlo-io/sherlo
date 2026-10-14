@@ -287,8 +287,8 @@ export function renderVerdictRunErrored(
  * THE WORDING IS THE CHECK'S OWN, DELIBERATELY. `No visual changes` and `All
  * snapshots match their baselines` are `CHECK_COPY.noChanges.title` and
  * `.summary` verbatim (sherlo-tester e2e/helpers/branching/check-copy.ts, pinned
- * to the engine's `describeCheckState` by branching-check-copy.test.ts). Reusing
- * the existing state's existing copy is the operator's ruling: the two surfaces
+ * to the engine's `describeCheckState` by branching-check-copy.test.ts). The
+ * existing state's existing copy is reused on purpose: the two surfaces
  * are answering the same question about the same build, so they say the same
  * words rather than two phrasings of one verdict.
  */

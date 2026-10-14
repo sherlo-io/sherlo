@@ -3,8 +3,7 @@
  *
  * `sherlo test` builds the platforms that need a new app build itself, and `sherlo build` builds
  * them into the local build cache without pushing. Neither needs any of this to work: the defaults
- * build a stock Expo or React Native app. Each key exists for a project shape that needs it
- * (epic sherlo-test-builds-apps, the CLI design):
+ * build a stock Expo or React Native app. Each key exists for a project shape that needs it:
  *
  *     tool                  "native" (Gradle and xcodebuild, the default) or "eas" (EAS cloud)
  *     parallel              build both platforms at once instead of one after the other

@@ -1,6 +1,5 @@
 /**
- * `sherlo test` BUILDS WHAT THE STAGED GATE REFUSED, THEN PUSHES (sherlo / How sherlo test builds
- * the app).
+ * `sherlo test` BUILDS WHAT THE STAGED GATE REFUSED, THEN PUSHES.
  *
  * Each case runs a catalogued build pose (`poses/test/build-*`), or one changed for the case, end to
  * end: the posed server, machine and app builder answer every call, and record what each was asked

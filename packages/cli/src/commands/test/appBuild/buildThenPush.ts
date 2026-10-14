@@ -7,15 +7,15 @@
  *   - every platform needs a build: build them all, then the standard road;
  *   - a MIXED run: one platform needs a build and the other can still take the stored app build
  *     (only JavaScript changed there) - the built one is uploaded, the other gets its fresh bundle
- *     spliced into the stored app build, and both are one test (operator ruling 2026-10-07: build
- *     only the platform that needs it);
+ *     spliced into the stored app build, and both are one test - only the platform that needs a
+ *     build is built;
  *   - one job of a SPLIT CI run (`--platform`): the test it ends on is the one its CI run's jobs
  *     share, joined rather than opened (./joinTheRun).
  *
  * In EAS mode (`build.tool: "eas"`) a refused platform is built on Expo's servers instead
  * (./easRun), and nothing is compiled here.
  *
- * There is no asking first (operator decision 2026-10-11): CI always runs one job per platform, and
+ * There is no asking first: CI always runs one job per platform, and
  * a JavaScript-only change finishes in minutes in each without building.
  */
 import path from 'path';

@@ -1,7 +1,6 @@
 /**
  * A BARE PUSH AGAINST A POSE - the staged gate answered by the pose, no binary read, and the screen
- * the shipped tool's own. Written as a skeleton in plan (epic legacy-road-closed, task
- * push-pose-staged-and-deadline); the worker fills the bodies and never renames a case.
+ * the shipped tool's own.
  */
 import fs from 'fs';
 import path from 'path';
@@ -21,7 +20,7 @@ function stagedPose(name: string) {
  * The android platform's story count the catalogued base pose's bundle carries - never a literal.
  *
  * `storyClosureKeys` became optional when a pose gained the ability to state a bundle that came
- * with NO module map at all (epic diff-scope-closure, task pose-states-no-module-map), so the walk
+ * with NO module map at all, so the walk
  * to the count is optional the whole way down. A bundle with no map counts zero stories here, which
  * is the same answer this returned for a platform the pose does not state at all.
  */
@@ -67,8 +66,8 @@ describe('a bare push is posable', () => {
     const M = androidStoryCount(document);
 
     expect(refusals).toEqual([]);
-    // The plan is one count on the test's row, with the reason a full capture keeps (operator
-    // ruling 2026-10-12); no plan step of its own.
+    // The plan is one count on the test's row, with the reason a full capture keeps; no plan step
+    // of its own.
     expect(screen).toContain(`all ${M} stories on 1 device (Pixel 7), no main branch is set`);
     expect(screen).not.toContain('Planned the capture');
     // The one-line "Diff Scope:" summary repeated the plan in internal words, and is gone.

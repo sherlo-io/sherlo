@@ -1,5 +1,5 @@
 /**
- * THE POSE READER (sherlo / Drawing for a plan).
+ * THE POSE READER.
  *
  * A pose is written by hand, so the reader's job is not only to refuse a bad one - it is to
  * refuse it ONCE, naming everything wrong with it, so the person fixing it makes one pass rather

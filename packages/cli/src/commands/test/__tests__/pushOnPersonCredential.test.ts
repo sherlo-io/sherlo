@@ -1,6 +1,5 @@
 /**
- * A PUSH ON A PERSON'S CREDENTIAL (sherlo / The credential and the project of a push, "Which
- * project does a push go to?").
+ * A PUSH ON A PERSON'S CREDENTIAL.
  *
  * The catalogued staged push (`poses/test/staged-borrows-the-base`) is run again with its project
  * token taken away: the config names the project instead, and the person is logged in. The posed
