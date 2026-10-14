@@ -278,6 +278,24 @@ describe('openBuild payload - core shape', () => {
   });
 });
 
+describe('openBuild payload - a platform that reuses its stored build', () => {
+  it("a push that reuses one platform's stored build names that platform's base and settings digest too", async () => {
+    await uploadOrReuseBuildsAndRunTests({
+      commandParams: COMMAND_PARAMS,
+      appBuildPaths: { android: COMMAND_PARAMS.android },
+      platformsOnStoredBuild: ['ios'],
+      platformRows: [],
+    });
+    const payload = lastOpenBuildPayload();
+
+    expect(payload.baseFingerprints).toEqual({ android: 'base-fp-android', ios: 'base-fp-ios' });
+    expect(Object.keys(payload.buildSettingsDigests).sort()).toEqual(['android', 'ios']);
+    // Only the uploaded platform registers a base, so only it carries gate metadata and a source list.
+    expect(Object.keys(payload.gateMetadata)).toEqual(['android']);
+    expect(Object.keys(payload.sourceLists)).toEqual(['android']);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Conditional baseFingerprint / gateMetadata spread - BOTH branches
 // ---------------------------------------------------------------------------
