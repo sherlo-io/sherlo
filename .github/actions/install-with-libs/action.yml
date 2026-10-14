@@ -17,25 +17,26 @@ inputs:
 runs:
   using: composite
   steps:
-    # A PR into feature/sherlo-3 or an epic/** branch builds its @sherlo/* libraries from
-    # sherlo-api source - the S3 dev-stage canon can predate lib/SDK changes the CLI code
+    # A PR into dev, a release/** branch or an epic/** branch builds its @sherlo/* libraries
+    # from sherlo-api source - the S3 dev-stage canon can predate lib/SDK changes the CLI code
     # depends on (composition gap: CLI source is current, its @sherlo/* portal deps are not).
-    # The source is sherlo-api feature/sherlo-3 (`ref` here), except for a PR whose head
-    # branch is an epic/** branch that sherlo-api also has, by that exact name: its libraries
-    # come from that branch, because the epic's CLI code needs the same epic's service
-    # changes. The commit step below makes that choice, since only it can see sherlo-api's
-    # branches. A PR against main keeps the unchanged S3-canon path - empty `ref` here is
-    # that opt-out. A push that warms the caches always builds from `feature/sherlo-3`: those
-    # caches serve the pull requests that build from it. A run started by hand builds the way a
-    # PR into feature/sherlo-3 does.
+    # The source is sherlo-api dev (`ref` here), with two exceptions the commit step below
+    # makes, since only it can see sherlo-api's branches. A PR whose head branch is an epic/**
+    # branch that sherlo-api also has, by that exact name, takes its libraries from that
+    # branch, because the epic's CLI code needs the same epic's service changes. Otherwise a
+    # base under release/ (a PR into release/r5, or a run started by hand on it) takes
+    # sherlo-api's branch of the same name when sherlo-api has one, else dev. A PR against
+    # main keeps the unchanged S3-canon path - empty `ref` here is that opt-out. A push that
+    # warms the caches always builds from `dev`: those caches serve the pull requests that
+    # build from it. A run started by hand builds the way a PR into its branch does.
     - name: Resolve sherlo-lib source
       id: libs
       shell: bash
       env:
         EVENT_NAME: ${{ github.event_name }}
       run: |
-        if [ "$EVENT_NAME" = "push" ] || [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$GITHUB_BASE_REF" = "feature/sherlo-3" ] || [[ "$GITHUB_BASE_REF" == epic/* ]]; then
-          echo "ref=feature/sherlo-3" >> "$GITHUB_OUTPUT"
+        if [ "$EVENT_NAME" = "push" ] || [ "$EVENT_NAME" = "workflow_dispatch" ] || [ "$GITHUB_BASE_REF" = "dev" ] || [[ "$GITHUB_BASE_REF" == release/* ]] || [[ "$GITHUB_BASE_REF" == epic/* ]]; then
+          echo "ref=dev" >> "$GITHUB_OUTPUT"
         else
           echo "ref=" >> "$GITHUB_OUTPUT"
         fi
@@ -54,8 +55,10 @@ runs:
     # `ref` above names a branch, and a branch moves, so it cannot key a cache. This resolves
     # it to the exact sherlo-api commit, the ref init-env.sh builds the libs from, and keys both
     # caches below on what that commit builds the libs from. A PR from an epic/** branch takes
-    # sherlo-api's branch of the same name instead of `ref`, when sherlo-api has one. The head
-    # branch is GITHUB_HEAD_REF on a PR, else GITHUB_REF_NAME (a run started by hand on a branch).
+    # sherlo-api's branch of the same name instead of `ref`, when sherlo-api has one; failing
+    # that, a base under release/ takes sherlo-api's branch of the same name, when it has one.
+    # The head branch is GITHUB_HEAD_REF on a PR and the base GITHUB_BASE_REF; a run started by
+    # hand on a branch has neither, and its GITHUB_REF_NAME is both.
     - name: Resolve the sherlo-api commit the libs are built from
       if: steps.libs.outputs.ref != ''
       id: libs_commit
@@ -68,8 +71,11 @@ runs:
         SHERLO_API_URL="https://x-access-token:${CLONE_TOKEN}@github.com/sherlo-io/sherlo-api.git"
         LIBS_BRANCH="$DEFAULT_LIBS_BRANCH"
         HEAD_BRANCH="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+        BASE_BRANCH="${GITHUB_BASE_REF:-$GITHUB_REF_NAME}"
         if [[ "$HEAD_BRANCH" == epic/* ]] && git ls-remote --exit-code "$SHERLO_API_URL" "refs/heads/$HEAD_BRANCH" > /dev/null; then
           LIBS_BRANCH="$HEAD_BRANCH"
+        elif [[ "$BASE_BRANCH" == release/* ]] && git ls-remote --exit-code "$SHERLO_API_URL" "refs/heads/$BASE_BRANCH" > /dev/null; then
+          LIBS_BRANCH="$BASE_BRANCH"
         fi
         sha=$(git ls-remote "$SHERLO_API_URL" "refs/heads/$LIBS_BRANCH" | cut -f1)
         if [ -z "$sha" ]; then
