@@ -470,20 +470,6 @@ const PINS: Pin[] = [
     ],
   },
   {
-    kind: 'build-message',
-    what: 'the generic build line for the call sites outside the spine - the same icon framing, so the two roads cannot drift',
-    segment: { kind: 'build-message', message: 'reading build...', type: 'info' },
-    stream: 'stdout',
-    prints: [[`${ESC}[34m➜${ESC}[39m  reading build...`]],
-  },
-  {
-    kind: 'build-message',
-    what: 'the generic build line with endsWithNewLine - the flag adds a BARE console.log(), not a "\\n"',
-    segment: { kind: 'build-message', message: 'done', type: 'success', endsWithNewLine: true },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m  done`], []],
-  },
-  {
     kind: 'results-url',
     what: 'the closer standing alone - the link once, labelled, a blank line under it, and no `url=` line',
     segment: {

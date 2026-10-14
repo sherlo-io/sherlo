@@ -38,7 +38,7 @@ export type BinaryUploadEffects = {
 export const REAL_BINARY_UPLOAD_EFFECTS: BinaryUploadEffects = {
   readBinary: async (buildPath, platform, projectRoot) => {
     const data = await getBuildData({ buildPath, platform, projectRoot });
-    return { data, sizeMb: await getSizeInMB({ buffer: data, projectRoot }) };
+    return { data, sizeMb: getSizeInMB({ buffer: data }) };
   },
   putBinary: (uploadUrl, data) => {
     // Use protocol-appropriate agent (HTTP for local S3, HTTPS for AWS)

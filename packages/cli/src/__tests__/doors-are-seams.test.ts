@@ -272,7 +272,6 @@ const LIVE_HALF_SET: { file: string; seam: string }[] = [
   // nativeBuild (packages/cli/src/seams/nativeBuild.ts)
   { file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/uploadBuild.ts', seam: 'nativeBuild' },
   { file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/index.ts', seam: 'nativeBuild' },
-  { file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB.ts', seam: 'nativeBuild' },
   {
     file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/getBuildData/getBuildData.ts',
     seam: 'nativeBuild',
