@@ -17,17 +17,10 @@
  * THE POSED HALF NEVER PRINTS. The lines a build prints belong to the render layer; what a pose
  * states is only what happened. A failed build's last log lines are the one exception that is
  * text, and they are the BUILD TOOL's words, not the tool's, exactly as a server's reason is.
- *
- * ------------------------------------------------------------------------
- * NOT ALL BUILT YET. The live half builds Android (Gradle, the init script that forces debug
- * signing and switches expo-updates off, `expo prebuild`) and iOS (pod install, xcodebuild, the
- * Expo.plist switch) and keeps builds in the local build cache. What still refuses, naming itself,
- * is the rest of epic sherlo-test-builds-apps's build tasks (a project's own build command, the machine checks): a shipped
- * tool that reached that refusal would be a build that never landed - the landing review checks
- * it is gone.
  */
 import { spawn } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import type { Platform } from '@sherlo/api-types';
 import { SHERLO_BUILD_FOR_PUSH } from '../commands/test/constants';
@@ -36,6 +29,7 @@ import {
   DEFAULT_ANDROID_TASK,
   DEFAULT_EAS_PROFILE,
 } from '../commands/test/appBuild/buildSettings';
+import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { readProjectJson } from '../helpers/projectJson';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
 import type { NativeFolderFile } from './serverCalls';
@@ -78,8 +72,11 @@ type CompileParams = Parameters<AppBuilder['compile']>[0];
 export type AppBuilder = {
   /** The operating system the tool runs on. */
   hostSystem(): HostSystem;
-  /** Whether a build tool is installed where a build would look for it. */
-  hasTool(tool: BuildTool): Promise<boolean>;
+  /**
+   * Whether a build tool is installed where a build would look for it. The project is asked too:
+   * its `android/local.properties` may name the Android SDK.
+   */
+  hasTool(tool: BuildTool, projectRoot: string): Promise<boolean>;
   /** The major version of the Java a Gradle build would run on, or null when there is none. */
   javaVersion(): Promise<number | null>;
   /** The schemes the iOS workspace lists, apart from the CocoaPods ones. */
@@ -143,7 +140,7 @@ export type AppBuilder = {
    * only on the way to a build, never by the staged gate: the base fingerprint still hashes each
    * folder as one source, and these hashes never enter it.
    *
-   * THE LIVE BODY IS A BUILD TASK, and it writes no walk of its own: @expo/fingerprint already
+   * The live body writes no walk of its own: @expo/fingerprint already
    * hashes each file of a folder source on its way to the folder's hash, and hands them back
    * under the source's `debugInfo` when called with `debug: true`. Calling it with the base
    * fingerprint's own options and deterministic env (helpers/fingerprint/baseFingerprint.ts) and
@@ -157,10 +154,6 @@ export type AppBuilder = {
     folders: string[];
   }): Promise<NativeFolderFile[]>;
 };
-
-/** The error the live half throws for what is not built yet. */
-const NOT_BUILT_YET =
-  'building apps is drawn in plan and not built yet (epic sherlo-test-builds-apps)';
 
 /* ========================================================================== */
 /* The build environment                                                      */
@@ -237,14 +230,16 @@ export type RunProcess = (params: {
   cwd: string;
   env: NodeJS.ProcessEnv;
   logPath: string;
+  /** Run `command` as a line of the system shell (`sh`, or `cmd.exe` on Windows), with no args. */
+  shell?: boolean;
 }) => Promise<number>;
 
 /** The shipped process runner. */
-const runProcessForReal: RunProcess = ({ command, args, cwd, env, logPath }) =>
+const runProcessForReal: RunProcess = ({ command, args, cwd, env, logPath, shell = false }) =>
   new Promise((resolve) => {
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
     const logFile = fs.openSync(logPath, 'a');
-    const child = spawn(command, args, { cwd, env, stdio: ['ignore', logFile, logFile] });
+    const child = spawn(command, args, { cwd, env, shell, stdio: ['ignore', logFile, logFile] });
     child.on('error', (error) => {
       fs.appendFileSync(logPath, `${error.message}\n`);
       fs.closeSync(logFile);
@@ -351,6 +346,60 @@ function folderSizeBytes(folder: string): number {
   }, 0);
 }
 
+function isFolder(folderPath: string | undefined): boolean {
+  if (!folderPath || !fs.existsSync(folderPath)) return false;
+  return fs.statSync(folderPath).isDirectory();
+}
+
+/**
+ * The folder the `sdk.dir` line of the project's `android/local.properties` names, or undefined.
+ * The file is in Java's properties format, which escapes `:` and `\` with a backslash, and a
+ * relative folder is read from the `android` folder, as Gradle reads it.
+ */
+function sdkDirOfLocalProperties(projectRoot: string): string | undefined {
+  const androidFolder = path.join(projectRoot, 'android');
+  const properties = readTextIfThere(path.join(androidFolder, 'local.properties'));
+  const sdkDirLine = /^\s*sdk\.dir\s*[=:]\s*(.*?)\s*$/m.exec(properties);
+  if (!sdkDirLine) return undefined;
+  const sdkDir = sdkDirLine[1].replace(/\\(.)/g, '$1');
+  return path.resolve(androidFolder, sdkDir);
+}
+
+/**
+ * The major version `java -version` reports: `"17.0.2"` is 17, `"21"` is 21, and the old
+ * `"1.8.0_292"` is 8. Null when it reports none.
+ */
+function javaMajorVersionIn(output: string): number | null {
+  const version = /version "(\d+)(?:\.(\d+))?/.exec(output);
+  if (!version) return null;
+  const [, first, second] = version;
+  return Number(first === '1' && second ? second : first);
+}
+
+/**
+ * The schemes an `xcodebuild -list -json` answer lists, for a workspace or a project. xcodebuild
+ * may print warnings before the JSON.
+ */
+function schemesInXcodeList(output: string): string[] {
+  const jsonStart = output.search(/^\{/m);
+  if (jsonStart === -1) return [];
+  const list: { workspace?: { schemes?: string[] }; project?: { schemes?: string[] } } = JSON.parse(
+    output.slice(jsonStart, output.lastIndexOf('}') + 1)
+  );
+  return (list.workspace ?? list.project)?.schemes ?? [];
+}
+
+/** The CocoaPods project `pod install` writes into the iOS folder, from that folder. */
+const PODS_PROJECT = 'Pods/Pods.xcodeproj';
+
+/** The size of an app build, file (`.apk`) or folder (`.app`), as the build line announces it. */
+function appBuildSizeMb(appPath: string): string {
+  const bytes = fs.statSync(appPath).isDirectory()
+    ? folderSizeBytes(appPath)
+    : fs.statSync(appPath).size;
+  return (bytes / (1024 * 1024)).toFixed(2);
+}
+
 /** The shipped answers, over a process runner (a test hands in its own). */
 export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
   /** The package.json of each project `expo prebuild` ran in, as it was, until its build ends. */
@@ -407,8 +456,13 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     }
     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
     const apkPath = path.join(apkFolder, metadata.elements[0].outputFile);
-    const sizeMb = (fs.statSync(apkPath).size / (1024 * 1024)).toFixed(2);
-    return { ok: true, path: apkPath, sizeMb, seconds: secondsSince(), podFilesChanged: [] };
+    return {
+      ok: true,
+      path: apkPath,
+      sizeMb: appBuildSizeMb(apkPath),
+      seconds: secondsSince(),
+      podFilesChanged: [],
+    };
   }
 
   /** Whether git holds the file as it is now: tracked, and the same as the last commit. */
@@ -522,21 +576,124 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       if (plistExitCode !== 0) return failed();
     }
 
-    const sizeMb = (folderSizeBytes(appPath) / (1024 * 1024)).toFixed(2);
-    return { ok: true, path: appPath, sizeMb, seconds: secondsSince(), podFilesChanged };
+    return {
+      ok: true,
+      path: appPath,
+      sizeMb: appBuildSizeMb(appPath),
+      seconds: secondsSince(),
+      podFilesChanged,
+    };
+  }
+
+  /** The project's own build command, run through the shell instead of Sherlo's build. */
+  async function compileWithOwnCommand(
+    params: CompileParams & { custom: { command: string; output: string } }
+  ): Promise<CompiledApp> {
+    const { projectRoot, env, easProfile, custom } = params;
+    const logPath = path.resolve(projectRoot, params.logPath);
+    const startedAt = Date.now();
+    const secondsSince = () => Math.round((Date.now() - startedAt) / 1000);
+    const failed = (lastLines = lastLinesOf(logPath)): CompiledApp => ({
+      ok: false,
+      seconds: secondsSince(),
+      lastLines,
+    });
+
+    const exitCode = await runProcess({
+      command: custom.command,
+      args: [],
+      shell: true,
+      cwd: projectRoot,
+      env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
+      logPath,
+    });
+    if (exitCode !== 0) return failed();
+
+    const appPath = path.resolve(projectRoot, custom.output);
+    if (!fs.existsSync(appPath)) {
+      return failed([`The build command finished, and wrote no ${custom.output}`]);
+    }
+    return {
+      ok: true,
+      path: appPath,
+      sizeMb: appBuildSizeMb(appPath),
+      seconds: secondsSince(),
+      podFilesChanged: [],
+    };
+  }
+
+  /**
+   * Run a program only to read its answer: its exit code, and everything it wrote to stdout and
+   * stderr, kept in a log of its own that is removed afterwards.
+   */
+  async function askProgram(params: {
+    command: string;
+    args: string[];
+    cwd?: string;
+  }): Promise<{ exitCode: number; output: string }> {
+    const answerFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-answer-'));
+    const logPath = path.join(answerFolder, 'answer.log');
+    try {
+      const exitCode = await runProcess({
+        command: params.command,
+        args: params.args,
+        cwd: params.cwd ?? process.cwd(),
+        env: process.env,
+        logPath,
+      });
+      return { exitCode, output: readTextIfThere(logPath) };
+    } finally {
+      fs.rmSync(answerFolder, { recursive: true, force: true });
+    }
+  }
+
+  /** The schemes `xcodebuild -list` reads in one workspace or project of the iOS folder. */
+  async function listSchemes(iosFolder: string, containerArguments: string[]): Promise<string[]> {
+    const { exitCode, output } = await askProgram({
+      command: 'xcodebuild',
+      args: ['-list', '-json', ...containerArguments],
+      cwd: iosFolder,
+    });
+    if (exitCode !== 0) {
+      throw new Error(`\`xcodebuild -list\` could not list the iOS schemes:\n${output.trimEnd()}`);
+    }
+    return schemesInXcodeList(output);
   }
 
   return {
     hostSystem: () =>
       process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux',
-    hasTool: async () => {
-      throw new Error(NOT_BUILT_YET);
+    hasTool: async (tool, projectRoot) => {
+      if (tool === 'android-sdk') {
+        // Where Gradle looks: the project's sdk.dir line, or the environment.
+        return [
+          sdkDirOfLocalProperties(projectRoot),
+          process.env.ANDROID_HOME,
+          process.env.ANDROID_SDK_ROOT,
+        ].some(isFolder);
+      }
+      if (process.platform !== 'darwin') return false;
+      const { exitCode } = await askProgram({ command: 'xcodebuild', args: ['-version'] });
+      return exitCode === 0;
     },
     javaVersion: async () => {
-      throw new Error(NOT_BUILT_YET);
+      // Gradle runs on JAVA_HOME's Java when it is set, and on the one on PATH otherwise.
+      const javaHome = process.env.JAVA_HOME;
+      const { exitCode, output } = await askProgram({
+        command: javaHome ? path.join(javaHome, 'bin', 'java') : 'java',
+        args: ['-version'],
+      });
+      if (exitCode !== 0) return null;
+      return javaMajorVersionIn(output);
     },
-    listIosSchemes: async () => {
-      throw new Error(NOT_BUILT_YET);
+    listIosSchemes: async (projectRoot) => {
+      const iosFolder = path.join(projectRoot, 'ios');
+      const schemes = await listSchemes(iosFolder, xcodeContainerArguments(iosFolder));
+      // A workspace lists the schemes of the CocoaPods project beside the app's own.
+      const podSchemes = fs.existsSync(path.join(iosFolder, PODS_PROJECT))
+        ? await listSchemes(iosFolder, ['-project', PODS_PROJECT])
+        : [];
+      return schemes.filter((scheme) => !podSchemes.includes(scheme));
     },
     findCachedBuild: async ({ cacheKey, cacheDir }) => {
       const buildFolder = path.join(cacheDir, cacheKey);
@@ -580,8 +737,9 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       }
     },
     compile: async (params) => {
-      if (params.custom) throw new Error(NOT_BUILT_YET);
+      const { custom } = params;
       try {
+        if (custom) return await compileWithOwnCommand({ ...params, custom });
         return await (params.platform === 'ios' ? compileIos(params) : compileAndroid(params));
       } finally {
         undoPrebuild(params.projectRoot, params.platform);
@@ -627,9 +785,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       }
     },
     readEasUploadFile: readFileOfTheEasUpload,
-    hashNativeFolderFiles: async () => {
-      throw new Error(NOT_BUILT_YET);
-    },
+    hashNativeFolderFiles,
   };
 }
 

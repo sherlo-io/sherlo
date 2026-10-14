@@ -294,7 +294,7 @@ async function refuseWhatThisMachineCannotBuild({
         );
       }
 
-      if (!(await builder.hasTool('xcode'))) {
+      if (!(await builder.hasTool('xcode', projectRoot))) {
         refuse(
           "Can't build iOS: Xcode was not found.\n" +
             'Install Xcode, then run `sudo xcode-select -s /Applications/Xcode.app`.'
@@ -319,7 +319,7 @@ async function refuseWhatThisMachineCannotBuild({
         );
       }
 
-      if (!(await builder.hasTool('android-sdk'))) {
+      if (!(await builder.hasTool('android-sdk', projectRoot))) {
         refuse(
           "Can't build Android: no Android SDK was found.\n" +
             'Set ANDROID_HOME, or add sdk.dir to android/local.properties.'
