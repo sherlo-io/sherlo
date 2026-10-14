@@ -143,7 +143,7 @@ describe('app builder, Android', () => {
     const result = await compileAndroid(liveBuilder());
     expect(result).toMatchObject({
       ok: true,
-      path: path.join(projectRoot, 'android/app/build/outputs/apk/release', APK_FILE),
+      path: path.join(projectRoot, '.sherlo/build/android', APK_FILE),
     });
   });
 

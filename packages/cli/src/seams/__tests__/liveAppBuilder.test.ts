@@ -255,6 +255,33 @@ describe('live app builder, the build', () => {
     ).toMatchObject({ ok: false });
   });
 
+  it("an Expo project's Android app build is kept outside the android folder prebuild made, so it outlives the folder", async () => {
+    const apkFolder = 'android/app/build/outputs/apk/release';
+    const gradle = answeringRunner(() => {
+      writeFile(`${apkFolder}/app-release.apk`, 'apk bytes');
+      writeFile(
+        `${apkFolder}/output-metadata.json`,
+        JSON.stringify({ elements: [{ outputFile: 'app-release.apk' }] })
+      );
+      return { exitCode: 0 };
+    });
+
+    const compiled = await makeLiveAppBuilder(gradle).compile({
+      platform: 'android',
+      projectRoot,
+      env: {},
+      logPath: '.sherlo/build-android.log',
+      androidTask: ':app:assembleRelease',
+    });
+
+    const keptApk = path.join(projectRoot, '.sherlo/build/android/app-release.apk');
+    expect(compiled).toMatchObject({ ok: true, path: keptApk, sizeMb: '0.00' });
+
+    // Prebuild's undo removes the android folder; the answered app build is still there.
+    fs.rmSync(path.join(projectRoot, 'android'), { recursive: true, force: true });
+    expect(fs.readFileSync(keptApk, 'utf8')).toBe('apk bytes');
+  });
+
   it('hashes each file of the named native folders the way the base fingerprint hashes the folder', async () => {
     writeFile('package.json', JSON.stringify({ name: 'bare-app' }));
     // Takes React Native's autolinking from Expo's, which the project does not install.

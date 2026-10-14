@@ -29,6 +29,7 @@ import {
   DEFAULT_ANDROID_TASK,
   DEFAULT_EAS_PROFILE,
 } from '../commands/test/appBuild/buildSettings';
+import { makeProjectSherloFolder } from '../commands/test/appBuild/cacheFolder';
 import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { readProjectJson } from '../helpers/projectJson';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
@@ -455,7 +456,13 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       };
     }
     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-    const apkPath = path.join(apkFolder, metadata.elements[0].outputFile);
+    // Gradle wrote the apk inside the android folder, which an Expo project's prebuild undo
+    // deletes; the apk is copied out first, so the answered path outlives the folder.
+    const builtApkPath = path.join(apkFolder, metadata.elements[0].outputFile);
+    const keptApkFolder = path.join(makeProjectSherloFolder(projectRoot), 'build', 'android');
+    fs.mkdirSync(keptApkFolder, { recursive: true });
+    const apkPath = path.join(keptApkFolder, path.basename(builtApkPath));
+    fs.copyFileSync(builtApkPath, apkPath);
     return {
       ok: true,
       path: apkPath,
