@@ -9,6 +9,7 @@
  */
 import fs from 'fs';
 import path from 'path';
+import type { Platform } from '@sherlo/api-types';
 import { SHERLO_TEMP_DATA_FILENAME } from '../../../constants';
 import type { BaseFingerprints } from '../../../helpers/fingerprint';
 import { makeProjectSherloFolder } from './cacheFolder';
@@ -39,6 +40,12 @@ export type HandOverFile = {
    * push computes. A file from an older CLI carries none.
    */
   fingerprints?: Partial<BaseFingerprints>;
+  /**
+   * Each EAS-built platform's build-settings digest, the one the push's gate looks a base up by
+   * (./buildSettings). The hook sends it with its delivery so the base is filed under it. A file
+   * from an older CLI carries none.
+   */
+  buildSettingsDigests?: Partial<Record<Platform, string>>;
 };
 
 function createSherloTempDirectory(projectRoot: string, handOver: HandOverFile): void {

@@ -170,6 +170,21 @@ describe('asyncUploadBuildAndRunTests - asyncUpload payload contract', () => {
     expect(sentToTheSeam[0].pushFacts).toEqual({ madeBy: 'eas', storiesInBundle: 2 });
   });
 
+  it("the EAS hook sends the build-settings digest the push's gate uses", async () => {
+    await asyncUploadBuildAndRunTests({
+      ...BASE_ARGS,
+      buildSettingsDigests: { android: 'digest-of-android', ios: 'digest-of-ios' },
+    });
+
+    expect(mocks.asyncUploadSpy.mock.calls[0][0].buildSettingsDigest).toBe('digest-of-android');
+
+    // A hand-over file from an older CLI carries none, and the delivery then names none.
+    vi.clearAllMocks();
+    await asyncUploadBuildAndRunTests(BASE_ARGS);
+
+    expect(mocks.asyncUploadSpy.mock.calls[0][0]).not.toHaveProperty('buildSettingsDigest');
+  });
+
   it('the EAS hook stores the fingerprint the push took before the build', async () => {
     // On Expo's machine prebuild and the build have written into the project, so a fingerprint
     // taken there is not the one the next push computes on a clean tree.

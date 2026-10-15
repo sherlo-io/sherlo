@@ -46,6 +46,7 @@ async function asyncUploadBuildAndRunTests({
   teamId,
   projectIndex,
   fingerprints,
+  buildSettingsDigests,
 }: {
   buildIndex: number;
   easBuildProfile: string;
@@ -55,6 +56,8 @@ async function asyncUploadBuildAndRunTests({
   projectIndex: number;
   /** The base fingerprints the push took before anything was built, from the hand-over file. */
   fingerprints?: Partial<BaseFingerprints>;
+  /** The build-settings digests the push's gate looks a base up by, from the hand-over file. */
+  buildSettingsDigests?: Partial<Record<Platform, string>>;
 }) {
   const platform = process.env.EAS_BUILD_PLATFORM as Platform;
   const projectRoot = getCwd();
@@ -161,6 +164,9 @@ async function asyncUploadBuildAndRunTests({
       binaryFileName: binariesInfo[platform]?.fileName,
       nativeFingerprint,
       ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
+      ...(buildSettingsDigests?.[platform]
+        ? { buildSettingsDigest: buildSettingsDigests[platform] }
+        : {}),
       ...(manifestS3Key ? { manifestS3Key } : {}),
       pushFacts: pushFactsPlatformOf({
         appBuild: { madeBy: 'eas' },
