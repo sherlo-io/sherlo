@@ -110,7 +110,7 @@
   "devDependencies": {
     "@babel/parser": "^7.29.3",
     "@babel/types": "^7.29.0",
-    "@sherlo-io/time-limits": "^1.2.2",
+    "@sherlo-io/time-limits": "0.0.0-tsf-spike.1",
     "@storybook/react-native": "9.1.4",
     "@types/base-64": "^1.0.0",
     "@types/react": "^18.2.0",

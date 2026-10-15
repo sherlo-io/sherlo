@@ -3056,14 +3056,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sherlo-io/time-limits@npm:^1.2.2":
-  version: 1.2.2
-  resolution: "@sherlo-io/time-limits@npm:1.2.2::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40sherlo-io%2Ftime-limits%2F1.2.2%2F379c3c2c0ea5834287af3dfd023986bc6364e01f"
+"@sherlo-io/time-limits@npm:0.0.0-tsf-spike.1":
+  version: 0.0.0-tsf-spike.1
+  resolution: "@sherlo-io/time-limits@npm:0.0.0-tsf-spike.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40sherlo-io%2Ftime-limits%2F0.0.0-tsf-spike.1%2Fff9e49e79113e74aed6520e0fc0823063928e62c"
   peerDependencies:
     vitest: ">=1"
   bin:
     time-limits: bin.js
-  checksum: 10/56df13034725adcb3c10c52a2bddad02d1010d8666cbfa8ed3f12164034992ffff948c0b08017b84395bfc53cc02dbe27cb49005160234016076024f5e38e239
+  checksum: 10/60cc1f85a1fd6ecb3d47c6176d987a2ded6830c827b955ab3f248968d0aa1a9fff29d9eaece68f9073222c68415554bb3aeca7c5740f9a2241908cd36bb23528
   languageName: node
   linkType: hard
 
@@ -3089,7 +3089,7 @@ __metadata:
   dependencies:
     "@babel/parser": "npm:^7.29.3"
     "@babel/types": "npm:^7.29.0"
-    "@sherlo-io/time-limits": "npm:^1.2.2"
+    "@sherlo-io/time-limits": "npm:0.0.0-tsf-spike.1"
     "@storybook/react-native": "npm:9.1.4"
     "@types/base-64": "npm:^1.0.0"
     "@types/react": "npm:^18.2.0"
@@ -10513,7 +10513,7 @@ __metadata:
     "@inquirer/prompts": "npm:^7.8.4"
     "@napi-rs/keyring": "npm:2.1.0"
     "@sentry/node": "npm:10.47.0"
-    "@sherlo-io/time-limits": "npm:^1.2.2"
+    "@sherlo-io/time-limits": "npm:0.0.0-tsf-spike.1"
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types"
     "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client"
     "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client"
