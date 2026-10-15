@@ -1,5 +1,5 @@
 /**
- * `sherlo logout` (sherlo / Logging in from the terminal, "What does sherlo logout do?").
+ * `sherlo logout`.
  *
  * `runPose` gives the screen and the exit code a person gets; `runLogoutOnSeams` calls the command
  * straight on posed seams that keep a journal, so a case can read what happened, in what order, and

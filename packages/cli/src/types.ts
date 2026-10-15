@@ -5,7 +5,6 @@ import {
   CONFIG_OPTION,
   DIAGNOSTICS_OPTION,
   BUNDLE_DIR_OPTION,
-  DRY_RUN_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
@@ -14,8 +13,8 @@ import {
   INIT_COMMAND,
   IOS_FILE_TYPES,
   IOS_OPTION,
+  JSON_OPTION,
   MESSAGE_OPTION,
-  METADATA_OPTION,
   PROFILE_OPTION,
   PROJECT_OPTION,
   PROJECT_ROOT_OPTION,
@@ -49,7 +48,6 @@ export type Config = {
     locale: string;
     fontScale: string;
   }[];
-  token?: string;
   /**
    * The project a push on a person's credential goes to: the team id, a slash and the project's
    * number, such as `k3j9x2ab/4`. Not a secret. Its shape is checked where the credential is
@@ -84,18 +82,11 @@ type OptionsFormat = 'raw' | 'normalized';
 
 type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [MESSAGE_OPTION]?: string;
-  [TOKEN_OPTION]?: string;
   [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
   [WAIT_OPTION]?: boolean;
   [WAIT_TIMEOUT_OPTION]?: F extends 'raw' ? string : string;
-  /**
-   * Print the `-- details --` block after the command's normal output. Carried
-   * on the COMMON options because two commands take it - `sherlo view` and the
-   * `--wait` roads of `sherlo test` - and both print the same block.
-   */
-  [METADATA_OPTION]?: boolean;
 } & (M extends 'withDefaults'
   ? { [CONFIG_OPTION]: string; [PROJECT_ROOT_OPTION]: string }
   : { [CONFIG_OPTION]?: string; [PROJECT_ROOT_OPTION]?: string });
@@ -117,13 +108,6 @@ type CommandOptions = {
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
     /**
-     * Preview-only mode (SHERLO-1895 Diff Scope Phase C): bundle + produce the
-     * manifest locally, ask the server which stories a real run WOULD capture, print
-     * the per-platform decision, and create NO build. Never enables Diff Scope; it
-     * is a read-only preview. Staged road only.
-     */
-    [DRY_RUN_OPTION]?: boolean;
-    /**
      * Accept a prebuilt bundle directory instead of running the bundler. The
      * directory holds, per platform, the bundle, its assets, its module manifest
      * and a sidecar recording what it was built from - every field of which is
@@ -140,16 +124,19 @@ type CommandOptions = {
     [EMIT_BUNDLE_DIR_OPTION]?: string;
   };
   /**
-   * `sherlo view` has no option of its own. The build it looks at is a POSITIONAL argument (see
-   * commands/view), and everything else it accepts - the token, the config, `--wait`,
-   * `--wait-timeout`, `--metadata` - is common to every command.
+   * `sherlo view` takes its build as a POSITIONAL argument (see commands/view). Its own option is
+   * `--json`, the whole record for a program to read; everything else it accepts - the
+   * config, `--wait`, `--wait-timeout` - is common to every command.
    */
-  [VIEW_COMMAND]: Record<never, never>;
+  [VIEW_COMMAND]: {
+    [JSON_OPTION]?: boolean;
+  };
   /**
    * `sherlo init` names the project with `--project`, and spends the saved login to check it or to
-   * choose one (commands/init/project). `--token` is common to every command.
+   * choose one (commands/init/project). `--token` is init's own: a push takes no token flag.
    */
   [INIT_COMMAND]: {
+    [TOKEN_OPTION]?: string;
     [PROJECT_OPTION]?: string;
   };
   any: Partial<
@@ -162,12 +149,18 @@ type CommandOptions = {
 /* === COMMAND PARAMS === */
 
 export type CommandParams<C extends Command | 'any' = 'any'> = Config &
-  Options<C, 'withDefaults', 'normalized'> & { credential: PushCredential };
+  Options<C, 'withDefaults', 'normalized'> & {
+    credential: PushCredential;
+    /**
+     * The config's whole device list. `devices` is cut to a `--platform` job's own platform, while
+     * the test's row names every device of the test, whichever job started it.
+     */
+    testDevices?: Config['devices'];
+  };
 
 /**
- * The credential a push or a view spends, and the project it goes to (sherlo / The credential
- * and the project of a push). Resolved once, before any request, by
- * helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
+ * The credential a push or a view spends, and the project it goes to. Resolved once, before any
+ * request, by helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
  *
  * `token` is what the push hands the server seam on both: the project token whole, or the saved
  * login's token.

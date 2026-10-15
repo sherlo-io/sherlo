@@ -1,6 +1,7 @@
 /**
- * Base registration - computes the baseFingerprint + gate metadata and
- * registers the already-uploaded binary as the stageable base.
+ * Base registration - computes the platform's baseFingerprint + gate metadata
+ * and registers the already-uploaded binary as the stageable base, with the
+ * source list it was built from.
  *
  * Registration is FAIL-SOFT: if anything goes wrong (not-stageable artifact,
  * fingerprint computation failure, API error), a diagnostic message is printed
@@ -9,8 +10,13 @@
  * Registration adds ZERO extra binary upload - the binary is already uploaded
  * by the existing flow; only metadata is attached.
  */
-import { Platform } from '@sherlo/api-types';
-import { computeBaseFingerprint } from './baseFingerprint';
+import type { BaseSource, BaseSourceList, Platform } from '@sherlo/api-types';
+import { autolinkedAsPackages } from '../../commands/fingerprint/diffFingerprintDocuments';
+import {
+  computeBaseFingerprint,
+  type BaseFingerprintPreimage,
+  type BaseFingerprintResult,
+} from './baseFingerprint';
 import { extractGateMetadata, type GateMetadataInput } from './gateMetadata';
 import { checkStageable } from './notStageable';
 import logWarning from '../logWarning';
@@ -31,11 +37,11 @@ export type RegisterBaseParams = {
   /** 'preview' when the binary has an embedded bundle, 'development' otherwise. */
   buildType: 'preview' | 'development';
   /**
-   * Pre-computed base fingerprint hash.  When omitted the fingerprint is
-   * computed internally.  Callers that register multiple platforms pass a
-   * single project-level hash computed once.
+   * This platform's pre-computed base fingerprint.  When omitted the fingerprints
+   * are computed internally and this platform's is taken.  Callers that register
+   * several platforms compute every platform's once and pass each its own.
    */
-  baseFingerprintHash?: string | null;
+  baseFingerprint?: BaseFingerprintResult;
   /**
    * CLI command that triggered registration - passed through to the fingerprint
    * computation when it runs internally, for its reporting breadcrumb. No
@@ -65,6 +71,12 @@ export type BaseRegistrationEffects = {
 export type RegisterBaseResult = {
   /** The computed base fingerprint hash, if stageable. */
   baseFingerprint?: string;
+  /**
+   * What the app build was built from - the source list a push that stores this
+   * base sends with it, so a later push can say what changed natively. Paths,
+   * hashes and module versions, never a file's contents.
+   */
+  sourceList?: BaseSourceList;
   /** Gate metadata extracted from the binary (per-platform). */
   gateMetadata?: GateMetadataInput;
   /** When not stageable, a human-readable reason (already printed). */
@@ -91,35 +103,24 @@ export async function registerBase(
   params: RegisterBaseParams,
   effects: BaseRegistrationEffects = REAL_BASE_REGISTRATION_EFFECTS
 ): Promise<RegisterBaseResult> {
-  const { binaryPath, platform, projectRoot, bundlePath, buildType, baseFingerprintHash, command } =
-    params;
+  const { binaryPath, platform, projectRoot, bundlePath, buildType, command } = params;
 
   // ------------------------------------------------------------------
-  // 1. Compute baseFingerprint (Layer 1-3), unless pre-computed.
+  // 1. This platform's baseFingerprint (Layer 1-3), unless pre-computed.
   // ------------------------------------------------------------------
-  let fpHash: string | null;
+  const fingerprint =
+    params.baseFingerprint ?? (await computeBaseFingerprint(projectRoot, { command }))[platform];
 
-  if (baseFingerprintHash !== undefined) {
-    fpHash = baseFingerprintHash;
-  } else {
-    const fpResult = await computeBaseFingerprint(projectRoot, { command });
-    if (fpResult.hash === null) {
-      logWarning({
-        message: `Staged uploads unavailable - ${
-          fpResult.debugMessage ?? 'fingerprint computation failed'
-        }`,
-      });
-      return { registered: false, notStageableReason: fpResult.debugMessage };
-    }
-    fpHash = fpResult.hash;
-  }
-
-  if (fpHash === null) {
+  if (fingerprint.hash === null) {
     logWarning({
-      message: 'Staged uploads unavailable - fingerprint computation returned null',
+      message: `Staged uploads unavailable - ${
+        fingerprint.debugMessage ?? 'fingerprint computation failed'
+      }`,
     });
-    return { registered: false };
+    return { registered: false, notStageableReason: fingerprint.debugMessage };
   }
+  const fpHash = fingerprint.hash;
+  const sourceList = fingerprint.preimage ? sourceListOf(fingerprint.preimage) : undefined;
 
   // ------------------------------------------------------------------
   // 2. Extract gate metadata from the binary.
@@ -162,6 +163,7 @@ export async function registerBase(
     return {
       registered: false,
       baseFingerprint: fpHash,
+      ...(sourceList ? { sourceList } : {}),
       gateMetadata,
       notStageableReason: stageableCheck.reason,
     };
@@ -170,6 +172,44 @@ export async function registerBase(
   return {
     registered: true,
     baseFingerprint: fpHash,
+    ...(sourceList ? { sourceList } : {}),
     gateMetadata,
+  };
+}
+
+/**
+ * THE SOURCE LIST A STORED BASE KEEPS: what one platform's base fingerprint was
+ * computed over - its native files and folders, its lockfiles as files, its
+ * resolved settings by id, and its native modules with their versions. A native
+ * folder Layer 1 hashed whole also lists its files, one hash each, so the list of
+ * native changes can name the file that changed; those hashes never entered the
+ * fingerprint. Paths, hashes and versions only, never a file's contents.
+ */
+export function sourceListOf(preimage: BaseFingerprintPreimage): BaseSourceList {
+  const filesInside = (folder: string) =>
+    preimage.nativeFolderFiles.filter((file) => file.path.startsWith(`${folder}/`));
+
+  const nativeSources: BaseSource[] = preimage.nativeSources.map((source) => {
+    const files = source.type === 'dir' ? filesInside(source.id) : [];
+    return {
+      path: source.id,
+      hash: source.hash,
+      kind: source.type,
+      ...(files.length > 0 ? { files } : {}),
+    };
+  });
+
+  const lockfiles: BaseSource[] = preimage.lockfiles.map((lockfile) => ({
+    path: lockfile.file,
+    hash: lockfile.digest,
+    kind: 'file',
+  }));
+
+  return {
+    sources: [...nativeSources, ...lockfiles],
+    modules: autolinkedAsPackages(preimage.autolinkedModules).map(({ name, versions }) => ({
+      name,
+      version: versions[0] ?? 'unknown',
+    })),
   };
 }

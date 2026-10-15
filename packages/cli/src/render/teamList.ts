@@ -5,10 +5,6 @@
  * sibling of ./projectList one level up: one row per team the caller belongs to,
  * id first because the id is what `--team` takes everywhere else, then the name,
  * then how many projects it holds and the caller's role, dimmed as context.
- *
- * PLAN-LAYER PRESENTATION (2026-09-07). This renderer is the page the operator
- * signs; the command that produces the state it prints - the API query, the
- * `team list` verb itself - is build work and does not exist yet.
  */
 import chalk from 'chalk';
 

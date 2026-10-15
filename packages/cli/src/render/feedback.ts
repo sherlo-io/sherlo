@@ -1,5 +1,5 @@
 /**
- * WHAT `sherlo feedback` PRINTS (sherlo / Sending feedback): the four kinds of report and the
+ * WHAT `sherlo feedback` PRINTS: the four kinds of report and the
  * sections each needs, which its --help and its refusals share, the dry run, and the screen once it
  * is sent. Its refusals print through the entry point like every refusal.
  *
@@ -9,7 +9,7 @@
  * what a report leaves out most; so a bug report cannot be sent without them. A missing feature or a
  * misleading doc has no steps, so each kind asks only for what makes ITS report actionable, and
  * "other" asks for nothing but words. "unknown" answers any section, because a guessed step is worse
- * than a missing one. The words are the content department's.
+ * than a missing one.
  */
 import chalk from 'chalk';
 import type { FeedbackContext } from '../seams/serverCalls';
@@ -49,7 +49,12 @@ export const FEEDBACK_KINDS = [
     ],
     welcome: [],
   },
-  { kind: 'other', isFor: 'Anything else, in your own words', required: [] as Section[], welcome: [] as string[] },
+  {
+    kind: 'other',
+    isFor: 'Anything else, in your own words',
+    required: [] as Section[],
+    welcome: [] as string[],
+  },
 ] as const;
 
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]['kind'];
@@ -73,8 +78,12 @@ export function renderFeedbackFormat(): string[] {
     const widest = Math.max(0, ...required.map(({ heading }) => heading.length));
     return [
       `  --kind ${kind.padEnd(9)}${isFor}`,
-      ...required.map(({ heading, holds }) => `${SECTION_INDENT}## ${heading.padEnd(widest)}  ${holds}`),
-      ...(welcome.length > 0 ? [`${SECTION_INDENT}Also welcome: ${welcome.map((heading) => `## ${heading}`).join(', ')}`] : []),
+      ...required.map(
+        ({ heading, holds }) => `${SECTION_INDENT}## ${heading.padEnd(widest)}  ${holds}`
+      ),
+      ...(welcome.length > 0
+        ? [`${SECTION_INDENT}Also welcome: ${welcome.map((heading) => `## ${heading}`).join(', ')}`]
+        : []),
     ];
   });
 
@@ -107,18 +116,26 @@ const OPERATING_SYSTEM_NAME: Record<string, string> = {
 };
 
 /** The report and everything sent beside it, exactly as it would leave the machine. Nothing is sent. */
-export function renderFeedbackDryRun(kind: FeedbackKind, report: string, context: FeedbackContext): string[] {
+export function renderFeedbackDryRun(
+  kind: FeedbackKind,
+  report: string,
+  context: FeedbackContext
+): string[] {
   const versions = [
     `Sherlo CLI ${context.cliVersion}`,
     context.reactNativeVersion && `React Native ${context.reactNativeVersion}`,
     context.expoVersion && `Expo ${context.expoVersion}`,
     context.storybookVersion &&
-      `Storybook ${context.storybookVersion}${context.storybookSetup ? ` (${context.storybookSetup} setup)` : ''}`,
+      `Storybook ${context.storybookVersion}${
+        context.storybookSetup ? ` (${context.storybookSetup} setup)` : ''
+      }`,
   ].filter(Boolean);
 
   const lastCommandLines = context.lastCommand
     ? [
-        `${chalk.dim('  ➜')} Last command: sherlo ${context.lastCommand.command}, exit ${context.lastCommand.exitCode}`,
+        `${chalk.dim('  ➜')} Last command: sherlo ${context.lastCommand.command}, exit ${
+          context.lastCommand.exitCode
+        }`,
         ...context.lastCommand.errorLines.map((line) => chalk.dim(`      ${line}`)),
       ]
     : [];
@@ -131,7 +148,12 @@ export function renderFeedbackDryRun(kind: FeedbackKind, report: string, context
     'Sent with it:',
     ...lastCommandLines,
     `${chalk.dim('  ➜')} ${versions.join(' · ')}`,
-    `${chalk.dim('  ➜')} ${[context.packageManager, OPERATING_SYSTEM_NAME[context.operatingSystem] ?? context.operatingSystem].filter(Boolean).join(' · ')}`,
+    `${chalk.dim('  ➜')} ${[
+      context.packageManager,
+      OPERATING_SYSTEM_NAME[context.operatingSystem] ?? context.operatingSystem,
+    ]
+      .filter(Boolean)
+      .join(' · ')}`,
     '',
   ];
 }
@@ -143,7 +165,9 @@ export function renderFeedbackDryRun(kind: FeedbackKind, report: string, context
 export function renderFeedbackSent(reference: string, lastCommand?: LastCommand): string[] {
   const lastCommandLines = lastCommand
     ? [
-        `${chalk.dim('  ➜')} The last Sherlo command: sherlo ${lastCommand.command}, exit ${lastCommand.exitCode}`,
+        `${chalk.dim('  ➜')} The last Sherlo command: sherlo ${lastCommand.command}, exit ${
+          lastCommand.exitCode
+        }`,
       ]
     : [];
 

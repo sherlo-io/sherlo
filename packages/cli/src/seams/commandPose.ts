@@ -13,6 +13,7 @@
  * shape of its own answer, and the contract was a third hand-written copy that could go stale in
  * silence. Now there is one declaration per seam, one composition here, and two generated copies.
  */
+import type { PosedAppBuild } from './appBuilder';
 import type { PosedBrowser } from './browser';
 import type { PosedBundle } from './bundler';
 import type { PosedCapture } from './captureSocket';
@@ -30,7 +31,7 @@ export type CommandPose = {
   pose: 1;
   /**
    * The command line after the tool's own name, word by word, exactly as a shell would split it:
-   * `["view", "3"]`, `["test", "--token", "not-a-real-token", "--android", "builds/app.apk"]`.
+   * `["view", "3"]`, `["test", "--platform", "android", "--message", "nightly run"]`.
    * The tool's own routing decides which command runs and which checks fire, in what order.
    */
   argv: string[];
@@ -56,7 +57,7 @@ export type CommandPose = {
   git: PosedGit;
   /**
    * What bundling the app answers, per platform, for the commands that bundle (`sherlo test` on
-   * the staged road, `--dry-run`). `{}` for a command that never reaches the bundler - a refusal,
+   * the staged road). `{}` for a command that never reaches the bundler - a refusal,
    * a `view`, a `project create` - and a pose that supplies bundles to such a command is refused.
    * The story files are the closure keys the bundler reports, which is what Diff Scope diffs.
    */
@@ -88,7 +89,7 @@ export type CommandPose = {
    */
   masks: Record<string, string>;
   /**
-   * What a real push (`sherlo test --android <apk> [--ios <app>]`) read off the machine: the
+   * What a real push (`sherlo test`) read off the machine: the
    * binaries it was handed, the base fingerprint over the project's native inputs, and the clock.
    * THE ONE OPTIONAL FIELD, because only that road reads the machine - a refusal on it never gets
    * that far, and no other command opens a binary. A pose that states it for a command that never
@@ -96,6 +97,15 @@ export type CommandPose = {
    * run time, exactly like a call the pose did not script.
    */
   push?: PosedPush;
+  /**
+   * What building the app on the machine came to, for the commands that build it (`sherlo test`
+   * when a platform needs a new app build, `sherlo build`): which operating system it was, which
+   * build tools it had, and per platform whether the build was found in the cache, compiled,
+   * failed, or started on EAS. A pose that states it for a command that never builds is refused;
+   * a run that reaches the builder with no `appBuild` is refused at run time, exactly like a call
+   * the pose did not script.
+   */
+  appBuild?: PosedAppBuild;
   /**
    * WHAT THE CLOCK ANSWERS WHILE THE COMMAND WAITS, ISO 8601, in the order the wait reads it. A
    * wait reads the clock once at its start and once before every poll; after the last instant

@@ -79,22 +79,61 @@ async function runCli(...args: string[]): Promise<number | undefined> {
 }
 
 describe('sherlo --help', () => {
-  it('lists `test` and the EAS cloud-build commands, and neither removed command', async () => {
+  it('lists test, build and eas-build-on-complete, and no removed command', async () => {
     const exitCode = await runCli('--help');
 
     expect(exitCode).toBe(0);
     expect(stdout).toMatch(/^\s+test\b/m);
-    expect(stdout).toMatch(/^\s+test:eas-cloud-build\b/m);
     expect(stdout).toMatch(/^\s+eas-build-on-complete\b/m);
-    expect(stdout).not.toContain('test:standard');
-    expect(stdout).not.toContain('test:eas-update');
+    for (const removedCommand of [
+      'test:standard',
+      'test:eas-update',
+      'test:eas-cloud-build',
+      'show-error',
+    ]) {
+      expect(stdout, removedCommand).not.toContain(removedCommand);
+    }
+
+    // `build` is registered but kept out of the list (the next case), so it answers its own help.
+    stdout = '';
+    expect(await runCli('build', '--help')).toBe(0);
+    expect(stdout).toContain('Usage: sherlo build');
   });
 
-  it('describes both roads of `test` under the one command', async () => {
+  it('keeps build, --build-cache, fingerprint, project and team out of --help', async () => {
+    await runCli('--help');
+    for (const hiddenCommand of ['build', 'fingerprint', 'project', 'team']) {
+      expect(stdout, hiddenCommand).not.toMatch(new RegExp(`^ {2}${hiddenCommand}\\b`, 'm'));
+    }
+
+    // Each still works: it answers its own help instead of "unknown command".
+    for (const hiddenCommand of ['fingerprint', 'project', 'team']) {
+      stdout = '';
+      expect(await runCli(hiddenCommand, '--help'), hiddenCommand).toBe(0);
+      expect(stdout, hiddenCommand).toContain(`Usage: sherlo ${hiddenCommand}`);
+    }
+
+    for (const command of ['test', 'build']) {
+      stdout = '';
+      await runCli(command, '--help');
+      expect(stdout, command).not.toContain('--build-cache');
+    }
+  });
+
+  it('offers no app build paths: `sherlo test` builds the app itself', async () => {
     await runCli('--help');
 
-    expect(stdout).toContain('--android');
-    expect(stdout).toContain('--ios');
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--ios');
+  });
+
+  it('offers no --token on sherlo test or sherlo view: a push takes SHERLO_TOKEN or the login', async () => {
+    for (const command of ['test', 'view']) {
+      stdout = '';
+      await runCli(command, '--help');
+
+      expect(stdout, command).not.toContain('--token');
+    }
   });
 
   it('lists `view`, with its build as an OPTIONAL positional', async () => {
@@ -110,14 +149,19 @@ describe('sherlo --help', () => {
 });
 
 describe('sherlo view --help', () => {
-  it('takes the wait flags and --metadata, and none of the test-only options', async () => {
+  it('takes the wait flags and --json, and none of the test-only options', async () => {
     const exitCode = await runCli('view', '--help');
 
     expect(exitCode).toBe(0);
     expect(stdout).toContain('--wait');
     expect(stdout).toContain('--wait-timeout');
-    expect(stdout).toContain('--metadata');
-    expect(stdout).toContain('--token');
+    expect(stdout).toContain('--json');
+
+    // The record is `--json`, as on `gh`; the old name is gone, with no alias (it never shipped).
+    expect(stdout).not.toContain('--metadata');
+
+    // Sherlo 3 takes the credential from SHERLO_TOKEN or the login, never from a flag.
+    expect(stdout).not.toContain('--token');
 
     // `view` opens nothing, so nothing about building or bundling belongs on it.
     expect(stdout).not.toContain('--android');
@@ -135,16 +179,83 @@ describe('sherlo view --help', () => {
 });
 
 describe('sherlo test --help', () => {
-  it('offers --metadata beside the wait flags', async () => {
+  it('does not offer --metadata: npx sherlo view <n> --json is the one read-back', async () => {
     const exitCode = await runCli('test', '--help');
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('--metadata');
+    expect(stdout).not.toContain('--metadata');
+  });
+
+  it('does not offer --dry-run: the preview is gone', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--dry-run');
+  });
+
+  it('lists neither --android nor --ios', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--ios');
+  });
+
+  it('does not offer --no-build: every CI job runs sherlo test and builds what it needs', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--no-build');
+  });
+});
+
+describe('--no-build', () => {
+  it('sherlo test --no-build is an unknown option, with exit 1', async () => {
+    // No Sherlo 2 CLI had the flag, so commander's own answer is enough.
+    const exitCode = await runCli('test', '--no-build');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("error: unknown option '--no-build'");
+  });
+});
+
+describe('a Sherlo 2 app build path', () => {
+  it.each([
+    ['--android', 'app.apk'],
+    ['--ios', 'app.tar.gz'],
+  ])('`sherlo test %s <path>` is refused in words, with exit 1', async (flag, buildPath) => {
+    const exitCode = await runCli('test', flag, buildPath);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).not.toContain('unknown option');
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
+      'no longer takes `--android` or `--ios`'
+    );
+  });
+});
+
+describe('a Sherlo 2 token on the command line', () => {
+  it('`sherlo test --token <token>` is refused in words, with exit 1, naming the two that remain', async () => {
+    const exitCode = await runCli('test', '--token', 'abc');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).not.toContain('unknown option');
+    const printed = vi.mocked(console.error).mock.calls.flat().join('\n');
+    expect(printed).toContain('no longer takes a token');
+    expect(printed).toContain('SHERLO_TOKEN');
+  });
+});
+
+describe('a `--platform` that is neither android nor ios', () => {
+  it('`sherlo test --platform windows` is refused in words, with exit 1', async () => {
+    const exitCode = await runCli('test', '--platform', 'windows');
+
+    expect(exitCode).toBe(1);
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
+      '`--platform` takes `android` or `ios`, not `windows`'
+    );
   });
 });
 
 describe('a removed command', () => {
-  it.each(['test:standard', 'test:eas-update'])(
+  it.each(['test:standard', 'test:eas-update', 'test:eas-cloud-build', 'show-error'])(
     '`sherlo %s` is answered with commander`s unknown-command error and exit 1',
     async (removedCommand) => {
       const exitCode = await runCli(removedCommand, '--android', 'app.apk');
@@ -154,7 +265,7 @@ describe('a removed command', () => {
     }
   );
 
-  it.each(['local-builds', 'expo-update'])(
+  it.each(['local-builds', 'expo-update', 'expo-cloud-builds'])(
     'the hidden alias `%s` of a removed command is gone with it',
     async (alias) => {
       const exitCode = await runCli(alias);

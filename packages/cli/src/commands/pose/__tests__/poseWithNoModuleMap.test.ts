@@ -8,9 +8,7 @@ import { POSES_ROOT } from '../catalogue';
 import { bundler, installBundler, posedBundler } from '../../../seams/bundler';
 
 /**
- * A POSE CAN STATE A BUNDLE THAT CAME WITH NO MODULE MAP - written as a skeleton in plan (epic
- * diff-scope-closure, task pose-states-no-module-map). The worker fills the bodies and never renames
- * a case.
+ * A POSE CAN STATE A BUNDLE THAT CAME WITH NO MODULE MAP.
  *
  * The posed bundler always made a map from `storyClosureKeys`, so a pose could not show what the
  * tool prints when Metro was configured without Sherlo's wrapper: "all stories", with no count.
@@ -31,7 +29,7 @@ describe('a pose can state a bundle with no module map', () => {
     );
 
     try {
-      const result = await bundler().bundleFor('/project', 'android');
+      const result = await bundler().bundleFor('/project', 'android', {});
 
       // Exactly what the real bundler yields when Metro is configured without Sherlo's wrapper -
       // no manifest at all, not an empty one.
@@ -42,11 +40,33 @@ describe('a pose can state a bundle with no module map', () => {
   });
 
   it('a preview posed with no module map prints all stories, with no count', async () => {
-    const pose = poseFrom(path.join(POSES_ROOT, 'test', 'dry-run-no-module-map.pose.json'));
+    // The preview (`--dry-run`) is gone, so the bundle with no module map is posed on a staged
+    // push: the catalogue's bare push, its bundle stated with `storyClosureKeys: null` and its new
+    // test capturing every story.
+    const stagedPush = poseFrom(path.join(POSES_ROOT, 'test', 'staged-reuses-no-wait.pose.json'));
+    const { storyTitles: _noTitlesWithoutAMap, ...androidBundle } = stagedPush.bundles.android!;
+    const pose: CommandPose = {
+      ...stagedPush,
+      bundles: { android: { ...androidBundle, storyClosureKeys: null } },
+      api: stagedPush.api.map((scripted) =>
+        scripted.call === 'openBuild'
+          ? {
+              ...scripted,
+              answer: {
+                ...scripted.answer,
+                captureDecision: {
+                  platforms: { android: { full: true, storyFilePaths: [], reason: null } },
+                },
+              },
+            }
+          : scripted
+      ) as CommandPose['api'],
+    };
 
-    const { screen } = await runPose(pose);
+    const { screen, refusals } = await runPose(pose);
 
-    expect(screen).toContain('would capture all stories');
+    expect(refusals).toEqual([]);
+    expect(screen).toContain('Started: all stories');
     // The degrade is a BARE "all stories" - no "all N stories in this bundle", because there was
     // no manifest to count against.
     expect(screen).not.toMatch(/would capture all \d+ stor/);

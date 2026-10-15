@@ -10,14 +10,16 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-[31mAUTH ERROR: There is no credential to push with.[39m
-[31m  On your own computer, run `npx sherlo login`.[39m
-[31m  In CI, set the project token as SHERLO_TOKEN.[39m
+Testing your app...
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[31mERROR: No token or login found to run the test with.[39m
+  On your own computer, run `npx sherlo login`.
+  In CI, set the project token as SHERLO_TOKEN.
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 1]

@@ -1,7 +1,6 @@
 /**
  * A BARE PUSH AGAINST A POSE - the staged gate answered by the pose, no binary read, and the screen
- * the shipped tool's own. Written as a skeleton in plan (epic legacy-road-closed, task
- * push-pose-staged-and-deadline); the worker fills the bodies and never renames a case.
+ * the shipped tool's own.
  */
 import fs from 'fs';
 import path from 'path';
@@ -10,7 +9,6 @@ import { POSES_ROOT, renderPose } from '../catalogue';
 import { runPose } from '../pose';
 import type { CommandPose } from '../../../seams/commandPose';
 import { readPoseDocument } from '../readPose';
-import { EXIT_NATIVE_NEEDED } from '../../test/constants';
 
 /** One catalogued `test/*.pose.json`, read the same way the catalogue itself reads it. */
 function stagedPose(name: string) {
@@ -22,12 +20,17 @@ function stagedPose(name: string) {
  * The android platform's story count the catalogued base pose's bundle carries - never a literal.
  *
  * `storyClosureKeys` became optional when a pose gained the ability to state a bundle that came
- * with NO module map at all (epic diff-scope-closure, task pose-states-no-module-map), so the walk
+ * with NO module map at all, so the walk
  * to the count is optional the whole way down. A bundle with no map counts zero stories here, which
  * is the same answer this returned for a platform the pose does not state at all.
  */
+/** The stories the pose's Android bundle holds: each story file's own count, one where it names none. */
 function androidStoryCount(document: CommandPose): number {
-  return document.bundles.android?.storyClosureKeys?.length ?? 0;
+  const bundle = document.bundles.android;
+  return (bundle?.storyClosureKeys ?? []).reduce(
+    (total, file) => total + (bundle?.storyCounts?.[file] ?? 1),
+    0
+  );
 }
 
 describe('a bare push is posable', () => {
@@ -51,49 +54,24 @@ describe('a bare push is posable', () => {
     const { screen, exitCode, refusals } = await runPose(document);
 
     expect(refusals).toEqual([]);
-    expect(screen).toContain(
-      'reason=the registered base still matches this commit - running JS-only'
-    );
+    expect(screen).not.toContain('native-needed=');
+    expect(screen).not.toContain('running JS-only');
     expect(screen).toContain('🔗 Review:');
     expect(exitCode).toBe(0);
   });
 
-  it('a staged gate that answers unregistered prints native-needed=true and exits with the native-needed code', async () => {
-    const { document } = stagedPose('staged-needs-native');
-    const { screen, exitCode, refusals } = await runPose(document);
-
-    expect(refusals).toEqual([]);
-    expect(screen).toContain('native-needed=true');
-    expect(exitCode).toBe(EXIT_NATIVE_NEEDED);
-  });
-
-  it('a dry run against a pose prints native-needed and the base fingerprint and opens nothing', async () => {
-    const { document } = stagedPose('staged-no-base');
-    const { screen, exitCode, refusals } = await runPose(document);
-
-    expect(refusals).toEqual([]);
-    expect(screen).toContain('native-needed=true');
-    expect(screen).toContain('base-fingerprint=');
-    // Nothing was opened: the gate refused before a single byte was bundled or uploaded.
-    expect(screen).not.toContain('Bundling for staged upload');
-    expect(screen).not.toContain('🔗 Review:');
-    expect(exitCode).toBe(EXIT_NATIVE_NEEDED);
-  });
-
-  it('a posed bare push whose openBuild answer states a full capture prints the capture plan and the Diff Scope line a real one prints', async () => {
+  it('a posed bare push whose openBuild answer states a full capture prints the capture plan a real one prints', async () => {
     const { document } = stagedPose('staged-borrows-the-base');
     const { screen, refusals } = await runPose(document);
     const M = androidStoryCount(document);
 
     expect(refusals).toEqual([]);
-    expect(screen).toContain('📸 Capture plan');
-    expect(screen).toContain(`capturing all ${M} stories in this bundle`);
-    expect(screen).toContain(
-      'why: no main branch set for this project - every build captures every story'
-    );
-    expect(screen).toContain(
-      `Diff Scope: capturing all ${M} stories: no main branch set for this project - every build captures every story`
-    );
+    // The plan is one count on the test's row, with the reason a full capture keeps; no plan step
+    // of its own.
+    expect(screen).toContain(`all ${M} stories on 1 device (Pixel 7), no main branch is set`);
+    expect(screen).not.toContain('Planned the capture');
+    // The one-line "Diff Scope:" summary repeated the plan in internal words, and is gone.
+    expect(screen).not.toContain('Diff Scope');
   });
 
   it('a posed bare push whose openBuild answer states no capture decision prints no plan, as it does today', async () => {
@@ -108,8 +86,7 @@ describe('a bare push is posable', () => {
     const { screen, refusals } = await runPose(withoutDecision);
 
     expect(refusals).toEqual([]);
-    expect(screen).not.toContain('📸 Capture plan');
-    expect(screen).not.toContain('Diff Scope:');
+    expect(screen).not.toContain('stories on');
     expect(screen).toContain('🔗 Review:');
   });
 });

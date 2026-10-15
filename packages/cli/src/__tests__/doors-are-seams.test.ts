@@ -1,5 +1,5 @@
 /**
- * EVERY DOOR IS A SEAM (sherlo / The seams, "Every door is a seam").
+ * EVERY DOOR IS A SEAM.
  *
  * A command reaches the world only through `src/seams/`. A read written straight into a command
  * answers from the machine a pose ran on, and the screen looks right - which is why this is a lint
@@ -37,7 +37,7 @@ const DOOR_RULES = [
 ] as const;
 
 type DoorViolation = {
-  /** Repo-relative path, e.g. `packages/cli/src/commands/showError/showError.ts`. */
+  /** Repo-relative path, e.g. `packages/cli/src/commands/test/buildBundle.ts`. */
   file: string;
   ruleId: (typeof DOOR_RULES)[number];
   /** Which door this particular message is about - see `categorize` below. */
@@ -158,36 +158,6 @@ async function computeRawViolations(): Promise<DoorViolation[]> {
  * project or the environment).
  */
 const DIRECTORY_EXCEPTIONS: { dir: string; door: DoorViolation['door']; reason: string }[] = [
-  {
-    dir: 'commands/easBuildOnComplete',
-    door: 'sdk-client',
-    reason: "a command that runs inside Expo's build service and is not posable",
-  },
-  {
-    dir: 'commands/testEasCloudBuild',
-    door: 'sdk-client',
-    reason: "a command that runs inside Expo's build service and is not posable",
-  },
-  {
-    dir: 'commands/testEasCloudBuild',
-    door: 'node-core',
-    reason: "a command that runs inside Expo's build service and is not posable",
-  },
-  {
-    dir: 'commands/showError',
-    door: 'fetch',
-    reason: 'reads a crash from the machine it happened on, not posable',
-  },
-  {
-    dir: 'commands/showError',
-    door: 'node-core',
-    reason: 'reads a crash from the machine it happened on, not posable',
-  },
-  {
-    dir: 'commands/showError',
-    door: 'fs-root',
-    reason: 'reads a crash from the machine it happened on, not posable',
-  },
   {
     dir: 'commands/pose',
     door: 'fs-root',
@@ -315,7 +285,6 @@ const LIVE_HALF_SET: { file: string; seam: string }[] = [
   // nativeBuild (packages/cli/src/seams/nativeBuild.ts)
   { file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/uploadBuild.ts', seam: 'nativeBuild' },
   { file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/index.ts', seam: 'nativeBuild' },
-  { file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB.ts', seam: 'nativeBuild' },
   {
     file: 'helpers/uploadOrPrintBinaryReuse/uploadBuild/getBuildData/getBuildData.ts',
     seam: 'nativeBuild',
@@ -378,6 +347,12 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
       'calls putBuffer, which itself PUTs through nativeBuild().putBinary - a posed sim run sends nothing real',
   },
   {
+    file: 'commands/easBuildOnComplete/helpers/asyncUploadBuildAndRunTests/asyncUploadBuildAndRunTests.ts',
+    of: 'commands/test/uploadStagedArtifacts.ts',
+    reason:
+      'calls putBuffer to stage the module map an EAS build wrote, which itself PUTs through nativeBuild().putBinary - a posed hook sends nothing real',
+  },
+  {
     file: 'commands/test/bundleSidecar.ts',
     of: 'commands/test/buildBundle.ts',
     reason:
@@ -393,7 +368,7 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
     file: 'helpers/fingerprint/registerBase.ts',
     of: 'helpers/fingerprint/baseFingerprint.ts',
     reason:
-      'computes a fingerprint itself only when its caller omits baseFingerprintHash - the one non-exempt caller (uploadOrReuseBuildsAndRunTests.ts) always pre-computes it through the seam, so this fallback is never reached',
+      'computes a fingerprint itself only when its caller omits baseFingerprintHash - the one non-exempt caller (uploadOrReuseBuildsAndRunTests.ts) always hands it the fingerprint its own caller took before the build, so this fallback is never reached',
   },
   {
     file: 'helpers/fingerprint/registerBase.ts',
@@ -402,10 +377,10 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
       "wraps extractGateMetadata as its own default effect, but the one non-exempt caller (uploadOrReuseBuildsAndRunTests.ts) always overrides it with nativeBuild()'s - this default is never reached",
   },
   {
-    file: 'commands/test/dryRun.ts',
-    of: 'helpers/getGitInfo.ts',
+    file: 'seams/appBuilder.ts',
+    of: 'helpers/fingerprint/baseFingerprint.ts',
     reason:
-      'imports only isGitInfoUnavailable, a pure predicate over an already-resolved GitInfo - it runs no git command',
+      "imports only hashNativeFolderFiles, for the live half of the app builder seam itself - a posed run installs the posed app builder, which answers from the pose's nativeFolderFiles and never reaches it",
   },
 ];
 
@@ -450,7 +425,7 @@ function importedName(specifier: babel.ImportSpecifier): string {
     : specifier.imported.value;
 }
 
-/** `packages/cli/src/commands/showError/foo.ts` -> true for the directory `commands/showError`. */
+/** `packages/cli/src/commands/pose/foo.ts` -> true for the directory `commands/pose`. */
 function isUnderDir(file: string, dir: string): boolean {
   const prefix = `packages/cli/src/${dir}/`;
   return file.startsWith(prefix) || file === `packages/cli/src/${dir}`;
@@ -476,7 +451,7 @@ describe('every door is a seam', () => {
     ).toEqual([]);
   }, 20_000);
 
-  it('the named exceptions are exactly the modules a pose can never reach - the EAS hooks, showError, and the devtools - each with its reason', async () => {
+  it('the named exceptions are exactly the modules a pose can never reach - the devtools - each with its reason', async () => {
     const violations = await findRawViolations();
 
     for (const exception of DIRECTORY_EXCEPTIONS) {

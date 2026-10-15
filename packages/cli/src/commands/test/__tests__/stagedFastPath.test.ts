@@ -140,8 +140,8 @@ describe('staged fast path - version/build-number bump keeps the base identical'
 
       const after = await computeBaseFingerprint(dir);
 
-      expect(before.hash).toBeTruthy();
-      expect(after.hash).toBe(before.hash);
+      expect(before.android.hash).toBeTruthy();
+      expect(after.android.hash).toBe(before.android.hash);
     } finally {
       cleanup(dir);
     }
@@ -166,7 +166,7 @@ describe('staged fast path - version/build-number bump keeps the base identical'
 
       const after = await computeBaseFingerprint(dir);
 
-      expect(after.hash).not.toBe(before.hash);
+      expect(after.android.hash).not.toBe(before.android.hash);
     } finally {
       cleanup(dir);
     }

@@ -2,8 +2,8 @@
  * THE RENDER LAYER: state in, bytes out. Pure - no `console.`, no `process.`, no
  * `await`, no `@sherlo/sdk-client`.
  *
- * This module holds EVERY literal, emoji, chalk call and blank line the
- * `--dry-run` family prints. Nothing upstream of it spells a sentence, and
+ * This module holds EVERY literal, emoji, chalk call and blank line the CLI
+ * prints. Nothing upstream of it spells a sentence, and
  * nothing downstream of it edits one: the logic decides WHICH segments happen
  * and in WHAT ORDER, this decides what each one LOOKS like, and a sink decides
  * where the result lands.
@@ -27,23 +27,38 @@ import chalk from 'chalk';
 import gradientString from 'gradient-string';
 import { COLOR } from '../constants';
 import {
-  renderBuildDetails,
   renderBuildViewHeader,
   renderBuildViewStatus,
   renderBuildViewTally,
   renderStoriesTable,
-  renderViewMetadataJson,
+  renderViewJson,
 } from './buildView';
-import { formatDryRunPreview } from './dryRunPlan';
 import {
-  formatLink,
-  renderBinaryPlatformLabel,
-  renderBinaryReused,
-  renderBuildMessageLine,
-  renderNotice,
-  renderOutputKeys,
-  renderRunHeader,
-} from './pushSpine';
+  renderAppBuildCached,
+  renderAppBuildDone,
+  renderAppBuildFailed,
+  renderAppBuildNextStep,
+  renderEasHostedVariables,
+} from './appBuild';
+import { renderOutputKeys, renderTestNotice } from './pushSpine';
+import { renderStepInProgress } from './stepInProgress';
+import {
+  renderFinishedUnderTheTestRow,
+  renderPlatformRow,
+  renderTestFinishedWithNothingToTest,
+  renderTestStarted,
+  renderTestStoppedOnFailedBuild,
+  renderTestWaiting,
+} from './runRows';
+import {
+  platformWithEmoji,
+  renderCommandIntro,
+  renderFailedTestStep,
+  renderHelpBlock,
+  renderReviewLink,
+  renderTestNextStep,
+  renderTestStep,
+} from './testSteps';
 import { renderProjectCreated } from './projectCreated';
 import { renderTeamCreated } from './teamCreated';
 import { renderProjectList } from './projectList';
@@ -68,10 +83,9 @@ import {
   renderVerdictPassed,
   renderVerdictReviewRequired,
   renderVerdictRunErrored,
-  renderVerdictServerBypassed,
+  renderTestFinished,
   renderWaitAuthFailed,
   renderWaitBuildNotFound,
-  renderWaitHeader,
   renderWaitHeartbeat,
   renderWaitInterrupted,
   renderWaitNetworkRetry,
@@ -121,48 +135,40 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         ],
       };
 
-    case 'dry-run-bundling-header':
+    case 'command-intro':
       return {
         stream: 'stdout',
-        prints: [[chalk.bold('\n📦 Bundling for dry-run preview...\n')]],
+        prints: renderCommandIntro(segment.command).map((line) => [line]),
       };
 
+    // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts. In a
+    // terminal the same words are a spinner's (../commands/shared/terminal), and this segment is
+    // never emitted there.
     case 'platform-bundle-start':
-      return {
-        stream: 'stdout',
-        prints: [
-          [
-            chalk.cyan(
-              `\n${platformEmoji(segment.platform)} Building ${segment.platform} bundle...`
-            ),
-          ],
-        ],
-      };
+    case 'app-build-generating':
+    case 'app-build-compiling':
+    case 'binary-uploading':
+    case 'eas-builds-starting':
+    case 'wait-header':
+      return { stream: 'stdout', prints: [[renderStepInProgress(segment)]] };
 
+    // The bundle and its assets print nothing: bundling and uploading are one wait, and the step a
+    // person reads is the test it starts; a bundle's format and asset count are not theirs to read.
     case 'platform-bundle-built':
-      return {
-        stream: 'stdout',
-        prints: [
-          [
-            chalk.green(`  ✓ Bundle: ${path.basename(segment.bundlePath)}`) +
-              ` (${segment.bundleSizeMb} MB, ${segment.bundleFormat}, ${segment.bundler})`,
-          ],
-        ],
-      };
-
     case 'platform-bundle-assets':
-      return {
-        stream: 'stdout',
-        prints: [[chalk.green(`  ✓ Assets: ${segment.assetCount} files`)]],
-      };
+      return { stream: 'stdout', prints: [] };
 
     case 'platform-bundle-supplied':
       return {
         stream: 'stdout',
         prints: [
           [
-            chalk.green(`  ✓ Bundle supplied: ${path.basename(segment.bundlePath)}`) +
-              ` (${segment.bundleSizeMb} MB, ${segment.bundleFormat}, ${segment.bundler})`,
+            renderTestStep({
+              name: 'Used your JavaScript',
+              detail: `${platformWithEmoji(segment.platform)} ${path.basename(
+                segment.bundlePath
+              )}, from --bundle-dir`,
+            }),
           ],
         ],
       };
@@ -170,36 +176,36 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'platform-bundle-supplied-note':
       return {
         stream: 'stdout',
-        prints: [[chalk.yellow(`  ! ${segment.note}`)]],
+        prints: [[chalk.yellow(`! ${segment.note}`)]],
       };
 
     case 'bundle-emit-header':
-      return {
-        stream: 'stdout',
-        prints: [[chalk.bold(`\n📦 Emitting bundle directory to ${segment.bundleDir}...\n`)]],
-      };
+      // Each platform's own step says where its JavaScript went (`platform-bundle-emitted`).
+      return { stream: 'stdout', prints: [] };
 
     case 'platform-bundle-emitted':
       return {
         stream: 'stdout',
         prints: [
           [
-            chalk.green(`  ✓ Emitted ${segment.platform} bundle`) +
-              ` (${segment.assetCount} assets)`,
+            renderTestStep({
+              name: 'Saved the JavaScript',
+              detail: `${platformWithEmoji(segment.platform)}, to ${segment.bundleDir}`,
+            }),
           ],
         ],
       };
 
     case 'platform-bundle-failed':
+      // The run exits right after this line (../commands/test/bundleAndPreview), so it ends on help.
       return {
         stream: 'stdout',
-        prints: [[chalk.red(`\n  ✗ ${segment.message}`)]],
-      };
-
-    case 'dry-run-capture-plan':
-      return {
-        stream: 'stdout',
-        prints: [[formatDryRunPreview(segment.previews)]],
+        prints: [
+          ...renderFailedTestStep('Bundling the JavaScript'),
+          chalk.red(segment.message),
+          '',
+          ...renderHelpBlock(),
+        ].map((line) => [line]),
       };
 
     case 'git-info-unavailable':
@@ -210,76 +216,74 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     /* ---------------------- the push spine (F1) ---------------------- */
 
-    case 'run-header':
-      return {
-        stream: 'stdout',
-        prints: [[renderRunHeader(segment.nextBuildIndex, segment.devices)]],
-      };
-
-    case 'binary-platform-label':
-      return {
-        stream: 'stdout',
-        prints: [[renderBinaryPlatformLabel(segment.platform)]],
-      };
-
-    case 'binary-uploading':
-      return {
-        stream: 'stdout',
-        prints: [[renderBuildMessageLine(`uploading build... (${segment.sizeMb} MB)`, 'info')]],
-      };
-
-    case 'binary-uploaded':
-      // Two print calls, not one string with a trailing newline: the shipped
-      // `endsWithNewLine` branch was a second bare `console.log()`, and a bare
-      // one is what a buffering sink has to reproduce to stay byte-faithful.
-      return {
-        stream: 'stdout',
-        prints: [[renderBuildMessageLine('upload complete', 'success')], []],
-      };
-
     case 'binary-upload-retry':
       return {
         stream: 'stdout',
         prints: [
           [
-            renderBuildMessageLine(
-              `Upload failed (attempt ${segment.attempt}/${segment.maxRetries}), retrying...`,
-              'info'
+            chalk.dim(
+              `   Upload failed (attempt ${segment.attempt} of ${segment.maxRetries}), trying again...`
             ),
           ],
         ],
       };
 
-    case 'binary-reused':
-      return {
-        stream: 'stdout',
-        prints: [[renderBinaryReused(segment.buildIndex, segment.timeAgo)], []],
-      };
+    case 'platform-row':
+      return { stream: 'stdout', prints: renderPlatformRow(segment.row).map((line) => [line]) };
+
+    case 'test-started':
+      return { stream: 'stdout', prints: renderTestStarted(segment).map((line) => [line]) };
 
     case 'notice':
       return {
         stream: 'stdout',
-        prints: [[renderNotice(segment)]],
-      };
-
-    case 'build-message':
-      return {
-        stream: 'stdout',
-        prints: [
-          [renderBuildMessageLine(segment.message, segment.type)],
-          ...(segment.endsWithNewLine ? [[]] : []),
-        ],
+        prints: renderTestNotice(segment).map((line) => [line]),
       };
 
     case 'results-url':
-      // THE ADDRESS IS PRINTED ONCE, ON THE LINE WITH THE EMOJI (operator ruling 2026-09-15). The
-      // closer printed it twice under CI - a `url=` line for a machine above the link for a
-      // person - and the ruling is that no screen ever carries the second copy, whoever is
-      // reading. The GitHub Action reads the address off this line (actions/lib/cliOutputs.mjs).
+      // THE ADDRESS IS PRINTED ONCE, ON THE LINE WITH THE EMOJI. The closer printed it twice under
+      // CI - a `url=` line for a machine above the link for a person - and no screen ever carries
+      // the second copy, whoever is reading. The GitHub Action reads the address off this line (actions/lib/cliOutputs.mjs).
       return {
         stream: 'stdout',
-        prints: [[`🔗 ${formatLink(segment.url)}\n`]],
+        prints: (segment.testIndex !== undefined
+          ? renderTestNextStep({
+              testIndex: segment.testIndex,
+              url: segment.url,
+              projectWithNoCiToken: segment.projectWithNoCiToken,
+            })
+          : [renderReviewLink(segment.url), '']
+        ).map((line) => [line]),
       };
+
+    case 'app-build-cached':
+      return { stream: 'stdout', prints: [[renderAppBuildCached(segment.platform)]] };
+
+    case 'app-build-done':
+      return { stream: 'stdout', prints: [[renderAppBuildDone(segment)]] };
+
+    case 'app-build-failed':
+      return { stream: 'stdout', prints: renderAppBuildFailed(segment).map((line) => [line]) };
+
+    case 'test-stopped-on-failed-build':
+      return {
+        stream: 'stdout',
+        prints: renderTestStoppedOnFailedBuild(segment).map((line) => [line]),
+      };
+
+    case 'app-build-next-step':
+      return { stream: 'stdout', prints: renderAppBuildNextStep().map((line) => [line]) };
+
+    case 'eas-hosted-variables':
+      return {
+        stream: 'stdout',
+        prints: renderEasHostedVariables(segment.profile, segment.environment).map((line) => [
+          line,
+        ]),
+      };
+
+    case 'run-waits-for-builds':
+      return { stream: 'stdout', prints: renderTestWaiting(segment).map((line) => [line]) };
 
     case 'output-keys':
       return {
@@ -295,8 +299,18 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // the content here.
       return { stream: 'stdout', prints: [[]] };
 
-    case 'wait-header':
-      return { stream: 'stdout', prints: [[renderWaitHeader(segment.timeoutMinutes)]] };
+    case 'test-finished':
+      // `sherlo test --wait` printed the test's row, and the step stands under it.
+      return {
+        stream: 'stdout',
+        prints: [
+          [
+            segment.seconds !== undefined
+              ? renderFinishedUnderTheTestRow(segment.seconds)
+              : renderTestFinished(segment.testIndex),
+          ],
+        ],
+      };
 
     case 'wait-progress':
       return { stream: 'stdout', prints: [[renderWaitProgress(segment.runStatus)]] };
@@ -319,19 +333,19 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'wait-timed-out':
       return {
         stream: 'stdout',
-        prints: renderWaitTimedOut(segment.timeoutMinutes).map((line) => [line]),
+        prints: renderWaitTimedOut(segment.timeoutMinutes, segment.testIndex).map((line) => [line]),
       };
 
     case 'wait-interrupted':
-      return { stream: 'stdout', prints: [[renderWaitInterrupted()]] };
+      return { stream: 'stdout', prints: [[renderWaitInterrupted(segment.testIndex)]] };
 
     case 'verdict-passed':
-      return { stream: 'stdout', prints: [[renderVerdictPassed()]] };
+      return { stream: 'stdout', prints: renderVerdictPassed().map((line) => [line]) };
 
     case 'verdict-server-bypassed':
       return {
         stream: 'stdout',
-        prints: renderVerdictServerBypassed(segment.reason).map((line) => [line]),
+        prints: renderTestFinishedWithNothingToTest(segment).map((line) => [line]),
       };
 
     case 'verdict-review-required':
@@ -343,13 +357,15 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-run-errored':
       return {
         stream: 'stdout',
-        prints: renderVerdictRunErrored(segment.runStatus, segment.runError).map((line) => [line]),
+        prints: renderVerdictRunErrored(segment.runStatus, segment.runError, segment.testIndex).map(
+          (line) => [line]
+        ),
       };
 
     /* GATED on showsOnlyBranchChanges - see ./verdictCloser and helpers/sparseBuildVerdict. */
 
     case 'verdict-no-changes':
-      return { stream: 'stdout', prints: [[renderVerdictNoChanges()]] };
+      return { stream: 'stdout', prints: renderVerdictNoChanges().map((line) => [line]) };
 
     case 'verdict-capture-accounting':
       return {
@@ -360,7 +376,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-nothing-recorded':
       return {
         stream: 'stdout',
-        prints: renderVerdictNothingRecorded().map((line) => [line]),
+        prints: renderVerdictNothingRecorded(segment.testIndex).map((line) => [line]),
       };
 
     /* ---------------------- the build view (F5) ---------------------- */
@@ -380,17 +396,11 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       // blank line.
       return {
         stream: 'stdout',
-        prints: renderBuildViewStatus(segment.runStatus, segment.status).map((line) => [line]),
-      };
-
-    case 'build-details':
-      return {
-        stream: 'stdout',
-        prints: renderBuildDetails(segment.details).map((line) => [line]),
+        prints: renderBuildViewStatus(segment).map((line) => [line]),
       };
 
     case 'build-view-json':
-      return { stream: 'stdout', prints: [[renderViewMetadataJson(segment.json)]] };
+      return { stream: 'stdout', prints: [[renderViewJson(segment.json)]] };
 
     case 'build-view-stories-table':
       return {
@@ -491,10 +501,4 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         ),
       };
   }
-}
-
-/* ========================================================================== */
-
-function platformEmoji(platform: 'android' | 'ios'): string {
-  return platform === 'android' ? '🤖' : '🍎';
 }

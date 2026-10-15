@@ -1,0 +1,46 @@
+{
+  "pose": 1,
+  "argv": [
+    "build"
+  ],
+  "files": {
+    "sherlo.config.json": {
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        }
+      ]
+    }
+  },
+  "env": {},
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "appBuild": {
+    "host": "linux",
+    "tools": [
+      "android-sdk"
+    ],
+    "java": 17,
+    "platforms": {
+      "android": {
+        "built": ".sherlo/build-cache/android/app-release.apk",
+        "sizeMb": "53.90",
+        "seconds": 88
+      }
+    }
+  },
+  "push": {
+    "now": "2026-09-15T12:00:00.000Z",
+    "binaries": {},
+    "fingerprint": {
+      "hash": "b4c9e2f7a1d3c5b8e0f2a4c6d8b0e2f4a6c8d0b2e4f6a8c0d2b4e6f8a0c2d4e6"
+    }
+  }
+}

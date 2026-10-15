@@ -4,10 +4,8 @@
  * SAME HOUSE PATTERN AS ../projectCreate/createProjectRequest: raw fetch, not
  * `@sherlo/sdk-client`.
  *
- * TWO CALLS, NOT ONE. `listProjects: [ProjectSummary!]!` landed on the
- * `management-api-scopes-and-ops` epic branch
- * (packages/api/src/graphql/schema/resolvers/queries/listProjects.graphql)
- * with exactly four columns - `index`, `name`, `buildsCount`, `mainBranch` -
+ * TWO CALLS, NOT ONE. `listProjects: [ProjectSummary!]!` answers with
+ * exactly four columns - `index`, `name`, `buildsCount`, `mainBranch` -
  * and DELIBERATELY no team info at all (a listing must never carry a
  * credential-shaped field, and team name isn't one, but it also isn't a
  * project fact). `render/projectList`'s `ProjectList.team.name` still needs a

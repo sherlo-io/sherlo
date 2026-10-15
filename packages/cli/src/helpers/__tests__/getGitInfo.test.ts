@@ -3,7 +3,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // about what the tool asks a real repository.
 import { readGitInfoFromDisk as getGitInfo } from '../getGitInfo';
 import GitFixture from './support/gitFixture';
-import { isolateEachCase, oneCommitRepository, ownRepository } from './support/gitInfoRepositories';
+import {
+  isolateEachCase,
+  mergePullRequest,
+  oneCommitRepository,
+  ownRepository,
+  writeGitHubEvent,
+} from './support/gitInfoRepositories';
 
 /**
  * Real-git tests for getGitInfo, driven by the deterministic {@link GitFixture}
@@ -162,5 +168,33 @@ describe('getGitInfo - branch resolution precedence', () => {
     const info = await getGitInfo(fixture.dir);
 
     expect(info.branchName).toBe('HEAD');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The commit a job names
+// ---------------------------------------------------------------------------
+
+describe('getGitInfo - the commit a job of a pull request run names', () => {
+  it('two jobs of one pull request run name the same commit, on a shallow or a deepened checkout', async () => {
+    // One pull_request run: both jobs check out the same synthetic merge commit at depth 1
+    // (actions/checkout's default) and read the same event payload. One job's checkout is
+    // deepened by the action before the CLI runs; the other's stays shallow.
+    const { repository, prHead } = mergePullRequest();
+    const shallowJob = repository.shallowClone(1, 'main');
+    const deepenedJob = repository.shallowClone(1, 'main');
+    deepenedJob.git(['fetch', '--deepen=200', '--quiet']);
+    process.env.GITHUB_REF_NAME = '7/merge';
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({ pull_request: { head: { sha: prHead } } });
+
+    try {
+      const shallowInfo = await getGitInfo(shallowJob.dir);
+      const deepenedInfo = await getGitInfo(deepenedJob.dir);
+
+      expect(shallowInfo.commitHash).toBe(prHead);
+      expect(deepenedInfo.commitHash).toBe(prHead);
+    } finally {
+      for (const fixture of [repository, shallowJob, deepenedJob]) fixture.cleanup();
+    }
   });
 });

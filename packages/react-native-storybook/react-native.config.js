@@ -2,7 +2,7 @@
 
 // How React Native's autolinking (@react-native-community/cli-config) and Expo's (its React Native
 // config path) link this package's native code. They run this file as a script while an app is
-// configured, so it can read the SHERLO_BUILD setting. See "What each build carries" in the book.
+// configured, so it can read the SHERLO_BUILD setting.
 //
 // - SHERLO_BUILD is `storybook` or `app-and-storybook`: the plain shape, so every iOS
 //   configuration and every Android build type links the native module.
@@ -51,7 +51,8 @@ const debugOnlyPlatforms = {
   ios: { configurations: ['Debug'] },
   android: {
     buildTypes: ['debug'],
-    packageImportPath: '// @sherlo/react-native-storybook: loaded by name below, linked in debug only',
+    packageImportPath:
+      '// @sherlo/react-native-storybook: loaded by name below, linked in debug only',
     packageInstance: androidPackageFoundByName,
     cmakeListsPath: CPP_LINKING_THAT_EVERY_BUILD_TYPE_HAS,
   },

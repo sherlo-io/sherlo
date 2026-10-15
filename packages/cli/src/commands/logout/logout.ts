@@ -1,5 +1,5 @@
 /**
- * `sherlo logout` - end this terminal's login (sherlo / Logging in from the terminal).
+ * `sherlo logout` - end this terminal's login.
  *
  * It ends the login on the service, then deletes it from this computer. When the service cannot be
  * reached, the login is still deleted here, and the command says the login could not be ended on

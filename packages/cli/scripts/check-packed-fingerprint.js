@@ -79,6 +79,9 @@ function main() {
   }
 }
 
+/** The platforms `computeBaseFingerprint` answers a base fingerprint for, one each. */
+const PLATFORMS = ['android', 'ios'];
+
 /** AC1: the installed CLI computes a non-null hash with no ExpoConfigLoader spawn failure. */
 function checkComputesAHash({ output, result }) {
   const failures = [];
@@ -99,8 +102,11 @@ function checkComputesAHash({ output, result }) {
     says('the helper was looked for inside the sherlo package');
   }
 
-  // A staged-capable fixture yields a real base fingerprint.
-  if (!/^[a-f0-9]{64}$/.test(String(result.hash))) says(`the hash was ${result.hash}`);
+  // A staged-capable fixture yields a real base fingerprint for each platform.
+  for (const platform of PLATFORMS) {
+    const hash = result[platform]?.hash;
+    if (!/^[a-f0-9]{64}$/.test(String(hash))) says(`the ${platform} hash was ${hash}`);
+  }
 
   return failures.map((failure) => `${failure}\n--- what the probe printed ---\n${output}`);
 }
@@ -116,8 +122,11 @@ function checkDegradesToNull({ output, result }) {
   if (output.includes('SHERLO_FINGERPRINT_THREW')) says('the fingerprint path threw');
   if (!output.includes('SHERLO_FINGERPRINT_RESULT')) says('the fingerprint path never returned');
 
-  // Fail-soft: unavailable fingerprint -> null hash (staged flow unavailable).
-  if (result.hash !== null) says(`the hash was ${result.hash}, not null`);
+  // Fail-soft: unavailable fingerprint -> null hash on each platform (staged flow unavailable).
+  for (const platform of PLATFORMS) {
+    const hash = result[platform]?.hash;
+    if (hash !== null) says(`the ${platform} hash was ${hash}, not null`);
+  }
 
   return failures.map((failure) => `${failure}\n--- what the probe printed ---\n${output}`);
 }
@@ -215,7 +224,7 @@ function runInstalledFingerprint(projectDir) {
   const output = `${finished.stdout ?? ''}${finished.stderr ?? ''}`;
 
   const match = output.match(/SHERLO_FINGERPRINT_RESULT (\{.*\})/);
-  const result = match ? JSON.parse(match[1]) : { hash: null };
+  const result = match ? JSON.parse(match[1]) : {};
 
   return { output, result };
 }

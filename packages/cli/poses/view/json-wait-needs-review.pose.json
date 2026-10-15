@@ -1,0 +1,66 @@
+{
+  "pose": 1,
+  "argv": ["view", "7", "--json", "--wait"],
+  "files": {
+    "sherlo.config.json": { "devices": [{ "id": "iphone.15", "osVersion": "17" }] }
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": { "runStatus": "inProgress", "status": "unreviewed" }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": {
+        "runStatus": "finished",
+        "status": "unreviewed",
+        "showsOnlyBranchChanges": false,
+        "mainBranch": "main",
+        "ciRun": null,
+        "gitInfo": {
+          "branchName": "feature/checkout",
+          "commitHash": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+          "isDirty": false
+        },
+        "devices": [{ "id": "iphone.15", "osVersion": "17", "platform": "ios" }],
+        "viewStatusesCount": { "approved": 0, "noChanges": 1, "reported": 0, "unreviewed": 1 },
+        "stories": [
+          { "name": "Sanity/Hello - Basic", "status": "changed", "baseline": { "buildIndex": 6 } },
+          { "name": "Typography - Dense", "status": "unchanged", "baseline": { "buildIndex": 6 } }
+        ]
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": {
+        "runStatus": "finished",
+        "status": "unreviewed",
+        "showsOnlyBranchChanges": false,
+        "mainBranch": "main",
+        "ciRun": null,
+        "gitInfo": {
+          "branchName": "feature/checkout",
+          "commitHash": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+          "isDirty": false
+        },
+        "devices": [{ "id": "iphone.15", "osVersion": "17", "platform": "ios" }],
+        "viewStatusesCount": { "approved": 0, "noChanges": 1, "reported": 0, "unreviewed": 1 },
+        "stories": [
+          { "name": "Sanity/Hello - Basic", "status": "changed", "baseline": { "buildIndex": 6 } },
+          { "name": "Typography - Dense", "status": "unchanged", "baseline": { "buildIndex": 6 } }
+        ]
+      }
+    }
+  ],
+  "masks": {}
+}

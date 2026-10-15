@@ -1,6 +1,5 @@
 export { default as getValidatedBinariesInfoAndNextBuildIndex } from './getValidatedBinariesInfoAndNextBuildIndex';
 export { default as getValidatedCommandParams } from './getValidatedCommandParams';
-export { default as printBuildIntroMessage } from './printBuildIntroMessage';
 export { default as runShellCommand } from './runShellCommand';
 export { default as uploadOrPrintBinaryReuse } from './uploadOrPrintBinaryReuse';
 
@@ -21,12 +20,8 @@ export { default as isValidToken } from './isValidToken';
 export { default as refuseIfPersonalToken } from './refuseIfPersonalToken';
 export { default as logInfo } from './logInfo';
 export { default as logWarning } from './logWarning';
-export { printNeedHelpEpilogue } from './needHelpEpilogue';
-export { default as printBuildMessage } from './printBuildMessage';
-export { default as printBuildPlatformLabel } from './printBuildPlatformLabel';
 export { default as printLink } from './printLink';
 export { default as printOutputKeys } from './printOutputKeys';
-export { default as printResultsUrl } from './printResultsUrl';
 export { default as printSherloIntro } from './printSherloIntro';
 export { default as reporting } from './reporting';
 export { default as spinner } from './spinner';

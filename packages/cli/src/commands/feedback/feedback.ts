@@ -1,17 +1,15 @@
 /**
- * `sherlo feedback --kind <kind>` - send the Sherlo team a report (sherlo / Sending feedback).
+ * `sherlo feedback --kind <kind>` - send the Sherlo team a report.
  *
  * It asks nothing. A report is one of four kinds - bug, missing, unclear, other - and each kind
  * cannot be sent without its own sections (../../render/feedback); "unknown" answers any of them,
  * and a report missing one is refused once, naming every missing section. The report is read only
- * from a file: `--file <path>`, or `--file -` for a quoted here-document piped in - never from words
- * after the command, which the shell may already have changed - and is 10 to 4,000 characters. It is sent with the login saved on this computer, and refused without one. Beside the
- * report it sends the facts needed to act on it - the last Sherlo command this project ran with its
- * error lines, the versions, package manager and operating system, and which AI agent sent it, by
- * name - and never a token. `--dry-run` prints exactly that and sends nothing.
- *
- * PLAN LAYER (epic sherlo-feedback): this body only prints. Collecting the context through the
- * existing helpers, recording each command's outcome and the live service call are build tasks.
+ * from a file: `--file <path>`, or `--file -` for a quoted here-document piped in - never from
+ * words after the command, which the shell may already have changed - and is 10 to 4,000
+ * characters. It is sent with the login saved on this computer, and refused without one. Beside
+ * the report it sends the facts needed to act on it - the last Sherlo command this project ran with
+ * its error lines, the versions, package manager and operating system, and which AI agent sent it,
+ * by name - and never a token. `--dry-run` prints exactly that and sends nothing.
  */
 import fs from 'fs';
 import os from 'os';
@@ -38,7 +36,9 @@ async function feedback(words: string[], options: FeedbackOptions): Promise<void
   if (!kind) {
     throwError({
       message: [
-        options.kind ? `There is no kind of report called "${options.kind}".` : 'Say what kind of report this is with --kind.',
+        options.kind
+          ? `There is no kind of report called "${options.kind}".`
+          : 'Say what kind of report this is with --kind.',
         ...renderFeedbackFormat(),
       ].join('\n  '),
     });
@@ -67,16 +67,23 @@ async function feedback(words: string[], options: FeedbackOptions): Promise<void
   if (report.length < SHORTEST_REPORT || report.length > LONGEST_REPORT) {
     throwError({
       message:
-        `Not sent: a report is between ${SHORTEST_REPORT} and ${LONGEST_REPORT.toLocaleString('en-US')} characters, and this one is ${report.length}.\n` +
-        `  The format: ${FEEDBACK_HELP_LINE}`,
+        `Not sent: a report is between ${SHORTEST_REPORT} and ${LONGEST_REPORT.toLocaleString(
+          'en-US'
+        )} characters, and this one is ${report.length}.\n` + `  The format: ${FEEDBACK_HELP_LINE}`,
     });
   }
 
-  const missing = missingSections(report, kind.required.map(({ heading }) => heading));
+  const missing = missingSections(
+    report,
+    kind.required.map(({ heading }) => heading)
+  );
   if (missing.length > 0) {
     throwError({
       message:
-        `Not sent: a ${kind.kind} report needs ${listInWords(kind.required.map(({ heading }) => heading), 'and')}, ` +
+        `Not sent: a ${kind.kind} report needs ${listInWords(
+          kind.required.map(({ heading }) => heading),
+          'and'
+        )}, ` +
         `and this one has no ${listInWords(missing, 'or')}.\n` +
         '  Write each one, or "unknown" if you do not know it, then send it again.\n' +
         `  The format: ${FEEDBACK_HELP_LINE}`,
@@ -149,9 +156,7 @@ function listInWords(items: string[], joiner: 'and' | 'or'): string {
 }
 
 /**
- * What is sent beside the report. PLAN LAYER: the build reads the versions through the existing
- * helpers (getPackageVersion, the SDK's Storybook setup check, package-manager-detector) and
- * records the last command in every command; this reads only what the pictures need.
+ * What is sent beside the report: the last command's record and the versions the project names.
  */
 function collectContext(): FeedbackContext {
   const root = projectFiles().root();

@@ -1,11 +1,8 @@
 /**
  * Tests for `sherlo test`'s ROAD CHOICE - the outer routing in ./test.ts.
  *
- * The config file's `simulation` field decides sim mode. Failing that, one rule
- * decides everything: were native build paths given? There the flags decide,
- * never the config file, so a caller that passes no `--android`/`--ios` is
- * asking the staged road's routing question whatever paths sherlo.config.json
- * happens to carry.
+ * The config file's `simulation` field decides sim mode; every other push takes the staged road.
+ * A Sherlo 2 binary path never gets this far: start.ts refuses it first.
  *
  * Both roads are stubbed here - what is under test is WHICH one runs and what
  * reaches it, not what either does. The staged road's own behavior lives in
@@ -14,7 +11,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../stagedRun', () => ({ default: vi.fn() }));
-vi.mock('../standardRun', () => ({ default: vi.fn() }));
 vi.mock('../simRun', () => ({ default: vi.fn() }));
 vi.mock('../simWorld', () => ({
   resolveSimulationWorldPath: vi.fn(),
@@ -22,12 +18,11 @@ vi.mock('../simWorld', () => ({
 }));
 
 import _stagedRun from '../stagedRun';
-import _standardRun from '../standardRun';
 import _simRun from '../simRun';
 import { resolveSimulationWorldPath as _resolveSimulationWorldPath } from '../simWorld';
+import { renderBinaryPathFlagGone } from '../../../render/appBuild';
 
 const mockStagedRun = vi.mocked(_stagedRun);
-const mockStandardRun = vi.mocked(_standardRun);
 const mockSimRun = vi.mocked(_simRun);
 const mockResolveSimulationWorldPath = vi.mocked(_resolveSimulationWorldPath);
 
@@ -36,7 +31,6 @@ let test: (passedOptions: any) => Promise<{ url: string }>;
 beforeEach(async () => {
   vi.clearAllMocks();
   mockStagedRun.mockResolvedValue({ url: 'http://app/staged' });
-  mockStandardRun.mockResolvedValue({ url: 'http://app/standard' });
   mockSimRun.mockResolvedValue({ url: 'http://app/sim' });
   mockResolveSimulationWorldPath.mockReturnValue(undefined);
 
@@ -45,57 +39,36 @@ beforeEach(async () => {
 });
 
 describe('road choice', () => {
-  it('takes the STAGED road when no build paths are given', async () => {
-    const result = await test({ token: 'tok' });
+  it('takes the STAGED road whenever the config declares no simulation', async () => {
+    const result = await test({ message: 'a message' });
 
     expect(mockStagedRun).toHaveBeenCalledTimes(1);
-    expect(mockStandardRun).not.toHaveBeenCalled();
+    expect(mockSimRun).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/staged' });
   });
 
-  it.each([
-    ['--android alone', { android: 'app.apk' }],
-    ['--ios alone', { ios: 'app.tar.gz' }],
-    ['both platforms', { android: 'app.apk', ios: 'app.tar.gz' }],
-  ])('takes the STANDARD road with %s', async (_name, paths) => {
-    const result = await test({ token: 'tok', ...paths });
-
-    expect(mockStandardRun).toHaveBeenCalledTimes(1);
-    expect(mockStagedRun).not.toHaveBeenCalled();
-    expect(result).toEqual({ url: 'http://app/standard' });
-  });
-
-  it('forwards the options VERBATIM to the road it picked (same options surface)', async () => {
-    const options = {
-      token: 'tok',
-      android: 'app.apk',
-      message: 'a message',
-      gitBranch: 'my-branch',
-      include: 'Sanity',
-      config: '/cfg.json',
-      projectRoot: '/proj',
-      wait: true,
-      waitTimeout: '30',
-    };
-
-    await test(options);
-
-    expect(mockStandardRun).toHaveBeenCalledWith(options);
-  });
-
-  it('forwards the options VERBATIM to the staged road too', async () => {
-    const options = { token: 'tok', message: 'a message', wait: true };
+  it('forwards the options VERBATIM to the staged road', async () => {
+    const options = { message: 'a message', wait: true, waitTimeout: '30', projectRoot: '/proj' };
 
     await test(options);
 
     expect(mockStagedRun).toHaveBeenCalledWith(options);
   });
+
+  it('refuses a Sherlo 2 binary path flag, naming sherlo test, sherlo build and the build command a project can set', () => {
+    const { message, below } = renderBinaryPathFlagGone();
+    const refusal = `${message}\n${below}`;
+
+    expect(refusal).toContain('`--android` or `--ios`');
+    expect(refusal).toContain('npx sherlo test');
+    expect(refusal).toContain('npx sherlo build');
+    expect(refusal).toContain('build.android.command');
+  });
 });
 
 // Sim-ness lives in the config file's `simulation` field and nowhere else: when
-// it resolves to a world TREE the run takes the sim road alone; native build
-// paths and the bundler-road flags are refused alongside it rather than
-// half-honored.
+// it resolves to a world TREE the run takes the sim road alone; the bundler-road
+// flags are refused alongside it rather than half-honored.
 describe('the sim road', () => {
   it('routes to the SIM road when the config declares a simulation, handing it the world path', async () => {
     mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world');
@@ -106,7 +79,6 @@ describe('the sim road', () => {
     // The path handed on is the tree's DIRECTORY - what the reader walks.
     expect(mockSimRun).toHaveBeenCalledWith(options, '/proj/sim-world');
     expect(mockStagedRun).not.toHaveBeenCalled();
-    expect(mockStandardRun).not.toHaveBeenCalled();
     expect(result).toEqual({ url: 'http://app/sim' });
   });
 
@@ -121,32 +93,21 @@ describe('the sim road', () => {
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
-  it('refuses a sim world together with native build paths', async () => {
-    mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world');
-
-    await expect(test({ token: 'tok', android: 'app.apk' })).rejects.toThrow(
-      /`simulation` in the config file.*cannot be\s+combined with.*--android/s
-    );
-
-    expect(mockSimRun).not.toHaveBeenCalled();
-    expect(mockStandardRun).not.toHaveBeenCalled();
-    expect(mockStagedRun).not.toHaveBeenCalled();
-  });
-
   it.each([
-    ['--dry-run', { dryRun: true }],
     ['--bundle-dir', { bundleDir: '/tmp/bundles' }],
     ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],
   ])('refuses a sim world together with %s', async (flagName, flags) => {
     mockResolveSimulationWorldPath.mockReturnValue('/proj/sim-world');
 
-    await expect(test({ token: 'tok', ...flags })).rejects.toThrow(/runs no\s+bundler/);
+    await expect(test({ token: 'tok', ...flags })).rejects.toThrow(
+      new RegExp(`${flagName}.*runs no\\s+bundler`, 's')
+    );
 
     expect(mockSimRun).not.toHaveBeenCalled();
     expect(mockStagedRun).not.toHaveBeenCalled();
   });
 
-  it('leaves both existing roads untouched when no sim world is in play', async () => {
+  it('leaves the staged road untouched when no sim world is in play', async () => {
     mockResolveSimulationWorldPath.mockReturnValue(undefined);
 
     await test({ token: 'tok' });
@@ -156,46 +117,9 @@ describe('the sim road', () => {
   });
 });
 
-// The preview flags preview what the staged road would decide and create no
-// build. The standard road always creates one, so the combination is refused
-// rather than silently ignored.
-describe('preview flags are staged-road only', () => {
-  it('refuses --dry-run together with a build path', async () => {
-    await expect(test({ token: 'tok', android: 'app.apk', dryRun: true })).rejects.toThrow();
-
-    expect(mockStandardRun).not.toHaveBeenCalled();
-    expect(mockStagedRun).not.toHaveBeenCalled();
-  });
-
-  it('allows the preview flags on the staged road', async () => {
-    await test({ token: 'tok', dryRun: true });
-
-    expect(mockStagedRun).toHaveBeenCalledTimes(1);
-  });
-});
-
-// Both roads bundle, so a prebuilt bundle can be handed to either. Emitting one
-// is a run-less operation, so a build path alongside it is refused rather than
-// uploaded for nothing.
+// The staged road bundles, so a prebuilt bundle can be handed to it, and a bundle directory can
+// be produced by it.
 describe('bundle-supply flags', () => {
-  it('forwards --bundle-dir to the STANDARD road together with a build path', async () => {
-    const options = { token: 'tok', android: 'app.apk', bundleDir: '/tmp/bundles' };
-
-    await test(options);
-
-    expect(mockStandardRun).toHaveBeenCalledWith(options);
-    expect(mockStagedRun).not.toHaveBeenCalled();
-  });
-
-  it('refuses --emit-bundle-dir together with a build path', async () => {
-    await expect(
-      test({ token: 'tok', android: 'app.apk', emitBundleDir: '/tmp/bundles' })
-    ).rejects.toThrow();
-
-    expect(mockStandardRun).not.toHaveBeenCalled();
-    expect(mockStagedRun).not.toHaveBeenCalled();
-  });
-
   it.each([
     ['--bundle-dir', { bundleDir: '/tmp/bundles' }],
     ['--emit-bundle-dir', { emitBundleDir: '/tmp/bundles' }],

@@ -1,5 +1,5 @@
 /**
- * THE POSE READER (sherlo / Drawing for a plan).
+ * THE POSE READER.
  *
  * A pose is written by hand, so the reader's job is not only to refuse a bad one - it is to
  * refuse it ONCE, naming everything wrong with it, so the person fixing it makes one pass rather
@@ -202,6 +202,31 @@ describe('reading a CommandPose', () => {
     const viewWithAPush = { ...validPose(), push: pushOfOneAndroidBuild() };
 
     expect(problemsOf(viewWithAPush).join()).toContain('never reads a native build');
+  });
+
+  it('refuses an appBuild stated for a command that never builds an app', () => {
+    const appBuild = {
+      host: 'linux',
+      tools: ['android-sdk'],
+      java: 17,
+      platforms: { android: { cached: '.sherlo/build-cache/android/app-release.apk' } },
+    };
+    const commandsThatNeverBuildAnApp = [
+      ['login'],
+      ['view', '7'],
+      ['init'],
+      ['eas-build-on-complete'],
+    ];
+
+    for (const argv of commandsThatNeverBuildAnApp) {
+      const posed = { ...validPose(), argv, api: [], appBuild };
+      expect(problemsOf(posed).join(), argv[0]).toContain('never builds an app');
+    }
+
+    // CONTROL: the two commands that do build an app take the same appBuild.
+    for (const argv of [['build'], ['test']]) {
+      expect(readPose({ ...validPose(), argv, api: [], appBuild }).appBuild).toEqual(appBuild);
+    }
   });
 
   it('accepts a `push` on the command that does, and refuses one that says a binary wrong', () => {

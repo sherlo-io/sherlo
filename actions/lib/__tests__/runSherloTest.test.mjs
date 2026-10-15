@@ -3,10 +3,8 @@
  * step runs it, against a stand-in CLI, and check what reaches $GITHUB_OUTPUT and
  * what the step's exit code becomes.
  *
- * THE POINT is the exit-code trap. `sherlo test` exits 4 to say "a native build
- * is needed first" - an answer, not a failure - so the step must still SUCCEED
- * and expose the answer. A CLI that exits non-zero having answered nothing must
- * do the opposite: fail the step loudly.
+ * THE POINT is that the step exits with the CLI's own code, and publishes the
+ * review address as `url`.
  *
  * The last test is the OTHER end-to-end promise: run the script in a genuinely
  * shallow clone and the checkout is deep enough for the CLI to read lineage from
@@ -24,14 +22,8 @@ const RUNNER = fileURLToPath(new URL('../runSherloTest.mjs', import.meta.url));
 /** A stand-in CLI: echoes its argv, prints the keys it is told to, exits as told. */
 const FAKE_CLI = `#!/usr/bin/env node
 console.log('argv=' + JSON.stringify(process.argv.slice(2)));
-if (process.env.FAKE_KEYS === 'routing') {
-  console.log('native-needed=true');
-  console.log('reason=ios: changed since the base build: JS engine (Hermes/JSC)');
-  console.log('base-fingerprint=BASE_FP');
-}
 if (process.env.FAKE_KEYS === 'completed') {
-  console.log('native-needed=false');
-  console.log('🔗 https://app.sherlo.io/build/7');
+  console.log('🔗 Review: https://app.sherlo.io/build/7');
 }
 console.error('a line on stderr');
 process.exit(Number(process.env.FAKE_EXIT || 0));
@@ -74,8 +66,7 @@ function runAction({ inputs = {}, fake = {} } = {}) {
       SHERLO_TOKEN: 'TOKEN',
       SHERLO_CONFIG: '',
       SHERLO_PROJECT_ROOT: '',
-      SHERLO_ANDROID: '',
-      SHERLO_IOS: '',
+      SHERLO_PLATFORM: '',
       FAKE_KEYS: 'none',
       FAKE_EXIT: '0',
       ...inputs,
@@ -92,27 +83,16 @@ function runAction({ inputs = {}, fake = {} } = {}) {
 }
 
 describe('the action body', () => {
-  it('exit 4 is an ANSWER: the step succeeds and publishes native-needed=true', () => {
-    const run = runAction({ fake: { FAKE_KEYS: 'routing', FAKE_EXIT: '4' } });
-
-    expect(run.exitCode).toBe(0);
-    expect(run.outputs).toContain('native-needed=true');
-    expect(run.outputs).toContain('base-fingerprint=BASE_FP');
-    expect(run.log).toContain('A native build is needed');
-  });
-
-  it('a completed run publishes its answer and the review URL', () => {
+  it('a completed run publishes the review URL as its only output', () => {
     const run = runAction({ fake: { FAKE_KEYS: 'completed', FAKE_EXIT: '0' } });
 
     expect(run.exitCode).toBe(0);
-    expect(run.outputs).toBe('native-needed=false\nurl=https://app.sherlo.io/build/7\n');
+    expect(run.outputs).toBe('url=https://app.sherlo.io/build/7\n');
   });
 
-  it('non-zero with no answer fails the step loudly, and publishes nothing', () => {
-    const run = runAction({ fake: { FAKE_KEYS: 'none', FAKE_EXIT: '1' } });
+  it('a run that printed no review address publishes nothing', () => {
+    const run = runAction({ fake: { FAKE_KEYS: 'none', FAKE_EXIT: '0' } });
 
-    expect(run.exitCode).toBe(1);
-    expect(run.log).toContain('::error title=Sherlo::');
     expect(run.outputs).toBe('');
   });
 
@@ -130,18 +110,12 @@ describe('the action body', () => {
     expect(result.stdout).toContain('No Sherlo CLI found');
   });
 
-  it('invokes the ONE verb, with only the inputs that were given', () => {
-    const run = runAction({ inputs: { SHERLO_CONFIG: 'custom.json', SHERLO_ANDROID: 'app.apk' } });
+  it('invokes the verb, with no token and only the inputs that were given', () => {
+    const run = runAction({
+      inputs: { SHERLO_CONFIG: 'custom.json', SHERLO_PLATFORM: 'android' },
+    });
 
-    expect(run.argv).toEqual([
-      'test',
-      '--token',
-      'TOKEN',
-      '--config',
-      'custom.json',
-      '--android',
-      'app.apk',
-    ]);
+    expect(run.argv).toEqual(['test', '--platform', 'android', '--config', 'custom.json']);
   });
 
   it('names the CLI that ran, and where it came from, before anything else', () => {
@@ -176,6 +150,20 @@ describe('the action body', () => {
     // which is precisely what the CLI walks to build its ancestry payload.
     const reachable = git(projectRoot, ['rev-list', '--count', '--first-parent', 'HEAD']);
     expect(Number(reachable.stdout.trim())).toBe(3);
+  });
+});
+
+describe('the action step, one platform per job', () => {
+  it.each([1, 2, 4])("the step exits with the CLI's own exit code (%i)", (code) => {
+    const run = runAction({ fake: { FAKE_EXIT: String(code) } });
+
+    expect(run.exitCode).toBe(code);
+  });
+
+  it('publishes the review URL of the run it opened or joined as url', () => {
+    const run = runAction({ fake: { FAKE_KEYS: 'completed', FAKE_EXIT: '1' } });
+
+    expect(run.outputs).toBe('url=https://app.sherlo.io/build/7\n');
   });
 });
 
