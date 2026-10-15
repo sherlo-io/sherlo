@@ -169,4 +169,33 @@ describe('asyncUploadBuildAndRunTests - asyncUpload payload contract', () => {
     // the hook hands it to the seam.
     expect(sentToTheSeam[0].pushFacts).toEqual({ madeBy: 'eas', storiesInBundle: 2 });
   });
+
+  it('the EAS hook stores the fingerprint the push took before the build', async () => {
+    // On Expo's machine prebuild and the build have written into the project, so a fingerprint
+    // taken there is not the one the next push computes on a clean tree.
+    const takenOnExpo = {
+      hash: 'taken-after-the-build',
+      nativeFingerprint: 'native-after-the-build',
+    };
+    mocks.computeBaseFingerprint.mockResolvedValueOnce({ android: takenOnExpo, ios: takenOnExpo });
+    const pushFingerprint = {
+      hash: 'taken-by-the-push',
+      nativeFingerprint: 'native-taken-by-the-push',
+    };
+
+    await asyncUploadBuildAndRunTests({ ...BASE_ARGS, fingerprints: { android: pushFingerprint } });
+
+    expect(mocks.computeBaseFingerprint).not.toHaveBeenCalled();
+    expect(mocks.registerBase.mock.calls[0][0].baseFingerprint).toEqual(pushFingerprint);
+    const payload = mocks.asyncUploadSpy.mock.calls[0][0];
+    expect(payload.baseFingerprint).toBe('taken-by-the-push');
+    expect(payload.nativeFingerprint).toBe('native-taken-by-the-push');
+
+    // A hand-over file from an older CLI carries none, so the hook still takes one itself.
+    vi.clearAllMocks();
+    await asyncUploadBuildAndRunTests(BASE_ARGS);
+
+    expect(mocks.computeBaseFingerprint).toHaveBeenCalledTimes(1);
+    expect(mocks.asyncUploadSpy.mock.calls[0][0].baseFingerprint).toBe('taken-after-the-build');
+  });
 });

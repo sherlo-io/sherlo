@@ -10,6 +10,7 @@
 import fs from 'fs';
 import path from 'path';
 import { SHERLO_TEMP_DATA_FILENAME } from '../../../constants';
+import type { BaseFingerprints } from '../../../helpers/fingerprint';
 import { makeProjectSherloFolder } from './cacheFolder';
 
 /** What the hand-over file holds. */
@@ -31,6 +32,13 @@ export type HandOverFile = {
    * address of its own, so the hook calls this one first.
    */
   apiUrl?: string;
+  /**
+   * Each EAS-built platform's base fingerprint, as the push took it before anything was built - the
+   * one its gate was asked with. The hook registers the base with it: on Expo's machine prebuild and
+   * the build have written into the project, so a fingerprint taken there is not the one the next
+   * push computes. A file from an older CLI carries none.
+   */
+  fingerprints?: Partial<BaseFingerprints>;
 };
 
 function createSherloTempDirectory(projectRoot: string, handOver: HandOverFile): void {

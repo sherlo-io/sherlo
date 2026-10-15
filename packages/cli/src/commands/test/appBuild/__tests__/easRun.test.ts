@@ -13,6 +13,8 @@ import {
   type AppBuilder,
 } from '../../../../seams/appBuilder';
 import { installServerCalls, type ServerCalls } from '../../../../seams/serverCalls';
+import type { Platform } from '@sherlo/api-types';
+import type { BaseFingerprints } from '../../../../helpers/fingerprint';
 import type { CommandParams, PushCredential } from '../../../../types';
 import type { THIS_COMMAND } from '../../constants';
 import { easRun } from '../easRun';
@@ -91,12 +93,38 @@ function readHandOver(): Record<string, unknown> | undefined {
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : undefined;
 }
 
+/** The fingerprints the push's gate was asked with, taken before anything was built. */
+const PUSH_FINGERPRINTS: BaseFingerprints = {
+  android: {
+    hash: 'android-fingerprint-of-the-push',
+    nativeFingerprint: 'native-fingerprint-of-the-push',
+    preimage: {
+      workflow: 'managed',
+      nativeSources: [],
+      lockfiles: [{ file: 'package.json', digest: 'digest-of-package-json' }],
+      autolinkedModules: ['expo-camera@1.0.0'],
+      nativeFolderFiles: [],
+    },
+  },
+  ios: {
+    hash: 'ios-fingerprint-of-the-push',
+    nativeFingerprint: 'native-fingerprint-of-the-push',
+  },
+};
+
 function runEas({
   credential = PROJECT_TOKEN,
   easProfile,
   wait,
   appFolder = projectRoot,
-}: { credential?: PushCredential; easProfile?: string; wait?: boolean; appFolder?: string } = {}) {
+  platforms = ['android', 'ios'],
+}: {
+  credential?: PushCredential;
+  easProfile?: string;
+  wait?: boolean;
+  appFolder?: string;
+  platforms?: Platform[];
+} = {}) {
   const commandParams = {
     projectRoot: appFolder,
     credential,
@@ -107,8 +135,9 @@ function runEas({
 
   return easRun({
     commandParams,
-    platforms: ['android', 'ios'],
+    platforms,
     settings: { tool: 'eas', ...(easProfile ? { easProfile } : {}) },
+    fingerprints: PUSH_FINGERPRINTS,
   });
 }
 
@@ -332,5 +361,16 @@ describe('sherlo test in EAS mode opens a run and lets EAS build', () => {
     expect(handOver).toMatchObject({ ticket: TICKET });
     expect(JSON.stringify(handOver)).not.toContain(PROJECT_TOKEN.token);
     expect(JSON.stringify(handOver)).not.toContain(PROJECT_TOKEN.apiToken);
+  });
+
+  it("the hand-over file carries the push's pre-build fingerprints", async () => {
+    // The EAS hook registers the base with these, not with one taken on Expo's machine after
+    // prebuild and the build, so the next code-only push matches the stored app build.
+    await runEas();
+    expect(handOverWhenTheFirstBuildStarted).toMatchObject({ fingerprints: PUSH_FINGERPRINTS });
+
+    // Only the platforms EAS builds: a platform on its stored app build registers no base.
+    await runEas({ platforms: ['ios'] });
+    expect(readHandOver()?.fingerprints).toEqual({ ios: PUSH_FINGERPRINTS.ios });
   });
 });
