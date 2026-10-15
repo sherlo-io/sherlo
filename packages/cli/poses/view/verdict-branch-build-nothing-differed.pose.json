@@ -1,10 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "view",
-    "14",
-    "--wait"
-  ],
+  "argv": ["view", "14", "--wait"],
   "files": {
     "sherlo.config.json": {
       "devices": [

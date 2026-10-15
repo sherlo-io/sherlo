@@ -1,8 +1,6 @@
 {
   "pose": 1,
-  "argv": [
-    "test"
-  ],
+  "argv": ["test"],
   "files": {
     "sherlo.config.json": {
       "devices": [
@@ -36,14 +34,9 @@
   "masks": {},
   "appBuild": {
     "host": "macos",
-    "tools": [
-      "xcode"
-    ],
+    "tools": ["xcode"],
     "java": 17,
-    "iosSchemes": [
-      "Storefront",
-      "StorefrontStaging"
-    ],
+    "iosSchemes": ["Storefront", "StorefrontStaging"],
     "platforms": {}
   }
 }
