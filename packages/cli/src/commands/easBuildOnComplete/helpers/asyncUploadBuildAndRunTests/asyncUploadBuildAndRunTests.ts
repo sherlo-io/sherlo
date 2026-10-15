@@ -12,7 +12,11 @@ import {
   uploadOrPrintBinaryReuse,
   reporting,
 } from '../../../../helpers';
-import { registerBase, type GateMetadataInput } from '../../../../helpers/fingerprint';
+import {
+  registerBase,
+  type BaseFingerprints,
+  type GateMetadataInput,
+} from '../../../../helpers/fingerprint';
 import { emit } from '../../../../helpers/transcriptSink';
 import { nativeBuild } from '../../../../seams/nativeBuild';
 import { serverCalls } from '../../../../seams/serverCalls';
@@ -41,6 +45,7 @@ async function asyncUploadBuildAndRunTests({
   ticket,
   teamId,
   projectIndex,
+  fingerprints,
 }: {
   buildIndex: number;
   easBuildProfile: string;
@@ -48,6 +53,8 @@ async function asyncUploadBuildAndRunTests({
   ticket: string;
   teamId: string;
   projectIndex: number;
+  /** The base fingerprints the push took before anything was built, from the hand-over file. */
+  fingerprints?: Partial<BaseFingerprints>;
 }) {
   const platform = process.env.EAS_BUILD_PLATFORM as Platform;
   const projectRoot = getCwd();
@@ -76,9 +83,14 @@ async function asyncUploadBuildAndRunTests({
     },
   });
 
-  // The base fingerprint FIRST, before anything could load the Expo app config (SHERLO-1756).
-  // This build is one platform's, so it registers that platform's own base.
-  const fingerprint = (await machine.computeFingerprint(projectRoot, THIS_COMMAND))[platform];
+  // This build is one platform's, so it registers that platform's own base, with the fingerprint
+  // the push took before anything was built: here prebuild and the build have written into the
+  // project, so one taken here is not the one the next push computes on a clean tree.
+  // Only a hand-over file from an older CLI carries none; then the fingerprint is taken here,
+  // FIRST, before anything could load the Expo app config (SHERLO-1756).
+  const fingerprint =
+    fingerprints?.[platform] ??
+    (await machine.computeFingerprint(projectRoot, THIS_COMMAND))[platform];
   const nativeFingerprint = fingerprint.nativeFingerprint;
 
   let baseFingerprint: string | undefined;

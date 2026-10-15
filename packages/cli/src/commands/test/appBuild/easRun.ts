@@ -32,6 +32,7 @@ import {
   handleClientError,
   throwError,
 } from '../../../helpers';
+import type { BaseFingerprints } from '../../../helpers/fingerprint';
 import { readProjectJson } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import { serverCalls } from '../../../seams/serverCalls';
@@ -68,12 +69,18 @@ export async function easRun({
   platforms,
   settings,
   runIdFlag,
+  fingerprints,
 }: {
   commandParams: CommandParams<THIS_COMMAND>;
   platforms: Platform[];
   settings: BuildSettings;
   /** `--run-id`, which names the CI run the push reports when the CI service does not. */
   runIdFlag?: string;
+  /**
+   * Each platform's base fingerprint, the one the gate was asked with, taken before anything was
+   * built: the EAS hook registers each base with it (../../easBuildOnComplete).
+   */
+  fingerprints: BaseFingerprints;
 }): Promise<{ url: string }> {
   await refuseWithoutTheEasProgram();
   refuseWithoutTheHookScripts(commandParams.projectRoot);
@@ -128,6 +135,10 @@ export async function easRun({
     projectIndex,
     profile,
     ...(apiUrl ? { apiUrl } : {}),
+    // Only the platforms EAS builds: a platform on its stored app build registers no base.
+    fingerprints: Object.fromEntries(
+      platforms.map((platform) => [platform, fingerprints[platform]])
+    ),
   });
 
   // Starting them is only a wait, so it leaves no line of its own: each platform's row says it is

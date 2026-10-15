@@ -79,6 +79,9 @@ export async function buildThenPush({
       platforms: platformsToBuild,
       settings,
       runIdFlag: passedOptions.runId,
+      // The fingerprint the gate was asked with travels to Expo's machine in the hand-over file:
+      // prebuild and the build write into the project there, so one taken there is no base.
+      fingerprints,
     });
   }
 

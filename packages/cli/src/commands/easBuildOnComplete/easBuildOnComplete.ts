@@ -56,7 +56,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     return;
   }
 
-  const { buildIndex, ticket, teamId, projectIndex } = sherloTempData;
+  const { buildIndex, ticket, teamId, projectIndex, fingerprints } = sherloTempData;
 
   // EXPO'S MACHINE KNOWS NO SHERLO ADDRESS OF ITS OWN: the run's ticket goes back to the service
   // that issued it, so the address the hand-over file names wins over SHERLO_API_URL and the
@@ -130,6 +130,7 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
     ticket,
     teamId,
     projectIndex,
+    ...(fingerprints ? { fingerprints } : {}),
   });
 }
 

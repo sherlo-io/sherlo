@@ -45,7 +45,8 @@ function getSherloTempData(): HandOverFile | undefined {
     });
   }
 
-  const { buildIndex, ticket, teamId, projectIndex, profile, apiUrl } = sherloTempData;
+  const { buildIndex, ticket, teamId, projectIndex, profile, apiUrl, fingerprints } =
+    sherloTempData;
 
   const invalidField = [
     typeof buildIndex === 'number' ? undefined : 'buildIndex',
@@ -72,6 +73,8 @@ function getSherloTempData(): HandOverFile | undefined {
     // run opened on the tool's own address names none.
     ...(typeof profile === 'string' && profile !== '' ? { profile } : {}),
     ...(typeof apiUrl === 'string' && apiUrl !== '' ? { apiUrl } : {}),
+    // A file from an older CLI carries no fingerprints, and the hook then takes its own.
+    ...(fingerprints && typeof fingerprints === 'object' ? { fingerprints } : {}),
   };
 }
 
