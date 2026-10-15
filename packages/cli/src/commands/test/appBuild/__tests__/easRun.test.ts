@@ -76,6 +76,8 @@ let startEasBuild: Mock<AppBuilder['startEasBuild']>;
 /** What `.sherlo/data.json` held when the first EAS build started, or undefined when it was not there. */
 let handOverWhenTheFirstBuildStarted: Record<string, unknown> | undefined;
 let undoSeams: Array<() => void>;
+/** Whether the machine has the `eas` program. */
+let hasEasProgram: boolean;
 let savedApiUrl: string | undefined;
 
 function write(relativePath: string, content: unknown) {
@@ -125,6 +127,7 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
 
+  hasEasProgram = true;
   handOverWhenTheFirstBuildStarted = undefined;
   openBuild = vi.fn().mockResolvedValue({ build: { index: 1 }, buildTicket: TICKET });
   startEasBuild = vi.fn<AppBuilder['startEasBuild']>(async ({ platform }) => {
@@ -138,6 +141,7 @@ beforeEach(() => {
       ...makeLiveAppBuilder(async () => {
         throw new Error('nothing runs a process in these tests');
       }),
+      hasEasProgram: async () => hasEasProgram,
       startEasBuild,
     }),
   ];
@@ -164,6 +168,17 @@ describe('sherlo test in EAS mode refuses a project whose EAS builds could not r
     write('package.json', { scripts: {} });
     await expect(runEas()).rejects.toThrow(
       /no "eas-build-on-complete" or "eas-build-on-cancel" script/
+    );
+
+    expect(openBuild).not.toHaveBeenCalled();
+    expect(startEasBuild).not.toHaveBeenCalled();
+  });
+
+  it('an EAS push is refused when the eas program is not installed', async () => {
+    hasEasProgram = false;
+
+    await expect(runEas()).rejects.toThrow(
+      /the eas program isn't installed on this machine[\s\S]*npm install --global eas-cli/
     );
 
     expect(openBuild).not.toHaveBeenCalled();

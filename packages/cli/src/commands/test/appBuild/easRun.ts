@@ -75,6 +75,7 @@ export async function easRun({
   /** `--run-id`, which names the CI run the push reports when the CI service does not. */
   runIdFlag?: string;
 }): Promise<{ url: string }> {
+  await refuseWithoutTheEasProgram();
   refuseWithoutTheHookScripts(commandParams.projectRoot);
   refuseWithoutTheDependency(commandParams.projectRoot);
 
@@ -159,6 +160,18 @@ export async function easRun({
   await closeTheRun({ commandParams, buildIndex, url, hasCiToken, platformRows });
 
   return { url };
+}
+
+/** Sherlo starts each EAS build with the `eas` program, so a machine without it is refused first. */
+async function refuseWithoutTheEasProgram(): Promise<void> {
+  if (await appBuilder().hasEasProgram()) return;
+
+  throwError({
+    message:
+      "Can't build on EAS: the eas program isn't installed on this machine.\n" +
+      'Sherlo starts each EAS build with it. Install it:\n' +
+      'npm install --global eas-cli',
+  });
 }
 
 /**
