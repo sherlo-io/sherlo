@@ -401,10 +401,38 @@ function createPlatformFingerprint({
   return createFingerprintAsync(projectRoot, {
     ...versionSuppression,
     fileHookTransform: transformForThisPlatform,
+    ignorePaths: WRITTEN_INTO_PACKAGES_BY_A_BUILD,
     platforms: [platform],
     debug: true,
   });
 }
+
+/**
+ * Files a native build writes into an installed package's own folder, which the library would
+ * otherwise hash as that package's native code. A clean install has none of them and a built tree
+ * has them, with the machine's Xcode toolchain inside - so without this, a fingerprint taken after
+ * a build, or on a machine that built before, differs from one taken on a fresh install of the same
+ * lockfile. A real change to such a package still moves the fingerprint: its shipped sources, and
+ * its version in the native module list, are hashed as before.
+ *
+ * The same list newer `@expo/fingerprint` releases ignore by default (0.20's
+ * `DEFAULT_IGNORE_PATHS`), which the 0.11 line this CLI depends on lacks; the library adds these
+ * to its own defaults. Swift Package Manager and `xcodebuild -derivedDataPath` folders are build
+ * output in any package, so they are ignored in every one.
+ */
+const WRITTEN_INTO_PACKAGES_BY_A_BUILD = [
+  // Swift Package Manager and Xcode build folders, in any package
+  '**/.swiftpm/**/*',
+  '**/node_modules/**/.build/**/*',
+  '**/node_modules/**/.DerivedData/**/*',
+  // expo-modules-jsi's pod builds its xcframework and module map inside the package
+  '**/node_modules/expo-modules-jsi/apple/{Products,.build,.DerivedData,.generated}/**/*',
+  // CocoaPods prepare commands that generate sources inside the package
+  '**/node_modules/expo-sqlite/ios/sqlite3.[ch]',
+  '**/node_modules/expo-updates/ios/EXUpdates/BSPatch/bspatch.c',
+  // Node addons are compiled for the installing machine
+  '**/node_modules/**/*.node',
+];
 
 /** The id `@expo/fingerprint` gives the resolved Expo config (`expo config --json`). */
 const EXPO_CONFIG_SOURCE_ID = 'expoConfig';

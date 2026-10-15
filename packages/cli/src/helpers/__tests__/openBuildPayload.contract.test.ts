@@ -41,7 +41,6 @@ const mocks = vi.hoisted(() => {
       throw error;
     }),
     reporting: { addBreadcrumb: vi.fn(), setTag: vi.fn(), flush: vi.fn() },
-    computeBaseFingerprint: vi.fn(),
     registerBase: vi.fn(),
     isServerBypassed: vi.fn(() => false),
     logWarning: vi.fn(),
@@ -89,7 +88,6 @@ vi.mock('../reporting', () => ({ default: mocks.reporting }));
 vi.mock('../logWarning', () => ({ default: mocks.logWarning }));
 vi.mock('../waitForBuildResult', () => ({ isServerBypassed: mocks.isServerBypassed }));
 vi.mock('../fingerprint', () => ({
-  computeBaseFingerprint: mocks.computeBaseFingerprint,
   registerBase: mocks.registerBase,
 }));
 // A whole-module factory REPLACES the module: an export missing here does not
@@ -170,12 +168,16 @@ function buildRunConfig() {
   } as any;
 }
 
+/** The base fingerprints the build road took before building, handed to the spine. */
+let fingerprints: any;
+
 function callSubject(overrides: { commandParams?: any } = {}) {
   const commandParams = overrides.commandParams ?? COMMAND_PARAMS;
   return uploadOrReuseBuildsAndRunTests({
     commandParams,
     // The app builds the push uploads arrive beside the params, as the build road hands them over.
     appBuildPaths: { android: commandParams.android, ios: commandParams.ios },
+    fingerprints,
     platformRows: [],
   });
 }
@@ -197,14 +199,14 @@ beforeEach(() => {
   mocks.getGitInfo.mockResolvedValue(GIT_INFO);
   mocks.getBuildRunConfig.mockImplementation(buildRunConfig);
   // The `nativeFingerprint` wire value is sourced from the single sanitized
-  // Layer-1 compute (SHERLO-1756): `computeBaseFingerprint` returns it as
-  // `nativeFingerprint`. The default is a computed base hash with a registered,
-  // spliceable binary per platform - the state a standard-road run needs to
-  // start at all.
-  mocks.computeBaseFingerprint.mockResolvedValue({
+  // Layer-1 compute (SHERLO-1756) the caller hands over: `computeBaseFingerprint`
+  // returns it as `nativeFingerprint`. The default is a computed base hash with
+  // a registered, spliceable binary per platform - the state a standard-road run
+  // needs to start at all.
+  fingerprints = {
     android: { hash: 'base-fp-android', nativeFingerprint: 'native-fp' },
     ios: { hash: 'base-fp-ios', nativeFingerprint: 'native-fp' },
-  });
+  };
   mocks.registerBase.mockImplementation(async ({ platform }: { platform: string }) => ({
     registered: true,
     gateMetadata: { engineClass: 'hermes' },
@@ -283,6 +285,7 @@ describe('openBuild payload - a platform that reuses its stored build', () => {
     await uploadOrReuseBuildsAndRunTests({
       commandParams: COMMAND_PARAMS,
       appBuildPaths: { android: COMMAND_PARAMS.android },
+      fingerprints,
       platformsOnStoredBuild: ['ios'],
       platformRows: [],
     });
@@ -308,6 +311,7 @@ describe('openBuild payload - a platform that reuses its stored build', () => {
     await uploadOrReuseBuildsAndRunTests({
       commandParams: COMMAND_PARAMS,
       appBuildPaths: { android: COMMAND_PARAMS.android },
+      fingerprints,
       platformsOnStoredBuild: ['ios'],
       platformRows: [],
     });
@@ -508,7 +512,7 @@ describe('refusal when the fresh bundle cannot render', () => {
 
   it('refuses when there is no base fingerprint to splice against, quoting why', async () => {
     const unavailable = { hash: null, debugMessage: 'no native project found' };
-    mocks.computeBaseFingerprint.mockResolvedValue({ android: unavailable, ios: unavailable });
+    fingerprints = { android: unavailable, ios: unavailable };
 
     await expect(callSubject()).rejects.toThrow(/base fingerprint: no native project found/);
 
