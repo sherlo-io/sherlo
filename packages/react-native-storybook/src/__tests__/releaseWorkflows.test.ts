@@ -30,6 +30,17 @@ function triggersOf(workflowFile: string): string {
 }
 
 describe('what a release does around the publish', () => {
+  it('a release refuses a ref that is not a release branch, before any other step', () => {
+    const { steps } = releaseSteps();
+    const guard = steps[0];
+    expect(guard.body).toContain('GITHUB_REF_NAME');
+    expect(guard.body).toContain('^release/r[0-9]+(\\.[0-9]+)?$');
+    expect(guard.body).toContain('::error::');
+    expect(guard.body).toContain('exit 1');
+    // It applies to alpha and public alike.
+    expect(guard.body).not.toMatch(/^\s+if:/m);
+  });
+
   it("A release whose pinned core's source tree is on no commit of sherlo-runner's default branch or of a runner release branch stops before it commits anything", () => {
     const { steps, positionOf } = releaseSteps();
     const mergeCheckPosition = positionOf(
@@ -191,7 +202,7 @@ describe('what a release does around the publish', () => {
     const release = stepNamed('Create Release').body;
     expect(release).toMatch(SKIPPED_WHEN_ALPHA);
     expect(release).toContain('tag_name: v${{ env.RELEASE_VERSION }}');
-    // No notes: brain writes the release body after the publish.
+    // No notes: the release's notes are added after the publish.
     expect(release).not.toMatch(/^\s+body(_path)?:|generate_release_notes: true/m);
     expect(positionOf('Create Release')).toBeGreaterThan(positionOf('Publish to npm'));
 

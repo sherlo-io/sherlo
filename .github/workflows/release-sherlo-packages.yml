@@ -36,6 +36,15 @@ jobs:
       IS_ALPHA: ${{ github.event.inputs.IS_ALPHA }}
     concurrency: release-to-prod
     steps:
+      # A release commits to the ref it runs on, so it runs only on a release branch. Alpha and
+      # public alike.
+      - name: Check the release runs on a release branch
+        run: |
+          if ! [[ "$GITHUB_REF_NAME" =~ ^release/r[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::A release runs only on a release branch (release/r<N> or release/r<N>.<k>), not on '$GITHUB_REF_NAME'."
+            exit 1
+          fi
+
       # The key is stamped into the native loaders only after the version commit below, so a
       # missing key would fail the release with that commit already pushed. Check it first.
       - name: Check Sherlo's public key is set
@@ -278,7 +287,7 @@ jobs:
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         run: git push origin HEAD:main
 
-      # No body and no generated notes: brain writes the release's public notes after the publish.
+      # No body and no generated notes: the release's notes are added after the publish.
       - name: Create Release
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         uses: softprops/action-gh-release@v2
