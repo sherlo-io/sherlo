@@ -45,8 +45,8 @@ export type CommandPose = {
   pose: 1;
   /**
    * The command line after the tool's own name, word by word, exactly as a shell would split it:
-   * `["view", "3"]`, `["test", "--token", "not-a-real-token", "--android", "builds/app.apk"]`. The
-   * tool's own routing decides which command runs and which checks fire, in what order.
+   * `["view", "3"]`, `["test", "--platform", "android", "--message", "nightly run"]`. The tool's
+   * own routing decides which command runs and which checks fire, in what order.
    */
   argv: string[];
   /**
@@ -70,9 +70,9 @@ export type CommandPose = {
   git: PosedGit;
   /**
    * What bundling the app answers, per platform, for the commands that bundle (`sherlo test` on
-   * the staged road, `--dry-run`). `{}` for a command that never reaches the bundler - a refusal,
-   * a `view`, a `project create` - and a pose that supplies bundles to such a command is refused.
-   * The story files are the closure keys the bundler reports, which is what Diff Scope diffs.
+   * the staged road). `{}` for a command that never reaches the bundler - a refusal, a `view`, a
+   * `project create` - and a pose that supplies bundles to such a command is refused. The story
+   * files are the closure keys the bundler reports, which is what Diff Scope diffs.
    */
   bundles: Record<string, PosedBundle>;
   /**
@@ -102,14 +102,23 @@ export type CommandPose = {
    */
   masks: Record<string, string>;
   /**
-   * What a real push (`sherlo test --android <apk> [--ios <app>]`) read off the machine: the
-   * binaries it was handed, the base fingerprint over the project's native inputs, and the clock.
-   * THE ONE OPTIONAL FIELD, because only that road reads the machine - a refusal on it never gets
-   * that far, and no other command opens a binary. A pose that states it for a command that never
-   * reads a native build is refused; a push that reaches the machine with no `push` is refused at
-   * run time, exactly like a call the pose did not script.
+   * What a real push (`sherlo test`) read off the machine: the binaries it was handed, the base
+   * fingerprint over the project's native inputs, and the clock. THE ONE OPTIONAL FIELD, because
+   * only that road reads the machine - a refusal on it never gets that far, and no other command
+   * opens a binary. A pose that states it for a command that never reads a native build is
+   * refused; a push that reaches the machine with no `push` is refused at run time, exactly like a
+   * call the pose did not script.
    */
   push?: PosedPush;
+  /**
+   * What building the app on the machine came to, for the commands that build it (`sherlo test`
+   * when a platform needs a new app build, `sherlo build`): which operating system it was, which
+   * build tools it had, and per platform whether the build was found in the cache, compiled,
+   * failed, or started on EAS. A pose that states it for a command that never builds is refused; a
+   * run that reaches the builder with no `appBuild` is refused at run time, exactly like a call
+   * the pose did not script.
+   */
+  appBuild?: PosedAppBuild;
   /**
    * WHAT THE CLOCK ANSWERS WHILE THE COMMAND WAITS, ISO 8601, in the order the wait reads it. A
    * wait reads the clock once at its start and once before every poll; after the last instant here
@@ -181,7 +190,7 @@ export type PosedGit =
       dirty: boolean;
     };
 
-/** One platform's bundle as the bundler reports it - the same fields the dry-run plan prints. */
+/** One platform's bundle as the bundler reports it. */
 export type PosedBundle = {
   bundlePath: string;
   bundleSizeMb: number;
@@ -189,12 +198,16 @@ export type PosedBundle = {
   bundler: 'expo' | 'metro';
   assets: string[];
   /**
-   * The story-file source paths the bundler's module manifest closes over - what the dry-run
-   * plan's "of N stories" counts. `null` poses a bundle that came with no module map at all, which
-   * is what a real bundle is when Metro is configured without Sherlo's wrapper: the plan line then
-   * reads "all stories", with no count.
+   * The story-file source paths the bundler's module manifest closes over - what the plan's "of N
+   * stories" counts. `null` poses a bundle that came with no module map at all, which is what a
+   * real bundle is when Metro is configured without Sherlo's wrapper: the plan line then reads
+   * "all stories", with no count.
    */
   storyClosureKeys: string[] | null;
+  /** The serializer's `storyTitles`: per story file, the title Storybook shows. */
+  storyTitles?: Record<string, string>;
+  /** The serializer's `storyCounts`: per story file, how many stories it holds. */
+  storyCounts?: Record<string, number>;
 };
 
 /**
@@ -275,8 +288,10 @@ export type ScriptedCall =
     }
   | {
       call: 'openBuild';
+      /** `pushFacts`: what the push reports about itself; a pose that states it is checked against it. */
       with: {
         platforms: string[];
+        pushFacts?: PushFacts;
       };
       answer:
         | ApiError
@@ -284,15 +299,58 @@ export type ScriptedCall =
             buildIndex: number;
             url: string;
             captureDecision?: PosedCaptureDecision;
+            hasCiToken?: boolean;
+            /** The one-build ticket of a run that waits for EAS builds. */
+            buildTicket?: string;
           };
     }
   | {
-      call: 'computeDiffScopeDryRun';
+      /**
+       * One job of a split CI run delivering its platform into the run its CI run shares: `with` names
+       * the key the jobs share and this job's platform; the answer is the run and the platforms it
+       * still waits for - none, and the run is starting, with `startedRun`.
+       */
+      call: 'joinBuild';
       with: {
-        branch: string;
-        commit: string;
+        joinKey: string;
+        platform: string;
+        pushFacts?: PushFactsPlatform;
       };
-      answer: ApiError | DiffScopeDryRunAnswer;
+      answer:
+        | ApiError
+        | {
+            buildIndex: number;
+            waitingFor: string[];
+            startedRun?: StartedRun;
+          };
+    }
+  | {
+      /**
+       * An EAS build delivering its platform into the run opened for it: `with` names the run and the
+       * platform; the answer says whether that was the last platform the run waited for, and then the
+       * started run.
+       */
+      call: 'asyncUpload';
+      with: {
+        buildIndex: number;
+        platform: string;
+        pushFacts?: PushFactsPlatform;
+      };
+      answer:
+        | ApiError
+        | {
+            couldRunThisBuildRightNow: boolean;
+            startedRun?: StartedRun;
+          };
+    }
+  | {
+      /** A run closed before it started, and why (`user_easCloudBuild`: the EAS build failed). */
+      call: 'closeBuild';
+      with: {
+        buildIndex: number;
+        runError: string;
+      };
+      answer: ApiError | Record<string, never>;
     }
   | {
       /** A real push's first question: has the server seen these binaries, and which build is next. */
@@ -317,7 +375,8 @@ export type ScriptedCall =
       /**
        * The staged road's first question, asked once per platform BEFORE anything is bundled: can this
        * commit reuse the base registered under this fingerprint? `fast` takes the road;
-       * `full-build-needed` names which layers of the bundle's identity moved (`diff`), and
+       * `full-build-needed` names which layers of the bundle's identity moved (`diff`) and, when a
+       * stored app build kept its source list, hands that list back (`storedBase`), and
        * `not-stageable` is a project that can never take it. The post-bundle check asks the same
        * question again with the bundle's real identity, so a bare push scripts it TWICE per platform
        * when the first answer is `fast`.
@@ -409,6 +468,26 @@ export type PosedPush = {
     | {
         unavailable: string;
       };
+};
+
+/** What building on the machine came to, as a pose states it. */
+export type PosedAppBuild = {
+  /** The operating system the run was on. */
+  host: 'macos' | 'linux';
+  /** The build tools the machine had (`android-sdk`, `xcode`). A tool not listed is missing. */
+  tools: BuildTool[];
+  /** The major version of the machine's Java, or null for a machine with none. */
+  java: number | null;
+  /** The schemes the iOS workspace lists, for a project that builds iOS. */
+  iosSchemes?: string[];
+  /** What each platform's build came to, per platform (`android`, `ios`). */
+  platforms: Record<string, PosedPlatformBuild>;
+  /**
+   * The files inside the project's native folders, path -> hash, as this run hashed them for the
+   * list of what changed since the stored app build (`"android/app/build.gradle": "<hash>"`).
+   * Needed only when the stored app build's list keeps a folder's files; a hash is never printed.
+   */
+  nativeFolderFiles?: Record<string, string>;
 };
 
 /** The acts `sherlo init` performs on the machine, as a pose states them. */
@@ -542,9 +621,10 @@ export type ApiError = {
 };
 
 /**
- * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, aliased rather than re-typed: a pose
- * describing a build the backend cannot send would let a product design be approved off a state
- * that can never occur.
+ * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
+ * because a pose scripts it and the pose contract publishes it under this name. A pose describing
+ * a build the backend cannot send would let a product design be approved off a state that can
+ * never occur, which is why this is the wire's type and not a copy of it.
  */
 export type BuildStatusAnswer = {
   runStatus: 'canceled' | 'error' | 'finished' | 'inProgress' | 'queued' | 'waiting';
@@ -591,7 +671,16 @@ export type BuildStatusAnswer = {
     reported: number;
     unreviewed: number;
   };
-  runError?: unknown;
+  /**
+   * The server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...) of a run
+   * that ended in `error`. `null` for a run that did not.
+   */
+  runError?: string | null;
+  /**
+   * The platform whose failure ended the run - beside `runError`. Absent or `null` when the error
+   * is not one platform's.
+   */
+  runErrorPlatform?: 'android' | 'ios' | null;
   /**
    * Build-wide Diff Scope capture accounting, mirrored off Build.diffScopeInfo (same shape already
    * used by BuildFragment/CloseBuildFragment elsewhere in the API). Absent on older API responses
@@ -602,7 +691,7 @@ export type BuildStatusAnswer = {
    * server's plain-prose explanation.
    *
    * We read `platforms.<platform>.reason`, NOT `fullCaptureTriggerReason`. Per the API schema
-   * (build.graphql) `reason` is the operator-approved prose the CLI prints verbatim, while
+   * (build.graphql) `reason` is the reviewed prose the CLI prints verbatim, while
    * `fullCaptureTriggerReason` is a machine enum code that (a) is only set for FULL captures and
    * so is always absent on a bypassed build - which is a partial capture by definition - and (b)
    * would print a raw machine code if it ever were surfaced (SHERLO-1919/1963).
@@ -620,22 +709,48 @@ export type BuildStatusAnswer = {
     };
   };
   /**
-   * The build's frozen git identity (view-metadata, operator ruling 2026-09-03) - only the two
-   * fields `getBuildStatus` sends. Absent on an older API.
+   * The build's frozen git identity. `isDirty`: whether the push sent uncommitted changes. Absent
+   * on an older API.
    */
   gitInfo?: {
     branchName: string;
     commitHash: string;
+    isDirty?: boolean | null;
   };
+  /** The project's main line the build was judged against. `null` while the project has none. */
+  mainBranch?: string | null;
   /**
-   * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo view --metadata`
-   * prints as `stories[]`. `status` is spelled as the plain string the wire sends (including the
-   * hyphenated `"review-required"`) rather than a narrowed union, because `@sherlo/api-types` is
-   * not the source of this hand-written wire shape (see this file's module doc) and a value this
-   * CLI has not learned yet must still pass through rather than fail to parse. Absent for a build
-   * with no view rows yet on an older API. `null` is what the server sends for a build whose run
-   * ended in `error` before any view row existed (run 36186659445, sherlo-tester's Honest Failure
-   * storyline, slot `errored-build`).
+   * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
+   * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
+   * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
+   * `null` for a push from a person's machine.
+   */
+  ciRun?: {
+    provider: string;
+    runId: string;
+  } | null;
+  /** The devices the run was asked for, as the config named them. */
+  devices?: Array<{
+    id: string;
+    osVersion: string;
+    platform: 'android' | 'ios';
+  }> | null;
+  /**
+   * Per platform the run was asked for, what it did with it. A platform it was not asked for is
+   * absent.
+   */
+  platforms?: {
+    android?: BuildStatusPlatform;
+    ios?: BuildStatusPlatform;
+  } | null;
+  /**
+   * Per-story rows: what `sherlo view --metadata` prints as `stories[]`. `status` is spelled as
+   * the plain string the wire sends (including the hyphenated `"review-required"`) rather than a
+   * narrowed union, because `@sherlo/api-types` is not the source of this hand-written wire shape
+   * (see this file's module doc) and a value this CLI has not learned yet must still pass through
+   * rather than fail to parse. Absent for a build with no view rows yet on an older API. `null` is
+   * what the server sends for a build whose run ended in `error` before any view row existed (run
+   * 36186659445, sherlo-tester's Honest Failure storyline, slot `errored-build`).
    */
   stories?: Array<{
     name: string;
@@ -651,17 +766,30 @@ export type BuildStatusAnswer = {
     }> | null;
   }> | null;
   /**
-   * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what `sherlo view
-   * --metadata` prints as `diffScope`. Hand-typed rather than imported from `@sherlo/api-types`
-   * for the same reason every other field of this wire shape is (see this file's module doc) -
-   * server commit e7c7d5a (sherlo-api `feature/sherlo-3`) added it and the portal tarball this
-   * repo builds against may not carry it yet. Absent on an older API.
+   * The Diff Scope block: what `sherlo view --metadata` prints as `diffScope`. Hand-typed rather
+   * than imported from `@sherlo/api-types` for the same reason every other field of this wire
+   * shape is (see this file's module doc) - server commit e7c7d5a (sherlo-api `feature/sherlo-3`)
+   * added it and the portal tarball this repo builds against may not carry it yet. Absent on an
+   * older API.
    */
   diffScope?: {
     reason: string;
     captured: string[];
     inherited: string[];
     ancestorBuildIndex: number | null;
+  };
+};
+
+/** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */
+export type PushFacts = {
+  platforms: {
+    android?: PushFactsPlatform;
+    ios?: PushFactsPlatform;
+  };
+  /** The CI service and its run id, when the push ran in CI. */
+  ciRun?: {
+    provider: string;
+    runId: string;
   };
 };
 
@@ -687,15 +815,129 @@ export type PosedCaptureDecision = {
   fullCaptureTriggerReason?: string;
   /** The build this decision diffed against - the "inheriting N from build #A" clause. */
   ancestorBuildIndex?: number;
+  /**
+   * The snapshot counts the open answer's `build.diffScopeInfo` carries. A build the service
+   * closed as it opened, because no phone has a story to photograph, says 0 captured and some kept
+   * - which is how the tool knows to withhold the review link and end on "Nothing needed
+   * capturing" (`isServerBypassed`, helpers/waitForBuildResult.ts). Absent on every other build.
+   */
+  capturedSnapshotCount?: number;
+  inheritedSnapshotCount?: number;
 };
 
-/** What the dry-run road's one read-only question answers. */
-export type DiffScopeDryRunAnswer = {
-  platforms: Array<{
+/**
+ * WHAT ONLY THE PUSH KNOWS about one platform it delivers - the machine that made the app build is
+ * the only witness, so the push reports it on `openBuild`, `joinBuild` or the EAS hook's
+ * `asyncUpload`, the service stores it on the build run, and `getBuildStatus` echoes it
+ * (BuildStatusPlatform). Self-reported: the CLI vouches for itself, so nothing the web app trusts
+ * may be decided from it.
+ *
+ * The push composes them where it already decides each fact (./commands/test/appBuild/pushFacts)
+ * and sends them with these calls; the calls' posed `with` names them.
+ */
+export type PushFactsPlatform = {
+  /**
+   * How the app build was made: `compiled` on this machine, taken from the local `build-cache`,
+   * made by the project's own build `command`, or by `eas`. Absent when the push sent no app build
+   * (it took a stored one).
+   */
+  madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas';
+  /**
+   * Why a new app build was made: `nothing-stored` for this platform yet, or `native-changed`
+   * since the stored one.
+   */
+  why?: 'nothing-stored' | 'native-changed';
+  /**
+   * The native files and modules that changed since the stored app build, with `why:
+   * native-changed`.
+   */
+  nativeChanges?: string[];
+  /** How many stories the pushed bundle holds. */
+  storiesInBundle?: number;
+};
+
+/**
+ * The run that just started, as the service tells the EAS upload that brought its last platform
+ * in: the devices of the whole test and what each platform captures, counted off the module map
+ * each EAS build staged with its delivery. A field the service has no value for arrives as null,
+ * as GraphQL answers it.
+ */
+export type StartedRun = {
+  devices: Array<{
+    id:
+      | 'ipad.10.gen'
+      | 'ipad.9.gen'
+      | 'ipad.air.11.m2'
+      | 'ipad.air.13.m2'
+      | 'ipad.air.5.gen'
+      | 'ipad.mini.6.gen'
+      | 'ipad.pro.11.4.gen'
+      | 'ipad.pro.11.m4'
+      | 'ipad.pro.12.9.6.gen'
+      | 'ipad.pro.13.m4'
+      | 'iphone.13'
+      | 'iphone.13.mini'
+      | 'iphone.13.pro'
+      | 'iphone.13.pro.max'
+      | 'iphone.14'
+      | 'iphone.14.plus'
+      | 'iphone.14.pro'
+      | 'iphone.14.pro.max'
+      | 'iphone.15'
+      | 'iphone.15.plus'
+      | 'iphone.15.pro'
+      | 'iphone.15.pro.max'
+      | 'iphone.se.3.gen'
+      | 'pixel.4'
+      | 'pixel.4.xl'
+      | 'pixel.4a'
+      | 'pixel.5'
+      | 'pixel.6'
+      | 'pixel.6.pro'
+      | 'pixel.6a'
+      | 'pixel.7'
+      | 'pixel.7.pro'
+      | 'pixel.7a'
+      | 'pixel.8'
+      | 'pixel.8.pro'
+      | 'pixel.tablet';
+    osVersion: string;
+    theme: 'dark' | 'light';
+    locale: string;
+    fontScale: string;
+  }>;
+  capture: Array<{
     platform: 'android' | 'ios';
-    isFullCapture: boolean;
-    reason: string;
-    capturedStoryFilePaths: string[];
+    /** Every story is captured. Read FIRST: a full capture's story list is empty and means "all". */
+    full: boolean;
+    /** How many stories a partial capture takes. Ignored on a full capture. */
+    capturedStories: number;
+    /**
+     * How many stories the bundle holds; absent when no module map could count them. The service's
+     * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as
+     * absent.
+     */
+    storiesInBundle?: number;
+    /** The server's own reason, printed only on a full capture. */
+    reason?: string;
+    /**
+     * The story files the test captures: a partial capture's as openBuild recorded them, or the
+     * bundle's.
+     */
+    storyFiles?: string[];
+    /** Story files the build it diffed against did not have. */
+    newStoryFiles?: string[];
+    /** Story files a change reaches. */
+    changedStoryFiles?: string[];
+    /**
+     * The story files that have a Storybook title, and how many stories each holds. `stories` is
+     * absent (null in the service's startedRun) when the module map recorded no count.
+     */
+    storyTitles?: Array<{
+      storyFile: string;
+      title?: string;
+      stories?: number;
+    }>;
   }>;
 };
 
@@ -732,6 +974,18 @@ export type StagedGateAnswer = {
     | 'buildMetadata'
     | 'bundleFormat'
   >;
+  /**
+   * What the platform's stored app build was built from - handed back with `full-build-needed`
+   * when the platform has a stored app build whose list Sherlo keeps, so the tool can say what
+   * changed since it. Absent when nothing is stored, and for an app build an older CLI stored
+   * without a list.
+   */
+  storedBase?: StoredBaseSources;
+  /**
+   * The test the platform's stored app build was built in - "stored from Test 12", "native code
+   * changed since Test 12" - whatever the outcome. Absent when nothing is stored.
+   */
+  storedBuildIndex?: number;
 };
 
 /**
@@ -763,6 +1017,43 @@ export type PosedBinary = {
   androidAbis?: string[];
 };
 
+/** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
+export type BuildTool = 'android-sdk' | 'xcode';
+
+/**
+ * One platform's build as a pose states it: found in the cache, compiled, failed, or started on
+ * EAS. Which of them the run reaches is the shipped code's decision; a pose that states a build
+ * the run never asked for is reported, and one the run asked for and the pose left out is refused.
+ */
+export type PosedPlatformBuild =
+  | {
+      /** The cache held this platform's app build: the path it answered with. */
+      cached: string;
+    }
+  | {
+      /** The compile wrote the app build here. */
+      built: string;
+      /** What the build line announces, e.g. `"53.90"`. */
+      sizeMb: string;
+      /** How long the compile took, in whole seconds. */
+      seconds: number;
+      /** An iOS build's files that pod install changed and git does not track; none when absent. */
+      podFilesChanged?: string[];
+    }
+  | {
+      /** The compile failed. */
+      failed: {
+        /** How long it ran, in whole seconds. */
+        seconds: number;
+        /** The last lines the build tool wrote. */
+        lastLines: string[];
+      };
+    }
+  | {
+      /** The EAS build this platform started, by its id. */
+      easBuild: string;
+    };
+
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own
  * components that render it, outermost first; `text` is what a text view says.
@@ -783,8 +1074,71 @@ export type PosedView = {
   children?: PosedView[];
 };
 
-/** One platform's capture decision, as a pose states it. */
+/**
+ * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
+ * ../helpers/buildStatusRequest): service-known facts beside the facts the push reported about
+ * itself (PushFacts).
+ */
+export type BuildStatusPlatform = {
+  /**
+   * Whether this platform's app build reached the run. `false`: a split or EAS run still waits for
+   * it.
+   */
+  arrived: boolean;
+  /**
+   * The capture plan the service decided for this platform, read off the stored decision
+   * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has it.
+   * `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
+   */
+  capture?: {
+    /** `true`: every story in the bundle was captured. */
+    full: boolean;
+    /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+    reason: string | null;
+    /** The story files captured, as paths. Empty when `full`. */
+    storyFiles: string[];
+  } | null;
+  /** Where the app build came from. `null` before the platform arrived. */
+  appBuild?: {
+    /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
+    from: 'uploaded' | 'stored';
+    /** The test the stored app build was first uploaded in. Only with `from: stored`. */
+    storedFromTest?: number | null;
+    /**
+     * How the push made the app build it uploaded, as the push reported it. Only with `from:
+     * uploaded`.
+     */
+    madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null;
+    /** Why a new app build was made, as the push reported it. */
+    why?: 'nothing-stored' | 'native-changed' | null;
+    /**
+     * What changed natively since the stored app build, as the push reported it, with `why:
+     * native-changed`.
+     */
+    nativeChanges?: string[] | null;
+  } | null;
+  /** How many stories the pushed bundle holds, as the push counted them. */
+  storiesInBundle?: number | null;
+};
+
+/**
+ * One platform's capture decision, as a pose states it, its new and changed story files in the
+ * service's own shape. A partial capture's own list is what a change reaches.
+ */
 export type PosedPlatformCaptureDecision = {
+  /**
+   * Of the story files this platform captures, those a change reaches: their file or a module they
+   * reach differs from the compared build's, or the compared build left them out of testing.
+   * Absent when the maps cannot be compared or none is reached; a new story file is never listed
+   * here.
+   */
+  changedStoryFilePaths?: string[];
+  /**
+   * Of the story files this platform captures, those the compared build did not have (every one,
+   * when there was nothing to compare with). Absent when there are none or this build sent no
+   * module map.
+   */
+  newStoryFilePaths?: string[];
   /**
    * `true` prints "capturing all N stories in this bundle"; `false` prints the partial
    * closure-diff.
@@ -800,4 +1154,51 @@ export type PosedPlatformCaptureDecision = {
    * colon).
    */
   reason?: string;
+};
+
+/**
+ * THE SOURCE LIST OF A STORED APP BUILD - the native inputs its base fingerprint was computed
+ * over, as the CLI sent them when the build was stored. Paths, hashes and versions only: never a
+ * file's contents, for the same reason the fingerprint keeps none (`FingerprintSourceDigest` in
+ * packages/cli/src/helpers/fingerprint/baseFingerprint.ts). The tool diffs it against its own
+ * fingerprint's sources, on the developer's machine.
+ */
+export type StoredBaseSources = {
+  /** The test the stored app build was built in - "since Test 12". */
+  buildIndex: number;
+  /**
+   * The native files and folders, the lockfiles (as files), and the `contents` sources - a
+   * resolved setting such as the Expo config plugins, named by its id and nothing more.
+   */
+  sources: StoredBaseSource[];
+  /** The autolinked native modules, one version each. */
+  modules: Array<{
+    name: string;
+    version: string;
+  }>;
+};
+
+/** One source of a stored app build's list. */
+export type StoredBaseSource = {
+  path: string;
+  hash: string | null;
+  /**
+   * `file`, `dir`, or `contents` for a resolved setting - a plain string, as the service stores
+   * it.
+   */
+  kind: string;
+  /**
+   * A native folder's files, one hash each (`android/app/build.gradle`), so the list can name the
+   * file that changed rather than the folder. Kept for the list ALONE: the base fingerprint still
+   * hashes the folder as one source, and these never enter it. Only on a `dir` source the
+   * fingerprint hashed whole - a bare project's `android` and `ios` - and absent on a folder an
+   * older CLI stored, which is then compared as one entry.
+   */
+  files?: NativeFolderFile[];
+};
+
+/** One file inside a native folder: its project-relative path and its hash, never its contents. */
+export type NativeFolderFile = {
+  path: string;
+  hash: string;
 };

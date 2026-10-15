@@ -1,4 +1,8 @@
 {
+  "build": {
+    "tool": "eas",
+    "easProfile": "sherlo"
+  },
   "devices": [
     {
       "id": "iphone.15.pro",

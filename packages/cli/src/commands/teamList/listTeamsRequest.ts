@@ -4,10 +4,8 @@
  * SAME HOUSE PATTERN AS ../projectCreate/createProjectRequest: raw fetch, not
  * `@sherlo/sdk-client`.
  *
- * `listTeams: [TeamSummary!]!` landed on the `management-api-scopes-and-ops`
- * epic branch (packages/api/src/graphql/schema/resolvers/queries/listTeams.graphql)
- * with `@aws_lambda` and a `team:read` scope, closing both gaps an earlier
- * version of this module flagged: it takes NO ARGUMENTS (it is account-scoped,
+ * `listTeams: [TeamSummary!]!` is served with `@aws_lambda` and a `team:read`
+ * scope. It takes NO ARGUMENTS (it is account-scoped,
  * answered from the caller's own memberships - there is no team to check a
  * role against, so `_personalTokenAuthorizer.ts`'s usual `teamId`-variable
  * requirement does not apply to it), and `TeamSummary.role` is the CALLER's

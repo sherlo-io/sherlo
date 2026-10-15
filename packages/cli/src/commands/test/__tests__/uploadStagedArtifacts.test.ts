@@ -134,7 +134,7 @@ describe('module manifest upload (SHERLO-1894)', () => {
     expect(keys.jsBundleS3Key).toBe('js-key');
     expect(keys.manifestS3Key).toBeUndefined();
     const warned = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(warned).toMatch(/WARNING/);
+    expect(warned).toMatch(/! .*module manifest/i);
     expect(warned).toMatch(/module manifest/i);
     expect(warned).toMatch(/continuing without it/);
   });

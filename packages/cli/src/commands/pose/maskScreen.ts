@@ -1,5 +1,5 @@
 /**
- * ONE MASKER, THE TOOL'S OWN (sherlo / Drawing for a plan, "What the tool folds on its own").
+ * ONE MASKER, THE TOOL'S OWN.
  *
  * A screen carries values no plan can state and no fixture should pin: a temporary folder, a
  * token, a build's address, a size in megabytes, a duration, the time since a build, a commit id,
@@ -17,8 +17,8 @@
  * cover true randomness and time, and nothing else; a fold that reached a declared value would
  * hide the very thing the pose was written to show.
  *
- * ONE FUNCTION PER CLASS, in the order the book page lists them, each named for what it folds. A
- * single function holding every pattern would be unreadable within a month.
+ * ONE FUNCTION PER CLASS, in the order {@link maskScreen} folds them, each named for what it
+ * folds. A single function holding every pattern would be unreadable within a month.
  */
 /*
  * A SCREEN IS FULL OF ANSI ESCAPES and nearly every pattern below has to say where one ends,
@@ -71,10 +71,11 @@ export type MaskContext = {
 /**
  * Fold every volatile class out of one screen.
  *
- * Pure: text in, text out. The order below is the order the book page lists the classes in, and
- * it is load-bearing in three places - the machine paths go first because every other class may
- * sit inside one, a native build's PATH is folded before its bare NAME, and the wait's progress
- * region is collapsed before the closers under it are folded.
+ * Pure: text in, text out. The order below is load-bearing in three places - the machine paths go
+ * first because every other class may sit inside one, a native build's PATH is folded before its bare NAME, the spinner is stripped
+ * before the wait's progress region is collapsed (a header inside a spinner's span is gone, and
+ * must not leave a placeholder behind), and that region is collapsed before the closers under it
+ * are folded.
  */
 export function maskScreen(screen: string, context: MaskContext): string {
   let folded = foldMachinePaths(screen, context);
@@ -88,7 +89,9 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldMintedProjectToken(folded);
   folded = foldByteSize(folded);
   folded = foldTimeAgo(folded);
+  folded = foldBuildDuration(folded);
   folded = foldBaseFingerprint(folded);
+  folded = stripTerminalArtifacts(folded);
   folded = foldWaitProgress(folded);
   folded = foldTimeoutMinutes(folded);
   folded = foldAuthFailureStatus(folded);
@@ -101,7 +104,6 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldCaptureScreenfuls(folded);
   folded = foldCaptureMeasuredSize(folded);
   folded = foldInstalledSdkVersion(folded);
-  folded = stripTerminalArtifacts(folded);
   folded = stripTurboSnapDiagnostic(folded);
 
   return folded;
@@ -140,6 +142,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<LOGIN_LINK>',
   '<SIZE>',
   '<TIME_AGO>',
+  '<DURATION>',
   '<FINGERPRINT>',
   '<N>',
   '<STATUS>',
@@ -155,7 +158,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
 ];
 
 /* ========================================================================== */
-/* THE CLASSES, in the order the book page lists them.                        */
+/* THE CLASSES, in the order maskScreen folds them.                           */
 /* ========================================================================== */
 
 /**
@@ -311,6 +314,19 @@ function foldTimeAgo(screen: string): string {
     .replace(/(└─ created:)[^\n\u001b]*/g, '$1 <TIME_AGO>');
 }
 
+/**
+ * How long an app build or a waited test took - a platform's row's `Built in 1m 28s` and
+ * `Build failed after 42s`, `sherlo build`'s `Built the Android app      in 1m 28s`, and the
+ * `Finished in 3m 5s` under a test's row. Only after those words, so a duration a scenario declares
+ * elsewhere (a wait's timeout) is never folded.
+ */
+function foldBuildDuration(screen: string): string {
+  return screen.replace(
+    /\b(Built the (?:Android|iOS) app +in|Built in|Finished in|failed after) (?:\d+m )?\d+s\b/g,
+    '$1 <DURATION>'
+  );
+}
+
 /** `base-fingerprint=<64 hex>` - a digest over the project's native inputs. */
 function foldBaseFingerprint(screen: string): string {
   return screen.replace(
@@ -327,21 +343,29 @@ function foldBaseFingerprint(screen: string): string {
  *
  * HOW MANY PROGRESS LINES A RUN PRINTS IS THE SERVER'S BUSINESS, not the scenario's: a build that
  * queued, then ran, then finished prints three, the same build on a quieter day prints one, and a
- * pose of that road prints exactly one. So the whole region collapses to a single line and the
+ * pose of that road prints exactly one. A test that finished before the first status check prints
+ * none at all. So the whole region collapses to a single line, an empty region included, and the
  * count stops being evidence about anything.
  *
- * THE REGION ENDS AT THE FIRST BLANK LINE, which is how the wait loop frames its closer - one
- * bare `console.log()` above it and one below (../../render/verdictCloser). A closer is therefore
- * never swallowed, and the deadline in the header above is left exactly as the pose declared it.
+ * THE REGION IS THE INDENTED LINES UNDER THE HEADER: every progress line starts with three spaces
+ * (../../render/verdictCloser), and what ends the wait - `✔ Finished Test 7` at the margin, the
+ * `✔ Finished in` under a test's row in the rows' mark column, a `!` line, a blank line - does not
+ * start with three spaces and a word. A closer is therefore never swallowed, and the deadline in the
+ * header above is left exactly as the pose declared it. Only a log has the region: in a terminal
+ * the wait is a spinner and prints no progress line.
  */
 function foldWaitProgress(screen: string): string {
   const lines = screen.split('\n');
-  const header = lines.findIndex((line) => visible(line).includes('⏳ Waiting for build results'));
+  // A line given no test number says `the test`: both are the same line.
+  const header = lines.findIndex((line) =>
+    /Waiting for (?:the test|Test \d+) to finish/.test(visible(line))
+  );
   if (header === -1) return screen;
 
   let afterRegion = header + 1;
-  while (afterRegion < lines.length && visible(lines[afterRegion]).trim() !== '') afterRegion += 1;
-  if (afterRegion === header + 1) return screen;
+  while (afterRegion < lines.length && /^ {3}\S/.test(visible(lines[afterRegion]))) {
+    afterRegion += 1;
+  }
 
   return [
     ...lines.slice(0, header + 1),
@@ -358,12 +382,12 @@ function foldWaitProgress(screen: string): string {
  * clock actually passed it, and a live run's clock is its own.
  */
 function foldTimeoutMinutes(screen: string): string {
-  return screen.replace(/(⏰ Timeout reached after )\d+( minutes\.)/g, '$1<N>$2');
+  return screen.replace(/(! Stopped waiting after )\d+( minutes?\.)/g, '$1<N>$2');
 }
 
-/** The HTTP status behind a credential the server refused mid-poll (`🔒 ...`). */
+/** The HTTP status behind a credential the server refused mid-poll (`✖ ...`). */
 function foldAuthFailureStatus(screen: string): string {
-  return screen.replace(/(🔒[^\n]*?)\b\d{3}\b/g, '$1<STATUS>');
+  return screen.replace(/(✖[^\n]*?)\b\d{3}\b/g, '$1<STATUS>');
 }
 
 /**
@@ -373,7 +397,7 @@ function foldAuthFailureStatus(screen: string): string {
  * the whole point of the screen that shows it - is never mistaken for this one.
  */
 function foldRunError(screen: string): string {
-  return screen.replace(/(❌ Build ended in[^\n]*\n[^\n]*?Error: )[^\n\u001b]*/g, '$1<RUN_ERROR>');
+  return screen.replace(/(The test ended as[^\n]*\n[^\n]*?Error: )[^\n\u001b]*/g, '$1<RUN_ERROR>');
 }
 
 /** A commit id: forty hex characters and no more - a longer run is a digest, not a commit. */
@@ -406,13 +430,28 @@ function foldAndroidBuild(screen: string): string {
   });
 }
 
-/** The iOS build a push was handed, the same way (../../constants, `IOS_FILE_TYPES`). */
+/**
+ * The iOS build a push was handed, the same way (../../constants, `IOS_FILE_TYPES`).
+ *
+ * XCODE IS LEFT AS IT IS: `/Applications/Xcode.app` ends in `.app` too, but it is the machine's
+ * build tool, named in the words that say how to install it, never a build a push was handed.
+ */
 function foldIosBuild(screen: string): string {
-  return foldNativeBuild(screen, ['.tar.gz', '.tar', '.app'], {
-    path: '<SHERLO_IOS_BUILD_PATH>',
-    fileName: '<SHERLO_IOS_BUILD_FILE_NAME>',
-  });
+  return screen
+    .split(XCODE_APP_PATH)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : foldNativeBuild(part, ['.tar.gz', '.tar', '.app'], {
+            path: '<SHERLO_IOS_BUILD_PATH>',
+            fileName: '<SHERLO_IOS_BUILD_FILE_NAME>',
+          })
+    )
+    .join('');
 }
+
+/** Xcode where it is installed, captured so a split keeps it: `/Applications/Xcode.app`, `/Applications/Xcode-beta.app`. */
+const XCODE_APP_PATH = /(\/Applications\/Xcode[^\s"'`/]*\.app)/;
 
 /** Anything a path may be made of: not whitespace, not a quote, not an escape sequence. */
 const PATH_CHARACTER = `[^\\s"'\`${ESCAPE}]`;

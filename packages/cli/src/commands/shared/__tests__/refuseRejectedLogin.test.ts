@@ -1,5 +1,5 @@
 /**
- * A REFUSED SAVED LOGIN (sherlo / Logging in from the terminal, "When does a login stop working?").
+ * A REFUSED SAVED LOGIN.
  *
  * The four management commands spend the saved login alone, so a token the service refused is a
  * refused login, and the answer is to log in again. Each command is called straight, on posed
@@ -36,7 +36,7 @@ const MANAGEMENT_COMMANDS: Array<{ name: string; run: () => Promise<void> }> = [
 
 describe('a refused saved login', () => {
   it('answers a refused login by naming sherlo login', async () => {
-    expect(() => refuseRejectedLogin()).toThrow(/AUTH ERROR: .*\n.*\n.*Run `npx sherlo login`/);
+    expect(() => refuseRejectedLogin()).toThrow(/ERROR: .*\n.*\n.*Run `npx sherlo login`/);
 
     for (const command of MANAGEMENT_COMMANDS) {
       const refusal = await refusalOf(command.run);

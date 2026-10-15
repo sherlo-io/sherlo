@@ -2,8 +2,7 @@
  * THE SAVED-LOGIN SEAM - the logins `sherlo login` keeps on this machine, one per service address,
  * and the login still waiting for its click.
  *
- *     live   - the operating system's keychain, and the saved-login file when no keychain answers
- *              (sherlo / Where the login is kept).
+ *     live   - the operating system's keychain, and the saved-login file when no keychain answers.
  *     posed  - the pose's `logins`: the logins saved before the run, by service address.
  *
  * Every command that spends a credential may spend the login, so they all read it here: a read
@@ -13,8 +12,8 @@
  *
  * WHY EVERY CALL NAMES THE SERVICE ADDRESS. A login is saved under the address it was made
  * against, and a command spends only the login of the address it talks to, so logins to the test,
- * dev and prod stages never mix (sherlo / Logging in from the terminal). The caller passes the
- * address it talks to; this seam never guesses one.
+ * dev and prod stages never mix. The caller passes the address it talks to; this seam never
+ * guesses one.
  */
 import { spawnSync } from 'child_process';
 import fs from 'fs';

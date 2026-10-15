@@ -43,18 +43,21 @@ import {
   getPlatformsToTest,
   getValidatedCommandParams,
   handleClientError,
-  printSherloIntro,
   reporting,
   throwError,
-  waitForBuildResult,
 } from '../../helpers';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
+import type { PlatformRow } from '../../render/runRows';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
+import { splitRunKeyOf } from './appBuild/buildThenPush';
+import type { BuildFlags } from './appBuild/buildSettings';
+import { joinTheRun } from './appBuild/joinTheRun';
 import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
 import { readSimWorld } from './simWorld';
-import { parseWaitTimeout, printBypassedCloser, printCapturePlanAndCloser } from './stagedRun';
+import { closeTheRun } from './closeTheRun';
+import { printTestStarted } from './stagedRun';
 import { putBuffer, type StagedUploadUrlsWithManifest } from './uploadStagedArtifacts';
 import type { ValidatedModuleManifest } from './readModuleManifest';
 
@@ -82,16 +85,11 @@ async function simRun(
   passedOptions: Options<THIS_COMMAND>,
   simWorldDirPath: string
 ): Promise<{ url: string }> {
-  printSherloIntro();
-
   // 1. The world tree - strict validation, every problem named at once.
   const world = readSimWorld(simWorldDirPath);
 
-  // 2. Validate params (no platform binary paths - the world is the app).
-  const commandParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions },
-    { requirePlatformPaths: false }
-  );
+  // 2. Validate params.
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // Devices must be REAL catalog entries (openBuild validation requires it, and
   // the sim executor renders at the device's real resolution). Same tool-error
@@ -117,7 +115,7 @@ async function simRun(
   const worldFile = composeSimWorldFile(world.parsed);
 
   // The credential and its project, resolved before any request (getValidatedCommandParams).
-  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   // 4. Upload both artifacts to staged slots, per platform.
   const simKeys = await uploadSimArtifacts({
@@ -137,7 +135,14 @@ async function simRun(
   // 6. Build the run config. `s3Key` mirrors the manifest key (prefix-valid, a
   //    real object - the HeadObject check passes with no bypass), and the sim
   //    fields tell the server to dispatch the sim executor instead of a runner.
-  const buildRunConfig = getBuildRunConfig({ commandParams });
+  //    ONE JOB OF A SPLIT CI RUN joins the run its CI run shares, exactly as on the other roads - which
+  //    is what lets the branching storylines prove the join with a sim world on two cheap jobs. Its
+  //    config names every device of the test, so the run waits for the other platform's job.
+  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+  const buildRunConfig = getBuildRunConfig({
+    commandParams,
+    ...(joinKey ? { wholeTest: true } : {}),
+  });
 
   for (const platform of platformsToTest) {
     const platformConfig = buildRunConfig[platform] as
@@ -160,16 +165,30 @@ async function simRun(
     level: 'info',
   });
 
+  // A sim world has no app build, so no platform has a row above the test's.
+  const platformRows: PlatformRow[] = [];
+
   let openBuildReturn;
   try {
-    openBuildReturn = await serverCalls().openBuild({
-      token,
+    const request = {
       teamId,
       projectIndex,
       buildRunConfig,
       gitInfo,
       message: commandParams.message,
-    });
+    };
+    openBuildReturn = joinKey
+      ? ({
+          ...(await joinTheRun({
+            token,
+            joinKey,
+            platform: platformsToTest[0],
+            request,
+            platformRows,
+          })),
+          buildRun: { config: {} },
+        } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>)
+      : await serverCalls().openBuild({ token, ...request });
   } catch (error) {
     handleClientError(error, token); // always throws
     throw error; // unreachable - satisfies control flow / typing
@@ -184,38 +203,18 @@ async function simRun(
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
   const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
 
-  printCapturePlanAndCloser({
-    openBuildReturn,
-    moduleManifests: manifestForEveryPlatform(manifest, platformsToTest),
-    platformsToTest,
-    url,
-    serverBypassed,
-  });
-
-  if (commandParams.wait) {
-    const exitCode = await waitForBuildResult({
-      token,
-      fromSavedLogin,
-      buildIndex,
-      projectIndex,
-      teamId,
-      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+  if (!joinKey) {
+    printTestStarted({
+      openBuildReturn,
+      moduleManifests: manifestForEveryPlatform(manifest, platformsToTest),
+      platformsToTest,
+      devices: commandParams.devices,
       serverBypassed,
-    });
-
-    // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
-    });
-  } else if (serverBypassed) {
-    await printBypassedCloser({
-      token,
-      buildIndex,
-      projectIndex,
-      teamId,
-      url,
+      platformRows,
     });
   }
+
+  await closeTheRun({ commandParams, buildIndex, url, serverBypassed, platformRows });
 
   return { url };
 }

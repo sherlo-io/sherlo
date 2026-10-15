@@ -72,6 +72,7 @@
     "find-up": "^7.0.0",
     "gradient-string": "^2.0.1",
     "graphql": "^16.6.0",
+    "ignore": "^7.0.5",
     "js-yaml": "^4.1.0",
     "magicast": "^0.5.2",
     "node-fetch": "^2.6.11",

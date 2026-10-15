@@ -1,11 +1,11 @@
-[32mBuild #8[39m · finished
+[32mTest 8[39m · finished
+[32m✔[39m Finished Test 8
 
-🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
-[2m⏳ Waiting for build results (timeout: 45min)...[22m
-   <build progress masked>
+[1m✅ All stories passed[22m
+[2m═════════════════════[22m
 
-[32m✅ All stories passed - no visual changes require review.[39m
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 0]

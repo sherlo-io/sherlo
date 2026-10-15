@@ -1,7 +1,6 @@
 /**
- * SETUP'S PROJECT STEP - who is running setup, and which project the app belongs to (sherlo / How
- * setup names the project). It runs right after the checks and before anything is installed, so a
- * run that cannot name a project stops here and changes nothing in the folder.
+ * SETUP'S PROJECT STEP - who is running setup, and which project the app belongs to. It runs right
+ * after the checks and before anything is installed, so a run that cannot name a project stops here and changes nothing in the folder.
  *
  *   - `--token`: no login. The project is the one the token names, and the token is never written
  *     into the config: it belongs in CI as SHERLO_TOKEN.

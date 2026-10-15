@@ -1,13 +1,14 @@
-[32mBuild #15[39m · finished
+[32mTest 15[39m · finished
+[32m✔[39m Finished Test 15
 
-🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
-[2m⏳ Waiting for build results (timeout: 45min)...[22m
-   <build progress masked>
+[1m⚠️ 2 stories need review[22m
+[2m════════════════════════[22m
 
-[33m⚠️  Build finished with changes requiring review.[39m
-[33m   2 story/stories unreviewed.[39m
-[2m   3 captured on this branch, 41 inherited unchanged[22m
+Open them in Sherlo to approve or report.
+[2m3 captured on this branch, 41 carried over unchanged.[22m
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 1]

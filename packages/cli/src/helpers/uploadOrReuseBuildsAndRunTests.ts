@@ -1,4 +1,4 @@
-import { Platform } from '@sherlo/api-types';
+import { BaseSourceList, Platform } from '@sherlo/api-types';
 import logWarning from './logWarning';
 import { PLATFORM_LABEL, TEST_COMMAND } from '../constants';
 import { CommandParams } from '../types';
@@ -6,54 +6,60 @@ import {
   realFreshBundleEffects,
   uploadFreshBundles,
   type FreshBundleEffects,
+  type UploadedFreshBundle,
 } from './uploadFreshBundles';
+import { closeTheRun } from '../commands/test/closeTheRun';
+import {
+  countBundleStories,
+  type ValidatedModuleManifest,
+} from '../commands/test/readModuleManifest';
+import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
+import { printTestStarted } from '../commands/test/stagedRun';
+import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
+import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
+import type { PlatformRow } from '../render/runRows';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
-import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
-import type { BaseFingerprintResult } from './fingerprint';
+import type { BaseFingerprints } from './fingerprint';
+import { baseFingerprintsOf } from './fingerprint/baseFingerprintsOf';
 import type { GitInfo } from './getGitInfo';
 import type { ValidatedBinariesInfo } from '../types';
 import getAppBuildUrl from './getAppBuildUrl';
 import getBuildRunConfig from './getBuildRunConfig';
 import { getGitInfo } from '../seams/surroundings';
 import { nativeBuild } from '../seams/nativeBuild';
-import { serverCalls } from '../seams/serverCalls';
+import {
+  serverCalls,
+  type OpenBuildAnswer,
+  type OpenBuildRequest,
+  type PushFacts,
+} from '../seams/serverCalls';
 import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInfoAndNextBuildIndex';
 import handleClientError from './handleClientError';
-import parseWaitTimeout from './parseWaitTimeout';
-import printBuildIntroMessage from './printBuildIntroMessage';
-import printResultsUrl from './printResultsUrl';
 import reporting from './reporting';
 import throwError from './throwError';
 import { registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
-import waitForBuildResult from './waitForBuildResult';
+import { isServerBypassed } from './waitForBuildResult';
 
 /**
  * EVERY EFFECT THE PUSH SPINE PERFORMS, AS PARAMETERS - which is what lets an
  * expectation producer run THIS function rather than a re-implementation of it.
  *
  * The spine's transcript is emitted from here and from the shipped helpers it
- * calls, interleaved with these awaits: the run header before the binaries go
- * up, each platform's block around its own upload, the fingerprint warnings
- * from inside `registerBase`, the bundle block from inside `uploadFreshBundles`,
- * and the closer after `openBuild` answers. A producer that re-implemented that order
- * could drift from it silently; supplying the effects means the order, the
- * branching and every literal come from the shipped code, unforked.
+ * calls, interleaved with these awaits: the fingerprint warnings from inside
+ * `registerBase`, the bundling from inside `uploadFreshBundles`, each platform's
+ * upload, then the started test and the run's ending after `openBuild` answers.
+ * A producer that re-implemented that order could drift from it silently;
+ * supplying the effects means the order, the branching and every literal come
+ * from the shipped code, unforked.
  *
  * WHAT IS *NOT* HERE IS THE POINT. There is no substitute for a formatter, a
  * print site, a segment or a branch - only for the things that touch the
  * network, the filesystem and the clock.
  */
 export type PushEffects = {
-  /**
-   * The instant a reuse line's "N minutes ago" is measured against - the ONE
-   * wall-clock read on this transcript's path, and an effect for exactly the
-   * reason the network ones are: a fixed scripted state that read the real clock
-   * would render different bytes tomorrow.
-   */
-  now: () => Date;
   /**
    * `ValidatedBinariesInfo`, not `BinariesInfo`: the `openBuild` call below
    * reads `binariesInfo.sdkVersion`, which only the VALIDATED shape carries.
@@ -63,61 +69,103 @@ export type PushEffects = {
     nextBuildIndex: number;
   }>;
   resolveGitInfo: () => Promise<GitInfo>;
-  computeFingerprint: () => Promise<BaseFingerprintResult>;
-  openBuild: (input: Record<string, unknown>) => Promise<{ build: { index: number } }>;
+  /** Opens the test, or - for one job of a split CI run - joins the one its CI run shares. */
+  openBuild: (
+    input: Record<string, unknown>
+  ) => Promise<OpenBuildAnswer | Awaited<ReturnType<typeof joinTheRun>>>;
   binaryUpload: BinaryUploadEffects;
   baseRegistration: BaseRegistrationEffects;
   /** The fresh bundle spliced into every binary this run renders. */
   freshBundle: FreshBundleEffects;
 };
 
+/** One job of a split CI run: the key its CI run's jobs share, and the platform this job brings. */
+export type SplitJob = { joinKey: string; platform: Platform };
+
 /**
- * The standard road of `sherlo test`: upload (or reuse) the binaries, register
- * them as the native base, splice a freshly built bundle in and open the build.
+ * The standard road of `sherlo test`: upload (or reuse) the app builds this run made, register
+ * them as the native base, splice a freshly built bundle in and open the test.
+ *
+ * Two shapes of the same push are the spine's too, so nothing calling it copies its defaults:
+ *
+ *   - a MIXED run (`platformsOnStoredBuild`): a platform whose stored app build still matches gets
+ *     its fresh bundle spliced into that stored app build, as on the staged road, in the same test;
+ *   - one job of a SPLIT CI run (`splitJob`): the test is joined, not opened (joinTheRun).
  */
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
+  appBuildPaths,
+  fingerprints,
+  platformsOnStoredBuild = [],
+  splitJob,
   effects,
+  platformRows,
+  appBuilds = {},
+  runIdFlag,
 }: {
   commandParams: CommandParams;
+  /** The app builds this push uploads, per platform: the ones this run just built. */
+  appBuildPaths: Partial<Record<Platform, string>>;
+  /**
+   * Each platform's base fingerprint, TAKEN BEFORE ANYTHING WAS BUILT - the one the staged gate was
+   * asked with. Never taken again here: a build writes into the project (pods, prebuilt frameworks
+   * inside `node_modules`), so a fingerprint taken after it reads files a clean install of the same
+   * lockfile lacks, and a stored base no later JavaScript-only push could match.
+   */
+  fingerprints: BaseFingerprints;
+  /** The platforms that keep the app build Sherlo stores, and take only a fresh bundle. */
+  platformsOnStoredBuild?: Platform[];
+  /** Set for one job of a split CI run, which joins the test its CI run shares. */
+  splitJob?: SplitJob;
   effects?: PushEffects;
+  /** What became of each platform's app build before the push: the rows above the test's row. */
+  platformRows: PlatformRow[];
+  /** How each of those app builds was made, and why a new one: what the push reports about itself. */
+  appBuilds?: Partial<Record<Platform, AppBuildAccount>>;
+  /** `--run-id`, which names the CI run the push reports when the CI service does not. */
+  runIdFlag?: string;
 }): Promise<{ url: string }> {
   // The credential and its project were resolved before any request (./getValidatedCommandParams).
-  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
+  const { token, projectIndex, teamId } = commandParams.credential;
 
   const command = TEST_COMMAND;
+
+  /** Every platform this push renders a fresh bundle for: the built ones, then the stored ones. */
+  const platformsToBundle: Platform[] = [
+    ...platformsWithAppBuilds(appBuildPaths),
+    ...platformsOnStoredBuild,
+  ];
 
   // THE SEAMS IN FORCE, not the real machine by name: a posed run installs its own machine and
   // server (../seams/nativeBuild, ../seams/serverCalls) and this spine never learns which it got.
   const machine = nativeBuild();
   const io: PushEffects = effects ?? {
-    now: () => machine.now(),
     resolveBinaries: () =>
       getValidatedBinariesInfoAndNextBuildIndex({
         token,
         command,
         commandParams,
+        appBuildPaths,
         projectIndex,
         teamId,
       }),
     resolveGitInfo: () =>
       getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
-    // A run that supplies its bundle takes the fingerprint the bundle recorded
-    // when this tree's native inputs still match - the machine that accepts a
-    // bundle has no install to compute one with. See ./recordedBaseFingerprint.
-    computeFingerprint: () =>
-      commandParams.bundleDir !== undefined
-        ? resolveBaseFingerprintForSuppliedBundle({
-            bundleDir: commandParams.bundleDir,
-            projectRoot: commandParams.projectRoot,
-            platforms: platformsWithBinaries(commandParams),
-            command,
+    openBuild: ({ pushFacts, ...input }) =>
+      splitJob
+        ? joinTheRun({
+            token,
+            joinKey: splitJob.joinKey,
+            platform: splitJob.platform,
+            request: input as OpenBuildRequest,
+            // The job reports its own platform's facts; the CI run is already its join key.
+            pushFacts: (pushFacts as PushFacts).platforms[splitJob.platform],
+            platformRows,
+            testDevices: commandParams.testDevices,
           })
-        : machine.computeFingerprint(commandParams.projectRoot, command),
-    openBuild: (input) =>
-      serverCalls()
-        .openBuild({ token, ...input } as never)
-        .catch((error) => handleClientError(error, token)),
+        : serverCalls()
+            .openBuild({ token, pushFacts, ...input } as never)
+            .catch((error) => handleClientError(error, token)),
     binaryUpload: {
       readBinary: (buildPath, platform, projectRoot) =>
         machine.readBinaryForUpload(buildPath, platform, projectRoot),
@@ -129,44 +177,38 @@ async function uploadOrReuseBuildsAndRunTests({
     freshBundle: realFreshBundleEffects(token),
   };
 
-  const { binariesInfo, nextBuildIndex } = await io.resolveBinaries();
-
-  printBuildIntroMessage({ commandParams, nextBuildIndex });
-
-  await uploadOrPrintBinaryReuse({
-    binariesInfo,
-    projectRoot: commandParams.projectRoot,
-    android: commandParams.android,
-    ios: commandParams.ios,
-    uploadEffects: io.binaryUpload,
-    now: io.now(),
-  });
+  const { binariesInfo } = await io.resolveBinaries();
 
   const gitInfo = await io.resolveGitInfo();
 
   // ------------------------------------------------------------------
-  // Compute the base fingerprint FIRST - before any other work that could load
-  // the Expo app config (SHERLO-1756). Loading the app config mutates
-  // process.env as a dotenv-class side effect; if that ran before the sanitized
-  // Layer-1 compute it would pollute the env that compute snapshots, producing a
-  // base fingerprint no probe (the staged road, which never loads the
-  // config first) could ever match.
-  //
-  // This is the ONLY `createFingerprintAsync` invocation on this path: both the
-  // `baseFingerprint` value AND the `nativeFingerprint` wire value are sourced
-  // from this single result. `fpResult.nativeFingerprint` is the sanitized
-  // Layer-1 hash, or undefined when the compute fails (fail-soft).
+  // The base fingerprint is the caller's, taken once before anything was built
+  // or could load the Expo app config (SHERLO-1756; ../commands/test/stagedRun).
+  // Each platform's base fingerprint AND the `nativeFingerprint` wire value are
+  // sourced from that single result. `nativeFingerprint` covers both platforms,
+  // so every platform's result carries the same one, or undefined when the
+  // compute failed (fail-soft).
   // ------------------------------------------------------------------
-  const fpResult = await io.computeFingerprint();
-  const nativeFingerprint = fpResult.nativeFingerprint;
+  const nativeFingerprint = fingerprints.android.nativeFingerprint;
 
-  // The platforms the user handed a binary for. Each is registered as the
+  // The platforms this push uploads an app build for. Each is registered as the
   // native base below and rendered with a fresh bundle.
-  const platforms: Platform[] = [];
-  if (binariesInfo.android && commandParams.android) platforms.push('android');
-  if (binariesInfo.ios && commandParams.ios) platforms.push('ios');
+  const uploadedPlatforms: Platform[] = [];
+  if (binariesInfo.android && appBuildPaths.android) uploadedPlatforms.push('android');
+  if (binariesInfo.ios && appBuildPaths.ios) uploadedPlatforms.push('ios');
 
-  let baseFingerprint: string | undefined;
+  /** A platform whose base fingerprint could not be computed - the run cannot name its base. */
+  const platformWithoutFingerprint = uploadedPlatforms.find(
+    (platform) => !fingerprints[platform].hash
+  );
+  /**
+   * Every bundled platform's own base, a stored one's too: an uploaded platform's app build is
+   * registered under its base, and a stored platform's is found by it.
+   */
+  const bundledBaseFingerprints = baseFingerprintsOf(fingerprints, platformsToBundle);
+  /** Each registered platform's source list, stored with its base. */
+  const sourceLists: Partial<Record<Platform, BaseSourceList>> = {};
+  /** Each bundled platform's gate facts: an uploaded one's read from its binary, a stored one's from its fresh bundle. */
   const gateMetadata: { android?: GateMetadataInput; ios?: GateMetadataInput } = {};
   /**
    * Per platform, why a fresh bundle cannot be spliced into its binary; absent
@@ -177,14 +219,12 @@ async function uploadOrReuseBuildsAndRunTests({
    */
   const notSpliceableReasons: Partial<Record<Platform, string>> = {};
 
-  if (fpResult.hash) {
-    baseFingerprint = fpResult.hash;
-
+  if (platformWithoutFingerprint === undefined) {
     // Extract gate metadata per platform (fail-soft per platform).
-    for (const platform of platforms) {
+    for (const platform of uploadedPlatforms) {
       try {
-        const binaryPath = platform === 'android' ? commandParams.android! : commandParams.ios!;
-        const binaryInfo = platform === 'android' ? binariesInfo.android! : binariesInfo.ios!;
+        const binaryPath = appBuildPaths[platform]!;
+        const binaryInfo = binariesInfo[platform]!;
 
         const result = await registerBase(
           {
@@ -193,7 +233,7 @@ async function uploadOrReuseBuildsAndRunTests({
             projectRoot: commandParams.projectRoot,
             bundlePath: defaultEmbeddedBundlePath(platform),
             buildType: binaryInfo.buildType,
-            baseFingerprintHash: fpResult.hash,
+            baseFingerprint: fingerprints[platform],
             command,
           },
           io.baseRegistration
@@ -201,6 +241,9 @@ async function uploadOrReuseBuildsAndRunTests({
 
         if (result.gateMetadata) {
           gateMetadata[platform] = result.gateMetadata;
+        }
+        if (result.sourceList) {
+          sourceLists[platform] = result.sourceList;
         }
         if (!result.registered) {
           notSpliceableReasons[platform] =
@@ -214,17 +257,21 @@ async function uploadOrReuseBuildsAndRunTests({
   } else {
     logWarning({
       message: `Staged uploads unavailable - ${
-        fpResult.debugMessage ?? 'fingerprint computation failed'
+        fingerprints[platformWithoutFingerprint].debugMessage ?? 'fingerprint computation failed'
       }`,
     });
   }
 
+  // A split job's test names every device of the test, so the platform the other job brings is
+  // waited for rather than left out; a platform with no app build here carries the async-upload
+  // placeholder, as the stored ones of a mixed run do.
   const buildRunConfig = getBuildRunConfig({
     commandParams,
     binaryS3Keys: {
       android: binariesInfo.android?.s3Key,
       ios: binariesInfo.ios?.s3Key,
     },
+    ...(splitJob ? { wholeTest: true } : {}),
   });
 
   // THE RUN RENDERS A FRESHLY BUILT BUNDLE, OR IT DOES NOT RUN.
@@ -235,13 +282,17 @@ async function uploadOrReuseBuildsAndRunTests({
   // name the splice against. Either way the binary's own embedded bundle would
   // render instead - a run this command never performs - so the run is
   // refused, naming every reason at once.
-  const reasons = platforms
+  const reasons = uploadedPlatforms
     .filter((platform) => notSpliceableReasons[platform])
     .map((platform) => `${PLATFORM_LABEL[platform]}: ${notSpliceableReasons[platform]}`);
-  if (!baseFingerprint) {
-    reasons.push(`base fingerprint: ${fpResult.debugMessage ?? 'fingerprint computation failed'}`);
+  if (platformWithoutFingerprint !== undefined) {
+    reasons.push(
+      `base fingerprint: ${
+        fingerprints[platformWithoutFingerprint].debugMessage ?? 'fingerprint computation failed'
+      }`
+    );
   }
-  if (reasons.length > 0 || !baseFingerprint) {
+  if (reasons.length > 0) {
     throwError({
       message:
         'This run cannot render a freshly built JS bundle, so it was not started.\n\n' +
@@ -252,19 +303,41 @@ async function uploadOrReuseBuildsAndRunTests({
     });
   }
 
+  // The bundles first, then the app builds: a bundle the run refuses (one that holds no stories)
+  // stops it before anything is uploaded.
   const freshBundles = await uploadFreshBundles({
     projectRoot: commandParams.projectRoot,
-    platforms,
+    platforms: platformsToBundle,
+    platformsOnStoredBuild,
     bundleDir: commandParams.bundleDir,
-    baseFingerprint,
+    buildSettings: readBuildSettings(commandParams),
+    // Every bundled platform's own base, a stored one's too: a supplied bundle is checked
+    // against the base of the platform it is for.
+    baseFingerprints: bundledBaseFingerprints,
     projectIndex,
     teamId,
     effects: io.freshBundle,
   });
 
-  // The binary keeps its own `s3Key` (set by getBuildRunConfig above): the
-  // bundle is spliced into THIS binary, not into a registered base.
-  for (const platform of platforms) {
+  // A stored platform's gate facts come from its fresh bundle: the service checks that bundle fits
+  // the stored app build it is spliced into, as on the staged road.
+  for (const platform of platformsOnStoredBuild) {
+    const storedBuildGateMetadata = freshBundles[platform]?.storedBuildGateMetadata;
+    if (storedBuildGateMetadata) gateMetadata[platform] = storedBuildGateMetadata;
+  }
+
+  await uploadOrPrintBinaryReuse({
+    binariesInfo,
+    projectRoot: commandParams.projectRoot,
+    android: appBuildPaths.android,
+    ios: appBuildPaths.ios,
+    uploadEffects: io.binaryUpload,
+  });
+
+  // A built platform's bundle is spliced into THIS binary, which keeps its own `s3Key` (set by
+  // getBuildRunConfig above); a stored platform's into its stored app build, named by the
+  // async-upload placeholder its config carries.
+  for (const platform of platformsToBundle) {
     const platformConfig = buildRunConfig[platform];
     const uploaded = freshBundles[platform];
     if (!platformConfig || !uploaded) continue;
@@ -283,7 +356,7 @@ async function uploadOrReuseBuildsAndRunTests({
     level: 'info',
   });
 
-  const { build } = await io.openBuild({
+  const opened = await io.openBuild({
     teamId,
     projectIndex,
     binaryHashes: {
@@ -299,10 +372,30 @@ async function uploadOrReuseBuildsAndRunTests({
     sdkVersion: binariesInfo.sdkVersion,
     message: commandParams.message,
     nativeFingerprint,
-    ...(baseFingerprint ? { baseFingerprint, gateMetadata } : {}),
+    pushFacts: pushFactsOf({
+      appBuilds,
+      storiesInBundle: storiesInBundleOf(freshBundles),
+      env: process.env,
+      runIdFlag,
+    }),
+    // Each bundled platform's own base and build settings digest, so a native change on one
+    // platform leaves the other's stored app build in use; each bundled platform's gate metadata,
+    // an uploaded one's read from its binary and a stored one's from its fresh bundle; and the
+    // source list of the uploaded platforms only, the ones that register a base.
+    ...(platformWithoutFingerprint === undefined
+      ? {
+          baseFingerprints: bundledBaseFingerprints,
+          buildSettingsDigests: buildSettingsDigestsOf(
+            readBuildSettings(commandParams),
+            platformsToBundle
+          ),
+          gateMetadata,
+          sourceLists,
+        }
+      : {}),
   });
 
-  const buildIndex = build.index;
+  const buildIndex = opened.build.index;
   // Sentry tags must be strings; buildIndex is a number from the API response.
   reporting.setTag('build_index', String(buildIndex));
 
@@ -312,27 +405,35 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
 
-  printResultsUrl(url);
+  // A joined run's own step was printed when it joined (../commands/test/appBuild/joinTheRun); its
+  // run starts when the last platform is in, so a job whose run still waits has no next step.
+  const joined = 'waitingFor' in opened ? opened : undefined;
+  const openedAlone = 'waitingFor' in opened ? undefined : opened;
+  const serverBypassed =
+    openedAlone !== undefined && isServerBypassed(openedAlone.build.diffScopeInfo);
 
-  if (commandParams.wait) {
-    const exitCode = await waitForBuildResult({
-      token,
-      fromSavedLogin,
-      buildIndex: buildIndex,
-      projectIndex,
-      teamId,
-      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
-      // --metadata: the details block, carrying the git identity THIS run
-      // composed and sent at openBuild - `getBuildStatus` does not return it, so
-      // the only honest source is the value that created the build.
-      metadata: commandParams.metadata === true ? { git: gitInfo } : undefined,
-    });
-
-    // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
+  // The step that started the test, with how many stories it captures, read off the openBuild
+  // answer - the same line the staged road prints - then the run's one ending.
+  if (openedAlone) {
+    printTestStarted({
+      openBuildReturn: openedAlone,
+      moduleManifests: moduleManifestsOf(freshBundles),
+      platformsToTest: platformsInTheRun(buildRunConfig),
+      devices: commandParams.devices,
+      serverBypassed,
+      platformRows,
     });
   }
+
+  await closeTheRun({
+    commandParams,
+    buildIndex,
+    url,
+    serverBypassed,
+    platformRows,
+    endsOnNextStep: !joined || joined.waitingFor.length === 0,
+    hasCiToken: openedAlone?.hasCiToken,
+  });
 
   return { url };
 }
@@ -340,6 +441,42 @@ async function uploadOrReuseBuildsAndRunTests({
 export default uploadOrReuseBuildsAndRunTests;
 
 /* ========================================================================== */
+
+/** The platforms the run's config names a device for - every platform the started test runs on. */
+function platformsInTheRun(buildRunConfig: ReturnType<typeof getBuildRunConfig>): Platform[] {
+  return (['android', 'ios'] as const).filter((platform) => buildRunConfig[platform]);
+}
+
+/** Each fresh bundle's module map, which the test's row counts the bundle's stories from. */
+function moduleManifestsOf(
+  freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
+): Partial<Record<Platform, ValidatedModuleManifest>> {
+  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
+  for (const [platform, freshBundle] of Object.entries(freshBundles) as [
+    Platform,
+    UploadedFreshBundle
+  ][]) {
+    if (freshBundle.moduleManifest) moduleManifests[platform] = freshBundle.moduleManifest;
+  }
+  return moduleManifests;
+}
+
+/** How many stories each fresh bundle holds, counted off its module map. */
+function storiesInBundleOf(
+  freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
+): Partial<Record<Platform, number>> {
+  return Object.fromEntries(
+    Object.entries(moduleManifestsOf(freshBundles)).map(([platform, moduleManifest]) => [
+      platform,
+      countBundleStories(moduleManifest),
+    ])
+  );
+}
+
+/** The platforms this push uploads an app build for, Android first. */
+function platformsWithAppBuilds(appBuildPaths: Partial<Record<Platform, string>>): Platform[] {
+  return (['android', 'ios'] as const).filter((platform) => appBuildPaths[platform]);
+}
 
 /**
  * Where a React Native binary embeds its JS bundle by default:
@@ -352,14 +489,6 @@ export default uploadOrReuseBuildsAndRunTests;
  * and in what format; the runner later overwrites the same path with the
  * freshly built bundle, which is what actually runs.
  */
-/** The platforms the user handed a binary for - the ones this run tests. */
-function platformsWithBinaries(commandParams: CommandParams): Platform[] {
-  const platforms: Platform[] = [];
-  if (commandParams.android) platforms.push('android');
-  if (commandParams.ios) platforms.push('ios');
-  return platforms;
-}
-
 function defaultEmbeddedBundlePath(platform: Platform): string {
   if (platform === 'android') {
     return 'assets/index.android.bundle';

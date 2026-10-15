@@ -93,9 +93,8 @@ const BUNDLE_SNIFF_BYTES = 16;
 const EXPO_PLIST_IOS_PATH = 'EXUpdates.bundle/Expo.plist';
 const EXPO_PLIST_IOS_APP_PATH = 'Expo.plist';
 
-// Android expo-updates metadata keys in AndroidManifest.xml (binary XML)
+// The Android expo-updates metadata key in AndroidManifest.xml (binary XML) that decides
 const EXPO_UPDATES_ENABLED_ANDROID = 'expo.modules.updates.ENABLED';
-const EXPO_UPDATES_METADATA_PREFIX = 'expo.modules.updates.';
 
 // AXML chunk type constants
 const AXML_CHUNK_STRING_POOL = 0x0001;
@@ -826,24 +825,20 @@ function parseAxmlStringPool(
  * Walk AXML start-tag chunks looking for `<meta-data>` elements whose
  * `android:name` starts with `expo.modules.updates.`.
  *
- * ORDERING CONTRACT (SHERLO-1744): AXML key order is build-tool-determined, so
- * the ENABLED key may appear AFTER other expo-updates keys (EXPO_RUNTIME_VERSION,
- * EXPO_UPDATES_CHECK_ON_LAUNCH, …). We therefore walk the WHOLE manifest and
- * collect every expo-updates meta-data before deciding, rather than returning on
- * the first key seen:
- *   - If the ENABLED key exists ANYWHERE, its value is AUTHORITATIVE.
- *     (An unreadable ENABLED value is treated as enabled=true.)
- *   - Otherwise, presence of any other expo-updates key implies enabled=true.
- *   - No expo-updates metadata at all → false.
- *
- * The earlier version returned `true` on the FIRST expo-updates key it hit; when
- * that key was a non-ENABLED one positioned before `ENABLED=false`, an app with
- * updates disabled was misclassified as enabled - poisoning base registration
- * (failReason=expo-updates-enabled-android) and killing every staged run.
+ * THE ENABLED KEY ALONE DECIDES. When Sherlo builds an app it switches
+ * expo-updates off by setting `expo.modules.updates.ENABLED` to false in the
+ * packaged manifest, and Expo's other `expo.modules.updates.*` entries
+ * (EXPO_RUNTIME_VERSION, EXPO_UPDATE_URL, EXPO_UPDATES_CHECK_ON_LAUNCH, …) stay
+ * beside it. Reading any of those as "on" would make the tool refuse its own app
+ * build, so they are ignored:
+ *   - The ENABLED key's value, wherever it sits: AXML key order is
+ *     build-tool-determined, so the WHOLE manifest is walked before deciding
+ *     (SHERLO-1744). An unreadable ENABLED value is treated as enabled=true.
+ *   - No ENABLED key → false.
  *
  * Returns:
- *  - `true`  – expo-updates is enabled (ENABLED=true, or configured without explicit ENABLED)
- *  - `false` – expo-updates is explicitly disabled (ENABLED=false) or absent
+ *  - `true`  – expo-updates is enabled (ENABLED=true)
+ *  - `false` – expo-updates is disabled (ENABLED=false) or the manifest has no ENABLED key
  *  - `null`  – the AXML format could not be parsed (caller should try a fallback)
  *
  * Exported for unit testing the value-parsing logic.
@@ -853,7 +848,6 @@ export function parseAxmlExpoUpdatesEnabled(buffer: Buffer): boolean | null {
     // Accumulated across the ENTIRE manifest - do NOT decide until the walk ends.
     let sawEnabledKey = false;
     let enabledValue: boolean | null = null;
-    let sawOtherExpoUpdatesKey = false;
     // --- Locate and parse the string pool ---
     let offset = 0;
     const xmlType = buffer.readUInt16LE(offset);
@@ -941,18 +935,14 @@ export function parseAxmlExpoUpdatesEnabled(buffer: Buffer): boolean | null {
             }
           }
 
-          // Record (do NOT return) every expo-updates meta-data. The ENABLED key
-          // is authoritative and may appear after other keys, so we must keep
-          // walking the whole manifest before deciding.
-          if (nameValue && nameValue.startsWith(EXPO_UPDATES_METADATA_PREFIX)) {
-            if (nameValue === EXPO_UPDATES_ENABLED_ANDROID) {
-              sawEnabledKey = true;
-              // Keep the parsed value when readable; an unreadable value stays
-              // null and is treated as enabled=true at the end.
-              if (valueResult !== null) enabledValue = valueResult;
-            } else {
-              sawOtherExpoUpdatesKey = true;
-            }
+          // Record (do NOT return) the ENABLED key: it may appear after other
+          // keys, so we keep walking the whole manifest before deciding. Every
+          // other expo-updates entry is ignored.
+          if (nameValue === EXPO_UPDATES_ENABLED_ANDROID) {
+            sawEnabledKey = true;
+            // Keep the parsed value when readable; an unreadable value stays
+            // null and is treated as enabled=true at the end.
+            if (valueResult !== null) enabledValue = valueResult;
           }
         }
       }
@@ -961,12 +951,10 @@ export function parseAxmlExpoUpdatesEnabled(buffer: Buffer): boolean | null {
     }
 
     // Decide only after the FULL walk (ordering-independent):
-    //  - ENABLED key present anywhere → its value is authoritative
+    //  - ENABLED key present anywhere → its value decides
     //    (unreadable value → enabled=true).
     if (sawEnabledKey) return enabledValue !== null ? enabledValue : true;
-    //  - otherwise any other expo-updates key implies configured → enabled.
-    if (sawOtherExpoUpdatesKey) return true;
-    //  - no expo-updates metadata at all.
+    //  - no ENABLED key.
     return false;
   } catch {
     return null;
@@ -1010,9 +998,8 @@ async function detectExpoUpdatesAndroid({
           projectRoot,
         });
         if (output) {
-          // SAME ordering semantics as the AXML walk above (SHERLO-1744): the
-          // ENABLED key is authoritative wherever it sits in the output, and
-          // only its ABSENCE lets another expo-updates key imply enabled.
+          // SAME semantics as the AXML walk above: the ENABLED key alone
+          // decides, wherever it sits in the output; no ENABLED key is off.
           //
           // Search for the ENABLED meta-data value in aapt output.
           // aapt output format: A: android:name(…)=\"expo.modules.updates.ENABLED\"
@@ -1030,10 +1017,7 @@ async function detectExpoUpdatesAndroid({
               return enabledMatch[2].toLowerCase() === 'true';
             }
           }
-          // No ENABLED key: any other expo-updates metadata → configured, enabled.
-          if (/E: meta-data[\s\S]*?A: android:name[^=]*?="expo\.modules\.updates\./.test(output)) {
-            return true;
-          }
+          return false;
         }
       } catch {
         // tool not available, try next

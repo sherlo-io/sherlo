@@ -415,7 +415,146 @@ function readStoryTitle(storyAbsPath, loaderEntry) {
   return title.replace('./', '');
 }
 
+// ---------------------------------------------------------------------------
+// How many stories a file holds
+// ---------------------------------------------------------------------------
+//
+// @storybook/react-native's prepareStories makes one story of every key of the
+// module's exports that (a) is not "default", (b) passes isExportStory - not
+// "__esModule", in includeStories when set, not in excludeStories when set - and
+// (c) is truthy. Nothing else: "__namedExportsOrder" is NOT excluded and counts
+// when it is truthy. Same rule as the title: a count that needs evaluation is
+// null ("I do not know"), never a guess.
+
+function metaObjectOf(program) {
+  var meta = defaultExportedExpression(program);
+  if (meta && meta.type === 'Identifier') meta = topLevelObjectBinding(program, meta.name);
+  return meta && meta.type === 'ObjectExpression' && !hasSpread(meta) ? meta : null;
+}
+
+/** Array of string literals / regex literal -> matcher, undefined if absent, null if unreadable. */
+function readStoryFilter(meta, name) {
+  var node = propertyValue(meta, name);
+  if (node === null) return undefined;
+  if (node.type === 'RegExpLiteral') {
+    try {
+      var re = new RegExp(node.pattern, node.flags);
+      return function (key) {
+        return !!key.match(re);
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+  if (node.type === 'ArrayExpression') {
+    var names = [];
+    for (var i = 0; i < node.elements.length; i++) {
+      var text = staticString(unwrapExpression(node.elements[i]));
+      if (text === null) return null;
+      names.push(text);
+    }
+    return function (key) {
+      return names.indexOf(key) !== -1;
+    };
+  }
+  return null;
+}
+
+function isFalsyLiteral(node) {
+  node = unwrapExpression(node);
+  if (!node) return false;
+  if (node.type === 'NullLiteral' || (node.type === 'Identifier' && node.name === 'undefined')) {
+    return true;
+  }
+  if (node.type === 'BooleanLiteral') return node.value === false;
+  if (node.type === 'NumericLiteral') return node.value === 0;
+  if (node.type === 'StringLiteral') return node.value === '';
+  return false;
+}
+
+/**
+ * The truthy named value exports of a module, or null when the export list
+ * cannot be read without evaluating (export *, re-exports, destructuring).
+ */
+function namedValueExports(program) {
+  var names = [];
+  var body = program.body || [];
+  for (var i = 0; i < body.length; i++) {
+    var node = body[i];
+    if (node.type === 'ExportAllDeclaration') return node.exportKind === 'type' ? names : null;
+    if (node.type !== 'ExportNamedDeclaration' || node.exportKind === 'type') continue;
+    if (node.source) return null;
+    var declaration = node.declaration;
+    if (declaration) {
+      if (declaration.type === 'VariableDeclaration') {
+        for (var d = 0; d < declaration.declarations.length; d++) {
+          var declarator = declaration.declarations[d];
+          if (declarator.id.type !== 'Identifier') return null;
+          if (!isFalsyLiteral(declarator.init)) names.push(declarator.id.name);
+        }
+      } else if (
+        declaration.type === 'FunctionDeclaration' ||
+        declaration.type === 'ClassDeclaration' ||
+        declaration.type === 'TSEnumDeclaration'
+      ) {
+        names.push(declaration.id.name);
+      }
+      continue;
+    }
+    for (var s = 0; s < node.specifiers.length; s++) {
+      var specifier = node.specifiers[s];
+      if (specifier.exportKind === 'type') continue;
+      if (specifier.type !== 'ExportSpecifier') return null;
+      // The local binding's value is not read, so truthiness is assumed.
+      names.push(
+        specifier.exported.type === 'Identifier'
+          ? specifier.exported.name
+          : specifier.exported.value
+      );
+    }
+  }
+  return names;
+}
+
+/**
+ * How many stories Storybook makes of this file, or null when not knowable.
+ * @param {string} source the story file's own source text
+ */
+function readStoryCount(source) {
+  var ast = parseSource(source);
+  if (!ast) return null;
+  var program = ast.program || ast;
+
+  var names = namedValueExports(program);
+  if (names === null) return null;
+  // No default export: prepareStories skips the whole file.
+  var hasDefault =
+    names.indexOf('default') !== -1 ||
+    (program.body || []).some(function (n) {
+      return n.type === 'ExportDefaultDeclaration';
+    });
+  if (!hasDefault) return 0;
+
+  var meta = metaObjectOf(program);
+  if (!meta) return null;
+  var include = readStoryFilter(meta, 'includeStories');
+  var exclude = readStoryFilter(meta, 'excludeStories');
+  if (include === null || exclude === null) return null;
+
+  var seen = {};
+  var count = 0;
+  names.forEach(function (key) {
+    if (key === 'default' || key === '__esModule' || seen[key]) return;
+    seen[key] = true;
+    if (include && !include(key)) return;
+    if (exclude && exclude(key)) return;
+    count++;
+  });
+  return count;
+}
+
 module.exports = {
+  readStoryCount: readStoryCount,
   readStoryLoaderEntries: readStoryLoaderEntries,
   findLoaderEntry: findLoaderEntry,
   readDeclaredTitle: readDeclaredTitle,

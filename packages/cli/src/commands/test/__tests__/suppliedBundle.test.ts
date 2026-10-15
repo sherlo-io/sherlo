@@ -24,7 +24,7 @@ import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Platform } from '@sherlo/api-types';
 
-vi.mock('../../showError/detectBundler', () => ({
+vi.mock('../detectBundler', () => ({
   default: vi.fn(() => 'rn'),
   detectEntryFile: vi.fn(() => 'index.js'),
 }));
@@ -122,6 +122,7 @@ const EMITTED_BASE_FINGERPRINT: BaseFingerprintResult = {
     nativeSources: [{ type: 'dir', id: 'ios', hash: 'h' }],
     lockfiles: [],
     autolinkedModules: [],
+    nativeFolderFiles: [],
   },
 };
 
@@ -232,6 +233,7 @@ async function emit(
   opts: {
     withManifest?: boolean;
     withAssets?: boolean;
+    /** The emitting machine's base fingerprint, the same on every platform here. */
     baseFingerprint?: BaseFingerprintResult;
   } = {}
 ): Promise<void> {
@@ -239,7 +241,10 @@ async function emit(
     projectRoot,
     platformsToTest: platforms,
     bundleDir,
-    ...(opts.baseFingerprint ? { baseFingerprint: opts.baseFingerprint } : {}),
+    ...(opts.baseFingerprint
+      ? { baseFingerprints: { android: opts.baseFingerprint, ios: opts.baseFingerprint } }
+      : {}),
+    buildSettings: {},
     bundleFor: async (_root, platform) => scriptedBundle(platform, opts),
     gateMetadataFor: async () => EMITTED_GATE_METADATA,
   });
@@ -687,13 +692,14 @@ describe('a sidecar that does not match is refused by field', () => {
     await expect(accept('android')).rejects.toThrow(/not valid JSON/);
   });
 
-  it('every refusal carries the full-run fallback line', async () => {
+  it('no refusal names an app file a person built', async () => {
     await emit(['android']);
     mockGetPackageVersion.mockReturnValue('0.77.0');
 
     const error = await refusalFrom('android');
 
-    expect(error.message).toMatch(/full build/i);
+    expect(error.message).not.toMatch(/full build/i);
+    expect(error.message).not.toContain('--android <path>');
   });
 });
 

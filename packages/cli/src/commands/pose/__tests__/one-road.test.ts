@@ -1,5 +1,5 @@
 /**
- * ONE ROAD (sherlo / Drawing for a plan).
+ * ONE ROAD.
  *
  * `sherlo pose` used to have three older siblings: `--render-transcript`, `--render-transcript-state`
  * and `--emit-expectation` on `sherlo test --dry-run`, each with its own scenario catalog, its own

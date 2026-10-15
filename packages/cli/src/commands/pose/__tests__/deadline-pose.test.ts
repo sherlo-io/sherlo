@@ -1,8 +1,6 @@
 /**
  * A WAIT THAT RUNS OUT AGAINST A POSE - the posed clock passes the deadline while the build is
- * still running, and the tool prints its deadline closer and exits 3. Written as a skeleton in
- * plan (epic legacy-road-closed, task push-pose-staged-and-deadline); the worker fills the bodies
- * and never renames a case.
+ * still running, and the tool prints its deadline closer and exits 3.
  */
 import fs from 'fs';
 import path from 'path';
@@ -25,7 +23,7 @@ describe('a wait that runs out is posable', () => {
     // The minutes read `<N>`: a run that reached this closer passed a clock of its own, so the
     // masker folds the number on every screen (../maskScreen). The closer and the exit code are
     // what this case is about, and both are here.
-    expect(screen).toContain('⏰ Timeout reached after <N> minutes.');
+    expect(screen).toContain('! Stopped waiting after <N> minute.');
     expect(exitCode).toBe(EXIT_TIMEOUT);
   });
 

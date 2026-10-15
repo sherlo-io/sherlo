@@ -19,77 +19,25 @@
  *   - TWO SPACES AFTER AN ICON align the text with the section titles above it.
  */
 import chalk from 'chalk';
-import { DEVICES } from '@sherlo/shared';
-import { Platform } from '@sherlo/api-types';
-import { PLATFORM_LABEL } from '../constants';
-import type { Config } from '../types';
-
-type PlatformDeviceCounts = { android: number; ios: number };
 
 /**
- * How many devices of each platform a config asks for.
- *
- * Lives in the render layer because the COUNT is what gets rendered and nothing
- * upstream needs it: the run header's singular/plural, its per-platform
- * breakdown and its order are all decisions about what the line looks like.
+ * A warning or a note on a test's road, in init's marks: `! <warning>` in yellow, a note as it
+ * is, and the link under either. `renderNotice` below keeps its `WARNING:` / `INFO:` look for the
+ * init sections that call it.
  */
-export function countDevicesByPlatform(configDevices: Config['devices']): PlatformDeviceCounts {
-  const platformCounts: PlatformDeviceCounts = { android: 0, ios: 0 };
-
-  configDevices.forEach((deviceConfig) => {
-    const device = DEVICES[deviceConfig.id];
-
-    if (device) platformCounts[device.os] += 1;
-  });
-
-  return platformCounts;
-}
-
-/** `Test 3 will run on 2 devices (1 Android, 1 iOS)` + a trailing blank line. */
-export function renderRunHeader(nextBuildIndex: number, devices: Config['devices']): string {
-  const platformCounts = countDevicesByPlatform(devices);
-  const totalDevices = platformCounts.android + platformCounts.ios;
-  const deviceText = totalDevices === 1 ? 'device' : 'devices';
-
-  const platformBreakdown = [];
-  if (platformCounts.android) {
-    platformBreakdown.push(`${platformCounts.android} ${PLATFORM_LABEL.android}`);
-  }
-  if (platformCounts.ios) {
-    platformBreakdown.push(`${platformCounts.ios} ${PLATFORM_LABEL.ios}`);
-  }
-
-  return `${chalk.green(`Test ${nextBuildIndex}`)} will run on ${chalk.blue(
-    `${totalDevices} ${deviceText}`
-  )} (${platformBreakdown.join(', ')})\n`;
-}
-
-/** `📦 Android` - the header of one platform's binary block. */
-export function renderBinaryPlatformLabel(platform: Platform): string {
-  return '📦 ' + chalk.bold(PLATFORM_LABEL[platform]);
-}
-
-/**
- * The `➜ ` / `✔ ` build line every binary block is made of.
- *
- * ONE implementation, used by the spine's own segments AND by the generic
- * `build-message` passthrough, so the icon and the two-space alignment cannot
- * drift between a fixtured call site and an unfixtured one.
- */
-export function renderBuildMessageLine(message: string, type: 'info' | 'success'): string {
-  const iconColor = type === 'success' ? 'green' : 'blue';
-  const icon = type === 'success' ? '✔' : '➜';
-
-  // Two spaces after the icon align the text with the section titles.
-  return `${chalk[iconColor](icon)}  ${message}`;
-}
-
-/** `✔  reusing unchanged build (Test 1, 7 minutes ago)`. */
-export function renderBinaryReused(buildIndex: number, timeAgo: string): string {
-  return renderBuildMessageLine(
-    `reusing unchanged build (${chalk.green(`Test ${buildIndex}`)}, ${chalk.blue(timeAgo)})`,
-    'success'
-  );
+export function renderTestNotice({
+  level,
+  message,
+  learnMoreLink,
+}: {
+  level: 'warning' | 'info';
+  message: string;
+  learnMoreLink?: string;
+}): string[] {
+  return [
+    level === 'warning' ? chalk.yellow(`! ${message}`) : message,
+    ...(learnMoreLink ? [chalk.dim(`  Learn more: ${chalk.cyan(learnMoreLink)}`)] : []),
+  ];
 }
 
 /** `WARNING: ...` / `INFO: ...`, with an optional `↳ Learn more:` line under it. */

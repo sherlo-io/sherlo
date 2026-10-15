@@ -5,6 +5,8 @@
  * Covers:
  *  - "No devices configured" is a TOOL ERROR, not a routing answer: it exits
  *    non-zero and publishes no `native-needed` key.
+ *  - a fingerprint that cannot be computed hands every platform to the build road.
+ *  - a joined staged job prints no capture plan, only the run's link.
  *  - gitInfo parity: the staged road captures git info with the SAME getGitInfo
  *    call as the standard road and forwards that exact object to openBuild.
  *  - the capture plan + closer, and the server-bypassed build's closer.
@@ -24,6 +26,7 @@ chalk.level = 0;
 
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
+import { buildSettingsDigest } from '../appBuild/buildSettings';
 import { keysTheApiRejects } from '../../../helpers/__tests__/openBuildPlatformConfigKeys';
 
 // ---------------------------------------------------------------------------
@@ -67,7 +70,6 @@ vi.mock('../../../helpers', async () => {
       throw error;
     }),
     logWarning: vi.fn(),
-    printResultsUrl: vi.fn(),
     printSherloIntro: vi.fn(),
     reporting: {
       flush: vi.fn().mockResolvedValue(undefined),
@@ -94,8 +96,16 @@ vi.mock('../uploadStagedArtifacts', () => ({
   default: vi.fn(),
 }));
 
-vi.mock('../dryRun', () => ({
-  runDryRunPreview: vi.fn(),
+// The build road and the joined run are other files' tests: here only WHAT reaches them matters.
+// A job with a `--platform` joins the run its `--run-id` names; any other job joins none.
+vi.mock('../appBuild/buildThenPush', () => ({
+  buildThenPush: vi.fn(),
+  splitRunKeyOf: (options: { platform?: string; runId?: string }) =>
+    options.platform ? `run:${options.runId}` : null,
+}));
+
+vi.mock('../appBuild/joinTheRun', () => ({
+  joinTheRun: vi.fn(),
 }));
 
 // stagedRun imports isServerBypassed / printServerBypassCloser / the network
@@ -118,7 +128,6 @@ import {
   getGitInfo as _getGitInfo,
   getPlatformsToTest as _getPlatformsToTest,
   getValidatedCommandParams as _getValidatedCommandParams,
-  printResultsUrl as _printResultsUrl,
   printSherloIntro as _printSherloIntro,
   waitForBuildResult as _waitForBuildResult,
 } from '../../../helpers';
@@ -128,7 +137,8 @@ import {
   buildGateMetadata as _buildGateMetadata,
 } from '../buildBundle';
 import _uploadStagedArtifacts from '../uploadStagedArtifacts';
-import { runDryRunPreview as _runDryRunPreview } from '../dryRun';
+import { buildThenPush as _buildThenPush } from '../appBuild/buildThenPush';
+import { joinTheRun as _joinTheRun } from '../appBuild/joinTheRun';
 import { fetchServerBypassReason as _fetchServerBypassReason } from '../../../helpers/waitForBuildResult';
 
 const mockGetAppBuildUrl = vi.mocked(_getAppBuildUrl);
@@ -136,13 +146,13 @@ const mockGetBuildRunConfig = vi.mocked(_getBuildRunConfig);
 const mockGetGitInfo = vi.mocked(_getGitInfo);
 const mockGetPlatformsToTest = vi.mocked(_getPlatformsToTest);
 const mockGetValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
-const mockPrintResultsUrl = vi.mocked(_printResultsUrl);
 const mockPrintSherloIntro = vi.mocked(_printSherloIntro);
 const mockComputeBaseFingerprint = vi.mocked(_computeBaseFingerprint);
 const mockBuildBundleForPlatform = vi.mocked(_buildBundleForPlatform);
 const mockBuildGateMetadata = vi.mocked(_buildGateMetadata);
 const mockUploadStagedArtifacts = vi.mocked(_uploadStagedArtifacts);
-const mockRunDryRunPreview = vi.mocked(_runDryRunPreview);
+const mockBuildThenPush = vi.mocked(_buildThenPush);
+const mockJoinTheRun = vi.mocked(_joinTheRun);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
 const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
 
@@ -274,7 +284,10 @@ describe('gitInfo parity with the standard road', () => {
       wait: false,
     } as any);
     mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: 'BASE_FP' },
+      ios: { hash: 'BASE_FP' },
+    } as any);
     // Gate says fast so the happy path proceeds to upload + openBuild.
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
@@ -294,7 +307,6 @@ describe('gitInfo parity with the standard road', () => {
     mockGetGitInfo.mockResolvedValue(GIT_INFO as any);
     mockOpenBuild.mockResolvedValue({ build: { index: 7 } });
     mockGetAppBuildUrl.mockReturnValue('http://app/build?x=1');
-    mockPrintResultsUrl.mockImplementation(() => {});
   });
 
   it('calls getGitInfo with projectRoot + branchOverride (same signature as the standard road)', async () => {
@@ -317,7 +329,7 @@ describe('gitInfo parity with the standard road', () => {
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     // Identity check: parity means the SAME object the standard road would send.
     expect(openBuildArg.gitInfo).toBe(GIT_INFO);
-    expect(openBuildArg.baseFingerprint).toBe('BASE_FP');
+    expect(openBuildArg.baseFingerprints).toEqual({ ios: 'BASE_FP' });
     expect(openBuildArg.gateMetadata.ios).toEqual({ engineClass: 'hermes' });
     expect(result).toEqual({ url: 'http://app/build?x=1' });
 
@@ -384,81 +396,60 @@ describe('gitInfo parity with the standard road', () => {
 });
 
 // ---------------------------------------------------------------------------
-// --dry-run: preview only, creates nothing (SHERLO-1895 Phase C)
+// A fingerprint that cannot be computed: no stored app build can be matched, so the build road
+// takes every platform. Nothing is exited, asked of the gate or bundled (ruling item 23).
 // ---------------------------------------------------------------------------
 
-describe('--dry-run', () => {
-  beforeEach(() => {
+describe('the build settings of the app build', () => {
+  it('the staged gate is asked with the build settings digest, so a changed build setting builds the app again', async () => {
+    const buildSettings = { env: { API_URL: 'https://staging.example.com' } };
+    mockGetValidatedCommandParams.mockReturnValue({
+      projectRoot: '/proj',
+      credential: PROJECT_TOKEN_CREDENTIAL,
+      devices: [IOS_DEVICE],
+      buildSettings,
+    } as any);
+    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
+    mockComputeBaseFingerprint.mockResolvedValue({ ios: { hash: 'BASE_FP' } } as any);
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'not-stageable', diff: [] });
+    mockBuildThenPush.mockResolvedValue({ url: 'http://app/built' });
+
+    await stagedRun(mockOptions());
+
+    expect(mockCheckStagedGate).toHaveBeenCalledWith(
+      expect.objectContaining({ buildSettingsDigest: buildSettingsDigest(buildSettings, 'ios') })
+    );
+  });
+});
+
+describe('a fingerprint that cannot be computed', () => {
+  it('hands every platform to the build road, with no exit and no gate question', async () => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
+      throw new Error(`process.exit(${code})`);
+    });
     mockGetValidatedCommandParams.mockReturnValue({
       projectRoot: '/proj',
       credential: PROJECT_TOKEN_CREDENTIAL,
       devices: [IOS_DEVICE],
     } as any);
-    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
-    mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
-    mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
-    mockRunDryRunPreview.mockResolvedValue(undefined);
-  });
+    mockGetPlatformsToTest.mockReturnValue(['ios', 'android'] as any);
+    const unavailable = { hash: '', debugMessage: 'No base binary found' };
+    mockComputeBaseFingerprint.mockResolvedValue({ android: unavailable, ios: unavailable } as any);
+    mockBuildThenPush.mockResolvedValue({ url: 'http://app/built' });
 
-  it('runs the preview and creates NO build: no gate check, no upload, no openBuild', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const result = await stagedRun(mockOptions());
 
-    const result = await stagedRun({ dryRun: true });
-
-    expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
-    const arg = mockRunDryRunPreview.mock.calls[0][0];
-    expect(arg.platformsToTest).toEqual(['ios']);
-    expect(arg.projectIndex).toBe(3);
-    expect(arg.teamId).toBe('team');
-    expect(arg.bundles.ios).toBeDefined();
-
-    // The whole build-creating pipeline is skipped.
+    expect(mockBuildThenPush).toHaveBeenCalledTimes(1);
+    expect(mockBuildThenPush.mock.calls[0][0].refusals.map((r) => r.platform)).toEqual([
+      'ios',
+      'android',
+    ]);
     expect(mockCheckStagedGate).not.toHaveBeenCalled();
-    expect(mockGetStagedUploadUrls).not.toHaveBeenCalled();
-    expect(mockUploadStagedArtifacts).not.toHaveBeenCalled();
-    expect(mockOpenBuild).not.toHaveBeenCalled();
-
-    expect(result).toEqual({ url: '' });
-
-    logSpy.mockRestore();
-  });
-
-  it('bundles via the SAME real path (buildBundleForPlatform) before previewing', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-    await stagedRun({ dryRun: true });
-
-    // The manifest comes from the real bundle path, not a synthetic one.
-    expect(mockBuildBundleForPlatform).toHaveBeenCalledTimes(1);
-    expect(mockBuildBundleForPlatform).toHaveBeenCalledWith({
-      projectRoot: '/proj',
-      platform: 'ios',
-    });
-
-    logSpy.mockRestore();
-  });
-
-  // A missing base fingerprint hard-fails a real staged run, but for a preview it
-  // is a staged-only concern: the dry run proceeds and still produces its preview.
-  it('does NOT hard-fail on a missing base fingerprint (staged-only concern)', async () => {
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: number) => {
-      throw new Error(`process.exit(${code})`);
-    });
-    mockComputeBaseFingerprint.mockResolvedValue({
-      hash: '',
-      debugMessage: 'No base binary found',
-    } as any);
-
-    const result = await stagedRun({ dryRun: true });
-
-    expect(mockRunDryRunPreview).toHaveBeenCalledTimes(1);
+    expect(mockBuildBundleForPlatform).not.toHaveBeenCalled();
     expect(exitSpy).not.toHaveBeenCalled();
-    expect(result).toEqual({ url: '' });
+    expect(result).toEqual({ url: 'http://app/built' });
 
     exitSpy.mockRestore();
-    logSpy.mockRestore();
   });
 });
 
@@ -499,7 +490,10 @@ describe('live capture plan', () => {
       wait: false,
     } as any);
     mockGetPlatformsToTest.mockReturnValue(platforms as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: 'BASE_FP' },
+      ios: { hash: 'BASE_FP' },
+    } as any);
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(
       bundleResult({ moduleManifest: manifest(storyCount) })
@@ -529,7 +523,7 @@ describe('live capture plan', () => {
     return logSpy.mock.calls.map((c: unknown[]) => c.join(' ')).join('\n');
   }
 
-  it('Case 2: partial capture WITH a per-platform reason - fraction, reuse clause, list, why', async () => {
+  it("Case 2: partial capture WITH a per-platform reason - the fraction on the test's row, the story files under it, and no reason", async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -561,19 +555,37 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('📸 Capture plan');
-    expect(out).toContain(
-      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
-    );
-    expect(out).toContain('     why: SharedButton.tsx changed');
-    expect(out).toContain('     stories:');
-    expect(out).toContain('       • Storefront/Storefront');
-    expect(out).toContain('       • Cart/Cart');
+    expect(out).toContain('Test 7      ✔ Started: 2 of 22 stories on 1 device');
+    // The reason a partial capture took what it took is `sherlo view <n> --json`'s; the story files
+    // it captures are listed under the test's row, each one a change reaches marked `~`.
+    expect(out).not.toContain('SharedButton.tsx changed');
+    expect(out).toContain('~ src/components/Storefront/Storefront.stories.tsx');
+    expect(out).toContain('~ src/components/Cart/Cart.stories.tsx');
+    expect(out).not.toContain('Planned the capture');
 
     logSpy.mockRestore();
   });
 
-  it('Case 4: full capture, taking the reason from fullCaptureTriggerReason (ladder rung 2)', async () => {
+  it("a joined staged job prints no capture plan, only the run's link", async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({
+      openBuildReturn: undefined,
+    });
+    mockJoinTheRun.mockResolvedValue({ build: { index: 7 }, waitingFor: [] });
+
+    await stagedRun({ platform: 'ios', runId: 'one-ci-run' });
+
+    expect(mockJoinTheRun).toHaveBeenCalledTimes(1);
+    expect(mockOpenBuild).not.toHaveBeenCalled();
+    const out = printed(logSpy);
+    expect(out).not.toContain('Started:');
+    expect(out).not.toContain('stories');
+    expect(out).toContain('http://app/build');
+
+    logSpy.mockRestore();
+  });
+
+  it('Case 4: full capture - all stories, and never the build-wide fullCaptureTriggerReason (a machine code)', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       openBuildReturn: {
@@ -593,8 +605,8 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
-    expect(out).toContain('     why: native code changed - everything re-shot');
+    expect(out).toContain('Test 7      ✔ Started: all 22 stories on 1 device');
+    expect(out).not.toContain('everything re-shot');
     // Inversion: an empty list on a full capture is "everything", never "nothing".
     expect(out).not.toContain('capturing 0');
     expect(out).not.toContain('nothing');
@@ -623,8 +635,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - nothing to capture - no change reaches any story');
-    expect(out).toContain('     ✓ none of the 22 stories in this bundle need capture');
+    // A decision of none that the server did not close at open still starts the test.
+    expect(out).toContain('Test 7      ✔ Started: 0 of 22 stories on 1 device');
+    expect(out).not.toContain('no change reaches any story');
     // No "Build created" line (SHERLO-1937) - the Review URL is the ending.
     expect(out).not.toContain('Build created');
     expect(out).toContain('🔗 Review: http://app/build');
@@ -633,7 +646,7 @@ describe('live capture plan', () => {
     logSpy.mockRestore();
   });
 
-  it('Case 7: full capture with NO reason degrades to the "couldn\'t compute" safety row', async () => {
+  it('Case 7: full capture with NO reason says all stories and nothing after them', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 22,
@@ -649,14 +662,13 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 22 stories in this bundle');
-    expect(out).toContain("     ! couldn't compute what changed - capturing everything to be safe");
-    expect(out).not.toContain('why:');
+    expect(out).toContain('Test 7      ✔ Started: all 22 stories on 1 device\n');
+    expect(out).not.toContain("couldn't work out");
 
     logSpy.mockRestore();
   });
 
-  it('renders a partial WITHOUT a reason (forward-compat degrade): counts + list, no why line', async () => {
+  it('renders a partial WITHOUT a reason (forward-compat degrade): the count alone', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
       storyCount: 8,
@@ -681,12 +693,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain(
-      '🍎 iOS - capturing 1 of 8 stories in this bundle, reusing 7 from the previous build'
-    );
-    expect(out).toContain('       • x/X');
-    // The block renders in full; it simply carries no why line.
-    expect(out).not.toContain('why:');
+    expect(out).toContain('Test 7      ✔ Started: 1 of 8 stories on 1 device');
+    // The story file is listed under the row, by its path while the module map gives no title.
+    expect(out).toContain('~ src/components/x/X.stories.tsx');
 
     logSpy.mockRestore();
   });
@@ -703,9 +712,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    // No plan: no header, no per-platform block, no assertion of a decision.
-    expect(out).not.toContain('Capture plan');
-    expect(out).not.toContain('capturing');
+    // No count: no assertion of a decision the server never made.
+    expect(out).toContain('Test 7      ✔ Started: on 1 device');
+    expect(out).not.toContain('stories');
     // No "Build created" line (SHERLO-1937) - the link is never withheld though.
     expect(out).not.toContain('Build created');
     expect(out).not.toContain('running on devices');
@@ -749,14 +758,8 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     expect(out).toContain(
-      '🍎 iOS - capturing 1 of 22 stories in this bundle, reusing 21 from the previous build'
+      'Test 7      ✔ Started: 🍎 iOS 1 of 22 stories, 🤖 Android 0 of 22 stories, on 2 devices'
     );
-    expect(out).toContain('     why: ProductCardPlatformNote.ios.tsx changed');
-    expect(out).toContain('       • Storefront/ProductCard');
-    expect(out).toContain(
-      '🤖 Android - nothing to capture - the change never reaches the Android app'
-    );
-    expect(out).toContain('     ✓ none of the 22 stories in this bundle need capture');
     // No "Build created" line (SHERLO-1937) - even though iOS captured a story,
     // there is no "- running on devices" suffix either.
     expect(out).not.toContain('Build created');
@@ -791,7 +794,7 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    const planIdx = out.indexOf('📸 Capture plan');
+    const planIdx = out.indexOf('1 of 22 stories');
     const urlIdx = out.indexOf('🔗 Review:');
     expect(planIdx).toBeGreaterThanOrEqual(0);
     expect(urlIdx).toBeGreaterThan(planIdx);
@@ -829,13 +832,9 @@ describe('live capture plan', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('🍎 iOS - capturing all 10 stories in this bundle');
-    expect(out).toContain('     why: native-changed');
     expect(out).toContain(
-      '🤖 Android - capturing 1 of 10 stories in this bundle, reusing 9 from the previous build'
+      'Test 7      ✔ Started: 🍎 iOS all 10 stories, 🤖 Android 1 of 10 stories, on 2 devices'
     );
-    expect(out).toContain('       • x/X');
-    expect(out).toContain('     why: x.tsx changed');
 
     logSpy.mockRestore();
   });
@@ -874,9 +873,7 @@ describe('live capture plan', () => {
 
     const out = printed(logSpy);
     // The exact fraction is pinned so the invariant is stated, not inferred.
-    expect(out).toContain(
-      '🍎 iOS - capturing 2 of 22 stories in this bundle, reusing 20 from the previous build'
-    );
+    expect(out).toContain('Test 7      ✔ Started: 2 of 22 stories');
 
     logSpy.mockRestore();
   });
@@ -944,7 +941,10 @@ describe('server-bypassed build (SHERLO-1952)', () => {
       waitTimeout: undefined,
     } as any);
     mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
-    mockComputeBaseFingerprint.mockResolvedValue({ hash: 'BASE_FP' } as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      android: { hash: 'BASE_FP' },
+      ios: { hash: 'BASE_FP' },
+    } as any);
     mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
     mockBuildBundleForPlatform.mockResolvedValue(bundleResult());
     mockBuildGateMetadata.mockResolvedValue({ engineClass: 'hermes' } as any);
@@ -1001,7 +1001,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     logSpy.mockRestore();
   });
 
-  it('NON-wait: prints the compact closer with the verbatim reason and NO Review URL', async () => {
+  it('NON-wait: prints the compact closer naming the test and NO Review URL', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: true });
     mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
@@ -1009,8 +1009,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     await stagedRun(mockOptions());
 
     const out = printed(logSpy);
-    expect(out).toContain('✅ Nothing needed capturing - no change reaches any story');
-    expect(out).toContain('closed by the server - no device run was needed');
+    expect(out).toContain('Test 7      ✔ Finished: nothing to test: no change reaches any story');
     // The whole point: no URL of any kind on the bypassed path.
     expect(out).not.toContain('🔗 Review');
     expect(out).not.toContain('http://app/build');
@@ -1081,15 +1080,21 @@ describe('server-bypassed build (SHERLO-1952)', () => {
 
     await stagedRun(mockOptions());
 
-    expect(printed(logSpy)).toMatchSnapshot();
+    // The test ends on its row, finished: no started row, no next step, no link.
+    const out = printed(logSpy);
+    expect(
+      out.endsWith('Test 7      ✔ Finished: nothing to test: no change reaches any story')
+    ).toBe(true);
+    expect(out).not.toContain('Started:');
+    expect(out).not.toContain('Next step');
 
     logSpy.mockRestore();
   });
 
-  // BYTE-IDENTICAL guarantee (explicit acceptance criterion): a non-bypassed
-  // build's own printed output is unchanged, and identical whether or not --wait
-  // is set (the wait poll adds nothing to stagedRun's own output here).
-  it('non-bypassed output is byte-identical with and without --wait', async () => {
+  // Init's grammar: both endings carry the same steps and the same
+  // link; without --wait the link sits in the `👉 Next step` section with the command that waits,
+  // and with it the link comes LAST, after the verdict the (mocked) wait prints.
+  it('non-bypassed output ends on the next step without --wait and on the link with it', async () => {
     const logA = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: false });
     await stagedRun(mockOptions());
@@ -1104,13 +1109,24 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     const withWait = printed(logB);
     logB.mockRestore();
 
-    expect(withWait).toBe(withoutWait);
-    expect(withoutWait).toMatchSnapshot();
+    const steps = withWait.slice(0, withWait.indexOf('🔗 Review:'));
+    expect(withoutWait.startsWith(steps)).toBe(true);
+    expect(withWait.endsWith('🔗 Review: http://app/build\n')).toBe(true);
+    expect(withoutWait).toContain(
+      [
+        '👉 Next step',
+        '════════════',
+        '',
+        'Review Test 7 when it finishes',
+        '   🔗 Review: http://app/build',
+        '   To wait for the result: npx sherlo view 7 --wait',
+      ].join('\n')
+    );
   });
 
   /* ------------------------------------------------------------------------ *
    * THE CLOSER PRINTS THE ADDRESS ONCE, ON THE LINE WITH THE EMOJI, WHOEVER   *
-   * IS READING (operator ruling 2026-09-15). The `url=` line a machine used   *
+   * IS READING. The `url=` line a machine used                                *
    * to get above the link is gone: the same address twice on a screen was the *
    * defect. The staged road closes with its own wording, so it needs its own  *
    * cases: the render layer's `results-url` pins say nothing about this line. *

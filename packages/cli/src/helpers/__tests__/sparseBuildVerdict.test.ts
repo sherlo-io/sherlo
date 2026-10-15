@@ -72,8 +72,20 @@ async function runWaitLoop(build: BuildStatus): Promise<{ exitCode: number; stdo
   return { exitCode, stdout: captured.stdout };
 }
 
-/** The two lines every run of the above starts with, before any closer. */
-const WAIT_PREAMBLE = '⏳ Waiting for build results (timeout: 45min)...\n   🟢 Finished\n';
+/**
+ * The two lines every run of the above starts with, before any closer: the wait's plain line (a
+ * capture is not a terminal) and the finished step - with no time, as `sherlo view` waits.
+ */
+const WAIT_PREAMBLE = 'Waiting for Test 1 to finish (up to 45 min)...\n✔ Finished Test 1\n';
+
+/**
+ * A verdict section (init's grammar): a blank line, the title, its underline, then - when it has
+ * one - a blank line and the body. A section with no body ends at its underline.
+ */
+function verdictSection(title: string, underlineLength: number, ...body: string[]): string {
+  const underlined = `\n${title}\n${'═'.repeat(underlineLength)}\n`;
+  return body.length > 0 ? `${underlined}\n${body.join('\n')}\n` : underlined;
+}
 
 /* ========================================================================== */
 /* (2) THE UNGATED PATH IS INDIFFERENT TO THE NEW FIELDS                      */
@@ -95,9 +107,7 @@ describe('a build the server did not mark prints exactly what it always printed'
     const { exitCode, stdout } = await runWaitLoop(allZeroGreen);
 
     expect(exitCode).toBe(EXIT_GREEN);
-    expect(stdout).toBe(
-      `${WAIT_PREAMBLE}\n✅ All stories passed - no visual changes require review.\n\n`
-    );
+    expect(stdout).toBe(`${WAIT_PREAMBLE}\n${verdictSection('✅ All stories passed', 21)}\n`);
   });
 
   it('is unchanged when the server sends the gate explicitly false', async () => {
@@ -149,8 +159,12 @@ describe('a build the server did not mark prints exactly what it always printed'
 
     expect(withoutGate.exitCode).toBe(EXIT_BLOCK);
     expect(withoutGate.stdout).toBe(
-      `${WAIT_PREAMBLE}\n⚠️  Build finished with changes requiring review.\n` +
-        '   2 story/stories unreviewed.\n   1 story/stories reported.\n\n'
+      `${WAIT_PREAMBLE}\n${verdictSection(
+        '⚠️ 3 stories need review',
+        24,
+        '1 story reported',
+        'Open them in Sherlo to approve or report.'
+      )}\n`
     );
     expect(gateOff.stdout).toBe(withoutGate.stdout);
     expect(gateOff.exitCode).toBe(withoutGate.exitCode);
@@ -178,8 +192,12 @@ describe('an opted-in build takes its verdict from the server, not from the tall
 
     expect(exitCode).toBe(EXIT_GREEN);
     expect(stdout).toBe(
-      `${WAIT_PREAMBLE}\n✅ No visual changes - all snapshots match their baselines.\n` +
-        '   3 captured on this branch, 41 inherited unchanged\n\n'
+      `${WAIT_PREAMBLE}\n${verdictSection(
+        '✅ No visual changes',
+        20,
+        'All snapshots match their baselines.',
+        '3 captured on this branch, 41 carried over unchanged.'
+      )}\n`
     );
   });
 
@@ -208,18 +226,18 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     const { exitCode, stdout } = await runWaitLoop(recordedNothing);
 
     expect(exitCode).toBe(EXIT_BLOCK);
-    expect(stdout).toContain('Build finished without recording any snapshots.');
+    expect(stdout).toContain('Nothing was recorded');
     expect(stdout).not.toContain('All stories passed');
-    expect(stdout).not.toContain('0 story/stories unreviewed');
+    expect(stdout).not.toContain('0 stories unreviewed');
   });
 
   /**
    * The counterweight to the case above, and the ruling the guard must not
    * over-reach on: a build that captured NOTHING but inherited the whole suite
    * has recorded plenty. It is green today and stays green, and it keeps the
-   * server's own prose rather than being flattened into the generic sparse line.
+   * bypassed closer rather than being flattened into the generic sparse line.
    */
-  it('a server-bypassed build stays green and keeps its verbatim reason', async () => {
+  it('a server-bypassed build stays green and keeps its bypassed closer', async () => {
     const bypassed = optedIn(
       {
         runStatus: 'finished',
@@ -236,9 +254,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     const { exitCode, stdout } = await runWaitLoop(bypassed);
 
     expect(exitCode).toBe(EXIT_GREEN);
-    expect(stdout).toContain(
-      '✅ Nothing needed capturing - no change on this branch reaches any story'
-    );
+    expect(stdout).toContain('nothing to test: no change on this branch reaches any story');
     expect(stdout).not.toContain('No visual changes');
   });
 
@@ -286,9 +302,9 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     );
 
     expect(exitCode).toBe(EXIT_BLOCK);
-    expect(stdout).toContain('⚠️  Build finished with changes requiring review.');
-    expect(stdout).toContain('   2 story/stories unreviewed.');
-    expect(stdout).not.toContain('without recording any snapshots');
+    expect(stdout).toContain('⚠️ 2 stories need review');
+    expect(stdout).toContain('Open them in Sherlo to approve or report.');
+    expect(stdout).not.toContain('Nothing was recorded');
   });
 
   /**
@@ -307,7 +323,7 @@ describe('an opted-in build takes its verdict from the server, not from the tall
       )
     );
 
-    expect(stdout).toContain('✅ No visual changes - all snapshots match their baselines.');
+    expect(stdout).toContain('All snapshots match their baselines.');
     expect(stdout).not.toContain('captured on this branch');
   });
 });

@@ -16,7 +16,6 @@ function handleClientError(error: any, token?: string): never {
     if (token !== undefined && token === savedLogin?.token) refuseRejectedLogin();
 
     throwError({
-      type: 'auth',
       message:
         'Invalid token\n\n' +
         'Please:\n' +

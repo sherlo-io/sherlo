@@ -2,6 +2,7 @@ import { Platform } from '@sherlo/api-types';
 import http from 'http';
 import https from 'https';
 import fetch from 'node-fetch';
+import { whileShowing } from '../../../commands/shared/terminal';
 import { PLATFORM_LABEL } from '../../../constants';
 import { emit } from '../../transcriptSink';
 import reporting from '../../reporting';
@@ -16,8 +17,8 @@ const TIMEOUT = 5 * 60 * 1000; // 5 minutes
  * The one effect a binary upload performs: turn a path into the bytes to send,
  * and the size the transcript announces before sending them.
  *
- * A PARAMETER SO AN EXPECTATION PRODUCER RUNS THIS EXACT FUNCTION. The block's
- * three lines are emitted from here, around the PUT and its retry loop, so a
+ * A PARAMETER SO AN EXPECTATION PRODUCER RUNS THIS EXACT FUNCTION. The upload's
+ * step in progress and its retry lines are shown from here, around the PUT, so a
  * producer that re-implemented the block could drift from it silently. Instead
  * it resolves a scripted size and a zero-length body, and the segment order, the
  * retry branching and every literal come from the shipped code.
@@ -37,7 +38,7 @@ export type BinaryUploadEffects = {
 export const REAL_BINARY_UPLOAD_EFFECTS: BinaryUploadEffects = {
   readBinary: async (buildPath, platform, projectRoot) => {
     const data = await getBuildData({ buildPath, platform, projectRoot });
-    return { data, sizeMb: await getSizeInMB({ buffer: data, projectRoot }) };
+    return { data, sizeMb: getSizeInMB({ bytes: data.length }) };
   },
   putBinary: (uploadUrl, data) => {
     // Use protocol-appropriate agent (HTTP for local S3, HTTPS for AWS)
@@ -84,8 +85,25 @@ async function uploadBuild({
     level: 'info',
   });
 
-  emit({ kind: 'binary-uploading', sizeMb: buildSizeMB });
+  // An upload is only a wait: a spinner in a terminal that leaves no line, one plain line in a log.
+  // The step a person reads is the test it starts.
+  await whileShowing({ kind: 'binary-uploading', sizeMb: buildSizeMB, platform }, () =>
+    putWithRetries({ platform, uploadUrl, buildData, effects })
+  );
+}
 
+/** PUT the bytes, trying again up to {@link MAX_RETRIES} times; the last failure ends the run. */
+async function putWithRetries({
+  platform,
+  uploadUrl,
+  buildData,
+  effects,
+}: {
+  platform: Platform;
+  uploadUrl: string;
+  buildData: Buffer;
+  effects: BinaryUploadEffects;
+}): Promise<void> {
   let attempt = 0;
   while (attempt < MAX_RETRIES) {
     try {
@@ -96,7 +114,6 @@ async function uploadBuild({
         throw new Error(`Server responded with ${response.status}: ${responseText}`);
       }
 
-      emit({ kind: 'binary-uploaded' });
       return;
     } catch (error) {
       attempt++;

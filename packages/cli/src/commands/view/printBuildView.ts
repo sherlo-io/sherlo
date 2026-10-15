@@ -1,8 +1,7 @@
-import { buildViewMetadataJson } from '../../helpers/buildDetails';
-import printResultsUrl from '../../helpers/printResultsUrl';
 import throwError from '../../helpers/throwError';
 import { emit } from '../../helpers/transcriptSink';
-import type { BuildStatus } from '../../helpers/waitForBuildResult';
+import type { ViewJson } from '../../render/buildView';
+import type { BuildStatus } from '../../helpers/buildStatusRequest';
 
 /**
  * EVERYTHING `sherlo view` PRINTS about a build it has already read - and it
@@ -15,30 +14,29 @@ import type { BuildStatus } from '../../helpers/waitForBuildResult';
  * re-implementation of it (see ./renderViewTranscript). Nothing here awaits,
  * fetches, or reads the process.
  *
- * TWO DISTINCT OUTPUTS, NOT ONE OUTPUT WITH AN OPTIONAL TAIL (view-metadata,
- * operator ruling 2026-09-03).
+ * TWO DISTINCT OUTPUTS, NOT ONE OUTPUT WITH AN OPTIONAL TAIL.
  *
- * `--metadata` prints ONLY the JSON contract (see render/buildView's
- * ViewMetadataJson) - no header, no colour, no url line - because it is meant
- * to be piped and parsed, and mixing it with the human header would make every
- * consumer re-find the JSON inside prose. Without `--metadata` the command
- * prints for a person: which build, the tally, the check's own sentence, the
- * per-story table (when the build has stories), then the link.
+ * `--json` prints ONLY the record (see render/buildView's ViewJson) - no
+ * header, no colour, no url line - because it is meant to be piped and parsed,
+ * the way `gh ... --json` is, and mixing it with the human header would make
+ * every consumer re-find the JSON inside prose. Without `--json` the command
+ * prints for a person: which test, the tally, the verdict section `--wait` ends
+ * with, the per-story table (when the test has stories), then the link.
  */
 export function printBuildView({
   build,
   buildIndex,
   url,
-  showDetails,
+  printJson,
 }: {
   build: BuildStatus;
   buildIndex: number;
   url: string;
-  /** `--metadata`: print the JSON contract instead of the human view. */
-  showDetails: boolean;
+  /** `--json`: print the record instead of the human view. */
+  printJson: boolean;
 }): void {
-  if (showDetails) {
-    emit({ kind: 'build-view-json', json: buildViewMetadataJson(build, buildIndex) });
+  if (printJson) {
+    emit({ kind: 'build-view-json', json: viewJsonOf(build, buildIndex) });
     return;
   }
 
@@ -50,7 +48,19 @@ export function printBuildView({
     emit({ kind: 'build-view-tally', counts: build.viewStatusesCount });
   }
 
-  emit({ kind: 'build-view-status', runStatus: build.runStatus, status: build.status });
+  // A test still running has no verdict yet: it ends on the next step, which carries the link and
+  // the command that waits for the verdict - the same ending as a `sherlo test` that did not wait.
+  if (isStillRunning(build.runStatus)) {
+    emit({ kind: 'results-url', url, testIndex: buildIndex });
+    return;
+  }
+
+  emit({
+    kind: 'build-view-status',
+    runStatus: build.runStatus,
+    status: build.status,
+    counts: build.viewStatusesCount,
+  });
 
   // Absent, not empty: a build with no view rows yet (queued, or errored before
   // any capture) prints no table rather than a header with nothing under it.
@@ -60,7 +70,45 @@ export function printBuildView({
   }
 
   emit({ kind: 'blank-line' });
-  printResultsUrl(url);
+  emit({ kind: 'results-url', url });
+}
+
+/** A test that has not ended: queued, waiting for its app builds, or running. */
+function isStillRunning(runStatus: string): boolean {
+  return !['finished', 'error', 'canceled'].includes(runStatus);
+}
+
+/**
+ * `sherlo view --json`'s record, lifted off the one build read - every value copied as it arrived,
+ * nothing defaulted, derived or filled in, so an absent field stays absent and a `null` stays
+ * `null`. Written out rather than spread so a reader sees exactly which of `getBuildStatus`'s
+ * fields the record speaks about, in the order it prints them. The two renames are the record's
+ * own plain words: `commit` from the frozen `gitInfo` (`sherlo view` opened nothing, so the build's
+ * own git identity is the only one it can print), and `runError` with the platform it names.
+ */
+export function viewJsonOf(build: BuildStatus, buildIndex: number): ViewJson {
+  return {
+    runStatus: build.runStatus,
+    buildIndex,
+    commit: build.gitInfo
+      ? {
+          sha: build.gitInfo.commitHash,
+          branch: build.gitInfo.branchName,
+          dirty: build.gitInfo.isDirty,
+        }
+      : undefined,
+    showsOnlyBranchChanges: build.showsOnlyBranchChanges,
+    mainBranch: build.mainBranch,
+    ciRun: build.ciRun,
+    runError: build.runError
+      ? { code: build.runError, platform: build.runErrorPlatform ?? undefined }
+      : undefined,
+    devices: build.devices,
+    viewStatusesCount: build.viewStatusesCount,
+    stories: build.stories,
+    diffScope: build.diffScope,
+    platforms: build.platforms,
+  };
 }
 
 /**
@@ -75,8 +123,8 @@ export function printBuildView({
 export function refuseBuildNotFound(buildIndex: number): never {
   throwError({
     message:
-      `Build #${buildIndex} does not exist in this project. ` +
-      'Check the index (it is the `b=` value of a build URL) and the token.',
+      `Test ${buildIndex} does not exist in this project. ` +
+      'Check the number (it is the b= value of a Sherlo URL) and the token.',
   });
 }
 

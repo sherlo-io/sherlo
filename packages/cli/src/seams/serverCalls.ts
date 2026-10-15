@@ -26,6 +26,7 @@ import {
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
 import getTokenParts from '../helpers/getTokenParts';
+import isBuildTicket from '../helpers/isBuildTicket';
 import isPersonalToken from '../helpers/isPersonalToken';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
@@ -35,26 +36,20 @@ import type { ProjectCreated } from '../render/projectCreated';
 import type { ProjectList } from '../render/projectList';
 import type { TeamCreated } from '../render/teamCreated';
 import type { TeamList } from '../render/teamList';
-// TYPE-ONLY, and it has to stay that way: `dryRunDecision` mirrors the `computeDiffScopeDryRun`
-// SDL and calls this seam, so a VALUE imported from it here would be a load-time cycle. A type
-// import is erased, which is why the shapes can be named where they are declared.
-import type {
-  ComputeDiffScopeDryRunRequest,
-  ComputeDiffScopeDryRunResult,
-  DryRunDecisionClient,
-} from '../commands/test/dryRunDecision';
-
-/**
- * Raised when the `computeDiffScopeDryRun` query method is not present on the sdk-client at
- * runtime. The dry-run road catches it and bails open - see ../commands/test/dryRunDecision.
- */
-export const DRY_RUN_DECISION_UNAVAILABLE =
-  'The Diff Scope dry-run decision query (computeDiffScopeDryRun) is not available on this sdk-client build.';
+import type { PlatformCapture } from '../render/testSteps';
+import type { Config } from '../types';
 
 /** What `openBuild` is sent, and what it answers - the sdk client's own shapes. */
 type SdkClient = ReturnType<typeof sdkClient>;
 export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
-export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>>;
+export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
+  /**
+   * Whether the project has a CI token, so a person's run can suggest running Sherlo on every pull
+   * request while it has none. The service may say whether the project has a CI token; absent
+   * means unknown, and nothing is suggested.
+   */
+  hasCiToken?: boolean;
+};
 /** The two questions a real push asks before it opens a build - the sdk client's own shapes. */
 export type NextBuildInfoRequest = Parameters<SdkClient['getNextBuildInfo']>[0];
 export type SdkNextBuildInfoAnswer = Awaited<ReturnType<SdkClient['getNextBuildInfo']>>;
@@ -87,7 +82,28 @@ export type ServerCalls = {
 
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
-  openBuild(request: OpenBuildRequest & { token: string }): Promise<OpenBuildAnswer>;
+  /** `pushFacts`: what only the push knows ({@link PushFacts}), sent with the call. */
+  openBuild(
+    request: OpenBuildRequest & { token: string; pushFacts?: PushFacts }
+  ): Promise<OpenBuildAnswer>;
+
+  /**
+   * One job of a split CI run delivers its platform: the server opens the run the CI run's jobs
+   * share, or joins the one the other job opened, fills this platform's slot, and starts the run
+   * when every platform the config names is in - never before.
+   */
+  joinBuild(request: JoinBuildRequest & { token: string }): Promise<JoinBuildAnswer>;
+
+  /**
+   * An EAS build delivers its platform into the run `sherlo test` opened for it on EAS: the
+   * server fills the slot and starts the run when the last platform is in.
+   */
+  asyncUpload(
+    request: AsyncUploadRequest & { token: string; pushFacts?: PushFactsPlatform }
+  ): Promise<AsyncUploadAnswer>;
+
+  /** End a run that can never start - an EAS build that failed on Expo's servers. */
+  closeBuild(request: CloseBuildRequest & { token: string }): Promise<CloseBuildAnswer>;
 
   /** Has the server seen these binaries, and which build comes next - the push's first question. */
   getNextBuildInfo(
@@ -99,14 +115,10 @@ export type ServerCalls = {
     request: StagedUploadUrlsRequest & { token: string }
   ): Promise<StagedUploadUrlsAnswer>;
 
-  computeDiffScopeDryRun(
-    request: ComputeDiffScopeDryRunRequest & { token: string }
-  ): Promise<ComputeDiffScopeDryRunResult>;
-
   /** The staged road's gate: can this commit reuse the base registered under this fingerprint? Asked per platform. */
   checkStagedGate(
     request: CheckStagedGateRequest & { token: string }
-  ): Promise<CheckStagedGateAnswer>;
+  ): Promise<CheckStagedGateAnswer & StoredAppBuildFacts>;
 
   /**
    * One progress report `sherlo init` sends as it walks its steps. It rides this seam like every
@@ -147,22 +159,54 @@ export type PendingCliLogin = {
 
 /**
  * What a poll of a pending login answers. Only `approved` carries the token, and only once: a
- * later poll of the same login answers `used` (sherlo-api / Logging in from the CLI).
+ * later poll of the same login answers `used`.
  */
 export type CliLoginAnswer =
   | { status: 'pending' | 'cancelled' | 'expired' | 'used' }
   | { status: 'approved'; email: string; token: string };
+
+/**
+ * What `joinBuild` is sent, and what it answers - the sdk client's own shapes. The answer's
+ * `startedRun` is set for the job whose upload brought the run's last platform in: the devices of
+ * the whole test and what each platform captures.
+ */
+export type JoinBuildRequest = Parameters<SdkClient['joinBuild']>[0];
+export type JoinBuildAnswer = Awaited<ReturnType<SdkClient['joinBuild']>>;
+
+/**
+ * The run that just started, as the service tells the EAS upload that brought its last platform
+ * in: the devices of the whole test and what each platform captures, counted off the module map
+ * each EAS build staged with its delivery. A field the service has no value for arrives as null,
+ * as GraphQL answers it.
+ */
+export type StartedRun = { devices: Config['devices']; capture: PlatformCapture[] };
+
+/** What an EAS build's delivery and a run's closing are sent and answer - the sdk client's own shapes. */
+export type AsyncUploadRequest = Parameters<SdkClient['asyncUpload']>[0];
+/** The client's answer, and the started run when this EAS build was the last one in ({@link StartedRun}). */
+export type AsyncUploadAnswer = Awaited<ReturnType<SdkClient['asyncUpload']>> & {
+  startedRun?: StartedRun;
+};
+export type CloseBuildRequest = Parameters<SdkClient['closeBuild']>[0];
+export type CloseBuildAnswer = Awaited<ReturnType<SdkClient['closeBuild']>>;
 
 /** What the staged gate is asked and what it answers - the sdk client's own shapes. */
 export type CheckStagedGateRequest = Parameters<SdkClient['checkStagedGate']>[0];
 export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGate']>>;
 
 /**
+ * What the gate says about the platform's stored app build on top of the client's answer: its
+ * source list and the test it was built in. The service does not send the test yet (build work:
+ * the gate's every answer carries it), so a live run reads it as absent.
+ */
+export type StoredAppBuildFacts = Pick<StagedGateAnswer, 'storedBase' | 'storedBuildIndex'>;
+
+/**
  * What the service is sent for the token a push spends: a project token's api part, or a personal
- * token whole - a personal token, the saved login's included, has no parts.
+ * token or a build ticket whole - neither has parts.
  */
 function authTokenFor(token: string): string {
-  return isPersonalToken(token) ? token : getTokenParts(token).apiToken;
+  return isPersonalToken(token) || isBuildTicket(token) ? token : getTokenParts(token).apiToken;
 }
 
 /** The one place a push's token becomes a real sdk client - every live operation below goes through it. */
@@ -188,25 +232,17 @@ export const liveServerCalls: ServerCalls = {
 
   openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
+  joinBuild: ({ token, ...request }) => clientFor(token).joinBuild(request),
+
+  asyncUpload: ({ token, ...request }) => clientFor(token).asyncUpload(request),
+
+  closeBuild: ({ token, ...request }) => clientFor(token).closeBuild(request),
+
   getNextBuildInfo: ({ token, ...request }) => clientFor(token).getNextBuildInfo(request),
 
   getStagedUploadUrls: ({ token, ...request }) => clientFor(token).getStagedUploadUrls(request),
 
   trackCliInit: ({ token, ...request }) => clientFor(token).trackCliInit(request),
-
-  computeDiffScopeDryRun: ({ token, ...request }) => {
-    const client = clientFor(token) as DryRunDecisionClient;
-
-    // The published sdk-client this repo typechecks against may not carry the query yet, so the
-    // method is reached defensively - exactly as ../commands/test/dryRunDecision does.
-    const query = client.computeDiffScopeDryRun;
-
-    if (typeof query !== 'function') {
-      throw new Error(DRY_RUN_DECISION_UNAVAILABLE);
-    }
-
-    return query(request);
-  },
 
   checkStagedGate: ({ token, ...request }) => clientFor(token).checkStagedGate(request),
 
@@ -304,20 +340,81 @@ export function installServerCalls(next: ServerCalls): () => void {
 export type ApiError = { error: string };
 
 /**
- * What `getBuildStatus` answers. THE WIRE'S OWN SHAPE, aliased rather than re-typed: a pose
- * describing a build the backend cannot send would let a product design be approved off a state
- * that can never occur.
+ * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
+ * because a pose scripts it and the pose contract publishes it under this name. A pose describing a
+ * build the backend cannot send would let a product design be approved off a state that can never
+ * occur, which is why this is the wire's type and not a copy of it.
  */
 export type BuildStatusAnswer = BuildStatus;
 
-/** What the dry-run road's one read-only question answers. */
-export type DiffScopeDryRunAnswer = {
-  platforms: Array<{
-    platform: 'android' | 'ios';
-    isFullCapture: boolean;
-    reason: string;
-    capturedStoryFilePaths: string[];
-  }>;
+/**
+ * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
+ * ../helpers/buildStatusRequest): service-known facts beside the facts the push reported about
+ * itself ({@link PushFacts}).
+ */
+export type BuildStatusPlatform = {
+  /** Whether this platform's app build reached the run. `false`: a split or EAS run still waits for it. */
+  arrived: boolean;
+  /**
+   * The capture plan the service decided for this platform, read off the stored decision
+   * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has it.
+   * `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
+   */
+  capture?: {
+    /** `true`: every story in the bundle was captured. */
+    full: boolean;
+    /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+    reason: string | null;
+    /** The story files captured, as paths. Empty when `full`. */
+    storyFiles: string[];
+  } | null;
+  /** Where the app build came from. `null` before the platform arrived. */
+  appBuild?: {
+    /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
+    from: 'uploaded' | 'stored';
+    /** The test the stored app build was first uploaded in. Only with `from: stored`. */
+    storedFromTest?: number | null;
+    /** How the push made the app build it uploaded, as the push reported it. Only with `from: uploaded`. */
+    madeBy?: PushFactsPlatform['madeBy'] | null;
+    /** Why a new app build was made, as the push reported it. */
+    why?: PushFactsPlatform['why'] | null;
+    /** What changed natively since the stored app build, as the push reported it, with `why: native-changed`. */
+    nativeChanges?: string[] | null;
+  } | null;
+  /** How many stories the pushed bundle holds, as the push counted them. */
+  storiesInBundle?: number | null;
+};
+
+/**
+ * WHAT ONLY THE PUSH KNOWS about one platform it delivers - the machine that made the app build is
+ * the only witness, so the push reports it on `openBuild`, `joinBuild` or the EAS hook's
+ * `asyncUpload`, the service stores it on the build run, and `getBuildStatus` echoes it
+ * ({@link BuildStatusPlatform}). Self-reported: the CLI vouches for itself, so nothing the web app
+ * trusts may be decided from it.
+ *
+ * The push composes them where it already decides each fact (./commands/test/appBuild/pushFacts)
+ * and sends them with these calls; the calls' posed `with` names them.
+ */
+export type PushFactsPlatform = {
+  /**
+   * How the app build was made: `compiled` on this machine, taken from the local `build-cache`,
+   * made by the project's own build `command`, or by `eas`. Absent when the push sent no app build
+   * (it took a stored one).
+   */
+  madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas';
+  /** Why a new app build was made: `nothing-stored` for this platform yet, or `native-changed` since the stored one. */
+  why?: 'nothing-stored' | 'native-changed';
+  /** The native files and modules that changed since the stored app build, with `why: native-changed`. */
+  nativeChanges?: string[];
+  /** How many stories the pushed bundle holds. */
+  storiesInBundle?: number;
+};
+
+/** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */
+export type PushFacts = {
+  platforms: { android?: PushFactsPlatform; ios?: PushFactsPlatform };
+  /** The CI service and its run id, when the push ran in CI. */
+  ciRun?: { provider: string; runId: string };
 };
 
 /**
@@ -342,7 +439,57 @@ export type StagedGateAnswer = {
     | 'buildMetadata'
     | 'bundleFormat'
   >;
+  /**
+   * What the platform's stored app build was built from - handed back with `full-build-needed`
+   * when the platform has a stored app build whose list Sherlo keeps, so the tool can say what
+   * changed since it. Absent when nothing is stored, and for an app build an older CLI stored
+   * without a list.
+   */
+  storedBase?: StoredBaseSources;
+  /**
+   * The test the platform's stored app build was built in - "stored from Test 12", "native code
+   * changed since Test 12" - whatever the outcome. Absent when nothing is stored.
+   */
+  storedBuildIndex?: number;
 };
+
+/**
+ * THE SOURCE LIST OF A STORED APP BUILD - the native inputs its base fingerprint was computed
+ * over, as the CLI sent them when the build was stored. Paths, hashes and versions only: never a
+ * file's contents, for the same reason the fingerprint keeps none (`FingerprintSourceDigest` in
+ * packages/cli/src/helpers/fingerprint/baseFingerprint.ts). The tool diffs it against its own
+ * fingerprint's sources, on the developer's machine.
+ */
+export type StoredBaseSources = {
+  /** The test the stored app build was built in - "since Test 12". */
+  buildIndex: number;
+  /**
+   * The native files and folders, the lockfiles (as files), and the `contents` sources - a
+   * resolved setting such as the Expo config plugins, named by its id and nothing more.
+   */
+  sources: StoredBaseSource[];
+  /** The autolinked native modules, one version each. */
+  modules: Array<{ name: string; version: string }>;
+};
+
+/** One source of a stored app build's list. */
+export type StoredBaseSource = {
+  path: string;
+  hash: string | null;
+  /** `file`, `dir`, or `contents` for a resolved setting - a plain string, as the service stores it. */
+  kind: string;
+  /**
+   * A native folder's files, one hash each (`android/app/build.gradle`), so the list can name the
+   * file that changed rather than the folder. Kept for the list
+   * ALONE: the base fingerprint still hashes the folder as one source, and these never enter it.
+   * Only on a `dir` source the fingerprint hashed whole - a bare project's `android` and `ios` -
+   * and absent on a folder an older CLI stored, which is then compared as one entry.
+   */
+  files?: NativeFolderFile[];
+};
+
+/** One file inside a native folder: its project-relative path and its hash, never its contents. */
+export type NativeFolderFile = { path: string; hash: string };
 
 /**
  * The server's capture decision at `openBuild`, per platform - what the "📸 Capture plan"
@@ -362,10 +509,29 @@ export type PosedCaptureDecision = {
   fullCaptureTriggerReason?: string;
   /** The build this decision diffed against - the "inheriting N from build #A" clause. */
   ancestorBuildIndex?: number;
+  /**
+   * The snapshot counts the open answer's `build.diffScopeInfo` carries. A build the service closed
+   * as it opened, because no phone has a story to photograph, says 0 captured and some kept - which
+   * is how the tool knows to withhold the review link and end on "Nothing needed capturing"
+   * (`isServerBypassed`, helpers/waitForBuildResult.ts). Absent on every other build.
+   */
+  capturedSnapshotCount?: number;
+  inheritedSnapshotCount?: number;
 };
 
-/** One platform's capture decision, as a pose states it. */
-export type PosedPlatformCaptureDecision = {
+/** One platform's capture scope, as `openBuild` answers it - the sdk client's own shape. */
+type OpenBuildCaptureScope = NonNullable<
+  NonNullable<OpenBuildAnswer['buildRun']['config'][Platform]>['captureScope']
+>;
+
+/**
+ * One platform's capture decision, as a pose states it, its new and changed story files in the
+ * service's own shape. A partial capture's own list is what a change reaches.
+ */
+export type PosedPlatformCaptureDecision = Pick<
+  OpenBuildCaptureScope,
+  'newStoryFilePaths' | 'changedStoryFilePaths'
+> & {
   /** `true` prints "capturing all N stories in this bundle"; `false` prints the partial closure-diff. */
   full: boolean;
   /** The story files captured, when `full` is `false`. Ignored (the block reads "all N") when `full` is `true`. */
@@ -422,15 +588,44 @@ export type ScriptedCall =
     }
   | {
       call: 'openBuild';
-      with: { platforms: string[] };
+      /** `pushFacts`: what the push reports about itself; a pose that states it is checked against it. */
+      with: { platforms: string[]; pushFacts?: PushFacts };
       answer:
-        | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision }
+        | {
+            buildIndex: number;
+            url: string;
+            captureDecision?: PosedCaptureDecision;
+            hasCiToken?: boolean;
+            /** The one-build ticket of a run that waits for EAS builds. */
+            buildTicket?: string;
+          }
         | ApiError;
     }
   | {
-      call: 'computeDiffScopeDryRun';
-      with: { branch: string; commit: string };
-      answer: DiffScopeDryRunAnswer | ApiError;
+      /**
+       * One job of a split CI run delivering its platform into the run its CI run shares: `with`
+       * names the key the jobs share and this job's platform; the answer is the run and the
+       * platforms it still waits for - none, and the run is starting, with `startedRun`.
+       */
+      call: 'joinBuild';
+      with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform };
+      answer: { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } | ApiError;
+    }
+  | {
+      /**
+       * An EAS build delivering its platform into the run opened for it: `with` names the run and
+       * the platform; the answer says whether that was the last platform the run waited for, and
+       * then the started run.
+       */
+      call: 'asyncUpload';
+      with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform };
+      answer: { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } | ApiError;
+    }
+  | {
+      /** A run closed before it started, and why (`user_easCloudBuild`: the EAS build failed). */
+      call: 'closeBuild';
+      with: { buildIndex: number; runError: string };
+      answer: Record<string, never> | ApiError;
     }
   | {
       /** A real push's first question: has the server seen these binaries, and which build is next. */
@@ -451,7 +646,8 @@ export type ScriptedCall =
       /**
        * The staged road's first question, asked once per platform BEFORE anything is bundled: can
        * this commit reuse the base registered under this fingerprint? `fast` takes the road;
-       * `full-build-needed` names which layers of the bundle's identity moved (`diff`), and
+       * `full-build-needed` names which layers of the bundle's identity moved (`diff`) and, when a
+       * stored app build kept its source list, hands that list back (`storedBase`), and
        * `not-stageable` is a project that can never take it. The post-bundle check asks the same
        * question again with the bundle's real identity, so a bare push scripts it TWICE per
        * platform when the first answer is `fast`.
@@ -584,14 +780,48 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       // that hold a config, never every key.
       const config = (request.buildRunConfig ?? {}) as Record<string, unknown>;
       const platforms = ['android', 'ios'].filter((platform) => config[platform] !== undefined);
-      const answer = answerFor('openBuild', { platforms }) as {
+      const answer = answerFor('openBuild', { platforms, pushFacts: request.pushFacts }) as {
         buildIndex: number;
         url: string;
         captureDecision?: PosedCaptureDecision;
+        hasCiToken?: boolean;
+        buildTicket?: string;
       };
 
-      return openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision);
+      return {
+        ...openBuildAnswerOf(answer.buildIndex, platforms as Platform[], answer.captureDecision),
+        ...(answer.hasCiToken === undefined ? {} : { hasCiToken: answer.hasCiToken }),
+        ...(answer.buildTicket === undefined ? {} : { buildTicket: answer.buildTicket }),
+      };
     },
+
+    joinBuild: async ({ joinKey, platform, pushFacts }) => {
+      const answer = answerFor('joinBuild', { joinKey, platform, pushFacts }) as {
+        buildIndex: number;
+        waitingFor: Platform[];
+        startedRun?: StartedRun;
+      };
+      // Only what the tool reads of the answer, as `openBuildAnswerOf` poses `openBuild`'s.
+      return {
+        build: { index: answer.buildIndex },
+        waitingFor: answer.waitingFor,
+        ...(answer.startedRun ? { startedRun: answer.startedRun } : {}),
+      } as unknown as JoinBuildAnswer;
+    },
+
+    // The platform is the one whose storage key the delivery carries - the request names no other.
+    asyncUpload: async (request) =>
+      answerFor('asyncUpload', {
+        buildIndex: request.buildIndex,
+        platform: request.androidS3Key ? 'android' : 'ios',
+        pushFacts: request.pushFacts,
+      }) as AsyncUploadAnswer,
+
+    closeBuild: async (request) =>
+      answerFor('closeBuild', {
+        buildIndex: request.buildIndex,
+        runError: request.runError,
+      }) as CloseBuildAnswer,
 
     getNextBuildInfo: async (request) => {
       const answer = answerFor('getNextBuildInfo', {
@@ -607,19 +837,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       return stagedUploadUrlsAnswerOf(request.platforms);
     },
 
-    computeDiffScopeDryRun: async (request) =>
-      answerFor('computeDiffScopeDryRun', {
-        branch: request.gitInfo.branchName,
-        commit: request.gitInfo.commitHash,
-      }) as ComputeDiffScopeDryRunResult,
-
     // The gate is asked per platform with the base fingerprint the tool computed; the pose states
     // both, so a pose cannot answer a question about a base the run never measured.
     checkStagedGate: async (request) =>
       answerFor('checkStagedGate', {
         platform: request.platform,
         baseFingerprint: request.baseFingerprint,
-      }) as CheckStagedGateAnswer,
+      }) as CheckStagedGateAnswer & StoredAppBuildFacts,
 
     // The step that sent the report is the one thing a pose can meaningfully state about it: the
     // params carry whatever that step measured, which the command composed rather than the pose.
@@ -675,7 +899,14 @@ function platformConfigOf(
   const decision = captureDecision?.platforms[platform];
   if (!decision) return {};
 
-  return { captureScope: { full: decision.full, storyFilePaths: decision.storyFilePaths } };
+  return {
+    captureScope: {
+      full: decision.full,
+      storyFilePaths: decision.storyFilePaths,
+      newStoryFilePaths: decision.newStoryFilePaths,
+      changedStoryFilePaths: decision.changedStoryFilePaths,
+    },
+  };
 }
 
 /** `build.diffScopeInfo`, from the pose's capture decision - undefined when the pose states none. */
@@ -687,6 +918,8 @@ function diffScopeInfoOf(
   return {
     fullCaptureTriggerReason: captureDecision.fullCaptureTriggerReason,
     ancestorBuildIndex: captureDecision.ancestorBuildIndex,
+    capturedSnapshotCount: captureDecision.capturedSnapshotCount,
+    inheritedSnapshotCount: captureDecision.inheritedSnapshotCount,
     platforms: {
       android: platformReasonOf(captureDecision, 'android'),
       ios: platformReasonOf(captureDecision, 'ios'),
