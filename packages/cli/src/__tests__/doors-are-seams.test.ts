@@ -368,7 +368,7 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
     file: 'helpers/fingerprint/registerBase.ts',
     of: 'helpers/fingerprint/baseFingerprint.ts',
     reason:
-      'computes a fingerprint itself only when its caller omits baseFingerprintHash - the one non-exempt caller (uploadOrReuseBuildsAndRunTests.ts) always pre-computes it through the seam, so this fallback is never reached',
+      'computes a fingerprint itself only when its caller omits baseFingerprintHash - the one non-exempt caller (uploadOrReuseBuildsAndRunTests.ts) always hands it the fingerprint its own caller took before the build, so this fallback is never reached',
   },
   {
     file: 'helpers/fingerprint/registerBase.ts',

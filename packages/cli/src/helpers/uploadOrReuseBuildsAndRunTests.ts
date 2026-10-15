@@ -19,7 +19,6 @@ import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appB
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
 import type { PlatformRow } from '../render/runRows';
 import { applyBundleToPlatformConfig } from '../commands/test/uploadBundles';
-import { resolveBaseFingerprintForSuppliedBundle } from '../commands/test/recordedBaseFingerprint';
 import type { BinaryUploadEffects } from './uploadOrPrintBinaryReuse/uploadBuild';
 import type { BaseRegistrationEffects } from './fingerprint/registerBase';
 import type { BaseFingerprints } from './fingerprint';
@@ -70,7 +69,6 @@ export type PushEffects = {
     nextBuildIndex: number;
   }>;
   resolveGitInfo: () => Promise<GitInfo>;
-  computeFingerprint: () => Promise<BaseFingerprints>;
   /** Opens the test, or - for one job of a split CI run - joins the one its CI run shares. */
   openBuild: (
     input: Record<string, unknown>
@@ -97,6 +95,7 @@ export type SplitJob = { joinKey: string; platform: Platform };
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
   appBuildPaths,
+  fingerprints,
   platformsOnStoredBuild = [],
   splitJob,
   effects,
@@ -107,6 +106,13 @@ async function uploadOrReuseBuildsAndRunTests({
   commandParams: CommandParams;
   /** The app builds this push uploads, per platform: the ones this run just built. */
   appBuildPaths: Partial<Record<Platform, string>>;
+  /**
+   * Each platform's base fingerprint, TAKEN BEFORE ANYTHING WAS BUILT - the one the staged gate was
+   * asked with. Never taken again here: a build writes into the project (pods, prebuilt frameworks
+   * inside `node_modules`), so a fingerprint taken after it reads files a clean install of the same
+   * lockfile lacks, and a stored base no later JavaScript-only push could match.
+   */
+  fingerprints: BaseFingerprints;
   /** The platforms that keep the app build Sherlo stores, and take only a fresh bundle. */
   platformsOnStoredBuild?: Platform[];
   /** Set for one job of a split CI run, which joins the test its CI run shares. */
@@ -145,18 +151,6 @@ async function uploadOrReuseBuildsAndRunTests({
       }),
     resolveGitInfo: () =>
       getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
-    // A run that supplies its bundle takes the fingerprint the bundle recorded
-    // when this tree's native inputs still match - the machine that accepts a
-    // bundle has no install to compute one with. See ./recordedBaseFingerprint.
-    computeFingerprint: () =>
-      commandParams.bundleDir !== undefined
-        ? resolveBaseFingerprintForSuppliedBundle({
-            bundleDir: commandParams.bundleDir,
-            projectRoot: commandParams.projectRoot,
-            platforms: platformsToBundle,
-            command,
-          })
-        : machine.computeFingerprint(commandParams.projectRoot, command),
     openBuild: ({ pushFacts, ...input }) =>
       splitJob
         ? joinTheRun({
@@ -188,20 +182,13 @@ async function uploadOrReuseBuildsAndRunTests({
   const gitInfo = await io.resolveGitInfo();
 
   // ------------------------------------------------------------------
-  // Compute the base fingerprint FIRST - before any other work that could load
-  // the Expo app config (SHERLO-1756). Loading the app config mutates
-  // process.env as a dotenv-class side effect; if that ran before the sanitized
-  // Layer-1 compute it would pollute the env that compute snapshots, producing a
-  // base fingerprint no probe (the staged road, which never loads the
-  // config first) could ever match.
-  //
-  // This is the ONLY fingerprint computation on this path: each platform's
-  // base fingerprint AND the `nativeFingerprint` wire value are sourced from
-  // this single result. `nativeFingerprint` covers both platforms, so every
-  // platform's result carries the same one, or undefined when the compute fails
-  // (fail-soft).
+  // The base fingerprint is the caller's, taken once before anything was built
+  // or could load the Expo app config (SHERLO-1756; ../commands/test/stagedRun).
+  // Each platform's base fingerprint AND the `nativeFingerprint` wire value are
+  // sourced from that single result. `nativeFingerprint` covers both platforms,
+  // so every platform's result carries the same one, or undefined when the
+  // compute failed (fail-soft).
   // ------------------------------------------------------------------
-  const fingerprints = await io.computeFingerprint();
   const nativeFingerprint = fingerprints.android.nativeFingerprint;
 
   // The platforms this push uploads an app build for. Each is registered as the

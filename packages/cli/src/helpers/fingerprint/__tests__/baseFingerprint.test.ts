@@ -484,6 +484,69 @@ describe('computeBaseFingerprint', () => {
     }
   });
 
+  // The same lockfile installed twice, once fresh and once after an iOS build, as the CI storyline
+  // saw it: expo-modules-jsi's pod writes its xcframework, module map and Xcode build folders into
+  // its own package folder, with the Xcode toolchain's version inside, so a fingerprint taken
+  // after a build on another machine read node_modules/expo-modules-jsi/apple as changed.
+  it('two clean installs of one lockfile give one iOS fingerprint', async () => {
+    await useTheRealExpoFingerprint();
+    const jsiFolder = 'node_modules/expo-modules-jsi/apple';
+    const installExpoModulesJsi = (dir: string, version: string, swiftSource: string) => {
+      writeFile(
+        dir,
+        'node_modules/expo-modules-jsi/package.json',
+        JSON.stringify({ name: 'expo-modules-jsi', version })
+      );
+      writeFile(dir, `${jsiFolder}/ExpoModulesJSI.podspec`, "s.name = 'ExpoModulesJSI'");
+      writeFile(dir, `${jsiFolder}/Sources/ExpoModulesJSI/JavaScriptValue.swift`, swiftSource);
+    };
+    /** What `pod install` and an Xcode build leave in the package, on a machine with this Xcode. */
+    const buildIosOn = (dir: string, toolchain: string) => {
+      writeFile(dir, `${jsiFolder}/Products/ExpoModulesJSI.xcframework/Info.plist`, toolchain);
+      writeFile(dir, `${jsiFolder}/Products/ExpoModulesJSI.xcframework/.hash`, toolchain);
+      writeFile(dir, `${jsiFolder}/.generated/module.modulemap`, `/Users/${toolchain}/jsi.h`);
+      writeFile(dir, `${jsiFolder}/.DerivedData/Build/Products/ExpoModulesJSI.o`, toolchain);
+      writeFile(dir, `${jsiFolder}/.build/release.yaml`, toolchain);
+      writeFile(dir, `${jsiFolder}/.swiftpm/configuration/state`, toolchain);
+    };
+    const makeInstall = (version: string, swiftSource: string) => {
+      const dir = makeTempDir();
+      writeFile(dir, 'package.json', JSON.stringify({ name: 'expo-app', version: '1.0.0' }));
+      writeFile(dir, 'app.json', JSON.stringify({ expo: { name: 'expo-app' } }));
+      // The fixture installs no expo-modules-autolinking, so the library is handed the package's
+      // native folder the way Expo's iOS autolinking hands it over.
+      writeFile(
+        dir,
+        'fingerprint.config.js',
+        `module.exports = ${JSON.stringify({
+          useRNCoreAutolinkingFromExpo: true,
+          extraSources: [{ type: 'dir', filePath: jsiFolder, reasons: ['expoAutolinkingIos'] }],
+        })};`
+      );
+      installExpoModulesJsi(dir, version, swiftSource);
+      return dir;
+    };
+
+    const fresh = makeInstall('57.1.2', 'struct JavaScriptValue {}');
+    const builtOnTheFirstRunner = makeInstall('57.1.2', 'struct JavaScriptValue {}');
+    const builtOnTheSecondRunner = makeInstall('57.1.2', 'struct JavaScriptValue {}');
+    const bumped = makeInstall('57.2.0', 'struct JavaScriptValue { let isBumped = true }');
+    buildIosOn(builtOnTheFirstRunner, 'swiftlang-6.2.0 Xcode 26.0');
+    buildIosOn(builtOnTheSecondRunner, 'swiftlang-6.3.1 Xcode 26.1');
+    try {
+      const freshIos = (await computeBaseFingerprint(fresh)).ios.hash;
+
+      expect(freshIos).toMatch(/^[a-f0-9]{64}$/);
+      expect((await computeBaseFingerprint(builtOnTheFirstRunner)).ios.hash).toBe(freshIos);
+      expect((await computeBaseFingerprint(builtOnTheSecondRunner)).ios.hash).toBe(freshIos);
+      expect((await computeBaseFingerprint(bumped)).ios.hash).not.toBe(freshIos);
+    } finally {
+      for (const dir of [fresh, builtOnTheFirstRunner, builtOnTheSecondRunner, bumped]) {
+        cleanup(dir);
+      }
+    }
+  });
+
   // Moved from commands/test/__tests__/dryRun.test.ts, which goes with the dry run.
   describe('a dependency not yet installed', () => {
     function makeProjectDir(): string {

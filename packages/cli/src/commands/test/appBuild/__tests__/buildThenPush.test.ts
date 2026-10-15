@@ -13,10 +13,12 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScriptedCall, ServerCalls } from '../../../../seams/serverCalls';
 
 /** What the posed seams were asked, in order. */
-const { sentRequests, builderCalls, binaryPuts } = vi.hoisted(() => ({
+const { sentRequests, builderCalls, binaryPuts, fingerprintsOnTheMachine } = vi.hoisted(() => ({
   sentRequests: [] as Array<{ operation: string; request: Record<string, any> }>,
   builderCalls: [] as Array<{ call: string; platform: string }>,
   binaryPuts: [] as string[],
+  /** Each fingerprint the posed machine computed: what a fingerprint taken after the build reads. */
+  fingerprintsOnTheMachine: [] as string[],
 }));
 
 vi.mock('../../../../seams/serverCalls', async (importActual) => {
@@ -72,11 +74,15 @@ vi.mock('../../../../seams/nativeBuild', async (importActual) => {
 
   return {
     ...actual,
-    // The pose's own machine, recording every app build it uploaded.
+    // The pose's own machine, recording every app build it uploaded and every fingerprint it took.
     posedNativeBuild: (push: Parameters<typeof actual.posedNativeBuild>[0]) => {
       const machine = actual.posedNativeBuild(push);
       return {
         ...machine,
+        computeFingerprint: (projectRoot: string, command: string) => {
+          fingerprintsOnTheMachine.push(projectRoot);
+          return machine.computeFingerprint(projectRoot, command);
+        },
         putBinary: (uploadUrl: string, data: Parameters<typeof machine.putBinary>[1]) => {
           binaryPuts.push(uploadUrl);
           return machine.putBinary(uploadUrl, data);
@@ -133,6 +139,7 @@ beforeEach(() => {
   sentRequests.length = 0;
   builderCalls.length = 0;
   binaryPuts.length = 0;
+  fingerprintsOnTheMachine.length = 0;
 });
 
 describe('sherlo test builds what the gate refused, then pushes', () => {
@@ -155,6 +162,24 @@ describe('sherlo test builds what the gate refused, then pushes', () => {
       android: expect.any(String),
       ios: expect.any(String),
     });
+  });
+
+  // A build writes into the project (pods, prebuilt frameworks inside node_modules), so a
+  // fingerprint taken after it reads other files than the gate was asked about. The pose's
+  // machine answers every fingerprint it is asked for with a hash other than the one the project's
+  // files give before the build: the stored base must be the one taken before.
+  it('the build road stores the fingerprint taken before the build', async () => {
+    const pose = testPose('build-android-then-push');
+    const takenAfterTheBuild = (pose.push as { fingerprint: { hash: string } }).fingerprint.hash;
+
+    const { refusals, unusedCalls } = await runPose(pose);
+
+    expect(refusals).toEqual([]);
+    expect(unusedCalls).toEqual([]);
+    const takenBeforeTheBuild = requestOf('checkStagedGate')!.baseFingerprint;
+    expect(takenBeforeTheBuild).not.toBe(takenAfterTheBuild);
+    expect(fingerprintsOnTheMachine).toEqual([]);
+    expect(requestOf('openBuild')!.baseFingerprints).toEqual({ android: takenBeforeTheBuild });
   });
 
   it('a mixed run builds only the refused platform and stages the other onto its stored app build, in one test', async () => {

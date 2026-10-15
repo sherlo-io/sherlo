@@ -128,6 +128,9 @@ export async function buildThenPush({
   return uploadOrReuseBuildsAndRunTests({
     commandParams,
     appBuildPaths: resolvedFrom(commandParams.projectRoot, appBuildPaths),
+    // The fingerprint the gate was asked with, taken before the build: a build writes into the
+    // project, so one taken now would not be the base the next push computes.
+    fingerprints,
     platformsOnStoredBuild,
     ...(splitJob ? { splitJob } : {}),
     platformRows,
