@@ -344,6 +344,12 @@ const UNPREFIXED_ON_PURPOSE: Array<{ file: string; text: string; reason: string 
     reason:
       'The same package.json script line, shown whole in the refusal: EAS_HOOK_COMMAND is the script value above, not a command a person types.',
   },
+  {
+    file: 'commands/test/appBuild/easRun.ts',
+    text: '`Expo\'s build runs "${EAS_HOOK_COMMAND}" when it finishes, and finds "${SHERLO_PACKAGE}" only in the app\'s node_modules. Add it:\\n`',
+    reason:
+      'Names the package.json script value the Expo build runs on its own machine, where node_modules/.bin is on the path: it is not a command a person types.',
+  },
 ];
 
 /**

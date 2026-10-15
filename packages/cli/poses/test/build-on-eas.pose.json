@@ -22,7 +22,8 @@
       "scripts": {
         "eas-build-on-complete": "sherlo eas-build-on-complete",
         "eas-build-on-cancel": "sherlo eas-build-on-complete"
-      }
+      },
+      "devDependencies": { "sherlo": "^3.0.0" }
     },
     "eas.json": {
       "build": {
