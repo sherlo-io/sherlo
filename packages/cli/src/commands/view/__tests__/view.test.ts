@@ -40,7 +40,7 @@ vi.mock('../../../helpers/getValidatedCommandParams', () => ({ default: vi.fn() 
 // this module - the wire shape, the exit codes - stays real.
 vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
   const actual = await importActual<typeof import('../../../helpers/waitForBuildResult')>();
-  return { ...actual, default: vi.fn(), readBuildStatus: vi.fn() };
+  return { ...actual, default: vi.fn(), waitForTest: vi.fn(), readBuildStatus: vi.fn() };
 });
 
 // ---------------------------------------------------------------------------
@@ -50,6 +50,7 @@ vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
 import _getValidatedCommandParams from '../../../helpers/getValidatedCommandParams';
 import _waitForBuildResult, {
   readBuildStatus as _readBuildStatus,
+  waitForTest as _waitForTest,
 } from '../../../helpers/waitForBuildResult';
 import resolvePushCredential from '../../../helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential';
 import { installSavedLogins, posedSavedLogins } from '../../../seams/savedLogins';
@@ -57,6 +58,7 @@ import view from '../view';
 
 const getValidatedCommandParams = vi.mocked(_getValidatedCommandParams);
 const waitForBuildResult = vi.mocked(_waitForBuildResult);
+const waitForTest = vi.mocked(_waitForTest);
 const readBuildStatus = vi.mocked(_readBuildStatus);
 
 /**
@@ -68,9 +70,9 @@ const PROJECT_INDEX = 7;
 const TOKEN = `${'s'.repeat(PROJECT_API_TOKEN_LENGTH)}${TEAM_ID}${PROJECT_INDEX}`;
 
 /**
- * What the config file holds beside the project token, per case. The token is
- * always there - most cases read a build on it - and a case that spends a
- * person's credential replaces it.
+ * What the config file holds, per case. The project token is always in
+ * SHERLO_TOKEN - most cases read a build on it - and a case that spends a
+ * person's credential empties it.
  */
 let configOfThisCase: Record<string, unknown> = {};
 
@@ -97,13 +99,13 @@ beforeEach(() => {
   // that the command works from the params it is GIVEN, options included, and
   // spends the credential the real resolver answers for them.
   getValidatedCommandParams.mockReset().mockImplementation(({ command, passedOptions }) => {
-    const config = { token: TOKEN, ...configOfThisCase };
-    const credential = resolvePushCredential(command, passedOptions, config);
+    const config = { ...configOfThisCase };
+    const credential = resolvePushCredential(command, config);
     return { ...config, ...passedOptions, credential, devices: [] } as never;
   });
   configOfThisCase = {};
-  // The machine running this suite may hold a project token of its own; no case reads it.
-  vi.stubEnv('SHERLO_TOKEN', '');
+  // The machine running this suite may hold a project token of its own; every case states its own.
+  vi.stubEnv('SHERLO_TOKEN', TOKEN);
 
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -141,7 +143,8 @@ describe('which build `sherlo view` looks at', () => {
   it("reads the build in the config's project when it spends a person's credential", async () => {
     // No project token anywhere: the config names the project, and the login's token is sent
     // whole - it has no team or project in it to split out.
-    configOfThisCase = { token: undefined, project: 'k3j9x2ab/4' };
+    configOfThisCase = { project: 'k3j9x2ab/4' };
+    vi.stubEnv('SHERLO_TOKEN', '');
     const serviceAddress = 'https://api.sherlo.io/graphql';
     const loginToken = 'sht_viewlogintoken0000000000000000';
     vi.stubEnv('SHERLO_API_URL', serviceAddress);
@@ -178,7 +181,7 @@ describe('which build `sherlo view` looks at', () => {
   it('refuses a build that does not exist rather than printing an empty view', async () => {
     readBuildStatus.mockResolvedValue(null);
 
-    await expect(runView('99')).rejects.toThrow(/Build #99 does not exist/);
+    await expect(runView('99')).rejects.toThrow(/Test 99 does not exist/);
   });
 
   it('lets a failed read out, instead of reporting all is well', async () => {
@@ -212,7 +215,7 @@ describe('the eager read racing the build it names', () => {
   it('gives a miss no second chance without `--wait`', async () => {
     readBuildStatus.mockResolvedValueOnce(null);
 
-    await expect(runView('99')).rejects.toThrow(/Build #99 does not exist/);
+    await expect(runView('99')).rejects.toThrow(/Test 99 does not exist/);
     expect(
       waitForBuildResult,
       'a bare read never falls back to the wait loop'
@@ -253,23 +256,46 @@ describe('the exit-code split', () => {
   });
 });
 
-describe('--metadata', () => {
-  it('asks the wait loop for the block only when the flag is passed', async () => {
-    await runView('7', { wait: true });
-    expect(waitForBuildResult).toHaveBeenLastCalledWith(
-      expect.objectContaining({ metadata: undefined })
-    );
+describe('--json --wait', () => {
+  it('waits, then prints only the record read after the wait, and exits with the wait code', async () => {
+    for (const code of [0, 1, 3]) {
+      exitCodes = [];
+      vi.mocked(console.log).mockClear();
+      readBuildStatus.mockReset().mockResolvedValue({ runStatus: 'inProgress' } as never);
+      waitForTest.mockReset().mockResolvedValue({ exitCode: code, lastRead: FINISHED_BUILD });
 
-    await runView('7', { wait: true, metadata: true });
-    expect(waitForBuildResult).toHaveBeenLastCalledWith(expect.objectContaining({ metadata: {} }));
+      await runView('7', { wait: true, json: true });
+
+      expect(
+        waitForTest,
+        'the JSON wait is the loop in json mode, not a captured human one'
+      ).toHaveBeenLastCalledWith(expect.objectContaining({ json: true, buildIndex: 7 }));
+      expect(
+        readBuildStatus,
+        "the record is the wait's last read: only the first read"
+      ).toHaveBeenCalledTimes(1);
+      const printed = vi.mocked(console.log).mock.calls.map((call) => call.join(' '));
+      expect(printed, 'stdout carries the record alone').toHaveLength(1);
+      expect(JSON.parse(printed[0])).toMatchObject({ runStatus: 'finished', buildIndex: 7 });
+      expect(exitCodes).toEqual([code]);
+    }
   });
 
-  it('hands the loop NO git, because this command did not open the build', async () => {
-    // Reading local git here would describe whatever commit is checked out,
-    // which is not the one the build was made from.
-    await runView('7', { wait: true, metadata: true });
+  it('prints no record when the test never appeared, and still exits with the wait code', async () => {
+    waitForTest.mockReset().mockResolvedValue({ exitCode: 3, lastRead: null });
 
-    const lastCall = waitForBuildResult.mock.lastCall as [{ metadata?: { git?: unknown } }];
-    expect(lastCall[0].metadata?.git).toBeUndefined();
+    await runView('7', { wait: true, json: true });
+
+    expect(vi.mocked(console.log)).not.toHaveBeenCalled();
+    expect(exitCodes).toEqual([3]);
+  });
+});
+
+describe('--wait', () => {
+  it('never asks the wait loop for a details block - `view` reads a build back with `--json`', async () => {
+    await runView('7', { wait: true });
+
+    const lastCall = waitForBuildResult.mock.lastCall as [Record<string, unknown>];
+    expect(lastCall[0]).not.toHaveProperty('metadata');
   });
 });

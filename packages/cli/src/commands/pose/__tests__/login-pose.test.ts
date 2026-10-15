@@ -1,6 +1,5 @@
 /**
- * `sherlo login` AND `sherlo logout` POSED - the browser seam and the saved-login seam (sherlo / The
- * seams).
+ * `sherlo login` AND `sherlo logout` POSED - the browser seam and the saved-login seam.
  *
  * WHAT THIS PROVES THAT THE CATALOGUE LAW CANNOT. ./catalogue.test.ts compares the bytes every
  * login and logout pose renders, and those bytes would be the same on a machine where the posed

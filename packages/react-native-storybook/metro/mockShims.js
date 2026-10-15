@@ -259,8 +259,8 @@ function resolveMockKey(key, projectRoot, importedFromFile) {
   // Otherwise the key is a bare specifier. Try node_modules resolution FIRST so
   // MK-03 subpath packages ('pkg/submodule') keep their runtime bare-specifier
   // semantics. Only when that fails do we treat the key as a DOTLESS
-  // project-root-relative app module ('src/api/client'), matching the epic's
-  // canonical app-module key form. FG-01 fires only when both routes fail.
+  // project-root-relative app module ('src/api/client'), the canonical
+  // app-module key form. FG-01 fires only when both routes fail.
   try {
     var resolved = require.resolve(key, { paths: [projectRoot] });
     var canonicalRealPath = canonicalizeModulePath(resolved);

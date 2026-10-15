@@ -248,6 +248,32 @@ describe('applySherloTransforms – customSerializer wrapper', () => {
       // object is still valid (getPolyfills is still set).
       expect(typeof result.serializer.getPolyfills).toBe('function');
     });
+
+    // A bare React Native config (@react-native/metro-config) names no serializer of its own,
+    // where Expo's does, so the wrapper hands the bundle to Metro's own serializer. Metro 0.83
+    // and later let a package reach its files only under metro/private/, and this repository
+    // installs such a Metro.
+    it('a bare React Native bundle writes the module map, as an Expo one does', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-bare-'));
+      const result = applySherloTransforms(
+        { projectRoot: tmpDir, resolver: {} },
+        { enabled: true }
+      );
+
+      const bundle = result.serializer.customSerializer?.(
+        'index.js',
+        [],
+        { dependencies: new Map() },
+        { projectRoot: tmpDir, createModuleId: () => 0, processModuleFilter: () => true }
+      );
+      const mapWritten = fs.existsSync(
+        path.join(tmpDir, 'node_modules', '.cache', 'sherlo', 'module-manifest.json')
+      );
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+
+      expect(typeof bundle).toBe('string');
+      expect(mapWritten).toBe(true);
+    });
   });
 
   // ---- OFF the bundling path (SHERLO_MODULE_MANIFEST unset) ----

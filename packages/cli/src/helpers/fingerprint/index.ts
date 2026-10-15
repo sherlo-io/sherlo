@@ -1,5 +1,5 @@
 export { computeBaseFingerprint } from './baseFingerprint';
-export type { BaseFingerprintResult } from './baseFingerprint';
+export type { BaseFingerprintResult, BaseFingerprints } from './baseFingerprint';
 export {
   extractGateMetadata,
   checkHasEmbeddedBundle,

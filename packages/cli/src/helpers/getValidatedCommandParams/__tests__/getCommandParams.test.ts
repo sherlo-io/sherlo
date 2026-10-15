@@ -9,7 +9,9 @@
  * is absent from options (commander omits un-passed options), so the config value
  * survives.
  */
+import { DEVICES } from '@sherlo/shared';
 import { describe, expect, it } from 'vitest';
+import { renderPlatformUnknown } from '../../../render/appBuild';
 import getCommandParams from '../getCommandParams';
 
 // Minimal options: only what getCommandParams reads (projectRoot for the
@@ -18,6 +20,30 @@ import getCommandParams from '../getCommandParams';
 function options(overrides: Record<string, unknown> = {}): any {
   return { projectRoot: '/proj', ...overrides };
 }
+
+describe('getCommandParams --platform', () => {
+  const deviceIdOn = (os: string) =>
+    Object.keys(DEVICES).find((id) => (DEVICES as Record<string, { os: string }>)[id].os === os);
+  const config = {
+    devices: [{ id: deviceIdOn('android') }, { id: deviceIdOn('ios') }],
+  } as any;
+
+  it('refuses a --platform that is neither android nor ios, naming the two', () => {
+    for (const platform of ['both', 'Android', '']) {
+      expect(() => getCommandParams(options({ platform }), config)).toThrow(
+        renderPlatformUnknown(platform).message
+      );
+    }
+    expect(renderPlatformUnknown('both').message).toContain('`android` or `ios`');
+  });
+
+  it("a --platform job keeps the config's whole device list beside its own", () => {
+    const result = getCommandParams(options({ platform: 'ios' }), config);
+
+    expect(result.devices).toEqual([config.devices[1]]);
+    expect(result.testDevices).toEqual(config.devices);
+  });
+});
 
 describe('getCommandParams include/exclude precedence', () => {
   describe('include', () => {

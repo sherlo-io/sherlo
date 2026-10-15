@@ -11,6 +11,7 @@ import chalk from 'chalk';
 chalk.level = 0;
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderBinaryPathFlagGone } from '../../../../render/appBuild';
 import validateConfigProperties from '../validateConfigProperties';
 
 describe('validateConfigProperties', () => {
@@ -25,16 +26,19 @@ describe('validateConfigProperties', () => {
   });
 
   function warnings(): string[] {
-    return logSpy.mock.calls
-      .map((call: unknown[]) => String(call[0] ?? ''))
-      .filter((line: string) => line.includes('WARNING'));
+    return (
+      logSpy.mock.calls
+        .map((call: unknown[]) => String(call[0] ?? ''))
+        // A warning is a line with init's yellow bang.
+        .filter((line: string) => line.includes('! '))
+    );
   }
 
   // The regression this ticket exists for: a config carrying include/exclude
   // must NOT warn, because the CLI honours both.
   it('does NOT warn for a config carrying `include` and `exclude`', () => {
     validateConfigProperties({
-      token: 'abc',
+      project: 'k3j9x2ab/4',
       devices: [],
       include: ['My Story'],
       exclude: ['Other Story'],
@@ -45,22 +49,40 @@ describe('validateConfigProperties', () => {
 
   it('does NOT warn for any of the supported properties together', () => {
     validateConfigProperties({
-      token: 'abc',
-      android: 'app.apk',
-      ios: 'app.app',
+      project: 'k3j9x2ab/4',
       devices: [],
       include: ['a'],
       exclude: ['b'],
+      simulation: 'world',
     } as any);
 
     expect(warnings()).toEqual([]);
+  });
+
+  it('knows the build block and earns no warning for it', () => {
+    validateConfigProperties({
+      project: 'k3j9x2ab/4',
+      build: { android: { command: './gradlew assembleDebug', output: 'app.apk' } },
+    } as any);
+
+    expect(warnings()).toEqual([]);
+  });
+
+  it("refuses the config's android and ios binary paths from Sherlo 2 with the same words as the flags", () => {
+    const wordsOfTheFlags = renderBinaryPathFlagGone().message;
+
+    for (const config of [{ android: 'app.apk' }, { ios: 'app.tar.gz' }, { android: 1, ios: 2 }]) {
+      expect(() => validateConfigProperties({ project: 'k3j9x2ab/4', ...config } as any)).toThrow(
+        wordsOfTheFlags
+      );
+    }
   });
 
   // `staged.fullBuild` configured the removed `test:bundled --on-stale=build`
   // fallback. Nothing reads it any more, so a config that still carries it must
   // be told - silently accepting a block the CLI ignores is the worse failure.
   it('warns for the removed `staged` block', () => {
-    validateConfigProperties({ token: 'abc', staged: {} } as any);
+    validateConfigProperties({ project: 'k3j9x2ab/4', staged: {} } as any);
 
     const warned = warnings();
     expect(warned).toHaveLength(1);
@@ -68,7 +90,7 @@ describe('validateConfigProperties', () => {
   });
 
   it('still warns for a genuinely unknown property', () => {
-    validateConfigProperties({ token: 'abc', bogus: true } as any);
+    validateConfigProperties({ project: 'k3j9x2ab/4', bogus: true } as any);
 
     const warned = warnings();
     expect(warned).toHaveLength(1);

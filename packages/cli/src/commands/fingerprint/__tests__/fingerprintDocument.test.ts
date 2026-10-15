@@ -20,7 +20,7 @@ function makeTempDir(): string {
 }
 
 const DOCUMENT: FingerprintDocument = {
-  formatVersion: 2,
+  formatVersion: 3,
   cliVersion: '2.0.2',
   native: { hash: 'native-1', sources: [{ type: 'contents', id: 'expoConfig', hash: 'h1' }] },
   dependencies: {
@@ -30,10 +30,18 @@ const DOCUMENT: FingerprintDocument = {
   },
   js: { android: { hash: 'js-1', fileCount: 1, files: [{ path: 'src/App.tsx', digest: 'h2' }] } },
   base: {
-    hash: 'base-1',
-    workflow: 'bare',
-    lockfiles: [{ file: 'yarn.lock', digest: 'h3' }],
-    autolinkedModules: ['react-native-svg@15.0.0'],
+    android: {
+      hash: 'base-android-1',
+      workflow: 'bare',
+      lockfiles: [],
+      autolinkedModules: ['react-native-svg@15.0.0'],
+    },
+    ios: {
+      hash: 'base-ios-1',
+      workflow: 'bare',
+      lockfiles: [{ file: 'ios/Podfile.lock', digest: 'h3' }],
+      autolinkedModules: ['react-native-svg@15.0.0'],
+    },
   },
 };
 
@@ -97,7 +105,7 @@ describe('fingerprint document', () => {
       expect(() => readFingerprintDocument(notJson)).toThrow('not valid JSON');
 
       const noLayers = path.join(dir, 'no-layers.json');
-      fs.writeFileSync(noLayers, JSON.stringify({ formatVersion: 2, native: {} }));
+      fs.writeFileSync(noLayers, JSON.stringify({ formatVersion: 3, native: {} }));
       expect(() => readFingerprintDocument(noLayers)).toThrow('missing its "dependencies" layer');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });

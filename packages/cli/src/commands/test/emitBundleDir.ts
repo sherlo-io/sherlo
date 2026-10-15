@@ -21,10 +21,11 @@ import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
-import { detectEntryFile } from '../../commands/showError/detectBundler';
-import type { BaseFingerprintResult, GateMetadataInput } from '../../helpers/fingerprint';
-import { FALLBACK_LINE as SHARED_FALLBACK_LINE } from './stagedGateRefusal';
-import { bundler } from '../../seams/bundler';
+import { detectEntryFile } from './detectBundler';
+import type { BaseFingerprints, GateMetadataInput } from '../../helpers/fingerprint';
+import { bundler, type Bundler } from '../../seams/bundler';
+import type { BuildSettings } from './appBuild/buildSettings';
+import { whileShowing } from '../shared/terminal';
 import type { BundleResult } from './buildBundle';
 import {
   SIDECAR_VERSION,
@@ -41,8 +42,6 @@ import {
 } from './bundleSidecar';
 import { recordBaseFingerprint } from './recordedBaseFingerprint';
 
-const FALLBACK_LINE = `\n${SHARED_FALLBACK_LINE}`;
-
 /**
  * Build each platform's bundle and write it, its assets, its module manifest and
  * its sidecar into `bundleDir`.
@@ -55,19 +54,22 @@ export async function emitBundleDir({
   projectRoot,
   platformsToTest,
   bundleDir,
-  baseFingerprint,
+  baseFingerprints,
+  buildSettings,
   // The bundler IN FORCE, not the real one by name - a posed `--emit-bundle-dir` installs its own
   // (../../seams/bundler), exactly like the built road's own bundling loop (./bundleAndPreview).
-  bundleFor = (root, platform) => bundler().bundleFor(root, platform),
+  bundleFor = (root, platform, settings) => bundler().bundleFor(root, platform, settings),
   gateMetadataFor = (root, platform, bundleResult) =>
     bundler().gateMetadataFor(root, platform, bundleResult),
 }: {
   projectRoot: string;
   platformsToTest: Platform[];
   bundleDir: string;
-  /** The base fingerprint this machine computed for the tree, when it could. */
-  baseFingerprint?: BaseFingerprintResult;
-  bundleFor?: (projectRoot: string, platform: Platform) => Promise<BundleResult>;
+  /** Per platform, the base fingerprint this machine computed for the tree, when it could. */
+  baseFingerprints?: BaseFingerprints;
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings: BuildSettings;
+  bundleFor?: Bundler['bundleFor'];
   gateMetadataFor?: (
     projectRoot: string,
     platform: Platform,
@@ -79,9 +81,9 @@ export async function emitBundleDir({
   emit({ kind: 'bundle-emit-header', bundleDir });
 
   for (const platform of platformsToTest) {
-    emit({ kind: 'platform-bundle-start', platform });
-
-    const result = await bundleFor(projectRoot, platform);
+    const result = await whileShowing({ kind: 'platform-bundle-start', platform }, () =>
+      bundleFor(projectRoot, platform, buildSettings)
+    );
 
     // A triple without its manifest is not a triple. The built road may bail open
     // on a missing manifest because failing there would break a build that would
@@ -96,8 +98,7 @@ export async function emitBundleDir({
           'run that used this directory would silently capture every story instead ' +
           'of only what changed.\n\n' +
           'The manifest is emitted by the Sherlo Metro serializer. Check that ' +
-          "@sherlo/react-native-storybook's Metro config is applied in this project." +
-          FALLBACK_LINE
+          "@sherlo/react-native-storybook's Metro config is applied in this project."
       );
     }
 
@@ -149,7 +150,9 @@ export async function emitBundleDir({
       project: identity,
       appSource,
       gateMetadata: await gateMetadataFor(projectRoot, platform, result),
-      baseFingerprint: baseFingerprint ? recordBaseFingerprint(baseFingerprint, projectRoot) : null,
+      baseFingerprint: baseFingerprints
+        ? recordBaseFingerprint(baseFingerprints[platform], projectRoot)
+        : null,
       createdAt: new Date().toISOString(),
       createdBy: { cliVersion: readCliVersion() },
     };

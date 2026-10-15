@@ -1,6 +1,5 @@
 /**
- * THE SAVED-LOGIN SEAM'S LIVE HALF - the real file (sherlo / Logging in from the terminal, "Where is
- * the login kept?").
+ * THE SAVED-LOGIN SEAM'S LIVE HALF - the real file.
  *
  * Every case points XDG_CONFIG_HOME at a fresh temporary folder, so the file these cases write is
  * never the one in this machine's home.

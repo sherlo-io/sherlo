@@ -4,6 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var crypto = require('crypto');
 
+var getBabelParser = require('./babelParser');
 var mockShims = require('./mockShims');
 var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
@@ -12,6 +13,7 @@ var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
+var handOverFilePath = require('./projectPaths').handOverFilePath;
 
 // ---------------------------------------------------------------------------
 // Module path helper (shared by the Diff Scope module manifest)
@@ -54,7 +56,8 @@ function toRelativePath(absPath, projectRoot) {
 // The manifest answers one empirical question: are per-module content hashes,
 // keyed by SOURCE PATH, deterministic across clean rebuilds of unchanged source?
 // It records:
-//   1. moduleHashes  - source-path -> sha256 of the module's TRANSFORMED output.
+//   1. moduleHashes  - source-path -> sha256 of the module's TRANSFORMED output,
+//                      without its comments and positions (hashModuleOutput).
 //                      Keyed by source path (never Metro's ordinal module id,
 //                      which renumbers on any import add/remove/reorder).
 //   2. storyClosures - story source-path -> its transitive forward dependency
@@ -76,7 +79,10 @@ function toRelativePath(absPath, projectRoot) {
 //                      story certainly - the runner matches a PER-EXPORT display
 //                      name and this is per file - see the header of
 //                      metro/storyTitleReader.js before narrowing by it.
-//   4. header        - toolchain/env fingerprint (metro version, transformer/
+//   4. storyCounts   - story source-path -> how many stories the file holds, by
+//                      Storybook's own rule. OMITTED when it cannot be read
+//                      without evaluating the file (an `export *`, say).
+//   5. header        - toolchain/env fingerprint (metro version, transformer/
 //                      babel config digest, env digest) so a build produced by a
 //                      different toolchain/env is never mistaken for an unchanged one,
 //                      plus `generatedFiles`: the graph files a tool wrote at
@@ -86,13 +92,48 @@ function toRelativePath(absPath, projectRoot) {
 // bundle.
 
 /**
- * sha256 of a module's transformed output code.
+ * The parts of a Babel syntax tree that record how the code was written, not what it does:
+ * where each node stood, the comments around it, and its raw spelling (quotes, parentheses).
+ */
+var KEYS_THAT_ARE_NOT_BEHAVIOUR = {
+  start: true,
+  end: true,
+  loc: true,
+  range: true,
+  extra: true,
+  leadingComments: true,
+  trailingComments: true,
+  innerComments: true,
+  comments: true,
+};
+
+/**
+ * What a module's transformed code does, written without its comments, spacing or line
+ * positions: its Babel syntax tree with those parts left out. The test bundle is built
+ * unminified, so the code itself keeps the source's comments and the blank lines a stripped
+ * type stood on - and a change no screen can show must not count as a change.
+ * Code Babel cannot read is returned as it is.
+ */
+function behaviourOf(code) {
+  try {
+    var syntaxTree = getBabelParser().parse(code, { sourceType: 'unambiguous' });
+    return JSON.stringify(syntaxTree.program, function (key, value) {
+      return KEYS_THAT_ARE_NOT_BEHAVIOUR[key] ? undefined : value;
+    });
+  } catch (_) {
+    return code;
+  }
+}
+
+/**
+ * sha256 of what a module's transformed output code does.
  *
  * Metro puts transformed code on module.output[].data.code. We hash the code of
  * every output entry in array order (a module can have >1 output, e.g. js/module
- * + js/script). The code references dependencies through a per-module dependency
- * map by LOCAL index, not by global module id, so this hash is stable across the
- * ordinal-id renumbering that import add/remove/reorder causes elsewhere.
+ * + js/script), through behaviourOf, so a comment, a re-indent or a type hint
+ * leaves the hash as it was. The code references dependencies through a per-module
+ * dependency map by LOCAL index, not by global module id, so this hash is stable
+ * across the ordinal-id renumbering that import add/remove/reorder causes elsewhere.
  *
  * @returns {string|null} hex digest, or null if the module has no hashable output.
  */
@@ -103,7 +144,7 @@ function hashModuleOutput(module) {
   module.output.forEach(function (out) {
     var code = out && out.data && out.data.code;
     if (typeof code === 'string') {
-      hash.update(code);
+      hash.update(behaviourOf(code));
       hashedAnything = true;
     }
   });
@@ -535,6 +576,8 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
      * an absent key as "unknown", never as "untitled".
      */
     var storyTitles = {};
+    /** @type {Record<string, number>} story source-path -> how many stories the file holds. */
+    var storyCounts = {};
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
 
@@ -549,6 +592,12 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
         closureSet[rel] = true;
       });
       storyClosures[storyRel] = Object.keys(closureSet).sort();
+
+      var storySource = fs.existsSync(story.absPath)
+        ? fs.readFileSync(story.absPath, 'utf8')
+        : null;
+      var storyCount = storySource === null ? null : storyTitleReader.readStoryCount(storySource);
+      if (storyCount !== null) storyCounts[storyRel] = storyCount;
 
       if (!loaderEntriesByRequiresFile[story.requiresAbsPath]) {
         loaderEntriesByRequiresFile[story.requiresAbsPath] =
@@ -597,6 +646,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
       storyTitles: storyTitles,
+      storyCounts: storyCounts,
     };
 
     fs.writeFileSync(
@@ -616,14 +666,35 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
  * Returns null if Metro internals cannot be resolved (non-fatal, just skip wrapping).
  */
 function getMetroDefaultSerializer() {
+  var metroFiles = requireMetroFiles();
+  if (!metroFiles) return null;
+  var baseJSBundle = metroFiles.baseJSBundle.default || metroFiles.baseJSBundle;
+  var bundleToString = metroFiles.bundleToString.default || metroFiles.bundleToString;
+  return function defaultSerializer(entryPoint, preModules, graph, options) {
+    return bundleToString(baseJSBundle(entryPoint, preModules, graph, options)).code;
+  };
+}
+
+/**
+ * The two Metro files the default serializer is made of. Metro 0.83 and later let another package
+ * reach its files only under metro/private/; an older Metro has no such path and keeps them under
+ * metro/src/. Each require names its path in full, so the plugin's build keeps both external.
+ *
+ * @returns {{ baseJSBundle: any, bundleToString: any } | null} null when neither Metro is found
+ */
+function requireMetroFiles() {
   try {
-    var baseJSBundle =
-      require('metro/src/DeltaBundler/Serializers/baseJSBundle').default ||
-      require('metro/src/DeltaBundler/Serializers/baseJSBundle');
-    var bundleToString =
-      require('metro/src/lib/bundleToString').default || require('metro/src/lib/bundleToString');
-    return function defaultSerializer(entryPoint, preModules, graph, options) {
-      return bundleToString(baseJSBundle(entryPoint, preModules, graph, options)).code;
+    return {
+      baseJSBundle: require('metro/private/DeltaBundler/Serializers/baseJSBundle'),
+      bundleToString: require('metro/private/lib/bundleToString'),
+    };
+  } catch (_) {
+    // An older Metro, without metro/private/.
+  }
+  try {
+    return {
+      baseJSBundle: require('metro/src/DeltaBundler/Serializers/baseJSBundle'),
+      bundleToString: require('metro/src/lib/bundleToString'),
     };
   } catch (_) {
     return null;
@@ -860,8 +931,11 @@ function applySherloTransforms(result, opts) {
   // The manifest is emitted on the test:bundled bundling path ONLY: the CLI sets
   // SHERLO_MODULE_MANIFEST=1 in the bundler subprocess it spawns, scoping emission
   // to that one child process so every normal build / every other user is
-  // unaffected. INDEPENDENT of opts.enabled.
-  var moduleManifestEnabled = process.env.SHERLO_MODULE_MANIFEST === '1';
+  // unaffected. On Expo's cloud nothing sets that variable, so a project that holds Sherlo's
+  // hand-over file (written by `sherlo test` in EAS mode, uploaded with the project) switches it
+  // on too. INDEPENDENT of opts.enabled.
+  var moduleManifestEnabled =
+    process.env.SHERLO_MODULE_MANIFEST === '1' || fs.existsSync(handOverFilePath(projectRoot));
 
   // Off the bundling path the manifest is never emitted, so there is nothing for
   // the serializer wrapper to do. Skip installing it entirely - Sherlo does not
@@ -1090,4 +1164,5 @@ module.exports.isInsideFolder = isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
 // Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
 module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;
+module.exports.hashModuleOutput = hashModuleOutput;
 module.exports.stableStringify = stableStringify;

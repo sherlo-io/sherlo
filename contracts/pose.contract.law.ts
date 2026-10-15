@@ -35,8 +35,6 @@ import type {
 } from '../packages/cli/src/seams/nativeBuild';
 import type { PosedFiles as CliPosedFiles } from '../packages/cli/src/seams/projectFiles';
 import type {
-  BuildStatusAnswer as CliBuildStatusAnswer,
-  DiffScopeDryRunAnswer as CliDiffScopeDryRunAnswer,
   NextBuildInfoAnswer as CliNextBuildInfoAnswer,
   ScriptedCall as CliScriptedCall,
 } from '../packages/cli/src/seams/serverCalls';
@@ -46,7 +44,6 @@ import type { BuildStatus } from '../packages/cli/src/helpers/waitForBuildResult
 import type {
   BuildStatusAnswer,
   CommandPose,
-  DiffScopeDryRunAnswer,
   NextBuildInfoAnswer,
   PosedBinary,
   PosedBundle,
@@ -91,9 +88,6 @@ type CliMatchesScriptedCall = Assert<IsAssignable<CliScriptedCall, ScriptedCall>
 type PosedBundleMatchesCli = Assert<IsAssignable<PosedBundle, CliPosedBundle>>;
 type CliMatchesPosedBundle = Assert<IsAssignable<CliPosedBundle, PosedBundle>>;
 
-type DryRunAnswerMatchesCli = Assert<IsAssignable<DiffScopeDryRunAnswer, CliDiffScopeDryRunAnswer>>;
-type CliMatchesDryRunAnswer = Assert<IsAssignable<CliDiffScopeDryRunAnswer, DiffScopeDryRunAnswer>>;
-
 type PosedPushMatchesCli = Assert<IsAssignable<PosedPush, CliPosedPush>>;
 type CliMatchesPosedPush = Assert<IsAssignable<CliPosedPush, PosedPush>>;
 
@@ -115,7 +109,7 @@ type CliMatchesNextBuildInfo = Assert<IsAssignable<CliNextBuildInfoAnswer, NextB
 /* -------------------------------------------------------------------------- *
  * EXACT: the build the contract poses IS the build the wire sends.            *
  *                                                                            *
- * The server seam does not re-type this one - it aliases the wire shape - so  *
+ * The server seam does not re-type this one - it IS the wire shape - so       *
  * the pair below pins the CONTRACT's written-out copy straight to the         *
  * `getBuildStatus` response the shipped query selects. A pose describing a    *
  * build the backend cannot send would let a product design be approved off a  *
@@ -124,7 +118,6 @@ type CliMatchesNextBuildInfo = Assert<IsAssignable<CliNextBuildInfoAnswer, NextB
 
 type PosedBuildMatchesWire = Assert<IsAssignable<BuildStatusAnswer, BuildStatus>>;
 type WireMatchesPosedBuild = Assert<IsAssignable<BuildStatus, BuildStatusAnswer>>;
-type CliBuildIsTheWire = Assert<IsAssignable<CliBuildStatusAnswer, BuildStatus>>;
 
 /* -------------------------------------------------------------------------- *
  * The assertions above are types, and an unused type is not an error in every *
@@ -143,8 +136,6 @@ export const POSE_CONTRACT_LAWS: [
   CliMatchesScriptedCall,
   PosedBundleMatchesCli,
   CliMatchesPosedBundle,
-  DryRunAnswerMatchesCli,
-  CliMatchesDryRunAnswer,
   PosedPushMatchesCli,
   CliMatchesPosedPush,
   PosedBinaryMatchesCli,
@@ -158,12 +149,8 @@ export const POSE_CONTRACT_LAWS: [
   NextBuildInfoMatchesCli,
   CliMatchesNextBuildInfo,
   PosedBuildMatchesWire,
-  WireMatchesPosedBuild,
-  CliBuildIsTheWire
+  WireMatchesPosedBuild
 ] = [
-  true,
-  true,
-  true,
   true,
   true,
   true,

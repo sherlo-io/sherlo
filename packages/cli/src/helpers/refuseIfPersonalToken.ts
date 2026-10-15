@@ -26,7 +26,6 @@ function refuseIfPersonalToken(token: string): void {
   if (!isPersonalToken(token)) return;
 
   throwError({
-    type: 'auth',
     message:
       `\`--${TOKEN_OPTION}\` wants a project token, and this is a personal token.\n` +
       '\n' +

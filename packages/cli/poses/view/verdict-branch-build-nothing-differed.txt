@@ -1,12 +1,14 @@
-[32mBuild #14[39m · finished
+[32mTest 14[39m · finished
+[32m✔[39m Finished Test 14
 
-🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
 
-[2m⏳ Waiting for build results (timeout: 45min)...[22m
-   <build progress masked>
+[1m✅ No visual changes[22m
+[2m════════════════════[22m
 
-[32m✅ No visual changes - all snapshots match their baselines.[39m
-[2m   3 captured on this branch, 41 inherited unchanged[22m
+All snapshots match their baselines.
+[2m3 captured on this branch, 41 carried over unchanged.[22m
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 0]

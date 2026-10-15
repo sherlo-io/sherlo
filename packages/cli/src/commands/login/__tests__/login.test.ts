@@ -1,5 +1,5 @@
 /**
- * `sherlo login` (sherlo / Logging in from the terminal).
+ * `sherlo login`.
  *
  * Two ways in, each for what only it can see:
  *

@@ -236,15 +236,15 @@ jobs:
           git push origin "v$RELEASE_VERSION"
 
       # ────────────────────────────────────────────────────────────────────────
-      # THE ACTION RELEASE REF - what `uses: sherlo-io/sherlo@v2` runs.
+      # THE ACTION RELEASE REF - what `uses: sherlo-io/sherlo@v3` runs.
       #
       # `uses:` checks this repository out at the ref and runs what is committed
       # there, so the ref customers pin has to carry a built CLI: with one, a job
       # that installed no dependencies still works; without one, the action needs
       # the project's own installed CLI (which is still preferred when present).
       #
-      # `v2` is the moving major tag customers pin (README's Quick Start). It is
-      # force-updated to each release's commit; `action-release/v2` is the branch
+      # `v3` is the moving major tag customers pin (README's Quick Start). It is
+      # force-updated to each release's commit; `action-release/v3` is the branch
       # holding the same commit, so the history of the ref is readable.
       # ────────────────────────────────────────────────────────────────────────
       - name: Push the action release ref

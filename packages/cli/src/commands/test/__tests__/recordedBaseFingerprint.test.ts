@@ -49,8 +49,14 @@ const COMPUTED: BaseFingerprintResult = {
     ],
     lockfiles: [{ file: 'yarn.lock', digest: 'h-lock' }],
     autolinkedModules: ['expo-camera@15.0.0'],
+    nativeFolderFiles: [],
   },
 };
+
+/** What `computeBaseFingerprint` answers when every platform's result is `result`. */
+function onEveryPlatform(result: BaseFingerprintResult) {
+  return { android: result, ios: result };
+}
 
 beforeEach(() => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-recorded-fp-'));
@@ -157,16 +163,14 @@ describe('the native inputs digest', () => {
 
 describe('what the accept side trusts', () => {
   it('takes the recorded fingerprint when the native inputs are unchanged - with no install at all', async () => {
-    const recorded = recordBaseFingerprint(COMPUTED, projectRoot);
-    writeSidecar('android', recorded);
-    writeSidecar('ios', recorded);
+    writeSidecar('android', recordBaseFingerprint(COMPUTED, projectRoot));
+    writeSidecar('ios', recordBaseFingerprint({ ...COMPUTED, hash: 'base-hash-ios' }, projectRoot));
 
     // The accepting machine: same checkout, nothing installed.
     fs.rmSync(path.join(projectRoot, 'node_modules'), { recursive: true });
-    mocks.computeBaseFingerprint.mockResolvedValue({
-      hash: null,
-      debugMessage: '@expo/fingerprint unavailable',
-    });
+    mocks.computeBaseFingerprint.mockResolvedValue(
+      onEveryPlatform({ hash: null, debugMessage: '@expo/fingerprint unavailable' })
+    );
 
     const result = await resolveBaseFingerprintForSuppliedBundle({
       bundleDir,
@@ -175,18 +179,19 @@ describe('what the accept side trusts', () => {
       command: 'test',
     });
 
-    expect(result.hash).toBe('base-hash');
-    expect(result.nativeFingerprint).toBe('native-hash');
+    // Each platform's own, from its own sidecar.
+    expect(result.android.hash).toBe('base-hash');
+    expect(result.ios.hash).toBe('base-hash-ios');
+    expect(result.android.nativeFingerprint).toBe('native-hash');
     expect(mocks.computeBaseFingerprint).not.toHaveBeenCalled();
   });
 
   it('computes instead when a native input changed, and says what that needs when it cannot', async () => {
     writeSidecar('android', recordBaseFingerprint(COMPUTED, projectRoot));
     write('ios/Podfile', "platform :ios, '16.0'");
-    mocks.computeBaseFingerprint.mockResolvedValue({
-      hash: null,
-      debugMessage: '@expo/fingerprint unavailable',
-    });
+    mocks.computeBaseFingerprint.mockResolvedValue(
+      onEveryPlatform({ hash: null, debugMessage: '@expo/fingerprint unavailable' })
+    );
 
     const result = await resolveBaseFingerprintForSuppliedBundle({
       bundleDir,
@@ -195,18 +200,19 @@ describe('what the accept side trusts', () => {
       command: 'test',
     });
 
-    expect(result.hash).toBeNull();
-    expect(result.debugMessage).toContain('the native inputs it was computed over have changed');
-    expect(result.debugMessage).toContain('needs the project installed');
+    expect(result.android.hash).toBeNull();
+    expect(result.android.debugMessage).toContain(
+      'the native inputs it was computed over have changed'
+    );
+    expect(result.android.debugMessage).toContain('needs the project installed');
   });
 
   it('computes instead when a native input changed and the install is there', async () => {
     writeSidecar('android', recordBaseFingerprint(COMPUTED, projectRoot));
     write('ios/Podfile', "platform :ios, '16.0'");
-    mocks.computeBaseFingerprint.mockResolvedValue({
-      hash: 'fresh',
-      nativeFingerprint: 'fresh-native',
-    });
+    mocks.computeBaseFingerprint.mockResolvedValue(
+      onEveryPlatform({ hash: 'fresh', nativeFingerprint: 'fresh-native' })
+    );
 
     const result = await resolveBaseFingerprintForSuppliedBundle({
       bundleDir,
@@ -215,35 +221,33 @@ describe('what the accept side trusts', () => {
       command: 'test',
     });
 
-    expect(result.hash).toBe('fresh');
+    expect(result.android.hash).toBe('fresh');
     expect(mocks.computeBaseFingerprint).toHaveBeenCalledWith(projectRoot, { command: 'test' });
   });
 
-  it('computes instead when the platform sidecars disagree, or one records nothing', async () => {
+  it('computes instead when a tested platform sidecar records nothing', async () => {
+    // Two sidecars that record different fingerprints are two platforms, as they should be;
+    // only a tested platform with nothing recorded leaves the tree to compute.
     writeSidecar('android', recordBaseFingerprint(COMPUTED, projectRoot));
-    writeSidecar('ios', recordBaseFingerprint({ ...COMPUTED, hash: 'other-tree' }, projectRoot));
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: null, debugMessage: 'unavailable' });
-
-    const disagreeing = await resolveBaseFingerprintForSuppliedBundle({
-      bundleDir,
-      projectRoot,
-      platforms: ['android', 'ios'],
-      command: 'test',
-    });
-    expect(disagreeing.debugMessage).toContain('record different fingerprints');
-
     writeSidecar('ios', null);
+    mocks.computeBaseFingerprint.mockResolvedValue(
+      onEveryPlatform({ hash: null, debugMessage: 'unavailable' })
+    );
+
     const partial = await resolveBaseFingerprintForSuppliedBundle({
       bundleDir,
       projectRoot,
       platforms: ['android', 'ios'],
       command: 'test',
     });
-    expect(partial.debugMessage).toContain('not every platform sidecar records one');
+    expect(partial.ios.debugMessage).toContain('not every platform sidecar records one');
+    expect(mocks.computeBaseFingerprint).toHaveBeenCalledTimes(1);
   });
 
   it('leaves an unreadable directory to the supplied-bundle road and just computes', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({ hash: 'fresh', nativeFingerprint: 'n' });
+    mocks.computeBaseFingerprint.mockResolvedValue(
+      onEveryPlatform({ hash: 'fresh', nativeFingerprint: 'n' })
+    );
 
     const result = await resolveBaseFingerprintForSuppliedBundle({
       bundleDir: path.join(bundleDir, 'missing'),
@@ -252,6 +256,6 @@ describe('what the accept side trusts', () => {
       command: 'test',
     });
 
-    expect(result.hash).toBe('fresh');
+    expect(result.android.hash).toBe('fresh');
   });
 });

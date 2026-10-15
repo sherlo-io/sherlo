@@ -58,7 +58,7 @@ describe('registerBase - default stdout hygiene', () => {
       projectRoot: '/tmp/project',
       bundlePath: 'assets/index.android.bundle',
       buildType: 'preview',
-      baseFingerprintHash: 'fp-hash-abc123',
+      baseFingerprint: { hash: 'fp-hash-abc123' },
     });
 
     expect(result.registered).toBe(true);
@@ -67,5 +67,66 @@ describe('registerBase - default stdout hygiene', () => {
     expect(out).not.toMatch(/\[Sherlo\]/);
     expect(out).not.toContain('Staged registration metadata computed');
     expect(out).not.toContain('fp-hash-abc123');
+  });
+});
+
+describe('registerBase - the source list a stored base keeps', () => {
+  it("a push that stores a base sends its source list: paths, hashes and module versions, never a file's contents", async () => {
+    vi.clearAllMocks();
+    mockExtractGateMetadata.mockResolvedValue(STAGEABLE_GATE_METADATA);
+    mockCheckStageable.mockResolvedValue({ stageable: true });
+    const { registerBase } = await import('../registerBase');
+
+    const result = await registerBase({
+      binaryPath: '/tmp/app.apk',
+      platform: 'android',
+      projectRoot: '/tmp/project',
+      bundlePath: 'assets/index.android.bundle',
+      buildType: 'preview',
+      baseFingerprint: {
+        hash: 'fp-hash-android',
+        preimage: {
+          workflow: 'bare',
+          nativeSources: [
+            { type: 'dir', id: 'android', hash: 'folder-hash' },
+            { type: 'file', id: 'app.json', hash: 'app-json-hash' },
+            { type: 'contents', id: 'expoConfigPlugins', hash: 'plugins-hash' },
+          ],
+          lockfiles: [{ file: 'Gemfile.lock', digest: 'gemfile-digest' }],
+          autolinkedModules: ['@react-native-community/slider@4.5.0', 'react-native-maps@1.2.0'],
+          nativeFolderFiles: [
+            { path: 'android/app/build.gradle', hash: 'gradle-hash' },
+            { path: 'android/settings.gradle', hash: 'settings-hash' },
+          ],
+        },
+      },
+    });
+
+    expect(result.sourceList).toEqual({
+      sources: [
+        {
+          path: 'android',
+          hash: 'folder-hash',
+          kind: 'dir',
+          files: [
+            { path: 'android/app/build.gradle', hash: 'gradle-hash' },
+            { path: 'android/settings.gradle', hash: 'settings-hash' },
+          ],
+        },
+        { path: 'app.json', hash: 'app-json-hash', kind: 'file' },
+        { path: 'expoConfigPlugins', hash: 'plugins-hash', kind: 'contents' },
+        { path: 'Gemfile.lock', hash: 'gemfile-digest', kind: 'file' },
+      ],
+      modules: [
+        { name: '@react-native-community/slider', version: '4.5.0' },
+        { name: 'react-native-maps', version: '1.2.0' },
+      ],
+    });
+    // Every entry is a path or name with a hash or version - no field could carry contents.
+    for (const source of result.sourceList?.sources ?? []) {
+      expect(Object.keys(source).sort()).toEqual(
+        source.files ? ['files', 'hash', 'kind', 'path'] : ['hash', 'kind', 'path']
+      );
+    }
   });
 });

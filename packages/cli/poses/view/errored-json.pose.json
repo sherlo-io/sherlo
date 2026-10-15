@@ -1,0 +1,45 @@
+{
+  "pose": 1,
+  "argv": ["view", "7", "--json"],
+  "files": {
+    "sherlo.config.json": { "devices": [{ "id": "iphone.15", "osVersion": "17" }, { "id": "pixel.7", "osVersion": "13" }] }
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "git": { "branch": "main", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": {
+        "runStatus": "error",
+        "runError": "user_easCloudBuild",
+        "runErrorPlatform": "ios",
+        "showsOnlyBranchChanges": false,
+        "mainBranch": "main",
+        "ciRun": null,
+        "gitInfo": { "branchName": "main", "commitHash": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "isDirty": false },
+        "devices": [
+          { "id": "iphone.15", "osVersion": "17", "platform": "ios" },
+          { "id": "pixel.7", "osVersion": "13", "platform": "android" }
+        ],
+        "stories": null,
+        "platforms": {
+          "android": {
+            "arrived": true,
+            "capture": null,
+            "appBuild": { "from": "uploaded", "madeBy": "eas", "why": "nothing-stored" },
+            "storiesInBundle": 12
+          },
+          "ios": {
+            "arrived": false,
+            "capture": null,
+            "appBuild": null,
+            "storiesInBundle": 12
+          }
+        }
+      }
+    }
+  ],
+  "masks": {}
+}

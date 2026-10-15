@@ -1,6 +1,6 @@
 # ⚡️ EAS Update Example • Sherlo
 
-A minimal example app showing Sherlo running automated [visual regression testing for React Native](https://sherlo.io). Sherlo captures Storybook stories on iOS and Android simulators in the cloud. App binaries are built from an EAS development profile and reused across runs; each test renders the JavaScript in the current checkout.
+A minimal example app showing Sherlo running automated [visual regression testing for React Native](https://sherlo.io). Sherlo captures Storybook stories on iOS and Android simulators in the cloud. `npx sherlo test` builds the iOS and Android apps itself, with Gradle and Xcode, then uploads them and tests every story. The app uses `expo-updates` for EAS Update.
 
 - Sherlo integration
 - GitHub Actions workflow
@@ -9,27 +9,21 @@ A minimal example app showing Sherlo running automated [visual regression testin
 
 ## 🔄 Workflow
 
-Reuse app binaries across runs and rebuild natively only when native code changes
+CI runs one job per platform with the Sherlo GitHub Action. The two jobs share one test.
 
 ```mermaid
 flowchart TB
    UI(🧑‍💻 Code Changes)
-   Check{Native code changed?}
-   Reuse(📦 Reuse Builds)
-   subgraph Build[📦 Create Builds]
-      Android(🤖 Build Android)
-      iOS(🍎 Build iOS)
+   subgraph Jobs[📦 One job per platform]
+      Android(🤖 Android job)
+      iOS(🍎 iOS job)
       Android ~~~ iOS
-      style Build fill:#b8885f21,stroke:#b8885fa6
+      style Jobs fill:#b8885f21,stroke:#b8885fa6
    end
-   Test(🧪 Run Test)
    Review(👀 Review Results)
 
-   UI --> Check
-   Check -->|No| Reuse
-   Check -->|Yes| Build
-   Reuse & Build --> Test
-   Test --> Review
+   UI --> Jobs
+   Jobs --> Review
 ```
 
 <br />
@@ -37,7 +31,6 @@ flowchart TB
 ## 🛠️ Prerequisites
 
 - [**Sherlo Account**](https://app.sherlo.io) – Required for visual testing
-- [**Expo Account**](https://expo.dev/signup) – Required for EAS
 - Node.js 18+
 
 <br />
@@ -55,20 +48,11 @@ cd sherlo-eas-update
 yarn install
 ```
 
-### 2. Configure EAS (Expo)
+### 2. Log in to Sherlo
 
-Set up EAS to build your app binaries:
+Log in once with `npx sherlo login`. In CI, the project token is passed as the `SHERLO_TOKEN` secret.
 
-```bash
-# Link project to your Expo account
-npx eas-cli init
-```
-
-_💡 This example uses EAS Build; for other build tools, see our [documentation](https://sherlo.io/docs/builds?type=development-simulator#build-types)_
-
-### 3. Get Sherlo Token
-
-This token authenticates your account and links tests to your project
+To get a project token:
 
 1. Go to https://app.sherlo.io
 2. Get your token:
@@ -81,25 +65,11 @@ This token authenticates your account and links tests to your project
 
 ### Option A: Run from Terminal
 
-1. **Create development simulator builds** _(when native code changes)_
+Run Sherlo visual test. It builds the iOS and Android apps itself, uploads them and tests every story:
 
-   Create Android and iOS builds without bundled JavaScript:
-
-   ```bash
-   yarn build:android
-   yarn build:ios
-   ```
-
-   _💡 Build once and reuse them for future test runs_
-
-2. **Run test**
-
-   Run Sherlo visual test with the latest JavaScript changes:
-
-   ```bash
-   yarn sherlo --token YOUR_SHERLO_TOKEN
-   # Or add token to sherlo.config.json and run `yarn sherlo`
-   ```
+```bash
+yarn sherlo
+```
 
 ---
 
@@ -119,8 +89,8 @@ This token authenticates your account and links tests to your project
 2. **Add repository secrets**
 
    In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+
    - `SHERLO_TOKEN` – Your Sherlo project token
-   - `EXPO_TOKEN` – Your [Expo access token](https://expo.dev/accounts/[your-account]/settings/access-tokens)
 
 3. **Trigger the workflow**
 
@@ -167,6 +137,5 @@ To learn more about testing with Sherlo, visit our [documentation](https://sherl
 
 ## 🔗 Other Examples
 
-- 📦 **[Standard](../standard)** – Test app builds with bundled JavaScript
-- ⚡ **[Staged](../staged)** – Route CI to a JS-only fast lane when native is unchanged
+- 📦 **[Standard](../standard)** – Test the app with the Sherlo GitHub Action
 - ☁️ **[EAS Cloud Build](../eas-cloud-build)** – Automatically test builds created on Expo servers

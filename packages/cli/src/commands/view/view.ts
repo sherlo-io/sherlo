@@ -37,18 +37,19 @@
 import {
   getAppBuildUrl,
   getValidatedCommandParams,
-  printResultsUrl,
-  printSherloIntro,
   reporting,
   throwError,
   waitForBuildResult,
 } from '../../helpers';
+import { JSON_OPTION } from '../../constants';
 import { AuthError } from '../../helpers/buildStatusRequest';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
-import { readBuildStatus } from '../../helpers/waitForBuildResult';
+import { readBuildStatus, waitForTest } from '../../helpers/waitForBuildResult';
 import { Options } from '../../types';
 import { refuseRejectedLogin } from '../shared';
+import { printTheLogoInATerminal } from '../shared/terminal';
+import { endAfterTheWait } from '../test/closeTheRun';
 import { THIS_COMMAND } from './constants';
 import { printBuildView, refuseBuildNotFound } from './printBuildView';
 
@@ -56,14 +57,12 @@ async function view(
   buildArgument: string | undefined,
   passedOptions: Options<THIS_COMMAND>
 ): Promise<void> {
-  printSherloIntro();
+  // `--json` prints the record and nothing else, so no logo even in a terminal.
+  if (passedOptions[JSON_OPTION] !== true) printTheLogoInATerminal();
 
   const buildIndex = resolveBuildIndex(buildArgument);
 
-  const commandParams = getValidatedCommandParams(
-    { command: THIS_COMMAND, passedOptions },
-    { requirePlatformPaths: false }
-  );
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // On a project token the team and project come from the token; on a person's credential, from
   // the config's `project` - both resolved before any request (getValidatedCommandParams).
@@ -104,7 +103,35 @@ async function view(
   });
 
   const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
-  const showDetails = commandParams.metadata === true;
+
+  const printJson = passedOptions[JSON_OPTION] === true;
+
+  // `--json --wait` waits, then prints the record - and only the record - on stdout, the way
+  // `eas build --json --wait` does: a script reads a test back with one command.
+  if (commandParams.wait && printJson) {
+    const { exitCode, lastRead } = await waitForTest({
+      token,
+      fromSavedLogin,
+      buildIndex,
+      projectIndex,
+      teamId,
+      waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+      json: true,
+    });
+
+    // The wait's last read is the test as the wait left it: finished, or - when the wait ran out -
+    // still running. A test that never appeared has no record to print.
+    if (lastRead) {
+      printBuildView({ build: lastRead, buildIndex, url, printJson: true });
+    }
+
+    // The exit code is the wait's, exactly as on `--wait` alone.
+    await reporting.flush().finally(() => {
+      process.exit(exitCode);
+    });
+
+    return;
+  }
 
   if (commandParams.wait) {
     // The verdict belongs to the wait loop from here on, so the tally and the
@@ -117,8 +144,6 @@ async function view(
     if (build) {
       emit({ kind: 'build-view-header', buildIndex, runStatus: build.runStatus });
     }
-    emit({ kind: 'blank-line' });
-    printResultsUrl(url);
 
     const exitCode = await waitForBuildResult({
       token,
@@ -127,8 +152,11 @@ async function view(
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
-      metadata: showDetails ? {} : undefined,
     });
+
+    // The link prints once, last - under the verdict, or in the next step when the waiting stopped
+    // first - exactly as `sherlo test --wait` ends (../test/closeTheRun).
+    endAfterTheWait({ exitCode, testIndex: buildIndex, url });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
     await reporting.flush().finally(() => {
@@ -144,7 +172,7 @@ async function view(
     refuseBuildNotFound(buildIndex);
   }
 
-  printBuildView({ build, buildIndex, url, showDetails });
+  printBuildView({ build, buildIndex, url, printJson });
 }
 
 export default view;

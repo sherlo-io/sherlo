@@ -1,5 +1,5 @@
 /**
- * `sherlo pose` (sherlo / Drawing for a plan).
+ * `sherlo pose`.
  *
  * Two rules live here, and the second is the proof the emit road never had.
  *
@@ -40,11 +40,10 @@ describe('sherlo pose runs one command against a declared world', () => {
       argv: ['view', '7'],
       files: {
         'sherlo.config.json': {
-          token: 'posetokenposetokenposetokenpose1tm0000017',
           devices: [{ id: 'pixel.7', osVersion: '13' }],
         },
       },
-      env: {},
+      env: { SHERLO_TOKEN: 'posetokenposetokenposetokenpose1tm0000017' },
       git: 'none',
       bundles: {},
       api: [],
@@ -59,8 +58,30 @@ describe('sherlo pose runs one command against a declared world', () => {
     // person would have been looking at when the run stopped.
     expect(screen).toContain('Make sure your mobile app looks perfect on every device');
     // And nothing the command prints AFTER the read it never got.
-    expect(screen).not.toContain('Build #7');
+    expect(screen).not.toContain('Test 7');
     expect(exitCode).toBe(1);
+  });
+
+  it('a posed wait the pose stops answering ends, instead of retrying forever on a clock that stands still', async () => {
+    // The wait retries every error but a refused login, and a posed sleep passes no time. Before,
+    // a `--wait` whose script ran out retried on promises alone: the clock never reached the
+    // deadline and no timer could fire, so the run - and the whole suite with it - hung for hours.
+    const { refusals, exitCode } = await runPose({
+      pose: 1,
+      argv: ['view', '7', '--wait'],
+      files: { 'sherlo.config.json': { devices: [{ id: 'pixel.7', osVersion: '13' }] } },
+      env: { SHERLO_TOKEN: 'posetokenposetokenposetokenpose1tm0000017' },
+      git: 'none',
+      bundles: {},
+      // One read is answered: the test is running. The next is not.
+      api: [
+        { call: 'getBuildStatus', with: { buildIndex: 7 }, answer: { runStatus: 'inProgress' } },
+      ],
+      masks: {},
+    });
+
+    expect(refusals[0].call).toBe('getBuildStatus');
+    expect(exitCode).not.toBe(0);
   });
 
   it('a push that reaches the machine with no `push` is refused before any binary on this machine is read', async () => {
@@ -172,7 +193,7 @@ describe('sherlo pose runs one command against a declared world', () => {
     restoreFiles();
 
     try {
-      const recorded = recordThroughAPty(pose.argv, scratch.root());
+      const recorded = recordThroughAPty(pose.argv, scratch.root(), pose.env);
 
       const fromTheTerminal = applyMasks(recorded, pose, { root: scratch.root(), configPath });
       const fromThePose = fs.readFileSync(PTY_SCENARIO.replace(/\.pose\.json$/, '.txt'), 'utf8');
@@ -209,7 +230,11 @@ describe('sherlo pose runs one command against a declared world', () => {
  * If `script` is not there, this FAILS - loudly, saying so. A ratchet that skipped itself on a
  * machine without a pty would be green on exactly the machine that could not prove anything.
  */
-function recordThroughAPty(argv: string[], projectRoot: string): string {
+function recordThroughAPty(
+  argv: string[],
+  projectRoot: string,
+  scenarioEnv: Record<string, string>
+): string {
   const command = [
     process.execPath,
     '-r',
@@ -230,6 +255,8 @@ function recordThroughAPty(argv: string[], projectRoot: string): string {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'inherit'],
       env: {
+        // The settings the scenario states, such as its SHERLO_TOKEN - the same ones the pose run reads.
+        ...scenarioEnv,
         PATH: process.env.PATH,
         // `script -c` runs the command through `/bin/sh` on Linux, and node resolves a few
         // defaults against a home. Neither reaches the screen.

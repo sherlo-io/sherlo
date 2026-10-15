@@ -1,0 +1,43 @@
+{
+  "runStatus": "finished",
+  "buildIndex": 7,
+  "commit": {
+    "sha": "<SHA>",
+    "branch": "feature/checkout",
+    "dirty": false
+  },
+  "showsOnlyBranchChanges": false,
+  "mainBranch": "main",
+  "ciRun": null,
+  "devices": [
+    {
+      "id": "iphone.15",
+      "osVersion": "17",
+      "platform": "ios"
+    }
+  ],
+  "viewStatusesCount": {
+    "approved": 0,
+    "noChanges": 1,
+    "reported": 0,
+    "unreviewed": 1
+  },
+  "stories": [
+    {
+      "name": "Sanity/Hello - Basic",
+      "status": "changed",
+      "baseline": {
+        "buildIndex": 6
+      }
+    },
+    {
+      "name": "Typography - Dense",
+      "status": "unchanged",
+      "baseline": {
+        "buildIndex": 6
+      }
+    }
+  ]
+}
+
+[exit 1]
