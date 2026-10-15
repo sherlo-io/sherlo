@@ -212,13 +212,54 @@ function easProfileEnv(projectRoot: string, profileName: string): Record<string,
 /** How many of a failed build's last lines the run shows. */
 const LAST_LINES_SHOWN = 30;
 
-/** Gradle's home keeps its own build cache; these flags turn it on and size the daemon. */
-const GRADLE_FLAGS = [
-  '-PreactNativeArchitectures=arm64-v8a',
-  '--build-cache',
-  '-Dorg.gradle.jvmargs=-Xmx8192m -XX:MaxMetaspaceSize=2048m',
-  '--console=plain',
-];
+const MB_PER_GB = 1024;
+
+/**
+ * Gradle's home keeps its own build cache; these flags turn it on and size the two JVM daemons from
+ * the machine's memory, because React Native's C++ compilers (clang, ninja) run beside them and a
+ * fixed 8 GB heap plus a Kotlin daemon that inherits it starved GitHub's 16 GB runner into being
+ * killed. Gradle gets a third of the machine (floor 2 GB, ceiling the former 8 GB), Kotlin a sixth
+ * (floor 1 GB, ceiling 4 GB): on 16 GB that is 5.3 GB and 2.7 GB, leaving over half for the native
+ * compilers and the OS. Metaspace is 1 GB, which a React Native app's plugins fit in. These are
+ * command-line flags, so as before they win over the project's `gradle.properties`.
+ */
+function gradleFlags(): string[] {
+  const machineMB = os.totalmem() / (MB_PER_GB * MB_PER_GB);
+  const clamp = (value: number, floor: number, ceiling: number) =>
+    Math.round(Math.min(ceiling, Math.max(floor, value)));
+  const gradleHeapMB = clamp(machineMB / 3, 2 * MB_PER_GB, 8 * MB_PER_GB);
+  const kotlinHeapMB = clamp(machineMB / 6, MB_PER_GB, 4 * MB_PER_GB);
+  return [
+    '-PreactNativeArchitectures=arm64-v8a',
+    '--build-cache',
+    `-Dorg.gradle.jvmargs=-Xmx${gradleHeapMB}m -XX:MaxMetaspaceSize=1024m`,
+    `-Pkotlin.daemon.jvmargs=-Xmx${kotlinHeapMB}m`,
+    '--console=plain',
+  ];
+}
+
+/** How often a Gradle build on CI says which task it is on. */
+const GRADLE_PROGRESS_INTERVAL_MS = 60_000;
+
+/** While `running` is pending on CI (the `CI` variable every CI service sets), prints once a minute the last `> Task :...` line of the log. */
+async function withGradleProgressOnCI<T>(logPath: string, running: Promise<T>): Promise<T> {
+  if (!process.env.CI) return running;
+  const startedAt = Date.now();
+  const timer = setInterval(() => {
+    const log = fs.existsSync(logPath) ? fs.readFileSync(logPath, 'utf8') : '';
+    const lastTask = log
+      .split('\n')
+      .filter((line) => line.startsWith('> Task :'))
+      .pop();
+    const minutes = Math.round((Date.now() - startedAt) / 60_000);
+    console.log(`Gradle, ${minutes} min so far: ${lastTask ?? 'no task started yet'}`);
+  }, GRADLE_PROGRESS_INTERVAL_MS);
+  try {
+    return await running;
+  } finally {
+    clearInterval(timer);
+  }
+}
 
 /**
  * Gradle's saved answer to which native modules the app links, from the project's root. Its answer
@@ -444,13 +485,16 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     fs.rmSync(path.join(projectRoot, AUTOLINKING_ANSWER_PATH), { force: true });
 
     const androidFolder = path.join(projectRoot, 'android');
-    const exitCode = await runProcess({
-      command: path.join(androidFolder, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'),
-      args: ['-I', initScriptPath, androidTask, ...GRADLE_FLAGS],
-      cwd: androidFolder,
-      env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
+    const exitCode = await withGradleProgressOnCI(
       logPath,
-    });
+      runProcess({
+        command: path.join(androidFolder, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'),
+        args: ['-I', initScriptPath, androidTask, ...gradleFlags()],
+        cwd: androidFolder,
+        env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
+        logPath,
+      })
+    );
     if (exitCode !== 0) {
       return { ok: false, seconds: secondsSince(), lastLines: lastLinesOf(logPath) };
     }

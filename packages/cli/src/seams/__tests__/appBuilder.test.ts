@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildEnvironment,
   makeLiveAppBuilder,
@@ -76,6 +76,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   fs.rmSync(projectRoot, { recursive: true, force: true });
 });
 
@@ -87,11 +90,67 @@ describe('app builder, Android', () => {
     expect(gradleCall().args).not.toContain('assembleRelease');
   });
 
-  it('runs Gradle with an 8 GB heap and 2 GB of metaspace', async () => {
+  it('runs Gradle with an 8 GB heap at most, and 1 GB of metaspace', async () => {
+    vi.spyOn(os, 'totalmem').mockReturnValue(64 * 1024 ** 3);
     await compileAndroid(liveBuilder());
     expect(gradleCall().args).toContain(
-      '-Dorg.gradle.jvmargs=-Xmx8192m -XX:MaxMetaspaceSize=2048m'
+      '-Dorg.gradle.jvmargs=-Xmx8192m -XX:MaxMetaspaceSize=1024m'
     );
+  });
+
+  it("sizes Gradle's and Kotlin's memory from the machine's memory", async () => {
+    const heaps = async (gigabytes: number) => {
+      calls = [];
+      vi.spyOn(os, 'totalmem').mockReturnValue(gigabytes * 1024 ** 3);
+      await compileAndroid(liveBuilder());
+      const args = gradleCall().args;
+      return {
+        gradle: args.find((arg) => arg.startsWith('-Dorg.gradle.jvmargs=')),
+        kotlin: args.find((arg) => arg.startsWith('-Pkotlin.daemon.jvmargs=')),
+      };
+    };
+    expect(await heaps(16)).toEqual({
+      gradle: '-Dorg.gradle.jvmargs=-Xmx5461m -XX:MaxMetaspaceSize=1024m',
+      kotlin: '-Pkotlin.daemon.jvmargs=-Xmx2731m',
+    });
+    expect(await heaps(4)).toEqual({
+      gradle: '-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=1024m',
+      kotlin: '-Pkotlin.daemon.jvmargs=-Xmx1024m',
+    });
+    expect((await heaps(128)).kotlin).toBe('-Pkotlin.daemon.jvmargs=-Xmx4096m');
+  });
+
+  it('on CI a long Gradle build prints the task it is on every minute', async () => {
+    vi.useFakeTimers();
+    vi.stubEnv('CI', 'true');
+    const printed = vi.spyOn(console, 'log').mockImplementation(() => {});
+    let finish: () => void = () => {};
+    const builder = makeLiveAppBuilder(async (call) => {
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      fs.writeFileSync(
+        call.logPath,
+        '> Task :app:preBuild\n> Task :app:compileReleaseKotlin\nnoise\n'
+      );
+      await new Promise<void>((resolve) => (finish = resolve));
+      return 1;
+    });
+    const compiling = compileAndroid(builder);
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(printed.mock.calls.map((call) => call[0])).toEqual([
+      'Gradle, 1 min so far: > Task :app:compileReleaseKotlin',
+      'Gradle, 2 min so far: > Task :app:compileReleaseKotlin',
+    ]);
+    finish();
+    await compiling;
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(printed).toHaveBeenCalledTimes(2);
+  });
+
+  it('off CI a Gradle build prints nothing of its own', async () => {
+    vi.stubEnv('CI', '');
+    const printed = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await compileAndroid(liveBuilder());
+    expect(printed).not.toHaveBeenCalled();
   });
 
   it('runs Gradle with its build cache on', async () => {
