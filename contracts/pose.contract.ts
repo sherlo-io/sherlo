@@ -858,9 +858,9 @@ export type PushFactsPlatform = {
 
 /**
  * The run that just started, as the service tells the EAS upload that brought its last platform
- * in: the devices of the whole test and what each platform captures. The sdk client's
- * `asyncUpload` does not select it yet, so a live EAS run prints the bare `Test N ✔ Started`; a
- * pose can state it for `asyncUpload` only.
+ * in: the devices of the whole test and what each platform captures, counted off the module map
+ * each EAS build staged with its delivery. A field the service has no value for arrives as null,
+ * as GraphQL answers it.
  */
 export type StartedRun = {
   devices: Array<{
@@ -912,7 +912,11 @@ export type StartedRun = {
     full: boolean;
     /** How many stories a partial capture takes. Ignored on a full capture. */
     capturedStories: number;
-    /** How many stories the bundle holds; absent when no module map could count them. */
+    /**
+     * How many stories the bundle holds; absent when no module map could count them. The service's
+     * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as
+     * absent.
+     */
     storiesInBundle?: number;
     /** The server's own reason, printed only on a full capture. */
     reason?: string;
@@ -927,7 +931,7 @@ export type StartedRun = {
     changedStoryFiles?: string[];
     /**
      * The story files that have a Storybook title, and how many stories each holds. `stories` is
-     * absent when the module map recorded no count.
+     * absent (null in the service's startedRun) when the module map recorded no count.
      */
     storyTitles?: Array<{
       storyFile: string;

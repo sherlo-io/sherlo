@@ -63,9 +63,11 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('@sherlo/sdk-client', () => ({ default: mocks.sdkClient }));
 
-vi.mock('../../../../../helpers', () => ({
+vi.mock('../../../../../helpers', async () => ({
   getAppBuildUrl: mocks.getAppBuildUrl,
   getCwd: () => '/tmp/project',
+  // The real one: the last hook names the other platform's row from the run's devices.
+  getPlatformsToTest: (await import('../../../../../helpers/getPlatformsToTest')).default,
   getTokenParts: mocks.getTokenParts,
   getValidatedBinariesInfoAndNextBuildIndex: mocks.getValidatedBinariesInfoAndNextBuildIndex,
   handleClientError: mocks.handleClientError,
@@ -90,6 +92,8 @@ vi.mock('../../../../../helpers/fingerprint', () => ({
   registerBase: mocks.registerBase,
 }));
 
+import { stripVTControlCharacters } from 'util';
+import { captureTranscript } from '../../../../../helpers/transcriptSink';
 import { installServerCalls, liveServerCalls } from '../../../../../seams/serverCalls';
 import asyncUploadBuildAndRunTests from '../asyncUploadBuildAndRunTests';
 
@@ -212,5 +216,65 @@ describe('asyncUploadBuildAndRunTests - asyncUpload payload contract', () => {
 
     expect(mocks.computeBaseFingerprint).toHaveBeenCalledTimes(1);
     expect(mocks.asyncUploadSpy.mock.calls[0][0].baseFingerprint).toBe('taken-after-the-build');
+  });
+
+  it('the hook that starts the test prints its story count and files', async () => {
+    // The service's startedRun as GraphQL answers it: a field it has no value for comes back null,
+    // never absent.
+    const capturedFrom = (platform: 'android' | 'ios', storiesInBundle: number | null) => ({
+      platform,
+      full: true,
+      capturedStories: storiesInBundle ?? 0,
+      storiesInBundle,
+      reason: 'no main branch is set',
+      storyFiles: storiesInBundle === null ? null : ['Hello.stories.tsx', 'Static.stories.tsx'],
+      newStoryFiles: null,
+      changedStoryFiles: null,
+      storyTitles:
+        storiesInBundle === null
+          ? null
+          : [
+              { storyFile: 'Hello.stories.tsx', title: 'Sanity/Hello', stories: 1 },
+              { storyFile: 'Static.stories.tsx', title: 'StaticRendering', stories: 3 },
+            ],
+    });
+    const devices = [
+      { id: 'pixel.7', osVersion: '13', locale: 'en_US', theme: 'light', fontScale: 'default' },
+      {
+        id: 'iphone.15.pro',
+        osVersion: '17',
+        locale: 'en_US',
+        theme: 'light',
+        fontScale: 'default',
+      },
+    ];
+    const printedWhenItStarts = async (storiesInBundle: number | null): Promise<string> => {
+      mocks.asyncUploadSpy.mockResolvedValueOnce({
+        couldRunThisBuildRightNow: true,
+        startedRun: {
+          devices,
+          capture: [capturedFrom('android', storiesInBundle), capturedFrom('ios', storiesInBundle)],
+        },
+      });
+      const { stdout } = await captureTranscript(async () => {
+        await asyncUploadBuildAndRunTests(BASE_ARGS);
+      });
+      return stripVTControlCharacters(stdout);
+    };
+
+    // With the module maps both EAS builds wrote: the count and the files, as on the standard road.
+    const withModuleMaps = await printedWhenItStarts(4);
+    expect(withModuleMaps).toMatch(
+      /Test 1 +✔ Started: all 4 stories on 2 devices.*, no main branch is set\n/
+    );
+    expect(withModuleMaps).toContain('Sanity/Hello (1 story)\n');
+    expect(withModuleMaps).toContain('StaticRendering (3 stories)\n');
+
+    // With none, it says what the standard road says when it cannot count the bundle, never "null".
+    const withoutModuleMaps = await printedWhenItStarts(null);
+    expect(withoutModuleMaps).toMatch(
+      /Test 1 +✔ Started: all stories on 2 devices.*, no main branch is set\n/
+    );
+    expect(withoutModuleMaps).not.toContain('null');
   });
 });

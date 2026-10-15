@@ -86,7 +86,10 @@ export type PlatformCapture = {
   full: boolean;
   /** How many stories a partial capture takes. Ignored on a full capture. */
   capturedStories: number;
-  /** How many stories the bundle holds; absent when no module map could count them. */
+  /**
+   * How many stories the bundle holds; absent when no module map could count them. The service's
+   * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as absent.
+   */
   storiesInBundle?: number;
   /** The server's own reason, printed only on a full capture. */
   reason?: string;
@@ -98,7 +101,7 @@ export type PlatformCapture = {
   changedStoryFiles?: string[];
   /**
    * The story files that have a Storybook title, and how many stories each holds. `stories` is
-   * absent when the module map recorded no count.
+   * absent (null in the service's startedRun) when the module map recorded no count.
    */
   storyTitles?: Array<{ storyFile: string; title?: string; stories?: number }>;
 };
@@ -164,12 +167,13 @@ function describeCapturedStories({
   capturedStories,
   storiesInBundle,
 }: PlatformCapture): string {
+  // Uncounted is absent or null alike (see PlatformCapture.storiesInBundle).
   if (full) {
-    if (storiesInBundle === undefined) return 'all stories';
+    if (storiesInBundle == null) return 'all stories';
     return storiesInBundle === 1 ? '1 story' : `all ${countStories(storiesInBundle)}`;
   }
 
-  return storiesInBundle !== undefined
+  return storiesInBundle != null
     ? `${capturedStories} of ${countStories(storiesInBundle)}`
     : countStories(capturedStories);
 }
