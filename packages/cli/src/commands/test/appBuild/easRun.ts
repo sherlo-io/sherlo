@@ -42,7 +42,7 @@ import { whileShowing } from '../../shared/terminal';
 import { closeTheRun } from '../closeTheRun';
 import { SHERLO_BUILD_FOR_PUSH, type THIS_COMMAND } from '../constants';
 import { rowsAbove, printPlatformRowInALog } from '../platformRows';
-import { type BuildSettings, DEFAULT_EAS_PROFILE } from './buildSettings';
+import { type BuildSettings, buildSettingsDigestsOf, DEFAULT_EAS_PROFILE } from './buildSettings';
 import createSherloTempDirectory from './createSherloTempDirectory';
 import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
 import { pushFactsOf } from './pushFacts';
@@ -139,6 +139,8 @@ export async function easRun({
     fingerprints: Object.fromEntries(
       platforms.map((platform) => [platform, fingerprints[platform]])
     ),
+    // The digest the gate looks a base up by, so the next push finds the base the hook registers.
+    buildSettingsDigests: buildSettingsDigestsOf(settings, platforms),
   });
 
   // Starting them is only a wait, so it leaves no line of its own: each platform's row says it is
