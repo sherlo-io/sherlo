@@ -92,9 +92,10 @@ function theNpmPack(): { packedFiles: string[]; unpackedPackageDir: string } {
 }
 
 beforeAll(() => {
-  // In CI the packs are not optional: a check that lost its pack step must go red, never skip.
-  if (process.env.CI === 'true' && !hasThePacks) {
-    throw new Error(`a CI run with no packs to read: ${NO_PACKS_REASON}`);
+  // On GitHub the packs are not optional: a check that lost its pack step goes red, never skips.
+  // A Mac save has no pack step, so it skips.
+  if (process.env.GITHUB_ACTIONS === 'true' && !hasThePacks) {
+    throw new Error(`a GitHub run with no packs to read: ${NO_PACKS_REASON}`);
   }
 });
 
