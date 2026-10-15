@@ -36,6 +36,7 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
       seconds: 88,
       podFilesChanged: [],
     })),
+    hasEasProgram: vi.fn(async () => true),
     startEasBuild: vi.fn(async () => {
       throw new Error('no EAS build here');
     }),

@@ -80,6 +80,8 @@ export type AppBuilder = {
    * its `android/local.properties` may name the Android SDK.
    */
   hasTool(tool: BuildTool, projectRoot: string): Promise<boolean>;
+  /** Whether the `eas` program, which starts each EAS build, can be run on this machine. */
+  hasEasProgram(): Promise<boolean>;
   /** The major version of the Java a Gradle build would run on, or null when there is none. */
   javaVersion(): Promise<number | null>;
   /** The schemes the iOS workspace lists, apart from the CocoaPods ones. */
@@ -738,6 +740,11 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         const { exitCode } = await askProgram({ command: 'xcodebuild', args: ['-version'] });
         return exitCode === 0;
       }),
+    hasEasProgram: () =>
+      withTheMachineEnv(async () => {
+        const { exitCode } = await askProgram({ command: 'eas', args: ['--version'] });
+        return exitCode === 0;
+      }),
     javaVersion: () =>
       withTheMachineEnv(async () => {
         // Gradle runs on JAVA_HOME's Java when it is set, and on the one on PATH otherwise.
@@ -982,6 +989,9 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
     hostSystem: () => stated('hostSystem').host,
 
     hasTool: async (tool) => stated('hasTool').tools.includes(tool),
+
+    // A posed machine has no program to look for: an EAS push is posed by the build it answers.
+    hasEasProgram: async () => true,
 
     javaVersion: async () => stated('javaVersion').java,
 
