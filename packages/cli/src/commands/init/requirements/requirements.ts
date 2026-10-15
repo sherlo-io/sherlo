@@ -1,4 +1,3 @@
-import ora from 'ora';
 import chalk from 'chalk';
 import {
   APP_DOMAIN,
@@ -8,8 +7,15 @@ import {
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
   TOKEN_OPTION,
 } from '../../../constants';
-import { isValidToken, printLink, throwError } from '../../../helpers';
-import { printMessage, printTitle, trackProgress } from '../helpers';
+import {
+  isValidToken,
+  printLink,
+  refuseIfPersonalToken,
+  spinner as createSpinner,
+  throwError,
+} from '../../../helpers';
+import { renderRequirementsMet, renderRequirementsTitle } from '../../../render/initRequirements';
+import { printLines, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 import getPackageVersion from './getPackageVersion';
 import validateCorePackagesVersions from './validateCorePackagesVersions';
@@ -30,11 +36,9 @@ async function requirements({ token, sessionId }: { token?: string; sessionId: s
     throw error;
   }
 
-  console.log('Initializing Sherlo in your project...');
+  printLines(renderRequirementsTitle());
 
-  printTitle('✅ Requirements', 15);
-
-  const spinner = ora('Checking requirements').start();
+  const spinner = createSpinner('Checking requirements').start();
 
   await trackProgress({
     event: EVENT,
@@ -48,15 +52,7 @@ async function requirements({ token, sessionId }: { token?: string; sessionId: s
 
   spinner.stop();
 
-  printMessage({
-    type: 'success',
-    message: 'React Native',
-  });
-
-  printMessage({
-    type: 'success',
-    message: 'Storybook',
-  });
+  printLines(renderRequirementsMet());
 }
 
 export default requirements;
@@ -75,6 +71,10 @@ async function validateRequirements(token?: string): Promise<void> {
 
     validateCorePackagesVersions();
 
+    // Named refusal first: a personal token gets its own message, not the generic
+    // "invalid token" one below.
+    if (token) refuseIfPersonalToken(token);
+
     if (token && !isValidToken(token)) {
       throwError({
         message:
@@ -83,7 +83,6 @@ async function validateRequirements(token?: string): Promise<void> {
           chalk.reset('Make sure you copied it correctly or generate a new one at ') +
           printLink(APP_DOMAIN),
         below: '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`),
-        errorToReport: new Error('Invalid token: ' + token),
       });
     }
   } catch (error) {

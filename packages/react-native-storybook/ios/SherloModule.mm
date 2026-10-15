@@ -9,17 +9,30 @@
 
 RCT_EXPORT_MODULE(SherloModule)
 
-@synthesize bridge = _bridge;
-
 static SherloModuleCore *core;
+
+/** The module whose JavaScript listens for the connection's messages now, if any. */
+static __weak SherloModule *listeningModule = nil;
 
 // This runs automatically when the dynamic library is loaded
 __attribute__((constructor))
 static void SherloEarlyInit(void) {
+  [SherloModuleCore setMessageReceiver:^(NSString *messageJson) {
+    [listeningModule sendEventWithName:SHERLO_MESSAGE_EVENT body:messageJson];
+  }];
   core = [[SherloModuleCore alloc] init];
   if ([[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
     [SherloIOSExceptionHandler install];
   }
+}
+
+/**
+ * One module is made for each start of the JavaScript.
+ */
+- (instancetype)init {
+  self = [super init];
+  [SherloIOSExceptionHandler javaScriptStarted];
+  return self;
 }
 
 /**
@@ -34,7 +47,58 @@ static void SherloEarlyInit(void) {
     return RCTGetUIManagerQueue();
 }
 
+- (NSArray<NSString *> *)supportedEvents {
+  return @[ SHERLO_MESSAGE_EVENT ];
+}
+
+/** The JavaScript started listening for the connection's messages. */
+- (void)startObserving {
+  listeningModule = self;
+}
+
+/** The JavaScript stopped listening; a newer start's module may listen already. */
+- (void)stopObserving {
+  if (listeningModule == self) listeningModule = nil;
+}
+
 #ifdef RCT_NEW_ARCH_ENABLED // ------------------- NEW ARCH -------------------
+
+/**
+ * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+ */
+- (NSString *)loadCore {
+  return [core loadCore];
+}
+
+/**
+ * Sends one message over the app's connection.
+ */
+- (void)sendMessage:(NSString *)messageJson {
+  [core sendMessage:messageJson];
+}
+
+/**
+ * Opens the connection to the bundler's Sherlo address, unless one is open.
+ */
+- (void)dialBundler:(NSString *)address {
+  [core dialBundler:address];
+}
+
+/**
+ * The memory the app's process uses, in MB.
+ */
+- (void)getMemoryMb:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [core getMemoryMb:resolve reject:reject];
+}
+
+/**
+ * Starts the app's JavaScript again in the same process.
+ */
+- (void)reloadJavaScript {
+  [core reloadJavaScript];
+}
 
 /**
  * Returns the Sherlo constants.
@@ -68,7 +132,15 @@ static void SherloEarlyInit(void) {
 }
 
 /**
- * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
+ * Explicitly switches to testing mode.
+ */
+- (void)openTesting:(NSString *)storyId config:(NSString *)config
+{
+  [core openTesting:self.bridge storyId:storyId configJson:config];
+}
+
+/**
+ * Sends a NATIVE_ERROR over the app's connection.
  */
 - (void)sendNativeError:(NSString *)errorCode
                 message:(NSString *)message
@@ -78,35 +150,14 @@ static void SherloEarlyInit(void) {
 }
 
 /**
- * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
- * Must not throw - called from a polyfill catch block.
+ * Sends a JS_ERROR for module-eval errors caught by the __r polyfill, and waits until the socket
+ * took it. Must not throw - called from a polyfill catch block.
  */
 - (NSNumber *)reportEarlyJsError:(NSString *)name
                          message:(NSString *)message
                            stack:(NSString *)stack
 {
   return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
-}
-
-/**
- * Appends base64 encoded content to a file.
- */
-- (void)appendFile:(NSString *)path
-          content:(NSString *)content
-          resolve:(RCTPromiseResolveBlock)resolve
-           reject:(RCTPromiseRejectBlock)reject
-{
-  [core appendFile:path withContent:content resolve:resolve reject:reject];
-}
-
-/**
- * Reads a file and returns its contents as base64 encoded string.
- */
-- (void)readFile:(NSString *)path
-        resolve:(RCTPromiseResolveBlock)resolve
-         reject:(RCTPromiseRejectBlock)reject
-{
-  [core readFile:path resolve:resolve reject:reject];
 }
 
 /**
@@ -183,6 +234,42 @@ static void SherloEarlyInit(void) {
 #else // ------------------- OLD ARCH -------------------
 
 /**
+ * The sealed JS core native code picked, as JSON. Synchronous: JavaScript evaluates it on import.
+ */
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(loadCore) {
+  return [core loadCore];
+}
+
+/**
+ * Sends one message over the app's connection.
+ */
+RCT_EXPORT_METHOD(sendMessage:(NSString *)messageJson) {
+  [core sendMessage:messageJson];
+}
+
+/**
+ * Opens the connection to the bundler's Sherlo address, unless one is open.
+ */
+RCT_EXPORT_METHOD(dialBundler:(NSString *)address) {
+  [core dialBundler:address];
+}
+
+/**
+ * The memory the app's process uses, in MB.
+ */
+RCT_EXPORT_METHOD(getMemoryMb:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core getMemoryMb:resolve reject:reject];
+}
+
+/**
+ * Starts the app's JavaScript again in the same process.
+ */
+RCT_EXPORT_METHOD(reloadJavaScript) {
+  [core reloadJavaScript];
+}
+
+/**
  * Returns the Sherlo constants.
  */
 - (NSDictionary *)constantsToExport
@@ -212,7 +299,15 @@ RCT_EXPORT_METHOD(closeStorybook) {
 }
 
 /**
- * Sends a native error by writing a NATIVE_ERROR JSON line to protocol.sherlo.
+ * Explicitly switches to testing mode.
+ */
+RCT_EXPORT_METHOD(openTesting:(NSString *)storyId
+                  config:(NSString *)config) {
+  [core openTesting:self.bridge storyId:storyId configJson:config];
+}
+
+/**
+ * Sends a NATIVE_ERROR over the app's connection.
  */
 RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
                   message:(NSString *)message
@@ -221,31 +316,13 @@ RCT_EXPORT_METHOD(sendNativeError:(NSString *)errorCode
 }
 
 /**
- * Synchronously writes a JS_ERROR entry for module-eval errors caught by the __r polyfill.
+ * Sends a JS_ERROR for module-eval errors caught by the __r polyfill, and waits until the socket
+ * took it.
  */
 RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
                                        message:(NSString *)message
                                          stack:(NSString *)stack) {
-  return [self reportEarlyJsError:name message:message stack:stack];
-}
-
-/**
- * Appends base64 encoded content to a file.
- */
-RCT_EXPORT_METHOD(appendFile:(NSString *)path
-                  withContent:(NSString *)content
-                     resolver:(RCTPromiseResolveBlock)resolve
-                     rejecter:(RCTPromiseRejectBlock)reject) {
-  [core appendFile:path withContent:content resolve:resolve reject:reject];
-}
-
-/**
- * Reads a file and returns its contents as base64 encoded string.
- */
-RCT_EXPORT_METHOD(readFile:(NSString *)path
-                  resolve:(RCTPromiseResolveBlock)resolve
-                   reject:(RCTPromiseRejectBlock)reject) {
-  [core readFile:path resolve:resolve reject:reject];
+  return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
 }
 
 /**

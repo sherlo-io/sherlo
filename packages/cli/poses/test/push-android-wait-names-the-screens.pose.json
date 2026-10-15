@@ -1,0 +1,215 @@
+{
+  "pose": 1,
+  "argv": ["test", "--wait"],
+  "files": {
+    "sherlo.config.json": {
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        }
+      ]
+    }
+  },
+  "env": { "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {
+    "android": {
+      "bundlePath": "node_modules/.cache/sherlo/bundle.android.js",
+      "bundleSizeMb": 4.29,
+      "bundleFormat": "plain-js",
+      "bundler": "expo",
+      "assets": ["icon.png", "splash.png"],
+      "storyClosureKeys": [
+        "src/components/Storefront/ProductCard.stories.tsx",
+        "src/components/Storefront/Checkout.stories.tsx",
+        "src/components/Typography.stories.tsx"
+      ],
+      "storyTitles": {
+        "src/components/Storefront/ProductCard.stories.tsx": "Storefront/ProductCard",
+        "src/components/Storefront/Checkout.stories.tsx": "Storefront/Checkout",
+        "src/components/Typography.stories.tsx": "Typography"
+      },
+      "storyCounts": {
+        "src/components/Storefront/ProductCard.stories.tsx": 2,
+        "src/components/Storefront/Checkout.stories.tsx": 3,
+        "src/components/Typography.stories.tsx": 1
+      }
+    }
+  },
+  "api": [
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
+      "answer": {
+        "outcome": "fast",
+        "diff": [],
+        "storedBuildIndex": 3
+      }
+    },
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "a067c443815d678ab7dbd35a9e4e3b62ff6ec2b7eb803af2e09255c94198cc5d"
+      },
+      "answer": {
+        "outcome": "fast",
+        "diff": [],
+        "storedBuildIndex": 3
+      }
+    },
+    {
+      "call": "getStagedUploadUrls",
+      "with": {
+        "platforms": ["android"]
+      },
+      "answer": {}
+    },
+    {
+      "call": "openBuild",
+      "with": {
+        "platforms": ["android"]
+      },
+      "answer": {
+        "buildIndex": 4,
+        "url": "https://app.sherlo.io/build?t=tm000001&p=7&b=4",
+        "captureDecision": {
+          "platforms": {
+            "android": {
+              "full": false,
+              "storyFilePaths": [
+                "src/components/Storefront/ProductCard.stories.tsx",
+                "src/components/Storefront/Checkout.stories.tsx"
+              ],
+              "reason": "2 files changed - ProductCard.tsx, Checkout.tsx"
+            }
+          },
+          "ancestorBuildIndex": 3
+        }
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 4
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 3,
+          "reported": 1,
+          "unreviewed": 2
+        },
+        "stories": [
+          {
+            "name": "Storefront/ProductCard - Default",
+            "status": "changed",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Storefront/ProductCard - Sale badge",
+            "status": "new",
+            "baseline": null
+          },
+          {
+            "name": "Storefront/Checkout - Empty cart",
+            "status": "rejected",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Storefront/Checkout - One item",
+            "status": "unchanged",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Storefront/Checkout - Promo code",
+            "status": "unchanged",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Typography - Scales",
+            "status": "unchanged",
+            "baseline": {
+              "buildIndex": 3
+            }
+          }
+        ]
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 4
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 3,
+          "reported": 1,
+          "unreviewed": 2
+        },
+        "stories": [
+          {
+            "name": "Storefront/ProductCard - Default",
+            "status": "changed",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Storefront/ProductCard - Sale badge",
+            "status": "new",
+            "baseline": null
+          },
+          {
+            "name": "Storefront/Checkout - Empty cart",
+            "status": "rejected",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Storefront/Checkout - One item",
+            "status": "unchanged",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Storefront/Checkout - Promo code",
+            "status": "unchanged",
+            "baseline": {
+              "buildIndex": 3
+            }
+          },
+          {
+            "name": "Typography - Scales",
+            "status": "unchanged",
+            "baseline": {
+              "buildIndex": 3
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "masks": {}
+}

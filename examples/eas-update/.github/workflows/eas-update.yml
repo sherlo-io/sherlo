@@ -2,16 +2,13 @@ name: Sherlo Test - EAS Update
 
 # ══════════════════════════════════════════════════════════════════════════════
 # WORKFLOW:
-#                         [ 🧬 Calculate Fingerprint ]
-#                                      │
-#                      ┌───────────────┴───────────────┐
-#                      ▼                               ▼
-#           [ 🤖 Reuse / Build Android ]    [ 🍎 Reuse / Build iOS ]
-#                      │                               │
-#                      └───────────────┬───────────────┘
-#                                      ▼
-#                             [ 🧪 Update & Test ]
+#            [ 🤖 Android job ]      [ 🍎 iOS job ]
+#                     │                    │
+#                     └─────────┬──────────┘
+#                               ▼
+#                        [ 👀 One test ]
 #
+# Each job builds its platform's app and sends it. The two jobs join into one test.
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Triggers on:
@@ -23,40 +20,19 @@ on:
   workflow_dispatch:
 
 jobs:
-  # ────────────────────────────────────────────────────────────────────────────
-  # SETUP VALIDATOR (optional, remove after successful run)
-  # ────────────────────────────────────────────────────────────────────────────
-  validate:
-    name: Validate Setup
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📦 Checkout code
-        uses: actions/checkout@v6
-
-      - name: 🔍 Check tokens and EAS configuration
-        uses: ./.github/actions/validate-setup
-        with:
-          sherlo-token: ${{ secrets.SHERLO_TOKEN }}
-          expo-token: ${{ secrets.EXPO_TOKEN }}
-
-  # ════════════════════════════════════════════════════════════════════════════
-  #
-  #                         ▼ CORE SHERLO WORKFLOW ▼
-  #
-  # ════════════════════════════════════════════════════════════════════════════
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # 🧬 CALCULATE FINGERPRINT
-  #
-  # Calculates native code fingerprint for cache key
-  # ────────────────────────────────────────────────────────────────────────────
-  fingerprint:
-    name: Calculate Fingerprint
-    runs-on: ubuntu-latest
-    needs: validate
-    outputs:
-      hash: ${{ steps.fingerprint.outputs.hash }}
+  sherlo:
+    name: Sherlo (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    env:
+      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-latest
 
     steps:
       - name: 📦 Checkout code
@@ -69,164 +45,9 @@ jobs:
           cache: 'yarn'
 
       - name: 📥 Install dependencies
-        run: yarn install
+        run: yarn install --immutable
 
-      - name: 🧬 Calculate native fingerprint
-        id: fingerprint
-        run: |
-          HASH=$(npx @expo/fingerprint . | jq -r '.hash')
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # 🤖 REUSE / BUILD ANDROID
-  #
-  # Reuses cached Android development simulator build or rebuilds it if native code changed
-  # ────────────────────────────────────────────────────────────────────────────
-  reuse-or-build-android:
-    name: Reuse / Build Android
-    runs-on: ubuntu-latest
-    needs: [fingerprint]
-
-    steps:
-      - name: 📦 Checkout code
-        uses: actions/checkout@v6
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v6
+      - name: 🧪 Run Sherlo
+        uses: sherlo-io/sherlo@v3
         with:
-          node-version: 'lts/*'
-          cache: 'yarn'
-
-      - name: 🏗 Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: 💾 Restore build from cache
-        id: cache
-        uses: actions/cache@v5
-        with:
-          path: android.apk
-          key: android-${{ needs.fingerprint.outputs.hash }}
-
-      - name: 📥 Install dependencies (if not cached)
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: yarn install
-
-      # Uses 'development-simulator' profile from eas.json
-      - name: 🤖 Build Android Development Simulator (if not cached)
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          eas build \
-            --non-interactive \
-            --local \
-            --platform android \
-            --profile development-simulator \
-            --output android.apk
-
-      - name: 📤 Upload Android build
-        uses: actions/upload-artifact@v6
-        with:
-          name: android-build
-          path: android.apk
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # 🍎 REUSE / BUILD iOS
-  #
-  # Reuses cached iOS development simulator build or rebuilds it if native code changed
-  # ────────────────────────────────────────────────────────────────────────────
-  reuse-or-build-ios:
-    name: Reuse / Build iOS
-    runs-on: macos-latest
-    needs: [fingerprint]
-
-    steps:
-      - name: 📦 Checkout code
-        uses: actions/checkout@v6
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 'lts/*'
-          cache: 'yarn'
-
-      - name: 🏗 Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: 💾 Restore build from cache
-        id: cache
-        uses: actions/cache@v5
-        with:
-          path: ios.tar.gz
-          key: ios-${{ needs.fingerprint.outputs.hash }}
-
-      - name: 📥 Install dependencies (if not cached)
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: yarn install
-
-      # Uses 'development-simulator' profile from eas.json
-      - name: 🍎 Build iOS Development Simulator (if not cached)
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          eas build \
-            --non-interactive \
-            --local \
-            --platform ios \
-            --profile development-simulator \
-            --output ios.tar.gz
-
-      - name: 📤 Upload iOS build
-        uses: actions/upload-artifact@v6
-        with:
-          name: ios-build
-          path: ios.tar.gz
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # 🧪 UPDATE & TEST
-  #
-  # Publishes JavaScript changes via EAS Update and runs visual test
-  # ────────────────────────────────────────────────────────────────────────────
-  ota-update-and-test:
-    name: Update & Test
-    runs-on: ubuntu-latest
-    needs: [reuse-or-build-android, reuse-or-build-ios]
-
-    steps:
-      - name: 📦 Checkout code
-        uses: actions/checkout@v6
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 'lts/*'
-          cache: 'yarn'
-
-      - name: 🏗 Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: 📥 Install dependencies
-        run: yarn install
-
-      - name: ⚡ Publish OTA Update
-        run: eas update --non-interactive --auto --branch main
-
-      - name: 📥 Download Android and iOS builds
-        uses: actions/download-artifact@v7
-        with:
-          merge-multiple: true
-
-      # Uses 'test:eas-update' mode (standard / eas-update / eas-cloud-build)
-      - name: 🧪 Run Sherlo test
-        run: |
-          npx sherlo test:eas-update \
-            --android android.apk \
-            --ios ios.tar.gz \
-            --branch main \
-            --token ${{ secrets.SHERLO_TOKEN }}
+          platform: ${{ matrix.platform }}

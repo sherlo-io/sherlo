@@ -1,0 +1,81 @@
+name: 'test'
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ONE REUSABLE WORKFLOW FOR ONE TESTING COMMAND, RUN THE WAY A CUSTOMER RUNS IT.
+#
+# `sherlo test` builds the app itself, so this workflow passes no app paths. It
+# is the canonical preset: one job per platform (Android on Linux, iOS on a Mac)
+# through the Sherlo GitHub Action, with the project token in SHERLO_TOKEN. The
+# two jobs join into one test, which starts when both app builds are in.
+# ══════════════════════════════════════════════════════════════════════════════
+
+on:
+  workflow_call:
+    inputs:
+      env:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        type: string
+      app:
+        description: 'App under testing/ to test (expo, react-native)'
+        required: true
+        type: string
+      sherlo_project:
+        description: 'Sherlo project whose token to use (expo, react-native, many-stories, device-testing)'
+        required: true
+        type: string
+      config:
+        description: 'Config file under testing/sherlo-configs, without the .json extension'
+        required: false
+        default: 'default-devices-without-expo-info'
+        type: string
+
+jobs:
+  test:
+    name: Sherlo test (${{ matrix.platform }})
+    environment: ${{ inputs.env }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-latest
+    env:
+      # Every install reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
+      GITHUB_PACKAGES_TOKEN: ${{ github.token }}
+      SHERLO_TOKEN: ${{ (inputs.sherlo_project == 'expo' && secrets.SHERLO_STANDARD_EXPO_TOKEN) ||
+        (inputs.sherlo_project == 'react-native' && secrets.SHERLO_STANDARD_RN_TOKEN) ||
+        (inputs.sherlo_project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) ||
+        (inputs.sherlo_project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Download Sherlo packages
+        run: ./scripts/init-env.sh
+        env:
+          CLIENT_STAGE: ${{ inputs.env }}
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn && cd packages/cli && yarn build && cd ../react-native-storybook && yarn build
+
+      - name: Install project dependencies
+        working-directory: testing/${{ inputs.app }}
+        run: yarn install --immutable
+
+      - name: Run Sherlo
+        uses: ./
+        with:
+          platform: ${{ matrix.platform }}
+          working-directory: testing/${{ inputs.app }}
+          config: ../sherlo-configs/${{ inputs.config }}.json

@@ -1,0 +1,14 @@
+[32mTest 14[39m · finished
+[32m✔[39m Finished Test 14
+
+
+[1m✅ No visual changes[22m
+[2m════════════════════[22m
+
+All snapshots match their baselines.
+[2m3 captured on this branch, 41 carried over unchanged.[22m
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 0]

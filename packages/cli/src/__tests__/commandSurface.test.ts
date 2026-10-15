@@ -1,0 +1,277 @@
+/**
+ * THE CLI'S PUBLIC COMMAND SURFACE - what `sherlo --help` lists and what an
+ * unknown command is answered with.
+ *
+ * `test:standard` and `test:eas-update` were removed when `sherlo test` became
+ * the one testing command (`sherlo test --android/--ios` is the former, and
+ * every run now ships fresh JS, which was the latter's only job). These cases
+ * pin that removal at the entry point: the program is built the way `start()`
+ * builds it and parsed against real argv, so a command quietly re-registered
+ * reds here.
+ *
+ * Commander answers an unknown command by printing
+ * `error: unknown command '<name>'` on stderr and exiting 1; `--help` prints the
+ * command list on stdout and exits 0. Both exits are intercepted, since a real
+ * `process.exit` would end the test runner.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../helpers/reporting', () => ({
+  default: {
+    init: vi.fn(),
+    setContext: vi.fn(),
+    setTag: vi.fn(),
+    addBreadcrumb: vi.fn(),
+    captureException: vi.fn(),
+    flush: vi.fn().mockResolvedValue(true),
+  },
+}));
+
+import start from '../start';
+
+class ExitSignal extends Error {
+  constructor(public readonly code: number | undefined) {
+    super(`process.exit(${code})`);
+  }
+}
+
+let stdout: string;
+let stderr: string;
+let exitCodes: (number | undefined)[];
+const originalArgv = process.argv;
+
+beforeEach(() => {
+  stdout = '';
+  stderr = '';
+  exitCodes = [];
+  vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    stdout += String(chunk);
+    return true;
+  }) as never);
+  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    stderr += String(chunk);
+    return true;
+  }) as never);
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+    exitCodes.push(code);
+    throw new ExitSignal(code);
+  }) as never);
+});
+
+afterEach(() => {
+  process.argv = originalArgv;
+  vi.restoreAllMocks();
+});
+
+/**
+ * Runs the CLI over `args`. Commander ends both a help display and an unknown
+ * command with `process.exit`, which the mock above turns into a thrown
+ * ExitSignal; `start()` catches it and exits again, so the settled promise is
+ * always a rejection carrying that signal. The FIRST recorded exit code is
+ * commander's own verdict.
+ */
+async function runCli(...args: string[]): Promise<number | undefined> {
+  process.argv = ['node', 'sherlo', ...args];
+  await start().catch(() => undefined);
+  return exitCodes[0];
+}
+
+describe('sherlo --help', () => {
+  it('lists test, build and eas-build-on-complete, and no removed command', async () => {
+    const exitCode = await runCli('--help');
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toMatch(/^\s+test\b/m);
+    expect(stdout).toMatch(/^\s+eas-build-on-complete\b/m);
+    for (const removedCommand of [
+      'test:standard',
+      'test:eas-update',
+      'test:eas-cloud-build',
+      'show-error',
+    ]) {
+      expect(stdout, removedCommand).not.toContain(removedCommand);
+    }
+
+    // `build` is registered but kept out of the list (the next case), so it answers its own help.
+    stdout = '';
+    expect(await runCli('build', '--help')).toBe(0);
+    expect(stdout).toContain('Usage: sherlo build');
+  });
+
+  it('keeps build, --build-cache, fingerprint, project and team out of --help', async () => {
+    await runCli('--help');
+    for (const hiddenCommand of ['build', 'fingerprint', 'project', 'team']) {
+      expect(stdout, hiddenCommand).not.toMatch(new RegExp(`^ {2}${hiddenCommand}\\b`, 'm'));
+    }
+
+    // Each still works: it answers its own help instead of "unknown command".
+    for (const hiddenCommand of ['fingerprint', 'project', 'team']) {
+      stdout = '';
+      expect(await runCli(hiddenCommand, '--help'), hiddenCommand).toBe(0);
+      expect(stdout, hiddenCommand).toContain(`Usage: sherlo ${hiddenCommand}`);
+    }
+
+    for (const command of ['test', 'build']) {
+      stdout = '';
+      await runCli(command, '--help');
+      expect(stdout, command).not.toContain('--build-cache');
+    }
+  });
+
+  it('offers no app build paths: `sherlo test` builds the app itself', async () => {
+    await runCli('--help');
+
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--ios');
+  });
+
+  it('offers no --token on sherlo test or sherlo view: a push takes SHERLO_TOKEN or the login', async () => {
+    for (const command of ['test', 'view']) {
+      stdout = '';
+      await runCli(command, '--help');
+
+      expect(stdout, command).not.toContain('--token');
+    }
+  });
+
+  it('lists `view`, with its build as an OPTIONAL positional', async () => {
+    // Optional at the parser so the command can refuse in its own words and say
+    // why there is no default yet - see commands/view.
+    const exitCode = await runCli('--help');
+
+    expect(exitCode).toBe(0);
+    // Commander renders a subcommand as `<name> [options] <args>`, so the
+    // argument is asserted on the same line rather than immediately after.
+    expect(stdout).toMatch(/^\s+view\b.*\[build\]/m);
+  });
+});
+
+describe('sherlo view --help', () => {
+  it('takes the wait flags and --json, and none of the test-only options', async () => {
+    const exitCode = await runCli('view', '--help');
+
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('--wait');
+    expect(stdout).toContain('--wait-timeout');
+    expect(stdout).toContain('--json');
+
+    // The record is `--json`, as on `gh`; the old name is gone, with no alias (it never shipped).
+    expect(stdout).not.toContain('--metadata');
+
+    // Sherlo 3 takes the credential from SHERLO_TOKEN or the login, never from a flag.
+    expect(stdout).not.toContain('--token');
+
+    // `view` opens nothing, so nothing about building or bundling belongs on it.
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--dry-run');
+    expect(stdout).not.toContain('--bundle-dir');
+  });
+
+  it('does NOT offer --branch, because no read behind it exists', async () => {
+    // An option that always refuses is a worse surface than an absent one. The
+    // gap is recorded in commands/view's header, not promised in --help.
+    await runCli('view', '--help');
+
+    expect(stdout).not.toContain('--branch');
+  });
+});
+
+describe('sherlo test --help', () => {
+  it('does not offer --metadata: npx sherlo view <n> --json is the one read-back', async () => {
+    const exitCode = await runCli('test', '--help');
+
+    expect(exitCode).toBe(0);
+    expect(stdout).not.toContain('--metadata');
+  });
+
+  it('does not offer --dry-run: the preview is gone', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--dry-run');
+  });
+
+  it('lists neither --android nor --ios', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--android');
+    expect(stdout).not.toContain('--ios');
+  });
+
+  it('does not offer --no-build: every CI job runs sherlo test and builds what it needs', async () => {
+    await runCli('test', '--help');
+
+    expect(stdout).not.toContain('--no-build');
+  });
+});
+
+describe('--no-build', () => {
+  it('sherlo test --no-build is an unknown option, with exit 1', async () => {
+    // No Sherlo 2 CLI had the flag, so commander's own answer is enough.
+    const exitCode = await runCli('test', '--no-build');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("error: unknown option '--no-build'");
+  });
+});
+
+describe('a Sherlo 2 app build path', () => {
+  it.each([
+    ['--android', 'app.apk'],
+    ['--ios', 'app.tar.gz'],
+  ])('`sherlo test %s <path>` is refused in words, with exit 1', async (flag, buildPath) => {
+    const exitCode = await runCli('test', flag, buildPath);
+
+    expect(exitCode).toBe(1);
+    expect(stderr).not.toContain('unknown option');
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
+      'no longer takes `--android` or `--ios`'
+    );
+  });
+});
+
+describe('a Sherlo 2 token on the command line', () => {
+  it('`sherlo test --token <token>` is refused in words, with exit 1, naming the two that remain', async () => {
+    const exitCode = await runCli('test', '--token', 'abc');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).not.toContain('unknown option');
+    const printed = vi.mocked(console.error).mock.calls.flat().join('\n');
+    expect(printed).toContain('no longer takes a token');
+    expect(printed).toContain('SHERLO_TOKEN');
+  });
+});
+
+describe('a `--platform` that is neither android nor ios', () => {
+  it('`sherlo test --platform windows` is refused in words, with exit 1', async () => {
+    const exitCode = await runCli('test', '--platform', 'windows');
+
+    expect(exitCode).toBe(1);
+    expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
+      '`--platform` takes `android` or `ios`, not `windows`'
+    );
+  });
+});
+
+describe('a removed command', () => {
+  it.each(['test:standard', 'test:eas-update', 'test:eas-cloud-build', 'show-error'])(
+    '`sherlo %s` is answered with commander`s unknown-command error and exit 1',
+    async (removedCommand) => {
+      const exitCode = await runCli(removedCommand, '--android', 'app.apk');
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain(`error: unknown command '${removedCommand}'`);
+    }
+  );
+
+  it.each(['local-builds', 'expo-update', 'expo-cloud-builds'])(
+    'the hidden alias `%s` of a removed command is gone with it',
+    async (alias) => {
+      const exitCode = await runCli(alias);
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain(`error: unknown command '${alias}'`);
+    }
+  );
+});

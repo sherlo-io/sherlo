@@ -1,0 +1,9 @@
+[31mERROR: Test 99 does not exist in this project. Check the number (it is the b= value of a Sherlo URL) and the token.[39m
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
+
+[exit 1]

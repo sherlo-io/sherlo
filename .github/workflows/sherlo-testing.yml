@@ -23,27 +23,12 @@ on:
         default: false
         type: boolean
       standard_rn:
-        description: 'default / standard / react-native'
+        description: 'react-native app, full run'
         required: false
         default: false
         type: boolean
       standard_expo:
-        description: 'default / standard / expo'
-        required: false
-        default: false
-        type: boolean
-      eas_update:
-        description: 'default / eas-update'
-        required: false
-        default: false
-        type: boolean
-      eas_update_without_builds:
-        description: 'default / eas-update (without builds)'
-        required: false
-        default: false
-        type: boolean
-      eas_cloud_build:
-        description: 'default / eas-cloud-build'
+        description: 'expo app, full run'
         required: false
         default: false
         type: boolean
@@ -66,75 +51,46 @@ jobs:
 
   all_devices:
     needs: check_if_monday
-    uses: ./.github/workflows/test:eas-update.yml
+    uses: ./.github/workflows/test.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.all_devices == 'true') && always() && !failure() && !cancelled() }}
     name: All Devices
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
+      app: 'expo'
+      sherlo_project: 'device-testing'
       config: 'all-devices'
-      project: 'device-testing'
-      with_builds: true
 
   many_stories:
     needs: check_if_monday
-    uses: ./.github/workflows/test:eas-update.yml
+    uses: ./.github/workflows/test.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.many_stories == 'true') && always() && !failure() && !cancelled() }}
     name: Many Stories
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || inputs.env }}
+      app: 'expo'
+      sherlo_project: 'many-stories'
       config: 'many-stories'
-      with_builds: true
-      project: 'many-stories'
 
   standard_rn:
     needs: check_if_monday
-    uses: ./.github/workflows/test:standard.yml
+    uses: ./.github/workflows/test.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.standard_rn == 'true') && always() && !failure() && !cancelled() }}
     name: Standard (React Native)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      project: 'react-native'
+      app: 'react-native'
+      sherlo_project: 'react-native'
 
   standard_expo:
     needs: check_if_monday
-    uses: ./.github/workflows/test:standard.yml
+    uses: ./.github/workflows/test.yml
     if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.standard_expo == 'true') && always() && !failure() && !cancelled() }}
     name: Standard (Expo)
     secrets: inherit
     with:
       env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      project: 'expo'
-
-  eas_update:
-    needs: check_if_monday
-    uses: ./.github/workflows/test:eas-update.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_update == 'true') && always() && !failure() && !cancelled() }}
-    name: EAS Update
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      with_builds: true
-      project: 'eas-update'
-
-  eas_update_without_builds:
-    needs: check_if_monday
-    uses: ./.github/workflows/test:eas-update.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_update_without_builds == 'true') && always() && !failure() && !cancelled() }}
-    name: EAS Update (without native builds)
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
-      with_builds: false
-      project: 'eas-update'
-
-  eas_cloud_build:
-    needs: check_if_monday
-    uses: ./.github/workflows/test:eas-cloud-build.yml
-    if: ${{ ((github.event_name == 'schedule' && needs.check_if_monday.outputs.is_monday == 'true') || github.event.inputs.eas_cloud_build == 'true') && always() && !failure() && !cancelled() }}
-    name: EAS Cloud Build
-    secrets: inherit
-    with:
-      env: ${{ github.event_name == 'schedule' && 'dev' || github.event.inputs.env }}
+      app: 'expo'
+      sherlo_project: 'expo'

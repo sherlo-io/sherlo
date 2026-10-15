@@ -1,0 +1,43 @@
+'use strict';
+
+var path = require('path');
+
+/**
+ * The project a Metro config bundles: the config's own projectRoot, or the folder the bundler was
+ * started in when the config names none.
+ *
+ * @param {object} [config] - a Metro config
+ * @returns {string} absolute path to the project
+ */
+function projectRootOf(config) {
+  return (config && config.projectRoot) || process.cwd();
+}
+
+/**
+ * The folder Sherlo writes its generated files into, inside the project's node_modules cache.
+ *
+ * @param {string} projectRoot - absolute path to the project
+ * @returns {string}
+ */
+function sherloCacheFolder(projectRoot) {
+  return path.join(projectRoot, 'node_modules', '.cache', 'sherlo');
+}
+
+/**
+ * Sherlo's hand-over file: what `sherlo test` in EAS mode writes into the project before it starts
+ * the EAS builds, and what EAS uploads with the project. The SDK is plain JavaScript and cannot
+ * import the CLI, so this repeats the names the CLI keeps in packages/cli/src/constants.ts
+ * (SHERLO_TEMP_DIRECTORY and SHERLO_TEMP_DATA_FILENAME): change them together.
+ *
+ * @param {string} projectRoot - absolute path to the project
+ * @returns {string}
+ */
+function handOverFilePath(projectRoot) {
+  return path.join(projectRoot, '.sherlo', 'data.json');
+}
+
+module.exports = {
+  handOverFilePath: handOverFilePath,
+  projectRootOf: projectRootOf,
+  sherloCacheFolder: sherloCacheFolder,
+};

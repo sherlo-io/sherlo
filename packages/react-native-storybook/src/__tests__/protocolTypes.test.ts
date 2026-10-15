@@ -5,13 +5,16 @@
  * Since AppProtocolItem and RunnerProtocolItem are TypeScript types,
  * these tests validate the runtime shape of constructed messages.
  */
-import {
-  AppProtocolItem,
+import type { AppProtocolItem } from '../helpers/RunnerBridge/types';
+import { SHERLO_PROTOCOL_VERSION } from '../sealedCore/seam';
+import type {
   RunnerProtocolItem,
   AckStartProtocolItem,
   AckRequestSnapshotProtocolItem,
   AckScrollRequestProtocolItem,
-} from '../helpers/RunnerBridge/types';
+  MessageFromTheApp,
+  MessageToTheApp,
+} from '../sealedCore/seam';
 import { Snapshot } from '../types/types';
 
 const makeSnapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
@@ -115,6 +118,17 @@ describe('Protocol message construction', () => {
       expect(typeof meta.insetTop).toBe('number');
     });
 
+    it("carries the app's memory, as native code measured it", () => {
+      const msg: AppProtocolItem = {
+        action: 'REQUEST_SNAPSHOT',
+        storyId: 'components-button--primary',
+        requestId: 'req-memory',
+        memoryMb: 312,
+      };
+
+      expect(msg.memoryMb).toBe(312);
+    });
+
     it('allows optional fields to be undefined', () => {
       const msg: AppProtocolItem = {
         action: 'REQUEST_SNAPSHOT',
@@ -182,4 +196,58 @@ describe('Protocol message construction', () => {
       ]);
     });
   });
+
+  describe("The app's connection", () => {
+    it('the app says hello first, with the protocol version and both of its versions', () => {
+      const hello: MessageFromTheApp = {
+        action: 'hello',
+        protocolVersion: SHERLO_PROTOCOL_VERSION,
+        nativeVersion: '3.0.0',
+        jsVersion: null,
+      };
+
+      expect(hello).toEqual({
+        action: 'hello',
+        protocolVersion: 1,
+        nativeVersion: '3.0.0',
+        jsVersion: null,
+      });
+    });
+
+    it('the app is sent its settings, a story, a scroll, and nothing else', () => {
+      const messages: MessageToTheApp[] = [
+        {
+          action: 'config',
+          settings: { stabilization: makeStabilization() },
+          jsCore: { source: '// sherlo-core', signature: 'c2lnbmF0dXJl' },
+        },
+        {
+          action: 'story',
+          storyId: 'components-button--primary',
+          requestId: 'req-1',
+          parameters: { noSafeArea: true },
+        },
+        { action: 'scroll', requestId: 'req-1', scrollIndex: 1, offsetPx: 700 },
+      ];
+
+      expect(messages.map((message) => message.action)).toEqual(['config', 'story', 'scroll']);
+    });
+
+    it('a log line crosses as one message', () => {
+      const log: MessageFromTheApp = { action: 'log', line: '12:00:00: stabilized' };
+
+      expect(log.action).toBe('log');
+    });
+  });
 });
+
+function makeStabilization() {
+  return {
+    requiredMatches: 3,
+    minScreenshotsCount: 6,
+    intervalMs: 500,
+    timeoutMs: 20000,
+    threshold: 0,
+    includeAA: true,
+  };
+}

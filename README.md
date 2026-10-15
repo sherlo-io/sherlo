@@ -19,7 +19,6 @@
   <a href="https://discord.gg/G7eqTBkWZt"><img src="https://img.shields.io/discord/1194981477130190929?label=discord" alt="discord"></a>
 </div>
 
-
 <br />
 
 <div align="center">
@@ -68,6 +67,46 @@ npx sherlo init
 npx sherlo test
 ```
 
+`npx sherlo test` builds the iOS and Android apps itself, with Gradle and Xcode, or with EAS when your project turns it on. Then it uploads them and tests every story. Log in once with `npx sherlo login`; there are no paths to app files to pass.
+
+#### 3) Run it in CI
+
+CI runs one job per platform with the Sherlo GitHub Action. Set the project token as the SHERLO_TOKEN secret.
+
+```yaml
+jobs:
+  sherlo:
+    strategy:
+      matrix:
+        include:
+          - { platform: android, runner: ubuntu-latest }
+          - { platform: ios, runner: macos-latest }
+    runs-on: ${{ matrix.runner }}
+    env:
+      SHERLO_TOKEN: ${{ secrets.SHERLO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sherlo-io/sherlo@v3
+        with:
+          platform: ${{ matrix.platform }}
+```
+
+`v2` is the major tag the action is released under, and each release moves it to
+that release's commit. The action ships with the next release, so `v2` does not
+resolve yet and no earlier ref carries the action either. Until that release
+lands, run the CLI directly (`npx sherlo test`) rather than pinning a ref that
+does not exist.
+
+It runs the Sherlo CLI your project has installed. If the job has none, it runs
+the CLI carried at the ref you pinned, so a job needs no install step just to
+give the action a CLI to find. The first line of the log names the one that ran.
+
+See [`examples/standard`](./examples/standard) for the complete workflow.
+
+No `fetch-depth` needed on `actions/checkout` - the action deepens a shallow
+checkout itself, so Sherlo always has the commit history it needs to inherit a
+baseline.
+
 <br />
 
 🎉 **That's it!** Your visual testing is ready.
@@ -86,7 +125,7 @@ Try Sherlo with ready-to-run example projects.
 
 - **📱 Minimal Apps** - React Native + Storybook integrated with Sherlo
 - **🤖 GitHub Actions** - CI/CD workflows for automated testing
-- **🔄 Different Workflows** - Standard builds, OTA updates, and Expo cloud builds
+- **🔄 Different Workflows** - Standard builds and Expo cloud builds
 
 <br />
 

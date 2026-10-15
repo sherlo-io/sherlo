@@ -3,6 +3,7 @@ import {
   JS_MODULE_VERSION as jsVersion,
 } from './sdk-compatibility.json';
 import SherloModule from './SherloModule';
+import { loadSealedCore } from './sealedCore/loadSealedCore';
 
 const ERROR_CODE = 'ERROR_SDK_COMPATIBILITY';
 
@@ -30,6 +31,18 @@ function checkSdkCompatibility(): boolean {
     SherloModule.sendNativeError(ERROR_CODE, message, {
       jsVersion,
       nativeVersion: nativeVersion ?? null,
+    });
+    _cachedResult = false;
+    return false;
+  }
+
+  // A native build with no core loader, or a core this SDK cannot install, is the same mismatch
+  // between the JavaScript and the native side, and a run without the core could not walk at all.
+  const { whyThereIsNoCore } = loadSealedCore();
+  if (whyThereIsNoCore) {
+    SherloModule.sendNativeError(ERROR_CODE, `${whyThereIsNoCore} Please rebuild the app.`, {
+      jsVersion,
+      nativeVersion,
     });
     _cachedResult = false;
     return false;

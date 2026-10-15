@@ -2,7 +2,7 @@
 # Manual changes might be lost - proceed with caution!
 
 __metadata:
-  version: 8
+  version: 10
   cacheKey: 10
 
 "@0no-co/graphql.web@npm:^1.0.13, @0no-co/graphql.web@npm:^1.0.8":
@@ -2023,6 +2023,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/fingerprint@npm:^0.11.0":
+  version: 0.11.11
+  resolution: "@expo/fingerprint@npm:0.11.11"
+  dependencies:
+    "@expo/spawn-async": "npm:^1.7.2"
+    arg: "npm:^5.0.2"
+    chalk: "npm:^4.1.2"
+    debug: "npm:^4.3.4"
+    find-up: "npm:^5.0.0"
+    getenv: "npm:^1.0.0"
+    minimatch: "npm:^3.0.4"
+    p-limit: "npm:^3.1.0"
+    resolve-from: "npm:^5.0.0"
+    semver: "npm:^7.6.0"
+  bin:
+    fingerprint: bin/cli.js
+  checksum: 10/78a8feb995ba8a909b73a6b2eda0e90003fcf3a4cc255b6f30f4435c76fbc329e8c89928f8341d996fbc1b9d48d2e5543250787da13f42a168a7b95ce0c7807a
+  languageName: node
+  linkType: hard
+
 "@expo/image-utils@npm:^0.7.6":
   version: 0.7.6
   resolution: "@expo/image-utils@npm:0.7.6"
@@ -2769,6 +2789,135 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@napi-rs/keyring-darwin-arm64@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-darwin-arm64@npm:2.1.0"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-darwin-x64@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-darwin-x64@npm:2.1.0"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-freebsd-x64@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-freebsd-x64@npm:2.1.0"
+  conditions: os=freebsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-arm-gnueabihf@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-arm-gnueabihf@npm:2.1.0"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-arm64-gnu@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-arm64-gnu@npm:2.1.0"
+  conditions: os=linux & cpu=arm64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-arm64-musl@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-arm64-musl@npm:2.1.0"
+  conditions: os=linux & cpu=arm64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-riscv64-gnu@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-riscv64-gnu@npm:2.1.0"
+  conditions: os=linux & cpu=riscv64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-x64-gnu@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-x64-gnu@npm:2.1.0"
+  conditions: os=linux & cpu=x64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-linux-x64-musl@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-linux-x64-musl@npm:2.1.0"
+  conditions: os=linux & cpu=x64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-win32-arm64-msvc@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-win32-arm64-msvc@npm:2.1.0"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-win32-ia32-msvc@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-win32-ia32-msvc@npm:2.1.0"
+  conditions: os=win32 & cpu=ia32
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring-win32-x64-msvc@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring-win32-x64-msvc@npm:2.1.0"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@napi-rs/keyring@npm:2.1.0":
+  version: 2.1.0
+  resolution: "@napi-rs/keyring@npm:2.1.0"
+  dependencies:
+    "@napi-rs/keyring-darwin-arm64": "npm:2.1.0"
+    "@napi-rs/keyring-darwin-x64": "npm:2.1.0"
+    "@napi-rs/keyring-freebsd-x64": "npm:2.1.0"
+    "@napi-rs/keyring-linux-arm-gnueabihf": "npm:2.1.0"
+    "@napi-rs/keyring-linux-arm64-gnu": "npm:2.1.0"
+    "@napi-rs/keyring-linux-arm64-musl": "npm:2.1.0"
+    "@napi-rs/keyring-linux-riscv64-gnu": "npm:2.1.0"
+    "@napi-rs/keyring-linux-x64-gnu": "npm:2.1.0"
+    "@napi-rs/keyring-linux-x64-musl": "npm:2.1.0"
+    "@napi-rs/keyring-win32-arm64-msvc": "npm:2.1.0"
+    "@napi-rs/keyring-win32-ia32-msvc": "npm:2.1.0"
+    "@napi-rs/keyring-win32-x64-msvc": "npm:2.1.0"
+  dependenciesMeta:
+    "@napi-rs/keyring-darwin-arm64":
+      optional: true
+    "@napi-rs/keyring-darwin-x64":
+      optional: true
+    "@napi-rs/keyring-freebsd-x64":
+      optional: true
+    "@napi-rs/keyring-linux-arm-gnueabihf":
+      optional: true
+    "@napi-rs/keyring-linux-arm64-gnu":
+      optional: true
+    "@napi-rs/keyring-linux-arm64-musl":
+      optional: true
+    "@napi-rs/keyring-linux-riscv64-gnu":
+      optional: true
+    "@napi-rs/keyring-linux-x64-gnu":
+      optional: true
+    "@napi-rs/keyring-linux-x64-musl":
+      optional: true
+    "@napi-rs/keyring-win32-arm64-msvc":
+      optional: true
+    "@napi-rs/keyring-win32-ia32-msvc":
+      optional: true
+    "@napi-rs/keyring-win32-x64-msvc":
+      optional: true
+  checksum: 10/7a25412134eec839841e4e695b6157dab2643c1d9fb8737ffc48171f794a27732b6758c2620866dbca387004bda03c8bb9d1f043a1e414888bb4766ac187d423
+  languageName: node
+  linkType: hard
+
 "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1":
   version: 5.1.1-v1
   resolution: "@nicolo-ribaudo/eslint-scope-5-internals@npm:5.1.1-v1"
@@ -3385,21 +3534,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@sherlo-io/time-limits@npm:^1.2.1":
+  version: 1.2.1
+  resolution: "@sherlo-io/time-limits@npm:1.2.1::__archiveUrl=https%3A%2F%2Fnpm.pkg.github.com%2Fdownload%2F%40sherlo-io%2Ftime-limits%2F1.2.1%2F0f05a3c6510aa38896e7f7d83a5be29050d77055"
+  peerDependencies:
+    vitest: ">=1"
+  bin:
+    time-limits: bin.js
+  checksum: 10/a185bb72149d68bbb5d395aa26e69a02ff1511398916526e0a0d8d71ea3b9d858b5eb0321650424447d6156e00aeb6f12b99a0a7c7c1a3740de85a25ebf34eae
+  languageName: node
+  linkType: hard
+
 "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz::locator=%40sherlo%2Freact-native%40workspace%3A.":
-  version: 2.0.1
-  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=703485&locator=%40sherlo%2Freact-native%40workspace%3A."
+  version: 3.0.0-alpha.0
+  resolution: "@sherlo/react-native-storybook@file:./sherlo-lib/react-native-storybook.tgz#./sherlo-lib/react-native-storybook.tgz::hash=776e99&locator=%40sherlo%2Freact-native%40workspace%3A."
   dependencies:
     base-64: "npm:1.0.0"
     deepmerge: "npm:4.3.1"
     its-fine: "npm:2.0.0"
-    sherlo: "npm:^2.0.1"
+    sherlo: "npm:^2.0.2"
     utf8: "npm:3.0.0"
   peerDependencies:
     "@storybook/react-native": ">=8.0.0"
     react: "*"
-    react-native: ">=0.74.0"
+    react-native: ">=0.81.0"
     react-native-safe-area-context: "*"
-  checksum: 10/c66b244bd029d249ee64a99a54233d965ad7bd7fe9a5f1d1a0c504f213972074555a48fd2f2c4f1b87a985542ca7c1bdefbef0a1078f5273d85fc9e75ad4eec0
+  checksum: 10/a1536b94fec3e8d793a9fc1d74733a27b2696562c2b3b8a2899b8117b5e8cd6ca5fdf5b5b6fdf8ea00b7f660edc9069dfa53297617b37fe89d60dea6a952ceeb
   languageName: node
   linkType: hard
 
@@ -3420,6 +3580,7 @@ __metadata:
     "@react-native/eslint-config": "npm:0.77.2"
     "@react-native/metro-config": "npm:0.77.2"
     "@react-native/typescript-config": "npm:0.77.2"
+    "@sherlo-io/time-limits": "npm:^1.2.1"
     "@sherlo/react-native-storybook": "file:./sherlo-lib/react-native-storybook.tgz"
     "@storybook/addon-ondevice-actions": "npm:9.1.4"
     "@storybook/addon-ondevice-controls": "npm:9.1.4"
@@ -3440,10 +3601,10 @@ __metadata:
     react: "npm:18.3.1"
     react-native: "npm:0.77.2"
     react-native-crash-tester: "npm:^0.2.3"
-    react-native-gesture-handler: "npm:^2.24.0"
+    react-native-gesture-handler: "npm:2.24.0"
     react-native-linear-gradient: "npm:^2.8.3"
     react-native-localize: "npm:^3.4.1"
-    react-native-reanimated: "npm:^3.17.1"
+    react-native-reanimated: "npm:3.17.5"
     react-native-safe-area-context: "npm:^5.3.0"
     react-native-svg: "npm:^15.11.2"
     react-native-turbo-image: "npm:^1.22.5"
@@ -8505,6 +8666,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"getenv@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "getenv@npm:1.0.0"
+  checksum: 10/0b8f5f6ddc2400712bf584765e0b218a7b9eabe41d3cafaf2b73fc36140248f72f7040a38f852804a321ec9813a6873a7cafd7bf1d3ab43e8b6f9a18aba663ad
+  languageName: node
+  linkType: hard
+
 "getenv@npm:^2.0.0":
   version: 2.0.0
   resolution: "getenv@npm:2.0.0"
@@ -11790,9 +11958,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-gesture-handler@npm:^2.24.0":
-  version: 2.30.0
-  resolution: "react-native-gesture-handler@npm:2.30.0"
+"react-native-gesture-handler@npm:2.24.0":
+  version: 2.24.0
+  resolution: "react-native-gesture-handler@npm:2.24.0"
   dependencies:
     "@egjs/hammerjs": "npm:^2.0.17"
     hoist-non-react-statics: "npm:^3.3.0"
@@ -11800,7 +11968,7 @@ __metadata:
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: 10/242b1eb29202bc9fc7bf0271c3da102559adc9f2810441465b6d78c1a8ed8f65bdd91335957c841a4716f796be3e7b87d1d55629d6803ea12e1be832d89c946c
+  checksum: 10/e8e97fde1a1a4e776d448870c5a89e53df64836a7a131ba8348712038c4b6ff0a99e59be5702b98d5687a35ba57d260a02a50da9d7702427b62bc7abea2fe687
   languageName: node
   linkType: hard
 
@@ -11853,9 +12021,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-reanimated@npm:^3.17.1":
-  version: 3.19.5
-  resolution: "react-native-reanimated@npm:3.19.5"
+"react-native-reanimated@npm:3.17.5":
+  version: 3.17.5
+  resolution: "react-native-reanimated@npm:3.17.5"
   dependencies:
     "@babel/plugin-transform-arrow-functions": "npm:^7.0.0-0"
     "@babel/plugin-transform-class-properties": "npm:^7.0.0-0"
@@ -11873,7 +12041,7 @@ __metadata:
     "@babel/core": ^7.0.0-0
     react: "*"
     react-native: "*"
-  checksum: 10/9d14ee038b161f22e08ea1bef1a3eb87e287f491fb9f9f8dadde26689a41a2e5271c30a9749e6ba4cdc1d82723edb8729d0526faf7d1da9bd2f2fa51e9382ffd
+  checksum: 10/63501d8ac0cb2039e60ac93bc779e946af267bb55f95cf53ed538bcf9bfca030fa5d84d5c9343dcbc4d8df0d5e9d7c58ca5647d43b17f8399dec11d812da11fc
   languageName: node
   linkType: hard
 
@@ -12271,20 +12439,20 @@ __metadata:
 
 "resolve@patch:resolve@npm%3A^1.20.0#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.22.11#optional!builtin<compat/resolve>, resolve@patch:resolve@npm%3A^1.22.2#optional!builtin<compat/resolve>":
   version: 1.22.11
-  resolution: "resolve@patch:resolve@npm%3A1.22.11#optional!builtin<compat/resolve>::version=1.22.11&hash=c3c19d"
+  resolution: "resolve@patch:resolve@npm%3A1.22.11#optional!builtin<compat/resolve>::version=1.22.11&hash=9bd1a5"
   dependencies:
     is-core-module: "npm:^2.16.1"
     path-parse: "npm:^1.0.7"
     supports-preserve-symlinks-flag: "npm:^1.0.0"
   bin:
     resolve: bin/resolve
-  checksum: 10/fd342cad25e52cd6f4f3d1716e189717f2522bfd6641109fe7aa372f32b5714a296ed7c238ddbe7ebb0c1ddfe0b7f71c9984171024c97cf1b2073e3e40ff71a8
+  checksum: 10/c990146fed81dd7792c56c1d62c170a8c8330bee86ef5d2524f0b1db79cfd9a6e2b4ad3cd4742b2685e51117b67be5d6f8cfd6ffa9c57bd64a1c8c8c9ff4c965
   languageName: node
   linkType: hard
 
 "resolve@patch:resolve@npm%3A^2.0.0-next.5#optional!builtin<compat/resolve>":
   version: 2.0.0-next.6
-  resolution: "resolve@patch:resolve@npm%3A2.0.0-next.6#optional!builtin<compat/resolve>::version=2.0.0-next.6&hash=c3c19d"
+  resolution: "resolve@patch:resolve@npm%3A2.0.0-next.6#optional!builtin<compat/resolve>::version=2.0.0-next.6&hash=9bd1a5"
   dependencies:
     es-errors: "npm:^1.3.0"
     is-core-module: "npm:^2.16.1"
@@ -12294,7 +12462,7 @@ __metadata:
     supports-preserve-symlinks-flag: "npm:^1.0.0"
   bin:
     resolve: bin/resolve
-  checksum: 10/1b26738af76c80b341075e6bf4b202ef85f85f4a2cbf2934246c3b5f20c682cf352833fc6e32579c6967419226d3ab63e8d321328da052c87a31eaad91e3571a
+  checksum: 10/f0dd8b0a9e86a84bf9580bd40a1e610e21c17126925f73baa25e92e9a2e14098ea7fbab826e1f5a1cdb8d2bd40f57539b1e39ae739b7152a62438a61a7a6299a
   languageName: node
   linkType: hard
 
@@ -12620,6 +12788,9 @@ __metadata:
 "sherlo@portal:../../packages/cli::locator=%40sherlo%2Freact-native%40workspace%3A.":
   version: 0.0.0-use.local
   resolution: "sherlo@portal:../../packages/cli::locator=%40sherlo%2Freact-native%40workspace%3A."
+  dependencies:
+    "@expo/fingerprint": "npm:^0.11.0"
+    "@napi-rs/keyring": "npm:2.1.0"
   bin:
     sherlo: ./cli.js
   languageName: node

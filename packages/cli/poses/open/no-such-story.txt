@@ -1,0 +1,11 @@
+[31m✖[39m  No story [1mfoundation-typografy--scales[22m in this app
+
+[2mThis app has:[22m
+  foundation-typography--scales
+  foundation-colour--palette
+  controls-button--primary
+  controls-button--disabled
+[2m  ... and 2 more[22m
+
+
+[exit 1]

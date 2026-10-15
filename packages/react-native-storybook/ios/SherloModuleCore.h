@@ -1,29 +1,30 @@
 #import <Foundation/Foundation.h>
 #import <React/RCTBridgeModule.h>
 
-@class FileSystemHelper;
-@class InspectorHelper;
-@class ConfigHelper;
-@class LastStateHelper;
-@class KeyboardHelper;
-@class StabilityHelper;
 @class RCTBridge;
+
+/** The event raised to the JavaScript for each message the connection brings, with its JSON. */
+extern NSString * const SHERLO_MESSAGE_EVENT;
 
 /**
  * Core implementation for Sherlo's React Native module.
- * Manages application modes (default, storybook, testing) and provides
- * functionality for file operations, UI inspection, and UI stability testing.
+ * Manages application modes (default, storybook, testing), the app's one connection, and provides
+ * UI inspection and UI stability testing.
  */
 @interface SherloModuleCore : NSObject
 
 /**
- * Standard initialization method
+ * Picks the mode. An address handed at launch means testing mode: the connection opens then, and
+ * says hello, before any JavaScript runs.
  * @return An initialized instance
  */
 - (instancetype)init;
 
 /** Returns the current mode string (e.g. 'default', 'testing', 'storybook'). */
 + (NSString *)currentMode;
+
+/** Who drives this boot's testing walk ('runner' or 'capture'), or nil outside testing mode. */
++ (NSString *)driver;
 
 /** Records that getStorybook() was called; prevents the NOT_DISPLAYED timer from firing. */
 + (void)setGetStorybookCalled;
@@ -32,10 +33,44 @@
 + (void)cancelStorybookNotDisplayedTimer;
 
 /**
- * Returns constants exposed to the JavaScript side
+ * Where each message the connection brings is handed to the JavaScript: the module whose
+ * JavaScript listens now, or nil while none does.
+ */
++ (void)setMessageReceiver:(void (^)(NSString *messageJson))messageReceiver;
+
+/**
+ * Sends a JS_ERROR over the connection and waits until the socket took it, at most two seconds,
+ * so it leaves before the app dies. In testing mode only. Returns YES when the socket took it.
+ */
++ (BOOL)sendJsErrorAndWait:(NSString *)name message:(NSString *)message stack:(NSString *)stack;
+
+/**
+ * Returns constants exposed to the JavaScript side. In a launch the runner handed an address, it
+ * first waits for the runner's settings.
  * @return Dictionary with mode, config, and lastState
  */
 - (NSDictionary *)getSherloConstants;
+
+/**
+ * The sealed JS core to run, as JSON (see SherloCoreLoader). In a launch the runner handed an
+ * address, it first waits for the runner's settings, which carry any newer core.
+ */
+- (NSString *)loadCore;
+
+/**
+ * Sends one message the JavaScript wrote, as JSON, over the connection. A `hello` is not sent on:
+ * native code says hello itself, and keeps the JavaScript's version for it.
+ */
+- (void)sendMessage:(NSString *)messageJson;
+
+/** Opens the connection to the bundler's address, unless a connection is already open. */
+- (void)dialBundler:(NSString *)address;
+
+/** The memory the app's process uses, in MB (phys_footprint), or -1 when it cannot be read. */
+- (void)getMemoryMb:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+
+/** Starts the app's JavaScript again in the same process; the connection stays open. */
+- (void)reloadJavaScript;
 
 /**
  * Toggles between Storybook and default modes.
@@ -54,40 +89,35 @@
 
 /**
  * Switches to default mode.
- * 
+ *
  * @param bridge The React Native bridge needed for reloading
  */
 - (void)closeStorybook:(RCTBridge *)bridge;
 
 /**
- * Writes a NATIVE_ERROR JSON line to protocol.sherlo.
+ * Switches to testing mode by reloading the JavaScript, as a capture asks.
+ *
+ * @param bridge The React Native bridge needed for reloading
+ * @param storyId The story to land the reloaded app on directly (as `initialSelection` - see
+ *                TestingMode/Storybook.tsx), or empty when there is none to hand over.
+ * @param configJson The settings to hand the reloaded app over as `config` - no runner sends a
+ *                    capture its settings, so the JS caller sends getConfigOrDefault()'s answer
+ *                    instead (see captureTransport.ts).
+ */
+- (void)openTesting:(RCTBridge *)bridge storyId:(NSString *)storyId configJson:(NSString *)configJson;
+
+/**
+ * Sends a NATIVE_ERROR over the connection.
  * @param errorCode The error code (e.g. ERROR_SDK_COMPATIBILITY)
  * @param message Human-readable error description
  */
 - (void)sendNativeError:(NSString *)errorCode message:(NSString *)message dataJson:(NSString *)dataJson;
 
 /**
- * Synchronously writes a JS_ERROR entry for module-eval errors caught by the metro __r polyfill.
- * Must never throw. Returns YES on success, NO on failure.
+ * Sends a JS_ERROR for module-eval errors caught by the metro __r polyfill, and waits until the
+ * socket took it. Must never throw. Returns YES when the socket took it.
  */
 - (BOOL)reportEarlyJsError:(NSString *)name message:(NSString *)message stack:(NSString *)stack;
-
-/**
- * Appends base64 encoded content to a file
- * @param filename Name of the file
- * @param content Base64 encoded content to append
- * @param resolve Promise resolver
- * @param reject Promise rejecter
- */
-- (void)appendFile:(NSString *)filename withContent:(NSString *)content resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
-
-/**
- * Reads a file and returns its content as base64
- * @param filename Name of the file to read
- * @param resolve Promise resolver
- * @param reject Promise rejecter
- */
-- (void)readFile:(NSString *)filename resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
  * Gets inspector data from the current UI hierarchy

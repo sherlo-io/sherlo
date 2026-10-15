@@ -1,17 +1,22 @@
 import { BuildRun, Device, Platform } from '@sherlo/api-types';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER, getPlatformFromDeviceId } from '@sherlo/shared';
-import { CommandParams, Config, EasUpdateData } from '../types';
+import { CommandParams, Config } from '../types';
 
 function getBuildRunConfig({
   commandParams,
   binaryS3Keys,
-  easUpdateData,
+  wholeTest = false,
 }: {
   commandParams: CommandParams;
   binaryS3Keys?: { android?: string; ios?: string };
-  easUpdateData?: EasUpdateData;
+  /**
+   * For one job of a split CI run (`--platform`): name every device of the test, not only this
+   * job's, so the test waits for the platform the other job brings instead of leaving it out.
+   */
+  wholeTest?: boolean;
 }): BuildRun<'withS3KeyNoDebug'>['config'] & { diagnostics?: string[] } {
-  const { devices, include, exclude, diagnostics } = commandParams;
+  const { include, exclude, diagnostics } = commandParams;
+  const devices = wholeTest ? testDevicesOf(commandParams) : commandParams.devices;
 
   const androidDevices = getPlatformDevices(devices, 'android');
   const iosDevices = getPlatformDevices(devices, 'ios');
@@ -19,12 +24,10 @@ function getBuildRunConfig({
   return {
     include,
     exclude,
-    easUpdateSlug: easUpdateData?.slug,
     android:
       androidDevices.length > 0
         ? {
             devices: androidDevices,
-            easUpdateUrl: easUpdateData?.updateUrls.android,
             s3Key: binaryS3Keys?.android || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
@@ -32,7 +35,6 @@ function getBuildRunConfig({
       iosDevices.length > 0
         ? {
             devices: iosDevices,
-            easUpdateUrl: easUpdateData?.updateUrls.ios,
             s3Key: binaryS3Keys?.ios || ASYNC_UPLOAD_S3_KEY_PLACEHOLDER,
           }
         : undefined,
@@ -43,6 +45,16 @@ function getBuildRunConfig({
 export default getBuildRunConfig;
 
 /* ========================================================================== */
+
+/**
+ * The config's whole device list, which ./getValidatedCommandParams/getCommandParams keeps beside
+ * the job's own `devices` (cut to `--platform`).
+ */
+function testDevicesOf(commandParams: CommandParams): Config['devices'] {
+  return (
+    (commandParams as { testDevices?: Config['devices'] }).testDevices ?? commandParams.devices
+  );
+}
 
 function getPlatformDevices(configDevices: Config['devices'], platform: Platform): Device[] {
   return configDevices

@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.library' version '8.7.3'
+}
+
+android {
+    namespace 'io.sherlo.storybookreactnative.jvmtests'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 21
+    }
+
+    sourceSets {
+        main {
+            java.srcDir '../src/main/java'
+        }
+        test {
+            java.srcDir '../src/test/java'
+        }
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+}
+
+// Only the classes that have tests here are compiled; the rest of the module needs React Native.
+def classesUnderTest = ['SherloSocket.java', 'WebSocketFrames.java', 'RestartHelper.java']
+tasks.withType(JavaCompile).configureEach {
+    exclude { element ->
+        // A folder is never excluded, or its files would go with it.
+        element.file.isFile() && element.file.path.contains('/src/main/java/') && !classesUnderTest.contains(element.file.name)
+    }
+}
+
+dependencies {
+    // RestartHelper restarts the process through it, as the library does (../build.gradle).
+    implementation 'com.jakewharton:process-phoenix:2.2.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
+}

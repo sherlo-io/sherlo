@@ -35,16 +35,13 @@ describe('SherloModule dummy (no native module)', () => {
     expect(typeof config.stabilization.requiredMatches).toBe('number');
   });
 
+  it('getConfigOrDefault() returns the same defaults, and never throws', () => {
+    expect(() => SherloModule.getConfigOrDefault()).not.toThrow();
+    expect(SherloModule.getConfigOrDefault()).toEqual(SherloModule.getConfig());
+  });
+
   it('sendNativeError() does not throw', () => {
     expect(() => SherloModule.sendNativeError('ERROR_CODE', 'message')).not.toThrow();
-  });
-
-  it('appendFile() resolves without throwing', async () => {
-    await expect(SherloModule.appendFile('foo.txt', 'data')).resolves.not.toThrow();
-  });
-
-  it('readFile() resolves to an empty string', async () => {
-    await expect(SherloModule.readFile('foo.txt')).resolves.toBe('');
   });
 
   it('openStorybook() does not throw', () => {

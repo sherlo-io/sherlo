@@ -1,0 +1,40 @@
+{
+  "pose": 1,
+  "argv": ["view", "7", "--json"],
+  "files": {
+    "sherlo.config.json": { "devices": [{ "id": "iphone.15", "osVersion": "17" }] }
+  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "git": { "branch": "e2e/sherlo-3/dev", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": {
+        "runStatus": "finished",
+        "status": "unreviewed",
+        "showsOnlyBranchChanges": true,
+        "mainBranch": "main",
+        "ciRun": { "provider": "github", "runId": "7243105518" },
+        "gitInfo": { "branchName": "e2e/sherlo-3/dev", "commitHash": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "isDirty": true },
+        "devices": [{ "id": "iphone.15", "osVersion": "17", "platform": "ios" }],
+        "viewStatusesCount": { "approved": 5, "noChanges": 0, "reported": 0, "unreviewed": 1 },
+        "stories": [
+          { "name": "Typography - Scales", "status": "review-required", "baseline": null, "reason": "two-baselines", "candidates": [{ "buildIndex": 2 }, { "buildIndex": 4 }] },
+          { "name": "Typography - Dense", "status": "unchanged", "baseline": { "buildIndex": 1 } },
+          { "name": "Sanity/Hello - Basic", "status": "unchanged", "baseline": { "buildIndex": 1 } }
+        ],
+        "platforms": {
+          "ios": {
+            "arrived": true,
+            "capture": null,
+            "appBuild": { "from": "uploaded", "madeBy": "compiled", "why": "native-changed", "nativeChanges": ["ios/Podfile.lock", "react-native-reanimated 3.16.1 -> 3.17.0"] },
+            "storiesInBundle": 3
+          }
+        }
+      }
+    }
+  ],
+  "masks": {}
+}

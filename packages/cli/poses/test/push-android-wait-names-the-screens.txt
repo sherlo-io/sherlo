@@ -1,0 +1,34 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+Testing your app...
+
+🤖 Android  [32m✔[39m Reused from Test 3
+
+Test 4      [32m✔[39m Started: 5 of 6 stories on 1 device (Pixel 7)
+              [33m~[39m Storefront/ProductCard [2m(2 stories)[22m
+              [33m~[39m Storefront/Checkout [2m(3 stories)[22m
+            [32m✔[39m Finished in <DURATION>
+
+
+[1m⚠️ 3 stories need review[22m
+[2m════════════════════════[22m
+
+Storefront/ProductCard - Default      changed
+Storefront/ProductCard - Sale badge   new
+Storefront/Checkout - Empty cart      reported
+[2m3 other stories have no changes.[22m
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 1]

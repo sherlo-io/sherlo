@@ -4,21 +4,28 @@ import getNormalizedConfig from './getNormalizedConfig';
 import getNormalizedOptions from './getNormalizedOptions';
 import getOptionsWithDefaults from './getOptionsWithDefaults';
 import validateCommandParams from './validateCommandParams';
+import resolvePushCredential from './validateCommandParams/resolvePushCredential';
 import validateRequiredOptions from './validateRequiredOptions';
 
-function getValidatedCommandParams<C extends Command>(
-  { command, passedOptions }: { command: C; passedOptions: Options<C> },
-  { requirePlatformPaths }: { requirePlatformPaths: boolean }
-): CommandParams<C> {
+function getValidatedCommandParams<C extends Command>({
+  command,
+  passedOptions,
+}: {
+  command: C;
+  passedOptions: Options<C>;
+}): CommandParams<C> {
   validateRequiredOptions({ command, passedOptions });
 
   const options = getNormalizedOptions(getOptionsWithDefaults(passedOptions));
 
   const config = getNormalizedConfig(options);
 
-  const commandParams = getCommandParams(options, config);
+  // Before the devices: the credential and the project it pushes into.
+  const credential = resolvePushCredential(command, config, options);
 
-  validateCommandParams(command, commandParams, config, { requirePlatformPaths });
+  const commandParams = { ...getCommandParams(options, config), credential };
+
+  validateCommandParams(commandParams, config);
 
   return commandParams;
 }

@@ -23,12 +23,13 @@ function TestingMode({
   const defaultTheme = useColorScheme() === 'dark' ? darkTheme : theme;
   const metadataProviderRef = useRef<MetadataProviderRef>(null);
 
+  const nextSnapshot = lastState?.nextSnapshot;
+
+  // The story's mocks are installed by Sherlo's loader (../../sherloAnnotation), which Storybook
+  // awaits before it renders the story, so nothing here holds Storybook back.
   useTestAllStories({
-    view,
     metadataProviderRef,
   });
-
-  const nextSnapshot = lastState?.nextSnapshot;
   const uiSettings = nextSnapshot
     ? {
         theme: deepmerge(defaultTheme, nextSnapshot.parameters?.theme ?? {}),

@@ -1,11 +1,61 @@
 #import "InspectorHelper.h"
+#import "CompiledCore.h"
 #import <UIKit/UIKit.h>
 #import <React/UIView+React.h>
 #import <stdlib.h>
 
 static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
-static const NSInteger MAX_DEPTH = 50;
-static const NSInteger MAX_NODES = 10000;
+
+/**
+ * The views the walk keeps, in pre-order, as the C core reads them: one node per view, and the
+ * table of class names the nodes point into.
+ */
+@interface SherloInspectorWalk : NSObject
+@property (nonatomic, readonly) NSMutableData *nodes;
+@property (nonatomic, readonly) int32_t nodeCount;
+@property (nonatomic, readonly) NSMutableArray<NSString *> *classNames;
+/** Each class's index in classNames, keyed by the class itself. */
+@property (nonatomic, readonly) NSMutableDictionary *classIndexes;
+@property (nonatomic) CGFloat screenScale;
+@property (nonatomic) CGFloat viewportTop;
+@property (nonatomic) CGFloat viewportBottom;
+- (void)addNode:(sherlo_inspector_node)node;
+- (int32_t)classIndexOf:(UIView *)view;
+@end
+
+@implementation SherloInspectorWalk
+
+- (instancetype)init {
+    if ((self = [super init])) {
+        _nodes = [NSMutableData data];
+        _classNames = [NSMutableArray array];
+        _classIndexes = [NSMutableDictionary dictionary];
+    }
+    return self;
+}
+
+- (void)addNode:(sherlo_inspector_node)node {
+    [_nodes appendBytes:&node length:sizeof(node)];
+    _nodeCount++;
+}
+
+- (int32_t)classIndexOf:(UIView *)view {
+    Class viewClass = [view class];
+    NSNumber *known = _classIndexes[(id<NSCopying>)viewClass];
+    if (known) return known.intValue;
+
+    // Class name - always valid
+    NSString *className = NSStringFromClass(viewClass);
+    if (!className || className.length == 0) {
+        className = @"Unknown";
+    }
+    int32_t index = (int32_t)_classNames.count;
+    [_classNames addObject:className];
+    _classIndexes[(id<NSCopying>)viewClass] = @(index);
+    return index;
+}
+
+@end
 
 /**
  * Helper for inspecting the UI view hierarchy of a React Native application.
@@ -42,13 +92,21 @@ static const NSInteger MAX_NODES = 10000;
 
 /**
  * Collects and serializes data about the view hierarchy.
- * Creates a JSON object with device metrics and detailed view information.
- * Only traverses views that intersect the current screen viewport for performance.
+ * Walks the views that intersect the current screen viewport, and has the C core write them, with
+ * the device metrics, as JSON.
  *
  * @param error Pointer to an NSError that will be populated if an error occurs
  * @return JSON string representing the view hierarchy and device metrics
  */
 + (NSString *)dumpBoundaries:(NSError **)error {
+    NSString *unusableReason = CompiledCoreUnusableReason();
+    if (unusableReason) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"InspectorHelper" code:4 userInfo:@{NSLocalizedDescriptionKey: unusableReason}];
+        }
+        return nil;
+    }
+
     UIWindow *keyWindow = nil;
     if (@available(iOS 13.0, *)) {
         NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
@@ -74,234 +132,99 @@ static const NSInteger MAX_NODES = 10000;
         return nil;
     }
 
-    // Determine the visible viewport bounds (window coordinates)
-    CGFloat viewportTop = 0;
-    CGFloat viewportBottom = keyWindow.bounds.size.height;
-
-    // Get hierarchical view structure, clipped to viewport
-    NSInteger nodeCount = 0;
-    NSDictionary *viewHierarchy = [self collectViewHierarchy:rootView depth:0 nodeCount:&nodeCount viewportTop:viewportTop viewportBottom:viewportBottom];
-
-    // Create the root JSON object
-    NSMutableDictionary *rootObject = [NSMutableDictionary dictionary];
-    CGFloat screenScale = [UIScreen mainScreen].nativeScale;
+    // Walk the view hierarchy, clipped to the visible viewport (window coordinates)
+    SherloInspectorWalk *walk = [[SherloInspectorWalk alloc] init];
+    walk.screenScale = [UIScreen mainScreen].nativeScale;
+    walk.viewportTop = 0;
+    walk.viewportBottom = keyWindow.bounds.size.height;
+    CGRect rootWindowFrame = [rootView convertRect:rootView.bounds toView:nil];
+    [self collectView:rootView depth:0 windowFrame:rootWindowFrame walk:walk];
 
     // Use the system's default font size for body text
     UIFont *defaultFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
     CGFloat defaultFontSize = defaultFont ? defaultFont.pointSize : [UIFont systemFontSize];
     CGFloat fontScale = defaultFontSize / [UIFont systemFontSize];
 
-    // Only add if the numbers are finite
-    if (isfinite(screenScale)) {
-        [rootObject setObject:@(screenScale) forKey:@"density"];
-    }
-    if (isfinite(fontScale)) {
-        [rootObject setObject:@(fontScale) forKey:@"fontScale"];
-    }
-
-    [rootObject setObject:viewHierarchy forKey:@"viewHierarchy"];
-
-    // Add validation before JSON serialization
-    if (![NSJSONSerialization isValidJSONObject:rootObject]) {
-        NSMutableDictionary *debugInfo = [NSMutableDictionary dictionary];
-
-        // Add debug logging
-        NSLog(@"[%@] JSON serialization failed for rootObject", LOG_TAG);
-
-        // Check if the hierarchy is valid
-        if (![NSJSONSerialization isValidJSONObject:viewHierarchy]) {
-            NSLog(@"[%@] Invalid viewHierarchy detected", LOG_TAG);
-            [debugInfo setObject:@"Invalid viewHierarchy" forKey:@"invalidComponent"];
-
-            // Try to identify the problem
-            [self validateJsonObject:viewHierarchy withDebugInfo:debugInfo path:@"root"];
-        }
-
-        if (error) {
-            *error = [NSError errorWithDomain:@"InspectorHelper"
-                                       code:3
-                                   userInfo:@{
-                NSLocalizedDescriptionKey: @"Could not serialize view data to JSON",
-                @"debugInfo": debugInfo
-            }];
-            // Add debug logging for the error
-            NSLog(@"[%@] Created error with debug info: %@", LOG_TAG, debugInfo);
-        }
-        return nil;
+    // The class names, kept alive while the core reads their UTF-8
+    NSUInteger classCount = walk.classNames.count;
+    const char **classNames = calloc(classCount > 0 ? classCount : 1, sizeof(const char *));
+    for (NSUInteger index = 0; index < classCount; index++) {
+        classNames[index] = walk.classNames[index].UTF8String;
     }
 
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:rootObject options:0 error:error];
-    if (!jsonData) {
+    int64_t length = 0;
+    char *json = sherlo_inspector_json(SHERLO_PLATFORM_IOS, (const sherlo_inspector_node *)walk.nodes.bytes, walk.nodeCount,
+                                       classNames, (int32_t)classCount, walk.screenScale, fontScale,
+                                       walk.viewportTop, walk.viewportBottom, &length);
+    free(classNames);
+
+    if (!json) {
+        NSLog(@"[%@] The C core could not write the view data as JSON", LOG_TAG);
         if (error) {
             *error = [NSError errorWithDomain:@"InspectorHelper" code:3 userInfo:@{NSLocalizedDescriptionKey: @"Could not serialize view data to JSON"}];
         }
         return nil;
     }
 
-    return [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+    NSString *jsonString = [[NSString alloc] initWithBytes:json length:(NSUInteger)length encoding:NSUTF8StringEncoding];
+    sherlo_free(json);
+    return jsonString;
 }
 
 /**
- * Validates a JSON object recursively to find invalid parts
- *
- * @param object The object to validate
- * @param debugInfo Dictionary to collect debug information
- * @param path Current path in the object hierarchy
- */
-+ (void)validateJsonObject:(id)object withDebugInfo:(NSMutableDictionary *)debugInfo path:(NSString *)path {
-    if ([object isKindOfClass:[NSDictionary class]]) {
-        NSDictionary *dict = (NSDictionary *)object;
-        for (NSString *key in dict) {
-            id value = dict[key];
-            NSString *newPath = [NSString stringWithFormat:@"%@.%@", path, key];
-
-            if (![self isValidJSONValue:value]) {
-                NSString *debugValue = [NSString stringWithFormat:@"%@: %@", newPath, [value description]];
-                NSLog(@"[%@] Invalid property found: %@", LOG_TAG, debugValue);
-                [debugInfo setObject:debugValue forKey:@"invalidProperty"];
-                return;
-            }
-
-            if ([value isKindOfClass:[NSDictionary class]] || [value isKindOfClass:[NSArray class]]) {
-                [self validateJsonObject:value withDebugInfo:debugInfo path:newPath];
-            }
-        }
-    } else if ([object isKindOfClass:[NSArray class]]) {
-        NSArray *array = (NSArray *)object;
-        for (NSInteger i = 0; i < array.count; i++) {
-            id value = array[i];
-            NSString *newPath = [NSString stringWithFormat:@"%@[%ld]", path, (long)i];
-
-            if (![self isValidJSONValue:value]) {
-                NSString *debugValue = [NSString stringWithFormat:@"%@: %@", newPath, [value description]];
-                NSLog(@"[%@] Invalid array item found: %@", LOG_TAG, debugValue);
-                [debugInfo setObject:debugValue forKey:@"invalidProperty"];
-                return;
-            }
-
-            if ([value isKindOfClass:[NSDictionary class]] || [value isKindOfClass:[NSArray class]]) {
-                [self validateJsonObject:value withDebugInfo:debugInfo path:newPath];
-            }
-        }
-    }
-}
-
-/**
- * Collect information about a view and its children in a hierarchical structure.
- * Only includes children whose bounds intersect the viewport [viewportTop, viewportBottom].
- * Parent containers that span beyond the viewport are always included (they intersect it),
- * but their off-screen children are skipped.
+ * Keeps one node for a view, then walks into its children.
+ * Before each child the C core says whether the tree has room for it (depth and node limits) and
+ * whether it intersects the viewport [viewportTop, viewportBottom]. A child it leaves out is not
+ * walked into: parent containers that span beyond the viewport are kept (they intersect it), but
+ * their off-screen children are skipped.
  *
  * @param view The view to collect information from
  * @param depth Current recursion depth
- * @param nodeCount Pointer to mutable counter tracking total nodes collected
- * @param viewportTop Top edge of the visible viewport in window coordinates
- * @param viewportBottom Bottom edge of the visible viewport in window coordinates
- * @return A dictionary representing the view and its children
+ * @param windowFrame The view's frame in window coordinates
+ * @param walk The nodes kept so far, and the walk's screen scale and viewport
  */
-+ (NSDictionary *)collectViewHierarchy:(UIView *)view depth:(NSInteger)depth nodeCount:(NSInteger *)nodeCount viewportTop:(CGFloat)viewportTop viewportBottom:(CGFloat)viewportBottom {
-    (*nodeCount)++;
-
-    NSMutableDictionary *viewDict = [NSMutableDictionary dictionary];
-
-    // Class name - always valid
-    NSString *className = NSStringFromClass([view class]);
-    if (className && className.length > 0) {
-        [viewDict setObject:className forKey:@"className"];
-    } else {
-        [viewDict setObject:@"Unknown" forKey:@"className"];
-    }
++ (void)collectView:(UIView *)view depth:(int32_t)depth windowFrame:(CGRect)windowFrame walk:(SherloInspectorWalk *)walk {
+    sherlo_inspector_node node;
+    node.depth = depth;
+    node.class_index = [walk classIndexOf:view];
 
     // Visibility
-    BOOL isVisible = !view.hidden && view.alpha > 0.01 && view.window != nil;
-    [viewDict setObject:@(isVisible) forKey:@"isVisible"];
+    node.is_visible = (!view.hidden && view.alpha > 0.01 && view.window != nil) ? 1 : 0;
 
-    // Frame calculations
-    CGRect windowFrame = [view convertRect:view.bounds toView:nil];
-    CGFloat screenScale = [UIScreen mainScreen].nativeScale;
-
-    CGFloat x = windowFrame.origin.x * screenScale;
-    CGFloat y = windowFrame.origin.y * screenScale;
-    CGFloat width = windowFrame.size.width * screenScale;
-    CGFloat height = windowFrame.size.height * screenScale;
-
-    if (isfinite(x)) {
-        [viewDict setObject:@(x) forKey:@"x"];
-    }
-    if (isfinite(y)) {
-        [viewDict setObject:@(y) forKey:@"y"];
-    }
-    if (isfinite(width)) {
-        [viewDict setObject:@(width) forKey:@"width"];
-    }
-    if (isfinite(height)) {
-        [viewDict setObject:@(height) forKey:@"height"];
-    }
+    // Frame in physical pixels; the core leaves out a number that is not finite
+    node.x = windowFrame.origin.x * walk.screenScale;
+    node.y = windowFrame.origin.y * walk.screenScale;
+    node.width = windowFrame.size.width * walk.screenScale;
+    node.height = windowFrame.size.height * walk.screenScale;
 
     NSNumber *reactTag = view.reactTag;
-    if (reactTag != nil) {
-        [viewDict setObject:reactTag forKey:@"id"];
-    } else {
-        NSInteger nativeTag = view.tag;
-        if (nativeTag > 0) {
-            [viewDict setObject:@(nativeTag) forKey:@"id"];
+    NSInteger nativeTag = view.tag;
+    node.has_id = (reactTag != nil || nativeTag > 0) ? 1 : 0;
+    node.id = reactTag != nil ? reactTag.longLongValue : nativeTag;
+
+    // The edges the viewport culling reads, in window coordinates
+    node.top = windowFrame.origin.y;
+    node.bottom = windowFrame.origin.y + windowFrame.size.height;
+
+    [walk addNode:node];
+
+    for (UIView *subview in view.subviews) {
+        if (!sherlo_inspector_has_room(depth + 1, walk.nodeCount)) {
+            break;
         }
-    }
 
-    // Add children array
-    // Skip children if we hit depth or node count limits
-    // Skip children whose bounds are entirely outside the viewport
-    NSMutableArray *children = [NSMutableArray array];
-    if (depth < MAX_DEPTH && *nodeCount < MAX_NODES) {
-        for (UIView *subview in view.subviews) {
-            if (*nodeCount >= MAX_NODES) {
-                break;
-            }
+        // Get child's position in window coordinates
+        CGRect childWindowFrame = [subview convertRect:subview.bounds toView:nil];
+        CGFloat childTop = childWindowFrame.origin.y;
+        CGFloat childBottom = childTop + childWindowFrame.size.height;
 
-            // Get child's position in window coordinates
-            CGRect childWindowFrame = [subview convertRect:subview.bounds toView:nil];
-            CGFloat childTop = childWindowFrame.origin.y;
-            CGFloat childBottom = childTop + childWindowFrame.size.height;
-
-            // Skip children entirely outside the viewport
-            // A view intersects if: childTop < viewportBottom && childBottom > viewportTop
-            if (childBottom <= viewportTop || childTop >= viewportBottom) {
-                continue;
-            }
-
-            NSDictionary *childInfo = [self collectViewHierarchy:subview depth:depth + 1 nodeCount:nodeCount viewportTop:viewportTop viewportBottom:viewportBottom];
-            [children addObject:childInfo];
+        // Skip children entirely outside the viewport
+        if (!sherlo_inspector_is_on_screen(childTop, childBottom, walk.viewportTop, walk.viewportBottom)) {
+            continue;
         }
+
+        [self collectView:subview depth:depth + 1 windowFrame:childWindowFrame walk:walk];
     }
-    [viewDict setObject:children forKey:@"children"];
-
-    return viewDict;
-}
-
-/**
- * Validates if a value can be serialized as JSON.
- *
- * @param value The value to check
- * @return YES if the value is valid for JSON serialization, NO otherwise
- */
-+ (BOOL)isValidJSONValue:(id)value {
-    if (!value) return YES;
-
-    if ([value isKindOfClass:[NSString class]] ||
-        [value isKindOfClass:[NSNumber class]] ||
-        [value isKindOfClass:[NSNull class]]) {
-        return YES;
-    }
-
-    if ([value isKindOfClass:[NSArray class]]) {
-        return [NSJSONSerialization isValidJSONObject:value];
-    }
-
-    if ([value isKindOfClass:[NSDictionary class]]) {
-        return [NSJSONSerialization isValidJSONObject:value];
-    }
-
-    return NO;
 }
 
 @end

@@ -1,0 +1,576 @@
+/**
+ * Bundle building, format sniffing, asset collection, and gate-metadata
+ * construction for the staged road of `sherlo test`.
+ *
+ * Detects the project type with detectBundler, calls the canonical bundler with --dev false
+ * --minify false (unminified, so a crash's stack trace on the error page reads
+ * as the source was written), sniffs the bundle format, collects the asset inventory,
+ * and constructs the per-platform GateMetadataInput that the openBuild
+ * resolver compares against the registered base.
+ */
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { Platform } from '@sherlo/api-types';
+import {
+  HBC_MAGIC,
+  deriveEngineClass,
+  parseExpoUpdatesEnabledFromPlist,
+  type GateMetadataInput,
+  type BundleFormat,
+} from '../../helpers/fingerprint/gateMetadata';
+import detectBundler, { detectEntryFile } from './detectBundler';
+import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
+import { dependsOnExpo, readProjectJson } from '../../helpers/projectJson';
+import getSizeInMB from '../../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
+import { buildEnvironment } from '../../seams/appBuilder';
+import { readBundledSdkProtocolVersion } from './readBundledSdkProtocolVersion';
+import { makeProjectSherloFolder } from './appBuild/cacheFolder';
+import type { BuildSettings } from './appBuild/buildSettings';
+import { BUNDLER_SETUP_ERROR_LINE, BUNDLER_SETUP_ERROR_MARKERS } from './constants';
+import {
+  deleteModuleManifestSidecar,
+  readValidatedModuleManifest,
+  type ValidatedModuleManifest,
+} from './readModuleManifest';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type { BundleFormat };
+
+export type BundleResult = {
+  /** Absolute path to the built bundle file. */
+  bundlePath: string;
+  /** Bundle format sniffed from the file header. */
+  bundleFormat: BundleFormat;
+  /** Bundle file size in megabytes. */
+  bundleSizeMb: number;
+  /** SHA-256 of the bundle content (diagnostics). */
+  bundleHash: string;
+  /** Path to the assets directory produced by the bundler. */
+  assetsDest?: string;
+  /** Sorted list of relative asset paths/names for gateMetadata.assetInventory. */
+  assetInventory: string[];
+  /** Which bundler was used. */
+  bundler: 'expo' | 'rn';
+  /**
+   * The validated module-manifest sidecar the serializer emitted for THIS build
+   * (SHERLO-1894 Phase B), or undefined when none was produced / it was invalid.
+   * Bail-open: a missing or bad manifest is never an error - the build ships
+   * without it. Uploaded (gzipped) to the staged `manifest` slot when present.
+   */
+  moduleManifest?: ValidatedModuleManifest;
+};
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Number of bytes read from the bundle header for HBC magic sniffing. */
+const BUNDLE_SNIFF_BYTES = 12;
+
+/** Minimum React Native version for staged uploads. */
+const MIN_RN_VERSION = '0.71.0';
+
+/** Minimum Expo SDK version for staged uploads. */
+const MIN_EXPO_SDK = 50;
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a production (dev=false), unminified plain-JS bundle for a single
+ * platform and collect its metadata + asset inventory.
+ *
+ * Throws with a user-facing message. Callers catch, print, and exit.
+ */
+export async function buildBundleForPlatform({
+  projectRoot,
+  platform,
+  buildSettings = {},
+}: {
+  projectRoot: string;
+  platform: Platform;
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings?: BuildSettings;
+}): Promise<BundleResult> {
+  // ------------------------------------------------------------------
+  // 0. Version-floor refusal - guard before we shell out to a bundler
+  //    that might not exist in ancient projects.
+  // ------------------------------------------------------------------
+  const rnVersion = getPackageVersion('react-native');
+  if (rnVersion && !isVersionGte(rnVersion, MIN_RN_VERSION)) {
+    throw new Error(
+      `React Native ${rnVersion} is below the minimum version ` +
+        `(${MIN_RN_VERSION}) required for staged uploads.\n\n` +
+        'Upgrade react-native or use a full build instead.'
+    );
+  }
+
+  const expoSdkVersion = getExpoSdkVersion(projectRoot);
+  if (expoSdkVersion !== null && expoSdkVersion < MIN_EXPO_SDK) {
+    throw new Error(
+      `Expo SDK ${expoSdkVersion} is below the minimum version ` +
+        `(${MIN_EXPO_SDK}) required for staged uploads.\n\n` +
+        'Upgrade expo or use a full build instead.'
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // 1. Detect project type via the canonical detectBundler.  Branch explicitly - do NOT try
+  //    expo export:embed blindly on bare-RN projects (triggers an
+  //    interactive expo install and breaks the bare-RN fixture AC).
+  // ------------------------------------------------------------------
+  let projectType: 'expo' | 'rn';
+  try {
+    projectType = detectBundler(projectRoot);
+  } catch {
+    // detectBundler throws when it can't determine the project type.
+    // Fall back to checking for expo in dependencies.
+    projectType = dependsOnExpo(projectRoot) ? 'expo' : 'rn';
+  }
+
+  const cacheDir = path.join(makeProjectSherloFolder(projectRoot), 'bundled');
+  fs.mkdirSync(cacheDir, { recursive: true });
+
+  const entryFile = detectEntryFile(projectRoot);
+  const bundleOut = path.join(cacheDir, `bundle.${platform}.js`);
+  const assetsDest = path.join(cacheDir, `assets.${platform}`);
+
+  // Clean stale output so we never read a previous run's bundle.
+  for (const p of [bundleOut, `${bundleOut}.map`, assetsDest]) {
+    try {
+      fs.rmSync(p, { recursive: true, force: true });
+    } catch {
+      /* ok */
+    }
+  }
+
+  // Delete any module-manifest sidecar left by a PREVIOUS platform's build before
+  // we spawn this platform's bundler (SHERLO-1894 §2). The sidecar lives at ONE
+  // fixed path with no platform recorded, and the loop reuses this projectRoot for
+  // every platform, so a leftover would be read and uploaded as THIS platform's
+  // manifest if this platform's serializer bails open and emits nothing. Deleting
+  // here makes absence mean absence: anything read afterward came from this run.
+  deleteModuleManifestSidecar(projectRoot);
+
+  // ------------------------------------------------------------------
+  // 2. Build the bundle with --dev false --minify false.
+  // ------------------------------------------------------------------
+  execBundler(platform, projectType, {
+    projectRoot,
+    entryFile,
+    bundleOut,
+    assetsDest,
+    buildSettings,
+  });
+
+  // ------------------------------------------------------------------
+  // 3-8. Accept the artifacts the bundler just produced. These checks are
+  //      NOT specific to a bundle we built - they are what makes ANY bundle
+  //      safe to stage - so they live in one shared function that the
+  //      supplied-bundle road runs too. See {@link inspectBundleArtifacts}.
+  // ------------------------------------------------------------------
+  return inspectBundleArtifacts({
+    bundlePath: bundleOut,
+    assetsDest,
+    bundler: projectType,
+    moduleManifest: readValidatedModuleManifest(projectRoot) ?? undefined,
+  });
+}
+
+/**
+ * THE ACCEPTANCE CHECKS - the single gate every staged bundle passes, whoever
+ * built it.
+ *
+ * Steps 3-8 of {@link buildBundleForPlatform} used to live inline. They are
+ * extracted here because `--bundle-dir` accepts a bundle this CLI did not build,
+ * and a supplied bundle must be judged by THE SAME CODE, not by a second
+ * implementation of the same intent. Two copies of a safety check drift, and the
+ * copy that drifts is the one nobody is watching.
+ *
+ * Throws user-facing messages.
+ */
+export function inspectBundleArtifacts({
+  bundlePath,
+  assetsDest,
+  bundler,
+  moduleManifest,
+}: {
+  bundlePath: string;
+  assetsDest?: string;
+  bundler: 'expo' | 'rn';
+  moduleManifest?: ValidatedModuleManifest;
+}): BundleResult {
+  // 3. Verify the bundle file exists and is non-empty.
+  if (!fs.existsSync(bundlePath)) {
+    throw new Error(`Bundle file was not produced at ${bundlePath}`);
+  }
+
+  const bundleBuffer = fs.readFileSync(bundlePath);
+  if (bundleBuffer.length === 0) {
+    throw new Error(`Bundle file is empty: ${bundlePath}`);
+  }
+
+  // 4. Sniff the bundle header for HBC magic (12-byte sniff, design §4).
+  //    Hermes bytecode CANNOT be staged - the runner needs plain JS.
+  const sniffBytes = bundleBuffer.subarray(0, Math.min(BUNDLE_SNIFF_BYTES, bundleBuffer.length));
+
+  if (sniffBytes.length >= 8 && sniffBytes.subarray(0, 8).equals(HBC_MAGIC)) {
+    throw new Error(
+      'Hermes bytecode (.hbc) bundle detected.\n\n' +
+        'Staged uploads require a plain-JS bundle (dev=false). ' +
+        'Your project is configured to emit Hermes bytecode instead of ' +
+        'plain JavaScript.\n\n' +
+        'To fix:\n' +
+        '  - Ensure --dev false is passed to the bundler (the CLI does ' +
+        'this automatically).\n' +
+        '  - Expo managed: "expo.jsEngine" must be "hermes" (not "jsc") - ' +
+        'expo export:embed with --dev=false produces plain-JS even with ' +
+        'Hermes.\n' +
+        '  - If using a custom Metro config, disable Hermes bytecode ' +
+        'precompilation for the staging build.'
+    );
+  }
+
+  // 5. Check for RAM/indexed bundle format.  Uses the same heuristic
+  //    as checkRamBundle in gateMetadata.ts: the bundle file starts
+  //    with __jac_ (RAM magic) or references require.unbundle /
+  //    "magicMapping" in the first 4 KB.
+  const ramSniff = bundleBuffer.subarray(0, Math.min(4096, bundleBuffer.length)).toString('utf8');
+  if (
+    ramSniff.startsWith('__jac_') ||
+    ramSniff.includes('require.unbundle') ||
+    ramSniff.includes('"magicMapping"')
+  ) {
+    throw new Error(
+      'RAM/indexed bundle format detected.\n\n' +
+        'Staged uploads require a single-file plain-JS bundle. ' +
+        'Disable RAM bundling in your Metro config ' +
+        '(set "ramBundle" to false or remove the option).'
+    );
+  }
+
+  // 6. Compute bundle metadata.
+  const bundleSizeMb = parseFloat(getSizeInMB({ bytes: bundleBuffer.length }));
+  const bundleHash = crypto.createHash('sha256').update(bundleBuffer).digest('hex');
+  const bundleFormat: BundleFormat = 'plain-js';
+
+  // 7. Collect asset inventory from the Metro --assets-dest output.
+  let assetsDestResult: string | undefined;
+  let assetInventory: string[] = [];
+
+  if (assetsDest && fs.existsSync(assetsDest)) {
+    const files = collectAssetInventory(assetsDest);
+    if (files.length > 0) {
+      assetsDestResult = assetsDest;
+      assetInventory = files;
+    }
+  }
+
+  // 8. The module-manifest sidecar the serializer emitted for this build
+  //    (SHERLO-1894 Phase B). Bail-open on the BUILT road: a missing /
+  //    unreadable / shape-invalid sidecar yields undefined (the reader warns,
+  //    never throws), so a manifest problem can never block a build.
+  //
+  //    The SUPPLIED road does not get that latitude, and refuses a missing
+  //    manifest before it ever reaches here - see ./suppliedBundle. Bailing open
+  //    is right when the alternative is failing a build that would have worked;
+  //    it is wrong when a caller explicitly handed over a triple and one third of
+  //    it is absent.
+  return {
+    bundlePath,
+    bundleFormat,
+    bundleSizeMb,
+    bundleHash,
+    assetsDest: assetsDestResult,
+    assetInventory,
+    bundler,
+    moduleManifest,
+  };
+}
+
+/**
+ * Construct the per-platform {@link GateMetadataInput} for a bundled run.
+ *
+ * `sherlo test --android/--ios` extracts BINARY-derived gate metadata from a built APK/IPA via
+ * {@link extractGateMetadata}. The bundled flow has no binary, so it marks its
+ * metadata `derivedFrom: 'source'` and sends ONLY what the JS bundle + project
+ * config honestly know:
+ *   - `bundleFormat` sniffed from the bundle we just built,
+ *   - `assetInventory` from Metro's `--assets-dest` output,
+ *   - `engineClass` / `expoUpdatesEnabled` / `buildMetadata.*` read from project
+ *     config (source signals; the gate excludes source-marked dims from the
+ *     identity diff, so they are honest observability, never a fabricated match).
+ *
+ * It deliberately does NOT send the binary-only identity facts a bundle can only
+ * guess: no `hasEmbeddedBundle` (always-true fabrication) and no baked
+ * `sdkProtocolVersion`. Instead it sends the bundle-REQUIRED SDK protocol
+ * version as the explicit `requiredSdkProtocolVersion` compat input, resolved
+ * from the installed @sherlo/react-native-storybook package (whose version IS
+ * the protocol version). If the package is not installed it is sent ABSENT -
+ * never fabricated.
+ */
+export async function buildGateMetadata({
+  projectRoot,
+  platform,
+  bundleResult,
+}: {
+  projectRoot: string;
+  platform: Platform;
+  bundleResult: BundleResult;
+}): Promise<GateMetadataInput> {
+  const engineClass = await deriveEngineClass({ platform, projectRoot });
+
+  const expoUpdatesEnabled = await detectExpoUpdatesEnabled({
+    projectRoot,
+    platform,
+  });
+
+  const requiredSdkProtocolVersion = readBundledSdkProtocolVersion(projectRoot);
+
+  const rnVersion = getPackageVersion('react-native');
+  const expoSdkVer = getExpoSdkVersion(projectRoot);
+
+  return {
+    derivedFrom: 'source',
+    engineClass,
+    bundleFormat: bundleResult.bundleFormat,
+    assetInventory: bundleResult.assetInventory,
+    expoUpdatesEnabled,
+    ...(requiredSdkProtocolVersion ? { requiredSdkProtocolVersion } : {}),
+    buildMetadata: {
+      ...(rnVersion ? { reactNativeVersion: rnVersion } : {}),
+      ...(expoSdkVer !== null ? { expoSdkVersion: String(expoSdkVer) } : {}),
+      buildMode: 'release',
+    },
+  };
+}
+
+export default buildBundleForPlatform;
+
+// ---------------------------------------------------------------------------
+// Bundler execution
+// ---------------------------------------------------------------------------
+
+/**
+ * Run the project's bundler. The bundle is left unminified (`--dev false` still makes it a
+ * production bundle), so a crash's stack trace on the error page names the functions as they were
+ * written.
+ */
+function execBundler(
+  platform: Platform,
+  bundler: 'expo' | 'rn',
+  opts: {
+    projectRoot: string;
+    entryFile: string;
+    bundleOut: string;
+    assetsDest: string;
+    buildSettings: BuildSettings;
+  }
+): void {
+  const { projectRoot, entryFile, bundleOut, assetsDest, buildSettings } = opts;
+
+  // The variables the app build runs with, composed in one place (../../seams/appBuilder): the
+  // shell, the eas.json profile's env, `build.env`, then SHERLO_BUILD set to storybook - a push
+  // always bundles Storybook alone.
+  //
+  // The module manifest is turned ON for this bundler process only (SHERLO-1894 Phase B): the
+  // Sherlo Metro serializer reads SHERLO_MODULE_MANIFEST, so every other build (local dev,
+  // non-Sherlo CI) is unaffected, and the bundle's bytes are the same with it or without it.
+  const bundlerEnv: NodeJS.ProcessEnv = {
+    ...buildEnvironment({
+      projectRoot,
+      easProfile: buildSettings.easProfile,
+      buildEnv: buildSettings.env,
+    }),
+    SHERLO_MODULE_MANIFEST: '1',
+  };
+
+  const command =
+    bundler === 'expo'
+      ? [
+          'npx expo export:embed',
+          `--platform=${platform}`,
+          `--entry-file=${entryFile}`,
+          `--bundle-output=${bundleOut}`,
+          `--assets-dest=${assetsDest}`,
+          '--dev=false',
+          '--minify=false',
+        ]
+      : [
+          'npx react-native bundle',
+          `--platform ${platform}`,
+          '--dev false',
+          '--minify false',
+          `--entry-file ${entryFile}`,
+          `--bundle-output ${bundleOut}`,
+          `--assets-dest ${assetsDest}`,
+        ];
+  const bundlerName = bundler === 'expo' ? 'expo export:embed' : 'react-native bundle';
+
+  try {
+    execSync(command.join(' '), {
+      cwd: projectRoot,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: bundlerEnv,
+    });
+  } catch (err: any) {
+    const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
+    throw new Error(
+      `${bundlerName} failed for ${platform}:\n` +
+        `${detail.slice(0, 500)}\n` +
+        setupErrorLineFor(detail)
+    );
+  }
+}
+
+/**
+ * The line that follows the bundler's own output when it stopped on an unknown
+ * SHERLO_BUILD value or a missing app entry. Any other failure gets nothing.
+ */
+function setupErrorLineFor(bundlerOutput: string): string {
+  const isSetupError = BUNDLER_SETUP_ERROR_MARKERS.some((marker) => bundlerOutput.includes(marker));
+  return isSetupError ? `${BUNDLER_SETUP_ERROR_LINE}\n` : '';
+}
+
+// ---------------------------------------------------------------------------
+// Asset inventory
+// ---------------------------------------------------------------------------
+
+/**
+ * Walk the Metro --assets-dest output directory and return a sorted list of
+ * relative asset paths.  The API compares this against the base's recorded
+ * inventory for Android containment (design §6.5).
+ */
+function collectAssetInventory(assetsDest: string): string[] {
+  const results: string[] = [];
+
+  function walk(dir: string, relativePath: string) {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(fullPath, relPath);
+      } else {
+        results.push(relPath);
+      }
+    }
+  }
+
+  walk(assetsDest, '');
+  return results.sort();
+}
+
+// ---------------------------------------------------------------------------
+// Version helpers
+// ---------------------------------------------------------------------------
+
+export function getExpoSdkVersion(projectRoot: string): number | null {
+  // app.json / app.config.js written sdkVersion.
+  const sdk: unknown = readProjectJson(projectRoot, 'app.json')?.expo?.sdkVersion;
+  if (typeof sdk === 'string' || typeof sdk === 'number') {
+    const num = parseInt(String(sdk), 10);
+    if (!isNaN(num)) return num;
+  }
+
+  // Fall back to the expo package major version as a proxy.
+  const pkg = readProjectJson(projectRoot, 'package.json');
+  const expoVersion = { ...pkg?.dependencies, ...pkg?.devDependencies }.expo;
+  if (expoVersion) {
+    const match = String(expoVersion).match(/(\d+)\./);
+    if (match) return parseInt(match[1], 10);
+  }
+
+  return null;
+}
+
+function isVersionGte(version: string, minVersion: string): boolean {
+  const a = parseSemver(version);
+  const b = parseSemver(minVersion);
+  for (let i = 0; i < 3; i++) {
+    if (a[i] > b[i]) return true;
+    if (a[i] < b[i]) return false;
+  }
+  return true;
+}
+
+function parseSemver(version: string): [number, number, number] {
+  const parts = version
+    .replace(/[^0-9.]/g, '')
+    .split('.')
+    .map(Number);
+  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+}
+
+// ---------------------------------------------------------------------------
+// Expo-updates detection (simplified for bundled context)
+// ---------------------------------------------------------------------------
+
+/**
+ * Check whether expo-updates appears to be enabled for the given platform.
+ *
+ * This is a lightweight project-config check (no binary extraction) suitable
+ * for the bundled flow.  It matches the spirit of the binary-level check in
+ * gateMetadata.ts but operates on source-level signals.
+ */
+async function detectExpoUpdatesEnabled({
+  projectRoot,
+  platform,
+}: {
+  projectRoot: string;
+  platform: Platform;
+}): Promise<boolean> {
+  // Check app config for updates.enabled.
+  const updates = readProjectJson(projectRoot, 'app.json')?.expo?.updates;
+  if (updates && typeof updates === 'object' && 'enabled' in updates) {
+    return updates.enabled !== false;
+  }
+
+  // On Android with bare workflow, check AndroidManifest.xml for
+  // expo-updates metadata.
+  if (platform === 'android') {
+    const manifestPaths = [
+      path.join(projectRoot, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+    ];
+    for (const manifestPath of manifestPaths) {
+      try {
+        const content = fs.readFileSync(manifestPath, 'utf8');
+        if (
+          content.includes('expo.modules.updates.EXPO_RUNTIME_VERSION') ||
+          content.includes('expo.modules.updates.ENABLED')
+        ) {
+          return true;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  // On iOS, check if EXUpdatesEnabled key is in the Expo.plist.
+  if (platform === 'ios') {
+    const plistPath = path.join(projectRoot, 'ios', 'Supporting', 'Expo.plist');
+    try {
+      const content = fs.readFileSync(plistPath, 'utf8');
+      if (content.includes('EXUpdatesEnabled')) {
+        // Key present - use the same parser as gateMetadata.
+        return parseExpoUpdatesEnabledFromPlist(content);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return false;
+}

@@ -1,0 +1,12 @@
+[32mTest 7[39m · finished
+[2m0 approved · 0 reported · 3 unreviewed · 41 no changes[22m
+
+[1m⚠️ 3 stories need review[22m
+[2m════════════════════════[22m
+
+Open them in Sherlo to approve or report.
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 0]

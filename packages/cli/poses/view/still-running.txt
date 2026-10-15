@@ -1,0 +1,11 @@
+[32mTest 7[39m · running
+
+
+[1m👉 Next step[22m
+[2m════════════[22m
+
+[1mReview Test 7 when it finishes[22m
+   🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+   To wait for the result: [36mnpx sherlo view 7 --wait[39m
+
+[exit 0]

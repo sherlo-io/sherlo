@@ -1,0 +1,68 @@
+{
+  "runStatus": "canceled",
+  "buildIndex": 12,
+  "commit": {
+    "sha": "<SHA>",
+    "branch": "feature/shared-button",
+    "dirty": false
+  },
+  "showsOnlyBranchChanges": false,
+  "mainBranch": "main",
+  "ciRun": null,
+  "devices": [
+    {
+      "id": "pixel.7",
+      "osVersion": "13",
+      "platform": "android"
+    },
+    {
+      "id": "iphone.15",
+      "osVersion": "17",
+      "platform": "ios"
+    }
+  ],
+  "diffScope": {
+    "reason": "SharedButton.tsx changed",
+    "captured": [],
+    "inherited": [],
+    "ancestorBuildIndex": 11
+  },
+  "platforms": {
+    "android": {
+      "arrived": true,
+      "capture": {
+        "full": false,
+        "reason": "SharedButton.tsx changed",
+        "storyFiles": [
+          "src/screens/Checkout.stories.tsx",
+          "src/screens/Login.stories.tsx",
+          "src/screens/Profile.stories.tsx"
+        ]
+      },
+      "appBuild": {
+        "from": "stored",
+        "storedFromTest": 9
+      },
+      "storiesInBundle": 24
+    },
+    "ios": {
+      "arrived": true,
+      "capture": {
+        "full": false,
+        "reason": "SharedButton.tsx changed",
+        "storyFiles": [
+          "src/screens/Checkout.stories.tsx",
+          "src/screens/Login.stories.tsx",
+          "src/screens/Profile.stories.tsx"
+        ]
+      },
+      "appBuild": {
+        "from": "stored",
+        "storedFromTest": 9
+      },
+      "storiesInBundle": 24
+    }
+  }
+}
+
+[exit 0]

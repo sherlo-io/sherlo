@@ -1,0 +1,11 @@
+[32mTest 8[39m · finished
+[32m✔[39m Finished Test 8
+
+
+[1m✅ All stories passed[22m
+[2m═════════════════════[22m
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 0]

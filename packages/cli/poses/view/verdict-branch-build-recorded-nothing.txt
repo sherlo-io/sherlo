@@ -1,0 +1,14 @@
+[32mTest 16[39m · finished
+[32m✔[39m Finished Test 16
+
+
+[1m⚠️ Nothing was recorded[22m
+[2m═══════════════════════[22m
+
+The test captured no stories and carried none over, so it does not show that nothing
+changed. Open Test 16 in Sherlo to check.
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 1]

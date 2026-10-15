@@ -1,7 +1,26 @@
 import { Platform } from '@sherlo/api-types';
+import fg from 'fast-glob';
 import fs from 'fs';
-import path, { join } from 'path';
+import { join } from 'path';
 import { getCwd, getErrorWithCustomMessage, throwError } from '../../../../helpers';
+
+/**
+ * WHERE EAS LEFT THE APP BUILD, read the way EAS itself reads it: a profile's `applicationArchivePath` is a path OR A PATTERN
+ * ("EAS Build uses glob patterns for pattern matching", docs.expo.dev/eas/json), so it is matched,
+ * never only checked for existence. With none, the pattern is EAS's own default for the build
+ * Sherlo asks for - an APK on Android, a simulator app on iOS, in whichever configuration the
+ * profile built (`*-iphonesimulator`, not only `Release-iphonesimulator`).
+ *
+ * The first match, in path order, is the app build. The pattern is matched in the project folder
+ * the hook runs in (the project-folder seam): the same folder on EAS, the posed folder in a pose.
+ */
+const DEFAULT_ARCHIVE_PATTERN: Record<Platform, string> = {
+  // https://docs.expo.dev/build-reference/android-builds/ - EAS's default also takes an .aab, which
+  // no Sherlo device installs, so only the APK is looked for.
+  android: 'android/app/build/outputs/**/*.apk',
+  // https://docs.expo.dev/build-reference/ios-builds/ - the simulator default.
+  ios: 'ios/build/Build/Products/*-iphonesimulator/*.app',
+};
 
 function getBuildPath({
   easBuildProfile,
@@ -9,54 +28,37 @@ function getBuildPath({
 }: {
   easBuildProfile: string;
   platform: Platform;
-}) {
-  let platformPath: string | null = null;
-
-  if (platform === 'android') {
-    /**
-     * Android build details: https://docs.expo.dev/build-reference/android-builds/
-     */
-
-    const DEFAULT_PATH = 'android/app/build/outputs/apk/release/app-release.apk';
-
-    platformPath =
-      getBuildPathFromEasJson({ easBuildProfile, platform: 'android' }) ?? DEFAULT_PATH;
-  } else if (platform === 'ios') {
-    /**
-     * iOS build details: https://docs.expo.dev/build-reference/ios-builds/
-     */
-
-    platformPath =
-      getBuildPathFromEasJson({ easBuildProfile, platform: 'ios' }) ?? findDefaultIosAppPath();
-  } else {
+}): string {
+  if (platform !== 'android' && platform !== 'ios') {
     throwError({
       type: 'unexpected',
       error: new Error(`Unsupported platform: ${platform}`),
     });
   }
 
-  if (!platformPath) {
+  const archivePattern =
+    getArchivePathFromEasJson({ easBuildProfile, platform }) ?? DEFAULT_ARCHIVE_PATTERN[platform];
+
+  // An iOS app build is a folder, so folders are matched as well as files.
+  const [firstMatch] = fg
+    .sync(archivePattern, { cwd: getCwd(), onlyFiles: false, dot: true })
+    .sort();
+
+  if (!firstMatch) {
     throwError({
       type: 'unexpected',
-      error: new Error(`Could not find build path for platform: ${platform}`),
+      error: new Error(`Build file does not exist at path: ${archivePattern}`),
     });
   }
 
-  if (!fs.existsSync(platformPath)) {
-    throwError({
-      type: 'unexpected',
-      error: new Error(`Build file does not exist at path: ${platformPath}`),
-    });
-  }
-
-  return platformPath;
+  return firstMatch;
 }
 
 export default getBuildPath;
 
 /* ========================================================================== */
 
-function getBuildPathFromEasJson({
+function getArchivePathFromEasJson({
   easBuildProfile,
   platform,
 }: {
@@ -75,25 +77,8 @@ function getBuildPathFromEasJson({
     });
   }
 
-  return easJsonData?.builds?.[platform]?.[easBuildProfile]?.applicationArchivePath ?? null;
-}
-
-function findDefaultIosAppPath(): string | null {
-  const IOS_BUILD_PATH = 'ios/build/Build/Products/Release-iphonesimulator';
-
-  if (!fs.existsSync(IOS_BUILD_PATH)) {
-    return null;
-  }
-
-  const fileNames = fs.readdirSync(IOS_BUILD_PATH);
-
-  for (let i = 0; i < fileNames.length; i++) {
-    const fileName = fileNames[i];
-
-    if (fileName.endsWith('.app')) {
-      return path.join(IOS_BUILD_PATH, fileName);
-    }
-  }
-
-  return null;
+  // eas.json nests a profile's settings as `build.<profile>.<platform>`: the hook used to read
+  // `builds.<platform>.<profile>`, which no eas.json has, so a profile's own archive path was never
+  // found and the default path was always used (Sherlo 3 audit).
+  return easJsonData?.build?.[easBuildProfile]?.[platform]?.applicationArchivePath ?? null;
 }

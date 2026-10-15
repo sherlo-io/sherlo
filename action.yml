@@ -1,0 +1,109 @@
+# The action's NAME is the one the root action carried at 1.3.1 ("Run Sherlo"),
+# kept so the Marketplace listing of this repository stays the same entry.
+name: Run Sherlo
+description: >-
+  Run Sherlo visual tests with `sherlo test`, one platform per job, and expose the
+  review address of the run it opened or joined.
+author: Sherlo
+branding:
+  icon: play
+  color: gray-dark
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WHAT THIS ACTION DOES
+#
+# It runs `sherlo test --platform <platform>` and publishes the review address of
+# the run the job opened or joined as the `url` output. The step exits with the
+# CLI's own exit code.
+#
+# THE TOKEN IS NOT AN INPUT. Put SHERLO_TOKEN in the job's env (from secrets); the
+# CLI reads it there. The action sets no SHERLO_TOKEN of its own.
+#
+# IT KEEPS THE COMPILE CACHES, so a workflow has no cache step:
+#   iOS job      Xcode's own compilation cache, restored before the test and saved
+#                after, from the newest entry of the same runner system.
+#   Android job  Gradle's home, through gradle/actions/setup-gradle (which prunes).
+# The app build cache (Sherlo's cache folder) is never kept on CI: Sherlo's service
+# already stores the app build a later run reuses.
+#
+# WHICH CLI IT RUNS: YOURS IF YOU HAVE ONE, OTHERWISE THE ONE IT CARRIES.
+#   If the job's `working-directory` has a Sherlo CLI installed, that one runs.
+#   If it has none, the action runs the CLI committed at the ref you pinned. The
+#   first line of the log names the one that ran. See actions/lib/cliEntry.mjs.
+#
+# YOU DO NOT NEED `fetch-depth` ON actions/checkout: this action deepens a shallow
+# checkout itself before running the CLI. See actions/lib/deepenCheckout.mjs.
+# ══════════════════════════════════════════════════════════════════════════════
+
+inputs:
+  platform:
+    description: >-
+      The platform this job tests: android or ios. Leave empty for one job that
+      tests every platform the config names.
+    required: false
+    default: ''
+  config:
+    description: 'Path to the Sherlo config file'
+    required: false
+    default: 'sherlo.config.json'
+  project-root:
+    description: 'Root directory of the React Native project'
+    required: false
+    default: '.'
+  bundle-dir:
+    description: >-
+      Path to a prebuilt bundle directory produced by `emit-bundle-dir` (the CLI's
+      `--bundle-dir`). Given one, this job runs NO bundler: the CLI checks the
+      directory's sidecar against this checkout and the lockfile, then tests from it.
+    required: false
+    default: ''
+  emit-bundle-dir:
+    description: >-
+      Bundle as usual, write the result to this path in the layout `bundle-dir`
+      accepts, then exit (the CLI's `--emit-bundle-dir`). Uploads nothing and creates
+      no build.
+    required: false
+    default: ''
+  working-directory:
+    description: >-
+      Directory to run `sherlo test` in. Point it at the project root: it is both
+      where the CLI is looked for (when the project has one installed) and where the
+      config and the checkout are read from.
+    required: false
+    default: '.'
+
+outputs:
+  url:
+    description: 'Review URL of the run this job opened or joined (empty when it opened none)'
+    value: ${{ steps.sherlo.outputs.url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Keep Xcode's compilation cache
+      if: inputs.platform == 'ios'
+      uses: actions/cache@v4
+      with:
+        path: ~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+        key: sherlo-xcode-${{ runner.os }}-${{ github.sha }}
+        restore-keys: |
+          sherlo-xcode-${{ runner.os }}-
+
+    - name: Keep Gradle's home
+      if: inputs.platform == 'android'
+      uses: gradle/actions/setup-gradle@v4
+
+    # The runner resolves the CLI's entry point itself - the project's install
+    # first, then the copy this ref carries - runs the one verb, and writes the
+    # review address to this step's $GITHUB_OUTPUT. This step's exit code is the CLI's.
+    - name: Run Sherlo test
+      id: sherlo
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        SHERLO_PLATFORM: ${{ inputs.platform }}
+        SHERLO_CONFIG: ${{ inputs.config }}
+        SHERLO_PROJECT_ROOT: ${{ inputs.project-root }}
+        SHERLO_BUNDLE_DIR: ${{ inputs.bundle-dir }}
+        SHERLO_EMIT_BUNDLE_DIR: ${{ inputs.emit-bundle-dir }}
+      run: node "${{ github.action_path }}/actions/lib/runSherloTest.mjs"

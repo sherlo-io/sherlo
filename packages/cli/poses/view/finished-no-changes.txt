@@ -1,0 +1,12 @@
+[32mTest 7[39m · finished
+[2m5 approved · 0 reported · 0 unreviewed · 39 no changes[22m
+
+[1m✅ No visual changes[22m
+[2m════════════════════[22m
+
+All snapshots match their baselines.
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 0]

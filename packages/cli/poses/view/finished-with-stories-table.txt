@@ -1,0 +1,17 @@
+[32mTest 7[39m · finished
+[2m1 approved · 0 reported · 1 unreviewed · 1 no changes[22m
+
+[1m⚠️ 1 story needs review[22m
+[2m═══════════════════════[22m
+
+Open it in Sherlo to approve or report.
+
+STORY                 STATUS        BASELINE
+Typography - Scales   needs review  two baselines (Test 2, Test 4)
+Typography - Dense    no changes    Test 1
+Sanity/Hello - Basic  approved      Test 1
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 0]

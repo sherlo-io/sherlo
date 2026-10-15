@@ -4,40 +4,22 @@ import {
   InvalidatedCommandParams,
   InvalidatedConfig,
 } from '../../../types';
-import { validatePlatformPaths } from '../../shared';
-import getPlatformsToTest from '../../getPlatformsToTest';
 import validateConfigProperties from './validateConfigProperties';
 import validateDevices from './validateDevices';
-import validateMaxWaitTime from './validateMaxWaitTime';
-import validateToken from './validateToken';
 
+/**
+ * The checks after the credential: the config's properties and the devices. The credential comes
+ * first, and is resolved apart (./resolvePushCredential), because it is a value the push spends
+ * rather than a property it checks. The config's properties come before the devices, because a
+ * Sherlo 2 binary path in the config is refused before anything else is.
+ */
 function validateCommandParams<C extends Command>(
-  command: C,
   commandParams: InvalidatedCommandParams<C>,
-  config: InvalidatedConfig,
-  { requirePlatformPaths }: { requirePlatformPaths: boolean }
+  config: InvalidatedConfig
 ): asserts commandParams is CommandParams<C> {
-  validateToken(commandParams);
+  validateConfigProperties(config);
 
   validateDevices(commandParams);
-
-  validateMaxWaitTime(commandParams);
-
-  if (requirePlatformPaths) {
-    const platformsToValidate = getPlatformsToTest(
-      /* At this point we know that devices are validated */
-      commandParams.devices as CommandParams<C>['devices']
-    );
-
-    validatePlatformPaths({
-      platformsToValidate,
-      android: commandParams.android,
-      ios: commandParams.ios,
-      command,
-    });
-  }
-
-  validateConfigProperties(config);
 }
 
 export default validateCommandParams;

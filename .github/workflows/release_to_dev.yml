@@ -8,6 +8,8 @@ on:
 
 jobs:
   release-to-dev:
+    # The SDK's pack fetches the pinned core with PACKAGE_TOKEN and builds none. This private copy
+    # is not a release, so it keeps the test key.
     runs-on: ubuntu-latest
     concurrency: release-to-dev
     permissions:
@@ -28,9 +30,12 @@ jobs:
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Install dependencies
         run: yarn
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Build packages
         run: yarn build
@@ -39,6 +44,11 @@ jobs:
         run: |
           VERSION=$(node -p "require('./lerna.json').version")
           DEV_VERSION="${VERSION}-dev.${GITHUB_RUN_ID}"
+
+          # Run the SDK's prepack script before the rename below: yarn finds a workspace by its
+          # name, and the script runs yarn. The pack itself happens in `npm publish`, which skips
+          # the script.
+          (cd packages/react-native-storybook && npm run prepack)
 
           node -e "
             const fs = require('fs');
@@ -57,6 +67,8 @@ jobs:
           "
 
           cd packages/cli && npm publish --tag dev
-          cd ../react-native-storybook && npm publish --tag dev
+          cd ../react-native-storybook && npm publish --ignore-scripts --tag dev
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The prepack fetches the pinned core from package storage with it.
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}

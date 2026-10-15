@@ -1,0 +1,6 @@
+[32mTest 13[39m · finished
+Test 13     [32m✔[39m Finished: nothing to test: no change on this branch reaches any story
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 0]

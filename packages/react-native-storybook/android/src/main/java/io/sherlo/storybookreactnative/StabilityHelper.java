@@ -21,16 +21,9 @@ import com.facebook.react.bridge.Promise;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Helper for checking UI stability by comparing consecutive screenshots.
@@ -55,7 +48,6 @@ public class StabilityHelper {
      *                        consider UI stable
      * @param intervalMs      Time interval between screenshots in milliseconds
      * @param timeoutMs       Maximum time to wait for stability in milliseconds
-     * @param saveScreenshots Whether to save screenshots to filesystem during tests
      * @param threshold       Matching threshold (0.0 to 1.0); smaller values are
      *                        more sensitive
      * @param includeAA       If false, ignore anti-aliased pixels when counting
@@ -64,9 +56,9 @@ public class StabilityHelper {
      *                        false if timeout occurs
      */
     public static void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs,
-            int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA, Promise promise) {
+            int timeoutMs, double threshold, boolean includeAA, Promise promise) {
         StabilityHelper helper = new StabilityHelper();
-        helper.checkIfStable(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs, saveScreenshots,
+        helper.checkIfStable(activity, requiredMatches, minScreenshotsCount, intervalMs, timeoutMs,
                 threshold, includeAA, new StabilityCallback() {
                     @Override
                     public void onResult(boolean isStable) {
@@ -152,7 +144,7 @@ public class StabilityHelper {
      * This must NOT block the UI thread; it performs UI nudges on the main thread
      * but waits on a background thread.
      */
-    public Bitmap captureScreenshot(Activity activity, boolean saveToFile, int screenshotNumber) {
+    public Bitmap captureScreenshot(Activity activity) {
         final View rootView = activity.getWindow().getDecorView().getRootView();
         final int width = rootView.getWidth();
         final int height = rootView.getHeight();
@@ -235,39 +227,7 @@ public class StabilityHelper {
             });
         }
 
-        // 5) Save if requested
-        if (saveToFile) {
-            saveBitmapToFile(activity, bitmap, screenshotNumber);
-        }
-
         return bitmap;
-    }
-
-    /**
-     * Saves a bitmap to a file in the app's external files directory.
-     */
-    private void saveBitmapToFile(Context context, Bitmap bitmap, int screenshotNumber) {
-        try {
-            // Create directory if it doesn't exist
-            File externalDirectory = context.getExternalFilesDir(null);
-            File storageDir = new File(externalDirectory.getAbsolutePath() + "/sherlo/stabilization_screenshots");
-            if (!storageDir.exists()) {
-                storageDir.mkdirs();
-            }
-
-            // Create file with timestamp
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(new Date());
-            File imageFile = new File(storageDir, timestamp + "_screenshot_" + screenshotNumber + ".png");
-
-            // Save bitmap to file
-            FileOutputStream fos = new FileOutputStream(imageFile);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
-            fos.close();
-
-            Log.d(TAG, "Saved screenshot to: " + imageFile.getAbsolutePath());
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to save screenshot", e);
-        }
     }
 
     /**
@@ -280,9 +240,7 @@ public class StabilityHelper {
      * @param intervalMs          The interval between each screenshot (in
      *                            milliseconds).
      * @param timeoutMs           The overall timeout (in milliseconds).
-     * @param saveScreenshots     Whether to save screenshots to filesystem during
-     *                            tests
-     * @param threshold           Matching threshold (0.0 to 1.0); smaller values
+     * @param threshold          Matching threshold (0.0 to 1.0); smaller values
      *                            are more sensitive
      * @param includeAA           If false, ignore anti-aliased pixels when counting
      *                            differences
@@ -290,45 +248,72 @@ public class StabilityHelper {
      *                            otherwise.
      */
     public void checkIfStable(final Activity activity, final int requiredMatches, final int minScreenshotsCount,
-            final int intervalMs, final int timeoutMs, boolean saveScreenshots, double threshold, boolean includeAA,
+            final int intervalMs, final int timeoutMs, double threshold, boolean includeAA,
             final StabilityCallback callback) {
-        final Handler mainHandler = new Handler(Looper.getMainLooper());
+        String unusableReason = CompiledCore.unusableReason();
+        if (unusableReason != null) {
+            Log.w(TAG, "UI is not stable - the C core cannot decide: " + unusableReason);
+            callback.onResult(false);
+            return;
+        }
+
+        // Android's own constants: the clock starts now, before the first screenshot, and that
+        // screenshot counts towards the minimum.
+        final boolean countsFirstScreenshot = true;
+        final CompiledCore.StillnessDecision stillness = CompiledCore.StillnessDecision.begin(requiredMatches, minScreenshotsCount,
+                countsFirstScreenshot, timeoutMs, threshold, includeAA, System.currentTimeMillis());
+        if (stillness == null) {
+            Log.w(TAG, "UI is not stable - the C core could not start a stillness decision");
+            callback.onResult(false);
+            return;
+        }
+
         final HandlerThread captureThread = new HandlerThread("SherloStabilityLoop");
         captureThread.start();
         final Handler captureHandler = new Handler(captureThread.getLooper());
 
         final Bitmap[] lastScreenshot = new Bitmap[1];
-        final AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
-        final AtomicInteger consecutiveMatches = new AtomicInteger(0);
-        final AtomicInteger screenshotCounter = new AtomicInteger(0);
+        final long[] differentPixels = new long[1];
 
         // Initial capture on background thread
         captureHandler.post(() -> {
-            lastScreenshot[0] = captureScreenshot(activity, saveScreenshots, screenshotCounter.getAndIncrement());
+            try {
+                lastScreenshot[0] = captureScreenshot(activity);
+            } catch (RuntimeException firstCaptureFailed) {
+                stillness.end();
+                throw firstCaptureFailed;
+            }
 
             Runnable loop = new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        Bitmap current = captureScreenshot(activity, saveScreenshots,
-                                screenshotCounter.incrementAndGet());
-                        long elapsedTime = System.currentTimeMillis() - startTime.get();
+                        Bitmap current = captureScreenshot(activity);
+                        // Android reads its clock once the screenshot is taken.
+                        long capturedMs = System.currentTimeMillis();
 
-                        try {
-                            int differentPixels = Pixelmatch.pixelmatch(current, lastScreenshot[0], threshold,
-                                    includeAA);
-                            boolean imagesMatch = (differentPixels == 0);
+                        // Clear focus / IME on UI thread; a cleared focus starts the count and the
+                        // clock again.
+                        boolean[] foundFocus = new boolean[] { false };
+                        runOnUiThread(activity, () -> foundFocus[0] = clearFocusAndHideIme(activity));
+                        // The core restarts its clock at the time it is handed. After a cleared
+                        // focus that is the time read after the clear, as before the C core; the
+                        // one difference is that this step's own elapsed time is read then too,
+                        // later by the length of the clear.
+                        long stepMs = capturedMs;
+                        if (foundFocus[0]) {
+                            Log.d(TAG, "Found and cleared focus");
+                            stepMs = System.currentTimeMillis();
+                        }
 
-                            if (imagesMatch) {
-                                int n = consecutiveMatches.incrementAndGet();
-                                Log.d(TAG, "Consecutive match number: " + n);
-                            } else {
-                                Log.d(TAG, "No consecutive match - " + differentPixels + " different pixels");
-                                consecutiveMatches.set(0);
-                            }
-                        } catch (IllegalArgumentException e) {
-                            Log.d(TAG, "Bitmaps have different dimensions: " + e.getMessage());
-                            consecutiveMatches.set(0);
+                        int verdict = stillness.step(lastScreenshot[0], current, stepMs, foundFocus[0],
+                                differentPixels);
+                        if (differentPixels[0] == CompiledCore.ERROR_SIZE_MISMATCH) {
+                            Log.d(TAG, "Bitmaps have different dimensions");
+                        } else if (differentPixels[0] == 0) {
+                            Log.d(TAG, "Consecutive match");
+                        } else {
+                            Log.d(TAG, "No consecutive match - " + differentPixels[0] + " different pixels");
                         }
 
                         // Recycle previous screenshot to free memory
@@ -337,24 +322,20 @@ public class StabilityHelper {
                         }
                         lastScreenshot[0] = current;
 
-                        // Clear focus / IME on UI thread; if it changed, reset timers and counters
-                        boolean[] foundFocus = new boolean[] { false };
-                        runOnUiThread(activity, () -> foundFocus[0] = clearFocusAndHideIme(activity));
-                        if (foundFocus[0]) {
-                            Log.d(TAG, "Found and cleared focus");
-                            startTime.set(System.currentTimeMillis());
-                            consecutiveMatches.set(0);
-                        }
-
-                        if (consecutiveMatches.get() >= requiredMatches) {
+                        if (verdict == CompiledCore.STILL_STABLE) {
                             Log.d(TAG, "UI is stable");
                             finish(true);
                             return;
                         }
 
-                        if (elapsedTime >= timeoutMs && consecutiveMatches.get() == 0
-                                && screenshotCounter.get() >= minScreenshotsCount) {
+                        if (verdict == CompiledCore.STILL_UNSTABLE) {
                             Log.d(TAG, "UI is not stable - timeout with no matches");
+                            finish(false);
+                            return;
+                        }
+
+                        if (verdict != CompiledCore.STILL_CONTINUE) {
+                            Log.w(TAG, "UI is not stable - the C core refused the screenshots (" + verdict + ")");
                             finish(false);
                             return;
                         }
@@ -371,6 +352,7 @@ public class StabilityHelper {
                     try {
                         callback.onResult(result);
                     } finally {
+                        stillness.end();
                         try {
                             captureThread.quitSafely();
                         } catch (Throwable ignored) {

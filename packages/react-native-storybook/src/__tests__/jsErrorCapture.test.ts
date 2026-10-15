@@ -358,7 +358,93 @@ describe('metro/polyfill.js - getSherloNativeModule', () => {
     // Only asserts the removed call form (the fallback used to assign its result to
     // `rn`) - explanatory comments elsewhere in the file legitimately mention
     // "global.__r(" as prose and should not trip this regression guard.
-    expect(polyfillSource).not.toMatch(/=\s*global\.__r\(/);
+    expect(polyfillSource).not.toMatch(/[=]\s*global\.__r\(/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests: metro/polyfill.js - the root error boundary's report
+// ---------------------------------------------------------------------------
+// In testing mode the polyfill wraps the app's root component in an error boundary. What that
+// boundary catches goes to the runner over the app's connection, through native code's
+// sendMessage, as the JS_ERROR message the seam types: the polyfill writes no file.
+
+describe('metro/polyfill.js - the root error boundary', () => {
+  /** As much of React as the boundary uses: elements as plain objects, a Component to extend. */
+  const fakeReact = {
+    createElement: (type: unknown, props: unknown, ...children: unknown[]) => ({
+      type,
+      props,
+      children,
+    }),
+    Component: function Component(this: { props: unknown }, props: unknown) {
+      this.props = props;
+    },
+  };
+
+  /** Run the polyfill in testing mode, register an app, and hand back its root error boundary. */
+  function rootErrorBoundaryOfAnApp(nativeModule: Record<string, unknown>) {
+    const fakeGlobal = buildFakeGlobalWithD(nativeModule as never);
+    runPolyfill(fakeGlobal);
+
+    /** Define one module through the wrapped __d, and load it with `exports` as its exports. */
+    function loadModule(factory: (exports: Record<string, unknown>) => void, exports: object) {
+      fakeGlobal.__d((...factoryArgs: any[]) => factory(factoryArgs[5]), 0, []);
+      const wrappedFactory = fakeGlobal._originalD.mock.calls.at(-1)[0];
+      wrappedFactory(
+        {},
+        () => {},
+        () => {},
+        () => {},
+        {},
+        exports,
+        []
+      );
+    }
+
+    // Two modules load: React, then React Native's AppRegistry, which the polyfill patches.
+    const registerComponent = vi.fn();
+    const appRegistry = { registerComponent };
+    loadModule(() => {}, fakeReact);
+    loadModule((exports) => {
+      exports.AppRegistry = appRegistry;
+    }, {});
+
+    appRegistry.registerComponent('App', () => function App() {});
+    const rootComponentProvider = registerComponent.mock.calls[0][1];
+    const RootOfTheApp = rootComponentProvider();
+    const ErrorBoundary = RootOfTheApp({}).type;
+    return new ErrorBoundary({});
+  }
+
+  it('sends what it caught as a JS_ERROR message through native code, and writes no file', () => {
+    const sendMessage = vi.fn();
+    const appendFile = vi.fn();
+    const boundary = rootErrorBoundaryOfAnApp({
+      getSherloConstants: () => ({ mode: 'testing' }),
+      sendMessage,
+      appendFile,
+    });
+
+    const thrown = new TypeError('the root threw');
+    boundary.componentDidCatch(thrown, {});
+
+    expect(sendMessage).toHaveBeenCalledOnce();
+    expect(JSON.parse(sendMessage.mock.calls[0][0])).toEqual({
+      action: 'JS_ERROR',
+      data: {
+        name: 'TypeError',
+        message: 'the root threw',
+        stack: thrown.stack,
+        componentStack: '',
+      },
+    });
+    expect(appendFile).not.toHaveBeenCalled();
+  });
+
+  it('names no Sherlo file', () => {
+    expect(polyfillSource).not.toMatch(/\.sherlo['"]/);
+    expect(polyfillSource).not.toMatch(/appendFile\(/);
   });
 });
 

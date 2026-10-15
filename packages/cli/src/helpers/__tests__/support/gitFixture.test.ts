@@ -28,6 +28,23 @@ describe('GitFixture determinism', () => {
     }
   });
 
+  it('commitMany writes the very commits one commitFile per message would, and leaves the tree clean', () => {
+    const oneAtATime = GitFixture.create();
+    const inOneProcess = GitFixture.create();
+    try {
+      oneAtATime.commitFile('c0');
+      inOneProcess.commitFile('c0');
+      const messages = ['c1', 'c2', 'c3'];
+      for (const message of messages) oneAtATime.commitFile(message);
+
+      expect(inOneProcess.commitMany(messages)).toBe(oneAtATime.head());
+      expect(inOneProcess.git(['status', '--porcelain'])).toBe('');
+    } finally {
+      oneAtATime.cleanup();
+      inOneProcess.cleanup();
+    }
+  });
+
   it('supports squash and detach helpers', () => {
     const fixture = GitFixture.create();
     try {

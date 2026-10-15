@@ -235,15 +235,18 @@ describe('generated storybook-wrapper.js - content', () => {
   });
 
   it('deep-requires getStorybook lazily inside patchedStart via directory index', () => {
+    // The index is required once: getStorybook is its default, and the rest of it records what
+    // Storybook's start was handed.
     const lazyRequire =
-      /[ \t]+var getStorybook = require\('@sherlo\/react-native-storybook\/dist\/getStorybook\/index\.js'\)\.default/;
+      /[ \t]+var sherlosStorybook = require\('@sherlo\/react-native-storybook\/dist\/getStorybook\/index\.js'\);/;
     expect(wrapperContent).toMatch(lazyRequire);
+    expect(wrapperContent).toMatch(/[ \t]+var getStorybook = sherlosStorybook\.default;/);
   });
 
   it('deep-requires getStorybook AFTER the re-export loop', () => {
     const reExportIdx = wrapperContent.indexOf('Object.keys(real).forEach');
     const getStorybookRequireIdx = wrapperContent.indexOf(
-      "var getStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js').default"
+      "var sherlosStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js')"
     );
     expect(reExportIdx).toBeGreaterThan(-1);
     expect(getStorybookRequireIdx).toBeGreaterThan(-1);
@@ -307,6 +310,7 @@ describe('package.json exports map - deep-import subpaths', () => {
     { subpath: './dist/SherloModule.js', resolvedFile: 'dist/SherloModule.js' },
     { subpath: './dist/getStorybook/index.js', resolvedFile: 'dist/getStorybook/index.js' },
     { subpath: './dist/addStorybookToDevMenu.js', resolvedFile: 'dist/addStorybookToDevMenu.js' },
+    { subpath: './dist/openStoryChannel.js', resolvedFile: 'dist/openStoryChannel.js' },
   ];
 
   it('exports map uses explicit subpath exports (no dist/* wildcards)', () => {

@@ -6,6 +6,11 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
 
@@ -24,3 +29,11 @@ jobs:
             expo
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: The clock
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '@sherlo-io:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$GH_TOKEN" > "$RUNNER_TEMP/sherlo-packages.npmrc"
+          NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/sherlo-packages.npmrc" npx --yes @sherlo-io/time-limits@1 clock
