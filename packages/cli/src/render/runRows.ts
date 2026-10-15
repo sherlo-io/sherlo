@@ -334,10 +334,10 @@ function storyFilesCaptured(capture: PlatformCapture[]): string[] {
       .find((titled) => titled.storyFile === file);
   const describe = (file: string, platforms: Platform[]): string => {
     // `Storefront/ProductCard (3 stories)`: the name the web app shows, or the path when no title
-    // is recorded, and the count only when one is recorded.
+    // is recorded, and the count only when one is recorded (absent or null is none).
     const titled = titledFileOf(file);
     const countNote =
-      titled?.stories !== undefined ? ` ${chalk.dim(`(${countStories(titled.stories)})`)}` : '';
+      titled?.stories != null ? ` ${chalk.dim(`(${countStories(titled.stories)})`)}` : '';
     const name = `${titled?.title ?? file}${countNote}`;
     return platforms.length < everyPlatform
       ? `${name} ${chalk.dim(`(${platformWithEmoji(platforms[0])} only)`)}`

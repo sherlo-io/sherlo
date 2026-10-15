@@ -175,9 +175,9 @@ export type JoinBuildAnswer = Awaited<ReturnType<SdkClient['joinBuild']>>;
 
 /**
  * The run that just started, as the service tells the EAS upload that brought its last platform
- * in: the devices of the whole test and what each platform captures. The sdk client's `asyncUpload`
- * does not select it yet, so a live EAS run prints the bare `Test N      ✔ Started`; a pose can
- * state it for `asyncUpload` only.
+ * in: the devices of the whole test and what each platform captures, counted off the module map
+ * each EAS build staged with its delivery. A field the service has no value for arrives as null,
+ * as GraphQL answers it.
  */
 export type StartedRun = { devices: Config['devices']; capture: PlatformCapture[] };
 
