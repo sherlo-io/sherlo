@@ -93,9 +93,10 @@ function runEas({
   credential = PROJECT_TOKEN,
   easProfile,
   wait,
-}: { credential?: PushCredential; easProfile?: string; wait?: boolean } = {}) {
+  appFolder = projectRoot,
+}: { credential?: PushCredential; easProfile?: string; wait?: boolean; appFolder?: string } = {}) {
   const commandParams = {
-    projectRoot,
+    projectRoot: appFolder,
     credential,
     message: undefined,
     gitBranch: undefined,
@@ -112,7 +113,11 @@ function runEas({
 beforeEach(() => {
   projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-eas-run-'));
   fs.mkdirSync(path.join(projectRoot, '.git'));
-  write('package.json', { name: 'storefront', scripts: HOOK_SCRIPTS });
+  write('package.json', {
+    name: 'storefront',
+    scripts: HOOK_SCRIPTS,
+    devDependencies: { sherlo: '^3.0.0' },
+  });
   write('eas.json', { build: { sherlo: SHERLO_PROFILE } });
 
   savedApiUrl = process.env.SHERLO_API_URL;
@@ -163,6 +168,45 @@ describe('sherlo test in EAS mode refuses a project whose EAS builds could not r
 
     expect(openBuild).not.toHaveBeenCalled();
     expect(startEasBuild).not.toHaveBeenCalled();
+  });
+
+  it('an EAS push is refused when the app does not depend on the sherlo package', async () => {
+    write('package.json', { name: 'storefront', scripts: HOOK_SCRIPTS });
+
+    await expect(runEas()).rejects.toThrow(
+      /package\.json doesn't list "sherlo" as a dependency[\s\S]*npm install --save-dev sherlo/
+    );
+
+    expect(openBuild).not.toHaveBeenCalled();
+  });
+
+  it('an EAS push is refused when a hook script does not call sherlo eas-build-on-complete', async () => {
+    write('package.json', {
+      name: 'storefront',
+      scripts: { ...HOOK_SCRIPTS, 'eas-build-on-cancel': 'echo cancelled' },
+      devDependencies: { sherlo: '^3.0.0' },
+    });
+
+    await expect(runEas()).rejects.toThrow(
+      /the "eas-build-on-cancel" script in package\.json doesn't run Sherlo[\s\S]*"eas-build-on-cancel": "sherlo eas-build-on-complete"/
+    );
+
+    expect(openBuild).not.toHaveBeenCalled();
+  });
+
+  it('an EAS push passes with the dependency at the monorepo root and npx sherlo in the scripts', async () => {
+    write('apps/shop/package.json', {
+      name: 'shop',
+      scripts: {
+        'eas-build-on-complete': 'npx sherlo eas-build-on-complete',
+        'eas-build-on-cancel': 'yarn sherlo eas-build-on-complete',
+      },
+    });
+    write('apps/shop/eas.json', { build: { sherlo: SHERLO_PROFILE } });
+
+    await runEas({ appFolder: path.join(projectRoot, 'apps/shop') });
+
+    expect(startEasBuild).toHaveBeenCalledTimes(2);
   });
 
   it('refuses EAS mode when eas.json has no profile build.easProfile names, showing the profile to add, before opening a run', async () => {

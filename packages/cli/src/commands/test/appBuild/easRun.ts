@@ -22,6 +22,7 @@
  * This replaces the separate `test:eas-cloud-build` command, which the Sherlo 3 CLI no longer has;
  * the server still serves older CLIs that call it.
  */
+import path from 'path';
 import type { Platform } from '@sherlo/api-types';
 import { EAS_BUILD_ON_CANCEL_SCRIPT, EAS_BUILD_ON_COMPLETE_COMMAND } from '../../../constants';
 import {
@@ -52,6 +53,9 @@ import { pushFactsOf } from './pushFacts';
 const EAS_HOOK_SCRIPTS = [EAS_BUILD_ON_COMPLETE_COMMAND, EAS_BUILD_ON_CANCEL_SCRIPT];
 const EAS_HOOK_COMMAND = `sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}`;
 
+/** The CLI's own package name, which the app must depend on for the hook scripts to find it. */
+const SHERLO_PACKAGE = 'sherlo';
+
 /**
  * The variable every Sherlo app build is made with, set to `SHERLO_BUILD_FOR_PUSH`: the app opens
  * into Storybook.
@@ -72,6 +76,7 @@ export async function easRun({
   runIdFlag?: string;
 }): Promise<{ url: string }> {
   refuseWithoutTheHookScripts(commandParams.projectRoot);
+  refuseWithoutTheDependency(commandParams.projectRoot);
 
   const profile = settings.easProfile ?? DEFAULT_EAS_PROFILE;
   refuseWithoutTheProfile(commandParams.projectRoot, profile);
@@ -166,7 +171,20 @@ function refuseWithoutTheHookScripts(projectRoot: string): void {
     readProjectJson(projectRoot, 'package.json')?.scripts ?? {};
 
   const missingScripts = EAS_HOOK_SCRIPTS.filter((script) => !scripts[script]);
-  if (missingScripts.length === 0) return;
+  if (missingScripts.length === 0) {
+    // A script that is there but never calls Sherlo (so `npx sherlo ...` and `yarn sherlo ...` pass).
+    const script = EAS_HOOK_SCRIPTS.find(
+      (name) => !String(scripts[name]).includes(EAS_HOOK_COMMAND)
+    );
+    if (!script) return;
+
+    throwError({
+      message:
+        `Can't build on EAS: the "${script}" script in package.json doesn't run Sherlo.\n` +
+        'EAS builds report back to Sherlo through this script. Set it to:\n' +
+        `"${script}": "${EAS_HOOK_COMMAND}"`,
+    });
+  }
 
   const named = missingScripts.map((script) => `"${script}"`).join(' or ');
   const lines = missingScripts.map((script) => `"${script}": "${EAS_HOOK_COMMAND}"`).join(',\n');
@@ -178,6 +196,33 @@ function refuseWithoutTheHookScripts(projectRoot: string): void {
         ? 'EAS builds report back to Sherlo through this script. Add it to "scripts":\n'
         : 'EAS builds report back to Sherlo through these scripts. Add them to "scripts":\n') +
       lines,
+  });
+}
+
+/**
+ * Expo runs the hook scripts on its own machine, where `sherlo` is found only in the app's
+ * node_modules. So some package.json must list the sherlo package: the app's, or one in a parent
+ * folder up to the repository root (in a monorepo, yarn and npm put the root's `.bin` on the
+ * script's PATH). Without it the hook fails with `command not found: sherlo` and tells no one.
+ */
+function refuseWithoutTheDependency(projectRoot: string): void {
+  const repositoryRoot = appBuilder().easUploadRoot(projectRoot);
+
+  let folder = path.resolve(projectRoot);
+  while (true) {
+    const packageJson = readProjectJson(folder, 'package.json');
+    if (SHERLO_PACKAGE in { ...packageJson?.dependencies, ...packageJson?.devDependencies }) return;
+
+    const parent = path.dirname(folder);
+    if (folder === repositoryRoot || parent === folder) break;
+    folder = parent;
+  }
+
+  throwError({
+    message:
+      `Can't build on EAS: package.json doesn't list "${SHERLO_PACKAGE}" as a dependency.\n` +
+      `Expo's build runs "${EAS_HOOK_COMMAND}" when it finishes, and finds "${SHERLO_PACKAGE}" only in the app's node_modules. Add it:\n` +
+      `npm install --save-dev ${SHERLO_PACKAGE}`,
   });
 }
 
