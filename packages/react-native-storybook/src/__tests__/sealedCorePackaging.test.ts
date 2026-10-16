@@ -91,10 +91,17 @@ function theNpmPack(): { packedFiles: string[]; unpackedPackageDir: string } {
   return npmPack;
 }
 
+/**
+ * On GitHub, with the package token, the packs are not optional: a check that lost its pack step
+ * goes red, never skips. Without the token (a fork's pull request) no pack can be made, and a
+ * Mac save has no pack step, so both skip.
+ */
+function packsAreRequiredButMissing(environment: NodeJS.ProcessEnv, packsExist: boolean): boolean {
+  return environment.GITHUB_ACTIONS === 'true' && Boolean(environment.PACKAGE_TOKEN) && !packsExist;
+}
+
 beforeAll(() => {
-  // On GitHub the packs are not optional: a check that lost its pack step goes red, never skips.
-  // A Mac save has no pack step, so it skips.
-  if (process.env.GITHUB_ACTIONS === 'true' && !hasThePacks) {
+  if (packsAreRequiredButMissing(process.env, hasThePacks)) {
     throw new Error(`a GitHub run with no packs to read: ${NO_PACKS_REASON}`);
   }
 });
@@ -161,6 +168,17 @@ function packsTheSdk(step: { name: string; body: string }): boolean {
 }
 
 describe('what the published package carries', () => {
+  it('skips the pack rules when no package token is present', () => {
+    const forkRun = { GITHUB_ACTIONS: 'true' };
+    expect(packsAreRequiredButMissing(forkRun, false)).toBe(false);
+  });
+
+  it('fails on CI when the token is present but no packs were made', () => {
+    const ciRun = { GITHUB_ACTIONS: 'true', PACKAGE_TOKEN: 'a-token' };
+    expect(packsAreRequiredButMissing(ciRun, false)).toBe(true);
+    expect(packsAreRequiredButMissing(ciRun, true)).toBe(false);
+  });
+
   describe('the pinned core, from a real pack', () => {
     // Packed as a publish does, prepack and all, with no core laid beforehand: the step's npm.tgz.
     let packedFiles: string[] = [];
