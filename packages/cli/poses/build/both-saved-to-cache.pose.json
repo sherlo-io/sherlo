@@ -24,8 +24,16 @@
     "java": 17,
     "iosSchemes": ["Storefront"],
     "platforms": {
-      "android": { "built": ".sherlo/build-cache/android/app-release.apk", "sizeMb": "53.90", "seconds": 252 },
-      "ios": { "built": ".sherlo/build-cache/ios/Storefront.tar.gz", "sizeMb": "41.20", "seconds": 580 }
+      "android": {
+        "built": ".sherlo/build-cache/android/app-release.apk",
+        "sizeMb": "53.90",
+        "seconds": 252
+      },
+      "ios": {
+        "built": ".sherlo/build-cache/ios/Storefront.tar.gz",
+        "sizeMb": "41.20",
+        "seconds": 580
+      }
     }
   },
   "push": {

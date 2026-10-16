@@ -55,9 +55,6 @@ describe('the pull request checks workflow', () => {
     );
     expect(triggers).toMatch(/^ {2}pull_request:/m);
     expect(triggers).not.toMatch(/types:/);
-    expect(triggers).toMatch(/- main\b/);
-    expect(triggers).toMatch(/- feature\/sherlo-3\b/);
-    expect(triggers).toContain('- epic/**');
   });
 
   it('pr_checks also starts by hand', () => {

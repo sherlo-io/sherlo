@@ -2,7 +2,12 @@
   "pose": 1,
   "argv": ["view", "1", "--json"],
   "files": {
-    "sherlo.config.json": { "devices": [{ "id": "pixel.7", "osVersion": "13" }, { "id": "iphone.15", "osVersion": "17" }] }
+    "sherlo.config.json": {
+      "devices": [
+        { "id": "pixel.7", "osVersion": "13" },
+        { "id": "iphone.15", "osVersion": "17" }
+      ]
+    }
   },
   "env": { "SKIP_INTRO": "true", "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
   "git": { "branch": "main", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
@@ -16,7 +21,11 @@
         "showsOnlyBranchChanges": false,
         "mainBranch": "main",
         "ciRun": { "provider": "github", "runId": "7243105518" },
-        "gitInfo": { "branchName": "main", "commitHash": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "isDirty": false },
+        "gitInfo": {
+          "branchName": "main",
+          "commitHash": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+          "isDirty": false
+        },
         "devices": [
           { "id": "pixel.7", "osVersion": "13", "platform": "android" },
           { "id": "iphone.15", "osVersion": "17", "platform": "ios" }
@@ -25,7 +34,12 @@
           "android": {
             "arrived": true,
             "capture": null,
-            "appBuild": { "from": "uploaded", "madeBy": "compiled", "why": "native-changed", "nativeChanges": ["android/app/build.gradle"] },
+            "appBuild": {
+              "from": "uploaded",
+              "madeBy": "compiled",
+              "why": "native-changed",
+              "nativeChanges": ["android/app/build.gradle"]
+            },
             "storiesInBundle": 7
           },
           "ios": {
