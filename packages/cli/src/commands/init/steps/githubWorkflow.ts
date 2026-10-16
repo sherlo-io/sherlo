@@ -3,7 +3,7 @@
  *
  * Written when the repository is on GitHub, or has no remote yet (most new apps end up there, and
  * the file then works on the first push). Skipped when the remote is somewhere else, or when the
- * project already runs another CI (operator, 2026-10-09): a second CI the team never asked for
+ * project already runs another CI: a second CI the team never asked for
  * would only fail for want of a secret. A workflow already in place is left as it is.
  */
 import fs from 'fs';
@@ -44,11 +44,17 @@ const REMOTE_HOSTS: Array<{ domain: string; host: string }> = [
 ];
 
 /**
- * A SKIPPED WORKFLOW SAYS WHY, in one step line (operator, 2026-10-09): a person sees why the CI
+ * A SKIPPED WORKFLOW SAYS WHY, in one step line: a person sees why the CI
  * step names their own CI, and an agent learns the project has a CI and adds no workflow itself.
  */
 function printWhyNoWorkflow(detail: string): void {
-  printLines([renderStepLine({ outcome: 'done', name: 'Found CI', detail: `${detail}, so no GitHub workflow added` })]);
+  printLines([
+    renderStepLine({
+      outcome: 'done',
+      name: 'Found CI',
+      detail: `${detail}, so no GitHub workflow added`,
+    }),
+  ]);
 }
 
 /** Answers whether the project has Sherlo's workflow now, which the next steps name. */

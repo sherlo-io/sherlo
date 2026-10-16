@@ -43,7 +43,7 @@ export type ProjectCreated = {
 };
 
 /**
- * NO TOKEN COMES WITH A NEW PROJECT ANY MORE (operator, 2026-10-07, epic init-for-agents): a person
+ * NO TOKEN COMES WITH A NEW PROJECT ANY MORE: a person
  * works from their own computer on their login, and only CI needs a token, so one is made when
  * someone presses Create Token on the project's page. The command names that page instead.
  */
@@ -53,13 +53,19 @@ export type ProjectCreatedLines = ProjectCreated & {
 };
 
 /** Every line the command prints on success, in order. */
-export function renderProjectCreated({ name, index, projectPageUrl }: ProjectCreatedLines): string[] {
+export function renderProjectCreated({
+  name,
+  index,
+  projectPageUrl,
+}: ProjectCreatedLines): string[] {
   return [
     `${chalk.green('✔')}  Created project ${chalk.bold(name)}`,
     '',
     ...renderOutputKeys({ projectIndex: index, projectName: name }),
     '',
-    `For CI, create a CI token in the Sherlo web app and save it as the ${chalk.bold('SHERLO_TOKEN')} secret:`,
+    `For CI, create a CI token in the Sherlo web app and save it as the ${chalk.bold(
+      'SHERLO_TOKEN'
+    )} secret:`,
     `  ${chalk.cyan(projectPageUrl)}`,
     '',
   ];

@@ -241,7 +241,7 @@ export const liveServerCalls: ServerCalls = {
 
   // BUILD DEBT (init-for-agents): the service has no query a personal token can ask this with yet.
   whoAmI: async () => {
-    throw new Error('whoAmI is not built yet: init-for-agents plans it, a build task adds it.');
+    throw new Error('whoAmI is not available yet.');
   },
 
   openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),

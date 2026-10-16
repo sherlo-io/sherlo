@@ -4,9 +4,8 @@
  * clicking Authorize - on this computer, or on their phone when an agent with no browser hands them
  * the link.
  *
- * NO PERSONAL TOKEN (epic SLH, sherlo-login-hidden-tokens, operator decision 2026-10-07): personal
- * tokens are hidden behind an admin switch, so setup is planned on the login alone. How the login
- * waits, and what it says while it waits, is SLH's too.
+ * NO PERSONAL TOKEN: personal tokens are hidden behind an admin switch, so setup works on the
+ * login alone. How the login waits, and what it says while it waits, is `sherlo login`'s.
  */
 import ansiEscapes from 'ansi-escapes';
 import { renderLoginLink } from '../../../render/login';

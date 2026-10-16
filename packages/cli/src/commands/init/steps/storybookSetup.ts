@@ -1,6 +1,5 @@
 /**
- * WHICH OF STORYBOOK'S TWO SETUPS THE APP USES, which decides the Storybook access next step
- * (epic storybook-both-setups settled the rule, 2026-10-07).
+ * WHICH OF STORYBOOK'S TWO SETUPS THE APP USES, which decides the Storybook access next step.
  *
  * Storybook 10.4+ makes `.rnstorybook/index` register the app's root itself, and Sherlo's Metro
  * wrapper then swaps the entry at launch: nothing in the app needs changing - Storybook's default

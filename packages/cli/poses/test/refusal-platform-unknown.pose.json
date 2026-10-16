@@ -2,7 +2,12 @@
   "pose": 1,
   "argv": ["test", "--platform", "both"],
   "files": {
-    "sherlo.config.json": { "devices": [{ "id": "pixel.7", "osVersion": "13" }, { "id": "iphone.15", "osVersion": "17" }] }
+    "sherlo.config.json": {
+      "devices": [
+        { "id": "pixel.7", "osVersion": "13" },
+        { "id": "iphone.15", "osVersion": "17" }
+      ]
+    }
   },
   "env": {
     "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017"

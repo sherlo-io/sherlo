@@ -1,9 +1,9 @@
 import { describe, it } from 'vitest';
 
 /**
- * HOW A WHOLE SETUP RUN BEHAVES (epic init-for-agents): no question, one line per step, the
- * feedback line at the end, and our own message for every error. Shells written in plan; the
- * build makes each one a real test, keeping its name word for word.
+ * HOW A WHOLE SETUP RUN BEHAVES: no question, one line per step, the feedback line at the end, and
+ * our own message for every error. Test outlines without bodies yet; each becomes a real test
+ * under its name word for word.
  */
 describe('sherlo init, end to end', () => {
   it.todo('init asks no question, even at a terminal');

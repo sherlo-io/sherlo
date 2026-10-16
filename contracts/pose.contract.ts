@@ -522,10 +522,10 @@ export type PosedWorkstation = {
     };
   };
   /**
-   * What Storybook's own installer wrote, for a project that had no Storybook: relative path ->
+   * The Storybook files setup wrote, for a project that had no Storybook: relative path ->
    * content, laid into the project folder the way the pose's `files` are, so the steps after it
-   * read the project as the installer left it. Left out for a project that already has Storybook,
-   * where setup never runs it; stated for one that does not, it is refused.
+   * read the project as the Storybook step left it. Left out for a project that already has
+   * Storybook, where setup never runs it; stated for one that does not, it is refused.
    */
   storybook?: {
     wrote: PosedFiles;

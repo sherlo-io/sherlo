@@ -37,10 +37,12 @@ export function renderLoginWaitingSpinner(): string {
 
 /**
  * The wait anywhere but a terminal - a log, a pipe, an agent's shell - where a spinner would leave
- * nothing readable. One line (operator, 2026-10-08: the note to agents under it went).
+ * nothing readable. One line, with no separate note to agents under it.
  */
 export function renderLoginWaiting(): string[] {
-  return [`${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`];
+  return [
+    `${chalk.yellow('⏳')} Waiting for you to click Authorize... ${chalk.dim('(Ctrl+C to stop)')}`,
+  ];
 }
 
 /**

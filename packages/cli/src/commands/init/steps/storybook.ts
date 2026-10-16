@@ -1,6 +1,6 @@
 /**
  * STEP 5 - STORYBOOK. A project that has it keeps it as it is. One that has none gets Storybook's
- * lite setup (operator, 2026-10-12): one native library instead of eight. Storybook's own installer
+ * lite setup: one native library instead of eight. Storybook's own installer
  * cannot write it, so setup installs the packages and writes `.rnstorybook` from its own copy of
  * Storybook's files, with Storybook's example stories - the stories the first test photographs until
  * the project has stories of its own.
@@ -18,7 +18,11 @@ import { printLines } from '../helpers';
 import getPackageVersion from '../requirements/getPackageVersion';
 
 /** Answers whether this run installed Storybook, which decides the example-stories next step. */
-async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{ installedNow: boolean }> {
+async function storybook({
+  hasStorybook,
+}: {
+  hasStorybook: boolean;
+}): Promise<{ installedNow: boolean }> {
   // A project's own Storybook prints no line: "Installed Storybook (already done)" would read as if
   // setup had installed or changed it.
   if (hasStorybook) {
@@ -59,7 +63,9 @@ async function storybook({ hasStorybook }: { hasStorybook: boolean }): Promise<{
     renderStepLine({
       outcome: 'done',
       name: 'Installed Storybook',
-      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME)}`,
+      detail: `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME} ${getPackageVersion(
+        STORYBOOK_REACT_NATIVE_PACKAGE_NAME
+      )}`,
     }),
   ]);
 

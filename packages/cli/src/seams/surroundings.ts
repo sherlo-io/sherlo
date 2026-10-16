@@ -58,7 +58,7 @@ export const liveSurroundings: Surroundings = {
   readGitInfo: readGitInfoFromDisk,
   // BUILD DEBT (init-for-agents): `git remote get-url origin` in the project folder, null when it fails.
   readGitRemote: async () => {
-    throw new Error('readGitRemote is not built yet: init-for-agents plans it, a build task adds it.');
+    throw new Error('readGitRemote is not available yet.');
   },
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),

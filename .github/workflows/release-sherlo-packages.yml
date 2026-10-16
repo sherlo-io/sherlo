@@ -25,13 +25,26 @@ permissions:
 jobs:
   release-to-prod:
     # The SDK's pack fetches the pinned core with PACKAGE_TOKEN; nothing here builds or signs a core.
+    # It runs on the release branch it is dispatched on, such as release/r5. A public release
+    # commits there, tags v<version> and moves main forward to it; an alpha publishes
+    # <version>-alpha.N under the alpha tag and pushes nothing.
     runs-on: ubuntu-latest
 
     env:
       SLACK_WEBHOOK_URL: ${{secrets.SLACK_WEBHOOK_URL}}
       NEW_VERSION_NUMBER: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
+      IS_ALPHA: ${{ github.event.inputs.IS_ALPHA }}
     concurrency: release-to-prod
     steps:
+      # A release commits to the ref it runs on, so it runs only on a release branch. Alpha and
+      # public alike.
+      - name: Check the release runs on a release branch
+        run: |
+          if ! [[ "$GITHUB_REF_NAME" =~ ^release/r[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error::A release runs only on a release branch (release/r<N> or release/r<N>.<k>), not on '$GITHUB_REF_NAME'."
+            exit 1
+          fi
+
       # The key is stamped into the native loaders only after the version commit below, so a
       # missing key would fail the release with that commit already pushed. Check it first.
       - name: Check Sherlo's public key is set
@@ -50,38 +63,77 @@ jobs:
           app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
           private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
+      # The whole history, so the check below can read whether main is an ancestor of the release.
       - uses: actions/checkout@v4
         with:
           token: ${{ steps.github_app_token.outputs.token }}
           ref: ${{ github.ref }}
+          fetch-depth: 0
 
       # The pin (packages/react-native-storybook/sherlo-core.json) names the tree of sherlo-runner's
       # `core` folder its core was built from. A release ships that core only once the same tree is
-      # on sherlo-runner's default branch. The branch is squash-merged, so the commit the core was
-      # built from is never on it, but a tree survives any merge: the pin passes when some commit
-      # that changed `core` on the default branch holds exactly that tree. Otherwise the release
-      # stops here, before anything is committed.
-      - name: Check the pinned core's source tree is on sherlo-runner's default branch
+      # on sherlo-runner's default branch or on one of its release branches (release/r<N>, or a
+      # hotfix's release/r<N>.<k>). Those branches are squash-merged, so the commit the core was
+      # built from is never on them, but a tree survives any merge: the pin passes when some commit
+      # that changed `core` on one of them holds exactly that tree. Otherwise the release stops
+      # here, before anything is committed.
+      - name: Check the pinned core's source tree is on sherlo-runner's default branch or a runner release branch
         env:
           GH_TOKEN: ${{ steps.github_app_token.outputs.token }}
         run: |
           SOURCE_TREE=$(jq -r .sourceTree packages/react-native-storybook/sherlo-core.json)
           DEFAULT_BRANCH=$(gh api repos/sherlo-io/sherlo-runner --jq .default_branch)
-          COMMITS_CHANGING_CORE=$(gh api "repos/sherlo-io/sherlo-runner/commits?sha=${DEFAULT_BRANCH}&path=core&per_page=100" --jq '.[].sha')
-          for COMMIT in $COMMITS_CHANGING_CORE; do
-            CORE_TREE=$(gh api "repos/sherlo-io/sherlo-runner/git/trees/${COMMIT}" --jq '.tree[] | select(.path == "core") | .sha')
-            if [ "$CORE_TREE" = "$SOURCE_TREE" ]; then
-              exit 0
-            fi
+          RELEASE_BRANCHES=$(gh api repos/sherlo-io/sherlo-runner/branches --paginate --jq '.[].name | select(startswith("release/r"))')
+          for BRANCH in "$DEFAULT_BRANCH" $RELEASE_BRANCHES; do
+            COMMITS_CHANGING_CORE=$(gh api "repos/sherlo-io/sherlo-runner/commits?sha=${BRANCH}&path=core&per_page=100" --jq '.[].sha')
+            for COMMIT in $COMMITS_CHANGING_CORE; do
+              CORE_TREE=$(gh api "repos/sherlo-io/sherlo-runner/git/trees/${COMMIT}" --jq '.tree[] | select(.path == "core") | .sha')
+              if [ "$CORE_TREE" = "$SOURCE_TREE" ]; then
+                exit 0
+              fi
+            done
           done
-          echo "Error: the pinned core was built from the sherlo-runner core source tree $SOURCE_TREE, which no recent commit on its default branch $DEFAULT_BRANCH holds. Merge sherlo-runner first." >&2
+          echo "Error: the pinned core was built from the sherlo-runner core source tree $SOURCE_TREE, which no recent commit on its default branch $DEFAULT_BRANCH or on a release/r* branch holds. Merge sherlo-runner first." >&2
           exit 1
+
+      # A public release ends by moving main forward to the release, so it stops here, before
+      # anything is committed, when that would not be a fast-forward.
+      - name: Check main can move forward to the release
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            echo "Error: main cannot move forward to $GITHUB_REF_NAME: main has commits the release does not. Merge main into $GITHUB_REF_NAME first." >&2
+            exit 1
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+
+      # The version every step below sets and publishes: the input for a public release, and
+      # <input>-alpha.N for an alpha, N one past the highest alpha of that version either package
+      # has on npm (0 when none).
+      - name: Choose the version to publish
+        run: |
+          if [ "$IS_ALPHA" = "true" ]; then
+            HIGHEST=-1
+            for PACKAGE in sherlo @sherlo/react-native-storybook; do
+              ALPHAS=$(npm view "$PACKAGE" versions --json | jq -r --arg prefix "$NEW_VERSION_NUMBER-alpha." '(if type == "array" then . else [.] end)[] | select(startswith($prefix)) | ltrimstr($prefix) | select(test("^[0-9]+$"))')
+              for ALPHA in $ALPHAS; do
+                if [ "$ALPHA" -gt "$HIGHEST" ]; then
+                  HIGHEST=$ALPHA
+                fi
+              done
+            done
+            RELEASE_VERSION="$NEW_VERSION_NUMBER-alpha.$((HIGHEST + 1))"
+          else
+            RELEASE_VERSION="$NEW_VERSION_NUMBER"
+          fi
+          echo "RELEASE_VERSION=$RELEASE_VERSION" >> "$GITHUB_ENV"
+          echo "### Publishing $RELEASE_VERSION" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download Sherlo packages
         run: ./scripts/init-env.sh
@@ -96,21 +148,21 @@ jobs:
           GITHUB_PACKAGES_TOKEN: ${{ github.token }}
 
       - name: Bump Version
-        run: npx lerna version $NEW_VERSION_NUMBER --yes --no-git-tag-version --no-push
+        run: npx lerna version $RELEASE_VERSION --yes --no-git-tag-version --no-push
 
       - name: Save version number to native dependencies
         run: |
-          echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
-          echo "{\"version\": \"$NEW_VERSION_NUMBER\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
+          echo "{\"version\": \"$RELEASE_VERSION\"}" > packages/react-native-storybook/android/src/main/assets/sherlo.json
+          echo "{\"version\": \"$RELEASE_VERSION\"}" > packages/react-native-storybook/ios/Resources/assets/sherlo.json
 
       - name: Bump minimum required native dependencies version
         if: ${{ github.event.inputs.BUMP_REQUIRED_SDK_VERSION == 'true' }}
         run: |
-          jq --arg v "$NEW_VERSION_NUMBER" '.REQUIRED_MIN_NATIVE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
+          jq --arg v "$RELEASE_VERSION" '.REQUIRED_MIN_NATIVE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
 
       - name: Update JS module version in sdk-compatibility.json
         run: |
-          jq --arg v "$NEW_VERSION_NUMBER" '.JS_MODULE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
+          jq --arg v "$RELEASE_VERSION" '.JS_MODULE_VERSION = $v' packages/react-native-storybook/src/sdk-compatibility.json > /tmp/sdk-compat.json && mv /tmp/sdk-compat.json packages/react-native-storybook/src/sdk-compatibility.json
 
       - name: Build packages
         run: yarn build
@@ -119,12 +171,14 @@ jobs:
         run: |
           for dir in examples/standard examples/eas-update examples/eas-cloud-build; do
             cd $dir
-            jq --arg version "$NEW_VERSION_NUMBER" '.dependencies["@sherlo/react-native-storybook"] = "^" + $version' package.json > package.json.tmp
+            jq --arg version "$RELEASE_VERSION" '.dependencies["@sherlo/react-native-storybook"] = "^" + $version' package.json > package.json.tmp
             mv package.json.tmp package.json
             cd ../..
           done
 
+      # An alpha commits nothing: its version changes stay in this run's checkout.
       - name: Commit and push version updates
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         uses: EndBug/add-and-commit@v7
         with:
           author_name: Sherlo Bot
@@ -144,8 +198,17 @@ jobs:
         env:
           SHERLO_CORE_PUBLIC_KEY: ${{ vars.SHERLO_CORE_PUBLIC_KEY }}
 
+      # A version npm already has, from an earlier press whose later steps failed, is not published
+      # again: the release carries on from here.
       - name: Publish to npm
-        run: npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
+        run: |
+          SHERLO_PUBLISHED=$(npm view "sherlo@$RELEASE_VERSION" version 2>/dev/null || true)
+          SDK_PUBLISHED=$(npm view "@sherlo/react-native-storybook@$RELEASE_VERSION" version 2>/dev/null || true)
+          if [ -n "$SHERLO_PUBLISHED" ] && [ -n "$SDK_PUBLISHED" ]; then
+            echo "npm already has sherlo@$RELEASE_VERSION and @sherlo/react-native-storybook@$RELEASE_VERSION, so the publish is skipped." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npx lerna publish from-package --no-private --yes --dist-tag ${{ github.event.inputs.IS_ALPHA == 'true' && 'alpha' || 'latest' }}
         env:
           SHERLO_RELEASE_BUILD: 'true'
           # The SDK's prepack fetches the pinned core from package storage with it.
@@ -154,11 +217,23 @@ jobs:
       - name: Restore the native loaders to the test key
         run: git checkout -- packages/react-native-storybook/ios/SherloCoreLoader.m packages/react-native-storybook/android/src/main/java/io/sherlo/storybookreactnative/SherloCoreLoader.java
 
+      # A second press, after a press whose later steps failed, finds the tag already made: at this
+      # commit it carries on, anywhere else the release stops.
       - name: Tag Commit
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         run: |
-          git tag ${{ github.event.inputs.NEW_VERSION_NUMBER }}
-          git push origin ${{ github.event.inputs.NEW_VERSION_NUMBER }}
+          TAGGED_COMMIT=$(git ls-remote --tags origin "refs/tags/v$RELEASE_VERSION" | cut -f1)
+          RELEASE_COMMIT=$(git rev-parse HEAD)
+          if [ -n "$TAGGED_COMMIT" ]; then
+            if [ "$TAGGED_COMMIT" = "$RELEASE_COMMIT" ]; then
+              echo "The tag v$RELEASE_VERSION already points at the release commit $RELEASE_COMMIT, so tagging is skipped." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Error: the tag v$RELEASE_VERSION already points at $TAGGED_COMMIT, not at the release commit $RELEASE_COMMIT." >&2
+            exit 1
+          fi
+          git tag "v$RELEASE_VERSION"
+          git push origin "v$RELEASE_VERSION"
 
       # ────────────────────────────────────────────────────────────────────────
       # THE ACTION RELEASE REF - what `uses: sherlo-io/sherlo@v3` runs.
@@ -206,31 +281,39 @@ jobs:
             echo "- sha: \`$ACTION_SHA\`"
           } >> $GITHUB_STEP_SUMMARY
 
+      # main is the last public version. The check before the version commit made sure this is a
+      # fast-forward.
+      - name: Move main forward to the release
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
+        run: git push origin HEAD:main
+
+      # No body and no generated notes: the release's notes are added after the publish.
       - name: Create Release
         if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.NEW_VERSION_NUMBER }}
+          tag_name: v${{ env.RELEASE_VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for npm registry propagation
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         run: |
           TIMEOUT=600
           INTERVAL=15
           ELAPSED=0
-          echo "Waiting for sherlo@$NEW_VERSION_NUMBER and @sherlo/react-native-storybook@$NEW_VERSION_NUMBER on npm..."
+          echo "Waiting for sherlo@$RELEASE_VERSION and @sherlo/react-native-storybook@$RELEASE_VERSION on npm..."
           while true; do
-            SHERLO_OK=$(npm view sherlo@$NEW_VERSION_NUMBER version 2>/dev/null)
-            SDK_OK=$(npm view @sherlo/react-native-storybook@$NEW_VERSION_NUMBER version 2>/dev/null)
+            SHERLO_OK=$(npm view sherlo@$RELEASE_VERSION version 2>/dev/null)
+            SDK_OK=$(npm view @sherlo/react-native-storybook@$RELEASE_VERSION version 2>/dev/null)
             if [ -n "$SHERLO_OK" ] && [ -n "$SDK_OK" ]; then
               echo "Both packages available: sherlo@$SHERLO_OK, @sherlo/react-native-storybook@$SDK_OK"
               break
             fi
             if [ $ELAPSED -ge $TIMEOUT ]; then
               echo "ERROR: Timed out after ${TIMEOUT}s waiting for npm propagation."
-              echo "  sherlo@$NEW_VERSION_NUMBER: ${SHERLO_OK:-not found}"
-              echo "  @sherlo/react-native-storybook@$NEW_VERSION_NUMBER: ${SDK_OK:-not found}"
+              echo "  sherlo@$RELEASE_VERSION: ${SHERLO_OK:-not found}"
+              echo "  @sherlo/react-native-storybook@$RELEASE_VERSION: ${SDK_OK:-not found}"
               exit 1
             fi
             echo "Not yet available (${ELAPSED}s elapsed). Retrying in ${INTERVAL}s..."
@@ -239,6 +322,7 @@ jobs:
           done
 
       - name: Update lock files in examples and test directories
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         env:
           GITHUB_PACKAGES_TOKEN: ${{ github.token }}
         run: |
@@ -251,6 +335,7 @@ jobs:
           cd ../react-native && yarn install --no-immutable
 
       - name: Commit and push updated lock files
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
         uses: EndBug/add-and-commit@v7
         with:
           author_name: Sherlo Bot
@@ -258,6 +343,10 @@ jobs:
           message: Update lock files for ${{ github.event.inputs.NEW_VERSION_NUMBER }}
           push: true
           branch: ${{ github.ref_name }}
+
+      - name: Move main forward to the lockfile commit
+        if: ${{ github.event.inputs.IS_ALPHA != 'true' }}
+        run: git push origin HEAD:main
 
       - name: notify failure on Slack
         if: failure()

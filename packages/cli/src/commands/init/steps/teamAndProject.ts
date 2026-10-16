@@ -32,7 +32,8 @@ async function teamAndProject(
 ): Promise<SettledProject> {
   // `--project` is how the web app's setup line connects init to a project made there; it wins over
   // a config's, which it then replaces. Either is looked up, never made again.
-  const existingProject = (projectFlag ? parseProject(projectFlag) : undefined) ?? (await readProjectFromConfig());
+  const existingProject =
+    (projectFlag ? parseProject(projectFlag) : undefined) ?? (await readProjectFromConfig());
   if (existingProject) {
     await showProjectInConfig(existingProject, person);
     return settled(existingProject);
@@ -138,7 +139,9 @@ async function createProject(
   // Names only, for the team and the project alike: their ids are the config's business, and a
   // person reads names. The project token the service hands back is never printed: a token for CI
   // is made in the web app, where the next steps point.
-  printLines([renderStepLine({ outcome: 'done', name: 'Created project', detail: newProject.name })]);
+  printLines([
+    renderStepLine({ outcome: 'done', name: 'Created project', detail: newProject.name }),
+  ]);
 
   return project;
 }
