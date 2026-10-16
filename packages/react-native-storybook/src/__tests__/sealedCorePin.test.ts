@@ -155,8 +155,9 @@ describe('the pin', () => {
     expect(pin.seamHash).toMatch(/^[0-9a-f]{64}$/);
 
     // And the core is stored: the pin tool, run on the pinned fingerprint against the real storage,
-    // writes this same pin. That reads storage, so it needs the package token, which CI carries.
-    if (!process.env.PACKAGE_TOKEN && process.env.CI !== 'true') {
+    // writes this same pin. That reads storage, so it needs the package token, which a fork's pull
+    // request does not get.
+    if (!process.env.PACKAGE_TOKEN) {
       console.warn('PACKAGE_TOKEN is not set, so the pinned core is not looked up in storage');
       context.skip();
     }

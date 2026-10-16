@@ -92,9 +92,10 @@ function theNpmPack(): { packedFiles: string[]; unpackedPackageDir: string } {
 }
 
 beforeAll(() => {
-  // On GitHub the packs are not optional: a check that lost its pack step goes red, never skips.
-  // A Mac save has no pack step, so it skips.
-  if (process.env.GITHUB_ACTIONS === 'true' && !hasThePacks) {
+  // On GitHub, with the package token, the packs are not optional: a check that lost its pack step
+  // goes red, never skips. Without the token (a fork's pull request) no pack can be made, and a
+  // Mac save has no pack step, so both skip.
+  if (process.env.GITHUB_ACTIONS === 'true' && process.env.PACKAGE_TOKEN && !hasThePacks) {
     throw new Error(`a GitHub run with no packs to read: ${NO_PACKS_REASON}`);
   }
 });
