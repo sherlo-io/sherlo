@@ -121,8 +121,10 @@ jobs:
       # (src/__tests__/sealedCorePackaging.test.ts). The pack fetches the pinned core from package
       # storage with this token and builds the bundler plugin - too slow for a unit suite, so the
       # suite only reads the two tarballs this step leaves in the folder SHERLO_SDK_PACKS names.
+      # A pull request from a fork gets no package token, so it makes no packs and the suite skips
+      # its packaging rules.
       - name: Pack the SDK as a publish does
-        if: matrix.package.name == 'react-native-storybook'
+        if: matrix.package.name == 'react-native-storybook' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         working-directory: ${{ matrix.package.dir }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -138,8 +140,9 @@ jobs:
           # The SDK suite's pin rules look the pinned core up in package storage with this token.
           # The CLI's suite gets none.
           PACKAGE_TOKEN: ${{ matrix.package.name == 'react-native-storybook' && secrets.PACKAGE_TOKEN || '' }}
-          # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI.
-          SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
+          # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI,
+          # and for a fork's pull request, where the step does not run.
+          SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
 
       # THE SDK'S ANDROID UNIT TESTS, on a plain JVM with Robolectric (no emulator), inside this job so
