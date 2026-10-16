@@ -22,10 +22,10 @@
  * which act on the machine, which platform names a map may use, and what counts as an instant.
  * Those are meanings, not shapes, and a type says nothing about them.
  */
+import { spawnSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import prettier from 'prettier';
 import {
   SyntaxKind,
   type LiteralTypeNode,
@@ -1025,8 +1025,13 @@ function quote(text: string): string {
 }
 
 function format(source: string, file: string): string {
-  const options = prettier.resolveConfig.sync(file) ?? {};
-  return prettier.format(source, { ...options, filepath: file, parser: 'typescript' });
+  const result = spawnSync('oxfmt', [`--stdin-filepath=${file}`], {
+    input: source,
+    encoding: 'utf8',
+    cwd: path.dirname(file),
+  });
+  if (result.status !== 0) throw new Error(`oxfmt failed on ${file}: ${result.stderr}`);
+  return result.stdout;
 }
 
 /* ========================================================================== */
