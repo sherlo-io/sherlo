@@ -5,7 +5,11 @@
     "sherlo.config.json": { "devices": [{ "id": "iphone.15", "osVersion": "17" }] }
   },
   "env": { "SKIP_INTRO": "true", "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
-  "git": { "branch": "feature/checkout", "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b", "dirty": false },
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
   "bundles": {},
   "api": [
     {
@@ -17,18 +21,35 @@
         "showsOnlyBranchChanges": false,
         "mainBranch": "main",
         "ciRun": null,
-        "gitInfo": { "branchName": "feature/checkout", "commitHash": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b", "isDirty": false },
+        "gitInfo": {
+          "branchName": "feature/checkout",
+          "commitHash": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+          "isDirty": false
+        },
         "devices": [{ "id": "iphone.15", "osVersion": "17", "platform": "ios" }],
         "viewStatusesCount": { "approved": 0, "noChanges": 1, "reported": 0, "unreviewed": 1 },
         "stories": [
           { "name": "Sanity/Hello - Basic", "status": "changed", "baseline": { "buildIndex": 6 } },
-          { "name": "Typography - Dense", "status": "not-captured", "baseline": { "buildIndex": 6 } }
+          {
+            "name": "Typography - Dense",
+            "status": "not-captured",
+            "baseline": { "buildIndex": 6 }
+          }
         ],
-        "diffScope": { "reason": "Card.stories.tsx changed", "captured": ["Sanity/Hello - Basic"], "inherited": ["Typography - Dense"], "ancestorBuildIndex": 6 },
+        "diffScope": {
+          "reason": "Card.stories.tsx changed",
+          "captured": ["Sanity/Hello - Basic"],
+          "inherited": ["Typography - Dense"],
+          "ancestorBuildIndex": 6
+        },
         "platforms": {
           "ios": {
             "arrived": true,
-            "capture": { "full": false, "reason": "Card.stories.tsx changed", "storyFiles": ["src/sanity/Hello.stories.tsx"] },
+            "capture": {
+              "full": false,
+              "reason": "Card.stories.tsx changed",
+              "storyFiles": ["src/sanity/Hello.stories.tsx"]
+            },
             "appBuild": { "from": "stored", "storedFromTest": 4 },
             "storiesInBundle": 2
           }

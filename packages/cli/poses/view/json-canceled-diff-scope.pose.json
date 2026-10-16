@@ -2,10 +2,19 @@
   "pose": 1,
   "argv": ["view", "12", "--json"],
   "files": {
-    "sherlo.config.json": { "devices": [{ "id": "pixel.7", "osVersion": "13" }, { "id": "iphone.15", "osVersion": "17" }] }
+    "sherlo.config.json": {
+      "devices": [
+        { "id": "pixel.7", "osVersion": "13" },
+        { "id": "iphone.15", "osVersion": "17" }
+      ]
+    }
   },
   "env": { "SKIP_INTRO": "true", "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
-  "git": { "branch": "feature/shared-button", "commit": "b2c4e6f8a0b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9", "dirty": false },
+  "git": {
+    "branch": "feature/shared-button",
+    "commit": "b2c4e6f8a0b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9",
+    "dirty": false
+  },
   "bundles": {},
   "api": [
     {
@@ -16,12 +25,21 @@
         "showsOnlyBranchChanges": false,
         "mainBranch": "main",
         "ciRun": null,
-        "gitInfo": { "branchName": "feature/shared-button", "commitHash": "b2c4e6f8a0b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9", "isDirty": false },
+        "gitInfo": {
+          "branchName": "feature/shared-button",
+          "commitHash": "b2c4e6f8a0b1c3d5e7f9a1b3c5d7e9f1a3b5c7d9",
+          "isDirty": false
+        },
         "devices": [
           { "id": "pixel.7", "osVersion": "13", "platform": "android" },
           { "id": "iphone.15", "osVersion": "17", "platform": "ios" }
         ],
-        "diffScope": { "reason": "SharedButton.tsx changed", "captured": [], "inherited": [], "ancestorBuildIndex": 11 },
+        "diffScope": {
+          "reason": "SharedButton.tsx changed",
+          "captured": [],
+          "inherited": [],
+          "ancestorBuildIndex": 11
+        },
         "platforms": {
           "android": {
             "arrived": true,
