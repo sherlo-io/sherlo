@@ -9,7 +9,13 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteModuleManifestSidecar, readValidatedModuleManifest } from '../readModuleManifest';
+import { renderTestStarted } from '../../../render/runRows';
+import {
+  countStoriesIn,
+  deleteModuleManifestSidecar,
+  readValidatedModuleManifest,
+  titledStoryFilesIn,
+} from '../readModuleManifest';
 
 const MANIFEST_REL = ['node_modules', '.cache', 'sherlo', 'module-manifest.json'];
 
@@ -55,6 +61,65 @@ describe('readValidatedModuleManifest - happy path', () => {
   });
 });
 
+describe('story titles and counts from the module map', () => {
+  const PRODUCT_CARD = 'src/ProductCard.stories.tsx';
+  const CHECKOUT = 'src/Checkout.stories.tsx';
+  const CART = 'src/Cart.stories.tsx';
+
+  function readMap(maps: { storyTitles?: object; storyCounts?: object }) {
+    writeManifest(
+      JSON.stringify({
+        ...validManifest(),
+        storyClosures: { [PRODUCT_CARD]: [], [CHECKOUT]: [], [CART]: [] },
+        ...maps,
+      })
+    );
+    return readValidatedModuleManifest(projectRoot)!;
+  }
+
+  it("reads each story file's title and story count from the module map the bundler wrote", () => {
+    const manifest = readMap({
+      storyTitles: { [PRODUCT_CARD]: 'Storefront/ProductCard', [CHECKOUT]: 'Storefront/Checkout' },
+      storyCounts: { [PRODUCT_CARD]: 3, [CHECKOUT]: 2, [CART]: 4 },
+    });
+
+    expect(titledStoryFilesIn(manifest)).toEqual([
+      { storyFile: PRODUCT_CARD, title: 'Storefront/ProductCard', stories: 3 },
+      { storyFile: CHECKOUT, title: 'Storefront/Checkout', stories: 2 },
+      { storyFile: CART, stories: 4 },
+    ]);
+    expect(countStoriesIn(manifest, [PRODUCT_CARD, CHECKOUT, CART])).toBe(9);
+  });
+
+  it('a story file with no recorded title prints its path, and one with no recorded count counts as one story', () => {
+    const manifest = readMap({
+      storyTitles: { [PRODUCT_CARD]: 'Storefront/ProductCard' },
+      storyCounts: { [CHECKOUT]: 2 },
+    });
+
+    // Title and count are independent. No count for the titled file: the title alone. No title for
+    // the counted file: its path, with its count.
+    const lines = renderTestStarted({
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
+      buildIndex: 1,
+      capture: [
+        {
+          platform: 'android',
+          full: true,
+          capturedStories: 0,
+          storyFiles: [PRODUCT_CARD, CHECKOUT],
+          storyTitles: titledStoryFilesIn(manifest),
+        },
+      ],
+    }).map((line) => line.replace(/\u001b\[[0-9;]*m/g, ''));
+
+    const underTheRow = lines.map((line) => line.trim());
+    expect(underTheRow).toContain('Storefront/ProductCard');
+    expect(underTheRow).toContain(`${CHECKOUT} (2 stories)`);
+    expect(countStoriesIn(manifest, [PRODUCT_CARD, CART, CHECKOUT])).toBe(1 + 1 + 2);
+  });
+});
+
 describe('readValidatedModuleManifest - BAIL-OPEN failure modes (returns null, never throws)', () => {
   it('missing sidecar -> null, silently (absent is the common expected case)', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -74,7 +139,7 @@ describe('readValidatedModuleManifest - BAIL-OPEN failure modes (returns null, n
 
     expect(readValidatedModuleManifest(projectRoot)).toBeNull();
     const warned = logSpy.mock.calls.map((c) => c.join(' ')).join('\n');
-    expect(warned).toMatch(/WARNING/);
+    expect(warned).toMatch(/! .*continuing without it/);
     expect(warned).toMatch(/continuing without it/);
   });
 

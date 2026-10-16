@@ -6,13 +6,13 @@
  *
  * The default sink writes each segment to the process's streams the instant it
  * is emitted, which is why extracting the render layer changed nothing a user
- * sees: `sherlo test --dry-run` still prints `🤖 Building android bundle...`
+ * sees: `sherlo test` still prints `🤖 Building android bundle...`
  * before the bundler runs, not after the whole run is known. A producer installs
  * a buffering sink instead and gets exactly the same bytes in an array.
  *
  * WHY THE SINK IS A MODULE-LEVEL VARIABLE RATHER THAN A THREADED PARAMETER.
  * Print sites sit at the bottom of call chains the CLI's control flow already
- * owns (`stagedRun` -> the bundling loop -> `runDryRunPreview`), and threading a
+ * owns (`stagedRun` -> the bundling loop), and threading a
  * sink through every one of them would be a large diff whose only content is
  * plumbing - exactly the "while I'm here" churn an extraction must not carry. A
  * CLI process runs ONE command, so a per-process sink is the honest scope. It is

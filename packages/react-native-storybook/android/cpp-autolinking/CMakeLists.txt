@@ -10,7 +10,7 @@
 # - Any other build (a store build) does not link Sherlo, and gets the stand-in under the same
 #   names: a provider that finds nothing, holding no Sherlo code.
 #
-# chooseGlue.cmake makes that choice. See "What each build carries" in the book.
+# chooseGlue.cmake makes that choice.
 
 cmake_minimum_required(VERSION 3.13)
 

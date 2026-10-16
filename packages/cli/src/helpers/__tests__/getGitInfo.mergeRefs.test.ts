@@ -156,10 +156,9 @@ describe('getGitInfo - PR merge ref shallow clone (event-payload PR-head recover
     // The fix: prHeadCommitHash is the REAL PR head, recovered from the CI signal.
     expect(info.prHeadCommitHash).toBe(prHead);
     expect(info.prHeadCommitHash).not.toBe(mergeSha);
-    // commitHash can't be anchored to grafted-away history, so it gracefully stays
-    // the merge SHA. The server keys on `prHeadCommitHash ?? commitHash`, so the
-    // real PR head still wins.
-    expect(info.commitHash).toBe(mergeSha);
+    // commitHash is the PR head too, as on a full clone: a shallow job and a
+    // deepened job of one run must name the same commit.
+    expect(info.commitHash).toBe(prHead);
     expect(info.isShallow).toBe(true);
   });
 

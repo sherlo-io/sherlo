@@ -1,0 +1,125 @@
+/**
+ * WILL EAS UPLOAD THE HAND-OVER FILE? - asked by EAS mode before it opens a run.
+ *
+ * `sherlo test` writes `.sherlo/data.json` just before it starts the EAS builds, and each build's
+ * `eas-build-on-complete` script reads it on Expo's machine to learn which run it belongs to. A
+ * project whose upload leaves the file out builds fine on EAS and then hands nothing to Sherlo: the
+ * hook finds no hand-over file, and the run waits until its deadline. So the project is refused
+ * up front instead, naming the cause and the fix.
+ *
+ * EAS PACKS THE PROJECT BY ITS OWN RULES (eas-cli, `vcs/local.ts` `Ignore` and
+ * `vcs/clients/git.ts` `makeShallowCopyAsync`, read 2026-10-11):
+ *   - with `cli.requireCommit` set in eas.json it uploads only committed files, and the hand-over
+ *     file is never committed - it is written for one run, just before the builds start;
+ *   - otherwise, with an `.easignore` at the repository's root it applies that file alone;
+ *   - and without one it applies every `.gitignore` in the tree, each to the folder it sits in.
+ *
+ * Each file is read with the `ignore` package, the matcher EAS itself uses, so Sherlo's answer and
+ * EAS's cannot differ.
+ */
+import path from 'path';
+import ignore from 'ignore';
+import { SHERLO_TEMP_DATA_FILENAME, SHERLO_TEMP_DIRECTORY } from '../../../constants';
+import { throwError } from '../../../helpers';
+import { readProjectJson } from '../../../helpers/projectJson';
+import { appBuilder } from '../../../seams/appBuilder';
+
+/** The file EAS reads instead of every `.gitignore` when the repository has one at its root. */
+const EAS_IGNORE_FILE = '.easignore';
+const GIT_IGNORE_FILE = '.gitignore';
+
+/** The hand-over file, as a path inside the project. */
+const HAND_OVER_FILE = `${SHERLO_TEMP_DIRECTORY}/${SHERLO_TEMP_DATA_FILENAME}`;
+
+/** Refuse EAS mode when the project EAS uploads would not carry `.sherlo/data.json`. */
+export function refuseWhenEasLeavesTheHandOverOut(projectRoot: string): void {
+  refuseWhenEasUploadsOnlyCommittedFiles(projectRoot);
+
+  const easUploadRoot = appBuilder().easUploadRoot(projectRoot);
+  const handOverFromTheRoot = toPosix(
+    path.relative(easUploadRoot, path.join(projectRoot, HAND_OVER_FILE))
+  );
+
+  const easIgnore = appBuilder().readEasUploadFile({
+    easUploadRoot,
+    fileFromTheRoot: EAS_IGNORE_FILE,
+  });
+  if (easIgnore !== undefined) {
+    const line = lineThatIgnores(easIgnore, handOverFromTheRoot);
+    if (line === undefined) return;
+
+    throwError({
+      message:
+        `Can't build on EAS: EAS would leave ${HAND_OVER_FILE} out of the project it uploads.\n` +
+        `Sherlo writes a data file there for each run, and ${EAS_IGNORE_FILE} leaves it out with the line "${line}".\n` +
+        `Remove that line from ${EAS_IGNORE_FILE}.`,
+    });
+  }
+
+  for (const gitIgnore of gitIgnoresAbove(easUploadRoot, handOverFromTheRoot)) {
+    const line = lineThatIgnores(gitIgnore.contents, gitIgnore.handOverFromHere);
+    if (line === undefined) continue;
+
+    throwError({
+      message:
+        `Can't build on EAS: EAS would leave ${HAND_OVER_FILE} out of the project it uploads.\n` +
+        `Sherlo writes a data file there for each run, and ${gitIgnore.file} ignores it with the line "${line}".\n` +
+        `EAS reads ${EAS_IGNORE_FILE} instead of ${GIT_IGNORE_FILE} when there is one. At the root of your git repository, copy ${GIT_IGNORE_FILE} to ${EAS_IGNORE_FILE}, then remove the line "${line}" from the copy.`,
+    });
+  }
+}
+
+/** `cli.requireCommit` makes EAS upload committed files only, and the hand-over file never is one. */
+function refuseWhenEasUploadsOnlyCommittedFiles(projectRoot: string): void {
+  // No eas.json, or one that cannot be read: nothing requires a commit.
+  if (readProjectJson(projectRoot, 'eas.json')?.cli?.requireCommit !== true) return;
+
+  throwError({
+    message:
+      'Can\'t build on EAS: eas.json sets "requireCommit": true, so EAS uploads only committed files.\n' +
+      `Sherlo writes ${HAND_OVER_FILE} for each run just before the builds start, so it is never committed.\n` +
+      'Remove "requireCommit" from the "cli" section of eas.json.',
+  });
+}
+
+/**
+ * Every `.gitignore` that can touch the hand-over file - the ones in the folders from the repository's
+ * root down to `.sherlo/` itself - with what it says and the hand-over file's path as seen from it,
+ * root first.
+ */
+function gitIgnoresAbove(
+  easUploadRoot: string,
+  handOverFromTheRoot: string
+): Array<{ file: string; contents: string; handOverFromHere: string }> {
+  const folders = handOverFromTheRoot.split('/').slice(0, -1);
+  const found: Array<{ file: string; contents: string; handOverFromHere: string }> = [];
+
+  for (let depth = 0; depth <= folders.length; depth += 1) {
+    const folder = folders.slice(0, depth).join('/');
+    const file = folder === '' ? GIT_IGNORE_FILE : `${folder}/${GIT_IGNORE_FILE}`;
+    const contents = appBuilder().readEasUploadFile({ easUploadRoot, fileFromTheRoot: file });
+    if (contents === undefined) continue;
+
+    found.push({
+      file,
+      contents,
+      handOverFromHere: folders.slice(depth).concat(SHERLO_TEMP_DATA_FILENAME).join('/'),
+    });
+  }
+
+  return found;
+}
+
+/**
+ * The line of an ignore file that leaves `filePath` out, or undefined when none does.
+ *
+ * A folder the file sits in counts as the file: once a folder is ignored, nothing inside it can be
+ * brought back. Within one path the last matching line decides, so a `!` line can bring it back.
+ */
+function lineThatIgnores(ignoreFile: string, filePath: string): string | undefined {
+  return ignore().add(ignoreFile).test(filePath).rule?.pattern;
+}
+
+function toPosix(filePath: string): string {
+  return filePath.split(path.sep).join('/');
+}

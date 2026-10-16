@@ -10,7 +10,7 @@ type StandardErrorParams = {
   below?: string;
   errorToReport?: Error;
   learnMoreLink?: string;
-  type?: Extract<ErrorType, 'default' | 'auth'>;
+  type?: Extract<ErrorType, 'default'>;
 };
 
 type UnexpectedErrorParams = {
@@ -18,7 +18,7 @@ type UnexpectedErrorParams = {
   type: Extract<ErrorType, 'unexpected'>;
 };
 
-type ErrorType = 'default' | 'auth' | 'unexpected';
+type ErrorType = 'default' | 'unexpected';
 
 function throwError(params: Params): never {
   reportError(params);
@@ -41,11 +41,22 @@ export default throwError;
 
 /* ========================================================================== */
 
+/**
+ * One prefix for every refusal a person can fix: a refused login reads `ERROR:` like any other.
+ */
 const LABEL: { [type in ErrorType]: string } = {
   default: 'ERROR',
-  auth: 'AUTH ERROR',
   unexpected: 'UNEXPECTED ERROR',
 };
+
+/**
+ * `ERROR: <first line>` in red, and the lines under it plain: only the line that says what went
+ * wrong is red, and the fix under it reads as ordinary text, in every refusal at once.
+ */
+function labelled(label: string, message: string): string {
+  const [firstLine, ...linesBelow] = `${label}: ${message.trim()}`.split('\n');
+  return [chalk.red(firstLine), ...linesBelow].join('\n');
+}
 
 function getErrorMessage(params: Params): string {
   let message: string;
@@ -55,7 +66,7 @@ function getErrorMessage(params: Params): string {
     message = params.error.message;
   }
 
-  const messageWithLabel = chalk.red(`${LABEL[params.type ?? 'default']}: ${message.trim()}`);
+  const messageWithLabel = labelled(LABEL[params.type ?? 'default'], message);
 
   const errorMessageParts: string[] = [];
 

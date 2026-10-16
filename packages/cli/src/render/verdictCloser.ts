@@ -22,14 +22,30 @@
  * reaches them, and its output is byte-identical to what it has always been.
  */
 import chalk from 'chalk';
+import {
+  countStories,
+  renderFailedTestStep,
+  renderHelpBlock,
+  renderTestStep,
+  renderVerdictSection,
+} from './testSteps';
 
 /* ========================================================================== */
 /* THE PRESENT: bytes a user sees today, extracted verbatim                   */
 /* ========================================================================== */
 
-/** `⏳ Waiting for build results (timeout: 45min)...` - printed once, before the first poll. */
-export function renderWaitHeader(timeoutMinutes: number): string {
-  return chalk.dim(`⏳ Waiting for build results (timeout: ${timeoutMinutes}min)...`);
+/**
+ * The test a line names: `Test 7` once its number is known, `the test` (lowercase, as a sentence's
+ * subject or object) only while it is not. The wait's own line, `Waiting for Test 7 to finish...`,
+ * is a step in progress (./stepInProgress).
+ */
+function theTest(testIndex: number | undefined): string {
+  return testIndex !== undefined ? `Test ${testIndex}` : 'the test';
+}
+
+/** The same words opening a sentence: `the test` becomes `The test`. */
+function atSentenceStart(words: string): string {
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 /**
@@ -39,12 +55,12 @@ export function renderWaitHeader(timeoutMinutes: number): string {
  * line: a status this table has not learned yet is information, not nothing.
  */
 const RUN_STATUS_LABEL: Record<string, string> = {
-  queued: '🟡 Queued',
-  waiting: '🟡 Waiting',
-  inProgress: '🔵 Running',
-  finished: '🟢 Finished',
-  error: '🔴 Error',
-  canceled: '⚪ Canceled',
+  queued: 'Queued',
+  waiting: 'Waiting',
+  inProgress: 'Running',
+  finished: 'Finished',
+  error: 'Error',
+  canceled: 'Canceled',
 };
 
 export function renderWaitProgress(runStatus: string): string {
@@ -61,54 +77,60 @@ export function renderWaitNetworkRetry(message: string): string {
   return chalk.dim(`   Network error, retrying... (${message})`);
 }
 
-/** `   Build not found, retrying...` - the build record has not appeared yet. */
+/** `   Test not found yet, retrying...` - the test's record has not appeared yet. */
 export function renderWaitBuildNotFound(): string {
-  return chalk.dim('   Build not found, retrying...');
+  return chalk.dim('   Test not found yet, retrying...');
 }
 
-/** `🔒 <message>` - a credential refused mid-poll. Not retryable, so it closes the run. */
+/** `✖ <message>` - a credential refused mid-poll. Not retryable, so it closes the run. */
 export function renderWaitAuthFailed(message: string): string {
-  return chalk.red(`🔒 ${message}`);
-}
-
-/** The two lines of the deadline closer. */
-export function renderWaitTimedOut(timeoutMinutes: number): string[] {
-  return [
-    chalk.yellow(`⏰ Timeout reached after ${timeoutMinutes} minutes.`),
-    chalk.yellow('   The build may still be running.'),
-  ];
-}
-
-/** The Ctrl-C closer. The run keeps going in Sherlo; only the waiting stops. */
-export function renderWaitInterrupted(): string {
-  return chalk.dim('Stopped waiting. The run is still going in Sherlo.');
-}
-
-/** Today's generic green closer: every story either matched or was already approved. */
-export function renderVerdictPassed(): string {
-  return chalk.green('✅ All stories passed - no visual changes require review.');
+  return chalk.red(`✖ ${message}`);
 }
 
 /**
- * The compact closer for a build the SERVER closed without a device run: its own
- * verbatim prose reason inline, then the fixed dim line. No URL - the build has
- * nothing to review.
- *
- * The reason is the server's sentence, never one composed here, which is why it
- * arrives as a parameter rather than as a branch.
+ * The deadline closer: the waiting stopped, the test may not have. One line; the command that goes
+ * on waiting is the `👉 Next step` section the run ends on (../commands/test/closeTheRun).
  */
-export function renderVerdictServerBypassed(reason: string): string[] {
+export function renderWaitTimedOut(timeoutMinutes: number, testIndex?: number): string[] {
+  const minutes = timeoutMinutes === 1 ? '1 minute' : `${timeoutMinutes} minutes`;
   return [
-    chalk.green(`✅ Nothing needed capturing - ${reason}`),
-    chalk.dim('   closed by the server - no device run was needed'),
+    chalk.yellow(
+      `! Stopped waiting after ${minutes}. ${atSentenceStart(
+        theTest(testIndex)
+      )} may still be running in Sherlo.`
+    ),
   ];
+}
+
+/** The Ctrl-C closer. The run keeps going in Sherlo; only the waiting stops. Ends like the deadline's. */
+export function renderWaitInterrupted(testIndex?: number): string {
+  return chalk.yellow(
+    `! Stopped waiting. ${atSentenceStart(theTest(testIndex))} keeps running in Sherlo.`
+  );
+}
+
+/**
+ * `✔ Finished Test 14` - `sherlo view <n> --wait`'s step, in the place its spinner held, above the
+ * verdict. (`sherlo test --wait` says it under the test's row, with how long it ran: ./runRows.)
+ */
+export function renderTestFinished(testIndex: number): string {
+  return renderTestStep({ name: `Finished Test ${testIndex}` });
+}
+
+/**
+ * The green verdict, as a section: every story either matched or was already approved. The title
+ * says it all, so nothing stands under it but the link.
+ */
+export function renderVerdictPassed(): string[] {
+  // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
+  return renderVerdictSection('✅ All stories passed', [], 21);
 }
 
 /**
  * One screen of the build a wait is closing on - the two fields this closer
  * reads, and nothing else.
  *
- * Spelled here rather than reusing buildView's `ViewMetadataStory` because a
+ * Spelled here rather than reusing buildView's `ViewStory` because a
  * closer that declared a `baseline` it never looks at would invite the next
  * reader to wonder where it is printed. The wire rows satisfy this type as
  * they are.
@@ -137,20 +159,25 @@ export type VerdictScreen = {
 const SETTLED_STATUSES = new Set(['approved', 'unchanged', 'not-captured']);
 
 /**
- * The word the closer says a screen under, per wire status.
- *
- * The three words are the ones the build's own tally uses - `unreviewed`,
- * `reported` - plus `errored` for a capture that failed, so a reader who has
- * seen `2 story/stories unreviewed.` before reads the same vocabulary here. A
- * status with no entry is said under its own wire spelling rather than dropped.
+ * The words a story's status is said in, per wire status - here beside a story the verdict names,
+ * and in `sherlo view`'s table: what happened to it (`new`, `changed`, `no changes`), what a person
+ * already said (`approved`, `reported`), `needs review`, and `failed` for a capture that failed.
  */
-const SCREEN_LABEL: Record<string, string> = {
-  new: 'unreviewed',
-  changed: 'unreviewed',
-  'review-required': 'unreviewed',
+const STORY_STATUS_WORD: Record<string, string> = {
+  new: 'new',
+  changed: 'changed',
+  'review-required': 'needs review',
   rejected: 'reported',
-  error: 'errored',
+  error: 'failed',
+  approved: 'approved',
+  unchanged: 'no changes',
+  'not-captured': 'carried over',
 };
+
+/** A story's status in plain words; a status with no entry is said under its own wire spelling rather than dropped. */
+export function storyStatusWord(status: string): string {
+  return STORY_STATUS_WORD[status] ?? status;
+}
 
 /**
  * How many screens the closer names before it stops naming and counts the rest.
@@ -174,53 +201,74 @@ const NAMED_SCREEN_LIMIT = 10;
  *
  * `screens` is absent when the wait never learned them (an older backend, or a
  * status read that came back without the rows), and a screen list that names
- * nobody says less than the tally does. Both fall back to `counts` - the two
- * lines this closer has always printed, byte for byte.
+ * nobody says less than the tally does. Both fall back to `counts`.
+ *
+ * As a section, in init's grammar: the title says how many stories need review,
+ * then one row per story - its name, and beside it in one column what happened.
  */
 export function renderVerdictReviewRequired(
   screens: VerdictScreen[] | undefined,
   counts: { unreviewed: number; reported: number }
 ): string[] {
-  const headline = chalk.yellow('⚠️  Build finished with changes requiring review.');
-
   const allScreens = screens ?? [];
   const needAPerson = allScreens.filter((screen) => !SETTLED_STATUSES.has(screen.status));
-  if (needAPerson.length === 0) return [headline, ...renderCountLines(counts)];
+  if (needAPerson.length === 0) {
+    return renderVerdictSection(
+      needReviewTitle(counts.unreviewed + counts.reported),
+      renderCountLines(counts)
+    );
+  }
 
   const named = needAPerson.slice(0, NAMED_SCREEN_LIMIT);
   const unnamed = needAPerson.length - named.length;
   const settled = allScreens.length - needAPerson.length;
+  const nameWidth = Math.max(...named.map((screen) => screen.name.length));
 
-  return [
-    headline,
-    ...named.map((screen) =>
-      chalk.yellow(`   ${SCREEN_LABEL[screen.status] ?? screen.status}: ${screen.name}`)
+  return renderVerdictSection(needReviewTitle(needAPerson.length), [
+    ...named.map(
+      (screen) => `${screen.name.padEnd(nameWidth)}   ${storyStatusWord(screen.status)}`
     ),
-    ...(unnamed > 0 ? [chalk.yellow(`   ... and ${unnamed} more needing review.`)] : []),
+    ...(unnamed > 0 ? [`And ${unnamed} more to review.`] : []),
     ...(settled > 0
-      ? [chalk.dim(`   ${settled} more settled - approved, unchanged or inherited.`)]
+      ? [chalk.dim(`${settled} other ${settled === 1 ? 'story has' : 'stories have'} no changes.`)]
       : []),
-  ];
+  ]);
+}
+
+/** `⚠️ 3 stories need review`, `⚠️ 1 story needs review`. */
+function needReviewTitle(count: number): string {
+  return `⚠️ ${countStories(count)} ${count === 1 ? 'needs' : 'need'} review`;
 }
 
 /**
- * The tally lines, printed only for a non-zero count - which is why this returns
- * a LIST whose length is itself a function of the state.
+ * The body when the wait could not name the stories: the reported ones counted, when there are
+ * any, then what to do. The title above already counts the ones that need review.
  */
 function renderCountLines(counts: { unreviewed: number; reported: number }): string[] {
   const { unreviewed, reported } = counts;
 
-  const lines: string[] = [];
-  if (unreviewed > 0) lines.push(chalk.yellow(`   ${unreviewed} story/stories unreviewed.`));
-  if (reported > 0) lines.push(chalk.yellow(`   ${reported} story/stories reported.`));
-  return lines;
+  return [
+    ...(reported > 0 ? [`${countStories(reported)} reported`] : []),
+    `Open ${unreviewed + reported === 1 ? 'it' : 'them'} in Sherlo to approve or report.`,
+  ];
 }
 
-/** The infrastructure closer. `runError` is server-shaped, so it is stringified, not phrased. */
-export function renderVerdictRunErrored(runStatus: string, runError: unknown): string[] {
-  const lines = [chalk.red(`❌ Build ended in "${runStatus}" state.`)];
-  if (runError) lines.push(chalk.red(`   Error: ${JSON.stringify(runError)}`));
-  return lines;
+/**
+ * The infrastructure closer, as init's failed step: the test ended without a verdict. `runError`
+ * is server-shaped, so it is stringified, not phrased. The run ends here, so the help block follows.
+ */
+export function renderVerdictRunErrored(
+  runStatus: string,
+  runError: unknown,
+  testIndex?: number
+): string[] {
+  return [
+    ...renderFailedTestStep(`Running ${theTest(testIndex)}`),
+    `${atSentenceStart(theTest(testIndex))} ended as "${runStatus}".`,
+    ...(runError ? [chalk.dim(`Error: ${JSON.stringify(runError)}`)] : []),
+    '',
+    ...renderHelpBlock(),
+  ];
 }
 
 /* ========================================================================== */
@@ -239,13 +287,14 @@ export function renderVerdictRunErrored(runStatus: string, runError: unknown): s
  * THE WORDING IS THE CHECK'S OWN, DELIBERATELY. `No visual changes` and `All
  * snapshots match their baselines` are `CHECK_COPY.noChanges.title` and
  * `.summary` verbatim (sherlo-tester e2e/helpers/branching/check-copy.ts, pinned
- * to the engine's `describeCheckState` by branching-check-copy.test.ts). Reusing
- * the existing state's existing copy is the operator's ruling: the two surfaces
+ * to the engine's `describeCheckState` by branching-check-copy.test.ts). The
+ * existing state's existing copy is reused on purpose: the two surfaces
  * are answering the same question about the same build, so they say the same
  * words rather than two phrasings of one verdict.
  */
-export function renderVerdictNoChanges(): string {
-  return chalk.green('✅ No visual changes - all snapshots match their baselines.');
+export function renderVerdictNoChanges(): string[] {
+  // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
+  return renderVerdictSection('✅ No visual changes', ['All snapshots match their baselines.'], 20);
 }
 
 /**
@@ -258,7 +307,7 @@ export function renderVerdictNoChanges(): string {
  * wire (`diffScopeInfo.capturedSnapshotCount` / `inheritedSnapshotCount`).
  */
 export function renderVerdictCaptureAccounting(captured: number, inherited: number): string {
-  return chalk.dim(`   ${captured} captured on this branch, ${inherited} inherited unchanged`);
+  return chalk.dim(`${captured} captured on this branch, ${inherited} carried over unchanged.`);
 }
 
 /**
@@ -271,10 +320,10 @@ export function renderVerdictCaptureAccounting(captured: number, inherited: numb
  * story/stories unreviewed", which would be accurate and tell the reader
  * nothing. The verdict is not green either way.
  */
-export function renderVerdictNothingRecorded(): string[] {
-  return [
-    chalk.yellow('⚠️  Build finished without recording any snapshots.'),
-    chalk.yellow('   Nothing was captured and nothing was inherited, so this build is not'),
-    chalk.yellow('   evidence that nothing changed. Check the run in Sherlo.'),
-  ];
+export function renderVerdictNothingRecorded(testIndex?: number): string[] {
+  const openIt = testIndex !== undefined ? `Open Test ${testIndex}` : 'Open the test';
+  return renderVerdictSection('⚠️ Nothing was recorded', [
+    'The test captured no stories and carried none over, so it does not show that nothing',
+    `changed. ${openIt} in Sherlo to check.`,
+  ]);
 }

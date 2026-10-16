@@ -2,7 +2,12 @@
  * THE GITHUB WORKFLOW `sherlo init` WRITES, as the file's text.
  *
  * Pure, like everything under ./: state in, the file out. Its comments are words a person - or their
- * agent - reads in their own repository, so they are drafts for the content department.
+ * agent - reads in their own repository.
+ *
+ * THE SHAPE IS THE ONE THE DOCS GIVE AND THE ACTION TAKES: a matrix job, Android on `ubuntu-latest`
+ * and iOS on `macos-latest`, `SHERLO_TOKEN` in the job's env, and the action told only its
+ * `platform` - the token is not one of the action's inputs (see `action.yml`). Fail-fast is off
+ * because a cancelled job never joins its test.
  *
  * THE PUSH RUN FOLLOWS THE REPOSITORY'S DEFAULT BRANCH, read by GitHub when the workflow runs
  * (`github.event.repository.default_branch`), so setup never guesses a branch name. A push trigger
@@ -14,13 +19,9 @@
  * (Diff Scope's first rung), and infers that line from the repository's default branch - the same
  * branch this file runs on. So both runs are a plain `sherlo test`.
  *
- * ONE JOB PER PLATFORM, the shape of epic sherlo-test-builds-apps (operator, 2026-10-11): Android on
- * Linux, iOS on macOS, through the Sherlo Action; a platform the config names no device of ends
- * green at once, and fail-fast is off because a cancelled job never joins its test.
- *
- * NO TOKEN YET IS NOT A FAILURE (operator, 2026-10-12): setup no longer pitches CI up front, so the
- * file can sit in a repository for days before anyone saves SHERLO_TOKEN. Until then every job ends
- * green with one notice saying where the token is made, instead of failing every pull request.
+ * NO TOKEN YET IS NOT A FAILURE: setup does not ask for CI up front, so the file can sit in a
+ * repository for days before anyone saves SHERLO_TOKEN. Until then every job ends green with one
+ * notice saying where the token is made, instead of failing every pull request.
  */
 
 /** Where the workflow goes in the repository - one name for the step that writes it and the lines that name it. */
@@ -66,8 +67,8 @@ jobs:
     # and set it as the main branch in your Sherlo project's settings too.
     if: github.event_name == 'pull_request' || github.ref_name == github.event.repository.default_branch
     name: Sherlo (\${{ matrix.platform }})
+    # One job per platform: iOS builds only on macOS. The two jobs join into one test.
     strategy:
-      # A cancelled job never joins its test, which would then wait for it.
       fail-fast: false
       matrix:
         include:

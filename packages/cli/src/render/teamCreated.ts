@@ -7,11 +7,6 @@
  * CI log could leak. Two facts are printed as `key=value` (../render/pushSpine's
  * renderOutputKeys) so a script that just created a team can pick its id up and
  * hand it to `sherlo project create --team`.
- *
- * PLAN-LAYER PRESENTATION (2026-09-07). This renderer is the page the operator
- * signs; the command that produces the state it prints - the API mutation, the
- * `team create` verb itself - is build work and does not exist yet. A transcript
- * rendered from here is a designed pose, not a captured run.
  */
 import chalk from 'chalk';
 import { renderOutputKeys } from './pushSpine';

@@ -64,12 +64,13 @@ function yarnLock(packages: Record<string, string>): string {
   return `# yarn lockfile v1\n\n\n${blocks.join('\n')}`;
 }
 
-/** A bare project with a lockfile and one app source file. */
+/** A bare project with a lockfile, an iOS native lockfile and one app source file. */
 function makeProject(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-fp-cmd-'));
   writeJson(dir, 'package.json', { name: 'app', version: '1.0.0' });
   writeText(dir, 'yarn.lock', yarnLock({ react: '18.2.0', 'left-pad': '1.3.0' }));
   writeText(dir, 'ios/Podfile', 'platform :ios');
+  writeText(dir, 'ios/Podfile.lock', 'PODS:\n  - React (0.80.0)\n');
   writeText(dir, 'src/App.tsx', 'export const App = 1;');
   return dir;
 }
@@ -122,11 +123,36 @@ describe('sherlo fingerprint', () => {
     await fingerprint({ projectRoot: dir });
 
     const lines = output().split('\n');
-    expect(lines[0]).toBe('native        layer1-hash');
+    expect(lines[0]).toMatch(/^native {8}[0-9a-f]{64}$/);
     expect(lines[1]).toMatch(/^dependencies {2}[0-9a-f]{64}$/);
     expect(lines[2]).toMatch(/^js {12}not computed \(needs a module manifest; pass --bundle-dir/);
-    expect(lines[3]).toMatch(/^base {10}[0-9a-f]{64}$/);
+    expect(lines[3]).toMatch(/^base android {2}[0-9a-f]{64}$/);
+    expect(lines[4]).toMatch(/^base ios {6}[0-9a-f]{64}$/);
+    expect(lines).toHaveLength(5);
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it('prints a base line for each platform', async () => {
+    // Each platform's Layer 1 reads its own native files, so the two bases differ.
+    mockCreateFingerprintAsync.mockImplementation(async (_root: string, options: any) => ({
+      ...EXPO_FINGERPRINT,
+      hash: `layer1-${options.platforms.join('+')}`,
+    }));
+    const dir = project();
+
+    await fingerprint({ projectRoot: dir, verbose: true });
+
+    const lines = output().split('\n');
+    const android = lines.find((line) => line.startsWith('base android  '));
+    const ios = lines.find((line) => line.startsWith('base ios      '));
+    expect(android).toMatch(/^base android {2}[0-9a-f]{64}$/);
+    expect(ios).toMatch(/^base ios {6}[0-9a-f]{64}$/);
+    expect(android?.slice(14)).not.toBe(ios?.slice(14));
+    // Each line lists what its own platform's base covers: the iOS lockfile under iOS only.
+    const iosDetails = lines.slice(lines.indexOf(ios!) + 1);
+    const androidDetails = lines.slice(lines.indexOf(android!) + 1, lines.indexOf(ios!));
+    expect(iosDetails).toContainEqual(expect.stringMatching(/^ {2}lockfile ios\/Podfile\.lock /));
+    expect(androidDetails.join('\n')).not.toContain('lockfile');
   });
 
   it('prints not computed with the reason when the base fingerprint is unavailable', async () => {
@@ -136,7 +162,8 @@ describe('sherlo fingerprint', () => {
     await fingerprint({ projectRoot: dir });
 
     expect(output()).toContain('native        not computed (');
-    expect(output()).toContain('base          not computed (');
+    expect(output()).toContain('base android  not computed (');
+    expect(output()).toContain('base ios      not computed (');
   });
 
   it('lists every source, package, lockfile and file with --verbose', async () => {
@@ -153,7 +180,7 @@ describe('sherlo fingerprint', () => {
     expect(out).toContain('  package  react@18.2.0');
     expect(out).toContain('  file     src/App.tsx  ');
     expect(out).toContain('  workflow bare');
-    expect(out).toContain('  lockfile yarn.lock  ');
+    expect(out).toContain('  lockfile ios/Podfile.lock  ');
     expect(out).not.toContain(SECRET);
   });
 
@@ -191,10 +218,10 @@ describe('sherlo fingerprint', () => {
       await fingerprint({ projectRoot: dir, write: documentPath });
 
       const document = JSON.parse(fs.readFileSync(documentPath, 'utf8'));
-      expect(document.formatVersion).toBe(2);
+      expect(document.formatVersion).toBe(3);
       expect(typeof document.cliVersion).toBe('string');
       expect(document.native).toEqual({
-        hash: 'layer1-hash',
+        hash: expect.stringMatching(/^[0-9a-f]{64}$/),
         sources: [
           { type: 'file', id: 'ios/Podfile', hash: 'f'.repeat(64) },
           { type: 'dir', id: 'android', hash: 'd'.repeat(64) },
@@ -211,10 +238,20 @@ describe('sherlo fingerprint', () => {
       });
       expect(document.js).toEqual({});
       expect(document.base).toEqual({
-        hash: expect.stringMatching(/^[0-9a-f]{64}$/),
-        workflow: 'bare',
-        lockfiles: [{ file: 'yarn.lock', digest: expect.stringMatching(/^[0-9a-f]{64}$/) }],
-        autolinkedModules: [],
+        android: {
+          hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          workflow: 'bare',
+          lockfiles: [],
+          autolinkedModules: [],
+        },
+        ios: {
+          hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+          workflow: 'bare',
+          lockfiles: [
+            { file: 'ios/Podfile.lock', digest: expect.stringMatching(/^[0-9a-f]{64}$/) },
+          ],
+          autolinkedModules: [],
+        },
       });
       expect(output()).toContain(`Written to ${documentPath}`);
     });
@@ -255,7 +292,8 @@ describe('sherlo fingerprint', () => {
       expect(output()).toContain(`Against ${baseline}:`);
       expect(output()).toContain('native        unchanged');
       expect(output()).toContain('dependencies  unchanged');
-      expect(output()).toContain('base          unchanged');
+      expect(output()).toContain('base android  unchanged');
+      expect(output()).toContain('base ios      unchanged');
       expect(output()).toContain('0 layer(s) changed');
       expect(process.exitCode).toBeUndefined();
     });
@@ -276,10 +314,10 @@ describe('sherlo fingerprint', () => {
       expect(out).toContain('  + dayjs 1.11.0');
       expect(out).toContain('  - left-pad 1.3.0');
       expect(out).toContain('  ~ react 18.2.0 -> 18.3.1');
-      // The lockfile's bytes are a base input too, so the base layer moves with it.
-      expect(out).toContain('base          changed');
-      expect(out).toMatch(/ {2}~ yarn\.lock [0-9a-f]{12} -> [0-9a-f]{12}/);
-      expect(out).toContain('2 layer(s) changed');
+      // The JavaScript lockfile is no native input, so no base moves with it.
+      expect(out).toContain('base android  unchanged');
+      expect(out).toContain('base ios      unchanged');
+      expect(out).toContain('1 layer(s) changed');
       expect(process.exitCode).toBe(1);
     });
 
@@ -289,12 +327,8 @@ describe('sherlo fingerprint', () => {
       await fingerprint({ projectRoot: dir, write: baseline });
       logSpy.mockClear();
 
-      // A lockfile edit that resolves nothing new moves only the base layer.
-      writeText(
-        dir,
-        'yarn.lock',
-        `${yarnLock({ react: '18.2.0', 'left-pad': '1.3.0' })}# edited\n`
-      );
+      // A native lockfile edit moves its own platform's base layer.
+      writeText(dir, 'ios/Podfile.lock', 'PODS:\n  - React (0.80.0)\n# edited\n');
       mockCreateFingerprintAsync.mockResolvedValue({
         ...EXPO_FINGERPRINT,
         hash: 'layer1-hash-2',
@@ -308,9 +342,11 @@ describe('sherlo fingerprint', () => {
       const out = output();
       expect(out).toContain('native        changed');
       expect(out).toContain('  ~ expoConfig');
-      expect(out).toContain('base          changed');
-      expect(out).toMatch(/ {2}~ yarn\.lock [0-9a-f]{12} -> [0-9a-f]{12}/);
-      expect(out).toContain('2 layer(s) changed');
+      // The mocked Layer 1 moved on both platforms, so both bases moved; only iOS names a lockfile.
+      expect(out).toContain('base android  changed');
+      expect(out).toContain('base ios      changed');
+      expect(out).toMatch(/ {2}~ ios\/Podfile\.lock [0-9a-f]{12} -> [0-9a-f]{12}/);
+      expect(out).toContain('3 layer(s) changed');
       expect(out).not.toContain(SECRET);
       expect(process.exitCode).toBe(1);
     });
@@ -373,14 +409,37 @@ describe('sherlo fingerprint', () => {
       writeJson(dir, 'baseline.json', { formatVersion: 1 });
 
       await expect(fingerprint({ projectRoot: dir, baseline })).rejects.toThrow(
-        'has format version 1, but this CLI reads format version 2'
+        'has format version 1, but this CLI reads format version 3'
       );
     });
   });
 
   // One layer, one digest: the shape a build cache reads - `FP=$(sherlo
-  // fingerprint --layer base)`, four lines of shell, no JSON parser.
+  // fingerprint --layer base:android)`, four lines of shell, no JSON parser.
   describe('--layer', () => {
+    it('--layer takes base:android and base:ios, one digest each', async () => {
+      // Each platform's Layer 1 reads its own native files, so the two digests differ.
+      mockCreateFingerprintAsync.mockImplementation(async (_root: string, options: any) => ({
+        ...EXPO_FINGERPRINT,
+        hash: `layer1-${options.platforms.join('+')}`,
+      }));
+      const dir = project();
+
+      await fingerprint({ projectRoot: dir, layer: 'base:android' });
+      await fingerprint({ projectRoot: dir, layer: 'base:ios' });
+
+      const [[android], [ios]] = logSpy.mock.calls as string[][];
+      expect(logSpy).toHaveBeenCalledTimes(2);
+      expect(android).toMatch(/^[0-9a-f]{64}$/);
+      expect(ios).toMatch(/^[0-9a-f]{64}$/);
+      expect(android).not.toBe(ios);
+
+      // A bare `base` names no platform, so it is refused, naming both.
+      await expect(fingerprint({ projectRoot: dir, layer: 'base' })).rejects.toThrow(
+        /Unknown layer "base".*base:android, base:ios/s
+      );
+    });
+
     it('asks for one layer and is given one digest', async () => {
       const dir = project();
       const bundleDir = makeBundleDir();
@@ -402,7 +461,8 @@ describe('sherlo fingerprint', () => {
       for (const [layer, reportedLayer] of [
         ['native', 'native'],
         ['dependencies', 'dependencies'],
-        ['base', 'base'],
+        ['base:android', 'base android'],
+        ['base:ios', 'base ios'],
         ['js:android', 'js android'],
       ]) {
         logSpy.mockClear();
@@ -443,8 +503,8 @@ describe('sherlo fingerprint', () => {
       // null into a refusal carrying the same reason.
       mockCreateFingerprintAsync.mockRejectedValue(new Error('no native project'));
 
-      await expect(fingerprint({ projectRoot: dir, layer: 'base' })).rejects.toThrow(
-        /base layer could not be computed: .+/
+      await expect(fingerprint({ projectRoot: dir, layer: 'base:android' })).rejects.toThrow(
+        /base android layer could not be computed: .+/
       );
       await expect(fingerprint({ projectRoot: dir, layer: 'native' })).rejects.toThrow(
         /native layer could not be computed: .+/
@@ -470,7 +530,7 @@ describe('sherlo fingerprint', () => {
       logSpy.mockClear();
 
       try {
-        await fingerprint({ projectRoot: dir, bundleDir, layer: 'base' });
+        await fingerprint({ projectRoot: dir, bundleDir, layer: 'base:ios' });
         await fingerprint({ projectRoot: dir, bundleDir, layer: 'js:android' });
         await fingerprint({ projectRoot: dir, bundleDir });
 
@@ -479,11 +539,12 @@ describe('sherlo fingerprint', () => {
         for (const spy of requestSpies) expect(spy).not.toHaveBeenCalled();
 
         // The only subprocesses are the read-only autolinking probes the base
-        // fingerprint resolves its module set with. Nothing bundles, nothing
+        // fingerprint resolves its module set with, and the read-only git question
+        // of which native folders the project commits. Nothing bundles, nothing
         // builds, nothing uploads.
         for (const [options] of vi.mocked(runShellCommand).mock.calls) {
           expect(options.command).toMatch(
-            /^npx (react-native config|expo-modules-autolinking resolve|expo config)/
+            /^(npx (react-native config|expo-modules-autolinking resolve|expo config)|git ls-tree )/
           );
         }
       } finally {
@@ -504,7 +565,7 @@ describe('sherlo fingerprint', () => {
         { verbose: true },
       ]) {
         await expect(
-          fingerprint({ projectRoot: dir, layer: 'base', ...conflicting })
+          fingerprint({ projectRoot: dir, layer: 'base:android', ...conflicting })
         ).rejects.toThrow(/`--layer` prints one digest and nothing else/);
       }
 

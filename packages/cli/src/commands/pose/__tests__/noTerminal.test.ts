@@ -1,5 +1,5 @@
 /**
- * `sherlo pose --no-terminal` (sherlo / Drawing for a plan): the screen an agent or a CI log
+ * `sherlo pose --no-terminal`: the screen an agent or a CI log
  * receives - the same run, with the streams answering as a pipe instead of a terminal.
  */
 import fs from 'fs';

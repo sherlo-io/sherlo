@@ -1,13 +1,12 @@
 /**
- * WHAT `sherlo init` PRINTS AS IT GOES (init-for-agents, layout A): one line per step, then the
+ * WHAT `sherlo init` PRINTS AS IT GOES: one line per step, then the
  * next steps in a section of their own, then the feedback line.
  *
  * Every step ends in one line, so the whole run fits on one screen, and a rerun reads as the same
  * list with each finished step marked as already done. The next steps keep a titled section,
  * because they are what the person, or their agent, does next.
  *
- * Pure, like everything under ./: state in, print-call arguments out. The words are drafts for the
- * content department.
+ * Pure, like everything under ./: state in, print-call arguments out.
  */
 import chalk from 'chalk';
 import { renderSectionTitle } from './initLines';
@@ -40,7 +39,9 @@ export function renderStepLine({
   /** The fact worth seeing, e.g. the version installed or the file written. */
   detail: string;
 }): string {
-  const shownDetail = outcome === 'already' ? `${detail} ${chalk.dim('(already done)')}` : detail;
+  // A step with nothing to add but that it was already done reads `(already done)` alone.
+  const alreadyDoneMark = outcome === 'already' ? chalk.dim('(already done)') : '';
+  const shownDetail = [detail, alreadyDoneMark].filter((part) => part !== '').join(' ');
 
   return `${chalk.green('✔')} ${name.padEnd(STEP_NAME_WIDTH)} ${shownDetail}`;
 }
@@ -52,7 +53,7 @@ export function renderFailedStepLine(name: string): string[] {
 
 /**
  * The next steps, in their own section, numbered in the order they are done. The first ones
- * depend on the Storybook the project had (epic storybook-both-setups settled the two setups):
+ * depend on the Storybook the project had:
  *
  *   - `installed`: setup installed Storybook just now, on its default setup, which needs nothing in
  *     the app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
@@ -62,17 +63,16 @@ export function renderFailedStepLine(name: string): string[] {
  *     first: move to the default setup (upgrading Storybook first when it predates it), or keep the
  *     old setup and follow Sherlo's guide for it.
  *
- * The person reads "the default setup" and "the old setup", the same names everywhere (operator,
- * 2026-10-08, through epic storybook-both-setups). The docs have no default-setup tab (that epic
- * changes no docs page, operator 2026-10-09), so the default setup links the Storybook access section
- * plainly; the old setup keeps its `?storybook=integrated` tab.
+ * The person reads "the default setup" and "the old setup", the same names everywhere. The docs have
+ * no default-setup tab, so the default setup links the Storybook access section plainly; the old
+ * setup keeps its `?storybook=integrated` tab.
  *
- * NO CI HERE (operator, 2026-10-12): setup has one goal, the first visual test. Pull request tests
- * are offered after that test succeeds - by `sherlo test`'s own output and the project page - and to
- * anyone whose machine cannot build, by `sherlo test`'s build-failure line.
+ * NO CI HERE: setup has one goal, the first visual test. Pull request tests are offered after that
+ * test succeeds - by `sherlo test`'s own output and the project page - and to anyone whose machine
+ * cannot build, by `sherlo test`'s build-failure line.
  */
 /**
- * ONE TEXT FOR A PERSON AND AN AGENT (operator, 2026-10-08): each step says what to do and the one
+ * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and the one
  * detail needed to do it, then links the docs. Most agents ask before opening a link, or run with no
  * network, and Vercel's evals found docs in front of an agent beat docs behind a link - so the
  * detail is in the output; the rest of the topic stays in the docs, where it is kept up to date.
@@ -95,14 +95,14 @@ export function renderNextSteps({
     installed: [
       {
         title: 'Replace the example stories',
-        // A FEW SIMPLE COMPONENTS FIRST, AND WHERE STORYBOOK LOOKS (operator, 2026-10-09): an agent
-        // told to write "your components' stories" writes them where Storybook never loads them. The
-        // how is Sherlo's own guide, shipped inside the SDK setup just installed, so any agent reads
-        // it with no network and no restart. BUILD DEBT (init-for-agents): the guide file itself.
+        // A FEW SIMPLE COMPONENTS FIRST, AND WHERE STORYBOOK LOOKS: an agent told to write "your
+        // components' stories" writes them where Storybook never loads them. The how is Sherlo's own
+        // guide, inside the SDK package setup installs, so any agent reads it with no network and no
+        // restart. The SDK package does not ship the guide yet.
         content: [
           // "A few to start", never "simple ones": a person must not read that Sherlo only copes
-          // with trivial components (operator, 2026-10-09). Which ones to begin with is the guide's.
-          // WHY FIRST, THEN WHAT, THEN WHERE THE REST IS (operator, 2026-10-09): a person reads why it
+          // with trivial components. Which ones to begin with is the guide's.
+          // WHY FIRST, THEN WHAT, THEN WHERE THE REST IS: a person reads why it
           // matters - their real UI gets tested - and an agent gets each action it must take. The
           // folder is named as Storybook's examples, so nobody takes it for where stories belong.
           "Sherlo tests what your stories show, so write them for your app's components",
@@ -132,7 +132,7 @@ export function renderNextSteps({
   ];
 
   // ONE STEP IS NOT A LIST: it gets a singular title and no number. Content lines start in one
-  // column everywhere in this section, the CI link's included.
+  // column everywhere in this section.
   const stepLines =
     steps.length === 1
       ? [chalk.bold(steps[0].title), ...steps[0].content.map((line) => `   ${line}`), '']
@@ -144,13 +144,15 @@ export function renderNextSteps({
 
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
-    ...(steps.length === 1 ? renderSectionTitle('👉 Next step', 12) : renderSectionTitle('👉 Next steps', 13)),
+    ...(steps.length === 1
+      ? renderSectionTitle('👉 Next step', 12)
+      : renderSectionTitle('👉 Next steps', 13)),
     // The last step's blank line goes: nothing follows it in this section.
     ...stepLines.slice(0, -1),
   ];
 }
 
-/** Sherlo's guide to writing stories, inside the SDK package setup installs (operator, 2026-10-09). */
+/** Sherlo's guide to writing stories, inside the SDK package setup installs. */
 const STORIES_GUIDE_PATH = 'node_modules/@sherlo/react-native-storybook/guides/writing-stories.md';
 
 /** The first `@storybook/react-native` with the default setup, whose own entry starts the app. */
@@ -162,24 +164,24 @@ function hasDefaultSetup(storybookVersion: string | undefined): boolean {
 }
 
 /**
- * WHO READS THE FEEDBACK LINE (operator, 2026-10-07): a person's terminal gets the line for a
+ * WHO READS THE FEEDBACK LINE: a person's terminal gets the line for a
  * person; anything else - an agent's shell, a CI log - gets one addressed to agents, after a
  * finished run as much as after a failed one.
  *
- * THE LINES INFORM, NEVER ORDER (epic sherlo-feedback, operator 2026-10-08): an agent may ignore or
+ * THE LINES INFORM, NEVER ORDER: an agent may ignore or
  * flag an instruction inside a command's output as prompt injection, so they say what is possible.
  * They point at `npx sherlo feedback --help`, which explains how a report is written. They are
- * init's own: the feedback command invites from no other command (operator, 2026-10-09).
+ * init's own: the feedback command invites from no other command.
  */
 export type FeedbackReader = 'person' | 'agent';
 
 const FEEDBACK_HELP = 'npx sherlo feedback --help';
 
 /**
- * One separator for every side note at the end of a run, finished or failed (operator, 2026-10-08).
+ * One separator for every side note at the end of a run, finished or failed.
  * Functions, not constants: colour is decided per run, after this module loads.
  */
-// A THIN LINE, NOT THE SECTION TITLES' DOUBLE ONE (operator, 2026-10-10), so a side note never
+// A THIN LINE, NOT THE SECTION TITLES' DOUBLE ONE, so a side note never
 // reads as a section of its own.
 const sideNoteSeparator = (): string[] => [chalk.dim('─'.repeat(10)), ''];
 
@@ -187,7 +189,7 @@ const agentFeedbackLine = (): string =>
   `AI agents: report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
 
 /**
- * What a finished run ends with, for an agent only (operator, 2026-10-08): a person who just
+ * What a finished run ends with, for an agent only: a person who just
  * finished setting up has nothing to report, and the last line they read should be the next step.
  */
 export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): string[] {
@@ -198,7 +200,7 @@ export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): stri
 
 /**
  * What a failed run ends with, in place of the tool's usual help footer: one block, so feedback
- * and help read as one place to turn (operator, 2026-10-07).
+ * and help read as one place to turn.
  */
 export function renderStuckBlock({
   reader,
@@ -212,17 +214,19 @@ export function renderStuckBlock({
   discordUrl: string;
   contactEmail: string;
 }): string[] {
-  // AN AGENT CAN FIX IT ITSELF (operator, 2026-10-08): the person should only have to ask for
+  // AN AGENT CAN FIX IT ITSELF: the person should only have to ask for
   // setup. Said as what is possible, not as an order, for the reason above.
   const agentLines =
     reader === 'agent'
       ? [
-          `AI agents: this error can usually be fixed without the person, and ${chalk.cyan('npx sherlo init')} run again picks up where it stopped.`,
+          `AI agents: this error can usually be fixed without the person, and ${chalk.cyan(
+            'npx sherlo init'
+          )} run again picks up where it stopped.`,
           'Only a fix that is a real choice between options needs the person.',
           '',
         ]
       : [];
-  // THE FEEDBACK COMMAND IS FOR AGENTS ONLY (operator, 2026-10-09): a person is offered Discord and
+  // THE FEEDBACK COMMAND IS FOR AGENTS ONLY: a person is offered Discord and
   // email, under the help block's usual "Need help?".
   const showsFeedbackLine = reader === 'agent' && isLoggedIn;
 

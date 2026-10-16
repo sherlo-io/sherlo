@@ -1,20 +1,12 @@
 name: 'test'
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ONE REUSABLE WORKFLOW FOR ONE TESTING COMMAND.
+# ONE REUSABLE WORKFLOW FOR ONE TESTING COMMAND, RUN THE WAY A CUSTOMER RUNS IT.
 #
-# `sherlo test` is the single testing command, and the flags decide the road:
-#
-#   with_builds: true   THE FULL RUN. Downloads the app binaries built by
-#                       `build:android` / `build:ios`, tests them with
-#                       `--android`/`--ios`, and registers them as the new
-#                       native base.
-#   with_builds: false  THE STAGED RUN. No binaries, no bundler input beyond
-#                       this checkout: tests the JS against the base a previous
-#                       full run registered for the same Sherlo project.
-#
-# This replaced the `test:standard` and `test:eas-update` reusable workflows,
-# whose commands no longer exist.
+# `sherlo test` builds the app itself, so this workflow passes no app paths. It
+# is the canonical preset: one job per platform (Android on Linux, iOS on a Mac)
+# through the Sherlo GitHub Action, with the project token in SHERLO_TOKEN. The
+# two jobs join into one test, which starts when both app builds are in.
 # ══════════════════════════════════════════════════════════════════════════════
 
 on:
@@ -37,29 +29,27 @@ on:
         required: false
         default: 'default-devices-without-expo-info'
         type: string
-      profile:
-        description: 'Build profile of the binaries to download (development, preview)'
-        required: false
-        default: 'preview'
-        type: string
-      with_builds:
-        description: 'Test downloaded binaries and register them as the new base; false runs the staged road instead'
-        required: false
-        default: true
-        type: boolean
 
 jobs:
   test:
-    name: Run sherlo test
+    name: Sherlo test (${{ matrix.platform }})
     environment: ${{ inputs.env }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-latest
     env:
       # Every install reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
       SHERLO_TOKEN: ${{ (inputs.sherlo_project == 'expo' && secrets.SHERLO_STANDARD_EXPO_TOKEN) ||
-                        (inputs.sherlo_project == 'react-native' && secrets.SHERLO_STANDARD_RN_TOKEN) ||
-                        (inputs.sherlo_project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) ||
-                        (inputs.sherlo_project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
+        (inputs.sherlo_project == 'react-native' && secrets.SHERLO_STANDARD_RN_TOKEN) ||
+        (inputs.sherlo_project == 'many-stories' && secrets.SHERLO_MANY_STORIES_TOKEN) ||
+        (inputs.sherlo_project == 'device-testing' && secrets.SHERLO_ALL_DEVICES_TOKEN) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -83,38 +73,9 @@ jobs:
         working-directory: testing/${{ inputs.app }}
         run: yarn install --immutable
 
-      - name: Download builds
-        if: inputs.with_builds
-        run: ./scripts/download-testing-builds.sh --project ${{ inputs.app }} --profile ${{ inputs.profile }} --branch ${{ github.head_ref || github.ref_name }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Run sherlo test on the downloaded builds
-        if: inputs.with_builds
-        working-directory: testing/${{ inputs.app }}
-        run: |
-          yarn sherlo test \
-            --config ../../testing/sherlo-configs/${{ inputs.config }}.json \
-            --android builds/${{ inputs.profile }}/android.apk \
-            --ios builds/${{ inputs.profile }}/ios.tar.gz \
-            --token "$SHERLO_TOKEN"
-
-      # The staged road answers a routing question before it tests anything, and
-      # publishes the answer as `native-needed`. Exit code 4 carries
-      # `native-needed=true`: native inputs moved, so nothing was built and no
-      # test ran. That is an expected answer, not a failure, and this job routes
-      # on it the way the `sherlo-io/sherlo` action does.
-      - name: Run sherlo test against the registered base
-        if: ${{ !inputs.with_builds }}
-        working-directory: testing/${{ inputs.app }}
-        run: |
-          set +e
-          yarn sherlo test \
-            --config ../../testing/sherlo-configs/${{ inputs.config }}.json \
-            --token "$SHERLO_TOKEN"
-          exit_code=$?
-          set -e
-
-          if [ "$exit_code" -ne 0 ] && [ "$exit_code" -ne 4 ]; then
-            exit "$exit_code"
-          fi
+      - name: Run Sherlo
+        uses: ./
+        with:
+          platform: ${{ matrix.platform }}
+          working-directory: testing/${{ inputs.app }}
+          config: ../sherlo-configs/${{ inputs.config }}.json

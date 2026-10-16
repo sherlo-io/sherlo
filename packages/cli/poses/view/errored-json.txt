@@ -1,0 +1,49 @@
+{
+  "runStatus": "error",
+  "buildIndex": 7,
+  "commit": {
+    "sha": "<SHA>",
+    "branch": "main",
+    "dirty": false
+  },
+  "showsOnlyBranchChanges": false,
+  "mainBranch": "main",
+  "ciRun": null,
+  "runError": {
+    "code": "user_easCloudBuild",
+    "platform": "ios"
+  },
+  "devices": [
+    {
+      "id": "iphone.15",
+      "osVersion": "17",
+      "platform": "ios"
+    },
+    {
+      "id": "pixel.7",
+      "osVersion": "13",
+      "platform": "android"
+    }
+  ],
+  "stories": null,
+  "platforms": {
+    "android": {
+      "arrived": true,
+      "capture": null,
+      "appBuild": {
+        "from": "uploaded",
+        "madeBy": "eas",
+        "why": "nothing-stored"
+      },
+      "storiesInBundle": 12
+    },
+    "ios": {
+      "arrived": false,
+      "capture": null,
+      "appBuild": null,
+      "storiesInBundle": 12
+    }
+  }
+}
+
+[exit 0]

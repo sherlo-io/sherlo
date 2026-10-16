@@ -1,0 +1,44 @@
+{
+  "pose": 1,
+  "argv": ["eas-build-on-complete"],
+  "files": {
+    ".sherlo/data.json": {
+      "buildIndex": 1,
+      "ticket": "sbt_posedticketoftest1",
+      "teamId": "tm000001",
+      "projectIndex": 7,
+      "profile": "sherlo"
+    },
+    "eas.json": {
+      "build": {
+        "sherlo": {
+          "android": {
+            "buildType": "apk"
+          },
+          "ios": {
+            "simulator": true
+          }
+        }
+      }
+    }
+  },
+  "env": {
+    "EAS_BUILD_RUNNER": "eas-build",
+    "EAS_BUILD_PROFILE": "sherlo",
+    "EAS_BUILD_PLATFORM": "android",
+    "npm_lifecycle_event": "eas-build-on-cancel"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [
+    {
+      "call": "closeBuild",
+      "with": {
+        "buildIndex": 1,
+        "runError": "user_easCloudBuild"
+      },
+      "answer": {}
+    }
+  ],
+  "masks": {}
+}

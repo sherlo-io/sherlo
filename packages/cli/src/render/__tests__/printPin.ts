@@ -15,7 +15,7 @@
 import chalk from 'chalk';
 
 // Colour is pinned BEFORE any render module loads: several bake chalk strings at import
-// time (see ../dryRunPlan's header), so the import has to be dynamic and come second.
+// time, so the import has to be dynamic and come second.
 chalk.level = 1;
 
 const source = process.argv[2];

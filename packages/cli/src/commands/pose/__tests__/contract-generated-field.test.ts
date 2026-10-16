@@ -1,5 +1,5 @@
 /**
- * THE POSE CONTRACT IS GENERATED FROM THE SEAMS (sherlo / Drawing for a plan).
+ * THE POSE CONTRACT IS GENERATED FROM THE SEAMS.
  *
  * One case of the generated-contract check, kept in a file of its own: it builds a TypeScript
  * program of its own, so beside the others it took the whole file past its time limit. See

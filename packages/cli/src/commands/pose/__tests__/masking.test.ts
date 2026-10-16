@@ -1,11 +1,10 @@
 /**
- * ONE MASKER, THE TOOL'S OWN (sherlo / Drawing for a plan, "What the tool folds on its own").
+ * ONE MASKER, THE TOOL'S OWN.
  *
  * A screen carries values no plan can state and no fixture should pin. The tool folds each of
  * them to a placeholder by CLASS, on every screen `sherlo pose` prints, and the same folding is
  * reachable from outside through a hidden devtool verb so the test repository applies it to a real
- * run's screen. Written as a skeleton in plan (epic pose-road-hardening, task pose-road-masker);
- * the worker fills the bodies and never renames a case.
+ * run's screen.
  */
 import fs from 'fs';
 import path from 'path';
@@ -38,7 +37,7 @@ const POSED_SCREEN = [
   '✔  reusing unchanged build (Test 1, 7 minutes ago)',
   `base-fingerprint=${'a0'.repeat(32)}`,
   '🔗 https://app.sherlo.io/build?t=tm000001&p=7&b=4',
-  '⏳ Waiting for build results (timeout: 45min)...',
+  'Waiting for the test to finish (up to 45 min)...',
   '   🟢 Finished',
   '',
   '✅ All stories passed - no visual changes require review.',
@@ -50,7 +49,7 @@ const LIVE_SCREEN = [
   '✔  reusing unchanged build (Test 1, 3 hours ago)',
   `base-fingerprint=${'b3'.repeat(32)}`,
   '🔗 https://app.test.sherlo.io/build?t=tm913377&p=2&b=91',
-  '⏳ Waiting for build results (timeout: 45min)...',
+  'Waiting for the test to finish (up to 45 min)...',
   '   🟡 Queued',
   '   🔵 Running',
   '   still running... (5m elapsed)',
@@ -151,7 +150,7 @@ describe('the masker folds every volatile class the tool prints', () => {
   it('folds the progress lines a wait prints to one placeholder, however many a run printed', () => {
     const waited = (progress: string[]): string =>
       [
-        '⏳ Waiting for build results (timeout: 45min)...',
+        'Waiting for the test to finish (up to 45 min)...',
         ...progress,
         '',
         '✅ All stories passed - no visual changes require review.',
@@ -173,11 +172,31 @@ describe('the masker folds every volatile class the tool prints', () => {
     expect(onePoll.split('\n')).toEqual([
       // THE DEADLINE IN THE HEADER IS THE SCENARIO'S OWN and survives untouched; so does the
       // closer under the region, because the region ends at the blank line that frames it.
-      '⏳ Waiting for build results (timeout: 45min)...',
+      'Waiting for the test to finish (up to 45 min)...',
       '   <build progress masked>',
       '',
       '✅ All stories passed - no visual changes require review.',
     ]);
+  });
+
+  it('a wait that printed no progress line folds to the same placeholder as one that printed several', () => {
+    const waited = (progress: string[]): string =>
+      [
+        'Waiting for Test 1 to finish (up to 45 min)...',
+        ...progress,
+        '            ✔ Finished in 1m 34s',
+      ].join('\n');
+
+    const printedNone = maskScreen(waited([]), {});
+    const printedSeveral = maskScreen(waited(['   Queued', '   Running']), {});
+
+    expect(printedNone).toBe(printedSeveral);
+    expect(printedNone.split('\n')).toEqual([
+      'Waiting for Test 1 to finish (up to 45 min)...',
+      '   <build progress masked>',
+      '            ✔ Finished in <DURATION>',
+    ]);
+    expect(maskScreen(printedNone, {})).toBe(printedNone);
   });
 
   it('folds a commit id, a run namespace in a branch name, a team id and a project index', () => {
@@ -315,13 +334,13 @@ describe('the masker folds every volatile class the tool prints', () => {
 
   it('never folds a value the pose declares - a story count, a wait deadline, a branch name', () => {
     const declared = [
-      'Test 4 will run on 1 device (1 Android)',
-      '⏳ Waiting for build results (timeout: 45min)...',
-      '   🟢 Finished',
+      'Test 4      ✔ Started: all 5 stories on 1 device (Pixel 7)',
+      'Waiting for the test to finish (up to 45 min)...',
+      '   Finished',
       '',
-      '⚠️  Build finished with changes requiring review.',
-      '   unreviewed: Storefront/ProductCard - Default',
-      '   3 more settled - approved, unchanged or inherited.',
+      '⚠️ 1 story needs review',
+      'Storefront/ProductCard - Default   changed',
+      '3 more stories need no review.',
       '    "branch": "feature/checkout",',
       '[exit 1]',
     ].join('\n');
@@ -330,10 +349,10 @@ describe('the masker folds every volatile class the tool prints', () => {
 
     // A story count, a deadline, a screen's name, a branch outside a run namespace, an exit code:
     // every one of them is something the scenario SAID, and the reason its screen exists.
-    expect(folded).toContain('Test 4 will run on 1 device (1 Android)');
-    expect(folded).toContain('(timeout: 45min)');
-    expect(folded).toContain('unreviewed: Storefront/ProductCard - Default');
-    expect(folded).toContain('3 more settled - approved, unchanged or inherited.');
+    expect(folded).toContain('Test 4      ✔ Started: all 5 stories on 1 device (Pixel 7)');
+    expect(folded).toContain('(up to 45 min)');
+    expect(folded).toContain('Storefront/ProductCard - Default   changed');
+    expect(folded).toContain('3 more stories need no review.');
     expect(folded).toContain('"branch": "feature/checkout",');
     expect(folded).toContain('[exit 1]');
   });

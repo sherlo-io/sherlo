@@ -1,9 +1,9 @@
 {
   "name": "sherlo-example-eas-cloud-build",
   "scripts": {
-    "eas-build-on-complete": "npx sherlo eas-build-on-complete --profile preview-simulator",
-    "eas-cloud-build": "npx eas-cli build --profile preview-simulator --platform all",
-    "sherlo": "npx sherlo test:eas-cloud-build --easBuildScriptName eas-cloud-build"
+    "eas-build-on-complete": "npx sherlo eas-build-on-complete",
+    "eas-build-on-cancel": "npx sherlo eas-build-on-complete",
+    "sherlo": "npx sherlo test"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",

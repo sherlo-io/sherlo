@@ -1,5 +1,5 @@
 /**
- * THE SAVED-LOGIN SEAM'S KEYCHAIN (sherlo / Where the login is kept).
+ * THE SAVED-LOGIN SEAM'S KEYCHAIN.
  *
  * No case here touches this machine's keychain: the store is handed a fake keychain, and the macOS
  * keychain is handed a fake `security`. The file side points XDG_CONFIG_HOME at a fresh temporary

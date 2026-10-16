@@ -8,7 +8,7 @@
  * ------------------------------------------------------------------------
  * WHERE THE CREDENTIAL COMES FROM, AND WHY IT IS NOT `--token`.
  *
- * The saved login, and nothing else (sherlo / Teams, projects and the personal token). Not the
+ * The saved login, and nothing else. Not the
  * config file, and NOT `--token` or `SHERLO_TOKEN`: those mean the project token, in every
  * customer's CI, and this command runs where no project exists yet. A personal token given to
  * `--token` is refused locally, by name, before any request (helpers/refuseIfPersonalToken).

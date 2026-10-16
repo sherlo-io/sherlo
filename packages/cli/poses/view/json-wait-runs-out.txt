@@ -1,0 +1,21 @@
+{
+  "runStatus": "inProgress",
+  "buildIndex": 7,
+  "commit": {
+    "sha": "<SHA>",
+    "branch": "feature/checkout",
+    "dirty": false
+  },
+  "showsOnlyBranchChanges": false,
+  "mainBranch": "main",
+  "ciRun": null,
+  "devices": [
+    {
+      "id": "iphone.15",
+      "osVersion": "17",
+      "platform": "ios"
+    }
+  ]
+}
+
+[exit 3]

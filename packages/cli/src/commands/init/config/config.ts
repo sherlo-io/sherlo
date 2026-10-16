@@ -5,7 +5,7 @@
  * One Android phone, so the first test needs one build, on any machine: an iPhone needs a Mac.
  * A file that already names this project and has devices is left as it is.
  *
- * BUILD DEBT (init-for-agents): the field becomes `projectId`, in every reader of the config.
+ * Still to do: the field becomes `projectId`, in every reader of the config.
  */
 import { DEVICES } from '@sherlo/shared';
 import { DEFAULT_CONFIG_FILENAME } from '../../../constants';
@@ -30,7 +30,7 @@ async function config({
     const hasDevices = Array.isArray(existingConfig?.devices) && existingConfig!.devices.length > 0;
 
     if (existingConfig && existingConfig.project === project && hasDevices) {
-      // No project id (operator, 2026-10-09): the team and project lines above already name them.
+      // No project id: the team and project lines above already name them.
       printLines([
         renderStepLine({
           outcome: 'already',
@@ -61,7 +61,8 @@ async function config({
       }),
     ]);
 
-    const configWithoutToken = { ...newConfig };
+    // A `token` an older setup wrote stays in the file (writeConfig) but is never reported.
+    const configWithoutToken: Record<string, unknown> = { ...newConfig };
     delete configWithoutToken.token;
     await trackProgress({
       event: EVENT,

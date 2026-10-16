@@ -1,5 +1,5 @@
 /**
- * SETUP'S PROJECT STEP AND WHAT THE CONFIG STEP WRITES (sherlo / How setup names the project).
+ * SETUP'S PROJECT STEP AND WHAT THE CONFIG STEP WRITES.
  *
  * The project step runs on posed seams installed by hand - the service, the saved logins, the
  * browser, the clock and the settings - and on a workstation of this file's own, which answers

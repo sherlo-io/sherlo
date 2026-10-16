@@ -187,8 +187,6 @@
         "packages/cli/src/seams/**",
         "packages/cli/src/**/__tests__/**",
         "packages/cli/src/commands/easBuildOnComplete/**",
-        "packages/cli/src/commands/testEasCloudBuild/**",
-        "packages/cli/src/commands/showError/**",
         "packages/cli/src/commands/pose/**"
       ],
       "rules": {

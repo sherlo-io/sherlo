@@ -7,23 +7,25 @@ import validateCommandParams from './validateCommandParams';
 import resolvePushCredential from './validateCommandParams/resolvePushCredential';
 import validateRequiredOptions from './validateRequiredOptions';
 
-function getValidatedCommandParams<C extends Command>(
-  { command, passedOptions }: { command: C; passedOptions: Options<C> },
-  { requirePlatformPaths }: { requirePlatformPaths: boolean }
-): CommandParams<C> {
+function getValidatedCommandParams<C extends Command>({
+  command,
+  passedOptions,
+}: {
+  command: C;
+  passedOptions: Options<C>;
+}): CommandParams<C> {
   validateRequiredOptions({ command, passedOptions });
 
   const options = getNormalizedOptions(getOptionsWithDefaults(passedOptions));
 
   const config = getNormalizedConfig(options);
 
-  // Before the devices: the credential and the project it pushes into (sherlo / Before a push).
-  // It reads the flags and the config apart, because SHERLO_TOKEN sits between the two.
-  const credential = resolvePushCredential(command, options, config);
+  // Before the devices: the credential and the project it pushes into.
+  const credential = resolvePushCredential(command, config, options);
 
   const commandParams = { ...getCommandParams(options, config), credential };
 
-  validateCommandParams(command, commandParams, config, { requirePlatformPaths });
+  validateCommandParams(commandParams, config);
 
   return commandParams;
 }

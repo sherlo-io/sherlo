@@ -8,23 +8,17 @@ export const DISCORD_URL = 'https://discord.gg/G7eqTBkWZt';
 
 export const DOCS_LINK = {
   setupMetroConfig: `${DOCS_BASE_URL}/setup#metro-config`,
-  setupStorybookComponent: `${DOCS_BASE_URL}/setup#storybook-component`,
   setupStorybookAccess: `${DOCS_BASE_URL}/setup#storybook-access`,
 
   config: `${DOCS_BASE_URL}/config`,
   configProperties: `${DOCS_BASE_URL}/config#properties`,
   configToken: `${DOCS_BASE_URL}/config#token`,
-  configAndroid: `${DOCS_BASE_URL}/config#android`,
-  configIos: `${DOCS_BASE_URL}/config#ios`,
   configDevices: `${DOCS_BASE_URL}/config#devices`,
 
-  builds: `${DOCS_BASE_URL}/builds`,
   buildPreview: `${DOCS_BASE_URL}/builds?type=preview-simulator#build-types`,
-  buildDevelopment: `${DOCS_BASE_URL}/builds?type=development-simulator#build-types`,
   buildAndroidAbiRequirements: `${DOCS_BASE_URL}/builds#android-abi-requirements`,
 
   testing: `${DOCS_BASE_URL}/testing`,
-  testingMethods: `${DOCS_BASE_URL}/testing#testing-methods`,
   testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
 
   devices: `${DOCS_BASE_URL}/devices`,
@@ -37,7 +31,6 @@ export const PLATFORM_LABEL: { [platform in Platform]: string } = {
   ios: 'iOS',
 };
 
-export const ANDROID_FILE_TYPES = ['.apk'] as const;
 export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 
 // Mirrors sherlo-runner src/executor/android/constants.ts
@@ -52,7 +45,6 @@ export const SHERLO_TEMP_DATA_FILENAME = 'data.json';
 /* PACKAGES */
 
 export const EXPO_PACKAGE_NAME = 'expo';
-export const EXPO_DEV_CLIENT_PACKAGE_NAME = 'expo-dev-client';
 export const REACT_NATIVE_PACKAGE_NAME = 'react-native';
 export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';
@@ -88,7 +80,11 @@ export const INIT_COMMAND = 'init';
 export const TEST_COMMAND = 'test';
 export const TEST_EAS_CLOUD_BUILD_COMMAND = 'test:eas-cloud-build';
 export const EAS_BUILD_ON_COMPLETE_COMMAND = 'eas-build-on-complete';
-export const SHOW_ERROR_COMMAND = 'show-error';
+/**
+ * The package.json script Expo runs when an EAS build is cancelled. It runs
+ * `sherlo eas-build-on-complete` too, which tells the two apart by the script it was run as.
+ */
+export const EAS_BUILD_ON_CANCEL_SCRIPT = 'eas-build-on-cancel';
 export const FINGERPRINT_COMMAND = 'fingerprint';
 export const VIEW_COMMAND = 'view';
 /** The `project` resource group. It does nothing on its own - see the subcommands below. */
@@ -132,7 +128,6 @@ export const BASELINE_OPTION = 'baseline';
 export const BUNDLE_DIR_OPTION = 'bundleDir';
 /** Produce a bundle directory `--bundle-dir` will accept (see commands/test/emitBundleDir). */
 export const EMIT_BUNDLE_DIR_OPTION = 'emitBundleDir';
-export const DRY_RUN_OPTION = 'dryRun';
 export const GIT_BRANCH_OPTION = 'gitBranch';
 export const CONFIG_OPTION = 'config';
 export const DIAGNOSTICS_OPTION = 'diagnostics';
@@ -143,8 +138,6 @@ export const IOS_OPTION = 'ios';
  * a shell that captures a single value (see commands/fingerprint/fingerprint).
  */
 export const LAYER_OPTION = 'layer';
-/** `sherlo view` / `sherlo test --wait`: print the `-- details --` block. */
-export const METADATA_OPTION = 'metadata';
 export const MESSAGE_OPTION = 'message';
 export const PROFILE_OPTION = 'profile';
 export const PROJECT_ROOT_OPTION = 'projectRoot';
@@ -153,7 +146,7 @@ export const TOKEN_OPTION = 'token';
 export const TEAM_OPTION = 'team';
 /**
  * `sherlo init --project <teamId>/<projectIndex>`: the project the app belongs to, the same line
- * setup writes into the config's `project` (sherlo / How setup names the project).
+ * setup writes into the config's `project`.
  */
 export const PROJECT_OPTION = 'project';
 /**
@@ -180,7 +173,7 @@ export const PORT_OPTION = 'port';
  */
 export const TIMEOUT_OPTION = 'timeout';
 export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
-/** `sherlo capture --json` - print the whole record as JSON instead of a screen. */
+/** `sherlo capture --json`, `sherlo view --json` - print the whole record as JSON instead of a screen. */
 export const JSON_OPTION = 'json';
 /**
  * `sherlo capture --logs` - print the app's own log lines after the story. The record already
@@ -188,37 +181,15 @@ export const JSON_OPTION = 'json';
  */
 export const LOGS_OPTION = 'logs';
 
-/* TOKENS - there are two kinds and they must never be confusable */
+/* TOKENS */
 
 /**
- * THE PREFIX THAT TELLS THE TWO CREDENTIALS APART, and the reason the CLI can
- * refuse the wrong one BY NAME instead of sending it and letting the backend
- * say no.
- *
- *   A PROJECT TOKEN is a composite the CLI parses locally: 32 random chars,
- *   then an 8-char teamId, then the project index (helpers/getTokenParts). It
- *   carries NO prefix, it names one project, and it is what `--token` /
- *   `SHERLO_TOKEN` / `sherlo.config.json` mean everywhere in this CLI. It runs
- *   tests and reads builds.
- *
- *   A PERSONAL TOKEN is `sht_` + 32 opaque chars. It carries NO team and NO
- *   project - it is resolved server-side to the PERSON it belongs to, and what
- *   it may do is cut to that person's current role on the team the request
- *   names. The login `sherlo login` saves is one, and the tool takes no other:
- *   no flag and no variable carries a personal token (sherlo / Logging in from
- *   the terminal).
- *
- * SLICING A PERSONAL TOKEN THE WAY A PROJECT TOKEN IS SLICED WOULD PRODUCE A
- * PLAUSIBLE-LOOKING TEAM ID out of eight characters of random. That is the
- * failure this constant exists to make impossible: every place that takes a
- * project token checks the prefix first and refuses a personal one by name.
- *
- * Source of truth: sherlo-api `packages/types/src/model/personalToken.ts`
- * (PERSONAL_TOKEN_PREFIX). Copied rather than imported because the published
- * `@sherlo/api-types` this repo builds against does not carry it yet; drop the
- * copy once it does.
+ * How a BUILD TICKET starts: the credential `openBuild` answers when it opens a run that waits for
+ * EAS builds, good only for filling that one run's slots and closing it, for about a day.
+ * `sherlo test` writes it into `.sherlo/data.json` in place of any token, and the EAS hook spends
+ * it whole. Must match the prefix the service issues it with.
  */
-export const PERSONAL_TOKEN_PREFIX = 'sht_';
+export const BUILD_TICKET_PREFIX = 'sbt_';
 
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;

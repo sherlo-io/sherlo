@@ -1,12 +1,6 @@
-[32mBuild #13[39m · finished
-
-🔗 [4mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[24m
-
-[2m⏳ Waiting for build results (timeout: 45min)...[22m
-   <build progress masked>
-
-[32m✅ Nothing needed capturing - no change on this branch reaches any story[39m
-[2m   closed by the server - no device run was needed[22m
+[32mTest 13[39m · finished
+Test 13     [32m✔[39m Finished: nothing to test: no change on this branch reaches any story
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
 [exit 0]
