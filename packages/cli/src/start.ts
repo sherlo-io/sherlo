@@ -693,14 +693,34 @@ function addPoseCommand(program: Command) {
   if (process.env.SHERLO_DEVTOOLS !== '1') return;
 
   program
-    .command(`${POSE_COMMAND} <pose>`)
+    .command(`${POSE_COMMAND} <pose...>`)
     .description(COMMAND_DESCRIPTION[POSE_COMMAND])
     .option('--no-terminal', 'Print what an agent or a CI log receives, with no terminal attached')
-    .action(async (documentPath: string, actionOptions: { terminal: boolean }) => {
-      const { pose } = await import('./commands/pose/pose');
+    .option(
+      '--screens-to <dir>',
+      'Draw every pose in one run, writing each screen to <dir>/<pose file name>'
+    )
+    .action(
+      async (documentPaths: string[], actionOptions: { terminal: boolean; screensTo?: string }) => {
+        if (actionOptions.screensTo !== undefined) {
+          const { poseMany } = await import('./commands/pose/poseMany');
 
-      await pose(documentPath, { terminal: actionOptions.terminal });
-    });
+          await poseMany(documentPaths, {
+            screensTo: actionOptions.screensTo,
+            terminal: actionOptions.terminal,
+          });
+          return;
+        }
+
+        if (documentPaths.length !== 1) {
+          throw new Error('More than one pose is drawn with --screens-to <dir>.');
+        }
+
+        const { pose } = await import('./commands/pose/pose');
+
+        await pose(documentPaths[0], { terminal: actionOptions.terminal });
+      }
+    );
 }
 
 /**
