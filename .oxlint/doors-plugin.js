@@ -1,4 +1,4 @@
-// EVERY DOOR IS A SEAM (sherlo / The seams, "Every door is a seam"). oxlint has no rule that
+// EVERY DOOR IS A SEAM. oxlint has no rule that
 // refuses `require()` of a module, so this plugin carries the one door rule it lacks: outside
 // src/seams/, `require('child_process')`, `require('http')`, `require('https')` and
 // `require('net')` are refused, as the same four modules are refused by `import` in .oxlintrc.json.

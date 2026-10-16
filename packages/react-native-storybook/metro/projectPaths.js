@@ -23,7 +23,21 @@ function sherloCacheFolder(projectRoot) {
   return path.join(projectRoot, 'node_modules', '.cache', 'sherlo');
 }
 
+/**
+ * Sherlo's hand-over file: what `sherlo test` in EAS mode writes into the project before it starts
+ * the EAS builds, and what EAS uploads with the project. The SDK is plain JavaScript and cannot
+ * import the CLI, so this repeats the names the CLI keeps in packages/cli/src/constants.ts
+ * (SHERLO_TEMP_DIRECTORY and SHERLO_TEMP_DATA_FILENAME): change them together.
+ *
+ * @param {string} projectRoot - absolute path to the project
+ * @returns {string}
+ */
+function handOverFilePath(projectRoot) {
+  return path.join(projectRoot, '.sherlo', 'data.json');
+}
+
 module.exports = {
+  handOverFilePath: handOverFilePath,
   projectRootOf: projectRootOf,
   sherloCacheFolder: sherloCacheFolder,
 };

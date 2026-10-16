@@ -1,5 +1,5 @@
 /**
- * THE STANDARD ROAD'S FRESH BUNDLE - `sherlo test --android <apk> [--ios <app>]`.
+ * THE STANDARD ROAD'S FRESH BUNDLE - the bundle a push of app binaries uploads next to them.
  *
  * Every `sherlo test` run renders a JS bundle built from the tree it runs in,
  * never the bundle embedded in the native binary. On the staged road that is the
@@ -21,7 +21,6 @@
  * other failure throws to the caller.
  */
 import { Platform } from '@sherlo/api-types';
-import chalk from 'chalk';
 import { buildBundles, type BundlingEffects } from '../commands/test/bundleAndPreview';
 import { bundler } from '../seams/bundler';
 import type { BundleResult } from '../commands/test/buildBundle';
@@ -32,12 +31,25 @@ import {
   type BundleUploadEffects,
 } from '../commands/test/uploadBundles';
 import type { StagedUploadKeys } from '../commands/test/uploadStagedArtifacts';
+import type { BuildSettings } from '../commands/test/appBuild/buildSettings';
+import { countBundleStories } from '../commands/test/readModuleManifest';
+import { renderBundleHoldsNoStories } from '../render/appBuild';
+import throwError from './throwError';
 import type { GateMetadataInput } from './fingerprint';
 
-/** One platform's uploaded bundle: where it landed, and how big it is. */
+/**
+ * One platform's uploaded bundle: where it landed, how big it is, and its module map - which the
+ * started test's line counts the bundle's stories from.
+ */
 export type UploadedFreshBundle = {
   keys: StagedUploadKeys;
   bundleSizeMb: number;
+  moduleManifest?: BundleResult['moduleManifest'];
+  /**
+   * The gate facts derived from this bundle, the staged road's way - set only for a platform that
+   * keeps its stored app build, which the service checks this bundle fits.
+   */
+  storedBuildGateMetadata?: GateMetadataInput;
 };
 
 /**
@@ -50,19 +62,21 @@ export type FreshBundleEffects = {
 };
 
 /**
- * This road registers the gate metadata read out of the binary itself, so the
- * bundle-derived probe the shared loops build alongside each bundle is not
- * wanted here. The loops are handed the "I derive nothing" marker instead of a
+ * An uploaded platform registers the gate metadata read out of its binary, so the
+ * bundle-derived facts the shared loops build alongside each bundle are not
+ * wanted for it. The loops are handed the "I derive nothing" marker instead of a
  * computation whose result would be thrown away.
  */
 const NO_BUNDLE_DERIVED_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
 
 export function realFreshBundleEffects(token: string): FreshBundleEffects {
   return {
+    // The bundler IN FORCE, asked for at call time - a posed run installs its own (../seams/bundler).
     bundling: {
-      // The bundler IN FORCE - a posed run installs its own (../seams/bundler).
-      bundleFor: (projectRoot, platform) => bundler().bundleFor(projectRoot, platform),
-      gateMetadataFor: async () => NO_BUNDLE_DERIVED_GATE_METADATA,
+      bundleFor: (projectRoot, platform, buildSettings) =>
+        bundler().bundleFor(projectRoot, platform, buildSettings),
+      gateMetadataFor: (projectRoot, platform, bundleResult) =>
+        bundler().gateMetadataFor(projectRoot, platform, bundleResult),
     },
     upload: realBundleUploadEffects(token),
   };
@@ -70,51 +84,68 @@ export function realFreshBundleEffects(token: string): FreshBundleEffects {
 
 /**
  * Build (or accept) and upload the bundle this run renders, for every platform
- * the user handed a binary for.
+ * it uploads an app build for or keeps the stored one of.
  */
 export async function uploadFreshBundles({
   projectRoot,
   platforms,
+  platformsOnStoredBuild,
   bundleDir,
-  baseFingerprint,
+  buildSettings,
+  baseFingerprints,
   projectIndex,
   teamId,
   effects,
 }: {
   projectRoot: string;
+  /** Every platform this run renders a fresh bundle for, uploaded or stored. */
   platforms: Platform[];
+  /** Of those, the ones that keep their stored app build: only their gate facts are derived. */
+  platformsOnStoredBuild: Platform[];
   /** `--bundle-dir`: use this prebuilt bundle directory instead of bundling. */
   bundleDir?: string;
-  /** The base fingerprint this run registers its binary under. */
-  baseFingerprint: string;
+  /** The config's `build` block, whose `env` and eas.json profile the bundler runs with. */
+  buildSettings: BuildSettings;
+  /** Per platform, the base fingerprint this run registers its binary under. */
+  baseFingerprints: Partial<Record<Platform, string>>;
   projectIndex: number;
   teamId: string;
   effects: FreshBundleEffects;
 }): Promise<Partial<Record<Platform, UploadedFreshBundle>>> {
   let bundles: Partial<Record<Platform, BundleResult>>;
+  let gateMetadata: Partial<Record<Platform, GateMetadataInput>>;
 
+  // No header of its own: bundling is a step in progress the bundling loop shows (a spinner in a
+  // terminal, one plain line in a log), and a supplied bundle says so on its own line.
+  //
+  // A stored platform's gate facts are derived from its fresh bundle as the staged road derives
+  // them (../commands/test/stagedRun): the sidecar's recorded ones for a supplied bundle, the
+  // bundler's for a built one. An uploaded platform's come out of its binary, so it derives none.
   if (bundleDir !== undefined) {
-    console.log(chalk.bold('\n📦 Using the supplied bundle...\n'));
-
-    ({ results: bundles } = await resolveSuppliedBundles({
+    ({ results: bundles, gateMetadata } = await resolveSuppliedBundles({
       bundleDir,
       projectRoot,
       platformsToTest: platforms,
-      baseFingerprint,
-      // The metadata the sidecar recorded is not wanted here either - this road
-      // registers what it reads out of the binary.
-      gateMetadataFor: (platform, bundleResult) =>
-        effects.bundling.gateMetadataFor(projectRoot, platform, bundleResult),
+      baseFingerprints,
+      gateMetadataFor: async (platform, _bundleResult, recorded) =>
+        platformsOnStoredBuild.includes(platform) ? recorded : NO_BUNDLE_DERIVED_GATE_METADATA,
     }));
   } else {
-    console.log(chalk.bold('\n📦 Bundling for this run...\n'));
-
-    ({ results: bundles } = await buildBundles({
+    ({ results: bundles, gateMetadata } = await buildBundles({
       projectRoot,
       platformsToTest: platforms,
-      effects: effects.bundling,
+      buildSettings,
+      effects: {
+        bundleFor: effects.bundling.bundleFor,
+        gateMetadataFor: async (root, platform, bundleResult) =>
+          platformsOnStoredBuild.includes(platform)
+            ? effects.bundling.gateMetadataFor(root, platform, bundleResult)
+            : NO_BUNDLE_DERIVED_GATE_METADATA,
+      },
     }));
   }
+
+  refuseABundleWithNoStories(bundles);
 
   const keys = await uploadBundles({
     platformsToTest: platforms,
@@ -132,10 +163,30 @@ export async function uploadFreshBundles({
     // Unreachable: uploadBundles throws for any platform it has no keys for.
     if (!platformKeys || !bundleResult) continue;
 
-    uploaded[platform] = { keys: platformKeys, bundleSizeMb: bundleResult.bundleSizeMb };
+    const storedBuildGateMetadata = platformsOnStoredBuild.includes(platform)
+      ? gateMetadata[platform]
+      : undefined;
+    uploaded[platform] = {
+      keys: platformKeys,
+      bundleSizeMb: bundleResult.bundleSizeMb,
+      moduleManifest: bundleResult.moduleManifest,
+      ...(storedBuildGateMetadata ? { storedBuildGateMetadata } : {}),
+    };
   }
 
   return uploaded;
 }
 
 export default uploadFreshBundles;
+
+/**
+ * A bundle whose module map counts no stories is refused before anything is uploaded: Storybook
+ * was switched off by a variable the build never saw, and a run that photographed nothing would
+ * read green. A bundle with no module map says nothing about its stories, and goes on.
+ */
+function refuseABundleWithNoStories(bundles: Partial<Record<Platform, BundleResult>>): void {
+  const holdsNoStories = Object.values(bundles).some(
+    (bundle) => bundle?.moduleManifest && countBundleStories(bundle.moduleManifest) === 0
+  );
+  if (holdsNoStories) throwError(renderBundleHoldsNoStories());
+}

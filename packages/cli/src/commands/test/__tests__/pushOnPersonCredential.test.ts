@@ -1,6 +1,5 @@
 /**
- * A PUSH ON A PERSON'S CREDENTIAL (sherlo / The credential and the project of a push, "Which
- * project does a push go to?").
+ * A PUSH ON A PERSON'S CREDENTIAL.
  *
  * The catalogued staged push (`poses/test/staged-borrows-the-base`) is run again with its project
  * token taken away: the config names the project instead, and the person is logged in. The posed
@@ -56,10 +55,10 @@ describe("a push on a person's credential", () => {
     const document = readPoseDocument(fs.readFileSync(posePath, 'utf8'));
 
     const config = { ...(document.files['sherlo.config.json'] as Record<string, unknown>) };
-    delete config.token;
     config.project = 'k3j9x2ab/4';
     document.files['sherlo.config.json'] = config;
-    document.env = { ...document.env, SHERLO_API_URL: SERVICE_ADDRESS };
+    const { SHERLO_TOKEN: _projectToken, ...envWithoutProjectToken } = document.env;
+    document.env = { ...envWithoutProjectToken, SHERLO_API_URL: SERVICE_ADDRESS };
     document.logins = { [SERVICE_ADDRESS]: { email: 'anna@example.com', token: LOGIN_TOKEN } };
 
     const { refusals, exitCode } = await runPose(document);

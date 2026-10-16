@@ -38,6 +38,12 @@ export type Surroundings = {
   sleep(ms: number): Promise<void>;
 };
 
+/**
+ * More sleeps than any pose scripts polls for: one sleep follows each poll, and a pose scripts its
+ * polls one by one.
+ */
+const MOST_SLEEPS_IN_A_POSED_RUN = 1000;
+
 /** The shipped answers: the process's own environment, a real `git`, the wall clock. */
 export const liveSurroundings: Surroundings = {
   // The process's environment is already the answer, so there is nothing to install and nothing
@@ -114,6 +120,7 @@ export function posedSurroundings({
   const instants = clock.map((instant) => Date.parse(instant));
   let standing = startedAt === undefined ? Date.now() : Date.parse(startedAt);
   let next = 0;
+  let sleepsSoFar = 0;
 
   return {
     now: () => {
@@ -122,7 +129,20 @@ export function posedSurroundings({
     },
 
     // A posed run never waits on a timer: the instants above are the whole passage of time.
-    sleep: async () => undefined,
+    //
+    // SO A POSED SLEEP IS COUNTED. A wait retries every error but a refused login, and once the
+    // pose stops answering, every retry is an error; with the clock standing still and no timer
+    // between two retries, the loop would spin on promises alone, where no test's time limit can
+    // fire, and hang the whole suite. Past a count no pose's script reaches, the run stops.
+    sleep: async () => {
+      sleepsSoFar += 1;
+      if (sleepsSoFar > MOST_SLEEPS_IN_A_POSED_RUN) {
+        throw new Error(
+          `the posed run slept ${MOST_SLEEPS_IN_A_POSED_RUN} times and its wait never ended - ` +
+            "the pose's answers, or its clock, never let the command stop waiting"
+        );
+      }
+    },
 
     installSettings: () => {
       const previous = process.env;

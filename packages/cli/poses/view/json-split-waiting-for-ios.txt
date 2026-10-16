@@ -1,0 +1,50 @@
+{
+  "runStatus": "waiting",
+  "buildIndex": 1,
+  "commit": {
+    "sha": "<SHA>",
+    "branch": "main",
+    "dirty": false
+  },
+  "showsOnlyBranchChanges": false,
+  "mainBranch": "main",
+  "ciRun": {
+    "provider": "github",
+    "runId": "7243105518"
+  },
+  "devices": [
+    {
+      "id": "pixel.7",
+      "osVersion": "13",
+      "platform": "android"
+    },
+    {
+      "id": "iphone.15",
+      "osVersion": "17",
+      "platform": "ios"
+    }
+  ],
+  "platforms": {
+    "android": {
+      "arrived": true,
+      "capture": null,
+      "appBuild": {
+        "from": "uploaded",
+        "madeBy": "compiled",
+        "why": "native-changed",
+        "nativeChanges": [
+          "android/app/build.gradle"
+        ]
+      },
+      "storiesInBundle": 7
+    },
+    "ios": {
+      "arrived": false,
+      "capture": null,
+      "appBuild": null,
+      "storiesInBundle": null
+    }
+  }
+}
+
+[exit 0]

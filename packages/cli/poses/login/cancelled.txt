@@ -4,12 +4,12 @@ Opening your browser to log in to Sherlo...
   [36m<LOGIN_LINK>[39m
 
 [31mERROR: The login was canceled in the browser.[39m
-[31m  Run `npx sherlo login` to start a new one.[39m
+  Run `npx sherlo login` to start a new one.
 
-[2m══════════[22m
-[2m[22m
-[2mNeed Help?[22m
-[2m➜ [22m[2mhttps://discord.gg/G7eqTBkWZt[22m
-[2m➜ [22m[2mcontact@sherlo.io[22m
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
 
 [exit 1]

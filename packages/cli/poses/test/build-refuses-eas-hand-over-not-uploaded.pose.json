@@ -1,0 +1,63 @@
+{
+  "pose": 1,
+  "argv": ["test"],
+  "files": {
+    "sherlo.config.json": {
+      "devices": [
+        {
+          "id": "pixel.7",
+          "osVersion": "13"
+        }
+      ],
+      "build": {
+        "tool": "eas"
+      }
+    },
+    "package.json": {
+      "name": "storefront",
+      "scripts": {
+        "eas-build-on-complete": "sherlo eas-build-on-complete",
+        "eas-build-on-cancel": "sherlo eas-build-on-complete"
+      },
+      "devDependencies": { "sherlo": "^3.0.0" }
+    },
+    "eas.json": {
+      "build": {
+        "sherlo": {
+          "distribution": "internal",
+          "env": {
+            "SHERLO_BUILD": "storybook"
+          },
+          "android": {
+            "buildType": "apk"
+          },
+          "ios": {
+            "simulator": true
+          }
+        }
+      }
+    },
+    ".gitignore": "node_modules/\n.expo/\n.sherlo/\n"
+  },
+  "env": { "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "git": {
+    "branch": "feature/checkout",
+    "commit": "9c8b7a6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "checkStagedGate",
+      "with": {
+        "platform": "android",
+        "baseFingerprint": "98d3dc9d092f05da189b10d76fcc01d82c228a3cff1f06f3feb4a7be29afe3a7"
+      },
+      "answer": {
+        "outcome": "full-build-needed",
+        "diff": []
+      }
+    }
+  ],
+  "masks": {}
+}

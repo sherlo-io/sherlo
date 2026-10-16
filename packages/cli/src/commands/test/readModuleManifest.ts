@@ -25,6 +25,10 @@ export type ModuleManifest = {
   header: Record<string, unknown>;
   moduleHashes: Record<string, unknown>;
   storyClosures: Record<string, unknown>;
+  /** Per story file, the title Storybook shows: `Storefront/ProductCard`. */
+  storyTitles?: Record<string, string>;
+  /** Per story file, how many stories it holds. */
+  storyCounts?: Record<string, number>;
 };
 
 export type ValidatedModuleManifest = {
@@ -144,6 +148,12 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
       header: parsed.header,
       moduleHashes: parsed.moduleHashes,
       storyClosures: parsed.storyClosures,
+      ...(isPlainObject(parsed.storyTitles)
+        ? { storyTitles: parsed.storyTitles as Record<string, string> }
+        : {}),
+      ...(isPlainObject(parsed.storyCounts)
+        ? { storyCounts: parsed.storyCounts as Record<string, number> }
+        : {}),
     },
   };
 }
@@ -162,7 +172,37 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
  * number "in this bundle" to say so.
  */
 export function countBundleStories(manifest: ValidatedModuleManifest): number {
-  return Object.keys(manifest.parsed.storyClosures).length;
+  return countStoriesIn(manifest, bundleStoryFiles(manifest));
+}
+
+/**
+ * How many stories these story files hold: each file's own count where the module map records
+ * one, one per file where it does not.
+ */
+export function countStoriesIn(manifest: ValidatedModuleManifest, files: string[]): number {
+  const counts = manifest.parsed.storyCounts;
+  return files.reduce((total, file) => total + (counts?.[file] ?? 1), 0);
+}
+
+/**
+ * The story files the module map gives a title, each with its story count where one is recorded.
+ * A file with no recorded title is left out: the row prints its path.
+ */
+export function titledStoryFilesIn(
+  manifest: ValidatedModuleManifest
+): Array<{ storyFile: string; title?: string; stories?: number }> {
+  const { storyTitles = {}, storyCounts = {} } = manifest.parsed;
+  const storyFiles = new Set([...Object.keys(storyTitles), ...Object.keys(storyCounts)]);
+  return [...storyFiles].map((storyFile) => ({
+    storyFile,
+    ...(storyTitles[storyFile] !== undefined ? { title: storyTitles[storyFile] } : {}),
+    ...(storyCounts[storyFile] !== undefined ? { stories: storyCounts[storyFile] } : {}),
+  }));
+}
+
+/** Every story file the bundle holds. */
+export function bundleStoryFiles(manifest: ValidatedModuleManifest): string[] {
+  return Object.keys(manifest.parsed.storyClosures);
 }
 
 export default readValidatedModuleManifest;

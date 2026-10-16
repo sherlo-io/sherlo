@@ -6,10 +6,10 @@
  * numbers `sherlo test` computes because the same functions compute them over
  * the same project root - nothing here hashes anything itself.
  *
- *   native        the version-suppressed @expo/fingerprint hash (nativeFingerprint)
- *   dependencies  the dependency closure Metro inlines into a bundle
- *   js <platform> the app's own source, as a bundle's module graph names it
- *   base          the base fingerprint `sherlo test` stages against
+ *   native          the version-suppressed @expo/fingerprint hash (nativeFingerprint)
+ *   dependencies    the dependency closure Metro inlines into a bundle
+ *   js <platform>   the app's own source, as a bundle's module graph names it
+ *   base <platform> the base fingerprint `sherlo test` stages the platform against
  *
  * THE JS LAYER NEEDS A MODULE MANIFEST. The app-source closure is a digest over
  * the files a bundle's module graph names, and that list only exists after a
@@ -28,7 +28,7 @@
  *
  * `--layer <layer>` ANSWERS ONE LAYER INSTEAD OF PRINTING THE REPORT: one digest
  * on stdout and nothing else, so a build cache is `FP=$(sherlo fingerprint
- * --layer base)` rather than a JSON parser that breaks the day the document's
+ * --layer base:android)` rather than a JSON parser that breaks the day the document's
  * shape moves. A layer it cannot compute EXITS NON-ZERO and says why - never an
  * empty line, because a caller reading this digest decides whether to skip a
  * twenty-five-minute build and must never read silence as "nothing changed".
@@ -43,7 +43,12 @@ import {
   VERBOSE_OPTION,
   WRITE_OPTION,
 } from '../../constants';
-import { computeBaseFingerprint } from '../../helpers/fingerprint';
+import { PLATFORMS } from '../../constants';
+import { computeBaseFingerprint, type BaseFingerprints } from '../../helpers/fingerprint';
+import type {
+  BaseFingerprintResult,
+  FingerprintSourceDigest,
+} from '../../helpers/fingerprint/baseFingerprint';
 import throwError from '../../helpers/throwError';
 import {
   computeAppSourceClosure,
@@ -59,6 +64,7 @@ import {
   FINGERPRINT_DOCUMENT_FORMAT_VERSION,
   readFingerprintDocument,
   writeFingerprintDocument,
+  type BaseLayer,
   type FingerprintDocument,
   type JsLayer,
 } from './fingerprintDocument';
@@ -78,13 +84,18 @@ export type FingerprintOptions = {
   layer?: string;
 };
 
-const PLATFORMS: Platform[] = ['android', 'ios'];
-
 /**
- * What `--layer` accepts. `js` carries its platform because the app-source
- * closure is computed per platform - there is no one js digest to hand back.
+ * What `--layer` accepts. `base` and `js` carry their platform because each is
+ * computed per platform - there is no one base or js digest to hand back.
  */
-const LAYER_ARGUMENTS = ['native', 'dependencies', 'base', 'js:android', 'js:ios'] as const;
+const LAYER_ARGUMENTS = [
+  'native',
+  'dependencies',
+  'base:android',
+  'base:ios',
+  'js:android',
+  'js:ios',
+] as const;
 
 type LayerArgument = (typeof LAYER_ARGUMENTS)[number];
 
@@ -149,17 +160,19 @@ export async function computeFingerprintDocument({
   projectRoot: string;
   bundleDir?: string;
 }): Promise<FingerprintDocument> {
-  const base = await computeBaseFingerprint(projectRoot, { command: THIS_COMMAND });
+  const fingerprints = await computeBaseFingerprint(projectRoot, { command: THIS_COMMAND });
   const dependencies = computeDependencyClosure(projectRoot);
   const js = bundleDir === undefined ? {} : computeJsLayers({ projectRoot, bundleDir });
+  // The native fingerprint covers both platforms, so every platform's result carries the same one.
+  const native = fingerprints.android;
 
   return {
     formatVersion: FINGERPRINT_DOCUMENT_FORMAT_VERSION,
     cliVersion: readCliVersion(),
     native: {
-      hash: base.nativeFingerprint ?? null,
-      ...(base.hash === null ? { reason: base.debugMessage ?? 'unknown reason' } : {}),
-      sources: base.preimage?.nativeSources ?? [],
+      hash: native.nativeFingerprint ?? null,
+      ...(native.hash === null ? { reason: native.debugMessage ?? 'unknown reason' } : {}),
+      sources: nativeSourcesOfEveryPlatform(fingerprints),
     },
     dependencies: {
       hash: dependencies.hash,
@@ -168,13 +181,37 @@ export async function computeFingerprintDocument({
     },
     js,
     base: {
-      hash: base.hash,
-      ...(base.hash === null ? { reason: base.debugMessage ?? 'unknown reason' } : {}),
-      workflow: base.preimage?.workflow ?? null,
-      lockfiles: base.preimage?.lockfiles ?? [],
-      autolinkedModules: base.preimage?.autolinkedModules ?? [],
+      android: baseLayerOf(fingerprints.android),
+      ios: baseLayerOf(fingerprints.ios),
     },
   };
+}
+
+/** One platform's base layer: its digest, and the inputs only the base adds to the native ones. */
+function baseLayerOf(platformBase: BaseFingerprintResult): BaseLayer {
+  return {
+    hash: platformBase.hash,
+    ...(platformBase.hash === null
+      ? { reason: platformBase.debugMessage ?? 'unknown reason' }
+      : {}),
+    workflow: platformBase.preimage?.workflow ?? null,
+    lockfiles: platformBase.preimage?.lockfiles ?? [],
+    autolinkedModules: platformBase.preimage?.autolinkedModules ?? [],
+  };
+}
+
+/**
+ * The native layer's sources: every platform's Layer-1 sources, each listed once -
+ * the ones both platforms read (the app config, the shared packages) appear on both.
+ */
+function nativeSourcesOfEveryPlatform(fingerprints: BaseFingerprints): FingerprintSourceDigest[] {
+  const sources = new Map<string, FingerprintSourceDigest>();
+  for (const platform of PLATFORMS) {
+    for (const source of fingerprints[platform].preimage?.nativeSources ?? []) {
+      sources.set(`${source.type}:${source.id}:${source.hash}`, source);
+    }
+  }
+  return [...sources.values()];
 }
 
 /**
@@ -277,17 +314,20 @@ async function computeOneLayerDigest({
     return computeDependencyClosure(projectRoot).hash;
   }
 
-  if (layer === 'native' || layer === 'base') {
+  if (layer === 'native' || layer === 'base:android' || layer === 'base:ios') {
     // THIS_COMMAND is what makes this digest the same number `sherlo test`
     // computes - the reporting breadcrumb the cross-command determinism test
     // holds on to. Do not drop it.
-    const base = await computeBaseFingerprint(projectRoot, { command: THIS_COMMAND });
-    const hash = layer === 'native' ? base.nativeFingerprint ?? null : base.hash;
+    const fingerprints = await computeBaseFingerprint(projectRoot, { command: THIS_COMMAND });
+    // The native fingerprint covers both platforms, so every platform's result carries it.
+    const platformBase =
+      layer === 'native' ? fingerprints.android : fingerprints[layerPlatform(layer)];
+    const hash = layer === 'native' ? platformBase.nativeFingerprint ?? null : platformBase.hash;
 
     if (hash === null) {
       throwError({
-        message: `The ${layer} layer could not be computed: ${
-          base.debugMessage ?? 'unknown reason'
+        message: `The ${layerName(layer)} layer could not be computed: ${
+          platformBase.debugMessage ?? 'unknown reason'
         }`,
       });
     }
@@ -295,7 +335,7 @@ async function computeOneLayerDigest({
     return hash;
   }
 
-  const platform = jsLayerPlatform(layer);
+  const platform = layerPlatform(layer);
 
   if (bundleDir === undefined) {
     throwError({
@@ -347,7 +387,14 @@ function isLayerArgument(layer: string): layer is LayerArgument {
   return (LAYER_ARGUMENTS as readonly string[]).includes(layer);
 }
 
-/** `js:ios` -> `ios`. Only ever called with a `js:` layer argument. */
-function jsLayerPlatform(layer: 'js:android' | 'js:ios'): Platform {
-  return layer.slice('js:'.length) as Platform;
+type PlatformLayerArgument = Exclude<LayerArgument, 'native' | 'dependencies'>;
+
+/** `js:ios` -> `ios`, `base:android` -> `android`. */
+function layerPlatform(layer: PlatformLayerArgument): Platform {
+  return layer.split(':')[1] as Platform;
+}
+
+/** The layer as the report names it: `base:ios` -> `base ios`, `native` -> `native`. */
+function layerName(layer: LayerArgument): string {
+  return layer.replace(':', ' ');
 }

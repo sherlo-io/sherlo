@@ -3,7 +3,7 @@ import { printLines, trackProgress } from '../helpers';
 import { EVENT } from './constants';
 
 async function testing(sessionId: string | null): Promise<void> {
-  printLines(renderTesting({ terminalColumns: process.stdout.columns }));
+  printLines(renderTesting());
 
   await trackProgress({
     event: EVENT,

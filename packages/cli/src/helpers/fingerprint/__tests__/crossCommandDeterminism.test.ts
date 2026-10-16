@@ -53,13 +53,10 @@ vi.mock('../../runShellCommand', async (importOriginal) => {
   return { ...real, default: vi.fn(real.default) };
 });
 
-/** What the fixture's autolinking stub prints under the pinned env (NODE_ENV=production). */
+/** What the fixture's autolinking stub prints under the pinned env (NODE_ENV=production, SHERLO_BUILD=storybook). */
 const AUTOLINKED_UNDER_THE_PINNED_ENV = JSON.stringify({
   dependencies: {
-    'react-native-reanimated': {
-      name: 'react-native-reanimated',
-      version: '3.0.0-production',
-    },
+    'native-module-production-storybook': { name: 'native-module-production-storybook' },
   },
 });
 
@@ -87,12 +84,13 @@ function writeFile(dir: string, rel: string, content: string): void {
 }
 
 /**
- * A bare RN fixture whose local `react-native` stub reports a dependency VERSION
- * that reflects the ambient `NODE_ENV`. `npx react-native config` resolves this
- * local bin. This stands in for any resolution hook / plugin whose output keys
- * off the inherited env - so WITHOUT the env-sanitization fix, the autolinked
- * set (and the final hash) would differ between two commands run under different
- * ambient environments.
+ * A bare RN fixture whose local `react-native` stub reports a native module whose
+ * NAME reflects the ambient `NODE_ENV` and `SHERLO_BUILD` (a module's version is
+ * read from its installed package.json, so the name is what the answer carries).
+ * `npx react-native config` resolves this local bin. This stands in for any
+ * resolution hook / plugin whose output keys off the inherited env - so WITHOUT the
+ * env-sanitization fix, the autolinked set (and the final hash) would differ
+ * between two commands run under different ambient environments.
  */
 function buildFixture(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-1744-xcmd-'));
@@ -109,11 +107,9 @@ function buildFixture(): string {
     bin,
     [
       '#!/usr/bin/env node',
-      "const env = process.env.NODE_ENV || 'unset';",
+      "const name = 'native-module-' + (process.env.NODE_ENV || 'unset') + '-' + (process.env.SHERLO_BUILD || 'unset');",
       'process.stdout.write(JSON.stringify({',
-      '  dependencies: {',
-      "    'react-native-reanimated': { name: 'react-native-reanimated', version: '3.0.0-' + env },",
-      '  },',
+      '  dependencies: { [name]: { name } },',
       '}));',
       '',
     ].join('\n'),
@@ -183,8 +179,8 @@ describe('cross-command base fingerprint determinism (SHERLO-1744 AC4)', () => {
       process.env.NODE_ENV = 'production';
       const probe = await computeBaseFingerprint(fixtureDir, { command: 'staged:check' });
 
-      expect(registration.hash).toMatch(/^[a-f0-9]{64}$/);
-      expect(registration.hash).toBe(probe.hash);
+      expect(registration.android.hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(registration.android.hash).toBe(probe.android.hash);
     },
     RUN_TIMEOUT_MS
   );
@@ -200,7 +196,7 @@ describe('cross-command base fingerprint determinism (SHERLO-1744 AC4)', () => {
       process.chdir(fixtureDir);
       const probe = await computeBaseFingerprint('.', { command: 'staged:check' });
 
-      expect(registration.hash).toBe(probe.hash);
+      expect(registration.android.hash).toBe(probe.android.hash);
     },
     RUN_TIMEOUT_MS
   );
@@ -209,11 +205,11 @@ describe('cross-command base fingerprint determinism (SHERLO-1744 AC4)', () => {
 describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
   /**
    * Make the Layer-1 mock ENV-SENSITIVE: its hash reflects the ambient
-   * `NODE_ENV` and `npm_lifecycle_event`. This stands in for an app.config.js
-   * whose evaluation reads env - exactly what `@expo/fingerprint`'s internal
-   * `ExpoConfigLoader.js` subprocess would observe. Under the env-swap fix the
-   * compute always sees the pinned deterministic env, so the hash is stable
-   * across commands.
+   * `NODE_ENV`, `npm_lifecycle_event` and `SHERLO_BUILD`. This stands in for an
+   * app.config.js (or the SDK's config plugin) whose evaluation reads env -
+   * exactly what `@expo/fingerprint`'s internal `ExpoConfigLoader.js` subprocess
+   * would observe. Under the env-swap fix the compute always sees the pinned
+   * deterministic env, so the hash is stable across commands.
    */
   beforeEach(() => {
     answerAutolinkingWithoutAProcess();
@@ -222,10 +218,34 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
         ({
           hash: `layer1-${process.env.NODE_ENV ?? 'unset'}-${
             process.env.npm_lifecycle_event ?? 'unset'
-          }`,
+          }-${process.env.SHERLO_BUILD ?? 'unset'}`,
         } as never)
     );
   });
+
+  it(
+    'registration and probe paths agree whether the shell says SHERLO_BUILD off or storybook',
+    async () => {
+      // A developer's shell that switches Sherlo off, and a CI job that builds for it:
+      // both name the app build Sherlo makes, so both must find the same stored base.
+      const saved = process.env.SHERLO_BUILD;
+      try {
+        process.env.SHERLO_BUILD = 'off';
+        const registration = await computeBaseFingerprint(fixtureDir, { command: 'test' });
+
+        process.env.SHERLO_BUILD = 'storybook';
+        const probe = await computeBaseFingerprint(fixtureDir, { command: 'staged:check' });
+
+        expect(registration.android.hash).toMatch(/^[a-f0-9]{64}$/);
+        expect(registration.android.hash).toBe(probe.android.hash);
+        expect(registration.ios.hash).toBe(probe.ios.hash);
+      } finally {
+        if (saved === undefined) delete process.env.SHERLO_BUILD;
+        else process.env.SHERLO_BUILD = saved;
+      }
+    },
+    RUN_TIMEOUT_MS
+  );
 
   it('sanity: the Layer-1 mock IS ambient-env-sensitive', async () => {
     // Proves the regression test is meaningful: without the env-swap the mock
@@ -257,8 +277,8 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
       process.env.npm_lifecycle_event = 'test:bundled';
       const probe = await computeBaseFingerprint(fixtureDir, { command: 'test:bundled' });
 
-      expect(registration.hash).toMatch(/^[a-f0-9]{64}$/);
-      expect(registration.hash).toBe(probe.hash);
+      expect(registration.android.hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(registration.android.hash).toBe(probe.android.hash);
     },
     RUN_TIMEOUT_MS
   );
@@ -278,7 +298,8 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
       const result = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       // (a) fail-soft: unrecoverable Layer-1 error degrades to a null hash.
-      expect(result.hash).toBeNull();
+      expect(result.android.hash).toBeNull();
+      expect(result.ios.hash).toBeNull();
 
       // (b) env fully restored: the pinned production value did not leak out and
       // the arbitrary pre-existing var is intact.
@@ -345,7 +366,7 @@ describe('registration pre-step ordering determinism (SHERLO-1756)', () => {
       await createFingerprintAsync(fixtureDir); // raw, unswapped - leaks pollution
       const afterRaw = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
-      expect(afterRaw.hash).not.toBe(clean.hash);
+      expect(afterRaw.android.hash).not.toBe(clean.android.hash);
     },
     RUN_TIMEOUT_MS
   );
@@ -364,11 +385,11 @@ describe('registration pre-step ordering determinism (SHERLO-1756)', () => {
       const registration = await computeBaseFingerprint(fixtureDir, { command: 'test' });
 
       // The base hash (which folds in Layer-1) must match the probe's...
-      expect(registration.hash).toMatch(/^[a-f0-9]{64}$/);
-      expect(registration.hash).toBe(probe.hash);
+      expect(registration.android.hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(registration.android.hash).toBe(probe.android.hash);
       // ...and the nativeFingerprint (the single sanitized Layer-1) is sourced from
       // that same compute and likewise matches the probe's.
-      expect(registration.nativeFingerprint).toBe(probe.nativeFingerprint);
+      expect(registration.android.nativeFingerprint).toBe(probe.android.nativeFingerprint);
     },
     RUN_TIMEOUT_MS
   );

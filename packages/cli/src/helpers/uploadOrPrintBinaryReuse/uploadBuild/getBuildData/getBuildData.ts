@@ -1,8 +1,6 @@
 import { Platform } from '@sherlo/api-types';
 import fs from 'fs';
-import printBuildMessage from '../../../printBuildMessage';
 import throwError from '../../../throwError';
-import getSizeInMB from '../getSizeInMB';
 import compressDirectoryToTarGzip from './compressDirectoryToTarGzip';
 import compressFileToGzip from './compressFileToGzip';
 
@@ -29,13 +27,6 @@ async function getBuildData({
        */
       return fs.promises.readFile(buildPath);
     } else {
-      const buildSizeMB = await getSizeInMB({ path: buildPath, projectRoot });
-
-      printBuildMessage({
-        message: `compressing build... (${buildSizeMB} MB)`,
-        type: 'info',
-      });
-
       if (buildPath.endsWith('.tar')) {
         /**
          * .tar file

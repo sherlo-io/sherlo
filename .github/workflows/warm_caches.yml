@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - feature/sherlo-3
+      - dev
 
 jobs:
   # Does the install alone, so its caches are there for the next pull request. Both packages

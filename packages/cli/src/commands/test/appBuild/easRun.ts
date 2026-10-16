@@ -1,0 +1,291 @@
+/**
+ * EAS MODE - `sherlo test` in a project whose sherlo.config.json says `"build": { "tool": "eas" }`.
+ *
+ * The staged gate runs first, exactly as for a local build: a JavaScript-only change takes the
+ * stored app build and no EAS build starts at all. Only a platform the gate refused is built, and
+ * here it is built on Expo's servers instead of this machine:
+ *
+ *   1. package.json must hold the `eas-build-on-complete` script - each EAS build uploads itself
+ *      to Sherlo through it when it finishes - and the `eas-build-on-cancel` script, the same line,
+ *      through which a cancelled EAS build closes the run. A project without either is refused before anything starts, naming
+ *      every one it lacks, because a run would otherwise wait for builds that never arrive. So is
+ *      one whose eas.json has no profile named `build.easProfile` (default "sherlo") - setup writes
+ *      none - and one whose upload to EAS would leave `.sherlo/data.json` out (./easHandOver.ts).
+ *   2. The run is opened with one empty slot per platform, and `.sherlo/data.json` is written so
+ *      the EAS builds carry which run they belong to, with the one-build ticket the service
+ *      answered - never the token this push spent, which may be a person's login
+ *      (./createSherloTempDirectory).
+ *   3. One EAS build per refused platform is started with the profile `build.easProfile`
+ *      (default "sherlo"), without waiting.
+ *   4. The run starts on Sherlo when the last slot is filled - never before.
+ *
+ * This replaces the separate `test:eas-cloud-build` command, which the Sherlo 3 CLI no longer has;
+ * the server still serves older CLIs that call it.
+ */
+import path from 'path';
+import type { Platform } from '@sherlo/api-types';
+import { EAS_BUILD_ON_CANCEL_SCRIPT, EAS_BUILD_ON_COMPLETE_COMMAND } from '../../../constants';
+import {
+  getAppBuildUrl,
+  getBuildRunConfig,
+  getGitInfo,
+  handleClientError,
+  throwError,
+} from '../../../helpers';
+import type { BaseFingerprints } from '../../../helpers/fingerprint';
+import { readProjectJson } from '../../../helpers/projectJson';
+import { emit } from '../../../helpers/transcriptSink';
+import { serverCalls } from '../../../seams/serverCalls';
+import { appBuilder } from '../../../seams/appBuilder';
+import type { CommandParams } from '../../../types';
+import { whileShowing } from '../../shared/terminal';
+import { closeTheRun } from '../closeTheRun';
+import { SHERLO_BUILD_FOR_PUSH, type THIS_COMMAND } from '../constants';
+import { rowsAbove, printPlatformRowInALog } from '../platformRows';
+import { type BuildSettings, buildSettingsDigestsOf, DEFAULT_EAS_PROFILE } from './buildSettings';
+import createSherloTempDirectory from './createSherloTempDirectory';
+import { refuseWhenEasLeavesTheHandOverOut } from './easHandOver';
+import { pushFactsOf } from './pushFacts';
+
+/**
+ * The package.json scripts each EAS build reports to Sherlo through, both running the same command:
+ * Expo runs the first when a build ends, finished or errored, and the second when it is cancelled.
+ */
+const EAS_HOOK_SCRIPTS = [EAS_BUILD_ON_COMPLETE_COMMAND, EAS_BUILD_ON_CANCEL_SCRIPT];
+const EAS_HOOK_COMMAND = `sherlo ${EAS_BUILD_ON_COMPLETE_COMMAND}`;
+
+/** The CLI's own package name, which the app must depend on for the hook scripts to find it. */
+const SHERLO_PACKAGE = 'sherlo';
+
+/**
+ * The variable every Sherlo app build is made with, set to `SHERLO_BUILD_FOR_PUSH`: the app opens
+ * into Storybook.
+ */
+const SHERLO_BUILD_VARIABLE = 'SHERLO_BUILD';
+
+/** Open the run, start an EAS build of every refused platform, and hand back the run's address. */
+export async function easRun({
+  commandParams,
+  platforms,
+  settings,
+  runIdFlag,
+  fingerprints,
+}: {
+  commandParams: CommandParams<THIS_COMMAND>;
+  platforms: Platform[];
+  settings: BuildSettings;
+  /** `--run-id`, which names the CI run the push reports when the CI service does not. */
+  runIdFlag?: string;
+  /**
+   * Each platform's base fingerprint, the one the gate was asked with, taken before anything was
+   * built: the EAS hook registers each base with it (../../easBuildOnComplete).
+   */
+  fingerprints: BaseFingerprints;
+}): Promise<{ url: string }> {
+  await refuseWithoutTheEasProgram();
+  refuseWithoutTheHookScripts(commandParams.projectRoot);
+  refuseWithoutTheDependency(commandParams.projectRoot);
+
+  const profile = settings.easProfile ?? DEFAULT_EAS_PROFILE;
+  refuseWithoutTheProfile(commandParams.projectRoot, profile);
+  refuseWhenEasLeavesTheHandOverOut(commandParams.projectRoot);
+  const { token, projectIndex, teamId } = commandParams.credential;
+
+  const { build, hasCiToken, buildTicket } = await serverCalls()
+    .openBuild({
+      token,
+      teamId,
+      projectIndex,
+      asyncUpload: true,
+      buildRunConfig: getBuildRunConfig({ commandParams }),
+      gitInfo: await getGitInfo(commandParams.projectRoot, {
+        branchOverride: commandParams.gitBranch,
+      }),
+      message: commandParams.message,
+      // Built on Expo's servers; each build's story count comes with its delivery (the EAS hook).
+      pushFacts: pushFactsOf({
+        appBuilds: Object.fromEntries(platforms.map((platform) => [platform, { madeBy: 'eas' }])),
+        storiesInBundle: {},
+        env: process.env,
+        runIdFlag,
+      }),
+    })
+    .catch((error) => handleClientError(error, token));
+
+  const buildIndex = build.index;
+
+  // The hand-over file travels to Expo's machine, so it carries the run's own ticket and never
+  // the token this push spent. A service that answered none cannot take the EAS builds' uploads.
+  if (!buildTicket) {
+    throwError({
+      type: 'unexpected',
+      error: new Error(
+        `The Sherlo service opened Test ${buildIndex} for EAS builds without a build ticket`
+      ),
+    });
+  }
+
+  // Written BEFORE the EAS builds start: EAS uploads the project as it is when the build starts,
+  // and each build reads which run it belongs to out of this file.
+  const apiUrl = process.env.SHERLO_API_URL;
+  createSherloTempDirectory(commandParams.projectRoot, {
+    buildIndex,
+    ticket: buildTicket,
+    teamId,
+    projectIndex,
+    profile,
+    ...(apiUrl ? { apiUrl } : {}),
+    // Only the platforms EAS builds: a platform on its stored app build registers no base.
+    fingerprints: Object.fromEntries(
+      platforms.map((platform) => [platform, fingerprints[platform]])
+    ),
+    // The digest the gate looks a base up by, so the next push finds the base the hook registers.
+    buildSettingsDigests: buildSettingsDigestsOf(settings, platforms),
+  });
+
+  // Starting them is only a wait, so it leaves no line of its own: each platform's row says it is
+  // building on EAS, and the test's row that it starts when they finish.
+  await whileShowing({ kind: 'eas-builds-starting', platforms }, async () => {
+    for (const platform of platforms) {
+      await appBuilder().startEasBuild({
+        platform,
+        profile,
+        projectRoot: commandParams.projectRoot,
+      });
+    }
+  });
+
+  const platformRows = platforms.map((platform) =>
+    printPlatformRowInALog({ platform, appBuild: 'building-on-eas' })
+  );
+  emit({
+    kind: 'run-waits-for-builds',
+    buildIndex,
+    waitingFor: { easBuilds: platforms },
+    rowsAbove: rowsAbove(platformRows),
+  });
+
+  const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
+
+  // FROM A LAPTOP THE DEVELOPER OFTEN STAYS FOR THE ANSWER: `--wait` waits through the EAS builds
+  // and the run alike, under the same contract as every other wait - EAS builds take a while, so
+  // the deadline is the one `--wait-timeout` names.
+  await closeTheRun({ commandParams, buildIndex, url, hasCiToken, platformRows });
+
+  return { url };
+}
+
+/** Sherlo starts each EAS build with the `eas` program, so a machine without it is refused first. */
+async function refuseWithoutTheEasProgram(): Promise<void> {
+  if (await appBuilder().hasEasProgram()) return;
+
+  throwError({
+    message:
+      "Can't build on EAS: the eas program isn't installed on this machine.\n" +
+      'Sherlo starts each EAS build with it. Install it:\n' +
+      'npm install --global eas-cli',
+  });
+}
+
+/**
+ * EAS builds report to Sherlo through the hook scripts, so a project without them is refused first,
+ * naming every script it lacks and the line to add for each.
+ */
+function refuseWithoutTheHookScripts(projectRoot: string): void {
+  // No package.json, or one that cannot be read: the scripts are missing either way.
+  const scripts: Record<string, unknown> =
+    readProjectJson(projectRoot, 'package.json')?.scripts ?? {};
+
+  const missingScripts = EAS_HOOK_SCRIPTS.filter((script) => !scripts[script]);
+  if (missingScripts.length === 0) {
+    // A script that is there but never calls Sherlo (so `npx sherlo ...` and `yarn sherlo ...` pass).
+    const script = EAS_HOOK_SCRIPTS.find(
+      (name) => !String(scripts[name]).includes(EAS_HOOK_COMMAND)
+    );
+    if (!script) return;
+
+    throwError({
+      message:
+        `Can't build on EAS: the "${script}" script in package.json doesn't run Sherlo.\n` +
+        'EAS builds report back to Sherlo through this script. Set it to:\n' +
+        `"${script}": "${EAS_HOOK_COMMAND}"`,
+    });
+  }
+
+  const named = missingScripts.map((script) => `"${script}"`).join(' or ');
+  const lines = missingScripts.map((script) => `"${script}": "${EAS_HOOK_COMMAND}"`).join(',\n');
+
+  throwError({
+    message:
+      `Can't build on EAS: package.json has no ${named} script.\n` +
+      (missingScripts.length === 1
+        ? 'EAS builds report back to Sherlo through this script. Add it to "scripts":\n'
+        : 'EAS builds report back to Sherlo through these scripts. Add them to "scripts":\n') +
+      lines,
+  });
+}
+
+/**
+ * Expo runs the hook scripts on its own machine, where `sherlo` is found only in the app's
+ * node_modules. So some package.json must list the sherlo package: the app's, or one in a parent
+ * folder up to the repository root (in a monorepo, yarn and npm put the root's `.bin` on the
+ * script's PATH). Without it the hook fails with `command not found: sherlo` and tells no one.
+ */
+function refuseWithoutTheDependency(projectRoot: string): void {
+  const repositoryRoot = appBuilder().easUploadRoot(projectRoot);
+
+  let folder = path.resolve(projectRoot);
+  while (true) {
+    const packageJson = readProjectJson(folder, 'package.json');
+    if (SHERLO_PACKAGE in { ...packageJson?.dependencies, ...packageJson?.devDependencies }) return;
+
+    const parent = path.dirname(folder);
+    if (folder === repositoryRoot || parent === folder) break;
+    folder = parent;
+  }
+
+  throwError({
+    message:
+      `Can't build on EAS: package.json doesn't list "${SHERLO_PACKAGE}" as a dependency.\n` +
+      `Expo's build runs "${EAS_HOOK_COMMAND}" when it finishes, and finds "${SHERLO_PACKAGE}" only in the app's node_modules. Add it:\n` +
+      `npm install --save-dev ${SHERLO_PACKAGE}`,
+  });
+}
+
+/**
+ * EAS builds start with an eas.json profile, and `sherlo init` writes none (setup asks nothing
+ * about EAS), so a project without it is refused first and shown the profile to add - an APK for
+ * Android and a simulator build for iOS, the two shapes a Sherlo device runs, with
+ * `SHERLO_BUILD=storybook`, the variable that builds the app with Storybook in it. A profile that
+ * is there but leaves the variable out is refused the same way, naming the one line it lacks.
+ */
+function refuseWithoutTheProfile(projectRoot: string, profile: string): void {
+  // No eas.json, or one that cannot be read: the profile is missing either way.
+  const profiles: Record<string, { env?: Record<string, unknown> } | undefined> =
+    readProjectJson(projectRoot, 'eas.json')?.build ?? {};
+
+  const found = profiles[profile];
+
+  if (!found) {
+    throwError({
+      message:
+        `Can't build on EAS: eas.json has no "${profile}" build profile.\n` +
+        'Sherlo starts its EAS builds with that profile. Add it to "build" in eas.json:\n' +
+        `"${profile}": {\n` +
+        '  "distribution": "internal",\n' +
+        `  "env": { "${SHERLO_BUILD_VARIABLE}": "${SHERLO_BUILD_FOR_PUSH}" },\n` +
+        '  "android": { "buildType": "apk" },\n' +
+        '  "ios": { "simulator": true }\n' +
+        '}',
+    });
+  }
+
+  if (found.env?.[SHERLO_BUILD_VARIABLE] === SHERLO_BUILD_FOR_PUSH) return;
+
+  throwError({
+    message:
+      `Can't build on EAS: the "${profile}" profile in eas.json doesn't set ${SHERLO_BUILD_VARIABLE}.\n` +
+      `Sherlo's builds need it set to "${SHERLO_BUILD_FOR_PUSH}". Add this line to the profile's "env":\n` +
+      `"${SHERLO_BUILD_VARIABLE}": "${SHERLO_BUILD_FOR_PUSH}"`,
+  });
+}

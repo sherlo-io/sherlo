@@ -1,27 +1,22 @@
 #!/usr/bin/env node
 /**
  * The body of the Sherlo GitHub Action: repair a shallow checkout, run
- * `sherlo test` once, then publish what it said as step outputs.
+ * `sherlo test` once, then publish the review address as the `url` output.
  *
  * This script is the glue - every decision it makes lives in a unit-tested module
- * next to it (./cliEntry.mjs, ./deepenCheckout.mjs, ./testCommand.mjs,
- * ./cliOutputs.mjs).
+ * next to it (./cliEntry.mjs, ./deepenCheckout.mjs, ./testCommand.mjs).
  *
- * IT ABSORBS THE EXIT-CODE TRAP. `sherlo test` exits 4 to mean "a native build is
- * needed first", which is an ANSWER, not a failure. This script never lets the
- * CLI's exit code become the step's exit code: it exits 0 for every routing
- * outcome and 1 only when the CLI produced no answer at all (a genuine tool
- * error). The workflow routes on the `native-needed` OUTPUT.
+ * THE STEP EXITS WITH THE CLI'S OWN CODE: 0 once the run is open or joined, or when
+ * the job has nothing to test; 1 for a refusal; 2 for a failed app build.
  *
- * Inputs arrive as env vars set by action.yml - a token never becomes a visible
- * argument in the log, and there is no argument parsing to get wrong.
+ * Inputs arrive as env vars set by action.yml. The token is not one of them: the CLI
+ * reads SHERLO_TOKEN from the job's own environment.
  */
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { resolveCliEntry } from './cliEntry.mjs';
 import { deepenShallowCheckout } from './deepenCheckout.mjs';
 import { buildTestArgs } from './testCommand.mjs';
-import { formatOutputFileLines, readRunResult } from './cliOutputs.mjs';
 
 main();
 
@@ -36,18 +31,14 @@ async function main() {
     console.log(`Sherlo CLI: ${cli.packageName}@${cli.version} (${origin})`);
     console.log(`            ${cli.entry}`);
 
-    // Both roads run the CLI through here, so the shallow-checkout repair sits
-    // here too - once, ahead of the verb, for every event. On a full clone it is
-    // one `git rev-parse` and nothing more; when it cannot repair a shallow one
-    // it warns and returns, because the CLI survives a shallow clone.
+    // On a full clone this is one `git rev-parse` and nothing more; when it cannot
+    // repair a shallow one it warns and returns, because the CLI survives a shallow clone.
     deepenShallowCheckout({ workingDirectory: process.cwd() });
 
     const args = buildTestArgs({
-      token: process.env.SHERLO_TOKEN,
+      platform: process.env.SHERLO_PLATFORM,
       config: process.env.SHERLO_CONFIG,
       projectRoot: process.env.SHERLO_PROJECT_ROOT,
-      android: process.env.SHERLO_ANDROID,
-      ios: process.env.SHERLO_IOS,
       bundleDir: process.env.SHERLO_BUNDLE_DIR,
       emitBundleDir: process.env.SHERLO_EMIT_BUNDLE_DIR,
     });
@@ -55,11 +46,11 @@ async function main() {
     const { exitCode, output } = await runCli(cli.entry, args);
     console.log(`\nsherlo test exited with code ${exitCode}`);
 
-    // Throws when the CLI answered nothing - see readRunResult.
-    const { outputs } = readRunResult({ exitCode, output });
+    const url = findReviewUrl(output);
+    if (url) publishUrl(url);
 
-    publishOutputs(outputs);
-    describeAnswer(outputs);
+    // A signal-killed CLI has no code; that is a failure, never a clean 0.
+    process.exitCode = typeof exitCode === 'number' ? exitCode : 1;
   } catch (error) {
     console.log(`::error title=Sherlo::${error.message.replace(/\r?\n/g, ' ')}`);
     process.exitCode = 1;
@@ -70,10 +61,9 @@ async function main() {
 
 /**
  * Run the CLI, streaming its output into the live workflow log AND capturing it
- * for parsing. Both streams are captured in arrival order, so a key printed to
- * stdout is read even when the CLI is also writing to stderr.
+ * for parsing. Both streams are captured in arrival order.
  *
- * Never rejects on a non-zero exit: judging the exit code is readRunResult's job.
+ * Never rejects on a non-zero exit: the exit code is passed on as it is.
  */
 function runCli(entry, args) {
   return new Promise((resolve, reject) => {
@@ -95,38 +85,38 @@ function runCli(entry, args) {
 
     child.on('error', reject);
     child.on('close', (code, signal) => {
-      // A signal-killed child reports a null code; report it as a failure so it
-      // can never be mistaken for the clean exit 0.
       resolve({ exitCode: code === null ? `signal ${signal}` : code, output });
     });
   });
 }
 
-/** Make the CLI's keys available to later steps as `steps.<id>.outputs.<key>`. */
-function publishOutputs(outputs) {
-  const lines = formatOutputFileLines(outputs);
-  if (!lines) return;
+/** Colour codes, so a coloured line still parses (the CLI drops colour off a TTY). */
+// eslint-disable-next-line no-control-regex
+const ANSI_PATTERN = /\x1b\[[0-9;]*[a-zA-Z]/g;
 
+/** The CLI prints the review address of the run it opened or joined as `🔗 Review: <url>`. */
+const REVIEW_LINE_PATTERN = /^\u{1F517} Review:\s*(https?:\/\/\S+)$/u;
+
+/** The last review address in the CLI's screen, or undefined when it printed none. */
+function findReviewUrl(output) {
+  let url;
+
+  for (const rawLine of output.split('\n')) {
+    const match = REVIEW_LINE_PATTERN.exec(rawLine.replace(ANSI_PATTERN, '').trim());
+    if (match) url = match[1];
+  }
+
+  return url;
+}
+
+/** Make the address available to later steps as `steps.<id>.outputs.url`. */
+function publishUrl(url) {
   const outputFile = process.env.GITHUB_OUTPUT;
   if (!outputFile) {
-    // Outside GitHub Actions (a local run of this script): show them instead.
-    console.log(`\nOutputs:\n${lines}`);
+    // Outside GitHub Actions (a local run of this script): show it instead.
+    console.log(`\nurl=${url}`);
     return;
   }
 
-  fs.appendFileSync(outputFile, lines);
-}
-
-/** One line in the log saying what the run means, for a human reading it later. */
-function describeAnswer(outputs) {
-  const nativeNeeded = outputs['native-needed'];
-
-  if (nativeNeeded === 'false') {
-    console.log('\nTested JS-only - no native build was needed');
-  } else if (nativeNeeded === 'true') {
-    console.log('\nA native build is needed before this commit can be tested');
-  }
-
-  if (outputs.reason) console.log(`   ${outputs.reason}`);
-  if (outputs.url) console.log(`   ${outputs.url}`);
+  fs.appendFileSync(outputFile, `url=${url}\n`);
 }

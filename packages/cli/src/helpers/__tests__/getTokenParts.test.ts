@@ -18,8 +18,8 @@
  * valid token must NOT shift the apiToken/teamId windows onto different bytes.
  */
 import { describe, expect, it } from 'vitest';
+import { PERSONAL_TOKEN_PREFIX } from '@sherlo/api-types';
 import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
-import { PERSONAL_TOKEN_PREFIX } from '../../constants';
 import getTokenParts from '../getTokenParts';
 import isValidToken from '../isValidToken';
 

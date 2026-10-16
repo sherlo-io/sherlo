@@ -9,7 +9,7 @@
 import fetch from 'node-fetch';
 import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
-import waitForBuildResult, { fetchServerBypassReason } from '../waitForBuildResult';
+import waitForBuildResult, { fetchServerBypassReason, waitForTest } from '../waitForBuildResult';
 import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from '../exitCodes';
 
 chalk.level = 0;
@@ -26,6 +26,28 @@ vi.mock('node-fetch', () => ({
 }));
 
 const mockFetch = fetch as unknown as Mock;
+
+/**
+ * The spinner a wait draws, recorded instead of drawn: every words it showed, in order, and whether
+ * it was stopped. Only a terminal asks for one, so a case that wants it makes the run a terminal.
+ */
+const spinnersDrawn = vi.hoisted(() => [] as { texts: string[]; stopped: boolean }[]);
+vi.mock('../spinner', () => ({
+  default: (options: { text: string }) => {
+    const drawn = { texts: [options.text], stopped: false };
+    spinnersDrawn.push(drawn);
+    const shown = {
+      start: () => shown,
+      stop: () => {
+        drawn.stopped = true;
+      },
+      set text(words: string) {
+        drawn.texts.push(words);
+      },
+    };
+    return shown;
+  },
+}));
 
 // Helper: build a minimal GraphQL response body
 function buildResponse(
@@ -205,11 +227,14 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      expect(printed).toMatchSnapshot();
+      // The test's row, finished - with no platform rows, since `sherlo view` recorded none.
+      expect(printed).toBe(
+        `Test ${BUILD_INDEX}      ✔ Finished: nothing to test: no change reaches any story`
+      );
 
       // Absence assertions are the point of SHERLO-1952: no wait theatre, no URL.
-      expect(printed).not.toContain('Waiting for build results');
-      expect(printed).not.toContain('🟢 Finished');
+      expect(printed).not.toContain('Waiting for');
+      expect(printed).not.toContain('   Finished');
       expect(printed).not.toContain('http'); // neither a review nor a build URL
     });
 
@@ -240,12 +265,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(result).toBe(EXIT_GREEN);
 
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('Nothing needed capturing');
-      // The platform reason is printed verbatim, INLINE in the headline.
-      expect(printed).toContain('✅ Nothing needed capturing - no change reaches any story');
-      // The fixed dim line replaces the old CLI-invented "every screenshot was
-      // reused" sentence.
-      expect(printed).toContain('closed by the server - no device run was needed');
+      // The test's row, finished, with the server's own reason after "nothing to test".
+      expect(printed).toContain(`Test ${BUILD_INDEX}      ✔ Finished:`);
+      expect(printed).toContain('nothing to test: no change reaches any story');
       expect(printed).not.toContain('every screenshot was reused');
       expect(printed).not.toContain('All stories passed');
     });
@@ -276,9 +298,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await vi.runAllTimersAsync();
       await promise;
 
+      // The android reason is the one printed; the other platform's prose never is.
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('Nothing needed capturing');
-      expect(printed).toContain('no change reaches any story');
+      expect(printed).toContain('nothing to test: no change reaches any story');
       expect(printed).not.toContain('ios: nothing to capture');
     });
 
@@ -303,8 +325,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await promise;
 
       const printed = printedOutput(logSpy);
-      expect(printed).toContain('Nothing needed capturing');
-      expect(printed).toContain('no change reaches any story');
+      expect(printed).toContain('nothing to test: no change reaches any story');
     });
 
     it('falls back to the generic green message when diffScopeInfo is absent', async () => {
@@ -327,7 +348,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
-      expect(printed).not.toContain('Nothing needed capturing');
+      expect(printed).not.toContain('no device ran');
     });
 
     it('falls back to the generic green message when capturedSnapshotCount is not 0', async () => {
@@ -357,7 +378,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
-      expect(printed).not.toContain('Nothing needed capturing');
+      expect(printed).not.toContain('no device ran');
     });
 
     it('forward-compat degrade: counts say bypass but the poll carries no reason -> generic green, no link', async () => {
@@ -384,7 +405,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
 
       const printed = printedOutput(logSpy);
       expect(printed).toContain('All stories passed');
-      expect(printed).not.toContain('Nothing needed capturing');
+      expect(printed).not.toContain('no device ran');
       expect(printed).not.toContain('http');
     });
   });
@@ -768,7 +789,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_GREEN);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('clean finish (BLOCK) does not reprint the link', async () => {
@@ -788,7 +809,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_BLOCK);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('clean finish (ERROR) does not reprint the link', async () => {
@@ -805,7 +826,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_ERROR);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('TIMEOUT does not reprint the link', async () => {
@@ -830,7 +851,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_TIMEOUT);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     }, 10_000);
 
     it('SIGINT does not reprint the link', async () => {
@@ -858,7 +879,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_SIGINT);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
 
     it('AuthError at poll time does not reprint the link', async () => {
@@ -880,7 +901,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       const result = await promise;
 
       expect(result).toBe(EXIT_ERROR);
-      expect(printedOutput()).not.toContain('http');
+      expect(printedOutput()).not.toContain('/build?');
     });
   });
 });
@@ -1194,7 +1215,7 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
 
     expect(await erroredPromise).toBe(EXIT_ERROR);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(countPrinted(erroredLog, 'Build ended in "error" state')).toBe(1);
+    expect(countPrinted(erroredLog, `Test ${BUILD_INDEX} ended as "error".`)).toBe(1);
     erroredLog.mockRestore();
 
     mockFetch.mockReset();
@@ -1213,7 +1234,7 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
 
     expect(await canceledPromise).toBe(EXIT_ERROR);
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(countPrinted(canceledLog, 'Build ended in "canceled" state')).toBe(1);
+    expect(countPrinted(canceledLog, `Test ${BUILD_INDEX} ended as "canceled".`)).toBe(1);
     canceledLog.mockRestore();
   });
 
@@ -1243,5 +1264,123 @@ describe('waitForBuildResult settles stories[] before closing on a finished buil
     expect(countPrinted(logSpy, 'All stories passed')).toBe(1);
 
     logSpy.mockRestore();
+  });
+});
+
+describe('the wait shows the test live, and in a JSON wait keeps stdout clean', () => {
+  const GREEN = { approved: 0, noChanges: 2, reported: 0, unreviewed: 0 };
+  const waitArguments = {
+    token: TOKEN,
+    buildIndex: BUILD_INDEX,
+    projectIndex: PROJECT_INDEX,
+    teamId: TEAM_ID,
+  };
+
+  /** Make this run a terminal (or a pipe) on each stream, for one case. */
+  function streamsAre({ stdout, stderr }: { stdout: boolean; stderr: boolean }) {
+    vi.stubEnv('TERM', 'xterm-256color');
+    vi.stubEnv('CI', '');
+    Object.defineProperty(process.stdout, 'isTTY', { value: stdout, configurable: true });
+    Object.defineProperty(process.stderr, 'isTTY', { value: stderr, configurable: true });
+  }
+
+  const ttyBefore = {
+    stdout: Object.getOwnPropertyDescriptor(process.stdout, 'isTTY'),
+    stderr: Object.getOwnPropertyDescriptor(process.stderr, 'isTTY'),
+  };
+
+  /** Put each stream's `isTTY` back as the test process had it. */
+  function restoreStreams() {
+    for (const [stream, before] of [
+      [process.stdout, ttyBefore.stdout],
+      [process.stderr, ttyBefore.stderr],
+    ] as const) {
+      if (before) Object.defineProperty(stream, 'isTTY', before);
+      else delete (stream as { isTTY?: boolean }).isTTY;
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockFetch.mockReset();
+    spinnersDrawn.length = 0;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+    restoreStreams();
+  });
+
+  it("the wait's spinner shows the live status and the time it has run", async () => {
+    streamsAre({ stdout: true, stderr: true });
+    mockGraphqlResponse(200, buildResponse('queued'));
+    mockGraphqlResponse(200, buildResponse('inProgress'));
+    mockGraphqlResponse(200, buildResponse('inProgress'));
+    mockGraphqlResponse(200, buildResponse('finished', GREEN));
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    const promise = waitForBuildResult(waitArguments);
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(spinnersDrawn, 'one spinner, not one per read').toHaveLength(1);
+    expect(spinnersDrawn[0].texts).toEqual([
+      'Waiting for Test 1 to finish (up to 45 min)...',
+      'Waiting for Test 1 to finish (up to 45 min)... Queued, 0s',
+      'Waiting for Test 1 to finish (up to 45 min)... Running, 15s',
+      'Waiting for Test 1 to finish (up to 45 min)... Running, 30s',
+      // The test has ended; the wait holds one more read while its stories settle.
+      'Waiting for Test 1 to finish (up to 45 min)... Finished, 45s',
+    ]);
+    expect(spinnersDrawn[0].stopped, 'the spinner is gone before the verdict prints').toBe(true);
+  });
+
+  it('a JSON wait prints nothing on stdout and its progress on stderr only when stderr is a terminal', async () => {
+    const stdoutLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const stderrLog = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const stdoutWrite = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    // stdout is a pipe, stderr is not a terminal either: nothing is shown anywhere.
+    streamsAre({ stdout: false, stderr: false });
+    mockGraphqlResponse(200, buildResponse('inProgress'));
+    mockGraphqlResponse(200, buildResponse('finished', GREEN));
+    let promise = waitForTest({ ...waitArguments, json: true });
+    await vi.runAllTimersAsync();
+    const quietly = await promise;
+
+    expect(quietly.exitCode).toBe(EXIT_GREEN);
+    expect(quietly.lastRead?.runStatus, 'the last read comes back for the record').toBe('finished');
+    expect(spinnersDrawn).toHaveLength(0);
+
+    // stdout is still a pipe, stderr is a terminal: the spinner draws, on stderr's terminal.
+    streamsAre({ stdout: false, stderr: true });
+    mockGraphqlResponse(200, buildResponse('inProgress'));
+    mockGraphqlResponse(200, buildResponse('finished', GREEN));
+    promise = waitForTest({ ...waitArguments, json: true });
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(spinnersDrawn).toHaveLength(1);
+    expect(spinnersDrawn[0].texts).toContain(
+      'Waiting for Test 1 to finish (up to 45 min)... Running, 0s'
+    );
+
+    expect(stderrLog, 'progress is the spinner, never a line').not.toHaveBeenCalled();
+
+    // A refused login is said once, on stderr, and still exits 2.
+    streamsAre({ stdout: false, stderr: false });
+    mockGraphqlResponse(401, {});
+    promise = waitForTest({ ...waitArguments, json: true });
+    await vi.runAllTimersAsync();
+    const refused = await promise;
+
+    expect(refused.exitCode).toBe(EXIT_ERROR);
+    expect(stderrLog).toHaveBeenCalledTimes(1);
+    expect(stderrLog.mock.calls[0].join(' ')).toContain('Authentication failed');
+
+    expect(stdoutLog, 'stdout stays free for the record').not.toHaveBeenCalled();
+    expect(stdoutWrite).not.toHaveBeenCalled();
   });
 });

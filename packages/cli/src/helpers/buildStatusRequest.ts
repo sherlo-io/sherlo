@@ -14,6 +14,8 @@
  * load-bearing for the exit-code contract.
  */
 import fetch from 'node-fetch';
+// TYPE-ONLY: the seam imports this module's read, so a value import back would be a cycle.
+import type { BuildStatusPlatform } from '../seams/serverCalls';
 
 /**
  * The `getBuildStatus` wire shape, exported because two things outside this file
@@ -74,7 +76,16 @@ export type BuildStatusResponse = {
       reported: number;
       unreviewed: number;
     };
-    runError?: unknown;
+    /**
+     * The server's `RunError` code (`user_easCloudBuild`, `user_runner`, `system`, ...) of a run
+     * that ended in `error`. `null` for a run that did not.
+     */
+    runError?: string | null;
+    /**
+     * The platform whose failure ended the run - beside `runError`. Absent or `null` when the
+     * error is not one platform's.
+     */
+    runErrorPlatform?: 'android' | 'ios' | null;
     /**
      * Build-wide Diff Scope capture accounting, mirrored off Build.diffScopeInfo
      * (same shape already used by BuildFragment/CloseBuildFragment elsewhere in
@@ -86,7 +97,7 @@ export type BuildStatusResponse = {
      * `platforms.<platform>.reason` carrying the server's plain-prose explanation.
      *
      * We read `platforms.<platform>.reason`, NOT `fullCaptureTriggerReason`.
-     * Per the API schema (build.graphql) `reason` is the operator-approved prose
+     * Per the API schema (build.graphql) `reason` is the reviewed prose
      * the CLI prints verbatim, while `fullCaptureTriggerReason` is a machine enum
      * code that (a) is only set for FULL captures and so is always absent on a
      * bypassed build - which is a partial capture by definition - and (b) would
@@ -101,16 +112,32 @@ export type BuildStatusResponse = {
       };
     };
     /**
-     * The build's frozen git identity (view-metadata, operator ruling
-     * 2026-09-03) - only the two fields `getBuildStatus` sends. Absent on an
-     * older API.
+     * The build's frozen git identity. `isDirty`:
+     * whether the push sent uncommitted changes. Absent on an older API.
      */
     gitInfo?: {
       branchName: string;
       commitHash: string;
+      isDirty?: boolean | null;
     };
+    /** The project's main line the build was judged against. `null` while the project has none. */
+    mainBranch?: string | null;
     /**
-     * Per-story rows (view-metadata, operator ruling 2026-09-03): what `sherlo
+     * The CI run that pushed the build - the jobs of one split run share it. `provider` is the CI
+     * service's word in the run key (`github`, `gitlab`, `circleci`, ... - commands/test/appBuild/
+     * ciRun.ts), or `run` when the jobs passed `--run-id`; `runId` is the id the waiting line shows.
+     * `null` for a push from a person's machine.
+     */
+    ciRun?: { provider: string; runId: string } | null;
+    /** The devices the run was asked for, as the config named them. */
+    devices?: { id: string; osVersion: string; platform: 'android' | 'ios' }[] | null;
+    /** Per platform the run was asked for, what it did with it. A platform it was not asked for is absent. */
+    platforms?: {
+      android?: BuildStatusPlatform;
+      ios?: BuildStatusPlatform;
+    } | null;
+    /**
+     * Per-story rows: what `sherlo
      * view --metadata` prints as `stories[]`. `status` is spelled as the plain
      * string the wire sends (including the hyphenated `"review-required"`)
      * rather than a narrowed union, because `@sherlo/api-types` is not the
@@ -133,7 +160,7 @@ export type BuildStatusResponse = {
         }[]
       | null;
     /**
-     * The Diff Scope block (view-metadata, operator ruling 2026-09-03): what
+     * The Diff Scope block: what
      * `sherlo view --metadata` prints as `diffScope`. Hand-typed rather than
      * imported from `@sherlo/api-types` for the same reason every other field
      * of this wire shape is (see this file's module doc) - server commit
@@ -151,6 +178,23 @@ export type BuildStatusResponse = {
 
 /** One poll answer for a build that exists, as the loop and the deciders see it. */
 export type BuildStatus = NonNullable<BuildStatusResponse['getBuildStatus']>;
+
+/** What the query asks for about one platform of the run: the fields of {@link BuildStatusPlatform}. */
+const PLATFORM_SELECTION = `
+                arrived
+                capture {
+                  full
+                  reason
+                  storyFiles
+                }
+                appBuild {
+                  from
+                  storedFromTest
+                  madeBy
+                  why
+                  nativeChanges
+                }
+                storiesInBundle`;
 
 export function getEndpointUrl(): string {
   const sdkEnv = require('@sherlo/sdk-client/dist/env.json');
@@ -215,6 +259,25 @@ export async function fetchBuildStatus(
               unreviewed
             }
             runError
+            runErrorPlatform
+            mainBranch
+            ciRun {
+              provider
+              runId
+            }
+            devices {
+              id
+              osVersion
+              platform
+            }
+            platforms {
+              android {
+                ${PLATFORM_SELECTION}
+              }
+              ios {
+                ${PLATFORM_SELECTION}
+              }
+            }
             diffScopeInfo {
               capturedSnapshotCount
               inheritedSnapshotCount
@@ -230,6 +293,7 @@ export async function fetchBuildStatus(
             gitInfo {
               branchName
               commitHash
+              isDirty
             }
             stories {
               name

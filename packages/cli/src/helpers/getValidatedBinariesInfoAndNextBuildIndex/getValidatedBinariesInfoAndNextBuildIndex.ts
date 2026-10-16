@@ -1,7 +1,6 @@
 import { Platform } from '@sherlo/api-types';
 import { EAS_BUILD_ON_COMPLETE_COMMAND } from '../../constants';
 import { Command, CommandParams, ValidatedBinariesInfo } from '../../types';
-import getPlatformsToTest from '../getPlatformsToTest';
 import throwError from '../throwError';
 import getBinariesInfoAndNextBuildIndex from './getBinariesInfoAndNextBuildIndex';
 
@@ -22,6 +21,8 @@ type EasBuildOnCompleteCommandParams = BaseParams & {
 type OtherCommandParams = BaseParams & {
   command: OTHER_COMMAND;
   commandParams: CommandParams<OTHER_COMMAND>;
+  /** The app builds the push uploads, per platform: only these platforms' binaries are read. */
+  appBuildPaths: Partial<Record<Platform, string>>;
 };
 
 type EAS_BUILD_ON_COMPLETE_COMMAND = typeof EAS_BUILD_ON_COMPLETE_COMMAND;
@@ -41,9 +42,9 @@ async function getValidatedBinariesInfoAndNextBuildIndex(
     android = params.platform === 'android' ? params.buildPath : undefined;
     ios = params.platform === 'ios' ? params.buildPath : undefined;
   } else {
-    platforms = getPlatformsToTest(params.commandParams.devices);
-    android = params.commandParams.android;
-    ios = params.commandParams.ios;
+    android = params.appBuildPaths.android;
+    ios = params.appBuildPaths.ios;
+    platforms = (['android', 'ios'] as const).filter((platform) => params.appBuildPaths[platform]);
   }
 
   const { binariesInfo, nextBuildIndex } = await getBinariesInfoAndNextBuildIndex({

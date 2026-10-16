@@ -34,16 +34,15 @@ const mocks = vi.hoisted(() => {
     getGitInfo: vi.fn(),
     getBuildRunConfig: vi.fn(),
     getAppBuildUrl: vi.fn(),
-    printBuildIntroMessage: vi.fn(),
-    printResultsUrl: vi.fn(),
+    printTestStarted: vi.fn(),
+    closeTheRun: vi.fn(),
     handleClientError: vi.fn((error: unknown) => {
       // Mirror the real helper's contract: it never swallows an error.
       throw error;
     }),
     reporting: { addBreadcrumb: vi.fn(), setTag: vi.fn(), flush: vi.fn() },
-    computeBaseFingerprint: vi.fn(),
     registerBase: vi.fn(),
-    waitForBuildResult: vi.fn(),
+    isServerBypassed: vi.fn(() => false),
     logWarning: vi.fn(),
     uploadFreshBundles: vi.fn(),
     /**
@@ -80,14 +79,15 @@ vi.mock('../../seams/surroundings', async (importOriginal) => ({
 }));
 vi.mock('../getBuildRunConfig', () => ({ default: mocks.getBuildRunConfig }));
 vi.mock('../getAppBuildUrl', () => ({ default: mocks.getAppBuildUrl }));
-vi.mock('../printBuildIntroMessage', () => ({ default: mocks.printBuildIntroMessage }));
-vi.mock('../printResultsUrl', () => ({ default: mocks.printResultsUrl }));
+// The run's started line and its ending are the staged road's own (../../commands/test), stubbed
+// here: what this file pins is the payload the spine sends.
+vi.mock('../../commands/test/stagedRun', () => ({ printTestStarted: mocks.printTestStarted }));
+vi.mock('../../commands/test/closeTheRun', () => ({ closeTheRun: mocks.closeTheRun }));
 vi.mock('../handleClientError', () => ({ default: mocks.handleClientError }));
 vi.mock('../reporting', () => ({ default: mocks.reporting }));
 vi.mock('../logWarning', () => ({ default: mocks.logWarning }));
-vi.mock('../waitForBuildResult', () => ({ default: mocks.waitForBuildResult }));
+vi.mock('../waitForBuildResult', () => ({ isServerBypassed: mocks.isServerBypassed }));
 vi.mock('../fingerprint', () => ({
-  computeBaseFingerprint: mocks.computeBaseFingerprint,
   registerBase: mocks.registerBase,
 }));
 // A whole-module factory REPLACES the module: an export missing here does not
@@ -168,9 +168,17 @@ function buildRunConfig() {
   } as any;
 }
 
+/** The base fingerprints the build road took before building, handed to the spine. */
+let fingerprints: any;
+
 function callSubject(overrides: { commandParams?: any } = {}) {
+  const commandParams = overrides.commandParams ?? COMMAND_PARAMS;
   return uploadOrReuseBuildsAndRunTests({
-    commandParams: overrides.commandParams ?? COMMAND_PARAMS,
+    commandParams,
+    // The app builds the push uploads arrive beside the params, as the build road hands them over.
+    appBuildPaths: { android: commandParams.android, ios: commandParams.ios },
+    fingerprints,
+    platformRows: [],
   });
 }
 
@@ -191,18 +199,22 @@ beforeEach(() => {
   mocks.getGitInfo.mockResolvedValue(GIT_INFO);
   mocks.getBuildRunConfig.mockImplementation(buildRunConfig);
   // The `nativeFingerprint` wire value is sourced from the single sanitized
-  // Layer-1 compute (SHERLO-1756): `computeBaseFingerprint` returns it as
-  // `nativeFingerprint`. The default is a computed base hash with a registered,
-  // spliceable binary per platform - the state a standard-road run needs to
-  // start at all.
-  mocks.computeBaseFingerprint.mockResolvedValue({
-    hash: 'base-fp-hash',
-    nativeFingerprint: 'native-fp',
-  });
-  mocks.registerBase.mockResolvedValue({
+  // Layer-1 compute (SHERLO-1756) the caller hands over: `computeBaseFingerprint`
+  // returns it as `nativeFingerprint`. The default is a computed base hash with
+  // a registered, spliceable binary per platform - the state a standard-road run
+  // needs to start at all.
+  fingerprints = {
+    android: { hash: 'base-fp-android', nativeFingerprint: 'native-fp' },
+    ios: { hash: 'base-fp-ios', nativeFingerprint: 'native-fp' },
+  };
+  mocks.registerBase.mockImplementation(async ({ platform }: { platform: string }) => ({
     registered: true,
     gateMetadata: { engineClass: 'hermes' },
-  });
+    sourceList: {
+      sources: [{ path: platform, hash: `${platform}-folder`, kind: 'dir' }],
+      modules: [],
+    },
+  }));
   mocks.uploadFreshBundles.mockResolvedValue(FRESH_BUNDLES);
   mocks.getAppBuildUrl.mockReturnValue('https://app.sherlo.io/team1234/7/build/42');
   mocks.openBuild.mockResolvedValue({ build: { index: 42 } });
@@ -233,8 +245,10 @@ describe('openBuild payload - core shape', () => {
       sdkVersion: '2.0.0',
       message: 'my build message',
       nativeFingerprint: 'native-fp',
-      baseFingerprint: 'base-fp-hash',
+      baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
     });
+    // Each platform's own base: the single project-wide field is no longer sent.
+    expect(payload).not.toHaveProperty('baseFingerprint');
     // buildRunConfig + gitInfo flow through by identity (no reshaping).
     expect(payload.buildRunConfig).toBe(mocks.getBuildRunConfig.mock.results[0].value);
     expect(payload.gitInfo).toBe(GIT_INFO);
@@ -266,6 +280,54 @@ describe('openBuild payload - core shape', () => {
   });
 });
 
+describe('openBuild payload - a platform that reuses its stored build', () => {
+  it("a push that reuses one platform's stored build names that platform's base and settings digest too", async () => {
+    await uploadOrReuseBuildsAndRunTests({
+      commandParams: COMMAND_PARAMS,
+      appBuildPaths: { android: COMMAND_PARAMS.android },
+      fingerprints,
+      platformsOnStoredBuild: ['ios'],
+      platformRows: [],
+    });
+    const payload = lastOpenBuildPayload();
+
+    expect(payload.baseFingerprints).toEqual({ android: 'base-fp-android', ios: 'base-fp-ios' });
+    expect(Object.keys(payload.buildSettingsDigests).sort()).toEqual(['android', 'ios']);
+    // Only the uploaded platform registers a base, so only it carries a source list.
+    expect(Object.keys(payload.sourceLists)).toEqual(['android']);
+  });
+
+  it("a push that reuses one platform's stored build sends that platform's gate facts read from its fresh bundle", async () => {
+    const storedGateMetadata = {
+      derivedFrom: 'source',
+      engineClass: 'hermes',
+      bundleFormat: 'hbc',
+    };
+    mocks.uploadFreshBundles.mockResolvedValue({
+      android: FRESH_BUNDLES.android,
+      ios: { ...FRESH_BUNDLES.ios, storedBuildGateMetadata: storedGateMetadata },
+    });
+
+    await uploadOrReuseBuildsAndRunTests({
+      commandParams: COMMAND_PARAMS,
+      appBuildPaths: { android: COMMAND_PARAMS.android },
+      fingerprints,
+      platformsOnStoredBuild: ['ios'],
+      platformRows: [],
+    });
+
+    // The fresh-bundle step derives gate facts for the stored platform alone.
+    expect(mocks.uploadFreshBundles.mock.calls[0][0].platformsOnStoredBuild).toEqual(['ios']);
+    // The uploaded platform keeps the facts read out of its binary; the stored one sends its
+    // fresh bundle's, which the service diffs against its stored base.
+    expect(lastOpenBuildPayload().gateMetadata).toEqual({
+      android: { engineClass: 'hermes' },
+      ios: storedGateMetadata,
+    });
+    expect(mocks.registerBase).toHaveBeenCalledTimes(1);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Conditional baseFingerprint / gateMetadata spread - BOTH branches
 // ---------------------------------------------------------------------------
@@ -275,12 +337,22 @@ describe('openBuild payload - baseFingerprint/gateMetadata spread', () => {
     await callSubject();
     const payload = lastOpenBuildPayload();
 
-    expect(payload.baseFingerprint).toBe('base-fp-hash');
+    expect(payload.baseFingerprints).toEqual({ android: 'base-fp-android', ios: 'base-fp-ios' });
     // Both platforms are present + requested, so both carry gate metadata.
     expect(payload.gateMetadata).toEqual({
       android: { engineClass: 'hermes' },
       ios: { engineClass: 'hermes' },
     });
+    // And the source list each stored base keeps, as its registration made it.
+    expect(payload.sourceLists).toEqual({
+      android: { sources: [{ path: 'android', hash: 'android-folder', kind: 'dir' }], modules: [] },
+      ios: { sources: [{ path: 'ios', hash: 'ios-folder', kind: 'dir' }], modules: [] },
+    });
+    // Each platform registers under its own base fingerprint.
+    expect(mocks.registerBase.mock.calls.map(([params]) => params.baseFingerprint.hash)).toEqual([
+      'base-fp-android',
+      'base-fp-ios',
+    ]);
   });
 });
 
@@ -302,7 +374,7 @@ describe('openBuild payload - nativeFingerprint', () => {
 // ---------------------------------------------------------------------------
 
 describe('reuse-vs-upload branch selection', () => {
-  it('delegates the reuse/upload decision to uploadOrPrintBinaryReuse with binaries + platform paths, the upload effects and an injected clock', async () => {
+  it('delegates the reuse/upload decision to uploadOrPrintBinaryReuse with binaries + platform paths and the upload effects', async () => {
     await callSubject();
 
     expect(mocks.uploadOrPrintBinaryReuse).toHaveBeenCalledWith({
@@ -310,22 +382,12 @@ describe('reuse-vs-upload branch selection', () => {
       projectRoot: '/proj',
       android: '/builds/app.apk',
       ios: '/builds/app.app',
-      // Both seams are asserted ON PURPOSE, so a refactor that silently stops
-      // injecting either one reds here:
-      //
-      // - `uploadEffects` is the mechanism the whole render/expectation layer
-      //   rests on: a posed run swaps the machine seam (../../seams/nativeBuild)
-      //   and the upload block runs offline through it. The subject hands over
-      //   two thunks onto whichever machine is in force, so the shape is what
-      //   is asserted here; the seam's own tests pin where the thunks lead.
-      // - `now` fixes the instant a reuse line's "N minutes ago" is measured
-      //   against. It exists because `getTimeAgo` used to read the wall clock
-      //   directly, so a captured reuse line drifted from "7 minutes ago" to
-      //   "1 week ago" as the calendar moved. Dropping the injection would
-      //   reintroduce that bug; only the seam is contractual here, not the
-      //   value, so the type is what is asserted.
+      // `uploadEffects` is asserted ON PURPOSE, so a refactor that silently stops injecting it reds
+      // here. It is the mechanism the whole render/expectation layer rests on: a posed run swaps
+      // the machine seam (../../seams/nativeBuild) and the upload block runs offline through it.
+      // The subject hands over two thunks onto whichever machine is in force, so the shape is what
+      // is asserted here; the seam's own tests pin where the thunks lead.
       uploadEffects: { readBinary: expect.any(Function), putBinary: expect.any(Function) },
-      now: expect.any(Date),
     });
   });
 
@@ -356,14 +418,21 @@ describe('reuse-vs-upload branch selection', () => {
 
 describe('the fresh bundle on the platform config', () => {
   it('runs the fresh-bundle step with the registered platforms, the base fingerprint, the caller`s --bundle-dir and the effects built from the client', async () => {
-    await callSubject({ commandParams: { ...COMMAND_PARAMS, bundleDir: '/tmp/bundles' } });
+    const buildSettings = { env: { STORYBOOK_ENABLED: 'true' } };
+    await callSubject({
+      commandParams: { ...COMMAND_PARAMS, bundleDir: '/tmp/bundles', buildSettings },
+    });
 
     expect(mocks.uploadFreshBundles).toHaveBeenCalledTimes(1);
     expect(mocks.uploadFreshBundles).toHaveBeenCalledWith({
       projectRoot: '/proj',
       platforms: ['android', 'ios'],
+      // Both platforms upload an app build, so no bundle's gate facts are derived.
+      platformsOnStoredBuild: [],
       bundleDir: '/tmp/bundles',
-      baseFingerprint: 'base-fp-hash',
+      // The config's `build` block reaches the bundler, as it reaches the app build.
+      buildSettings,
+      baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
       projectIndex: 7,
       teamId: 'team1234',
       // Asserted ON PURPOSE: the effects bundle is the seam an expectation
@@ -442,10 +511,8 @@ describe('refusal when the fresh bundle cannot render', () => {
   });
 
   it('refuses when there is no base fingerprint to splice against, quoting why', async () => {
-    mocks.computeBaseFingerprint.mockResolvedValue({
-      hash: null,
-      debugMessage: 'no native project found',
-    });
+    const unavailable = { hash: null, debugMessage: 'no native project found' };
+    fingerprints = { android: unavailable, ios: unavailable };
 
     await expect(callSubject()).rejects.toThrow(/base fingerprint: no native project found/);
 

@@ -4,17 +4,12 @@
  * SAME HOUSE PATTERN AS ../projectCreate/createProjectRequest: raw fetch, not
  * `@sherlo/sdk-client`.
  *
- * `createTeam(name: String!): Team` landed `@aws_lambda` on the
- * `management-api-scopes-and-ops` epic branch, carrying `team:write` - the
- * scope this operation names no `teamId` variable for, and deliberately: the
- * team it creates doesn't exist yet, so there is nothing to check the
- * caller's role against. `REQUIRED_TEAM_ROLE_BY_SCOPE` puts `team:write` on
- * plain "user" standing for exactly that reason
- * (authorizers/personalTokenPolicy.ts) - the same shape `team:read` gets for
- * `listTeams` (../teamList/listTeamsRequest). The document and field
- * selection below were already an exact match for the schema before this
- * landed; only the authorization was missing, and this module needed no
- * change once it did.
+ * `createTeam(name: String!): Team` is served with `@aws_lambda`, carrying
+ * `team:write` - the scope this operation names no `teamId` variable for, and
+ * deliberately: the team it creates doesn't exist yet, so there is nothing to
+ * check the caller's role against. The service lets any signed-in person hold
+ * `team:write` for exactly that reason - the same shape `team:read` gets for
+ * `listTeams` (../teamList/listTeamsRequest).
  */
 import fetch from 'node-fetch';
 import type { TeamCreated } from '../../render/teamCreated';

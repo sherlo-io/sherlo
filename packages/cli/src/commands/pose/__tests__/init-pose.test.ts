@@ -109,7 +109,7 @@ describe('init through the sixth seam', () => {
     // The prompt was shown and answered: the tool printed it, and the run walked past it into the
     // steps that only a pressed Enter reaches.
     expect(plain(screen)).toContain('Ready to move on? Press Enter...');
-    expect(plain(screen)).toContain('To test your app run:');
+    expect(plain(screen)).toContain('To test your app, run:');
     expect(exitCode).toBe(0);
   });
 
@@ -148,7 +148,7 @@ describe('init through the sixth seam', () => {
     // And the run went on past where the question would have been, to the config file.
     expect(configFilesWritten).toEqual([expect.stringMatching(/[/\\]sherlo\.config\.json$/)]);
     expect(plain(screen)).toContain('Created: sherlo.config.json');
-    expect(plain(screen)).toContain('To test your app run:');
+    expect(plain(screen)).toContain('To test your app, run:');
     expect(exitCode).toBe(0);
   });
 

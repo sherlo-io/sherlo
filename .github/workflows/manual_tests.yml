@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: "Which package(s) to test"
+        description: 'Which package(s) to test'
         type: choice
         options:
           - cli
@@ -12,20 +12,20 @@ on:
           - both
         default: cli
       path_filter:
-        description: "Space-separated vitest path substrings, e.g. getTokenParts commands/test"
+        description: 'Space-separated vitest path substrings, e.g. getTokenParts commands/test'
         type: string
         required: false
-        default: ""
+        default: ''
       test_name:
-        description: "Vitest -t title pattern (may be multiple words)"
+        description: 'Vitest -t title pattern (may be multiple words)'
         type: string
         required: false
-        default: ""
+        default: ''
       tester_ref:
         description: "sherlo-tester ref to ratchet the CLI's render layer against (empty = the branch this runs on, falling back to sherlo-tester's dev)"
         type: string
         required: false
-        default: ""
+        default: ''
 
 jobs:
   cli:
@@ -39,16 +39,17 @@ jobs:
         with:
           node-version: '24'
 
-      # Mirrors pr_checks.yml: feature/sherlo-3 and every epic/** branch build
-      # their @sherlo/* deps from sherlo-api source, because the S3 dev-stage
-      # canon can predate lib changes the CLI's source already depends on. The
-      # packaged-build gate below is only honest against the SAME deps the e2e
-      # from-ref install resolves, so this resolution is not optional here.
+      # Mirrors pr_checks.yml: dev, every release/** branch and every epic/**
+      # branch build their @sherlo/* deps from sherlo-api source (its dev), because
+      # the S3 dev-stage canon can predate lib changes the CLI's source already
+      # depends on. The packaged-build gate below is only honest against the SAME
+      # deps the e2e from-ref install resolves, so this resolution is not optional
+      # here.
       - name: Resolve sherlo-lib source
         id: libs
         run: |
-          if [ "$GITHUB_REF_NAME" = "feature/sherlo-3" ] || [[ "$GITHUB_REF_NAME" == epic/* ]]; then
-            echo "ref=feature/sherlo-3" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_NAME" = "dev" ] || [[ "$GITHUB_REF_NAME" == release/* ]] || [[ "$GITHUB_REF_NAME" == epic/* ]]; then
+            echo "ref=dev" >> "$GITHUB_OUTPUT"
           else
             echo "ref=" >> "$GITHUB_OUTPUT"
           fi
@@ -61,12 +62,27 @@ jobs:
           app_id: ${{ secrets.SHERLO_BOT_APP_ID }}
           private_key: ${{ secrets.SHERLO_BOT_PRIVATE_KEY }}
 
+      # A ref under release/ reads sherlo-api's branch of the same name when
+      # sherlo-api has one, else dev. Run outside this checkout: actions/checkout
+      # leaves this repository's own token in its git config as an extra header,
+      # and git would send that instead of CLONE_TOKEN.
+      - name: Take sherlo-api's release branch of the same name
+        if: startsWith(github.ref_name, 'release/')
+        id: release_libs
+        working-directory: ${{ runner.temp }}
+        env:
+          CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
+        run: |
+          if git ls-remote --exit-code "https://x-access-token:${CLONE_TOKEN}@github.com/sherlo-io/sherlo-api.git" "refs/heads/$GITHUB_REF_NAME" > /dev/null; then
+            echo "ref=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download Sherlo packages
         run: ./scripts/init-env.sh
         env:
           CLIENT_STAGE: dev
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          LIBS_REF: ${{ steps.libs.outputs.ref }}
+          LIBS_REF: ${{ steps.release_libs.outputs.ref || steps.libs.outputs.ref }}
           SHERLO_API_CLONE_TOKEN: ${{ steps.github_app_token.outputs.token }}
           # Reads @sherlo-io/time-limits from GitHub's package registry (.yarnrc.yml).
           GITHUB_PACKAGES_TOKEN: ${{ github.token }}

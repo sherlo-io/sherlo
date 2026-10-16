@@ -326,9 +326,7 @@ async function captureOneStory(
 
 /* ========================================================================== */
 /*
- * THE SCREEN IS THE RECORD DRAWN THE WAY THE INSPECTOR DRAWS IT (sherlo book, What a capture
- * records). The shells below are the rules that page marks; the task that makes them true fills
- * them in and never renames one.
+ * THE SCREEN IS THE RECORD DRAWN THE WAY THE INSPECTOR DRAWS IT.
  */
 
 describe("the screen draws every view of the record, the way the build page's inspector draws it", () => {

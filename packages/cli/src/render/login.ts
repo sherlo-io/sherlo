@@ -1,15 +1,13 @@
 /**
- * WHAT `sherlo login` AND `sherlo logout` PRINT when they end well (sherlo / Logging in from the
- * terminal). The endings that exit 1 - a cancelled or expired login, a logout the service could not
- * hear - are refusals, and print through the entry point like every refusal.
+ * WHAT `sherlo login` AND `sherlo logout` PRINT when they end well. The endings that exit 1 - a
+ * cancelled or expired login, a logout the service could not hear - are refusals, and print through the entry point like every refusal.
  *
  * Pure, like everything under ./: state in, print-call argument lists out.
  *
  * THE LOGIN TOKEN IS NOT AN INPUT TO ANY RENDERER HERE, and never will be. The tool saves it and
  * never prints it; a renderer that cannot be handed the token cannot print it.
  *
- * The words are the content department's; the shapes - the link alone on its line, one line
- * naming the person - are the pages'.
+ * The link stands alone on its line, and one line names the person.
  */
 import chalk from 'chalk';
 
