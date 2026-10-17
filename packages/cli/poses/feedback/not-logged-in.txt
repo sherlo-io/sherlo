@@ -1,0 +1,10 @@
+[31mERROR: Not sent: feedback is sent with a Sherlo login, and this computer has none saved.[39m
+  Logging in takes npx sherlo login, and the same report can be sent again after that.
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
+
+[exit 1]

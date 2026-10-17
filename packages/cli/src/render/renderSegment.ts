@@ -66,6 +66,7 @@ import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
+import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
 import {
   renderAlreadyLoggedIn,
   renderLoggedIn,
@@ -483,5 +484,21 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     case 'not-logged-in':
       return { stream: 'stdout', prints: renderNotLoggedIn().map((line) => [line]) };
+
+    /* ------------------------- sending feedback ------------------------ */
+
+    case 'feedback-sent':
+      return {
+        stream: 'stdout',
+        prints: renderFeedbackSent(segment.reference, segment.lastCommand).map((line) => [line]),
+      };
+
+    case 'feedback-dry-run':
+      return {
+        stream: 'stdout',
+        prints: renderFeedbackDryRun(segment.reportKind, segment.report, segment.context).map(
+          (line) => [line]
+        ),
+      };
   }
 }

@@ -64,6 +64,7 @@
     "@types/prompts": "^2.4.9",
     "@types/tar": "^6.1.5",
     "@types/ws": "^8.5.14",
+    "agent-cli-detector": "0.1.6",
     "ansi-escapes": "^7.2.0",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",

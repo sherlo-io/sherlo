@@ -3,6 +3,7 @@ import { version } from '../package.json';
 import {
   build,
   easBuildOnComplete,
+  feedback,
   fingerprint,
   init,
   login,
@@ -73,9 +74,13 @@ import {
 import { printTheLogoInATerminal } from './commands/shared/terminal';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
+import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, throwError, withCommandTimeout } from './helpers';
+import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
+import type { FeedbackOptions } from './commands/feedback/feedback';
+import { renderFeedbackFormat } from './render/feedback';
 import { renderHelpBlock } from './render/testSteps';
 import { renderTokenGone } from './render/pushCredential';
 
@@ -106,6 +111,8 @@ async function start() {
     addViewCommand(program);
 
     addEasBuildOnCompleteCommand(program);
+
+    addFeedbackCommand(program);
 
     addFingerprintCommand(program);
 
@@ -154,6 +161,7 @@ const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
   [LOGIN_COMMAND]: 'Log in to Sherlo through your browser and save the login on this computer',
   [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
+  [FEEDBACK_COMMAND]: 'Send the Sherlo team a report of something broken, missing or unclear',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     '  Tests JS-only changes against the stored app build, with no build. When native code\n' +
@@ -409,6 +417,21 @@ function addLogoutCommand(program: Command) {
     options: [],
     action: logout,
   });
+}
+
+function addFeedbackCommand(program: Command) {
+  // feedback reads its report from --file only - bypass addCommand. Words after the command are taken
+  // only so they reach the command and are refused in its own words, rather than silently dropped.
+  program
+    .command(`${FEEDBACK_COMMAND} [words...]`)
+    .description([COMMAND_DESCRIPTION[FEEDBACK_COMMAND], ...renderFeedbackFormat()].join('\n  '))
+    .option('--kind <kind>', 'bug, missing, unclear or other')
+    .option('--file <path>', 'Read the report from this file, or from a pipe with -')
+    .option('--dry-run', 'Print exactly what would be sent, and send nothing')
+    .action(async (words: string[], options: FeedbackOptions) => {
+      setReportingContext(FEEDBACK_COMMAND, options);
+      await feedback(words, options);
+    });
 }
 
 function addInitCommand(program: Command) {
@@ -763,21 +786,14 @@ function addCommand({
 }
 
 /**
- * EVERY option whose name ends in `token` is redacted, not just `--token`.
- *
- * A second credential flag is exactly the kind of thing that gets added to the
- * CLI without anyone remembering this function. Matching on the NAME means the
- * next one is redacted on the day it is added rather than on the day someone
- * notices it in Sentry.
+ * Names the command and its flags (tokens hidden) to the error reporter, and starts the record of
+ * how the command ends, which `sherlo feedback` attaches. `feedback` itself leaves no record, so
+ * it never replaces the one it reports. `pose` and `mask` never come here.
  */
 function setReportingContext(command: string, options: any) {
-  const commandOptions = Object.fromEntries(
-    Object.entries(options ?? {}).map(([key, value]) =>
-      /token$/i.test(key) && value ? [key, '[hidden]'] : [key, value]
-    )
-  );
+  reporting.setContext('Command', { command, commandOptions: hideTokens(options) });
 
-  reporting.setContext('Command', { command, commandOptions });
+  if (command !== FEEDBACK_COMMAND) recordLastCommand(command, options);
 }
 
 /**
