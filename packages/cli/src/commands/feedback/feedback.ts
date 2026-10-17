@@ -8,19 +8,19 @@
  * words after the command, which the shell may already have changed - and is 10 to 4,000
  * characters. It is sent with the login saved on this computer, and refused without one. Beside
  * the report it sends the facts needed to act on it (./collectContext) with every token and key
- * blanked out (./blankSecrets), and never a token. `--dry-run` prints exactly that and sends
+ * blanked out (../../helpers/blankSecrets), and never a token. `--dry-run` prints exactly that and sends
  * nothing.
  */
 import fs from 'fs';
 import path from 'path';
 import { printSherloIntro, throwError } from '../../helpers';
+import { blankReportAndErrorLines } from '../../helpers/blankSecrets';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
 import { FEEDBACK_HELP_LINE, FEEDBACK_KINDS, renderFeedbackFormat } from '../../render/feedback';
 import { projectFiles } from '../../seams/projectFiles';
 import { savedLogins } from '../../seams/savedLogins';
 import { serverCalls, ServiceRefusedTokenError } from '../../seams/serverCalls';
-import { blankReportAndErrorLines } from './blankSecrets';
 import { collectContext } from './collectContext';
 
 export type FeedbackOptions = { kind?: string; file?: string; dryRun?: boolean };

@@ -8,6 +8,7 @@ import { detect } from 'package-manager-detector';
 import { version as cliVersion } from '../../../package.json';
 import getCwd from '../../helpers/getCwd';
 import getTokenParts from '../../helpers/getTokenParts';
+import { readLastCommand } from '../../helpers/lastCommandRecord';
 import isPersonalToken from '../../helpers/isPersonalToken';
 import type { FeedbackContext } from '../../seams/serverCalls';
 import type { InvalidatedConfig } from '../../types';
@@ -21,6 +22,7 @@ export async function collectContext(): Promise<FeedbackContext> {
 
   return {
     agent: runningAgent(),
+    lastCommand: readLastCommand(),
     cliVersion,
     sdkVersion: installedVersion('@sherlo/react-native-storybook'),
     reactNativeVersion: installedVersion('react-native'),

@@ -76,6 +76,7 @@ import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, throwError, withCommandTimeout } from './helpers';
+import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
 import type { FeedbackOptions } from './commands/feedback/feedback';
@@ -785,21 +786,14 @@ function addCommand({
 }
 
 /**
- * EVERY option whose name ends in `token` is redacted, not just `--token`.
- *
- * A second credential flag is exactly the kind of thing that gets added to the
- * CLI without anyone remembering this function. Matching on the NAME means the
- * next one is redacted on the day it is added rather than on the day someone
- * notices it in Sentry.
+ * Names the command and its flags (tokens hidden) to the error reporter, and starts the record of
+ * how the command ends, which `sherlo feedback` attaches. `feedback` itself leaves no record, so
+ * it never replaces the one it reports. `pose` and `mask` never come here.
  */
 function setReportingContext(command: string, options: any) {
-  const commandOptions = Object.fromEntries(
-    Object.entries(options ?? {}).map(([key, value]) =>
-      /token$/i.test(key) && value ? [key, '[hidden]'] : [key, value]
-    )
-  );
+  reporting.setContext('Command', { command, commandOptions: hideTokens(options) });
 
-  reporting.setContext('Command', { command, commandOptions });
+  if (command !== FEEDBACK_COMMAND) recordLastCommand(command, options);
 }
 
 /**
