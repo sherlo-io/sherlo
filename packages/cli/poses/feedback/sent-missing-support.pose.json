@@ -12,7 +12,7 @@
       "call": "sendFeedback",
       "with": {
         "kind": "missing",
-        "text": "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only."
+        "report": "## Goal\nTest our app on a foldable phone.\n## Missing\nA Pixel Fold among the devices in sherlo.config.json.\n## Instead\nTested on the Pixel 7 Pro only."
       },
       "answer": { "reference": "FB-5R2N" }
     }

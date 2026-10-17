@@ -448,14 +448,11 @@ export type ScriptedCall =
       answer: ApiError | Record<string, never>;
     }
   | {
-      /**
-       * `sherlo feedback` stores the person's words. The pose states the words it expects sent; the
-       * context is composed by the command, so a pose does not restate it.
-       */
+      /** `sherlo feedback` stores the report; the context is composed by the command, not posed. */
       call: 'sendFeedback';
       with: {
         kind: 'bug' | 'missing' | 'unclear' | 'other';
-        text: string;
+        report: string;
       };
       answer:
         | ApiError

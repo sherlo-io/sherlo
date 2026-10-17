@@ -152,16 +152,12 @@ export type ServerCalls = {
   sendFeedback(request: {
     personalToken: string;
     kind: 'bug' | 'missing' | 'unclear' | 'other';
-    text: string;
+    report: string;
     context: FeedbackContext;
   }): Promise<{ reference: string }>;
 };
 
-/**
- * What `sherlo feedback` sends beside the person's words: the facts needed to act on a report.
- * Never a token, never the saved login, never an environment value, and nothing from
- * sherlo.config.json beyond the project and its devices.
- */
+/** What `sherlo feedback` sends beside the report. Never a token, a saved login or an environment value. */
 export type FeedbackContext = {
   /** The AI agent that ran the command, by name ("Claude Code"); absent when a person did. */
   agent?: string;
@@ -172,9 +168,11 @@ export type FeedbackContext = {
   reactNativeVersion?: string;
   expoVersion?: string;
   storybookVersion?: string;
-  storybookSetup?: 'default' | 'old';
   packageManager?: string;
   operatingSystem: string;
+  /** The team and project number the config's token names; the service picks the sender's team from it. */
+  project?: { teamId: string; projectIndex: number };
+  devices?: Config['devices'];
 };
 
 /** A login the service started for this run: what to open, and what only this run may ask with. */
@@ -300,19 +298,23 @@ export const liveServerCalls: ServerCalls = {
 
   // A login's token is a personal token, sent whole: it has no parts the way a project token has.
   logOutCli: async ({ personalToken }) => {
-    try {
-      await sdkClient({ authToken: personalToken }, getEndpointUrl()).logOutCli();
-    } catch (error) {
-      if (serviceRefusedTheToken(error)) throw new ServiceRefusedTokenError();
-      throw error;
-    }
+    await sdkClient({ authToken: personalToken }, getEndpointUrl())
+      .logOutCli()
+      .catch(throwTokenRefusal);
   },
 
-  // The service has no feedback call yet, so the live half refuses until the sdk client has one.
-  sendFeedback: async () => {
-    throw new Error('Sherlo cannot take feedback yet.');
-  },
+  // The context travels as JSON text; the service reads the sender's team from `project.teamId`.
+  sendFeedback: async ({ personalToken, kind, report, context }) =>
+    sdkClient({ authToken: personalToken }, getEndpointUrl())
+      .sendFeedback({ kind, report, context: JSON.stringify(context) })
+      .catch(throwTokenRefusal),
 };
+
+/** Rethrow a service's refusal of the token as {@link ServiceRefusedTokenError}, any other error as is. */
+function throwTokenRefusal(error: unknown): never {
+  if (serviceRefusedTheToken(error)) throw new ServiceRefusedTokenError();
+  throw error;
+}
 
 /** The service answered, and refused the token it was sent. */
 export class ServiceRefusedTokenError extends Error {
@@ -732,12 +734,9 @@ export type ScriptedCall =
       answer: Record<string, never> | ApiError;
     }
   | {
-      /**
-       * `sherlo feedback` stores the person's words. The pose states the words it expects sent;
-       * the context is composed by the command, so a pose does not restate it.
-       */
+      /** `sherlo feedback` stores the report; the context is composed by the command, not posed. */
       call: 'sendFeedback';
-      with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; text: string };
+      with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string };
       answer: { reference: string } | ApiError;
     };
 
@@ -908,8 +907,8 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       answerFor('logOutCli', {});
     },
 
-    sendFeedback: async ({ kind, text }) =>
-      answerFor('sendFeedback', { kind, text }) as { reference: string },
+    sendFeedback: async ({ kind, report }) =>
+      answerFor('sendFeedback', { kind, report }) as { reference: string },
   };
 }
 

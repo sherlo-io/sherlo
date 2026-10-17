@@ -1,7 +1,7 @@
 /**
- * WHAT `sherlo feedback` PRINTS: the four kinds of report and the
- * sections each needs, which its --help and its refusals share, the dry run, and the screen once it
- * is sent. Its refusals print through the entry point like every refusal.
+ * WHAT `sherlo feedback` PRINTS: the four kinds of report and the sections each needs, which its
+ * --help and its refusals share, the dry run, and the screen once it is sent. Its refusals print
+ * through the entry point like every refusal.
  *
  * Pure, like everything under ./: state in, print-call argument lists out.
  *
@@ -24,7 +24,7 @@ export const FEEDBACK_KINDS = [
     isFor: 'Something is broken',
     required: [
       { heading: 'Steps', holds: 'The exact commands and edits, in order' },
-      { heading: 'Happened', holds: 'What Sherlo did - quote its output' },
+      { heading: 'Happened', holds: 'What Sherlo did, quoting its output' },
       { heading: 'Expected', holds: 'What you expected, and why' },
     ],
     welcome: ['Goal', 'Tried', 'Smallest repro'],
@@ -51,7 +51,7 @@ export const FEEDBACK_KINDS = [
   },
   {
     kind: 'other',
-    isFor: 'Anything else, in your own words',
+    isFor: 'Anything else, in your own words. No sections are needed.',
     required: [] as Section[],
     welcome: [] as string[],
   },
@@ -60,7 +60,7 @@ export const FEEDBACK_KINDS = [
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]['kind'];
 
 /** Sections sit under their kind's description: `  --kind ` and the widest kind, `unclear`, padded. */
-const SECTION_INDENT = ' '.repeat(18);
+const SECTION_INDENT = ' '.repeat(20);
 
 /** Where every refusal of the command points for the report's format. */
 export const FEEDBACK_HELP_LINE = 'npx sherlo feedback --help';
@@ -69,15 +69,16 @@ export const FEEDBACK_HELP_LINE = 'npx sherlo feedback --help';
 export type LastCommand = { command: string; exitCode: number };
 
 /**
- * How to write a report, as --help prints it and a report with no kind is refused with. A report is
- * read only from a file, a piped one first, because the shell changes nothing inside a quoted
- * here-document, while words after the command may already have run a `$(...)` they quote.
+ * How to write a report, as --help prints it and a report with no kind, or an unknown one, is
+ * refused with. A report is read only from a file, a piped one first, because the shell changes
+ * nothing inside a quoted here-document, while words after the command may already have run a
+ * `$(...)` they quote.
  */
 export function renderFeedbackFormat(): string[] {
   const kindLines = FEEDBACK_KINDS.flatMap(({ kind, isFor, required, welcome }) => {
     const widest = Math.max(0, ...required.map(({ heading }) => heading.length));
     return [
-      `  --kind ${kind.padEnd(9)}${isFor}`,
+      `  --kind ${kind.padEnd(11)}${isFor}`,
       ...required.map(
         ({ heading, holds }) => `${SECTION_INDENT}## ${heading.padEnd(widest)}  ${holds}`
       ),
@@ -88,32 +89,31 @@ export function renderFeedbackFormat(): string[] {
   });
 
   return [
-    'Say what kind of report it is, and write the sections that kind needs.',
-    'Write "unknown" for any you do not know - never guess.',
+    'A report says what kind it is, and is sent with the sections that kind needs.',
+    'A section is a markdown heading, such as "## Steps", with words under it.',
+    '"unknown" is accepted under any heading. A guessed answer is worse for the team than a missing one.',
     '',
     ...kindLines,
     '',
-    'The report is read from a file. Pipe it in with a quoted here-document, which the shell leaves alone:',
+    'The report is read from a file, because the shell may change words typed after the command: inside double quotes it still runs $(...) and backticks, and an unquoted semicolon ends the command. A quoted here-document is left alone by the shell:',
     "  npx sherlo feedback --kind bug --file - <<'EOF'",
     '  ## Steps',
     '  ...',
     '  EOF',
-    'Or name a file - the way on Windows, which has no here-document:',
+    'On Windows, which has no here-document, a named file works:',
     '  npx sherlo feedback --kind bug --file report.md',
+    'A report is 10 to 4,000 characters.',
     '',
-    'Sent with it, so you need not write them: your last Sherlo command with its exit code and error',
-    'lines, the Sherlo, React Native, Expo and Storybook versions, the package manager and the OS.',
-    'Never write in tokens, passwords, .env contents, personal data, or app code beyond the smallest repro.',
+    'Sent with the report, without asking: the last Sherlo command this project ran with its exit code and error lines, the Sherlo, React Native, Expo and Storybook versions, the package manager, the operating system, the project and its devices, and the name of the AI agent that ran the command, when there is one.',
+    'Never sent: tokens, the saved login, environment values, the rest of the config, an agent session id.',
+    'Best left out of the report: tokens, passwords, secret files, personal data, and app code beyond the smallest repro.',
     'Anything shaped like a token or a key is blanked out before it is sent.',
-    '`--dry-run` prints exactly what would be sent, and sends nothing. The Sherlo team reads every report.',
+    'With --dry-run the command prints exactly what would be sent, sends nothing and needs no login.',
+    'Sending needs a saved login (npx sherlo login). The Sherlo team reads every report.',
   ];
 }
 
-const OPERATING_SYSTEM_NAME: Record<string, string> = {
-  darwin: 'macOS',
-  linux: 'Linux',
-  win32: 'Windows',
-};
+const NOT_KNOWN = 'not known';
 
 /** The report and everything sent beside it, exactly as it would leave the machine. Nothing is sent. */
 export function renderFeedbackDryRun(
@@ -121,39 +121,33 @@ export function renderFeedbackDryRun(
   report: string,
   context: FeedbackContext
 ): string[] {
-  const versions = [
-    `Sherlo CLI ${context.cliVersion}`,
-    context.reactNativeVersion && `React Native ${context.reactNativeVersion}`,
-    context.expoVersion && `Expo ${context.expoVersion}`,
-    context.storybookVersion &&
-      `Storybook ${context.storybookVersion}${
-        context.storybookSetup ? ` (${context.storybookSetup} setup)` : ''
-      }`,
-  ].filter(Boolean);
-
-  const lastCommandLines = context.lastCommand
-    ? [
-        `${chalk.dim('  ➜')} Last command: sherlo ${context.lastCommand.command}, exit ${
-          context.lastCommand.exitCode
-        }`,
-        ...context.lastCommand.errorLines.map((line) => chalk.dim(`      ${line}`)),
-      ]
-    : [];
+  const { lastCommand } = context;
+  const devices = context.devices?.map(({ id }) => id).join(', ');
+  const project = context.project
+    ? `team ${context.project.teamId}, project number ${context.project.projectIndex}`
+    : undefined;
+  const lastCommandValue = lastCommand
+    ? `npx sherlo ${lastCommand.command}, exit ${lastCommand.exitCode}`
+    : 'none recorded';
 
   return [
     `${chalk.yellow('◦')}  Dry run - nothing was sent. This ${kind} report is what would be sent:`,
     '',
     ...report.split('\n').map((line) => `  ${line}`),
     '',
-    'Sent with it:',
-    ...lastCommandLines,
-    `${chalk.dim('  ➜')} ${versions.join(' · ')}`,
-    `${chalk.dim('  ➜')} ${[
-      context.packageManager,
-      OPERATING_SYSTEM_NAME[context.operatingSystem] ?? context.operatingSystem,
-    ]
-      .filter(Boolean)
-      .join(' · ')}`,
+    'Sent with it, tokens and keys blanked out:',
+    `  Project: ${project ?? NOT_KNOWN}`,
+    `  Devices: ${devices || NOT_KNOWN}`,
+    `  Sherlo SDK: ${context.sdkVersion ?? NOT_KNOWN}`,
+    `  Sherlo CLI: ${context.cliVersion}`,
+    `  React Native: ${context.reactNativeVersion ?? NOT_KNOWN}`,
+    `  Expo: ${context.expoVersion ?? NOT_KNOWN}`,
+    `  Storybook: ${context.storybookVersion ?? NOT_KNOWN}`,
+    `  Package manager: ${context.packageManager ?? NOT_KNOWN}`,
+    `  Operating system: ${context.operatingSystem}`,
+    `  AI agent: ${context.agent ?? 'none'}`,
+    `  Last command: ${lastCommandValue}`,
+    ...(lastCommand?.errorLines ?? []).map((line) => chalk.dim(`      ${line}`)),
     '',
   ];
 }
@@ -165,7 +159,7 @@ export function renderFeedbackDryRun(
 export function renderFeedbackSent(reference: string, lastCommand?: LastCommand): string[] {
   const lastCommandLines = lastCommand
     ? [
-        `${chalk.dim('  ➜')} The last Sherlo command: sherlo ${lastCommand.command}, exit ${
+        `${chalk.dim('  ➜')} The last Sherlo command: npx sherlo ${lastCommand.command}, exit ${
           lastCommand.exitCode
         }`,
       ]
@@ -178,7 +172,8 @@ export function renderFeedbackSent(reference: string, lastCommand?: LastCommand)
     ...lastCommandLines,
     `${chalk.dim('  ➜')} The Sherlo, React Native, Expo and Storybook versions`,
     `${chalk.dim('  ➜')} The package manager and the operating system`,
-    chalk.dim('No token is ever sent, and no app code beyond what your report quotes.'),
+    `${chalk.dim('  ➜')} The project and its devices`,
+    chalk.dim('No token is sent, and no app code beyond what your report quotes.'),
     '',
   ];
 }

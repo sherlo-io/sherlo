@@ -12,7 +12,7 @@
       "call": "sendFeedback",
       "with": {
         "kind": "bug",
-        "text": "## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link."
+        "report": "## Steps\nnpx sherlo view\n## Happened\nIt printed the status but no link.\n## Expected\nThe build's link."
       },
       "answer": { "error": "Network error: getaddrinfo ENOTFOUND api.sherlo.io" }
     }
