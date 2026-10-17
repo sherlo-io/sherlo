@@ -144,7 +144,17 @@ function failureOfScriptWithoutToken(scriptArguments: string[]): string {
   throw new Error('node ' + scriptArguments.join(' ') + ' succeeded with no package token');
 }
 
+/** The storage lookup needs the package token, which a fork's pull request does not get. */
+function storageLookupPossible(environment: NodeJS.ProcessEnv): boolean {
+  return Boolean(environment.PACKAGE_TOKEN);
+}
+
 describe('the pin', () => {
+  it('skips the storage lookup when no package token is present', () => {
+    expect(storageLookupPossible({ CI: 'true' })).toBe(false);
+    expect(storageLookupPossible({ CI: 'true', PACKAGE_TOKEN: 'a-token' })).toBe(true);
+  });
+
   it('the pin names one stored core by version, fingerprint, runner commit, source tree and seam hash', async (context) => {
     const pin = JSON.parse(fs.readFileSync(PIN_FILE, 'utf8'));
     expect(Object.keys(pin)).toEqual(PIN_FIELDS);
@@ -155,8 +165,9 @@ describe('the pin', () => {
     expect(pin.seamHash).toMatch(/^[0-9a-f]{64}$/);
 
     // And the core is stored: the pin tool, run on the pinned fingerprint against the real storage,
-    // writes this same pin. That reads storage, so it needs the package token, which CI carries.
-    if (!process.env.PACKAGE_TOKEN && process.env.CI !== 'true') {
+    // writes this same pin. That reads storage, so it needs the package token, which a fork's pull
+    // request does not get.
+    if (!storageLookupPossible(process.env)) {
       console.warn('PACKAGE_TOKEN is not set, so the pinned core is not looked up in storage');
       context.skip();
     }
