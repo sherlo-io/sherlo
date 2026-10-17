@@ -454,7 +454,7 @@ function moduleManifestsOf(
   const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
   for (const [platform, freshBundle] of Object.entries(freshBundles) as [
     Platform,
-    UploadedFreshBundle
+    UploadedFreshBundle,
   ][]) {
     if (freshBundle.moduleManifest) moduleManifests[platform] = freshBundle.moduleManifest;
   }

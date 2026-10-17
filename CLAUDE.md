@@ -24,10 +24,10 @@ Lint the SDK and the CLI from the root:
 yarn lint
 ```
 
-It runs oxlint with the rules in `.oxlintrc.json` (the door rules under `packages/cli/src` included), then `prettier --check`. Each package's own `yarn lint` does the same for that package.
+It runs oxlint with the rules in `.oxlintrc.json` (the door rules under `packages/cli/src` included), then `oxfmt --check`. Each package's own `yarn lint` does the same for that package.
 
 - The door rules (`no-restricted-imports`, `no-restricted-globals`, `no-restricted-properties`) replace ESLint's `no-restricted-syntax` selectors. oxlint has no rule that refuses `require()`, so `.oxlint/doors-plugin.js` carries that one, for `child_process`, `http`, `https` and `net`.
-- `prettier --check` replaces ESLint's Prettier rule. The `react-native/*` rules of the old React Native preset, the Flow rules and the accessibility rules have no oxlint form and are dropped; none was failing.
+- `oxfmt --check` replaces ESLint's Prettier rule. The `react-native/*` rules of the old React Native preset, the Flow rules and the accessibility rules have no oxlint form and are dropped; none was failing.
 - `jest/valid-expect` is off: vitest's `expect(value, message)` takes a second argument, which that rule warns on and the old lint never did. `no-bitwise` stays a warning, as it was.
 
 ## Test Execution
