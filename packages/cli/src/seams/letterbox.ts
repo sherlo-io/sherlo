@@ -216,7 +216,7 @@ export function posedLetterbox(
       if (!posed.stories.includes(storyId)) {
         return { kind: 'no-such-story', known: posed.stories };
       }
-      const rendered = wait ? posed.rendered ?? 'yes' : 'not-waited';
+      const rendered = wait ? (posed.rendered ?? 'yes') : 'not-waited';
       // A story that never painted has told nobody what it threw, so a pose that states both is
       // answered with the story's silence rather than with a fact the road could not carry.
       const threw = rendered === 'yes' ? posed.threw : undefined;
