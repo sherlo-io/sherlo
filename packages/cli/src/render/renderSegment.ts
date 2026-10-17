@@ -42,6 +42,7 @@ import {
 } from './appBuild';
 import { renderOutputKeys, renderTestNotice } from './pushSpine';
 import { renderStepInProgress } from './stepInProgress';
+import { renderSignedInThroughGitHub } from './pushCredential';
 import {
   renderFinishedUnderTheTestRow,
   renderPlatformRow,
@@ -139,6 +140,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderCommandIntro(segment.command).map((line) => [line]),
+      };
+
+    case 'signed-in-through-github':
+      return {
+        stream: 'stdout',
+        prints: [[renderSignedInThroughGitHub(segment.repository)], []],
       };
 
     // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts. In a
