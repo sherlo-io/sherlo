@@ -43,6 +43,14 @@ describe('anything shaped like a token or a key is blanked out before it leaves'
     expect(blanked.context.cliVersion).toBe('1.0.0');
   });
 
+  it('a project key inside error text is blanked', () => {
+    const key = `${'a'.repeat(32)}k3j9x2ab4`;
+
+    expect(blankSecrets(`Request failed for token ${key}: 401, step init`)).toBe(
+      `Request failed for token ${BLANKED}: 401, step init`
+    );
+  });
+
   it('leaves ordinary words, commands and short identifiers as they are', () => {
     const ordinary = 'npx sherlo test --projectRoot ./app crashed with exit 1 at step 3';
 
