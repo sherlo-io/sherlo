@@ -20,6 +20,7 @@ import { emit } from '../../helpers/transcriptSink';
 import { FEEDBACK_HELP_LINE, FEEDBACK_KINDS, renderFeedbackFormat } from '../../render/feedback';
 import { projectFiles } from '../../seams/projectFiles';
 import { savedLogins } from '../../seams/savedLogins';
+import { serviceRefusedTheDayLimit } from '../../seams/dayLimitRefusal';
 import { serverCalls, ServiceRefusedTokenError } from '../../seams/serverCalls';
 import { collectContext } from './collectContext';
 
@@ -116,6 +117,15 @@ async function feedback(words: string[], options: FeedbackOptions): Promise<void
           message: [
             'Not sent: Sherlo refused the saved login, which was ended or has run out, so the report did not leave this computer. The saved login is deleted, as npx sherlo logout does.',
             'Logging in again takes npx sherlo login, and the same report can be sent again after that.',
+          ].join('\n  '),
+        });
+      }
+
+      if (serviceRefusedTheDayLimit(error)) {
+        throwError({
+          message: [
+            'Not sent: one Sherlo login sends at most 20 reports a day, and this login has reached that limit today.',
+            'The report can be sent again tomorrow.',
           ].join('\n  '),
         });
       }
