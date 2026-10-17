@@ -193,6 +193,16 @@ export const LOGS_OPTION = 'logs';
  */
 export const BUILD_TICKET_PREFIX = 'sbt_';
 
+/**
+ * How a GITHUB SESSION starts: the three-hour credential the service trades for a GitHub Actions
+ * job's ID token. Opaque like a personal token, and sent whole. Must match the prefix the service
+ * issues it with.
+ */
+export const GITHUB_SESSION_PREFIX = 'sgh_';
+
+/** The audience a GitHub ID token is requested for: the one the service checks it against. */
+export const GITHUB_ID_TOKEN_AUDIENCE = 'https://api.sherlo.io';
+
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
