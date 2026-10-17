@@ -205,10 +205,13 @@ function poseNamed(name: string): CommandPose {
   return readPoseDocument(fs.readFileSync(entry.posePath, 'utf8'));
 }
 
-/** `--json` prints a record instead of the human view, and that carries no colour. */
+/**
+ * `--json` prints a record instead of the human view, and `--help` prints commander's own usage
+ * text: neither carries colour.
+ */
 function printsTheJsonContract(posePath: string): boolean {
   const { argv } = readPoseDocument(fs.readFileSync(posePath, 'utf8'));
-  return argv.includes('--json');
+  return argv.includes('--json') || argv.includes('--help');
 }
 
 /**
