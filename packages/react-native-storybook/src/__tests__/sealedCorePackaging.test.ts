@@ -91,10 +91,17 @@ function theNpmPack(): { packedFiles: string[]; unpackedPackageDir: string } {
   return npmPack;
 }
 
+/**
+ * On GitHub, with the package token, the packs are not optional: a check that lost its pack step
+ * goes red, never skips. Without the token (a fork's pull request) no pack can be made, and a
+ * Mac save has no pack step, so both skip.
+ */
+function packsAreRequiredButMissing(environment: NodeJS.ProcessEnv, packsExist: boolean): boolean {
+  return environment.GITHUB_ACTIONS === 'true' && Boolean(environment.PACKAGE_TOKEN) && !packsExist;
+}
+
 beforeAll(() => {
-  // On GitHub the packs are not optional: a check that lost its pack step goes red, never skips.
-  // A Mac save has no pack step, so it skips.
-  if (process.env.GITHUB_ACTIONS === 'true' && !hasThePacks) {
+  if (packsAreRequiredButMissing(process.env, hasThePacks)) {
     throw new Error(`a GitHub run with no packs to read: ${NO_PACKS_REASON}`);
   }
 });
@@ -161,6 +168,17 @@ function packsTheSdk(step: { name: string; body: string }): boolean {
 }
 
 describe('what the published package carries', () => {
+  it('skips the pack rules when no package token is present', () => {
+    const forkRun = { GITHUB_ACTIONS: 'true' };
+    expect(packsAreRequiredButMissing(forkRun, false)).toBe(false);
+  });
+
+  it('fails on CI when the token is present but no packs were made', () => {
+    const ciRun = { GITHUB_ACTIONS: 'true', PACKAGE_TOKEN: 'a-token' };
+    expect(packsAreRequiredButMissing(ciRun, false)).toBe(true);
+    expect(packsAreRequiredButMissing(ciRun, true)).toBe(false);
+  });
+
   describe('the pinned core, from a real pack', () => {
     // Packed as a publish does, prepack and all, with no core laid beforehand: the step's npm.tgz.
     let packedFiles: string[] = [];
@@ -568,6 +586,18 @@ describe('what CI and a release check', () => {
       )
       .map(({ workflowFile, stepName }) => workflowFile + ': ' + stepName);
     expect(stepsWithoutToken).toEqual([]);
+  });
+
+  it('the SDK pack step runs only when the package token is present', () => {
+    const workflow = workflowWithoutComments('pr_checks.yml');
+    const packStep = namedStepsOf('pr_checks.yml').find(packsTheSdk);
+    expect(packStep).toBeDefined();
+    expect(packStep!.body).toMatch(/if: .*env\.HAS_PACKAGE_TOKEN == 'true'/);
+    expect(packStep!.body).not.toContain('head.repo');
+    expect(workflow).toMatch(/HAS_PACKAGE_TOKEN: \$\{\{ secrets\.PACKAGE_TOKEN != '' \}\}/);
+    const packsFolderLine = workflow.split('\n').find((line) => line.includes('SHERLO_SDK_PACKS:'));
+    expect(packsFolderLine).toContain("env.HAS_PACKAGE_TOKEN == 'true'");
+    expect(packsFolderLine).not.toContain('head.repo');
   });
 
   it('no release workflow builds or signs a core', () => {
