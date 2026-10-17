@@ -14,6 +14,10 @@ jobs:
     name: package-checks (${{ matrix.package.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Whether this run gets the package token: a pull request from a fork or from Dependabot gets
+      # none. A step's `if:` cannot read secrets, so the job exposes the answer here.
+      HAS_PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN != '' }}
     permissions:
       actions: read
       contents: read
@@ -121,10 +125,10 @@ jobs:
       # (src/__tests__/sealedCorePackaging.test.ts). The pack fetches the pinned core from package
       # storage with this token and builds the bundler plugin - too slow for a unit suite, so the
       # suite only reads the two tarballs this step leaves in the folder SHERLO_SDK_PACKS names.
-      # A pull request from a fork gets no package token, so it makes no packs and the suite skips
-      # its packaging rules.
+      # A pull request that gets no package token, from a fork or from Dependabot, makes no packs
+      # and the suite skips its packaging rules.
       - name: Pack the SDK as a publish does
-        if: matrix.package.name == 'react-native-storybook' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: matrix.package.name == 'react-native-storybook' && env.HAS_PACKAGE_TOKEN == 'true'
         working-directory: ${{ matrix.package.dir }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -141,8 +145,8 @@ jobs:
           # The CLI's suite gets none.
           PACKAGE_TOKEN: ${{ matrix.package.name == 'react-native-storybook' && secrets.PACKAGE_TOKEN || '' }}
           # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI,
-          # and for a fork's pull request, where the step does not run.
-          SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && format('{0}/sdk-packs', runner.temp) || '' }}
+          # and when no package token is present, where the step does not run.
+          SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && env.HAS_PACKAGE_TOKEN == 'true' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
 
       # THE SDK'S ANDROID UNIT TESTS, on a plain JVM with Robolectric (no emulator), inside this job so
