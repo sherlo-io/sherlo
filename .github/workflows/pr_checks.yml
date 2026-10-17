@@ -14,6 +14,10 @@ jobs:
     name: package-checks (${{ matrix.package.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Whether this run gets the package token: a pull request from a fork or from Dependabot gets
+      # none. A step's `if:` cannot read secrets, so the job exposes the answer here.
+      HAS_PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN != '' }}
     permissions:
       actions: read
       contents: read
@@ -121,8 +125,10 @@ jobs:
       # (src/__tests__/sealedCorePackaging.test.ts). The pack fetches the pinned core from package
       # storage with this token and builds the bundler plugin - too slow for a unit suite, so the
       # suite only reads the two tarballs this step leaves in the folder SHERLO_SDK_PACKS names.
+      # A pull request that gets no package token, from a fork or from Dependabot, makes no packs
+      # and the suite skips its packaging rules.
       - name: Pack the SDK as a publish does
-        if: matrix.package.name == 'react-native-storybook'
+        if: matrix.package.name == 'react-native-storybook' && env.HAS_PACKAGE_TOKEN == 'true'
         working-directory: ${{ matrix.package.dir }}
         env:
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
@@ -138,8 +144,9 @@ jobs:
           # The SDK suite's pin rules look the pinned core up in package storage with this token.
           # The CLI's suite gets none.
           PACKAGE_TOKEN: ${{ matrix.package.name == 'react-native-storybook' && secrets.PACKAGE_TOKEN || '' }}
-          # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI.
-          SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && format('{0}/sdk-packs', runner.temp) || '' }}
+          # The packs the step above made, for the SDK suite's packaging rules. Empty for the CLI,
+          # and when no package token is present, where the step does not run.
+          SHERLO_SDK_PACKS: ${{ matrix.package.name == 'react-native-storybook' && env.HAS_PACKAGE_TOKEN == 'true' && format('{0}/sdk-packs', runner.temp) || '' }}
         run: yarn test
 
       # THE SDK'S ANDROID UNIT TESTS, on a plain JVM with Robolectric (no emulator), inside this job so
