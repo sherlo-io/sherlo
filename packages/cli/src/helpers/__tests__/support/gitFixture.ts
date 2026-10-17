@@ -32,6 +32,34 @@ const FIXTURE_IDENTITY = {
 const BASE_EPOCH_SECONDS = 1_609_459_200;
 const COMMIT_STEP_SECONDS = 60;
 
+const dataBlock = (text: string) => `data ${Buffer.byteLength(text)}\n${text}\n`;
+const STREAM_IDENTITY = `${FIXTURE_IDENTITY.name} <${FIXTURE_IDENTITY.email}>`;
+
+/** The text a commit named `message` writes into its file. */
+const contentFor = (message: string) => `content for: ${message}\n`;
+
+/** One file entry of a `git fast-import` commit. */
+const fileEntry = (file: string, content: string) =>
+  `M 100644 inline ${file}\n${dataBlock(content)}`;
+
+/** One commit of {@link GitFixture.buildHistory}. */
+export type HistoryStep = {
+  /** The name its SHA comes back under. */
+  mark: string;
+  /** The branch it is committed on. */
+  branch: string;
+  message: string;
+  /** The marks of its parents, the first being the branch it continues; none for a root. */
+  parents: string[];
+  /** The file it writes (default `file.txt`), or null for none. */
+  file?: string | null;
+};
+
+/** A "Merge feature" commit on `main` for {@link GitFixture.buildHistory}, with no file of its own. */
+export function mergeStep(mark: string, parents: string[]): HistoryStep {
+  return { mark, branch: 'main', message: 'Merge feature', parents, file: null };
+}
+
 export class GitFixture {
   readonly dir: string;
   private commitCount = 0;
@@ -76,7 +104,7 @@ export class GitFixture {
 
   /** Convenience: writes a file derived from `message`, then commits. */
   commitFile(message: string, file = 'file.txt'): string {
-    this.writeFile(file, `content for: ${message}\n`);
+    this.writeFile(file, contentFor(message));
     return this.commit(message);
   }
 
@@ -95,36 +123,74 @@ export class GitFixture {
       parent = undefined; // an empty repository: the first commit has no parent
     }
 
-    const dataBlock = (text: string) => `data ${Buffer.byteLength(text)}\n${text}\n`;
-    const identity = `${FIXTURE_IDENTITY.name} <${FIXTURE_IDENTITY.email}>`;
     const stream = messages
       .map((message, index) => {
-        const date = this.commitDateEnv().GIT_COMMITTER_DATE;
         // Only the first commit names its parent: fast-import chains each later commit onto the
         // branch tip it just wrote.
         const parentLine = index === 0 && parent ? `from ${parent}\n` : '';
-        return (
-          `commit ${branchRef}\n` +
-          `author ${identity} ${date}\n` +
-          `committer ${identity} ${date}\n` +
-          // `git commit -m` ends a message in a newline, so the same commit ends in one here.
-          dataBlock(`${message}\n`) +
-          parentLine +
-          `M 100644 inline ${file}\n` +
-          dataBlock(`content for: ${message}\n`)
+        return this.commitBlock(
+          branchRef,
+          '',
+          message,
+          parentLine + fileEntry(file, contentFor(message))
         );
       })
       .join('');
 
-    execFileSync('git', ['fast-import', '--quiet'], {
-      cwd: this.dir,
-      input: stream,
-      env: this.env({}),
-    });
-    // fast-import moves the branch but not the working tree: bring the tree up to it, so the
-    // repository reads clean, exactly as after a run of commits.
-    this.git(['reset', '-q', '--hard']);
+    this.importStream(stream);
     return this.head();
+  }
+
+  /**
+   * Writes a whole history - branches and merges included - in ONE git process (`git fast-import`),
+   * where committing, branching and merging a step at a time costs several processes per step.
+   * Each step is a commit pinned like {@link commit}, in the order given. A commit's tree is its
+   * parents' files together plus its own file. The working tree is brought up to HEAD at the end.
+   * @returns the full SHA of each step, by its `mark`.
+   */
+  buildHistory(steps: HistoryStep[]): Record<string, string> {
+    const filesOfStep = new Map<string, Record<string, string>>();
+    const markNumbers = new Map<string, number>();
+    const stream = steps
+      .map((step, index) => {
+        markNumbers.set(step.mark, index + 1);
+        const parentFiles = step.parents.map((parent) => filesOfStep.get(parent)!);
+        const ownFile =
+          step.file === null ? {} : { [step.file ?? 'file.txt']: contentFor(step.message) };
+        // As `git merge` keeps the first parent's change, the first parent's files win.
+        const files = Object.assign({}, ...parentFiles.reverse(), ownFile) as Record<
+          string,
+          string
+        >;
+        filesOfStep.set(step.mark, files);
+        const [firstParent, ...mergedParents] = step.parents;
+        return this.commitBlock(
+          `refs/heads/${step.branch}`,
+          `mark :${index + 1}\n`,
+          step.message,
+          (firstParent ? `from :${markNumbers.get(firstParent)}\n` : '') +
+            mergedParents.map((parent) => `merge :${markNumbers.get(parent)}\n`).join('') +
+            'deleteall\n' +
+            Object.entries(files)
+              .map(([file, content]) => fileEntry(file, content))
+              .join('')
+        );
+      })
+      .join('');
+
+    const marksFile = path.join(this.dir, '.git', 'history-marks');
+    this.importStream(stream, [`--export-marks=${marksFile}`]);
+
+    const shaOfMarkNumber = new Map(
+      fs
+        .readFileSync(marksFile, 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => line.slice(1).split(' ') as [string, string])
+    );
+    return Object.fromEntries(
+      steps.map((step) => [step.mark, shaOfMarkNumber.get(String(markNumbers.get(step.mark)))!])
+    );
   }
 
   /** Creates a branch (without switching to it by default). */
@@ -238,6 +304,36 @@ export class GitFixture {
       GIT_COMMITTER_EMAIL: FIXTURE_IDENTITY.email,
       ...extraEnv,
     };
+  }
+
+  /**
+   * One pinned commit of a `git fast-import` stream. `markLine` is the commit's mark line or
+   * nothing; `treeLines` are its parent lines and file changes.
+   */
+  private commitBlock(ref: string, markLine: string, message: string, treeLines: string): string {
+    const date = this.commitDateEnv().GIT_COMMITTER_DATE;
+    return (
+      `commit ${ref}\n` +
+      markLine +
+      `author ${STREAM_IDENTITY} ${date}\n` +
+      `committer ${STREAM_IDENTITY} ${date}\n` +
+      // `git commit -m` ends a message in a newline, so the same commit ends in one here.
+      dataBlock(`${message}\n`) +
+      treeLines
+    );
+  }
+
+  /**
+   * Feeds a `git fast-import` stream to one git process, then brings the working tree up to the
+   * branch it moved, so the repository reads clean, exactly as after a run of commits.
+   */
+  private importStream(stream: string, extraArgs: string[] = []): void {
+    execFileSync('git', ['fast-import', '--quiet', ...extraArgs], {
+      cwd: this.dir,
+      input: stream,
+      env: this.env({}),
+    });
+    this.git(['reset', '-q', '--hard']);
   }
 
   /** Dual-date pinning for the next commit; advances the deterministic clock. */

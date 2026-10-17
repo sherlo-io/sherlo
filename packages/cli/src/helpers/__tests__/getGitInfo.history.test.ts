@@ -7,7 +7,6 @@ import {
   isolateEachCase,
   type MergedPullRequest,
   mergePullRequest,
-  oneCommitRepository,
   ownRepository,
   type ThreeCommits,
   threeCommitRepository,
@@ -15,38 +14,26 @@ import {
 } from './support/gitInfoRepositories';
 
 /**
- * Real-git tests for getGitInfo on a commit's history and the repository around it: parents and
- * ancestors, the remote it names, its default branch, and shallow clones. No git commands are
- * mocked. The rest of getGitInfo's cases are in getGitInfo.test.ts, getGitInfo.mergeRefs.test.ts
- * and getGitInfo.fields.test.ts.
+ * Real-git tests for getGitInfo on a commit's history: parents and ancestors, shallow clones
+ * and the commit a job of a pull request run names. No git commands are mocked. The cases are
+ * split across six files: the branch a run reports is in getGitInfo.test.ts, pull request merge
+ * refs in getGitInfo.mergeRefs.test.ts, merge queue refs in getGitInfo.mergeQueue.test.ts, the
+ * remote and default branch in getGitInfo.historyRemote.test.ts, and the rest of the payload
+ * in getGitInfo.fields.test.ts.
  */
 
 isolateEachCase();
 
-/** One commit, `c1`, on main, with no remote. */
-let oneCommit: GitFixture;
 /** Three commits on main, `c1` to `c3`. */
 let threeCommits: ThreeCommits;
-/**
- * One commit on main with a remote named origin, and the origin/HEAD a normal `git clone`
- * records, pointing at the remote's `develop`. Each remote case sets origin's address itself.
- */
-let withOrigin: GitFixture;
 /** A depth-1 clone of the three commits' main. */
 let threeCommitsShallow: GitFixture;
 /** A pull request merged into main, and `shallow`, a depth-1 clone of main. */
 let mergedOnMain: MergedPullRequest & { shallow: GitFixture };
 
 beforeAll(() => {
-  oneCommit = oneCommitRepository();
   threeCommits = threeCommitRepository();
   threeCommitsShallow = threeCommits.repository.shallowClone(1, 'main');
-
-  withOrigin = oneCommitRepository();
-  withOrigin.git(['remote', 'add', 'origin', 'https://example.invalid/placeholder.git']);
-  // What a normal `git clone` records: origin/HEAD points at the remote default.
-  withOrigin.git(['update-ref', 'refs/remotes/origin/develop', 'HEAD']);
-  withOrigin.git(['symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/develop']);
 
   const merged = mergePullRequest();
   mergedOnMain = { ...merged, shallow: merged.repository.shallowClone(1, 'main') };
@@ -54,10 +41,8 @@ beforeAll(() => {
 
 afterAll(() => {
   for (const shared of [
-    oneCommit,
     threeCommits?.repository,
     threeCommitsShallow,
-    withOrigin,
     mergedOnMain?.repository,
     mergedOnMain?.shallow,
   ]) {
@@ -93,105 +78,6 @@ describe('getGitInfo - parents and ancestors', () => {
 });
 
 // ---------------------------------------------------------------------------
-// repoSlug
-// ---------------------------------------------------------------------------
-
-describe('getGitInfo - repoSlug', () => {
-  it('captures owner/repo from an HTTPS remote', async () => {
-    withOrigin.git(['remote', 'set-url', 'origin', 'https://github.com/acme/my-app.git']);
-
-    const info = await getGitInfo(withOrigin.dir);
-
-    expect(info.repoSlug).toBe('acme/my-app');
-  });
-
-  it('captures owner/repo from an SSH remote', async () => {
-    withOrigin.git(['remote', 'set-url', 'origin', 'git@github.com:acme/my-app.git']);
-
-    const info = await getGitInfo(withOrigin.dir);
-
-    expect(info.repoSlug).toBe('acme/my-app');
-  });
-
-  it('is host-agnostic (works for GitLab, Bitbucket, etc.)', async () => {
-    withOrigin.git(['remote', 'set-url', 'origin', 'git@gitlab.com:org/project.git']);
-
-    const info = await getGitInfo(withOrigin.dir);
-
-    expect(info.repoSlug).toBe('org/project');
-  });
-
-  it('is omitted when no origin remote is configured', async () => {
-    // No remote added.
-    const info = await getGitInfo(oneCommit.dir);
-
-    expect(info.repoSlug).toBeUndefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// defaultBranch (the repository's main line)
-// ---------------------------------------------------------------------------
-
-describe('getGitInfo - defaultBranch', () => {
-  it('reads repository.default_branch from the GitHub Actions event payload', async () => {
-    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
-      repository: { default_branch: 'trunk' },
-    });
-
-    const info = await getGitInfo(oneCommit.dir);
-
-    expect(info.defaultBranch).toBe('trunk');
-    // It is the repository's main line, not the branch being built.
-    expect(info.branchName).toBe('main');
-  });
-
-  it('falls back to origin/HEAD when no event payload is available', async () => {
-    // origin/HEAD points at the remote's develop, as a normal `git clone` records.
-    const info = await getGitInfo(withOrigin.dir);
-
-    expect(info.defaultBranch).toBe('develop');
-  });
-
-  it('prefers the event payload over origin/HEAD', async () => {
-    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
-      repository: { default_branch: 'trunk' },
-    });
-
-    const info = await getGitInfo(withOrigin.dir);
-
-    expect(info.defaultBranch).toBe('trunk');
-  });
-
-  it('is omitted (never guessed) when neither source answers', async () => {
-    // No event payload and no origin/HEAD ref.
-    const info = await getGitInfo(oneCommit.dir);
-
-    expect(info.defaultBranch).toBeUndefined();
-  });
-
-  it('is omitted on a shallow single-branch checkout, which records no origin/HEAD', async () => {
-    const shallow = oneCommit.shallowClone(1, 'main');
-    try {
-      const info = await getGitInfo(shallow.dir);
-      expect(info.defaultBranch).toBeUndefined();
-    } finally {
-      shallow.cleanup();
-    }
-  });
-
-  it('is omitted when the event payload carries no repository object (e.g. merge_group)', async () => {
-    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({
-      pull_request: { head: { sha: 'abc123' } },
-    });
-
-    const info = await getGitInfo(oneCommit.dir);
-
-    expect(info.defaultBranch).toBeUndefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Shallow clone
 // ---------------------------------------------------------------------------
 
@@ -215,5 +101,33 @@ describe('getGitInfo - shallow clone', () => {
     expect(info.commitHash).not.toBe('unknown');
     expect(info.branchName).not.toBe('unknown');
     expect(info.isShallow).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The commit a job names
+// ---------------------------------------------------------------------------
+
+describe('getGitInfo - the commit a job of a pull request run names', () => {
+  it('two jobs of one pull request run name the same commit, on a shallow or a deepened checkout', async () => {
+    // One pull_request run: both jobs check out the same synthetic merge commit at depth 1
+    // (actions/checkout's default) and read the same event payload. One job's checkout is
+    // deepened by the action before the CLI runs; the other's stays shallow.
+    const { repository, prHead } = mergePullRequest();
+    const shallowJob = repository.shallowClone(1, 'main');
+    const deepenedJob = repository.shallowClone(1, 'main');
+    deepenedJob.git(['fetch', '--deepen=200', '--quiet']);
+    process.env.GITHUB_REF_NAME = '7/merge';
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({ pull_request: { head: { sha: prHead } } });
+
+    try {
+      const shallowInfo = await getGitInfo(shallowJob.dir);
+      const deepenedInfo = await getGitInfo(deepenedJob.dir);
+
+      expect(shallowInfo.commitHash).toBe(prHead);
+      expect(deepenedInfo.commitHash).toBe(prHead);
+    } finally {
+      for (const fixture of [repository, shallowJob, deepenedJob]) fixture.cleanup();
+    }
   });
 });
