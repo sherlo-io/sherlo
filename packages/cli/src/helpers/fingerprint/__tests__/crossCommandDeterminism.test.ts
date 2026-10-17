@@ -134,9 +134,8 @@ beforeEach(async () => {
   // this; the 1746 block overrides it with an env-SENSITIVE implementation.
   vi.mocked(createFingerprintAsync).mockResolvedValue({ hash: LAYER1_FIXED_HASH } as never);
   // Layer 2 back to the real subprocess; the blocks that are not about it answer it themselves.
-  const real = await vi.importActual<typeof import('../../runShellCommand')>(
-    '../../runShellCommand'
-  );
+  const real =
+    await vi.importActual<typeof import('../../runShellCommand')>('../../runShellCommand');
   vi.mocked(runShellCommand).mockImplementation(real.default);
   originalCwd = process.cwd();
   originalNodeEnv = process.env.NODE_ENV;
@@ -219,7 +218,7 @@ describe('cross-command Layer-1 env determinism (SHERLO-1746)', () => {
           hash: `layer1-${process.env.NODE_ENV ?? 'unset'}-${
             process.env.npm_lifecycle_event ?? 'unset'
           }-${process.env.SHERLO_BUILD ?? 'unset'}`,
-        } as never)
+        }) as never
     );
   });
 

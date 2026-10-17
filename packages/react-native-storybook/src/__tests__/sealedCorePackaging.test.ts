@@ -331,11 +331,9 @@ describe('what the published package carries', () => {
     const { unpackedPackageDir, packedFiles } = theNpmPack();
 
     expect(packedFiles).toContain('dist-metro/sherloBuild.js');
-    const { readSherloBuild, whatThisBuildCarries } = require(path.join(
-      unpackedPackageDir,
-      'dist-metro',
-      'sherloBuild.js'
-    ));
+    const { readSherloBuild, whatThisBuildCarries } = require(
+      path.join(unpackedPackageDir, 'dist-metro', 'sherloBuild.js')
+    );
     expect(readSherloBuild({ SHERLO_BUILD: 'off' })).toBe('off');
     expect(whatThisBuildCarries({}, true, undefined).sherloBuild).toBe('off');
 
@@ -354,10 +352,9 @@ describe('what the published package carries', () => {
     const exportsMap = JSON.parse(
       fs.readFileSync(path.join(unpackedPackageDir, 'package.json'), 'utf8')
     ).exports;
-    const { attach, PROTOCOL_VERSION } = require(path.join(
-      unpackedPackageDir,
-      exportsMap['./metro/sherloLine'].require
-    ));
+    const { attach, PROTOCOL_VERSION } = require(
+      path.join(unpackedPackageDir, exportsMap['./metro/sherloLine'].require)
+    );
     expect(typeof attach).toBe('function');
     expect(PROTOCOL_VERSION).toBe(1);
 

@@ -932,7 +932,10 @@ describe("applySherloTransforms - Sherlo's address on the bundler", () => {
     const ws = require('ws');
     // A project folder inside this package, so the line finds Metro, and its `ws`, as it does in
     // a project: from the project's own folder.
-    const projectRoot = fs.mkdtempSync(path.join(__dirname, '../../node_modules/.sherlo-line-'));
+    // The package's own `node_modules` is made first: a checkout whose install nests nothing there lacks it.
+    const lineFolders = path.join(__dirname, '../../node_modules');
+    fs.mkdirSync(lineFolders, { recursive: true });
+    const projectRoot = fs.mkdtempSync(path.join(lineFolders, '.sherlo-line-'));
     const result = applySherloTransforms({ projectRoot, resolver: {} }, { enabled: true });
 
     // The bundler: a server whose own upgrade listener is in place before any request, as Metro's

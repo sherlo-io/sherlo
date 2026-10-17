@@ -70,7 +70,7 @@ function storyExportNamed(
     const storyExport = fileExports[exportName];
     if (!storyExport) continue;
 
-    const story = typeof storyExport === 'function' ? storyExport.story ?? {} : storyExport;
+    const story = typeof storyExport === 'function' ? (storyExport.story ?? {}) : storyExport;
     const storyName = typeof story.name === 'string' ? story.name : nameOfExport(exportName);
     if (storyName === displayName) return story;
   }

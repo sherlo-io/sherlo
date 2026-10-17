@@ -590,8 +590,8 @@ export function printTestStarted({
       capturedStories: captureScope.full
         ? 0
         : manifest
-        ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
-        : (captureScope.storyFilePaths ?? []).length,
+          ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
+          : (captureScope.storyFilePaths ?? []).length,
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
@@ -602,13 +602,13 @@ export function printTestStarted({
         ? manifest
           ? bundleStoryFiles(manifest)
           : []
-        : captureScope.storyFilePaths ?? [],
+        : (captureScope.storyFilePaths ?? []),
       newStoryFiles: captureScope.newStoryFilePaths ?? [],
       ...(manifest ? { storyTitles: titledStoryFilesIn(manifest) } : {}),
       // A partial capture takes exactly what a change reaches.
       changedStoryFiles: captureScope.full
-        ? captureScope.changedStoryFilePaths ?? []
-        : captureScope.storyFilePaths ?? [],
+        ? (captureScope.changedStoryFilePaths ?? [])
+        : (captureScope.storyFilePaths ?? []),
     });
   }
 

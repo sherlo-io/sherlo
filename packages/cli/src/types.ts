@@ -74,7 +74,7 @@ export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>
 export type Options<
   C extends Command | 'any',
   M extends OptionsMode = 'withoutDefaults',
-  F extends OptionsFormat = 'raw'
+  F extends OptionsFormat = 'raw',
 > = CommonOptions<M, F> & CommandOptions[C];
 
 type OptionsMode = 'withoutDefaults' | 'withDefaults';
