@@ -60,9 +60,24 @@ describe('the workflow sherlo init writes', () => {
     expect(workflow).toMatch(/with:\n\s+platform: \$\{\{ matrix\.platform \}\}/);
   });
 
-  it("puts SHERLO_TOKEN in the job's env and keeps the step that fails when the secret is missing", () => {
+  it("puts SHERLO_TOKEN in the job's env and ends green with a notice while the secret is missing", () => {
     expect(workflow).toMatch(/env:\n\s+SHERLO_TOKEN: \$\{\{ secrets\.SHERLO_TOKEN \}\}/);
-    expect(workflow).toContain('::error::Add a SHERLO_TOKEN secret');
+    expect(workflow).toMatch(/name: Check the SHERLO_TOKEN secret\n\s+id: token\n/);
+    expect(workflow).toContain('::notice::');
+    expect(workflow).toContain('echo "present=false" >> "$GITHUB_OUTPUT"');
+    expect(workflow).not.toContain('::error::');
+    expect(workflow).not.toContain('exit 1');
+    // Every step after the check runs only once the secret is there.
+    const stepsAfterTheCheck = workflow.split('id: token')[1].split('\n      - ').slice(1);
+    expect(stepsAfterTheCheck).toHaveLength(4);
+    for (const step of stepsAfterTheCheck) {
+      expect(step).toContain("if: steps.token.outputs.present == 'true'");
+    }
+  });
+
+  it('sets up Node 22 with the package manager cache setup-node knows, and none for bun', () => {
+    expect(workflow).toMatch(/node-version: 22\n\s+cache: yarn\n/);
+    expect(renderSherloWorkflow({ packageManager: 'bun' })).toMatch(/node-version: 22\n\n/);
   });
 
   it("installs with the project's package manager", () => {

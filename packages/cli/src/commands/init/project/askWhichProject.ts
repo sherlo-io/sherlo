@@ -8,6 +8,7 @@
  * Every question goes through the workstation seam (../../../seams/workstation). A question left
  * unanswered - Ctrl+C, or a pose that cannot answer - cancels the setup.
  */
+import { APP_DOMAIN } from '../../../constants';
 import { throwError } from '../../../helpers';
 import { emit } from '../../../helpers/transcriptSink';
 import type { SavedLogin } from '../../../seams/savedLogins';
@@ -89,8 +90,16 @@ async function askWhichProjectOfTheTeam(
     .createProject({ name: projectName.trim(), teamId, personalToken: login.token })
     .catch(refuseFailedServiceCall);
 
-  // Shown once, as `project create` shows it: this is the token CI pushes with.
-  emit({ kind: 'project-created', project: newProject });
+  // BUILD DEBT (init-for-agents): this interactive step is dead - setup asks nothing now - and goes
+  // with ../steps/teamAndProject's build.
+  emit({
+    kind: 'project-created',
+    project: {
+      name: newProject.name,
+      index: newProject.index,
+      projectPageUrl: `${APP_DOMAIN}/project?t=${teamId}&p=${newProject.index}`,
+    },
+  });
 
   return { teamId, projectIndex: newProject.index };
 }
