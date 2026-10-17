@@ -4,15 +4,19 @@
 import { describe, expect, it } from 'vitest';
 import { blankReportAndErrorLines, blankSecrets, BLANKED } from '../blankSecrets';
 
+function sampleKey(prefix: string, length: number, letter = 'a'): string {
+  return prefix + letter.repeat(length);
+}
+
 describe('anything shaped like a token or a key is blanked out before it leaves', () => {
   it('blanks a Sherlo token, a bearer token and the common API keys', () => {
     const shapes = [
-      'sht_abcdefghijklmnopqrstuvwx',
-      'Bearer abcdef0123456789',
-      'sk-abcdefghijklmnopqrstuv',
-      'ghp_abcdefghijklmnopqrstuv',
-      'xoxb-1234567890-abcdef',
-      'AKIAABCDEFGHIJKLMNOP',
+      sampleKey('sht_', 24),
+      sampleKey('Bearer ', 16, 'b'),
+      sampleKey('sk-', 22),
+      sampleKey('ghp_', 22),
+      sampleKey('xoxb-', 16, '1'),
+      sampleKey('AKIA', 16, 'A'),
       `${'a'.repeat(32)}k3j9x2ab4`,
     ];
 
@@ -28,11 +32,11 @@ describe('anything shaped like a token or a key is blanked out before it leaves'
       lastCommand: {
         command: 'test',
         exitCode: 1,
-        errorLines: ['401 with Bearer abcdef0123456789', 'plain line'],
+        errorLines: [`401 with ${sampleKey('Bearer ', 16, 'b')}`, 'plain line'],
       },
     };
 
-    const blanked = blankReportAndErrorLines('key sk-abcdefghijklmnopqrstuv', context);
+    const blanked = blankReportAndErrorLines(`key ${sampleKey('sk-', 22)}`, context);
 
     expect(blanked.report).toBe(`key ${BLANKED}`);
     expect(blanked.context.lastCommand?.errorLines).toEqual([`401 with ${BLANKED}`, 'plain line']);
