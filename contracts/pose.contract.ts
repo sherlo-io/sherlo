@@ -459,6 +459,19 @@ export type ScriptedCall =
       call: 'logOutCli';
       with: Record<string, never>;
       answer: ApiError | Record<string, never>;
+    }
+  | {
+      /** `sherlo feedback` stores the report; the context is composed by the command, not posed. */
+      call: 'sendFeedback';
+      with: {
+        kind: 'bug' | 'missing' | 'unclear' | 'other';
+        report: string;
+      };
+      answer:
+        | ApiError
+        | {
+            reference: string;
+          };
     };
 
 /** What a real push read off the machine, as a pose states it. */
