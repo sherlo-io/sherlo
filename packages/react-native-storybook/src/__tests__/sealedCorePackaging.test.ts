@@ -591,6 +591,18 @@ describe('what CI and a release check', () => {
     expect(stepsWithoutToken).toEqual([]);
   });
 
+  it('the SDK pack step runs only when the package token is present', () => {
+    const workflow = workflowWithoutComments('pr_checks.yml');
+    const packStep = namedStepsOf('pr_checks.yml').find(packsTheSdk);
+    expect(packStep).toBeDefined();
+    expect(packStep!.body).toMatch(/if: .*env\.HAS_PACKAGE_TOKEN == 'true'/);
+    expect(packStep!.body).not.toContain('head.repo');
+    expect(workflow).toMatch(/HAS_PACKAGE_TOKEN: \$\{\{ secrets\.PACKAGE_TOKEN != '' \}\}/);
+    const packsFolderLine = workflow.split('\n').find((line) => line.includes('SHERLO_SDK_PACKS:'));
+    expect(packsFolderLine).toContain("env.HAS_PACKAGE_TOKEN == 'true'");
+    expect(packsFolderLine).not.toContain('head.repo');
+  });
+
   it('no release workflow builds or signs a core', () => {
     for (const workflowFile of RELEASE_WORKFLOWS) {
       const workflow = workflowWithoutComments(workflowFile);
