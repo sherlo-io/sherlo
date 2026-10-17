@@ -34,9 +34,8 @@ module.exports = withStorybook(config);`,
     const { getCwd } = await import('../../../../helpers');
     vi.mocked(getCwd).mockReturnValue(tmpDir);
 
-    const { default: validateHasWithStorybookInMetroConfig } = await import(
-      '../validateHasWithStorybookInMetroConfig'
-    );
+    const { default: validateHasWithStorybookInMetroConfig } =
+      await import('../validateHasWithStorybookInMetroConfig');
 
     await expect(validateHasWithStorybookInMetroConfig()).resolves.toBeUndefined();
   });
@@ -45,9 +44,8 @@ module.exports = withStorybook(config);`,
     const { getCwd } = await import('../../../../helpers');
     vi.mocked(getCwd).mockReturnValue(tmpDir);
 
-    const { default: validateHasWithStorybookInMetroConfig } = await import(
-      '../validateHasWithStorybookInMetroConfig'
-    );
+    const { default: validateHasWithStorybookInMetroConfig } =
+      await import('../validateHasWithStorybookInMetroConfig');
 
     await expect(validateHasWithStorybookInMetroConfig()).rejects.toThrow(
       'No metro.config.js found in your project'
@@ -68,9 +66,8 @@ module.exports = withSherloStorybook(defaultConfig, { enabled: true });`,
     const { getCwd } = await import('../../../../helpers');
     vi.mocked(getCwd).mockReturnValue(tmpDir);
 
-    const { default: validateHasWithStorybookInMetroConfig } = await import(
-      '../validateHasWithStorybookInMetroConfig'
-    );
+    const { default: validateHasWithStorybookInMetroConfig } =
+      await import('../validateHasWithStorybookInMetroConfig');
 
     await expect(validateHasWithStorybookInMetroConfig()).resolves.toBeUndefined();
   });
@@ -82,9 +79,8 @@ module.exports = withSherloStorybook(defaultConfig, { enabled: true });`,
     const { getCwd } = await import('../../../../helpers');
     vi.mocked(getCwd).mockReturnValue(tmpDir);
 
-    const { default: validateHasWithStorybookInMetroConfig } = await import(
-      '../validateHasWithStorybookInMetroConfig'
-    );
+    const { default: validateHasWithStorybookInMetroConfig } =
+      await import('../validateHasWithStorybookInMetroConfig');
 
     await expect(validateHasWithStorybookInMetroConfig()).rejects.toThrow(
       'does not call withStorybook'
