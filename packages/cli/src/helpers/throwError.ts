@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { blankSecrets } from './blankSecrets';
 import printLink from './printLink';
 import reporting from './reporting';
 
@@ -92,7 +93,7 @@ function getErrorMessage(params: Params): string {
     }
   }
 
-  return errorMessageParts.join('\n') + '\n';
+  return blankSecrets(errorMessageParts.join('\n')) + '\n';
 }
 
 function reportError(params: Params) {
