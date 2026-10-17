@@ -78,6 +78,7 @@ import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, throwError, withCommandTimeout } from './helpers';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
+import type { FeedbackOptions } from './commands/feedback/feedback';
 import { renderFeedbackFormat } from './render/feedback';
 import { renderHelpBlock } from './render/testSteps';
 import { renderTokenGone } from './render/pushCredential';
@@ -159,7 +160,7 @@ const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
   [LOGIN_COMMAND]: 'Log in to Sherlo through your browser and save the login on this computer',
   [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
-  [FEEDBACK_COMMAND]: 'Tell the Sherlo team what was unclear, slow or broken',
+  [FEEDBACK_COMMAND]: 'Send the Sherlo team a report of something broken, missing or unclear',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     '  Tests JS-only changes against the stored app build, with no build. When native code\n' +
@@ -426,12 +427,10 @@ function addFeedbackCommand(program: Command) {
     .option('--kind <kind>', 'bug, missing, unclear or other')
     .option('--file <path>', 'Read the report from this file, or from a pipe with -')
     .option('--dry-run', 'Print exactly what would be sent, and send nothing')
-    .action(
-      async (words: string[], options: { kind?: string; file?: string; dryRun?: boolean }) => {
-        setReportingContext(FEEDBACK_COMMAND, options);
-        await feedback(words, options);
-      }
-    );
+    .action(async (words: string[], options: FeedbackOptions) => {
+      setReportingContext(FEEDBACK_COMMAND, options);
+      await feedback(words, options);
+    });
 }
 
 function addInitCommand(program: Command) {

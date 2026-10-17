@@ -12,7 +12,7 @@
       "call": "sendFeedback",
       "with": {
         "kind": "unclear",
-        "text": "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app."
+        "report": "## Where\nsherlo.io/docs/ci: \"Add SHERLO_TOKEN to your repository secrets.\"\n## Understood\nThat the token is the one sherlo login saved.\n## Actually\nIt is a CI token, made with Create Token in the project's settings in the web app."
       },
       "answer": { "reference": "FB-3M9D" }
     }
