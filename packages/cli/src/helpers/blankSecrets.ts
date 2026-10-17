@@ -1,6 +1,6 @@
 import { PERSONAL_TOKEN_PREFIX } from '@sherlo/api-types';
 import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
-import type { FeedbackContext } from '../../seams/serverCalls';
+import type { FeedbackContext } from '../seams/serverCalls';
 
 /**
  * Anything shaped like a token or a key, replaced by a placeholder, so a report or an error line
