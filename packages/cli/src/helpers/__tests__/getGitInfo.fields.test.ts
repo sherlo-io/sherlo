@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 // The REAL git read, not the seam's dispatcher (../../seams/surroundings): this suite is
 // about what the tool asks a real repository.
 import { readGitInfoFromDisk as getGitInfo } from '../getGitInfo';
-import GitFixture from './support/gitFixture';
+import GitFixture, { mergeStep } from './support/gitFixture';
 import {
   isolateEachCase,
   type MergedPullRequest,
@@ -17,8 +17,11 @@ import {
 /**
  * Real-git tests for getGitInfo's payload fields outside the branch name and the refs: the base
  * payload, what a non-PR trigger reports, mergeBaseSha, the dirty flag, the per-parent windows,
- * and how a failed read degrades. No git commands are mocked. The rest of getGitInfo's cases
- * are in getGitInfo.test.ts, getGitInfo.mergeRefs.test.ts and getGitInfo.history.test.ts.
+ * and how a failed read degrades. No git commands are mocked. The cases are split across six
+ * files: the branch a run reports is in getGitInfo.test.ts, pull request merge refs in
+ * getGitInfo.mergeRefs.test.ts, merge queue refs in getGitInfo.mergeQueue.test.ts, parents,
+ * ancestors and shallow clones in getGitInfo.history.test.ts, and the remote and default
+ * branch in getGitInfo.historyRemote.test.ts.
  */
 
 isolateEachCase();
@@ -145,14 +148,12 @@ describe('getGitInfo - perParentAncestorCommitHashes', () => {
   it('captures per-parent windows for the non-first parents of a merge commit', async () => {
     const fixture = ownRepository();
     // Single commit on main before branching so f1's direct parent is c1.
-    const c1 = fixture.commitFile('c1');
-
-    fixture.branch('feature', { checkout: true });
-    const f1 = fixture.commitFile('f1', 'f.txt');
-    const f2 = fixture.commitFile('f2', 'f.txt');
-
-    fixture.checkout('main');
-    fixture.merge('feature');
+    const { c1, f1, f2 } = fixture.buildHistory([
+      { mark: 'c1', branch: 'main', message: 'c1', parents: [] },
+      { mark: 'f1', branch: 'feature', message: 'f1', file: 'f.txt', parents: ['c1'] },
+      { mark: 'f2', branch: 'feature', message: 'f2', file: 'f.txt', parents: ['f1'] },
+      mergeStep('merge', ['c1', 'f2']),
+    ]);
 
     const info = await getGitInfo(fixture.dir);
 

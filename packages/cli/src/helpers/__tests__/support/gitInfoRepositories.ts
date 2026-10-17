@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach } from 'vitest';
-import GitFixture from './gitFixture';
+import GitFixture, { mergeStep } from './gitFixture';
 
 /**
  * WHAT EVERY getGitInfo TEST FILE SHARES: the repositories its cases read, a GitHub event payload
@@ -85,7 +85,7 @@ export function writeGitHubEvent(payload: unknown): string {
 /** One commit, `c1`, on main. */
 export function oneCommitRepository(): GitFixture {
   const repository = GitFixture.create();
-  repository.commitFile('c1');
+  repository.buildHistory([{ mark: 'c1', branch: 'main', message: 'c1', parents: [] }]);
   return repository;
 }
 
@@ -94,9 +94,11 @@ export type ThreeCommits = { repository: GitFixture; c1: string; c2: string; c3:
 
 export function threeCommitRepository(): ThreeCommits {
   const repository = GitFixture.create();
-  const c1 = repository.commitFile('c1');
-  const c2 = repository.commitFile('c2');
-  const c3 = repository.commitFile('c3');
+  const { c1, c2, c3 } = repository.buildHistory([
+    { mark: 'c1', branch: 'main', message: 'c1', parents: [] },
+    { mark: 'c2', branch: 'main', message: 'c2', parents: ['c1'] },
+    { mark: 'c3', branch: 'main', message: 'c3', parents: ['c2'] },
+  ]);
   return { repository, c1, c2, c3 };
 }
 
@@ -110,10 +112,16 @@ export type MergedPullRequest = {
 
 export function mergePullRequest(): MergedPullRequest {
   const repository = GitFixture.create();
-  const base = repository.commitFile('base on main');
-  repository.branch('feature', { checkout: true });
-  const prHead = repository.commitFile('pr head commit', 'feature.txt');
-  repository.checkout('main');
-  const mergeSha = repository.merge('feature');
+  const { base, prHead, mergeSha } = repository.buildHistory([
+    { mark: 'base', branch: 'main', message: 'base on main', parents: [] },
+    {
+      mark: 'prHead',
+      branch: 'feature',
+      message: 'pr head commit',
+      file: 'feature.txt',
+      parents: ['base'],
+    },
+    mergeStep('mergeSha', ['base', 'prHead']),
+  ]);
   return { repository, base, prHead, mergeSha };
 }
