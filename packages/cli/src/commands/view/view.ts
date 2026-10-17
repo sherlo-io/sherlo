@@ -62,7 +62,7 @@ async function view(
 
   const buildIndex = resolveBuildIndex(buildArgument);
 
-  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
+  const commandParams = await getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // On a project token the team and project come from the token; on a person's credential, from
   // the config's `project` - both resolved before any request (getValidatedCommandParams).

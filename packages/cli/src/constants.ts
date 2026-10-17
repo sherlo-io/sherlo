@@ -18,6 +18,8 @@ export const DOCS_LINK = {
   buildPreview: `${DOCS_BASE_URL}/builds?type=preview-simulator#build-types`,
   buildAndroidAbiRequirements: `${DOCS_BASE_URL}/builds#android-abi-requirements`,
 
+  integrationsGithub: `${DOCS_BASE_URL}/integrations/github`,
+
   testing: `${DOCS_BASE_URL}/testing`,
   testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
 

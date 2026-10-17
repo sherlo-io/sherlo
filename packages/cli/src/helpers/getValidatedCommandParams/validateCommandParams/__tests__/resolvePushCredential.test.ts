@@ -55,11 +55,12 @@ function resolveIn(world: World): PushCredential {
   ];
 
   try {
+    // No world here sets GITHUB_ACTIONS, so only the roads that answer at once are reached.
     return resolvePushCredential(
       world.command ?? TEST_COMMAND,
       (world.config ?? {}) as InvalidatedConfig,
       world.options
-    );
+    ) as PushCredential;
   } finally {
     for (const undo of uninstall.reverse()) undo();
   }

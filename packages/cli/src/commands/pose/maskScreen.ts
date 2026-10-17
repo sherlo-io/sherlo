@@ -169,18 +169,21 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
  * this pattern needs one.
  */
 function foldTokens(screen: string): string {
-  return screen
-    .replace(/(--(?:personal-)?token[ =])[^\s"'`\u001b]+/g, '$1<MASKED>')
-    .replace(/("?[A-Za-z]*[tT]oken"?:[ \t]*"?)(?!<)[^\s",'\u001b]+/g, '$1<MASKED>')
-    .replace(/(Authorization:[ \t]*(?:Basic|Bearer)[ \t]+)[^\s"'\u001b]+/g, '$1<MASKED>')
-    .replace(new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}sht_[A-Za-z0-9]+`, 'g'), '<MASKED>')
-    .replace(
-      new RegExp(
-        `${ESCAPE_AWARE_BOUNDARY.before}[A-Za-z0-9]{40}\\d{1,6}${ESCAPE_AWARE_BOUNDARY.after}`,
-        'g'
-      ),
-      '<MASKED>'
-    );
+  return (
+    screen
+      .replace(/(--(?:personal-)?token[ =])[^\s"'`\u001b]+/g, '$1<MASKED>')
+      // `id-token: write` is the GitHub Actions permission a refusal tells the reader to add, not a token.
+      .replace(/((?<!id-)"?[A-Za-z]*[tT]oken"?:[ \t]*"?)(?!<)[^\s",'\u001b]+/g, '$1<MASKED>')
+      .replace(/(Authorization:[ \t]*(?:Basic|Bearer)[ \t]+)[^\s"'\u001b]+/g, '$1<MASKED>')
+      .replace(new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}sht_[A-Za-z0-9]+`, 'g'), '<MASKED>')
+      .replace(
+        new RegExp(
+          `${ESCAPE_AWARE_BOUNDARY.before}[A-Za-z0-9]{40}\\d{1,6}${ESCAPE_AWARE_BOUNDARY.after}`,
+          'g'
+        ),
+        '<MASKED>'
+      )
+  );
 }
 
 /**

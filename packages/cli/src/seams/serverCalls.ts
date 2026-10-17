@@ -155,7 +155,19 @@ export type ServerCalls = {
     report: string;
     context: FeedbackContext;
   }): Promise<{ reference: string }>;
+
+  /**
+   * GitHub Actions only: trade the job's GitHub ID token for a Sherlo credential. Answers whether
+   * the repository is covered by a GitHub org install linked to the team `teamId`; when it is not,
+   * the name of the team it would have to be connected to.
+   */
+  tradeGitHubIdToken(request: { repository: string; teamId: string }): Promise<GitHubIdTokenTrade>;
 };
+
+/** The service's answer to {@link ServerCalls.tradeGitHubIdToken}. */
+export type GitHubIdTokenTrade =
+  | { status: 'signed-in'; token: string }
+  | { status: 'not-connected'; teamName: string };
 
 /** What `sherlo feedback` sends beside the report. Never a token, a saved login or an environment value. */
 export type FeedbackContext = {
@@ -308,6 +320,10 @@ export const liveServerCalls: ServerCalls = {
     sdkClient({ authToken: personalToken }, getEndpointUrl())
       .sendFeedback({ kind, report, context: JSON.stringify(context) })
       .catch(throwTokenRefusal),
+
+  tradeGitHubIdToken: async () => {
+    throw new Error('Signing in through GitHub is not built yet.');
+  },
 };
 
 /** Rethrow a service's refusal of the token as {@link ServiceRefusedTokenError}, any other error as is. */
@@ -738,6 +754,12 @@ export type ScriptedCall =
       call: 'sendFeedback';
       with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string };
       answer: { reference: string } | ApiError;
+    }
+  | {
+      /** GitHub Actions: the job's ID token traded for a credential, or the repository is not connected. */
+      call: 'tradeGitHubIdToken';
+      with: { repository: string; teamId: string };
+      answer: GitHubIdTokenTrade | ApiError;
     };
 
 /**
@@ -909,6 +931,9 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     sendFeedback: async ({ kind, report }) =>
       answerFor('sendFeedback', { kind, report }) as { reference: string },
+
+    tradeGitHubIdToken: async ({ repository, teamId }) =>
+      answerFor('tradeGitHubIdToken', { repository, teamId }) as GitHubIdTokenTrade,
   };
 }
 
