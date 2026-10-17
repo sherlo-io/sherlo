@@ -232,6 +232,21 @@ describe('sherlo feedback', () => {
     expect(savedLoginLeft).toBe(false);
     expect(plain(printed)).not.toContain('Feedback sent');
   });
+
+  it("A report past the day's limit is refused, saying so, and never asks to send it again now", async () => {
+    const { printed, refusal, savedLoginLeft } = await runFeedback({
+      service: 'refuses-the-day-limit',
+    });
+
+    expect(plain(refusal)).toContain(
+      'Not sent: one Sherlo login sends at most 20 reports a day, and this login has reached that limit today.'
+    );
+    expect(plain(refusal)).toContain('The report can be sent again tomorrow.');
+    expect(plain(refusal)).not.toContain('could not be reached');
+    expect(plain(refusal)).not.toContain('sends the report again');
+    expect(savedLoginLeft).toBe(true);
+    expect(plain(printed)).not.toContain('Feedback sent');
+  });
 });
 
 /* ========================================================================== */
@@ -244,7 +259,7 @@ type World = {
   words?: string[];
   dryRun?: boolean;
   loggedIn?: boolean;
-  service?: 'unreachable' | 'refuses-the-token';
+  service?: 'unreachable' | 'refuses-the-token' | 'refuses-the-day-limit';
   stdinIsATerminal?: boolean;
   env?: Record<string, string>;
   files?: PosedFiles;
@@ -271,6 +286,9 @@ async function runFeedback(world: World) {
         sent.push({ kind: request.kind, report: request.report, context: request.context });
         if (world.service === 'unreachable') throw new Error('fetch failed');
         if (world.service === 'refuses-the-token') throw new ServiceRefusedTokenError();
+        if (world.service === 'refuses-the-day-limit') {
+          throw { graphQLErrors: [{ errorType: 'FeedbackDayLimitReached' }] };
+        }
         return { reference: 'FB-1' };
       },
     } as ServerCalls),
