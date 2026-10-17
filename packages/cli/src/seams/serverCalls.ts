@@ -25,9 +25,8 @@ import {
   SINGLE_READ_TIMEOUT_MS,
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
-import getTokenParts from '../helpers/getTokenParts';
-import isBuildTicket from '../helpers/isBuildTicket';
-import isPersonalToken from '../helpers/isPersonalToken';
+import authTokenFor from '../helpers/authTokenFor';
+import liveGitHubTrade from './liveGitHubTrade';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
 import listProjectsRequest from '../commands/projectList/listProjectsRequest';
@@ -242,14 +241,6 @@ export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGat
  */
 export type StoredAppBuildFacts = Pick<StagedGateAnswer, 'storedBase' | 'storedBuildIndex'>;
 
-/**
- * What the service is sent for the token a push spends: a project token's api part, or a personal
- * token or a build ticket whole - neither has parts.
- */
-function authTokenFor(token: string): string {
-  return isPersonalToken(token) || isBuildTicket(token) ? token : getTokenParts(token).apiToken;
-}
-
 /** The one place a push's token becomes a real sdk client - every live operation below goes through it. */
 function clientFor(token: string): SdkClient {
   return sdkClient({ authToken: authTokenFor(token) }, getEndpointUrl());
@@ -321,9 +312,7 @@ export const liveServerCalls: ServerCalls = {
       .sendFeedback({ kind, report, context: JSON.stringify(context) })
       .catch(throwTokenRefusal),
 
-  tradeGitHubIdToken: async () => {
-    throw new Error('Signing in through GitHub is not built yet.');
-  },
+  tradeGitHubIdToken: (request) => liveGitHubTrade(clientWithNoCredential(), request),
 };
 
 /** Rethrow a service's refusal of the token as {@link ServiceRefusedTokenError}, any other error as is. */

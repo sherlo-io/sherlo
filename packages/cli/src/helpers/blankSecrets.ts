@@ -1,5 +1,6 @@
 import { PERSONAL_TOKEN_PREFIX } from '@sherlo/api-types';
 import { PROJECT_API_TOKEN_LENGTH, TEAM_ID_LENGTH } from '@sherlo/shared';
+import { GITHUB_SESSION_PREFIX } from '../constants';
 import type { FeedbackContext } from '../seams/serverCalls';
 
 /**
@@ -11,6 +12,8 @@ export const BLANKED = '[blanked]';
 const SECRET_SHAPES: RegExp[] = [
   // A Sherlo personal token.
   new RegExp(`\\b${PERSONAL_TOKEN_PREFIX}[A-Za-z0-9_-]{8,}`, 'g'),
+  // A GitHub session, which may carry a web token after its prefix: it goes before the web-token shape.
+  new RegExp(`\\b${GITHUB_SESSION_PREFIX}[A-Za-z0-9._-]{8,}`, 'g'),
   // A bearer token in an Authorization header.
   /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi,
   // A JSON web token: three dot-separated parts, the first starting with `eyJ`.

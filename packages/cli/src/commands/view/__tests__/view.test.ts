@@ -98,9 +98,9 @@ beforeEach(() => {
   // The config file and the devices have their own suites; what matters here is
   // that the command works from the params it is GIVEN, options included, and
   // spends the credential the real resolver answers for them.
-  getValidatedCommandParams.mockReset().mockImplementation(({ command, passedOptions }) => {
+  getValidatedCommandParams.mockReset().mockImplementation(async ({ command, passedOptions }) => {
     const config = { ...configOfThisCase };
-    const credential = resolvePushCredential(command, config);
+    const credential = await resolvePushCredential(command, config);
     return { ...config, ...passedOptions, credential, devices: [] } as never;
   });
   configOfThisCase = {};
