@@ -266,3 +266,14 @@ describe('which project a push goes to', () => {
     expect(agreeing).toMatchObject({ teamId: TEAM_ID, projectIndex: PROJECT_INDEX });
   });
 });
+
+// Shells for task vcr-cli-github-sign-in (epic visual-check-reaches-test-apps). Each `it.todo` becomes a real `it(...)` with the exact same name.
+describe('signing in through GitHub', () => {
+  it.todo(
+    "on GitHub Actions with no SHERLO_TOKEN the push spends the session traded for the job's ID token"
+  );
+  it.todo("a SHERLO_TOKEN wins over GitHub's ID token");
+  it.todo('a job without the id-token permission is refused naming it and SHERLO_TOKEN');
+  it.todo('a repository not connected to the team is refused naming both');
+  it.todo('a run trades the ID token once, however many calls it makes');
+});
