@@ -1,0 +1,10 @@
+[32m✔[39m  Feedback sent - thank you! Reference: [1mFB-3M9D[22m
+
+Sent with it:
+[2m  ➜[22m The Sherlo, React Native, Expo and Storybook versions
+[2m  ➜[22m The package manager and the operating system
+[2m  ➜[22m The project and its devices
+[2mNo token is sent, and no app code beyond what your report quotes.[22m
+
+
+[exit 0]

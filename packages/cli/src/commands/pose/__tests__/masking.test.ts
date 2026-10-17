@@ -505,6 +505,16 @@ async function runMask(
   };
 }
 
+describe('the machine facts a feedback dry run prints', () => {
+  it('folds the CLI version and the operating system to their placeholders', () => {
+    const dryRun = '  Sherlo CLI: 3.0.0\n  Operating system: Darwin 25.5.0\n  Expo: 53.0.0';
+
+    expect(maskScreen(dryRun, {})).toBe(
+      '  Sherlo CLI: <VERSION>\n  Operating system: <SYSTEM>\n  Expo: 53.0.0'
+    );
+  });
+});
+
 describe('a screen with colour and one without fold alike', () => {
   it('folds a value the same way on a screen with colour and on one without', () => {
     // The project line `sherlo init` prints names the team in bold. Without colour the word

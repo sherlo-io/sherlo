@@ -18,6 +18,20 @@ vi.mock('../helpers/reporting', () => ({
   },
 }));
 
+const { recordLastCommand } = vi.hoisted(() => ({ recordLastCommand: vi.fn() }));
+
+vi.mock('../helpers/lastCommandRecord', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../helpers/lastCommandRecord')>()),
+  recordLastCommand,
+}));
+vi.mock('../commands', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../commands')>()),
+  logout: vi.fn(),
+  feedback: vi.fn(),
+}));
+vi.mock('../commands/pose/pose', () => ({ pose: vi.fn() }));
+vi.mock('../commands/pose/maskScreen', () => ({ mask: vi.fn() }));
+
 import start from '../start';
 
 let exitCodes: unknown[];
@@ -33,6 +47,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 /** Runs `start()` with the first thing it does failing with `failure`; answers the exit code. */
@@ -56,5 +71,31 @@ describe('the exit of a failed command', () => {
     expect(await exitCodeOfFailure(Object.assign(new Error('timed out'), { code: 3 }))).toBe(3);
     exitCodes = [];
     expect(await exitCodeOfFailure(new Error('plain'))).toBe(1);
+  });
+});
+
+describe('which commands leave a record of how they ended', () => {
+  async function commandsRecordedWhenRunning(...argv: string[]) {
+    vi.stubEnv('SHERLO_DEVTOOLS', '1');
+    const argvBefore = process.argv;
+    process.argv = ['node', 'sherlo', ...argv];
+    reportingInit.mockReset();
+    recordLastCommand.mockClear();
+    await start();
+    process.argv = argvBefore;
+    return recordLastCommand.mock.calls.map(([command]) => command);
+  }
+
+  it('another command is recorded', async () => {
+    expect(await commandsRecordedWhenRunning('logout')).toEqual(['logout']);
+  });
+
+  it('feedback is not recorded, so it never replaces the record it reports', async () => {
+    expect(await commandsRecordedWhenRunning('feedback', '--dry-run')).toEqual([]);
+  });
+
+  it('pose and mask are not recorded', async () => {
+    expect(await commandsRecordedWhenRunning('pose', 'some-pose.md')).toEqual([]);
+    expect(await commandsRecordedWhenRunning('mask')).toEqual([]);
   });
 });

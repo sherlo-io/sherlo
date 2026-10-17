@@ -1,0 +1,10 @@
+[31mERROR: Not sent: Sherlo could not be reached, so nothing left this computer.[39m
+  The same command sends the report again once the connection is back.
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
+
+[exit 1]
