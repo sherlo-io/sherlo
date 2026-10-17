@@ -1,0 +1,12 @@
+[31mERROR: Not sent: a report is read from a file, not from words after the command, which the shell may already have changed.[39m
+  A quoted here-document is left alone by the shell: npx sherlo feedback --kind bug --file - <<'EOF'
+  On Windows, a named file works: npx sherlo feedback --kind bug --file report.md
+  The format: npx sherlo feedback --help
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
+
+[exit 1]

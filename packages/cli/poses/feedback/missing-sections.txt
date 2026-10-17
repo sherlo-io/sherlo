@@ -1,0 +1,11 @@
+[31mERROR: Not sent: a bug report is sent with Steps, Happened and Expected, and this one has no Steps or Expected.[39m
+  Each section can be answered with "unknown" when the answer is not known.
+  The format: npx sherlo feedback --help
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
+
+[exit 1]
