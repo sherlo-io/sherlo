@@ -106,6 +106,10 @@ beforeEach(() => {
   configOfThisCase = {};
   // The machine running this suite may hold a project token of its own; every case states its own.
   vi.stubEnv('SHERLO_TOKEN', TOKEN);
+  // GitHub Actions sends credential resolution down the ID-token road; these cases mean the saved login.
+  vi.stubEnv('GITHUB_ACTIONS', '');
+  vi.stubEnv('ACTIONS_ID_TOKEN_REQUEST_URL', '');
+  vi.stubEnv('ACTIONS_ID_TOKEN_REQUEST_TOKEN', '');
 
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
