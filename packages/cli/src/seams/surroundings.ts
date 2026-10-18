@@ -171,7 +171,7 @@ export function posedSurroundings({
       };
     },
 
-    readGitRemote: async () => (typeof git === 'object' ? git.remote ?? null : null),
+    readGitRemote: async () => (typeof git === 'object' ? (git.remote ?? null) : null),
 
     readGitInfo: async (_projectRoot: string, options?: { branchOverride?: string }) => {
       // THE WORDING IS GIT'S OWN. `readGitInfoFromDisk` degrades on the stderr of a failed
