@@ -114,6 +114,12 @@ describe('the masker folds every volatile class the tool prints', () => {
     expect(folded).toContain('https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>');
   });
 
+  it('folds a GitHub session printed on a line of its own', () => {
+    const session = 'sgh_eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmNkZWZnaCJ9.c2lnbmF0dXJlMTIz';
+
+    expect(maskScreen(`session ${session} opened`, {})).toBe('session <MASKED> opened');
+  });
+
   it('stops folding a --token value at a backtick, keeping the backtick', () => {
     const folded = maskScreen('run `npx sherlo init --token <token>` or add it', {});
 

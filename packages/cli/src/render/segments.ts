@@ -55,6 +55,8 @@ export type TranscriptSegment =
   | { kind: 'intro' }
   /** `Testing your app...` - the line under the logo saying what the command is doing. See ./testSteps. */
   | { kind: 'command-intro'; command: IntroducedCommand }
+  /** `Signed in through GitHub as acme-mobile/shop-app` - the credential was GitHub's ID token. */
+  | { kind: 'signed-in-through-github'; repository: string }
   /**
    * `Bundling the JavaScript for 🤖 Android...` - a step in progress (./stepInProgress): a spinner
    * in a terminal, which simply goes when the bundle is made, and one plain line in a log.

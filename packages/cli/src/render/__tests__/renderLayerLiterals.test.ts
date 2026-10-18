@@ -142,6 +142,13 @@ const PINS: Pin[] = [
     prints: [['Testing your app...'], ['']],
   },
   {
+    kind: 'signed-in-through-github',
+    what: "the line a CI push opens with when GitHub's ID token was the credential, then a blank line",
+    segment: { kind: 'signed-in-through-github', repository: 'acme-mobile/shop-app' },
+    stream: 'stdout',
+    prints: [['Signed in through GitHub as acme-mobile/shop-app'], []],
+  },
+  {
     kind: 'platform-bundle-start',
     what: "the android bundle-start line as a log shows it - a step in progress, plain, printed once (a terminal shows the same words as a spinner's)",
     segment: { kind: 'platform-bundle-start', platform: 'android' },

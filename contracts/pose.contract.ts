@@ -472,6 +472,27 @@ export type ScriptedCall =
         | {
             reference: string;
           };
+    }
+  | {
+      /**
+       * GitHub Actions: the job's ID token traded for a credential, or the repository is not
+       * connected.
+       */
+      call: 'tradeGitHubIdToken';
+      with: {
+        repository: string;
+        teamId: string;
+      };
+      answer:
+        | ApiError
+        | {
+            status: 'signed-in';
+            token: string;
+          }
+        | {
+            status: 'not-connected';
+            teamName: string;
+          };
     };
 
 /** What a real push read off the machine, as a pose states it. */

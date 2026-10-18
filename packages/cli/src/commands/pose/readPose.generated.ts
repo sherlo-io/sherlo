@@ -960,6 +960,54 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         }
         reportUnknownFields(object120, ['call', 'with', 'answer'], path, problems);
       }
+    } else if (oneOf1.call === 'tradeGitHubIdToken') {
+      const object126 = asObject(oneOf1, path, problems);
+      if (object126) {
+        expectLiteral(object126.call, 'tradeGitHubIdToken', at(path, 'call'), problems);
+        const where127 = at(path, 'with');
+        const object128 = asObject(object126.with, where127, problems);
+        if (object128) {
+          expectString(object128.repository, at(where127, 'repository'), problems);
+          expectString(object128.teamId, at(where127, 'teamId'), problems);
+          reportUnknownFields(object128, ['repository', 'teamId'], where127, problems);
+        }
+        const oneOf129 = object126.answer;
+        const where130 = at(path, 'answer');
+        if (isPlainObject(oneOf129)) {
+          if ('error' in oneOf129) {
+            readApiError(oneOf129, where130, problems);
+          } else if ('token' in oneOf129) {
+            const object131 = asObject(oneOf129, where130, problems);
+            if (object131) {
+              expectLiteral(object131.status, 'signed-in', at(where130, 'status'), problems);
+              expectString(object131.token, at(where130, 'token'), problems);
+              reportUnknownFields(object131, ['status', 'token'], where130, problems);
+            }
+          } else if ('teamName' in oneOf129) {
+            const object132 = asObject(oneOf129, where130, problems);
+            if (object132) {
+              expectLiteral(object132.status, 'not-connected', at(where130, 'status'), problems);
+              expectString(object132.teamName, at(where130, 'teamName'), problems);
+              reportUnknownFields(object132, ['status', 'teamName'], where130, problems);
+            }
+          } else {
+            reportWrongShape(
+              oneOf129,
+              "`ApiError`, `{ status: 'signed-in'; token: string }` or `{ status: 'not-connected'; teamName: string }`",
+              where130,
+              problems
+            );
+          }
+        } else {
+          reportWrongShape(
+            oneOf129,
+            "`ApiError`, `{ status: 'signed-in'; token: string }` or `{ status: 'not-connected'; teamName: string }`",
+            where130,
+            problems
+          );
+        }
+        reportUnknownFields(object126, ['call', 'with', 'answer'], path, problems);
+      }
     } else {
       reportUnknownName(
         oneOf1.call,
@@ -982,6 +1030,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
           'pollCliLogin',
           'logOutCli',
           'sendFeedback',
+          'tradeGitHubIdToken',
         ],
         at(path, 'call'),
         problems
@@ -990,7 +1039,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'whoAmI'; with: Record<string, never>; answer: ApiError | { name: string; email: string } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }`, `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }` or `{ call: 'sendFeedback'; with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string }; answer: ApiError | { reference: string } }`",
+      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'whoAmI'; with: Record<string, never>; answer: ApiError | { name: string; email: string } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }`, `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`, `{ call: 'sendFeedback'; with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string }; answer: ApiError | { reference: string } }` or `{ call: 'tradeGitHubIdToken'; with: { repository: string; teamId: string }; answer: ApiError | { status: 'signed-in'; token: string } | { status: 'not-connected'; teamName: string } }`",
       path,
       problems
     );
