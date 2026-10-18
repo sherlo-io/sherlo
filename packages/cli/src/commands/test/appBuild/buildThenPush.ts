@@ -29,7 +29,7 @@ import type {
 } from '../../../helpers/fingerprint/baseFingerprint';
 import type { SplitJob } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
 import type { WhyANewAppBuild } from '../../../render/appBuild';
-import type { Options } from '../../../types';
+import type { Options, PushCredential } from '../../../types';
 import { THIS_COMMAND } from '../constants';
 import type { StagedGateRefusal } from '../stagedGateRefusal';
 import { printPlatformRowInALog } from '../platformRows';
@@ -52,8 +52,11 @@ export async function buildThenPush({
   refusals,
   storedBuildIndexOf,
   fingerprints,
+  credential,
 }: {
   passedOptions: Options<THIS_COMMAND> & BuildFlags;
+  /** The credential the run already resolved, so this road does not resolve (and trade) it again. */
+  credential: PushCredential;
   platformsToTest: Platform[];
   refusals: StagedGateRefusal[];
   /** Per platform, the test its stored app build was built in, as the gate named it. */
@@ -69,7 +72,11 @@ export async function buildThenPush({
     (platform) => !platformsToBuild.includes(platform)
   );
 
-  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
+  const commandParams = await getValidatedCommandParams({
+    command: THIS_COMMAND,
+    passedOptions,
+    resolvedCredential: credential,
+  });
   const settings = readBuildSettings(commandParams);
 
   // EAS MODE: the refused platforms are built on Expo's servers, and the run waits for them.

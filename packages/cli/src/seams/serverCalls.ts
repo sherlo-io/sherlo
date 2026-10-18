@@ -25,9 +25,8 @@ import {
   SINGLE_READ_TIMEOUT_MS,
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
-import getTokenParts from '../helpers/getTokenParts';
-import isBuildTicket from '../helpers/isBuildTicket';
-import isPersonalToken from '../helpers/isPersonalToken';
+import authTokenFor from '../helpers/authTokenFor';
+import liveGitHubTrade from './liveGitHubTrade';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
 import listProjectsRequest from '../commands/projectList/listProjectsRequest';
@@ -155,7 +154,19 @@ export type ServerCalls = {
     report: string;
     context: FeedbackContext;
   }): Promise<{ reference: string }>;
+
+  /**
+   * GitHub Actions only: trade the job's GitHub ID token for a Sherlo credential. Answers whether
+   * the repository is covered by a GitHub org install linked to the team `teamId`; when it is not,
+   * the name of the team it would have to be connected to.
+   */
+  tradeGitHubIdToken(request: { repository: string; teamId: string }): Promise<GitHubIdTokenTrade>;
 };
+
+/** The service's answer to {@link ServerCalls.tradeGitHubIdToken}. */
+export type GitHubIdTokenTrade =
+  | { status: 'signed-in'; token: string }
+  | { status: 'not-connected'; teamName: string };
 
 /** What `sherlo feedback` sends beside the report. Never a token, a saved login or an environment value. */
 export type FeedbackContext = {
@@ -230,14 +241,6 @@ export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGat
  */
 export type StoredAppBuildFacts = Pick<StagedGateAnswer, 'storedBase' | 'storedBuildIndex'>;
 
-/**
- * What the service is sent for the token a push spends: a project token's api part, or a personal
- * token or a build ticket whole - neither has parts.
- */
-function authTokenFor(token: string): string {
-  return isPersonalToken(token) || isBuildTicket(token) ? token : getTokenParts(token).apiToken;
-}
-
 /** The one place a push's token becomes a real sdk client - every live operation below goes through it. */
 function clientFor(token: string): SdkClient {
   return sdkClient({ authToken: authTokenFor(token) }, getEndpointUrl());
@@ -308,6 +311,8 @@ export const liveServerCalls: ServerCalls = {
     sdkClient({ authToken: personalToken }, getEndpointUrl())
       .sendFeedback({ kind, report, context: JSON.stringify(context) })
       .catch(throwTokenRefusal),
+
+  tradeGitHubIdToken: (request) => liveGitHubTrade(clientWithNoCredential(), request),
 };
 
 /** Rethrow a service's refusal of the token as {@link ServiceRefusedTokenError}, any other error as is. */
@@ -738,6 +743,12 @@ export type ScriptedCall =
       call: 'sendFeedback';
       with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string };
       answer: { reference: string } | ApiError;
+    }
+  | {
+      /** GitHub Actions: the job's ID token traded for a credential, or the repository is not connected. */
+      call: 'tradeGitHubIdToken';
+      with: { repository: string; teamId: string };
+      answer: GitHubIdTokenTrade | ApiError;
     };
 
 /**
@@ -909,6 +920,9 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
 
     sendFeedback: async ({ kind, report }) =>
       answerFor('sendFeedback', { kind, report }) as { reference: string },
+
+    tradeGitHubIdToken: async ({ repository, teamId }) =>
+      answerFor('tradeGitHubIdToken', { repository, teamId }) as GitHubIdTokenTrade,
   };
 }
 

@@ -133,7 +133,6 @@ const COMMAND_PARAMS = {
     apiToken: 'api-tok',
     projectIndex: 7,
     teamId: 'team1234',
-    fromSavedLogin: false,
   },
   android: '/builds/app.apk',
   ios: '/builds/app.app',

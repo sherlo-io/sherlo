@@ -46,7 +46,6 @@ const PROJECT_TOKEN: PushCredential = {
   apiToken: 'posetokenposetokenposetokenpose1',
   teamId: 'tm000001',
   projectIndex: 7,
-  fromSavedLogin: false,
 };
 
 /** A person's `sherlo login`, on a laptop. */
@@ -55,7 +54,6 @@ const SAVED_LOGIN: PushCredential = {
   token: 'sht_thelogintokenofaperson',
   teamId: 'tm000001',
   projectIndex: 7,
-  fromSavedLogin: true,
 };
 
 const TICKET = 'sbt_theticketoftest1';

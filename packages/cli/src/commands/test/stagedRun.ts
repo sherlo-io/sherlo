@@ -90,7 +90,7 @@ const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   // 1. Validate params.
-  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
+  const commandParams = await getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // The two bundle-supply roads. They are opposites and only one can run, so the
   // combination is refused rather than resolved by precedence - a caller who passed
@@ -166,6 +166,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   }: GateAnswers): Promise<{ url: string }> =>
     buildThenPush({
       passedOptions,
+      credential: commandParams.credential,
       platformsToTest,
       refusals,
       storedBuildIndexOf,
