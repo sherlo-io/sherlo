@@ -162,14 +162,13 @@ export type CommandParams<C extends Command | 'any' = 'any'> = Config &
  * The credential a push or a view spends, and the project it goes to. Resolved once, before any
  * request, by helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
  *
- * `token` is what the push hands the server seam on both: the project token whole, or the saved
- * login's token.
+ * `token` is what the push hands the server seam, whole, whichever the kind.
  *
- * `fromSavedLogin` says whether the token is the login saved on this computer, because the service
- * refusing a saved login is answered differently from refusing a token somebody gave: the person
- * runs `sherlo login` again (commands/shared/refuseRejectedLogin).
+ * Only a `person` is the login saved on this computer, and the service refusing a saved login is
+ * answered differently from refusing a token somebody gave: the person runs `sherlo login` again
+ * (commands/shared/refuseRejectedLogin).
  */
-export type PushCredential = ProjectTokenCredential | PersonCredential;
+export type PushCredential = ProjectTokenCredential | PersonCredential | GitHubSessionCredential;
 
 /** A project token: the token whole, and the three parts `getTokenParts` slices from it. */
 export type ProjectTokenCredential = {
@@ -178,7 +177,6 @@ export type ProjectTokenCredential = {
   apiToken: string;
   teamId: string;
   projectIndex: number;
-  fromSavedLogin: false;
 };
 
 /** The saved login, and the team and project the config's `project` names. */
@@ -187,7 +185,15 @@ export type PersonCredential = {
   token: string;
   teamId: string;
   projectIndex: number;
-  fromSavedLogin: true;
+};
+
+/** A GitHub Actions job's session, traded for its ID token: good for one repository and team. */
+export type GitHubSessionCredential = {
+  kind: 'github-session';
+  token: string;
+  teamId: string;
+  projectIndex: number;
+  repository: string;
 };
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &

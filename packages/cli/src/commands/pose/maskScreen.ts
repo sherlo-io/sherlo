@@ -27,6 +27,7 @@
  */
 /* eslint-disable no-control-regex */
 import fs from 'fs';
+import { GITHUB_SESSION_PREFIX } from '../../constants';
 import { foldAndroidBuild, foldIosBuild } from './foldNativeBuilds';
 import { COLOR_ESCAPE, ESCAPE, ESCAPE_AWARE_BOUNDARY } from './maskPatterns';
 
@@ -167,13 +168,20 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
  * the index in digits (../../helpers/getTokenParts). The length bound at the end is what keeps a
  * 64-character fingerprint out: a longer run of letters and digits has no word boundary where
  * this pattern needs one.
+ *
+ * `id-token: write` is the GitHub Actions permission a refusal tells the reader to add, not a
+ * token, so the `(?<!id-)` lookbehind leaves it alone.
  */
 function foldTokens(screen: string): string {
   return screen
     .replace(/(--(?:personal-)?token[ =])[^\s"'`\u001b]+/g, '$1<MASKED>')
-    .replace(/("?[A-Za-z]*[tT]oken"?:[ \t]*"?)(?!<)[^\s",'\u001b]+/g, '$1<MASKED>')
+    .replace(/((?<!id-)"?[A-Za-z]*[tT]oken"?:[ \t]*"?)(?!<)[^\s",'\u001b]+/g, '$1<MASKED>')
     .replace(/(Authorization:[ \t]*(?:Basic|Bearer)[ \t]+)[^\s"'\u001b]+/g, '$1<MASKED>')
     .replace(new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}sht_[A-Za-z0-9]+`, 'g'), '<MASKED>')
+    .replace(
+      new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}${GITHUB_SESSION_PREFIX}[A-Za-z0-9._-]+`, 'g'),
+      '<MASKED>'
+    )
     .replace(
       new RegExp(
         `${ESCAPE_AWARE_BOUNDARY.before}[A-Za-z0-9]{40}\\d{1,6}${ESCAPE_AWARE_BOUNDARY.after}`,

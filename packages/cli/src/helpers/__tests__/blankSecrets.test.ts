@@ -2,6 +2,7 @@
  * WHAT blankSecrets REPLACES, AND WHAT IT LEAVES ALONE.
  */
 import { describe, expect, it } from 'vitest';
+import { GITHUB_SESSION_PREFIX } from '../../constants';
 import { blankReportAndErrorLines, blankSecrets, BLANKED } from '../blankSecrets';
 
 function sampleKey(prefix: string, length: number, letter = 'a'): string {
@@ -23,6 +24,12 @@ describe('anything shaped like a token or a key is blanked out before it leaves'
     for (const shape of shapes) {
       expect(blankSecrets(`before ${shape} after`)).toBe(`before ${BLANKED} after`);
     }
+  });
+
+  it('blanks a GitHub session, including the web token it carries', () => {
+    const session = `${GITHUB_SESSION_PREFIX}eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmNkZWZnaCJ9.c2lnbmF0dXJlMTIz`;
+
+    expect(blankSecrets(`before ${session} after`)).toBe(`before ${BLANKED} after`);
   });
 
   it('blanks the report and the last command error lines, and leaves the rest of the context', () => {

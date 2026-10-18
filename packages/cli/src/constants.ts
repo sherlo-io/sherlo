@@ -18,6 +18,8 @@ export const DOCS_LINK = {
   buildPreview: `${DOCS_BASE_URL}/builds?type=preview-simulator#build-types`,
   buildAndroidAbiRequirements: `${DOCS_BASE_URL}/builds#android-abi-requirements`,
 
+  integrationsGithub: `${DOCS_BASE_URL}/integrations/github`,
+
   testing: `${DOCS_BASE_URL}/testing`,
   testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
 
@@ -190,6 +192,16 @@ export const LOGS_OPTION = 'logs';
  * it whole. Must match the prefix the service issues it with.
  */
 export const BUILD_TICKET_PREFIX = 'sbt_';
+
+/**
+ * How a GITHUB SESSION starts: the three-hour credential the service trades for a GitHub Actions
+ * job's ID token. Opaque like a personal token, and sent whole. Must match the prefix the service
+ * issues it with.
+ */
+export const GITHUB_SESSION_PREFIX = 'sgh_';
+
+/** The audience a GitHub ID token is requested for: the one the service checks it against. */
+export const GITHUB_ID_TOKEN_AUDIENCE = 'https://api.sherlo.io';
 
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;
