@@ -53,7 +53,14 @@ import { installBrowser, posedBrowser } from '../../seams/browser';
 import { installSavedLogins, posedSavedLogins } from '../../seams/savedLogins';
 import type { CommandPose } from '../../seams/commandPose';
 import { readPoseDocument } from './readPose';
-import { createPlayClock, type PlayChunk, type PlayClock } from './playClock';
+import {
+  answeringAfterTheWait,
+  holdTheRedrawsStill,
+  maskedPlayChunks,
+  playingTheClock,
+  writePlayCast,
+  type PlayChunk,
+} from './playClock';
 import { maskScreen } from './maskScreen';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -82,10 +89,8 @@ export type PosedScreen = {
    * is reading a different scenario from the one the pose says it is.
    */
   unusedCalls: Array<{ call: string }>;
-  /** A played run's writes in order, each with its virtual time; empty on a still run. */
+  /** A played run's writes, cut at line ends and masked like the screen, each with its virtual time; empty on a still run. */
   chunks: PlayChunk[];
-  /** Every byte the run wrote, before any mask: what a cast's events concatenate to. */
-  unmaskedScreen: string;
 };
 
 /**
@@ -103,12 +108,10 @@ export type PosedScreen = {
 export type PoseOptions = {
   terminal: boolean;
   /**
-   * PLAY the run: every wait (a poll's sleep, a server's answer, a spinner's timer) comes due after
-   * a fixed 2 seconds of virtual time, and the screen's writes come back time-stamped as
-   * `chunks`. The screen itself is the still one: what a played run adds is spinner frames, and
-   * they sit inside the span the masker strips.
+   * PLAY the run into this cast file: each wait the pose scripts comes due after 2 virtual
+   * seconds, and the writes are saved, masked, as a cast. The screen printed is the still one.
    */
-  play?: boolean;
+  play?: string;
 };
 
 /**
@@ -120,9 +123,9 @@ export type PoseOptions = {
  */
 export async function runPose(
   commandPose: CommandPose,
-  { terminal, play = false }: PoseOptions = { terminal: true }
+  { terminal, play }: PoseOptions = { terminal: true }
 ): Promise<PosedScreen> {
-  const playClock = play ? playingTheClock() : undefined;
+  const playClock = play !== undefined ? playingTheClock() : undefined;
   const files = posedProjectFiles(commandPose.files);
   const api = answeringAfterTheWait(posedServerCalls(commandPose.api), playClock?.clock);
   const world = posedSurroundings({
@@ -180,8 +183,9 @@ export async function runPose(
     for (const undo of [...uninstall].reverse()) undo();
   }
 
-  const rawScreen = capture.screen();
-  const screen = applyMasks(rawScreen, commandPose, { root: files.root(), configPath });
+  const mask = (text: string) => applyMasks(text, commandPose, { root: files.root(), configPath });
+  const screen = mask(capture.screen());
+  const chunks = maskedPlayChunks(capture.chunks(), mask);
   files.remove();
 
   // A run that neither exited nor threw ran to the end of its command, which is an exit of 0.
@@ -200,55 +204,8 @@ export async function runPose(
       ...loginBrowser.refusals(),
     ],
     unusedCalls: api.unusedCalls(),
-    chunks: capture.chunks(),
-    unmaskedScreen: rawScreen,
+    chunks,
   };
-}
-
-/** The play clock, with the global interval timers it stands in for put on; `restore` takes them off. */
-function playingTheClock(): { clock: PlayClock; restore: () => void } {
-  const globals = globalThis as unknown as {
-    setInterval: (callback: () => void, delay: number) => { unref(): unknown };
-    clearInterval: (timer: never) => void;
-  };
-  const realSetInterval = globals.setInterval;
-  const realClearInterval = globals.clearInterval;
-  const clock = createPlayClock(realClearInterval, realSetInterval);
-
-  globals.setInterval = (callback) => clock.setInterval(callback);
-  globals.clearInterval = clock.clearInterval;
-
-  return {
-    clock,
-    restore: () => {
-      globals.setInterval = realSetInterval;
-      globals.clearInterval = realClearInterval;
-    },
-  };
-}
-
-/**
- * A played run's server answers each come due after the fixed wait. A still run (no clock) is
- * handed back as it is.
- */
-function answeringAfterTheWait<Calls extends object>(
-  calls: Calls,
-  clock: PlayClock | undefined
-): Calls {
-  if (!clock) return calls;
-
-  return new Proxy(calls, {
-    get(target, property, receiver) {
-      const member = Reflect.get(target, property, receiver);
-      if (typeof member !== 'function' || property === 'refusals' || property === 'unusedCalls') {
-        return member;
-      }
-      return async (...args: unknown[]) => {
-        await clock.pass();
-        return member.apply(target, args);
-      };
-    },
-  });
 }
 
 /**
@@ -262,7 +219,10 @@ function answeringAfterTheWait<Calls extends object>(
 export async function pose(documentPath: string, options: PoseOptions): Promise<void> {
   const document = documentPath === '-' ? readStdin() : fs.readFileSync(documentPath, 'utf8');
 
-  const { screen, exitCode, refusals } = await runPose(readPoseDocument(document), options);
+  const { screen, exitCode, refusals, chunks } = await runPose(readPoseDocument(document), options);
+
+  // The cast is the evidence: written whatever the exit code, before anything ends the run.
+  if (options.play !== undefined) writePlayCast(options.play, chunks, POSED_TERMINAL_WIDTH);
 
   process.stdout.write(screen);
 
@@ -523,43 +483,6 @@ function colourOnAPipe(env: Record<string, string>): 0 | 1 {
   const forced = env.FORCE_COLOR;
   if (forced === undefined || forced === '0' || forced === 'false') return 0;
   return 1;
-}
-
-/**
- * A posed screen is drawn ONCE, so nothing on it may be redrawn on a timer.
- *
- * THE SPINNER IS WHY. `sherlo init` draws its steps with a spinner, and a spinner advances its
- * frame on an interval - so the bytes a run committed would be whichever frame the machine
- * happened to reach: one frame on a fast machine, another on a loaded one, and a catalogue that
- * goes red for nobody's change. The frame drawn when the step STARTS is the whole of what a
- * single-instant transcript can honestly hold, and that one is drawn straight away, before any
- * interval is asked for.
- *
- * So for the length of the run, an interval is set for longer than the run can last and released
- * from holding the process open. It is a REAL timer, so whoever asked for it can hold it, clear it
- * and unreference it exactly as always - a stand-in object would break the first caller that did
- * any of the three - and it simply never comes due. Nothing in this tool's own source sets an
- * interval; only the spinner's library does, which is what makes a cut this wide precise.
- */
-function holdTheRedrawsStill(): () => void {
-  /** The longest delay a timer takes. One set for it is one that never comes due. */
-  const NEVER = 2 ** 31 - 1;
-
-  const globals = globalThis as unknown as {
-    setInterval: (callback: () => void, delay: number) => { unref(): unknown };
-  };
-  const realSetInterval = globals.setInterval;
-
-  globals.setInterval = () => {
-    const timer = realSetInterval(() => undefined, NEVER);
-    timer.unref();
-
-    return timer;
-  };
-
-  return () => {
-    globals.setInterval = realSetInterval;
-  };
 }
 
 /**
