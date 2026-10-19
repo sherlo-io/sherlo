@@ -721,14 +721,12 @@ function addTeamCommand(program: Command) {
 
 /**
  * `sherlo pose <pose.json|->` - run one command against a declared world and print the whole
- * screen it put on a terminal (see ./commands/pose/pose).
- *
- * HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
+ * screen it put on a terminal (see ./commands/pose/pose). HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
  * for the people who work on the tool, and a user who runs `sherlo --help` has no use for a verb
  * that takes a JSON document describing a run they are not making.
  *
- * The command is loaded only when it runs. It reaches back into THIS module - the routing it
- * exists to exercise is `start` itself - so a static import here would be a load-time cycle.
+ * The command is loaded only when it runs (it reaches back into THIS module, so a static import
+ * would be a load-time cycle).
  */
 function addPoseCommand(program: Command) {
   if (process.env.SHERLO_DEVTOOLS !== '1') return;
@@ -737,10 +735,11 @@ function addPoseCommand(program: Command) {
     .command(`${POSE_COMMAND} <pose>`)
     .description(COMMAND_DESCRIPTION[POSE_COMMAND])
     .option('--no-terminal', 'Print what an agent or a CI log receives, with no terminal attached')
-    .action(async (documentPath: string, actionOptions: { terminal: boolean }) => {
+    .option('--play <castFile>', 'Run with every wait at 2 seconds and write the cast to this file')
+    .action(async (documentPath: string, actionOptions: { terminal: boolean; play?: string }) => {
       const { pose } = await import('./commands/pose/pose');
 
-      await pose(documentPath, { terminal: actionOptions.terminal });
+      await pose(documentPath, actionOptions);
     });
 }
 
