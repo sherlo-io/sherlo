@@ -53,6 +53,14 @@ import { installBrowser, posedBrowser } from '../../seams/browser';
 import { installSavedLogins, posedSavedLogins } from '../../seams/savedLogins';
 import type { CommandPose } from '../../seams/commandPose';
 import { readPoseDocument } from './readPose';
+import {
+  answeringAfterTheWait,
+  holdTheRedrawsStill,
+  maskedPlayChunks,
+  playingTheClock,
+  writePlayCast,
+  type PlayChunk,
+} from './playClock';
 import { maskScreen } from './maskScreen';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -81,6 +89,8 @@ export type PosedScreen = {
    * is reading a different scenario from the one the pose says it is.
    */
   unusedCalls: Array<{ call: string }>;
+  /** A played run's writes, cut at line ends and masked like the screen, each with its virtual time; empty on a still run. */
+  chunks: PlayChunk[];
 };
 
 /**
@@ -95,7 +105,14 @@ export type PosedScreen = {
  * code that a terminal would have turned into an erase is still in the screen - which is what the
  * agent receives.
  */
-export type PoseOptions = { terminal: boolean };
+export type PoseOptions = {
+  terminal: boolean;
+  /**
+   * PLAY the run into this cast file: each wait the pose scripts comes due after 2 virtual
+   * seconds, and the writes are saved, masked, as a cast. The screen printed is the still one.
+   */
+  play?: string;
+};
 
 /**
  * Run the command a pose declares and return the whole screen it printed.
@@ -106,15 +123,17 @@ export type PoseOptions = { terminal: boolean };
  */
 export async function runPose(
   commandPose: CommandPose,
-  { terminal }: PoseOptions = { terminal: true }
+  { terminal, play }: PoseOptions = { terminal: true }
 ): Promise<PosedScreen> {
+  const playClock = play !== undefined ? playingTheClock() : undefined;
   const files = posedProjectFiles(commandPose.files);
-  const api = posedServerCalls(commandPose.api);
+  const api = answeringAfterTheWait(posedServerCalls(commandPose.api), playClock?.clock);
   const world = posedSurroundings({
     env: commandPose.env,
     git: commandPose.git,
     clock: commandPose.clock,
     startedAt: commandPose.push?.now,
+    waitForPlay: playClock?.clock.pass,
   });
   const machine = posedNativeBuild(commandPose.push);
   const builder = posedAppBuilder(commandPose.appBuild);
@@ -144,10 +163,10 @@ export async function runPose(
   // the screen it is folded out of is read after the seams have been taken out again.
   const configPath = resolvedConfigPath(commandPose.argv);
 
-  const capture = captureBothStreams({ terminal });
+  const capture = captureBothStreams({ terminal, now: playClock?.clock.now });
   const restoreArgv = installArgv(commandPose.argv);
   const restoreColour = setColour(terminal ? 1 : colourOnAPipe(commandPose.env));
-  const restoreRedraws = holdTheRedrawsStill();
+  const restoreRedraws = playClock ? playClock.restore : holdTheRedrawsStill();
 
   let threw = false;
   try {
@@ -164,7 +183,9 @@ export async function runPose(
     for (const undo of [...uninstall].reverse()) undo();
   }
 
-  const screen = applyMasks(capture.screen(), commandPose, { root: files.root(), configPath });
+  const mask = (text: string) => applyMasks(text, commandPose, { root: files.root(), configPath });
+  const screen = mask(capture.screen());
+  const chunks = maskedPlayChunks(capture.chunks(), mask);
   files.remove();
 
   // A run that neither exited nor threw ran to the end of its command, which is an exit of 0.
@@ -183,6 +204,7 @@ export async function runPose(
       ...loginBrowser.refusals(),
     ],
     unusedCalls: api.unusedCalls(),
+    chunks,
   };
 }
 
@@ -197,7 +219,10 @@ export async function runPose(
 export async function pose(documentPath: string, options: PoseOptions): Promise<void> {
   const document = documentPath === '-' ? readStdin() : fs.readFileSync(documentPath, 'utf8');
 
-  const { screen, exitCode, refusals } = await runPose(readPoseDocument(document), options);
+  const { screen, exitCode, refusals, chunks } = await runPose(readPoseDocument(document), options);
+
+  // The cast is the evidence: written whatever the exit code, before anything ends the run.
+  if (options.play !== undefined) writePlayCast(options.play, chunks, POSED_TERMINAL_WIDTH);
 
   process.stdout.write(screen);
 
@@ -258,16 +283,27 @@ class ExitSignal extends Error {
  * running (a `process.exit` that returns is a `process.exit` nothing below it expects), and
  * anything it prints from there belongs to no screen a real user ever saw.
  */
-function captureBothStreams({ terminal }: PoseOptions): {
+function captureBothStreams({
+  terminal,
+  now,
+}: {
+  terminal: boolean;
+  /** A played run's virtual time; absent on a still run, whose writes carry none. */
+  now?: () => number;
+}): {
+  chunks: () => PlayChunk[];
   screen: () => string;
   exitCode: () => number | undefined;
   restore: () => void;
 } {
   const written: string[] = [];
+  const timed: PlayChunk[] = [];
   let firstExitCode: number | undefined;
 
   const collect = (text: string): void => {
-    if (firstExitCode === undefined) written.push(text);
+    if (firstExitCode !== undefined) return;
+    written.push(text);
+    if (now) timed.push({ atMs: now(), data: text });
   };
 
   const collector = () => {
@@ -318,6 +354,7 @@ function captureBothStreams({ terminal }: PoseOptions): {
   }) as typeof process.exit;
 
   return {
+    chunks: () => timed,
     screen: () => written.join(''),
     exitCode: () => firstExitCode,
     restore: () => {
@@ -446,43 +483,6 @@ function colourOnAPipe(env: Record<string, string>): 0 | 1 {
   const forced = env.FORCE_COLOR;
   if (forced === undefined || forced === '0' || forced === 'false') return 0;
   return 1;
-}
-
-/**
- * A posed screen is drawn ONCE, so nothing on it may be redrawn on a timer.
- *
- * THE SPINNER IS WHY. `sherlo init` draws its steps with a spinner, and a spinner advances its
- * frame on an interval - so the bytes a run committed would be whichever frame the machine
- * happened to reach: one frame on a fast machine, another on a loaded one, and a catalogue that
- * goes red for nobody's change. The frame drawn when the step STARTS is the whole of what a
- * single-instant transcript can honestly hold, and that one is drawn straight away, before any
- * interval is asked for.
- *
- * So for the length of the run, an interval is set for longer than the run can last and released
- * from holding the process open. It is a REAL timer, so whoever asked for it can hold it, clear it
- * and unreference it exactly as always - a stand-in object would break the first caller that did
- * any of the three - and it simply never comes due. Nothing in this tool's own source sets an
- * interval; only the spinner's library does, which is what makes a cut this wide precise.
- */
-function holdTheRedrawsStill(): () => void {
-  /** The longest delay a timer takes. One set for it is one that never comes due. */
-  const NEVER = 2 ** 31 - 1;
-
-  const globals = globalThis as unknown as {
-    setInterval: (callback: () => void, delay: number) => { unref(): unknown };
-  };
-  const realSetInterval = globals.setInterval;
-
-  globals.setInterval = () => {
-    const timer = realSetInterval(() => undefined, NEVER);
-    timer.unref();
-
-    return timer;
-  };
-
-  return () => {
-    globals.setInterval = realSetInterval;
-  };
 }
 
 /**
