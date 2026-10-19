@@ -626,6 +626,134 @@ describe('applySherloTransforms resolver redirect', () => {
     expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
   });
 
+  it('a mock of a bare package name reaches the shim from a second installed copy of the package', () => {
+    // A package shaped like the storage library (main, module and react-native fields, no
+    // exports), installed twice: once under the project root and once nested beside the file that
+    // imports it. Metro resolves the import from the nested file to the nested copy, which is not
+    // the copy Sherlo resolved from the project root. It must still reach the shim.
+    const root = mkProject('sherlo-redirect-bare-android-');
+    const packageJson = {
+      main: 'lib/commonjs/index.js',
+      module: 'lib/module/index.js',
+      'react-native': 'src/index.ts',
+    };
+    const packageFiles = {
+      'lib/commonjs/index.js': 'module.exports = {};',
+      'lib/module/index.js': 'export default {};',
+      'src/index.ts': 'export default {};',
+    };
+    writePackageWithJson(root, 'fake-storage-lib', packageJson, packageFiles);
+    const nestedRoot = path.join(root, 'packages', 'feature');
+    writePackageWithJson(nestedRoot, 'fake-storage-lib', packageJson, packageFiles);
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { 'fake-storage-lib': {} } } } };`
+    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
+    const nestedEntry = path.join(
+      nestedRoot,
+      'node_modules',
+      'fake-storage-lib',
+      'lib',
+      'module',
+      'index.js'
+    );
+    const ctx = makeContext(path.join(nestedRoot, 'src', 'Screen.tsx'), {
+      'fake-storage-lib': nestedEntry,
+    });
+
+    const resolved = result.resolver.resolveRequest(ctx, 'fake-storage-lib', 'android');
+    cleanup(root);
+
+    expect(resolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks'));
+  });
+
+  it('a mocked bare package that no import reaches is reported once when the bundle is built', () => {
+    const root = mkProject('sherlo-redirect-unreached-');
+    writePackageWithJson(root, 'fake-storage-lib', { main: 'index.js' }, { 'index.js': '' });
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { 'fake-storage-lib': {} } } } };`
+    );
+    const result = applySherloTransforms({
+      projectRoot: root,
+      resolver: {},
+      serializer: { customSerializer: () => 'bundle' },
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const serialize = result.serializer.customSerializer;
+
+    const bundle = serialize('entry', [], { dependencies: new Map() }, { projectRoot: root });
+    serialize('entry', [], { dependencies: new Map() }, { projectRoot: root });
+    const warned = warn.mock.calls.map((call) => String(call[0]));
+    warn.mockRestore();
+    cleanup(root);
+
+    expect(bundle).toBe('bundle');
+    expect(warned).toEqual([
+      '[Sherlo] mock of fake-storage-lib was declared but no import reached it',
+    ]);
+  });
+
+  it('a mocked bare package that an import reached is not reported when the bundle is built', () => {
+    const root = mkProject('sherlo-redirect-reached-');
+    writePackageWithJson(root, 'fake-storage-lib', { main: 'index.js' }, { 'index.js': '' });
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { 'fake-storage-lib': {} } } } };`
+    );
+    const result = applySherloTransforms({
+      projectRoot: root,
+      resolver: {},
+      serializer: { customSerializer: () => 'bundle' },
+    });
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
+      'fake-storage-lib': path.join(root, 'node_modules', 'fake-storage-lib', 'index.js'),
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    result.resolver.resolveRequest(ctx, 'fake-storage-lib', 'android');
+    result.serializer.customSerializer('entry', [], { dependencies: new Map() }, {});
+    const warned = warn.mock.calls.map((call) => String(call[0]));
+    warn.mockRestore();
+    cleanup(root);
+
+    expect(warned).toEqual([]);
+  });
+
+  it('a mock of a package subpath that resolves outside its package warns once and is not redirected', () => {
+    const root = mkProject('sherlo-redirect-deep-stray-');
+    writePackageWithJson(
+      root,
+      'fake-storage-lib',
+      { main: 'index.js' },
+      { 'index.js': 'module.exports = {};', 'sub.js': 'module.exports = {};' }
+    );
+    writeFile(
+      root,
+      'src/Comp.stories.tsx',
+      `export const S = { parameters: { sherlo: { mocks: { 'fake-storage-lib/sub': {} } } } };`
+    );
+    const result = applySherloTransforms({ projectRoot: root, resolver: {} });
+    const strayCopy = writeFile(root, 'elsewhere/sub.js', 'module.exports = {};');
+    const ctx = makeContext(path.join(root, 'src', 'Screen.tsx'), {
+      'fake-storage-lib/sub': strayCopy,
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const stray = result.resolver.resolveRequest(ctx, 'fake-storage-lib/sub', 'android');
+    result.resolver.resolveRequest(ctx, 'fake-storage-lib/sub', 'android');
+    const warned = warn.mock.calls.map((call) => String(call[0]));
+    warn.mockRestore();
+    cleanup(root);
+
+    expect(stray.filePath).toBe(strayCopy);
+    expect(warned.filter((line) => line.includes('NOT mocked'))).toHaveLength(1);
+  });
+
   it('MK-04: redirects a project-relative app-module import', () => {
     const root = mkProject('sherlo-redirect-app-');
     writeFile(root, 'src/utils/localization.ts', 'export default {};');
