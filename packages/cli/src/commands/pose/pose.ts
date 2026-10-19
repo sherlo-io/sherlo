@@ -53,6 +53,7 @@ import { installBrowser, posedBrowser } from '../../seams/browser';
 import { installSavedLogins, posedSavedLogins } from '../../seams/savedLogins';
 import type { CommandPose } from '../../seams/commandPose';
 import { readPoseDocument } from './readPose';
+import { createPlayClock, type PlayChunk, type PlayClock } from './playClock';
 import { maskScreen } from './maskScreen';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
@@ -81,6 +82,10 @@ export type PosedScreen = {
    * is reading a different scenario from the one the pose says it is.
    */
   unusedCalls: Array<{ call: string }>;
+  /** A played run's writes in order, each with its virtual time; empty on a still run. */
+  chunks: PlayChunk[];
+  /** Every byte the run wrote, before any mask: what a cast's events concatenate to. */
+  unmaskedScreen: string;
 };
 
 /**
@@ -95,7 +100,16 @@ export type PosedScreen = {
  * code that a terminal would have turned into an erase is still in the screen - which is what the
  * agent receives.
  */
-export type PoseOptions = { terminal: boolean };
+export type PoseOptions = {
+  terminal: boolean;
+  /**
+   * PLAY the run: every wait (a poll's sleep, a server's answer, a spinner's timer) comes due after
+   * a fixed 2 seconds of virtual time, and the screen's writes come back time-stamped as
+   * `chunks`. The screen itself is the still one: what a played run adds is spinner frames, and
+   * they sit inside the span the masker strips.
+   */
+  play?: boolean;
+};
 
 /**
  * Run the command a pose declares and return the whole screen it printed.
@@ -106,15 +120,17 @@ export type PoseOptions = { terminal: boolean };
  */
 export async function runPose(
   commandPose: CommandPose,
-  { terminal }: PoseOptions = { terminal: true }
+  { terminal, play = false }: PoseOptions = { terminal: true }
 ): Promise<PosedScreen> {
+  const playClock = play ? playingTheClock() : undefined;
   const files = posedProjectFiles(commandPose.files);
-  const api = posedServerCalls(commandPose.api);
+  const api = answeringAfterTheWait(posedServerCalls(commandPose.api), playClock?.clock);
   const world = posedSurroundings({
     env: commandPose.env,
     git: commandPose.git,
     clock: commandPose.clock,
     startedAt: commandPose.push?.now,
+    waitForPlay: playClock?.clock.pass,
   });
   const machine = posedNativeBuild(commandPose.push);
   const builder = posedAppBuilder(commandPose.appBuild);
@@ -144,10 +160,10 @@ export async function runPose(
   // the screen it is folded out of is read after the seams have been taken out again.
   const configPath = resolvedConfigPath(commandPose.argv);
 
-  const capture = captureBothStreams({ terminal });
+  const capture = captureBothStreams({ terminal, now: playClock?.clock.now });
   const restoreArgv = installArgv(commandPose.argv);
   const restoreColour = setColour(terminal ? 1 : colourOnAPipe(commandPose.env));
-  const restoreRedraws = holdTheRedrawsStill();
+  const restoreRedraws = playClock ? playClock.restore : holdTheRedrawsStill();
 
   let threw = false;
   try {
@@ -164,7 +180,8 @@ export async function runPose(
     for (const undo of [...uninstall].reverse()) undo();
   }
 
-  const screen = applyMasks(capture.screen(), commandPose, { root: files.root(), configPath });
+  const rawScreen = capture.screen();
+  const screen = applyMasks(rawScreen, commandPose, { root: files.root(), configPath });
   files.remove();
 
   // A run that neither exited nor threw ran to the end of its command, which is an exit of 0.
@@ -183,7 +200,55 @@ export async function runPose(
       ...loginBrowser.refusals(),
     ],
     unusedCalls: api.unusedCalls(),
+    chunks: capture.chunks(),
+    unmaskedScreen: rawScreen,
   };
+}
+
+/** The play clock, with the global interval timers it stands in for put on; `restore` takes them off. */
+function playingTheClock(): { clock: PlayClock; restore: () => void } {
+  const globals = globalThis as unknown as {
+    setInterval: (callback: () => void, delay: number) => { unref(): unknown };
+    clearInterval: (timer: never) => void;
+  };
+  const realSetInterval = globals.setInterval;
+  const realClearInterval = globals.clearInterval;
+  const clock = createPlayClock(realClearInterval, realSetInterval);
+
+  globals.setInterval = (callback) => clock.setInterval(callback);
+  globals.clearInterval = clock.clearInterval;
+
+  return {
+    clock,
+    restore: () => {
+      globals.setInterval = realSetInterval;
+      globals.clearInterval = realClearInterval;
+    },
+  };
+}
+
+/**
+ * A played run's server answers each come due after the fixed wait. A still run (no clock) is
+ * handed back as it is.
+ */
+function answeringAfterTheWait<Calls extends object>(
+  calls: Calls,
+  clock: PlayClock | undefined
+): Calls {
+  if (!clock) return calls;
+
+  return new Proxy(calls, {
+    get(target, property, receiver) {
+      const member = Reflect.get(target, property, receiver);
+      if (typeof member !== 'function' || property === 'refusals' || property === 'unusedCalls') {
+        return member;
+      }
+      return async (...args: unknown[]) => {
+        await clock.pass();
+        return member.apply(target, args);
+      };
+    },
+  });
 }
 
 /**
@@ -258,16 +323,27 @@ class ExitSignal extends Error {
  * running (a `process.exit` that returns is a `process.exit` nothing below it expects), and
  * anything it prints from there belongs to no screen a real user ever saw.
  */
-function captureBothStreams({ terminal }: PoseOptions): {
+function captureBothStreams({
+  terminal,
+  now,
+}: {
+  terminal: boolean;
+  /** A played run's virtual time; absent on a still run, whose writes carry none. */
+  now?: () => number;
+}): {
+  chunks: () => PlayChunk[];
   screen: () => string;
   exitCode: () => number | undefined;
   restore: () => void;
 } {
   const written: string[] = [];
+  const timed: PlayChunk[] = [];
   let firstExitCode: number | undefined;
 
   const collect = (text: string): void => {
-    if (firstExitCode === undefined) written.push(text);
+    if (firstExitCode !== undefined) return;
+    written.push(text);
+    if (now) timed.push({ atMs: now(), data: text });
   };
 
   const collector = () => {
@@ -318,6 +394,7 @@ function captureBothStreams({ terminal }: PoseOptions): {
   }) as typeof process.exit;
 
   return {
+    chunks: () => timed,
     screen: () => written.join(''),
     exitCode: () => firstExitCode,
     restore: () => {
