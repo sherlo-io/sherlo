@@ -3,6 +3,7 @@ import { MockSet } from './types';
 import { CLOCK_MOCK_KEY, ClockDefinition, installClock, restoreClock } from './clock';
 import { RANDOM_MOCK_KEY, RandomDefinition, installRandom, restoreRandom } from './random';
 import RunnerBridge from '../helpers/RunnerBridge';
+import SherloModule from '../SherloModule';
 
 // Stable log key the runner (and the FG-03 device test) tails from log.sherlo.
 export const UNSHIMMED_KEYS_LOG = 'mock declared but unshimmed';
@@ -17,10 +18,8 @@ export const UNSHIMMED_KEYS_LOG = 'mock declared but unshimmed';
 // no core (Expo Go), a project-level mock whose shim sits only in ANOTHER story's import graph
 // may not have evaluated yet, and is warned about though it would apply once that story loads.
 //
-// The warning goes out on TWO channels: console.warn (visible in a dev session) AND
-// RunnerBridge.log (written to log.sherlo). The second channel is what makes FG-03
-// observable during a capture run, where setupErrorSilencing nulls console.warn - the
-// runner reads the log line even though the console message is swallowed.
+// The warning goes out on TWO channels: the phone's console (printOnThePhoneConsole) AND
+// RunnerBridge.log (written to log.sherlo), which the runner reads during a run.
 function warnUnshimmedKeys(mocks: MockSet): void {
   const unshimmedKeys = Object.keys(mocks).filter((key) => !isKeyShimmed(key));
   if (unshimmedKeys.length === 0) return;
@@ -39,8 +38,24 @@ function warnUnshimmedKeys(mocks: MockSet): void {
       plural ? 'them' : 'it'
     } under the mockModules option of withStorybook in metro.config.js.`;
 
-  console.warn(message);
+  printOnThePhoneConsole(message);
   RunnerBridge.log(UNSHIMMED_KEYS_LOG, { keys: unshimmedKeys });
+}
+
+// React Native's own native log, the one console.warn writes through: on Android it lands in
+// logcat as ReactNativeJS. Level 2 is a warning.
+const NATIVE_LOG_WARNING_LEVEL = 2;
+
+// console.warn, and in testing mode - where setupErrorSilencing has replaced console.warn with a
+// no-op - React Native's native log directly, so a phone in a run still prints the warning.
+function printOnThePhoneConsole(message: string): void {
+  const nativeLog = (globalThis as { nativeLoggingHook?: (text: string, level: number) => void })
+    .nativeLoggingHook;
+  if (SherloModule.getMode() === 'testing' && typeof nativeLog === 'function') {
+    nativeLog(message, NATIVE_LOG_WARNING_LEVEL);
+    return;
+  }
+  console.warn(message);
 }
 
 // Reads the clock/random declarations back off the same channel a module mock rides in on

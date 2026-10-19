@@ -20,6 +20,8 @@ import { recordStoryError } from './storyErrorRegistry';
 // module by import, so its name is only known once that import resolves - and an attempt whose
 // resolution finishes after a newer attempt has already installed must not overwrite it.
 let latestInstall = 0;
+// What the latest attempt answered: what a superseded attempt hands its caller to wait on instead.
+let latestInstalled: Promise<void> | null = null;
 
 /**
  * Install `storyId`'s merged mocks, and say when they ARE installed: null when that has already
@@ -43,13 +45,19 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
   // The object form already names every module it mocks, so it installs at once.
   if (!Array.isArray(mocks)) {
     activateStoryMocks(mocks);
+    latestInstalled = null;
     return null;
   }
 
-  return resolveDeclarations(mocks).then((resolvedMocks) => {
-    if (install !== latestInstall) return;
+  // An attempt a newer one overtook installs nothing, and settles only once the newer one has
+  // installed: its caller - Storybook's loader, say - renders the story when it settles, and a
+  // story rendered before then reads the real module. On a dev server each attempt's import
+  // fetches its own lazy bundle, so the newer attempt's can arrive after the first attempt's.
+  latestInstalled = resolveDeclarations(mocks).then((resolvedMocks) => {
+    if (install !== latestInstall) return latestInstalled ?? undefined;
     activateStoryMocks(resolvedMocks);
   });
+  return latestInstalled;
 }
 
 /**
