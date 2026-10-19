@@ -323,24 +323,12 @@ function generateShimContent(moduleKey, requireSpecifier) {
 // -------------------------------------------------------------------------
 // Config-time scan overhead budget (WS7 / SHERLO-1738 Phase 6)
 // -------------------------------------------------------------------------
-// setupMocks (scanProjectForMocks + deny-list + per-key resolve + shim
-// emission) runs ONCE per `metro` config load, not per request. Measured on
-// the fixtures in this repo (Apple M-series, warm fs cache):
-//   - largest real fixture (integrated-app-expo-sb8, ~520 files): ~0.7 ms scan
-//   - synthetic monorepo, 13 mock stories + 2000 source files:    ~7 ms scan
-//   - pathological, ~120 mock stories + 2000 files:               ~28 ms scan
-//   - setupMocks resolving+emitting 10 / 40 / 100 mock keys: ~6 / 15 / 32 ms
-// So a realistic app lands well under 50 ms combined; even a pathological
-// monorepo (120 stories + 100 keys + 2000 files) stays around ~60 ms.
-//
-// BUDGET: the combined scan + setup MUST stay under 250 ms for the largest
-// project. That is ~4x the pathological measurement above - headroom for a
-// cold fs cache, slower CI disks, and future growth. If a change pushes past
-// it, profile before shipping: the dominant costs are the babel parse per
-// story/preview file and the require.resolve per package key, both of which
-// scale linearly and are the first places to optimise (e.g. memoise resolves
-// across keys, or cache parsed keys by file mtime so unchanged files are not
-// re-parsed on a warm Metro restart).
+// setupMocks runs ONCE per `metro` config load, not per request. Measured (Apple M-series, warm
+// fs cache): ~0.7 ms scan for a ~520-file app, ~7 / ~28 ms for 13 / ~120 mock stories over 2000
+// files, ~6 / 15 / 32 ms to resolve and emit 10 / 40 / 100 keys - a realistic app well under
+// 50 ms. BUDGET: scan + setup MUST stay under 250 ms for the largest project. Past it, profile
+// first: the babel parse per story file and the require.resolve per package key dominate (memoise
+// resolves across keys, or cache parsed keys by file mtime across warm Metro restarts).
 // -------------------------------------------------------------------------
 //
 // Build the complete mock setup for a config run.
@@ -403,6 +391,7 @@ function setupMocks(opts) {
   var shimPaths = [];
   var mockedPackages = new Map();
   var bareKeyShims = new Map();
+  var shimmedKeys = [];
 
   mocksByModulePath.forEach(function (declared) {
     var key = declared.key;
@@ -457,7 +446,13 @@ function setupMocks(opts) {
     }
     if (!isRelativeOrAbsolute(key)) bareKeyShims.set(key, shimPath);
     shimPaths.push(shimPath);
+    shimmedKeys.push(key);
   });
+
+  // One line at every bundler start that reads mocks, so a log always says which mocks can apply.
+  if (mocksByModulePath.size > 0) {
+    console.log('[Sherlo] mocks shimmed: ' + (shimmedKeys.join(', ') || 'none'));
+  }
 
   return {
     mocksDir: mocksDir,

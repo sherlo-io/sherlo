@@ -278,6 +278,27 @@ describe('mockShims.generateShimContent + shimFileName', () => {
     expect(fs.existsSync(betaShim)).toBe(false);
     cleanup(root);
   });
+
+  it('the bundler prints one line at start listing the mock keys it shimmed', () => {
+    const root = mkProject('sherlo-shimmed-line-');
+    writePackage(root, 'fake-storage', 'index.js', { 'index.js': 'module.exports = {};' });
+    const cacheDir = path.join(root, 'node_modules', '.cache', 'sherlo');
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    mockShims.setupMocks({
+      projectRoot: root,
+      cacheDir,
+      mockModules: ['fake-storage', 'not-installed-anywhere'],
+    });
+
+    const sherloLines = log.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.startsWith('[Sherlo]'));
+    expect(sherloLines).toEqual(['[Sherlo] mocks shimmed: fake-storage']);
+    vi.restoreAllMocks();
+    cleanup(root);
+  });
 });
 
 // ---------------------------------------------------------------------------
