@@ -57,6 +57,23 @@ function isRelativeOrAbsolute(key) {
   return isRelativeKey(key) || path.isAbsolute(key);
 }
 
+// The file `filePath` really is, with every symlink on the way followed, so a project installed
+// through links (pnpm, a monorepo) names each file one way only. When it is not on disk (a unit
+// test's synthetic path) it is the absolute form of the path: both callers pass absolute paths,
+// which stay as written, and a relative one still compares against absolute ones.
+function realFilePath(filePath) {
+  try {
+    return fs.realpathSync(filePath);
+  } catch (_) {
+    return path.resolve(filePath);
+  }
+}
+
+// Whether `file` lies somewhere under `folder` (both absolute). False when either is missing.
+function isInsideFolder(file, folder) {
+  return !!file && !!folder && file.indexOf(folder + path.sep) === 0;
+}
+
 // Reduce an absolute module path to a platform/extension-independent identity so
 // that Button.tsx, Button.ios.tsx, and Button.android.tsx all collapse to the
 // same key. This is what lets ONE shim match a module across every platform.
@@ -67,12 +84,7 @@ function isRelativeOrAbsolute(key) {
 // otherwise make the config-time identity and the runtime identity diverge).
 // Non-existent paths fall back to the raw path unchanged.
 function canonicalizeModulePath(absPath) {
-  var real = absPath;
-  try {
-    real = fs.realpathSync(absPath);
-  } catch (_) {
-    /* path may not exist (e.g. unit tests on synthetic paths); use it as-is */
-  }
+  var real = realFilePath(absPath);
   var ext = path.extname(real);
   if (!ext) return real;
   var base = real.slice(0, -ext.length);
@@ -121,6 +133,12 @@ function appModuleResult(file, moduleKey) {
     canonicalRealPath: modulePath,
     requireSpecifier: modulePath,
   };
+}
+
+// The package a bare key names: 'pkg/sub' -> 'pkg', '@scope/name/sub' -> '@scope/name'.
+function packageNameOf(key) {
+  var parts = key.split('/');
+  return key.charAt(0) === '@' ? parts.slice(0, 2).join('/') : parts[0];
 }
 
 // A bare key is a package ROOT (not a subpath) when it has no path segment past
@@ -264,11 +282,13 @@ function resolveMockKey(key, projectRoot, importedFromFile) {
   try {
     var resolved = require.resolve(key, { paths: [projectRoot] });
     var canonicalRealPath = canonicalizeModulePath(resolved);
+    var owner = findPackageDir(resolved, packageNameOf(key));
     return {
       moduleKey: key,
       canonicalRealPath: canonicalRealPath,
       requireSpecifier: key,
       alternateCanonicalPaths: packageRootAlternateCanonicalPaths(key, resolved, canonicalRealPath),
+      packageDir: owner ? owner.dir : null,
     };
   } catch (_) {
     var appFile = resolveAppModuleFile(path.resolve(projectRoot, key));
@@ -381,6 +401,8 @@ function setupMocks(opts) {
   // unshimmed-key tripwire.
   var mockedPathToShim = new Map();
   var shimPaths = [];
+  var mockedPackages = new Map();
+  var bareKeyShims = new Map();
 
   mocksByModulePath.forEach(function (declared) {
     var key = declared.key;
@@ -430,14 +452,73 @@ function setupMocks(opts) {
     for (var a = 0; a < alternates.length; a++) {
       mockedPathToShim.set(alternates[a], shimPath);
     }
+    if (resolved.packageDir) {
+      mockedPackages.set(key, { dir: resolved.packageDir, shimPath: shimPath });
+    }
+    if (!isRelativeOrAbsolute(key)) bareKeyShims.set(key, shimPath);
     shimPaths.push(shimPath);
   });
 
   return {
     mocksDir: mocksDir,
     mockedPathToShim: mockedPathToShim,
+    mockedPackages: mockedPackages,
+    warnedKeys: new Set(),
+    bareKeyShims: bareKeyShims,
+    reachedShims: new Set(),
     shimPaths: shimPaths,
   };
+}
+
+// The shim a resolved request is redirected to, or undefined when it is not a mocked module.
+//
+// A file registered ahead of time (the key's own entry and the package.json entries) matches. A
+// request whose name is exactly a mocked package ROOT key matches wherever it resolves: which entry
+// file the bundler picks (a "module" field, an exports condition, a platform file) and which
+// installed copy it lands in (the app's own or a nested one) is the bundler's choice, but the
+// module asked for is the same. A deep bare key ('pkg/sub') matches any file inside its package;
+// when it lands outside its package, that is the one case the redirect cannot cover, so it warns
+// once instead of staying silent.
+function shimForRequest(mockSetup, moduleName, resolvedFilePath) {
+  var shimPath = shimMatchingRequest(mockSetup, moduleName, resolvedFilePath);
+  if (shimPath) mockSetup.reachedShims.add(shimPath);
+  return shimPath;
+}
+
+function shimMatchingRequest(mockSetup, moduleName, resolvedFilePath) {
+  var registered = mockSetup.mockedPathToShim.get(canonicalizeModulePath(resolvedFilePath));
+  if (registered) return registered;
+  var mockedPackage = mockSetup.mockedPackages.get(moduleName);
+  if (!mockedPackage) return undefined;
+  if (isPackageRootKey(moduleName)) return mockedPackage.shimPath;
+  if (isInsideFolder(realFilePath(resolvedFilePath), realFilePath(mockedPackage.dir))) {
+    return mockedPackage.shimPath;
+  }
+  if (mockSetup.warnedKeys.has(moduleName)) return undefined;
+  mockSetup.warnedKeys.add(moduleName);
+  console.warn(
+    '[Sherlo] The story mocks "' +
+      moduleName +
+      '", but the bundler resolved that import to ' +
+      resolvedFilePath +
+      ', outside the package Sherlo mocks (' +
+      mockedPackage.dir +
+      '), so this import is NOT mocked. Make sure only one copy of the package is installed.'
+  );
+  return undefined;
+}
+
+// Once the bundle is built: warns, once per key, of each mocked bare package that no import
+// reached, so a mock that can never apply is not silent in the bundler output. The bundle's
+// serializer calls it, the one point Metro gives where every import has been resolved.
+function warnUnreachedMocks(mockSetup) {
+  mockSetup.bareKeyShims.forEach(function (shimPath, key) {
+    if (mockSetup.reachedShims.has(shimPath) || mockSetup.warnedKeys.has('unreached:' + key)) {
+      return;
+    }
+    mockSetup.warnedKeys.add('unreached:' + key);
+    console.warn('[Sherlo] mock of ' + key + ' was declared but no import reached it');
+  });
 }
 
 // The file whose import expression named this key, when that is what makes the key point at a
@@ -462,8 +543,12 @@ module.exports = {
   CREATE_MOCKABLE_SPECIFIER: CREATE_MOCKABLE_SPECIFIER,
   isDeniedKey: isDeniedKey,
   canonicalizeModulePath: canonicalizeModulePath,
+  isInsideFolder: isInsideFolder,
+  realFilePath: realFilePath,
   resolveMockKey: resolveMockKey,
   shimFileName: shimFileName,
   generateShimContent: generateShimContent,
   setupMocks: setupMocks,
+  shimForRequest: shimForRequest,
+  warnUnreachedMocks: warnUnreachedMocks,
 };
