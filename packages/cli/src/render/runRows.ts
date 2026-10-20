@@ -320,10 +320,15 @@ function underTheRow(lines: string[]): string[] {
  * The story files the test captures, every platform's together, each named once: `+` a story file
  * the build it diffed against did not have, `~` one a change reaches, and unmarked one captured
  * though nothing it uses changed (every story is captured when no main branch is set). New first,
- * then changed. A file only one platform has says which.
+ * then changed. A file only one platform has says which. A first build diffed against nothing, so
+ * it lists every row unmarked: the service calls each file new then, and `+` would mark them all.
  */
 function storyFilesCaptured(capture: PlatformCapture[]): string[] {
-  const added = filesOfEveryPlatform(capture, ({ newStoryFiles }) => newStoryFiles);
+  // The capture carries no first-build flag, only the service's reason for a full capture: on a
+  // first build it says there was nothing to compare against, and every file is called new.
+  const addedOf = ({ full, reason, newStoryFiles }: PlatformCapture): string[] =>
+    full && reason && /nothing to compare against/i.test(reason) ? [] : (newStoryFiles ?? []);
+  const added = filesOfEveryPlatform(capture, addedOf);
   const changed = filesOfEveryPlatform(capture, ({ changedStoryFiles }) => changedStoryFiles);
   const captured = filesOfEveryPlatform(capture, ({ storyFiles }) => storyFiles);
 
