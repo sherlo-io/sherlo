@@ -20,6 +20,7 @@ var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var firstExistingSourceFile = require('./sourceFiles').firstExistingSourceFile;
 var isExistingFile = require('./sourceFiles').isExistingFile;
+var realFilePath = require('./mockShims').realFilePath;
 
 // The two names only the launch entry asks for. Sherlo's resolver answers them itself, so neither
 // passes through Storybook's own entry swap.
@@ -38,19 +39,6 @@ function storybookEntryImportedMessage(importer) {
     " imports the Storybook entry file. On Storybook's default setup, Sherlo loads Storybook " +
     'itself, so remove that import.'
   );
-}
-
-/**
- * The file `filePath` really is, with every symlink on the way followed, so a project installed
- * through links (pnpm, a monorepo) names each file one way only. `filePath` as it is when it is
- * not on disk.
- */
-function realFilePath(filePath) {
-  try {
-    return fs.realpathSync(filePath);
-  } catch (_) {
-    return path.resolve(filePath);
-  }
 }
 
 /**

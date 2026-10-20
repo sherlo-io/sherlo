@@ -725,17 +725,6 @@ function writeDisabledFlagPolyfill(cacheDir) {
 }
 
 /**
- * Whether `file` lies somewhere under `folder` (both absolute). False when either is missing.
- *
- * @param {string|null|undefined} file
- * @param {string|null|undefined} folder
- * @returns {boolean}
- */
-function isInsideFolder(file, folder) {
-  return !!file && !!folder && file.indexOf(folder + path.sep) === 0;
-}
-
-/**
  * How `config` resolves a module before Sherlo adds a step: the resolveRequest it already set, or
  * Metro's own when it set none. Every resolver step Sherlo adds hands what it does not answer
  * itself to this, so the project's own step, and Storybook's, still run.
@@ -876,7 +865,7 @@ function applySherloTransforms(result, opts) {
   // originating from a shim must NEVER be redirected back into a shim, otherwise
   // the shim's own require(real) would loop onto itself.
   function isShimPath(absPath) {
-    return isInsideFolder(absPath, mocksDir);
+    return mockShims.isInsideFolder(absPath, mocksDir);
   }
 
   var delegateResolve = resolveThroughConfig(result);
@@ -902,7 +891,7 @@ function applySherloTransforms(result, opts) {
       resolution.filePath &&
       !isShimPath(context.originModulePath)
     ) {
-      var shimPath = mockedPathToShim.get(mockShims.canonicalizeModulePath(resolution.filePath));
+      var shimPath = mockShims.shimForRequest(mockSetup, moduleName, resolution.filePath);
       if (shimPath && shimPath !== resolution.filePath) {
         return { type: 'sourceFile', filePath: shimPath };
       }
@@ -946,7 +935,9 @@ function applySherloTransforms(result, opts) {
   // that also fails to load we skip the wrapper rather than risk corrupting the
   // bundle (bail-open).
   var sherloCustomSerializer = null;
-  if (moduleManifestEnabled) {
+  // A project that mocks a bare package needs the wrapper too: the end of the bundle is where a
+  // mock that no import reached gets reported.
+  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0) {
     var existingCustomSerializer =
       result && result.serializer && typeof result.serializer.customSerializer === 'function'
         ? result.serializer.customSerializer
@@ -956,8 +947,11 @@ function applySherloTransforms(result, opts) {
     if (delegateSerializer) {
       sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
         // Emit the manifest as a pure side-effect; never affects bundle output.
-        var serializerProjectRoot = (options && options.projectRoot) || projectRoot;
-        emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+        if (moduleManifestEnabled) {
+          var serializerProjectRoot = (options && options.projectRoot) || projectRoot;
+          emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+        }
+        mockShims.warnUnreachedMocks(mockSetup);
         // Delegate to the original serializer and return its output unchanged.
         return delegateSerializer(entryPoint, preModules, graph, options);
       };
@@ -1160,7 +1154,7 @@ module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
 module.exports.resolveThroughConfig = resolveThroughConfig;
-module.exports.isInsideFolder = isInsideFolder;
+module.exports.isInsideFolder = mockShims.isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
 // Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
 module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;

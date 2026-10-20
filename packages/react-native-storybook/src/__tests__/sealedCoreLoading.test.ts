@@ -303,7 +303,7 @@ describe('running with no core', () => {
     const { getSealedCore } = await import('../sealedCore/loadSealedCore');
     const createMockable = (await import('../mocking/createMockable')).default;
     const { recordStorybookFacts } = await import('../getStorybook/storybookFacts');
-    const sherloAnnotation = (await import('../getStorybook/sherloAnnotation')).default;
+    const { prepareStoryForRender } = await import('../getStorybook/sherloAnnotation');
     const { clearMocks } = await import('../mocking/registry');
 
     // What Storybook's start() was handed: one file of two stories, which mocking finds each of
@@ -329,16 +329,12 @@ describe('running with no core', () => {
     });
     const mockable = createMockable('pkg/switch', { label: 'real-switch' });
 
-    // Storybook runs Sherlo's loaders for each story the person selects, before it renders it.
-    const runSherlosLoaders = async (storyId: string) => {
-      for (const loader of sherloAnnotation.loaders) await loader({ id: storyId });
-    };
-
     expect(getSealedCore()).toBeNull();
-    await runSherlosLoaders(firstStoryId);
+    // Sherlo's decorator prepares each story the person selects, and renders it once that is done.
+    await prepareStoryForRender(firstStoryId);
     expect(mockable.label).toBe('first-mock');
 
-    await runSherlosLoaders(secondStoryId);
+    await prepareStoryForRender(secondStoryId);
     expect(mockable.label).toBe('second-mock');
 
     clearMocks();

@@ -45,7 +45,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
   // beside it, nothing starts - see captureTransport's `bundlerCapture`).
   startWaitingForACapture(view);
 
-  // Sherlo's decorator, its render delay and the loader that installs each story's mocks were
+  // Sherlo's decorator, its render delay and the hold that installs each story's mocks were
   // handed to Storybook's start() as one annotation of Sherlo's (./sherloAnnotation), so there is
   // nothing to add to Storybook here. When the SDK is not compatible the component returns null.
   if (mode === 'testing' && canWalkTheStories()) {
