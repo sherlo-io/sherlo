@@ -160,9 +160,11 @@ export const liveWorkstation: Workstation = {
       };
 
       process.stdin.on('data', handleKeypress);
-      process.stdin.resume();
 
-      if (keyAlreadyWaiting) handleKeypress(keyAlreadyWaiting);
+      // Put the waiting key back so it reaches the handler as a 'data' event, the same way a key
+      // pressed later does: however Enter arrives, the prompt ends through one path.
+      if (keyAlreadyWaiting) process.stdin.unshift(keyAlreadyWaiting);
+      process.stdin.resume();
     });
   },
 
