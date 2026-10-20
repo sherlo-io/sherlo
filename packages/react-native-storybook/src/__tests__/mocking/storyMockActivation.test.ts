@@ -171,7 +171,7 @@ describe('activateMocksForStory - stale install guard (SHERLO-1765 B3)', () => {
 });
 
 describe("Sherlo's story hold", () => {
-  it("one Storybook loader installs a story's mocks before it renders, in testing mode and Storybook mode alike", async () => {
+  it("Sherlo's decorator holds a story until its mocks are installed, before it renders", async () => {
     for (const mode of ['testing', 'storybook']) {
       mockGetMode.mockReturnValue(mode);
       const mockable = createMockable(`pkg/${mode}`, { label: 'real' });
