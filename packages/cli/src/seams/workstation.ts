@@ -70,8 +70,12 @@ export type Workstation = {
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
-  /** Wait for the key they press: Enter resolves, a kill key rejects and the setup is cancelled. */
-  readEnterPress(): Promise<void>;
+  /**
+   * Take the keyboard, then call `showPrompt`, then wait for the key they press: Enter resolves, a
+   * kill key rejects and the setup is cancelled. The prompt is shown only after the keyboard is
+   * taken, so a key pressed the moment it appears is not echoed.
+   */
+  readEnterPress(showPrompt: () => void): Promise<void>;
 
   /** Ask the person to pick one of the choices, and answer the value of the one they picked. */
   chooseOne<Value>(params: {
@@ -125,8 +129,9 @@ export const liveWorkstation: Workstation = {
    */
   somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
 
-  readEnterPress: () => {
+  readEnterPress: (showPrompt) => {
     process.stdin.setRawMode(true);
+    showPrompt();
     process.stdin.resume();
 
     return new Promise<void>((resolve, reject) => {
@@ -299,7 +304,8 @@ export function posedWorkstation(
       return posed.enter !== 'nobody';
     },
 
-    readEnterPress: async () => {
+    readEnterPress: async (showPrompt) => {
+      showPrompt();
       // `closed` is the terminal going away where the tool waits, which is exactly what the kill
       // key a real run reads there does; `pressed` is a person, and the run goes on.
       if (posed?.enter === 'closed') throw new Error('nobody pressed Enter');
