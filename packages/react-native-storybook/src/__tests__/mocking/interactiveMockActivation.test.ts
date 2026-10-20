@@ -1,6 +1,6 @@
 /**
  * A person's Storybook (Storybook mode): every story they open has its mocks installed by Sherlo's
- * one loader (../../getStorybook/sherloAnnotation), the story Storybook opens on as much as each
+ * decorator (../../getStorybook/sherloAnnotation), the story Storybook opens on as much as each
  * one they pick after it. No story-changed event is listened to.
  */
 vi.mock('../../SherloModule', () => ({
@@ -14,13 +14,9 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 }));
 
 // No React is installed beside this package: rendering here is calling each component at once.
-const { renderAtOnce } = vi.hoisted(() => ({
-  renderAtOnce: (type: unknown, props: Record<string, unknown>) =>
-    typeof type === 'function' ? type(props) : null,
-}));
-vi.mock('react', () => ({ default: {} }));
-vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: renderAtOnce, Fragment: Symbol('Fragment') }));
-vi.mock('react/jsx-runtime', () => ({ jsx: renderAtOnce, jsxs: renderAtOnce, Fragment: Symbol() }));
+vi.mock('react', async () => (await import('./reactAtOnce')).reactModule);
+vi.mock('react/jsx-dev-runtime', async () => (await import('./reactAtOnce')).jsxRuntimeModule);
+vi.mock('react/jsx-runtime', async () => (await import('./reactAtOnce')).jsxRuntimeModule);
 vi.mock('../../getStorybook/components/SherloStoryErrorBoundary', () => ({
   default: ({ children }: { children: unknown }) => children,
 }));
@@ -32,6 +28,7 @@ import createMockable from '../../mocking/createMockable';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
 import { startStorybookHolding } from './storybookHolding';
+import { letPendingWorkSettle, unmountEverything } from './reactAtOnce';
 import { storyAsStorybookComposesIt } from './storyComposedByStorybook';
 
 const TITLE = 'Mocking/Switch';
@@ -59,16 +56,17 @@ function startStorybookWithTwoStories(): void {
   ]);
 }
 
-/** Open the story `exportName` as Storybook does: load it, then render it. */
+/** Open the story `exportName` as Storybook does: render it at once, no loaders run first. */
 async function openStory(exportName: string, mockable: { label: string }): Promise<string[]> {
   const labelsRendered: string[] = [];
   const story = storyAsStorybookComposesIt(TITLE, exportName, mockable, labelsRendered);
-  await story.load();
   story();
+  await letPendingWorkSettle();
   return labelsRendered;
 }
 
 afterEach(() => {
+  unmountEverything();
   clearMocks();
   __resetShimmedKeysForTests();
   __resetStorybookFactsForTests();

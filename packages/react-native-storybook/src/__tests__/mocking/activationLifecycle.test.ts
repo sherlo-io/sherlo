@@ -15,10 +15,16 @@ import { activateStoryMocks } from '../../mocking';
 import { UNSHIMMED_KEYS_LOG } from '../../mocking/activateStoryMocks';
 import RunnerBridge from '../../helpers/RunnerBridge';
 import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { mock } from '../../mocking/mockDeclaration';
+import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
+import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
+import { startStorybookHolding } from './storybookHolding';
 
 afterEach(() => {
   clearMocks();
   __resetShimmedKeysForTests();
+  __resetStorybookFactsForTests();
+  delete (globalThis as any).nativeLoggingHook;
   vi.restoreAllMocks();
   // RunnerBridge.log is a module mock (not a spy), so restoreAllMocks does not
   // clear its call history - clear it explicitly so per-test call assertions
@@ -61,6 +67,57 @@ describe('activateStoryMocks - activation lifecycle (IS-02, IS-07)', () => {
     clearMocks();
 
     expect(mockable.greet()).toBe('real');
+  });
+
+  it("a library mock whose shim arrives in a lazy bundle is active when the story's component first calls the library", async () => {
+    // A small fake of a phone storage library, behind its generated shim.
+    const storage = createMockable('fake-storage', {
+      default: { getItem: async (_key: string): Promise<string | null> => null },
+    });
+
+    // On a dev server every import() of the shim fetches the shim's own lazy bundle. Each fetch
+    // here is answered when the test says.
+    const lazyBundles: Array<() => void> = [];
+    const fetchShimBundle = () =>
+      new Promise<typeof storage>((resolve) => lazyBundles.push(() => resolve(storage)));
+
+    const storyId = 'mocking--library';
+    startStorybookHolding([
+      {
+        importPath: './src/Mocking.stories.tsx',
+        title: 'Mocking',
+        fileExports: {
+          default: { title: 'Mocking' },
+          Library: {
+            parameters: {
+              sherlo: {
+                mocks: [
+                  mock(fetchShimBundle, (original) => ({
+                    default: { ...original.default, getItem: async () => 'Hello from the mock' },
+                  })),
+                ],
+              },
+            },
+          },
+        },
+        stories: [{ id: storyId, name: 'Library' }],
+      },
+    ]);
+
+    // Storybook's loader starts installing the story's mocks, and a second install of the same
+    // story follows before the first bundle is in: on the phone the capture turns the story's
+    // mocks on as well.
+    const loaderInstall = activateMocksForStory(storyId);
+    activateMocksForStory(storyId);
+
+    // The loader's bundle arrives first, the second one a moment later.
+    lazyBundles[0]();
+    setTimeout(() => lazyBundles[1](), 10);
+
+    // Storybook renders the story once the loader's promise settles, and the component calls the
+    // library as it mounts.
+    await loaderInstall;
+    expect(await storage.default.getItem('greeting')).toBe('Hello from the mock');
   });
 });
 
@@ -117,6 +174,21 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
     expect(RunnerBridge.log).toHaveBeenCalledWith(UNSHIMMED_KEYS_LOG, {
       keys: ['pkg/unshimmed-logged'],
     });
+  });
+
+  it("a declared mock that reached no shim is printed on the phone's console, naming its key", () => {
+    // In testing mode Sherlo silences console.warn, so a phone prints the warning only through
+    // React Native's own native log, the one that lands in logcat as ReactNativeJS.
+    vi.spyOn(console, 'warn').mockImplementation(() => null);
+    const nativeLog = vi.fn();
+    (globalThis as any).nativeLoggingHook = nativeLog;
+
+    activateStoryMocks({ 'pkg/reached-no-shim': { value: 1 } });
+
+    expect(nativeLog).toHaveBeenCalledTimes(1);
+    const [message, level] = nativeLog.mock.calls[0];
+    expect(message).toContain('"pkg/reached-no-shim"');
+    expect(level).toBe(2);
   });
 
   it('does not touch RunnerBridge.log when every declared key is shimmed', () => {

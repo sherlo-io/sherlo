@@ -127,3 +127,33 @@ describe('waitForEnterPress prompts only when someone could answer', () => {
     ).resolves.toEqual({ rawModeSet: true, promptShown: true });
   });
 });
+
+describe('waitForEnterPress takes the keyboard first', () => {
+  it('the keyboard is taken before the Enter prompt is written, so a fast key is never echoed', async () => {
+    const order: string[] = [];
+    stub(process.stdin, 'isTTY', true);
+    delete process.env.CI;
+    stub(process.stdin, 'setRawMode', (on: boolean) => {
+      order.push('setRawMode(' + on + ')');
+      return process.stdin;
+    });
+    stub(process.stdin, 'read', () => null);
+    stub(process.stdin, 'unshift', () => undefined);
+    stub(process.stdin, 'resume', () => process.stdin);
+    stub(process.stdin, 'pause', () => process.stdin);
+    stub(process.stdin, 'removeListener', () => process.stdin);
+    stub(process.stdin, 'on', (event: string, listener: (key: Buffer) => void) => {
+      if (event === 'data') setImmediate(() => listener(Buffer.from([13])));
+      return process.stdin;
+    });
+    stub(process.stdout, 'write', () => {
+      order.push('write');
+      return true;
+    });
+
+    await waitForEnterPress();
+
+    expect(order[0]).toBe('setRawMode(true)');
+    expect(order.indexOf('write')).toBeGreaterThan(0);
+  });
+});
