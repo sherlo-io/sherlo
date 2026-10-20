@@ -127,7 +127,10 @@ export const liveWorkstation: Workstation = {
 
   readEnterPress: () => {
     process.stdin.setRawMode(true);
-    process.stdin.resume();
+
+    // A key typed before raw mode turned on is already waiting in the input. Take it out now so
+    // it counts like a key pressed after.
+    const keyAlreadyWaiting: Buffer | null = process.stdin.read();
 
     return new Promise<void>((resolve, reject) => {
       const cleanup = () => {
@@ -146,8 +149,9 @@ export const liveWorkstation: Workstation = {
           return;
         }
 
-        if (keyCode === 13) {
-          // Enter
+        // Enter. A terminal still in line mode turns the key's carriage return (13) into a line
+        // feed (10), so an Enter that arrives early comes in as 10.
+        if (keyCode === 13 || keyCode === 10) {
           cleanup();
           resolve();
         } else {
@@ -156,6 +160,9 @@ export const liveWorkstation: Workstation = {
       };
 
       process.stdin.on('data', handleKeypress);
+      process.stdin.resume();
+
+      if (keyAlreadyWaiting) handleKeypress(keyAlreadyWaiting);
     });
   },
 
