@@ -11,6 +11,8 @@ import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderTestStarted } from '../../../render/runRows';
 import {
+  bundleStoryFiles,
+  countBundleStories,
   countStoriesIn,
   deleteModuleManifestSidecar,
   readValidatedModuleManifest,
@@ -117,6 +119,39 @@ describe('story titles and counts from the module map', () => {
     expect(underTheRow).toContain('Storefront/ProductCard');
     expect(underTheRow).toContain(`${CHECKOUT} (2 stories)`);
     expect(countStoriesIn(manifest, [PRODUCT_CARD, CART, CHECKOUT])).toBe(1 + 1 + 2);
+  });
+});
+
+describe('story keys written as ./src/...', () => {
+  it('a story file the bundle keys as ./src/... is titled and counted under the path the run lists as src/...', () => {
+    writeManifest(
+      JSON.stringify({
+        ...validManifest(),
+        storyClosures: { './src/Checkout.stories.tsx': [], './src/Cart.stories.tsx': [] },
+        storyTitles: { './src/Checkout.stories.tsx': 'Storefront/Checkout' },
+        storyCounts: { './src/Checkout.stories.tsx': 3, './src/Cart.stories.tsx': 2 },
+      })
+    );
+    const manifest = readValidatedModuleManifest(projectRoot)!;
+    const listed = ['src/Checkout.stories.tsx', 'src/Cart.stories.tsx'];
+
+    expect(bundleStoryFiles(manifest)).toEqual(listed);
+    expect(countStoriesIn(manifest, listed)).toBe(5);
+    expect(countBundleStories(manifest)).toBe(5);
+    const lines = renderTestStarted({
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
+      buildIndex: 1,
+      capture: [
+        {
+          platform: 'android',
+          full: true,
+          capturedStories: 0,
+          storyFiles: listed,
+          storyTitles: titledStoryFilesIn(manifest),
+        },
+      ],
+    }).map((line) => line.replace(/\u001b\[[0-9;]*m/g, '').trim());
+    expect(lines).toContain('Storefront/Checkout (3 stories)');
   });
 });
 
