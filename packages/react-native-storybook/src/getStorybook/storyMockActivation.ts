@@ -1,5 +1,5 @@
 /**
- * The one path that installs ONE story's merged mock set. Sherlo's Storybook loader
+ * The one path that installs ONE story's merged mock set. Sherlo's decorator
  * (./sherloAnnotation) calls it for every story Storybook is about to render, in testing mode and
  * Storybook mode alike, and the sealed core reaches it through its host.
  *
@@ -30,7 +30,7 @@ let latestInstalled: Promise<void> | null = null;
  *
  * THE STORY MUST NOT RENDER WHILE THAT PROMISE IS OUTSTANDING. A story that renders first reads
  * the real module, and a capture that renders once and never again would record the real value.
- * Sherlo's loader hands the promise to Storybook, which renders the story only once it settles.
+ * Sherlo's decorator renders the story only once the promise settles.
  */
 export function activateMocksForStory(storyId: string | undefined): Promise<void> | null {
   if (!storyId) return null;
@@ -50,7 +50,7 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
   }
 
   // An attempt a newer one overtook installs nothing, and settles only once the newer one has
-  // installed: its caller - Storybook's loader, say - renders the story when it settles, and a
+  // installed: its caller - Sherlo's decorator, say - renders the story when it settles, and a
   // story rendered before then reads the real module. On a dev server each attempt's import
   // fetches its own lazy bundle, so the newer attempt's can arrive after the first attempt's.
   latestInstalled = resolveDeclarations(mocks).then((resolvedMocks) => {

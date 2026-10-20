@@ -13,13 +13,9 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 
 // No React is installed beside this package. Rendering here is calling each component at once with
 // its props, which is enough to run a story's render inside Sherlo's decorator and see what it read.
-const { renderAtOnce } = vi.hoisted(() => ({
-  renderAtOnce: (type: unknown, props: Record<string, unknown>) =>
-    typeof type === 'function' ? type(props) : null,
-}));
-vi.mock('react', () => ({ default: {} }));
-vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: renderAtOnce, Fragment: Symbol('Fragment') }));
-vi.mock('react/jsx-runtime', () => ({ jsx: renderAtOnce, jsxs: renderAtOnce, Fragment: Symbol() }));
+vi.mock('react', async () => (await import('./reactAtOnce')).reactModule);
+vi.mock('react/jsx-dev-runtime', async () => (await import('./reactAtOnce')).jsxRuntimeModule);
+vi.mock('react/jsx-runtime', async () => (await import('./reactAtOnce')).jsxRuntimeModule);
 vi.mock('../../getStorybook/components/SherloStoryErrorBoundary', () => ({
   default: ({ children }: { children: unknown }) => children,
 }));
@@ -39,6 +35,7 @@ import { keepStartedStorybook } from '../../getStorybook/storybookReads';
 import sherloAnnotation from '../../getStorybook/sherloAnnotation';
 import { loadStartWrapper, storyFolder, writtenStartWrapper } from '../sherlosStartWrapper';
 import { startStorybookHolding } from './storybookHolding';
+import { letPendingWorkSettle, unmountEverything } from './reactAtOnce';
 import { storyAsStorybookComposesIt, storyComposedFrom } from './storyComposedByStorybook';
 
 // SHERLO-1749: global-level mocks (declared in .rnstorybook/preview.ts) used to be read from
@@ -85,6 +82,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  unmountEverything();
   clearMocks();
   __resetShimmedKeysForTests();
   __resetStorybookFactsForTests();
@@ -172,7 +170,7 @@ describe('activateMocksForStory - stale install guard (SHERLO-1765 B3)', () => {
   });
 });
 
-describe("Sherlo's Storybook loader", () => {
+describe("Sherlo's story hold", () => {
   it("one Storybook loader installs a story's mocks before it renders, in testing mode and Storybook mode alike", async () => {
     for (const mode of ['testing', 'storybook']) {
       mockGetMode.mockReturnValue(mode);
@@ -196,15 +194,16 @@ describe("Sherlo's Storybook loader", () => {
       );
       expect(story.id).toBe(storyId);
 
-      const loading = story.load();
+      // Sherlo's decorator holds the story, so the mocks are in by the time it renders.
+      story();
       expect(mockable.label).toBe('real');
+      expect(labelsRendered).toEqual([]);
 
       finishImport(mockable);
-      await loading;
-      // Storybook renders a story only once its loaders are done.
-      story();
+      await letPendingWorkSettle();
 
       expect(labelsRendered).toEqual(['mocked']);
+      unmountEverything();
       clearMocks();
     }
   });
@@ -225,11 +224,11 @@ describe("Sherlo's Storybook loader", () => {
     ]);
 
     // Nobody named a story: no initial selection, no story-changed event. Storybook loads the one
-    // it picks, and its loaders run with that story's own context, before it renders it.
+    // it picks, and renders it at once, with the story's own context.
     const labelsRendered: string[] = [];
     const story = storyAsStorybookComposesIt('Mocking/First', 'Opening', mockable, labelsRendered);
-    await story.load();
     story();
+    await letPendingWorkSettle();
 
     expect(labelsRendered).toEqual(['opening']);
   });
@@ -296,9 +295,76 @@ describe("Sherlo's Storybook loader", () => {
       mockable,
       labelsRendered
     );
-    await story.load();
     story();
+    await letPendingWorkSettle();
 
     expect(labelsRendered).toEqual(['after']);
+  });
+
+  it('a story rendered without its loaders still mounts only after its mocks are installed', async () => {
+    mockGetMode.mockReturnValue('testing');
+    const mockable = createMockable('pkg/no-loaders', { label: 'real' });
+    let finishImport: (module: unknown) => void = () => {};
+    const lateImport = new Promise((resolve) => {
+      finishImport = resolve;
+    });
+    startStorybookWithOneStory({
+      storyMocks: [mock(() => lateImport as never, { label: 'mocked' } as never)],
+    });
+    const labelsRendered: string[] = [];
+    const story = storyAsStorybookComposesIt('Mocking/Config', 'Default', mockable, labelsRendered);
+
+    // Storybook React Native's first render: the story is called at once and no loader runs.
+    story();
+    await letPendingWorkSettle();
+    expect(labelsRendered).toEqual([]);
+
+    finishImport(mockable);
+    await letPendingWorkSettle();
+    expect(labelsRendered).toEqual(['mocked']);
+  });
+
+  it('a story held for its mocks mounts again when the story changes', async () => {
+    mockGetMode.mockReturnValue('storybook');
+    const mockable = createMockable('pkg/changing', { label: 'real' });
+    let finishSecondImport: (module: unknown) => void = () => {};
+    const secondImport = new Promise((resolve) => {
+      finishSecondImport = resolve;
+    });
+    startStorybookHolding([
+      {
+        importPath: './src/Changing.stories.tsx',
+        title: 'Mocking/Changing',
+        fileExports: {
+          default: { title: 'Mocking/Changing' },
+          First: { parameters: { sherlo: { mocks: { 'pkg/changing': { label: 'first' } } } } },
+          Second: {
+            parameters: {
+              sherlo: { mocks: [mock(() => secondImport as never, { label: 'second' } as never)] },
+            },
+          },
+        },
+        stories: [
+          { id: 'mocking-changing--first', name: 'First' },
+          { id: 'mocking-changing--second', name: 'Second' },
+        ],
+      },
+    ]);
+    const labelsRendered: string[] = [];
+    const render = (exportName: string) =>
+      storyAsStorybookComposesIt('Mocking/Changing', exportName, mockable, labelsRendered)();
+
+    render('First');
+    await letPendingWorkSettle();
+    expect(labelsRendered).toEqual(['first']);
+
+    // The person picks another story: it is held until its own mocks are in, then mounts again.
+    render('Second');
+    await letPendingWorkSettle();
+    expect(labelsRendered).toEqual(['first']);
+
+    finishSecondImport(mockable);
+    await letPendingWorkSettle();
+    expect(labelsRendered).toEqual(['first', 'second']);
   });
 });
