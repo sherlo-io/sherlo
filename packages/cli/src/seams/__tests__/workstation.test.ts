@@ -9,6 +9,7 @@
  * The posed workstation's refusals: a `pods` answer the run never used is refused only when the run
  * reached the dependencies step.
  */
+import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { liveWorkstation, posedWorkstation } from '../workstation';
 
@@ -103,6 +104,37 @@ describe('the posed workstation', () => {
     });
 
     expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'installPods' })]);
+  });
+});
+
+describe('the live Enter prompt', () => {
+  const afterMilliseconds = (count: number) =>
+    new Promise<'waiting'>((resolve) => setTimeout(() => resolve('waiting'), count));
+
+  const withFakeInput = async (waiting: Buffer | null, press?: Buffer) => {
+    const input = Object.assign(new EventEmitter(), {
+      setRawMode: vi.fn(),
+      resume: vi.fn(),
+      pause: vi.fn(),
+      read: vi.fn(() => waiting),
+    });
+    const real = Object.getOwnPropertyDescriptor(process, 'stdin')!;
+    Object.defineProperty(process, 'stdin', { value: input, configurable: true });
+    try {
+      const pressed = liveWorkstation.readEnterPress().then(() => 'moved on' as const);
+      if (press) input.emit('data', press);
+      return await Promise.race([pressed, afterMilliseconds(200)]);
+    } finally {
+      Object.defineProperty(process, 'stdin', real);
+    }
+  };
+
+  it('an Enter that reaches the prompt as a line feed moves on', async () => {
+    expect(await withFakeInput(null, Buffer.from([10]))).toBe('moved on');
+  });
+
+  it('an Enter typed before the prompt turned raw mode on moves on', async () => {
+    expect(await withFakeInput(Buffer.from([13]))).toBe('moved on');
   });
 });
 
