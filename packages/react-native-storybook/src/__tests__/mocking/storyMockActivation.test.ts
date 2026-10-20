@@ -19,9 +19,21 @@ vi.mock('react/jsx-runtime', async () => (await import('./reactAtOnce')).jsxRunt
 vi.mock('../../getStorybook/components/SherloStoryErrorBoundary', () => ({
   default: ({ children }: { children: unknown }) => children,
 }));
-vi.mock('../../storyOfTheApp', () => ({
-  StoryOfTheApp: ({ children }: { children: unknown }) => children,
-}));
+// The stand-in for StoryOfTheApp publishes, as the real one does, the top of what it was handed: a
+// fiber whose child is the component its children are, if they are one.
+vi.mock('../../storyOfTheApp', async () => {
+  const { rememberStoryOfTheApp } = await import('../../componentNames');
+  return {
+    StoryOfTheApp: ({ children }: { children: unknown }) => {
+      const component = (children as { appComponent?: unknown } | null)?.appComponent;
+      rememberStoryOfTheApp({
+        type: 'StoryOfTheApp',
+        child: component ? { type: component } : null,
+      });
+      return children;
+    },
+  };
+});
 
 import createMockable from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
@@ -31,6 +43,8 @@ import {
   __resetStorybookFactsForTests,
   recordWhatStartWasHanded,
 } from '../../getStorybook/storybookFacts';
+import { composeStory, composeConfigs } from 'storybook/internal/preview-api';
+import { rememberStoryOfTheApp, storyOfTheAppFiber } from '../../componentNames';
 import { keepStartedStorybook } from '../../getStorybook/storybookReads';
 import sherloAnnotation from '../../getStorybook/sherloAnnotation';
 import { loadStartWrapper, storyFolder, writtenStartWrapper } from '../sherlosStartWrapper';
@@ -366,5 +380,41 @@ describe("Sherlo's story hold", () => {
     finishSecondImport(mockable);
     await letPendingWorkSettle();
     expect(labelsRendered).toEqual(['first', 'second']);
+  });
+
+  it("a story held for its mocks starts the app's story only once it mounts, so its capture names the app's components", async () => {
+    mockGetMode.mockReturnValue('testing');
+    let finishImport: (module: unknown) => void = () => {};
+    const lateImport = new Promise((resolve) => {
+      finishImport = resolve;
+    });
+    const mockable = createMockable('pkg/names', { label: 'real' });
+    startStorybookWithOneStory({
+      storyMocks: [mock(() => lateImport as never, { label: 'mocked' } as never)],
+    });
+    function WhoAmI() {
+      return null;
+    }
+    const rendersTheApp = { render: () => ({ appComponent: WhoAmI }) as never };
+    const story = composeStory(
+      {},
+      { title: 'Mocking/Config' },
+      composeConfigs([rendersTheApp, sherloAnnotation] as never[]),
+      {},
+      'Default'
+    );
+
+    story();
+    finishImport(mockable);
+    await letPendingWorkSettle();
+
+    // What the core's walk reads: the names of the components under the published fiber.
+    const names: string[] = [];
+    for (let fiber = storyOfTheAppFiber()?.child; fiber; fiber = fiber.child) {
+      names.push((fiber.type as { name?: string }).name ?? String(fiber.type));
+    }
+    expect(names).toContain('WhoAmI');
+    expect(names).not.toContain('HoldStoryForItsMocks');
+    rememberStoryOfTheApp(undefined);
   });
 });

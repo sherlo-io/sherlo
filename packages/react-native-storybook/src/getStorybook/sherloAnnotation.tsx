@@ -65,21 +65,26 @@ function HoldStoryForItsMocks({
 }
 
 /**
- * Hold the story for its mocks. In testing mode, also wrap it in Sherlo's error boundary, which
- * records what it throws, and in the component that marks where the app's own views start.
+ * Hold the story for its mocks, outside everything that marks the app's story. Once the hold lets
+ * go, in testing mode the story is wrapped in Sherlo's error boundary, which records what it
+ * throws, and in the component that marks where the app's own views start. That component then
+ * first mounts with the story already in it, and the hold is never under it.
  */
 function holdStoryForItsMocks(
   Story: React.ComponentType,
   context: StoryContext
 ): React.ReactElement {
-  const held = <HoldStoryForItsMocks storyId={context.id} renderStory={() => <Story />} />;
-  if (SherloModule.getMode() !== 'testing') return held;
-
-  return (
-    <SherloStoryErrorBoundary storyId={context.id}>
-      <StoryOfTheApp>{held}</StoryOfTheApp>
-    </SherloStoryErrorBoundary>
-  );
+  const renderStory = () =>
+    SherloModule.getMode() === 'testing' ? (
+      <SherloStoryErrorBoundary storyId={context.id}>
+        <StoryOfTheApp>
+          <Story />
+        </StoryOfTheApp>
+      </SherloStoryErrorBoundary>
+    ) : (
+      <Story />
+    );
+  return <HoldStoryForItsMocks storyId={context.id} renderStory={renderStory} />;
 }
 
 const sherloAnnotation = {
