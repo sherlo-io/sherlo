@@ -9,8 +9,11 @@
  * The posed workstation's refusals: a `pods` answer the run never used is refused only when the run
  * reached the dependencies step.
  */
+import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { liveWorkstation, posedWorkstation } from '../workstation';
+import ansiEscapes from 'ansi-escapes';
+import waitForEnterPress from '../../commands/init/helpers/waitForEnterPress';
+import { installWorkstation, liveWorkstation, posedWorkstation } from '../workstation';
 
 const { shellRuns } = vi.hoisted(() => ({
   shellRuns: [] as { command: string; env?: NodeJS.ProcessEnv }[],
@@ -103,6 +106,70 @@ describe('the posed workstation', () => {
     });
 
     expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'installPods' })]);
+  });
+});
+
+describe('the live Enter prompt', () => {
+  const afterMilliseconds = (count: number) =>
+    new Promise<'waiting'>((resolve) => setTimeout(() => resolve('waiting'), count));
+
+  // Behaves like a real stream: a key put back is handed to the 'data' listeners once input resumes.
+  const withFakeInput = async (waiting: Buffer | null, press?: Buffer) => {
+    const delivered: number[] = [];
+    let putBack: Buffer | null = null;
+    const input = Object.assign(new EventEmitter(), {
+      setRawMode: vi.fn(),
+      pause: vi.fn(),
+      read: vi.fn(() => waiting),
+      unshift: vi.fn((key: Buffer) => {
+        putBack = key;
+      }),
+      resume: vi.fn(() => {
+        const key = putBack;
+        putBack = null;
+        if (key) setImmediate(() => deliver(key));
+      }),
+    });
+    const deliver = (key: Buffer) => {
+      delivered.push(key[0]);
+      input.emit('data', key);
+    };
+    const real = Object.getOwnPropertyDescriptor(process, 'stdin')!;
+    Object.defineProperty(process, 'stdin', { value: input, configurable: true });
+    const written: string[] = [];
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      written.push(String(chunk));
+      return true;
+    });
+    const restore = installWorkstation({ ...liveWorkstation, somebodyIsAtTheKeyboard: () => true });
+    try {
+      const pressed = waitForEnterPress().then(() => 'moved on' as const);
+      if (press) deliver(press);
+      const outcome = await Promise.race([pressed, afterMilliseconds(200)]);
+      return { outcome, delivered, written };
+    } finally {
+      restore();
+      write.mockRestore();
+      Object.defineProperty(process, 'stdin', real);
+    }
+  };
+
+  it('the Enter prompt prints the same bytes when the key came before raw mode as when it came after', async () => {
+    const late = await withFakeInput(null, Buffer.from([13]));
+    const early = await withFakeInput(Buffer.from([13]));
+
+    const signedClear = ansiEscapes.eraseLines(2) + ansiEscapes.cursorLeft;
+    expect(late.written.at(-1)).toBe(signedClear);
+    expect(early.written).toEqual(late.written);
+    expect(early.delivered).toEqual(late.delivered);
+  });
+
+  it('an Enter that reaches the prompt as a line feed moves on', async () => {
+    expect((await withFakeInput(null, Buffer.from([10]))).outcome).toBe('moved on');
+  });
+
+  it('an Enter typed before the prompt turned raw mode on moves on', async () => {
+    expect((await withFakeInput(Buffer.from([13]))).outcome).toBe('moved on');
   });
 });
 

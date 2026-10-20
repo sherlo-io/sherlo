@@ -4,45 +4,32 @@
  *
  * Sherlo's start wrapper (metro/applySherloTransforms.js) hands it to Storybook's start() after the
  * project's own annotations, so its decorator is the innermost of the project's, right around the
- * story. Storybook awaits every loader before it renders a story, which is what lets one loader
- * install a story's mocks in time, whoever picked the story: the runner, `sherlo open`, a person
- * in the story browser, or Storybook itself as it starts.
+ * story. On React Native Storybook does NOT await loaders before its first render: its view sets
+ * the first story's context at once, so a loader's promise is awaited by nobody. The decorator
+ * therefore holds the story itself, whoever picked it - the runner, `sherlo open`, a person in the
+ * story browser, or Storybook as it starts - until the story's mocks are installed.
  */
 import React from 'react';
+import RunnerBridge from '../helpers/RunnerBridge';
 import SherloModule from '../SherloModule';
 import SherloStoryErrorBoundary from './components/SherloStoryErrorBoundary';
 import { StoryOfTheApp } from '../storyOfTheApp';
 import { activateMocksForStory } from './storyMockActivation';
 
-/** As much of the context Storybook hands a decorator or a loader as Sherlo reads: the story's id. */
+/** As much of the context Storybook hands a decorator as Sherlo reads: the story's id. */
 type StoryContext = { id: string };
 
 /**
- * In testing mode, wrap the story in Sherlo's error boundary, which records what it throws, and in
- * the component that marks where the app's own views start. Anywhere else, the story as it is.
+ * Install the story's mocks, then, in testing mode, wait out the run's initialStoryRenderDelayMs
+ * when it sets one. An install that throws is logged and does not hold the story any longer.
  */
-function wrapStoryForTesting(
-  Story: React.ComponentType,
-  context: StoryContext
-): React.ReactElement {
-  if (SherloModule.getMode() !== 'testing') return <Story />;
+export async function prepareStoryForRender(storyId: string): Promise<void> {
+  try {
+    await activateMocksForStory(storyId);
+  } catch (error) {
+    RunnerBridge.log('Installing the story mocks failed', { storyId, error: String(error) });
+  }
 
-  return (
-    <SherloStoryErrorBoundary storyId={context.id}>
-      <StoryOfTheApp>
-        <Story />
-      </StoryOfTheApp>
-    </SherloStoryErrorBoundary>
-  );
-}
-
-/** Install the story's mocks; Storybook renders it only once they are in. */
-async function installStoryMocks(context: StoryContext): Promise<void> {
-  await activateMocksForStory(context.id);
-}
-
-/** In testing mode, hold the story back by the run's initialStoryRenderDelayMs, when it sets one. */
-async function waitTheRunsRenderDelay(): Promise<void> {
   if (SherloModule.getMode() !== 'testing') return;
 
   const delayMs = SherloModule.getConfigOrDefault().initialStoryRenderDelayMs;
@@ -50,9 +37,58 @@ async function waitTheRunsRenderDelay(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
+/**
+ * Render nothing until the story's mocks are installed, then the story, mounted fresh for each
+ * story id: a story that reads a mocked module once, as it mounts, reads the mock.
+ */
+function HoldStoryForItsMocks({
+  storyId,
+  renderStory,
+}: {
+  storyId: string;
+  renderStory: () => React.ReactElement;
+}): React.ReactElement | null {
+  const [preparedStoryId, setPreparedStoryId] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    let storyChanged = false;
+    prepareStoryForRender(storyId).then(() => {
+      if (!storyChanged) setPreparedStoryId(storyId);
+    });
+    return () => {
+      storyChanged = true;
+    };
+  }, [storyId]);
+
+  if (preparedStoryId !== storyId) return null;
+  return <React.Fragment key={storyId}>{renderStory()}</React.Fragment>;
+}
+
+/**
+ * Hold the story for its mocks, outside everything that marks the app's story. Once the hold lets
+ * go, in testing mode the story is wrapped in Sherlo's error boundary, which records what it
+ * throws, and in the component that marks where the app's own views start. That component then
+ * first mounts with the story already in it, and the hold is never under it.
+ */
+function holdStoryForItsMocks(
+  Story: React.ComponentType,
+  context: StoryContext
+): React.ReactElement {
+  const renderStory = () =>
+    SherloModule.getMode() === 'testing' ? (
+      <SherloStoryErrorBoundary storyId={context.id}>
+        <StoryOfTheApp>
+          <Story />
+        </StoryOfTheApp>
+      </SherloStoryErrorBoundary>
+    ) : (
+      <Story />
+    );
+  return <HoldStoryForItsMocks storyId={context.id} renderStory={renderStory} />;
+}
+
 const sherloAnnotation = {
-  decorators: [wrapStoryForTesting],
-  loaders: [installStoryMocks, waitTheRunsRenderDelay],
+  decorators: [holdStoryForItsMocks],
 };
 
 export default sherloAnnotation;

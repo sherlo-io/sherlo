@@ -4,6 +4,52 @@ import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
   Object.prototype.hasOwnProperty.call(obj, prop);
 
+const isObjectOrFunction = (value: unknown): value is ModuleExports =>
+  (typeof value === 'object' && value !== null) || typeof value === 'function';
+
+// Bundlers read a module's default export ONCE, when the importing module first runs, and keep it
+// (a default import compiles to a cached default read). That happens before any mock is
+// active, so serving the mock's default per property access would never reach such code.
+// This returns one stable Proxy per shim instead: every property read, call or construct on it is
+// resolved at that moment against the active mock's default (when the mock declares an object
+// or function one), else the real default.
+// Primitive defaults (string, number, ...) cannot be forwarded, so they are served as they are.
+function createForwardingDefault(key: string, realModule: ModuleExports): ModuleExports {
+  const realDefault = realModule.default as ModuleExports;
+  // A callable default needs a callable target (a bound function, as for the shim delegate in
+  // createMockable); an object default gets a plain object so it still compares like one.
+  const delegate =
+    typeof realDefault === 'function'
+      ? // eslint-disable-next-line no-extra-bind
+        (function sherloDefaultDelegate() {}.bind(null) as unknown as ModuleExports)
+      : {};
+
+  const activeDefault = (): ModuleExports => {
+    const mock = resolveMockExports(key, realModule);
+    return mock && hasOwn(mock, 'default') && isObjectOrFunction(mock.default)
+      ? (mock.default as ModuleExports)
+      : realDefault;
+  };
+
+  return new Proxy(delegate, {
+    get: (_target, prop) => activeDefault()[prop],
+    has: (_target, prop) => prop in activeDefault(),
+    ownKeys: () => Reflect.ownKeys(activeDefault()),
+    getOwnPropertyDescriptor(_target, prop) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(activeDefault(), prop);
+      return descriptor && { ...descriptor, configurable: true };
+    },
+    apply: (_target, thisArg, args) =>
+      Reflect.apply(activeDefault() as unknown as (...fnArgs: unknown[]) => unknown, thisArg, args),
+    construct: (_target, args, newTarget) =>
+      Reflect.construct(
+        activeDefault() as unknown as new (...ctorArgs: unknown[]) => object,
+        args,
+        newTarget
+      ),
+  });
+}
+
 // Wraps `realModule` in a Proxy that serves the active mock's exports (per property, falling
 // through export-by-export to the real module) and passes everything through unchanged when no
 // mock is active. The Proxy targets an always-extensible delegate rather than `realModule`
@@ -29,6 +75,10 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
   // eslint-disable-next-line no-extra-bind
   const delegate = function sherloMockableDelegate() {}.bind(null) as unknown as ModuleExports;
 
+  const forwardingDefault = isObjectOrFunction(realModule.default)
+    ? createForwardingDefault(key, realModule)
+    : undefined;
+
   return new Proxy(delegate, {
     get(_target, prop) {
       // The shim says which module it stands for. A story's declaration awaits its own import,
@@ -36,6 +86,8 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
       // named by the module it imports and never by a string. Hidden on purpose: the symbol is
       // absent from `ownKeys`, so nothing enumerating the module ever sees it.
       if (prop === MOCKED_MODULE_KEY) return key;
+
+      if (prop === 'default' && forwardingDefault) return forwardingDefault;
 
       const mock = resolveMockExports(key, realModule);
       return mock && hasOwn(mock, prop) ? mock[prop] : realModule[prop];
