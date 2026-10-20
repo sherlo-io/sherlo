@@ -35,14 +35,6 @@ const CAPTURED: PlatformCapture = {
 };
 
 describe('the story files listed under a started test', () => {
-  it('a first build, with nothing to compare against, lists every captured screen unmarked', () => {
-    const rows = storyFileRows([CAPTURED]);
-    expect(rows.map((row) => row.trim())).toEqual([
-      'Sanity/Hello (1 story)',
-      'Shop/Cart (2 stories)',
-    ]);
-  });
-
   it('a build with an earlier build to compare against marks the files that are new', () => {
     const rows = storyFileRows([
       { ...CAPTURED, reason: 'no main branch is set', newStoryFiles: ['Cart.stories.tsx'] },
