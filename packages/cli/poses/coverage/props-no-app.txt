@@ -1,6 +1,0 @@
-[31m✖[39m  A bundler is running on port [1m8081[22m, and no Sherlo app is attached to it
-
-[2mOpen the app on a device or simulator, then try again.[22m
-
-
-[exit 1]

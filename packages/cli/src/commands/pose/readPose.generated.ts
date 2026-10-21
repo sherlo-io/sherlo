@@ -1236,88 +1236,75 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
 
 /** The shape of a `PosedCoverage`, as `contracts/pose.contract.ts` publishes it. */
 function readPosedCoverage(value: unknown, path: string, problems: string[]): void {
-  const oneOf1 = value;
-  if (oneOf1 === 'no-bundler' || oneOf1 === 'no-app') {
-    // the value is one of these
-  } else if (isPlainObject(oneOf1)) {
-    const object2 = asObject(oneOf1, path, problems);
-    if (object2) {
-      expectNumber(object2.components, at(path, 'components'), problems);
-      const where3 = at(path, 'gaps');
-      const list4 = asArray(object2.gaps, where3, problems);
-      if (list4) {
-        list4.forEach((entry5, index6) => {
-          const where7 = atIndex(where3, index6);
-          const object8 = asObject(entry5, where7, problems);
-          if (object8) {
-            expectString(object8.name, at(where7, 'name'), problems);
-            expectString(object8.file, at(where7, 'file'), problems);
-            expectNumber(object8.importedBy, at(where7, 'importedBy'), problems);
-            if ('excluded' in object8) {
-              expectLiteral(object8.excluded, true, at(where7, 'excluded'), problems);
-            }
-            reportUnknownFields(
-              object8,
-              ['name', 'file', 'importedBy', 'excluded'],
-              where7,
-              problems
-            );
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectNumber(object1.components, at(path, 'components'), problems);
+    const where2 = at(path, 'gaps');
+    const list3 = asArray(object1.gaps, where2, problems);
+    if (list3) {
+      list3.forEach((entry4, index5) => {
+        const where6 = atIndex(where2, index5);
+        const object7 = asObject(entry4, where6, problems);
+        if (object7) {
+          expectString(object7.name, at(where6, 'name'), problems);
+          expectString(object7.file, at(where6, 'file'), problems);
+          expectNumber(object7.importedBy, at(where6, 'importedBy'), problems);
+          if ('excluded' in object7) {
+            expectLiteral(object7.excluded, true, at(where6, 'excluded'), problems);
           }
-        });
-      }
-      if ('props' in object2) {
-        const where9 = at(path, 'props');
-        const object10 = asObject(object2.props, where9, problems);
-        if (object10) {
-          expectNumber(object10.stories, at(where9, 'stories'), problems);
-          expectString(object10.device, at(where9, 'device'), problems);
-          const where11 = at(where9, 'components');
-          const list12 = asArray(object10.components, where11, problems);
-          if (list12) {
-            list12.forEach((entry13, index14) => {
-              const where15 = atIndex(where11, index14);
-              const object16 = asObject(entry13, where15, problems);
-              if (object16) {
-                expectString(object16.name, at(where15, 'name'), problems);
-                expectString(object16.file, at(where15, 'file'), problems);
-                const where17 = at(where15, 'props');
-                const list18 = asArray(object16.props, where17, problems);
-                if (list18) {
-                  list18.forEach((entry19, index20) => {
-                    const where21 = atIndex(where17, index20);
-                    const object22 = asObject(entry19, where21, problems);
-                    if (object22) {
-                      expectString(object22.prop, at(where21, 'prop'), problems);
-                      expectNumber(object22.allowed, at(where21, 'allowed'), problems);
-                      expectNumber(object22.drawn, at(where21, 'drawn'), problems);
-                      if ('missing' in object22) {
-                        expectStringArray(object22.missing, at(where21, 'missing'), problems);
-                      }
-                      reportUnknownFields(
-                        object22,
-                        ['prop', 'allowed', 'drawn', 'missing'],
-                        where21,
-                        problems
-                      );
-                    }
-                  });
-                }
-                reportUnknownFields(object16, ['name', 'file', 'props'], where15, problems);
-              }
-            });
-          }
-          reportUnknownFields(object10, ['stories', 'device', 'components'], where9, problems);
+          reportUnknownFields(
+            object7,
+            ['name', 'file', 'importedBy', 'excluded'],
+            where6,
+            problems
+          );
         }
-      }
-      reportUnknownFields(object2, ['components', 'gaps', 'props'], path, problems);
+      });
     }
-  } else {
-    reportWrongShape(
-      oneOf1,
-      '`"no-bundler"`, `"no-app"` or `{ components: number; gaps: Array<{ name: string; file: string; importedBy: number; excluded?: true }>; props?: { stories: number; device: string; components: Array<{ name: string; file: string; props: Array<{ prop: string; allowed: number; drawn: number; missing?: string[] }> }> } }`',
-      path,
-      problems
-    );
+    if ('props' in object1) {
+      const where8 = at(path, 'props');
+      const object9 = asObject(object1.props, where8, problems);
+      if (object9) {
+        expectNumber(object9.storyFiles, at(where8, 'storyFiles'), problems);
+        const where10 = at(where8, 'components');
+        const list11 = asArray(object9.components, where10, problems);
+        if (list11) {
+          list11.forEach((entry12, index13) => {
+            const where14 = atIndex(where10, index13);
+            const object15 = asObject(entry12, where14, problems);
+            if (object15) {
+              expectString(object15.name, at(where14, 'name'), problems);
+              expectString(object15.file, at(where14, 'file'), problems);
+              const where16 = at(where14, 'props');
+              const list17 = asArray(object15.props, where16, problems);
+              if (list17) {
+                list17.forEach((entry18, index19) => {
+                  const where20 = atIndex(where16, index19);
+                  const object21 = asObject(entry18, where20, problems);
+                  if (object21) {
+                    expectString(object21.prop, at(where20, 'prop'), problems);
+                    expectNumber(object21.allowed, at(where20, 'allowed'), problems);
+                    expectNumber(object21.drawn, at(where20, 'drawn'), problems);
+                    if ('missing' in object21) {
+                      expectStringArray(object21.missing, at(where20, 'missing'), problems);
+                    }
+                    reportUnknownFields(
+                      object21,
+                      ['prop', 'allowed', 'drawn', 'missing'],
+                      where20,
+                      problems
+                    );
+                  }
+                });
+              }
+              reportUnknownFields(object15, ['name', 'file', 'props'], where14, problems);
+            }
+          });
+        }
+        reportUnknownFields(object9, ['storyFiles', 'components'], where8, problems);
+      }
+    }
+    reportUnknownFields(object1, ['components', 'gaps', 'props'], path, problems);
   }
 }
 

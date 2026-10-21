@@ -639,45 +639,41 @@ export type PosedCapture =
  * As with the capture socket, a pose never supplies the words the screen shows: it states the
  * findings, and the tool prints whatever it prints for them.
  */
-export type PosedCoverage =
-  | 'no-bundler'
-  | 'no-app'
-  | {
-      /** How many components the app has. */
-      components: number;
-      /** The components no story file imports directly, in any order: the command ranks them. */
-      gaps: Array<{
-        name: string;
-        /** Where the component lives, relative to the project folder. */
-        file: string;
-        /** How many of the app's own files import it. */
-        importedBy: number;
-        /** True when the only story that imports it is marked `sherlo: { exclude: true }`. */
-        excluded?: true;
+export type PosedCoverage = {
+  /** How many components the app has. */
+  components: number;
+  /** The components no story file imports directly, in any order: the command ranks them. */
+  gaps: Array<{
+    name: string;
+    /** Where the component lives, relative to the project folder. */
+    file: string;
+    /** How many of the app's own files import it. */
+    importedBy: number;
+    /** True when the only story that imports it is marked `sherlo: { exclude: true }`. */
+    excluded?: true;
+  }>;
+  /** What reading the story files found. Stated only when the pose runs `--props`. */
+  props?: {
+    /** How many story files were read. */
+    storyFiles: number;
+    components: Array<{
+      name: string;
+      file: string;
+      props: Array<{
+        prop: string;
+        /** How many values the type allows. */
+        allowed: number;
+        /** How many of them some story drew. */
+        drawn: number;
+        /**
+         * The values no story drew, by name. Stated only for a prop with at most 10 allowed
+         * values.
+         */
+        missing?: string[];
       }>;
-      /** What walking every story found. Stated only when the pose runs `--props`. */
-      props?: {
-        stories: number;
-        /** The device the stories were drawn on. */
-        device: string;
-        components: Array<{
-          name: string;
-          file: string;
-          props: Array<{
-            prop: string;
-            /** How many values the type allows. */
-            allowed: number;
-            /** How many of them some story drew. */
-            drawn: number;
-            /**
-             * The values no story drew, by name. Stated only for a prop with at most 10 allowed
-             * values.
-             */
-            missing?: string[];
-          }>;
-        }>;
-      };
-    };
+    }>;
+  };
+};
 
 /** What the browser did when a login opened it, as a pose states it. */
 export type PosedBrowser = {

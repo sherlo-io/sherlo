@@ -3,27 +3,18 @@
  *
  *     live   - the app's own source files (which components exist, which files import them, which
  *              story files import which), and with `--props` the TypeScript types of the props
- *              and a walk over every story on the running app, over the bundler's line
- *              (`bundlerLine.ts`). The live half is not written yet, and says so.
- *     posed  - the pose's `coverage`: whether a bundler is up, whether an app is attached, and
- *              what the scan found.
+ *              and what each story file sets for its own component. The live half is not
+ *              written yet, and says so.
+ *     posed  - the pose's `coverage`: what the scan found.
  *
  * A SEAM OF ITS OWN, NOT THE CAPTURE SOCKET. A capture is one story's record; this is the whole
- * app read at once, and most of it needs no app at all.
+ * app read at once, and none of it needs a phone or a bundler.
  */
-import type { CoverageFindings, CoverageProps } from '../render/coverage';
+import type { CoverageFindings } from '../render/coverage';
 
-/** What the scan came back with. */
-export type CoverageResult =
-  /** `--props` asked, and no bundler is on the address at all. */
-  | { kind: 'no-bundler' }
-  /** `--props` asked, and a bundler is up with no Sherlo app attached to it. */
-  | { kind: 'no-app' }
-  | { kind: 'scanned'; findings: CoverageFindings };
-
-/** Everything the tool asks of the app down this road, and nothing else. */
+/** Everything the tool asks of the app's files down this road, and nothing else. */
 export type CoverageScan = {
-  scan(params: { port: number; withProps: boolean }): Promise<CoverageResult>;
+  scan(params: { withProps: boolean }): Promise<CoverageFindings>;
 };
 
 /** The shipped answer. Not written yet. */
@@ -59,19 +50,14 @@ export function installCoverageScan(next: CoverageScan): () => void {
  * As with the capture socket, a pose never supplies the words the screen shows: it states the
  * findings, and the tool prints whatever it prints for them.
  */
-export type PosedCoverage =
-  /** No bundler on the address at all. */
-  | 'no-bundler'
-  /** A bundler is up, and no app carrying the SDK is attached to it. */
-  | 'no-app'
-  | {
-      /** How many components the app has. */
-      components: number;
-      /** The components no story file imports directly, in any order: the command ranks them. */
-      gaps: CoverageFindings['gaps'];
-      /** What walking every story found. Stated only when the pose runs `--props`. */
-      props?: CoverageProps;
-    };
+export type PosedCoverage = {
+  /** How many components the app has. */
+  components: number;
+  /** The components no story file imports directly, in any order: the command ranks them. */
+  gaps: CoverageFindings['gaps'];
+  /** What reading the story files found. Stated only when the pose runs `--props`. */
+  props?: CoverageFindings['props'];
+};
 
 /**
  * The coverage scan a pose declares.
@@ -84,9 +70,9 @@ export function posedCoverageScan(
 ): CoverageScan & { refusals(): { call: string; problem: string }[] } {
   const refusals: { call: string; problem: string }[] = [];
 
-  function refuse(problem: string): CoverageResult {
+  function refuse(problem: string): CoverageFindings {
     refusals.push({ call: 'scan', problem });
-    return { kind: 'no-bundler' };
+    return { components: 0, gaps: [] };
   }
 
   return {
@@ -99,22 +85,12 @@ export function posedCoverageScan(
         );
       }
 
-      if (typeof posed === 'string') {
-        // Reading the files needs no app; only `--props` ever meets the refusal.
-        if (!withProps) {
-          return refuse(
-            `\`coverage\` is \`${posed}\`, and a scan without --props never reaches the app`
-          );
-        }
-        return { kind: posed };
-      }
-
       if (withProps && !posed.props) {
         return refuse('the command asked for `--props`, and the pose states no `coverage.props`');
       }
 
       const { props, ...findings } = posed;
-      return { kind: 'scanned', findings: { ...findings, ...(withProps && { props }) } };
+      return { ...findings, ...(withProps && { props }) };
     },
   };
 }

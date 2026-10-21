@@ -30,8 +30,7 @@
       { "name": "Divider", "file": "src/components/base/Divider.tsx", "importedBy": 7 }
     ],
     "props": {
-      "stories": 30,
-      "device": "iPhone 15 Pro",
+      "storyFiles": 34,
       "components": [
         {
           "name": "Avatar",

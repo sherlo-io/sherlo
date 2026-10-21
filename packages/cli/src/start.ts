@@ -199,8 +199,8 @@ const COMMAND_DESCRIPTION = {
     'List the components no story draws, the most imported first.\n' +
     '  Reads your source files: no bundler, no phone, no login. A component only a story\n' +
     '  marked `sherlo: { exclude: true }` imports counts as not covered.\n' +
-    `  \`--${PROPS_OPTION}\` also opens every story on the app you are running and lists the prop\n` +
-    '  values none of them drew. Exit 0 when a scan came back, 1 when it did not.',
+    `  \`--${PROPS_OPTION}\` also reads your story files and TypeScript types and lists the prop\n` +
+    '  values no story file sets for its own component.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
     `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`), which is a different credential\n` +
@@ -413,16 +413,14 @@ function addCaptureCommand(program: Command) {
   });
 }
 
-// Reads the app's source files; with `--props` it also meets the capture road's bundler (../seams/
-// coverageScan). Hidden from `--help` like `fingerprint`; `withTimeout: false` because walking
-// every story is a wait the stories set.
+// Reads the app's source files and, with `--props`, its story files (../seams/
+// coverageScan). Hidden from `--help` like `fingerprint`.
 function addCoverageCommand(program: Command) {
   addCommand({
     program,
     command: COVERAGE_COMMAND,
-    options: [PROPS_OPTION, PORT_OPTION, JSON_OPTION],
+    options: [PROPS_OPTION, JSON_OPTION],
     action: coverage,
-    withTimeout: false,
     hidden: true,
   });
 }

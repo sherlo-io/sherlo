@@ -2,19 +2,15 @@
  * WHAT `sherlo coverage` PRINTS.
  *
  * Pure, like everything under ./: state in, lines out. The scan that produces the state reads the
- * app's own source files, and with `--props` walks the stories on the running app
+ * app's own source files and, with `--props`, its story files and TypeScript types
  * (../seams/coverageScan); a posed run states the findings and a real run reads them, and neither
  * changes a line of what is printed.
  *
  * THE SHAPE IS A LINT REPORT'S. One line is one component with its file, the ones the most files
  * import first, aligned like `npm outdated`; a count in the heading, never a percentage; and one
  * dim line naming the next step. EVERY GAP IS LISTED - a cut-off list would hide the answer.
- *
- * The refusals for `--props` are word for word the ones `sherlo capture` prints, because they are
- * the same facts about the same road (see ./capturedStory).
  */
 import chalk from 'chalk';
-import { renderCapturedStory } from './capturedStory';
 
 /** A component that no story file imports directly. */
 export type CoverageGap = {
@@ -45,11 +41,10 @@ export type ComponentProps = {
   props: PropFinding[];
 };
 
-/** What walking every story on the running app found. */
+/** What reading the story files found. */
 export type CoverageProps = {
-  stories: number;
-  /** The device the stories were drawn on. */
-  device: string;
+  /** How many story files were read. */
+  storyFiles: number;
   components: ComponentProps[];
 };
 
@@ -59,28 +54,22 @@ export type CoverageFindings = {
   components: number;
   /** The components no story imports, ranked: the most imported first. */
   gaps: CoverageGap[];
-  /** Present only when `--props` walked the stories. */
+  /** Present only when `--props` read the story files. */
   props?: CoverageProps;
 };
 
-/** How a run of `sherlo coverage` ended, as the screen needs it. */
-export type CoverageScreen =
-  | { kind: 'no-bundler'; port: number }
-  | { kind: 'no-app'; port: number }
-  | { kind: 'scanned'; findings: CoverageFindings };
+/** What a run of `sherlo coverage` shows. */
+export type CoverageScreen = { findings: CoverageFindings };
 
 /** A prop with more allowed values than this shows a count, not the missing names. */
 export const MAX_NAMED_VALUES = 10;
 
 const NEXT_STEP = 'Next: write a story, then check it with `npx sherlo capture --story <id>`.';
-const PROPS_HINT = '`--props` also lists the prop values no story drew, with the app running.';
+const PROPS_HINT = '`--props` also lists the prop values no story file sets.';
 const EXCLUDED_HINT = 'excluded: only a story marked `sherlo: { exclude: true }` imports it.';
 
 /** Every line `sherlo coverage` prints, in order. */
 export function renderCoverage(screen: CoverageScreen): string[] {
-  // The two refusals are capture's own screens.
-  if (screen.kind !== 'scanned') return renderCapturedStory(screen);
-
   const { findings } = screen;
   return [...renderGaps(findings), ...(findings.props ? renderProps(findings.props) : [])];
 }
@@ -116,7 +105,7 @@ function renderGaps({ components, gaps, props }: CoverageFindings): string[] {
   ];
 }
 
-function renderProps({ stories, device, components }: CoverageProps): string[] {
+function renderProps({ storyFiles, components }: CoverageProps): string[] {
   // A component whose every value was drawn has nothing to say.
   const lacking = components
     .map((component) => ({
@@ -126,7 +115,7 @@ function renderProps({ stories, device, components }: CoverageProps): string[] {
     .filter((component) => component.props.length > 0);
 
   const heading = `${chalk.yellow('◦')}  ${chalk.bold(
-    `Prop values no story drew - ${stories} stories on ${device}`
+    `Prop values no story file sets - ${storyFiles} story files read`
   )}`;
   if (lacking.length === 0) return [heading, '', chalk.dim('Every allowed value was drawn.'), ''];
 

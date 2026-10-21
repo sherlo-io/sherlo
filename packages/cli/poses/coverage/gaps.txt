@@ -14,7 +14,7 @@
 
 [2mNext: write a story, then check it with `npx sherlo capture --story <id>`.[22m
 [2mexcluded: only a story marked `sherlo: { exclude: true }` imports it.[22m
-[2m`--props` also lists the prop values no story drew, with the app running.[22m
+[2m`--props` also lists the prop values no story file sets.[22m
 
 
 [exit 0]

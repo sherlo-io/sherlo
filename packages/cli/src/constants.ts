@@ -184,7 +184,7 @@ export const JSON_OPTION = 'json';
  * carries them (see `--json`); this is the one flag that puts them on the screen too.
  */
 export const LOGS_OPTION = 'logs';
-/** `sherlo coverage --props` - also list the prop values no story drew, on the running app. */
+/** `sherlo coverage --props` - also list the prop values no story file sets. */
 export const PROPS_OPTION = 'props';
 
 /* TOKENS */

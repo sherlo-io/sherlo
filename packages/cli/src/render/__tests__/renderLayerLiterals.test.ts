@@ -1603,7 +1603,6 @@ const PINS: Pin[] = [
     segment: {
       kind: 'coverage',
       screen: {
-        kind: 'scanned',
         findings: {
           components: 120,
           gaps: [
@@ -1633,9 +1632,7 @@ const PINS: Pin[] = [
       [
         `${ESC}[2mexcluded: only a story marked \`sherlo: { exclude: true }\` imports it.${ESC}[22m`,
       ],
-      [
-        `${ESC}[2m\`--props\` also lists the prop values no story drew, with the app running.${ESC}[22m`,
-      ],
+      [`${ESC}[2m\`--props\` also lists the prop values no story file sets.${ESC}[22m`],
       [''],
     ],
   },
@@ -1645,13 +1642,11 @@ const PINS: Pin[] = [
     segment: {
       kind: 'coverage',
       screen: {
-        kind: 'scanned',
         findings: {
           components: 120,
           gaps: [{ name: 'CartBadge', file: 'src/components/base/CartBadge.tsx', importedBy: 41 }],
           props: {
-            stories: 30,
-            device: 'iPhone 15 Pro',
+            storyFiles: 34,
             components: [
               {
                 name: 'Avatar',
@@ -1679,7 +1674,7 @@ const PINS: Pin[] = [
       ],
       [''],
       [
-        `${ESC}[33m◦${ESC}[39m  ${ESC}[1mProp values no story drew - 30 stories on iPhone 15 Pro${ESC}[22m`,
+        `${ESC}[33m◦${ESC}[39m  ${ESC}[1mProp values no story file sets - 34 story files read${ESC}[22m`,
       ],
       [''],
       [`  Avatar  ${ESC}[2msrc/components/base/Avatar.tsx${ESC}[22m`],
@@ -1695,7 +1690,7 @@ const PINS: Pin[] = [
     what: 'the screen when every component has a story',
     segment: {
       kind: 'coverage',
-      screen: { kind: 'scanned', findings: { components: 120, gaps: [] } },
+      screen: { findings: { components: 120, gaps: [] } },
     },
     stream: 'stdout',
     prints: [[`${ESC}[32m✔${ESC}[39m  All 120 components have a story of their own`], ['']],
