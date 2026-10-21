@@ -491,6 +491,18 @@ export type StorybookFacts = {
    * and mocks of every story.
    */
   previewAnnotations: StorybookAnnotations[];
+  /** The story files that threw while they loaded, each with its error. Absent when all loaded. */
+  brokenFiles?: BrokenStoryFile[];
+};
+
+/**
+ * A story file that threw while it loaded: its project-root-relative import path, the error, and
+ * the title the bundle recorded for the file when it could be read.
+ */
+export type BrokenStoryFile = {
+  file: string;
+  title?: string;
+  error: { name: string; message: string };
 };
 
 /** One story in Storybook's index. */
@@ -771,6 +783,11 @@ export type CapturedAnswer =
       storyId: string;
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
+      /**
+       * Only when the story never settled: the views whose text, style or size differ between two
+       * reads of its tree, each named by its innermost app component, else its primitive.
+       */
+      changing?: string[];
       threw?: StoryThrew;
       /** How many screenfuls the story was captured in - 1 is a story that fits the screen. */
       parts: number;
@@ -842,6 +859,8 @@ export type CaptureTransport = {
   waitForACapture(saying: {
     mode: string;
     stories: string[] | null;
+    /** The story files that failed to load; sent only when there is at least one. */
+    brokenFiles?: BrokenStoryFile[];
     answer: CapturedAnswer | null;
   }): Promise<CaptureInstruction>;
 };

@@ -91,7 +91,12 @@ export type CaptureStoryQuestion = {
 export type CaptureStoryReply =
   | CapturedAnswer
   | { kind: 'no-app' }
-  | { kind: 'no-such-story'; known: string[] };
+  | {
+      kind: 'no-such-story';
+      known: string[];
+      /** The story files that threw as the app loaded them; absent when none did. */
+      brokenFiles?: { file: string; error: { name: string; message: string } }[];
+    };
 
 /** Every log line the apps sent since the last read; the read empties the feed. */
 export type ReadLogLinesQuestion = { action: 'readLogLines' };
