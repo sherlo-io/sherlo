@@ -25,10 +25,26 @@ vi.mock('@expo/fingerprint', () => ({
   SourceSkips: { None: 0, ExpoConfigVersions: 1, ExpoConfigRuntimeVersionIfString: 2 },
 }));
 
+/** How many times a hash has asked for the environment lock, counted where it asks. */
+let swapsAsked = 0;
+
+vi.mock('../deterministicEnv', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../deterministicEnv')>();
+
+  return {
+    ...original,
+    withDeterministicEnv: <T>(fn: () => Promise<T>) => {
+      swapsAsked += 1;
+      return original.withDeterministicEnv(fn);
+    },
+  };
+});
+
 let projectRoot: string;
 let sdkFolder: string;
 
 beforeEach(() => {
+  swapsAsked = 0;
   projectRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-env-swap-')));
   fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'app' }));
   sdkFolder = path.join(projectRoot, 'android-sdk');
@@ -55,13 +71,21 @@ describe('the deterministic environment of the fingerprint', () => {
       throw new Error('nothing should run');
     });
 
-    // As a push does for two refused platforms: both native folders hashed at once...
+    // As a push does for two refused platforms: both native folders hashed at once, the second one
+    // asked for a tick later. Asked in the very same tick, the second dynamic import of the mocked
+    // library loads the REAL library (4 seconds hashing a project this test never reads); warming
+    // the module first does not prevent it.
+    const androidHash = hashNativeFolderFiles({ projectRoot, folders: ['android'] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const hashes = Promise.all([
-      hashNativeFolderFiles({ projectRoot, folders: ['android'] }),
+      androidHash,
       hashNativeFolderFiles({ projectRoot, folders: ['ios'] }),
     ]);
     // ...and the machine check asked while the library still runs.
     await libraryStarted;
+    // The android hash holds the lock now. Go on only once the ios hash is queued behind it, by
+    // ticks and not a fixed sleep, so the two swaps are really there to overlap.
+    while (swapsAsked < 2) await new Promise((resolve) => setTimeout(resolve, 0));
     const hasAndroidSdk = machine.hasTool('android-sdk', projectRoot);
 
     letTheLibraryFinish();
