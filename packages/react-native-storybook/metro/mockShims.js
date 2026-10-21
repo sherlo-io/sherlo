@@ -270,8 +270,19 @@ function resolveMockKey(key, projectRoot, importedFromFile) {
     var namedBesideFile = !!importedFromFile && isRelativeKey(key);
     var fromDir = namedBesideFile ? path.dirname(importedFromFile) : projectRoot;
     var file = resolveAppModuleFile(path.resolve(fromDir, key));
-    if (!file) throw new Error('cannot resolve app module');
-    return appModuleResult(file, namedBesideFile ? canonicalizeModulePath(file) : key);
+    if (!file) {
+      throw new Error('cannot resolve app module: no file for ' + path.resolve(fromDir, key));
+    }
+    var relativeResult = appModuleResult(
+      file,
+      namedBesideFile ? canonicalizeModulePath(file) : key
+    );
+    // SPIKE real-app-shape: which branch resolved the key, and to which file.
+    relativeResult.resolvedVia =
+      (namedBesideFile ? 'relative beside ' + importedFromFile : 'relative from project root') +
+      ' -> ' +
+      file;
+    return relativeResult;
   }
 
   // Otherwise the key is a bare specifier. Try node_modules resolution FIRST so
@@ -289,11 +300,26 @@ function resolveMockKey(key, projectRoot, importedFromFile) {
       requireSpecifier: key,
       alternateCanonicalPaths: packageRootAlternateCanonicalPaths(key, resolved, canonicalRealPath),
       packageDir: owner ? owner.dir : null,
+      // SPIKE real-app-shape: which branch resolved the key, and to which file.
+      resolvedVia: "Node's require.resolve from the project root -> " + resolved,
     };
-  } catch (_) {
+  } catch (nodeError) {
     var appFile = resolveAppModuleFile(path.resolve(projectRoot, key));
-    if (appFile) return appModuleResult(appFile, key);
-    throw new Error('cannot resolve mock key');
+    if (appFile) {
+      var rootResult = appModuleResult(appFile, key);
+      rootResult.resolvedVia =
+        "project-root app module (Node's require.resolve failed: " +
+        (nodeError && nodeError.code) +
+        ') -> ' +
+        appFile;
+      return rootResult;
+    }
+    throw new Error(
+      "cannot resolve mock key: Node's require.resolve failed (" +
+        (nodeError && nodeError.code) +
+        ') and no file at ' +
+        path.resolve(projectRoot, key)
+    );
   }
 }
 
@@ -392,6 +418,22 @@ function setupMocks(opts) {
   var mockedPackages = new Map();
   var bareKeyShims = new Map();
   var shimmedKeys = [];
+  // SPIKE real-app-shape: every declared key -> its registered canonical path (null when skipped),
+  // so the resolver can say when a request spelled exactly like a key missed its shim.
+  var spikeDeclaredKeys = new Map();
+
+  spikeLog(
+    'config: project root ' +
+      projectRoot +
+      ', ' +
+      declaredMocks.length +
+      ' declaration(s) found: ' +
+      declaredMocks
+        .map(function (d) {
+          return JSON.stringify(d.key) + ' in ' + d.file;
+        })
+        .join('; ')
+  );
 
   mocksByModulePath.forEach(function (declared) {
     var key = declared.key;
@@ -414,7 +456,16 @@ function setupMocks(opts) {
     var resolved;
     try {
       resolved = resolveMockKey(key, projectRoot, importExpressionFile(declared));
-    } catch (_) {
+    } catch (resolveError) {
+      spikeDeclaredKeys.set(key, null);
+      spikeLog(
+        'config: key ' +
+          JSON.stringify(key) +
+          ' declared in ' +
+          declaredIn +
+          ' NOT resolved: ' +
+          (resolveError && resolveError.message)
+      );
       console.warn(
         '[Sherlo] Skipping mock key "' +
           key +
@@ -447,6 +498,25 @@ function setupMocks(opts) {
     if (!isRelativeOrAbsolute(key)) bareKeyShims.set(key, shimPath);
     shimPaths.push(shimPath);
     shimmedKeys.push(key);
+    spikeDeclaredKeys.set(key, resolved.canonicalRealPath);
+    spikeLog(
+      'config: key ' +
+        JSON.stringify(key) +
+        ' declared in ' +
+        declaredIn +
+        (declared.namedByImport ? ' (by an import expression)' : ' (as a string)') +
+        ' resolved via ' +
+        resolved.resolvedVia +
+        '; registered canonical path ' +
+        resolved.canonicalRealPath +
+        (alternates.length ? ' + alternates ' + alternates.join(', ') : '') +
+        '; shim ' +
+        shimPath +
+        ' names module ' +
+        JSON.stringify(resolved.moduleKey) +
+        ' and requires ' +
+        JSON.stringify(resolved.requireSpecifier)
+    );
   });
 
   // One line at every bundler start that reads mocks, so a log always says which mocks can apply.
@@ -462,7 +532,52 @@ function setupMocks(opts) {
     bareKeyShims: bareKeyShims,
     reachedShims: new Set(),
     shimPaths: shimPaths,
+    spikeDeclaredKeys: spikeDeclaredKeys,
+    spikeLoggedRequests: new Set(),
   };
+}
+
+// SPIKE real-app-shape: one diagnostic line, marked so a log can be grepped for the spike alone.
+function spikeLog(message) {
+  console.log('[Sherlo spike] ' + message);
+}
+
+// SPIKE real-app-shape: says, once per importer and request, when a request was redirected to a
+// shim, and when a request spelled exactly like a declared key resolved to a path that missed.
+function spikeLogRequest(mockSetup, originModulePath, moduleName, resolvedFilePath, shimPath) {
+  var declaredKeys = mockSetup.spikeDeclaredKeys;
+  if (!declaredKeys) return;
+  var canonical = canonicalizeModulePath(resolvedFilePath);
+  var once = originModulePath + '\0' + moduleName;
+  if (mockSetup.spikeLoggedRequests.has(once)) return;
+  if (shimPath) {
+    mockSetup.spikeLoggedRequests.add(once);
+    spikeLog(
+      'resolver: redirected ' +
+        JSON.stringify(moduleName) +
+        ' from ' +
+        originModulePath +
+        ' (resolved ' +
+        resolvedFilePath +
+        ') -> shim ' +
+        shimPath
+    );
+    return;
+  }
+  if (!declaredKeys.has(moduleName)) return;
+  mockSetup.spikeLoggedRequests.add(once);
+  spikeLog(
+    'resolver: MISSED ' +
+      JSON.stringify(moduleName) +
+      ' from ' +
+      originModulePath +
+      ': resolved path ' +
+      resolvedFilePath +
+      ' canonicalizes to ' +
+      canonical +
+      ', registered path for that key is ' +
+      declaredKeys.get(moduleName)
+  );
 }
 
 // The shim a resolved request is redirected to, or undefined when it is not a mocked module.
@@ -545,5 +660,7 @@ module.exports = {
   generateShimContent: generateShimContent,
   setupMocks: setupMocks,
   shimForRequest: shimForRequest,
+  spikeLog: spikeLog,
+  spikeLogRequest: spikeLogRequest,
   warnUnreachedMocks: warnUnreachedMocks,
 };

@@ -1,5 +1,6 @@
 import { registerShimmedKey, resolveMockExports } from './registry';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
+import { spikeLog } from './spikeLog';
 
 const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
   Object.prototype.hasOwnProperty.call(obj, prop);
@@ -65,6 +66,8 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
   // Runs once, when the shim module is first evaluated - proof that `key` is really
   // mockable at runtime. Read by the FG-03 declared-but-unshimmed tripwire.
   registerShimmedKey(key);
+  // SPIKE real-app-shape: proof this module's shim ran on the phone.
+  spikeLog('stand-in: shim evaluated', { key });
 
   // A BOUND function, deliberately. It is callable AND constructable (so the apply/construct
   // traps are valid) yet - unlike a plain function - it has no own `prototype` property. A plain
@@ -85,7 +88,14 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
       // which the bundler redirected here, and reads the name off this answer - so a mock is
       // named by the module it imports and never by a string. Hidden on purpose: the symbol is
       // absent from `ownKeys`, so nothing enumerating the module ever sees it.
-      if (prop === MOCKED_MODULE_KEY) return key;
+      if (prop === MOCKED_MODULE_KEY) {
+        // SPIKE real-app-shape: what the stand-in was asked, and what it answered.
+        spikeLog('stand-in: asked which module it stands for', {
+          asked: String(prop),
+          answered: key,
+        });
+        return key;
+      }
 
       if (prop === 'default' && forwardingDefault) return forwardingDefault;
 

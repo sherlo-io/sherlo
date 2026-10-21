@@ -1,5 +1,6 @@
 import type { NetworkMockDeclaration } from './networkDeclaration';
 import { MockDefinition, MockSet, MOCKED_MODULE_KEY } from './types';
+import { spikeLog } from './spikeLog';
 
 /**
  * One module mock a story hands over: the module it stands in for, and what to serve for it.
@@ -91,7 +92,17 @@ export async function resolveDeclarations(declarations: MockDeclaration[]): Prom
   const keys = await Promise.all(
     // An import that fails to load names no module, and is warned about like one that reached
     // no shim - it must not take the story's other mocks down with it.
-    moduleDeclarations.map((declaration) => declaration.moduleKey().catch(() => undefined))
+    moduleDeclarations.map((declaration, index) =>
+      declaration.moduleKey().catch((error: unknown) => {
+        // SPIKE real-app-shape: say what the import threw instead of swallowing it.
+        spikeLog('declaration: the import threw', {
+          declaration: index,
+          error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+          stack: error instanceof Error ? error.stack?.split('\n').slice(0, 8).join('\n') : null,
+        });
+        return undefined;
+      })
+    )
   );
 
   const mocks: MockSet = {};
@@ -125,9 +136,30 @@ export function declarationsOf(mocks: StoryMocks): MockDeclaration[] {
  * `default`.
  */
 function readModuleKey(imported: unknown): string | undefined {
-  return (
-    readKeySymbol(imported) ?? readKeySymbol((imported as { default?: unknown } | null)?.default)
-  );
+  const fromImported = readKeySymbol(imported);
+  const fromDefault =
+    fromImported === undefined
+      ? readKeySymbol((imported as { default?: unknown } | null)?.default)
+      : undefined;
+  // SPIKE real-app-shape: what the declaration asked the imported module, and what came back.
+  spikeLog('declaration: asked the imported module which module it stands for', {
+    importedType: typeof imported,
+    importedKeys: describeKeys(imported),
+    defaultType: typeof (imported as { default?: unknown } | null)?.default,
+    answeredByImported: fromImported ?? null,
+    answeredByDefault: fromDefault ?? null,
+  });
+  return fromImported ?? fromDefault;
+}
+
+// SPIKE real-app-shape: the first export names of a module, for the diagnostic line.
+function describeKeys(value: unknown): string[] {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) return [];
+  try {
+    return Object.keys(value as object).slice(0, 12);
+  } catch (_) {
+    return ['<keys threw>'];
+  }
 }
 
 function readKeySymbol(value: unknown): string | undefined {
