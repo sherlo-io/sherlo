@@ -1,10 +1,19 @@
 /**
- * THE COVERAGE COMMAND - the component list is proven over a small shop app held in memory; the
- * `--props` cases are named and empty until scov-prop-values writes them.
+ * THE COVERAGE COMMAND - the component list is proven over a small shop app held in memory, and
+ * `--props` over a small typed app held in memory, its types read by the repo's own TypeScript
+ * through the seam's TypeScript 7 reader (one tsgo process for the whole file).
  */
-import { describe, expect, it } from 'vitest';
+import * as nativeTypeScript from 'typescript/unstable/sync';
+import { createVirtualFileSystem } from 'typescript/unstable/fs';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import stripAnsi from '../../../helpers/stripAnsi';
+import { renderCoverage } from '../../../render/coverage';
+import type { CoverageProps } from '../../../render/coverage';
+import { nativeComponentTypes } from '../../../seams/coverageScan';
+import type { OpenComponentTypes } from '../../../seams/coverageScan';
 import { componentGaps } from '../componentGaps';
 import type { SourceFile } from '../componentGaps';
+import { storyPropValues } from '../storyPropValues';
 
 const component = (name: string) => `export function ${name}() {\n  return <View />;\n}\n`;
 
@@ -134,10 +143,184 @@ describe('sherlo coverage lists what no story covers', () => {
     }).gaps;
     expect(everyStory).toEqual([{ name: 'Tag', file: 'Tag.tsx', importedBy: 0, excluded: true }]);
   });
+});
 
-  it.todo("counts a prop value a story's args set");
-  it.todo('counts a prop value written on the component inside its story file');
-  it.todo('does not follow a helper defined in another file');
-  it.todo('lists missing values of a prop with at most 10 values');
-  it.todo('shows a count line for a prop with more than 10 values');
+/** A small app with typed props, read by the repo's own TypeScript standing in for the app's. */
+const ROOT = '/app';
+const COLORS = Array.from({ length: 12 }, (_, index) => `'c${index}'`).join(' | ');
+const TYPED_APP: SourceFile[] = [
+  {
+    path: 'node_modules/react-native/index.d.ts',
+    text: 'export type ViewProps = { testID?: string; accessible?: boolean };',
+  },
+  {
+    path: 'src/Avatar.tsx',
+    text: [
+      "import type { ViewProps } from 'react-native';",
+      "type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';",
+      'export type AvatarProps = ViewProps & { size?: Size; isRound?: boolean; label: string };',
+      'export function Avatar(props: AvatarProps) { return null; }',
+    ].join('\n'),
+  },
+  { path: 'src/index.ts', text: "export * from './Avatar';" },
+  {
+    path: 'src/Badge.tsx',
+    text: "export const Badge = (props: { tone: 'info' | 'warn' | 'error'; isDot?: boolean }) => null;",
+  },
+  {
+    path: 'src/helpers.tsx',
+    text: 'import { Badge } from \'./Badge\';\nexport const WarnBadge = () => <Badge tone="warn" />;',
+  },
+  {
+    path: 'src/Text.tsx',
+    text: `export default function Text(props: { color?: ${COLORS}; weight?: 'light' | 'regular' | 'medium' | 'bold' }) { return null; }`,
+  },
+  { path: 'src/Tag.tsx', text: "export function Tag(props: { kind: 'a' | 'b' }) { return null; }" },
+  {
+    path: 'src/Avatar.stories.tsx',
+    text: [
+      "import { Avatar } from './index';",
+      'const base = { size: "xl" };',
+      'const size = "xs";',
+      "const meta = { component: Avatar, args: { size: 'md' } } as const;",
+      'export default meta;',
+      "export const Large = { args: { size: 'lg', isRound: true, testID: 'avatar' } };",
+      'export const Spread = { args: { ...base, size } };',
+    ].join('\n'),
+  },
+  {
+    path: 'src/Badge.stories.tsx',
+    text: [
+      "import { Badge } from './Badge';",
+      "import { WarnBadge } from './helpers';",
+      'export default { component: Badge };',
+      'function Row() { return <Badge tone="info" isDot />; }',
+      "export const Basic = { render: () => <><Row /><Badge tone={'error'} /><WarnBadge /></> };",
+      'export const Hidden = {',
+      '  parameters: { sherlo: { exclude: true } },',
+      '  args: { isDot: false },',
+      '  render: () => <Badge tone="warn" />,',
+      '};',
+    ].join('\n'),
+  },
+  {
+    path: 'src/TextHidden.stories.tsx',
+    text: [
+      "import Text from './Text';",
+      "export default { component: Text, args: { weight: 'bold' }, parameters: { sherlo: { exclude: true } } };",
+      'export const Bold = {};',
+    ].join('\n'),
+  },
+  {
+    path: 'src/Text.stories.tsx',
+    text: [
+      '// Napisy - zażółć gęślą jaźń: text before the meta that is not ASCII.',
+      "import Text from './Text';",
+      "export default { component: Text, args: { weight: 'light', color: 'c0' } };",
+      "export const Regular = { args: { weight: 'regular' } };",
+      "export const Medium = { args: { weight: 'medium', color: 'c3' } };",
+    ].join('\n'),
+  },
+  {
+    path: 'src/Tag.stories.tsx',
+    text: "import { Tag } from './Tag';\nexport default { component: Tag, args: { kind: 'a' } };\nexport const B = { args: { kind: 'b' } };",
+  },
+  {
+    path: 'src/Made.stories.tsx',
+    text: "import { Tag } from './Tag';\nimport { makeMeta } from './meta';\nexport default makeMeta(Tag);",
+  },
+];
+
+describe('sherlo coverage --props lists the prop values no story file sets', () => {
+  let types: OpenComponentTypes;
+  let found: CoverageProps;
+  const propsOf = (name: string) => found.components.find((entry) => entry.name === name)?.props;
+
+  beforeAll(() => {
+    const files = Object.fromEntries(
+      [
+        {
+          path: 'tsconfig.json',
+          text: '{ "compilerOptions": { "jsx": "preserve", "strict": true } }',
+        },
+        ...TYPED_APP,
+      ].map((file) => [`${ROOT}/${file.path}`, file.text])
+    );
+    types = nativeComponentTypes(nativeTypeScript, {
+      root: ROOT,
+      fs: createVirtualFileSystem(files),
+    });
+    found = storyPropValues({ files: TYPED_APP, types });
+  });
+
+  afterAll(() => types?.close());
+
+  it("counts a prop value a story's args set", () => {
+    // The meta's `md` and a story's `lg` and `true` count; a spread and a variable are not read,
+    // and props inherited from node_modules (`testID`) or of an open type (`label`) are left out.
+    // Missing values keep the order the `Size` alias declares them in, never the checker's.
+    expect(found.storyFiles).toBe(6);
+    expect(found.components.find((entry) => entry.name === 'Avatar')).toEqual({
+      name: 'Avatar',
+      file: 'src/Avatar.tsx',
+      props: [
+        { prop: 'size', allowed: 6, set: 2, missing: ['"xs"', '"sm"', '"xl"', '"xxl"'] },
+        { prop: 'isRound', allowed: 2, set: 1, missing: ['false'] },
+      ],
+    });
+  });
+
+  it('counts a prop value written on the component inside its story file', () => {
+    // `tone="info"` and `isDot` in a render function of the file, and `tone={'error'}` in a story.
+    expect(propsOf('Badge')).toEqual([
+      { prop: 'tone', allowed: 3, set: 2, missing: ['"warn"'] },
+      { prop: 'isDot', allowed: 2, set: 1, missing: ['false'] },
+    ]);
+  });
+
+  it('does not follow a helper defined in another file', () => {
+    // WarnBadge, from helpers.tsx, sets `tone="warn"`: the story file draws it, and it still counts
+    // as not set.
+    expect(propsOf('Badge')?.find((finding) => finding.prop === 'tone')?.missing).toEqual([
+      '"warn"',
+    ]);
+  });
+
+  it('does not count a value that only an excluded story sets', () => {
+    // Badge's excluded `Hidden` story sets `isDot: false` and draws `tone="warn"`, and the excluded
+    // TextHidden file sets `weight: 'bold'`: none of them counts as set.
+    expect(propsOf('Badge')).toEqual([
+      { prop: 'tone', allowed: 3, set: 2, missing: ['"warn"'] },
+      { prop: 'isDot', allowed: 2, set: 1, missing: ['false'] },
+    ]);
+    expect(propsOf('Text')?.find((finding) => finding.prop === 'weight')?.missing).toEqual([
+      '"bold"',
+    ]);
+  });
+
+  it('lists missing values of a prop with at most 10 values', () => {
+    expect(propsOf('Text')?.find((finding) => finding.prop === 'weight')).toEqual({
+      prop: 'weight',
+      allowed: 4,
+      set: 3,
+      missing: ['"bold"'],
+    });
+    // Every value of Tag's `kind` is set, so Tag is not listed; a file whose default export is
+    // not an object literal is read for nothing.
+    expect(found.components.map((entry) => entry.name)).toEqual(['Avatar', 'Badge', 'Text']);
+  });
+
+  it('shows a count line for a prop with more than 10 values', () => {
+    expect(propsOf('Text')?.find((finding) => finding.prop === 'color')).toEqual({
+      prop: 'color',
+      allowed: 12,
+      set: 2,
+    });
+
+    const lines = renderCoverage({ findings: { components: 0, gaps: [], props: found } }).map(
+      stripAnsi
+    );
+    expect(lines).toContain('    color   2 of 12 set');
+    expect(lines).toContain('    weight  3 of 4 set   missing "bold"');
+  });
 });

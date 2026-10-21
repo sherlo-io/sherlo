@@ -13,12 +13,12 @@ import { parse } from '@babel/parser';
 import type * as babel from '@babel/types';
 import path from 'path';
 import type { CoverageFindings, CoverageGap } from '../../render/coverage';
+import { isExcludedStory, isStoryFile } from './storyPropValues';
 
 /** One source file of the app: its path from the project folder, and its text. */
 export type SourceFile = { path: string; text: string };
 
 const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
-const STORY_FILE = /\.stories\.(ts|tsx|js|jsx)$/;
 const NOT_APP_CODE = /\.(test|spec)\.[jt]sx?$|\.d\.ts$/;
 
 /** Where one exported name lives: the file that declares it and the name it has there. */
@@ -63,7 +63,7 @@ export function componentGaps(params: {
 
   const components = new Map<string, Export>();
   for (const file of parsed.values()) {
-    if (STORY_FILE.test(file.path) || NOT_APP_CODE.test(file.path)) continue;
+    if (isStoryFile(file.path) || NOT_APP_CODE.test(file.path)) continue;
     for (const [name, { isComponent, label }] of file.own) {
       if (
         isComponent &&
@@ -106,7 +106,7 @@ export function componentGaps(params: {
   const storyExcluded = new Set<string>();
   const importers = new Map<string, Set<string>>();
   for (const file of parsed.values()) {
-    const isStory = STORY_FILE.test(file.path);
+    const isStory = isStoryFile(file.path);
     const target = isStory && isExcludedStory(file.ast) ? storyExcluded : storyKept;
     for (const taken of imported(file)) {
       const id = key(taken);
@@ -248,66 +248,6 @@ function hasJsx(node: unknown): boolean {
   return Object.entries(node).some(
     ([property, child]) => property !== 'loc' && property !== 'extra' && hasJsx(child)
   );
-}
-
-/* ========================================================================== */
-/* Excluded stories                                                           */
-/* ========================================================================== */
-
-/** A story file is excluded when its meta, or every story in it, says `sherlo: { exclude: true }`. */
-function isExcludedStory(program: babel.Program): boolean {
-  const objects = new Map<string, babel.ObjectExpression>();
-  const stories: babel.ObjectExpression[] = [];
-  let meta: babel.ObjectExpression | undefined;
-  let storyCount = 0;
-
-  for (const statement of program.body) {
-    const declaration = unwrapExport(statement);
-    if (declaration?.type === 'VariableDeclaration') {
-      for (const item of declaration.declarations) {
-        const init = item.init && stripTypes(item.init);
-        if (item.id.type === 'Identifier' && init?.type === 'ObjectExpression') {
-          objects.set(item.id.name, init);
-          if (statement.type === 'ExportNamedDeclaration') stories.push(init);
-        }
-        if (statement.type === 'ExportNamedDeclaration') storyCount += 1;
-      }
-    } else if (statement.type === 'ExportNamedDeclaration' && declaration) {
-      storyCount += 1;
-    } else if (statement.type === 'ExportDefaultDeclaration') {
-      const value = stripTypes(statement.declaration);
-      if (value.type === 'ObjectExpression') meta = value;
-      if (value.type === 'Identifier') meta = objects.get(value.name);
-    }
-  }
-
-  if (meta && excludes(meta)) return true;
-  return storyCount > 0 && stories.length === storyCount && stories.every(excludes);
-}
-
-function stripTypes(node: babel.Node): babel.Node {
-  return node.type === 'TSAsExpression' || node.type === 'TSSatisfiesExpression'
-    ? stripTypes(node.expression)
-    : node;
-}
-
-/** True when an object has `parameters: { sherlo: { exclude: true } }`. */
-function excludes(object: babel.ObjectExpression): boolean {
-  const sherlo = ['parameters', 'sherlo'].reduce<babel.Node | undefined>(
-    (current, name) => (current?.type === 'ObjectExpression' ? member(current, name) : undefined),
-    object
-  );
-  const exclude = sherlo?.type === 'ObjectExpression' ? member(sherlo, 'exclude') : undefined;
-  return exclude?.type === 'BooleanLiteral' && exclude.value;
-}
-
-function member(object: babel.ObjectExpression, name: string): babel.Node | undefined {
-  for (const property of object.properties) {
-    if (property.type === 'ObjectProperty' && !property.computed) {
-      if (nameOf(property.key as babel.Identifier) === name) return stripTypes(property.value);
-    }
-  }
-  return undefined;
 }
 
 /* ========================================================================== */
