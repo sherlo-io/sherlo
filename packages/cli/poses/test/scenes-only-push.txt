@@ -18,8 +18,8 @@ Test 1      [32m✔[39m Started: all 5 scenes on 1 device (Pixel 7)
             [32m✔[39m Finished in <DURATION>
 
 
-[1m⚠️ 5 stories need review[22m
-[2m════════════════════════[22m
+[1m⚠️ 5 scenes need review[22m
+[2m═══════════════════════[22m
 
 Open them in Sherlo to approve or report.
 

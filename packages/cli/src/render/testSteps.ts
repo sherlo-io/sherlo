@@ -298,3 +298,21 @@ export function countScenes(count: number): string {
 export function countStories(count: number): string {
   return count === 1 ? '1 story' : `${count} stories`;
 }
+
+/** What a build holds, as a verdict words its screens: stories alone, scenes alone, or both (the started line's grammar). */
+export type WhatABuildHolds = 'stories' | 'scenes' | 'stories and scenes';
+
+/**
+ * `1 story`, `3 scenes`, `3 stories and scenes` - a count of the build's screens, worded by what the
+ * build holds. Stories alone are {@link countStories}, so a build of stories says what it always said.
+ */
+export function countScreens(count: number, holds: WhatABuildHolds = 'stories'): string {
+  return `${count} ${nameScreens(count, holds)}`;
+}
+
+/** `story`, `scenes`, `story or scene` - the word for the build's screens without the number. */
+export function nameScreens(count: number, holds: WhatABuildHolds = 'stories'): string {
+  if (holds === 'scenes') return count === 1 ? 'scene' : 'scenes';
+  if (holds === 'stories and scenes') return count === 1 ? 'story or scene' : 'stories and scenes';
+  return count === 1 ? 'story' : 'stories';
+}

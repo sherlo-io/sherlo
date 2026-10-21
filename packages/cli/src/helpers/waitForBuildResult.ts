@@ -560,6 +560,7 @@ function printTerminalCloser(
       kind: 'verdict-review-required',
       screens: build.stories ?? undefined,
       counts: { unreviewed, reported },
+      holds: whatTheBuildHolds(build),
     });
   }
   emit({ kind: 'blank-line' });
@@ -571,7 +572,7 @@ function printTerminalCloser(
  * both are `stories and scenes`, and anything else leaves the verdict saying stories. Plan-layer
  * only (build debt of the scenes epic): the live status query does not ask for scenes yet.
  */
-function whatTheBuildHolds(build: BuildStatus): 'scenes' | 'stories and scenes' | undefined {
+export function whatTheBuildHolds(build: BuildStatus): 'scenes' | 'stories and scenes' | undefined {
   const platforms = Object.values(build.platforms ?? {});
   const scenes = platforms.reduce((sum, platform) => sum + (platform?.scenesInBundle ?? 0), 0);
   const stories = platforms.reduce((sum, platform) => sum + (platform?.storiesInBundle ?? 0), 0);

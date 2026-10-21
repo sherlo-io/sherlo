@@ -360,7 +360,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-review-required':
       return {
         stream: 'stdout',
-        prints: renderVerdictReviewRequired(segment.screens, segment.counts).map((line) => [line]),
+        prints: renderVerdictReviewRequired(segment.screens, segment.counts, segment.holds).map(
+          (line) => [line]
+        ),
       };
 
     case 'verdict-run-errored':
