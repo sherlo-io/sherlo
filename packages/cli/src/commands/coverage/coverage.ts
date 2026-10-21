@@ -14,7 +14,6 @@
 import { JSON_OPTION, PROPS_OPTION } from '../../constants';
 import { emit } from '../../helpers/transcriptSink';
 import { coverageScan } from '../../seams/coverageScan';
-import { rankGaps } from './componentGaps';
 
 export type CoverageOptions = {
   [PROPS_OPTION]?: boolean;
@@ -22,9 +21,8 @@ export type CoverageOptions = {
 };
 
 async function coverage(passedOptions: CoverageOptions): Promise<void> {
-  const findings = rankGaps(
-    await coverageScan().scan({ withProps: passedOptions[PROPS_OPTION] === true })
-  );
+  // The scan hands its gaps ranked: the most imported first.
+  const findings = await coverageScan().scan({ withProps: passedOptions[PROPS_OPTION] === true });
 
   if (passedOptions[JSON_OPTION]) {
     process.stdout.write(`${JSON.stringify(findings, null, 2)}\n`);

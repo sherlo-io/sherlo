@@ -642,7 +642,7 @@ export type PosedCapture =
 export type PosedCoverage = {
   /** How many components the app has. */
   components: number;
-  /** The components no story file imports directly, in any order: the command ranks them. */
+  /** The components no story file imports directly, in any order: the scan ranks them. */
   gaps: Array<{
     name: string;
     /** Where the component lives, relative to the project folder. */
