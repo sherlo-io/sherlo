@@ -1,5 +1,49 @@
-import { registerShimmedKey, resolveMockExports } from './registry';
+import { getOverrides, recordUndo, registerShimmedKey, resolveMockExports } from './registry';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
+
+// A Proxy must keep every non-configurable own key of its target in its ownKeys answer and report
+// that key's real descriptor, or the engine throws. The stand-in targets below are meant to own
+// no such key, but a runtime may give one, so both shims stay honest about whatever their target
+// fixes.
+const fixedKeysOf = (target: ModuleExports): Array<string | symbol> =>
+  Reflect.ownKeys(target).filter(
+    (key) => !Reflect.getOwnPropertyDescriptor(target, key)?.configurable
+  );
+
+// The descriptor a shim reports for `prop`: the target's own when it is fixed there, else the
+// wanted one claimed configurable (the targets hold nothing, so a configurable claim is legal).
+function reportDescriptor(
+  target: ModuleExports,
+  prop: PropertyKey,
+  wanted: PropertyDescriptor | undefined
+): PropertyDescriptor | undefined {
+  const own = Reflect.getOwnPropertyDescriptor(target, prop);
+  if (own && !own.configurable) return own;
+  return wanted && { ...wanted, configurable: true };
+}
+
+// Writes to a real object made while a story is active are undone when its mocks end; with no
+// story active the write stays, as it would without the shim.
+function writeUndoably(object: ModuleExports, prop: PropertyKey, write: () => boolean): boolean {
+  const before = Reflect.getOwnPropertyDescriptor(object, prop);
+  const done = write();
+  if (done) {
+    recordUndo(() => {
+      if (before) Reflect.defineProperty(object, prop, before);
+      else Reflect.deleteProperty(object, prop);
+    });
+  }
+  return done;
+}
+
+// A fixed property cannot be promised: the stand-in holds nothing, so it is refused by name.
+function refuseFixedProperty(key: string, prop: PropertyKey, descriptor: PropertyDescriptor): void {
+  if (descriptor.configurable === false) {
+    throw new TypeError(
+      `Sherlo: cannot define ${String(prop)} on the mocked module "${key}" with configurable: false`
+    );
+  }
+}
 
 const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
   Object.prototype.hasOwnProperty.call(obj, prop);
@@ -34,11 +78,22 @@ function createForwardingDefault(key: string, realModule: ModuleExports): Module
   return new Proxy(delegate, {
     get: (_target, prop) => activeDefault()[prop],
     has: (_target, prop) => prop in activeDefault(),
-    ownKeys: () => Reflect.ownKeys(activeDefault()),
-    getOwnPropertyDescriptor(_target, prop) {
-      const descriptor = Reflect.getOwnPropertyDescriptor(activeDefault(), prop);
-      return descriptor && { ...descriptor, configurable: true };
+    ownKeys: (target) =>
+      Array.from(new Set([...Reflect.ownKeys(activeDefault()), ...fixedKeysOf(target)])),
+    getOwnPropertyDescriptor: (target, prop) =>
+      reportDescriptor(target, prop, Reflect.getOwnPropertyDescriptor(activeDefault(), prop)),
+    // Writes land on the active default object itself (its own methods read `this`, so an
+    // override layer beside it would never be seen by them) and are undone when the story ends.
+    set: (_target, prop, value) =>
+      writeUndoably(activeDefault(), prop, () => Reflect.set(activeDefault(), prop, value)),
+    defineProperty(_target, prop, descriptor) {
+      refuseFixedProperty(key, prop, descriptor);
+      return writeUndoably(activeDefault(), prop, () =>
+        Reflect.defineProperty(activeDefault(), prop, descriptor)
+      );
     },
+    deleteProperty: (_target, prop) =>
+      writeUndoably(activeDefault(), prop, () => Reflect.deleteProperty(activeDefault(), prop)),
     apply: (_target, thisArg, args) =>
       Reflect.apply(activeDefault() as unknown as (...fnArgs: unknown[]) => unknown, thisArg, args),
     construct: (_target, args, newTarget) =>
@@ -115,8 +170,17 @@ function buildMockable<T extends ModuleExports>(
     return forwardingDefault;
   };
 
+  // The descriptor a read of `prop` sees now: the story's own write first, then the active mock,
+  // then the real module.
+  const currentDescriptor = (prop: PropertyKey): PropertyDescriptor | undefined => {
+    const written = getOverrides(key)?.get(prop);
+    if (written) return written;
+    const mock = mockOf();
+    return Reflect.getOwnPropertyDescriptor(mock && hasOwn(mock, prop) ? mock : real(), prop);
+  };
+
   return new Proxy(delegate, {
-    get(_target, prop) {
+    get(_target, prop, receiver) {
       // The shim says which module it stands for. A story's declaration awaits its own import,
       // which the bundler redirected here, and reads the name off this answer - so a mock is
       // named by the module it imports and never by a string. Hidden on purpose: the symbol is
@@ -128,31 +192,61 @@ function buildMockable<T extends ModuleExports>(
         if (forwarded) return forwarded;
       }
 
+      const written = getOverrides(key)?.get(prop);
+      if (written) return written.get ? written.get.call(receiver) : written.value;
+
       const mock = mockOf();
       return mock && hasOwn(mock, prop) ? mock[prop] : real()[prop];
     },
 
     has(_target, prop) {
+      if (getOverrides(key)?.has(prop)) return true;
       const mock = mockOf();
       return (mock !== undefined && hasOwn(mock, prop)) || prop in real();
     },
 
-    ownKeys() {
+    ownKeys(target) {
       const mock = mockOf();
       const keys = new Set<string | symbol>(Reflect.ownKeys(real()));
       if (mock) {
         Reflect.ownKeys(mock).forEach((mockKey) => keys.add(mockKey));
       }
+      getOverrides(key)?.forEach((_descriptor, written) => keys.add(written as string | symbol));
+      fixedKeysOf(target).forEach((fixed) => keys.add(fixed));
       return Array.from(keys);
     },
 
-    getOwnPropertyDescriptor(_target, prop) {
-      const mock = mockOf();
-      const source = mock && hasOwn(mock, prop) ? mock : real();
-      const descriptor = Reflect.getOwnPropertyDescriptor(source, prop);
-      // The delegate target has no own properties, so any descriptor we report must claim
-      // configurable: true - otherwise the Proxy invariant check throws a TypeError.
-      return descriptor && { ...descriptor, configurable: true };
+    getOwnPropertyDescriptor: (target, prop) =>
+      reportDescriptor(target, prop, currentDescriptor(prop)),
+
+    // Writes. The delegate target must never receive one: a plain set would define the property on
+    // it as non-configurable, and the traps above would then contradict it (every later read or
+    // Object.keys throws). With a story active the write is that story's own override, read
+    // first and dropped when its mocks end - the real module and the mock stay untouched. With
+    // none active it goes to the real module, as it would without the shim.
+    set(_target, prop, value) {
+      const written = getOverrides(key);
+      if (!written) return Reflect.set(real(), prop, value);
+      written.set(prop, { value, writable: true, enumerable: true, configurable: true });
+      return true;
+    },
+
+    defineProperty(_target, prop, descriptor) {
+      refuseFixedProperty(key, prop, descriptor);
+      const written = getOverrides(key);
+      if (!written) return Reflect.defineProperty(real(), prop, descriptor);
+      const base = currentDescriptor(prop) ?? { enumerable: true, writable: true };
+      written.set(prop, { ...base, ...descriptor, configurable: true });
+      return true;
+    },
+
+    // During a story this drops that story's own override only; a mock's or the real export of
+    // that name then shows through again.
+    deleteProperty(_target, prop) {
+      const written = getOverrides(key);
+      if (!written) return Reflect.deleteProperty(real(), prop);
+      written.delete(prop);
+      return true;
     },
 
     // Callable-export fall-through, mirroring the get/has traps: when a mock is active and its
