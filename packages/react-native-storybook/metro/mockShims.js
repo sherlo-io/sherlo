@@ -21,6 +21,7 @@ var fs = require('fs');
 var path = require('path');
 
 var scan = require('./mockScan');
+var createResolveLikeMetro = require('./resolveLikeMetro').createResolveLikeMetro;
 
 // Mirror of src/mocking/denyList.ts MOCK_DENY_LIST. Kept as a literal here
 // because this file runs at Metro-config time (plain JS, before any tsc build);
@@ -264,7 +265,10 @@ function packageRootAlternateCanonicalPaths(key, resolved, primaryCanonicalPath)
 // a story wrote as a string, or the mockModules option named, has no such file and is read
 // from the project root.
 // Throws when the key cannot be resolved (FG-01).
-function resolveMockKey(key, projectRoot, importedFromFile) {
+//
+// resolveLikeMetro, when given, is (name) -> the file the app's bundler resolves the name to, or
+// null (metro/resolveLikeMetro.js); without it only Node and the project root are asked.
+function resolveMockKey(key, projectRoot, importedFromFile, resolveLikeMetro) {
   // Explicit './'-prefixed or absolute keys are always app modules.
   if (isRelativeOrAbsolute(key)) {
     var namedBesideFile = !!importedFromFile && isRelativeKey(key);
@@ -279,18 +283,40 @@ function resolveMockKey(key, projectRoot, importedFromFile) {
   // semantics. Only when that fails do we treat the key as a DOTLESS
   // project-root-relative app module ('src/api/client'), the canonical
   // app-module key form. FG-01 fires only when both routes fail.
+  //
+  // The app's own bundler resolution comes first (resolveLikeMetro, which reads the config's
+  // extraNodeModules too): it names the file Metro will hand the resolver. Node's require.resolve
+  // stays for the package branch below, which keeps a bare specifier so Metro re-resolves it.
+  var viaMetro = resolveLikeMetro ? resolveLikeMetro(key) : null;
   try {
     var resolved = require.resolve(key, { paths: [projectRoot] });
     var canonicalRealPath = canonicalizeModulePath(resolved);
     var owner = findPackageDir(resolved, packageNameOf(key));
+    // A name no package owns (an alias both Metro and Node reach) is an app module: the stand-in
+    // requires the file by absolute path, never the name, so its own request is never matched
+    // against the name again and never resolves from the shim folder to another copy.
+    var appModuleFile = owner ? null : viaMetro || (path.isAbsolute(resolved) ? resolved : null);
+    if (appModuleFile) {
+      return appModuleResult(appModuleFile, key);
+    }
+    var alternates = packageRootAlternateCanonicalPaths(key, resolved, canonicalRealPath);
+    if (viaMetro) {
+      // The file Metro picks for the package may differ from Node's (main vs react-native).
+      var metroCanonical = canonicalizeModulePath(viaMetro);
+      if (metroCanonical !== canonicalRealPath && alternates.indexOf(metroCanonical) === -1) {
+        alternates = alternates.concat(metroCanonical);
+      }
+    }
     return {
       moduleKey: key,
       canonicalRealPath: canonicalRealPath,
       requireSpecifier: key,
-      alternateCanonicalPaths: packageRootAlternateCanonicalPaths(key, resolved, canonicalRealPath),
+      alternateCanonicalPaths: alternates,
       packageDir: owner ? owner.dir : null,
     };
   } catch (_) {
+    // Node cannot reach the name, Metro can (extraNodeModules): an app module.
+    if (viaMetro) return appModuleResult(viaMetro, key);
     var appFile = resolveAppModuleFile(path.resolve(projectRoot, key));
     if (appFile) return appModuleResult(appFile, key);
     throw new Error('cannot resolve mock key');
@@ -304,19 +330,20 @@ function shimFileName(moduleKey) {
   return 'mock-' + hash + '.js';
 }
 
-// The one-line shim body: a single createMockable call requiring the real
-// module. requireSpecifier is emitted as a require() so Metro (not us) does the
-// real resolution at bundle time - which re-resolves platform-split files.
+// The shim body: one createLazyMockable call that loads the real module on first use. The stand-in
+// is module.exports from the first moment, so a module in an import cycle through the real file
+// never holds an empty exports object. requireSpecifier is emitted as a require() so Metro (not us)
+// does the real resolution at bundle time - which re-resolves platform-split files.
 function generateShimContent(moduleKey, requireSpecifier) {
   return (
     "'use strict';\n" +
     'module.exports = require(' +
     JSON.stringify(CREATE_MOCKABLE_SPECIFIER) +
-    ').createMockable(' +
+    ').createLazyMockable(' +
     JSON.stringify(moduleKey) +
-    ', require(' +
+    ', function () { return require(' +
     JSON.stringify(requireSpecifier) +
-    '));\n'
+    '); });\n'
   );
 }
 
@@ -347,6 +374,7 @@ function setupMocks(opts) {
   var projectRoot = opts.projectRoot;
   var cacheDir = opts.cacheDir;
   var mockModules = Array.isArray(opts.mockModules) ? opts.mockModules : [];
+  var resolveLikeMetro = createResolveLikeMetro(opts.metroConfig, projectRoot);
 
   // 1. Collect what the project declares: static scan + the mockModules escape hatch (MK-10).
   var declaredMocks = opts.scanFiles
@@ -413,7 +441,7 @@ function setupMocks(opts) {
 
     var resolved;
     try {
-      resolved = resolveMockKey(key, projectRoot, importExpressionFile(declared));
+      resolved = resolveMockKey(key, projectRoot, importExpressionFile(declared), resolveLikeMetro);
     } catch (_) {
       console.warn(
         '[Sherlo] Skipping mock key "' +

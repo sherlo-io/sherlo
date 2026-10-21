@@ -49,8 +49,13 @@ function clearMocks(): void {
 
 // Returns the resolved mock exports for `key`, or undefined if the module isn't mocked in the
 // active activation (or there is no active activation). Factory definitions are invoked with
-// `realModule` on first lookup and cached for the rest of the activation.
-function resolveMockExports(key: string, realModule: ModuleExports): ModuleExports | undefined {
+// the real module on first lookup and cached for the rest of the activation. A stand-in whose real
+// module loads lazily passes `loadRealModule` instead, so the real module loads only for a factory.
+function resolveMockExports(
+  key: string,
+  realModule: ModuleExports | undefined,
+  loadRealModule?: () => ModuleExports
+): ModuleExports | undefined {
   if (!activeActivation) {
     return undefined;
   }
@@ -67,7 +72,10 @@ function resolveMockExports(key: string, realModule: ModuleExports): ModuleExpor
   }
 
   const definition = mocks[key];
-  const exports = typeof definition === 'function' ? definition(realModule) : definition;
+  const exports =
+    typeof definition === 'function'
+      ? definition(loadRealModule ? loadRealModule() : (realModule as ModuleExports))
+      : definition;
   resolved.set(key, exports);
   return exports;
 }
