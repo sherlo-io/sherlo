@@ -58,7 +58,8 @@
 // No customer configuration is required. No env vars. No build flags.
 //
 // What the polyfill reports goes over the app's connection, through native code's sendMessage,
-// as the messages src/sealedCore/seam.ts types. It writes no file.
+// as the messages src/sealedCore/seam.ts types, and the bundler's line its `start-failed`
+// (metro/sherloLine.d.ts). It writes no file.
 //
 
 (function () {
@@ -133,6 +134,65 @@
     var nm = getSherloNativeModule();
     if (nm && typeof nm.sendMessage === 'function') {
       nm.sendMessage(JSON.stringify(message));
+    }
+  }
+
+  // THE START ERROR. A fatal error before Sherlo's Storybook drew is the app's JavaScript dying as
+  // it starts, before the SDK's own code ran: this polyfill is the earliest code in the bundle, and
+  // native code holds the socket, so it is the one that can still say so. It sends one
+  // `start-failed` message per run of the JavaScript (metro/sherloLine.d.ts types it), and a
+  // `sherlo capture` waiting on the bundler hears the app's own error instead of a silence.
+
+  // True while the bundle's modules run as it is evaluated; false from its first microtask on.
+  var bundleStillEvaluating = true;
+  // How many module factories are running inside each other: 1 is a module Metro's top-level
+  // require ran, whose throw nobody but Metro's fatal report catches.
+  var factoryDepth = 0;
+
+  // The bundler's Sherlo address, worked out the way startTheLine (src/connection/appLine.ts) does
+  // from the url React Native loaded the bundle from; null for a bundle loaded from the device.
+  function bundlerLineAddress() {
+    var sourceCode = null;
+    try {
+      if (global.__turboModuleProxy) sourceCode = global.__turboModuleProxy('SourceCode');
+    } catch (_) {
+      // No TurboModule of that name: the old architecture's proxy is tried next.
+    }
+    try {
+      if (!sourceCode && global.nativeModuleProxy) sourceCode = global.nativeModuleProxy.SourceCode;
+    } catch (_) {
+      // No SourceCode module at all: the bundle came from no bundler this can name.
+    }
+    if (!sourceCode) return null;
+    var constants =
+      typeof sourceCode.getConstants === 'function' ? sourceCode.getConstants() : null;
+    var scriptURL =
+      constants && constants.scriptURL != null ? constants.scriptURL : sourceCode.scriptURL;
+    if (typeof scriptURL !== 'string') return null;
+    var origin = /^(https?:\/\/[^/]+)/.exec(scriptURL);
+    return origin ? origin[1].replace(/^http/, 'ws') + '/sherlo/line' : null;
+  }
+
+  // Say over the app's line that its JavaScript died as it started, dialing the bundler first when
+  // the line is not open yet (native code dials only once). Never throws: a failure to send is
+  // dropped, and the app's own error handling goes on unchanged.
+  function sayTheStartFailed(error) {
+    try {
+      if (global.__sherloStartFailedSent || global.__sherloStorybookRendered === true) return;
+      var nm = getSherloNativeModule();
+      if (!nm || typeof nm.sendMessage !== 'function') return;
+      global.__sherloStartFailedSent = true;
+      var address = bundlerLineAddress();
+      if (address !== null && typeof nm.dialBundler === 'function') nm.dialBundler(address);
+      nm.sendMessage(
+        JSON.stringify({
+          action: 'start-failed',
+          name: (error && error.name) || 'Error',
+          message: (error && error.message) || String(error),
+        })
+      );
+    } catch (_) {
+      // Dropped on purpose: the app's own handler still gets the error.
     }
   }
 
@@ -298,6 +358,7 @@
         try {
           reportToNative(error);
         } catch (_) {}
+        if (isFatal) sayTheStartFailed(error);
         if (typeof existing === 'function') {
           try {
             existing(error, isFatal);
@@ -364,6 +425,7 @@
           });
         } catch (_) {}
 
+        factoryDepth += 1;
         try {
           return factory.call(
             this,
@@ -377,8 +439,12 @@
           );
         } catch (e) {
           reportToNative(e);
+          // A throw out of a top-level module as the bundle runs reaches Metro's fatal report,
+          // before the ErrorUtils handler below is chained in; a deeper one the app may catch.
+          if (bundleStillEvaluating && factoryDepth === 1) sayTheStartFailed(e);
           throw e;
         } finally {
+          factoryDepth -= 1;
           try {
             maybeCaptureReact(exportsObj);
           } catch (_) {}
@@ -405,7 +471,10 @@
   //     (synchronous, during module evaluation) will already have completed, so
   //     installSherloErrorUtilsHandler wraps it rather than getting overwritten by it.
   try {
-    Promise.resolve().then(installSherloErrorUtilsHandler);
+    Promise.resolve().then(function () {
+      bundleStillEvaluating = false;
+      installSherloErrorUtilsHandler();
+    });
   } catch (_) {}
 
   // 3. ERROR_STORYBOOK_NOT_DISPLAYED timer - fires if the Sherlo Storybook wrapper

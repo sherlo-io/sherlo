@@ -111,6 +111,8 @@ async function connectAnApp(running: RunningLine) {
     waitsForAStory: (saying: Message) => say({ action: 'waitForStory', ...saying }),
     waitsForACapture: (saying: Message) => say({ action: 'waitForACapture', ...saying }),
     logs: (line: string) => say({ action: 'log', line }),
+    /** The polyfill's word that this app's JavaScript died as it started. */
+    startFails: (error: Message) => say({ action: 'start-failed', ...error }),
     /** The letterbox's next answer to this app, without its action. */
     nextLetterboxAnswer: () => app.next((m) => m.action === 'letterboxAnswer').then(withoutAction),
     /** The capture relay's next answer to this app, without its action. */
@@ -575,6 +577,53 @@ describe('a capture of an app that cannot list its stories', () => {
     await expect(
       driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS })
     ).resolves.toEqual({ kind: 'no-app' });
+  });
+});
+
+describe('a capture of an app whose JavaScript died as it started', () => {
+  const START_ERROR = { name: 'TypeError', message: 'undefined is not a function' };
+
+  it("a capture asked of an app whose start failed is answered crashed with the app's error at once", async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+
+    // The app never reached a wait: its JavaScript died first, and only the polyfill spoke.
+    await app.startFails(START_ERROR);
+
+    await expect(
+      driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS })
+    ).resolves.toEqual({ kind: 'crashed', storyId: STORY, error: START_ERROR });
+  });
+
+  it("a capture asked before the app's start error arrives is answered as soon as it does", async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+
+    // The capture moves the app into testing mode; the JavaScript it restarts dies as it starts.
+    await app.waitsForACapture({ mode: 'default', stories: null, answer: null });
+    const reply = driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+    await app.startFails(START_ERROR);
+
+    await expect(reply).resolves.toEqual({ kind: 'crashed', storyId: STORY, error: START_ERROR });
+  });
+
+  it('CONTROL: an app whose JavaScript reached a wait again is captured, not answered crashed', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+
+    await app.startFails(START_ERROR);
+    // The developer fixed the error and the app reloaded: the JavaScript running now is alive.
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+
+    driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
   });
 });
 

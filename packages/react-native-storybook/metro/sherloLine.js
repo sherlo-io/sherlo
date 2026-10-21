@@ -28,7 +28,9 @@
  *
  *   THE CAPTURE RELAY (`captureStory`) RELAYS. It pairs one waiting app with one waiting driver and
  *   keeps nothing once the answer has crossed. An app not in testing mode is told to move there,
- *   and is handed the story with the order, so it lands on it.
+ *   and is handed the story with the order, so it lands on it. An app whose JavaScript died as it
+ *   started (`start-failed`) is the one thing it keeps: a capture of it is answered `crashed`, with
+ *   the app's error, until that app's JavaScript waits for a capture again or its connection goes.
  *
  *   THE LOG FEED (`readLogLines`) is every `log` line an app sent, drained by each read.
  *
@@ -200,6 +202,7 @@ function createLine(settings) {
       if (message.action === 'waitForStory') return letterbox.appWaitsForAStory(app, message);
       if (message.action === 'waitForACapture')
         return captureRelay.appWaitsForACapture(app, message);
+      if (message.action === 'start-failed') return captureRelay.appStartFailed(app, message);
       if (message.action === 'log' && typeof message.line === 'string') logFeed.add(message.line);
     });
     app.onClose(function () {
@@ -540,9 +543,38 @@ function createCaptureRelay(appHoldMs) {
   /** The driver waiting for the app's answer, when one is. */
   var driverWaiting = null;
 
+  /** Each app on the line whose JavaScript died as it started, with what it threw, latest last. */
+  var startFailures = [];
+
+  /** The app: my JavaScript died as it started, before it could wait; here is what it threw. */
+  function appStartFailed(app, said) {
+    forgetTheStartFailureOf(app);
+    var error = {
+      name: typeof said.name === 'string' ? said.name : 'Error',
+      message: typeof said.message === 'string' ? said.message : '',
+    };
+    startFailures.push({ app: app, error: error });
+
+    // The JavaScript that waited before is gone, and the driver waiting on it is answered now.
+    if (appHolding !== null && appHolding.app === app) appHolding.stopWaiting();
+    if (driverWaiting !== null) {
+      var told = driverWaiting;
+      driverWaiting = null;
+      told.reply({ kind: 'crashed', storyId: told.storyId, error: error });
+    }
+  }
+
+  function forgetTheStartFailureOf(app) {
+    startFailures = startFailures.filter(function (failure) {
+      return failure.app !== app;
+    });
+  }
+
   /** The app: here is my mode, my stories and my answer; hand me the next capture. */
   function appWaitsForACapture(app, said) {
     appEverWaited = true;
+    // An app whose JavaScript waits started cleanly this time, whatever the one before it did.
+    forgetTheStartFailureOf(app);
 
     // The JavaScript running now is the one that listens: an app's earlier wait is dropped.
     if (appHolding !== null && appHolding.app === app) appHolding.stopWaiting();
@@ -651,6 +683,16 @@ function createCaptureRelay(appHoldMs) {
     var storyId = typeof question.storyId === 'string' ? question.storyId : '';
     var settings = question.settings;
 
+    // No app is alive and waiting, and one died as it started: that is the answer, at once.
+    if (appHolding === null && startFailures.length > 0) {
+      reply({
+        kind: 'crashed',
+        storyId: storyId,
+        error: startFailures[startFailures.length - 1].error,
+      });
+      return function () {};
+    }
+
     if (!appEverWaited) {
       reply({ kind: 'no-app' });
       return function () {};
@@ -685,13 +727,19 @@ function createCaptureRelay(appHoldMs) {
 
   function appLeft(app) {
     if (appHolding !== null && appHolding.app === app) appHolding.stopWaiting();
+    forgetTheStartFailureOf(app);
   }
 
   function answerApp(app, payload) {
     app.send(Object.assign({ action: 'captureInstruction' }, payload));
   }
 
-  return { appWaitsForACapture: appWaitsForACapture, appLeft: appLeft, captureStory: captureStory };
+  return {
+    appWaitsForACapture: appWaitsForACapture,
+    appStartFailed: appStartFailed,
+    appLeft: appLeft,
+    captureStory: captureStory,
+  };
 }
 
 /* ========================================================================== */
