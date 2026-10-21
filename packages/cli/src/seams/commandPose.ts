@@ -17,6 +17,7 @@ import type { PosedAppBuild } from './appBuilder';
 import type { PosedBrowser } from './browser';
 import type { PosedBundle } from './bundler';
 import type { PosedCapture } from './captureSocket';
+import type { PosedCoverage } from './coverageScan';
 import type { PosedLetterbox } from './letterbox';
 import type { PosedPush } from './nativeBuild';
 import type { PosedFiles } from './projectFiles';
@@ -139,6 +140,13 @@ export type CommandPose = {
    * for any other command is refused, and a capture with no `capture` is refused at run time.
    */
   capture?: PosedCapture;
+  /**
+   * What the scan of the app found - the road `sherlo coverage` reads the app down. THE FIFTH
+   * OPTIONAL FIELD, for the one command that scans: the components no story imports and, for
+   * `--props`, the prop values no story drew. A pose that states it for any other command is
+   * refused, and a coverage with no `coverage` is refused at run time.
+   */
+  coverage?: PosedCoverage;
   /**
    * What the browser did when `sherlo login` opened it on the authorize link: whether it came up.
    * For the commands that log in - `login`, and `init` when it runs the login itself - and refused

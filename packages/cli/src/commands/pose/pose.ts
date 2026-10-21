@@ -49,6 +49,7 @@ import { installAppBuilder, posedAppBuilder } from '../../seams/appBuilder';
 import { installWorkstation, posedWorkstation } from '../../seams/workstation';
 import { installLetterbox, posedLetterbox } from '../../seams/letterbox';
 import { installCaptureSocket, posedCaptureSocket } from '../../seams/captureSocket';
+import { installCoverageScan, posedCoverageScan } from '../../seams/coverageScan';
 import { installBrowser, posedBrowser } from '../../seams/browser';
 import { installSavedLogins, posedSavedLogins } from '../../seams/savedLogins';
 import type { CommandPose } from '../../seams/commandPose';
@@ -140,6 +141,7 @@ export async function runPose(
   const acts = posedWorkstation(commandPose.workstation);
   const app = posedLetterbox(commandPose.letterbox);
   const socket = posedCaptureSocket(commandPose.capture);
+  const scan = posedCoverageScan(commandPose.coverage);
   const loginBrowser = posedBrowser(commandPose.browser);
 
   const uninstall = [
@@ -154,6 +156,7 @@ export async function runPose(
     installWorkstation(acts),
     installLetterbox(app),
     installCaptureSocket(socket),
+    installCoverageScan(scan),
     // The settings go in LAST and come out FIRST: the folder above is laid out while this
     // process still has its own environment, and nothing after this line should.
     world.installSettings(),
@@ -201,6 +204,7 @@ export async function runPose(
       ...acts.refusals(),
       ...app.refusals(),
       ...socket.refusals(),
+      ...scan.refusals(),
       ...loginBrowser.refusals(),
     ],
     unusedCalls: api.unusedCalls(),

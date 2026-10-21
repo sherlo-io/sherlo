@@ -1,0 +1,34 @@
+[33m◦[39m  [1mComponents with no story of their own: 11 of 120[22m
+
+  CartBadge    [2msrc/components/base/CartBadge.tsx  [22m  41 files import it
+  PromoBanner  [2msrc/components/base/PromoBanner.tsx[22m  33 files import it
+  SearchBar    [2msrc/components/base/SearchBar.tsx  [22m  18 files import it  [33mexcluded[39m
+  AddressForm  [2msrc/components/base/AddressForm.tsx[22m  12 files import it
+  Tooltip      [2msrc/components/base/Tooltip.tsx    [22m  12 files import it
+  Divider      [2msrc/components/base/Divider.tsx    [22m   7 files import it
+  Spinner      [2msrc/components/base/Spinner.tsx    [22m   7 files import it
+  Toast        [2msrc/components/partials/Toast.tsx  [22m   3 files import it
+  Wishlist     [2msrc/components/screens/Wishlist.tsx[22m   3 files import it
+  Checkout     [2msrc/components/screens/Checkout.tsx[22m   1 file imports it
+  Orders       [2msrc/components/screens/Orders.tsx  [22m   1 file imports it
+
+[2mNext: write a story, then check it with `npx sherlo capture --story <id>`.[22m
+[2mexcluded: only a story marked `sherlo: { exclude: true }` imports it.[22m
+
+[33m◦[39m  [1mProp values no story drew - 30 stories on iPhone 15 Pro[22m
+
+  Avatar  [2msrc/components/base/Avatar.tsx[22m
+    size  1 of 6 drawn  missing "xs", "sm", "lg", "xl", "xxl"
+
+  PriceTag  [2msrc/components/base/PriceTag.tsx[22m
+    variant  2 of 3 drawn  missing "sale"
+
+  Rating  [2msrc/components/base/Rating.tsx[22m
+    isInteractive  1 of 2 drawn  missing true
+
+  Text  [2msrc/components/base/Text.tsx[22m
+    color   4 of 75 drawn
+    weight  3 of 4 drawn   missing "bold"
+
+
+[exit 0]

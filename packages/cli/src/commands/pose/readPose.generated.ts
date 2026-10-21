@@ -88,6 +88,9 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
     if ('capture' in object1) {
       readPosedCapture(object1.capture, at(path, 'capture'), problems);
     }
+    if ('coverage' in object1) {
+      readPosedCoverage(object1.coverage, at(path, 'coverage'), problems);
+    }
     if ('browser' in object1) {
       readPosedBrowser(object1.browser, at(path, 'browser'), problems);
     }
@@ -111,6 +114,7 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
         'workstation',
         'letterbox',
         'capture',
+        'coverage',
         'browser',
         'logins',
       ],
@@ -1224,6 +1228,93 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
     reportWrongShape(
       oneOf1,
       '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }` or `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`',
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `PosedCoverage`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedCoverage(value: unknown, path: string, problems: string[]): void {
+  const oneOf1 = value;
+  if (oneOf1 === 'no-bundler' || oneOf1 === 'no-app') {
+    // the value is one of these
+  } else if (isPlainObject(oneOf1)) {
+    const object2 = asObject(oneOf1, path, problems);
+    if (object2) {
+      expectNumber(object2.components, at(path, 'components'), problems);
+      const where3 = at(path, 'gaps');
+      const list4 = asArray(object2.gaps, where3, problems);
+      if (list4) {
+        list4.forEach((entry5, index6) => {
+          const where7 = atIndex(where3, index6);
+          const object8 = asObject(entry5, where7, problems);
+          if (object8) {
+            expectString(object8.name, at(where7, 'name'), problems);
+            expectString(object8.file, at(where7, 'file'), problems);
+            expectNumber(object8.importedBy, at(where7, 'importedBy'), problems);
+            if ('excluded' in object8) {
+              expectLiteral(object8.excluded, true, at(where7, 'excluded'), problems);
+            }
+            reportUnknownFields(
+              object8,
+              ['name', 'file', 'importedBy', 'excluded'],
+              where7,
+              problems
+            );
+          }
+        });
+      }
+      if ('props' in object2) {
+        const where9 = at(path, 'props');
+        const object10 = asObject(object2.props, where9, problems);
+        if (object10) {
+          expectNumber(object10.stories, at(where9, 'stories'), problems);
+          expectString(object10.device, at(where9, 'device'), problems);
+          const where11 = at(where9, 'components');
+          const list12 = asArray(object10.components, where11, problems);
+          if (list12) {
+            list12.forEach((entry13, index14) => {
+              const where15 = atIndex(where11, index14);
+              const object16 = asObject(entry13, where15, problems);
+              if (object16) {
+                expectString(object16.name, at(where15, 'name'), problems);
+                expectString(object16.file, at(where15, 'file'), problems);
+                const where17 = at(where15, 'props');
+                const list18 = asArray(object16.props, where17, problems);
+                if (list18) {
+                  list18.forEach((entry19, index20) => {
+                    const where21 = atIndex(where17, index20);
+                    const object22 = asObject(entry19, where21, problems);
+                    if (object22) {
+                      expectString(object22.prop, at(where21, 'prop'), problems);
+                      expectNumber(object22.allowed, at(where21, 'allowed'), problems);
+                      expectNumber(object22.drawn, at(where21, 'drawn'), problems);
+                      if ('missing' in object22) {
+                        expectStringArray(object22.missing, at(where21, 'missing'), problems);
+                      }
+                      reportUnknownFields(
+                        object22,
+                        ['prop', 'allowed', 'drawn', 'missing'],
+                        where21,
+                        problems
+                      );
+                    }
+                  });
+                }
+                reportUnknownFields(object16, ['name', 'file', 'props'], where15, problems);
+              }
+            });
+          }
+          reportUnknownFields(object10, ['stories', 'device', 'components'], where9, problems);
+        }
+      }
+      reportUnknownFields(object2, ['components', 'gaps', 'props'], path, problems);
+    }
+  } else {
+    reportWrongShape(
+      oneOf1,
+      '`"no-bundler"`, `"no-app"` or `{ components: number; gaps: Array<{ name: string; file: string; importedBy: number; excluded?: true }>; props?: { stories: number; device: string; components: Array<{ name: string; file: string; props: Array<{ prop: string; allowed: number; drawn: number; missing?: string[] }> }> } }`',
       path,
       problems
     );

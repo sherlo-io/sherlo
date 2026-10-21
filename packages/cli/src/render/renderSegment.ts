@@ -65,6 +65,7 @@ import { renderTeamCreated } from './teamCreated';
 import { renderProjectList } from './projectList';
 import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
+import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
 import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
@@ -446,6 +447,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderCapturedStory(segment.state).map((line) => [line]),
+      };
+
+    case 'coverage':
+      return {
+        stream: 'stdout',
+        prints: renderCoverage(segment.screen).map((line) => [line]),
       };
 
     case 'captured-log':

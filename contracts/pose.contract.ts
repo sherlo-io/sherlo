@@ -153,6 +153,13 @@ export type CommandPose = {
    */
   capture?: PosedCapture;
   /**
+   * What the scan of the app found - the road `sherlo coverage` reads the app down. THE FIFTH
+   * OPTIONAL FIELD, for the one command that scans: the components no story imports and, for
+   * `--props`, the prop values no story drew. A pose that states it for any other command is
+   * refused, and a coverage with no `coverage` is refused at run time.
+   */
+  coverage?: PosedCoverage;
+  /**
    * What the browser did when `sherlo login` opened it on the authorize link: whether it came up.
    * For the commands that log in - `login`, and `init` when it runs the login itself - and refused
    * for any other. Nothing opens on a posed run; a login with no `browser` is refused at run time.
@@ -624,6 +631,52 @@ export type PosedCapture =
       hasNetworkImage?: boolean;
       /** The view tree the app read, from the story's own root. */
       tree: PosedView;
+    };
+
+/**
+ * What the scan found, as a pose states it.
+ *
+ * As with the capture socket, a pose never supplies the words the screen shows: it states the
+ * findings, and the tool prints whatever it prints for them.
+ */
+export type PosedCoverage =
+  | 'no-bundler'
+  | 'no-app'
+  | {
+      /** How many components the app has. */
+      components: number;
+      /** The components no story file imports directly, in any order: the command ranks them. */
+      gaps: Array<{
+        name: string;
+        /** Where the component lives, relative to the project folder. */
+        file: string;
+        /** How many of the app's own files import it. */
+        importedBy: number;
+        /** True when the only story that imports it is marked `sherlo: { exclude: true }`. */
+        excluded?: true;
+      }>;
+      /** What walking every story found. Stated only when the pose runs `--props`. */
+      props?: {
+        stories: number;
+        /** The device the stories were drawn on. */
+        device: string;
+        components: Array<{
+          name: string;
+          file: string;
+          props: Array<{
+            prop: string;
+            /** How many values the type allows. */
+            allowed: number;
+            /** How many of them some story drew. */
+            drawn: number;
+            /**
+             * The values no story drew, by name. Stated only for a prop with at most 10 allowed
+             * values.
+             */
+            missing?: string[];
+          }>;
+        }>;
+      };
     };
 
 /** What the browser did when a login opened it, as a pose states it. */
