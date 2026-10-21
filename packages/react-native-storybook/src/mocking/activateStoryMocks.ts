@@ -1,4 +1,5 @@
-import { activateMocks, isKeyShimmed, isMockingModeActive } from './registry';
+import { activateMocks, isKeyShimmed, isMockingModeActive, unreachedMockKeys } from './registry';
+import { isUnshimmedImportName } from './mockDeclaration';
 import { MockSet } from './types';
 import { CLOCK_MOCK_KEY, ClockDefinition, installClock, restoreClock } from './clock';
 import { RANDOM_MOCK_KEY, RandomDefinition, installRandom, restoreRandom } from './random';
@@ -20,8 +21,7 @@ export const UNSHIMMED_KEYS_LOG = 'mock declared but unshimmed';
 //
 // The warning goes out on TWO channels: the phone's console (printOnThePhoneConsole) AND
 // RunnerBridge.log (written to log.sherlo), which the runner reads during a run.
-function warnUnshimmedKeys(mocks: MockSet): void {
-  const unshimmedKeys = Object.keys(mocks).filter((key) => !isKeyShimmed(key));
+function warnUnshimmedKeys(unshimmedKeys: string[]): void {
   if (unshimmedKeys.length === 0) return;
 
   const keyList = unshimmedKeys.map((key) => `"${key}"`).join(', ');
@@ -79,7 +79,33 @@ function applyClockAndRandom(mocks: MockSet): MockSet {
 export function activateStoryMocks(mocks: MockSet): void {
   const moduleMocks = applyClockAndRandom(mocks);
   activateMocks(moduleMocks);
-  warnUnshimmedKeys(moduleMocks);
+  warnUnshimmedKeys(Object.keys(moduleMocks).filter((key) => !isKeyShimmed(key)));
+}
+
+// Installs `mocks` as the active set for one story and says nothing about what the story reaches.
+//
+// A shim that has not run YET is not a shim that never will: with inlineRequires a module is
+// required where it is first used, which for a component under test is after the story starts to
+// render. So the registry of evaluated shims cannot tell, at this moment, a mock that will apply
+// from one that reaches nothing - activateStoryMocks's warning is wrong for the first, and a
+// warning that can be wrong cannot fail a story. The one moment that can tell is when the story
+// has rendered: see unreachedMocksOfActiveStory. The only thing certain now is an import that
+// settled on a module that is no stand-in (warnUnnamedImports).
+export function installStoryMocks(mocks: MockSet): void {
+  activateMocks(applyClockAndRandom(mocks));
+}
+
+// Warns about each declaration whose import settled on a module that is no stand-in. Called with
+// the set installStoryMocks installed.
+export function warnUnnamedImports(mocks: MockSet): void {
+  warnUnshimmedKeys(Object.keys(mocks).filter(isUnshimmedImportName));
+}
+
+// The mocks of the active story that nothing the story rendered ever read, named as the story
+// named them. Only a fact once the story has rendered and settled (the point the story's error is
+// read for the capture), never before.
+export function unreachedMocksOfActiveStory(): string[] {
+  return unreachedMockKeys();
 }
 
 export default activateStoryMocks;

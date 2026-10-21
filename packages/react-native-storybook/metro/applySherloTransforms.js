@@ -857,6 +857,7 @@ function applySherloTransforms(result, opts) {
     projectRoot: projectRoot,
     cacheDir: cacheDir,
     mockModules: opts && opts.mockModules,
+    metroConfig: result,
   });
   var mocksDir = mockSetup.mocksDir;
   var mockedPathToShim = mockSetup.mockedPathToShim;
@@ -870,7 +871,20 @@ function applySherloTransforms(result, opts) {
 
   var delegateResolve = resolveThroughConfig(result);
 
+  // SPIKE real-app-shape: proof the bundler calls this resolver at all.
+  var spikeResolverSeen = false;
+
   function resolveRequest(context, moduleName, platform) {
+    if (!spikeResolverSeen) {
+      spikeResolverSeen = true;
+      mockShims.spikeLog(
+        "resolver: Sherlo's resolver called (first request " +
+          JSON.stringify(moduleName) +
+          ', ' +
+          mockedPathToShim.size +
+          ' registered path(s))'
+      );
+    }
     if (context.originModulePath === wrapperPath) {
       return delegateResolve(context, moduleName, platform);
     }
@@ -892,9 +906,33 @@ function applySherloTransforms(result, opts) {
       !isShimPath(context.originModulePath)
     ) {
       var shimPath = mockShims.shimForRequest(mockSetup, moduleName, resolution.filePath);
+      mockShims.spikeLogRequest(
+        mockSetup,
+        context.originModulePath,
+        moduleName,
+        resolution.filePath,
+        shimPath
+      );
       if (shimPath && shimPath !== resolution.filePath) {
         return { type: 'sourceFile', filePath: shimPath };
       }
+    } else if (
+      mockSetup.spikeDeclaredKeys &&
+      mockSetup.spikeDeclaredKeys.has(moduleName) &&
+      !isShimPath(context.originModulePath)
+    ) {
+      // SPIKE real-app-shape: a request spelled like a declared key that never reached the
+      // redirect check at all (no shim registered, or the bundler answered with no source file).
+      mockShims.spikeLog(
+        'resolver: NOT CHECKED ' +
+          JSON.stringify(moduleName) +
+          ' from ' +
+          context.originModulePath +
+          ': resolution ' +
+          JSON.stringify(resolution) +
+          ', registered shims ' +
+          mockedPathToShim.size
+      );
     }
 
     return resolution;
@@ -905,6 +943,11 @@ function applySherloTransforms(result, opts) {
     opts && opts.enabled === false
       ? [writeDisabledFlagPolyfill(cacheDir)] // minimal only
       : [polyfillPath]; // full polyfill for enabled: true
+  // The modules the stories declare by import, for the run-time check that names a mock that reached
+  // nothing (src/mocking/declaredImports.ts).
+  if (!(opts && opts.enabled === false) && mockSetup.declaredImportsPolyfill) {
+    sherloPolyfills.unshift(mockSetup.declaredImportsPolyfill);
+  }
 
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'

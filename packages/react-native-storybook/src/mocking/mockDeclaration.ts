@@ -1,5 +1,6 @@
 import type { NetworkMockDeclaration } from './networkDeclaration';
 import { MockDefinition, MockSet, MOCKED_MODULE_KEY } from './types';
+import { spikeLog } from './spikeLog';
 
 /**
  * One module mock a story hands over: the module it stands in for, and what to serve for it.
@@ -47,12 +48,23 @@ export function isNetworkDeclaration(
  * filed under it can apply, which is exactly the state being warned about.
  */
 function unshimmedImportName(definition: MockDefinition): string {
-  if (typeof definition === 'function') return 'an import with no shim, declaring a factory';
+  if (typeof definition === 'function') return `${UNSHIMMED_IMPORT_PREFIX}declaring a factory`;
 
   const exportNames = Object.keys(definition);
-  if (exportNames.length === 0) return 'an import with no shim, declaring nothing';
+  if (exportNames.length === 0) return `${UNSHIMMED_IMPORT_PREFIX}declaring nothing`;
 
-  return `an import with no shim, declaring ${exportNames.join(', ')}`;
+  return `${UNSHIMMED_IMPORT_PREFIX}declaring ${exportNames.join(', ')}`;
+}
+
+export const UNSHIMMED_IMPORT_PREFIX = 'an import with no shim, ';
+
+/**
+ * Whether `key` is the name of an import that reached no shim (unshimmedImportName). That is
+ * known for certain the moment the declaration's import has settled: the module it yielded is not
+ * a stand-in, however late the bundle's other modules are required.
+ */
+export function isUnshimmedImportName(key: string): boolean {
+  return key.startsWith(UNSHIMMED_IMPORT_PREFIX);
 }
 
 /**
@@ -91,7 +103,17 @@ export async function resolveDeclarations(declarations: MockDeclaration[]): Prom
   const keys = await Promise.all(
     // An import that fails to load names no module, and is warned about like one that reached
     // no shim - it must not take the story's other mocks down with it.
-    moduleDeclarations.map((declaration) => declaration.moduleKey().catch(() => undefined))
+    moduleDeclarations.map((declaration, index) =>
+      declaration.moduleKey().catch((error: unknown) => {
+        // SPIKE real-app-shape: say what the import threw instead of swallowing it.
+        spikeLog('declaration: the import threw', {
+          declaration: index,
+          error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+          stack: error instanceof Error ? error.stack?.split('\n').slice(0, 8).join('\n') : null,
+        });
+        return undefined;
+      })
+    )
   );
 
   const mocks: MockSet = {};
@@ -125,9 +147,30 @@ export function declarationsOf(mocks: StoryMocks): MockDeclaration[] {
  * `default`.
  */
 function readModuleKey(imported: unknown): string | undefined {
-  return (
-    readKeySymbol(imported) ?? readKeySymbol((imported as { default?: unknown } | null)?.default)
-  );
+  const fromImported = readKeySymbol(imported);
+  const fromDefault =
+    fromImported === undefined
+      ? readKeySymbol((imported as { default?: unknown } | null)?.default)
+      : undefined;
+  // SPIKE real-app-shape: what the declaration asked the imported module, and what came back.
+  spikeLog('declaration: asked the imported module which module it stands for', {
+    importedType: typeof imported,
+    importedKeys: describeKeys(imported),
+    defaultType: typeof (imported as { default?: unknown } | null)?.default,
+    answeredByImported: fromImported ?? null,
+    answeredByDefault: fromDefault ?? null,
+  });
+  return fromImported ?? fromDefault;
+}
+
+// SPIKE real-app-shape: the first export names of a module, for the diagnostic line.
+function describeKeys(value: unknown): string[] {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) return [];
+  try {
+    return Object.keys(value as object).slice(0, 12);
+  } catch (_) {
+    return ['<keys threw>'];
+  }
 }
 
 function readKeySymbol(value: unknown): string | undefined {

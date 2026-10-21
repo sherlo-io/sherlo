@@ -1,6 +1,11 @@
-export { default as createMockable } from './createMockable';
+export { default as createMockable, createLazyMockable } from './createMockable';
 export { activateMocks, clearMocks, isKeyShimmed } from './registry';
-export { default as activateStoryMocks } from './activateStoryMocks';
+export {
+  default as activateStoryMocks,
+  installStoryMocks,
+  unreachedMocksOfActiveStory,
+  warnUnnamedImports,
+} from './activateStoryMocks';
 export { mergeStoryMocks } from './mergeMocks';
 export {
   mock,

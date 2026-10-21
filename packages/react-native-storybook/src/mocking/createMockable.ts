@@ -1,5 +1,6 @@
 import { registerShimmedKey, resolveMockExports } from './registry';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
+import { spikeLog } from './spikeLog';
 
 const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
   Object.prototype.hasOwnProperty.call(obj, prop);
@@ -62,9 +63,59 @@ function createForwardingDefault(key: string, realModule: ModuleExports): Module
 // function target the shim would be a silent non-callable object in the client's bundle (a
 // TypeError the moment user code calls it, even with mocks dormant).
 function createMockable<T extends ModuleExports>(key: string, realModule: T): T {
+  return buildMockable(key, () => realModule, realModule);
+}
+
+// The stand-in a shim file makes: its exports exist at once, and the real module loads on the first
+// read of anything the mock does not answer. A shim that required the real module first would hand
+// a module in an import cycle through the real file an empty exports object, replaced only after
+// the real module finished: that module would be stranded holding the empty one. Here the
+// importer in the cycle holds the stand-in, which is complete from the first moment.
+//
+// A real module that throws when it loads throws again, at every read that needs it, as an error
+// naming the module and carrying the real one (cause): Metro does not cache a module that threw.
+function createLazyMockable<T extends ModuleExports>(key: string, loadRealModule: () => T): T {
+  let loaded: { module: T } | undefined;
+  const real = (): T => {
+    if (loaded) return loaded.module;
+    let module: T;
+    try {
+      module = loadRealModule();
+    } catch (error) {
+      throw realModuleThrew(key, error);
+    }
+    loaded = { module };
+    return module;
+  };
+  return buildMockable(key, real, undefined);
+}
+
+function realModuleThrew(key: string, cause: unknown): Error {
+  const detail = cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
+  const error = new Error(`Sherlo: the real module "${key}" threw when it loaded: ${detail}`);
+  error.name = 'RealModuleThrewError';
+  (error as Error & { cause?: unknown }).cause = cause;
+  if (cause instanceof Error && cause.stack) {
+    error.stack = `${error.message}\nCaused by: ${cause.stack}`;
+  }
+  return error;
+}
+
+// `eagerReal` is the real module when it is already in hand; a lazy stand-in passes only `real`,
+// and a mock factory is what loads it.
+function buildMockable<T extends ModuleExports>(
+  key: string,
+  real: () => T,
+  eagerReal: T | undefined
+): T {
+  const mockOf = (): ModuleExports | undefined =>
+    resolveMockExports(key, eagerReal, eagerReal ? undefined : real);
+
   // Runs once, when the shim module is first evaluated - proof that `key` is really
   // mockable at runtime. Read by the FG-03 declared-but-unshimmed tripwire.
   registerShimmedKey(key);
+  // SPIKE real-app-shape: proof this module's shim ran on the phone.
+  spikeLog('stand-in: shim evaluated', { key });
 
   // A BOUND function, deliberately. It is callable AND constructable (so the apply/construct
   // traps are valid) yet - unlike a plain function - it has no own `prototype` property. A plain
@@ -75,9 +126,15 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
   // eslint-disable-next-line no-extra-bind
   const delegate = function sherloMockableDelegate() {}.bind(null) as unknown as ModuleExports;
 
-  const forwardingDefault = isObjectOrFunction(realModule.default)
-    ? createForwardingDefault(key, realModule)
-    : undefined;
+  // Made on the first read of `default`, once the real module is in hand.
+  let forwardingDefault: ModuleExports | undefined;
+  const forwardingDefaultOf = (): ModuleExports | undefined => {
+    const realModule = real();
+    if (!forwardingDefault && isObjectOrFunction(realModule.default)) {
+      forwardingDefault = createForwardingDefault(key, realModule);
+    }
+    return forwardingDefault;
+  };
 
   return new Proxy(delegate, {
     get(_target, prop) {
@@ -85,22 +142,32 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
       // which the bundler redirected here, and reads the name off this answer - so a mock is
       // named by the module it imports and never by a string. Hidden on purpose: the symbol is
       // absent from `ownKeys`, so nothing enumerating the module ever sees it.
-      if (prop === MOCKED_MODULE_KEY) return key;
+      if (prop === MOCKED_MODULE_KEY) {
+        // SPIKE real-app-shape: what the stand-in was asked, and what it answered.
+        spikeLog('stand-in: asked which module it stands for', {
+          asked: String(prop),
+          answered: key,
+        });
+        return key;
+      }
 
-      if (prop === 'default' && forwardingDefault) return forwardingDefault;
+      if (prop === 'default') {
+        const forwarded = forwardingDefaultOf();
+        if (forwarded) return forwarded;
+      }
 
-      const mock = resolveMockExports(key, realModule);
-      return mock && hasOwn(mock, prop) ? mock[prop] : realModule[prop];
+      const mock = mockOf();
+      return mock && hasOwn(mock, prop) ? mock[prop] : real()[prop];
     },
 
     has(_target, prop) {
-      const mock = resolveMockExports(key, realModule);
-      return (mock !== undefined && hasOwn(mock, prop)) || prop in realModule;
+      const mock = mockOf();
+      return (mock !== undefined && hasOwn(mock, prop)) || prop in real();
     },
 
     ownKeys() {
-      const mock = resolveMockExports(key, realModule);
-      const keys = new Set<string | symbol>(Reflect.ownKeys(realModule));
+      const mock = mockOf();
+      const keys = new Set<string | symbol>(Reflect.ownKeys(real()));
       if (mock) {
         Reflect.ownKeys(mock).forEach((mockKey) => keys.add(mockKey));
       }
@@ -108,8 +175,8 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
     },
 
     getOwnPropertyDescriptor(_target, prop) {
-      const mock = resolveMockExports(key, realModule);
-      const source = mock && hasOwn(mock, prop) ? mock : realModule;
+      const mock = mockOf();
+      const source = mock && hasOwn(mock, prop) ? mock : real();
       const descriptor = Reflect.getOwnPropertyDescriptor(source, prop);
       // The delegate target has no own properties, so any descriptor we report must claim
       // configurable: true - otherwise the Proxy invariant check throws a TypeError.
@@ -121,14 +188,14 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
     // through to the real module. If neither is callable the engine raises its own "not a
     // function" / "not a constructor" error at the call site, exactly as the real module would.
     apply(_target, thisArg, args) {
-      const mock = resolveMockExports(key, realModule);
-      const callee = typeof mock === 'function' ? mock : realModule;
+      const mock = mockOf();
+      const callee = typeof mock === 'function' ? mock : real();
       return Reflect.apply(callee as unknown as (...fnArgs: unknown[]) => unknown, thisArg, args);
     },
 
     construct(_target, args, newTarget) {
-      const mock = resolveMockExports(key, realModule);
-      const ctor = typeof mock === 'function' ? mock : realModule;
+      const mock = mockOf();
+      const ctor = typeof mock === 'function' ? mock : real();
       return Reflect.construct(
         ctor as unknown as new (...ctorArgs: unknown[]) => object,
         args,
@@ -138,4 +205,5 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
   }) as T;
 }
 
+export { createLazyMockable };
 export default createMockable;
