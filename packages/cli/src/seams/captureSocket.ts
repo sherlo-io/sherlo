@@ -45,7 +45,12 @@ export const STABILIZATION_SETTINGS = {
 export type CaptureResult =
   | { kind: 'no-bundler' }
   | { kind: 'no-app' }
-  | { kind: 'no-such-story'; known: string[] }
+  | {
+      kind: 'no-such-story';
+      known: string[];
+      /** The story files that threw as the app loaded them, so their stories are missing. Absent when none did. */
+      brokenFiles?: BrokenStoryFile[];
+    }
   | {
       kind: 'crashed';
       storyId: string;
@@ -64,6 +69,8 @@ export type CaptureResult =
       storyId: string;
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
+      /** The views still changing when the stabilization gave up, by the tag the tree draws each by. */
+      changing?: string[];
       threw?: { name: string; message: string };
       /**
        * How many screenfuls the story was captured in - 1 is a story that fits the screen. Absent
@@ -99,6 +106,9 @@ export type CaptureResult =
        */
       logs?: string[];
     };
+
+/** A story file that threw as the app loaded it, and what it threw, in its own words. */
+export type BrokenStoryFile = { file: string; error: { name: string; message: string } };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
 export type WaitOutcome = {
@@ -543,10 +553,18 @@ export type PosedCapture =
       crashed: { name?: string; message?: string };
     }
   | {
+      /** Every story the running app's Storybook knows, by id - the one asked for is not among them. */
+      stories: string[];
+      /** The story files that threw as the app loaded them, which is why the story asked for is missing. */
+      brokenFiles: BrokenStoryFile[];
+    }
+  | {
       /** Every story the running app's Storybook knows, by id. */
       stories: string[];
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
+      /** The views still changing when the stabilization gave up. Absent prints no names. */
+      changing?: string[];
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
       threw?: { name: string; message: string };
       /**
@@ -596,7 +614,13 @@ export function posedCaptureSocket(
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
-      if (!posed.stories.includes(storyId)) return { kind: 'no-such-story', known: posed.stories };
+      if ('brokenFiles' in posed || !posed.stories.includes(storyId)) {
+        return {
+          kind: 'no-such-story',
+          known: posed.stories,
+          ...('brokenFiles' in posed && { brokenFiles: posed.brokenFiles }),
+        };
+      }
 
       if ('crashed' in posed) {
         return {
@@ -613,6 +637,7 @@ export function posedCaptureSocket(
         kind: 'captured',
         storyId,
         settled: posed.settled,
+        ...(posed.changing && { changing: posed.changing }),
         ...(posed.threw && { threw: posed.threw }),
         ...(posed.parts !== undefined && { parts: posed.parts }),
         ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),
