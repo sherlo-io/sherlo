@@ -13,6 +13,11 @@
  * `startTheLine` asks native code to do. A bundle loaded from the device, with no address handed,
  * has nothing to dial and opens no connection.
  *
+ * One message goes out before this file runs: when the app's JavaScript dies as it starts, before
+ * the Storybook drew, the bundle's polyfill (../../metro/polyfill.js) says `start-failed` over the
+ * same socket, dialing the same address first the way `startTheLine` does, since native code dials
+ * only once.
+ *
  * On a bundler's line the app also waits for `sherlo open` and `sherlo capture`: those waits and
  * their answers are typed beside the line's server half (../../metro/sherloLine.d.ts).
  */

@@ -39,11 +39,19 @@ export type WaitForACaptureMessage = { action: 'waitForACapture' } & Parameters<
 /** The capture relay's answer to a WaitForACaptureMessage. */
 export type CaptureInstructionMessage = { action: 'captureInstruction' } & CaptureInstruction;
 
-/** Every message an app sends the line: the seam's, and its waits on the bundler's relays. */
+/**
+ * The app's JavaScript died as it started, before Sherlo's Storybook drew: what it threw. The
+ * polyfill (./polyfill.js) sends it, once per run of the JavaScript; the capture relay answers a
+ * capture of that app `crashed` with it.
+ */
+export type StartFailedMessage = { action: 'start-failed' } & StoryThrew;
+
+/** Every message an app sends the line: the seam's, its waits on the bundler's relays, and its start error. */
 export type MessageFromTheAppToTheLine =
   | MessageFromTheApp
   | WaitForStoryMessage
-  | WaitForACaptureMessage;
+  | WaitForACaptureMessage
+  | StartFailedMessage;
 
 /** Every message the line sends an app: the seam's, and the bundler's relays' answers. */
 export type MessageFromTheLineToTheApp =
