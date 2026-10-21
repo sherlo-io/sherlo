@@ -28,13 +28,13 @@ export type PropFinding = {
   prop: string;
   /** How many values the type allows. */
   allowed: number;
-  /** How many of them some story drew. */
-  drawn: number;
-  /** The values no story drew, by name. Stated only for a prop with at most 10 allowed values. */
+  /** How many of them some story file sets. */
+  set: number;
+  /** The values no story file sets, by name. Stated only for a prop with at most 10 allowed values. */
   missing?: string[];
 };
 
-/** A component of the app and the props of it whose values some story never drew. */
+/** A component of the app and the props of it whose values no story file sets. */
 export type ComponentProps = {
   name: string;
   file: string;
@@ -106,18 +106,20 @@ function renderGaps({ components, gaps, props }: CoverageFindings): string[] {
 }
 
 function renderProps({ storyFiles, components }: CoverageProps): string[] {
-  // A component whose every value was drawn has nothing to say.
+  // A component whose every value is set has nothing to say.
   const lacking = components
     .map((component) => ({
       ...component,
-      props: component.props.filter((finding) => finding.drawn < finding.allowed),
+      props: component.props.filter((finding) => finding.set < finding.allowed),
     }))
     .filter((component) => component.props.length > 0);
 
   const heading = `${chalk.yellow('◦')}  ${chalk.bold(
     `Prop values no story file sets - ${storyFiles} story files read`
   )}`;
-  if (lacking.length === 0) return [heading, '', chalk.dim('Every allowed value was drawn.'), ''];
+  if (lacking.length === 0) {
+    return [heading, '', chalk.dim('Every allowed value is set in a story file.'), ''];
+  }
 
   const lines = [heading, ''];
   for (const component of lacking) {
@@ -138,7 +140,7 @@ function renderProps({ storyFiles, components }: CoverageProps): string[] {
   return lines;
 }
 
-/** `1 of 6 drawn`: the same words for a prop that names its missing values and one that does not. */
-function countOf({ drawn, allowed }: PropFinding): string {
-  return `${drawn} of ${allowed} drawn`;
+/** `1 of 6 set`: the same words for a prop that names its missing values and one that does not. */
+function countOf({ set, allowed }: PropFinding): string {
+  return `${set} of ${allowed} set`;
 }

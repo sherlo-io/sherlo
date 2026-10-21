@@ -155,7 +155,7 @@ export type CommandPose = {
   /**
    * What the scan of the app found - the road `sherlo coverage` reads the app down. THE FIFTH
    * OPTIONAL FIELD, for the one command that scans: the components no story imports and, for
-   * `--props`, the prop values no story drew. A pose that states it for any other command is
+   * `--props`, the prop values no story file sets. A pose that states it for any other command is
    * refused, and a coverage with no `coverage` is refused at run time.
    */
   coverage?: PosedCoverage;
@@ -663,10 +663,10 @@ export type PosedCoverage = {
         prop: string;
         /** How many values the type allows. */
         allowed: number;
-        /** How many of them some story drew. */
-        drawn: number;
+        /** How many of them some story file sets. */
+        set: number;
         /**
-         * The values no story drew, by name. Stated only for a prop with at most 10 allowed
+         * The values no story file sets, by name. Stated only for a prop with at most 10 allowed
          * values.
          */
         missing?: string[];

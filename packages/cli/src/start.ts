@@ -335,7 +335,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
   [PROPS_OPTION]: [
     `--${PROPS_OPTION}`,
-    'Also open every story on the running app and list the prop values no story drew',
+    'Also read the story files and list the prop values no story file sets',
   ],
   [TIMEOUT_OPTION]: [
     `--${TIMEOUT_OPTION} <seconds>`,

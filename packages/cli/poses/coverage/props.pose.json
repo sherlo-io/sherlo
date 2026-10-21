@@ -39,7 +39,7 @@
             {
               "prop": "size",
               "allowed": 6,
-              "drawn": 1,
+              "set": 1,
               "missing": ["\"xs\"", "\"sm\"", "\"lg\"", "\"xl\"", "\"xxl\""]
             }
           ]
@@ -48,27 +48,27 @@
           "name": "PriceTag",
           "file": "src/components/base/PriceTag.tsx",
           "props": [
-            { "prop": "variant", "allowed": 3, "drawn": 2, "missing": ["\"sale\""] },
-            { "prop": "currency", "allowed": 3, "drawn": 3, "missing": [] }
+            { "prop": "variant", "allowed": 3, "set": 2, "missing": ["\"sale\""] },
+            { "prop": "currency", "allowed": 3, "set": 3, "missing": [] }
           ]
         },
         {
           "name": "Rating",
           "file": "src/components/base/Rating.tsx",
-          "props": [{ "prop": "isInteractive", "allowed": 2, "drawn": 1, "missing": ["true"] }]
+          "props": [{ "prop": "isInteractive", "allowed": 2, "set": 1, "missing": ["true"] }]
         },
         {
           "name": "Text",
           "file": "src/components/base/Text.tsx",
           "props": [
-            { "prop": "color", "allowed": 75, "drawn": 4 },
-            { "prop": "weight", "allowed": 4, "drawn": 3, "missing": ["\"bold\""] }
+            { "prop": "color", "allowed": 75, "set": 4 },
+            { "prop": "weight", "allowed": 4, "set": 3, "missing": ["\"bold\""] }
           ]
         },
         {
           "name": "ProductCard",
           "file": "src/components/partials/ProductCard.tsx",
-          "props": [{ "prop": "layout", "allowed": 2, "drawn": 2, "missing": [] }]
+          "props": [{ "prop": "layout", "allowed": 2, "set": 2, "missing": [] }]
         }
       ]
     }

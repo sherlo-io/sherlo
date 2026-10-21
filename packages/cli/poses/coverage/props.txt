@@ -18,17 +18,17 @@
 [33m◦[39m  [1mProp values no story file sets - 34 story files read[22m
 
   Avatar  [2msrc/components/base/Avatar.tsx[22m
-    size  1 of 6 drawn  missing "xs", "sm", "lg", "xl", "xxl"
+    size  1 of 6 set  missing "xs", "sm", "lg", "xl", "xxl"
 
   PriceTag  [2msrc/components/base/PriceTag.tsx[22m
-    variant  2 of 3 drawn  missing "sale"
+    variant  2 of 3 set  missing "sale"
 
   Rating  [2msrc/components/base/Rating.tsx[22m
-    isInteractive  1 of 2 drawn  missing true
+    isInteractive  1 of 2 set  missing true
 
   Text  [2msrc/components/base/Text.tsx[22m
-    color   4 of 75 drawn
-    weight  3 of 4 drawn   missing "bold"
+    color   4 of 75 set
+    weight  3 of 4 set   missing "bold"
 
 
 [exit 0]

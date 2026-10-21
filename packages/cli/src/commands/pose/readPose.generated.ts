@@ -1284,13 +1284,13 @@ function readPosedCoverage(value: unknown, path: string, problems: string[]): vo
                   if (object21) {
                     expectString(object21.prop, at(where20, 'prop'), problems);
                     expectNumber(object21.allowed, at(where20, 'allowed'), problems);
-                    expectNumber(object21.drawn, at(where20, 'drawn'), problems);
+                    expectNumber(object21.set, at(where20, 'set'), problems);
                     if ('missing' in object21) {
                       expectStringArray(object21.missing, at(where20, 'missing'), problems);
                     }
                     reportUnknownFields(
                       object21,
-                      ['prop', 'allowed', 'drawn', 'missing'],
+                      ['prop', 'allowed', 'set', 'missing'],
                       where20,
                       problems
                     );
