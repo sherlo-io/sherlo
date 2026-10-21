@@ -18,6 +18,7 @@ import {
 } from '../mocking';
 import type { StoryError } from '../sealedCore/seam';
 import { activeMockKeys } from '../mocking/registry';
+import { UnansweredRequest, unansweredRequests } from '../mocking/networkRules';
 import { declaredImportsOf } from '../mocking/declaredImports';
 import { isUnshimmedImportName, UNSHIMMED_IMPORT_PREFIX } from '../mocking/mockDeclaration';
 import { readStorybookFacts } from './storybookFacts';
@@ -71,6 +72,15 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
     warnUnnamedImports(resolvedMocks);
   });
   return latestInstalled;
+}
+
+/**
+ * SPIKE still-real-list: the requests the active story made that no rule answered - refused, or
+ * let through to the real network - read, like the story's failure, once it has rendered and
+ * settled. The capture would carry it beside `threw`.
+ */
+export function unansweredRequestsOfStory(): UnansweredRequest[] {
+  return unansweredRequests();
 }
 
 /**

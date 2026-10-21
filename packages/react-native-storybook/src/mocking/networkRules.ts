@@ -45,10 +45,54 @@ export type RecordRefusal = (refusal: UnmockedRequestError) => void;
 let mocksInEffect: NetworkMocks = NO_NETWORK_MOCKS;
 let recordRefusal: RecordRefusal = () => {};
 
+/**
+ * SPIKE still-real-list: one request no rule answered, as the capture lists it. A GraphQL request
+ * carries its operation name, because every one of them is the same POST to the same address.
+ */
+export interface UnansweredRequest {
+  method: string;
+  url: string;
+  operationName?: string;
+  /** Refused (the story did not ask for passthrough), or let through to the real network. */
+  answered: 'refused' | 'passthrough';
+  times: number;
+}
+
+/** The requests no rule answered since the rules in effect were put in, in the order first made. */
+let unanswered: UnansweredRequest[] = [];
+
 /** Put `mocks` in effect, replacing whatever was in effect before. */
 export function setNetworkMocks(mocks: NetworkMocks, recordTheRefusal: RecordRefusal): void {
   mocksInEffect = mocks;
   recordRefusal = recordTheRefusal;
+  unanswered = [];
+}
+
+/** SPIKE still-real-list: every request no rule answered under the rules in effect. */
+export function unansweredRequests(): UnansweredRequest[] {
+  return unanswered.map((request) => ({ ...request }));
+}
+
+function noteUnanswered(request: MockedRequest, answered: UnansweredRequest['answered']): void {
+  const operationName = operationNameOf(request.body);
+  const same = unanswered.find(
+    (heard) =>
+      heard.method === request.method &&
+      heard.url === request.url &&
+      heard.operationName === operationName &&
+      heard.answered === answered
+  );
+  if (same) {
+    same.times += 1;
+    return;
+  }
+  unanswered.push({
+    method: request.method,
+    url: request.url,
+    ...(operationName !== undefined && { operationName }),
+    answered,
+    times: 1,
+  });
 }
 
 /** What the rules in effect say about `request` - and, when they refuse it, who is told. */
@@ -56,8 +100,12 @@ export function answerFor(request: MockedRequest): Verdict {
   const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
   if (rule) return { kind: 'answer', answer: rule.answer };
 
-  if (mocksInEffect.passthrough) return { kind: 'passthrough' };
+  if (mocksInEffect.passthrough) {
+    noteUnanswered(request, 'passthrough');
+    return { kind: 'passthrough' };
+  }
 
+  noteUnanswered(request, 'refused');
   const refusal = new UnmockedRequestError(`no mock rule matches ${request.method} ${request.url}`);
   recordRefusal(refusal);
   return { kind: 'refusal', refusal };

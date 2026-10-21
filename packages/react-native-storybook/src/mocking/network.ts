@@ -35,11 +35,26 @@ export function activateNetworkMocks(mocks: NetworkMocks, recordRefusal: RecordR
   const mode = SherloModule.getMode();
   if (mode !== 'testing' && mode !== 'storybook') return;
 
-  setNetworkMocks(mocks, recordRefusal);
-
   const storyDeclaredNetworkMocks = mocks.rules.length > 0 || mocks.passthrough;
+  // SPIKE still-real-list: while a capture listens, a story that declares no network mock is
+  // wrapped too, and every request it makes reaches the real network as before - but is listed.
+  if (!storyDeclaredNetworkMocks && listening) {
+    setNetworkMocks({ rules: [], passthrough: true }, recordRefusal);
+    install();
+    return;
+  }
+
+  setNetworkMocks(mocks, recordRefusal);
   if (storyDeclaredNetworkMocks) install();
   else restore();
+}
+
+/** SPIKE still-real-list: whether the capture asked to see every request the story makes. */
+let listening = false;
+
+/** SPIKE still-real-list: the capture's switch; on, from the next story activated. */
+export function listenToRequests(on: boolean): void {
+  listening = on;
 }
 
 /**
