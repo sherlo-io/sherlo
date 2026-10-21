@@ -39,7 +39,13 @@ export type CapturedView = {
 export type CapturedStory =
   | { kind: 'no-bundler'; port: number }
   | { kind: 'no-app'; port: number }
-  | { kind: 'no-such-story'; storyId: string; known: string[] }
+  | {
+      kind: 'no-such-story';
+      storyId: string;
+      known: string[];
+      /** The story files that threw while the app loaded them: when any did, they are why the story is missing. */
+      brokenFiles?: { file: string; error: { name: string; message: string } }[];
+    }
   | {
       kind: 'captured';
       storyId: string;
@@ -55,7 +61,14 @@ export type CapturedStory =
    * The screen never stopped changing before the stabilization gave up. A cloud run would hit the
    * same limit on the same story, which is exactly why a developer needs to hear it here.
    */
-  | { kind: 'never-settled'; storyId: string; seconds: number; tree: CapturedView }
+  | {
+      kind: 'never-settled';
+      storyId: string;
+      seconds: number;
+      /** The views still changing when it gave up, each as the tag the tree draws it by. */
+      changing?: string[];
+      tree: CapturedView;
+    }
   /** The story threw while rendering; the error is the story's own, word for word. */
   | {
       kind: 'captured-and-threw';
@@ -95,6 +108,23 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       ];
 
     case 'no-such-story':
+      if (state.brokenFiles && state.brokenFiles.length > 0) {
+        return [
+          // WORDING: content reviews before sign-off
+          `${chalk.red('✖')}  No story ${chalk.bold(
+            state.storyId
+          )} in this app - a story file threw while the app loaded it`,
+          '',
+          ...state.brokenFiles.flatMap(({ file, error }) => [
+            `  ${chalk.bold(file)}`,
+            `  ${error.name}: ${error.message}`,
+          ]),
+          '',
+          // WORDING: content reviews before sign-off
+          chalk.dim('Fix the file and save it, then try again.'),
+          '',
+        ];
+      }
       return [
         `${chalk.red('✖')}  No story ${chalk.bold(state.storyId)} in this app`,
         '',
@@ -129,6 +159,10 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           state.seconds
         }s`,
         chalk.dim('   A test run of this story would stop at the same limit. What it read then:'),
+        ...(state.changing && state.changing.length > 0
+          ? // WORDING: content reviews before sign-off
+            [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
+          : []),
         '',
         ...treeLines(state.tree),
         '',
