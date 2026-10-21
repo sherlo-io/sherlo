@@ -12,6 +12,7 @@
 import {
   DEFAULT_BUNDLER_PORT,
   PORT_OPTION,
+  SCENE_OPTION,
   STORY_OPTION,
   TIMEOUT_OPTION,
   WAIT_OPTION,
@@ -22,9 +23,12 @@ import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { letterbox } from '../../seams/letterbox';
 import type { OpenStoryResult } from '../../seams/letterbox';
 import type { OpenedStory } from '../../render/openedStory';
+import type { OpenedScene } from '../../render/openedScene';
+import type { OpenSceneResult } from '../../seams/letterbox';
 
 export type OpenOptions = {
   [STORY_OPTION]?: string;
+  [SCENE_OPTION]?: string;
   [WAIT_OPTION]?: boolean;
   [PORT_OPTION]?: string;
   [TIMEOUT_OPTION]?: string;
@@ -35,6 +39,15 @@ const DEFAULT_TIMEOUT_SECONDS = 30;
 
 async function open(passedOptions: OpenOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
+  const sceneId = passedOptions[SCENE_OPTION];
+
+  if (sceneId && storyId) {
+    throwError({
+      message: `\`npx sherlo open\` takes \`--${SCENE_OPTION}\` or \`--${STORY_OPTION}\`, not both.`,
+    });
+  }
+  if (sceneId) return openScene(sceneId, passedOptions);
+
   if (!storyId) {
     throwError({
       message:
@@ -61,6 +74,35 @@ async function open(passedOptions: OpenOptions): Promise<void> {
 export default open;
 
 /* ========================================================================== */
+
+/**
+ * `sherlo open --scene <id>` - the app is booted fresh on one scene and stays there. `--wait` and
+ * `--timeout` mean nothing here: the answer comes once the app has booted and moved.
+ */
+async function openScene(sceneId: string, passedOptions: OpenOptions): Promise<void> {
+  const port = readPort(passedOptions[PORT_OPTION]);
+
+  const answer = await letterbox().openScene({ sceneId, port });
+  emit({ kind: 'opened-scene', state: sceneEndingFor(answer, { sceneId, port }) });
+
+  if (answer.kind !== 'scene-opened') process.exit(EXIT_BLOCK);
+}
+
+/** What the screen shows for what the letterbox answered about a scene. */
+export function sceneEndingFor(
+  answer: OpenSceneResult,
+  run: { sceneId: string; port: number }
+): OpenedScene {
+  switch (answer.kind) {
+    case 'no-bundler':
+    case 'no-app':
+      return { kind: answer.kind, port: run.port };
+    case 'no-such-scene':
+      return { kind: 'no-such-scene', sceneId: run.sceneId, known: answer.known };
+    case 'scene-opened':
+      return { kind: 'opened-scene', sceneId: answer.sceneId, route: answer.route };
+  }
+}
 
 /**
  * What the screen shows for what the letterbox answered.

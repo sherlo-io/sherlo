@@ -576,6 +576,12 @@ export type PosedLetterbox =
         name: string;
         message: string;
       };
+    }
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      /** The route the app is on once it has booted fresh and moved to the scene, outermost first. */
+      route: string[];
     };
 
 /**
@@ -623,6 +629,50 @@ export type PosedCapture =
       /** Whether any view in the story loads an image over the network. Absent prints nothing. */
       hasNetworkImage?: boolean;
       /** The view tree the app read, from the story's own root. */
+      tree: PosedView;
+    }
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      threwAtBoot: {
+        name: string;
+        message: string;
+        file: string;
+        line: number;
+      };
+    }
+  | {
+      scenes: string[];
+      /** The route the scene file names, outermost screen first. */
+      route: string[];
+      /** The route the app was on when it gave up moving, outermost screen first. */
+      stayedOn: string[];
+    }
+  | {
+      scenes: string[];
+      route: string[];
+      bootMs: number;
+      reachedMs: number;
+      /** The steps that ran before the one that found nothing. */
+      playDone: PosedPlayStep[];
+      /** The step that found nothing, and how long it looked. */
+      targetMissing: {
+        tap: string;
+        limitMs: number;
+      };
+    }
+  | {
+      scenes: string[];
+      route: string[];
+      /** How long the fresh boot took, and how long the move from there to the route took. */
+      bootMs: number;
+      reachedMs: number;
+      /** The scene's play steps, all done. */
+      play: PosedPlayStep[];
+      settled: {
+        ms: number;
+        frames: number;
+      };
       tree: PosedView;
     };
 
@@ -1106,6 +1156,11 @@ export type PosedView = {
   /** The other props the screen prints beside the style: a placeholder, a testID, numberOfLines. */
   props?: Record<string, string | number | boolean>;
   children?: PosedView[];
+};
+
+/** One step of a scene's `play`. Today the only step is a tap on the view with that testID. */
+export type PosedPlayStep = {
+  tap: string;
 };
 
 /**

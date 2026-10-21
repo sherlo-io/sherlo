@@ -1,0 +1,6 @@
+[31m✖[39m  [1mchat--conversation[22m never reached ChatStack › Chat - the app stayed on AuthStack › SignIn
+
+  Nothing faked who is logged in, so the app sent itself to sign-in. Add a logged-in user to the mocks in sherlo.scenes.ts.
+
+
+[exit 1]

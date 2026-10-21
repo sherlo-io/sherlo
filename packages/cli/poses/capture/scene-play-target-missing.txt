@@ -1,0 +1,6 @@
+[31m✖[39m  [1mchat--menu-open[22m reached ChatStack › Chat, and its play stopped
+
+  tap chat-header-menu found no view with that testID within 5s.
+
+
+[exit 1]

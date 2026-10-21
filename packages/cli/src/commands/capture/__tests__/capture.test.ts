@@ -297,6 +297,9 @@ async function captureOneStory(
       asked = { storyId: params.storyId, settings: params.settings };
       return answer;
     },
+    captureScene: async () => {
+      throw new Error('a story capture asked about a scene');
+    },
   };
 
   let exitCode: number | undefined;

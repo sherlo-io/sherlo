@@ -1,0 +1,282 @@
+[32m✔[39m  [1mchat--menu-open[22m captured, the way a test run records it
+[2m   booted fresh in 1.8s · reached ChatStack › Chat in 0.9s[22m
+[2m   played tap chat-header-menu[22m
+[2m   settled in <SETTLED> over 5 frames · testing mode[22m
+
+   [93m<[39m[95mChat[39m[93m>[39m
+     [93m<[39m[36mView[39m
+       [37mstyle[39m[32m=[39m[36m{{[39m
+         [37mflex[39m[97m:[39m [93m1[39m[97m,[39m
+         [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m
+       [36m}}[39m
+     [93m>[39m [36m(<SIZE>)[39m
+       [93m<[39m[95mChatHeader[39m[93m>[39m
+         [93m<[39m[36mView[39m
+           [37mstyle[39m[32m=[39m[36m{{[39m
+             [37mflexDirection[39m[97m:[39m [93m"row"[39m[97m,[39m
+             [37malignItems[39m[97m:[39m [93m"center"[39m[97m,[39m
+             [37mpaddingHorizontal[39m[97m:[39m [93m12[39m[97m,[39m
+             [37mborderBottomColor[39m[97m:[39m [93m"[39m[97m#E5E7EB[39m[93m"[39m[97m,[39m
+             [37mborderBottomWidth[39m[97m:[39m [93m1[39m
+           [36m}}[39m
+         [93m>[39m [36m(<SIZE>)[39m
+           [93m<[39m[95mAvatar[39m[93m>[39m
+             [93m<[39m[36mImage[39m
+               [37mtestID[39m[32m=[39m[93m"chat-header-avatar"[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37mmarginRight[39m[97m:[39m [93m10[39m[97m,[39m
+                 [37mborderRadius[39m[97m:[39m [93m18[39m
+               [36m}}[39m
+             [93m/>[39m [36m(<SIZE>)[39m
+           [93m</[39m[95mAvatar[39m[93m>[39m
+           [93m<[39m[95mChatHeaderName[39m[93m>[39m
+             [93m<[39m[36mText[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37mflex[39m[97m:[39m [93m1[39m[97m,[39m
+                 [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
+                 [37mfontWeight[39m[97m:[39m [93m"600"[39m[97m,[39m
+                 [37mfontSize[39m[97m:[39m [93m17[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               Mateo
+             [93m</[39m[36mText[39m[93m>[39m
+           [93m</[39m[95mChatHeaderName[39m[93m>[39m
+           [93m<[39m[95mIconButton[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mtestID[39m[32m=[39m[93m"chat-header-menu"[39m
+               [37maccessibilityLabel[39m[32m=[39m[93m"Chat menu"[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37malignItems[39m[97m:[39m [93m"center"[39m[97m,[39m
+                 [37mjustifyContent[39m[97m:[39m [93m"center"[39m
+               [36m}}[39m
+             [93m/>[39m [36m(<SIZE>)[39m
+           [93m</[39m[95mIconButton[39m[93m>[39m
+         [93m</[39m[36mView[39m[93m>[39m
+       [93m</[39m[95mChatHeader[39m[93m>[39m
+       [93m<[39m[95mMessageList[39m[93m>[39m
+         [93m<[39m[36mScrollView[39m
+           [37mstyle[39m[32m=[39m[36m{{[39m
+             [37mflex[39m[97m:[39m [93m1[39m[97m,[39m
+             [37mpadding[39m[97m:[39m [93m16[39m
+           [36m}}[39m
+         [93m>[39m [36m(<SIZE>)[39m
+           [93m<[39m[95mMessageBubble[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37malignSelf[39m[97m:[39m [93m"flex-end"[39m[97m,[39m
+                 [37mmarginBottom[39m[97m:[39m [93m8[39m[97m,[39m
+                 [37mpaddingVertical[39m[97m:[39m [93m10[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m14[39m[97m,[39m
+                 [37mborderRadius[39m[97m:[39m [93m18[39m[97m,[39m
+                 [37mbackgroundColor[39m[97m:[39m [93m"[39m[94m#7C3AED[39m[93m"[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMessageText[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   Hey Mateo! Loved your photos from Lisbon
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMessageText[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMessageBubble[39m[93m>[39m
+           [93m<[39m[95mMessageBubble[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37malignSelf[39m[97m:[39m [93m"flex-start"[39m[97m,[39m
+                 [37mmarginBottom[39m[97m:[39m [93m8[39m[97m,[39m
+                 [37mpaddingVertical[39m[97m:[39m [93m10[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m14[39m[97m,[39m
+                 [37mborderRadius[39m[97m:[39m [93m18[39m[97m,[39m
+                 [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#F3F4F6[39m[93m"[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMessageText[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   Thanks! The surf trip was unreal. Do you surf?
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMessageText[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMessageBubble[39m[93m>[39m
+           [93m<[39m[95mMessageBubble[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37malignSelf[39m[97m:[39m [93m"flex-end"[39m[97m,[39m
+                 [37mmarginBottom[39m[97m:[39m [93m8[39m[97m,[39m
+                 [37mpaddingVertical[39m[97m:[39m [93m10[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m14[39m[97m,[39m
+                 [37mborderRadius[39m[97m:[39m [93m18[39m[97m,[39m
+                 [37mbackgroundColor[39m[97m:[39m [93m"[39m[94m#7C3AED[39m[93m"[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMessageText[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   Tried once, fell a lot
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMessageText[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMessageBubble[39m[93m>[39m
+           [93m<[39m[95mMessageBubble[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37malignSelf[39m[97m:[39m [93m"flex-start"[39m[97m,[39m
+                 [37mmarginBottom[39m[97m:[39m [93m8[39m[97m,[39m
+                 [37mpaddingVertical[39m[97m:[39m [93m10[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m14[39m[97m,[39m
+                 [37mborderRadius[39m[97m:[39m [93m18[39m[97m,[39m
+                 [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#F3F4F6[39m[93m"[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMessageText[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   Ha, I can teach you. Saturday?
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMessageText[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMessageBubble[39m[93m>[39m
+         [93m</[39m[36mScrollView[39m[93m>[39m
+       [93m</[39m[95mMessageList[39m[93m>[39m
+       [93m<[39m[95mMessageInput[39m[93m>[39m
+         [93m<[39m[36mView[39m
+           [37mstyle[39m[32m=[39m[36m{{[39m
+             [37mflexDirection[39m[97m:[39m [93m"row"[39m[97m,[39m
+             [37malignItems[39m[97m:[39m [93m"center"[39m[97m,[39m
+             [37mpaddingHorizontal[39m[97m:[39m [93m12[39m[97m,[39m
+             [37mborderTopColor[39m[97m:[39m [93m"[39m[97m#E5E7EB[39m[93m"[39m[97m,[39m
+             [37mborderTopWidth[39m[97m:[39m [93m1[39m
+           [36m}}[39m
+         [93m>[39m [36m(<SIZE>)[39m
+           [93m<[39m[95mMessageInput[39m[93m>[39m
+             [93m<[39m[36mTextInput[39m
+               [37mplaceholder[39m[32m=[39m[93m"Message Mateo..."[39m
+               [37mtestID[39m[32m=[39m[93m"chat-message-input"[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37mflex[39m[97m:[39m [93m1[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m14[39m[97m,[39m
+                 [37mborderRadius[39m[97m:[39m [93m20[39m[97m,[39m
+                 [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m[97m,[39m
+                 [37mfontSize[39m[97m:[39m [93m16[39m
+               [36m}}[39m
+             [93m/>[39m [36m(<SIZE>)[39m
+           [93m</[39m[95mMessageInput[39m[93m>[39m
+         [93m</[39m[36mView[39m[93m>[39m
+       [93m</[39m[95mMessageInput[39m[93m>[39m
+       [93m<[39m[95mChatMenuSheet[39m[93m>[39m
+         [93m<[39m[36mView[39m
+           [37mtestID[39m[32m=[39m[93m"chat-menu-sheet"[39m
+           [37mstyle[39m[32m=[39m[36m{{[39m
+             [37mposition[39m[97m:[39m [93m"absolute"[39m[97m,[39m
+             [37mbottom[39m[97m:[39m [93m0[39m[97m,[39m
+             [37mpaddingVertical[39m[97m:[39m [93m8[39m[97m,[39m
+             [37mborderTopLeftRadius[39m[97m:[39m [93m16[39m[97m,[39m
+             [37mborderTopRightRadius[39m[97m:[39m [93m16[39m[97m,[39m
+             [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m
+           [36m}}[39m
+         [93m>[39m [36m(<SIZE>)[39m
+           [93m<[39m[95mMenuItem[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mtestID[39m[32m=[39m[93m"chat-menu-profile"[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37mjustifyContent[39m[97m:[39m [93m"center"[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m20[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMenuItemLabel[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   View profile
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMenuItemLabel[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMenuItem[39m[93m>[39m
+           [93m<[39m[95mMenuItem[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mtestID[39m[32m=[39m[93m"chat-menu-mute"[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37mjustifyContent[39m[97m:[39m [93m"center"[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m20[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMenuItemLabel[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[30m#111827[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   Mute notifications
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMenuItemLabel[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMenuItem[39m[93m>[39m
+           [93m<[39m[95mMenuItem[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mtestID[39m[32m=[39m[93m"chat-menu-unmatch"[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37mjustifyContent[39m[97m:[39m [93m"center"[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m20[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMenuItemLabel[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[91m#DC2626[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   Unmatch
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMenuItemLabel[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMenuItem[39m[93m>[39m
+           [93m<[39m[95mMenuItem[39m[93m>[39m
+             [93m<[39m[36mView[39m
+               [37mtestID[39m[32m=[39m[93m"chat-menu-report"[39m
+               [37mstyle[39m[32m=[39m[36m{{[39m
+                 [37mjustifyContent[39m[97m:[39m [93m"center"[39m[97m,[39m
+                 [37mpaddingHorizontal[39m[97m:[39m [93m20[39m
+               [36m}}[39m
+             [93m>[39m [36m(<SIZE>)[39m
+               [93m<[39m[95mMenuItemLabel[39m[93m>[39m
+                 [93m<[39m[36mText[39m
+                   [37mstyle[39m[32m=[39m[36m{{[39m
+                     [37mcolor[39m[97m:[39m [93m"[39m[91m#DC2626[39m[93m"[39m[97m,[39m
+                     [37mfontSize[39m[97m:[39m [93m16[39m
+                   [36m}}[39m
+                 [93m>[39m [36m(<SIZE>)[39m
+                   Report
+                 [93m</[39m[36mText[39m[93m>[39m
+               [93m</[39m[95mMenuItemLabel[39m[93m>[39m
+             [93m</[39m[36mView[39m[93m>[39m
+           [93m</[39m[95mMenuItem[39m[93m>[39m
+         [93m</[39m[36mView[39m[93m>[39m
+       [93m</[39m[95mChatMenuSheet[39m[93m>[39m
+     [93m</[39m[36mView[39m[93m>[39m
+   [93m</[39m[95mChat[39m[93m>[39m
+
+[2m   25 views · --json prints the record[22m
+
+
+[exit 0]

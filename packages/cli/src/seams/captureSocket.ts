@@ -13,6 +13,7 @@
  * roads fail differently.
  */
 import type { CapturedView } from '../render/capturedStory';
+import type { SceneEnding } from '../render/capturedScene';
 import { askTheBundlerLine } from './bundlerLine';
 
 /**
@@ -100,6 +101,9 @@ export type CaptureResult =
       logs?: string[];
     };
 
+/** What the app answered about the scene the command asked it to boot fresh on and capture. */
+export type SceneCaptureResult = { kind: 'no-bundler' } | { kind: 'no-app' } | SceneEnding;
+
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
 export type WaitOutcome = {
   outcome: 'first-check' | 'polled' | 'timed-out';
@@ -151,6 +155,12 @@ export type CaptureSocket = {
     port: number;
     settings: typeof STABILIZATION_SETTINGS;
   }): Promise<CaptureResult>;
+  /** Boot the app fresh on one scene, run its play, stabilize with the same settings, and read it. */
+  captureScene(params: {
+    sceneId: string;
+    port: number;
+    settings: typeof STABILIZATION_SETTINGS;
+  }): Promise<SceneCaptureResult>;
 };
 
 /**
@@ -193,6 +203,14 @@ export const liveCaptureSocket: CaptureSocket = {
       if (logs.length > 0) result.logs = logs;
     }
     return result;
+  },
+
+  // Plan layer only: the app's side of a scene does not exist yet, so the live half refuses.
+  // Build debt of the scenes epic: the wire, the relay and the app's fresh boot.
+  captureScene: async () => {
+    throw new Error(
+      'captureScene is plan-layer only: scenes have no live wire until the scenes epic builds one'
+    );
   },
 };
 
@@ -558,7 +576,47 @@ export type PosedCapture =
       hasNetworkImage?: boolean;
       /** The view tree the app read, from the story's own root. */
       tree: PosedView;
+    }
+  /** A scene run: the app's own JS threw while it started, before any scene could be put on it. */
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      threwAtBoot: { name: string; message: string; file: string; line: number };
+    }
+  /** A scene run: the app booted, and its navigation ended on another route than the scene's. */
+  | {
+      scenes: string[];
+      /** The route the scene file names, outermost screen first. */
+      route: string[];
+      /** The route the app was on when it gave up moving, outermost screen first. */
+      stayedOn: string[];
+    }
+  /** A scene run: the route was reached and a play step found no view with its testID. */
+  | {
+      scenes: string[];
+      route: string[];
+      bootMs: number;
+      reachedMs: number;
+      /** The steps that ran before the one that found nothing. */
+      playDone: PosedPlayStep[];
+      /** The step that found nothing, and how long it looked. */
+      targetMissing: PosedPlayStep & { limitMs: number };
+    }
+  /** A scene run that came back with its record. */
+  | {
+      scenes: string[];
+      route: string[];
+      /** How long the fresh boot took, and how long the move from there to the route took. */
+      bootMs: number;
+      reachedMs: number;
+      /** The scene's play steps, all done. */
+      play: PosedPlayStep[];
+      settled: { ms: number; frames: number };
+      tree: PosedView;
     };
+
+/** One step of a scene's `play`. Today the only step is a tap on the view with that testID. */
+export type PosedPlayStep = { tap: string };
 
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own
@@ -596,6 +654,14 @@ export function posedCaptureSocket(
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('stories' in posed)) {
+        refusals.push({
+          call: 'captureStory',
+          problem:
+            'the pose states a scene run, and the command asked for a story - state `stories`',
+        });
+        return { kind: 'no-bundler' };
+      }
       if (!posed.stories.includes(storyId)) return { kind: 'no-such-story', known: posed.stories };
 
       if ('crashed' in posed) {
@@ -616,6 +682,55 @@ export function posedCaptureSocket(
         ...(posed.threw && { threw: posed.threw }),
         ...(posed.parts !== undefined && { parts: posed.parts }),
         ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),
+        tree: withChildren(posed.tree),
+      };
+    },
+
+    captureScene: async ({ sceneId }) => {
+      if (!posed) {
+        refusals.push({
+          call: 'captureScene',
+          problem:
+            'the pose states no `capture`, and the command asked for one - say what answered',
+        });
+        return { kind: 'no-bundler' };
+      }
+      if (posed === 'no-bundler') return { kind: 'no-bundler' };
+      if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('scenes' in posed)) {
+        refusals.push({
+          call: 'captureScene',
+          problem:
+            'the pose states a story run, and the command asked for a scene - state `scenes`',
+        });
+        return { kind: 'no-bundler' };
+      }
+      if (!posed.scenes.includes(sceneId)) {
+        return { kind: 'no-such-scene', sceneId, known: posed.scenes };
+      }
+      if ('threwAtBoot' in posed) {
+        return { kind: 'crashed-at-boot', sceneId, error: posed.threwAtBoot };
+      }
+      if ('stayedOn' in posed) {
+        return { kind: 'never-reached', sceneId, wanted: posed.route, stayedOn: posed.stayedOn };
+      }
+      if ('targetMissing' in posed) {
+        return {
+          kind: 'play-target-missing',
+          sceneId,
+          route: posed.route,
+          done: posed.playDone,
+          missing: { tap: posed.targetMissing.tap },
+          limitMs: posed.targetMissing.limitMs,
+        };
+      }
+      return {
+        kind: 'scene',
+        sceneId,
+        bootMs: posed.bootMs,
+        reached: { route: posed.route, ms: posed.reachedMs },
+        play: posed.play,
+        settled: posed.settled,
         tree: withChildren(posed.tree),
       };
     },

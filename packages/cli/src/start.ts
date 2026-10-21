@@ -64,6 +64,7 @@ import {
   JSON_OPTION,
   LOGS_OPTION,
   STORY_OPTION,
+  SCENE_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
   DEFAULT_BUNDLER_PORT,
@@ -313,6 +314,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${STORY_OPTION} <id>`,
     'The story to put on screen, by the id Storybook gives it (e.g. foundation-typography--scales)',
   ],
+  [SCENE_OPTION]: [
+    `--${SCENE_OPTION} <id>`,
+    'The scene to boot the app fresh on, by its id (e.g. chat--conversation) - instead of --story',
+  ],
   [PORT_OPTION]: [
     `--${PORT_OPTION} <port>`,
     `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
@@ -380,7 +385,7 @@ function addOpenCommand(program: Command) {
   addCommand({
     program,
     command: OPEN_COMMAND,
-    options: [STORY_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
+    options: [STORY_OPTION, SCENE_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
     action: open,
     withTimeout: false,
   });
@@ -392,7 +397,7 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [STORY_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
+    options: [STORY_OPTION, SCENE_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
     action: capture,
     withTimeout: false,
   });

@@ -1415,6 +1415,66 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'captured-scene',
+    what: 'what `sherlo capture --scene` prints for a scene that came back with its record - the boot line, one line per play step done, the settled line, then the named tree',
+    segment: {
+      kind: 'captured-scene',
+      state: {
+        kind: 'scene',
+        sceneId: 'chat--menu-open',
+        bootMs: 1800,
+        reached: { route: ['ChatStack', 'Chat'], ms: 900 },
+        play: [{ tap: 'chat-header-menu' }],
+        settled: { ms: 800, frames: 5 },
+        tree: {
+          primitive: 'Text',
+          components: ['ChatHeaderName'],
+          text: 'Mateo',
+          children: [],
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--menu-open${ESC}[22m captured, the way a test run records it`,
+      ],
+      [`${ESC}[2m   booted fresh in 1.8s · reached ChatStack › Chat in 0.9s${ESC}[22m`],
+      [`${ESC}[2m   played tap chat-header-menu${ESC}[22m`],
+      [`${ESC}[2m   settled in 0.8s over 5 frames · testing mode${ESC}[22m`],
+      [''],
+      [`   ${ESC}[93m<${ESC}[39m${ESC}[95mChatHeaderName${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      [`     ${ESC}[93m<${ESC}[39m${ESC}[36mText${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      ['       Mateo'],
+      [`     ${ESC}[93m</${ESC}[39m${ESC}[36mText${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      [`   ${ESC}[93m</${ESC}[39m${ESC}[95mChatHeaderName${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      [''],
+      [`${ESC}[2m   1 views · --json prints the record${ESC}[22m`],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'opened-scene',
+    what: 'what `sherlo open --scene` prints once the app booted fresh and is on the scene - the id bold, then the dim line saying which edits reload in place',
+    segment: {
+      kind: 'opened-scene',
+      state: { kind: 'opened-scene', sceneId: 'chat--conversation', route: ['ChatStack', 'Chat'] },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--conversation${ESC}[22m is on screen, booted fresh at ChatStack › Chat`,
+      ],
+      [''],
+      [
+        `${ESC}[2mEdits to the screen reload in place. Edits to a mock or a scene need \`npx sherlo open --scene chat--conversation\` again.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
     kind: 'captured-log',
     what: '`sherlo capture --logs` with lines the app pushed - the dim count line, then each line verbatim, indented',
     segment: {

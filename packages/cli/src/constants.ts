@@ -166,6 +166,11 @@ export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';
 /** `sherlo open --story <id>` - which story to put on screen. */
 export const STORY_OPTION = 'story';
+/**
+ * `sherlo open --scene <id>`, `sherlo capture --scene <id>` - one variant of one screen, by the id
+ * Storybook's id style gives it (`chat--conversation`). Booted fresh each time, with no Storybook.
+ */
+export const SCENE_OPTION = 'scene';
 /** Where the bundler is, for the rare project that moved it off {@link DEFAULT_BUNDLER_PORT}. */
 export const PORT_OPTION = 'port';
 /**

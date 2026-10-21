@@ -41,8 +41,18 @@ export type OpenStoryResult =
       threw?: StoryThrew;
     };
 
+/** What the letterbox answered about a scene the command asked it to boot fresh on and keep on screen. */
+export type OpenSceneResult =
+  | { kind: 'no-bundler' }
+  | { kind: 'no-app' }
+  | { kind: 'no-such-scene'; known: string[] }
+  /** The app booted fresh and is on the scene, at this route (outermost screen first). */
+  | { kind: 'scene-opened'; sceneId: string; route: string[] };
+
 /** Everything the tool asks of a running app, and nothing else. */
 export type Letterbox = {
+  /** Boot the app fresh on one scene and leave it there. */
+  openScene(params: { sceneId: string; port: number }): Promise<OpenSceneResult>;
   /** Post one story to the waiting app, waiting for it to reach the screen when asked to. */
   openStory(params: {
     storyId: string;
@@ -83,6 +93,14 @@ export const liveLetterbox: Letterbox = {
     }
 
     return readOpenStoryAnswer(answer.reply, storyId);
+  },
+
+  // Plan layer only: the app's side of a scene does not exist yet, so the live half refuses.
+  // Build debt of the scenes epic: the wire, the letterbox and the app's fresh boot.
+  openScene: async () => {
+    throw new Error(
+      'openScene is plan-layer only: scenes have no live wire until the scenes epic builds one'
+    );
   },
 };
 
@@ -189,6 +207,12 @@ export type PosedLetterbox =
        * `rendered: 'yes'` and nowhere else. Absent poses a story that drew cleanly.
        */
       threw?: { name: string; message: string };
+    }
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      /** The route the app is on once it has booted fresh and moved to the scene, outermost first. */
+      route: string[];
     };
 
 export function posedLetterbox(
@@ -213,6 +237,10 @@ export function posedLetterbox(
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('stories' in posed)) {
+        refuse('openStory');
+        return { kind: 'no-bundler' };
+      }
       if (!posed.stories.includes(storyId)) {
         return { kind: 'no-such-story', known: posed.stories };
       }
@@ -222,6 +250,22 @@ export function posedLetterbox(
       const threw = rendered === 'yes' ? posed.threw : undefined;
 
       return { kind: 'handed-over', storyId, rendered, ...(threw && { threw }) };
+    },
+
+    openScene: async ({ sceneId }) => {
+      if (!posed) {
+        refuse('openScene');
+        return { kind: 'no-bundler' };
+      }
+      if (posed === 'no-bundler') return { kind: 'no-bundler' };
+      if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('scenes' in posed)) {
+        refuse('openScene');
+        return { kind: 'no-bundler' };
+      }
+      if (!posed.scenes.includes(sceneId)) return { kind: 'no-such-scene', known: posed.scenes };
+
+      return { kind: 'scene-opened', sceneId, route: posed.route };
     },
   };
 }

@@ -183,7 +183,7 @@ const INK = {
 };
 
 /** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
-function treeLines(root: CapturedView): string[] {
+export function treeLines(root: CapturedView): string[] {
   return [
     ...viewLines(root, 0),
     '',

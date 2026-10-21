@@ -1,0 +1,9 @@
+[31m✖[39m  No scene [1mchat--typo[22m in this app
+
+[2mClosest of this app's 8 scenes:[22m
+  chat--menu-open
+  chat-list--inbox
+  chat-list--empty
+
+
+[exit 1]

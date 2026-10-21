@@ -32,6 +32,8 @@ import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
 import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
+import type { OpenedScene } from './openedScene';
+import type { CapturedScene } from './capturedScene';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
 import type { FeedbackKind, LastCommand } from './feedback';
@@ -360,6 +362,10 @@ export type TranscriptSegment =
   | { kind: 'opened-story'; state: OpenedStory }
   /** The whole screen output of `sherlo capture`. See ./capturedStory. */
   | { kind: 'captured-story'; state: CapturedStory }
+  /** The whole output of `sherlo open --scene`. See ./openedScene. */
+  | { kind: 'opened-scene'; state: OpenedScene }
+  /** The whole screen output of `sherlo capture --scene`. See ./capturedScene. */
+  | { kind: 'captured-scene'; state: CapturedScene }
   /** `sherlo capture --logs` - the app's own log lines, printed after the story. See ./capturedLog. */
   | { kind: 'captured-log'; logs: string[] }
   /* ---------------------------------------------------------------------- *
