@@ -202,6 +202,9 @@ function readPosedBundle(value: unknown, path: string, problems: string[]): void
         }
       }
     }
+    if ('sceneIds' in object1) {
+      expectStringArray(object1.sceneIds, at(path, 'sceneIds'), problems);
+    }
     reportUnknownFields(
       object1,
       [
@@ -213,6 +216,7 @@ function readPosedBundle(value: unknown, path: string, problems: string[]): void
         'storyClosureKeys',
         'storyTitles',
         'storyCounts',
+        'sceneIds',
       ],
       path,
       problems
@@ -1779,9 +1783,12 @@ function readPushFactsPlatform(value: unknown, path: string, problems: string[])
     if ('storiesInBundle' in object1) {
       expectNumber(object1.storiesInBundle, at(path, 'storiesInBundle'), problems);
     }
+    if ('scenesInBundle' in object1) {
+      expectNumber(object1.scenesInBundle, at(path, 'scenesInBundle'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['madeBy', 'why', 'nativeChanges', 'storiesInBundle'],
+      ['madeBy', 'why', 'nativeChanges', 'storiesInBundle', 'scenesInBundle'],
       path,
       problems
     );
@@ -1868,6 +1875,9 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           if ('storiesInBundle' in object13) {
             expectNumber(object13.storiesInBundle, at(where12, 'storiesInBundle'), problems);
           }
+          if ('scenesInBundle' in object13) {
+            expectNumber(object13.scenesInBundle, at(where12, 'scenesInBundle'), problems);
+          }
           if ('reason' in object13) {
             expectString(object13.reason, at(where12, 'reason'), problems);
           }
@@ -1916,6 +1926,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
               'full',
               'capturedStories',
               'storiesInBundle',
+              'scenesInBundle',
               'reason',
               'storyFiles',
               'newStoryFiles',
@@ -2332,9 +2343,18 @@ function readBuildStatusPlatform(value: unknown, path: string, problems: string[
         reportWrongShape(oneOf18, 'a number or `null`', where19, problems);
       }
     }
+    if ('scenesInBundle' in object1) {
+      const oneOf20 = object1.scenesInBundle;
+      const where21 = at(path, 'scenesInBundle');
+      if (typeof oneOf20 === 'number' || oneOf20 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf20, 'a number or `null`', where21, problems);
+      }
+    }
     reportUnknownFields(
       object1,
-      ['arrived', 'capture', 'appBuild', 'storiesInBundle'],
+      ['arrived', 'capture', 'appBuild', 'storiesInBundle', 'scenesInBundle'],
       path,
       problems
     );

@@ -91,6 +91,12 @@ export type PlatformCapture = {
    * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as absent.
    */
   storiesInBundle?: number;
+  /**
+   * How many scenes the bundle holds; absent or 0 when it holds none. A scene is captured on a
+   * full capture and is stated beside the stories. Plan-layer only (build debt of the scenes epic): the
+   * real module map counts no scenes yet, so only a posed bundle has any.
+   */
+  scenesInBundle?: number;
   /** The server's own reason, printed only on a full capture. */
   reason?: string;
   /** The story files the test captures: a partial capture's as openBuild recorded them, or the bundle's. */
@@ -161,13 +167,22 @@ function reasonEveryStoryIsCaptured(capture: PlatformCapture[]): string | undefi
   return reasons.size === 1 ? capture[0].reason : undefined;
 }
 
-/** `3 of 24 stories`, `all 24 stories`, `3 stories` when the bundle could not be counted. */
+/**
+ * `3 of 24 stories`, `all 24 stories`, `3 stories` when the bundle could not be counted; with
+ * scenes in a full capture, `all 5 scenes` (none else) or `all 4 stories and 5 scenes`.
+ */
 function describeCapturedStories({
   full,
   capturedStories,
   storiesInBundle,
+  scenesInBundle,
 }: PlatformCapture): string {
   // Uncounted is absent or null alike (see PlatformCapture.storiesInBundle).
+  if (full && scenesInBundle) {
+    if (!storiesInBundle) return `all ${countScenes(scenesInBundle)}`;
+    return `all ${countStories(storiesInBundle)} and ${countScenes(scenesInBundle)}`;
+  }
+
   if (full) {
     if (storiesInBundle == null) return 'all stories';
     return storiesInBundle === 1 ? '1 story' : `all ${countStories(storiesInBundle)}`;
@@ -272,6 +287,11 @@ export function renderHelpBlock(): string[] {
       contactEmail: CONTACT_EMAIL,
     }),
   ];
+}
+
+/** `1 scene`, `5 scenes` - every count of scenes a test prints. */
+export function countScenes(count: number): string {
+  return count === 1 ? '1 scene' : `${count} scenes`;
 }
 
 /** `1 story`, `3 stories` - every count of stories a test prints. */

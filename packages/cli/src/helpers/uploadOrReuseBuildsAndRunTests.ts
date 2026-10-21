@@ -10,6 +10,7 @@ import {
 } from './uploadFreshBundles';
 import { closeTheRun } from '../commands/test/closeTheRun';
 import {
+  countBundleScenes,
   countBundleStories,
   type ValidatedModuleManifest,
 } from '../commands/test/readModuleManifest';
@@ -375,6 +376,7 @@ async function uploadOrReuseBuildsAndRunTests({
     pushFacts: pushFactsOf({
       appBuilds,
       storiesInBundle: storiesInBundleOf(freshBundles),
+      scenesInBundle: scenesInBundleOf(freshBundles),
       env: process.env,
       runIdFlag,
     }),
@@ -470,6 +472,20 @@ function storiesInBundleOf(
       platform,
       countBundleStories(moduleManifest),
     ])
+  );
+}
+
+/**
+ * How many scenes each fresh bundle holds, for the platforms whose bundle holds any.
+ * Plan-layer only (build debt of the scenes epic): the live module manifest records no scenes.
+ */
+function scenesInBundleOf(
+  freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
+): Partial<Record<Platform, number>> {
+  return Object.fromEntries(
+    Object.entries(moduleManifestsOf(freshBundles))
+      .map(([platform, moduleManifest]) => [platform, countBundleScenes(moduleManifest)] as const)
+      .filter(([, scenes]) => scenes > 0)
   );
 }
 

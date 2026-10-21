@@ -23,9 +23,11 @@ export type AppBuildAccount = {
 export function pushFactsPlatformOf({
   appBuild,
   storiesInBundle,
+  scenesInBundle,
 }: {
   appBuild?: AppBuildAccount;
   storiesInBundle?: number;
+  scenesInBundle?: number;
 }): PushFactsPlatform {
   const nativeChanges = appBuild?.why?.changesSince?.changes.map(describeChange);
 
@@ -34,6 +36,7 @@ export function pushFactsPlatformOf({
     ...(appBuild?.why ? { why: appBuild.why.reason } : {}),
     ...(nativeChanges ? { nativeChanges } : {}),
     ...(storiesInBundle !== undefined ? { storiesInBundle } : {}),
+    ...(scenesInBundle !== undefined ? { scenesInBundle } : {}),
   };
 }
 
@@ -41,6 +44,7 @@ export function pushFactsPlatformOf({
 export function pushFactsOf({
   appBuilds,
   storiesInBundle,
+  scenesInBundle = {},
   env,
   runIdFlag,
 }: {
@@ -48,6 +52,8 @@ export function pushFactsOf({
   appBuilds: Partial<Record<Platform, AppBuildAccount>>;
   /** How many stories each delivered platform's bundle holds. */
   storiesInBundle: Partial<Record<Platform, number>>;
+  /** How many scenes each delivered platform's bundle holds; none where the bundle has no scenes. */
+  scenesInBundle?: Partial<Record<Platform, number>>;
   env: NodeJS.ProcessEnv;
   /** `--run-id`, which names the CI run when the CI service does not. */
   runIdFlag?: string;
@@ -59,6 +65,7 @@ export function pushFactsOf({
     platforms[platform] = pushFactsPlatformOf({
       appBuild: appBuilds[platform],
       storiesInBundle: storiesInBundle[platform],
+      scenesInBundle: scenesInBundle[platform],
     });
   }
 

@@ -208,6 +208,12 @@ export type PosedBundle = {
   storyTitles?: Record<string, string>;
   /** The serializer's `storyCounts`: per story file, how many stories it holds. */
   storyCounts?: Record<string, number>;
+  /**
+   * The scene ids the bundle holds, in Storybook's id style (`inbox--full`). Absent poses a bundle
+   * with no scenes. Plan-layer only (build debt of the scenes epic): the real bundle's module map
+   * records no scenes yet, so the live reader never counts any.
+   */
+  sceneIds?: string[];
 };
 
 /**
@@ -938,6 +944,8 @@ export type PushFactsPlatform = {
   nativeChanges?: string[];
   /** How many stories the pushed bundle holds. */
   storiesInBundle?: number;
+  /** How many scenes the pushed bundle holds. */
+  scenesInBundle?: number;
 };
 
 /**
@@ -1002,6 +1010,12 @@ export type StartedRun = {
      * absent.
      */
     storiesInBundle?: number;
+    /**
+     * How many scenes the bundle holds; absent or 0 when it holds none. A scene is captured on a
+     * full capture and is stated beside the stories. Plan-layer only (build debt of the scenes
+     * epic): the real module map counts no scenes yet, so only a posed bundle has any.
+     */
+    scenesInBundle?: number;
     /** The server's own reason, printed only on a full capture. */
     reason?: string;
     /**
@@ -1208,6 +1222,8 @@ export type BuildStatusPlatform = {
   } | null;
   /** How many stories the pushed bundle holds, as the push counted them. */
   storiesInBundle?: number | null;
+  /** How many scenes the pushed bundle holds, as the push counted them. */
+  scenesInBundle?: number | null;
 };
 
 /**

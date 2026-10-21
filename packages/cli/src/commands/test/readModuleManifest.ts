@@ -29,6 +29,11 @@ export type ModuleManifest = {
   storyTitles?: Record<string, string>;
   /** Per story file, how many stories it holds. */
   storyCounts?: Record<string, number>;
+  /**
+   * The scene ids the bundle holds. Plan-layer only (build debt of the scenes epic): only a posed
+   * bundle carries them; the live reader below does not read them, so a real bundle has none.
+   */
+  sceneIds?: string[];
 };
 
 export type ValidatedModuleManifest = {
@@ -173,6 +178,14 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
  */
 export function countBundleStories(manifest: ValidatedModuleManifest): number {
   return countStoriesIn(manifest, bundleStoryFiles(manifest));
+}
+
+/**
+ * How many scenes the bundle holds. Plan-layer only (build debt of the scenes epic): the live manifest
+ * reader does not read scenes yet, so a real bundle counts none; only a posed bundle has any.
+ */
+export function countBundleScenes(manifest: ValidatedModuleManifest): number {
+  return manifest.parsed.sceneIds?.length ?? 0;
 }
 
 /**

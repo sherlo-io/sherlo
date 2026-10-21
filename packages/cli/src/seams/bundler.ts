@@ -78,6 +78,12 @@ export type PosedBundle = {
   storyTitles?: Record<string, string>;
   /** The serializer's `storyCounts`: per story file, how many stories it holds. */
   storyCounts?: Record<string, number>;
+  /**
+   * The scene ids the bundle holds, in Storybook's id style (`inbox--full`). Absent poses a bundle
+   * with no scenes. Plan-layer only (build debt of the scenes epic): the real bundle's module map
+   * records no scenes yet, so the live reader never counts any.
+   */
+  sceneIds?: string[];
 };
 
 /**
@@ -136,7 +142,8 @@ function moduleManifestOf({
   storyClosureKeys,
   storyTitles,
   storyCounts,
-}: Pick<PosedBundle, 'storyTitles' | 'storyCounts'> & {
+  sceneIds,
+}: Pick<PosedBundle, 'storyTitles' | 'storyCounts' | 'sceneIds'> & {
   storyClosureKeys: string[];
 }): BundleResult['moduleManifest'] {
   const parsed = {
@@ -146,6 +153,7 @@ function moduleManifestOf({
     storyClosures: Object.fromEntries(storyClosureKeys.map((key) => [key, []])),
     ...(storyTitles ? { storyTitles } : {}),
     ...(storyCounts ? { storyCounts } : {}),
+    ...(sceneIds ? { sceneIds } : {}),
   };
 
   return { raw: Buffer.from(JSON.stringify(parsed)), parsed };
