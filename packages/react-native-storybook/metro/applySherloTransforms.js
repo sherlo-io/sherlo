@@ -857,6 +857,7 @@ function applySherloTransforms(result, opts) {
     projectRoot: projectRoot,
     cacheDir: cacheDir,
     mockModules: opts && opts.mockModules,
+    metroConfig: result,
   });
   var mocksDir = mockSetup.mocksDir;
   var mockedPathToShim = mockSetup.mockedPathToShim;
