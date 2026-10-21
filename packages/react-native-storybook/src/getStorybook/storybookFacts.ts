@@ -62,9 +62,13 @@ export function recordWhatStartWasHanded(
   prepareStories: PrepareStories | undefined
 ): void {
   const previewAnnotations = (handed.annotations ?? []).map(annotationsOf);
+  const storyFiles: Record<string, StoryFileExports> = {};
+  const storyLoadErrors: Record<string, string> = {};
+  loadStoryFiles(handed.storyEntries ?? [], storyFiles, storyLoadErrors);
   recordStorybookFacts({
     storyIndex: storyIndexOf(handed, previewAnnotations, prepareStories),
-    storyFiles: storyFilesOf(handed.storyEntries ?? []),
+    storyFiles,
+    storyLoadErrors,
     previewAnnotations,
   });
 }
@@ -106,21 +110,54 @@ function storyIndexOf(
 }
 
 /**
- * Every story file's exports, by the import path Storybook's index names it with: the folder, and
- * the file's key in it without its leading "./" ("./src" and "./Button.stories.tsx" make
- * "./src/Button.stories.tsx").
+ * Every story file's exports into storyFiles, by the import path Storybook's index names it with:
+ * the folder, and the file's key in it without its leading "./" ("./src" and "./Button.stories.tsx"
+ * make "./src/Button.stories.tsx"). A file that throws as it loads is Storybook's to report, as it
+ * loads it too; its import path and error message go into storyLoadErrors, so capture can name the
+ * file instead of saying the story is unknown.
  */
-function storyFilesOf(storyEntries: StoryEntry[]): Record<string, StoryFileExports> {
-  const storyFiles: Record<string, StoryFileExports> = {};
+function loadStoryFiles(
+  storyEntries: StoryEntry[],
+  storyFiles: Record<string, StoryFileExports>,
+  storyLoadErrors: Record<string, string>
+): void {
   for (const entry of storyEntries) {
     if (typeof entry?.req?.keys !== 'function') continue;
     for (const filename of entry.req.keys()) {
+      const importPath = `${entry.directory}/${filename.substring(2)}`;
       try {
-        storyFiles[`${entry.directory}/${filename.substring(2)}`] = entry.req(filename);
-      } catch (_) {
-        // A file that throws as it loads is Storybook's to report, as it loads it too.
+        storyFiles[importPath] = entry.req(filename);
+      } catch (error) {
+        storyLoadErrors[importPath] = error instanceof Error ? error.message : String(error);
       }
     }
   }
-  return storyFiles;
+}
+
+const slugOf = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+/**
+ * What capture can answer for a story id that is not in the index, when a story file failed to
+ * load: "the story file <path> failed to load: <error>", or null when no failed file could hold
+ * it (capture then keeps its own "No story <id> in this app"). A failed file's stories are not
+ * known (it threw), so a file is matched by its path: the id's title part must end the file's
+ * path without its extension and ".stories" (Storybook's auto-title, "src/Button" gives
+ * "src-button"). A story with a title of its own in a failed file cannot be matched this way.
+ */
+export function storyLoadErrorAnswer(
+  storyId: string,
+  storyLoadErrors: Record<string, string>
+): string | null {
+  const titlePart = slugOf(storyId.split('--')[0]);
+  for (const [importPath, message] of Object.entries(storyLoadErrors)) {
+    const pathPart = slugOf(importPath.replace(/(\.stories)?\.[a-z]+$/i, ''));
+    if (titlePart !== '' && pathPart.endsWith(titlePart)) {
+      return `the story file ${importPath} failed to load: ${message}`;
+    }
+  }
+  return null;
 }

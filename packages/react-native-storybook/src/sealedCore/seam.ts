@@ -485,6 +485,8 @@ export type StorybookFacts = {
   storyIndex: Record<string, StorybookIndexEntry>;
   /** Each story file's exports, by the import path the index names. */
   storyFiles: Record<string, StoryFileExports>;
+  /** The error message of each story file that threw as it loaded, by the same import path. */
+  storyLoadErrors?: Record<string, string>;
   /**
    * The preview annotations start() was handed, in order, each a preview file's annotations (its
    * default export when it has one). The project's own preview is among them, with the parameters

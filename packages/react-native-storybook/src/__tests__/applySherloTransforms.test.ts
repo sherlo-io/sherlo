@@ -1094,6 +1094,7 @@ describe('the swap', () => {
     expect(readStorybookFacts()).toEqual({
       storyIndex: realStorybook.prepareStories({ storyEntries }).index.entries,
       storyFiles: { './src/Button.stories.tsx': storyFile },
+      storyLoadErrors: {},
       previewAnnotations: [projectsPreview.default, addonsPreview],
     });
 
@@ -1149,6 +1150,7 @@ describe('the swap', () => {
         './src/Button.stories.tsx': buttonFile,
         './src/Card.stories.tsx': cardFile,
       },
+      storyLoadErrors: {},
       previewAnnotations: [projectsPreview.default],
     });
     expect(readStorybookFacts()?.storyIndex['components-card--tall']).toBeDefined();
