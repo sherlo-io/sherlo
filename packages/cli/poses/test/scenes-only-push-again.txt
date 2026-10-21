@@ -18,8 +18,8 @@ Test 2      [32m✔[39m Started: all 5 scenes on 1 device (Pixel 7)
             [32m✔[39m Finished in <DURATION>
 
 
-[1m✅ All stories passed[22m
-[2m═════════════════════[22m
+[1m✅ All scenes passed[22m
+[2m════════════════════[22m
 
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 

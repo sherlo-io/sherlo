@@ -349,7 +349,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return { stream: 'stdout', prints: [[renderWaitInterrupted(segment.testIndex)]] };
 
     case 'verdict-passed':
-      return { stream: 'stdout', prints: renderVerdictPassed().map((line) => [line]) };
+      return { stream: 'stdout', prints: renderVerdictPassed(segment.holds).map((line) => [line]) };
 
     case 'verdict-server-bypassed':
       return {

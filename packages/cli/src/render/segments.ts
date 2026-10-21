@@ -273,8 +273,11 @@ export type TranscriptSegment =
   | { kind: 'wait-timed-out'; timeoutMinutes: number; testIndex?: number }
   /** The Ctrl-C closer: the waiting stopped, the run did not. */
   | { kind: 'wait-interrupted'; testIndex?: number }
-  /** The green verdict, as a section: `✅ All stories passed`. */
-  | { kind: 'verdict-passed' }
+  /**
+   * The green verdict, as a section: `✅ All stories passed`. `holds` names what the build holds
+   * when it is not stories alone (`scenes`, or `stories and scenes`), counted as the started line is.
+   */
+  | { kind: 'verdict-passed'; holds?: 'scenes' | 'stories and scenes' }
   /**
    * The compact closer for a build the server closed without a device run, under the platforms'
    * rows: `Test 15     ✔ Finished: nothing to test: no change reaches any story` (./runRows).

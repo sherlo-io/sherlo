@@ -119,11 +119,15 @@ export function renderTestFinished(testIndex: number): string {
 
 /**
  * The green verdict, as a section: every story either matched or was already approved. The title
- * says it all, so nothing stands under it but the link.
+ * says it all, so nothing stands under it but the link. A build that holds scenes says so, as the
+ * started line does: `All scenes passed`, or `All stories and scenes passed` for both.
  */
-export function renderVerdictPassed(): string[] {
+export function renderVerdictPassed(
+  holds: 'stories' | 'scenes' | 'stories and scenes' = 'stories'
+): string[] {
+  const title = `✅ All ${holds} passed`;
   // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
-  return renderVerdictSection('✅ All stories passed', [], 21);
+  return renderVerdictSection(title, [], title.length + 1);
 }
 
 /**

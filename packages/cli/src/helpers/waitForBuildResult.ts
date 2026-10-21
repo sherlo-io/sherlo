@@ -554,7 +554,7 @@ function printTerminalCloser(
   if (unreviewed === 0 && reported === 0) {
     // No verbatim reason: the generic green. Covers the forward-compat degrade of a
     // counts-bypassed build whose poll carries no prose, and every ordinary green build.
-    emit({ kind: 'verdict-passed' });
+    emit({ kind: 'verdict-passed', holds: whatTheBuildHolds(build) });
   } else {
     emit({
       kind: 'verdict-review-required',
@@ -563,6 +563,20 @@ function printTerminalCloser(
     });
   }
   emit({ kind: 'blank-line' });
+}
+
+/**
+ * What the pushed bundles hold beyond stories, counted over the platforms the way the started line
+ * counts them (../render/testSteps describeCapturedStories): scenes with no stories are `scenes`,
+ * both are `stories and scenes`, and anything else leaves the verdict saying stories. Plan-layer
+ * only (build debt of the scenes epic): the live status query does not ask for scenes yet.
+ */
+function whatTheBuildHolds(build: BuildStatus): 'scenes' | 'stories and scenes' | undefined {
+  const platforms = Object.values(build.platforms ?? {});
+  const scenes = platforms.reduce((sum, platform) => sum + (platform?.scenesInBundle ?? 0), 0);
+  const stories = platforms.reduce((sum, platform) => sum + (platform?.storiesInBundle ?? 0), 0);
+  if (scenes === 0) return undefined;
+  return stories === 0 ? 'scenes' : 'stories and scenes';
 }
 
 /** Which test the wait closed on, and how long it ran when the wait saw it start. */

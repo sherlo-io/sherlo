@@ -89,6 +89,9 @@
           "noChanges": 5,
           "reported": 0,
           "unreviewed": 0
+        },
+        "platforms": {
+          "android": { "arrived": true, "storiesInBundle": 0, "scenesInBundle": 5 }
         }
       }
     }
