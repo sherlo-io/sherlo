@@ -48,12 +48,23 @@ export function isNetworkDeclaration(
  * filed under it can apply, which is exactly the state being warned about.
  */
 function unshimmedImportName(definition: MockDefinition): string {
-  if (typeof definition === 'function') return 'an import with no shim, declaring a factory';
+  if (typeof definition === 'function') return `${UNSHIMMED_IMPORT_PREFIX}declaring a factory`;
 
   const exportNames = Object.keys(definition);
-  if (exportNames.length === 0) return 'an import with no shim, declaring nothing';
+  if (exportNames.length === 0) return `${UNSHIMMED_IMPORT_PREFIX}declaring nothing`;
 
-  return `an import with no shim, declaring ${exportNames.join(', ')}`;
+  return `${UNSHIMMED_IMPORT_PREFIX}declaring ${exportNames.join(', ')}`;
+}
+
+export const UNSHIMMED_IMPORT_PREFIX = 'an import with no shim, ';
+
+/**
+ * Whether `key` is the name of an import that reached no shim (unshimmedImportName). That is
+ * known for certain the moment the declaration's import has settled: the module it yielded is not
+ * a stand-in, however late the bundle's other modules are required.
+ */
+export function isUnshimmedImportName(key: string): boolean {
+  return key.startsWith(UNSHIMMED_IMPORT_PREFIX);
 }
 
 /**

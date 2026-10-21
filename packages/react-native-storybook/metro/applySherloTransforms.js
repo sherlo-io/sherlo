@@ -857,6 +857,7 @@ function applySherloTransforms(result, opts) {
     projectRoot: projectRoot,
     cacheDir: cacheDir,
     mockModules: opts && opts.mockModules,
+    metroConfig: result,
   });
   var mocksDir = mockSetup.mocksDir;
   var mockedPathToShim = mockSetup.mockedPathToShim;
@@ -942,6 +943,11 @@ function applySherloTransforms(result, opts) {
     opts && opts.enabled === false
       ? [writeDisabledFlagPolyfill(cacheDir)] // minimal only
       : [polyfillPath]; // full polyfill for enabled: true
+  // The modules the stories declare by import, for the run-time check that names a mock that reached
+  // nothing (src/mocking/declaredImports.ts).
+  if (!(opts && opts.enabled === false) && mockSetup.declaredImportsPolyfill) {
+    sherloPolyfills.unshift(mockSetup.declaredImportsPolyfill);
+  }
 
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'

@@ -49,8 +49,13 @@ function clearMocks(): void {
 
 // Returns the resolved mock exports for `key`, or undefined if the module isn't mocked in the
 // active activation (or there is no active activation). Factory definitions are invoked with
-// `realModule` on first lookup and cached for the rest of the activation.
-function resolveMockExports(key: string, realModule: ModuleExports): ModuleExports | undefined {
+// the real module on first lookup and cached for the rest of the activation. A stand-in whose real
+// module loads lazily passes `loadRealModule` instead, so the real module loads only for a factory.
+function resolveMockExports(
+  key: string,
+  realModule: ModuleExports | undefined,
+  loadRealModule?: () => ModuleExports
+): ModuleExports | undefined {
   if (!activeActivation) {
     return undefined;
   }
@@ -67,9 +72,31 @@ function resolveMockExports(key: string, realModule: ModuleExports): ModuleExpor
   }
 
   const definition = mocks[key];
-  const exports = typeof definition === 'function' ? definition(realModule) : definition;
+  const exports =
+    typeof definition === 'function'
+      ? definition(loadRealModule ? loadRealModule() : (realModule as ModuleExports))
+      : definition;
   resolved.set(key, exports);
   return exports;
+}
+
+// The keys of the active activation that nothing has read yet: no module the story rendered asked
+// the stand-in for anything while this activation was in effect, so the mock reached nothing.
+//
+// This is only a fact once the story has rendered and settled. Before that, a module that has not
+// been required yet (inlineRequires defers every require to its first use) looks the same as one
+// that never will be, which is why the shim registry (isKeyShimmed) cannot answer it at activation.
+// A read counts only while its activation is in effect, so a shim evaluated by an earlier story
+// does not stand in for this story's own use.
+function unreachedMockKeys(): string[] {
+  if (!activeActivation) return [];
+  const { mocks, resolved } = activeActivation;
+  return Object.keys(mocks).filter((key) => !resolved.has(key));
+}
+
+// Every key of the active activation, as the mocks named it.
+function activeMockKeys(): string[] {
+  return activeActivation ? Object.keys(activeActivation.mocks) : [];
 }
 
 // Called once by createMockable when a shim module is evaluated, i.e. the module is
@@ -93,6 +120,8 @@ export {
   activateMocks,
   clearMocks,
   resolveMockExports,
+  unreachedMockKeys,
+  activeMockKeys,
   registerShimmedKey,
   isKeyShimmed,
   isMockingModeActive,

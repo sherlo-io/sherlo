@@ -17,11 +17,11 @@ import SherloModule from '../SherloModule';
 import RunnerBridge from '../helpers/RunnerBridge';
 import { setCaptureLogSink } from '../helpers/RunnerBridge/captureLogSink';
 import { bundlerOrigin } from '../bundlerOrigin';
-import { clearStoryError, readStoryError } from '../getStorybook/storyErrorRegistry';
+import { clearStoryError } from '../getStorybook/storyErrorRegistry';
 import { STORY_ERROR_FALLBACK_TEXT } from '../constants';
 import { readStorybookChannel } from '../getStorybook/storybookReads';
 import { readStorybookFacts } from '../getStorybook/storybookFacts';
-import { activateMocksForStory } from '../getStorybook/storyMockActivation';
+import { activateMocksForStory, storyFailureOf } from '../getStorybook/storyMockActivation';
 import { mergeStoryMocks } from '../mocking/mergeMocks';
 import type { StoryMocks } from '../mocking/mockDeclaration';
 import { clearMocks } from '../mocking';
@@ -140,7 +140,7 @@ function hostForTheCore(): SealedCoreHost {
     },
     bundlerOrigin,
     storyErrors: {
-      read: readStoryError,
+      read: storyFailureOf,
       clear: clearStoryError,
       fallbackText: STORY_ERROR_FALLBACK_TEXT,
     },

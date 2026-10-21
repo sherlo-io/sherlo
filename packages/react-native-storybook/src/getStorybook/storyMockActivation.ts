@@ -9,12 +9,22 @@
 import { storyMocksOf } from '../mocking/storyMocksOf';
 import {
   activateNetworkMocks,
-  activateStoryMocks,
+  installStoryMocks,
   networkMocksOf,
   resolveDeclarations,
+  unreachedMocksOfActiveStory,
   UnmockedRequestError,
+  warnUnnamedImports,
 } from '../mocking';
-import { recordStoryError } from './storyErrorRegistry';
+import type { StoryError } from '../sealedCore/seam';
+import { activeMockKeys } from '../mocking/registry';
+import { declaredImportsOf } from '../mocking/declaredImports';
+import { isUnshimmedImportName, UNSHIMMED_IMPORT_PREFIX } from '../mocking/mockDeclaration';
+import { readStorybookFacts } from './storybookFacts';
+import { readStoryError, recordStoryError } from './storyErrorRegistry';
+
+// The story whose mocks are installed, which is the only story an unreached mock can fail.
+let installedStoryId: string | undefined;
 
 // Monotonic id for the latest attempt to install a story's mocks. A declaration names its
 // module by import, so its name is only known once that import resolves - and an attempt whose
@@ -44,7 +54,8 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
 
   // The object form already names every module it mocks, so it installs at once.
   if (!Array.isArray(mocks)) {
-    activateStoryMocks(mocks);
+    installStoryMocks(mocks);
+    installedStoryId = storyId;
     latestInstalled = null;
     return null;
   }
@@ -55,9 +66,74 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
   // fetches its own lazy bundle, so the newer attempt's can arrive after the first attempt's.
   latestInstalled = resolveDeclarations(mocks).then((resolvedMocks) => {
     if (install !== latestInstall) return latestInstalled ?? undefined;
-    activateStoryMocks(resolvedMocks);
+    installStoryMocks(resolvedMocks);
+    installedStoryId = storyId;
+    warnUnnamedImports(resolvedMocks);
   });
   return latestInstalled;
+}
+
+/**
+ * What the core reads for a story once it has rendered and settled: the error the story threw, or
+ * - when it threw none - the failure of a mock that reached nothing.
+ *
+ * This is the one moment a mock that reached nothing is certain. The mock is installed before the
+ * story renders and every import its declaration awaited has settled, yet a module the story uses
+ * may still be required for the first time while it renders (inlineRequires), so neither the
+ * install nor the shims evaluated by then can say it: only a story that has rendered and read none
+ * of the module's exports has reached nothing. The failure names the mocks as the story named them.
+ */
+export function storyFailureOf(storyId: string): StoryError | undefined {
+  const thrown = readStoryError(storyId);
+  if (thrown || storyId !== installedStoryId) return thrown;
+
+  const unreached = unreachedMocksOfActiveStory();
+  if (unreached.length === 0) return undefined;
+
+  const unnamed = unreached.filter(isUnshimmedImportName);
+  const named = unreached.filter((key) => !isUnshimmedImportName(key));
+  const sentences: string[] = [];
+
+  if (named.length > 0) {
+    const names = named.map((name) => `"${name}"`).join(', ');
+    const pronoun = named.length > 1 ? 'them' : 'it';
+    sentences.push(
+      `the story mocks ${names}, but nothing it rendered used ${pronoun}, so the mock ` +
+        `reached nothing. Check that the story renders a component that imports ${pronoun}, and ` +
+        'that the name matches what the app imports (restart Metro after adding a key).'
+    );
+  }
+
+  sentences.push(...unnamed.map((key) => unreachedImportSentence(key, storyId)));
+
+  return {
+    name: 'UnreachedMockError',
+    message: `Sherlo: ${sentences.join(' Sherlo: ')}`,
+    stack: '',
+    componentStack: '',
+  };
+}
+
+// A declaration whose import settled on a module that is no stand-in has no name of its own. The
+// scan's manifest of what the story's file imports for a mock (../mocking/declaredImports) names
+// the module, except those another declaration of the story already named by its stand-in.
+function unreachedImportSentence(unnamedKey: string, storyId: string): string {
+  const importPath = readStorybookFacts()?.storyIndex[storyId]?.importPath;
+  const namedKeys = activeMockKeys();
+  const candidates = importPath
+    ? declaredImportsOf(importPath).filter((specifier) => !namedKeys.includes(specifier))
+    : [];
+  const declaring = unnamedKey.replace(UNSHIMMED_IMPORT_PREFIX, '');
+  const where =
+    candidates.length === 0
+      ? `a module whose name Sherlo's build did not record (${declaring})`
+      : `the module imported as ${candidates.map((c) => `"${c}"`).join(' or ')} in ${importPath} (${declaring})`;
+
+  return (
+    `the story declares a mock for ${where}, but that import reached no stand-in, so the ` +
+    'bundler did not redirect it and the mock reached nothing. Check that the name resolves ' +
+    'for the app as it does for the story (alias, extension) and restart Metro.'
+  );
 }
 
 /**
