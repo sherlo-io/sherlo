@@ -1,3 +1,4 @@
+import { blankSecrets } from '../../../helpers/blankSecrets';
 import { getTokenParts, reporting, stripAnsi } from '../../../helpers';
 import { serverCalls } from '../../../seams/serverCalls';
 
@@ -28,7 +29,7 @@ async function trackProgress({
   }
 
   const stringifiedParams = JSON.stringify(params ?? {}, (_, value) =>
-    typeof value === 'string' ? stripAnsi(value).trim() : value
+    typeof value === 'string' ? blankSecrets(stripAnsi(value).trim()) : value
   );
 
   // Through the server seam, like every other backend call, so a posed `init` answers its progress
