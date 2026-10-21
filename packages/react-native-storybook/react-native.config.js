@@ -47,8 +47,77 @@ const androidPackageFoundByName = `new Object() {
 // under the same names where it does not.
 const CPP_LINKING_THAT_EVERY_BUILD_TYPE_HAS = 'cpp-autolinking/CMakeLists.txt';
 
+// CocoaPods refuses a whitelisted configuration name the app does not have, so the iOS answer comes
+// from the app itself. The Podfile is the source of truth, the way CocoaPods reads it: a
+// configuration its `project` line maps to :debug is debug, one it does not mark is release, and
+// plain `Debug` is debug. Autolinking runs this file with the folder `pod install` runs in as the
+// working directory, which is the app's ios/ folder (a Podfile there, or in a parent's ios/).
+const fs = require('fs');
+const path = require('path');
+
+function findIosFolder() {
+  let folder = process.cwd();
+  for (let step = 0; step < 6; step++) {
+    if (fs.existsSync(path.join(folder, 'Podfile'))) return folder;
+    if (fs.existsSync(path.join(folder, 'ios', 'Podfile'))) return path.join(folder, 'ios');
+    const parent = path.dirname(folder);
+    if (parent === folder) break;
+    folder = parent;
+  }
+  return null;
+}
+
+function readXcodeConfigurationNames(iosFolder) {
+  const names = [];
+  for (const entry of fs.readdirSync(iosFolder)) {
+    if (!entry.endsWith('.xcodeproj')) continue;
+    const pbxproj = fs.readFileSync(path.join(iosFolder, entry, 'project.pbxproj'), 'utf8');
+    const section = pbxproj.split('Begin XCBuildConfiguration section')[1];
+    if (!section) continue;
+    const sectionText = section.split('End XCBuildConfiguration section')[0];
+    for (const match of sectionText.matchAll(/^\s*name = (?:"([^"]+)"|([^;\s]+));/gm)) {
+      names.push(match[1] || match[2]);
+    }
+  }
+  return names;
+}
+
+// null: the app's iOS folder cannot be read, so the answer stays the old plain `Debug`.
+function readIosDebugConfigurations() {
+  try {
+    const iosFolder = findIosFolder();
+    if (!iosFolder) return null;
+    const podfile = fs
+      .readFileSync(path.join(iosFolder, 'Podfile'), 'utf8')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('#'))
+      .join('\n');
+    const mapped = new Map();
+    for (const match of podfile.matchAll(/(['"])([^'"]+)\1\s*=>\s*:(debug|release)\b/g)) {
+      mapped.set(match[2], match[3]);
+    }
+    const projectNames = readXcodeConfigurationNames(iosFolder);
+    const debugNames = [...mapped].filter(([, kind]) => kind === 'debug').map(([name]) => name);
+    if (projectNames.includes('Debug') && mapped.get('Debug') !== 'release') debugNames.push('Debug');
+    return [...new Set(debugNames)];
+  } catch (iosFolderUnreadable) {
+    return null;
+  }
+}
+
+// - null (cannot read the app): `Debug`, as before this file read the app.
+// - a list: exactly the debug configurations.
+// - an empty list (the app has no debug configuration): `null` for the platform, so the pod is not
+//   linked at all. An empty `configurations` list would mean every configuration to CocoaPods.
+function iosAnswer() {
+  const debugConfigurations = readIosDebugConfigurations();
+  if (debugConfigurations === null) return { configurations: ['Debug'] };
+  if (debugConfigurations.length === 0) return null;
+  return { configurations: debugConfigurations };
+}
+
 const debugOnlyPlatforms = {
-  ios: { configurations: ['Debug'] },
+  ios: iosAnswer(),
   android: {
     buildTypes: ['debug'],
     packageImportPath:
