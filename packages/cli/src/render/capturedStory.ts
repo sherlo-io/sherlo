@@ -1,13 +1,11 @@
 /**
  * WHAT `sherlo capture` PRINTS.
  *
- * Pure, like everything under ./: state in, lines out. The road that produces the state is the
- * capture socket on the bundler (../seams/captureSocket); a posed run states the answer and a real
- * run gets it from the app, and neither changes a line of what is printed.
+ * Pure, like everything under ./: state in, lines out. The state comes from the capture socket
+ * (../seams/captureSocket), posed or real, and neither changes a line of what is printed.
  *
  * AN AGENT IS A FIRST-CLASS READER, so every ending is named. The refusals are word for word the
- * ones `sherlo open` prints (./openedStory), because they are the same facts about the same road -
- * a developer who has met one command's refusal has already met the other's.
+ * ones `sherlo open` prints (./openedStory): the same facts about the same road.
  *
  * THE VIEW TREE IS THE RECORD, DRAWN THE WAY SHERLO'S WEB INSPECTOR DRAWS IT. Every view, none
  * left out, as the tag the inspector names it by, its style block one key per line in the
@@ -61,10 +59,7 @@ export type CapturedStory =
       unanswered?: { method: string; url: string }[];
       tree: CapturedView;
     }
-  /**
-   * The screen never stopped changing before the stabilization gave up. A cloud run would hit the
-   * same limit on the same story, which is exactly why a developer needs to hear it here.
-   */
+  /** The screen never stopped changing before the stabilization gave up; a cloud run would hit the same limit. */
   | {
       kind: 'never-settled';
       storyId: string;
@@ -178,8 +173,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       ];
 
     case 'captured-and-threw':
-      // A MOCK THAT DID NOT APPLY is the story's own declaration failing, not its screen: the error names the
-      // module, and the window the story never drew in would only bury it.
+      // A mock that did not apply fails the story's declaration, not its screen: no tree to bury the module's name.
       if (state.threw.name === MOCKED_MODULE_ERROR) {
         return [
           // WORDING: content reviewed it on 2026-10-21
@@ -239,7 +233,7 @@ const INK = {
   component: chalk.hex('#D97AB8'),
 };
 
-/** What the story still ran of the app itself: the mocks left these alone, as a story that mocks only some modules wants. */
+/** The app's own modules the story ran as real code, because no mock replaced them. */
 function stillRealLines(stillReal: string[] | undefined): string[] {
   if (!stillReal || stillReal.length === 0) return [];
   return [
