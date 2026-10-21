@@ -433,6 +433,42 @@ describe('app builder, iOS', () => {
     expect(args).not.toContain('-derivedDataPath');
   });
 
+  it("builds iOS in the scheme's archive configuration when the project has no Release and no configuration is set", async () => {
+    const project = path.join(projectRoot, 'ios/App.xcodeproj');
+    fs.mkdirSync(path.join(project, 'xcshareddata/xcschemes'), { recursive: true });
+    const configuration = (name: string) =>
+      `isa = XCBuildConfiguration;\n\t\t\tbuildSettings = {\n\t\t\t};\n\t\t\tname = ${name};\n\t\t};\n`;
+    fs.writeFileSync(
+      path.join(project, 'project.pbxproj'),
+      configuration('dev.debug') + configuration('dev.release')
+    );
+    fs.writeFileSync(
+      path.join(project, 'xcshareddata/xcschemes/App.xcscheme'),
+      '<Scheme><LaunchAction buildConfiguration = "dev.debug"></LaunchAction>' +
+        '<ArchiveAction buildConfiguration = "dev.release" revealArchiveInOrganizer = "YES">' +
+        '</ArchiveAction></Scheme>'
+    );
+    await compileIos({ ios: { scheme: 'App' } });
+    expect(xcodebuildBuildCall().args).toEqual(
+      expect.arrayContaining(['-configuration', 'dev.release'])
+    );
+
+    // A configuration named in the settings wins over both.
+    calls.length = 0;
+    await compileIos({ ios: { scheme: 'App', configuration: 'prod.debug' } });
+    expect(xcodebuildBuildCall().args).toEqual(
+      expect.arrayContaining(['-configuration', 'prod.debug'])
+    );
+
+    // A project with a Release builds Release, whatever the scheme archives with.
+    calls.length = 0;
+    fs.appendFileSync(path.join(project, 'project.pbxproj'), configuration('Release'));
+    await compileIos({ ios: { scheme: 'App' } });
+    expect(xcodebuildBuildCall().args).toEqual(
+      expect.arrayContaining(['-configuration', 'Release'])
+    );
+  });
+
   it("builds iOS with Xcode's compilation cache on in Xcode's own folder, and no dSYM", async () => {
     await compileIos();
     const { args } = xcodebuildBuildCall();
