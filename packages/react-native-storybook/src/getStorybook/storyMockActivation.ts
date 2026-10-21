@@ -19,6 +19,7 @@ import {
 import type { StoryError } from '../sealedCore/seam';
 import { activeMockKeys } from '../mocking/registry';
 import { UnansweredRequest, unansweredRequests } from '../mocking/networkRules';
+import { logStillRealOfStory, startStillRealStory } from '../mocking/stillReal';
 import { declaredImportsOf } from '../mocking/declaredImports';
 import { isUnshimmedImportName, UNSHIMMED_IMPORT_PREFIX } from '../mocking/mockDeclaration';
 import { readStorybookFacts } from './storybookFacts';
@@ -46,6 +47,7 @@ let latestInstalled: Promise<void> | null = null;
 export function activateMocksForStory(storyId: string | undefined): Promise<void> | null {
   if (!storyId) return null;
 
+  startStillRealStory();
   const mocks = storyMocksOf(storyId);
   const install = (latestInstall += 1);
 
@@ -94,6 +96,9 @@ export function unansweredRequestsOfStory(): UnansweredRequest[] {
  * of the module's exports has reached nothing. The failure names the mocks as the story named them.
  */
 export function storyFailureOf(storyId: string): StoryError | undefined {
+  // SPIKE still-real-on-hermes: the story has rendered and settled; say what is still real.
+  logStillRealOfStory(storyId, unansweredRequestsOfStory());
+
   const thrown = readStoryError(storyId);
   if (thrown || storyId !== installedStoryId) return thrown;
 

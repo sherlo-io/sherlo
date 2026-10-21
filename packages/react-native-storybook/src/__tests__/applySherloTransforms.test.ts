@@ -281,9 +281,15 @@ describe('applySherloTransforms – customSerializer wrapper', () => {
   // customSerializer slot at all: no wrapper installed, the user's serializer is
   // left exactly as passed in, and Metro's default serializer is never forced to
   // load.
-  describe('off the bundling path (SHERLO_MODULE_MANIFEST unset)', () => {
+  // SPIKE still-real-on-hermes: the serializer is now also how the list of watched app modules
+  // reaches the bundle, so "nothing for the wrapper to do" holds only with watching switched off.
+  describe('off the bundling path (SHERLO_MODULE_MANIFEST unset, SHERLO_STILL_REAL=off)', () => {
     beforeEach(() => {
       delete process.env.SHERLO_MODULE_MANIFEST;
+      process.env.SHERLO_STILL_REAL = 'off';
+    });
+    afterEach(() => {
+      delete process.env.SHERLO_STILL_REAL;
     });
 
     it("leaves the user's existing customSerializer untouched (same identity)", () => {

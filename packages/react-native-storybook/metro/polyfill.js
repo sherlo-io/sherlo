@@ -89,6 +89,94 @@
     // Probe threw - conservative default: continue (run full body).
   }
 
+  // SPIKE still-real-on-hermes - the recording stand-in on every app module.
+  //
+  // Reached only in testing mode: the gate above has returned for 'default' and 'storybook'. The
+  // bundler (metro/stillReal.js) lists the app's own modules in __sherloStillRealPaths; it
+  // lists none for a build with SHERLO_STILL_REAL=off, and no store build carries this file at
+  // all. A listed module's exports are replaced, right after its factory ran, by a Proxy that
+  // notes which exports are read - it hands back the very value, so only the exports object's
+  // identity changes. The SDK clears the notes when a story starts and reads them when it is
+  // settled (src/mocking/stillReal.ts). Everything here is guarded: watching must never break
+  // the app it watches.
+  var stillReal = (global.__sherloStillReal = {
+    isTesting: typeof _gateMode !== 'undefined' && _gateMode === 'testing',
+    startedAt: stillRealNow(),
+    paths: global.__sherloStillRealPaths || null,
+    watchedCount: 0,
+    wrapMs: 0,
+    reads: 0,
+    entries: {},
+  });
+
+  function stillRealNow() {
+    return typeof performance !== 'undefined' &&
+      performance &&
+      typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now();
+  }
+
+  function watchModuleExports(moduleId, moduleObj) {
+    // The bundler's list is a script that runs after this polyfill, so it is read on first use.
+    if (!stillReal.isTesting) return;
+    if (!stillReal.paths) stillReal.paths = global.__sherloStillRealPaths || null;
+    if (!stillReal.paths) return;
+    var modulePath = stillReal.paths[moduleId];
+    if (!modulePath || !moduleObj || typeof Proxy !== 'function') return;
+    var started = stillRealNow();
+    var target = moduleObj.exports;
+    if (target && (typeof target === 'object' || typeof target === 'function')) {
+      var entry = { path: modulePath, used: null };
+      var note = function (name) {
+        stillReal.reads++;
+        var used = entry.used || (entry.used = {});
+        used[name] = 1;
+      };
+      var handler = {
+        get: function (t, key) {
+          if (typeof key === 'string' && key !== '__esModule' && key !== 'then') note(key);
+          return t[key];
+        },
+      };
+      if (typeof target === 'function') {
+        handler.apply = function (t, thisArg, args) {
+          note('(call)');
+          return Reflect.apply(t, thisArg, args);
+        };
+        handler.construct = function (t, args, newTarget) {
+          note('(new)');
+          return Reflect.construct(t, args, newTarget === undefined ? t : newTarget);
+        };
+      }
+      stillReal.entries[moduleId] = entry;
+      moduleObj.exports = new Proxy(target, handler);
+      stillReal.watchedCount++;
+    }
+    stillReal.wrapMs += stillRealNow() - started;
+  }
+
+  stillReal.startStory = function () {
+    var started = stillRealNow();
+    stillReal.reads = 0;
+    for (var id in stillReal.entries) stillReal.entries[id].used = null;
+    return stillRealNow() - started;
+  };
+
+  stillReal.readStory = function () {
+    var modules = [];
+    for (var id in stillReal.entries) {
+      var entry = stillReal.entries[id];
+      if (entry.used) modules.push({ module: entry.path, exports: Object.keys(entry.used).sort() });
+    }
+    modules.sort(function (a, b) {
+      return a.module < b.module ? -1 : a.module > b.module ? 1 : 0;
+    });
+    return modules;
+  };
+
+  stillReal.now = stillRealNow;
+
   function getSherloNativeModule() {
     // Each attempt is isolated: a throw in one does not block the next.
     try {
@@ -365,7 +453,7 @@
         } catch (_) {}
 
         try {
-          return factory.call(
+          var factoryResult = factory.call(
             this,
             globalObj,
             requireFn,
@@ -375,6 +463,11 @@
             exportsObj,
             depMap
           );
+          // SPIKE still-real-on-hermes: after the module ran, put the recording stand-in on it.
+          try {
+            watchModuleExports(moduleId, moduleObj);
+          } catch (_) {}
+          return factoryResult;
         } catch (e) {
           reportToNative(e);
           throw e;

@@ -8,6 +8,7 @@ var getBabelParser = require('./babelParser');
 var mockShims = require('./mockShims');
 var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
+var stillReal = require('./stillReal');
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
@@ -980,7 +981,10 @@ function applySherloTransforms(result, opts) {
   var sherloCustomSerializer = null;
   // A project that mocks a bare package needs the wrapper too: the end of the bundle is where a
   // mock that no import reached gets reported.
-  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0) {
+  // SPIKE still-real-on-hermes: the list of the app's own modules the polyfill watches in testing
+  // mode (stillReal.js); off with SHERLO_STILL_REAL=off or when Sherlo is disabled.
+  var stillRealOn = !(opts && opts.enabled === false) && stillReal.isWatchingOn(process.env);
+  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0 || stillRealOn) {
     var existingCustomSerializer =
       result && result.serializer && typeof result.serializer.customSerializer === 'function'
         ? result.serializer.customSerializer
@@ -998,6 +1002,13 @@ function applySherloTransforms(result, opts) {
         // Delegate to the original serializer and return its output unchanged.
         return delegateSerializer(entryPoint, preModules, graph, options);
       };
+      if (stillRealOn) {
+        sherloCustomSerializer = stillReal.withStillRealList(
+          sherloCustomSerializer,
+          projectRoot,
+          process.env
+        );
+      }
     }
   }
 
