@@ -8,6 +8,10 @@ type Activation = {
   mocks: MockSet;
   // Lazily populated as keys are looked up; guarantees each factory runs once per activation.
   resolved: Map<string, ModuleExports | undefined>;
+  // Writes a story made to a mocked module's exports, per module key. Dropped with the activation.
+  overrides: Map<string, Map<PropertyKey, PropertyDescriptor>>;
+  // Puts back what a story changed on a real object (a default-exported singleton's fields).
+  undo: Array<() => void>;
 };
 
 let activeActivation: Activation | null = null;
@@ -35,7 +39,14 @@ function isMockingModeActive(): boolean {
 function activateMocks(mocks: MockSet): void {
   if (!isMockingModeActive()) return;
 
-  activeActivation = { mocks, resolved: new Map() };
+  endActivation();
+  activeActivation = { mocks, resolved: new Map(), overrides: new Map(), undo: [] };
+}
+
+// Puts back what the ending story wrote to real objects, newest write first.
+function endActivation(): void {
+  activeActivation?.undo.reverse().forEach((undo) => undo());
+  activeActivation = null;
 }
 
 // Removes the active mock set; every createMockable trap then passes through to the real module,
@@ -43,7 +54,7 @@ function activateMocks(mocks: MockSet): void {
 function clearMocks(): void {
   restoreClock();
   restoreRandom();
-  activeActivation = null;
+  endActivation();
   clearNetworkMocks();
 }
 
@@ -72,6 +83,23 @@ function resolveMockExports(key: string, realModule: ModuleExports): ModuleExpor
   return exports;
 }
 
+// The story's writes to module `key`, or undefined when no story is active (a write then goes
+// to the real module). Gone when the story's mocks end.
+function getOverrides(key: string): Map<PropertyKey, PropertyDescriptor> | undefined {
+  if (!activeActivation) return undefined;
+  const { overrides } = activeActivation;
+  if (!overrides.has(key)) overrides.set(key, new Map());
+  return overrides.get(key);
+}
+
+// Registers how to undo a write to a real object; returns false when no story is active (the
+// write is then permanent, as it would be without the shim).
+function recordUndo(undo: () => void): boolean {
+  if (!activeActivation) return false;
+  activeActivation.undo.push(undo);
+  return true;
+}
+
 // Called once by createMockable when a shim module is evaluated, i.e. the module is
 // really mockable. Idempotent - the module cache guarantees a shim evaluates once anyway.
 function registerShimmedKey(key: string): void {
@@ -93,6 +121,8 @@ export {
   activateMocks,
   clearMocks,
   resolveMockExports,
+  getOverrides,
+  recordUndo,
   registerShimmedKey,
   isKeyShimmed,
   isMockingModeActive,
