@@ -614,14 +614,8 @@ export function posedCaptureSocket(
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
-      if ('brokenFiles' in posed || !posed.stories.includes(storyId)) {
-        return {
-          kind: 'no-such-story',
-          known: posed.stories,
-          ...('brokenFiles' in posed && { brokenFiles: posed.brokenFiles }),
-        };
-      }
-
+      // A CRASH COMES FIRST: an app that died as it started never said which stories it had, so its empty
+      // list must not read as a missing story.
       if ('crashed' in posed) {
         return {
           kind: 'crashed',
@@ -630,6 +624,13 @@ export function posedCaptureSocket(
             posed.crashed.message && {
               error: { name: posed.crashed.name, message: posed.crashed.message },
             }),
+        };
+      }
+      if ('brokenFiles' in posed || !posed.stories.includes(storyId)) {
+        return {
+          kind: 'no-such-story',
+          known: posed.stories,
+          ...('brokenFiles' in posed && { brokenFiles: posed.brokenFiles }),
         };
       }
 

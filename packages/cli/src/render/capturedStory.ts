@@ -86,6 +86,9 @@ export type CapturedStory =
 
 const START_THE_APP = 'Start your app with the bundler running, then try again.';
 
+/** The name of the error the SDK fails a story with when a mock it declares reached nothing or its module's import threw. */
+const MOCKED_MODULE_ERROR = 'MockedModuleError';
+
 /** Every line `sherlo capture` prints, in order. */
 export function renderCapturedStory(state: CapturedStory): string[] {
   switch (state.kind) {
@@ -169,6 +172,20 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       ];
 
     case 'captured-and-threw':
+      // A MOCK THAT DID NOT APPLY is the story's own declaration failing, not its screen: the error names the
+      // module, and the window the story never drew in would only bury it.
+      if (state.threw.name === MOCKED_MODULE_ERROR) {
+        return [
+          // WORDING: content reviews before sign-off
+          `${chalk.red('✖')}  ${chalk.bold(state.storyId)} failed - a module it mocks was not mocked`,
+          '',
+          `  ${state.threw.message}`,
+          '',
+          // WORDING: content reviews before sign-off
+          chalk.dim('Fix the mock, then capture again. --json prints the record.'),
+          '',
+        ];
+      }
       return [
         `${chalk.red('✖')}  ${chalk.bold(state.storyId)} captured, and it threw while rendering`,
         '',
