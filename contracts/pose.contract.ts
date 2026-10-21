@@ -621,6 +621,10 @@ export type PosedCapture =
           };
       /** The views still changing when the stabilization gave up. Absent prints no names. */
       changing?: string[];
+      /** The app's own modules the story reached that no mock replaced. Absent prints no list. */
+      stillReal?: string[];
+      /** The requests the story made that no mock answered. Absent prints no list. */
+      unanswered?: UnansweredRequest[];
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
       threw?: {
         name: string;
@@ -1106,6 +1110,12 @@ export type BrokenStoryFile = {
     name: string;
     message: string;
   };
+};
+
+/** A request a story made that no mock answered, so it went to the real network. */
+export type UnansweredRequest = {
+  method: string;
+  url: string;
 };
 
 /**

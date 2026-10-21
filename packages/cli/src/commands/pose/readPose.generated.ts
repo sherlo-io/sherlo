@@ -1205,13 +1205,25 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
         if ('changing' in object10) {
           expectStringArray(object10.changing, at(path, 'changing'), problems);
         }
+        if ('stillReal' in object10) {
+          expectStringArray(object10.stillReal, at(path, 'stillReal'), problems);
+        }
+        if ('unanswered' in object10) {
+          const where14 = at(path, 'unanswered');
+          const list15 = asArray(object10.unanswered, where14, problems);
+          if (list15) {
+            list15.forEach((entry16, index17) => {
+              readUnansweredRequest(entry16, atIndex(where14, index17), problems);
+            });
+          }
+        }
         if ('threw' in object10) {
-          const where14 = at(path, 'threw');
-          const object15 = asObject(object10.threw, where14, problems);
-          if (object15) {
-            expectString(object15.name, at(where14, 'name'), problems);
-            expectString(object15.message, at(where14, 'message'), problems);
-            reportUnknownFields(object15, ['name', 'message'], where14, problems);
+          const where18 = at(path, 'threw');
+          const object19 = asObject(object10.threw, where18, problems);
+          if (object19) {
+            expectString(object19.name, at(where18, 'name'), problems);
+            expectString(object19.message, at(where18, 'message'), problems);
+            reportUnknownFields(object19, ['name', 'message'], where18, problems);
           }
         }
         if ('parts' in object10) {
@@ -1223,7 +1235,17 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
         readPosedView(object10.tree, at(path, 'tree'), problems);
         reportUnknownFields(
           object10,
-          ['stories', 'settled', 'changing', 'threw', 'parts', 'hasNetworkImage', 'tree'],
+          [
+            'stories',
+            'settled',
+            'changing',
+            'stillReal',
+            'unanswered',
+            'threw',
+            'parts',
+            'hasNetworkImage',
+            'tree',
+          ],
           path,
           problems
         );
@@ -1231,7 +1253,7 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
     } else {
       reportWrongShape(
         oneOf1,
-        "`{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: 'timed-out' | { ms: number; frames: number }; changing?: string[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`",
+        "`{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: 'timed-out' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`",
         path,
         problems
       );
@@ -1239,7 +1261,7 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`',
+      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`',
       path,
       problems
     );
@@ -2082,6 +2104,16 @@ function readBrokenStoryFile(value: unknown, path: string, problems: string[]): 
       reportUnknownFields(object3, ['name', 'message'], where2, problems);
     }
     reportUnknownFields(object1, ['file', 'error'], path, problems);
+  }
+}
+
+/** The shape of a `UnansweredRequest`, as `contracts/pose.contract.ts` publishes it. */
+function readUnansweredRequest(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectString(object1.method, at(path, 'method'), problems);
+    expectString(object1.url, at(path, 'url'), problems);
+    reportUnknownFields(object1, ['method', 'url'], path, problems);
   }
 }
 

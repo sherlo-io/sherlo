@@ -71,6 +71,10 @@ export type CaptureResult =
       settled: { ms: number; frames: number } | 'timed-out';
       /** The views still changing when the stabilization gave up, by the tag the tree draws each by. */
       changing?: string[];
+      /** The app's own modules the story reached that no mock replaced, by path. Absent when watching is off. */
+      stillReal?: string[];
+      /** The requests the story made that no mock answered, in the order it made them. Absent when none were. */
+      unanswered?: UnansweredRequest[];
       threw?: { name: string; message: string };
       /**
        * How many screenfuls the story was captured in - 1 is a story that fits the screen. Absent
@@ -109,6 +113,9 @@ export type CaptureResult =
 
 /** A story file that threw as the app loaded it, and what it threw, in its own words. */
 export type BrokenStoryFile = { file: string; error: { name: string; message: string } };
+
+/** A request a story made that no mock answered, so it went to the real network. */
+export type UnansweredRequest = { method: string; url: string };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
 export type WaitOutcome = {
@@ -565,6 +572,10 @@ export type PosedCapture =
       settled: { ms: number; frames: number } | 'timed-out';
       /** The views still changing when the stabilization gave up. Absent prints no names. */
       changing?: string[];
+      /** The app's own modules the story reached that no mock replaced. Absent prints no list. */
+      stillReal?: string[];
+      /** The requests the story made that no mock answered. Absent prints no list. */
+      unanswered?: UnansweredRequest[];
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
       threw?: { name: string; message: string };
       /**
@@ -639,6 +650,8 @@ export function posedCaptureSocket(
         storyId,
         settled: posed.settled,
         ...(posed.changing && { changing: posed.changing }),
+        ...(posed.stillReal && { stillReal: posed.stillReal }),
+        ...(posed.unanswered && { unanswered: posed.unanswered }),
         ...(posed.threw && { threw: posed.threw }),
         ...(posed.parts !== undefined && { parts: posed.parts }),
         ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),

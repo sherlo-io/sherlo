@@ -120,6 +120,8 @@ export function endingFor(
         frames: answer.settled.frames,
         ...(answer.parts !== undefined && { parts: answer.parts }),
         ...(answer.hasNetworkImage !== undefined && { hasNetworkImage: answer.hasNetworkImage }),
+        ...(answer.stillReal && { stillReal: answer.stillReal }),
+        ...(answer.unanswered && { unanswered: answer.unanswered }),
         tree: answer.tree,
       };
   }
