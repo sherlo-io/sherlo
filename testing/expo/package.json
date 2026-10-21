@@ -22,7 +22,9 @@
     "start:ios:development": "tar -xzvf builds/development/ios.tar.gz -C builds/development && xcrun simctl install booted builds/development/SherloExpoExample.app && npx expo start --ios --dev-client",
     "start:ios:go": "npx expo start --ios --go",
     "storybook:generate": "sb-rn-get-stories",
-    "sherlo": "npx sherlo"
+    "sherlo": "npx sherlo",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@d11/react-native-fast-image": "8.11.0",

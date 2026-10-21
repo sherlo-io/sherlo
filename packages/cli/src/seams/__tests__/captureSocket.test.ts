@@ -294,6 +294,19 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
   });
 
+  it('the props the story drew its components with come back beside the tree', async () => {
+    const r = await relay();
+    const drawnProps = [{ component: 'Button', file: 'src/Button.tsx', props: { size: 'small' } }];
+
+    expect(
+      await aCapture(r, {
+        askedFor: STORY_A,
+        stories: [STORY_A],
+        recorded: { ...ANSWER_A, drawnProps },
+      })
+    ).toMatchObject({ kind: 'captured', drawnProps });
+  });
+
   it("the device's own density and font scale come back beside the tree", async () => {
     const r = await relay();
 

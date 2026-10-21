@@ -80,6 +80,8 @@ export type CaptureResult =
       density?: number;
       fontScale?: number;
       tree: CapturedView;
+      /** The props each component under the story was drawn with (the SDK's drawnProps.ts); absent from an app older than this field. */
+      drawnProps?: DrawnComponent[];
       /**
        * How the app's two waits for this story went - for a published reading that names it, and
        * for that story's own views to be in the inspector's tree - and what the tree it recorded is
@@ -99,6 +101,15 @@ export type CaptureResult =
        */
       logs?: string[];
     };
+
+/** One component the story drew, with its primitive props ("present" stands for a function or object). */
+export type DrawnComponent = {
+  component: string;
+  file?: string;
+  files?: string[];
+  library?: boolean;
+  props: Record<string, string | number | boolean | null>;
+};
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
 export type WaitOutcome = {
@@ -252,6 +263,7 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
     tree?: unknown;
     waited?: unknown;
     root?: unknown;
+    drawnProps?: unknown;
   };
 
   if (answer.kind === 'no-app') return { kind: 'no-app' };
@@ -283,6 +295,7 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
       ...(typeof answer.density === 'number' && { density: answer.density }),
       ...(typeof answer.fontScale === 'number' && { fontScale: answer.fontScale }),
       tree: readCapturedView(answer.tree),
+      ...(Array.isArray(answer.drawnProps) && { drawnProps: answer.drawnProps as DrawnComponent[] }),
       ...(waited && { waited }),
       ...(root && { root }),
     };

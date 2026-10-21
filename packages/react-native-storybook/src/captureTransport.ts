@@ -14,8 +14,19 @@
  */
 import { bundlerOrigin } from './bundlerOrigin';
 import { sendAndAwaitAnswer } from './connection/appLine';
+import { drawnPropsOfTheStory } from './drawnProps';
 import { getSealedCore } from './sealedCore/loadSealedCore';
-import type { CaptureTransport, StorybookChannel } from './sealedCore/seam';
+import type { CapturedAnswer, CaptureTransport, StorybookChannel } from './sealedCore/seam';
+
+/**
+ * The core's answer for a captured story, with the props its components were drawn with beside it.
+ * The story is still mounted while its answer crosses, so its fiber is the one that was captured.
+ */
+function withDrawnProps(answer: CapturedAnswer | null): CapturedAnswer | null {
+  if (!answer || answer.kind !== 'captured') return answer;
+  const drawnProps = drawnPropsOfTheStory();
+  return drawnProps ? ({ ...answer, drawnProps } as CapturedAnswer) : answer;
+}
 
 /**
  * How long the app waits for the capture relay's answer before it gives up on it. Longer than the
@@ -66,7 +77,7 @@ export function bundlerCapture(): CaptureTransport | null {
   return {
     waitForACapture: (saying) =>
       sendAndAwaitAnswer(
-        { action: 'waitForACapture', ...saying },
+        { action: 'waitForACapture', ...saying, answer: withDrawnProps(saying.answer) },
         'captureInstruction',
         ANSWER_TIMEOUT_MS
       ),
