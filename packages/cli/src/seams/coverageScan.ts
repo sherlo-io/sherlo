@@ -1,26 +1,50 @@
 /**
  * THE COVERAGE SCAN SEAM - the one road `sherlo coverage` reads the app down.
  *
- *     live   - the app's own source files (which components exist, which files import them, which
- *              story files import which), and with `--props` the TypeScript types of the props
- *              and what each story file sets for its own component. The live half is not
+ *     live   - the app's own source files, read from the project folder and handed to
+ *              ../commands/coverage/componentGaps (which components exist, which files import
+ *              them, which story files import which). With `--props` it would also read the
+ *              TypeScript types of the props and what each story file sets; that half is not
  *              written yet, and says so.
  *     posed  - the pose's `coverage`: what the scan found.
  *
  * A SEAM OF ITS OWN, NOT THE CAPTURE SOCKET. A capture is one story's record; this is the whole
  * app read at once, and none of it needs a phone or a bundler.
  */
+import fg from 'fast-glob';
+import fs from 'fs';
+import path from 'path';
+import { componentGaps } from '../commands/coverage/componentGaps';
 import type { CoverageFindings } from '../render/coverage';
+import { projectFiles } from './projectFiles';
 
 /** Everything the tool asks of the app's files down this road, and nothing else. */
 export type CoverageScan = {
   scan(params: { withProps: boolean }): Promise<CoverageFindings>;
 };
 
-/** The shipped answer. Not written yet. */
+/** Folders that hold no source of the app. Dot folders are skipped by the glob itself. */
+const NOT_THE_APP = ['**/node_modules/**', '**/build/**', '**/dist/**', '**/Pods/**'];
+
+/** The shipped answer: read the app's source files from the project folder and list the gaps. */
 export const liveCoverageScan: CoverageScan = {
-  scan: async () => {
-    throw new Error('coverageScan: the live scan is not written yet');
+  scan: async ({ withProps }) => {
+    if (withProps) {
+      throw new Error('coverageScan: the live `--props` scan is not written yet');
+    }
+
+    const root = projectFiles().root();
+    const paths = await fg('**/*.{ts,tsx,js,jsx}', { cwd: root, ignore: NOT_THE_APP, dot: false });
+    const files = paths.sort().map((file) => ({
+      path: file,
+      text: fs.readFileSync(path.join(root, file), 'utf8'),
+    }));
+    const tsconfigPath = path.join(root, 'tsconfig.json');
+    const tsconfig = fs.existsSync(tsconfigPath)
+      ? fs.readFileSync(tsconfigPath, 'utf8')
+      : undefined;
+
+    return componentGaps({ files, tsconfig });
   },
 };
 

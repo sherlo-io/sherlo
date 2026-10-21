@@ -14,7 +14,7 @@
 import { JSON_OPTION, PROPS_OPTION } from '../../constants';
 import { emit } from '../../helpers/transcriptSink';
 import { coverageScan } from '../../seams/coverageScan';
-import type { CoverageFindings } from '../../render/coverage';
+import { rankGaps } from './componentGaps';
 
 export type CoverageOptions = {
   [PROPS_OPTION]?: boolean;
@@ -34,13 +34,3 @@ async function coverage(passedOptions: CoverageOptions): Promise<void> {
 }
 
 export default coverage;
-
-/* ========================================================================== */
-
-/** The gaps the most files import first; the same count in name order, so a run repeats itself. */
-export function rankGaps(findings: CoverageFindings): CoverageFindings {
-  const gaps = [...findings.gaps].sort(
-    (a, b) => b.importedBy - a.importedBy || a.name.localeCompare(b.name)
-  );
-  return { ...findings, gaps };
-}
