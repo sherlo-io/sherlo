@@ -25,12 +25,36 @@
  * the bottom asserts that property rather than assuming it.
  */
 import fs from 'fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { catalogue, renderPose } from '../catalogue';
 import { runPose } from '../pose';
 import { readPoseDocument } from '../readPose';
 import type { CommandPose } from '../../../seams/commandPose';
 import type { PosedCaptureDecision } from '../../../seams/serverCalls';
+
+/**
+ * RUNNING A POSE IS THE SLOW PART (116 of them), and two cases below read the same run of every
+ * pose: the committed-bytes case and the leftover-calls case. So a run is kept the first time and
+ * handed back after - one pass over the catalogue, not two. The determinism case turns the keeping
+ * off, because it exists to run the same pose twice and compare.
+ */
+const runsKept = new Map<string, Promise<unknown>>();
+let keepRuns = true;
+
+vi.mock('../pose', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../pose')>();
+
+  return {
+    ...original,
+    runPose: (...args: Parameters<typeof original.runPose>) => {
+      if (!keepRuns) return original.runPose(...args);
+
+      const key = JSON.stringify(args);
+      if (!runsKept.has(key)) runsKept.set(key, original.runPose(...args));
+      return runsKept.get(key) as ReturnType<typeof original.runPose>;
+    },
+  };
+});
 
 const POSES = catalogue();
 
@@ -79,8 +103,15 @@ describe('the pose catalogue under packages/cli/poses', () => {
     // Determinism, not truth - a producer agrees with itself by construction. What this catches
     // is a clock, a counter, a temporary path or an environment read leaking onto a screen,
     // which would make the catalogue unmintable rather than wrong.
-    const first = await renderPose(POSES[0].posePath);
-    const second = await renderPose(POSES[0].posePath);
+    keepRuns = false;
+    let first: string;
+    let second: string;
+    try {
+      first = await renderPose(POSES[0].posePath);
+      second = await renderPose(POSES[0].posePath);
+    } finally {
+      keepRuns = true;
+    }
 
     expect(first).toBe(second);
   });
