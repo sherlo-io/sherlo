@@ -499,6 +499,75 @@ describe('a capture of an app that cannot list its stories', () => {
     ).resolves.toEqual({ kind: 'no-such-story', known: [] });
   });
 
+  it('the story files the app says threw as it loaded ride unchanged with the no-such-story answer', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const brokenFiles = [
+      { file: './src/Bad.stories.tsx', error: { name: 'TypeError', message: 'boom' } },
+    ];
+
+    await app.waitsForACapture({ mode: 'default', stories: [], brokenFiles, answer: null });
+
+    await expect(
+      driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS })
+    ).resolves.toEqual({ kind: 'no-such-story', known: [], brokenFiles });
+  });
+
+  it('the relay names only the broken file whose recorded title is the asked story id title part', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const error = { name: 'TypeError', message: 'boom' };
+
+    // The id's title part names neither file; only the recorded title ties the id to Cart.
+    await app.waitsForACapture({
+      mode: 'default',
+      stories: [],
+      brokenFiles: [
+        { file: './src/Cart.stories.tsx', title: 'Shop/Checkout', error },
+        { file: './src/Other.stories.tsx', title: 'Other', error },
+      ],
+      answer: null,
+    });
+
+    await expect(
+      driver.ask({ action: 'captureStory', storyId: 'shop-checkout--primary', settings: SETTINGS })
+    ).resolves.toEqual({
+      kind: 'no-such-story',
+      known: [],
+      brokenFiles: [{ file: './src/Cart.stories.tsx', error }],
+    });
+  });
+
+  it('every broken file is named when none has the title of the story asked for, without its title', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const error = { name: 'TypeError', message: 'boom' };
+
+    await app.waitsForACapture({
+      mode: 'default',
+      stories: [],
+      brokenFiles: [
+        { file: './src/Cart.stories.tsx', title: 'Shop/Checkout', error },
+        { file: './src/Unread.stories.tsx', error },
+      ],
+      answer: null,
+    });
+
+    await expect(
+      driver.ask({ action: 'captureStory', storyId: 'nowhere--primary', settings: SETTINGS })
+    ).resolves.toEqual({
+      kind: 'no-such-story',
+      known: [],
+      brokenFiles: [
+        { file: './src/Cart.stories.tsx', error },
+        { file: './src/Unread.stories.tsx', error },
+      ],
+    });
+  });
+
   it('a driver before any app ever waited is told there is no app', async () => {
     const running = await startALine();
     const driver = await connectADriver(running);

@@ -11,6 +11,7 @@ var storyTitleReader = require('./storyTitleReader');
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
+var resolveConfigDir = require('./ensureStorybookRequires').resolveConfigDir;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var handOverFilePath = require('./projectPaths').handOverFilePath;
@@ -844,7 +845,7 @@ function applySherloTransforms(result, opts) {
   var wrapperPath = path.join(cacheDir, 'storybook-wrapper.js');
 
   // Creates cacheDir too.
-  generateWrapper(wrapperPath);
+  generateWrapper(wrapperPath, readFileTitles(projectRoot, opts));
 
   // ---- Module Mocking (SHERLO-1734 Phase 2) ----
   // Installed for every project, with no option to name: the scan reads the modules the
@@ -1011,6 +1012,20 @@ function applySherloTransforms(result, opts) {
 }
 
 /**
+ * Each story file's title by its import path, from the project's generated requires file; empty
+ * when the project has none yet.
+ */
+function readFileTitles(projectRoot, opts) {
+  var configDir = resolveConfigDir(projectRoot, opts);
+  if (!configDir) return {};
+  for (var i = 0; i < STORYBOOK_REQUIRES_BASENAMES.length; i++) {
+    var requiresPath = path.join(configDir, STORYBOOK_REQUIRES_BASENAMES[i]);
+    if (fs.existsSync(requiresPath)) return storyTitleReader.readTitlesByImportPath(requiresPath);
+  }
+  return {};
+}
+
+/**
  * Generates the storybook-wrapper.js file.
  *
  * The wrapper redirects @storybook/react-native imports through Sherlo's patched start().
@@ -1019,8 +1034,10 @@ function applySherloTransforms(result, opts) {
  * to the polyfill list; src/index.ts reads the flag and emits the WITHSTORYBOOK_DISABLED marker.
  *
  * @param {string} wrapperPath
+ * @param {Record<string, string>} [fileTitles] each story file's title by its import path, handed
+ *   to the app so a story file that throws as it loads can still be matched to its story ids
  */
-function generateWrapper(wrapperPath) {
+function generateWrapper(wrapperPath, fileTitles) {
   var cacheDir = path.dirname(wrapperPath);
   if (!fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true });
@@ -1050,6 +1067,11 @@ function generateWrapper(wrapperPath) {
     JSON.stringify(installedStorybookVersion(wrapperPath)) +
     ';\n' +
     '\n' +
+    "// Each story file's title by its import path, read when the bundle was built.\n" +
+    'var FILE_TITLES = ' +
+    JSON.stringify(fileTitles || {}) +
+    ';\n' +
+    '\n' +
     "// Patched start(): keeps what Storybook is handed, adds Sherlo's annotation last, and\n" +
     '// wraps view.getStorybookUI to route through sherlo getStorybook\n' +
     'exports.start = function patchedStart(config) {\n' +
@@ -1070,7 +1092,7 @@ function generateWrapper(wrapperPath) {
     '\n' +
     '  // Keep the story entries and the annotations Storybook is handed, as plain facts for the\n' +
     "  // SDK and its core, and hand Storybook the same, with Sherlo's own annotation last.\n" +
-    '  sherlosStorybook.recordWhatStartWasHanded(config, real.prepareStories);\n' +
+    '  sherlosStorybook.recordWhatStartWasHanded(config, real.prepareStories, FILE_TITLES);\n' +
     '  var view = real.start(\n' +
     '    Object.assign({}, config, {\n' +
     '      annotations: (config.annotations || []).concat([sherlosStorybook.sherloAnnotation]),\n' +
@@ -1110,7 +1132,8 @@ function generateWrapper(wrapperPath) {
     "  var sherlosStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js');\n" +
     '  sherlosStorybook.recordWhatStartWasHanded(\n' +
     '    { annotations: annotations, storyEntries: storyEntries, options: options },\n' +
-    '    real.prepareStories\n' +
+    '    real.prepareStories,\n' +
+    '    FILE_TITLES\n' +
     '  );\n' +
     '  return real.updateView(\n' +
     '    view,\n' +
