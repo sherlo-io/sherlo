@@ -520,11 +520,35 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     var moduleHashes = {};
     /** @type {string[]} source-path keys whose transformed output leaks an abs path. */
     var absolutePathLeaks = [];
+    /** @type {Record<string, string[]>} SPIKE: module -> its direct project-relative dependencies. */
+    var edges = {};
     graph.dependencies.forEach(function (module, absPath) {
       var rel = toRelativePath(absPath, projectRoot);
       if (!rel) return; // skip synthetic/out-of-root modules
       var digest = hashModuleOutput(module);
       if (digest) moduleHashes[rel] = digest;
+      // SPIKE: direct project-relative dependencies (a require.context edge is flattened to its targets).
+      var direct = {};
+      if (module.dependencies instanceof Map) {
+        module.dependencies.forEach(function (dep) {
+          var targets = [dep.absolutePath];
+          var cp = dep.data && dep.data.data && dep.data.data.contextParams;
+          if (cp) {
+            var ctx = graph.dependencies.get(dep.absolutePath);
+            targets = [];
+            if (ctx && ctx.dependencies instanceof Map) {
+              ctx.dependencies.forEach(function (d2) {
+                targets.push(d2.absolutePath);
+              });
+            }
+          }
+          targets.forEach(function (t) {
+            var r = t && toRelativePath(t, projectRoot);
+            if (r) direct[r] = true;
+          });
+        });
+      }
+      edges[rel] = Object.keys(direct).sort();
       if (moduleOutputLeaksAbsolutePath(module, projectRoot)) {
         absolutePathLeaks.push(rel);
       }
@@ -644,6 +668,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       version: 1,
       header: header,
       moduleHashes: moduleHashes,
+      edges: edges,
       storyClosures: storyClosures,
       storyTitles: storyTitles,
       storyCounts: storyCounts,
