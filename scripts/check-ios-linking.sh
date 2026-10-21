@@ -21,6 +21,12 @@ restore() {
 }
 trap restore EXIT
 
+# The testing app installs the SDK from a packed tarball, which holds the linking config of the
+# commit it was packed at. The check is about this commit's config, so lay it over the installed
+# copy before pod install runs it.
+cp "$REPO_ROOT/packages/react-native-storybook/react-native.config.js" \
+  "$REPO_ROOT/testing/react-native/node_modules/@sherlo/react-native-storybook/react-native.config.js"
+
 assert_linked() {
   local configuration="$1" expected="$2"
   local file="$XCCONFIG_DIR/Pods-SherloRNExample.$configuration.xcconfig"
