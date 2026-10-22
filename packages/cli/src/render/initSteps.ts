@@ -10,7 +10,6 @@
  */
 import chalk from 'chalk';
 import { renderSectionTitle } from './initLines';
-import { GITHUB_WORKFLOW_PATH } from './initWorkflow';
 
 /** How wide the step names are padded, so every step's detail starts in the same column. */
 const STEP_NAME_WIDTH = 22;
@@ -68,7 +67,9 @@ export function renderFailedStepLine(name: string): string[] {
  * no default-setup tab, so the default setup links the Storybook access section plainly; the old
  * setup keeps its `?storybook=integrated` tab.
  *
- * Then CI in a section of its own: it is for later, not the first run.
+ * NO CI HERE: setup has one goal, the first visual test. Pull request tests are offered after that
+ * test succeeds - by `sherlo test`'s own output and the project page - and to anyone whose machine
+ * cannot build, by `sherlo test`'s build-failure line.
  */
 /**
  * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and the one
@@ -79,16 +80,10 @@ export function renderFailedStepLine(name: string): string[] {
 export function renderNextSteps({
   storybook,
   storybookVersion,
-  addedGithubWorkflow,
-  projectPageUrl,
 }: {
   storybook: 'installed' | 'default-setup' | 'old-setup';
   /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
   storybookVersion: string | undefined;
-  /** Whether the project has the GitHub workflow setup adds, so the CI section can name it. */
-  addedGithubWorkflow: boolean;
-  /** The project's page in the web app, where a CI token is made. */
-  projectPageUrl: string;
 }): string[] {
   const defaultSetupChoice = hasDefaultSetup(storybookVersion)
     ? "a) Switch to Storybook's default setup (recommended):"
@@ -137,7 +132,7 @@ export function renderNextSteps({
   ];
 
   // ONE STEP IS NOT A LIST: it gets a singular title and no number. Content lines start in one
-  // column everywhere in this section, the CI link's included.
+  // column everywhere in this section.
   const stepLines =
     steps.length === 1
       ? [chalk.bold(steps[0].title), ...steps[0].content.map((line) => `   ${line}`), '']
@@ -147,34 +142,13 @@ export function renderNextSteps({
           '',
         ]);
 
-  // Short, and its own section, so the link needs no indent. The token is
-  // made in the Sherlo web app - named so, because "app" alone reads as the person's own app.
-  // WHAT RUNS THE TEST IS SAID, NOT ASSUMED: on GitHub the workflow setup
-  // added does it; on any other CI nothing does until the team adds the command, so the section
-  // says so - the same two cases the web app's how-to has.
-  const ciLines = addedGithubWorkflow
-    ? [
-        `${chalk.bold(GITHUB_WORKFLOW_PATH)} tests every pull request once it has a CI token.`,
-        `Create one in the Sherlo web app and save it as the ${chalk.bold(
-          'SHERLO_TOKEN'
-        )} repository secret:`,
-        chalk.cyan(projectPageUrl),
-      ]
-    : [
-        'Create a CI token in the Sherlo web app and save it as a secret in your CI:',
-        chalk.cyan(projectPageUrl),
-        `Then run on every pull request: ${chalk.cyan('npx sherlo test --token <your secret>')}`,
-      ];
-
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...(steps.length === 1
       ? renderSectionTitle('👉 Next step', 12)
       : renderSectionTitle('👉 Next steps', 13)),
-    // The last step's blank line goes: the section title brings its own two.
+    // The last step's blank line goes: nothing follows it in this section.
     ...stepLines.slice(0, -1),
-    ...renderSectionTitle('🔁 Test every pull request', 26),
-    ...ciLines,
   ];
 }
 

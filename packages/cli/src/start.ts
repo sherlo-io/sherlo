@@ -27,6 +27,8 @@ import {
 } from './commands/test/appBuild/buildSettings';
 import { CACHE_DIR_ENV_VAR } from './commands/test/appBuild/cacheFolder';
 import {
+  CONTACT_EMAIL,
+  DISCORD_URL,
   ANDROID_OPTION,
   BASELINE_OPTION,
   CONFIG_OPTION,
@@ -82,10 +84,13 @@ import { reporting, throwError, withCommandTimeout } from './helpers';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
+import { renderStuckBlock } from './render/initSteps';
 import type { FeedbackOptions } from './commands/feedback/feedback';
 import { renderFeedbackFormat } from './render/feedback';
 import { renderHelpBlock } from './render/testSteps';
 import { renderTokenGone } from './render/pushCredential';
+import { getEndpointUrl } from './helpers/buildStatusRequest';
+import { savedLogins } from './seams/savedLogins';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -150,7 +155,18 @@ async function start() {
       console.error((error as Error).message);
 
       // INIT'S HELP BLOCK ENDS EVERY FAILED COMMAND, in place of the old `══════════ Need Help?` footer, so a failure reads the same everywhere.
-      for (const line of renderHelpBlock()) console.log(line);
+      // `sherlo init` addresses it to its reader: an agent's shell gets the agent lines, and a
+      // feedback line once a login is saved - `sherlo feedback` sends with the saved login and
+      // refuses without one, so a run that failed before the login offers none.
+      const helpLines = (error as { showFeedbackLine?: boolean }).showFeedbackLine
+        ? renderStuckBlock({
+            reader: process.stdout.isTTY ? 'person' : 'agent',
+            isLoggedIn: Boolean(savedLogins().read(getEndpointUrl())),
+            discordUrl: DISCORD_URL,
+            contactEmail: CONTACT_EMAIL,
+          })
+        : renderHelpBlock();
+      for (const line of helpLines) console.log(line);
 
       // A Node file-system error's `code` is a string (`'ENOENT'`), which `process.exit` refuses.
       process.exit(typeof error.code === 'number' && error.code !== 0 ? error.code : 1);
@@ -465,7 +481,9 @@ function addInitCommand(program: Command) {
   addCommand({
     program,
     command: INIT_COMMAND,
-    options: [TOKEN_OPTION, PROJECT_OPTION],
+    // No `--token`: setup logs the person in, and a project token is CI's. No `--personal-token`
+    // either: personal tokens are hidden.
+    options: [TEAM_OPTION, PROJECT_OPTION],
     action: init,
     withTimeout: false,
   });
@@ -515,7 +533,7 @@ function addTestCommand(program: Command) {
  * Sherlo 3 takes a push's credential from SHERLO_TOKEN or the saved login only, so a token on the command line is refused before anything runs - exit 1, naming the
  * two that remain. The same words refuse a `token` in sherlo.config.json (resolvePushCredential).
  *
- * `sherlo init --token` keeps its flag.
+ * `sherlo init` takes no `--token` at all: setup logs the person in.
  */
 function refuseTokenFlag(command: string, options: { [TOKEN_OPTION]?: string }) {
   if (options[TOKEN_OPTION] === undefined) return;
