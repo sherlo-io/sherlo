@@ -17,9 +17,11 @@
 // TurboModules are registered before bundle eval starts on both old and new arch, so
 // the bridge call is deterministic (no race condition).
 //
-// If mode is 'default' OR 'storybook', the IIFE returns immediately after setting the
-// flag. The polyfill body (ErrorUtils handler install, __d wrap, AppRegistry wrap,
-// 10s NOT_DISPLAYED timer) does NOT run. Zero production/storybook overhead.
+// If mode is 'default' OR 'storybook', the IIFE returns right after the gate. The polyfill
+// body (ErrorUtils handler install, __d wrap, AppRegistry wrap, 10s NOT_DISPLAYED timer)
+// does NOT run. Only in a bundle a bundler served does a lean __d wrap watch for a crash
+// as the bundle runs (watchOnlyTheStart); a store build's bundle comes from the device,
+// so a store build costs one SourceCode constants read and nothing more.
 //
 // Only when mode === 'testing' does the full polyfill body execute.
 //
@@ -71,7 +73,15 @@
   // app is imported under testing mode later in the same session.
   global.__sherloWithStorybookApplied = true;
 
-  // IIFE-time mode gate: customer is not running Sherlo visual tests -> no-op.
+  // True while the bundle's modules run as it is evaluated; false from its first microtask on.
+  var bundleStillEvaluating = true;
+  // How many module factories are running inside each other: 1 is a module Metro's top-level
+  // require ran, whose throw nobody but Metro's fatal report catches.
+  var factoryDepth = 0;
+
+  // IIFE-time mode gate: customer is not running Sherlo visual tests -> only a start crash is
+  // watched, and only in a bundle a bundler served (watchOnlyTheStart below).
+  var _outsideTesting = false;
   try {
     var _gateNm = global.__turboModuleProxy ? global.__turboModuleProxy('SherloModule') : null;
     if (!_gateNm && global.nativeModuleProxy && global.nativeModuleProxy.SherloModule) {
@@ -82,12 +92,14 @@
         (typeof _gateNm.getSherloConstants === 'function' ? _gateNm.getSherloConstants() : null) ||
         (typeof _gateNm.getConstants === 'function' ? _gateNm.getConstants() : null);
       var _gateMode = _gateC && _gateC.mode;
-      if (_gateMode === 'default' || _gateMode === 'storybook') {
-        return;
-      }
+      _outsideTesting = _gateMode === 'default' || _gateMode === 'storybook';
     }
   } catch (_) {
     // Probe threw - conservative default: continue (run full body).
+  }
+  if (_outsideTesting) {
+    watchOnlyTheStart();
+    return;
   }
 
   // The recording stand-in on every app module.
@@ -211,12 +223,6 @@
   // `start-failed` message per run of the JavaScript (metro/sherloLine.d.ts types it), and a
   // `sherlo capture` waiting on the bundler hears the app's own error instead of a silence.
 
-  // True while the bundle's modules run as it is evaluated; false from its first microtask on.
-  var bundleStillEvaluating = true;
-  // How many module factories are running inside each other: 1 is a module Metro's top-level
-  // require ran, whose throw nobody but Metro's fatal report catches.
-  var factoryDepth = 0;
-
   // The bundler's Sherlo address, worked out the way startTheLine (src/connection/appLine.ts) does
   // from the url React Native loaded the bundle from; null for a bundle loaded from the device.
   function bundlerLineAddress() {
@@ -261,6 +267,76 @@
       );
     } catch (_) {
       // Dropped on purpose: the app's own handler still gets the error.
+    }
+  }
+
+  // A throw out of a top-level module as the bundle runs reaches Metro's fatal report, before any
+  // ErrorUtils handler of ours is chained in; a deeper one the app may catch, and if it does not, it
+  // comes out of the top-level module too.
+  function sayIfTheStartFailed(error) {
+    if (bundleStillEvaluating && factoryDepth === 1) sayTheStartFailed(error);
+  }
+
+  // Outside testing mode - an app started by hand, before any capture reloaded it into testing mode
+  // - only a crash as the bundle runs is watched, so a capture waiting on the bundler hears the
+  // app's own error, on either Storybook setup: on the old one the app's root imports the Storybook
+  // entry in every mode. Only in a bundle a bundler served; a store build's comes from the device,
+  // and it is left as it is.
+  function watchOnlyTheStart() {
+    if (bundlerLineAddress() === null) return;
+    wrapEveryModule(null, null);
+  }
+
+  // The one __d wrap. Every module's factory runs counted, so a throw out of a top-level module as
+  // the bundle runs is told as a start crash, then thrown on. `extras` (testing mode only) adds the
+  // rest around each module: beforeModule(exportsObj), afterModule(moduleId, moduleObj),
+  // moduleThrew(error), moduleEnded(exportsObj). Every argument Metro hands __d and the factory
+  // passes on as given, the factory alone replaced: a debug run reads __d's 4th, the module's
+  // verbose name. `afterTheBundle` runs in the bundle's first microtask, once its modules all ran.
+  function wrapEveryModule(extras, afterTheBundle) {
+    if (typeof global.__d === 'function' && !global.__sherloDefineWrapped) {
+      global.__sherloDefineWrapped = true;
+      var originalDefine = global.__d;
+      global.__d = function sherloGuardedDefine(factory, moduleId) {
+        if (typeof factory !== 'function') {
+          // Fallback for any unexpected shape - pass through unwrapped.
+          return originalDefine.apply(this, arguments);
+        }
+        function wrappedFactory(
+          _globalObj,
+          _requireFn,
+          _importDefault,
+          _importAll,
+          moduleObj,
+          exportsObj
+        ) {
+          if (extras) extras.beforeModule(exportsObj);
+          factoryDepth += 1;
+          try {
+            var factoryResult = factory.apply(this, arguments);
+            if (extras) extras.afterModule(moduleId, moduleObj);
+            return factoryResult;
+          } catch (e) {
+            if (extras) extras.moduleThrew(e);
+            sayIfTheStartFailed(e);
+            throw e;
+          } finally {
+            factoryDepth -= 1;
+            if (extras) extras.moduleEnded(exportsObj);
+          }
+        }
+        var defineArguments = Array.prototype.slice.call(arguments);
+        defineArguments[0] = wrappedFactory;
+        return originalDefine.apply(this, defineArguments);
+      };
+    }
+    try {
+      Promise.resolve().then(function () {
+        bundleStillEvaluating = false;
+        if (afterTheBundle) afterTheBundle();
+      });
+    } catch (_) {
+      // No promises yet: a later throw out of a top-level module is still told, as a start crash.
     }
   }
 
@@ -444,26 +520,16 @@
   //    so wrapping __d at the source is the only reliable way to catch
   //    nested module-eval throws).
   //    Rethrows after capturing so RN's native path still fires.
-  if (typeof global.__d === 'function' && !global.__sherloDefineWrapped) {
-    global.__sherloDefineWrapped = true;
-    var originalDefine = global.__d;
-    global.__d = function sherloGuardedDefine(factory, moduleId, dependencyMap) {
-      if (typeof factory !== 'function') {
-        // Fallback for any unexpected shape - pass through unwrapped.
-        return originalDefine.apply(this, arguments);
-      }
-      function wrappedFactory(
-        globalObj,
-        requireFn,
-        importDefault,
-        importAll,
-        moduleObj,
-        exportsObj,
-        depMap
-      ) {
-        // Install a setter trap so we can intercept _e.AppRegistry = t synchronously.
-        // (UNCONDITIONAL - patchAppRegistry has its own internal mode gate via
-        // getSherloConstants. Gating this trap on a JSI-set global risks Android races.)
+  // 1b. The deferred ErrorUtils handler is installed in the bundle's first microtask.
+  //     By the time it runs, ExceptionsManager's setGlobalHandler call
+  //     (synchronous, during module evaluation) will already have completed, so
+  //     installSherloErrorUtilsHandler wraps it rather than getting overwritten by it.
+  wrapEveryModule(
+    {
+      // Install a setter trap so we can intercept _e.AppRegistry = t synchronously.
+      // (UNCONDITIONAL - patchAppRegistry has its own internal mode gate via
+      // getSherloConstants. Gating this trap on a JSI-set global risks Android races.)
+      beforeModule: function (exportsObj) {
         try {
           var _arValue;
           Object.defineProperty(exportsObj, 'AppRegistry', {
@@ -479,7 +545,9 @@
               if (v && typeof v.registerComponent === 'function') {
                 try {
                   patchAppRegistry(v);
-                } catch (_) {}
+                } catch (_) {
+                  // Unpatched, the app's root runs without Sherlo's error boundary, as it would.
+                }
                 try {
                   Object.defineProperty(exportsObj, 'AppRegistry', {
                     value: v,
@@ -487,70 +555,50 @@
                     enumerable: true,
                     configurable: true,
                   });
-                } catch (_) {}
+                } catch (_) {
+                  // The trap's getter still hands back the very AppRegistry.
+                }
               }
             },
           });
-        } catch (_) {}
-
-        factoryDepth += 1;
-        try {
-          var factoryResult = factory.call(
-            this,
-            globalObj,
-            requireFn,
-            importDefault,
-            importAll,
-            moduleObj,
-            exportsObj,
-            depMap
-          );
-          // After the module ran, put the recording stand-in on it.
-          try {
-            watchModuleExports(moduleId, moduleObj);
-          } catch (_) {
-            // Watching never breaks the module it watches: it stays as it was.
-          }
-          return factoryResult;
-        } catch (e) {
-          reportToNative(e);
-          // A throw out of a top-level module as the bundle runs reaches Metro's fatal report,
-          // before the ErrorUtils handler below is chained in; a deeper one the app may catch.
-          if (bundleStillEvaluating && factoryDepth === 1) sayTheStartFailed(e);
-          throw e;
-        } finally {
-          factoryDepth -= 1;
-          try {
-            maybeCaptureReact(exportsObj);
-          } catch (_) {}
-          // Prong 1 - patch global.RN$AppRegistry directly (new arch).
-          // The setter trap on exportsObj.AppRegistry gets overwritten by RN's own
-          // getter-only Object.defineProperty redefinition (spike finding #1), so we
-          // can't rely on it. New arch publishes AppRegistry as global.RN$AppRegistry
-          // - patch that reference directly after each module factory runs.
-          try {
-            var _arGlobal =
-              (typeof global !== 'undefined' && global.RN$AppRegistry) ||
-              (typeof globalThis !== 'undefined' && globalThis.RN$AppRegistry);
-            if (_arGlobal && !_arGlobal.__sherloBoundaryPatched) {
-              patchAppRegistry(_arGlobal);
-            }
-          } catch (_) {}
+        } catch (_) {
+          // A frozen or odd exports object takes no trap; the module runs on untouched.
         }
-      }
-      return originalDefine.call(this, wrappedFactory, moduleId, dependencyMap);
-    };
-  }
-  // 1b. Schedule the deferred ErrorUtils handler install via microtask.
-  //     By the time this microtask runs, ExceptionsManager's setGlobalHandler call
-  //     (synchronous, during module evaluation) will already have completed, so
-  //     installSherloErrorUtilsHandler wraps it rather than getting overwritten by it.
-  try {
-    Promise.resolve().then(function () {
-      bundleStillEvaluating = false;
-      installSherloErrorUtilsHandler();
-    });
-  } catch (_) {}
+      },
+      // After the module ran, put the recording stand-in on it.
+      afterModule: function (moduleId, moduleObj) {
+        try {
+          watchModuleExports(moduleId, moduleObj);
+        } catch (_) {
+          // Watching never breaks the module it watches: it stays as it was.
+        }
+      },
+      moduleThrew: reportToNative,
+      moduleEnded: function (exportsObj) {
+        try {
+          maybeCaptureReact(exportsObj);
+        } catch (_) {
+          // An exports object that cannot be read is no React; the next module may be.
+        }
+        // Prong 1 - patch global.RN$AppRegistry directly (new arch).
+        // The setter trap on exportsObj.AppRegistry gets overwritten by RN's own
+        // getter-only Object.defineProperty redefinition (spike finding #1), so we
+        // can't rely on it. New arch publishes AppRegistry as global.RN$AppRegistry
+        // - patch that reference directly after each module factory runs.
+        try {
+          var _arGlobal =
+            (typeof global !== 'undefined' && global.RN$AppRegistry) ||
+            (typeof globalThis !== 'undefined' && globalThis.RN$AppRegistry);
+          if (_arGlobal && !_arGlobal.__sherloBoundaryPatched) {
+            patchAppRegistry(_arGlobal);
+          }
+        } catch (_) {
+          // Unpatched, the app's root runs without Sherlo's error boundary, as it would.
+        }
+      },
+    },
+    installSherloErrorUtilsHandler
+  );
 
   // 3. ERROR_STORYBOOK_NOT_DISPLAYED timer - fires if the Sherlo Storybook wrapper
   //    was never mounted (e.g. user forgot to wire getStorybook in App.tsx).
