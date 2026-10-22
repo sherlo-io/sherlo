@@ -320,6 +320,9 @@ describe('a request no rule names', () => {
   });
 
   it('a story with no network rules at all leaves fetch and XMLHttpRequest untouched', async () => {
+    // Outside a capture: a capture wraps every story's requests to list them
+    // (unansweredRequests.test.ts).
+    mockGetMode.mockReturnValue('storybook');
     await activateStory({ story: [] });
 
     expect(globals.fetch).toBe(realFetch);

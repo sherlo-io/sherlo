@@ -36,8 +36,35 @@ function handOverFilePath(projectRoot) {
   return path.join(projectRoot, '.sherlo', 'data.json');
 }
 
+/**
+ * Converts an absolute Metro module path to a project-root-relative path
+ * (e.g. "./src/Button.tsx").  Returns null for:
+ *   - synthetic/virtual paths (Metro require.context modules contain "?")
+ *   - paths outside the project root
+ */
+function toRelativePath(absPath, projectRoot) {
+  if (!absPath || absPath.indexOf('?') !== -1 || absPath.indexOf('\0') !== -1) {
+    return null;
+  }
+  var rel = path.relative(projectRoot, absPath);
+  if (rel.indexOf('..') === 0) return null; // outside project root
+  // The leading "./" is INTENTIONAL and load-bearing - do not strip it to match
+  // sherlo-api's DiffScope.md "Serialized shape" doc, which shows bare paths
+  // (e.g. "src/Button.tsx"). That doc describes the server's canonicalized
+  // form, not what the SDK is supposed to emit. This helper's "./"-prefixed
+  // output feeds the Diff Scope module manifest (the moduleHashes/storyClosures
+  // keys emitted by emitModuleManifestSidecar in applySherloTransforms.js). The server strips the
+  // prefix at ingestion, in sherlo-api's parseModuleManifest
+  // (computeDiffScopeDecision/moduleManifest.ts), per SHERLO-1912. Emitting bare
+  // paths here would mismatch every "./"-keyed ancestor manifest already stored
+  // in S3 - making every module look changed and silently degrading partial
+  // capture to whole-suite capture for every diff going forward.
+  return './' + rel.split(path.sep).join('/');
+}
+
 module.exports = {
   handOverFilePath: handOverFilePath,
   projectRootOf: projectRootOf,
   sherloCacheFolder: sherloCacheFolder,
+  toRelativePath: toRelativePath,
 };

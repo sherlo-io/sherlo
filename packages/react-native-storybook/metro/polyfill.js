@@ -90,6 +90,74 @@
     // Probe threw - conservative default: continue (run full body).
   }
 
+  // The recording stand-in on every app module.
+  //
+  // Reached only when the JavaScript starts in a capture's testing mode: the gate above has
+  // returned for 'default' and 'storybook', and no store build carries this file at all. The
+  // bundler (metro/stillReal.js) lists the app's own modules in __sherloStillRealPaths. A listed
+  // module's exports are replaced, right after its factory ran, by a Proxy that notes which
+  // exports are read - it hands back the very value, so only the exports object's identity
+  // changes. The SDK clears the notes when a story starts and reads them once, when the capture
+  // reads the story's record (src/mocking/stillReal.ts). Everything here is guarded: watching
+  // must never break the app it watches.
+  var stillReal = {
+    isTesting: typeof _gateMode !== 'undefined' && _gateMode === 'testing',
+    paths: global.__sherloStillRealPaths || null,
+    entries: {},
+  };
+  if (stillReal.isTesting) global.__sherloStillReal = stillReal;
+
+  function watchModuleExports(moduleId, moduleObj) {
+    if (!stillReal.isTesting) return;
+    // The bundler's list is a script that runs after this polyfill, so it is read on first use.
+    if (!stillReal.paths) stillReal.paths = global.__sherloStillRealPaths || null;
+    if (!stillReal.paths) return;
+    var modulePath = stillReal.paths[moduleId];
+    if (!modulePath || !moduleObj || typeof Proxy !== 'function') return;
+    var target = moduleObj.exports;
+    if (!target || (typeof target !== 'object' && typeof target !== 'function')) return;
+
+    var entry = { path: modulePath, used: null };
+    var note = function (name) {
+      var used = entry.used || (entry.used = {});
+      used[name] = 1;
+    };
+    var handler = {
+      get: function (t, key) {
+        if (typeof key === 'string' && key !== '__esModule' && key !== 'then') note(key);
+        return t[key];
+      },
+    };
+    if (typeof target === 'function') {
+      handler.apply = function (t, thisArg, args) {
+        note('(call)');
+        return Reflect.apply(t, thisArg, args);
+      };
+      handler.construct = function (t, args, newTarget) {
+        note('(new)');
+        return Reflect.construct(t, args, newTarget === undefined ? t : newTarget);
+      };
+    }
+    stillReal.entries[moduleId] = entry;
+    moduleObj.exports = new Proxy(target, handler);
+  }
+
+  stillReal.startStory = function () {
+    for (var id in stillReal.entries) stillReal.entries[id].used = null;
+  };
+
+  stillReal.readStory = function () {
+    var modules = [];
+    for (var id in stillReal.entries) {
+      var entry = stillReal.entries[id];
+      if (entry.used) modules.push({ module: entry.path, exports: Object.keys(entry.used).sort() });
+    }
+    modules.sort(function (a, b) {
+      return a.module < b.module ? -1 : a.module > b.module ? 1 : 0;
+    });
+    return modules;
+  };
+
   function getSherloNativeModule() {
     // Each attempt is isolated: a throw in one does not block the next.
     try {
@@ -427,7 +495,7 @@
 
         factoryDepth += 1;
         try {
-          return factory.call(
+          var factoryResult = factory.call(
             this,
             globalObj,
             requireFn,
@@ -437,6 +505,13 @@
             exportsObj,
             depMap
           );
+          // After the module ran, put the recording stand-in on it.
+          try {
+            watchModuleExports(moduleId, moduleObj);
+          } catch (_) {
+            // Watching never breaks the module it watches: it stays as it was.
+          }
+          return factoryResult;
         } catch (e) {
           reportToNative(e);
           // A throw out of a top-level module as the bundle runs reaches Metro's fatal report,

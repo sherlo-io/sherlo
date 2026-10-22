@@ -17,6 +17,7 @@ import {
   UnmockedRequestError,
 } from '../mocking';
 import { MockLookups, newMockLookups } from '../mocking/registry';
+import { startStillRealStory } from '../mocking/stillReal';
 import { namesAsWrittenOf } from '../mocking/declaredImports';
 import { MockSet } from '../mocking/types';
 import { recordStoryError } from './storyErrorRegistry';
@@ -46,6 +47,11 @@ let latestInstalled: Promise<void> | null = null;
  */
 export function activateMocksForStory(storyId: string | undefined): Promise<void> | null {
   if (!storyId) return null;
+
+  // Like the requests no rule answered, the list of app modules the story ran as real code starts
+  // empty on every activation: a second capture of an unchanged story renders nothing again, so
+  // it lists neither.
+  startStillRealStory();
 
   const { project, own = {} } = storyMockLevelsOf(storyId);
   const mocks = mergeStoryMocks(project, own);
