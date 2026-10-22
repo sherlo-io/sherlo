@@ -40,19 +40,25 @@ export function isNetworkDeclaration(
 }
 
 /**
- * The name an import that reached no shim is filed under, so activation warns about it the way
- * it warns about any declared-but-unshimmed module (FG-03). The module has no name to give -
- * that IS the failure - so the declaration is named by what it declares, which is what a
- * developer greps their story files for to find it. No module is ever called this, so nothing
- * filed under it can apply, which is exactly the state being warned about.
+ * The name an import that reached no shim is filed under, so its story fails the way it fails for
+ * any mock the bundler had not seen (./activateStoryMocks, mockFailureOf). The module has
+ * no name to give - that IS the failure - so the declaration is named by what it declares, until
+ * the bundler's record of what the story file imports names it (./declaredImports). No module is
+ * ever called this, so nothing filed under it can apply, which is exactly the state that fails.
  */
+const UNSHIMMED_IMPORT_PREFIX = 'an import with no shim, ';
+
 function unshimmedImportName(definition: MockDefinition): string {
-  if (typeof definition === 'function') return 'an import with no shim, declaring a factory';
+  if (typeof definition === 'function') return `${UNSHIMMED_IMPORT_PREFIX}declaring a factory`;
 
   const exportNames = Object.keys(definition);
-  if (exportNames.length === 0) return 'an import with no shim, declaring nothing';
+  if (exportNames.length === 0) return `${UNSHIMMED_IMPORT_PREFIX}declaring nothing`;
 
-  return `an import with no shim, declaring ${exportNames.join(', ')}`;
+  return `${UNSHIMMED_IMPORT_PREFIX}declaring ${exportNames.join(', ')}`;
+}
+
+export function isUnshimmedImportName(key: string): boolean {
+  return key.startsWith(UNSHIMMED_IMPORT_PREFIX);
 }
 
 /**
@@ -89,7 +95,7 @@ export async function resolveDeclarations(declarations: MockDeclaration[]): Prom
   const moduleDeclarations = declarations.filter(isModuleDeclaration);
 
   const keys = await Promise.all(
-    // An import that fails to load names no module, and is warned about like one that reached
+    // An import that fails to load names no module, and fails its story like one that reached
     // no shim - it must not take the story's other mocks down with it.
     moduleDeclarations.map((declaration) => declaration.moduleKey().catch(() => undefined))
   );

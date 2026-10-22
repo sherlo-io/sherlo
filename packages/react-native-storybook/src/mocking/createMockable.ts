@@ -1,4 +1,11 @@
-import { getOverrides, recordUndo, registerShimmedKey, resolveMockExports } from './registry';
+import {
+  getOverrides,
+  MOCKED_MODULE_ERROR_NAME,
+  recordRealImportThrew,
+  recordUndo,
+  registerShimmedKey,
+  resolveMockExports,
+} from './registry';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 
 // A Proxy must keep every non-configurable own key of its target in its ownKeys answer and report
@@ -126,15 +133,36 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
 // the real module finished: that module would be stranded holding the empty one. Here the
 // importer in the cycle holds the stand-in, which is complete from the first moment.
 //
-// A real module that throws when it loads throws the same error again at every read that needs it:
-// Metro does not cache a module that threw.
+// A real module that throws when it loads throws again at every read that needs it: Metro does not
+// cache a module that threw. While a story mocks the module, what it throws is a MockedModuleError
+// naming the module as the story wrote it and the error the real import threw (kept as `cause`),
+// and the story fails with it even when the app catches it. With no mock of it active, the real
+// error passes through as it would without the stand-in.
 function createLazyMockable<T extends ModuleExports>(key: string, loadRealModule: () => T): T {
   let loaded: { module: T } | undefined;
   const real = (): T => {
-    if (!loaded) loaded = { module: loadRealModule() };
+    if (loaded) return loaded.module;
+    try {
+      loaded = { module: loadRealModule() };
+    } catch (error) {
+      throw realImportFailure(key, error);
+    }
     return loaded.module;
   };
   return buildMockable(key, real, undefined);
+}
+
+function realImportFailure(key: string, thrown: unknown): unknown {
+  const thrownMessage = thrown instanceof Error ? thrown.message : String(thrown);
+  const moduleName = recordRealImportThrew(key, thrownMessage);
+  if (moduleName === undefined) return thrown;
+
+  const failure = new Error(
+    `${moduleName} could not be mocked: its real import threw "${thrownMessage}"`
+  );
+  failure.name = MOCKED_MODULE_ERROR_NAME;
+  (failure as Error & { cause?: unknown }).cause = thrown;
+  return failure;
 }
 
 // `eagerReal` is the real module when it is already in hand; a lazy stand-in passes only `real`,

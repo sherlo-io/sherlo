@@ -12,9 +12,9 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 
 import createMockable from '../../mocking/createMockable';
 import { activateStoryMocks } from '../../mocking';
-import { UNSHIMMED_KEYS_LOG } from '../../mocking/activateStoryMocks';
+import { mockFailureOf } from '../../mocking/activateStoryMocks';
 import RunnerBridge from '../../helpers/RunnerBridge';
-import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { clearMocks, newMockLookups, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { mock } from '../../mocking/mockDeclaration';
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
@@ -122,27 +122,26 @@ describe('activateStoryMocks - activation lifecycle (IS-02, IS-07)', () => {
 });
 
 describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
-  it('warns exactly once, naming the key and both fixes, when a declared mock has no shim', () => {
+  it('says nothing at activation about a declared mock with no shim, and fails its story saying to restart the bundler', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    activateStoryMocks({ 'pkg/never-shimmed': { value: 1 } });
+    activateStoryMocks({ 'pkg/never-shimmed': { value: 1 } }, newMockLookups('story'));
 
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    const message = warnSpy.mock.calls[0][0] as string;
-    expect(message).toContain('pkg/never-shimmed');
-    expect(message.toLowerCase()).toContain('restart');
-    expect(message).toContain('mockModules');
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(mockFailureOf('story')).toMatchObject({
+      name: 'MockedModuleError',
+      message:
+        'the mock of pkg/never-shimmed did not apply: the bundler had not seen this module when it started - restart the bundler',
+    });
   });
 
-  it('names every unshimmed key in a single warning, not one warning per key', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('names every unshimmed key in a single failure, one line each', () => {
+    activateStoryMocks({ 'pkg/missing-a': {}, 'pkg/missing-b': {} }, newMockLookups('story'));
 
-    activateStoryMocks({ 'pkg/missing-a': {}, 'pkg/missing-b': {} });
-
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    const message = warnSpy.mock.calls[0][0] as string;
-    expect(message).toContain('pkg/missing-a');
-    expect(message).toContain('pkg/missing-b');
+    expect(mockFailureOf('story')?.message.split('\n')).toEqual([
+      'the mock of pkg/missing-a did not apply: the bundler had not seen this module when it started - restart the bundler',
+      'the mock of pkg/missing-b did not apply: the bundler had not seen this module when it started - restart the bundler',
+    ]);
   });
 
   it('does not warn about a key that IS shimmed', () => {
@@ -155,40 +154,37 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
   });
 
   it('in a mixed activation, only names the unshimmed key - not the correctly-shimmed one', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    createMockable('pkg/shimmed', {});
+    const shimmed = createMockable<Record<string, unknown>>('pkg/shimmed', {});
 
-    activateStoryMocks({ 'pkg/shimmed': {}, 'pkg/not-shimmed': {} });
+    activateStoryMocks(
+      { 'pkg/shimmed': { value: 1 }, 'pkg/not-shimmed': {} },
+      newMockLookups('story')
+    );
+    // The story renders and reads the shimmed module.
+    expect(shimmed.value).toBe(1);
 
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    const message = warnSpy.mock.calls[0][0] as string;
-    expect(message).toContain('"pkg/not-shimmed"');
-    expect(message).not.toContain('"pkg/shimmed"');
+    expect(mockFailureOf('story')?.message).toBe(
+      'the mock of pkg/not-shimmed did not apply: the bundler had not seen this module when it started - restart the bundler'
+    );
   });
 
-  it('routes the warning to RunnerBridge.log (so it survives console.warn silencing in capture builds)', () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('logs nothing to RunnerBridge at activation: the failure reaches the runner as what the story threw', () => {
+    activateStoryMocks({ 'pkg/unshimmed-logged': { value: 1 } }, newMockLookups('story'));
 
-    activateStoryMocks({ 'pkg/unshimmed-logged': { value: 1 } });
-
-    expect(RunnerBridge.log).toHaveBeenCalledWith(UNSHIMMED_KEYS_LOG, {
-      keys: ['pkg/unshimmed-logged'],
-    });
+    expect(RunnerBridge.log).not.toHaveBeenCalled();
+    expect(mockFailureOf('story')?.message).toContain('pkg/unshimmed-logged');
   });
 
-  it("a declared mock that reached no shim is printed on the phone's console, naming its key", () => {
-    // In testing mode Sherlo silences console.warn, so a phone prints the warning only through
-    // React Native's own native log, the one that lands in logcat as ReactNativeJS.
+  it("prints nothing on the phone's console at activation for a declared mock that reached no shim", () => {
+    // Under inlineRequires a stand-in loads only as the story renders, so a warning at activation
+    // would be false for a mock that applies a moment later.
     vi.spyOn(console, 'warn').mockImplementation(() => null);
     const nativeLog = vi.fn();
     (globalThis as any).nativeLoggingHook = nativeLog;
 
-    activateStoryMocks({ 'pkg/reached-no-shim': { value: 1 } });
+    activateStoryMocks({ 'pkg/reached-no-shim': { value: 1 } }, newMockLookups('story'));
 
-    expect(nativeLog).toHaveBeenCalledTimes(1);
-    const [message, level] = nativeLog.mock.calls[0];
-    expect(message).toContain('"pkg/reached-no-shim"');
-    expect(level).toBe(2);
+    expect(nativeLog).not.toHaveBeenCalled();
   });
 
   it('does not touch RunnerBridge.log when every declared key is shimmed', () => {
@@ -215,9 +211,10 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
     // Metro's require.context before any activation, and requiring a file also evaluates its
     // static imports, including any generated shim reachable from it. Activation itself reads only
     // the selected story (storyMocksOf), so with no such walk a shim reached only through another
-    // story's file may not have evaluated yet (see the note on warnUnshimmedKeys in
-    // activateStoryMocks.ts). The walk is the core's; here it is stood in for by requiring the
-    // story file, which runs createMockable exactly like the shim module would.
+    // story's file may not have evaluated yet (which is why a missed mock is only known once the
+    // story has rendered: mockFailureOf in activateStoryMocks.ts). The walk is the core's; here it
+    // is stood in for by requiring the story file, which runs createMockable exactly like the shim
+    // module would.
     const requireStoryFile = (_filename: string) => {
       createMockable('pkg/widget-dep', {});
       return {

@@ -4,6 +4,35 @@ import SherloModule from '../SherloModule';
 import { restoreClock } from './clock';
 import { restoreRandom } from './random';
 
+/**
+ * What one story's mocks met while the story was on screen: the mocked modules a read reached, and
+ * the real imports that threw. It belongs to the story, not to one activation of it. Storybook does
+ * not render a story again when it is selected while already on screen (it answers
+ * STORY_UNCHANGED), so a second activation of the same story - a second capture of it in a row -
+ * sees no read at all: only the reads its one render made say whether its mocks applied.
+ */
+type MockLookups = {
+  storyId: string | undefined;
+  reached: Set<string>;
+  // The message each mocked module's real import threw, by key.
+  realImportThrew: Map<string, string>;
+  // Each mocked module's name as the story wrote it, by the key it is installed under.
+  namesAsWritten: Map<string, string>;
+  // The keys the story or its file declare. A project mock is a default most stories never read,
+  // so reaching nothing fails the story only for these.
+  declaredByStory: Set<string>;
+};
+
+function newMockLookups(storyId: string | undefined): MockLookups {
+  return {
+    storyId,
+    reached: new Set(),
+    realImportThrew: new Map(),
+    namesAsWritten: new Map(),
+    declaredByStory: new Set(),
+  };
+}
+
 type Activation = {
   mocks: MockSet;
   // Lazily populated as keys are looked up; guarantees each factory runs once per activation.
@@ -12,7 +41,11 @@ type Activation = {
   overrides: Map<string, Map<PropertyKey, PropertyDescriptor>>;
   // Puts back what a story changed on a real object (a default-exported singleton's fields).
   undo: Array<() => void>;
+  lookups: MockLookups;
 };
+
+// The name both failures of a mock carry, the one the CLI prints its own screen for.
+const MOCKED_MODULE_ERROR_NAME = 'MockedModuleError';
 
 let activeActivation: Activation | null = null;
 
@@ -36,11 +69,27 @@ function isMockingModeActive(): boolean {
   return mode === 'testing' || mode === 'storybook';
 }
 
-function activateMocks(mocks: MockSet): void {
+// `lookups` is the record the reads of this activation go to: the caller hands the same one back
+// for another activation of the story that is still on screen.
+function activateMocks(mocks: MockSet, lookups: MockLookups = newMockLookups(undefined)): void {
   if (!isMockingModeActive()) return;
 
   endActivation();
-  activeActivation = { mocks, resolved: new Map(), overrides: new Map(), undo: [] };
+  activeActivation = { mocks, resolved: new Map(), overrides: new Map(), undo: [], lookups };
+}
+
+// The mock set in effect and the record of what its story's reads met, or null with none active.
+function activeMockLookups(): { mocks: MockSet; lookups: MockLookups } | null {
+  return activeActivation && { mocks: activeActivation.mocks, lookups: activeActivation.lookups };
+}
+
+// A mocked module's real import threw `message`: recorded for the story when the active mocks mock
+// `key`, answering the module's name as the story wrote it; undefined when no mock of it is active.
+function recordRealImportThrew(key: string, message: string): string | undefined {
+  if (!activeActivation || !(key in activeActivation.mocks)) return undefined;
+  const { lookups } = activeActivation;
+  lookups.realImportThrew.set(key, message);
+  return lookups.namesAsWritten.get(key) ?? key;
 }
 
 // Puts back what the ending story wrote to real objects, newest write first.
@@ -71,7 +120,10 @@ function resolveMockExports(
     return undefined;
   }
 
-  const { mocks, resolved } = activeActivation;
+  const { mocks, resolved, lookups } = activeActivation;
+
+  // Every read of a mocked module asks here first, so this is where a mock is known to be reached.
+  if (key in mocks) lookups.reached.add(key);
 
   if (resolved.has(key)) {
     return resolved.get(key);
@@ -115,7 +167,7 @@ function registerShimmedKey(key: string): void {
 }
 
 // Whether `key` has a generated shim that has actually run createMockable. A declared
-// mock key that is NOT shimmed can never apply - see warnUnshimmedKeys (FG-03).
+// mock key that is NOT shimmed can never apply (see mockFailureOf in ./activateStoryMocks).
 function isKeyShimmed(key: string): boolean {
   return shimmedKeys.has(key);
 }
@@ -125,7 +177,12 @@ function __resetShimmedKeysForTests(): void {
   shimmedKeys.clear();
 }
 
+export type { MockLookups };
 export {
+  MOCKED_MODULE_ERROR_NAME,
+  newMockLookups,
+  activeMockLookups,
+  recordRealImportThrew,
   activateMocks,
   clearMocks,
   resolveMockExports,
