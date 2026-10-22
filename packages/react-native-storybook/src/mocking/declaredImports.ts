@@ -8,11 +8,12 @@
  *
  * A declaration `mock(() => import('../x'), {...})` names its module only by the name its import's
  * stand-in answers, and that name is a path the story never wrote, so this is where a failure finds
- * the name the story did write. A stand-in loads only when something imports it, so this is also
+ * the name the story did write - for an import that reached no stand-in, from the declaration
+ * itself, since this record predates a module added after the bundler started. A stand-in loads only when something imports it, so this is also
  * the one record of which modules the bundler saw that does not wait for the story to use them.
  */
 import { isKeyShimmed } from './registry';
-import { isUnshimmedImportName } from './mockDeclaration';
+import { isUnshimmedImportName, specifierInUnshimmedName } from './mockDeclaration';
 
 type DeclaredImport = { specifier: string; moduleKey: string | null };
 type DeclaredImports = {
@@ -40,21 +41,29 @@ export function bundlerSawModule(key: string): boolean {
 
 // Each of `keys` - the names a story's mocks are installed under - by the name the story wrote, as
 // `storyFilePath` declares it. A key the file declares no import for (the object form, a project
-// mock) is the name the story wrote already. An import that reached no stand-in is named by what
-// the file imports that no stand-in named, or, when the scan did not see that, by what it declares.
+// mock) is the name the story wrote already. An import that reached no stand-in is named by the
+// module its own declaration imports, as the bundler's transform of the file handed it over: the
+// record is as old as the bundler, and a module added since is missing from it. A declaration that
+// carries no module is named by what the record lists that the scan made no stand-in for - an
+// import the scan made one for reaches it, so it is another declaration's - or by what it declares.
 export function namesAsWrittenOf(
   storyFilePath: string | undefined,
   keys: string[]
 ): Map<string, string> {
   const declared = storyFilePath ? declaredImportsOf(storyFilePath) : [];
-  const unnamedSpecifiers = declared
-    .filter(({ moduleKey }) => moduleKey === null || !keys.includes(moduleKey))
+  const specifiersWithNoStandIn = declared
+    .filter(({ moduleKey }) => moduleKey === null)
     .map(({ specifier }) => specifier);
 
   return new Map(
     keys.map((key) => {
       if (isUnshimmedImportName(key)) {
-        return [key, unnamedSpecifiers.length > 0 ? unnamedSpecifiers.join(' or ') : key];
+        const ownSpecifier = specifierInUnshimmedName(key);
+        if (ownSpecifier !== undefined) return [key, ownSpecifier];
+        return [
+          key,
+          specifiersWithNoStandIn.length > 0 ? specifiersWithNoStandIn.join(' or ') : key,
+        ];
       }
       const written = declared.find(({ moduleKey }) => moduleKey === key);
       return [key, written ? written.specifier : key];

@@ -34,6 +34,25 @@ function bundlerStartedHaving(
   };
 }
 
+// What the other stories in the same file mock: the bundler made each a stand-in when it started.
+// Each stand-in is installed under the module's path in the app.
+const OTHER_STORIES_IMPORTS = [
+  'components/provider/Chat/directory',
+  'components/provider/Chat/client',
+  '../store/inbox.state',
+  'components/provider/Chat/push',
+].map((specifier) => ({ specifier, moduleKey: `/app/src/${specifier}.ts` }));
+const OTHER_STORIES_STAND_INS = OTHER_STORIES_IMPORTS.map(({ moduleKey }) => moduleKey);
+
+// `mock(importModule, definition)` as the bundler's transform hands it over once the story file
+// is saved: with the module the import names, as the story wrote it
+// (metro/mockSpecifierTransformer.js).
+const mockAsTheBundlerMarksIt = mock as (
+  importModule: () => Promise<unknown>,
+  definition: Record<string, unknown>,
+  specifierAsWritten: string
+) => ReturnType<typeof mock>;
+
 // A shim as inlineRequires leaves it: the stand-in is made by the first thing that requires it.
 function inlineRequiredShim<T extends Record<string, unknown>>(
   key: string,
@@ -106,6 +125,43 @@ describe('a mock that reached nothing', () => {
       message:
         'the mock of components/provider/Chat/receipts did not apply: the bundler had not seen this module when it started - restart the bundler',
     });
+  });
+
+  it('a mock of a module added after the bundler started names that module alone', async () => {
+    bundlerStartedHaving(OTHER_STORIES_STAND_INS, OTHER_STORIES_IMPORTS);
+    // Both the module and its mock were added after the bundler started: the bundler's record of
+    // the story file is older than the import, and the import reaches the real module.
+    const storyId = storyWith([
+      mockAsTheBundlerMarksIt(
+        () => Promise.resolve({ receiptCount: () => 0 }),
+        { receiptCount: () => 5 },
+        'components/provider/Chat/receipts'
+      ),
+    ]);
+
+    await activateMocksForStory(storyId);
+
+    expect(readStoryError(storyId)).toMatchObject({
+      name: 'MockedModuleError',
+      message:
+        'the mock of components/provider/Chat/receipts did not apply: the bundler had not seen this module when it started - restart the bundler',
+    });
+  });
+
+  it("the other stories' imports in the same file are never named", async () => {
+    bundlerStartedHaving(OTHER_STORIES_STAND_INS, OTHER_STORIES_IMPORTS);
+    // A declaration the bundler did not mark names no module of its own.
+    const storyId = storyWith([
+      mock(() => Promise.resolve({ receiptCount: () => 0 }), { receiptCount: () => 5 }),
+    ]);
+
+    await activateMocksForStory(storyId);
+
+    const { message } = readStoryError(storyId) ?? { message: '' };
+    expect(message).toContain(
+      'did not apply: the bundler had not seen this module when it started - restart the bundler'
+    );
+    for (const { specifier } of OTHER_STORIES_IMPORTS) expect(message).not.toContain(specifier);
   });
 
   it('a mocked module whose real import threw fails the story with MockedModuleError naming the module and the error it threw', () => {

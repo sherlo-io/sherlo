@@ -14,6 +14,26 @@ function projectRootOf(config) {
 }
 
 /**
+ * The project's own Babel transformer, as a file Sherlo's transformers can load from its cache
+ * folder. Metro's default config names its transformer by package name (metro-babel-transformer),
+ * and a name only resolves from where the project or the SDK can load it, so it is resolved here.
+ * A name neither can load is kept as it is.
+ *
+ * @param {object} config - a Metro config
+ * @returns {string}
+ */
+function projectTransformerFile(config) {
+  // With no transformer named, Metro uses its own default.
+  var named =
+    (config.transformer && config.transformer.babelTransformerPath) || 'metro-babel-transformer';
+  try {
+    return require.resolve(named, { paths: [projectRootOf(config), __dirname] });
+  } catch (_) {
+    return named;
+  }
+}
+
+/**
  * The folder Sherlo writes its generated files into, inside the project's node_modules cache.
  *
  * @param {string} projectRoot - absolute path to the project
@@ -65,6 +85,7 @@ function toRelativePath(absPath, projectRoot) {
 module.exports = {
   handOverFilePath: handOverFilePath,
   projectRootOf: projectRootOf,
+  projectTransformerFile: projectTransformerFile,
   sherloCacheFolder: sherloCacheFolder,
   toRelativePath: toRelativePath,
 };
