@@ -12,7 +12,7 @@
 // import names as a third argument (src/mocking/mockDeclaration.ts), and its failure names it.
 //
 // The transformer is Sherlo's in place of the project's own, which it hands every file to. It
-// changes only story and preview files, only their `mock` calls, and never what a mock serves.
+// changes only story and preview files and the app's files that name the SDK, only their `mock` calls, and never what a mock serves.
 
 var crypto = require('crypto');
 var fs = require('fs');
@@ -27,47 +27,18 @@ var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 // or this very source when the SDK runs unbuilt.
 var THIS_FILE = path.join(__dirname, 'mockSpecifierTransformer.js');
 
-// Whether `callee` is the SDK's `mock`, called by name or off a namespace (`Sherlo.mock`).
-function isMockCallee(callee) {
-  if (!callee) return false;
-  if (callee.type === 'Identifier') return callee.name === 'mock';
-  return (
-    callee.type === 'MemberExpression' &&
-    !callee.computed &&
-    callee.property &&
-    callee.property.type === 'Identifier' &&
-    callee.property.name === 'mock'
-  );
-}
-
-// The one module the function `importModule` imports, or null when it imports none or several.
-function soleImportedSpecifier(importModule) {
-  if (
-    !importModule ||
-    (importModule.type !== 'ArrowFunctionExpression' && importModule.type !== 'FunctionExpression')
-  ) {
-    return null;
-  }
-  var specifiers = new Set();
-  mockScan.walkNodes(importModule.body, function (node) {
-    var specifier = mockScan.importedSpecifier(node);
-    if (specifier !== null) specifiers.add(specifier);
-  });
-  return specifiers.size === 1 ? Array.from(specifiers)[0] : null;
-}
-
 /**
  * `source` with each `mock(() => import('x'), definition)` call given `'x'` as a third argument.
- * A file that is not a story or preview file, a call with other than two arguments, and a file
- * that does not parse are left as they are. Text is only inserted, on the call's own line, so
- * every other position in the file stays where it was.
+ * A file that may declare no mock (mockScan.mayDeclareMocks), a call with other than two
+ * arguments, and a file that does not parse are left as they are. Text is only inserted, on the
+ * call's own line, so every other position in the file stays where it was.
  *
  * @param {string} filename - the file's path, as Metro hands it to the transformer
  * @param {string} source - the file's source
  * @returns {string}
  */
 function markMockSpecifiers(filename, source) {
-  if (!mockScan.isScanTarget(path.basename(filename))) return source;
+  if (!mockScan.mayDeclareMocks(filename, source)) return source;
   if (source.indexOf('mock') === -1 || !/\bimport\s*\(/.test(source)) return source;
 
   var ast = mockScan.parseScanTarget(source);
@@ -75,10 +46,10 @@ function markMockSpecifiers(filename, source) {
 
   var insertions = [];
   mockScan.walkNodes(ast.program || ast, function (node) {
-    if (node.type !== 'CallExpression' || !isMockCallee(node.callee)) return;
+    if (node.type !== 'CallExpression' || !mockScan.isMockCallee(node.callee)) return;
     if (node.arguments.length !== 2) return;
 
-    var specifier = soleImportedSpecifier(node.arguments[0]);
+    var specifier = mockScan.soleImportedSpecifier(node.arguments[0]);
     if (specifier === null) return;
     insertions.push({ at: node.arguments[1].end, text: ', ' + JSON.stringify(specifier) });
   });

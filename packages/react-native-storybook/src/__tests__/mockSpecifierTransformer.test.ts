@@ -55,6 +55,17 @@ describe('the module a story mocks, handed over at transform time', () => {
     expect(markMockSpecifiers('src/mocks.ts', source)).toBe(source);
   });
 
+  it('a file of mocks a story imports, naming the SDK, is handed its modules too - one in node_modules is not', () => {
+    const source =
+      "import { mock } from '@sherlo/react-native-storybook';\n" +
+      "export const fakes = [mock(() => import('utils/flags'), { flag: () => 'control' })];\n";
+
+    expect(markMockSpecifiers('/app/src/components/storybook/scenes/fakes.ts', source)).toBe(
+      source.replace("{ flag: () => 'control' })", '{ flag: () => \'control\' }, "utils/flags")')
+    );
+    expect(markMockSpecifiers('/app/node_modules/lib/fakes.js', source)).toBe(source);
+  });
+
   it('a call that imports no single module, has other than two arguments, or does not parse is left as it is', () => {
     const untouched = [
       'mock(() => import(name), { a: 1 });\n',
