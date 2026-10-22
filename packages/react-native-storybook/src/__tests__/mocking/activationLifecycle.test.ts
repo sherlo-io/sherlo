@@ -210,7 +210,7 @@ describe('activateStoryMocks - declared-but-unshimmed tripwire (FG-03)', () => {
     // In a test run the sealed core lists the stories by requiring every story file through
     // Metro's require.context before any activation, and requiring a file also evaluates its
     // static imports, including any generated shim reachable from it. Activation itself reads only
-    // the selected story (storyMocksOf), so with no such walk a shim reached only through another
+    // the selected story (storyMockLevelsOf), so with no such walk a shim reached only through another
     // story's file may not have evaluated yet (which is why a missed mock is only known once the
     // story has rendered: mockFailureOf in activateStoryMocks.ts). The walk is the core's; here it
     // is stood in for by requiring the story file, which runs createMockable exactly like the shim

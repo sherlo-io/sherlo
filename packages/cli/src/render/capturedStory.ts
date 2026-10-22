@@ -112,7 +112,6 @@ export function renderCapturedStory(state: CapturedStory): string[] {
     case 'no-such-story':
       if (state.brokenFiles && state.brokenFiles.length > 0) {
         return [
-          // WORDING: content reviewed it on 2026-10-21
           `${chalk.red('✖')}  No story ${chalk.bold(
             state.storyId
           )} in this app - a story file threw while the app loaded it`,
@@ -122,7 +121,6 @@ export function renderCapturedStory(state: CapturedStory): string[] {
             `  ${error.name}: ${error.message}`,
           ]),
           '',
-          // WORDING: content reviewed it on 2026-10-21
           chalk.dim('Fix the file and save it, then try again.'),
           '',
         ];
@@ -164,8 +162,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         }s`,
         chalk.dim('   A test run of this story would stop at the same limit. What it read then:'),
         ...(state.changing && state.changing.length > 0
-          ? // WORDING: content reviewed it on 2026-10-21
-            [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
+          ? [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
           : []),
         '',
         ...treeLines(state.tree),
@@ -176,12 +173,10 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       // A mock that did not apply fails the story's declaration, not its screen: no tree to bury the module's name.
       if (state.threw.name === MOCKED_MODULE_ERROR) {
         return [
-          // WORDING: content reviewed it on 2026-10-21
           `${chalk.red('✖')}  ${chalk.bold(state.storyId)} failed - a module it mocks was not mocked`,
           '',
           `  ${state.threw.message}`,
           '',
-          // WORDING: content reviewed it on 2026-10-21
           chalk.dim('Fix the mock, then capture again. --json prints the record.'),
           '',
         ];
@@ -238,7 +233,6 @@ function stillRealLines(stillReal: string[] | undefined): string[] {
   if (!stillReal || stillReal.length === 0) return [];
   return [
     '',
-    // WORDING: content reviewed it on 2026-10-21
     chalk.dim(`   Not mocked - ${stillReal.length} of the app's own modules ran as real code:`),
     ...stillReal.map((module) => chalk.dim(`     ${module}`)),
   ];
@@ -250,7 +244,6 @@ function unansweredLines(unanswered: { method: string; url: string }[] | undefin
   const one = unanswered.length === 1;
   return [
     '',
-    // WORDING: content reviewed it on 2026-10-21
     `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock - a test run sends ${
       one ? 'it' : 'them'
     } to the real network:`,

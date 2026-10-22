@@ -92,26 +92,26 @@
 
   // The recording stand-in on every app module.
   //
-  // Reached only when the JavaScript starts in a capture's testing mode: the gate above has
-  // returned for 'default' and 'storybook', and no store build carries this file at all. The
-  // bundler (metro/stillReal.js) lists the app's own modules in __sherloStillRealPaths. A listed
-  // module's exports are replaced, right after its factory ran, by a Proxy that notes which
-  // exports are read - it hands back the very value, so only the exports object's identity
-  // changes. The SDK clears the notes when a story starts and reads them once, when the capture
-  // reads the story's record (src/mocking/stillReal.ts). Everything here is guarded: watching
-  // must never break the app it watches.
+  // Only in a capture: testing mode (the gate above has returned for 'default' and 'storybook', and
+  // no store build carries this file) in a bundle that lists the app's own modules in
+  // __sherloStillRealPaths, which only a bundle the bundler served does (metro/stillReal.js). A
+  // cloud test run reports testing mode too, and its bundle has no list. The list is a script that
+  // runs after this polyfill, so it is read on first use. A listed module's exports are replaced,
+  // right after its factory ran, by a Proxy that notes which exports are read - it hands back the
+  // very value; the SDK reads the notes per story (src/mocking/stillReal.ts). All of it guarded.
   var stillReal = {
     isTesting: typeof _gateMode !== 'undefined' && _gateMode === 'testing',
     paths: global.__sherloStillRealPaths || null,
     entries: {},
   };
   if (stillReal.isTesting) global.__sherloStillReal = stillReal;
+  stillReal.isCapture = function () {
+    if (!stillReal.paths) stillReal.paths = global.__sherloStillRealPaths || null;
+    return stillReal.isTesting && !!stillReal.paths;
+  };
 
   function watchModuleExports(moduleId, moduleObj) {
-    if (!stillReal.isTesting) return;
-    // The bundler's list is a script that runs after this polyfill, so it is read on first use.
-    if (!stillReal.paths) stillReal.paths = global.__sherloStillRealPaths || null;
-    if (!stillReal.paths) return;
+    if (!stillReal.isCapture()) return;
     var modulePath = stillReal.paths[moduleId];
     if (!modulePath || !moduleObj || typeof Proxy !== 'function') return;
     var target = moduleObj.exports;

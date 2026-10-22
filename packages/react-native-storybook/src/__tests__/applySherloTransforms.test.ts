@@ -316,6 +316,71 @@ describe('applySherloTransforms – customSerializer wrapper', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The list of the app's own modules a capture watches (metro/stillReal.js)
+//   Only a bundle the bundler serves can reach a capture, so only it carries the list.
+// ---------------------------------------------------------------------------
+
+describe('applySherloTransforms – the still-real path list', () => {
+  // The scripts before the modules of one bundle this config builds, with one app module in it.
+  function scriptsOfABundle(config: any, tmpDir: string, bundled: any[][]): string[] {
+    const graph = { dependencies: new Map([[path.join(tmpDir, 'src/chat.ts'), {}]]) };
+    config.serializer.customSerializer('index.js', [], graph, {
+      createModuleId: () => 7,
+      projectRoot: tmpDir,
+    });
+    return bundled[bundled.length - 1].map((script) => script.output[0].data.code);
+  }
+
+  function configCapturingBundles(tmpDir: string, bundled: any[][]): any {
+    return applySherloTransforms(
+      {
+        projectRoot: tmpDir,
+        resolver: {},
+        serializer: {
+          customSerializer: (_entry: string, preModules: any[]) => {
+            bundled.push(preModules);
+            return 'BUNDLE_BYTES';
+          },
+        },
+      },
+      { enabled: true }
+    );
+  }
+
+  it('a bundle that no capture serves carries no still-real path list', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-still-real-built-'));
+    const bundled: any[][] = [];
+    try {
+      // Built for a device (a push's bundle, a release build), the way a cloud test run gets it.
+      const scripts = scriptsOfABundle(configCapturingBundles(tmpDir, bundled), tmpDir, bundled);
+
+      expect(scripts.join('\n')).not.toContain('__sherloStillRealPaths');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('a bundle the bundler serves to an app carries the still-real path list', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-still-real-served-'));
+    const bundled: any[][] = [];
+    try {
+      const config = configCapturingBundles(tmpDir, bundled);
+      const metroMiddleware = vi.fn();
+      const middleware = config.server.enhanceMiddleware(metroMiddleware, {});
+
+      // The app asks the bundler for its bundle; the request reaches Metro, which builds it.
+      middleware({ url: '/index.bundle?platform=ios' }, {}, vi.fn());
+      expect(metroMiddleware).toHaveBeenCalledTimes(1);
+      const scripts = scriptsOfABundle(config, tmpDir, bundled);
+
+      expect(scripts).toEqual(['globalThis.__sherloStillRealPaths = {"7":"src/chat.ts"};']);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Module manifest sidecar (SHERLO-1890 Diff Scope Phase A)
 //   Enabled on the test:bundled bundling path via SHERLO_MODULE_MANIFEST=1.
 // ---------------------------------------------------------------------------
