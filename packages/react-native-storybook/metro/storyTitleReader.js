@@ -553,7 +553,86 @@ function readStoryCount(source) {
   return count;
 }
 
+// ---------------------------------------------------------------------------
+// Which title each story file has, by the import path the app knows it by
+// ---------------------------------------------------------------------------
+//
+// A story file that throws as the app loads it leaves the app knowing nothing of its stories, its
+// title included. The bundle carries this record so the app can still tell which story ids such a
+// file would have held.
+
+var STORY_FILE_NAME = /\.(stories|story)\.[cm]?[jt]sx?$/;
+
+function storyFilesUnder(folder) {
+  var found = [];
+  var children;
+  try {
+    children = fs.readdirSync(folder, { withFileTypes: true });
+  } catch (_) {
+    // A folder the loader names but the disk does not have holds no story files.
+    return found;
+  }
+  children.forEach(function (child) {
+    var childPath = path.join(folder, child.name);
+    if (child.isDirectory()) {
+      if (child.name !== 'node_modules') found = found.concat(storyFilesUnder(childPath));
+    } else if (STORY_FILE_NAME.test(child.name)) {
+      found.push(childPath);
+    }
+  });
+  return found;
+}
+
+/**
+ * The title of every story file a generated storybook.requires file gathers, by the import path
+ * the app names the file with ("./src/Button.stories.tsx": the loader entry's directory and the
+ * file's key in it without its leading "./"). A file whose title cannot be read without evaluating
+ * it is absent.
+ *
+ * @param {string} requiresAbsPath absolute path of storybook.requires.{ts,js}
+ * @returns {Record<string, string>}
+ */
+function readTitlesByImportPath(requiresAbsPath) {
+  var titles = {};
+  forEachStoryFile(requiresAbsPath, function (loaderEntry, storyAbsPath) {
+    var title = readStoryTitle(storyAbsPath, loaderEntry);
+    if (!title) return;
+    var key = path.relative(loaderEntry.contextDirAbsPath, storyAbsPath).split(path.sep).join('/');
+    titles[loaderEntry.directory + '/' + key] = title;
+  });
+  return titles;
+}
+
+/**
+ * Every story file a generated storybook.requires file gathers, with the loader entry that gathers
+ * it: the one walk behind the titles record and the list of files.
+ */
+function forEachStoryFile(requiresAbsPath, visit) {
+  readStoryLoaderEntries(requiresAbsPath).forEach(function (loaderEntry) {
+    storyFilesUnder(loaderEntry.contextDirAbsPath).forEach(function (storyAbsPath) {
+      visit(loaderEntry, storyAbsPath);
+    });
+  });
+}
+
+/**
+ * The absolute path of every story file the bundle's Storybook loads, whether or not its title can
+ * be read: an edit to any of them changes what the app shows.
+ *
+ * @param {string} requiresAbsPath absolute path of storybook.requires.{ts,js}
+ * @returns {string[]}
+ */
+function readStoryFilePaths(requiresAbsPath) {
+  var files = [];
+  forEachStoryFile(requiresAbsPath, function (_, storyAbsPath) {
+    files.push(storyAbsPath);
+  });
+  return files;
+}
+
 module.exports = {
+  readTitlesByImportPath: readTitlesByImportPath,
+  readStoryFilePaths: readStoryFilePaths,
   readStoryCount: readStoryCount,
   readStoryLoaderEntries: readStoryLoaderEntries,
   findLoaderEntry: findLoaderEntry,

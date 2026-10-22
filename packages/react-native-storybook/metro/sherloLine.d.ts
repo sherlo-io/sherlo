@@ -39,11 +39,19 @@ export type WaitForACaptureMessage = { action: 'waitForACapture' } & Parameters<
 /** The capture relay's answer to a WaitForACaptureMessage. */
 export type CaptureInstructionMessage = { action: 'captureInstruction' } & CaptureInstruction;
 
-/** Every message an app sends the line: the seam's, and its waits on the bundler's relays. */
+/**
+ * The app's JavaScript died as it started, before Sherlo's Storybook drew: what it threw. The
+ * polyfill (./polyfill.js) sends it, once per run of the JavaScript; the capture relay answers a
+ * capture of that app `crashed` with it.
+ */
+export type StartFailedMessage = { action: 'start-failed' } & StoryThrew;
+
+/** Every message an app sends the line: the seam's, its waits on the bundler's relays, and its start error. */
 export type MessageFromTheAppToTheLine =
   | MessageFromTheApp
   | WaitForStoryMessage
-  | WaitForACaptureMessage;
+  | WaitForACaptureMessage
+  | StartFailedMessage;
 
 /** Every message the line sends an app: the seam's, and the bundler's relays' answers. */
 export type MessageFromTheLineToTheApp =
@@ -91,7 +99,12 @@ export type CaptureStoryQuestion = {
 export type CaptureStoryReply =
   | CapturedAnswer
   | { kind: 'no-app' }
-  | { kind: 'no-such-story'; known: string[] };
+  | {
+      kind: 'no-such-story';
+      known: string[];
+      /** The story files that threw as the app loaded them; absent when none did. */
+      brokenFiles?: { file: string; error: { name: string; message: string } }[];
+    };
 
 /** Every log line the apps sent since the last read; the read empties the feed. */
 export type ReadLogLinesQuestion = { action: 'readLogLines' };
@@ -181,6 +194,11 @@ export declare function attach(
     appHoldMs?: number;
     /** Told why each refused hello was refused. */
     warn?: (message: string) => void;
+    /**
+     * Whether any story file the bundle's Storybook loads was modified after `time` (milliseconds
+     * since 1970). Asked once per capture, never on a timer.
+     */
+    storyFileChangedSince?: (time: number) => boolean;
   }
 ): SherloLine;
 
