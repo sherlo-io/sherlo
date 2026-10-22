@@ -18,6 +18,9 @@
 
 /* ---- The core and its host ------------------------------------------------------------------ */
 
+/** A network request no mock rule answered. */
+export type UnansweredRequest = { method: string; url: string };
+
 export type SealedCoreHost = {
   /** Sherlo's native module: the calls of it the core makes. */
   native: NativeCalls;
@@ -38,6 +41,13 @@ export type SealedCoreHost = {
   storybookChannel: () => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
   activateMocksForStory: (storyId: string | undefined) => Promise<void> | null;
+  /**
+   * The app's own modules the current story's screen ran as real code, as paths from the project
+   * root. Nothing outside a capture; a module the story mocks is never in it. Read once per capture.
+   */
+  stillRealModulesOfStory?: () => string[];
+  /** The requests the current story made that no mock rule answered, in the order made. */
+  unansweredRequestsOfStory?: () => UnansweredRequest[];
   /** Put every mocked module, the clock, the randomness and the network back the way they are. */
   clearMocks: () => void;
   /** One story's mocks from its project's, its file's and its own, the most specific winning. */
@@ -491,6 +501,18 @@ export type StorybookFacts = {
    * and mocks of every story.
    */
   previewAnnotations: StorybookAnnotations[];
+  /** The story files that threw while they loaded, each with its error. Absent when all loaded. */
+  brokenFiles?: BrokenStoryFile[];
+};
+
+/**
+ * A story file that threw while it loaded: its project-root-relative import path, the error, and
+ * the title the bundle recorded for the file when it could be read.
+ */
+export type BrokenStoryFile = {
+  file: string;
+  title?: string;
+  error: { name: string; message: string };
 };
 
 /** One story in Storybook's index. */
@@ -771,7 +793,16 @@ export type CapturedAnswer =
       storyId: string;
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
       settled: { ms: number; frames: number } | 'timed-out';
+      /**
+       * Only when the story never settled: the views whose text, style or size differ between two
+       * reads of its tree, each named by its innermost app component, else its primitive.
+       */
+      changing?: string[];
       threw?: StoryThrew;
+      /** The app modules the story ran as real code. Left out when none, or the SDK cannot say. */
+      stillReal?: string[];
+      /** The requests no mock answered, in the order made. Left out when none. */
+      unanswered?: UnansweredRequest[];
       /** How many screenfuls the story was captured in - 1 is a story that fits the screen. */
       parts: number;
       /** Whether any view in the story loads an image over the network. */
@@ -842,6 +873,8 @@ export type CaptureTransport = {
   waitForACapture(saying: {
     mode: string;
     stories: string[] | null;
+    /** The story files that failed to load; sent only when there is at least one. */
+    brokenFiles?: BrokenStoryFile[];
     answer: CapturedAnswer | null;
   }): Promise<CaptureInstruction>;
 };

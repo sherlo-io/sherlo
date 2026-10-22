@@ -2,7 +2,7 @@
  * ONE STORY'S MOCKS, found through Storybook's own index with no sealed core (../../mocking/
  * storyMocksOf): the cases a person's Storybook meets that the activation tests do not.
  */
-import { storyMocksOf } from '../../mocking/storyMocksOf';
+import { storyMockLevelsOf } from '../../mocking/storyMocksOf';
 import {
   __resetStorybookFactsForTests,
   recordWhatStartWasHanded,
@@ -13,7 +13,7 @@ afterEach(() => {
   __resetStorybookFactsForTests();
 });
 
-describe('storyMocksOf finds the selected story through Storybook’s index', () => {
+describe('storyMockLevelsOf finds the selected story through Storybook’s index', () => {
   it('finds the story of a file with no title of its own (auto-titled)', () => {
     startStorybookHolding(
       [
@@ -34,10 +34,9 @@ describe('storyMocksOf finds the selected story through Storybook’s index', ()
       { 'pkg/a': { value: 'project-a' } }
     );
 
-    expect(storyMocksOf('autotitled--basic')).toEqual({
-      'pkg/a': { value: 'project-a' },
-      'pkg/b': { value: 'file-b' },
-      'pkg/c': { value: 'story-c' },
+    expect(storyMockLevelsOf('autotitled--basic')).toEqual({
+      project: { 'pkg/a': { value: 'project-a' } },
+      own: { 'pkg/b': { value: 'file-b' }, 'pkg/c': { value: 'story-c' } },
     });
   });
 
@@ -53,8 +52,9 @@ describe('storyMocksOf finds the selected story through Storybook’s index', ()
       },
     ]);
 
-    expect(storyMocksOf('components-button--primary')).toEqual({
-      'pkg/c': { value: 'story-c' },
+    expect(storyMockLevelsOf('components-button--primary')).toEqual({
+      project: {},
+      own: { 'pkg/c': { value: 'story-c' } },
     });
   });
 
@@ -69,7 +69,9 @@ describe('storyMocksOf finds the selected story through Storybook’s index', ()
       { 'pkg/a': { value: 'project-a' } }
     );
 
-    expect(storyMocksOf('missing--default')).toEqual({ 'pkg/a': { value: 'project-a' } });
+    expect(storyMockLevelsOf('missing--default')).toEqual({
+      project: { 'pkg/a': { value: 'project-a' } },
+    });
   });
 
   it('gives no mocks to a story id Storybook’s index does not hold', () => {
@@ -84,11 +86,11 @@ describe('storyMocksOf finds the selected story through Storybook’s index', ()
       { 'pkg/a': { value: 'project-a' } }
     );
 
-    expect(storyMocksOf('components-button--primary')).toEqual({});
+    expect(storyMockLevelsOf('components-button--primary')).toEqual({ project: {} });
   });
 
   it('gives no mocks before Storybook has started', () => {
-    expect(storyMocksOf('components-button--primary')).toEqual({});
+    expect(storyMockLevelsOf('components-button--primary')).toEqual({ project: {} });
   });
 
   it("reads the project's mocks from the preview annotations Storybook's start was handed, with no wait", () => {
@@ -124,9 +126,9 @@ describe('storyMocksOf finds the selected story through Storybook’s index', ()
     );
 
     // Read at once, in the same turn start() runs - before any story renders.
-    expect(storyMocksOf('mocking-config--default')).toEqual({
-      'pkg/config': { flag: 'project' },
-      'pkg/story': { value: 'story' },
+    expect(storyMockLevelsOf('mocking-config--default')).toEqual({
+      project: { 'pkg/config': { flag: 'project' } },
+      own: { 'pkg/story': { value: 'story' } },
     });
   });
 });

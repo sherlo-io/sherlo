@@ -84,6 +84,7 @@
     "sherlo-react-native-storybook.podspec",
     "dist-metro/withStorybook.js",
     "dist-metro/detectStorybookSetup.js",
+    "dist-metro/mockSpecifierTransformer.js",
     "dist-metro/polyfill.js",
     "dist-metro/sherloBuild.js",
     "dist-metro/sherloLine.js",
