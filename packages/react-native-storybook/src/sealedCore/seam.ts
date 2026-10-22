@@ -18,6 +18,9 @@
 
 /* ---- The core and its host ------------------------------------------------------------------ */
 
+/** A network request no mock rule answered. */
+export type UnansweredRequest = { method: string; url: string };
+
 export type SealedCoreHost = {
   /** Sherlo's native module: the calls of it the core makes. */
   native: NativeCalls;
@@ -38,6 +41,13 @@ export type SealedCoreHost = {
   storybookChannel: () => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
   activateMocksForStory: (storyId: string | undefined) => Promise<void> | null;
+  /**
+   * The app's own modules the current story's screen ran as real code, as paths from the project
+   * root. Nothing outside a capture; a module the story mocks is never in it. Read once per capture.
+   */
+  stillRealModulesOfStory?: () => string[];
+  /** The requests the current story made that no mock rule answered, in the order made. */
+  unansweredRequestsOfStory?: () => UnansweredRequest[];
   /** Put every mocked module, the clock, the randomness and the network back the way they are. */
   clearMocks: () => void;
   /** One story's mocks from its project's, its file's and its own, the most specific winning. */
@@ -789,6 +799,10 @@ export type CapturedAnswer =
        */
       changing?: string[];
       threw?: StoryThrew;
+      /** The app modules the story ran as real code. Left out when none, or the SDK cannot say. */
+      stillReal?: string[];
+      /** The requests no mock answered, in the order made. Left out when none. */
+      unanswered?: UnansweredRequest[];
       /** How many screenfuls the story was captured in - 1 is a story that fits the screen. */
       parts: number;
       /** Whether any view in the story loads an image over the network. */

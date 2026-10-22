@@ -10,7 +10,8 @@ import SherloModule from '../SherloModule';
  *
  * The wrappers go in when a story that declares at least one network mock activates, and come out
  * when the mocks are cleared or the next story declares none, so a story with no network mocks
- * runs on the app's own fetch and XMLHttpRequest, untouched. While they are in they read the
+ * runs on the app's own fetch and XMLHttpRequest, untouched - except in a capture, which wraps
+ * them for every story to list the requests no rule answered. While they are in they read the
  * rules per request (see ./networkRules), so switching stories replaces the rules without
  * reinstalling anything.
  */
@@ -35,9 +36,17 @@ export function activateNetworkMocks(mocks: NetworkMocks, recordRefusal: RecordR
   const mode = SherloModule.getMode();
   if (mode !== 'testing' && mode !== 'storybook') return;
 
-  setNetworkMocks(mocks, recordRefusal);
-
   const storyDeclaredNetworkMocks = mocks.rules.length > 0 || mocks.passthrough;
+
+  // Only a capture lists what a story requested: there, a story with no network mock is wrapped
+  // too, with every request let through to the real network as before, so each one is listed.
+  if (!storyDeclaredNetworkMocks && mode === 'testing') {
+    setNetworkMocks({ rules: [], passthrough: true }, recordRefusal);
+    install();
+    return;
+  }
+
+  setNetworkMocks(mocks, recordRefusal);
   if (storyDeclaredNetworkMocks) install();
   else restore();
 }

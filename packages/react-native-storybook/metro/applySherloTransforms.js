@@ -8,6 +8,7 @@ var getBabelParser = require('./babelParser');
 var mockShims = require('./mockShims');
 var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
+var stillReal = require('./stillReal');
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
@@ -16,35 +17,7 @@ var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var handOverFilePath = require('./projectPaths').handOverFilePath;
 
-// ---------------------------------------------------------------------------
-// Module path helper (shared by the Diff Scope module manifest)
-// ---------------------------------------------------------------------------
-
-/**
- * Converts an absolute Metro module path to a project-root-relative path
- * (e.g. "./src/Button.tsx").  Returns null for:
- *   - synthetic/virtual paths (Metro require.context modules contain "?")
- *   - paths outside the project root
- */
-function toRelativePath(absPath, projectRoot) {
-  if (!absPath || absPath.indexOf('?') !== -1 || absPath.indexOf('\0') !== -1) {
-    return null;
-  }
-  var rel = path.relative(projectRoot, absPath);
-  if (rel.indexOf('..') === 0) return null; // outside project root
-  // The leading "./" is INTENTIONAL and load-bearing - do not strip it to match
-  // sherlo-api's DiffScope.md "Serialized shape" doc, which shows bare paths
-  // (e.g. "src/Button.tsx"). That doc describes the server's canonicalized
-  // form, not what the SDK is supposed to emit. This helper's "./"-prefixed
-  // output feeds the Diff Scope module manifest (the moduleHashes/storyClosures
-  // keys emitted by emitModuleManifestSidecar below). The server strips the
-  // prefix at ingestion, in sherlo-api's parseModuleManifest
-  // (computeDiffScopeDecision/moduleManifest.ts), per SHERLO-1912. Emitting bare
-  // paths here would mismatch every "./"-keyed ancestor manifest already stored
-  // in S3 - making every module look changed and silently degrading partial
-  // capture to whole-suite capture for every diff going forward.
-  return './' + rel.split(path.sep).join('/');
-}
+var toRelativePath = require('./projectPaths').toRelativePath;
 
 // ---------------------------------------------------------------------------
 // Module manifest sidecar (SHERLO-1890 Diff Scope - Phase A)
@@ -948,7 +921,10 @@ function applySherloTransforms(result, opts) {
   var sherloCustomSerializer = null;
   // A project that mocks a bare package needs the wrapper too: the end of the bundle is where a
   // mock that no import reached gets reported.
-  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0) {
+  // The list of the app's own modules the polyfill watches in a capture (stillReal.js) is carried
+  // whenever Sherlo is enabled; the polyfill acts on it only in testing mode.
+  var stillRealOn = !(opts && opts.enabled === false);
+  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0 || stillRealOn) {
     var existingCustomSerializer =
       result && result.serializer && typeof result.serializer.customSerializer === 'function'
         ? result.serializer.customSerializer
@@ -966,6 +942,9 @@ function applySherloTransforms(result, opts) {
         // Delegate to the original serializer and return its output unchanged.
         return delegateSerializer(entryPoint, preModules, graph, options);
       };
+      if (stillRealOn) {
+        sherloCustomSerializer = stillReal.withStillRealList(sherloCustomSerializer, projectRoot);
+      }
     }
   }
 

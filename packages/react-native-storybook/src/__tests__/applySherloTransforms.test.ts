@@ -276,11 +276,12 @@ describe('applySherloTransforms – customSerializer wrapper', () => {
     });
   });
 
-  // ---- OFF the bundling path (SHERLO_MODULE_MANIFEST unset) ----
+  // ---- OFF the bundling path (SHERLO_MODULE_MANIFEST unset), Sherlo disabled ----
   // There is nothing for the wrapper to do, so Sherlo must NOT touch the user's
   // customSerializer slot at all: no wrapper installed, the user's serializer is
   // left exactly as passed in, and Metro's default serializer is never forced to
-  // load.
+  // load. (An enabled Sherlo wraps it even off the bundling path, to carry the list of the
+  // app's own modules a capture watches - src/__tests__/mocking/stillReal.test.ts.)
   describe('off the bundling path (SHERLO_MODULE_MANIFEST unset)', () => {
     beforeEach(() => {
       delete process.env.SHERLO_MODULE_MANIFEST;
@@ -291,7 +292,7 @@ describe('applySherloTransforms – customSerializer wrapper', () => {
       const fakeSerializer = () => 'BUNDLE_BYTES';
       const result = applySherloTransforms(
         { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: fakeSerializer } },
-        { enabled: true }
+        { enabled: false }
       );
       fs.rmSync(tmpDir, { recursive: true, force: true });
 
@@ -303,7 +304,7 @@ describe('applySherloTransforms – customSerializer wrapper', () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-graph-off-path-none-'));
       const result = applySherloTransforms(
         { projectRoot: tmpDir, resolver: {} },
-        { enabled: true }
+        { enabled: false }
       );
       fs.rmSync(tmpDir, { recursive: true, force: true });
 
