@@ -3,13 +3,17 @@
  * `--props` over a small typed app held in memory, its types read by the repo's own TypeScript
  * through the seam's TypeScript 7 reader (one tsgo process for the whole file).
  */
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import * as classicTypeScript from 'typescript-5';
 import * as nativeTypeScript from 'typescript/unstable/sync';
 import { createVirtualFileSystem } from 'typescript/unstable/fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import stripAnsi from '../../../helpers/stripAnsi';
 import { renderCoverage } from '../../../render/coverage';
 import type { CoverageProps } from '../../../render/coverage';
-import { nativeComponentTypes } from '../../../seams/coverageScan';
+import { classicComponentTypes, nativeComponentTypes } from '../../../seams/coverageScan';
 import type { OpenComponentTypes } from '../../../seams/coverageScan';
 import { componentGaps } from '../componentGaps';
 import type { SourceFile } from '../componentGaps';
@@ -322,5 +326,33 @@ describe('sherlo coverage --props lists the prop values no story file sets', () 
     );
     expect(lines).toContain('    color   2 of 12 set');
     expect(lines).toContain('    weight  3 of 4 set   missing "bold"');
+  });
+
+  it('reads prop values with a TypeScript older than 7', () => {
+    // The same app, written to a folder because the classic compiler reads a disk, read through
+    // TypeScript 5: it names the same missing values in the same declared order, though this
+    // tsconfig.json leaves the story files out of its program (as many apps' do).
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-coverage-'));
+    const classic = [
+      {
+        path: 'tsconfig.json',
+        text: '{ "compilerOptions": { "jsx": "preserve", "strict": true, "lib": ["es5"] }, "exclude": ["**/*.stories.tsx"] }',
+      },
+      ...TYPED_APP,
+    ];
+    for (const file of classic) {
+      fs.mkdirSync(path.dirname(path.join(folder, file.path)), { recursive: true });
+      fs.writeFileSync(path.join(folder, file.path), file.text);
+    }
+    try {
+      const older = classicComponentTypes(
+        classicTypeScript as unknown as Parameters<typeof classicComponentTypes>[0],
+        { root: fs.realpathSync(folder) }
+      );
+      expect(found.components.length).toBeGreaterThan(0);
+      expect(storyPropValues({ files: TYPED_APP, types: older })).toEqual(found);
+    } finally {
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
   });
 });

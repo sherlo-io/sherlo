@@ -119,7 +119,7 @@ async function openAppTypes(root: string): Promise<OpenComponentTypes> {
     );
     return nativeComponentTypes(native, { root });
   }
-  return classicComponentTypes(fromApp('typescript') as ClassicTypeScript, root);
+  return classicComponentTypes(fromApp('typescript') as ClassicTypeScript, { root });
 }
 
 /** The app's types through TypeScript 7's API; `fs` hands it an app held in memory instead of disk. */
@@ -201,6 +201,17 @@ type ClassicType = {
   types?: ClassicType[];
   getCallSignatures(): { getParameters(): ClassicSymbol[] }[];
 };
+type ClassicProgram = {
+  getSourceFile(file: string): ClassicNode | undefined;
+  getTypeChecker(): {
+    getSymbolAtLocation(node: ClassicNode): ClassicSymbol | undefined;
+    getAliasedSymbol(symbol: ClassicSymbol): ClassicSymbol;
+    getTypeOfSymbolAtLocation(symbol: ClassicSymbol, node: ClassicNode): ClassicType;
+    getPropertiesOfType(type: ClassicType): ClassicSymbol[];
+    getNonNullableType(type: ClassicType): ClassicType;
+    getTypeFromTypeNode(node: TypeNodeShape): ClassicType;
+  };
+};
 /** What this seam asks of a TypeScript older than 7: its classic compiler API. */
 type ClassicTypeScript = {
   sys: { readFile(file: string): string | undefined };
@@ -212,18 +223,10 @@ type ClassicTypeScript = {
   ): { fileNames: string[]; options: unknown };
   createProgram(
     files: string[],
-    options: unknown
-  ): {
-    getSourceFile(file: string): ClassicNode | undefined;
-    getTypeChecker(): {
-      getSymbolAtLocation(node: ClassicNode): ClassicSymbol | undefined;
-      getAliasedSymbol(symbol: ClassicSymbol): ClassicSymbol;
-      getTypeOfSymbolAtLocation(symbol: ClassicSymbol, node: ClassicNode): ClassicType;
-      getPropertiesOfType(type: ClassicType): ClassicSymbol[];
-      getNonNullableType(type: ClassicType): ClassicType;
-      getTypeFromTypeNode(node: TypeNodeShape): ClassicType;
-    };
-  };
+    options: unknown,
+    host?: undefined,
+    oldProgram?: ClassicProgram
+  ): ClassicProgram;
   forEachChild<T>(node: ClassicNode, visit: (child: ClassicNode) => T | undefined): T | undefined;
   isIdentifier(node: ClassicNode): boolean;
   SymbolFlags: { Alias: number };
@@ -236,12 +239,17 @@ type ClassicTypeScript = {
 };
 
 /** The app's types through the classic compiler API of a TypeScript older than 7. */
-function classicComponentTypes(typescript: ClassicTypeScript, root: string): OpenComponentTypes {
+export function classicComponentTypes(
+  typescript: ClassicTypeScript,
+  params: { root: string }
+): OpenComponentTypes {
+  const { root } = params;
   const tsconfig = path.join(root, 'tsconfig.json');
   const { config } = typescript.readConfigFile(tsconfig, typescript.sys.readFile);
   const parsed = typescript.parseJsonConfigFileContent(config, typescript.sys, root);
-  const program = typescript.createProgram(parsed.fileNames, parsed.options);
-  const checker = program.getTypeChecker();
+  const roots = [...parsed.fileNames];
+  let program = typescript.createProgram(roots, parsed.options);
+  let checker = program.getTypeChecker();
   const declarationOf = (symbol: ClassicSymbol) =>
     symbol.valueDeclaration ?? symbol.declarations?.[0];
 
@@ -264,6 +272,13 @@ function classicComponentTypes(typescript: ClassicTypeScript, root: string): Ope
 
   const reader: TypeReader<ClassicSymbol> = {
     symbolAt: (file, position) => {
+      // A tsconfig.json may leave story files out (an `exclude`, a narrow `include`, a solution
+      // `files: []`): the program then has no such file, so it is added as a root of its own.
+      if (!program.getSourceFile(file)) {
+        roots.push(file);
+        program = typescript.createProgram(roots, parsed.options, undefined, program);
+        checker = program.getTypeChecker();
+      }
       const source = program.getSourceFile(file);
       const node = source && identifierAt(source, position);
       return followAlias(node && checker.getSymbolAtLocation(node));
