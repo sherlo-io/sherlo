@@ -32,7 +32,7 @@ describe('a story file that throws while it loads', () => {
     expect(Object.keys(facts.storyFiles)).toEqual(['./src/Good.stories.tsx']);
     expect(facts.brokenFiles).toEqual([
       {
-        file: './src/Bad.stories.tsx',
+        file: 'src/Bad.stories.tsx',
         error: { name: 'TypeError', message: 'Cannot find module ./missing' },
       },
     ]);
@@ -47,11 +47,18 @@ describe('a story file that throws while it loads', () => {
 
     expect(readStorybookFacts()!.brokenFiles).toEqual([
       {
-        file: './src/Bad.stories.tsx',
+        file: 'src/Bad.stories.tsx',
         error: { name: 'TypeError', message: 'Cannot find module ./missing' },
         title: 'Shop/Checkout',
       },
     ]);
+  });
+
+  it('a story file that throws is named by its project path, with no leading ./', () => {
+    recordWhatStartWasHanded({ storyEntries: storyEntries() }, undefined);
+
+    const [broken] = readStorybookFacts()!.brokenFiles!;
+    expect(broken.file).toBe('src/Bad.stories.tsx');
   });
 
   it('a launch where every story file loads keeps no broken files', () => {
