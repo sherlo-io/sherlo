@@ -1,0 +1,21 @@
+Testing your app...
+
+🤖 Android  Bundling the JavaScript...
+🤖 Android  [32m✔[39m Reused from Test 1
+
+Test 2      [32m✔[39m Started: 3 of 24 stories on 1 device (Pixel 7)
+              [33m~[39m Storefront/Header [2m(3 stories)[22m
+Waiting for Test 2 to finish (up to 45 min)...
+   <build progress masked>
+            [32m✔[39m Finished in <DURATION>
+
+
+[1m⚠️ 3 stories need review[22m
+[2m════════════════════════[22m
+
+Open them in Sherlo to approve or report.
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 1]

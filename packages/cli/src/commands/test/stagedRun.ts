@@ -72,7 +72,7 @@ import {
 } from './readModuleManifest';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
 import type { PlatformRow } from '../../render/runRows';
-import type { PlatformCapture } from '../../render/testSteps';
+import type { PlatformCapture, SherloProject } from '../../render/testSteps';
 import { rowsAbove, printPlatformRowInALog } from './platformRows';
 
 /**
@@ -417,6 +417,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       devices: commandParams.devices,
       serverBypassed,
       platformRows,
+      project: { teamId, projectIndex },
     });
   }
 
@@ -562,7 +563,10 @@ export function printTestStarted({
   devices,
   serverBypassed,
   platformRows,
+  project,
 }: {
+  /** The project's address, for the branching-off warning's link; none, no warning. */
+  project?: SherloProject;
   openBuildReturn: OpenBuildAnswer;
   moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
@@ -612,11 +616,20 @@ export function printTestStarted({
     });
   }
 
+  // The project has no main branch when the server's reason for a full capture says so.
+  const branchingOff =
+    !!project && capture.length > 0 && capture.every((c) => c.reason === 'no main branch is set');
+
+  // THE WARNING SAYS IT, so the Started row drops the same words.
   emit({
     kind: 'test-started',
     buildIndex: openBuildReturn.build.index,
     devices,
-    capture,
+    capture: branchingOff ? capture.map((c) => ({ ...c, reason: undefined })) : capture,
     rowsAbove: rowsAbove(platformRows),
   });
+
+  if (branchingOff && project) {
+    emit({ kind: 'branching-off', project });
+  }
 }

@@ -102,6 +102,16 @@ export type TranscriptSegment =
   | { kind: 'platform-bundle-failed'; message: string }
   /** `Couldn't get git info <error>` - on stderr, the one degrade the family shows. */
   | { kind: 'git-info-unavailable'; error: unknown }
+  /**
+   * `! Couldn't fetch the git history: <git's reason>` - the tool deepened a shallow clone itself
+   * and git refused. `reason` is git's own sentence, on one line. The build goes on.
+   */
+  | { kind: 'git-history-fetch-refused'; reason: string }
+  /**
+   * `! Branching is off: no main branch is set` - neither the settings nor the clone nor the git
+   * host named one, so every build is judged a main build. `project` addresses its settings.
+   */
+  | { kind: 'branching-off'; project: SherloProject }
   /* ---------------------------------------------------------------------- *
    * THE PUSH SPINE (F1). The order below is the order a push prints them.   *
    * ---------------------------------------------------------------------- */

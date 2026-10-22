@@ -19,6 +19,7 @@
  *   - TWO SPACES AFTER AN ICON align the text with the section titles above it.
  */
 import chalk from 'chalk';
+import { projectPageUrl, type SherloProject } from './testSteps';
 
 /**
  * A warning or a note on a test's road, in init's marks: `! <warning>` in yellow, a note as it
@@ -60,6 +61,31 @@ export function renderNotice({
   }
 
   return lines.join('\n');
+}
+
+/**
+ * The tool deepened a shallow clone itself (git fetch --no-tags --deepen=200) and git refused:
+ * what happened (git's own reason), what it means, what to do - on any CI.
+ */
+export function renderHistoryFetchRefused(reason: string): string[] {
+  return [
+    chalk.yellow(`! Couldn't fetch the git history: ${reason}`),
+    chalk.yellow(
+      "  The build goes on, but without history Sherlo can't find earlier approved pictures."
+    ),
+    chalk.yellow(
+      "  Keep your CI checkout's credentials, or fetch the full history in the checkout."
+    ),
+  ];
+}
+
+/** No main branch from the settings, the clone or the git host: every build is a main build. */
+export function renderBranchingOff(project: SherloProject): string[] {
+  return [
+    chalk.yellow('! Branching is off: this project has no main branch.'),
+    chalk.yellow('  Every build is treated as a main build, so each one captures every story.'),
+    chalk.yellow(`  Set the main branch in the project's settings: ${projectPageUrl(project)}`),
+  ];
 }
 
 /** A link, underlined. Named for what it does - it has never printed anything. */
