@@ -77,9 +77,30 @@ export function mock<M>(
 ): ModuleMockDeclaration {
   return {
     kind: 'module',
-    moduleKey: () => importModule().then(readModuleKey),
+    moduleKey: () => importModule().then(readModuleKey, readKeyOfFailedImport),
     definition: definition as MockDefinition,
   };
+}
+
+// What a stand-in threw for its real module while no mock of it was active, by the error.
+const standInKeyOfThrown = new WeakMap<object, string>();
+
+/** A stand-in for module `key` threw `thrown` while loading its real module, with no mock of it. */
+export function recordThrownByStandIn(key: string, thrown: unknown): void {
+  if (typeof thrown === 'object' && thrown !== null) standInKeyOfThrown.set(thrown, key);
+}
+
+/**
+ * An import's interop reads the module it imports (`__esModule`, its keys), and a stand-in loads
+ * its real module for that read: a real module that throws as it loads rejects the import. The
+ * stand-in still names its module, so the mock is installed, and the story fails at its first
+ * read of the module with the error naming it (./createMockable). Any other failure names none.
+ */
+function readKeyOfFailedImport(error: unknown): string {
+  const key =
+    typeof error === 'object' && error !== null ? standInKeyOfThrown.get(error) : undefined;
+  if (key === undefined) throw error;
+  return key;
 }
 
 /**

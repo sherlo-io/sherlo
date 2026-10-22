@@ -6,6 +6,7 @@ import {
   registerShimmedKey,
   resolveMockExports,
 } from './registry';
+import { recordThrownByStandIn } from './mockDeclaration';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 
 // A Proxy must keep every non-configurable own key of its target in its ownKeys answer and report
@@ -137,13 +138,14 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
 // cache a module that threw. While a story mocks the module, what it throws is a MockedModuleError
 // naming the module as the story wrote it and the error the real import threw (kept as `cause`),
 // and the story fails with it even when the app catches it. With no mock of it active, the real
-// error passes through as it would without the stand-in.
+// error passes through as it would without the stand-in, and still names the stand-in's module to
+// the story's own import of it (./mockDeclaration).
 function createLazyMockable<T extends ModuleExports>(key: string, loadRealModule: () => T): T {
   let loaded: { module: T } | undefined;
   const real = (): T => {
     if (loaded) return loaded.module;
     try {
-      loaded = { module: loadRealModule() };
+      loaded = { module: loadThrowingWhatItThrew(loadRealModule) };
     } catch (error) {
       throw realImportFailure(key, error);
     }
@@ -152,10 +154,39 @@ function createLazyMockable<T extends ModuleExports>(key: string, loadRealModule
   return buildMockable(key, real, undefined);
 }
 
+type FatalErrorReporter = { reportFatalError?: (error: unknown) => void };
+
+// Metro's require, called while no other module is loading, does not throw what a module threw as
+// it loaded: its guardedLoadModule hands the error to ErrorUtils.reportFatalError (LogBox's
+// "Uncaught Error") and answers undefined. A stand-in loads its real module at a read, often just
+// such a moment (an import's interop, a render under inlineRequires), so while it loads, a fatal
+// report is taken back and thrown here as the module threw it.
+function loadThrowingWhatItThrew<T>(load: () => T): T {
+  const errorUtils = (globalThis as { ErrorUtils?: FatalErrorReporter }).ErrorUtils;
+  const reportFatalError = errorUtils?.reportFatalError;
+  if (!errorUtils || typeof reportFatalError !== 'function') return load();
+
+  let reported: { error: unknown } | undefined;
+  errorUtils.reportFatalError = (error: unknown) => {
+    if (!reported) reported = { error };
+  };
+  let module: T;
+  try {
+    module = load();
+  } finally {
+    errorUtils.reportFatalError = reportFatalError;
+  }
+  if (reported) throw reported.error;
+  return module;
+}
+
 function realImportFailure(key: string, thrown: unknown): unknown {
   const thrownMessage = thrown instanceof Error ? thrown.message : String(thrown);
   const moduleName = recordRealImportThrew(key, thrownMessage);
-  if (moduleName === undefined) return thrown;
+  if (moduleName === undefined) {
+    recordThrownByStandIn(key, thrown);
+    return thrown;
+  }
 
   const failure = new Error(
     `${moduleName} could not be mocked: its real import threw "${thrownMessage}"`
