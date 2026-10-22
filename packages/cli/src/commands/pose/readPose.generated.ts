@@ -88,6 +88,9 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
     if ('capture' in object1) {
       readPosedCapture(object1.capture, at(path, 'capture'), problems);
     }
+    if ('coverage' in object1) {
+      readPosedCoverage(object1.coverage, at(path, 'coverage'), problems);
+    }
     if ('browser' in object1) {
       readPosedBrowser(object1.browser, at(path, 'browser'), problems);
     }
@@ -111,6 +114,7 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
         'workstation',
         'letterbox',
         'capture',
+        'coverage',
         'browser',
         'logins',
       ],
@@ -1289,6 +1293,80 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
       path,
       problems
     );
+  }
+}
+
+/** The shape of a `PosedCoverage`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedCoverage(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectNumber(object1.components, at(path, 'components'), problems);
+    const where2 = at(path, 'gaps');
+    const list3 = asArray(object1.gaps, where2, problems);
+    if (list3) {
+      list3.forEach((entry4, index5) => {
+        const where6 = atIndex(where2, index5);
+        const object7 = asObject(entry4, where6, problems);
+        if (object7) {
+          expectString(object7.name, at(where6, 'name'), problems);
+          expectString(object7.file, at(where6, 'file'), problems);
+          expectNumber(object7.importedBy, at(where6, 'importedBy'), problems);
+          if ('excluded' in object7) {
+            expectLiteral(object7.excluded, true, at(where6, 'excluded'), problems);
+          }
+          reportUnknownFields(
+            object7,
+            ['name', 'file', 'importedBy', 'excluded'],
+            where6,
+            problems
+          );
+        }
+      });
+    }
+    if ('props' in object1) {
+      const where8 = at(path, 'props');
+      const object9 = asObject(object1.props, where8, problems);
+      if (object9) {
+        expectNumber(object9.storyFiles, at(where8, 'storyFiles'), problems);
+        const where10 = at(where8, 'components');
+        const list11 = asArray(object9.components, where10, problems);
+        if (list11) {
+          list11.forEach((entry12, index13) => {
+            const where14 = atIndex(where10, index13);
+            const object15 = asObject(entry12, where14, problems);
+            if (object15) {
+              expectString(object15.name, at(where14, 'name'), problems);
+              expectString(object15.file, at(where14, 'file'), problems);
+              const where16 = at(where14, 'props');
+              const list17 = asArray(object15.props, where16, problems);
+              if (list17) {
+                list17.forEach((entry18, index19) => {
+                  const where20 = atIndex(where16, index19);
+                  const object21 = asObject(entry18, where20, problems);
+                  if (object21) {
+                    expectString(object21.prop, at(where20, 'prop'), problems);
+                    expectNumber(object21.allowed, at(where20, 'allowed'), problems);
+                    expectNumber(object21.set, at(where20, 'set'), problems);
+                    if ('missing' in object21) {
+                      expectStringArray(object21.missing, at(where20, 'missing'), problems);
+                    }
+                    reportUnknownFields(
+                      object21,
+                      ['prop', 'allowed', 'set', 'missing'],
+                      where20,
+                      problems
+                    );
+                  }
+                });
+              }
+              reportUnknownFields(object15, ['name', 'file', 'props'], where14, problems);
+            }
+          });
+        }
+        reportUnknownFields(object9, ['storyFiles', 'components'], where8, problems);
+      }
+    }
+    reportUnknownFields(object1, ['components', 'gaps', 'props'], path, problems);
   }
 }
 
