@@ -608,6 +608,15 @@ export type PosedCapture =
       };
     }
   | {
+      /** Every story the running app's Storybook knows, by id - the one asked for is not among them. */
+      stories: string[];
+      /**
+       * The story files that threw as the app loaded them, which is why the story asked for is
+       * missing.
+       */
+      brokenFiles: BrokenStoryFile[];
+    }
+  | {
       /** Every story the running app's Storybook knows, by id. */
       stories: string[];
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
@@ -617,6 +626,12 @@ export type PosedCapture =
             ms: number;
             frames: number;
           };
+      /** The views still changing when the stabilization gave up. Absent prints no names. */
+      changing?: string[];
+      /** The app's own modules the story reached that no mock replaced. Absent prints no list. */
+      stillReal?: string[];
+      /** The requests the story made that no mock answered. Absent prints no list. */
+      unanswered?: UnansweredRequest[];
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
       threw?: {
         name: string;
@@ -1140,6 +1155,21 @@ export type PosedPlatformBuild =
       /** The EAS build this platform started, by its id. */
       easBuild: string;
     };
+
+/** A story file that threw as the app loaded it, and what it threw, in its own words. */
+export type BrokenStoryFile = {
+  file: string;
+  error: {
+    name: string;
+    message: string;
+  };
+};
+
+/** A request a story made that no mock answered, so it went to the real network. */
+export type UnansweredRequest = {
+  method: string;
+  url: string;
+};
 
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own

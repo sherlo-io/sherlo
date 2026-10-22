@@ -236,12 +236,17 @@ describe('mockShims.canonicalizeModulePath', () => {
 // ---------------------------------------------------------------------------
 
 describe('mockShims.generateShimContent + shimFileName', () => {
+  // The title is cited by the mockable-modules page. The real module is required inside a function
+  // the stand-in calls on first use, so the stand-in is module.exports before the real file loads.
   it('emits exactly one createMockable call requiring the real module', () => {
     const content = mockShims.generateShimContent('expo-localization', 'expo-localization');
     expect(content).toContain('@sherlo/react-native-storybook/mocking');
-    expect(content).toContain('.createMockable("expo-localization", require("expo-localization"))');
-    // exactly one createMockable call
-    expect(content.match(/createMockable/g)?.length).toBe(1);
+    expect(content).toContain(
+      '.createLazyMockable("expo-localization", function () { return require("expo-localization"); })'
+    );
+    // exactly one stand-in call, and the require is not run when the shim file runs
+    expect(content.match(/createLazyMockable/g)?.length).toBe(1);
+    expect(content).not.toContain('", require(');
   });
 
   it('shim filenames are deterministic per key', () => {

@@ -139,6 +139,29 @@ describe('bundle lane - module mocking shims in real Metro output', () => {
   );
 
   it(
+    "a bundled story's mock is handed the module its import names, as the story wrote it",
+    async () => {
+      const root = createFixture(true);
+      try {
+        // The app bundles the story file itself, written as CommonJS like the fixture's entry.
+        fs.writeFileSync(path.join(root, 'index.js'), "require('./src/Widget.stories');\n");
+        fs.writeFileSync(
+          path.join(root, 'src/Widget.stories.js'),
+          "const { mock } = require('@sherlo/react-native-storybook');\n" +
+            "exports.Basic = { parameters: { sherlo: { mocks: [mock(() => import('mocked-lib'), { greeting: 'mocked' })] } } };\n"
+        );
+
+        const code = await buildBundle(root);
+
+        expect(code).toMatch(/greeting: 'mocked'\s*\},\s*"mocked-lib"\)/);
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    },
+    TIMEOUT
+  );
+
+  it(
     'a project with no mock declared -> the bundle contains zero mocking artifacts',
     async () => {
       const root = createFixture(false);

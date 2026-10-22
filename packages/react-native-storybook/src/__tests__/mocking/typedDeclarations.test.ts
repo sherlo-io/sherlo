@@ -21,7 +21,8 @@ import createMockable from '../../mocking/createMockable';
 import { declarationsOf, mock, resolveDeclarations } from '../../mocking/mockDeclaration';
 import { mergeStoryMocks } from '../../mocking/mergeMocks';
 import { activateStoryMocks } from '../../mocking';
-import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { mockFailureOf } from '../../mocking/activateStoryMocks';
+import { clearMocks, newMockLookups, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
 import { startStorybookHolding } from './storybookHolding';
@@ -216,12 +217,10 @@ describe('a mock is declared by its import expression', () => {
     expect(Object.keys(resolved)).toEqual(['pkg/interop']);
   });
 
-  it('warns about a declaration whose import reached no shim, naming what it declared', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
+  it('fails the story for a declaration whose import reached no shim, naming what it declared', async () => {
     // Nothing redirected these imports, so the modules they yield answer with no name at all.
-    // The warning must still say WHICH declarations they were, or there is nothing to go on:
-    // it names each by what the definition declares.
+    // The failure must still say WHICH declarations they were, or there is nothing to go on:
+    // with no record of what the story file imports, it names each by what the definition declares.
     const declarations = [
       mock(() => Promise.resolve({ whoAmI: () => 'real' }), { whoAmI: () => 'mocked' }),
       mock(
@@ -230,13 +229,13 @@ describe('a mock is declared by its import expression', () => {
       ),
     ];
 
-    activateStoryMocks(await resolveDeclarations(declarations));
+    activateStoryMocks(await resolveDeclarations(declarations), newMockLookups('story'));
 
-    expect(warn).toHaveBeenCalledTimes(1);
-    const message = warn.mock.calls[0][0] as string;
-    expect(message).toContain('mock declared but unshimmed');
-    expect(message).toContain('declaring whoAmI');
-    expect(message).toContain('declaring a factory');
+    const failure = mockFailureOf('story');
+    expect(failure?.name).toBe('MockedModuleError');
+    expect(failure?.message).toContain('declaring whoAmI did not apply');
+    expect(failure?.message).toContain('declaring a factory did not apply');
+    expect(failure?.message).toContain('restart the bundler');
   });
 
   it('the object form keyed by strings is still accepted, untyped', async () => {
