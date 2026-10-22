@@ -26,6 +26,7 @@ import { pathToFileURL } from 'url';
 import { componentGaps, rankGaps } from '../commands/coverage/componentGaps';
 import {
   componentTypesFrom,
+  isStoryFile,
   literalValue,
   storyPropValues,
 } from '../commands/coverage/storyPropValues';
@@ -214,19 +215,22 @@ type ClassicProgram = {
 };
 /** What this seam asks of a TypeScript older than 7: its classic compiler API. */
 type ClassicTypeScript = {
-  sys: { readFile(file: string): string | undefined };
+  sys: {
+    readFile(file: string): string | undefined;
+    readDirectory(
+      root: string,
+      extensions?: string[],
+      exclude?: string[],
+      include?: string[]
+    ): string[];
+  };
   readConfigFile(file: string, read: (file: string) => string | undefined): { config?: unknown };
   parseJsonConfigFileContent(
     config: unknown,
     host: unknown,
     base: string
   ): { fileNames: string[]; options: unknown };
-  createProgram(
-    files: string[],
-    options: unknown,
-    host?: undefined,
-    oldProgram?: ClassicProgram
-  ): ClassicProgram;
+  createProgram(files: string[], options: unknown): ClassicProgram;
   forEachChild<T>(node: ClassicNode, visit: (child: ClassicNode) => T | undefined): T | undefined;
   isIdentifier(node: ClassicNode): boolean;
   SymbolFlags: { Alias: number };
@@ -247,9 +251,16 @@ export function classicComponentTypes(
   const tsconfig = path.join(root, 'tsconfig.json');
   const { config } = typescript.readConfigFile(tsconfig, typescript.sys.readFile);
   const parsed = typescript.parseJsonConfigFileContent(config, typescript.sys, root);
-  const roots = [...parsed.fileNames];
-  let program = typescript.createProgram(roots, parsed.options);
-  let checker = program.getTypeChecker();
+  // A tsconfig.json may leave story files out (an `exclude`, a narrow `include`, a solution
+  // `files: []`): every story file is a root of the one program, so it is built once.
+  const storyFiles = typescript.sys
+    .readDirectory(root, ['.ts', '.tsx', '.js', '.jsx'], ['**/node_modules/**'], ['**/*.stories.*'])
+    .filter(isStoryFile);
+  const program = typescript.createProgram(
+    [...new Set([...parsed.fileNames, ...storyFiles])],
+    parsed.options
+  );
+  const checker = program.getTypeChecker();
   const declarationOf = (symbol: ClassicSymbol) =>
     symbol.valueDeclaration ?? symbol.declarations?.[0];
 
@@ -272,13 +283,6 @@ export function classicComponentTypes(
 
   const reader: TypeReader<ClassicSymbol> = {
     symbolAt: (file, position) => {
-      // A tsconfig.json may leave story files out (an `exclude`, a narrow `include`, a solution
-      // `files: []`): the program then has no such file, so it is added as a root of its own.
-      if (!program.getSourceFile(file)) {
-        roots.push(file);
-        program = typescript.createProgram(roots, parsed.options, undefined, program);
-        checker = program.getTypeChecker();
-      }
       const source = program.getSourceFile(file);
       const node = source && identifierAt(source, position);
       return followAlias(node && checker.getSymbolAtLocation(node));
