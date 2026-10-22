@@ -36,7 +36,11 @@ afterEach(() => {
 /* ---- The line, an app and a driver ---------------------------------------------------------- */
 
 /** A line on a fresh server on loopback, and a way to wait until it heard an app say something. */
-async function startALine(settings?: { appHoldMs?: number; warn?: (message: string) => void }) {
+async function startALine(settings?: {
+  appHoldMs?: number;
+  warn?: (message: string) => void;
+  storyFileChangedSince?: (time: number) => boolean;
+}) {
   const server = http.createServer();
   const line: SherloLine = attach(server, WebSocketServer, settings);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -111,6 +115,8 @@ async function connectAnApp(running: RunningLine) {
     waitsForAStory: (saying: Message) => say({ action: 'waitForStory', ...saying }),
     waitsForACapture: (saying: Message) => say({ action: 'waitForACapture', ...saying }),
     logs: (line: string) => say({ action: 'log', line }),
+    /** The JavaScript starts again on this same connection, as it does after a reload. */
+    startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),
     /** The polyfill's word that this app's JavaScript died as it started. */
     startFails: (error: Message) => say({ action: 'start-failed', ...error }),
     /** The letterbox's next answer to this app, without its action. */
@@ -464,6 +470,81 @@ describe('the relay hands the restart a story to land on, from whichever side as
     const answer = { kind: 'crashed', storyId: STORY };
     await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer });
     await expect(reply).resolves.toEqual(answer);
+  });
+});
+
+describe('a capture of an app whose story files changed after its code loaded', () => {
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 30));
+
+  /** A line told of one story file on disk, as the bundler tells it. */
+  async function startALineWatchingAStoryFile() {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-line-story-'));
+    toCloseAfterTheTest.push(() => fs.rmSync(folder, { recursive: true, force: true }));
+    const storyFile = path.join(folder, 'Button.stories.tsx');
+    fs.writeFileSync(storyFile, 'export default {};\n');
+    const running = await startALine({
+      storyFileChangedSince: (time: number) => fs.statSync(storyFile).mtimeMs > time,
+    });
+    return { running, storyFile };
+  }
+
+  it("a capture asked after a story file changed since the app's code loaded reloads the app into testing mode first", async () => {
+    const { running, storyFile } = await startALineWatchingAStoryFile();
+    await pause();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+
+    await pause();
+    fs.writeFileSync(storyFile, 'export default { title: "Edited" };\n');
+    const reply = driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      restartIntoTesting: true,
+      storyId: STORY,
+    });
+    void reply;
+  });
+
+  it("a capture with no story file changed since the app's code loaded walks the story at once", async () => {
+    const { running } = await startALineWatchingAStoryFile();
+    await pause();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
+  });
+
+  it('the app that comes back from the reload is not reloaded again', async () => {
+    const { running, storyFile } = await startALineWatchingAStoryFile();
+    await pause();
+    const firstApp = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    await firstApp.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+
+    await pause();
+    fs.writeFileSync(storyFile, 'export default { title: "Edited" };\n');
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await expect(firstApp.nextCaptureInstruction()).resolves.toMatchObject({
+      restartIntoTesting: true,
+    });
+
+    // The reloaded JavaScript starts on the same connection, after the edit: native code says no
+    // second hello, only the JavaScript's own start message.
+    await pause();
+    await firstApp.startsItsJavaScript();
+    await firstApp.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+
+    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
   });
 });
 
