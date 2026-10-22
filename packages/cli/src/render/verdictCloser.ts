@@ -21,11 +21,14 @@
  * {@link decideSparseBuildVerdict}. A project that has not opted in never
  * reaches them, and its output is byte-identical to what it has always been.
  */
+import type { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
+import { PLATFORM_LABEL } from '../constants';
 import {
   countStories,
   renderFailedTestStep,
   renderHelpBlock,
+  renderReviewLink,
   renderTestStep,
   renderVerdictSection,
 } from './testSteps';
@@ -254,14 +257,41 @@ function renderCountLines(counts: { unreviewed: number; reported: number }): str
 }
 
 /**
+ * What an app that could not start adds to the infrastructure closer: the platform, the error as
+ * the server stored it (only its first line is printed) and the build page link.
+ */
+export type AppFailedToStart = {
+  reason: 'appFailedToStart';
+  platform: Platform;
+  errorMessage: string;
+  buildUrl: string;
+};
+
+/**
  * The infrastructure closer, as init's failed step: the test ended without a verdict. `runError`
  * is server-shaped, so it is stringified, not phrased. The run ends here, so the help block follows.
+ *
+ * With `appFailed`, the lines under the step are `App failed to start on Android`, the error's
+ * first line dimmed, and the build page link.
  */
 export function renderVerdictRunErrored(
   runStatus: string,
   runError: unknown,
-  testIndex?: number
+  testIndex?: number,
+  appFailed?: AppFailedToStart
 ): string[] {
+  if (appFailed) {
+    const [firstLine] = appFailed.errorMessage.trim().split(/\r?\n/);
+    return [
+      ...renderFailedTestStep(`Running ${theTest(testIndex)}`),
+      `App failed to start on ${PLATFORM_LABEL[appFailed.platform]}`,
+      ...(firstLine ? [chalk.dim(firstLine)] : []),
+      renderReviewLink(appFailed.buildUrl),
+      '',
+      ...renderHelpBlock(),
+    ];
+  }
+
   return [
     ...renderFailedTestStep(`Running ${theTest(testIndex)}`),
     `${atSentenceStart(theTest(testIndex))} ended as "${runStatus}".`,

@@ -7,8 +7,10 @@ import { rowsAbove } from '../commands/test/platformRows';
 import type { PlatformRow } from '../render/runRows';
 import type { TranscriptSegment } from '../render/segments';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
+import type { RunErrorDetails } from '../types';
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
+import getAppBuildUrl from './getAppBuildUrl';
 import getTokenParts from './getTokenParts';
 import hasNoTokenParts from './hasNoTokenParts';
 import { emit } from './transcriptSink';
@@ -229,7 +231,8 @@ export async function waitForTest({
             testIndex,
             secondsItRan: sawTheTestStart ? ending.secondsItRan : undefined,
           },
-          rowsNotYetShown
+          rowsNotYetShown,
+          getAppBuildUrl({ buildIndex, projectIndex, teamId })
         );
       }
       return endWith(ending.exitCode);
@@ -516,16 +519,33 @@ function decideTerminalState(
  * the wrong words for the exit code just decided.
  */
 function printTerminalCloser(
-  build: NonNullable<BuildStatusResponse['getBuildStatus']>,
+  build: NonNullable<BuildStatusResponse['getBuildStatus']> & RunErrorDetails,
   howItRan: HowTheTestRan,
-  rowsNotYetShown: PlatformRow[]
+  rowsNotYetShown: PlatformRow[],
+  buildUrl: string
 ): void {
   const { runStatus, viewStatusesCount, diffScopeInfo } = build;
   const { testIndex } = howItRan;
 
   if (runStatus === 'error' || runStatus === 'canceled') {
     // A failed step, like any other: directly under the steps, the help block closing the run.
-    emit({ kind: 'verdict-run-errored', runStatus, runError: build.runError, testIndex });
+    // An app that could not start names its platform, the error's first line and the build page.
+    const appFailed =
+      build.runErrorReason === 'appFailedToStart' && build.runErrorPlatform && build.runErrorMessage
+        ? {
+            reason: build.runErrorReason,
+            platform: build.runErrorPlatform,
+            errorMessage: build.runErrorMessage,
+            buildUrl,
+          }
+        : undefined;
+    emit({
+      kind: 'verdict-run-errored',
+      runStatus,
+      runError: build.runError,
+      testIndex,
+      ...(appFailed ? { appFailed } : {}),
+    });
     emit({ kind: 'blank-line' });
     return;
   }

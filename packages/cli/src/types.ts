@@ -238,3 +238,14 @@ export type BinaryInfo = {
   hasExpoDevClient?: boolean;
   androidAbis?: string[];
 };
+
+/**
+ * What the server says beside `runError` when an app could not start (the contract; the status
+ * query selects these two fields). Absent or `null` for every other run error.
+ */
+export type RunErrorDetails = {
+  /** Why a `user_runner` run ended: `appFailedToStart` when the app could not start. */
+  runErrorReason?: 'appFailedToStart' | null;
+  /** The error the app raised; the closer prints its first line. */
+  runErrorMessage?: string | null;
+};

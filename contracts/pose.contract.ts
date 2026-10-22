@@ -861,6 +861,10 @@ export type BuildStatusAnswer = {
     inherited: string[];
     ancestorBuildIndex: number | null;
   };
+  /** Why a `user_runner` run ended: `appFailedToStart` when the app could not start. */
+  runErrorReason?: 'appFailedToStart' | null;
+  /** The error the app raised; the closer prints its first line. */
+  runErrorMessage?: string | null;
 };
 
 /** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */

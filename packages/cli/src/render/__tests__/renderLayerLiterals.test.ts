@@ -1092,6 +1092,33 @@ const PINS: Pin[] = [
       ...HELP_BLOCK_PRINTS,
     ],
   },
+  {
+    kind: 'verdict-run-errored',
+    what: "the infrastructure closer for an app that could not start: the platform, the error's first line dimmed (only the first), the build page link, then the help block",
+    segment: {
+      kind: 'verdict-run-errored',
+      runStatus: 'error',
+      runError: 'user_runner',
+      testIndex: 3,
+      appFailed: {
+        reason: 'appFailedToStart',
+        platform: 'android',
+        errorMessage:
+          "TypeError: Cannot read property 'getItem' of undefined\n    at loadSession (index.android.bundle:1:2345)",
+        buildUrl: 'https://app.sherlo.io/build?t=tm000001&p=7&b=3',
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[31m✖${ESC}[39m Running Test 3 failed`],
+      [''],
+      ['App failed to start on Android'],
+      [`${ESC}[2mTypeError: Cannot read property 'getItem' of undefined${ESC}[22m`],
+      [`🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=3${ESC}[39m`],
+      [''],
+      ...HELP_BLOCK_PRINTS,
+    ],
+  },
 
   /* ⚠⚠ DEPICTS FUTURE. Pinned exactly like the rest, because a drawing whose
    * bytes can drift silently is worse than no drawing: these are the bytes a

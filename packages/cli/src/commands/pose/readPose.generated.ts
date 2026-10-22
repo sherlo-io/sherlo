@@ -1653,6 +1653,24 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         );
       }
     }
+    if ('runErrorReason' in object1) {
+      const oneOf58 = object1.runErrorReason;
+      const where59 = at(path, 'runErrorReason');
+      if (oneOf58 === 'appFailedToStart' || oneOf58 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf58, '`"appFailedToStart"` or `null`', where59, problems);
+      }
+    }
+    if ('runErrorMessage' in object1) {
+      const oneOf60 = object1.runErrorMessage;
+      const where61 = at(path, 'runErrorMessage');
+      if (typeof oneOf60 === 'string' || oneOf60 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf60, 'a string or `null`', where61, problems);
+      }
+    }
     reportUnknownFields(
       object1,
       [
@@ -1670,6 +1688,8 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         'platforms',
         'stories',
         'diffScope',
+        'runErrorReason',
+        'runErrorMessage',
       ],
       path,
       problems
