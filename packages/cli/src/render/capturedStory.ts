@@ -1,13 +1,11 @@
 /**
  * WHAT `sherlo capture` PRINTS.
  *
- * Pure, like everything under ./: state in, lines out. The road that produces the state is the
- * capture socket on the bundler (../seams/captureSocket); a posed run states the answer and a real
- * run gets it from the app, and neither changes a line of what is printed.
+ * Pure, like everything under ./: state in, lines out. The state comes from the capture socket
+ * (../seams/captureSocket), posed or real, and neither changes a line of what is printed.
  *
  * AN AGENT IS A FIRST-CLASS READER, so every ending is named. The refusals are word for word the
- * ones `sherlo open` prints (./openedStory), because they are the same facts about the same road -
- * a developer who has met one command's refusal has already met the other's.
+ * ones `sherlo open` prints (./openedStory): the same facts about the same road.
  *
  * THE VIEW TREE IS THE RECORD, DRAWN THE WAY SHERLO'S WEB INSPECTOR DRAWS IT. Every view, none
  * left out, as the tag the inspector names it by, its style block one key per line in the
@@ -39,7 +37,13 @@ export type CapturedView = {
 export type CapturedStory =
   | { kind: 'no-bundler'; port: number }
   | { kind: 'no-app'; port: number }
-  | { kind: 'no-such-story'; storyId: string; known: string[] }
+  | {
+      kind: 'no-such-story';
+      storyId: string;
+      known: string[];
+      /** The story files that threw while the app loaded them: when any did, they are why the story is missing. */
+      brokenFiles?: { file: string; error: { name: string; message: string } }[];
+    }
   | {
       kind: 'captured';
       storyId: string;
@@ -49,13 +53,21 @@ export type CapturedStory =
       parts?: number;
       /** Whether any view in the story loads an image over the network. */
       hasNetworkImage?: boolean;
+      /** The app's own modules the story reached that no mock replaced, by path. */
+      stillReal?: string[];
+      /** The requests the story made that no mock answered. */
+      unanswered?: { method: string; url: string }[];
       tree: CapturedView;
     }
-  /**
-   * The screen never stopped changing before the stabilization gave up. A cloud run would hit the
-   * same limit on the same story, which is exactly why a developer needs to hear it here.
-   */
-  | { kind: 'never-settled'; storyId: string; seconds: number; tree: CapturedView }
+  /** The screen never stopped changing before the stabilization gave up; a cloud run would hit the same limit. */
+  | {
+      kind: 'never-settled';
+      storyId: string;
+      seconds: number;
+      /** The views still changing when it gave up, each as the tag the tree draws it by. */
+      changing?: string[];
+      tree: CapturedView;
+    }
   /** The story threw while rendering; the error is the story's own, word for word. */
   | {
       kind: 'captured-and-threw';
@@ -72,6 +84,9 @@ export type CapturedStory =
     };
 
 const START_THE_APP = 'Start your app with the bundler running, then try again.';
+
+/** The name of the error the SDK fails a story with when a mock it declares reached nothing or its module's import threw. */
+const MOCKED_MODULE_ERROR = 'MockedModuleError';
 
 /** Every line `sherlo capture` prints, in order. */
 export function renderCapturedStory(state: CapturedStory): string[] {
@@ -95,6 +110,21 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       ];
 
     case 'no-such-story':
+      if (state.brokenFiles && state.brokenFiles.length > 0) {
+        return [
+          `${chalk.red('✖')}  No story ${chalk.bold(
+            state.storyId
+          )} in this app - a story file threw while the app loaded it`,
+          '',
+          ...state.brokenFiles.flatMap(({ file, error }) => [
+            `  ${chalk.bold(file)}`,
+            `  ${error.name}: ${error.message}`,
+          ]),
+          '',
+          chalk.dim('Fix the file and save it, then try again.'),
+          '',
+        ];
+      }
       return [
         `${chalk.red('✖')}  No story ${chalk.bold(state.storyId)} in this app`,
         '',
@@ -118,6 +148,8 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         ...(state.hasNetworkImage
           ? [chalk.dim('   has images loaded over the network - a cloud capture depends on them')]
           : []),
+        ...stillRealLines(state.stillReal),
+        ...unansweredLines(state.unanswered),
         '',
         ...treeLines(state.tree),
         '',
@@ -129,12 +161,26 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           state.seconds
         }s`,
         chalk.dim('   A test run of this story would stop at the same limit. What it read then:'),
+        ...(state.changing && state.changing.length > 0
+          ? [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
+          : []),
         '',
         ...treeLines(state.tree),
         '',
       ];
 
     case 'captured-and-threw':
+      // A mock that did not apply fails the story's declaration, not its screen: no tree to bury the module's name.
+      if (state.threw.name === MOCKED_MODULE_ERROR) {
+        return [
+          `${chalk.red('✖')}  ${chalk.bold(state.storyId)} failed - a module it mocks was not mocked`,
+          '',
+          `  ${state.threw.message}`,
+          '',
+          chalk.dim('Fix the mock, then capture again. --json prints the record.'),
+          '',
+        ];
+      }
       return [
         `${chalk.red('✖')}  ${chalk.bold(state.storyId)} captured, and it threw while rendering`,
         '',
@@ -181,6 +227,29 @@ const INK = {
   /** The one colour the inspector does not have: the app's own components, which it never shows. */
   component: chalk.hex('#D97AB8'),
 };
+
+/** The app's own modules the story ran as real code, because no mock replaced them. */
+function stillRealLines(stillReal: string[] | undefined): string[] {
+  if (!stillReal || stillReal.length === 0) return [];
+  return [
+    '',
+    chalk.dim(`   Not mocked - ${stillReal.length} of the app's own modules ran as real code:`),
+    ...stillReal.map((module) => chalk.dim(`     ${module}`)),
+  ];
+}
+
+/** The requests that went to the real network: a test run sends them too, so a story that depends on them can change. */
+function unansweredLines(unanswered: { method: string; url: string }[] | undefined): string[] {
+  if (!unanswered || unanswered.length === 0) return [];
+  const one = unanswered.length === 1;
+  return [
+    '',
+    `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock - a test run sends ${
+      one ? 'it' : 'them'
+    } to the real network:`,
+    ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
+  ];
+}
 
 /** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
 export function treeLines(root: CapturedView): string[] {

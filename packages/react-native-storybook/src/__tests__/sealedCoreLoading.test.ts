@@ -203,6 +203,8 @@ describe('loading the sealed core', () => {
         'storybookChannel',
         'storybookFacts',
         'storyOfTheAppFiber',
+        'stillRealModulesOfStory',
+        'unansweredRequestsOfStory',
         'warn',
       ].sort()
     );

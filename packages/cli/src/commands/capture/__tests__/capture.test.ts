@@ -218,6 +218,42 @@ describe('every ending the capture screen draws is reached from an answer the ap
   });
 });
 
+describe('what a capture says went wrong or stayed real reaches the screen', () => {
+  it("a story whose mock did not take effect ends with the module's name and no tree", async () => {
+    const { screen } = await captureOneStory({
+      kind: 'captured',
+      storyId: STORY,
+      settled: SETTLED,
+      threw: { name: 'MockedModuleError', message: 'react-native-camera was never imported' },
+      tree: ONE_VIEW,
+    });
+
+    expect(screen).toContain('failed - a module it mocks was not mocked');
+    expect(screen).toContain('react-native-camera was never imported');
+    expect(screen).not.toContain('<Button>');
+    expect(screen).not.toContain('views · --json prints the record');
+  });
+
+  it('a captured story prints the modules that ran as real code, then the requests no mock answered', async () => {
+    const { screen } = await captureOneStory({
+      kind: 'captured',
+      storyId: STORY,
+      settled: SETTLED,
+      stillReal: ['src/theme.ts', 'src/format.ts'],
+      unanswered: [{ method: 'GET', url: 'https://api.example.com/me' }],
+      tree: ONE_VIEW,
+    });
+
+    const modules = screen.indexOf("2 of the app's own modules ran as real code:");
+    const requests = screen.indexOf('1 request had no mock');
+    expect(modules).toBeGreaterThan(-1);
+    expect(requests).toBeGreaterThan(modules);
+    expect(screen).toContain('src/format.ts');
+    expect(screen).toContain('GET https://api.example.com/me');
+    expect(screen.indexOf('<Button>')).toBeGreaterThan(requests);
+  });
+});
+
 describe("the app's own log lines never reach the drawn screen unasked, and `--logs` is the one door that puts them there", () => {
   const WITH_LOGS: CaptureResult = {
     kind: 'captured',
