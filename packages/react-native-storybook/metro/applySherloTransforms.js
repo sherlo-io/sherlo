@@ -911,6 +911,11 @@ function applySherloTransforms(result, opts) {
     opts && opts.enabled === false
       ? [writeDisabledFlagPolyfill(cacheDir)] // minimal only
       : [polyfillPath]; // full polyfill for enabled: true
+  // What the mock scan saw, for the run-time check that fails a story whose mock did not take
+  // effect (src/mocking/declaredImports.ts).
+  if (!(opts && opts.enabled === false) && mockSetup.declaredImportsPolyfill) {
+    sherloPolyfills.unshift(mockSetup.declaredImportsPolyfill);
+  }
 
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'

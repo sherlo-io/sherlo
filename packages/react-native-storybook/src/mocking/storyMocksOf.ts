@@ -26,22 +26,34 @@ type StoryLevelParameters = { parameters?: Record<string, any> };
  * none, and a story whose file is not among the story files has only the project's.
  */
 export function storyMocksOf(storyId: string): StoryMocks {
+  const { project, own } = storyMockLevelsOf(storyId);
+  return own ? mergeStoryMocks(project, own) : project;
+}
+
+/**
+ * The same mocks in two parts: the project's, and the story's own - its file's and its own,
+ * merged. A project mock is a default for every story, and most stories never read most of them;
+ * only a mock the story or its file declares fails the story for reaching nothing. A story whose
+ * file is not among the story files has no own part.
+ */
+export function storyMockLevelsOf(storyId: string): { project: StoryMocks; own?: StoryMocks } {
   const facts = readStorybookFacts();
   const indexEntry = facts?.storyIndex[storyId];
-  if (!facts || !indexEntry) return {};
+  if (!facts || !indexEntry) return { project: {} };
 
-  const projectMocks = projectMocksOf(facts.previewAnnotations);
+  const project = projectMocksOf(facts.previewAnnotations);
 
   const fileExports = facts.storyFiles[indexEntry.importPath] as Record<string, any> | undefined;
-  if (!fileExports) return projectMocks;
+  if (!fileExports) return { project };
 
   const meta: StoryLevelParameters = fileExports.default ?? {};
   const story = storyExportNamed(fileExports, indexEntry.name) ?? {};
-  return mergeStoryMocks(
-    projectMocks,
+  const own = mergeStoryMocks(
+    {},
     meta.parameters?.sherlo?.mocks ?? {},
     story.parameters?.sherlo?.mocks ?? {}
   );
+  return { project, own };
 }
 
 /* ========================================================================== */

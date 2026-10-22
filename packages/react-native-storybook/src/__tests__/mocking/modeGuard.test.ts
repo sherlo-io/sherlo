@@ -7,8 +7,7 @@ vi.mock('../../SherloModule', () => ({
   default: { getMode: mockGetMode },
 }));
 
-// RunnerBridge is only reached by activateStoryMocks' unshimmed-key warning; stub it so the
-// guard tests don't depend on the native bridge.
+// RunnerBridge is stubbed so the guard tests never depend on the native bridge.
 vi.mock('../../helpers/RunnerBridge', () => ({
   default: { log: vi.fn(), send: vi.fn() },
 }));
