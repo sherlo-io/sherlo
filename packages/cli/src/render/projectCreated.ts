@@ -43,12 +43,12 @@ export type ProjectCreated = {
 };
 
 /**
- * NO TOKEN COMES WITH A NEW PROJECT ANY MORE: a person
- * works from their own computer on their login, and only CI needs a token, so one is made when
- * someone presses Create Token on the project's page. The command names that page instead.
+ * NO TOKEN COMES WITH A NEW PROJECT ANY MORE: a person works from their own computer on their
+ * login, CI on GitHub signs in once GitHub is connected, and only CI elsewhere needs a token. Both
+ * are set up on the project's page, so the command names that page.
  */
 export type ProjectCreatedLines = ProjectCreated & {
-  /** The project's page in the web app, where its CI token is made. */
+  /** The project's page in the web app, where GitHub is connected and a CI token is made. */
   projectPageUrl: string;
 };
 
@@ -63,9 +63,7 @@ export function renderProjectCreated({
     '',
     ...renderOutputKeys({ projectIndex: index, projectName: name }),
     '',
-    `For CI, create a CI token in the Sherlo web app and save it as the ${chalk.bold(
-      'SHERLO_TOKEN'
-    )} secret:`,
+    `For pull request tests, connect GitHub on the project's page, or make a CI token there for CI not on GitHub:`,
     `  ${chalk.cyan(projectPageUrl)}`,
     '',
   ];

@@ -1456,7 +1456,7 @@ const PINS: Pin[] = [
       ['projectName=Design System'],
       [''],
       [
-        `For CI, create a CI token in the Sherlo web app and save it as the ${ESC}[1mSHERLO_TOKEN${ESC}[22m secret:`,
+        `For pull request tests, connect GitHub on the project's page, or make a CI token there for CI not on GitHub:`,
       ],
       [`  ${ESC}[36mhttps://app.sherlo.io/project?t=team1234&p=12${ESC}[39m`],
       [''],

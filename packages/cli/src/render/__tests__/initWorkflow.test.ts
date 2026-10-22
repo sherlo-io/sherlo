@@ -60,19 +60,12 @@ describe('the workflow sherlo init writes', () => {
     expect(workflow).toMatch(/with:\n\s+platform: \$\{\{ matrix\.platform \}\}/);
   });
 
-  it("puts SHERLO_TOKEN in the job's env and ends green with a notice while the secret is missing", () => {
-    expect(workflow).toMatch(/env:\n\s+SHERLO_TOKEN: \$\{\{ secrets\.SHERLO_TOKEN \}\}/);
-    expect(workflow).toMatch(/name: Check the SHERLO_TOKEN secret\n\s+id: token\n/);
-    expect(workflow).toContain('::notice::');
-    expect(workflow).toContain('echo "present=false" >> "$GITHUB_OUTPUT"');
-    expect(workflow).not.toContain('::error::');
-    expect(workflow).not.toContain('exit 1');
-    // Every step after the check runs only once the secret is there.
-    const stepsAfterTheCheck = workflow.split('id: token')[1].split('\n      - ').slice(1);
-    expect(stepsAfterTheCheck).toHaveLength(4);
-    for (const step of stepsAfterTheCheck) {
-      expect(step).toContain("if: steps.token.outputs.present == 'true'");
-    }
+  it('signs in through GitHub with no secret, and asks for a notice rather than a failure until GitHub is connected', () => {
+    expect(workflow).toMatch(/permissions:\n\s+contents: read\n\s+id-token: write\n/);
+    expect(workflow).toMatch(/env:\n(\s+#.*\n)?\s+SHERLO_UNTIL_CONNECTED: notice\n/);
+    expect(workflow).not.toContain('SHERLO_TOKEN');
+    expect(workflow).not.toContain('secrets.');
+    expect(workflow).toContain('Connect GitHub');
   });
 
   it('sets up Node 22 with the package manager cache setup-node knows, and none for bun', () => {

@@ -5,9 +5,13 @@
  * agent - reads in their own repository.
  *
  * THE SHAPE IS THE ONE THE DOCS GIVE AND THE ACTION TAKES: a matrix job, Android on `ubuntu-latest`
- * and iOS on `macos-latest`, `SHERLO_TOKEN` in the job's env, and the action told only its
- * `platform` - the token is not one of the action's inputs (see `action.yml`). Fail-fast is off
- * because a cancelled job never joins its test.
+ * and iOS on `macos-latest`, and the action told only its `platform` (see `action.yml`). Fail-fast
+ * is off because a cancelled job never joins its test.
+ *
+ * NO SECRET: THE JOB SIGNS IN THROUGH GITHUB. With `id-token: write` the job can ask GitHub for an
+ * ID token, and `sherlo test` trades it for a session once the Sherlo GitHub App is connected to the
+ * project's team (resolvePushCredential's second rung). So the file needs no SHERLO_TOKEN, and what
+ * it points to is Connect GitHub in the project's settings.
  *
  * THE PUSH RUN FOLLOWS THE REPOSITORY'S DEFAULT BRANCH, read by GitHub when the workflow runs
  * (`github.event.repository.default_branch`), so setup never guesses a branch name. A push trigger
@@ -19,9 +23,11 @@
  * (Diff Scope's first rung), and infers that line from the repository's default branch - the same
  * branch this file runs on. So both runs are a plain `sherlo test`.
  *
- * NO TOKEN YET IS NOT A FAILURE: setup does not ask for CI up front, so the file can sit in a
- * repository for days before anyone saves SHERLO_TOKEN. Until then every job ends green with one
- * notice saying where the token is made, instead of failing every pull request.
+ * NOT CONNECTED YET IS NOT A FAILURE: setup does not ask for CI up front, so the file can sit in a
+ * repository for days before anyone connects GitHub. `SHERLO_UNTIL_CONNECTED: notice` asks
+ * `sherlo test` to end such a job green with one notice saying where GitHub is connected, instead of
+ * failing every pull request. A workflow written by hand leaves it out, and a missing connection
+ * fails there as it always did.
  */
 
 /** Where the workflow goes in the repository - one name for the step that writes it and the lines that name it. */
@@ -44,8 +50,8 @@ export function renderSherloWorkflow({ packageManager }: { packageManager: strin
   return `# Sherlo visual tests, added by \`npx sherlo init\`.
 #
 # Sherlo photographs your app's Storybook stories on a device and shows what changed, for review.
-# It needs one secret: SHERLO_TOKEN, a CI token from the Sherlo web app, added under
-# Settings > Secrets and variables > Actions. Docs: https://sherlo.io/docs/testing
+# It needs no secret: once you click Connect GitHub in your Sherlo project's settings
+# (https://app.sherlo.io), this job signs in through GitHub. Docs: https://sherlo.io/docs/integrations/github
 
 name: Sherlo
 
@@ -77,34 +83,24 @@ jobs:
           - platform: ios
             runs-on: macos-latest
     runs-on: \${{ matrix.runs-on }}
+    # id-token lets the job sign in to Sherlo through GitHub, with no secret to save.
+    permissions:
+      contents: read
+      id-token: write
     env:
-      SHERLO_TOKEN: \${{ secrets.SHERLO_TOKEN }}
+      # Until GitHub is connected, Sherlo ends this job green with one notice instead of failing it.
+      SHERLO_UNTIL_CONNECTED: notice
     steps:
-      # Until the SHERLO_TOKEN secret is added, the job ends here, green, with one notice.
-      - name: Check the SHERLO_TOKEN secret
-        id: token
-        run: |
-          if [ -z "$SHERLO_TOKEN" ]; then
-            echo "::notice::Sherlo is not set up for pull requests yet: create a CI token in your Sherlo project's settings (https://app.sherlo.io), then add it as the SHERLO_TOKEN secret under Settings > Secrets and variables > Actions."
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          fi
+      - uses: actions/checkout@v4
 
-      - if: steps.token.outputs.present == 'true'
-        uses: actions/checkout@v4
-
-      - if: steps.token.outputs.present == 'true'
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22${cacheLine}
 
       - name: Install packages
-        if: steps.token.outputs.present == 'true'
         run: ${INSTALL_COMMAND[packageManager] ?? INSTALL_COMMAND.npm}
 
       - name: Run Sherlo
-        if: steps.token.outputs.present == 'true'
         uses: sherlo-io/sherlo@v3
         with:
           platform: \${{ matrix.platform }}
