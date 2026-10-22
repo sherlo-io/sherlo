@@ -8,11 +8,17 @@ import { MockDefinition, MockSet, MOCKED_MODULE_KEY } from './types';
  * by awaiting its own import: the bundler has redirected that import to the module's shim,
  * and the shim answers `MOCKED_MODULE_KEY` with the key it was made for. So the name is never
  * a string the story wrote, and never the importer's source text read back as one.
+ *
+ * `specifierAsWritten` is the module the import names, as the story file wrote it. The bundler's
+ * transform of story files hands it to `mock` (metro/mockSpecifierTransformer.js), so it is as new
+ * as the file. It names the module in a failure when no shim answered, and never decides which
+ * mock applies.
  */
 export interface ModuleMockDeclaration {
   kind: 'module';
   moduleKey: () => Promise<string | undefined>;
   definition: MockDefinition;
+  specifierAsWritten?: string;
 }
 
 /**
@@ -41,24 +47,45 @@ export function isNetworkDeclaration(
 
 /**
  * The name an import that reached no shim is filed under, so its story fails the way it fails for
- * any mock the bundler had not seen (./activateStoryMocks, mockFailureOf). The module has
- * no name to give - that IS the failure - so the declaration is named by what it declares, until
- * the bundler's record of what the story file imports names it (./declaredImports). No module is
+ * any mock the bundler had not seen (./activateStoryMocks, mockFailureOf). The shim has no
+ * name to give - that IS the failure - so the declaration is filed under the module its story
+ * wrote, when the bundler's transform handed that over, and under what it declares. No module is
  * ever called this, so nothing filed under it can apply, which is exactly the state that fails.
  */
 const UNSHIMMED_IMPORT_PREFIX = 'an import with no shim, ';
+const WRITTEN_SPECIFIER_PREFIX = 'importing ';
 
-function unshimmedImportName(definition: MockDefinition): string {
-  if (typeof definition === 'function') return `${UNSHIMMED_IMPORT_PREFIX}declaring a factory`;
+function unshimmedImportName({ definition, specifierAsWritten }: ModuleMockDeclaration): string {
+  const importing =
+    specifierAsWritten === undefined
+      ? ''
+      : `${WRITTEN_SPECIFIER_PREFIX}${JSON.stringify(specifierAsWritten)}, `;
+  return `${UNSHIMMED_IMPORT_PREFIX}${importing}declaring ${declaredExportsOf(definition)}`;
+}
+
+function declaredExportsOf(definition: MockDefinition): string {
+  if (typeof definition === 'function') return 'a factory';
 
   const exportNames = Object.keys(definition);
-  if (exportNames.length === 0) return `${UNSHIMMED_IMPORT_PREFIX}declaring nothing`;
-
-  return `${UNSHIMMED_IMPORT_PREFIX}declaring ${exportNames.join(', ')}`;
+  return exportNames.length === 0 ? 'nothing' : exportNames.join(', ');
 }
 
 export function isUnshimmedImportName(key: string): boolean {
   return key.startsWith(UNSHIMMED_IMPORT_PREFIX);
+}
+
+/**
+ * The module an unshimmed name's declaration imports, as its story wrote it, or undefined when the
+ * declaration did not carry it (a story file the bundler's transform did not see).
+ */
+export function specifierInUnshimmedName(key: string): string | undefined {
+  if (!isUnshimmedImportName(key)) return undefined;
+
+  const afterPrefix = key.slice(UNSHIMMED_IMPORT_PREFIX.length);
+  if (!afterPrefix.startsWith(WRITTEN_SPECIFIER_PREFIX)) return undefined;
+
+  const quoted = /^"(?:[^"\\]|\\.)*"/.exec(afterPrefix.slice(WRITTEN_SPECIFIER_PREFIX.length));
+  return quoted ? (JSON.parse(quoted[0]) as string) : undefined;
 }
 
 /**
@@ -74,11 +101,18 @@ export function isUnshimmedImportName(key: string): boolean {
 export function mock<M>(
   importModule: () => Promise<M>,
   definition: Partial<M> | ((original: M) => Partial<M>)
+): ModuleMockDeclaration;
+// The third argument is never written by a story: the bundler's transform of story files adds it.
+export function mock<M>(
+  importModule: () => Promise<M>,
+  definition: Partial<M> | ((original: M) => Partial<M>),
+  specifierAsWritten?: string
 ): ModuleMockDeclaration {
   return {
     kind: 'module',
     moduleKey: () => importModule().then(readModuleKey, readKeyOfFailedImport),
     definition: definition as MockDefinition,
+    ...(typeof specifierAsWritten === 'string' ? { specifierAsWritten } : {}),
   };
 }
 
@@ -123,8 +157,8 @@ export async function resolveDeclarations(declarations: MockDeclaration[]): Prom
 
   const mocks: MockSet = {};
   keys.forEach((key, index) => {
-    const { definition } = moduleDeclarations[index];
-    mocks[key ?? unshimmedImportName(definition)] = definition;
+    const declaration = moduleDeclarations[index];
+    mocks[key ?? unshimmedImportName(declaration)] = declaration.definition;
   });
   return mocks;
 }

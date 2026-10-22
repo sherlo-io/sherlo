@@ -65,7 +65,14 @@ describe('the bundler wrapper over a config another wrapper made lazy', () => {
       expect(typeof wrapped, form.name).toBe('function');
       const config = await wrapped();
 
-      expect(config.transformer.babelTransformerPath, form.name).toBe(TRANSFORMER_PATH);
+      // The app's own transformer stays the one every file goes to, behind Sherlo's story
+      // transformer (metro/mockSpecifierTransformer.js).
+      expect(config.transformer.babelTransformerPath, form.name).toBe(
+        path.join(sherloCacheFolder(projectRoot), 'mock-specifier-transformer.js')
+      );
+      expect(fs.readFileSync(config.transformer.babelTransformerPath, 'utf8'), form.name).toContain(
+        `var projectTransformer = require(${JSON.stringify(TRANSFORMER_PATH)});`
+      );
       expect(config.transformer.unstable_allowRequireContext, form.name).toBe(true);
       expect(typeof config.server.enhanceMiddleware, form.name).toBe('function');
       expect(

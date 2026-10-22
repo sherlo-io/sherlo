@@ -291,7 +291,7 @@ describe('what the published package carries', () => {
     );
     expect(readableMetroSources).toEqual([]);
 
-    for (const bundleName of ['withStorybook.js', 'polyfill.js']) {
+    for (const bundleName of ['withStorybook.js', 'polyfill.js', 'mockSpecifierTransformer.js']) {
       expect(packedFilePaths).toContain('dist-metro/' + bundleName);
       const bundleSource = fs.readFileSync(
         path.join(unpackedPackageDir, 'dist-metro', bundleName),

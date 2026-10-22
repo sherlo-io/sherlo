@@ -6,6 +6,8 @@ var crypto = require('crypto');
 
 var getBabelParser = require('./babelParser');
 var mockShims = require('./mockShims');
+var writeMockSpecifierTransformer =
+  require('./mockSpecifierTransformer').writeMockSpecifierTransformer;
 var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
 var stillReal = require('./stillReal');
@@ -986,8 +988,11 @@ function applySherloTransforms(result, opts) {
     // unstable_allowRequireContext: sb8/sb9 withStorybook(enabled:false) omits this flag, but
     // storybook.requires.ts still uses require.context(). Without this, Metro 0.81.x embeds a
     // throwing stub for r.context, crashing the app before any Sherlo error handling fires.
+    // babelTransformerPath: the project's own transformer, behind one that hands each story file's
+    // mocks the module they import (mockSpecifierTransformer.js).
     transformer: Object.assign({}, baseResult.transformer, {
       unstable_allowRequireContext: true,
+      babelTransformerPath: writeMockSpecifierTransformer(baseResult),
     }),
     resolver: Object.assign({}, baseResult.resolver, {
       resolveRequest: resolveRequest,
