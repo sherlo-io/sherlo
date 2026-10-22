@@ -163,10 +163,49 @@ async function getDefaultBranch(projectRoot: string): Promise<string | undefined
       projectRoot,
     });
     const branch = ref.trim().replace(/^refs\/remotes\/origin\//, '');
-    return branch.length > 0 && branch !== ref.trim() ? branch : undefined;
+    if (branch.length > 0 && branch !== ref.trim()) return branch;
+  } catch {
+    // fall through to the remote
+  }
+
+  // Rung 3 (spike): ask the remote. First line is "ref: refs/heads/<default>\tHEAD".
+  const symref = await askRemote(projectRoot, 'git ls-remote --symref origin HEAD');
+  return symref?.match(/^ref: refs\/heads\/(\S+)\tHEAD/m)?.[1];
+}
+
+/** Spike: longest a question to the remote may take before it counts as unanswered. */
+const REMOTE_ASK_TIMEOUT_MS = 10_000;
+
+/** Spike: git never prompts, never asks a credential helper, and gives up on a stalled link. */
+const REMOTE_ASK_ENV = {
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_ASKPASS: '/usr/bin/false',
+  GIT_HTTP_LOW_SPEED_LIMIT: '1000',
+  GIT_HTTP_LOW_SPEED_TIME: '10',
+};
+
+/** Spike: a git question that resolves to undefined when it fails or runs out of time. */
+async function askRemote(projectRoot: string, command: string): Promise<string | undefined> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      runShellCommand({ command, projectRoot, env: REMOTE_ASK_ENV }),
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), REMOTE_ASK_TIMEOUT_MS);
+      }),
+    ]);
   } catch {
     return undefined;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
+}
+
+/** Spike: deepen a shallow clone to the ancestor limit before history is read. */
+async function deepenIfShallow(projectRoot: string): Promise<void> {
+  const shallow = await askRemote(projectRoot, 'git rev-parse --is-shallow-repository');
+  if (shallow?.trim() !== 'true') return;
+  await askRemote(projectRoot, `git fetch --no-tags --deepen=${ANCESTOR_LIMIT}`);
 }
 
 /**
@@ -444,6 +483,7 @@ export async function readGitInfoFromDisk(
   opts?: { branchOverride?: string }
 ): Promise<GitInfo> {
   try {
+    await deepenIfShallow(projectRoot);
     const { additional, canonicalSha } = await getAdditionalGitInfo(projectRoot);
 
     // On a merge ref the commit is the PR head, read locally or from the event payload, so every
