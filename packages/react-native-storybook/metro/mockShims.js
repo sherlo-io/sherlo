@@ -4,8 +4,7 @@
 // Module Mocking - shim emission + resolver map (SHERLO-1734 Phase 2)
 // ---------------------------------------------------------------------------
 //
-// Given the set of mock keys (from mockScan + the `mockModules` escape hatch),
-// this module:
+// Given the set of mock keys (from mockScan + the `mockModules` escape hatch), this module:
 //   1. rejects deny-listed keys (FG-02),
 //   2. resolves each key to an absolute real-module path (FG-01),
 //   3. writes one deterministic one-line shim per key under <cacheDir>/mocks/,
@@ -21,6 +20,7 @@ var fs = require('fs');
 var path = require('path');
 
 var scan = require('./mockScan');
+var toRelativePath = require('./projectPaths').toRelativePath;
 var createResolveLikeMetro = require('./resolveLikeMetro').createResolveLikeMetro;
 
 // Mirror of src/mocking/denyList.ts MOCK_DENY_LIST. Kept as a literal here
@@ -515,8 +515,8 @@ function modulePathOf(declared) {
 function writeDeclaredImportsPolyfill(cacheDir, projectRoot, declaredMocks, moduleKeyByModulePath) {
   var storyFiles = {};
   declaredMocks.forEach(function (declared) {
-    if (!declared.namedByImport || declared.file.charAt(0) === '<') return;
-    var storyPath = './' + path.relative(projectRoot, declared.file).split(path.sep).join('/');
+    var storyPath = declared.file.charAt(0) !== '<' && toRelativePath(declared.file, projectRoot);
+    if (!declared.namedByImport || !storyPath) return;
     var imports = storyFiles[storyPath] || (storyFiles[storyPath] = []);
     var written = imports.some(function (declaredImport) {
       return declaredImport.specifier === declared.key;

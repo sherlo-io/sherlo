@@ -9,6 +9,12 @@
 // before the bundle's modules,
 //   __sherloStillRealPaths = { "<module id>": "src/..." , ... }
 // with each path relative to the project root, with no leading "./".
+//
+// The list is the one sign of a capture, for both halves. A capture reaches only an app whose
+// JavaScript the developer's bundler served, so only a bundle this bundler serves carries it; a
+// bundle built for a device (a push's, a release build's, the one a cloud test run starts) has
+// none. The polyfill watches only in testing mode with the list (polyfill.js `isCapture`), and the
+// SDK reads the same answer (src/mocking/stillReal.ts `isACapture`).
 
 var path = require('path');
 var toRelativePath = require('./projectPaths').toRelativePath;
@@ -80,8 +86,29 @@ function withStillRealList(delegateSerializer, projectRoot) {
   };
 }
 
+/**
+ * The list, for the bundles this bundler serves to an app and no other. A request through the
+ * bundler's middleware (`bundlerServes`) is how this process learns it serves one: a process that
+ * only builds a bundle for a device answers no request, so what it serializes carries no list.
+ */
+function listForServedBundles(projectRoot) {
+  var serves = false;
+  return {
+    bundlerServes: function () {
+      serves = true;
+    },
+    wrap: function (delegateSerializer) {
+      var withList = withStillRealList(delegateSerializer, projectRoot);
+      return function servedBundleSerializer(entryPoint, preModules, graph, options) {
+        return (serves ? withList : delegateSerializer)(entryPoint, preModules, graph, options);
+      };
+    },
+  };
+}
+
 module.exports = {
   appModulePathsOf: appModulePathsOf,
+  listForServedBundles: listForServedBundles,
   listPreModule: listPreModule,
   withStillRealList: withStillRealList,
 };

@@ -2,6 +2,7 @@ import { NetworkMocks, NO_NETWORK_MOCKS } from './networkDeclaration';
 import { mockedFetchOf } from './networkFetch';
 import { mockedXhrOf, XhrClass } from './networkXhr';
 import { RecordRefusal, setNetworkMocks } from './networkRules';
+import { isACapture } from './stillReal';
 import SherloModule from '../SherloModule';
 
 /**
@@ -39,8 +40,9 @@ export function activateNetworkMocks(mocks: NetworkMocks, recordRefusal: RecordR
   const storyDeclaredNetworkMocks = mocks.rules.length > 0 || mocks.passthrough;
 
   // Only a capture lists what a story requested: there, a story with no network mock is wrapped
-  // too, with every request let through to the real network as before, so each one is listed.
-  if (!storyDeclaredNetworkMocks && mode === 'testing') {
+  // too, with every request let through to the real network as before, so each one is listed. A
+  // cloud test run reports testing mode too, and is no capture.
+  if (!storyDeclaredNetworkMocks && isACapture()) {
     setNetworkMocks({ rules: [], passthrough: true }, recordRefusal);
     install();
     return;

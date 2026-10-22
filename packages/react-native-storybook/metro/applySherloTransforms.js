@@ -923,10 +923,10 @@ function applySherloTransforms(result, opts) {
   var sherloCustomSerializer = null;
   // A project that mocks a bare package needs the wrapper too: the end of the bundle is where a
   // mock that no import reached gets reported.
-  // The list of the app's own modules the polyfill watches in a capture (stillReal.js) is carried
-  // whenever Sherlo is enabled; the polyfill acts on it only in testing mode.
-  var stillRealOn = !(opts && opts.enabled === false);
-  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0 || stillRealOn) {
+  // The list of the app's own modules a capture watches (stillReal.js): only a served bundle has it.
+  var stillRealList =
+    opts && opts.enabled === false ? null : stillReal.listForServedBundles(projectRoot);
+  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0 || stillRealList) {
     var existingCustomSerializer =
       result && result.serializer && typeof result.serializer.customSerializer === 'function'
         ? result.serializer.customSerializer
@@ -944,9 +944,7 @@ function applySherloTransforms(result, opts) {
         // Delegate to the original serializer and return its output unchanged.
         return delegateSerializer(entryPoint, preModules, graph, options);
       };
-      if (stillRealOn) {
-        sherloCustomSerializer = stillReal.withStillRealList(sherloCustomSerializer, projectRoot);
-      }
+      if (stillRealList) sherloCustomSerializer = stillRealList.wrap(sherloCustomSerializer);
     }
   }
 
@@ -968,6 +966,7 @@ function applySherloTransforms(result, opts) {
       : metroMiddleware;
 
     return function sherloMiddleware(request, response, next) {
+      if (stillRealList) stillRealList.bundlerServes();
       // Sherlo's address first, everything else untouched behind it.
       return bundlerLine.middleware(request, response, function () {
         return enhanced(request, response, next);

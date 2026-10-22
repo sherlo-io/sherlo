@@ -30,12 +30,23 @@ const realFetch = globalThis.fetch;
 const globals = globalThis as unknown as { fetch: typeof fetch };
 const network = vi.fn(async () => new Response('from the network'));
 
+// A bundle the bundler served, as a capture's is: the polyfill's watcher says it is a capture
+// whenever the app runs in testing mode (metro/polyfill.js `isCapture`).
+const captureWatcher = {
+  isTesting: true,
+  isCapture: () => mockGetMode() === 'testing',
+  startStory: () => {},
+  readStory: () => [],
+};
+
 beforeEach(() => {
   mockGetMode.mockReturnValue('testing');
+  (globalThis as { __sherloStillReal?: unknown }).__sherloStillReal = captureWatcher;
   globals.fetch = network as unknown as typeof fetch;
 });
 
 afterEach(() => {
+  delete (globalThis as { __sherloStillReal?: unknown }).__sherloStillReal;
   clearMocks();
   clearStoryError(STORY_ID);
   globals.fetch = realFetch;

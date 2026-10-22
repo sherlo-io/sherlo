@@ -152,6 +152,51 @@ describe('what a captured story ran as real code', () => {
     expect(stillRealModulesOfStory()).toEqual([]);
   });
 
+  it("in a cloud test run no module's exports are wrapped", () => {
+    // A cloud test run's bundle is built for the device, never served by a bundler. Build it the
+    // way the bundler would, and start the app in the testing mode a cloud test run reports.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const applySherloTransforms = require('../../../metro/applySherloTransforms');
+    const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'sherlo-cloud-run-'));
+    const scriptsBeforeTheModules: any[] = [];
+    try {
+      const config = applySherloTransforms(
+        {
+          projectRoot: tmpDir,
+          resolver: {},
+          serializer: {
+            customSerializer: (_entry: string, preModules: any[]) => {
+              scriptsBeforeTheModules.push(...preModules);
+              return 'bundle';
+            },
+          },
+        },
+        { enabled: true }
+      );
+      const graph = { dependencies: new Map([[path.join(tmpDir, 'src/chat.ts'), {}]]) };
+      config.serializer.customSerializer('index.js', [], graph, {
+        createModuleId: () => 7,
+        projectRoot: tmpDir,
+      });
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+    const bundleGlobals: Record<string, any> = {};
+    for (const script of scriptsBeforeTheModules) {
+      // eslint-disable-next-line no-new-func
+      new Function('globalThis', script.output[0].data.code)(bundleGlobals);
+    }
+
+    const app = startAppIn('testing', bundleGlobals.__sherloStillRealPaths);
+    const chat = { sendMessage: () => 'sent' };
+
+    expect(evaluateModule(app, 7, chat).exports).toBe(chat);
+    installWatcherOf(app);
+    startStillRealStory();
+    chat.sendMessage();
+    expect(stillRealModulesWithExports()).toEqual([]);
+  });
+
   it('leaves a module the bundler did not list as it was, and keeps a called export callable', () => {
     const real = { a: 1 };
     const app = startAppIn('testing', { '99': 'src/other.ts', '7': 'src/fn.ts' });
