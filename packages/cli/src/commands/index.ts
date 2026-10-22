@@ -5,6 +5,7 @@
  */
 export { default as build } from './build';
 export { default as capture } from './capture';
+export { default as coverage } from './coverage';
 export { default as easBuildOnComplete } from './easBuildOnComplete';
 export { default as feedback } from './feedback';
 export { default as fingerprint } from './fingerprint';

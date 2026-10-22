@@ -116,6 +116,8 @@ export const MASK_COMMAND = 'mask';
 export const OPEN_COMMAND = 'open';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
 export const CAPTURE_COMMAND = 'capture';
+/** `sherlo coverage` - list the components no story draws. Hidden from `--help`. */
+export const COVERAGE_COMMAND = 'coverage';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /** The port a React Native bundler serves on unless somebody moved it. */
@@ -187,6 +189,8 @@ export const JSON_OPTION = 'json';
  * carries them (see `--json`); this is the one flag that puts them on the screen too.
  */
 export const LOGS_OPTION = 'logs';
+/** `sherlo coverage --props` - also list the prop values no story file sets. */
+export const PROPS_OPTION = 'props';
 
 /* TOKENS */
 

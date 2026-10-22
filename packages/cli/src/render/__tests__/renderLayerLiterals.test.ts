@@ -1778,6 +1778,104 @@ const PINS: Pin[] = [
       [``],
     ],
   },
+  {
+    kind: 'coverage',
+    what: 'the gaps screen: heading with the count, aligned rows, an excluded mark, then the hints',
+    segment: {
+      kind: 'coverage',
+      screen: {
+        findings: {
+          components: 120,
+          gaps: [
+            { name: 'CartBadge', file: 'src/components/base/CartBadge.tsx', importedBy: 41 },
+            {
+              name: 'SearchBar',
+              file: 'src/components/base/SearchBar.tsx',
+              importedBy: 18,
+              excluded: true,
+            },
+          ],
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m◦${ESC}[39m  ${ESC}[1mComponents with no story of their own: 2 of 120${ESC}[22m`],
+      [''],
+      [`  CartBadge  ${ESC}[2msrc/components/base/CartBadge.tsx${ESC}[22m  41 files import it`],
+      [
+        `  SearchBar  ${ESC}[2msrc/components/base/SearchBar.tsx${ESC}[22m  18 files import it  ${ESC}[33mexcluded${ESC}[39m`,
+      ],
+      [''],
+      [
+        `${ESC}[2mNext: write a story, then check it with \`npx sherlo capture --story <id>\`.${ESC}[22m`,
+      ],
+      [
+        `${ESC}[2mexcluded: only a story marked \`sherlo: { exclude: true }\` imports it.${ESC}[22m`,
+      ],
+      [`${ESC}[2m\`--props\` also lists the prop values no story file sets.${ESC}[22m`],
+      [''],
+    ],
+  },
+  {
+    kind: 'coverage',
+    what: 'the --props screen: a short list prop names its missing values, a long one shows a count',
+    segment: {
+      kind: 'coverage',
+      screen: {
+        findings: {
+          components: 120,
+          gaps: [{ name: 'CartBadge', file: 'src/components/base/CartBadge.tsx', importedBy: 41 }],
+          props: {
+            storyFiles: 34,
+            components: [
+              {
+                name: 'Avatar',
+                file: 'src/components/base/Avatar.tsx',
+                props: [{ prop: 'size', allowed: 6, set: 1, missing: ['"xs"', '"sm"'] }],
+              },
+              {
+                name: 'Text',
+                file: 'src/components/base/Text.tsx',
+                props: [{ prop: 'color', allowed: 75, set: 4 }],
+              },
+            ],
+          },
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m◦${ESC}[39m  ${ESC}[1mComponents with no story of their own: 1 of 120${ESC}[22m`],
+      [''],
+      [`  CartBadge  ${ESC}[2msrc/components/base/CartBadge.tsx${ESC}[22m  41 files import it`],
+      [''],
+      [
+        `${ESC}[2mNext: write a story, then check it with \`npx sherlo capture --story <id>\`.${ESC}[22m`,
+      ],
+      [''],
+      [
+        `${ESC}[33m◦${ESC}[39m  ${ESC}[1mProp values no story file sets - 34 story files read${ESC}[22m`,
+      ],
+      [''],
+      [`  Avatar  ${ESC}[2msrc/components/base/Avatar.tsx${ESC}[22m`],
+      [`    size  1 of 6 set  missing "xs", "sm"`],
+      [''],
+      [`  Text  ${ESC}[2msrc/components/base/Text.tsx${ESC}[22m`],
+      [`    color  4 of 75 set`],
+      [''],
+    ],
+  },
+  {
+    kind: 'coverage',
+    what: 'the screen when every component has a story',
+    segment: {
+      kind: 'coverage',
+      screen: { findings: { components: 120, gaps: [] } },
+    },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m  All 120 components have a story of their own`], ['']],
+  },
 ];
 
 /**
