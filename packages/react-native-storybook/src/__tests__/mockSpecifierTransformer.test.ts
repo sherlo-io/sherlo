@@ -6,6 +6,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import * as vm from 'vm';
 
 import { createFixtureRoot, fixtureFileWriter } from './bundle/fixtureMetroConfig';
 
@@ -26,14 +27,20 @@ const STORY_SOURCE =
   '  },\n' +
   '};\n';
 
+// What a mock's `import('x')` becomes: the same promise, from the bundle's own require.
+function required(specifier: string): string {
+  return `Promise.resolve().then(function () { return require("${specifier}"); })`;
+}
+
 describe('the module a story mocks, handed over at transform time', () => {
   it('a mock in a story file is handed the module its import names, as the story wrote it', () => {
     const marked = markMockSpecifiers('src/Inbox.stories.tsx', STORY_SOURCE);
 
     expect(marked).toBe(
       STORY_SOURCE.replace(
-        '{ receiptCount: () => 5 })',
-        '{ receiptCount: () => 5 }, "components/provider/Chat/receipts")'
+        "import('components/provider/Chat/receipts'), { receiptCount: () => 5 })",
+        required('components/provider/Chat/receipts') +
+          ', { receiptCount: () => 5 }, "components/provider/Chat/receipts")'
       )
     );
   });
@@ -44,8 +51,8 @@ describe('the module a story mocks, handed over at transform time', () => {
       "const b = Sherlo.mock(function () { return import('./push'); }, (real) => real);\n";
 
     expect(markMockSpecifiers('.rnstorybook/preview.tsx', source)).toBe(
-      'const a = mock(() => import(\'../store/inbox.state\'), { unread: 1 } as Partial<State>, "../store/inbox.state");\n' +
-        'const b = Sherlo.mock(function () { return import(\'./push\'); }, (real) => real, "./push");\n'
+      `const a = mock(() => ${required('../store/inbox.state')}, { unread: 1 } as Partial<State>, "../store/inbox.state");\n` +
+        `const b = Sherlo.mock(function () { return ${required('./push')}; }, (real) => real, "./push");\n`
     );
   });
 
@@ -61,9 +68,62 @@ describe('the module a story mocks, handed over at transform time', () => {
       "export const fakes = [mock(() => import('utils/flags'), { flag: () => 'control' })];\n";
 
     expect(markMockSpecifiers('/app/src/components/storybook/scenes/fakes.ts', source)).toBe(
-      source.replace("{ flag: () => 'control' })", '{ flag: () => \'control\' }, "utils/flags")')
+      source.replace(
+        "import('utils/flags'), { flag: () => 'control' })",
+        required('utils/flags') + ', { flag: () => \'control\' }, "utils/flags")'
+      )
     );
     expect(markMockSpecifiers('/app/node_modules/lib/fakes.js', source)).toBe(source);
+  });
+
+  // Feeld's case: in a lazy dev bundle each import() is a split bundle fetched by the project's
+  // loader, and Expo's loader, under a bundler started with `react-native start`, evaluates it
+  // and then rejects ("Expected HMRClient.setup() call at startup."). The mock then learns no
+  // module and fails as "the bundler had not seen" one, which no restart fixes. A mock's module is
+  // loaded with require, inside the bundle, so no loader stands between the story and its shim.
+  it("a story's mock loads its module from the bundle, never through the split-bundle loader", async () => {
+    const story =
+      "import { mock } from '@sherlo/react-native-storybook';\n" +
+      'export default {\n' +
+      "  title: 'scenes/Chat',\n" +
+      '  parameters: { sherlo: { mocks: [\n' +
+      "    mock(() => import('@react-native-firebase/auth'), (() => ({ currentUser: null })) as never),\n" +
+      '    mock(function () {\n' +
+      "      return import('utils/flags');\n" +
+      '    }, ((real: object) => ({ ...real })) as never),\n' +
+      '  ] } },\n' +
+      '};\n';
+
+    const marked: string = markMockSpecifiers(
+      'src/components/storybook/scenes/Chat.stories.tsx',
+      story
+    );
+
+    expect(marked).not.toContain('import(');
+    expect(marked).toBe(
+      story
+        .replace(
+          "import('@react-native-firebase/auth'), (() => ({ currentUser: null })) as never)",
+          'Promise.resolve().then(function () { return require("@react-native-firebase/auth"); }), ' +
+            '(() => ({ currentUser: null })) as never, "@react-native-firebase/auth")'
+        )
+        .replace(
+          "return import('utils/flags');",
+          'return Promise.resolve().then(function () { return require("utils/flags"); });'
+        )
+        .replace('as never),\n  ]', 'as never, "utils/flags"),\n  ]')
+    );
+
+    // Run as the bundle runs it: the module comes from the bundle's own require, and an import()
+    // that would reach a loader is never made.
+    const plain = "mock(() => import('mocked-lib'), { greeting: () => 'mocked' });\n";
+    const loaders: Array<() => Promise<unknown>> = [];
+    const shim = { greeting: () => 'mocked' };
+    vm.runInNewContext(markMockSpecifiers('src/Chat.stories.js', plain), {
+      mock: (load: () => Promise<unknown>) => loaders.push(load),
+      require: (name: string) => (name === 'mocked-lib' ? shim : undefined),
+    });
+    await expect(loaders[0]()).resolves.toBe(shim);
   });
 
   it('a call that imports no single module, has other than two arguments, or does not parse is left as it is', () => {

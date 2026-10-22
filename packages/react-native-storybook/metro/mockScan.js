@@ -349,6 +349,7 @@ module.exports = {
   parseScanTarget: parseScanTarget,
   walkNodes: walkNodes,
   isMockCallee: isMockCallee,
+  importedSpecifier: importedSpecifier,
   soleImportedSpecifier: soleImportedSpecifier,
   collectMockEntriesFromSource: collectMockEntriesFromSource,
   scanFileForMocks: scanFileForMocks,
