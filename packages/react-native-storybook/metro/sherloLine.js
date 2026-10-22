@@ -75,7 +75,7 @@ var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogL
  *
  * @param {object} httpServer Node's http.Server, already carrying its own upgrade listeners, if any.
  * @param {Function} WebSocketServer `ws`'s WebSocketServer class (ws 7 calls it `Server`).
- * @param {{ appHoldMs?: number, warn?: (message: string) => void }} [settings]
+ * @param {{ appHoldMs?: number, warn?: (message: string) => void, storyFileChangedSince?: (time: number) => boolean }} [settings]
  */
 function attach(httpServer, WebSocketServer, settings) {
   var line = createLine(settings || {});
@@ -136,9 +136,13 @@ function refusalOfHello(hello) {
 function createLine(settings) {
   var appHoldMs = settings.appHoldMs || APP_HOLD_MS;
   var warn = settings.warn || function () {};
+  /** A line told nothing of story files sees none changed. */
+  var nothingChanged = function () {
+    return false;
+  };
 
   var letterbox = createLetterbox(appHoldMs);
-  var captureRelay = createCaptureRelay(appHoldMs);
+  var captureRelay = createCaptureRelay(appHoldMs, settings.storyFileChangedSince || nothingChanged);
   var logFeed = createLogFeed();
 
   /** Everyone who wants to hear of each app that says hello. */
@@ -243,8 +247,18 @@ function appOnTheLine(webSocket, hello) {
   var messageListeners = [];
   var closeListeners = [];
 
+  /**
+   * When the line last heard this app's JavaScript start: its hello first, then the
+   * JS_EVAL_COMPLETE each run of the JavaScript sends on this same connection, because native code
+   * says hello once per connection and a reload keeps the connection.
+   */
+  var javaScriptStartedAt = Date.now();
+
   return {
     hello: hello,
+    javaScriptStartedAt: function () {
+      return javaScriptStartedAt;
+    },
     send: function (message) {
       sendOn(webSocket, message);
     },
@@ -259,6 +273,7 @@ function appOnTheLine(webSocket, hello) {
     },
     /** The line hands the app's every message after its hello here. */
     hear: function (message) {
+      if (message.action === 'JS_EVAL_COMPLETE') javaScriptStartedAt = Date.now();
       messageListeners.forEach(function (listener) {
         listener(message);
       });
@@ -533,7 +548,7 @@ function createLetterbox(appHoldMs) {
 /* ========================================================================== */
 
 /** The capture relay: the rules `sherlo capture` meets. */
-function createCaptureRelay(appHoldMs) {
+function createCaptureRelay(appHoldMs, storyFileChangedSince) {
   /** Whether an app has ever waited for a capture: how a driver tells no-app from idle. */
   var appEverWaited = false;
 
@@ -568,6 +583,15 @@ function createCaptureRelay(appHoldMs) {
     startFailures = startFailures.filter(function (failure) {
       return failure.app !== app;
     });
+  }
+
+  /**
+   * Whether this app must reload its JavaScript into testing mode before it walks a story: it is
+   * not in testing mode, or a story file changed after its JavaScript said hello. The files are
+   * checked here, when a capture is asked, never on a timer.
+   */
+  function mustRestartForACapture(app, mode) {
+    return mode !== 'testing' || storyFileChangedSince(app.javaScriptStartedAt());
   }
 
   /** The app: here is my mode, my stories and my answer; hand me the next capture. */
@@ -609,9 +633,10 @@ function createCaptureRelay(appHoldMs) {
         return answerApp(app, {});
       }
 
-      // The story the app walks has to count as a test run, so the app has to be in testing mode.
-      // Tell it to move there, with the story to land on; the driver keeps waiting across the move.
-      if (mode !== 'testing') {
+      // The story the app walks has to count as a test run, so the app has to be in testing mode,
+      // running code that reads the story files as they are now. Tell it to reload there, with the
+      // story to land on; the driver keeps waiting across the reload.
+      if (mustRestartForACapture(app, mode)) {
         return answerApp(app, { restartIntoTesting: true, storyId: driverWaiting.storyId });
       }
 
@@ -717,7 +742,7 @@ function createCaptureRelay(appHoldMs) {
       return withdraw;
     }
 
-    if (held.mode !== 'testing') {
+    if (mustRestartForACapture(held.app, held.mode)) {
       held.answer({ restartIntoTesting: true, storyId: storyId });
     } else {
       held.answer({ storyId: storyId, settings: settings });

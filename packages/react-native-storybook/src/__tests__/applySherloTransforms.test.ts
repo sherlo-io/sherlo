@@ -845,6 +845,41 @@ describe('applySherloTransforms - the header is the same wherever the project si
 // developer's bundler at all - the middleware Sherlo adds to the config it hands back. Without it
 // there is no road, and every test either side of it still passes.
 
+describe('aStoryFileChangedSince - the story files the bundle loads, checked when a capture asks', () => {
+  function projectWithAStoryFile() {
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-changed-since-'));
+    fs.mkdirSync(path.join(project, 'src'));
+    fs.mkdirSync(path.join(project, '.rnstorybook'));
+    const storyFile = path.join(project, 'src', 'Button.stories.tsx');
+    fs.writeFileSync(storyFile, 'export default {};\nexport const One = {};\n');
+    fs.writeFileSync(
+      path.join(project, '.rnstorybook', 'storybook.requires.ts'),
+      "const entries = [{ titlePrefix: '', directory: './src', req: require.context('../src', true, /\\.stories\\.tsx$/) }];\n"
+    );
+    return { project, storyFile };
+  }
+
+  it('a story file touched after the time is seen as changed', () => {
+    const { project, storyFile } = projectWithAStoryFile();
+    const modifiedAt = Date.now() - 10_000;
+    fs.utimesSync(storyFile, modifiedAt / 1000, modifiedAt / 1000);
+
+    expect(applySherloTransforms.aStoryFileChangedSince(project, {}, modifiedAt - 1000)).toBe(true);
+    fs.rmSync(project, { recursive: true, force: true });
+  });
+
+  it('a story file touched before the time is not seen as changed', () => {
+    const { project, storyFile } = projectWithAStoryFile();
+    const modifiedAt = Date.now() - 10_000;
+    fs.utimesSync(storyFile, modifiedAt / 1000, modifiedAt / 1000);
+
+    expect(applySherloTransforms.aStoryFileChangedSince(project, {}, modifiedAt + 1000)).toBe(
+      false
+    );
+    fs.rmSync(project, { recursive: true, force: true });
+  });
+});
+
 describe("applySherloTransforms - Sherlo's address on the bundler", () => {
   function enhancedMiddlewareFor(config: Record<string, unknown>) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-letterbox-address-'));

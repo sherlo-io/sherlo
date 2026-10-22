@@ -194,6 +194,11 @@ export declare function attach(
     appHoldMs?: number;
     /** Told why each refused hello was refused. */
     warn?: (message: string) => void;
+    /**
+     * Whether any story file the bundle's Storybook loads was modified after `time` (milliseconds
+     * since 1970). Asked once per capture, never on a timer.
+     */
+    storyFileChangedSince?: (time: number) => boolean;
   }
 ): SherloLine;
 

@@ -766,9 +766,10 @@ function resolveThroughConfig(config) {
  * required on the first request, never as the config loads: loading a config must never fail on it.
  *
  * @param {string} projectRoot
+ * @param {object} opts the options applySherloTransforms was given
  * @returns {{ middleware: Function }}
  */
-function mountTheLineOnTheBundler(projectRoot) {
+function mountTheLineOnTheBundler(projectRoot, opts) {
   var mountedOn = null;
 
   function mountOn(httpServer) {
@@ -788,6 +789,9 @@ function mountTheLineOnTheBundler(projectRoot) {
     }
 
     sherloLine.attach(httpServer, WebSocketServer, {
+      storyFileChangedSince: function (time) {
+        return aStoryFileChangedSince(projectRoot, opts, time);
+      },
       warn: function (message) {
         console.warn('@sherlo/react-native-storybook: ' + message);
       },
@@ -965,7 +969,7 @@ function applySherloTransforms(result, opts) {
   // the road `sherlo open` and `sherlo capture` reach a running app down. It is mounted
   // unconditionally: with no Sherlo app attached it simply has nobody to answer, and a developer
   // never adds anything for it to be there.
-  var bundlerLine = mountTheLineOnTheBundler(projectRoot);
+  var bundlerLine = mountTheLineOnTheBundler(projectRoot, opts);
 
   var existingEnhanceMiddleware =
     result && result.server && typeof result.server.enhanceMiddleware === 'function'
@@ -1016,13 +1020,36 @@ function applySherloTransforms(result, opts) {
  * when the project has none yet.
  */
 function readFileTitles(projectRoot, opts) {
+  var requiresPath = findStorybookRequires(projectRoot, opts);
+  return requiresPath ? storyTitleReader.readTitlesByImportPath(requiresPath) : {};
+}
+
+/** The project's generated storybook.requires file, or null when it has none yet. */
+function findStorybookRequires(projectRoot, opts) {
   var configDir = resolveConfigDir(projectRoot, opts);
-  if (!configDir) return {};
+  if (!configDir) return null;
   for (var i = 0; i < STORYBOOK_REQUIRES_BASENAMES.length; i++) {
     var requiresPath = path.join(configDir, STORYBOOK_REQUIRES_BASENAMES[i]);
-    if (fs.existsSync(requiresPath)) return storyTitleReader.readTitlesByImportPath(requiresPath);
+    if (fs.existsSync(requiresPath)) return requiresPath;
   }
-  return {};
+  return null;
+}
+
+/**
+ * Whether any story file the bundle's Storybook loads was modified after `time` (milliseconds since
+ * 1970). The files are the ones the title record walks, read when asked and statted when asked.
+ */
+function aStoryFileChangedSince(projectRoot, opts, time) {
+  var requiresPath = findStorybookRequires(projectRoot, opts);
+  if (!requiresPath) return false;
+  return storyTitleReader.readStoryFilePaths(requiresPath).some(function (file) {
+    try {
+      return fs.statSync(file).mtimeMs > time;
+    } catch (_) {
+      // A file the disk no longer has is not a change the app could have loaded.
+      return false;
+    }
+  });
 }
 
 /**
@@ -1177,6 +1204,7 @@ function installedStorybookVersion(wrapperPath) {
 module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
+module.exports.aStoryFileChangedSince = aStoryFileChangedSince;
 module.exports.resolveThroughConfig = resolveThroughConfig;
 module.exports.isInsideFolder = mockShims.isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;

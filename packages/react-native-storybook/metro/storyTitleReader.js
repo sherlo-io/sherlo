@@ -594,19 +594,45 @@ function storyFilesUnder(folder) {
  */
 function readTitlesByImportPath(requiresAbsPath) {
   var titles = {};
-  readStoryLoaderEntries(requiresAbsPath).forEach(function (loaderEntry) {
-    storyFilesUnder(loaderEntry.contextDirAbsPath).forEach(function (storyAbsPath) {
-      var title = readStoryTitle(storyAbsPath, loaderEntry);
-      if (!title) return;
-      var key = path.relative(loaderEntry.contextDirAbsPath, storyAbsPath).split(path.sep).join('/');
-      titles[loaderEntry.directory + '/' + key] = title;
-    });
+  forEachStoryFile(requiresAbsPath, function (loaderEntry, storyAbsPath) {
+    var title = readStoryTitle(storyAbsPath, loaderEntry);
+    if (!title) return;
+    var key = path.relative(loaderEntry.contextDirAbsPath, storyAbsPath).split(path.sep).join('/');
+    titles[loaderEntry.directory + '/' + key] = title;
   });
   return titles;
 }
 
+/**
+ * Every story file a generated storybook.requires file gathers, with the loader entry that gathers
+ * it: the one walk behind the titles record and the list of files.
+ */
+function forEachStoryFile(requiresAbsPath, visit) {
+  readStoryLoaderEntries(requiresAbsPath).forEach(function (loaderEntry) {
+    storyFilesUnder(loaderEntry.contextDirAbsPath).forEach(function (storyAbsPath) {
+      visit(loaderEntry, storyAbsPath);
+    });
+  });
+}
+
+/**
+ * The absolute path of every story file the bundle's Storybook loads, whether or not its title can
+ * be read: an edit to any of them changes what the app shows.
+ *
+ * @param {string} requiresAbsPath absolute path of storybook.requires.{ts,js}
+ * @returns {string[]}
+ */
+function readStoryFilePaths(requiresAbsPath) {
+  var files = [];
+  forEachStoryFile(requiresAbsPath, function (_, storyAbsPath) {
+    files.push(storyAbsPath);
+  });
+  return files;
+}
+
 module.exports = {
   readTitlesByImportPath: readTitlesByImportPath,
+  readStoryFilePaths: readStoryFilePaths,
   readStoryCount: readStoryCount,
   readStoryLoaderEntries: readStoryLoaderEntries,
   findLoaderEntry: findLoaderEntry,
