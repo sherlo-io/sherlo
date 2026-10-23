@@ -14,7 +14,7 @@ import {
   renderVerdictPassed,
   renderVerdictReviewRequired,
 } from './verdictCloser';
-import type { WhatABuildHolds } from './testSteps';
+import type { ScreenKind } from './testSteps';
 
 /* ========================================================================== */
 /* `sherlo view`'s own lines                                                  */
@@ -83,8 +83,8 @@ export function renderBuildViewStatus({
   runStatus: string;
   status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
   counts?: ReviewCounts;
-  /** What the build holds when it is not stories alone; its screens are worded as that. */
-  holds?: Exclude<WhatABuildHolds, 'stories'>;
+  /** What the build holds (`stories` when absent); its screens are worded as that. */
+  holds?: ScreenKind;
 }): string[] {
   if (runStatus !== 'finished') return [];
 

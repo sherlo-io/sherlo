@@ -6,6 +6,7 @@ import { renderSegment } from '../render/renderSegment';
 import { rowsAbove } from '../commands/test/platformRows';
 import type { PlatformRow } from '../render/runRows';
 import type { TranscriptSegment } from '../render/segments';
+import { screenKindOf, type ScreenKind } from '../render/testSteps';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
@@ -551,33 +552,34 @@ function printTerminalCloser(
 
   printTestFinished(howItRan);
   emit({ kind: 'blank-line' });
+  const holds = readBuildScreenKind(build);
   if (unreviewed === 0 && reported === 0) {
     // No verbatim reason: the generic green. Covers the forward-compat degrade of a
     // counts-bypassed build whose poll carries no prose, and every ordinary green build.
-    emit({ kind: 'verdict-passed', holds: whatTheBuildHolds(build) });
+    emit({ kind: 'verdict-passed', holds });
   } else {
     emit({
       kind: 'verdict-review-required',
       screens: build.stories ?? undefined,
       counts: { unreviewed, reported },
-      holds: whatTheBuildHolds(build),
+      holds,
     });
   }
   emit({ kind: 'blank-line' });
 }
 
 /**
- * What the pushed bundles hold beyond stories, counted over the platforms the way the started line
- * counts them (../render/testSteps describeCapturedStories): scenes with no stories are `scenes`,
- * both are `stories and scenes`, and anything else leaves the verdict saying stories. Plan-layer
- * only (build debt of the scenes epic): the live status query does not ask for scenes yet.
+ * What the build holds, counted over every platform it pushed: the ONLY reader of the build's
+ * `storiesInBundle` and `scenesInBundle`. Every verdict, the wait's and `sherlo view`'s, takes its
+ * words from this answer. (The live status query does not ask for `scenesInBundle` yet, so a
+ * build read from the service holds stories until it does.)
  */
-export function whatTheBuildHolds(build: BuildStatus): 'scenes' | 'stories and scenes' | undefined {
+export function readBuildScreenKind(build: BuildStatus): ScreenKind {
   const platforms = Object.values(build.platforms ?? {});
-  const scenes = platforms.reduce((sum, platform) => sum + (platform?.scenesInBundle ?? 0), 0);
-  const stories = platforms.reduce((sum, platform) => sum + (platform?.storiesInBundle ?? 0), 0);
-  if (scenes === 0) return undefined;
-  return stories === 0 ? 'scenes' : 'stories and scenes';
+  return screenKindOf({
+    stories: platforms.reduce((sum, platform) => sum + (platform?.storiesInBundle ?? 0), 0),
+    scenes: platforms.reduce((sum, platform) => sum + (platform?.scenesInBundle ?? 0), 0),
+  });
 }
 
 /** Which test the wait closed on, and how long it ran when the wait saw it start. */

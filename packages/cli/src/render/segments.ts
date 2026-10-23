@@ -39,12 +39,7 @@ import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
 import type { FeedbackKind, LastCommand } from './feedback';
 import type { FeedbackContext } from '../seams/serverCalls';
-import type {
-  IntroducedCommand,
-  PlatformCapture,
-  SherloProject,
-  WhatABuildHolds,
-} from './testSteps';
+import type { IntroducedCommand, PlatformCapture, SherloProject, ScreenKind } from './testSteps';
 import type { PlatformRow, RowsAbove, TestWaitsFor } from './runRows';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
@@ -281,9 +276,9 @@ export type TranscriptSegment =
   | { kind: 'wait-interrupted'; testIndex?: number }
   /**
    * The green verdict, as a section: `✅ All stories passed`. `holds` names what the build holds
-   * when it is not stories alone (`scenes`, or `stories and scenes`), counted as the started line is.
+   * (`stories` when absent), so the section words its screens as the started line does.
    */
-  | { kind: 'verdict-passed'; holds?: Exclude<WhatABuildHolds, 'stories'> }
+  | { kind: 'verdict-passed'; holds?: ScreenKind }
   /**
    * The compact closer for a build the server closed without a device run, under the platforms'
    * rows: `Test 15     ✔ Finished: nothing to test: no change reaches any story` (./runRows).
@@ -301,8 +296,8 @@ export type TranscriptSegment =
       screens?: VerdictScreen[];
       /** The build's tally, printed when the screens name nobody. */
       counts: { unreviewed: number; reported: number };
-      /** What the build holds when it is not stories alone; the screens are counted as that. */
-      holds?: Exclude<WhatABuildHolds, 'stories'>;
+      /** What the build holds (`stories` when absent); the screens are counted as that. */
+      holds?: ScreenKind;
     }
   /** `✖ Running Test 14 failed`, the state it ended in, the server's error blob if any, and help. */
   | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown; testIndex?: number }
@@ -344,8 +339,8 @@ export type TranscriptSegment =
       runStatus: string;
       status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
       counts?: { approved: number; noChanges: number; reported: number; unreviewed: number };
-      /** What the build holds when it is not stories alone (see `verdict-passed`). */
-      holds?: Exclude<WhatABuildHolds, 'stories'>;
+      /** What the build holds (see `verdict-passed`). */
+      holds?: ScreenKind;
     }
   /**
    * `sherlo view --json`'s WHOLE output: the
