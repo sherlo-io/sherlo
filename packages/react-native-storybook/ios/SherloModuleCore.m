@@ -503,6 +503,17 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
 }
 
 /**
+ * Whether each view named by testID is drawn, from the native view tree.
+ *
+ * @param testIDsJson JSON list of testIDs
+ * @param resolve Promise resolver called with a JSON object of visible, invisible, absent or unreached by testID
+ * @param reject Promise rejecter called if an error occurs
+ */
+- (void)getViewVisibility:(NSString *)testIDsJson resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    [InspectorHelper getViewVisibility:testIDsJson resolve:resolve reject:reject];
+}
+
+/**
  * Checks UI stability by comparing screenshots taken over a specified interval.
  * Returns a promise with a boolean indicating if the UI is stable.
  *

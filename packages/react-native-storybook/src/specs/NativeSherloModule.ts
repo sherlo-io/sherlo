@@ -3,6 +3,12 @@ import { TurboModuleRegistry } from 'react-native';
 
 export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
+  /**
+   * Whether each view the JSON list of testIDs names is drawn, read from the native view tree:
+   * resolves a JSON object, `{ [testID]: 'visible' | 'invisible' | 'absent' | 'unreached' }`
+   * (the states are named in src/types/types ViewVisibility).
+   */
+  getViewVisibility: (testIDsJson: string) => Promise<string>;
   sendNativeError: (errorCode: string, message: string, dataJson: string) => void;
   reportEarlyJsError: (name: string, message: string, stack: string) => boolean;
   openStorybook: () => void;

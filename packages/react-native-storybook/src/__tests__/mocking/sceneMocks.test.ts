@@ -16,7 +16,7 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 import createMockable from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
 import { mockFailureOf } from '../../mocking/activateStoryMocks';
-import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateSceneMocks } from '../../getStorybook/storyMockActivation';
 
 const SCENE_FILE = './src/chat.scenes.tsx';
@@ -96,6 +96,7 @@ describe('mocks resolve in a scene file', () => {
       { own: { label: 'scene' } },
       SCENE_FILE
     );
+    markStorySettled();
 
     expect(mockFailureOf(other)).toMatchObject({
       name: 'MockedModuleError',

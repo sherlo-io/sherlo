@@ -11,6 +11,7 @@ import { MockSet } from './types';
 import { CLOCK_MOCK_KEY, ClockDefinition, installClock, restoreClock } from './clock';
 import { RANDOM_MOCK_KEY, RandomDefinition, installRandom, restoreRandom } from './random';
 import { bundlerSawModule } from './declaredImports';
+import SherloModule from '../SherloModule';
 import type { StoryError } from '../sealedCore/seam';
 
 // Reads the clock/random declarations back off the same channel a module mock rides in on
@@ -52,6 +53,11 @@ export function mockFailureOf(storyId: string): StoryError | undefined {
   if (!active || active.lookups.storyId !== storyId) return undefined;
 
   const { mocks, lookups } = active;
+  // A mock no read reached fails nothing until the screen was judged (MockLookups' `settled`): an
+  // app first imports its mocked modules as it renders, after the core's first read of this. A real
+  // import that threw, and a module the bundler never saw, fail from the first read. Outside
+  // testing mode no stillness check runs, so it is judged at each read.
+  const judgeUnreached = lookups.settled || SherloModule.getMode() !== 'testing';
   const sentences = Object.keys(mocks).flatMap((key) => {
     const name = lookups.namesAsWritten.get(key) ?? key;
     const thrown = lookups.realImportThrew.get(key);
@@ -63,7 +69,7 @@ export function mockFailureOf(storyId: string): StoryError | undefined {
         `the mock of ${name} did not apply: the bundler had not seen this module when it started - restart the bundler`,
       ];
     }
-    if (lookups.declaredByStory.has(key) && !lookups.reached.has(key)) {
+    if (judgeUnreached && lookups.declaredByStory.has(key) && !lookups.reached.has(key)) {
       const owners = privateCopiesHandedByBundler(key);
       if (owners.length > 0) {
         return [

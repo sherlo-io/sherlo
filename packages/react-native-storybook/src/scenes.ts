@@ -1,4 +1,5 @@
 import type { StoryMocks } from './mocking/mockDeclaration';
+import type { ReadyRule } from './types/types';
 
 /** A plain tap on a view, named by its `testID`, its visible text or its accessibility label. */
 export type TapStep = {
@@ -16,8 +17,11 @@ export type Scene = {
   mocks?: StoryMocks;
   /** Taps and links that take the app from its first screen to this one. */
   play?: PlayStep[];
-  /** The `testID` whose showing means the screen is there. */
-  ready?: string;
+  /**
+   * When the screen is there: a `testID` whose showing means so, or a rule (ReadyRule) that also
+   * names views that must be gone, a time limit and whether requests must be done.
+   */
+  ready?: string | ReadyRule;
 };
 
 /** What a scene file hands to `scenes()`. */

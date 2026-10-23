@@ -14,7 +14,7 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 
 import { createLazyMockable } from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
-import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
 import { clearStoryError, readStoryError } from '../../getStorybook/storyErrorRegistry';
@@ -103,6 +103,7 @@ describe('a mock that reached nothing', () => {
     const storyId = storyWith({ 'pkg/never-used': { label: 'mocked' } });
 
     activateMocksForStory(storyId);
+    markStorySettled();
 
     expect(readStoryError(storyId)).toEqual({
       name: 'MockedModuleError',
@@ -259,6 +260,7 @@ describe("a project's mock that reached nothing", () => {
     );
 
     activateMocksForStory(storyId);
+    markStorySettled();
 
     expect(readStoryError(storyId)).toMatchObject({
       name: 'MockedModuleError',
@@ -289,6 +291,7 @@ describe('why a mock that reached nothing says it did', () => {
     const storyId = storyWith({ 'pkg/storage': { label: 'mocked' } });
 
     activateMocksForStory(storyId);
+    markStorySettled();
 
     expect(readStoryError(storyId)).toMatchObject({
       name: 'MockedModuleError',
@@ -307,6 +310,7 @@ describe('why a mock that reached nothing says it did', () => {
     const storyId = storyWith({ 'pkg/analytics': { track: () => 'mocked' } });
 
     activateMocksForStory(storyId);
+    markStorySettled();
 
     expect(readStoryError(storyId)).toMatchObject({
       name: 'MockedModuleError',

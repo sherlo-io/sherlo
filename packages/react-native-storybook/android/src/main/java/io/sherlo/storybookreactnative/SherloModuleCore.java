@@ -696,6 +696,17 @@ public class SherloModuleCore {
     }
 
     /**
+     * Whether each view named by testID is drawn, from the native view tree.
+     *
+     * @param activity The current activity
+     * @param testIDsJson A JSON list of testIDs
+     * @param promise Promise to resolve with a JSON object of visible, invisible, absent or unreached by testID
+     */
+    public void getViewVisibility(Activity activity, String testIDsJson, Promise promise) {
+        InspectorHelper.getViewVisibility(activity, testIDsJson, promise);
+    }
+
+    /**
      * Checks if the UI is stable by comparing consecutive screenshots.
      * 
      * @param activity The current activity

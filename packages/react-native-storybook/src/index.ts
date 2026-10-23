@@ -23,6 +23,8 @@ export type {
 export { UnmockedRequestError } from './mocking/networkRules';
 export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
+export { awaitReady } from './storyReady';
+export type { ReadyOutcome } from './storyReady';
 
 export * from './types';
 

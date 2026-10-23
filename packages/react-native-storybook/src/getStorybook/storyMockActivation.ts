@@ -26,6 +26,7 @@ import {
 } from '../mocking';
 import { MockLookups, newMockLookups } from '../mocking/registry';
 import { startStillRealStory } from '../mocking/stillReal';
+import { storyAboutToRender } from '../storyReady';
 import { namesAsWrittenOf, standInKeyAtBundlerStart } from '../mocking/declaredImports';
 import { MockSet } from '../mocking/types';
 import { recordStoryError } from './storyErrorRegistry';
@@ -58,6 +59,8 @@ let sceneOnSinceBoot: string | undefined;
  */
 export function activateMocksForStory(storyId: string | undefined): Promise<void> | null {
   if (!storyId) return null;
+  // Whatever is about to be photographed is proven ready afresh first (../storyReady).
+  storyAboutToRender(storyId);
   // A scene's mocks went on before the app's first module, and its launch shows that scene alone:
   // activating it again would install what Storybook knows of it, which is nothing.
   if (storyId === sceneOnSinceBoot) return latestInstalled;
