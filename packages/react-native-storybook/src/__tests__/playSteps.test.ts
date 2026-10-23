@@ -27,6 +27,7 @@ import type { InspectorDataNode, Metadata, WalkedFiber } from '../sealedCore/sea
 import { proveReadyAgain, stabilizeOnceReady } from '../storyReady';
 import type { PlayStep } from '../types/types';
 import { startStorybookHolding } from './mocking/storybookHolding';
+import { __setOpenURL } from './__mocks__/react-native';
 
 const SCENE_ID = 'scenes-chat--signed-in';
 
@@ -436,5 +437,96 @@ describe('a view no responder answers for', () => {
     expect(await settled).toBe(true);
     expect(captured).toHaveBeenCalledTimes(2);
     expect(pressed).toEqual([]);
+  });
+});
+
+describe('a scene that opens one of the app links', () => {
+  /** The app's linking: myapp://chat opens the chat, as its navigation's url listener would. */
+  function appHandlesLinks() {
+    const opened: string[] = [];
+    __setOpenURL(async (url) => {
+      opened.push(url);
+      if (!url.startsWith('myapp://')) throw new Error('Unable to open URL: ' + url);
+      if (url === 'myapp://chat') screen = 'chat';
+    });
+    return opened;
+  }
+
+  it('opens the link and is photographed on the screen the app routed it to', async () => {
+    const opened = appHandlesLinks();
+    holdScene([
+      { open: 'myapp://chat' },
+      { ready: { testID: 'chat.input.message', requestsIdle: false } },
+    ]);
+    activateMocksForStory(SCENE_ID);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(await settled).toBe(true);
+    expect(opened).toEqual(['myapp://chat']);
+    expect(screen).toBe('chat');
+    expect(readStoryError(SCENE_ID)).toBeUndefined();
+  });
+
+  it('opens the link again on the next capture', async () => {
+    const opened = appHandlesLinks();
+    holdScene([{ open: 'myapp://chat' }]);
+    activateMocksForStory(SCENE_ID);
+    const first = stabilize();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(await first).toBe(true);
+
+    clearMocks();
+    proveReadyAgain();
+    screen = 'discover';
+    const second = stabilize();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(await second).toBe(true);
+    expect(opened).toEqual(['myapp://chat', 'myapp://chat']);
+  });
+
+  it('fails the story when no app takes the link, naming the step', async () => {
+    appHandlesLinks();
+    holdScene([{ open: 'nobody://chat' }]);
+    activateMocksForStory(SCENE_ID);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(2_000);
+    await settled;
+
+    expect(readStoryError(SCENE_ID)?.message).toBe(
+      `Story ${SCENE_ID} could not play step 1 of 1 (open nobody://chat): ` +
+        'no app takes nobody://chat: Unable to open URL: nobody://chat'
+    );
+  });
+
+  it('fails the story when the app takes the link but its navigation routes nowhere', async () => {
+    appHandlesLinks();
+    holdScene([
+      { open: 'myapp://no-such-screen' },
+      { ready: { testID: 'chat.input.message', requestsIdle: false, timeoutMs: 1_000 } },
+    ]);
+    activateMocksForStory(SCENE_ID);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await settled;
+
+    const message = readStoryError(SCENE_ID)?.message ?? '';
+    expect(message).toContain('could not play step 2 of 2 (ready)');
+    expect(screen).toBe('discover');
+  });
+
+  it('fails the story for a text that is not a link', async () => {
+    appHandlesLinks();
+    holdScene([{ open: 'chat' }]);
+    activateMocksForStory(SCENE_ID);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(2_000);
+    await settled;
+
+    expect(readStoryError(SCENE_ID)?.message).toContain('"chat" is not a link');
   });
 });

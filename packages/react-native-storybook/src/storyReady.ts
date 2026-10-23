@@ -19,6 +19,7 @@
 import RunnerBridge from './helpers/RunnerBridge';
 import { collectAppMetadata, currentAppFiber } from './appMetadata';
 import { playSteps } from './playSteps';
+import { reachedScreen } from './reachedScreen';
 import { requestsInFlight } from './mocking/requestsInFlight';
 import { readStoryError, recordStoryError } from './getStorybook/storyErrorRegistry';
 import { markStorySettled } from './mocking/registry';
@@ -79,6 +80,10 @@ export function stabilizeOnceReady<
         }
         const rule = readyRuleOf(storyId);
         if (rule) await waitUntilReady(storyId, rule, native.getInspectorData);
+        const screen = reachedScreen();
+        if (screen) {
+          RunnerBridge.log('story screen reached', { storyId, screen: screen.join(' › ') });
+        }
         story.proven = true;
       }
       try {

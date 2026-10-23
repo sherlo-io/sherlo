@@ -18,6 +18,7 @@
  *
  * Time here is counted in polls, never read off the clock: a story may freeze `Date.now()`.
  */
+import { Linking } from 'react-native';
 import RunnerBridge from './helpers/RunnerBridge';
 import { currentAppFiber } from './appMetadata';
 import { recordStoryError } from './getStorybook/storyErrorRegistry';
@@ -48,6 +49,9 @@ export async function playSteps(steps: PlayStep[], context: PlayContext): Promis
         const found = await waitForPressTarget(step, context);
         if (!found) return;
         await press(found.fiber, found.frame);
+      } else if ('open' in step) {
+        await openLink(step);
+        if (context.storyErrored(0)) return;
       } else {
         await context.waitUntilReady(step.ready);
         if (context.storyErrored(0)) return;
@@ -70,11 +74,45 @@ export async function playSteps(steps: PlayStep[], context: PlayContext): Promis
 
 /* ========================================================================== */
 
+/** How long a link has to reach the app's navigation (a `url` event is native code's, a tick later). */
+const LINK_SETTLE_MS = 300;
+
+/**
+ * Open the link as the system does for a member's tap on it: the app is asked to open its own
+ * URL, native code hands it back as a `url` event, and the navigation's linking routes it. Throws
+ * one line when the system finds no app for the link (a scheme the app does not register). A link
+ * the app registers but its navigation does not route changes nothing on screen; the next
+ * `ready` wait (a step's, or the story's) then never is met, and that is what fails the story.
+ */
+async function openLink(step: { open: string; timeoutMs?: number }): Promise<void> {
+  if (typeof step.open !== 'string' || !step.open.includes('://')) {
+    throw new Error(`"${step.open}" is not a link (expected scheme://path)`);
+  }
+  const timeoutMs = step.timeoutMs ?? DEFAULT_PRESS_TIMEOUT_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const tooLate = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`the system did not take the link after ${timeoutMs / 1000} s`)),
+      timeoutMs
+    );
+  });
+  try {
+    await Promise.race([Linking.openURL(step.open), tooLate]);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(`no app takes ${step.open}: ${reason}`);
+  } finally {
+    clearTimeout(timer);
+  }
+  await new Promise((resolve) => setTimeout(resolve, LINK_SETTLE_MS));
+}
+
 function targetOf(step: { press: string | PressTarget }): PressTarget {
   return typeof step.press === 'string' ? { testID: step.press } : step.press;
 }
 
 function describeStep(step: PlayStep): string {
+  if ('open' in step) return `open ${step.open}`;
   if (!('press' in step)) return 'ready';
   const { testID, text, index } = targetOf(step);
   const what = testID !== undefined ? `testID "${testID}"` : `text "${text}"`;

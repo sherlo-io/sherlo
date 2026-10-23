@@ -203,6 +203,13 @@ export const Alert = {
 };
 
 export const Platform = { OS: 'ios' };
+
+/** Linking.openURL: what a test makes of the link (reject for one no app takes). */
+let openURLImplementation: (url: string) => Promise<void> = async () => {};
+export function __setOpenURL(implementation: (url: string) => Promise<void>): void {
+  openURLImplementation = implementation;
+}
+export const Linking = { openURL: (url: string) => openURLImplementation(url) };
 export const DevSettings = {
   addMenuItem: (_label: string, _cb: () => void): void => {},
 };

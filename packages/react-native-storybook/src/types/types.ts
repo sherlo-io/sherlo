@@ -107,6 +107,12 @@ export type PlayStep =
       /** How long the view may take to be on screen and visible; 10000 by default. */
       timeoutMs?: number;
     }
+  | {
+      /** A link the app handles, e.g. 'myapp://chat-list': opened as a member's tap on it does. */
+      open: string;
+      /** How long the system may take to take the link; 10000 by default. */
+      timeoutMs?: number;
+    }
   | { ready: ReadyRule };
 
 /** The view a step presses: by testID or by the text it shows, the `index`-th from the top. */
