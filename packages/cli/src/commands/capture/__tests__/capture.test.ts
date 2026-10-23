@@ -18,6 +18,7 @@ import { EXIT_BLOCK } from '../../../helpers/exitCodes';
 import { captureTranscript } from '../../../helpers/transcriptSink';
 import { STABILIZATION_SETTINGS, installCaptureSocket } from '../../../seams/captureSocket';
 import type { CaptureResult, CaptureSocket } from '../../../seams/captureSocket';
+import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
 import type { CapturedView } from '../../../render/capturedStory';
 import { JSON_OPTION, LOGS_OPTION, STORY_OPTION } from '../../../constants';
 
@@ -215,6 +216,28 @@ describe('every ending the capture screen draws is reached from an answer the ap
       const { exitCode } = await captureOneStory(answer);
       expect(exitCode).toBeUndefined();
     }
+  });
+});
+
+describe('only a scene is given a clean device', () => {
+  it("a story capture never touches the developer's device", async () => {
+    // A story is captured in the app already running; wiping its data would be a loss for nothing.
+    let askedForADevice = false;
+    const uninstall = installDeviceState({
+      ...posedDeviceState(),
+      sceneTarget: async () => {
+        askedForADevice = true;
+        return undefined;
+      },
+    });
+
+    try {
+      await captureOneStory({ kind: 'captured', storyId: STORY, settled: SETTLED, tree: ONE_VIEW });
+    } finally {
+      uninstall();
+    }
+
+    expect(askedForADevice).toBe(false);
   });
 });
 

@@ -49,6 +49,8 @@ import { installAppBuilder, posedAppBuilder } from '../../seams/appBuilder';
 import { installWorkstation, posedWorkstation } from '../../seams/workstation';
 import { installLetterbox, posedLetterbox } from '../../seams/letterbox';
 import { installCaptureSocket, posedCaptureSocket } from '../../seams/captureSocket';
+import { installDeviceState, posedDeviceState } from '../../seams/deviceState';
+import { formatRefusals } from './poseProblems';
 import { installCoverageScan, posedCoverageScan } from '../../seams/coverageScan';
 import { installBrowser, posedBrowser } from '../../seams/browser';
 import { installSavedLogins, posedSavedLogins } from '../../seams/savedLogins';
@@ -156,6 +158,7 @@ export async function runPose(
     installWorkstation(acts),
     installLetterbox(app),
     installCaptureSocket(socket),
+    installDeviceState(posedDeviceState()),
     installCoverageScan(scan),
     // The settings go in LAST and come out FIRST: the folder above is laid out while this
     // process still has its own environment, and nothing after this line should.
@@ -239,15 +242,6 @@ export async function pose(documentPath: string, options: PoseOptions): Promise<
 }
 
 export default pose;
-
-/** The refusal block printed under the screen so far. */
-export function formatRefusals(refusals: Array<{ call: string; problem: string }>): string {
-  return (
-    '\nTHE POSE COULD NOT ANSWER THIS RUN. The screen above is everything the command printed ' +
-    'before it asked:\n' +
-    refusals.map(({ call, problem }) => `  - \`${call}\`: ${problem}\n`).join('')
-  );
-}
 
 /* ========================================================================== */
 
