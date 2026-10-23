@@ -571,8 +571,7 @@ function printTerminalCloser(
 /**
  * What the build holds, counted over every platform it pushed: the ONLY reader of the build's
  * `storiesInBundle` and `scenesInBundle`. Every verdict, the wait's and `sherlo view`'s, takes its
- * words from this answer. (The live status query does not ask for `scenesInBundle` yet, so a
- * build read from the service holds stories until it does.)
+ * words from this answer.
  */
 export function readBuildScreenKind(build: BuildStatus): ScreenKind {
   const platforms = Object.values(build.platforms ?? {});
