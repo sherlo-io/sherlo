@@ -47,6 +47,7 @@ import {
   recordStoryError,
 } from '../getStorybook/storyErrorRegistry';
 import { activateSceneMocks } from '../getStorybook/storyMockActivation';
+import { rememberStoryOfTheApp } from '../componentNames';
 import createMockable from '../mocking/createMockable';
 import { __resetRequestsInFlightForTests, requestStarted } from '../mocking/requestsInFlight';
 import { clearMocks, __resetShimmedKeysForTests } from '../mocking/registry';
@@ -220,6 +221,20 @@ describe('a scene file that waits for a view itself', () => {
     const gone = awaitReady({ gone: 'splash', requestsIdle: false });
     await vi.advanceTimersByTimeAsync(100);
     expect(await gone).toEqual({ outcome: 'gone' });
+  });
+
+  it('names the screen the app stayed on when the scene is not ready in time', async () => {
+    const provider = {
+      type: () => null,
+      pendingProps: {},
+      memoizedProps: { value: { getRootState: () => ({ routes: [{ name: 'AuthStack' }] }) } },
+    };
+    rememberStoryOfTheApp(provider);
+    const waiting = awaitReady({ testID: 'chat.list', timeoutMs: 300, requestsIdle: false });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(await waiting).toMatchObject({ outcome: 'timed-out', route: ['AuthStack'] });
+    rememberStoryOfTheApp(undefined);
   });
 
   it('throws what the app threw instead of timing out', async () => {
