@@ -65,8 +65,10 @@ import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerpri
 import { resolveSuppliedBundles } from './suppliedBundle';
 import {
   bundleStoryFiles,
+  collectModuleManifests,
   countBundleScenes,
   countBundleStories,
+  countInBundles,
   countStoriesIn,
   titledStoryFilesIn,
   type ValidatedModuleManifest,
@@ -351,8 +353,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     // Nothing was built on this road: the facts are the bundles' story counts and the CI run.
     const pushFacts = pushFactsOf({
       appBuilds: {},
-      storiesInBundle: storiesInBundleOf(bundles, platformsToTest),
-      scenesInBundle: scenesInBundleOf(bundles, platformsToTest),
+      storiesInBundle: countInBundles(bundles, platformsToTest, countBundleStories),
+      scenesInBundle: countInBundles(bundles, platformsToTest, countBundleScenes),
       env: process.env,
       runIdFlag: (passedOptions as BuildFlags).runId,
     });
@@ -512,52 +514,6 @@ type GateAnswers = {
   /** Per platform, the test its stored app build was built in - absent where nothing is stored. */
   storedBuildIndexOf: Partial<Record<Platform, number>>;
 };
-
-/** How many stories each platform's bundle holds, counted off its module map. */
-function storiesInBundleOf(
-  bundles: Partial<Record<Platform, BundleResult>>,
-  platformsToTest: Platform[]
-): Partial<Record<Platform, number>> {
-  const counts: Partial<Record<Platform, number>> = {};
-  for (const [platform, moduleManifest] of Object.entries(
-    collectModuleManifests(bundles, platformsToTest)
-  ) as Array<[Platform, ValidatedModuleManifest]>) {
-    counts[platform] = countBundleStories(moduleManifest);
-  }
-  return counts;
-}
-
-/**
- * How many scenes each platform's bundle holds, for the platforms whose bundle holds any.
- * Plan-layer only (build debt of the scenes epic): the live module manifest records no scenes, so on a
- * real push this is empty.
- */
-function scenesInBundleOf(
-  bundles: Partial<Record<Platform, BundleResult>>,
-  platformsToTest: Platform[]
-): Partial<Record<Platform, number>> {
-  const counts: Partial<Record<Platform, number>> = {};
-  for (const [platform, moduleManifest] of Object.entries(
-    collectModuleManifests(bundles, platformsToTest)
-  ) as Array<[Platform, ValidatedModuleManifest]>) {
-    const scenes = countBundleScenes(moduleManifest);
-    if (scenes > 0) counts[platform] = scenes;
-  }
-  return counts;
-}
-
-/** The per-platform module manifests the capture plan reads, lifted off the bundles. */
-export function collectModuleManifests(
-  bundles: Partial<Record<Platform, BundleResult>>,
-  platformsToTest: Platform[]
-): Partial<Record<Platform, ValidatedModuleManifest>> {
-  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
-  for (const platform of platformsToTest) {
-    const manifest = bundles[platform]?.moduleManifest;
-    if (manifest) moduleManifests[platform] = manifest;
-  }
-  return moduleManifests;
-}
 
 /**
  * The test's row under the platforms' rows, saying what it captures - per platform, straight off

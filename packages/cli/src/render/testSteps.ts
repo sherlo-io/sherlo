@@ -93,8 +93,7 @@ export type PlatformCapture = {
   storiesInBundle?: number;
   /**
    * How many scenes the bundle holds; absent or 0 when it holds none. A scene is captured on a
-   * full capture and is stated beside the stories. Plan-layer only (build debt of the scenes epic): the
-   * real module map counts no scenes yet, so only a posed bundle has any.
+   * full capture and is stated beside the stories.
    */
   scenesInBundle?: number;
   /** The server's own reason, printed only on a full capture. */
@@ -178,9 +177,12 @@ function describeCapturedStories({
   scenesInBundle,
 }: PlatformCapture): string {
   // Uncounted is absent or null alike (see PlatformCapture.storiesInBundle).
-  if (full && scenesInBundle) {
-    if (!storiesInBundle) return `all ${countScenes(scenesInBundle)}`;
-    return `all ${countStories(storiesInBundle)} and ${countScenes(scenesInBundle)}`;
+  const stories = storiesInBundle ?? 0;
+  const scenes = scenesInBundle ?? 0;
+  const holds = screenKindOf({ stories, scenes });
+  if (full && holds === 'scenes') return `all ${countScenes(scenes)}`;
+  if (full && holds === 'stories and scenes') {
+    return `all ${countStories(stories)} and ${countScenes(scenes)}`;
   }
 
   if (full) {
@@ -299,19 +301,25 @@ export function countStories(count: number): string {
   return count === 1 ? '1 story' : `${count} stories`;
 }
 
-/** What a build holds, as a verdict words its screens: stories alone, scenes alone, or both (the started line's grammar). */
-export type WhatABuildHolds = 'stories' | 'scenes' | 'stories and scenes';
+/** What a build holds: stories alone, scenes alone, or both. */
+export type ScreenKind = 'stories' | 'scenes' | 'stories and scenes';
 
 /**
- * `1 story`, `3 scenes`, `3 stories and scenes` - a count of the build's screens, worded by what the
- * build holds. Stories alone are {@link countStories}, so a build of stories says what it always said.
+ * THE ONE RULE that picks the word for a build's screens, for the started line and every verdict:
+ * scenes with no stories are `scenes`, both are `stories and scenes`, and anything else is `stories`.
  */
-export function countScreens(count: number, holds: WhatABuildHolds = 'stories'): string {
+export function screenKindOf({ stories, scenes }: { stories: number; scenes: number }): ScreenKind {
+  if (scenes === 0) return 'stories';
+  return stories === 0 ? 'scenes' : 'stories and scenes';
+}
+
+/** `1 story`, `3 scenes`, `3 stories and scenes` - a count of the build's screens, worded by what it holds. */
+export function countScreens(count: number, holds: ScreenKind): string {
   return `${count} ${nameScreens(count, holds)}`;
 }
 
 /** `story`, `scenes`, `story or scene` - the word for the build's screens without the number. */
-export function nameScreens(count: number, holds: WhatABuildHolds = 'stories'): string {
+export function nameScreens(count: number, holds: ScreenKind): string {
   if (holds === 'scenes') return count === 1 ? 'scene' : 'scenes';
   if (holds === 'stories and scenes') return count === 1 ? 'story or scene' : 'stories and scenes';
   return count === 1 ? 'story' : 'stories';

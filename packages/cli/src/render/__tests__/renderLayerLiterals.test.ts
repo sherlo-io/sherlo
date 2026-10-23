@@ -1075,7 +1075,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-passed',
-    what: 'the green verdict of a build that holds scenes alone - the screens are scenes, as the started line says',
+    what: 'test/scenes-only-push-again, the green verdict of a build that holds scenes alone - the screens are scenes, as the started line says',
     segment: { kind: 'verdict-passed', holds: 'scenes' },
     stream: 'stdout',
     prints: [
@@ -1086,7 +1086,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-passed',
-    what: 'the green verdict of a build that holds stories and scenes',
+    what: 'the green verdict of a build that holds stories and scenes (beside test/scenes-only-push-again: both kinds in one push)',
     segment: { kind: 'verdict-passed', holds: 'stories and scenes' },
     stream: 'stdout',
     prints: [
@@ -1097,7 +1097,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-review-required',
-    what: 'the review verdict of a build that holds scenes alone, its screens never learned - the scenes counted, the reported ones counted as scenes',
+    what: 'test/scenes-only-push, the review verdict of a build that holds scenes alone, its screens never learned - the scenes counted, the reported ones counted as scenes',
     segment: {
       kind: 'verdict-review-required',
       counts: { unreviewed: 4, reported: 1 },
@@ -1115,7 +1115,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-review-required',
-    what: 'the review verdict of a build that holds scenes alone with ONE screen waiting - singular verb, singular noun, and the rest counted in the dim line as scenes',
+    what: 'test/scenes-only-push, the review verdict of a build that holds scenes alone with ONE screen waiting - singular verb, singular noun, and the rest counted in the dim line as scenes',
     segment: {
       kind: 'verdict-review-required',
       screens: [
@@ -1138,7 +1138,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'verdict-review-required',
-    what: 'the review verdict of a build that holds stories and scenes - the plural names both, the singular says story or scene',
+    what: 'the review verdict of a build that holds stories and scenes (beside test/scenes-only-push: both kinds in one push) - the plural names both, the singular says story or scene',
     segment: {
       kind: 'verdict-review-required',
       screens: [
@@ -1160,7 +1160,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'build-view-status',
-    what: 'a finished scenes-only test that needs review - counted as scenes off the tally',
+    what: 'test/scenes-only-push, as `sherlo view` reads it: a finished scenes-only test that needs review - counted as scenes off the tally',
     segment: {
       kind: 'build-view-status',
       runStatus: 'finished',
@@ -1179,7 +1179,7 @@ const PINS: Pin[] = [
   },
   {
     kind: 'build-view-status',
-    what: 'a finished scenes-only test whose every change was approved',
+    what: 'test/scenes-only-push-again, as `sherlo view` reads it: a finished scenes-only test whose every change was approved',
     segment: {
       kind: 'build-view-status',
       runStatus: 'finished',

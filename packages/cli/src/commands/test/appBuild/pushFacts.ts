@@ -36,7 +36,8 @@ export function pushFactsPlatformOf({
     ...(appBuild?.why ? { why: appBuild.why.reason } : {}),
     ...(nativeChanges ? { nativeChanges } : {}),
     ...(storiesInBundle !== undefined ? { storiesInBundle } : {}),
-    ...(scenesInBundle !== undefined ? { scenesInBundle } : {}),
+    // A bundle with no scenes reports none, so a push of stories alone sends what it always sent.
+    ...(scenesInBundle ? { scenesInBundle } : {}),
   };
 }
 
@@ -52,7 +53,7 @@ export function pushFactsOf({
   appBuilds: Partial<Record<Platform, AppBuildAccount>>;
   /** How many stories each delivered platform's bundle holds. */
   storiesInBundle: Partial<Record<Platform, number>>;
-  /** How many scenes each delivered platform's bundle holds; none where the bundle has no scenes. */
+  /** How many scenes each delivered platform's bundle holds. */
   scenesInBundle?: Partial<Record<Platform, number>>;
   env: NodeJS.ProcessEnv;
   /** `--run-id`, which names the CI run when the CI service does not. */

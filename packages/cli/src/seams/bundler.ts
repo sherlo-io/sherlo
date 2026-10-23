@@ -80,8 +80,9 @@ export type PosedBundle = {
   storyCounts?: Record<string, number>;
   /**
    * The scene ids the bundle holds, in Storybook's id style (`inbox--full`). Absent poses a bundle
-   * with no scenes. Plan-layer only (build debt of the scenes epic): the real bundle's module map
-   * records no scenes yet, so the live reader never counts any.
+   * with no scenes. Only a posed bundle carries any today: the live reader
+   * (`validateModuleManifestBuffer`) still drops `sceneIds`, so a real push counts 0 scenes until
+   * the push-live task.
    */
   sceneIds?: string[];
 };

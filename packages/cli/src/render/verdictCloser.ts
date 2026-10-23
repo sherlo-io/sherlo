@@ -29,7 +29,7 @@ import {
   renderHelpBlock,
   renderTestStep,
   renderVerdictSection,
-  type WhatABuildHolds,
+  type ScreenKind,
 } from './testSteps';
 
 /* ========================================================================== */
@@ -124,7 +124,7 @@ export function renderTestFinished(testIndex: number): string {
  * says it all, so nothing stands under it but the link. A build that holds scenes says so, as the
  * started line does: `All scenes passed`, or `All stories and scenes passed` for both.
  */
-export function renderVerdictPassed(holds: WhatABuildHolds = 'stories'): string[] {
+export function renderVerdictPassed(holds: ScreenKind = 'stories'): string[] {
   const title = `✅ All ${holds} passed`;
   // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
   return renderVerdictSection(title, [], title.length + 1);
@@ -214,7 +214,7 @@ const NAMED_SCREEN_LIMIT = 10;
 export function renderVerdictReviewRequired(
   screens: VerdictScreen[] | undefined,
   counts: { unreviewed: number; reported: number },
-  holds: WhatABuildHolds = 'stories'
+  holds: ScreenKind = 'stories'
 ): string[] {
   const allScreens = screens ?? [];
   const needAPerson = allScreens.filter((screen) => !SETTLED_STATUSES.has(screen.status));
@@ -246,7 +246,7 @@ export function renderVerdictReviewRequired(
 }
 
 /** `⚠️ 3 stories need review`, `⚠️ 1 story needs review`. */
-function needReviewTitle(count: number, holds: WhatABuildHolds): string {
+function needReviewTitle(count: number, holds: ScreenKind): string {
   return `⚠️ ${countScreens(count, holds)} ${count === 1 ? 'needs' : 'need'} review`;
 }
 
@@ -256,7 +256,7 @@ function needReviewTitle(count: number, holds: WhatABuildHolds): string {
  */
 function renderCountLines(
   counts: { unreviewed: number; reported: number },
-  holds: WhatABuildHolds
+  holds: ScreenKind
 ): string[] {
   const { unreviewed, reported } = counts;
 

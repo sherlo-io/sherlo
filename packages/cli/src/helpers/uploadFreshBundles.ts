@@ -183,8 +183,7 @@ export default uploadFreshBundles;
  * A bundle whose module map counts no stories is refused before anything is uploaded: Storybook
  * was switched off by a variable the build never saw, and a run that photographed nothing would
  * read green. A bundle with no module map says nothing about its stories, and goes on; so does
- * one that holds scenes, which are captured as stories are (plan-layer only, build debt of the
- * scenes epic: only a posed bundle counts any).
+ * one that holds scenes, which are captured as stories are.
  */
 function refuseABundleWithNoStories(bundles: Partial<Record<Platform, BundleResult>>): void {
   const holdsNoStories = Object.values(bundles).some(
