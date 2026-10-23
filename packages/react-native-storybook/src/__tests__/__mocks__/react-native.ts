@@ -208,4 +208,22 @@ export const DevSettings = {
 };
 export const TurboModuleRegistry = {
   getEnforcing: <T>(_name: string): T | null => null,
+  /** A module a test laid in NativeModules, as React Native's registry falls back to them. */
+  get: <T>(name: string): T | null => NativeModules[name] ?? null,
+};
+export type TurboModule = Record<string, unknown>;
+
+type DeviceListener = (event: any) => void;
+const deviceListeners = new Map<string, Set<DeviceListener>>();
+
+/** React Native's RCTDeviceEventEmitter: one listener set per event name. */
+export const DeviceEventEmitter = {
+  addListener(eventName: string, listener: DeviceListener) {
+    if (!deviceListeners.has(eventName)) deviceListeners.set(eventName, new Set());
+    deviceListeners.get(eventName)!.add(listener);
+    return { remove: () => deviceListeners.get(eventName)?.delete(listener) };
+  },
+  emit(eventName: string, event: unknown): void {
+    deviceListeners.get(eventName)?.forEach((listener) => listener(event));
+  },
 };

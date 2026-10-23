@@ -2,7 +2,10 @@ import { NetworkMocks, NO_NETWORK_MOCKS } from './networkDeclaration';
 import { mockedFetchOf } from './networkFetch';
 import { mockedXhrOf, XhrClass } from './networkXhr';
 import { RecordRefusal, setNetworkMocks } from './networkRules';
+import { TurboModule, TurboModuleRegistry } from 'react-native';
+import { holdNativeSockets, NativeSocketModule } from './networkSocket';
 import { isACapture } from './stillReal';
+import { bundlerOrigin } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
 
 /**
@@ -37,20 +40,61 @@ export function activateNetworkMocks(mocks: NetworkMocks, recordRefusal: RecordR
   const mode = SherloModule.getMode();
   if (mode !== 'testing' && mode !== 'storybook') return;
 
-  const storyDeclaredNetworkMocks = mocks.rules.length > 0 || mocks.passthrough;
+  holdWebSockets();
+  const storyDeclaredNetworkMocks =
+    mocks.rules.length > 0 || mocks.passthrough || mocks.sockets.length > 0;
 
   // Only a capture lists what a story requested: there, a story with no network mock is wrapped
   // too, with every request let through to the real network as before, so each one is listed. A
-  // cloud test run reports testing mode too, and is no capture.
+  // cloud test run reports testing mode too, and is no capture. WebSockets follow the same line:
+  // listed and let through there, held by the story's socket rules (or refused) in a story that
+  // declared network mocks, the app's own everywhere else.
   if (!storyDeclaredNetworkMocks && isACapture()) {
-    setNetworkMocks({ rules: [], passthrough: true }, recordRefusal);
+    setNetworkMocks({ rules: [], passthrough: true, sockets: [] }, recordRefusal, 'listed');
     install();
     return;
   }
 
-  setNetworkMocks(mocks, recordRefusal);
+  setNetworkMocks(mocks, recordRefusal, storyDeclaredNetworkMocks ? 'held' : 'untouched');
   if (storyDeclaredNetworkMocks) install();
   else restore();
+}
+
+/** What puts React Native's own socket calls back, once they are held. The hold stays in. */
+let releaseSockets: (() => void) | null = null;
+
+/**
+ * Hold React Native's WebSocketModule, so every socket opened asks the rules in effect
+ * (./networkSocket) - whichever class opened it and whenever that class was defined. Called at
+ * every story's activation; it holds once. With no story's mocks in effect every socket is the
+ * real one, so it is safe to leave in.
+ *
+ * Guarded like every other mock: an app in default mode is never held.
+ */
+export function holdWebSockets(): void {
+  const mode = SherloModule.getMode();
+  if (mode !== 'testing' && mode !== 'storybook') return;
+  if (releaseSockets) return;
+
+  const nativeSockets = TurboModuleRegistry.get<NativeSocketModule & TurboModule>(
+    'WebSocketModule'
+  );
+  if (!nativeSockets || typeof nativeSockets.connect !== 'function') return;
+
+  releaseSockets = holdNativeSockets(nativeSockets, isTheBundlersSocket);
+}
+
+/** Test-only: put React Native's own socket calls back, as a fresh boot of the JavaScript has them. */
+export function __releaseWebSocketsForTests(): void {
+  releaseSockets?.();
+  releaseSockets = null;
+}
+
+/** A socket to the bundler the app came from (hot reload, its status) is never a story's. */
+function isTheBundlersSocket(url: string): boolean {
+  const origin = bundlerOrigin();
+  if (!origin) return false;
+  return /^wss?:\/\/([^/?#]+)/.exec(url)?.[1] === origin.replace(/^https?:\/\//, '');
 }
 
 /**
