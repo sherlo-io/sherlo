@@ -23,6 +23,7 @@ import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS, captureSocket } from '../../seams/captureSocket';
+import { deviceState, prepareCleanDevice } from '../../seams/deviceState';
 import type { CaptureResult, SceneCaptureResult } from '../../seams/captureSocket';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene } from '../../render/capturedScene';
@@ -90,11 +91,19 @@ export default capture;
 async function captureScene(sceneId: string, passedOptions: CaptureOptions): Promise<void> {
   const port = readPort(passedOptions[PORT_OPTION]);
 
-  const answer = await captureSocket().captureScene({
-    sceneId,
-    port,
-    settings: STABILIZATION_SETTINGS,
-  });
+  // The scene runs on a clean device, and every ending - a throw included - puts it back.
+  const target = await deviceState().sceneTarget();
+  const restore = target && (await prepareCleanDevice(target.device, target.app));
+  let answer: SceneCaptureResult;
+  try {
+    answer = await captureSocket().captureScene({
+      sceneId,
+      port,
+      settings: STABILIZATION_SETTINGS,
+    });
+  } finally {
+    await restore?.();
+  }
 
   if (passedOptions[JSON_OPTION]) {
     process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);

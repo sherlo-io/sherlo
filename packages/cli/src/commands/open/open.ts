@@ -22,6 +22,7 @@ import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { letterbox } from '../../seams/letterbox';
+import { deviceState, holdTheCleanDevice, prepareCleanDevice } from '../../seams/deviceState';
 import type { OpenStoryResult } from '../../seams/letterbox';
 import type { OpenedStory } from '../../render/openedStory';
 import type { OpenedScene } from '../../render/openedScene';
@@ -81,8 +82,18 @@ export default open;
 async function openScene(sceneId: string, passedOptions: OpenOptions): Promise<void> {
   const port = readPort(passedOptions[PORT_OPTION]);
 
-  const answer = await letterbox().openScene({ sceneId, port });
-  emit({ kind: 'opened-scene', state: openedSceneEnding(answer, { sceneId, port }) });
+  // The scene opens on a clean device, which stays clean until the developer stops the command;
+  // every ending - a throw and an interrupt included - puts it back.
+  const target = await deviceState().sceneTarget();
+  const restore = target && (await prepareCleanDevice(target.device, target.app));
+  let answer: OpenSceneResult;
+  try {
+    answer = await letterbox().openScene({ sceneId, port });
+    emit({ kind: 'opened-scene', state: openedSceneEnding(answer, { sceneId, port }) });
+    if (restore && answer.kind === 'scene-opened') await holdTheCleanDevice();
+  } finally {
+    await restore?.();
+  }
 
   if (answer.kind !== 'scene-opened') process.exit(EXIT_BLOCK);
 }

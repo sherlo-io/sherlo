@@ -27,6 +27,15 @@ export class PoseRefusal extends Error {
   }
 }
 
+/** The refusal block printed under the screen so far, when a posed run asked what its pose could not answer. */
+export function formatRefusals(refusals: Array<{ call: string; problem: string }>): string {
+  return (
+    '\nTHE POSE COULD NOT ANSWER THIS RUN. The screen above is everything the command printed ' +
+    'before it asked:\n' +
+    refusals.map(({ call, problem }) => `  - \`${call}\`: ${problem}\n`).join('')
+  );
+}
+
 /**
  * How a place in the document is spelled back: the first field in backticks, and whatever leads
  * from it outside them - `` `git`.dirty ``, `` `bundles["android"]`.assets ``. The empty path is

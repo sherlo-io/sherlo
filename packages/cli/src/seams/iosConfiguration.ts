@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 /** The text of a file, or undefined when it is not there. */
-function readIfThere(filePath: string): string | undefined {
+export function readIfThere(filePath: string): string | undefined {
   try {
     return fs.readFileSync(filePath, 'utf8');
   } catch {
