@@ -30,6 +30,26 @@ export function declaredImportsOf(storyFilePath: string): DeclaredImport[] {
   return readDeclaredImports()?.storyFiles[storyFilePath] ?? [];
 }
 
+// The name the stand-in of the module a declaration imports as `specifier` is installed under, as
+// the scan saw it when the bundler started, without loading the module: from `filePath`'s own
+// declarations first, else from every file's when all that import it as written reach the same
+// stand-in (a file may take its mocks from a shared module). Undefined when the scan made it
+// none, or the name as written is another module's in another file.
+export function standInKeyAtBundlerStart(specifier: string, filePath: string): string | undefined {
+  const storyFiles = readDeclaredImports()?.storyFiles ?? {};
+  const own = (storyFiles[filePath] ?? []).find((declared) => declared.specifier === specifier);
+  if (own) return own.moduleKey ?? undefined;
+
+  const keys = new Set(
+    Object.values(storyFiles)
+      .flat()
+      .filter((declared) => declared.specifier === specifier)
+      .map((declared) => declared.moduleKey)
+  );
+  const [onlyKey] = keys;
+  return keys.size === 1 && onlyKey ? onlyKey : undefined;
+}
+
 // Whether the bundler made `key` a stand-in when it started. A key no stand-in answered with - an
 // import that reached none - was not seen. With no record at all (a Storybook not bundled by
 // Sherlo's config), only a stand-in that has loaded proves it.

@@ -22,6 +22,7 @@ var projectTransformerFile = require('./projectPaths').projectTransformerFile;
 var firstExistingSourceFile = require('./sourceFiles').firstExistingSourceFile;
 var isExistingFile = require('./sourceFiles').isExistingFile;
 var realFilePath = require('./mockShims').realFilePath;
+var resolvesToFile = require('./mockShims').resolvesToFile;
 
 // The two names only the launch entry asks for. Sherlo's resolver answers them itself, so neither
 // passes through Storybook's own entry swap.
@@ -141,15 +142,6 @@ function launchEntrySource(sherloBuild, hasStorybook) {
  */
 function isTheBundleEntryRequest(context) {
   return path.basename(context.originModulePath) === '.';
-}
-
-// `realFile` is a path with its symlinks already followed.
-function resolvesToFile(resolution, realFile) {
-  return (
-    !!resolution &&
-    resolution.type === 'sourceFile' &&
-    realFilePath(resolution.filePath) === realFile
-  );
 }
 
 /**
