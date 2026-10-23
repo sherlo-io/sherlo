@@ -11,6 +11,8 @@ var writeMockSpecifierTransformer =
 var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
 var stillReal = require('./stillReal');
+var stableStringify = require('./stableStringify');
+var readSceneIds = require('./sceneFiles').readSceneIds;
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
@@ -324,26 +326,6 @@ function collectForwardClosure(graph, storyAbsPath, projectRoot, excludedAbsPath
 }
 
 /**
- * Deterministic JSON: object keys are emitted in sorted order at every depth, so
- * two runs that produce equal data produce BYTE-IDENTICAL output regardless of
- * the order Metro happened to enumerate its graph. Arrays keep their order (the
- * caller sorts the arrays it cares about).
- */
-function stableStringify(value) {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value);
-  }
-  if (Array.isArray(value)) {
-    return '[' + value.map(stableStringify).join(',') + ']';
-  }
-  var keys = Object.keys(value).sort();
-  var parts = keys.map(function (key) {
-    return JSON.stringify(key) + ':' + stableStringify(value[key]);
-  });
-  return '{' + parts.join(',') + '}';
-}
-
-/**
  * Expo's CLI sets this itself, inside the bundler process, to the absolute path of
  * the project root being bundled - "required for @expo/metro-runtime to format
  * paths in the web LogBox" (@expo/cli's withMetroMultiPlatform.js). It reaches no
@@ -623,6 +605,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       storyClosures: storyClosures,
       storyTitles: storyTitles,
       storyCounts: storyCounts,
+      sceneIds: readSceneIds(projectRoot),
     };
 
     fs.writeFileSync(

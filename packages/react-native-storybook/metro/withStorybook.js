@@ -10,6 +10,7 @@ var whatThisBuildCarries = require('./sherloBuild').whatThisBuildCarries;
 var detectStorybookSetup = require('./detectStorybookSetup').detectStorybookSetup;
 var findStorybookEntry = require('./detectStorybookSetup').findStorybookEntry;
 var applyLaunchTimeEntry = require('./launchTimeEntry').applyLaunchTimeEntry;
+var findSceneFiles = require('./sceneFiles').findSceneFiles;
 var projectRootOf = require('./projectPaths').projectRootOf;
 
 var SDK_PACKAGE_NAME = '@sherlo/react-native-storybook';
@@ -153,6 +154,23 @@ function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuil
 }
 
 /**
+ * Whether the project keeps its scenes in files of their own and has no Storybook at all: no
+ * Storybook config folder, and at least one scene file.
+ */
+function hasSceneFilesAndNoStorybook(projectRoot, opts) {
+  return resolveConfigDir(projectRoot, opts) === null && findSceneFiles(projectRoot).length > 0;
+}
+
+/**
+ * The road of an app with scene files and no Storybook: Sherlo's transforms, then a launch entry
+ * with only the app's side. No Storybook wrapper is loaded and no setup file is written.
+ */
+function withScenesOnly(config, opts, sherloBuild) {
+  if (sherloBuild === 'off') return config;
+  return applyLaunchTimeEntry(applySherloTransforms(config, opts), null, sherloBuild);
+}
+
+/**
  * The one place that decides which road a bundle takes: the build setting, then the project's
  * Storybook setup.
  */
@@ -172,6 +190,10 @@ function withStorybook(config, opts) {
   var projectRoot = projectRootOf(config);
   var thisBuild = whatThisBuildCarries(process.env, isReleaseBundle(), opts && opts.enabled);
   var defaultSetupEntry = defaultSetupStorybookEntry(projectRoot, opts);
+
+  if (!defaultSetupEntry && hasSceneFilesAndNoStorybook(projectRoot, opts)) {
+    return withScenesOnly(config, opts, thisBuild.sherloBuild);
+  }
 
   if (thisBuild.sherloBuild === 'off') {
     var storybookWrapper = defaultSetupEntry
