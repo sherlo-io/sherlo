@@ -36,7 +36,7 @@ import type { ProjectList } from '../render/projectList';
 import type { TeamCreated } from '../render/teamCreated';
 import type { TeamList } from '../render/teamList';
 import type { PlatformCapture } from '../render/testSteps';
-import type { Config, RunErrorDetails } from '../types';
+import type { Config } from '../types';
 
 /** What `openBuild` is sent, and what it answers - the sdk client's own shapes. */
 type SdkClient = ReturnType<typeof sdkClient>;
@@ -67,7 +67,7 @@ export type ServerCalls = {
     teamId: string;
     /** A single-shot read bounds its own request; the poll loop's own deadline governs there. */
     boundedRead?: boolean;
-  }): Promise<(BuildStatus & RunErrorDetails) | null>;
+  }): Promise<BuildStatus | null>;
 
   createProject(request: {
     name: string;
@@ -388,7 +388,7 @@ export type ApiError = { error: string };
  * build the backend cannot send would let a product design be approved off a state that can never
  * occur, which is why this is the wire's type and not a copy of it.
  */
-export type BuildStatusAnswer = BuildStatus & RunErrorDetails;
+export type BuildStatusAnswer = BuildStatus;
 
 /**
  * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in

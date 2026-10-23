@@ -7,7 +7,6 @@ import { rowsAbove } from '../commands/test/platformRows';
 import type { PlatformRow } from '../render/runRows';
 import type { TranscriptSegment } from '../render/segments';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
-import type { RunErrorDetails } from '../types';
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
 import getAppBuildUrl from './getAppBuildUrl';
@@ -519,7 +518,7 @@ function decideTerminalState(
  * the wrong words for the exit code just decided.
  */
 function printTerminalCloser(
-  build: NonNullable<BuildStatusResponse['getBuildStatus']> & RunErrorDetails,
+  build: NonNullable<BuildStatusResponse['getBuildStatus']>,
   howItRan: HowTheTestRan,
   rowsNotYetShown: PlatformRow[],
   buildUrl: string
@@ -531,11 +530,11 @@ function printTerminalCloser(
     // A failed step, like any other: directly under the steps, the help block closing the run.
     // An app that could not start names its platform, the error's first line and the build page.
     const appFailed =
-      build.runErrorReason === 'appFailedToStart' && build.runErrorPlatform && build.runErrorMessage
+      build.runErrorReason === 'appFailedToStart' && build.runErrorPlatform
         ? {
             reason: build.runErrorReason,
             platform: build.runErrorPlatform,
-            errorMessage: build.runErrorMessage,
+            errorMessage: build.runErrorMessage ?? undefined,
             buildUrl,
           }
         : undefined;
