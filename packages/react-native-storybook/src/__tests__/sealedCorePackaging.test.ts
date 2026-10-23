@@ -636,5 +636,37 @@ describe('what CI and a release check', () => {
 });
 
 describe('the native side starts capture from a launch argument', () => {
-  it.todo('the packed SDK keeps ios/SherloCore.xcframework');
+  it('the packed SDK keeps ios/SherloCore.xcframework', () => {
+    // Outside CI no pack is made, so npm itself packs the SDK's own manifest and ignore file over
+    // an xcframework laid as a stored core lays it, file for file. A file list, ignore rule or
+    // glob that drops any part of it fails here, on every machine, not only in a pull request.
+    const sdkCopy = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-files-'));
+    for (const file of ['package.json', '.gitignore']) {
+      fs.copyFileSync(path.join(SDK_ROOT, file), path.join(sdkCopy, file));
+    }
+    const frameworkFiles = [
+      XCFRAMEWORK + '/Info.plist',
+      ...XCFRAMEWORK_SLICE_NAMES.flatMap((sliceName) =>
+        ['Headers/sherlo_core.h', 'Info.plist', 'SherloCore'].map(
+          (file) => XCFRAMEWORK + '/' + sliceName + '/SherloCore.framework/' + file
+        )
+      ),
+    ];
+    for (const file of frameworkFiles) {
+      fs.mkdirSync(path.dirname(path.join(sdkCopy, file)), { recursive: true });
+      fs.writeFileSync(path.join(sdkCopy, file), 'a laid core part');
+    }
+
+    const [packReport] = JSON.parse(
+      execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+        cwd: sdkCopy,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+    ) as [{ files: { path: string }[] }];
+    const packedFiles = packReport.files.map((file) => file.path);
+    fs.rmSync(sdkCopy, { recursive: true, force: true });
+
+    for (const file of frameworkFiles) expect(packedFiles, file).toContain(file);
+  });
 });

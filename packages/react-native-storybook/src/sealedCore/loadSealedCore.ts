@@ -127,10 +127,42 @@ function withoutCore(why: string): LoadedCore {
   return { core: null, whyThereIsNoCore: why };
 }
 
+/**
+ * The longest a reload waits for the JavaScript to go idle. An app that never idles (an endless
+ * animation) still reloads.
+ */
+const RELOAD_IDLE_WAIT_MS = 1000;
+
+/**
+ * Runs `reload` once the JavaScript is idle, never at once. A reload asked mid-render - a story
+ * sent within about 100 ms of START, during Storybook's first commit - tears down the JavaScript
+ * while a render of it still runs, and a release app crashes on it.
+ */
+function onceIdle(reload: () => void): void {
+  // React Native's own idle callback, read as the reload is asked: a runtime may have none.
+  const { requestIdleCallback } = globalThis as {
+    requestIdleCallback?: (callback: () => void, options: { timeout: number }) => void;
+  };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => reload(), { timeout: RELOAD_IDLE_WAIT_MS });
+  } else {
+    setTimeout(reload, 0);
+  }
+}
+
+/** Native code as the core reaches it: its two reloads of the JavaScript wait until it is idle. */
+function nativeForTheCore(): SealedCoreHost['native'] {
+  return {
+    ...SherloModule,
+    openTesting: (storyId, config) => onceIdle(() => SherloModule.openTesting(storyId, config)),
+    reloadJavaScript: () => onceIdle(() => SherloModule.reloadJavaScript()),
+  };
+}
+
 /** Everything the core may reach. It imports nothing, so this is all of it. */
 function hostForTheCore(): SealedCoreHost {
   return {
-    native: SherloModule,
+    native: nativeForTheCore(),
     runner: {
       // START is built inside the core; the SDK adds which core ran to it on its way to the runner.
       // Outside testing mode the report is undefined, and a line written as JSON leaves it out.
