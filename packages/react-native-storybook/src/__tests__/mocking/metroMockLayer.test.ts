@@ -1207,3 +1207,7 @@ describe('applySherloTransforms - composes with a pre-existing resolveRequest wr
     expect(resolved.filePath).toBe(otherReal);
   });
 });
+
+describe('scene files are found and bundled', () => {
+  it.todo('a mock list built in another file and imported by a scene file is scanned');
+});

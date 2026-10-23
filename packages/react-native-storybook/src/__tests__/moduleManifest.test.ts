@@ -486,3 +486,7 @@ describe('module manifest - which loader entry a story belongs to', () => {
     expect(storyTitleReader.findLoaderEntry(entries, null)).toBeNull();
   });
 });
+
+describe('scene files are found and bundled', () => {
+  it.todo('the manifest carries scene ids beside story ids');
+});

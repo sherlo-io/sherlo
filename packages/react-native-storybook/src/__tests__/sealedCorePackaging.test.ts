@@ -634,3 +634,7 @@ describe('what CI and a release check', () => {
     expect(workflow).not.toMatch(/sherlo-core|@sherlo\/core|ndk/i);
   });
 });
+
+describe('the native side starts capture from a launch argument', () => {
+  it.todo('the packed SDK keeps ios/SherloCore.xcframework');
+});

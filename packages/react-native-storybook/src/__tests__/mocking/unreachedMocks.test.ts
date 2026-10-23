@@ -278,3 +278,8 @@ describe("a project's mock that reached nothing", () => {
     });
   });
 });
+
+describe('mocks resolve in a scene file', () => {
+  it.todo('a mock that missed an instance built at module load says so');
+  it.todo("a library's private copy of a mocked package is named");
+});

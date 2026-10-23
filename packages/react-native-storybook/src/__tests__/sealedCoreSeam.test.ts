@@ -124,3 +124,8 @@ function everyNameDeclaredIn(source: string): string[] {
   });
   return names;
 }
+
+describe('the sealed core seam serves scenes', () => {
+  it.todo("the SDK's seam matches the seam the pinned core was typed against");
+  it.todo('a scene host hands the core playSteps, awaitReady, reachedRoute and monotonicNow');
+});

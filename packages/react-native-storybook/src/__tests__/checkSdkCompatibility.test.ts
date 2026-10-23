@@ -35,3 +35,7 @@ describe('checkSdkCompatibility', () => {
     expect(mockSendNativeError).not.toHaveBeenCalled();
   });
 });
+
+describe('the capture record says what happened', () => {
+  it.todo('an SDK older than the installed package warns');
+});
