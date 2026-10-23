@@ -36,9 +36,9 @@ export type NativeSocketModule = {
 
 /**
  * Hold `nativeSockets`: every socket opened through it asks the rules in effect. A socket for which
- * `isSherlosOwn` holds (the bundler's, whose host and port React DevTools
- * shares when the bundle came from it) is never asked about. Returns what puts the
- * real calls back.
+ * `isSherlosOwn` holds (the bundler's own socket: React DevTools connects to the same host and
+ * port when the bundle came from the bundler) is never asked about. Returns what puts the real
+ * calls back.
  */
 export function holdNativeSockets(
   nativeSockets: NativeSocketModule,

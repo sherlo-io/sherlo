@@ -183,6 +183,18 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     /**
+     * Whether each view named by testID is drawn, from the native view tree.
+     *
+     * @param testIDsJson A JSON list of testIDs
+     * @param promise Promise to resolve with a JSON object of visible, invisible, absent or unreached by testID
+     */
+    @ReactMethod
+    public void getViewVisibility(String testIDsJson, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.getViewVisibility(activity, testIDsJson, promise);
+    }
+
+    /**
      * Checks if the UI is stable by comparing consecutive screenshots.
      *
      * @param requiredMatches The number of consecutive matching screenshots needed

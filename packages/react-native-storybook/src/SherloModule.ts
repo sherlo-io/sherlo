@@ -1,6 +1,6 @@
 import { NativeModules } from 'react-native';
 import isExpoGo from './helpers/isExpoGo';
-import { StorybookViewMode, InspectorData } from './types/types';
+import { StorybookViewMode, InspectorData, ViewVisibility } from './types/types';
 import type { Config, LastState } from './sealedCore/seam';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 
@@ -52,6 +52,8 @@ type SherloModule = {
     data?: Record<string, string | null>
   ) => void;
   getInspectorData: () => Promise<InspectorData>;
+  /** Whether each view named by testID is drawn, from the native view tree (../specs). */
+  getViewVisibility: (testIDs: string[]) => Promise<ViewVisibility>;
   openStorybook: () => void;
   toggleStorybook: () => void;
   /**
@@ -130,6 +132,9 @@ function createSherloModule(): SherloModule {
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
+    },
+    getViewVisibility: async (testIDs: string[]) => {
+      return JSON.parse(await module.getViewVisibility(JSON.stringify(testIDs))) as ViewVisibility;
     },
     stabilize: async (
       requiredMatches: number,
@@ -231,6 +236,8 @@ function createSherloModule(): SherloModule {
 function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
+    getViewVisibility: async (testIDs: string[]) =>
+      Object.fromEntries(testIDs.map((testID) => [testID, 'absent' as const])),
     getInspectorData: async () => ({
       viewHierarchy: {
         id: 1,

@@ -212,7 +212,8 @@ describe('loading the sealed core', () => {
     // JavaScript, which wait until it is idle (./launchArgument.test.ts).
     const SherloModule = (await import('../SherloModule')).default;
     const native = host!.native as typeof SherloModule;
-    const reloads = ['openTesting', 'reloadJavaScript'];
+    // The stillness check is held back until the scene says it is ready (../storyReady.ts).
+    const reloads = ['openTesting', 'reloadJavaScript', 'stabilize'];
     expect(Object.keys(native).sort()).toEqual(Object.keys(SherloModule).sort());
     for (const call of Object.keys(SherloModule) as (keyof typeof SherloModule)[]) {
       if (reloads.includes(call)) expect(native[call], call).not.toBe(SherloModule[call]);
