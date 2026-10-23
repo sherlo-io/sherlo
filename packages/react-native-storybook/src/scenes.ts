@@ -1,15 +1,22 @@
 import type { StoryMocks } from './mocking/mockDeclaration';
 import type { ReadyRule } from './types/types';
 
-/** A plain tap on a view, named by its `testID`, its visible text or its accessibility label. */
-export type TapStep = {
-  tap: string | { testID?: string; text?: string; label?: string; index?: number };
-};
+/**
+ * The view a tap names: by `testID` (with an `index` among the visible matches, topmost first), by
+ * its visible `text`, or by its accessibility `label`. A bare string is a `testID`.
+ */
+export type TapTarget = { testID?: string; text?: string; label?: string; index?: number };
+
+/** A plain tap on a view. */
+export type TapStep = { tap: string | TapTarget };
 
 /** The app's own link, handed to the app as a link it received. */
 export type OpenStep = { open: string };
 
-export type PlayStep = TapStep | OpenStep;
+/** A wait for a view between two steps. */
+export type ReadyStep = { ready: string | ReadyRule };
+
+export type PlayStep = TapStep | OpenStep | ReadyStep;
 
 /** One variant of one screen. */
 export type Scene = {

@@ -26,7 +26,8 @@ import { requestsInFlight } from './mocking/requestsInFlight';
 import { readStoryError, recordStoryError } from './getStorybook/storyErrorRegistry';
 import { markStorySettled } from './mocking/registry';
 import type { NativeCalls } from './sealedCore/seam';
-import type { SceneFile } from './scenes';
+import { reachedRoute } from './reachedScreen';
+import type { Scene, SceneFile } from './scenes';
 import type { ReadyRule, ViewVisibility } from './types/types';
 
 /** How long a scene that names no time of its own may take to be ready. */
@@ -51,16 +52,29 @@ export type ReadyOutcome =
 
 type ReadVisibility = (testIDs: string[]) => Promise<ViewVisibility>;
 
-/** The scene about to be photographed, and whether it has already been proven ready. */
-let sceneToReady: { sceneId: string; proven: boolean } | undefined;
+/**
+ * The scene about to be photographed, whether it has already been proven ready, and the promise
+ * that settles once its mocks are installed (null when they already are).
+ */
+let sceneToReady: { sceneId: string; proven: boolean; installed: Promise<void> | null } | undefined;
 
 /**
  * A scene is about to be photographed: its readiness is proven afresh, once, before its first
  * stillness check. Called for every scene the SDK installs mocks for
- * (./getStorybook/storyMockActivation).
+ * (./getStorybook/storyMockActivation), with the promise that installing them returned.
  */
-export function storyAboutToRender(sceneId: string): void {
-  sceneToReady = { sceneId, proven: false };
+export function storyAboutToRender(sceneId: string, installed: Promise<void> | null = null): void {
+  sceneToReady = { sceneId, proven: false, installed };
+}
+
+/**
+ * Settles once the mocks of the scene about to be photographed are installed. Whatever acts on the
+ * scene's screen - its steps, its stillness check - waits here first: a step pressed while a mock
+ * is still going on reads the real module, or presses a screen that is not yet the scene's. An
+ * install that failed is the scene's error (./getStorybook/storyErrorRegistry), not this wait's.
+ */
+export async function mocksInstalled(): Promise<void> {
+  await sceneToReady?.installed?.catch(() => undefined);
 }
 
 /**
@@ -80,7 +94,7 @@ export function proveReadyAgain(): void {
 export async function awaitReady(rule: string | ReadyRule): Promise<ReadyOutcome> {
   const ended = await waitUntilReady(
     sceneToReady?.sceneId,
-    typeof rule === 'string' ? { testID: rule } : rule,
+    asRule(rule),
     SherloModule.getViewVisibility
   );
   if (ended === 'errored') throw errorOfTheScene(sceneToReady?.sceneId);
@@ -94,6 +108,9 @@ export function stabilizeOnceReady<
   return {
     ...native,
     stabilize: async (...settings: Parameters<NativeCalls['stabilize']>) => {
+      // The scene's mocks are in before anything judges its screen (a scene whose mocks were still
+      // installing was photographed with its steps skipped).
+      await mocksInstalled();
       const scene = sceneToReady;
       const rule = scene && !scene.proven ? readyRuleOf(scene.sceneId) : undefined;
       if (scene && rule) {
@@ -114,14 +131,25 @@ export function stabilizeOnceReady<
 
 /* ========================================================================== */
 
-/** The scene's `ready`, as a rule; undefined when the scene names none. */
-function readyRuleOf(sceneId: string): ReadyRule | undefined {
+/** What a scene file declared for the scene `sceneId`; undefined for a scene the bundle lacks. */
+export function sceneOf(sceneId: string): Scene | undefined {
   const scene = bundledScenes[sceneId];
   if (!scene) return undefined;
   const file = (scene.loadFile() as { default?: SceneFile } | undefined)?.default;
-  const ready = file?.scenes[scene.sceneName]?.ready;
+  return file?.scenes[scene.sceneName];
+}
+
+/** A `ready` as a rule: a bare string names the one view that must be on screen. */
+export function asRule(ready: string | ReadyRule): ReadyRule;
+export function asRule(ready: string | ReadyRule | undefined): ReadyRule | undefined;
+export function asRule(ready: string | ReadyRule | undefined): ReadyRule | undefined {
   if (typeof ready === 'string') return { testID: ready };
   return ready && typeof ready === 'object' ? ready : undefined;
+}
+
+/** The scene's `ready`, as a rule; undefined when the scene names none. */
+function readyRuleOf(sceneId: string): ReadyRule | undefined {
+  return asRule(sceneOf(sceneId)?.ready);
 }
 
 /** A name or a list of names, as a list. */
@@ -164,7 +192,7 @@ async function waitUntilReady(
       markStorySettled();
       if (sceneId && endedByTheScenesError(sceneId, waitedMs)) return 'errored';
       const line = notReadyLine(sceneId, timeoutMs, { views, testIDs, goneIDs, pending });
-      return { outcome: 'timed-out', route: [], line };
+      return { outcome: 'timed-out', route: reachedRoute(), line };
     }
 
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));

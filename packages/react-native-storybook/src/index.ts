@@ -25,6 +25,7 @@ export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
 export { awaitReady } from './storyReady';
 export type { ReadyOutcome } from './storyReady';
+export type { OpenStep, PlayStep, ReadyStep, TapStep, TapTarget } from './scenes';
 
 export * from './types';
 

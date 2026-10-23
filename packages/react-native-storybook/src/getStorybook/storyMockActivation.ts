@@ -59,8 +59,15 @@ let sceneOnSinceBoot: string | undefined;
  */
 export function activateMocksForStory(storyId: string | undefined): Promise<void> | null {
   if (!storyId) return null;
-  // Whatever is about to be photographed is proven ready afresh first (../storyReady).
-  storyAboutToRender(storyId);
+  const installed = installedMocksOf(storyId);
+  // Whatever is about to be photographed is proven ready afresh first, and its steps and its
+  // stillness check wait for the promise returned here (../storyReady): the steps were skipped in
+  // 2 of 27 captures when they only ran after the call.
+  storyAboutToRender(storyId, installed);
+  return installed;
+}
+
+function installedMocksOf(storyId: string): Promise<void> | null {
   // A scene's mocks went on before the app's first module, and its launch shows that scene alone:
   // activating it again would install what Storybook knows of it, which is nothing.
   if (storyId === sceneOnSinceBoot) return latestInstalled;
