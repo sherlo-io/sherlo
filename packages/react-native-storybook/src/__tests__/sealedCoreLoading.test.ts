@@ -208,8 +208,16 @@ describe('loading the sealed core', () => {
         'warn',
       ].sort()
     );
+    // Native code as the SDK speaks to it, every call its own but the two reloads of the
+    // JavaScript, which wait until it is idle (./launchArgument.test.ts).
     const SherloModule = (await import('../SherloModule')).default;
-    expect(host!.native).toBe(SherloModule);
+    const native = host!.native as typeof SherloModule;
+    const reloads = ['openTesting', 'reloadJavaScript'];
+    expect(Object.keys(native).sort()).toEqual(Object.keys(SherloModule).sort());
+    for (const call of Object.keys(SherloModule) as (keyof typeof SherloModule)[]) {
+      if (reloads.includes(call)) expect(native[call], call).not.toBe(SherloModule[call]);
+      else expect(native[call], call).toBe(SherloModule[call]);
+    }
   });
 
   it('hands the core the fetch from before any mock wrapped it', async () => {
