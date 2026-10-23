@@ -19,7 +19,6 @@
  */
 import { reporting, waitForBuildResult } from '../../helpers';
 import { EXIT_ERROR, EXIT_SIGINT, EXIT_TIMEOUT } from '../../helpers/exitCodes';
-import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
 import { fetchServerBypassReason, printServerBypassCloser } from '../../helpers/waitForBuildResult';
@@ -56,8 +55,7 @@ export async function closeTheRun({
    */
   endsOnNextStep?: boolean;
 }): Promise<void> {
-  const { token, projectIndex, teamId } = commandParams.credential;
-  const fromSavedLogin = isSavedLoginCredential(commandParams.credential);
+  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
   // THE ONE PLACE THAT DECIDES WHICH ROW THE PLATFORMS' ROWS STAND UNDER. A test that started on
   // devices printed them under its started row (or its waiting row, for a run that waits for
   // builds); a test the server closed at once has neither, so they stand under its finished row.

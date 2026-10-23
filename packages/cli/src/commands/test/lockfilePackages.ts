@@ -81,8 +81,8 @@ export function readLockfilePackages(lockfilePath: string, name: LockfileName): 
     name === 'yarn.lock'
       ? parseYarnLock(text)
       : name === 'package-lock.json'
-        ? parsePackageLock(text)
-        : parsePnpmLock(text);
+      ? parsePackageLock(text)
+      : parsePnpmLock(text);
 
   return [...versionsByName.keys()].sort().map((packageName) => ({
     name: packageName,

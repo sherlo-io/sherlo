@@ -43,33 +43,6 @@ describe('the tool reports errors only from a stack that outlives the run', () =
     expect(options.environment).toBe('local');
   });
 
-  it('an error report has every project key cut out of its message, stack, cause and command output', async () => {
-    const key = `${'a'.repeat(32)}k3j9x2ab4`;
-    vi.resetModules();
-    vi.doMock('@sherlo/sdk-client', () => ({ ENV: 'test' }));
-    const Sentry = await import('@sentry/node');
-    const reporting = (await import('../reporting')).default;
-
-    const error = Object.assign(new Error(`Invalid token: ${key}`), {
-      stdout: `out ${key}`,
-      stderr: `err ${key}`,
-      cause: new Error(`inner ${key}`),
-    });
-    error.stack = `Error: ${key}\n    at x`;
-    reporting.captureException(error);
-
-    const sent = vi.mocked(Sentry.captureException).mock.calls.at(-1)![0] as typeof error;
-    const extras = JSON.stringify(vi.mocked(Sentry.setExtra).mock.calls);
-    const everything = JSON.stringify([
-      sent.message,
-      sent.stack,
-      (sent.cause as Error).message,
-      extras,
-    ]);
-    expect(everything).not.toContain(key);
-    expect(sent.message).toContain('Invalid token');
-  });
-
   it('a tool built against the test stack still reports to the test Sentry', async () => {
     const options = await initReportingBuiltForStage('test');
 

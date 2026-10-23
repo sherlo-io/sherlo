@@ -28,7 +28,7 @@
     "repo": "node scripts/repo.mjs",
     "lint": "yarn --cwd packages/cli lint && yarn --cwd packages/react-native-storybook lint",
     "check:pose-contract": "yarn --cwd packages/cli check:pose-contract",
-    "format:check": "oxfmt --check 'packages/cli/src/**/*.{ts,tsx}' 'packages/react-native-storybook/src/**/*.{ts,tsx}' 'actions/lib/**/*.mjs'",
+    "format:check": "prettier --check 'packages/cli/src/**/*.{ts,tsx}' 'packages/react-native-storybook/src/**/*.{ts,tsx}'",
     "lint:circular-dependencies": "npx madge --extensions ts --circular .",
     "lint:js": "oxlint --report-unused-disable-directives",
     "lint:js:fix": "oxlint --fix --report-unused-disable-directives",
@@ -44,9 +44,10 @@
     "switch-env:prod": "./scripts/switch-env.sh prod"
   },
   "devDependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "^4.5.0",
     "lerna": "^9.0.3",
-    "oxfmt": "0.73.0",
     "oxlint": "1.88.0",
+    "prettier": "2.8.8",
     "tsx": "^4.20.0",
     "typescript": "7.0.2",
     "vite": "^8.0.0"

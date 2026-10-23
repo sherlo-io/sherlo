@@ -18,14 +18,13 @@ async function waitForEnterPress(): Promise<void> {
     return;
   }
 
-  // The keyboard is taken before anything is shown, so a key pressed the moment the prompt appears
-  // is never echoed by the terminal: the seam turns raw mode on, then calls this.
-  const showPrompt = () => {
-    process.stdout.write(ansiEscapes.beep);
-    process.stdout.write(renderEnterPrompt());
-  };
+  // Output a beeping sound
+  process.stdout.write(ansiEscapes.beep);
 
-  await workstation().readEnterPress(showPrompt);
+  // Display prompt message
+  process.stdout.write(renderEnterPrompt());
+
+  await workstation().readEnterPress();
 
   process.stdout.write(ansiEscapes.eraseLines(2) + ansiEscapes.cursorLeft);
 }

@@ -3,14 +3,12 @@
  * `sherlo test:eas-cloud-build` resolve it here, once, and every refusal of it happens here,
  * before any request.
  *
- * The first of three is spent, in this order:
+ * The first of two is spent, in this order:
  *
- *     1. SHERLO_TOKEN      - a project token: the project is the one the token names
- *     2. GitHub's ID token - on GitHub Actions only, traded for a session: the project is the
- *                            config's `project`
- *     3. the saved login   - a person's credential: the project is the config's `project`
+ *     1. SHERLO_TOKEN     - a project token: the project is the one the token names
+ *     2. the saved login  - a person's credential: the project is the config's `project`
  *
- * The project token always beats the rest, so a CI job never depends on who is logged in on its
+ * The project token always beats the login, so a CI job never depends on who is logged in on its
  * machine. An empty SHERLO_TOKEN counts as unset, because GitHub turns a missing secret into an
  * empty string. The EAS opener takes a project token only, because its token travels to Expo's
  * build machine. No variable carries a personal token: the login is the only person's credential a
@@ -25,13 +23,7 @@
 import { TEAM_ID_LENGTH } from '@sherlo/shared';
 import { DOCS_LINK, TEST_EAS_CLOUD_BUILD_COMMAND } from '../../../constants';
 import { LOGIN_COMMAND } from '../../../commands/login/constants';
-import {
-  renderNoGitHubIdToken,
-  renderRepositoryNotConnected,
-  renderTokenGone,
-} from '../../../render/pushCredential';
-import { emit } from '../../transcriptSink';
-import { serverCalls } from '../../../seams/serverCalls';
+import { renderTokenGone } from '../../../render/pushCredential';
 import { savedLogins } from '../../../seams/savedLogins';
 import { InvalidatedConfig, PushCredential } from '../../../types';
 import { getEndpointUrl } from '../../buildStatusRequest';
@@ -43,11 +35,11 @@ import throwError from '../../throwError';
 /** The variable CI keeps the project token in. */
 const PROJECT_TOKEN_ENV_VAR = 'SHERLO_TOKEN';
 
-async function resolvePushCredential(
+function resolvePushCredential(
   command: string,
   config: InvalidatedConfig,
   passedOptions: object = {}
-): Promise<PushCredential> {
+): PushCredential {
   // `--token` and the config's `token` are both refused, never read. The option and the config key
   // are in no type, and the config file is JSON a person wrote, so its `token` may be anything.
   const givenToken = (passedOptions as { token?: unknown }).token;
@@ -62,12 +54,6 @@ async function resolvePushCredential(
     return spendProjectToken(projectToken, config);
   }
 
-  // The second credential: GitHub's ID token, only inside GitHub Actions. A job that was not
-  // granted `id-token: write` has no ACTIONS_ID_TOKEN_REQUEST_URL and is refused there.
-  if (process.env.GITHUB_ACTIONS === 'true') {
-    return spendGitHubIdToken(config);
-  }
-
   const savedLogin = savedLogins().read(getEndpointUrl());
 
   if (!savedLogin) refuseNoCredential();
@@ -78,35 +64,16 @@ async function resolvePushCredential(
 
   const { teamId, projectIndex } = parseConfigProject(config.project);
 
-  return { kind: 'person', token: savedLogin.token, teamId, projectIndex };
+  return {
+    kind: 'person',
+    token: savedLogin.token,
+    teamId,
+    projectIndex,
+    fromSavedLogin: true,
+  };
 }
 
 export default resolvePushCredential;
-
-/**
- * GitHub's ID token, traded with the service once for a session on the config's project. The
- * session is the credential for every call the run makes.
- */
-async function spendGitHubIdToken(config: InvalidatedConfig): Promise<PushCredential> {
-  const repository = process.env.GITHUB_REPOSITORY ?? '';
-
-  if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL) {
-    throwError(renderNoGitHubIdToken());
-  }
-
-  if (config.project === undefined) refuseNoProject();
-  const { teamId, projectIndex } = parseConfigProject(config.project);
-
-  const trade = await serverCalls().tradeGitHubIdToken({ repository, teamId });
-
-  if (trade.status === 'not-connected') {
-    throwError(renderRepositoryNotConnected(repository, trade.teamName));
-  }
-
-  emit({ kind: 'signed-in-through-github', repository });
-
-  return { kind: 'github-session', token: trade.token, teamId, projectIndex, repository };
-}
 
 /* ========================================================================== */
 /* A project token                                                            */
@@ -135,7 +102,14 @@ function spendProjectToken(projectToken: string, config: InvalidatedConfig): Pus
     }
   }
 
-  return { kind: 'projectToken', token: projectToken, apiToken, teamId, projectIndex };
+  return {
+    kind: 'projectToken',
+    token: projectToken,
+    apiToken,
+    teamId,
+    projectIndex,
+    fromSavedLogin: false,
+  };
 }
 
 /* ========================================================================== */

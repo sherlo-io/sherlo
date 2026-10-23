@@ -320,8 +320,7 @@ function underTheRow(lines: string[]): string[] {
  * The story files the test captures, every platform's together, each named once: `+` a story file
  * the build it diffed against did not have, `~` one a change reaches, and unmarked one captured
  * though nothing it uses changed (every story is captured when no main branch is set). New first,
- * then changed. A file only one platform has says which. The marks follow the server's lists: it
- * sends none when there was nothing to compare against.
+ * then changed. A file only one platform has says which.
  */
 function storyFilesCaptured(capture: PlatformCapture[]): string[] {
   const added = filesOfEveryPlatform(capture, ({ newStoryFiles }) => newStoryFiles);

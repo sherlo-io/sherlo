@@ -320,8 +320,6 @@ describe('a request no rule names', () => {
   });
 
   it('a story with no network rules at all leaves fetch and XMLHttpRequest untouched', async () => {
-    // Testing mode, outside a capture: only a capture wraps every story's requests to list them
-    // (unansweredRequests.test.ts).
     await activateStory({ story: [] });
 
     expect(globals.fetch).toBe(realFetch);
@@ -335,21 +333,6 @@ describe('a request no rule names', () => {
 
     expect(globals.fetch).toBe(realFetch);
     expect(globals.XMLHttpRequest).toBe(FakeXhr);
-  });
-
-  it("in a cloud test run a story with no network mock runs on the app's own fetch and XMLHttpRequest", async () => {
-    // A cloud test run reports testing mode, as a capture does, but its bundle came from no
-    // bundler, so it carries no list of the app's modules and the polyfill made no capture watcher.
-    expect(mockGetMode()).toBe('testing');
-    expect((globalThis as { __sherloStillReal?: unknown }).__sherloStillReal).toBeUndefined();
-    const realNetwork = vi.fn(async () => new Response('from the network'));
-    globals.fetch = realNetwork as unknown as typeof fetch;
-
-    await activateStory({ story: [] });
-
-    expect(globals.fetch).toBe(realNetwork);
-    expect(globals.XMLHttpRequest).toBe(FakeXhr);
-    await expect(get(`${BASE}/anything`)).resolves.toBe('from the network');
   });
 });
 

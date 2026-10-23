@@ -42,8 +42,8 @@ async function installSherlo(): Promise<void> {
   const packageSpec = localSdkPath
     ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${localSdkProtocol}:${localSdkPath}`
     : sdkVersion
-      ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
-      : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
+    ? `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}@${sdkVersion}`
+    : SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME;
 
   // Detected FROM THE PROJECT, not from wherever the process happens to be standing - the project
   // is what the manager will be run in, and it is what a pose lays out in `files`.

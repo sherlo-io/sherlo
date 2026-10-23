@@ -74,7 +74,7 @@ export type InvalidatedConfig = PartialDeep<Config, { recurseIntoArrays: true }>
 export type Options<
   C extends Command | 'any',
   M extends OptionsMode = 'withoutDefaults',
-  F extends OptionsFormat = 'raw',
+  F extends OptionsFormat = 'raw'
 > = CommonOptions<M, F> & CommandOptions[C];
 
 type OptionsMode = 'withoutDefaults' | 'withDefaults';
@@ -162,13 +162,14 @@ export type CommandParams<C extends Command | 'any' = 'any'> = Config &
  * The credential a push or a view spends, and the project it goes to. Resolved once, before any
  * request, by helpers/getValidatedCommandParams/validateCommandParams/resolvePushCredential.
  *
- * `token` is what the push hands the server seam, whole, whichever the kind.
+ * `token` is what the push hands the server seam on both: the project token whole, or the saved
+ * login's token.
  *
- * Only a `person` is the login saved on this computer, and the service refusing a saved login is
- * answered differently from refusing a token somebody gave: the person runs `sherlo login` again
- * (commands/shared/refuseRejectedLogin).
+ * `fromSavedLogin` says whether the token is the login saved on this computer, because the service
+ * refusing a saved login is answered differently from refusing a token somebody gave: the person
+ * runs `sherlo login` again (commands/shared/refuseRejectedLogin).
  */
-export type PushCredential = ProjectTokenCredential | PersonCredential | GitHubSessionCredential;
+export type PushCredential = ProjectTokenCredential | PersonCredential;
 
 /** A project token: the token whole, and the three parts `getTokenParts` slices from it. */
 export type ProjectTokenCredential = {
@@ -177,6 +178,7 @@ export type ProjectTokenCredential = {
   apiToken: string;
   teamId: string;
   projectIndex: number;
+  fromSavedLogin: false;
 };
 
 /** The saved login, and the team and project the config's `project` names. */
@@ -185,15 +187,7 @@ export type PersonCredential = {
   token: string;
   teamId: string;
   projectIndex: number;
-};
-
-/** A GitHub Actions job's session, traded for its ID token: good for one repository and team. */
-export type GitHubSessionCredential = {
-  kind: 'github-session';
-  token: string;
-  teamId: string;
-  projectIndex: number;
-  repository: string;
+  fromSavedLogin: true;
 };
 
 export type InvalidatedCommandParams<C extends Command | 'any' = 'any'> = InvalidatedConfig &

@@ -106,8 +106,9 @@ vi.mock('../../runShellCommand', () => ({
 
 /** Let the fingerprint ask the real git what the project commits; every other command still fails. */
 async function answerGitForReal(): Promise<void> {
-  const real =
-    await vi.importActual<typeof import('../../runShellCommand')>('../../runShellCommand');
+  const real = await vi.importActual<typeof import('../../runShellCommand')>(
+    '../../runShellCommand'
+  );
   mockRunShellCommand.mockImplementation(async (options: { command: string }) => {
     if (options.command.startsWith('git ')) return real.default(options as never);
     throw new Error('not available in test');

@@ -4,7 +4,8 @@
 // Module Mocking - shim emission + resolver map (SHERLO-1734 Phase 2)
 // ---------------------------------------------------------------------------
 //
-// Given the set of mock keys (from mockScan + the `mockModules` escape hatch), this module:
+// Given the set of mock keys (from mockScan + the `mockModules` escape hatch),
+// this module:
 //   1. rejects deny-listed keys (FG-02),
 //   2. resolves each key to an absolute real-module path (FG-01),
 //   3. writes one deterministic one-line shim per key under <cacheDir>/mocks/,
@@ -20,8 +21,6 @@ var fs = require('fs');
 var path = require('path');
 
 var scan = require('./mockScan');
-var toRelativePath = require('./projectPaths').toRelativePath;
-var createResolveLikeMetro = require('./resolveLikeMetro').createResolveLikeMetro;
 
 // Mirror of src/mocking/denyList.ts MOCK_DENY_LIST. Kept as a literal here
 // because this file runs at Metro-config time (plain JS, before any tsc build);
@@ -58,23 +57,6 @@ function isRelativeOrAbsolute(key) {
   return isRelativeKey(key) || path.isAbsolute(key);
 }
 
-// The file `filePath` really is, with every symlink on the way followed, so a project installed
-// through links (pnpm, a monorepo) names each file one way only. When it is not on disk (a unit
-// test's synthetic path) it is the absolute form of the path: both callers pass absolute paths,
-// which stay as written, and a relative one still compares against absolute ones.
-function realFilePath(filePath) {
-  try {
-    return fs.realpathSync(filePath);
-  } catch (_) {
-    return path.resolve(filePath);
-  }
-}
-
-// Whether `file` lies somewhere under `folder` (both absolute). False when either is missing.
-function isInsideFolder(file, folder) {
-  return !!file && !!folder && file.indexOf(folder + path.sep) === 0;
-}
-
 // Reduce an absolute module path to a platform/extension-independent identity so
 // that Button.tsx, Button.ios.tsx, and Button.android.tsx all collapse to the
 // same key. This is what lets ONE shim match a module across every platform.
@@ -85,7 +67,12 @@ function isInsideFolder(file, folder) {
 // otherwise make the config-time identity and the runtime identity diverge).
 // Non-existent paths fall back to the raw path unchanged.
 function canonicalizeModulePath(absPath) {
-  var real = realFilePath(absPath);
+  var real = absPath;
+  try {
+    real = fs.realpathSync(absPath);
+  } catch (_) {
+    /* path may not exist (e.g. unit tests on synthetic paths); use it as-is */
+  }
   var ext = path.extname(real);
   if (!ext) return real;
   var base = real.slice(0, -ext.length);
@@ -134,12 +121,6 @@ function appModuleResult(file, moduleKey) {
     canonicalRealPath: modulePath,
     requireSpecifier: modulePath,
   };
-}
-
-// The package a bare key names: 'pkg/sub' -> 'pkg', '@scope/name/sub' -> '@scope/name'.
-function packageNameOf(key) {
-  var parts = key.split('/');
-  return key.charAt(0) === '@' ? parts.slice(0, 2).join('/') : parts[0];
 }
 
 // A bare key is a package ROOT (not a subpath) when it has no path segment past
@@ -265,10 +246,7 @@ function packageRootAlternateCanonicalPaths(key, resolved, primaryCanonicalPath)
 // a story wrote as a string, or the mockModules option named, has no such file and is read
 // from the project root.
 // Throws when the key cannot be resolved (FG-01).
-//
-// resolveLikeMetro, when given, is (name) -> the file the app's bundler resolves the name to, or
-// null (metro/resolveLikeMetro.js); without it only Node and the project root are asked.
-function resolveMockKey(key, projectRoot, importedFromFile, resolveLikeMetro) {
+function resolveMockKey(key, projectRoot, importedFromFile) {
   // Explicit './'-prefixed or absolute keys are always app modules.
   if (isRelativeOrAbsolute(key)) {
     var namedBesideFile = !!importedFromFile && isRelativeKey(key);
@@ -283,40 +261,16 @@ function resolveMockKey(key, projectRoot, importedFromFile, resolveLikeMetro) {
   // semantics. Only when that fails do we treat the key as a DOTLESS
   // project-root-relative app module ('src/api/client'), the canonical
   // app-module key form. FG-01 fires only when both routes fail.
-  //
-  // The app's own bundler resolution comes first (resolveLikeMetro, which reads the config's
-  // extraNodeModules too): it names the file Metro will hand the resolver. Node's require.resolve
-  // stays for the package branch below, which keeps a bare specifier so Metro re-resolves it.
-  var viaMetro = resolveLikeMetro ? resolveLikeMetro(key) : null;
   try {
     var resolved = require.resolve(key, { paths: [projectRoot] });
     var canonicalRealPath = canonicalizeModulePath(resolved);
-    var owner = findPackageDir(resolved, packageNameOf(key));
-    // A name no package owns (an alias both Metro and Node reach) is an app module: the stand-in
-    // requires the file by absolute path, never the name, so its own request is never matched
-    // against the name again and never resolves from the shim folder to another copy.
-    var appModuleFile = owner ? null : viaMetro || (path.isAbsolute(resolved) ? resolved : null);
-    if (appModuleFile) {
-      return appModuleResult(appModuleFile, key);
-    }
-    var alternates = packageRootAlternateCanonicalPaths(key, resolved, canonicalRealPath);
-    if (viaMetro) {
-      // The file Metro picks for the package may differ from Node's (main vs react-native).
-      var metroCanonical = canonicalizeModulePath(viaMetro);
-      if (metroCanonical !== canonicalRealPath && alternates.indexOf(metroCanonical) === -1) {
-        alternates = alternates.concat(metroCanonical);
-      }
-    }
     return {
       moduleKey: key,
       canonicalRealPath: canonicalRealPath,
       requireSpecifier: key,
-      alternateCanonicalPaths: alternates,
-      packageDir: owner ? owner.dir : null,
+      alternateCanonicalPaths: packageRootAlternateCanonicalPaths(key, resolved, canonicalRealPath),
     };
   } catch (_) {
-    // Node cannot reach the name, Metro can (extraNodeModules): an app module.
-    if (viaMetro) return appModuleResult(viaMetro, key);
     var appFile = resolveAppModuleFile(path.resolve(projectRoot, key));
     if (appFile) return appModuleResult(appFile, key);
     throw new Error('cannot resolve mock key');
@@ -330,32 +284,43 @@ function shimFileName(moduleKey) {
   return 'mock-' + hash + '.js';
 }
 
-// The shim body: one createLazyMockable call that loads the real module on first use. The stand-in
-// is module.exports from the first moment, so a module in an import cycle through the real file
-// never holds an empty exports object. requireSpecifier is emitted as a require() so Metro (not us)
-// does the real resolution at bundle time - which re-resolves platform-split files.
+// The one-line shim body: a single createMockable call requiring the real
+// module. requireSpecifier is emitted as a require() so Metro (not us) does the
+// real resolution at bundle time - which re-resolves platform-split files.
 function generateShimContent(moduleKey, requireSpecifier) {
   return (
     "'use strict';\n" +
     'module.exports = require(' +
     JSON.stringify(CREATE_MOCKABLE_SPECIFIER) +
-    ').createLazyMockable(' +
+    ').createMockable(' +
     JSON.stringify(moduleKey) +
-    ', function () { return require(' +
+    ', require(' +
     JSON.stringify(requireSpecifier) +
-    '); });\n'
+    '));\n'
   );
 }
 
 // -------------------------------------------------------------------------
 // Config-time scan overhead budget (WS7 / SHERLO-1738 Phase 6)
 // -------------------------------------------------------------------------
-// setupMocks runs ONCE per `metro` config load, not per request. Measured (Apple M-series, warm
-// fs cache): ~0.7 ms scan for a ~520-file app, ~7 / ~28 ms for 13 / ~120 mock stories over 2000
-// files, ~6 / 15 / 32 ms to resolve and emit 10 / 40 / 100 keys - a realistic app well under
-// 50 ms. BUDGET: scan + setup MUST stay under 250 ms for the largest project. Past it, profile
-// first: the babel parse per story file and the require.resolve per package key dominate (memoise
-// resolves across keys, or cache parsed keys by file mtime across warm Metro restarts).
+// setupMocks (scanProjectForMocks + deny-list + per-key resolve + shim
+// emission) runs ONCE per `metro` config load, not per request. Measured on
+// the fixtures in this repo (Apple M-series, warm fs cache):
+//   - largest real fixture (integrated-app-expo-sb8, ~520 files): ~0.7 ms scan
+//   - synthetic monorepo, 13 mock stories + 2000 source files:    ~7 ms scan
+//   - pathological, ~120 mock stories + 2000 files:               ~28 ms scan
+//   - setupMocks resolving+emitting 10 / 40 / 100 mock keys: ~6 / 15 / 32 ms
+// So a realistic app lands well under 50 ms combined; even a pathological
+// monorepo (120 stories + 100 keys + 2000 files) stays around ~60 ms.
+//
+// BUDGET: the combined scan + setup MUST stay under 250 ms for the largest
+// project. That is ~4x the pathological measurement above - headroom for a
+// cold fs cache, slower CI disks, and future growth. If a change pushes past
+// it, profile before shipping: the dominant costs are the babel parse per
+// story/preview file and the require.resolve per package key, both of which
+// scale linearly and are the first places to optimise (e.g. memoise resolves
+// across keys, or cache parsed keys by file mtime so unchanged files are not
+// re-parsed on a warm Metro restart).
 // -------------------------------------------------------------------------
 //
 // Build the complete mock setup for a config run.
@@ -363,7 +328,6 @@ function generateShimContent(moduleKey, requireSpecifier) {
 // Returns { mocksDir, mockedPathToShim, shimPaths }:
 //   - mockedPathToShim: Map<canonicalRealPath, shimAbsolutePath> for the resolver.
 //   - shimPaths:        every emitted shim path (for tests / diagnostics).
-//   - declaredImportsPolyfill: the polyfill naming what the scan saw, or null with no mocks.
 //
 // Side effect: the <cacheDir>/mocks/ directory is rewritten to contain exactly
 // the current key set's shims (stale shims from prior runs are removed).
@@ -375,7 +339,6 @@ function setupMocks(opts) {
   var projectRoot = opts.projectRoot;
   var cacheDir = opts.cacheDir;
   var mockModules = Array.isArray(opts.mockModules) ? opts.mockModules : [];
-  var resolveLikeMetro = createResolveLikeMetro(opts.metroConfig, projectRoot);
 
   // 1. Collect what the project declares: static scan + the mockModules escape hatch (MK-10).
   var declaredMocks = opts.scanFiles
@@ -395,7 +358,10 @@ function setupMocks(opts) {
   // is filed under where its key points and never under the key's bare text.
   var mocksByModulePath = new Map();
   declaredMocks.forEach(function (declared) {
-    var modulePath = modulePathOf(declared);
+    var declaringFile = importExpressionFile(declared);
+    var modulePath = declaringFile
+      ? path.resolve(path.dirname(declaringFile), declared.key)
+      : declared.key;
     if (!mocksByModulePath.has(modulePath)) mocksByModulePath.set(modulePath, declared);
   });
 
@@ -411,15 +377,10 @@ function setupMocks(opts) {
   // metro config is evaluated in the client's production build pipeline, so a throw here
   // would fail a store build on a typo in a Sherlo story fixture. Instead we warn-and-skip:
   // emit a clear console.warn naming the key AND its source, skip that key (no shim, no map
-  // entry), and continue with the rest. A skipped key still fails its story at run time, as a mock
-  // the bundler had not seen (src/mocking/activateStoryMocks.ts, mockFailureOf).
+  // entry), and continue with the rest. A skipped key still surfaces at runtime via the FG-03
+  // unshimmed-key tripwire.
   var mockedPathToShim = new Map();
   var shimPaths = [];
-  var mockedPackages = new Map();
-  var bareKeyShims = new Map();
-  var shimmedKeys = [];
-  // The name each module's stand-in is installed under, by the module path it was filed under.
-  var moduleKeyByModulePath = new Map();
 
   mocksByModulePath.forEach(function (declared) {
     var key = declared.key;
@@ -441,7 +402,7 @@ function setupMocks(opts) {
 
     var resolved;
     try {
-      resolved = resolveMockKey(key, projectRoot, importExpressionFile(declared), resolveLikeMetro);
+      resolved = resolveMockKey(key, projectRoot, importExpressionFile(declared));
     } catch (_) {
       console.warn(
         '[Sherlo] Skipping mock key "' +
@@ -469,128 +430,14 @@ function setupMocks(opts) {
     for (var a = 0; a < alternates.length; a++) {
       mockedPathToShim.set(alternates[a], shimPath);
     }
-    if (resolved.packageDir) {
-      mockedPackages.set(key, { dir: resolved.packageDir, shimPath: shimPath });
-    }
-    if (!isRelativeOrAbsolute(key)) bareKeyShims.set(key, shimPath);
     shimPaths.push(shimPath);
-    shimmedKeys.push(key);
-    moduleKeyByModulePath.set(modulePathOf(declared), resolved.moduleKey);
   });
-
-  // One line at every bundler start that reads mocks, so a log always says which mocks can apply.
-  if (mocksByModulePath.size > 0) {
-    console.log('[Sherlo] mocks shimmed: ' + (shimmedKeys.join(', ') || 'none'));
-  }
 
   return {
     mocksDir: mocksDir,
     mockedPathToShim: mockedPathToShim,
-    mockedPackages: mockedPackages,
-    warnedKeys: new Set(),
-    bareKeyShims: bareKeyShims,
-    reachedShims: new Set(),
     shimPaths: shimPaths,
-    declaredImportsPolyfill:
-      mocksByModulePath.size > 0
-        ? writeDeclaredImportsPolyfill(cacheDir, projectRoot, declaredMocks, moduleKeyByModulePath)
-        : null,
   };
-}
-
-// Where a declaration's key points: beside the file whose import expression named it, or the
-// key's own text for a key read from the project root.
-function modulePathOf(declared) {
-  var declaringFile = importExpressionFile(declared);
-  return declaringFile ? path.resolve(path.dirname(declaringFile), declared.key) : declared.key;
-}
-
-// What the scan saw, for the run-time check that fails a story whose mock did not take effect
-// (src/mocking/declaredImports.ts): each story file's mocks declared by an import expression, as
-// the file wrote them, with the name each one's stand-in is installed under (null when the scan
-// made it none), and every name a stand-in was made for. A stand-in loads only when something
-// imports it, so the app cannot learn this from the stand-ins it has loaded. Story files are filed
-// under the path Storybook knows them by (`./src/X.stories.tsx`, from the project root). It
-// reaches run time as a polyfill setting `globalThis.__sherloDeclaredImports`; returns its path.
-function writeDeclaredImportsPolyfill(cacheDir, projectRoot, declaredMocks, moduleKeyByModulePath) {
-  var storyFiles = {};
-  declaredMocks.forEach(function (declared) {
-    var storyPath = declared.file.charAt(0) !== '<' && toRelativePath(declared.file, projectRoot);
-    if (!declared.namedByImport || !storyPath) return;
-    var imports = storyFiles[storyPath] || (storyFiles[storyPath] = []);
-    var written = imports.some(function (declaredImport) {
-      return declaredImport.specifier === declared.key;
-    });
-    if (written) return;
-    imports.push({
-      specifier: declared.key,
-      moduleKey: moduleKeyByModulePath.get(modulePathOf(declared)) || null,
-    });
-  });
-  var declaredImports = {
-    storyFiles: storyFiles,
-    mockedModules: Array.from(new Set(moduleKeyByModulePath.values())),
-  };
-
-  fs.mkdirSync(cacheDir, { recursive: true });
-  var polyfillPath = path.join(cacheDir, 'declared-imports.js');
-  fs.writeFileSync(
-    polyfillPath,
-    "'use strict';\nglobal.__sherloDeclaredImports = " + JSON.stringify(declaredImports) + ';\n',
-    'utf8'
-  );
-  return polyfillPath;
-}
-
-// The shim a resolved request is redirected to, or undefined when it is not a mocked module.
-//
-// A file registered ahead of time (the key's own entry and the package.json entries) matches. A
-// request whose name is exactly a mocked package ROOT key matches wherever it resolves: which entry
-// file the bundler picks (a "module" field, an exports condition, a platform file) and which
-// installed copy it lands in (the app's own or a nested one) is the bundler's choice, but the
-// module asked for is the same. A deep bare key ('pkg/sub') matches any file inside its package;
-// when it lands outside its package, that is the one case the redirect cannot cover, so it warns
-// once instead of staying silent.
-function shimForRequest(mockSetup, moduleName, resolvedFilePath) {
-  var shimPath = shimMatchingRequest(mockSetup, moduleName, resolvedFilePath);
-  if (shimPath) mockSetup.reachedShims.add(shimPath);
-  return shimPath;
-}
-
-function shimMatchingRequest(mockSetup, moduleName, resolvedFilePath) {
-  var registered = mockSetup.mockedPathToShim.get(canonicalizeModulePath(resolvedFilePath));
-  if (registered) return registered;
-  var mockedPackage = mockSetup.mockedPackages.get(moduleName);
-  if (!mockedPackage) return undefined;
-  if (isPackageRootKey(moduleName)) return mockedPackage.shimPath;
-  if (isInsideFolder(realFilePath(resolvedFilePath), realFilePath(mockedPackage.dir))) {
-    return mockedPackage.shimPath;
-  }
-  if (mockSetup.warnedKeys.has(moduleName)) return undefined;
-  mockSetup.warnedKeys.add(moduleName);
-  console.warn(
-    '[Sherlo] The story mocks "' +
-      moduleName +
-      '", but the bundler resolved that import to ' +
-      resolvedFilePath +
-      ', outside the package Sherlo mocks (' +
-      mockedPackage.dir +
-      '), so this import is NOT mocked. Make sure only one copy of the package is installed.'
-  );
-  return undefined;
-}
-
-// Once the bundle is built: warns, once per key, of each mocked bare package that no import
-// reached, so a mock that can never apply is not silent in the bundler output. The bundle's
-// serializer calls it, the one point Metro gives where every import has been resolved.
-function warnUnreachedMocks(mockSetup) {
-  mockSetup.bareKeyShims.forEach(function (shimPath, key) {
-    if (mockSetup.reachedShims.has(shimPath) || mockSetup.warnedKeys.has('unreached:' + key)) {
-      return;
-    }
-    mockSetup.warnedKeys.add('unreached:' + key);
-    console.warn('[Sherlo] mock of ' + key + ' was declared but no import reached it');
-  });
 }
 
 // The file whose import expression named this key, when that is what makes the key point at a
@@ -615,12 +462,8 @@ module.exports = {
   CREATE_MOCKABLE_SPECIFIER: CREATE_MOCKABLE_SPECIFIER,
   isDeniedKey: isDeniedKey,
   canonicalizeModulePath: canonicalizeModulePath,
-  isInsideFolder: isInsideFolder,
-  realFilePath: realFilePath,
   resolveMockKey: resolveMockKey,
   shimFileName: shimFileName,
   generateShimContent: generateShimContent,
   setupMocks: setupMocks,
-  shimForRequest: shimForRequest,
-  warnUnreachedMocks: warnUnreachedMocks,
 };

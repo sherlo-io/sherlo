@@ -27,9 +27,32 @@
  */
 /* eslint-disable no-control-regex */
 import fs from 'fs';
-import { GITHUB_SESSION_PREFIX } from '../../constants';
-import { foldAndroidBuild, foldIosBuild } from './foldNativeBuilds';
-import { COLOR_ESCAPE, ESCAPE, ESCAPE_AWARE_BOUNDARY } from './maskPatterns';
+
+/**
+ * The escape byte every ANSI sequence on a screen starts with, spelled the way a pattern spells
+ * it. SPELLED RATHER THAN TYPED: a raw control character sitting in this source would be
+ * invisible to whoever read it next.
+ */
+const ESCAPE = '\\u001b';
+
+/** A whole colour escape, from its opening byte to the letter that closes it (`ESC[34m`). */
+const COLOR_ESCAPE = `${ESCAPE}\\[[0-9;?]*[A-Za-z]`;
+
+/**
+ * `\b`, made to see past a colour escape.
+ *
+ * `\b` is a transition between a word character and a non-word one, and a colour escape's own
+ * closing byte IS a word character (`ESC[34m` ends in the letter `m`) - so the plain rule never
+ * fires between that letter and the digit or letter of the value it was painted onto. Every class
+ * below opens (and some close) right there, which is exactly where the tool prints its values, so
+ * `\b` is replaced everywhere in this module by one of these: true wherever `\b` was already true,
+ * OR immediately after a colour escape has just ended (`ESCAPE_AWARE_BOUNDARY.before`), OR
+ * immediately before one is about to start (`ESCAPE_AWARE_BOUNDARY.after`).
+ */
+const ESCAPE_AWARE_BOUNDARY = {
+  before: `(?:(?<![A-Za-z0-9_])|(?<=${COLOR_ESCAPE}))`,
+  after: `(?:(?![A-Za-z0-9_])|(?=${COLOR_ESCAPE}))`,
+};
 
 /**
  * The two paths only the machine that ran the command knows.
@@ -81,7 +104,6 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldCaptureScreenfuls(folded);
   folded = foldCaptureMeasuredSize(folded);
   folded = foldInstalledSdkVersion(folded);
-  folded = foldFeedbackMachineFacts(folded);
   folded = stripTurboSnapDiagnostic(folded);
 
   return folded;
@@ -133,7 +155,6 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<SETTLED>',
   '<PARTS>',
   '<VERSION>',
-  '<SYSTEM>',
 ];
 
 /* ========================================================================== */
@@ -168,20 +189,13 @@ function foldMachinePaths(screen: string, { projectRoot, configPath }: MaskConte
  * the index in digits (../../helpers/getTokenParts). The length bound at the end is what keeps a
  * 64-character fingerprint out: a longer run of letters and digits has no word boundary where
  * this pattern needs one.
- *
- * `id-token: write` is the GitHub Actions permission a refusal tells the reader to add, not a
- * token, so the `(?<!id-)` lookbehind leaves it alone.
  */
 function foldTokens(screen: string): string {
   return screen
     .replace(/(--(?:personal-)?token[ =])[^\s"'`\u001b]+/g, '$1<MASKED>')
-    .replace(/((?<!id-)"?[A-Za-z]*[tT]oken"?:[ \t]*"?)(?!<)[^\s",'\u001b]+/g, '$1<MASKED>')
+    .replace(/("?[A-Za-z]*[tT]oken"?:[ \t]*"?)(?!<)[^\s",'\u001b]+/g, '$1<MASKED>')
     .replace(/(Authorization:[ \t]*(?:Basic|Bearer)[ \t]+)[^\s"'\u001b]+/g, '$1<MASKED>')
     .replace(new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}sht_[A-Za-z0-9]+`, 'g'), '<MASKED>')
-    .replace(
-      new RegExp(`${ESCAPE_AWARE_BOUNDARY.before}${GITHUB_SESSION_PREFIX}[A-Za-z0-9._-]+`, 'g'),
-      '<MASKED>'
-    )
     .replace(
       new RegExp(
         `${ESCAPE_AWARE_BOUNDARY.before}[A-Za-z0-9]{40}\\d{1,6}${ESCAPE_AWARE_BOUNDARY.after}`,
@@ -408,6 +422,68 @@ function foldRunNamespace(screen: string): string {
   );
 }
 
+/** The Android build a push was handed: where it sat, and what it was called. */
+function foldAndroidBuild(screen: string): string {
+  return foldNativeBuild(screen, ['.apk'], {
+    path: '<SHERLO_ANDROID_BUILD_PATH>',
+    fileName: '<SHERLO_ANDROID_BUILD_FILE_NAME>',
+  });
+}
+
+/**
+ * The iOS build a push was handed, the same way (../../constants, `IOS_FILE_TYPES`).
+ *
+ * XCODE IS LEFT AS IT IS: `/Applications/Xcode.app` ends in `.app` too, but it is the machine's
+ * build tool, named in the words that say how to install it, never a build a push was handed.
+ */
+function foldIosBuild(screen: string): string {
+  return screen
+    .split(XCODE_APP_PATH)
+    .map((part, index) =>
+      index % 2 === 1
+        ? part
+        : foldNativeBuild(part, ['.tar.gz', '.tar', '.app'], {
+            path: '<SHERLO_IOS_BUILD_PATH>',
+            fileName: '<SHERLO_IOS_BUILD_FILE_NAME>',
+          })
+    )
+    .join('');
+}
+
+/** Xcode where it is installed, captured so a split keeps it: `/Applications/Xcode.app`, `/Applications/Xcode-beta.app`. */
+const XCODE_APP_PATH = /(\/Applications\/Xcode[^\s"'`/]*\.app)/;
+
+/** Anything a path may be made of: not whitespace, not a quote, not an escape sequence. */
+const PATH_CHARACTER = `[^\\s"'\`${ESCAPE}]`;
+
+/** Anything a bare file NAME may be made of: a path character, and never the separator itself. */
+const NAME_CHARACTER = `[^\\s"'\`/${ESCAPE}]`;
+
+/**
+ * A native build named on a command line or on a screen.
+ *
+ * THE PATH GOES FIRST AND THE BARE NAME SECOND, because a path ENDS in the name: folding the name
+ * first would leave a directory with a placeholder stuck on the end of it. The longer extensions
+ * are tried before the shorter ones for the same reason (`.tar.gz` before `.tar`).
+ */
+function foldNativeBuild(
+  screen: string,
+  extensions: string[],
+  placeholder: { path: string; fileName: string }
+): string {
+  let folded = screen;
+
+  for (const extension of extensions) {
+    const named = `${escapeForPattern(extension)}${ESCAPE_AWARE_BOUNDARY.after}`;
+
+    folded = folded
+      .replace(new RegExp(`${PATH_CHARACTER}*/${PATH_CHARACTER}*${named}`, 'g'), placeholder.path)
+      .replace(new RegExp(`${NAME_CHARACTER}+${named}`, 'g'), placeholder.fileName);
+  }
+
+  return folded;
+}
+
 /** How long a story took to stop changing - the device's answer, never the scenario's. */
 function foldCaptureSettleTime(screen: string): string {
   return screen.replace(/(settled in )\d+(?:\.\d+)?s\b/g, '$1<SETTLED>');
@@ -435,16 +511,6 @@ function foldInstalledSdkVersion(screen: string): string {
 }
 
 /**
- * The two facts `sherlo feedback --dry-run` reads off the machine: the CLI's own version and the
- * operating system, each on its own `Name: value` line.
- */
-function foldFeedbackMachineFacts(screen: string): string {
-  return screen
-    .replace(/^( *Sherlo CLI: ).*$/gm, '$1<VERSION>')
-    .replace(/^( *Operating system: ).*$/gm, '$1<SYSTEM>');
-}
-
-/**
  * The terminal artifacts a live run leaves and a single-instant transcript never should.
  *
  * A SPINNER REDRAWS ITSELF. Between hiding the cursor and showing it again it writes one frame
@@ -469,6 +535,11 @@ function stripTurboSnapDiagnostic(screen: string): string {
 /** One line with its colour taken off, for the three classes that read a line's words. */
 function visible(line: string): string {
   return line.replace(new RegExp(`${ESCAPE}\\[[0-9;?]*[A-Za-z]`, 'g'), '');
+}
+
+/** An extension is a literal, and `.` means something else to a pattern. */
+function escapeForPattern(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /** Read the whole of stdin, for `sherlo mask`. */

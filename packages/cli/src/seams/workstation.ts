@@ -70,12 +70,8 @@ export type Workstation = {
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
-  /**
-   * Take the keyboard, then call `showPrompt`, then wait for the key they press: Enter resolves, a
-   * kill key rejects and the setup is cancelled. The prompt is shown only after the keyboard is
-   * taken, so a key pressed the moment it appears is not echoed.
-   */
-  readEnterPress(showPrompt: () => void): Promise<void>;
+  /** Wait for the key they press: Enter resolves, a kill key rejects and the setup is cancelled. */
+  readEnterPress(): Promise<void>;
 
   /** Ask the person to pick one of the choices, and answer the value of the one they picked. */
   chooseOne<Value>(params: {
@@ -129,13 +125,9 @@ export const liveWorkstation: Workstation = {
    */
   somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
 
-  readEnterPress: (showPrompt) => {
+  readEnterPress: () => {
     process.stdin.setRawMode(true);
-    showPrompt();
-
-    // A key typed before raw mode turned on is already waiting in the input. Take it out now so
-    // it counts like a key pressed after.
-    const keyAlreadyWaiting: Buffer | null = process.stdin.read();
+    process.stdin.resume();
 
     return new Promise<void>((resolve, reject) => {
       const cleanup = () => {
@@ -154,9 +146,8 @@ export const liveWorkstation: Workstation = {
           return;
         }
 
-        // Enter. A terminal still in line mode turns the key's carriage return (13) into a line
-        // feed (10), so an Enter that arrives early comes in as 10.
-        if (keyCode === 13 || keyCode === 10) {
+        if (keyCode === 13) {
+          // Enter
           cleanup();
           resolve();
         } else {
@@ -165,11 +156,6 @@ export const liveWorkstation: Workstation = {
       };
 
       process.stdin.on('data', handleKeypress);
-
-      // Put the waiting key back so it reaches the handler as a 'data' event, the same way a key
-      // pressed later does: however Enter arrives, the prompt ends through one path.
-      if (keyAlreadyWaiting) process.stdin.unshift(keyAlreadyWaiting);
-      process.stdin.resume();
     });
   },
 
@@ -313,8 +299,7 @@ export function posedWorkstation(
       return posed.enter !== 'nobody';
     },
 
-    readEnterPress: async (showPrompt) => {
-      showPrompt();
+    readEnterPress: async () => {
       // `closed` is the terminal going away where the tool waits, which is exactly what the kill
       // key a real run reads there does; `pressed` is a person, and the run goes on.
       if (posed?.enter === 'closed') throw new Error('nobody pressed Enter');

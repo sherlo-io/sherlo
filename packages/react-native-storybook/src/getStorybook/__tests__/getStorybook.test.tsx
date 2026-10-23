@@ -91,7 +91,7 @@ vi.mock('../../storyOfTheApp', () => ({
 }));
 
 import getStorybook, { __resetForTests } from '../getStorybook';
-import { prepareStoryForRender } from '../sherloAnnotation';
+import sherloAnnotation from '../sherloAnnotation';
 import createMockable from '../../mocking/createMockable';
 import { activateStoryMocks } from '../../mocking';
 
@@ -151,9 +151,11 @@ describe('testing mode with no settings from a runner still returns a storybook,
   });
 
   it("the run's render delay is read through the config read that never throws", async () => {
-    // The testing-mode config read moved from getStorybook into Sherlo's decorator, which holds
-    // every story for its mocks: it reads the run's settings through getConfigOrDefault, never getConfig.
-    await expect(prepareStoryForRender('components-button--primary')).resolves.toBeUndefined();
+    // The testing-mode config read moved from getStorybook into Sherlo's loaders, which Storybook
+    // runs for every story: they read the run's settings through getConfigOrDefault, never getConfig.
+    for (const loader of sherloAnnotation.loaders) {
+      await expect(loader({ id: 'components-button--primary' })).resolves.toBeUndefined();
+    }
 
     expect(mockGetConfigOrDefault).toHaveBeenCalled();
     expect(mockGetConfig).not.toHaveBeenCalled();

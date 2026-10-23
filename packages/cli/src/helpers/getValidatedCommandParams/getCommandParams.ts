@@ -11,7 +11,7 @@ import throwError from '../throwError';
  */
 function getCommandParams<
   O extends Options<'any', 'withDefaults', 'normalized'>,
-  C extends InvalidatedConfig,
+  C extends InvalidatedConfig
 >(options: O, config: C): C & O {
   const { projectRoot } = options;
 

@@ -106,7 +106,6 @@ export function posedSurroundings({
   git,
   clock = [],
   startedAt,
-  waitForPlay,
 }: {
   env: Record<string, string>;
   git: PosedGit;
@@ -114,8 +113,6 @@ export function posedSurroundings({
   clock?: string[];
   /** Where the clock stands before the first instant - the pose's `push.now`, or this run's own start. */
   startedAt?: string;
-  /** A PLAYED run's wait: every sleep lets this pass (a fixed 2 seconds of virtual time). Absent, a sleep is instant. */
-  waitForPlay?: () => Promise<void>;
 }): Surroundings {
   // THE POSED CLOCK: each read hands out the next instant the pose listed; once the list is spent
   // the clock stands still at the last one, and a pose that listed none stands at `startedAt` for
@@ -145,7 +142,6 @@ export function posedSurroundings({
             "the pose's answers, or its clock, never let the command stop waiting"
         );
       }
-      await waitForPlay?.();
     },
 
     installSettings: () => {

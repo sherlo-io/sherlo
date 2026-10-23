@@ -39,7 +39,7 @@
     "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
     "check:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts --check",
     "generate:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts",
-    "lint": "cd ../.. && yarn run -T oxlint packages/cli/src actions/lib && yarn run -T oxfmt --check 'packages/cli/src/**/*.{ts,tsx}' 'actions/lib/**/*.mjs'",
+    "lint": "cd ../.. && yarn run -T oxlint packages/cli/src actions/lib && cd packages/cli && yarn run -T prettier --check 'src/**/*.{ts,tsx}' '../../actions/lib/**/*.mjs'",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "dependencies": {
@@ -52,7 +52,7 @@
     "@inquirer/core": "^10.3.2",
     "@inquirer/prompts": "^7.8.4",
     "@sentry/node": "10.47.0",
-    "@sherlo-io/time-limits": "^1.4.0",
+    "@sherlo-io/time-limits": "^1.2.2",
     "@sherlo/api-types": "portal:../../sherlo-lib/extracted/@sherlo/api-types",
     "@sherlo/common-client": "portal:../../sherlo-lib/extracted/@sherlo/common-client",
     "@sherlo/sdk-client": "portal:../../sherlo-lib/extracted/@sherlo/sdk-client",
@@ -64,7 +64,6 @@
     "@types/prompts": "^2.4.9",
     "@types/tar": "^6.1.5",
     "@types/ws": "^8.5.14",
-    "agent-cli-detector": "0.1.6",
     "ansi-escapes": "^7.2.0",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
@@ -81,7 +80,6 @@
     "package-manager-detector": "^0.2.9",
     "type-fest": "^4.20.1",
     "typescript": "7.0.2",
-    "typescript-5": "npm:typescript@5.9.3",
     "vitest": "^5.0.4",
     "wrap-ansi": "^9.0.0",
     "ws": "^8.18.0"

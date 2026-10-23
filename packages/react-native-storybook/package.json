@@ -84,7 +84,6 @@
     "sherlo-react-native-storybook.podspec",
     "dist-metro/withStorybook.js",
     "dist-metro/detectStorybookSetup.js",
-    "dist-metro/mockSpecifierTransformer.js",
     "dist-metro/polyfill.js",
     "dist-metro/sherloBuild.js",
     "dist-metro/sherloLine.js",
@@ -98,7 +97,7 @@
     "prepack": "node scripts/packSealedCore.js && yarn build:metro",
     "core:pin": "node scripts/pinCore.js",
     "dev": "yarn build --watch",
-    "lint": "yarn run -T oxlint -c ../../.oxlintrc.json src && yarn run -T oxfmt --check 'src/**/*.{ts,tsx}'",
+    "lint": "yarn run -T oxlint -c ../../.oxlintrc.json src && yarn run -T prettier --check 'src/**/*.{ts,tsx}'",
     "test": "../../scripts/require-test-exec-optin.sh && vitest run"
   },
   "dependencies": {
@@ -111,7 +110,7 @@
   "devDependencies": {
     "@babel/parser": "^7.29.3",
     "@babel/types": "^7.29.0",
-    "@sherlo-io/time-limits": "^1.4.0",
+    "@sherlo-io/time-limits": "^1.2.2",
     "@storybook/react-native": "9.1.4",
     "@types/base-64": "^1.0.0",
     "@types/react": "^18.2.0",

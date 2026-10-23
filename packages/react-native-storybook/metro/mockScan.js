@@ -206,20 +206,6 @@ function walkForMockKeys(ast, addMockKey) {
   });
 }
 
-// The syntax tree of a story or preview file's source, or null when it cannot be parsed. The
-// parse is shallow: TypeScript and JSX are read, nothing is evaluated.
-function parseScanTarget(source) {
-  try {
-    return getBabelParser().parse(source, {
-      sourceType: 'unambiguous',
-      errorRecovery: true,
-      plugins: ['typescript', 'jsx'],
-    });
-  } catch (_) {
-    return null;
-  }
-}
-
 // Parse one file's source and return the distinct modules it declares a mock for: each as
 // its key and whether an import expression named it. The two forms name a module differently,
 // so they are read differently later - an import expression is written relative to the file it
@@ -227,8 +213,17 @@ function parseScanTarget(source) {
 // project root. Parse failures are non-fatal: a malformed file simply yields nothing rather
 // than breaking the Metro config.
 function collectMockEntriesFromSource(source) {
-  var ast = parseScanTarget(source);
-  if (!ast) return [];
+  var parser = getBabelParser();
+  var ast;
+  try {
+    ast = parser.parse(source, {
+      sourceType: 'unambiguous',
+      errorRecovery: true,
+      plugins: ['typescript', 'jsx'],
+    });
+  } catch (_) {
+    return [];
+  }
 
   var namedByImport = new Map();
   walkForMockKeys(ast.program || ast, function (key, fromImportExpression) {
@@ -274,9 +269,6 @@ function scanFileForMocks(file) {
 module.exports = {
   findScanFiles: findScanFiles,
   isScanTarget: isScanTarget,
-  parseScanTarget: parseScanTarget,
-  walkNodes: walkNodes,
-  importedSpecifier: importedSpecifier,
   collectMockEntriesFromSource: collectMockEntriesFromSource,
   scanFileForMocks: scanFileForMocks,
   scanProjectForMocks: scanProjectForMocks,

@@ -25,8 +25,9 @@ import {
   SINGLE_READ_TIMEOUT_MS,
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
-import authTokenFor from '../helpers/authTokenFor';
-import liveGitHubTrade from './liveGitHubTrade';
+import getTokenParts from '../helpers/getTokenParts';
+import isBuildTicket from '../helpers/isBuildTicket';
+import isPersonalToken from '../helpers/isPersonalToken';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
 import listProjectsRequest from '../commands/projectList/listProjectsRequest';
@@ -143,47 +144,6 @@ export type ServerCalls = {
    * service the tool could not reach.
    */
   logOutCli(request: { personalToken: string }): Promise<void>;
-
-  /**
-   * `sherlo feedback`: store the person's words, and what the command attached beside them, under
-   * their login. Answers the short reference the person is shown.
-   */
-  sendFeedback(request: {
-    personalToken: string;
-    kind: 'bug' | 'missing' | 'unclear' | 'other';
-    report: string;
-    context: FeedbackContext;
-  }): Promise<{ reference: string }>;
-
-  /**
-   * GitHub Actions only: trade the job's GitHub ID token for a Sherlo credential. Answers whether
-   * the repository is covered by a GitHub org install linked to the team `teamId`; when it is not,
-   * the name of the team it would have to be connected to.
-   */
-  tradeGitHubIdToken(request: { repository: string; teamId: string }): Promise<GitHubIdTokenTrade>;
-};
-
-/** The service's answer to {@link ServerCalls.tradeGitHubIdToken}. */
-export type GitHubIdTokenTrade =
-  | { status: 'signed-in'; token: string }
-  | { status: 'not-connected'; teamName: string };
-
-/** What `sherlo feedback` sends beside the report. Never a token, a saved login or an environment value. */
-export type FeedbackContext = {
-  /** The AI agent that ran the command, by name ("Claude Code"); absent when a person did. */
-  agent?: string;
-  /** The last Sherlo command this project ran, with its error lines, when one is recorded. */
-  lastCommand?: { command: string; exitCode: number; errorLines: string[]; logFile?: string };
-  cliVersion: string;
-  sdkVersion?: string;
-  reactNativeVersion?: string;
-  expoVersion?: string;
-  storybookVersion?: string;
-  packageManager?: string;
-  operatingSystem: string;
-  /** The team and project number the config's token names; the service picks the sender's team from it. */
-  project?: { teamId: string; projectIndex: number };
-  devices?: Config['devices'];
 };
 
 /** A login the service started for this run: what to open, and what only this run may ask with. */
@@ -240,6 +200,14 @@ export type CheckStagedGateAnswer = Awaited<ReturnType<SdkClient['checkStagedGat
  * the gate's every answer carries it), so a live run reads it as absent.
  */
 export type StoredAppBuildFacts = Pick<StagedGateAnswer, 'storedBase' | 'storedBuildIndex'>;
+
+/**
+ * What the service is sent for the token a push spends: a project token's api part, or a personal
+ * token or a build ticket whole - neither has parts.
+ */
+function authTokenFor(token: string): string {
+  return isPersonalToken(token) || isBuildTicket(token) ? token : getTokenParts(token).apiToken;
+}
 
 /** The one place a push's token becomes a real sdk client - every live operation below goes through it. */
 function clientFor(token: string): SdkClient {
@@ -301,25 +269,14 @@ export const liveServerCalls: ServerCalls = {
 
   // A login's token is a personal token, sent whole: it has no parts the way a project token has.
   logOutCli: async ({ personalToken }) => {
-    await sdkClient({ authToken: personalToken }, getEndpointUrl())
-      .logOutCli()
-      .catch(throwTokenRefusal);
+    try {
+      await sdkClient({ authToken: personalToken }, getEndpointUrl()).logOutCli();
+    } catch (error) {
+      if (serviceRefusedTheToken(error)) throw new ServiceRefusedTokenError();
+      throw error;
+    }
   },
-
-  // The context travels as JSON text; the service reads the sender's team from `project.teamId`.
-  sendFeedback: async ({ personalToken, kind, report, context }) =>
-    sdkClient({ authToken: personalToken }, getEndpointUrl())
-      .sendFeedback({ kind, report, context: JSON.stringify(context) })
-      .catch(throwTokenRefusal),
-
-  tradeGitHubIdToken: (request) => liveGitHubTrade(clientWithNoCredential(), request),
 };
-
-/** Rethrow a service's refusal of the token as {@link ServiceRefusedTokenError}, any other error as is. */
-function throwTokenRefusal(error: unknown): never {
-  if (serviceRefusedTheToken(error)) throw new ServiceRefusedTokenError();
-  throw error;
-}
 
 /** The service answered, and refused the token it was sent. */
 export class ServiceRefusedTokenError extends Error {
@@ -737,18 +694,6 @@ export type ScriptedCall =
       call: 'logOutCli';
       with: Record<string, never>;
       answer: Record<string, never> | ApiError;
-    }
-  | {
-      /** `sherlo feedback` stores the report; the context is composed by the command, not posed. */
-      call: 'sendFeedback';
-      with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string };
-      answer: { reference: string } | ApiError;
-    }
-  | {
-      /** GitHub Actions: the job's ID token traded for a credential, or the repository is not connected. */
-      call: 'tradeGitHubIdToken';
-      with: { repository: string; teamId: string };
-      answer: GitHubIdTokenTrade | ApiError;
     };
 
 /**
@@ -917,12 +862,6 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     logOutCli: async () => {
       answerFor('logOutCli', {});
     },
-
-    sendFeedback: async ({ kind, report }) =>
-      answerFor('sendFeedback', { kind, report }) as { reference: string },
-
-    tradeGitHubIdToken: async ({ repository, teamId }) =>
-      answerFor('tradeGitHubIdToken', { repository, teamId }) as GitHubIdTokenTrade,
   };
 }
 

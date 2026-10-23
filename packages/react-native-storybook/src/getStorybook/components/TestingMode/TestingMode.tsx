@@ -25,8 +25,8 @@ function TestingMode({
 
   const nextSnapshot = lastState?.nextSnapshot;
 
-  // The story's mocks are installed by Sherlo's decorator (../../sherloAnnotation), which holds
-  // the story back until they are in, so nothing here holds Storybook back.
+  // The story's mocks are installed by Sherlo's loader (../../sherloAnnotation), which Storybook
+  // awaits before it renders the story, so nothing here holds Storybook back.
   useTestAllStories({
     metadataProviderRef,
   });

@@ -43,7 +43,6 @@ import {
 } from '../../helpers';
 import { JSON_OPTION } from '../../constants';
 import { AuthError } from '../../helpers/buildStatusRequest';
-import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
 import { readBuildStatus, waitForTest } from '../../helpers/waitForBuildResult';
@@ -63,12 +62,11 @@ async function view(
 
   const buildIndex = resolveBuildIndex(buildArgument);
 
-  const commandParams = await getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // On a project token the team and project come from the token; on a person's credential, from
   // the config's `project` - both resolved before any request (getValidatedCommandParams).
-  const { token, projectIndex, teamId } = commandParams.credential;
-  const fromSavedLogin = isSavedLoginCredential(commandParams.credential);
+  const { token, projectIndex, teamId, fromSavedLogin } = commandParams.credential;
 
   reporting.setTag('build_index', String(buildIndex));
 

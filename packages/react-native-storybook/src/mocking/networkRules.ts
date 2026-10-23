@@ -5,7 +5,6 @@ import {
   RequestAnswer,
   RequestMatcher,
 } from './networkDeclaration';
-import type { UnansweredRequest } from '../sealedCore/seam';
 
 /**
  * THE RULES IN EFFECT, AND WHAT THEY SAY ABOUT ONE REQUEST.
@@ -46,20 +45,10 @@ export type RecordRefusal = (refusal: UnmockedRequestError) => void;
 let mocksInEffect: NetworkMocks = NO_NETWORK_MOCKS;
 let recordRefusal: RecordRefusal = () => {};
 
-// Every request no rule answered since the rules in effect were put in, in the order made. The
-// story's error keeps only the last refusal; this keeps them all, and the ones let through too.
-let unanswered: UnansweredRequest[] = [];
-
 /** Put `mocks` in effect, replacing whatever was in effect before. */
 export function setNetworkMocks(mocks: NetworkMocks, recordTheRefusal: RecordRefusal): void {
   mocksInEffect = mocks;
   recordRefusal = recordTheRefusal;
-  unanswered = [];
-}
-
-/** Every request no rule answered under the rules in effect, in the order made. */
-export function unansweredRequests(): UnansweredRequest[] {
-  return unanswered.map((request) => ({ ...request }));
 }
 
 /** What the rules in effect say about `request` - and, when they refuse it, who is told. */
@@ -67,7 +56,6 @@ export function answerFor(request: MockedRequest): Verdict {
   const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
   if (rule) return { kind: 'answer', answer: rule.answer };
 
-  unanswered.push({ method: request.method, url: request.url });
   if (mocksInEffect.passthrough) return { kind: 'passthrough' };
 
   const refusal = new UnmockedRequestError(`no mock rule matches ${request.method} ${request.url}`);

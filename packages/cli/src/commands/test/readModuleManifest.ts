@@ -149,27 +149,13 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
       moduleHashes: parsed.moduleHashes,
       storyClosures: parsed.storyClosures,
       ...(isPlainObject(parsed.storyTitles)
-        ? { storyTitles: withBareKeys(parsed.storyTitles as Record<string, string>) }
+        ? { storyTitles: parsed.storyTitles as Record<string, string> }
         : {}),
       ...(isPlainObject(parsed.storyCounts)
-        ? { storyCounts: withBareKeys(parsed.storyCounts as Record<string, number>) }
+        ? { storyCounts: parsed.storyCounts as Record<string, number> }
         : {}),
     },
   };
-}
-
-/**
- * The serializer keys story files `./src/...`; the paths a run lists are bare `src/...`. Bundles
- * built by older installed SDKs carry the `./` form too, so the CLI reads both and holds the bare one.
- */
-function bareStoryPath(storyFile: string): string {
-  return storyFile.startsWith('./') ? storyFile.slice(2) : storyFile;
-}
-
-function withBareKeys<T>(byStoryFile: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(
-    Object.entries(byStoryFile).map(([storyFile, value]) => [bareStoryPath(storyFile), value])
-  );
 }
 
 /**
@@ -216,7 +202,7 @@ export function titledStoryFilesIn(
 
 /** Every story file the bundle holds. */
 export function bundleStoryFiles(manifest: ValidatedModuleManifest): string[] {
-  return Object.keys(manifest.parsed.storyClosures).map(bareStoryPath);
+  return Object.keys(manifest.parsed.storyClosures);
 }
 
 export default readValidatedModuleManifest;

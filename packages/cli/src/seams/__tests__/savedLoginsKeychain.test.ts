@@ -257,11 +257,7 @@ describe('the keychain, when it only partly answers', () => {
     const entriesMade: { name: string; account: string; options: unknown }[] = [];
     const secrets = new Map<string, string>();
     class FakeEntry {
-      constructor(
-        private name: string,
-        private account: string,
-        options?: unknown
-      ) {
+      constructor(private name: string, private account: string, options?: unknown) {
         entriesMade.push({ name, account, options });
       }
       getPassword() {

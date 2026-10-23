@@ -98,18 +98,14 @@ beforeEach(() => {
   // The config file and the devices have their own suites; what matters here is
   // that the command works from the params it is GIVEN, options included, and
   // spends the credential the real resolver answers for them.
-  getValidatedCommandParams.mockReset().mockImplementation(async ({ command, passedOptions }) => {
+  getValidatedCommandParams.mockReset().mockImplementation(({ command, passedOptions }) => {
     const config = { ...configOfThisCase };
-    const credential = await resolvePushCredential(command, config);
+    const credential = resolvePushCredential(command, config);
     return { ...config, ...passedOptions, credential, devices: [] } as never;
   });
   configOfThisCase = {};
   // The machine running this suite may hold a project token of its own; every case states its own.
   vi.stubEnv('SHERLO_TOKEN', TOKEN);
-  // GitHub Actions sends credential resolution down the ID-token road; these cases mean the saved login.
-  vi.stubEnv('GITHUB_ACTIONS', '');
-  vi.stubEnv('ACTIONS_ID_TOKEN_REQUEST_URL', '');
-  vi.stubEnv('ACTIONS_ID_TOKEN_REQUEST_TOKEN', '');
 
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {

@@ -88,9 +88,6 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
     if ('capture' in object1) {
       readPosedCapture(object1.capture, at(path, 'capture'), problems);
     }
-    if ('coverage' in object1) {
-      readPosedCoverage(object1.coverage, at(path, 'coverage'), problems);
-    }
     if ('browser' in object1) {
       readPosedBrowser(object1.browser, at(path, 'browser'), problems);
     }
@@ -114,7 +111,6 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
         'workstation',
         'letterbox',
         'capture',
-        'coverage',
         'browser',
         'logins',
       ],
@@ -887,89 +883,6 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         }
         reportUnknownFields(object108, ['call', 'with', 'answer'], path, problems);
       }
-    } else if (oneOf1.call === 'sendFeedback') {
-      const object114 = asObject(oneOf1, path, problems);
-      if (object114) {
-        expectLiteral(object114.call, 'sendFeedback', at(path, 'call'), problems);
-        const where115 = at(path, 'with');
-        const object116 = asObject(object114.with, where115, problems);
-        if (object116) {
-          expectOneOf(
-            object116.kind,
-            ['bug', 'missing', 'unclear', 'other'],
-            at(where115, 'kind'),
-            problems
-          );
-          expectString(object116.report, at(where115, 'report'), problems);
-          reportUnknownFields(object116, ['kind', 'report'], where115, problems);
-        }
-        const oneOf117 = object114.answer;
-        const where118 = at(path, 'answer');
-        if (isPlainObject(oneOf117)) {
-          if ('error' in oneOf117) {
-            readApiError(oneOf117, where118, problems);
-          } else if ('reference' in oneOf117) {
-            const object119 = asObject(oneOf117, where118, problems);
-            if (object119) {
-              expectString(object119.reference, at(where118, 'reference'), problems);
-              reportUnknownFields(object119, ['reference'], where118, problems);
-            }
-          } else {
-            reportWrongShape(oneOf117, '`ApiError` or `{ reference: string }`', where118, problems);
-          }
-        } else {
-          reportWrongShape(oneOf117, '`ApiError` or `{ reference: string }`', where118, problems);
-        }
-        reportUnknownFields(object114, ['call', 'with', 'answer'], path, problems);
-      }
-    } else if (oneOf1.call === 'tradeGitHubIdToken') {
-      const object120 = asObject(oneOf1, path, problems);
-      if (object120) {
-        expectLiteral(object120.call, 'tradeGitHubIdToken', at(path, 'call'), problems);
-        const where121 = at(path, 'with');
-        const object122 = asObject(object120.with, where121, problems);
-        if (object122) {
-          expectString(object122.repository, at(where121, 'repository'), problems);
-          expectString(object122.teamId, at(where121, 'teamId'), problems);
-          reportUnknownFields(object122, ['repository', 'teamId'], where121, problems);
-        }
-        const oneOf123 = object120.answer;
-        const where124 = at(path, 'answer');
-        if (isPlainObject(oneOf123)) {
-          if ('error' in oneOf123) {
-            readApiError(oneOf123, where124, problems);
-          } else if ('token' in oneOf123) {
-            const object125 = asObject(oneOf123, where124, problems);
-            if (object125) {
-              expectLiteral(object125.status, 'signed-in', at(where124, 'status'), problems);
-              expectString(object125.token, at(where124, 'token'), problems);
-              reportUnknownFields(object125, ['status', 'token'], where124, problems);
-            }
-          } else if ('teamName' in oneOf123) {
-            const object126 = asObject(oneOf123, where124, problems);
-            if (object126) {
-              expectLiteral(object126.status, 'not-connected', at(where124, 'status'), problems);
-              expectString(object126.teamName, at(where124, 'teamName'), problems);
-              reportUnknownFields(object126, ['status', 'teamName'], where124, problems);
-            }
-          } else {
-            reportWrongShape(
-              oneOf123,
-              "`ApiError`, `{ status: 'signed-in'; token: string }` or `{ status: 'not-connected'; teamName: string }`",
-              where124,
-              problems
-            );
-          }
-        } else {
-          reportWrongShape(
-            oneOf123,
-            "`ApiError`, `{ status: 'signed-in'; token: string }` or `{ status: 'not-connected'; teamName: string }`",
-            where124,
-            problems
-          );
-        }
-        reportUnknownFields(object120, ['call', 'with', 'answer'], path, problems);
-      }
     } else {
       reportUnknownName(
         oneOf1.call,
@@ -990,8 +903,6 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
           'startCliLogin',
           'pollCliLogin',
           'logOutCli',
-          'sendFeedback',
-          'tradeGitHubIdToken',
         ],
         at(path, 'call'),
         problems
@@ -1000,7 +911,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }`, `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`, `{ call: 'sendFeedback'; with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string }; answer: ApiError | { reference: string } }` or `{ call: 'tradeGitHubIdToken'; with: { repository: string; teamId: string }; answer: ApiError | { status: 'signed-in'; token: string } | { status: 'not-connected'; teamName: string } }`",
+      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }` or `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`",
       path,
       problems
     );
@@ -1170,86 +1081,48 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
         }
         reportUnknownFields(object2, ['stories', 'crashed'], path, problems);
       }
-    } else if ('brokenFiles' in oneOf1) {
+    } else if ('settled' in oneOf1) {
       const object5 = asObject(oneOf1, path, problems);
       if (object5) {
         expectStringArray(object5.stories, at(path, 'stories'), problems);
-        const where6 = at(path, 'brokenFiles');
-        const list7 = asArray(object5.brokenFiles, where6, problems);
-        if (list7) {
-          list7.forEach((entry8, index9) => {
-            readBrokenStoryFile(entry8, atIndex(where6, index9), problems);
-          });
-        }
-        reportUnknownFields(object5, ['stories', 'brokenFiles'], path, problems);
-      }
-    } else if ('settled' in oneOf1) {
-      const object10 = asObject(oneOf1, path, problems);
-      if (object10) {
-        expectStringArray(object10.stories, at(path, 'stories'), problems);
-        const oneOf11 = object10.settled;
-        const where12 = at(path, 'settled');
-        if (oneOf11 === 'timed-out') {
+        const oneOf6 = object5.settled;
+        const where7 = at(path, 'settled');
+        if (oneOf6 === 'timed-out') {
           // the value is one of these
-        } else if (isPlainObject(oneOf11)) {
-          const object13 = asObject(oneOf11, where12, problems);
-          if (object13) {
-            expectNumber(object13.ms, at(where12, 'ms'), problems);
-            expectNumber(object13.frames, at(where12, 'frames'), problems);
-            reportUnknownFields(object13, ['ms', 'frames'], where12, problems);
+        } else if (isPlainObject(oneOf6)) {
+          const object8 = asObject(oneOf6, where7, problems);
+          if (object8) {
+            expectNumber(object8.ms, at(where7, 'ms'), problems);
+            expectNumber(object8.frames, at(where7, 'frames'), problems);
+            reportUnknownFields(object8, ['ms', 'frames'], where7, problems);
           }
         } else {
           reportWrongShape(
-            oneOf11,
+            oneOf6,
             '`"timed-out"` or `{ ms: number; frames: number }`',
-            where12,
+            where7,
             problems
           );
         }
-        if ('changing' in object10) {
-          expectStringArray(object10.changing, at(path, 'changing'), problems);
-        }
-        if ('stillReal' in object10) {
-          expectStringArray(object10.stillReal, at(path, 'stillReal'), problems);
-        }
-        if ('unanswered' in object10) {
-          const where14 = at(path, 'unanswered');
-          const list15 = asArray(object10.unanswered, where14, problems);
-          if (list15) {
-            list15.forEach((entry16, index17) => {
-              readUnansweredRequest(entry16, atIndex(where14, index17), problems);
-            });
+        if ('threw' in object5) {
+          const where9 = at(path, 'threw');
+          const object10 = asObject(object5.threw, where9, problems);
+          if (object10) {
+            expectString(object10.name, at(where9, 'name'), problems);
+            expectString(object10.message, at(where9, 'message'), problems);
+            reportUnknownFields(object10, ['name', 'message'], where9, problems);
           }
         }
-        if ('threw' in object10) {
-          const where18 = at(path, 'threw');
-          const object19 = asObject(object10.threw, where18, problems);
-          if (object19) {
-            expectString(object19.name, at(where18, 'name'), problems);
-            expectString(object19.message, at(where18, 'message'), problems);
-            reportUnknownFields(object19, ['name', 'message'], where18, problems);
-          }
+        if ('parts' in object5) {
+          expectNumber(object5.parts, at(path, 'parts'), problems);
         }
-        if ('parts' in object10) {
-          expectNumber(object10.parts, at(path, 'parts'), problems);
+        if ('hasNetworkImage' in object5) {
+          expectBoolean(object5.hasNetworkImage, at(path, 'hasNetworkImage'), problems);
         }
-        if ('hasNetworkImage' in object10) {
-          expectBoolean(object10.hasNetworkImage, at(path, 'hasNetworkImage'), problems);
-        }
-        readPosedView(object10.tree, at(path, 'tree'), problems);
+        readPosedView(object5.tree, at(path, 'tree'), problems);
         reportUnknownFields(
-          object10,
-          [
-            'stories',
-            'settled',
-            'changing',
-            'stillReal',
-            'unanswered',
-            'threw',
-            'parts',
-            'hasNetworkImage',
-            'tree',
-          ],
+          object5,
+          ['stories', 'settled', 'threw', 'parts', 'hasNetworkImage', 'tree'],
           path,
           problems
         );
@@ -1257,7 +1130,7 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
     } else {
       reportWrongShape(
         oneOf1,
-        "`{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: 'timed-out' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`",
+        "`{ stories: string[]; crashed: { name?: string; message?: string } }` or `{ stories: string[]; settled: 'timed-out' | { ms: number; frames: number }; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`",
         path,
         problems
       );
@@ -1265,84 +1138,10 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`',
+      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }` or `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`',
       path,
       problems
     );
-  }
-}
-
-/** The shape of a `PosedCoverage`, as `contracts/pose.contract.ts` publishes it. */
-function readPosedCoverage(value: unknown, path: string, problems: string[]): void {
-  const object1 = asObject(value, path, problems);
-  if (object1) {
-    expectNumber(object1.components, at(path, 'components'), problems);
-    const where2 = at(path, 'gaps');
-    const list3 = asArray(object1.gaps, where2, problems);
-    if (list3) {
-      list3.forEach((entry4, index5) => {
-        const where6 = atIndex(where2, index5);
-        const object7 = asObject(entry4, where6, problems);
-        if (object7) {
-          expectString(object7.name, at(where6, 'name'), problems);
-          expectString(object7.file, at(where6, 'file'), problems);
-          expectNumber(object7.importedBy, at(where6, 'importedBy'), problems);
-          if ('excluded' in object7) {
-            expectLiteral(object7.excluded, true, at(where6, 'excluded'), problems);
-          }
-          reportUnknownFields(
-            object7,
-            ['name', 'file', 'importedBy', 'excluded'],
-            where6,
-            problems
-          );
-        }
-      });
-    }
-    if ('props' in object1) {
-      const where8 = at(path, 'props');
-      const object9 = asObject(object1.props, where8, problems);
-      if (object9) {
-        expectNumber(object9.storyFiles, at(where8, 'storyFiles'), problems);
-        const where10 = at(where8, 'components');
-        const list11 = asArray(object9.components, where10, problems);
-        if (list11) {
-          list11.forEach((entry12, index13) => {
-            const where14 = atIndex(where10, index13);
-            const object15 = asObject(entry12, where14, problems);
-            if (object15) {
-              expectString(object15.name, at(where14, 'name'), problems);
-              expectString(object15.file, at(where14, 'file'), problems);
-              const where16 = at(where14, 'props');
-              const list17 = asArray(object15.props, where16, problems);
-              if (list17) {
-                list17.forEach((entry18, index19) => {
-                  const where20 = atIndex(where16, index19);
-                  const object21 = asObject(entry18, where20, problems);
-                  if (object21) {
-                    expectString(object21.prop, at(where20, 'prop'), problems);
-                    expectNumber(object21.allowed, at(where20, 'allowed'), problems);
-                    expectNumber(object21.set, at(where20, 'set'), problems);
-                    if ('missing' in object21) {
-                      expectStringArray(object21.missing, at(where20, 'missing'), problems);
-                    }
-                    reportUnknownFields(
-                      object21,
-                      ['prop', 'allowed', 'set', 'missing'],
-                      where20,
-                      problems
-                    );
-                  }
-                });
-              }
-              reportUnknownFields(object15, ['name', 'file', 'props'], where14, problems);
-            }
-          });
-        }
-        reportUnknownFields(object9, ['storyFiles', 'components'], where8, problems);
-      }
-    }
-    reportUnknownFields(object1, ['components', 'gaps', 'props'], path, problems);
   }
 }
 
@@ -2166,32 +1965,6 @@ function readPosedPlatformBuild(value: unknown, path: string, problems: string[]
       path,
       problems
     );
-  }
-}
-
-/** The shape of a `BrokenStoryFile`, as `contracts/pose.contract.ts` publishes it. */
-function readBrokenStoryFile(value: unknown, path: string, problems: string[]): void {
-  const object1 = asObject(value, path, problems);
-  if (object1) {
-    expectString(object1.file, at(path, 'file'), problems);
-    const where2 = at(path, 'error');
-    const object3 = asObject(object1.error, where2, problems);
-    if (object3) {
-      expectString(object3.name, at(where2, 'name'), problems);
-      expectString(object3.message, at(where2, 'message'), problems);
-      reportUnknownFields(object3, ['name', 'message'], where2, problems);
-    }
-    reportUnknownFields(object1, ['file', 'error'], path, problems);
-  }
-}
-
-/** The shape of a `UnansweredRequest`, as `contracts/pose.contract.ts` publishes it. */
-function readUnansweredRequest(value: unknown, path: string, problems: string[]): void {
-  const object1 = asObject(value, path, problems);
-  if (object1) {
-    expectString(object1.method, at(path, 'method'), problems);
-    expectString(object1.url, at(path, 'url'), problems);
-    reportUnknownFields(object1, ['method', 'url'], path, problems);
   }
 }
 

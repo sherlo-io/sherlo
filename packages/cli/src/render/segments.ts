@@ -32,11 +32,8 @@ import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
 import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
-import type { CoverageScreen } from './coverage';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
-import type { FeedbackKind, LastCommand } from './feedback';
-import type { FeedbackContext } from '../seams/serverCalls';
 import type { IntroducedCommand, PlatformCapture, SherloProject } from './testSteps';
 import type { PlatformRow, RowsAbove, TestWaitsFor } from './runRows';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
@@ -56,8 +53,6 @@ export type TranscriptSegment =
   | { kind: 'intro' }
   /** `Testing your app...` - the line under the logo saying what the command is doing. See ./testSteps. */
   | { kind: 'command-intro'; command: IntroducedCommand }
-  /** `Signed in through GitHub as acme-mobile/shop-app` - the credential was GitHub's ID token. */
-  | { kind: 'signed-in-through-github'; repository: string }
   /**
    * `Bundling the JavaScript for 🤖 Android...` - a step in progress (./stepInProgress): a spinner
    * in a terminal, which simply goes when the bundle is made, and one plain line in a log.
@@ -361,8 +356,6 @@ export type TranscriptSegment =
   | { kind: 'opened-story'; state: OpenedStory }
   /** The whole screen output of `sherlo capture`. See ./capturedStory. */
   | { kind: 'captured-story'; state: CapturedStory }
-  /** The whole screen output of `sherlo coverage`. See ./coverage. */
-  | { kind: 'coverage'; screen: CoverageScreen }
   /** `sherlo capture --logs` - the app's own log lines, printed after the story. See ./capturedLog. */
   | { kind: 'captured-log'; logs: string[] }
   /* ---------------------------------------------------------------------- *
@@ -386,20 +379,7 @@ export type TranscriptSegment =
   /** `✔  Logged out <email>`. */
   | { kind: 'logged-out'; email: string }
   /** `◦  Not logged in` - a logout with no saved login. */
-  | { kind: 'not-logged-in' }
-  /* ---------------------------------------------------------------------- *
-   * SENDING FEEDBACK - what `sherlo feedback` prints when it is sent.       *
-   * See ./feedback.                                                         *
-   * ---------------------------------------------------------------------- */
-  /** `✔  Feedback sent`, its reference, and what was sent with it. */
-  | { kind: 'feedback-sent'; reference: string; lastCommand?: LastCommand }
-  /** `--dry-run`: the report and everything beside it, exactly as it would be sent. */
-  | {
-      kind: 'feedback-dry-run';
-      reportKind: FeedbackKind;
-      report: string;
-      context: FeedbackContext;
-    };
+  | { kind: 'not-logged-in' };
 
 /**
  * Where rendered segments go. The CLI installs a sink that writes to the

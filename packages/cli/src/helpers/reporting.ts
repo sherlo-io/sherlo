@@ -1,6 +1,5 @@
 import * as Sentry from '@sentry/node';
 import { ENV } from '@sherlo/sdk-client';
-import { blankSecrets } from './blankSecrets';
 import stripAnsi from './stripAnsi';
 
 const dsn = {
@@ -22,30 +21,15 @@ const reporting = {
   setTag: Sentry.setTag,
   addBreadcrumb: Sentry.addBreadcrumb,
   captureException: (error: Error & { location?: string; stdout?: string; stderr?: string }) => {
-    blankErrorChain(error);
-
     if (error.location) Sentry.setExtra('location', error.location);
 
-    if (error.stdout) Sentry.setExtra('stdout', blankSecrets(stripAnsi(error.stdout)));
+    if (error.stdout) Sentry.setExtra('stdout', stripAnsi(error.stdout));
 
-    if (error.stderr) Sentry.setExtra('stderr', blankSecrets(stripAnsi(error.stderr)));
+    if (error.stderr) Sentry.setExtra('stderr', stripAnsi(error.stderr));
 
     Sentry.captureException(error);
   },
   flush: Sentry.flush,
 };
-
-/** The single Sentry exit: the message, stack and every cause lose any key before they are sent. */
-function blankErrorChain(error: Error) {
-  const seen = new Set<unknown>();
-  let current: unknown = error;
-
-  while (current instanceof Error && !seen.has(current)) {
-    seen.add(current);
-    current.message = blankSecrets(current.message);
-    if (current.stack) current.stack = blankSecrets(current.stack);
-    current = (current as Error & { cause?: unknown }).cause;
-  }
-}
 
 export default reporting;

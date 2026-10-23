@@ -26,14 +26,6 @@ yarn run ncc build metro/withStorybook.js --minify --out "$WORK_DIR/withStoryboo
 
 mv "$WORK_DIR/withStorybook/index.js" "$OUTPUT_DIR/withStorybook.js"
 
-# The story transformer is loaded on its own by each of Metro's transform workers, from the
-# transformer withStorybook writes into the project's cache (metro/mockSpecifierTransformer.js).
-yarn run ncc build metro/mockSpecifierTransformer.js --minify --out "$WORK_DIR/mockSpecifierTransformer" \
-  --external @babel/parser \
-  --external metro-babel-transformer/node_modules/@babel/parser
-
-mv "$WORK_DIR/mockSpecifierTransformer/index.js" "$OUTPUT_DIR/mockSpecifierTransformer.js"
-
 # The setup check is also loaded on its own by `sherlo init`, from the SDK installed in the project.
 yarn run ncc build metro/detectStorybookSetup.js --minify --out "$WORK_DIR/detectStorybookSetup" \
   --external @babel/parser \

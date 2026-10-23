@@ -1,15 +1,47 @@
-import {
-  activateMocks,
-  activeMockLookups,
-  isMockingModeActive,
-  MOCKED_MODULE_ERROR_NAME,
-  MockLookups,
-} from './registry';
+import { activateMocks, isKeyShimmed, isMockingModeActive } from './registry';
 import { MockSet } from './types';
 import { CLOCK_MOCK_KEY, ClockDefinition, installClock, restoreClock } from './clock';
 import { RANDOM_MOCK_KEY, RandomDefinition, installRandom, restoreRandom } from './random';
-import { bundlerSawModule } from './declaredImports';
-import type { StoryError } from '../sealedCore/seam';
+import RunnerBridge from '../helpers/RunnerBridge';
+
+// Stable log key the runner (and the FG-03 device test) tails from log.sherlo.
+export const UNSHIMMED_KEYS_LOG = 'mock declared but unshimmed';
+
+// FG-03: a key declared in `sherlo.mocks` with no generated shim can never take effect -
+// the module import was never redirected, so createMockable never ran for it (typically
+// a static-scan miss, or a key added after the last Metro start). Warn loudly, once per
+// activation, naming the key and both fixes - callers must call this only once shims have
+// had the chance to load. Activation reads only the selected story (./storyMocksOf),
+// which loads that story's own file. In a test run the sealed core's enumerateStories has
+// already loaded every story file first, so every shim has evaluated and the guard holds. With
+// no core (Expo Go), a project-level mock whose shim sits only in ANOTHER story's import graph
+// may not have evaluated yet, and is warned about though it would apply once that story loads.
+//
+// The warning goes out on TWO channels: console.warn (visible in a dev session) AND
+// RunnerBridge.log (written to log.sherlo). The second channel is what makes FG-03
+// observable during a capture run, where setupErrorSilencing nulls console.warn - the
+// runner reads the log line even though the console message is swallowed.
+function warnUnshimmedKeys(mocks: MockSet): void {
+  const unshimmedKeys = Object.keys(mocks).filter((key) => !isKeyShimmed(key));
+  if (unshimmedKeys.length === 0) return;
+
+  const keyList = unshimmedKeys.map((key) => `"${key}"`).join(', ');
+  const plural = unshimmedKeys.length > 1;
+
+  const message =
+    `Sherlo: mock declared but unshimmed for ${keyList}. ` +
+    `${
+      plural ? 'These mocks' : 'This mock'
+    } will not apply. Restart Metro so the build-time scan ` +
+    `can find ${plural ? 'newly added keys' : 'a newly added key'}, or, if ${
+      plural ? 'the keys are' : 'the key is'
+    } composed at runtime, list ${
+      plural ? 'them' : 'it'
+    } under the mockModules option of withStorybook in metro.config.js.`;
+
+  console.warn(message);
+  RunnerBridge.log(UNSHIMMED_KEYS_LOG, { keys: unshimmedKeys });
+}
 
 // Reads the clock/random declarations back off the same channel a module mock rides in on
 // (mockClock/mockRandom), installs or restores each, and returns the remaining module mocks.
@@ -27,53 +59,12 @@ function applyClockAndRandom(mocks: MockSet): MockSet {
   return moduleMocks;
 }
 
-// Installs `mocks` as the active set for one story, replacing whatever was active before.
-// `lookups` is the story's record of what its reads met (see MockLookups in ./registry): a mock
-// that did not take effect is known only once the story has rendered, so nothing is said here.
-export function activateStoryMocks(mocks: MockSet, lookups?: MockLookups): void {
-  activateMocks(applyClockAndRandom(mocks), lookups);
-}
-
-/**
- * Why `storyId`'s mocks did not take effect, or undefined when they did - or when they are not the
- * mocks in effect. Read with the story's own errors (../getStorybook/storyErrorRegistry), so the
- * core reports it as what the story threw.
- *
- * It is worked out at each read, never stored: the core reads a story's errors while it waits for
- * the story's views too, and under inlineRequires a module is first required while the story
- * renders, so an answer kept from before the story settled would fail a mock that applies. After
- * the story settled, a mock the story or its file declares that no read reached has reached
- * nothing; a project mock no read reached is a default the story did not need.
- */
-export function mockFailureOf(storyId: string): StoryError | undefined {
-  const active = activeMockLookups();
-  if (!active || active.lookups.storyId !== storyId) return undefined;
-
-  const { mocks, lookups } = active;
-  const sentences = Object.keys(mocks).flatMap((key) => {
-    const name = lookups.namesAsWritten.get(key) ?? key;
-    const thrown = lookups.realImportThrew.get(key);
-    if (thrown !== undefined) {
-      return [`${name} could not be mocked: its real import threw "${thrown}"`];
-    }
-    if (!bundlerSawModule(key)) {
-      return [
-        `the mock of ${name} did not apply: the bundler had not seen this module when it started - restart the bundler`,
-      ];
-    }
-    if (lookups.declaredByStory.has(key) && !lookups.reached.has(key)) {
-      return [`the mock of ${name} did not apply: nothing in the story imported it`];
-    }
-    return [];
-  });
-  if (sentences.length === 0) return undefined;
-
-  return {
-    name: MOCKED_MODULE_ERROR_NAME,
-    message: sentences.join('\n'),
-    stack: '',
-    componentStack: '',
-  };
+// Installs `mocks` as the active set for one story (replacing whatever was active
+// before) and flags any declared key that has no generated shim.
+export function activateStoryMocks(mocks: MockSet): void {
+  const moduleMocks = applyClockAndRandom(mocks);
+  activateMocks(moduleMocks);
+  warnUnshimmedKeys(moduleMocks);
 }
 
 export default activateStoryMocks;

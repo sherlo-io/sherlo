@@ -1088,7 +1088,7 @@ export async function getBuildMetadata({
       // with a prerelease SDK (`3.0.0-alpha.0`) matches the push that installed it (`3.0.0`).
       const bakedVersion: unknown = parsed.version;
       sdkProtocolVersion =
-        typeof bakedVersion === 'string' ? (toBaseSemver(bakedVersion) ?? bakedVersion) : undefined;
+        typeof bakedVersion === 'string' ? toBaseSemver(bakedVersion) ?? bakedVersion : undefined;
     }
   } catch {
     // No sherlo.json - that's fine.

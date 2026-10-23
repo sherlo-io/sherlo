@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import GitFixture, { mergeStep } from './gitFixture';
+import GitFixture from './gitFixture';
 
 /**
  * Self-tests for the deterministic harness. The point of the dual-date pinning +
@@ -42,54 +42,6 @@ describe('GitFixture determinism', () => {
     } finally {
       oneAtATime.cleanup();
       inOneProcess.cleanup();
-    }
-  });
-
-  it('buildHistory writes the very branch and merge commits the git commands would, and leaves the tree clean', () => {
-    const stepByStep = GitFixture.create();
-    const inOneProcess = GitFixture.create();
-    try {
-      const base = stepByStep.commitFile('base');
-      stepByStep.branch('feature', { checkout: true });
-      const feature = stepByStep.commitFile('feature work', 'feature.txt');
-      stepByStep.checkout('main');
-      const merge = stepByStep.merge('feature');
-
-      const shas = inOneProcess.buildHistory([
-        { mark: 'base', branch: 'main', message: 'base', parents: [] },
-        {
-          mark: 'feature',
-          branch: 'feature',
-          message: 'feature work',
-          file: 'feature.txt',
-          parents: ['base'],
-        },
-        mergeStep('merge', ['base', 'feature']),
-      ]);
-
-      expect(shas).toEqual({ base, feature, merge });
-      expect(inOneProcess.head()).toBe(merge);
-      expect(inOneProcess.git(['status', '--porcelain'])).toBe('');
-    } finally {
-      stepByStep.cleanup();
-      inOneProcess.cleanup();
-    }
-  });
-
-  it('buildHistory gives a merge commit the first parent change over the fork point, as git merge does', () => {
-    const fixture = GitFixture.create();
-    try {
-      fixture.buildHistory([
-        { mark: 'fork', branch: 'main', message: 'fork', parents: [] },
-        { mark: 'side', branch: 'feature', message: 'side', file: 'side.txt', parents: ['fork'] },
-        { mark: 'tip', branch: 'main', message: 'tip', parents: ['fork'] },
-        mergeStep('merge', ['tip', 'side']),
-      ]);
-
-      expect(fixture.git(['show', 'HEAD:file.txt'])).toBe('content for: tip');
-      expect(fixture.git(['show', 'HEAD:side.txt'])).toBe('content for: side');
-    } finally {
-      fixture.cleanup();
     }
   });
 

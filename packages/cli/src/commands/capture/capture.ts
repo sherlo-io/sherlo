@@ -83,12 +83,7 @@ export function endingFor(
     case 'no-app':
       return { kind: 'no-app', port: run.port };
     case 'no-such-story':
-      return {
-        kind: 'no-such-story',
-        storyId: run.storyId,
-        known: answer.known,
-        ...(answer.brokenFiles && { brokenFiles: answer.brokenFiles }),
-      };
+      return { kind: 'no-such-story', storyId: run.storyId, known: answer.known };
     case 'crashed':
       return {
         kind: 'crashed',
@@ -109,7 +104,6 @@ export function endingFor(
           kind: 'never-settled',
           storyId: answer.storyId,
           seconds: STABILIZATION_SETTINGS.timeoutMs / 1000,
-          ...(answer.changing && { changing: answer.changing }),
           tree: answer.tree,
         };
       }
@@ -120,8 +114,6 @@ export function endingFor(
         frames: answer.settled.frames,
         ...(answer.parts !== undefined && { parts: answer.parts }),
         ...(answer.hasNetworkImage !== undefined && { hasNetworkImage: answer.hasNetworkImage }),
-        ...(answer.stillReal && { stillReal: answer.stillReal }),
-        ...(answer.unanswered && { unanswered: answer.unanswered }),
         tree: answer.tree,
       };
   }

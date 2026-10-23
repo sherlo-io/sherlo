@@ -102,7 +102,7 @@ describe('the login as the only credential a person spends', () => {
       expect(run.tokensSpent, command.name).toEqual([LOGIN_TOKEN]);
     }
 
-    const pushCredential = await withSeams(
+    const pushCredential = withSeams(
       { logins: LOGGED_IN, env: { SHERLO_PERSONAL_TOKEN: PERSONAL_TOKEN } },
       () => resolvePushCredential(TEST_COMMAND, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
     );
@@ -130,7 +130,7 @@ describe('the login as the only credential a person spends', () => {
       expect(run.unansweredCalls, command.name).toEqual([]);
     }
 
-    const pushRefusal = await refusalOf(() =>
+    const pushRefusal = refusalOf(() =>
       withSeams({ logins: {} }, () =>
         resolvePushCredential(TEST_COMMAND, { project: `${TEAM_ID}/3` } as InvalidatedConfig)
       )
@@ -139,8 +139,8 @@ describe('the login as the only credential a person spends', () => {
     expect(pushRefusal).not.toMatch(/personal/i);
   });
 
-  it('refuses a personal token in SHERLO_TOKEN by naming npx sherlo login, never a personal-token flag', async () => {
-    const refusal = await refusalOf(() =>
+  it('refuses a personal token in SHERLO_TOKEN by naming npx sherlo login, never a personal-token flag', () => {
+    const refusal = refusalOf(() =>
       withSeams({ logins: {}, env: { SHERLO_TOKEN: PERSONAL_TOKEN } }, () =>
         resolvePushCredential(TEST_COMMAND, {} as InvalidatedConfig)
       )
@@ -204,14 +204,14 @@ describe('the login as the only credential a person spends', () => {
 /* ========================================================================== */
 
 /** Run `body` with the settings and the saved logins a case states, and nothing of this machine's. */
-async function withSeams<Answer>(
+function withSeams<Answer>(
   world: { logins: PosedLogins; env?: Record<string, string> },
-  body: () => Promise<Answer>
-): Promise<Answer> {
+  body: () => Answer
+): Answer {
   const uninstall = installTheWorld(world);
 
   try {
-    return await body();
+    return body();
   } finally {
     uninstall();
   }
@@ -298,9 +298,9 @@ async function runSetupLoginOnSeams(api: ScriptedCall[]) {
 }
 
 /** The refusal `body` throws, colour off. */
-async function refusalOf(body: () => Promise<unknown>): Promise<string> {
+function refusalOf(body: () => unknown): string {
   try {
-    await body();
+    body();
   } catch (error) {
     return plain((error as Error).message);
   }

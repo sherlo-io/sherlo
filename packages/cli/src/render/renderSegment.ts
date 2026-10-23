@@ -42,7 +42,6 @@ import {
 } from './appBuild';
 import { renderOutputKeys, renderTestNotice } from './pushSpine';
 import { renderStepInProgress } from './stepInProgress';
-import { renderSignedInThroughGitHub } from './pushCredential';
 import {
   renderFinishedUnderTheTestRow,
   renderPlatformRow,
@@ -65,10 +64,8 @@ import { renderTeamCreated } from './teamCreated';
 import { renderProjectList } from './projectList';
 import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
-import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
-import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
 import {
   renderAlreadyLoggedIn,
   renderLoggedIn,
@@ -141,12 +138,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderCommandIntro(segment.command).map((line) => [line]),
-      };
-
-    case 'signed-in-through-github':
-      return {
-        stream: 'stdout',
-        prints: [[renderSignedInThroughGitHub(segment.repository)], []],
       };
 
     // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts. In a
@@ -449,12 +440,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: renderCapturedStory(segment.state).map((line) => [line]),
       };
 
-    case 'coverage':
-      return {
-        stream: 'stdout',
-        prints: renderCoverage(segment.screen).map((line) => [line]),
-      };
-
     case 'captured-log':
       return {
         stream: 'stdout',
@@ -498,21 +483,5 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     case 'not-logged-in':
       return { stream: 'stdout', prints: renderNotLoggedIn().map((line) => [line]) };
-
-    /* ------------------------- sending feedback ------------------------ */
-
-    case 'feedback-sent':
-      return {
-        stream: 'stdout',
-        prints: renderFeedbackSent(segment.reference, segment.lastCommand).map((line) => [line]),
-      };
-
-    case 'feedback-dry-run':
-      return {
-        stream: 'stdout',
-        prints: renderFeedbackDryRun(segment.reportKind, segment.report, segment.context).map(
-          (line) => [line]
-        ),
-      };
   }
 }

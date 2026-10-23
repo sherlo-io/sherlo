@@ -90,7 +90,7 @@ const PROBE_GATE_METADATA: GateMetadataInput = { derivedFrom: 'none' };
 
 async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: string }> {
   // 1. Validate params.
-  const commandParams = await getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // The two bundle-supply roads. They are opposites and only one can run, so the
   // combination is refused rather than resolved by precedence - a caller who passed
@@ -166,7 +166,6 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   }: GateAnswers): Promise<{ url: string }> =>
     buildThenPush({
       passedOptions,
-      credential: commandParams.credential,
       platformsToTest,
       refusals,
       storedBuildIndexOf,
@@ -590,8 +589,8 @@ export function printTestStarted({
       capturedStories: captureScope.full
         ? 0
         : manifest
-          ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
-          : (captureScope.storyFilePaths ?? []).length,
+        ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
+        : (captureScope.storyFilePaths ?? []).length,
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
@@ -602,13 +601,13 @@ export function printTestStarted({
         ? manifest
           ? bundleStoryFiles(manifest)
           : []
-        : (captureScope.storyFilePaths ?? []),
+        : captureScope.storyFilePaths ?? [],
       newStoryFiles: captureScope.newStoryFilePaths ?? [],
       ...(manifest ? { storyTitles: titledStoryFilesIn(manifest) } : {}),
       // A partial capture takes exactly what a change reaches.
       changedStoryFiles: captureScope.full
-        ? (captureScope.changedStoryFilePaths ?? [])
-        : (captureScope.storyFilePaths ?? []),
+        ? captureScope.changedStoryFilePaths ?? []
+        : captureScope.storyFilePaths ?? [],
     });
   }
 

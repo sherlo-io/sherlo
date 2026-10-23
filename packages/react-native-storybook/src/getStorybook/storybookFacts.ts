@@ -14,8 +14,6 @@ import type {
   StoryFileExports,
 } from '../sealedCore/seam';
 
-type BrokenFiles = NonNullable<StorybookFacts['brokenFiles']>;
-
 let recordedFacts: StorybookFacts | null = null;
 
 /** Keep what Storybook's start() was handed in this launch. */
@@ -61,15 +59,12 @@ type PrepareStories = (args: {
  */
 export function recordWhatStartWasHanded(
   handed: StorybookStartArguments,
-  prepareStories: PrepareStories | undefined,
-  fileTitles: Record<string, string> = {}
+  prepareStories: PrepareStories | undefined
 ): void {
   const previewAnnotations = (handed.annotations ?? []).map(annotationsOf);
-  const { storyFiles, brokenFiles } = loadStoryFiles(handed.storyEntries ?? [], fileTitles);
   recordStorybookFacts({
     storyIndex: storyIndexOf(handed, previewAnnotations, prepareStories),
-    storyFiles,
-    ...(brokenFiles.length > 0 ? { brokenFiles } : {}),
+    storyFiles: storyFilesOf(handed.storyEntries ?? []),
     previewAnnotations,
   });
 }
@@ -113,36 +108,19 @@ function storyIndexOf(
 /**
  * Every story file's exports, by the import path Storybook's index names it with: the folder, and
  * the file's key in it without its leading "./" ("./src" and "./Button.stories.tsx" make
- * "./src/Button.stories.tsx"). A file that throws as it loads is Storybook's to report, as it
- * loads it too; it goes into brokenFiles under its project path ("src/Button.stories.tsx"), with
- * its error, and with its title from fileTitles (the record of each file's title the bundle was
- * built with, keyed by import path), so capture can name the file.
+ * "./src/Button.stories.tsx").
  */
-function loadStoryFiles(
-  storyEntries: StoryEntry[],
-  fileTitles: Record<string, string>
-): { storyFiles: StorybookFacts['storyFiles']; brokenFiles: BrokenFiles } {
+function storyFilesOf(storyEntries: StoryEntry[]): Record<string, StoryFileExports> {
   const storyFiles: Record<string, StoryFileExports> = {};
-  const brokenFiles: BrokenFiles = [];
   for (const entry of storyEntries) {
     if (typeof entry?.req?.keys !== 'function') continue;
     for (const filename of entry.req.keys()) {
-      const file = `${entry.directory}/${filename.substring(2)}`;
       try {
-        storyFiles[file] = entry.req(filename);
-      } catch (thrown) {
-        const error = thrown as { name?: unknown; message?: unknown } | null;
-        brokenFiles.push({
-          // Named by its project path, as the still-real list names files (metro/stillReal.js).
-          file: file.startsWith('./') ? file.slice(2) : file,
-          error: {
-            name: typeof error?.name === 'string' ? error.name : 'Error',
-            message: typeof error?.message === 'string' ? error.message : String(thrown),
-          },
-          ...(fileTitles[file] === undefined ? {} : { title: fileTitles[file] }),
-        });
+        storyFiles[`${entry.directory}/${filename.substring(2)}`] = entry.req(filename);
+      } catch (_) {
+        // A file that throws as it loads is Storybook's to report, as it loads it too.
       }
     }
   }
-  return { storyFiles, brokenFiles };
+  return storyFiles;
 }

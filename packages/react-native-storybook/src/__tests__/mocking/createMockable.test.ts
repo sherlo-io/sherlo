@@ -283,28 +283,3 @@ describe('createMockable - Proxy trap coverage, including frozen/sealed modules 
     expect(mockable.extra).toBe('mock-only');
   });
 });
-
-describe('createMockable - default export captured before activation', () => {
-  it('a default export read before the mock is active still serves the mock once it is active', async () => {
-    const realModule = { default: { getItem: async () => 'real' } };
-    const mockable = createMockable('pkg/default-live', realModule);
-    const capturedDefault = mockable.default;
-
-    activateMocks({ 'pkg/default-live': { default: { getItem: async () => 'mock' } } });
-
-    expect(mockable.default).toBe(capturedDefault);
-    expect(await capturedDefault.getItem()).toBe('mock');
-  });
-
-  it('a default export read before the mock is active falls back to the real module once the mock is gone', async () => {
-    const realModule = { default: { getItem: async () => 'real' } };
-    const mockable = createMockable('pkg/default-gone', realModule);
-    const capturedDefault = mockable.default;
-
-    activateMocks({ 'pkg/default-gone': { default: { getItem: async () => 'mock' } } });
-    expect(await capturedDefault.getItem()).toBe('mock');
-    clearMocks();
-
-    expect(await capturedDefault.getItem()).toBe('real');
-  });
-});

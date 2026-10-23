@@ -322,7 +322,7 @@ async function computeOneLayerDigest({
     // The native fingerprint covers both platforms, so every platform's result carries it.
     const platformBase =
       layer === 'native' ? fingerprints.android : fingerprints[layerPlatform(layer)];
-    const hash = layer === 'native' ? (platformBase.nativeFingerprint ?? null) : platformBase.hash;
+    const hash = layer === 'native' ? platformBase.nativeFingerprint ?? null : platformBase.hash;
 
     if (hash === null) {
       throwError({

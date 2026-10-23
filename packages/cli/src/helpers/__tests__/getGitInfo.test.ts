@@ -3,7 +3,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // about what the tool asks a real repository.
 import { readGitInfoFromDisk as getGitInfo } from '../getGitInfo';
 import GitFixture from './support/gitFixture';
-import { isolateEachCase, oneCommitRepository, ownRepository } from './support/gitInfoRepositories';
+import {
+  isolateEachCase,
+  mergePullRequest,
+  oneCommitRepository,
+  ownRepository,
+  writeGitHubEvent,
+} from './support/gitInfoRepositories';
 
 /**
  * Real-git tests for getGitInfo, driven by the deterministic {@link GitFixture}
@@ -11,13 +17,11 @@ import { isolateEachCase, oneCommitRepository, ownRepository } from './support/g
  * getGitInfo relies on.
  *
  * Every case reads a real repository through a dozen git processes, so the cases are split
- * across six files, by subject, to keep each one fast. This one holds which branch a run
- * reports. getGitInfo.mergeRefs.test.ts holds pull request merge refs;
- * getGitInfo.mergeQueue.test.ts holds merge queue refs;
- * getGitInfo.history.test.ts holds parents, ancestors, shallow clones and the commit a job
- * names; getGitInfo.historyRemote.test.ts holds the remote and the default branch;
- * getGitInfo.fields.test.ts holds the rest of the payload and how a failed read degrades.
- * What they share is in support/gitInfoRepositories.ts.
+ * across four files, by subject, to keep each one fast. This one holds which branch a run
+ * reports. getGitInfo.mergeRefs.test.ts holds pull request and merge queue refs;
+ * getGitInfo.history.test.ts holds parents, ancestors, the remote, the default branch and
+ * shallow clones; getGitInfo.fields.test.ts holds the rest of the payload and how a failed read
+ * degrades. What they share is in support/gitInfoRepositories.ts.
  */
 
 isolateEachCase();
@@ -164,5 +168,33 @@ describe('getGitInfo - branch resolution precedence', () => {
     const info = await getGitInfo(fixture.dir);
 
     expect(info.branchName).toBe('HEAD');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The commit a job names
+// ---------------------------------------------------------------------------
+
+describe('getGitInfo - the commit a job of a pull request run names', () => {
+  it('two jobs of one pull request run name the same commit, on a shallow or a deepened checkout', async () => {
+    // One pull_request run: both jobs check out the same synthetic merge commit at depth 1
+    // (actions/checkout's default) and read the same event payload. One job's checkout is
+    // deepened by the action before the CLI runs; the other's stays shallow.
+    const { repository, prHead } = mergePullRequest();
+    const shallowJob = repository.shallowClone(1, 'main');
+    const deepenedJob = repository.shallowClone(1, 'main');
+    deepenedJob.git(['fetch', '--deepen=200', '--quiet']);
+    process.env.GITHUB_REF_NAME = '7/merge';
+    process.env.GITHUB_EVENT_PATH = writeGitHubEvent({ pull_request: { head: { sha: prHead } } });
+
+    try {
+      const shallowInfo = await getGitInfo(shallowJob.dir);
+      const deepenedInfo = await getGitInfo(deepenedJob.dir);
+
+      expect(shallowInfo.commitHash).toBe(prHead);
+      expect(deepenedInfo.commitHash).toBe(prHead);
+    } finally {
+      for (const fixture of [repository, shallowJob, deepenedJob]) fixture.cleanup();
+    }
   });
 });

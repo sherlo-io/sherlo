@@ -18,8 +18,6 @@ export const DOCS_LINK = {
   buildPreview: `${DOCS_BASE_URL}/builds?type=preview-simulator#build-types`,
   buildAndroidAbiRequirements: `${DOCS_BASE_URL}/builds#android-abi-requirements`,
 
-  integrationsGithub: `${DOCS_BASE_URL}/integrations/github`,
-
   testing: `${DOCS_BASE_URL}/testing`,
   testEasCloudBuild: `${DOCS_BASE_URL}/testing?method=eas-cloud-build#testing-methods`,
 
@@ -116,8 +114,6 @@ export const MASK_COMMAND = 'mask';
 export const OPEN_COMMAND = 'open';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
 export const CAPTURE_COMMAND = 'capture';
-/** `sherlo coverage` - list the components no story draws. Hidden from `--help`. */
-export const COVERAGE_COMMAND = 'coverage';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
 
 /** The port a React Native bundler serves on unless somebody moved it. */
@@ -184,8 +180,6 @@ export const JSON_OPTION = 'json';
  * carries them (see `--json`); this is the one flag that puts them on the screen too.
  */
 export const LOGS_OPTION = 'logs';
-/** `sherlo coverage --props` - also list the prop values no story file sets. */
-export const PROPS_OPTION = 'props';
 
 /* TOKENS */
 
@@ -196,16 +190,6 @@ export const PROPS_OPTION = 'props';
  * it whole. Must match the prefix the service issues it with.
  */
 export const BUILD_TICKET_PREFIX = 'sbt_';
-
-/**
- * How a GITHUB SESSION starts: the three-hour credential the service trades for a GitHub Actions
- * job's ID token. Opaque like a personal token, and sent whole. Must match the prefix the service
- * issues it with.
- */
-export const GITHUB_SESSION_PREFIX = 'sgh_';
-
-/** The audience a GitHub ID token is requested for: the one the service checks it against. */
-export const GITHUB_ID_TOKEN_AUDIENCE = 'https://api.sherlo.io';
 
 /** Refused locally, so an over-long name costs no round trip. Mirrors the API's own limit. */
 export const MAX_PROJECT_NAME_LENGTH = 64;

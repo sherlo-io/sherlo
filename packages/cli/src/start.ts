@@ -3,7 +3,6 @@ import { version } from '../package.json';
 import {
   build,
   easBuildOnComplete,
-  feedback,
   fingerprint,
   init,
   login,
@@ -13,7 +12,6 @@ import {
   teamCreate,
   teamList,
   capture,
-  coverage,
   open,
   test,
   view,
@@ -62,10 +60,8 @@ import {
   VIEW_COMMAND,
   OPEN_COMMAND,
   CAPTURE_COMMAND,
-  COVERAGE_COMMAND,
   JSON_OPTION,
   LOGS_OPTION,
-  PROPS_OPTION,
   STORY_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
@@ -77,13 +73,9 @@ import {
 import { printTheLogoInATerminal } from './commands/shared/terminal';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
-import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, throwError, withCommandTimeout } from './helpers';
-import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import { emit } from './helpers/transcriptSink';
 import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
-import type { FeedbackOptions } from './commands/feedback/feedback';
-import { renderFeedbackFormat } from './render/feedback';
 import { renderHelpBlock } from './render/testSteps';
 import { renderTokenGone } from './render/pushCredential';
 
@@ -115,8 +107,6 @@ async function start() {
 
     addEasBuildOnCompleteCommand(program);
 
-    addFeedbackCommand(program);
-
     addFingerprintCommand(program);
 
     addProjectCommand(program);
@@ -126,8 +116,6 @@ async function start() {
     addOpenCommand(program);
 
     addCaptureCommand(program);
-
-    addCoverageCommand(program);
 
     addPoseCommand(program);
 
@@ -166,7 +154,6 @@ const COMMAND_DESCRIPTION = {
   [INIT_COMMAND]: 'Initialize Sherlo',
   [LOGIN_COMMAND]: 'Log in to Sherlo through your browser and save the login on this computer',
   [LOGOUT_COMMAND]: 'Log out of Sherlo and delete the login saved on this computer',
-  [FEEDBACK_COMMAND]: 'Send the Sherlo team a report of something broken, missing or unclear',
   [TEST_COMMAND]:
     'Run visual tests.\n' +
     '  Tests JS-only changes against the stored app build, with no build. When native code\n' +
@@ -195,12 +182,6 @@ const COMMAND_DESCRIPTION = {
     `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
     `  includes the app's own log lines; \`--${LOGS_OPTION}\` prints those lines on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
-  [COVERAGE_COMMAND]:
-    'List the components no story draws, the most imported first.\n' +
-    '  Reads your source files: no bundler, no phone, no login. A component only a story\n' +
-    '  marked `sherlo: { exclude: true }` imports counts as not covered.\n' +
-    `  \`--${PROPS_OPTION}\` also reads your story files and TypeScript types and lists the prop\n` +
-    '  values no story file sets for its own component.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
     `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`), which is a different credential\n` +
@@ -333,10 +314,6 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${LOGS_OPTION}`,
     "Also print the app's own log lines from this capture, after the story",
   ],
-  [PROPS_OPTION]: [
-    `--${PROPS_OPTION}`,
-    'Also read the story files and list the prop values no story file sets',
-  ],
   [TIMEOUT_OPTION]: [
     `--${TIMEOUT_OPTION} <seconds>`,
     `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
@@ -413,18 +390,6 @@ function addCaptureCommand(program: Command) {
   });
 }
 
-// Reads the app's source files and, with `--props`, its story files (../seams/
-// coverageScan). Hidden from `--help` like `fingerprint`.
-function addCoverageCommand(program: Command) {
-  addCommand({
-    program,
-    command: COVERAGE_COMMAND,
-    options: [PROPS_OPTION, JSON_OPTION],
-    action: coverage,
-    hidden: true,
-  });
-}
-
 // `sherlo login` waits for a person in the browser, until the expiry the service gave the pending
 // login - a wait the service bounds, so `withTimeout: false`.
 function addLoginCommand(program: Command) {
@@ -444,21 +409,6 @@ function addLogoutCommand(program: Command) {
     options: [],
     action: logout,
   });
-}
-
-function addFeedbackCommand(program: Command) {
-  // feedback reads its report from --file only - bypass addCommand. Words after the command are taken
-  // only so they reach the command and are refused in its own words, rather than silently dropped.
-  program
-    .command(`${FEEDBACK_COMMAND} [words...]`)
-    .description([COMMAND_DESCRIPTION[FEEDBACK_COMMAND], ...renderFeedbackFormat()].join('\n  '))
-    .option('--kind <kind>', 'bug, missing, unclear or other')
-    .option('--file <path>', 'Read the report from this file, or from a pipe with -')
-    .option('--dry-run', 'Print exactly what would be sent, and send nothing')
-    .action(async (words: string[], options: FeedbackOptions) => {
-      setReportingContext(FEEDBACK_COMMAND, options);
-      await feedback(words, options);
-    });
 }
 
 function addInitCommand(program: Command) {
@@ -730,12 +680,14 @@ function addTeamCommand(program: Command) {
 
 /**
  * `sherlo pose <pose.json|->` - run one command against a declared world and print the whole
- * screen it put on a terminal (see ./commands/pose/pose). HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
+ * screen it put on a terminal (see ./commands/pose/pose).
+ *
+ * HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
  * for the people who work on the tool, and a user who runs `sherlo --help` has no use for a verb
  * that takes a JSON document describing a run they are not making.
  *
- * The command is loaded only when it runs (it reaches back into THIS module, so a static import
- * would be a load-time cycle).
+ * The command is loaded only when it runs. It reaches back into THIS module - the routing it
+ * exists to exercise is `start` itself - so a static import here would be a load-time cycle.
  */
 function addPoseCommand(program: Command) {
   if (process.env.SHERLO_DEVTOOLS !== '1') return;
@@ -744,11 +696,10 @@ function addPoseCommand(program: Command) {
     .command(`${POSE_COMMAND} <pose>`)
     .description(COMMAND_DESCRIPTION[POSE_COMMAND])
     .option('--no-terminal', 'Print what an agent or a CI log receives, with no terminal attached')
-    .option('--play <castFile>', 'Run with every wait at 2 seconds and write the cast to this file')
-    .action(async (documentPath: string, actionOptions: { terminal: boolean; play?: string }) => {
+    .action(async (documentPath: string, actionOptions: { terminal: boolean }) => {
       const { pose } = await import('./commands/pose/pose');
 
-      await pose(documentPath, actionOptions);
+      await pose(documentPath, { terminal: actionOptions.terminal });
     });
 }
 
@@ -812,14 +763,21 @@ function addCommand({
 }
 
 /**
- * Names the command and its flags (tokens hidden) to the error reporter, and starts the record of
- * how the command ends, which `sherlo feedback` attaches. `feedback` itself leaves no record, so
- * it never replaces the one it reports. `pose` and `mask` never come here.
+ * EVERY option whose name ends in `token` is redacted, not just `--token`.
+ *
+ * A second credential flag is exactly the kind of thing that gets added to the
+ * CLI without anyone remembering this function. Matching on the NAME means the
+ * next one is redacted on the day it is added rather than on the day someone
+ * notices it in Sentry.
  */
 function setReportingContext(command: string, options: any) {
-  reporting.setContext('Command', { command, commandOptions: hideTokens(options) });
+  const commandOptions = Object.fromEntries(
+    Object.entries(options ?? {}).map(([key, value]) =>
+      /token$/i.test(key) && value ? [key, '[hidden]'] : [key, value]
+    )
+  );
 
-  if (command !== FEEDBACK_COMMAND) recordLastCommand(command, options);
+  reporting.setContext('Command', { command, commandOptions });
 }
 
 /**

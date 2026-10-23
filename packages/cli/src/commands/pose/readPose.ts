@@ -123,11 +123,6 @@ function commandAsksForACapture(argv: string[]): boolean {
   return argv[0] === 'capture';
 }
 
-/** `sherlo coverage` is the only command that scans the app for what its stories leave out. */
-function commandScansTheApp(argv: string[]): boolean {
-  return argv[0] === 'coverage';
-}
-
 /** `sherlo login` opens the browser, and so does `sherlo init` when it runs the login itself. */
 function commandOpensTheBrowser(argv: string[]): boolean {
   return argv[0] === 'login' || argv[0] === 'init';
@@ -135,10 +130,10 @@ function commandOpensTheBrowser(argv: string[]): boolean {
 
 /**
  * Every command that spends a credential may spend the saved login, and `login` and `logout` keep
- * it. The five that send no credential at all never read one.
+ * it. The four that send no credential at all never read one.
  */
 function commandReadsSavedLogins(argv: string[]): boolean {
-  return !['open', 'capture', 'coverage', 'fingerprint', 'show-error'].includes(argv[0] ?? '');
+  return !['open', 'capture', 'fingerprint', 'show-error'].includes(argv[0] ?? '');
 }
 
 function reportRoadsThisCommandDoesNotTake(
@@ -194,13 +189,6 @@ function reportRoadsThisCommandDoesNotTake(
   if ('capture' in pose && !commandAsksForACapture(argv)) {
     problems.push(
       `\`capture\`: \`${command}\` never asks the app for a capture, so there is nothing ` +
-        'for it to describe. Leave the field out.'
-    );
-  }
-
-  if ('coverage' in pose && !commandScansTheApp(argv)) {
-    problems.push(
-      `\`coverage\`: \`${command}\` never scans the app, so there is nothing ` +
         'for it to describe. Leave the field out.'
     );
   }

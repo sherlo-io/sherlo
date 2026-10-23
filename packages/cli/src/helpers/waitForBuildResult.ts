@@ -10,7 +10,7 @@ import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildSt
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
 import getTokenParts from './getTokenParts';
-import hasNoTokenParts from './hasNoTokenParts';
+import isPersonalToken from './isPersonalToken';
 import { emit } from './transcriptSink';
 import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from './exitCodes';
 import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBuildVerdict';
@@ -87,7 +87,7 @@ export async function waitForTest({
 }: {
   token: string;
   /**
-   * The token is the login saved on this computer (a credential of kind `person`). A refusal of it
+   * The token is the login saved on this computer (`credential.fromSavedLogin`). A refusal of it
    * then says to log in again, as every command answers a refused login; a token somebody gave
    * keeps "check your token".
    */
@@ -161,8 +161,8 @@ export async function waitForTest({
   function realPoll(): () => Promise<BuildStatus | null> {
     // A project token is parsed HERE rather than inside the call, so a malformed one still throws
     // out of the call rather than inside the loop's retry catch (see the note above). A personal
-    // token, a build ticket and a GitHub session have no parts to parse: each is sent whole.
-    if (!hasNoTokenParts(token)) getTokenParts(token);
+    // token has no parts to parse: it is sent whole.
+    if (!isPersonalToken(token)) getTokenParts(token);
     return () => serverCalls().getBuildStatus({ token, buildIndex, projectIndex, teamId });
   }
 

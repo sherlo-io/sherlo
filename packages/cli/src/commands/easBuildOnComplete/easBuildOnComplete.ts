@@ -68,8 +68,8 @@ async function easBuildOnComplete(passedOptions: Options<THIS_COMMAND>) {
   const passedProfiles = passedOptions.profile
     ? passedOptions.profile.split(',')
     : sherloTempData.profile
-      ? [sherloTempData.profile]
-      : undefined;
+    ? [sherloTempData.profile]
+    : undefined;
 
   if (!passedProfiles) {
     throwError({

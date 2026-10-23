@@ -35,7 +35,6 @@ import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
-import { iosBuildConfiguration } from './iosConfiguration';
 import type { NativeFolderFile } from './serverCalls';
 
 /** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
@@ -119,7 +118,7 @@ export type AppBuilder = {
     /** The Gradle task for Android, e.g. `:app:assembleRelease`. */
     androidTask?: string;
     /** The scheme and configuration for iOS. */
-    ios?: { scheme: string; configuration?: string };
+    ios?: { scheme: string; configuration: string };
     /** The project's own build command, run instead of Sherlo's, and where it writes the app build. */
     custom?: { command: string; output: string };
   }): Promise<CompiledApp>;
@@ -585,6 +584,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
 
     const iosFolder = path.join(projectRoot, 'ios');
     const buildEnv = buildEnvironment({ projectRoot, easProfile, buildEnv: env });
+
     const podFilesChanged = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
     if (podFilesChanged === 'failed') return failed();
 
@@ -594,7 +594,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       '-scheme',
       ios.scheme,
       '-configuration',
-      iosBuildConfiguration({ iosFolder, scheme: ios.scheme, configuration: ios.configuration }),
+      ios.configuration,
       '-sdk',
       'iphonesimulator',
       'ARCHS=arm64',

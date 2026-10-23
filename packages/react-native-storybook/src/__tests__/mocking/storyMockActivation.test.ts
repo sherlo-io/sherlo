@@ -13,27 +13,19 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 
 // No React is installed beside this package. Rendering here is calling each component at once with
 // its props, which is enough to run a story's render inside Sherlo's decorator and see what it read.
-vi.mock('react', async () => (await import('./reactAtOnce')).reactModule);
-vi.mock('react/jsx-dev-runtime', async () => (await import('./reactAtOnce')).jsxRuntimeModule);
-vi.mock('react/jsx-runtime', async () => (await import('./reactAtOnce')).jsxRuntimeModule);
+const { renderAtOnce } = vi.hoisted(() => ({
+  renderAtOnce: (type: unknown, props: Record<string, unknown>) =>
+    typeof type === 'function' ? type(props) : null,
+}));
+vi.mock('react', () => ({ default: {} }));
+vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: renderAtOnce, Fragment: Symbol('Fragment') }));
+vi.mock('react/jsx-runtime', () => ({ jsx: renderAtOnce, jsxs: renderAtOnce, Fragment: Symbol() }));
 vi.mock('../../getStorybook/components/SherloStoryErrorBoundary', () => ({
   default: ({ children }: { children: unknown }) => children,
 }));
-// The stand-in for StoryOfTheApp publishes, as the real one does, the top of what it was handed: a
-// fiber whose child is the component its children are, if they are one.
-vi.mock('../../storyOfTheApp', async () => {
-  const { rememberStoryOfTheApp } = await import('../../componentNames');
-  return {
-    StoryOfTheApp: ({ children }: { children: unknown }) => {
-      const component = (children as { appComponent?: unknown } | null)?.appComponent;
-      rememberStoryOfTheApp({
-        type: 'StoryOfTheApp',
-        child: component ? { type: component } : null,
-      });
-      return children;
-    },
-  };
-});
+vi.mock('../../storyOfTheApp', () => ({
+  StoryOfTheApp: ({ children }: { children: unknown }) => children,
+}));
 
 import createMockable from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
@@ -43,13 +35,10 @@ import {
   __resetStorybookFactsForTests,
   recordWhatStartWasHanded,
 } from '../../getStorybook/storybookFacts';
-import { composeStory, composeConfigs } from 'storybook/internal/preview-api';
-import { rememberStoryOfTheApp, storyOfTheAppFiber } from '../../componentNames';
 import { keepStartedStorybook } from '../../getStorybook/storybookReads';
 import sherloAnnotation from '../../getStorybook/sherloAnnotation';
 import { loadStartWrapper, storyFolder, writtenStartWrapper } from '../sherlosStartWrapper';
 import { startStorybookHolding } from './storybookHolding';
-import { letPendingWorkSettle, unmountEverything } from './reactAtOnce';
 import { storyAsStorybookComposesIt, storyComposedFrom } from './storyComposedByStorybook';
 
 // SHERLO-1749: global-level mocks (declared in .rnstorybook/preview.ts) used to be read from
@@ -96,7 +85,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  unmountEverything();
   clearMocks();
   __resetShimmedKeysForTests();
   __resetStorybookFactsForTests();
@@ -184,8 +172,8 @@ describe('activateMocksForStory - stale install guard (SHERLO-1765 B3)', () => {
   });
 });
 
-describe("Sherlo's story hold", () => {
-  it("Sherlo's decorator holds a story until its mocks are installed, before it renders", async () => {
+describe("Sherlo's Storybook loader", () => {
+  it("one Storybook loader installs a story's mocks before it renders, in testing mode and Storybook mode alike", async () => {
     for (const mode of ['testing', 'storybook']) {
       mockGetMode.mockReturnValue(mode);
       const mockable = createMockable(`pkg/${mode}`, { label: 'real' });
@@ -208,16 +196,15 @@ describe("Sherlo's story hold", () => {
       );
       expect(story.id).toBe(storyId);
 
-      // Sherlo's decorator holds the story, so the mocks are in by the time it renders.
-      story();
+      const loading = story.load();
       expect(mockable.label).toBe('real');
-      expect(labelsRendered).toEqual([]);
 
       finishImport(mockable);
-      await letPendingWorkSettle();
+      await loading;
+      // Storybook renders a story only once its loaders are done.
+      story();
 
       expect(labelsRendered).toEqual(['mocked']);
-      unmountEverything();
       clearMocks();
     }
   });
@@ -238,11 +225,11 @@ describe("Sherlo's story hold", () => {
     ]);
 
     // Nobody named a story: no initial selection, no story-changed event. Storybook loads the one
-    // it picks, and renders it at once, with the story's own context.
+    // it picks, and its loaders run with that story's own context, before it renders it.
     const labelsRendered: string[] = [];
     const story = storyAsStorybookComposesIt('Mocking/First', 'Opening', mockable, labelsRendered);
+    await story.load();
     story();
-    await letPendingWorkSettle();
 
     expect(labelsRendered).toEqual(['opening']);
   });
@@ -309,112 +296,9 @@ describe("Sherlo's story hold", () => {
       mockable,
       labelsRendered
     );
+    await story.load();
     story();
-    await letPendingWorkSettle();
 
     expect(labelsRendered).toEqual(['after']);
-  });
-
-  it('a story rendered without its loaders still mounts only after its mocks are installed', async () => {
-    mockGetMode.mockReturnValue('testing');
-    const mockable = createMockable('pkg/no-loaders', { label: 'real' });
-    let finishImport: (module: unknown) => void = () => {};
-    const lateImport = new Promise((resolve) => {
-      finishImport = resolve;
-    });
-    startStorybookWithOneStory({
-      storyMocks: [mock(() => lateImport as never, { label: 'mocked' } as never)],
-    });
-    const labelsRendered: string[] = [];
-    const story = storyAsStorybookComposesIt('Mocking/Config', 'Default', mockable, labelsRendered);
-
-    // Storybook React Native's first render: the story is called at once and no loader runs.
-    story();
-    await letPendingWorkSettle();
-    expect(labelsRendered).toEqual([]);
-
-    finishImport(mockable);
-    await letPendingWorkSettle();
-    expect(labelsRendered).toEqual(['mocked']);
-  });
-
-  it('a story held for its mocks mounts again when the story changes', async () => {
-    mockGetMode.mockReturnValue('storybook');
-    const mockable = createMockable('pkg/changing', { label: 'real' });
-    let finishSecondImport: (module: unknown) => void = () => {};
-    const secondImport = new Promise((resolve) => {
-      finishSecondImport = resolve;
-    });
-    startStorybookHolding([
-      {
-        importPath: './src/Changing.stories.tsx',
-        title: 'Mocking/Changing',
-        fileExports: {
-          default: { title: 'Mocking/Changing' },
-          First: { parameters: { sherlo: { mocks: { 'pkg/changing': { label: 'first' } } } } },
-          Second: {
-            parameters: {
-              sherlo: { mocks: [mock(() => secondImport as never, { label: 'second' } as never)] },
-            },
-          },
-        },
-        stories: [
-          { id: 'mocking-changing--first', name: 'First' },
-          { id: 'mocking-changing--second', name: 'Second' },
-        ],
-      },
-    ]);
-    const labelsRendered: string[] = [];
-    const render = (exportName: string) =>
-      storyAsStorybookComposesIt('Mocking/Changing', exportName, mockable, labelsRendered)();
-
-    render('First');
-    await letPendingWorkSettle();
-    expect(labelsRendered).toEqual(['first']);
-
-    // The person picks another story: it is held until its own mocks are in, then mounts again.
-    render('Second');
-    await letPendingWorkSettle();
-    expect(labelsRendered).toEqual(['first']);
-
-    finishSecondImport(mockable);
-    await letPendingWorkSettle();
-    expect(labelsRendered).toEqual(['first', 'second']);
-  });
-
-  it("a story held for its mocks starts the app's story only once it mounts, so its capture names the app's components", async () => {
-    mockGetMode.mockReturnValue('testing');
-    let finishImport: (module: unknown) => void = () => {};
-    const lateImport = new Promise((resolve) => {
-      finishImport = resolve;
-    });
-    const mockable = createMockable('pkg/names', { label: 'real' });
-    startStorybookWithOneStory({
-      storyMocks: [mock(() => lateImport as never, { label: 'mocked' } as never)],
-    });
-    function WhoAmI() {
-      return null;
-    }
-    const rendersTheApp = { render: () => ({ appComponent: WhoAmI }) as never };
-    const story = composeStory(
-      {},
-      { title: 'Mocking/Config' },
-      composeConfigs([rendersTheApp, sherloAnnotation] as never[]),
-      {},
-      'Default'
-    );
-
-    story();
-    finishImport(mockable);
-    await letPendingWorkSettle();
-
-    // What the core's walk reads: the names of the components under the published fiber.
-    const names: string[] = [];
-    for (let fiber = storyOfTheAppFiber()?.child; fiber; fiber = fiber.child) {
-      names.push((fiber.type as { name?: string }).name ?? String(fiber.type));
-    }
-    expect(names).toContain('WhoAmI');
-    expect(names).not.toContain('HoldStoryForItsMocks');
-    rememberStoryOfTheApp(undefined);
   });
 });

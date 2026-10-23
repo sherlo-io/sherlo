@@ -89,7 +89,7 @@ async function simRun(
   const world = readSimWorld(simWorldDirPath);
 
   // 2. Validate params.
-  const commandParams = await getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
+  const commandParams = getValidatedCommandParams({ command: THIS_COMMAND, passedOptions });
 
   // Devices must be REAL catalog entries (openBuild validation requires it, and
   // the sim executor renders at the device's real resolution). Same tool-error

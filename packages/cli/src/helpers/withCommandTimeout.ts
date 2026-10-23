@@ -22,16 +22,13 @@ function withCommandTimeout<T, P extends { wait?: boolean }>(
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(
-        () => {
-          reject(
-            new TimeoutError(
-              `Command timed out after ${TIMEOUT_IN_MINUTES} minutes; Please try again or contact us if the issue persists`
-            )
-          );
-        },
-        TIMEOUT_IN_MINUTES * 60 * 1000
-      );
+      timeoutId = setTimeout(() => {
+        reject(
+          new TimeoutError(
+            `Command timed out after ${TIMEOUT_IN_MINUTES} minutes; Please try again or contact us if the issue persists`
+          )
+        );
+      }, TIMEOUT_IN_MINUTES * 60 * 1000);
     });
 
     try {

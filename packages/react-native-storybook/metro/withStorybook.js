@@ -157,18 +157,6 @@ function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuil
  * Storybook setup.
  */
 function withStorybook(config, opts) {
-  // A config another wrapper made lazy - Metro's function form (withRozenite returns
-  // `async () => config`) or a promise - is not an object yet: copying it would keep nothing.
-  // Hand Metro the same function form back, applying Sherlo once the config is known.
-  if (typeof config === 'function' || isPromise(config)) {
-    return function withStorybookOnceResolved() {
-      var lazyConfig = typeof config === 'function' ? config.apply(this, arguments) : config;
-      return Promise.resolve(lazyConfig).then(function (resolved) {
-        return withStorybook(resolved, opts);
-      });
-    };
-  }
-
   var projectRoot = projectRootOf(config);
   var thisBuild = whatThisBuildCarries(process.env, isReleaseBundle(), opts && opts.enabled);
   var defaultSetupEntry = defaultSetupStorybookEntry(projectRoot, opts);
@@ -192,10 +180,6 @@ function withStorybook(config, opts) {
   ensureStorybookRequires(projectRoot, storybookOptions);
   var result = loadOldSetupStorybookWrapper()(config, storybookOptions);
   return applySherloTransforms(result, storybookOptions);
-}
-
-function isPromise(value) {
-  return !!value && typeof value.then === 'function';
 }
 
 module.exports = withStorybook;

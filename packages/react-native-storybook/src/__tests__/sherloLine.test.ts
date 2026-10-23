@@ -36,11 +36,7 @@ afterEach(() => {
 /* ---- The line, an app and a driver ---------------------------------------------------------- */
 
 /** A line on a fresh server on loopback, and a way to wait until it heard an app say something. */
-async function startALine(settings?: {
-  appHoldMs?: number;
-  warn?: (message: string) => void;
-  storyFileChangedSince?: (time: number) => boolean;
-}) {
+async function startALine(settings?: { appHoldMs?: number; warn?: (message: string) => void }) {
   const server = http.createServer();
   const line: SherloLine = attach(server, WebSocketServer, settings);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -115,10 +111,6 @@ async function connectAnApp(running: RunningLine) {
     waitsForAStory: (saying: Message) => say({ action: 'waitForStory', ...saying }),
     waitsForACapture: (saying: Message) => say({ action: 'waitForACapture', ...saying }),
     logs: (line: string) => say({ action: 'log', line }),
-    /** The JavaScript starts again on this same connection, as it does after a reload. */
-    startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),
-    /** The polyfill's word that this app's JavaScript died as it started. */
-    startFails: (error: Message) => say({ action: 'start-failed', ...error }),
     /** The letterbox's next answer to this app, without its action. */
     nextLetterboxAnswer: () => app.next((m) => m.action === 'letterboxAnswer').then(withoutAction),
     /** The capture relay's next answer to this app, without its action. */
@@ -473,81 +465,6 @@ describe('the relay hands the restart a story to land on, from whichever side as
   });
 });
 
-describe('a capture of an app whose story files changed after its code loaded', () => {
-  const pause = () => new Promise((resolve) => setTimeout(resolve, 30));
-
-  /** A line told of one story file on disk, as the bundler tells it. */
-  async function startALineWatchingAStoryFile() {
-    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-line-story-'));
-    toCloseAfterTheTest.push(() => fs.rmSync(folder, { recursive: true, force: true }));
-    const storyFile = path.join(folder, 'Button.stories.tsx');
-    fs.writeFileSync(storyFile, 'export default {};\n');
-    const running = await startALine({
-      storyFileChangedSince: (time: number) => fs.statSync(storyFile).mtimeMs > time,
-    });
-    return { running, storyFile };
-  }
-
-  it("a capture asked after a story file changed since the app's code loaded reloads the app into testing mode first", async () => {
-    const { running, storyFile } = await startALineWatchingAStoryFile();
-    await pause();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
-
-    await pause();
-    fs.writeFileSync(storyFile, 'export default { title: "Edited" };\n');
-    const reply = driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
-
-    await expect(app.nextCaptureInstruction()).resolves.toEqual({
-      restartIntoTesting: true,
-      storyId: STORY,
-    });
-    void reply;
-  });
-
-  it("a capture with no story file changed since the app's code loaded walks the story at once", async () => {
-    const { running } = await startALineWatchingAStoryFile();
-    await pause();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
-
-    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
-
-    await expect(app.nextCaptureInstruction()).resolves.toEqual({
-      storyId: STORY,
-      settings: SETTINGS,
-    });
-  });
-
-  it('the app that comes back from the reload is not reloaded again', async () => {
-    const { running, storyFile } = await startALineWatchingAStoryFile();
-    await pause();
-    const firstApp = await connectAnApp(running);
-    const driver = await connectADriver(running);
-    await firstApp.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
-
-    await pause();
-    fs.writeFileSync(storyFile, 'export default { title: "Edited" };\n');
-    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
-    await expect(firstApp.nextCaptureInstruction()).resolves.toMatchObject({
-      restartIntoTesting: true,
-    });
-
-    // The reloaded JavaScript starts on the same connection, after the edit: native code says no
-    // second hello, only the JavaScript's own start message.
-    await pause();
-    await firstApp.startsItsJavaScript();
-    await firstApp.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
-
-    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({
-      storyId: STORY,
-      settings: SETTINGS,
-    });
-  });
-});
-
 describe('a capture of an app that cannot list its stories', () => {
   it('a capture of an app that cannot list its stories is checked after the restart', async () => {
     const running = await startALine();
@@ -582,75 +499,6 @@ describe('a capture of an app that cannot list its stories', () => {
     ).resolves.toEqual({ kind: 'no-such-story', known: [] });
   });
 
-  it('the story files the app says threw as it loaded ride unchanged with the no-such-story answer', async () => {
-    const running = await startALine();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-    const brokenFiles = [
-      { file: './src/Bad.stories.tsx', error: { name: 'TypeError', message: 'boom' } },
-    ];
-
-    await app.waitsForACapture({ mode: 'default', stories: [], brokenFiles, answer: null });
-
-    await expect(
-      driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS })
-    ).resolves.toEqual({ kind: 'no-such-story', known: [], brokenFiles });
-  });
-
-  it('the relay names only the broken file whose recorded title is the asked story id title part', async () => {
-    const running = await startALine();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-    const error = { name: 'TypeError', message: 'boom' };
-
-    // The id's title part names neither file; only the recorded title ties the id to Cart.
-    await app.waitsForACapture({
-      mode: 'default',
-      stories: [],
-      brokenFiles: [
-        { file: './src/Cart.stories.tsx', title: 'Shop/Checkout', error },
-        { file: './src/Other.stories.tsx', title: 'Other', error },
-      ],
-      answer: null,
-    });
-
-    await expect(
-      driver.ask({ action: 'captureStory', storyId: 'shop-checkout--primary', settings: SETTINGS })
-    ).resolves.toEqual({
-      kind: 'no-such-story',
-      known: [],
-      brokenFiles: [{ file: './src/Cart.stories.tsx', error }],
-    });
-  });
-
-  it('every broken file is named when none has the title of the story asked for, without its title', async () => {
-    const running = await startALine();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-    const error = { name: 'TypeError', message: 'boom' };
-
-    await app.waitsForACapture({
-      mode: 'default',
-      stories: [],
-      brokenFiles: [
-        { file: './src/Cart.stories.tsx', title: 'Shop/Checkout', error },
-        { file: './src/Unread.stories.tsx', error },
-      ],
-      answer: null,
-    });
-
-    await expect(
-      driver.ask({ action: 'captureStory', storyId: 'nowhere--primary', settings: SETTINGS })
-    ).resolves.toEqual({
-      kind: 'no-such-story',
-      known: [],
-      brokenFiles: [
-        { file: './src/Cart.stories.tsx', error },
-        { file: './src/Unread.stories.tsx', error },
-      ],
-    });
-  });
-
   it('a driver before any app ever waited is told there is no app', async () => {
     const running = await startALine();
     const driver = await connectADriver(running);
@@ -658,53 +506,6 @@ describe('a capture of an app that cannot list its stories', () => {
     await expect(
       driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS })
     ).resolves.toEqual({ kind: 'no-app' });
-  });
-});
-
-describe('a capture of an app whose JavaScript died as it started', () => {
-  const START_ERROR = { name: 'TypeError', message: 'undefined is not a function' };
-
-  it("a capture asked of an app whose start failed is answered crashed with the app's error at once", async () => {
-    const running = await startALine();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-
-    // The app never reached a wait: its JavaScript died first, and only the polyfill spoke.
-    await app.startFails(START_ERROR);
-
-    await expect(
-      driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS })
-    ).resolves.toEqual({ kind: 'crashed', storyId: STORY, error: START_ERROR });
-  });
-
-  it("a capture asked before the app's start error arrives is answered as soon as it does", async () => {
-    const running = await startALine();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-
-    // The capture moves the app into testing mode; the JavaScript it restarts dies as it starts.
-    await app.waitsForACapture({ mode: 'default', stories: null, answer: null });
-    const reply = driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
-    await app.nextCaptureInstruction();
-    await app.startFails(START_ERROR);
-
-    await expect(reply).resolves.toEqual({ kind: 'crashed', storyId: STORY, error: START_ERROR });
-  });
-
-  it('CONTROL: an app whose JavaScript reached a wait again is captured, not answered crashed', async () => {
-    const running = await startALine();
-    const app = await connectAnApp(running);
-    const driver = await connectADriver(running);
-
-    await app.startFails(START_ERROR);
-    // The developer fixed the error and the app reloaded: the JavaScript running now is alive.
-    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
-
-    driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
-    await expect(app.nextCaptureInstruction()).resolves.toEqual({
-      storyId: STORY,
-      settings: SETTINGS,
-    });
   });
 });
 
