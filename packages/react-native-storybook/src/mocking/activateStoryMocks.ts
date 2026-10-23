@@ -9,6 +9,7 @@ import { MockSet } from './types';
 import { CLOCK_MOCK_KEY, ClockDefinition, installClock, restoreClock } from './clock';
 import { RANDOM_MOCK_KEY, RandomDefinition, installRandom, restoreRandom } from './random';
 import { bundlerSawModule } from './declaredImports';
+import SherloModule from '../SherloModule';
 import type { StoryError } from '../sealedCore/seam';
 
 // Reads the clock/random declarations back off the same channel a module mock rides in on
@@ -41,15 +42,23 @@ export function activateStoryMocks(mocks: MockSet, lookups?: MockLookups): void 
  *
  * It is worked out at each read, never stored: the core reads a story's errors while it waits for
  * the story's views too, and under inlineRequires a module is first required while the story
- * renders, so an answer kept from before the story settled would fail a mock that applies. After
- * the story settled, a mock the story or its file declares that no read reached has reached
- * nothing; a project mock no read reached is a default the story did not need.
+ * renders, so an answer kept from before the story settled would fail a mock that applies.
+ *
+ * A MOCK NO READ REACHED FAILS NOTHING UNTIL THE STORY SETTLED. A whole-app story's app imports
+ * its mocked modules as it boots, seconds after activation - after the core's wait for the story's
+ * views and the ready wait's first poll have read this - so in testing mode it is judged only once
+ * the story's screen was (MockLookups' `settled`: its stillness check ran, or its ready wait ran
+ * out). Then a mock the story or its file declares that no read reached has reached nothing; a
+ * project mock no read reached is a default the story did not need. Outside testing mode no
+ * stillness check runs, and it is judged at each read. A real import that threw, and a module the
+ * bundler never saw, fail the story from the first read: neither changes as the app renders.
  */
 export function mockFailureOf(storyId: string): StoryError | undefined {
   const active = activeMockLookups();
   if (!active || active.lookups.storyId !== storyId) return undefined;
 
   const { mocks, lookups } = active;
+  const judgeUnreached = lookups.settled || SherloModule.getMode() !== 'testing';
   const sentences = Object.keys(mocks).flatMap((key) => {
     const name = lookups.namesAsWritten.get(key) ?? key;
     const thrown = lookups.realImportThrew.get(key);
@@ -61,7 +70,7 @@ export function mockFailureOf(storyId: string): StoryError | undefined {
         `the mock of ${name} did not apply: the bundler had not seen this module when it started - restart the bundler`,
       ];
     }
-    if (lookups.declaredByStory.has(key) && !lookups.reached.has(key)) {
+    if (judgeUnreached && lookups.declaredByStory.has(key) && !lookups.reached.has(key)) {
       return [`the mock of ${name} did not apply: nothing in the story imported it`];
     }
     return [];

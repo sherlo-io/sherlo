@@ -19,7 +19,8 @@
 import RunnerBridge from './helpers/RunnerBridge';
 import { appFiberRoots, collectAppMetadata } from './appMetadata';
 import { requestsInFlight } from './mocking/requestsInFlight';
-import { readStoryError } from './getStorybook/storyErrorRegistry';
+import { readStoryError, recordStoryError } from './getStorybook/storyErrorRegistry';
+import { markStorySettled } from './mocking/registry';
 import { storyLevelsOf } from './mocking/storyMocksOf';
 import type { NativeCalls, WalkedFiber } from './sealedCore/seam';
 import type { ReadyRule } from './types/types';
@@ -44,6 +45,16 @@ export function storyAboutToRender(storyId: string): void {
   storyToReady = { storyId, proven: false };
 }
 
+/**
+ * A capture of the story on screen is over (the core clears its mocks, ./sealedCore/loadSealedCore):
+ * the next capture proves it ready again. A capture handed the story a launch landed on, or the
+ * story already on screen, activates nothing, and each capture is a photograph of its own - the
+ * screen and its requests may have moved since. Only the parts of one tall story share one proof.
+ */
+export function proveReadyAgain(): void {
+  if (storyToReady) storyToReady.proven = false;
+}
+
 /** `native`, with its stillness check held back until the story on screen is ready. */
 export function stabilizeOnceReady<
   Native extends Pick<NativeCalls, 'stabilize'> & Partial<Pick<NativeCalls, 'getInspectorData'>>,
@@ -57,7 +68,12 @@ export function stabilizeOnceReady<
         await waitUntilReady(story.storyId, rule, native.getInspectorData);
         story.proven = true;
       }
-      return native.stabilize(...settings);
+      try {
+        return await native.stabilize(...settings);
+      } finally {
+        // The screen is judged: every read the story's render makes is in (../mocking/activateStoryMocks).
+        markStorySettled();
+      }
     },
   };
 }
@@ -88,10 +104,7 @@ async function waitUntilReady(
     // A story that threw (or whose mock or request failed it) will never show its views: end the
     // wait at once and let the stillness check run, so the story's own error is reported, as it
     // is for a story with no `ready`.
-    if (readStoryError(storyId)) {
-      RunnerBridge.log('story ready wait ended: the story errored', { storyId, waitedMs });
-      return;
-    }
+    if (endedByTheStorysError(storyId, waitedMs)) return;
     const missing = testIDsMissingFromScreen(testIDs);
     const showing = await testIDsStillShowing(goneIDs, getInspectorData);
     const pending = watchRequests ? requestsInFlight() : [];
@@ -103,12 +116,34 @@ async function waitUntilReady(
       return;
     }
     if (waitedMs >= timeoutMs) {
+      // The wait ran out: the screen is judged as it is, so a declared mock the app never read now
+      // counts - and it, like any throw, is what the story reports rather than the timeout.
+      markStorySettled();
+      if (endedByTheStorysError(storyId, waitedMs)) return;
       throw new Error(notReadyLine(storyId, timeoutMs, missing, showing, pending));
     }
 
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     waitedMs += POLL_MS;
   }
+}
+
+/**
+ * Whether the story has an error, which then ends its ready wait. The error is kept in the story's
+ * record (../getStorybook/storyErrorRegistry), so the capture or run reports exactly what ended the
+ * wait as what the story threw - never a log line alone - even when it was a mock failure worked
+ * out at this read.
+ */
+function endedByTheStorysError(storyId: string, waitedMs: number): boolean {
+  const error = readStoryError(storyId);
+  if (!error) return false;
+  recordStoryError(storyId, error);
+  RunnerBridge.log('story ready wait ended: the story errored', {
+    storyId,
+    waitedMs,
+    error: error.name,
+  });
+  return true;
 }
 
 /** The testIDs no view the app draws now carries. */

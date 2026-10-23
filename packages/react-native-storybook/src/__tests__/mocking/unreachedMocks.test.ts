@@ -14,7 +14,7 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 
 import { createLazyMockable } from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
-import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
 import { clearStoryError, readStoryError } from '../../getStorybook/storyErrorRegistry';
@@ -63,7 +63,9 @@ function inlineRequiredShim<T extends Record<string, unknown>>(
 }
 
 // The story, with `mocks` its own, under a preview file that declares `projectMocks`.
-function storyWith(mocks: unknown, projectMocks?: unknown): string {
+// A story keeps what its reads met across its activations, so a test that must start from nothing
+// names a story of its own.
+function storyWith(mocks: unknown, projectMocks?: unknown, storyId = STORY_ID): string {
   startStorybookHolding(
     [
       {
@@ -73,12 +75,12 @@ function storyWith(mocks: unknown, projectMocks?: unknown): string {
           default: { title: 'Chat' },
           Default: { parameters: { sherlo: { mocks } } },
         },
-        stories: [{ id: STORY_ID, name: 'Default' }],
+        stories: [{ id: storyId, name: 'Default' }],
       },
     ],
     projectMocks
   );
-  return STORY_ID;
+  return storyId;
 }
 
 beforeEach(() => {
@@ -102,12 +104,44 @@ describe('a mock that reached nothing', () => {
     const storyId = storyWith({ 'pkg/never-used': { label: 'mocked' } });
 
     activateMocksForStory(storyId);
+    // The story's stillness check ran: every read its render makes is in.
+    markStorySettled();
 
     expect(readStoryError(storyId)).toEqual({
       name: 'MockedModuleError',
       message: 'the mock of pkg/never-used did not apply: nothing in the story imported it',
       stack: '',
       componentStack: '',
+    });
+  });
+
+  it('a mock nothing has read yet fails nothing before the story settled: a whole-app story reads it as it boots', () => {
+    bundlerStartedHaving(['pkg/booted-later']);
+    const bootedLater = inlineRequiredShim('pkg/booted-later', () => ({ label: 'real' }));
+    const storyId = storyWith({ 'pkg/booted-later': { label: 'mocked' } }, undefined, 'app--boot');
+
+    activateMocksForStory(storyId);
+    // The core's wait for the story's views and the ready wait read the story's errors here,
+    // before the app has imported the module.
+    expect(readStoryError(storyId)).toBeUndefined();
+
+    // The app boots and reads it; then the stillness check runs.
+    expect(bootedLater().label).toBe('mocked');
+    markStorySettled();
+    expect(readStoryError(storyId)).toBeUndefined();
+  });
+
+  it("in a person's Storybook, where no stillness check runs, a mock nothing read fails at once", () => {
+    mockGetMode.mockReturnValue('storybook');
+    bundlerStartedHaving(['pkg/never-used']);
+    inlineRequiredShim('pkg/never-used', () => ({ label: 'real' }));
+    const storyId = storyWith({ 'pkg/never-used': { label: 'mocked' } });
+
+    activateMocksForStory(storyId);
+
+    expect(readStoryError(storyId)).toMatchObject({
+      name: 'MockedModuleError',
+      message: 'the mock of pkg/never-used did not apply: nothing in the story imported it',
     });
   });
 
@@ -258,6 +292,8 @@ describe("a project's mock that reached nothing", () => {
     );
 
     activateMocksForStory(storyId);
+    // The story's stillness check ran: every read its render makes is in.
+    markStorySettled();
 
     expect(readStoryError(storyId)).toMatchObject({
       name: 'MockedModuleError',

@@ -22,10 +22,13 @@ import {
 } from '../getStorybook/storyErrorRegistry';
 import { __resetStorybookFactsForTests } from '../getStorybook/storybookFacts';
 import { mockRequest } from '../mocking/networkDeclaration';
-import { clearMocks } from '../mocking/registry';
+import { createLazyMockable } from '../mocking/createMockable';
+import { mock } from '../mocking/mockDeclaration';
+import { mockRandom } from '../mocking/random';
+import { clearMocks, __resetShimmedKeysForTests } from '../mocking/registry';
 import { __resetRequestsInFlightForTests, requestsInFlight } from '../mocking/requestsInFlight';
 import type { Metadata, WalkedFiber } from '../sealedCore/seam';
-import { stabilizeOnceReady } from '../storyReady';
+import { proveReadyAgain, stabilizeOnceReady } from '../storyReady';
 import { startStorybookHolding } from './mocking/storybookHolding';
 
 const SCENE_ID = 'scenes-discover--signed-in';
@@ -595,5 +598,216 @@ describe('a story that names nothing', () => {
   it('leaves every other native call as it is', () => {
     const wrapped = stabilizeOnceReady(native);
     expect(wrapped.getMode).toBe(native.getMode);
+  });
+});
+
+/**
+ * Feeld's whole-app scene, in testing mode from the app's first line: its module mocks are
+ * declarations by import - two written by alias, one a package - and a stand-in is only read when
+ * the app first imports its module, which happens as the app renders, after the mocks were
+ * activated and after the ready wait's first poll.
+ */
+describe('a scene whose mocked modules the app first reads after the ready wait began', () => {
+  const SCENE_FILE = './src/Scene.stories.tsx';
+  const PILL = 'discover.filter.pill.desires.button';
+  const FLAGS = 'utils/featureFlags/getFeatureFlagValue';
+  const CHAT = 'components/provider/Chat/client';
+  const NETINFO = '@react-native-community/netinfo';
+  const FLAGS_KEY = `/app/src/${FLAGS}.ts`;
+  const CHAT_KEY = `/app/src/${CHAT}.ts`;
+
+  // `mock(importModule, definition)` as the bundler's transform hands it over, with the module
+  // the import names as the story wrote it (metro/mockSpecifierTransformer.js).
+  const mockAsTheBundlerMarksIt = mock as (
+    importModule: () => Promise<unknown>,
+    definition: Record<string, unknown>,
+    specifierAsWritten: string
+  ) => ReturnType<typeof mock>;
+
+  // A shim as inlineRequires leaves it: the stand-in is made by the first thing that requires it.
+  function inlineRequiredShim<T extends Record<string, unknown>>(
+    key: string,
+    loadReal: () => T
+  ): () => T {
+    let standIn: T | undefined;
+    return () => (standIn ??= createLazyMockable(key, loadReal));
+  }
+
+  let flags: () => { getFeatureFlagValue: () => unknown };
+  let chat: () => { connect: () => unknown };
+  let netinfo: () => { fetch: () => unknown };
+  // Each test is a story of its own: a story keeps what its reads met for as long as it is the
+  // story on screen, across activations (../getStorybook/storyMockActivation).
+  let sceneId = '';
+  let scenesHeld = 0;
+
+  beforeEach(() => {
+    sceneId = `scenes-discover--launch-${(scenesHeld += 1)}`;
+    // What the bundler's scan saw when it started (metro/mockShims.js).
+    (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports = {
+      storyFiles: {
+        [SCENE_FILE]: [
+          { specifier: FLAGS, moduleKey: FLAGS_KEY },
+          { specifier: CHAT, moduleKey: CHAT_KEY },
+          { specifier: NETINFO, moduleKey: NETINFO },
+        ],
+      },
+      mockedModules: [FLAGS_KEY, CHAT_KEY, NETINFO],
+      moduleFiles: { [FLAGS_KEY]: `src/${FLAGS}`, [CHAT_KEY]: `src/${CHAT}` },
+    };
+    flags = inlineRequiredShim(FLAGS_KEY, () => ({ getFeatureFlagValue: () => 'real' }));
+    chat = inlineRequiredShim(CHAT_KEY, () => ({ connect: () => 'real' }));
+    netinfo = inlineRequiredShim(NETINFO, () => ({ fetch: () => 'real' }));
+  });
+
+  afterEach(() => {
+    clearStoryError(sceneId);
+    delete (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports;
+    __resetShimmedKeysForTests();
+  });
+
+  function holdScene(
+    ready: unknown,
+    chatMock: Record<string, unknown> = { connect: () => 'mock' }
+  ) {
+    startStorybookHolding([
+      {
+        importPath: SCENE_FILE,
+        title: 'scenes/Discover',
+        fileExports: {
+          default: { title: 'scenes/Discover' },
+          SignedIn: {
+            parameters: {
+              sherlo: {
+                ready,
+                mocks: [
+                  mockAsTheBundlerMarksIt(
+                    () => Promise.resolve(flags()),
+                    { getFeatureFlagValue: () => 'mock' },
+                    FLAGS
+                  ),
+                  mockAsTheBundlerMarksIt(() => Promise.resolve(chat()), chatMock, CHAT),
+                  mockAsTheBundlerMarksIt(
+                    () => Promise.resolve(netinfo()),
+                    { fetch: () => 'mock' },
+                    NETINFO
+                  ),
+                  mockRandom(7),
+                  mockRequest.passthrough(),
+                ],
+              },
+            },
+          },
+        },
+        stories: [{ id: sceneId, name: 'Signed In' }],
+      },
+    ]);
+  }
+
+  /** The app renders: it imports and reads each mocked module for the first time, and arrives. */
+  function theAppBoots(): void {
+    expect(flags().getFeatureFlagValue()).toBe('mock');
+    expect(chat().connect()).toBe('mock');
+    expect(netinfo().fetch()).toBe('mock');
+    onScreen = [PILL];
+  }
+
+  it('keeps waiting while no mocked module has been read yet, and never calls a mock failed', async () => {
+    holdScene({ testID: PILL, gone: 'splash-screen' });
+    await activateMocksForStory(sceneId);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(nativeStabilize).not.toHaveBeenCalled();
+
+    theAppBoots();
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(await settled).toBe(true);
+    expect(mockLog).toHaveBeenCalledWith(
+      'story ready',
+      expect.objectContaining({ storyId: sceneId })
+    );
+    expect(mockLog).not.toHaveBeenCalledWith(
+      'story ready wait ended: the story errored',
+      expect.anything()
+    );
+    // What the capture reads as the story's throw once the stillness check ran: nothing.
+    expect(readStoryError(sceneId)).toBeUndefined();
+  });
+
+  it('names a declared mock the app never read once the stillness check ran, not at the first poll', async () => {
+    holdScene({ testID: PILL });
+    await activateMocksForStory(sceneId);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(nativeStabilize).not.toHaveBeenCalled();
+
+    // The app arrives having read two of its three mocked modules.
+    flags().getFeatureFlagValue();
+    netinfo().fetch();
+    // Until the stillness check ran, nothing calls the unread mock failed.
+    expect(readStoryError(sceneId)).toBeUndefined();
+    onScreen = [PILL];
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await settled).toBe(true);
+    expect(mockLog).toHaveBeenCalledWith(
+      'story ready',
+      expect.objectContaining({ storyId: sceneId })
+    );
+
+    expect(readStoryError(sceneId)).toMatchObject({
+      name: 'MockedModuleError',
+      message: `the mock of ${CHAT} did not apply: nothing in the story imported it`,
+    });
+  });
+
+  it('ends the wait at once for a mock that really failed, and the story keeps that error', async () => {
+    // The chat mock does not answer `connect`, so reading it loads the real module, which throws.
+    chat = inlineRequiredShim(CHAT_KEY, () => {
+      throw new Error('chat native module is not linked');
+    });
+    holdScene({ testID: PILL }, { disconnect: () => 'mock' });
+    await activateMocksForStory(sceneId);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(nativeStabilize).not.toHaveBeenCalled();
+    expect(() => chat().connect).toThrow();
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(await settled).toBe(true);
+    const failure = {
+      name: 'MockedModuleError',
+      message: `${CHAT} could not be mocked: its real import threw "chat native module is not linked"`,
+    };
+    expect(readStoryError(sceneId)).toMatchObject(failure);
+    // What ended the wait is what the story's record reads, even once its mocks are gone.
+    clearMocks();
+    expect(readStoryError(sceneId)).toMatchObject(failure);
+  });
+
+  it('proves a second capture of the story already on screen ready again', async () => {
+    holdScene({ testID: PILL });
+    await activateMocksForStory(sceneId);
+    const first = stabilize();
+    theAppBoots();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await first).toBe(true);
+
+    // The capture ends as the core ends one (the host's clearMocks, ../sealedCore/loadSealedCore);
+    // the next finds the story still selected, so nothing activates it again.
+    clearMocks();
+    proveReadyAgain();
+    onScreen = [];
+    const second = stabilize();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(nativeStabilize).toHaveBeenCalledTimes(1);
+
+    onScreen = [PILL];
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await second).toBe(true);
+    expect(nativeStabilize).toHaveBeenCalledTimes(2);
   });
 });
