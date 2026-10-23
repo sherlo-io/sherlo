@@ -3,7 +3,6 @@ import { send, startTheLine } from './connection/appLine';
 import { JS_MODULE_VERSION } from './sdk-compatibility.json';
 import SherloModule from './SherloModule';
 import { loadSealedCore } from './sealedCore/loadSealedCore';
-import { holdWebSockets } from './mocking/network';
 
 export { default as isRunningVisualTests } from './isRunningVisualTests';
 export { default as isStorybookMode } from './isStorybookMode';
@@ -30,12 +29,6 @@ export * from './types';
 // The sealed core loads first, in every mode, so everything after it finds it installed. It never
 // throws: with no core, Sherlo's features are off and the rest of the SDK still works.
 loadSealedCore();
-
-// The WebSocket wrapper goes in now, before most of the app's modules capture the class
-// (`class AppSocket extends WebSocket`), in testing and Storybook mode only (./mocking/network).
-try {
-  holdWebSockets();
-} catch (_) {}
 
 try {
   installSherloIntegration();

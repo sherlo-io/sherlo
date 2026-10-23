@@ -1229,6 +1229,7 @@ export type BrokenStoryFile = {
 export type UnansweredRequest = {
   method: string;
   url: string;
+  operation?: string;
 };
 
 /**

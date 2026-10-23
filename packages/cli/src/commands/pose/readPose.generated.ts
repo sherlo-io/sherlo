@@ -2291,7 +2291,10 @@ function readUnansweredRequest(value: unknown, path: string, problems: string[])
   if (object1) {
     expectString(object1.method, at(path, 'method'), problems);
     expectString(object1.url, at(path, 'url'), problems);
-    reportUnknownFields(object1, ['method', 'url'], path, problems);
+    if ('operation' in object1) {
+      expectString(object1.operation, at(path, 'operation'), problems);
+    }
+    reportUnknownFields(object1, ['method', 'url', 'operation'], path, problems);
   }
 }
 

@@ -2,7 +2,8 @@ import { NetworkMocks, NO_NETWORK_MOCKS } from './networkDeclaration';
 import { mockedFetchOf } from './networkFetch';
 import { mockedXhrOf, XhrClass } from './networkXhr';
 import { RecordRefusal, setNetworkMocks } from './networkRules';
-import { mockedWebSocketOf, WebSocketClass } from './networkSocket';
+import { TurboModule, TurboModuleRegistry } from 'react-native';
+import { holdNativeSockets, NativeSocketModule } from './networkSocket';
 import { isACapture } from './stillReal';
 import { bundlerOrigin } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
@@ -59,34 +60,34 @@ export function activateNetworkMocks(mocks: NetworkMocks, recordRefusal: RecordR
   else restore();
 }
 
-/** The real WebSocket class, kept once the wrapper replaced it. The wrapper is never taken out. */
-let realWebSocket: WebSocketClass | null = null;
+/** What puts React Native's own socket calls back, once they are held. The hold stays in. */
+let releaseSockets: (() => void) | null = null;
 
 /**
- * Replace the global WebSocket with one that asks the rules in effect (./networkSocket). Called
- * when the SDK is imported, before most of the app's modules capture the class, and again at
- * every story's activation; it replaces it once. With no story's mocks in effect the wrapper
- * builds the real socket, so it is safe to leave in.
+ * Hold React Native's WebSocketModule, so every socket opened asks the rules in effect
+ * (./networkSocket) - whichever class opened it and whenever that class was defined. Called when
+ * the SDK is imported and again at every story's activation; it holds once. With no story's mocks
+ * in effect every socket is the real one, so it is safe to leave in.
  *
- * Guarded like every other mock: an app in default mode is never wrapped.
+ * Guarded like every other mock: an app in default mode is never held.
  */
 export function holdWebSockets(): void {
   const mode = SherloModule.getMode();
   if (mode !== 'testing' && mode !== 'storybook') return;
-  if (realWebSocket) return;
+  if (releaseSockets) return;
 
-  const globals = globalThis as unknown as { WebSocket?: WebSocketClass };
-  if (typeof globals.WebSocket !== 'function') return;
+  const nativeSockets = TurboModuleRegistry.get<NativeSocketModule & TurboModule>(
+    'WebSocketModule'
+  );
+  if (!nativeSockets || typeof nativeSockets.connect !== 'function') return;
 
-  realWebSocket = globals.WebSocket;
-  globals.WebSocket = mockedWebSocketOf(realWebSocket, isTheBundlersSocket);
+  releaseSockets = holdNativeSockets(nativeSockets, isTheBundlersSocket);
 }
 
-/** Test-only: put the real WebSocket back, as a fresh boot of the JavaScript has it. */
+/** Test-only: put React Native's own socket calls back, as a fresh boot of the JavaScript has them. */
 export function __releaseWebSocketsForTests(): void {
-  if (!realWebSocket) return;
-  (globalThis as unknown as { WebSocket?: WebSocketClass }).WebSocket = realWebSocket;
-  realWebSocket = null;
+  releaseSockets?.();
+  releaseSockets = null;
 }
 
 /** A socket to the bundler the app came from (hot reload, its status) is never a story's. */
