@@ -45,6 +45,12 @@
       "require": "./dist/mocking/index.js",
       "default": "./dist/mocking/index.js"
     },
+    "./scenes": {
+      "types": "./dist/scenes.d.ts",
+      "react-native": "./dist/scenes.js",
+      "require": "./dist/scenes.js",
+      "default": "./dist/scenes.js"
+    },
     "./metro/detectStorybookSetup": {
       "require": "./dist-metro/detectStorybookSetup.js",
       "default": "./dist-metro/detectStorybookSetup.js"
