@@ -1,0 +1,126 @@
+{
+  "name": "@napi-rs/keyring",
+  "version": "2.1.0",
+  "description": "https://github.com/hwchen/keyring-rs Node.js binding via https://napi.rs",
+  "main": "index.js",
+  "repository": "https://github.com/Brooooooklyn/keyring-node",
+  "license": "MIT",
+  "keywords": [
+    "napi-rs",
+    "NAPI",
+    "N-API",
+    "Rust",
+    "node-addon",
+    "node-addon-api"
+  ],
+  "files": [
+    "index.d.ts",
+    "index.js",
+    "keytar.js",
+    "keytar.d.ts"
+  ],
+  "napi": {
+    "binaryName": "keyring",
+    "constEnum": false,
+    "targets": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "aarch64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "x86_64-unknown-freebsd",
+      "i686-pc-windows-msvc",
+      "armv7-unknown-linux-gnueabihf",
+      "riscv64gc-unknown-linux-gnu"
+    ]
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "format": "run-p format:prettier format:rs format:toml",
+    "format:prettier": "prettier . -w",
+    "format:toml": "taplo format",
+    "format:rs": "cargo fmt",
+    "lint": "oxlint",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "ava -s",
+    "preversion": "napi build --platform && git add .",
+    "version": "napi version"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.9.1",
+    "@oxc-node/core": "^0.1.1",
+    "@taplo/cli": "^0.7.0",
+    "@types/node": "^26.5.1",
+    "ava": "^8.0.1",
+    "chalk": "^6.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
+    "npm-run-all2": "^9.0.3",
+    "oxlint": "^1.82.0",
+    "prettier": "^3.9.6",
+    "typescript": "^7.0.2"
+  },
+  "lint-staged": {
+    "*.@(js|ts|tsx)": [
+      "oxlint --fix"
+    ],
+    "*.@(js|ts|tsx|yml|yaml|md|json)": [
+      "prettier --write"
+    ],
+    "*.toml": [
+      "taplo format"
+    ]
+  },
+  "ava": {
+    "nodeArguments": [
+      "--import",
+      "@oxc-node/core/register"
+    ],
+    "extensions": [
+      "ts"
+    ],
+    "timeout": "2m",
+    "workerThreads": false,
+    "environmentVariables": {
+      "TS_NODE_PROJECT": "./tsconfig.json"
+    }
+  },
+  "prettier": {
+    "printWidth": 120,
+    "semi": false,
+    "trailingComma": "all",
+    "singleQuote": true,
+    "arrowParens": "always"
+  },
+  "packageManager": "yarn@4.18.0",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/Brooooooklyn"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring-darwin-arm64": "2.1.0",
+    "@napi-rs/keyring-linux-arm64-gnu": "2.1.0",
+    "@napi-rs/keyring-linux-arm64-musl": "2.1.0",
+    "@napi-rs/keyring-win32-arm64-msvc": "2.1.0",
+    "@napi-rs/keyring-darwin-x64": "2.1.0",
+    "@napi-rs/keyring-win32-x64-msvc": "2.1.0",
+    "@napi-rs/keyring-linux-x64-gnu": "2.1.0",
+    "@napi-rs/keyring-linux-x64-musl": "2.1.0",
+    "@napi-rs/keyring-freebsd-x64": "2.1.0",
+    "@napi-rs/keyring-win32-ia32-msvc": "2.1.0",
+    "@napi-rs/keyring-linux-arm-gnueabihf": "2.1.0",
+    "@napi-rs/keyring-linux-riscv64-gnu": "2.1.0"
+  }
+}
