@@ -79,3 +79,8 @@ describe('the tool reports errors only from a stack that outlives the run', () =
     expect(options.environment).toBe('test');
   });
 });
+
+// Shells for epic release-watch-on-prod. Each `it.todo` becomes a real `it(...)` with the exact same name.
+describe('the cli Sentry release', () => {
+  it.todo('Sentry is started with the release sherlo-cli at the package version');
+});
