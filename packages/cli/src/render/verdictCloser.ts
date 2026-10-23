@@ -263,7 +263,7 @@ function renderCountLines(counts: { unreviewed: number; reported: number }): str
 export type AppFailedToStart = {
   reason: 'appFailedToStart';
   platform: Platform;
-  errorMessage: string;
+  errorMessage?: string;
   buildUrl: string;
 };
 
@@ -281,7 +281,7 @@ export function renderVerdictRunErrored(
   appFailed?: AppFailedToStart
 ): string[] {
   if (appFailed) {
-    const [firstLine] = appFailed.errorMessage.trim().split(/\r?\n/);
+    const [firstLine] = (appFailed.errorMessage ?? '').trim().split(/\r?\n/);
     return [
       ...renderFailedTestStep(`Running ${theTest(testIndex)}`),
       `App failed to start on ${PLATFORM_LABEL[appFailed.platform]}`,

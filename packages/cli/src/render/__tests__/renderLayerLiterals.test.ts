@@ -1987,6 +1987,29 @@ describe('CONTROL: the pin catches what the masker hides', () => {
   // the pins above are what compare against the shipped renderer.
 });
 
+describe('the app failed to start closer', () => {
+  it('the app failed to start closer leaves out the error line when there is no message', () => {
+    const { prints } = renderSegment({
+      kind: 'verdict-run-errored',
+      runStatus: 'error',
+      runError: 'user_runner',
+      testIndex: 3,
+      appFailed: {
+        reason: 'appFailedToStart',
+        platform: 'ios',
+        buildUrl: 'https://app.sherlo.io/build?t=tm000001&p=7&b=3',
+      },
+    });
+
+    expect(prints.slice(0, 4)).toEqual([
+      [`${ESC}[31m✖${ESC}[39m Running Test 3 failed`],
+      [''],
+      ['App failed to start on iOS'],
+      [`🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=3${ESC}[39m`],
+    ]);
+  });
+});
+
 /* ========================================================================== */
 /* The sink: the bytes a segment becomes once it leaves the renderer          */
 /* ========================================================================== */
