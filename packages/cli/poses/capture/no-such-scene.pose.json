@@ -20,7 +20,7 @@
       "profile--own-profile",
       "sign-in--empty"
     ],
-    "route": ["ChatStack", "Chat"],
+    "ready": "chat.input.message",
     "stayedOn": ["ChatStack", "Chat"]
   }
 }

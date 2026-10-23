@@ -2,8 +2,9 @@
  * WHAT `sherlo capture --scene` PRINTS.
  *
  * Pure, like everything under ./: state in, lines out. A scene is one variant of one screen; the
- * app is booted fresh for it, moved to the scene's route through its own navigation, made to run
- * the scene's play steps, stabilized and read. The road that produces the state is the capture
+ * app is booted fresh on its first screen, its play steps tap and open links until the scene's
+ * ready view shows, and it is stabilized and read. The route is the one the app's own navigation
+ * reached, read from the app; a scene file names no route. The road that produces the state is the capture
  * socket (../seams/captureSocket); a posed run states the answer and a real run gets it from the
  * app, and neither changes a line of what is printed.
  *
@@ -14,8 +15,8 @@ import chalk from 'chalk';
 import { treeLines, renderCapturedStory } from './capturedStory';
 import type { CapturedView } from './capturedStory';
 
-/** One step of a scene's `play`, as the scene file wrote it. Today the only step is a tap by testID. */
-export type PlayStep = { tap: string };
+/** One step of a scene's `play`, as the scene file wrote it: a tap by testID, or one of the app's own links. */
+export type PlayStep = { tap: string } | { open: string };
 
 /** How a scene run ended, without the bundler's two refusals, which carry a port. */
 export type SceneEnding =
@@ -26,19 +27,19 @@ export type SceneEnding =
       sceneId: string;
       error: { name: string; message: string; file: string; line: number };
     }
-  /** The app booted, and the navigation handle never ended up on the scene's route. */
-  | { kind: 'never-reached'; sceneId: string; wanted: string[]; stayedOn: string[] }
-  /** The route was reached, and a play step found no view with its testID within its limit. */
+  /** The app booted, and the scene's ready view never showed; `stayedOn` is the route the app was on. */
+  | { kind: 'never-reached'; sceneId: string; ready: string; stayedOn: string[] }
+  /** A play step found no view with its testID within its limit; `route` is where the app stood. */
   | {
       kind: 'play-target-missing';
       sceneId: string;
       route: string[];
       /** The steps done before the one that found nothing. */
       done: PlayStep[];
-      missing: PlayStep;
+      missing: { tap: string };
       limitMs: number;
     }
-  /** The record. `bootMs` is the fresh boot; `reached.ms` is the move from there to the route. */
+  /** The record. `bootMs` is the fresh boot; `reached.ms` is from there to the ready view showing. */
   | {
       kind: 'scene';
       sceneId: string;
@@ -82,20 +83,20 @@ export function renderCapturedScene(state: CapturedScene): string[] {
 
     case 'never-reached':
       return [
-        `${chalk.red('✖')}  ${chalk.bold(state.sceneId)} never reached ${route(
-          state.wanted
-        )} - the app stayed on ${route(state.stayedOn)}`,
+        `${chalk.red('✖')}  ${chalk.bold(state.sceneId)} never got ready - no view ${
+          state.ready
+        } showed, and the app stayed on ${route(state.stayedOn)}`,
         '',
         '  Nothing faked who is logged in, so the app sent itself to sign-in. ' +
-          'Add a logged-in user to the mocks in sherlo.scenes.ts.',
+          "Add a logged-in user to the scene's mocks.",
         '',
       ];
 
     case 'play-target-missing':
       return [
-        `${chalk.red('✖')}  ${chalk.bold(state.sceneId)} reached ${route(
+        `${chalk.red('✖')}  ${chalk.bold(state.sceneId)} stopped on ${route(
           state.route
-        )}, and its play stopped`,
+        )} - its play could not go on`,
         ...state.done.map((step) => chalk.dim(`   ${playStep(step)}`)),
         '',
         `  ${playStep(state.missing)} found no view with that testID within ${
@@ -107,12 +108,9 @@ export function renderCapturedScene(state: CapturedScene): string[] {
     case 'scene':
       return [
         `${chalk.green('✔')}  ${chalk.bold(state.sceneId)} captured, the way a test run records it`,
-        chalk.dim(
-          `   booted fresh in ${seconds(state.bootMs)} · reached ${route(
-            state.reached.route
-          )} in ${seconds(state.reached.ms)}`
-        ),
+        chalk.dim(`   booted fresh in ${seconds(state.bootMs)}`),
         ...state.play.map((step) => chalk.dim(`   played ${playStep(step)}`)),
+        chalk.dim(`   reached ${route(state.reached.route)} in ${seconds(state.reached.ms)}`),
         chalk.dim(
           `   settled in ${seconds(state.settled.ms)} over ${state.settled.frames} frames · testing mode`
         ),
@@ -130,9 +128,9 @@ export function route(names: string[]): string {
   return names.join(' › ');
 }
 
-/** `tap chat-header-menu` - one play step, the way the scene file spells its verb. */
+/** `tap chat-header-menu` or `open feeld://chat-list` - one play step, spelt as the scene file spells it. */
 export function playStep(step: PlayStep): string {
-  return `tap ${step.tap}`;
+  return 'tap' in step ? `tap ${step.tap}` : `open ${step.open}`;
 }
 
 function seconds(ms: number): string {

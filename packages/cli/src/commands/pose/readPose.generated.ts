@@ -1218,13 +1218,13 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
         }
         reportUnknownFields(object10, ['scenes', 'threwAtBoot'], path, problems);
       }
-    } else if ('stayedOn' in oneOf1) {
+    } else if ('ready' in oneOf1) {
       const object13 = asObject(oneOf1, path, problems);
       if (object13) {
         expectStringArray(object13.scenes, at(path, 'scenes'), problems);
-        expectStringArray(object13.route, at(path, 'route'), problems);
+        expectString(object13.ready, at(path, 'ready'), problems);
         expectStringArray(object13.stayedOn, at(path, 'stayedOn'), problems);
-        reportUnknownFields(object13, ['scenes', 'route', 'stayedOn'], path, problems);
+        reportUnknownFields(object13, ['scenes', 'ready', 'stayedOn'], path, problems);
       }
     } else if ('playDone' in oneOf1) {
       const object14 = asObject(oneOf1, path, problems);
@@ -1358,7 +1358,7 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }`, `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`, `{ scenes: string[]; threwAtBoot: { name: string; message: string; file: string; line: number } }`, `{ scenes: string[]; route: string[]; stayedOn: string[] }`, `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; playDone: PosedPlayStep[]; targetMissing: { tap: string; limitMs: number } }` or `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; play: PosedPlayStep[]; settled: { ms: number; frames: number }; tree: PosedView }`',
+      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }`, `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`, `{ scenes: string[]; threwAtBoot: { name: string; message: string; file: string; line: number } }`, `{ scenes: string[]; ready: string; stayedOn: string[] }`, `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; playDone: PosedPlayStep[]; targetMissing: { tap: string; limitMs: number } }` or `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; play: PosedPlayStep[]; settled: { ms: number; frames: number }; tree: PosedView }`',
       path,
       problems
     );
@@ -2357,10 +2357,25 @@ function readPosedView(value: unknown, path: string, problems: string[]): void {
 
 /** The shape of a `PosedPlayStep`, as `contracts/pose.contract.ts` publishes it. */
 function readPosedPlayStep(value: unknown, path: string, problems: string[]): void {
-  const object1 = asObject(value, path, problems);
-  if (object1) {
-    expectString(object1.tap, at(path, 'tap'), problems);
-    reportUnknownFields(object1, ['tap'], path, problems);
+  const oneOf1 = value;
+  if (isPlainObject(oneOf1)) {
+    if ('tap' in oneOf1) {
+      const object2 = asObject(oneOf1, path, problems);
+      if (object2) {
+        expectString(object2.tap, at(path, 'tap'), problems);
+        reportUnknownFields(object2, ['tap'], path, problems);
+      }
+    } else if ('open' in oneOf1) {
+      const object3 = asObject(oneOf1, path, problems);
+      if (object3) {
+        expectString(object3.open, at(path, 'open'), problems);
+        reportUnknownFields(object3, ['open'], path, problems);
+      }
+    } else {
+      reportWrongShape(oneOf1, '`{ tap: string }` or `{ open: string }`', path, problems);
+    }
+  } else {
+    reportWrongShape(oneOf1, '`{ tap: string }` or `{ open: string }`', path, problems);
   }
 }
 

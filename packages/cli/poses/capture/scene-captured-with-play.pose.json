@@ -22,8 +22,12 @@
     ],
     "route": ["ChatStack", "Chat"],
     "bootMs": 1800,
-    "reachedMs": 900,
-    "play": [{ "tap": "chat-header-menu" }],
+    "reachedMs": 3100,
+    "play": [
+      { "open": "feeld://chat-list" },
+      { "tap": "connectionListItem" },
+      { "tap": "chat-header-menu" }
+    ],
     "settled": { "ms": 800, "frames": 5 },
     "tree": {
       "primitive": "View",

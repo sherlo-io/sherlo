@@ -1537,15 +1537,15 @@ const PINS: Pin[] = [
 
   {
     kind: 'captured-scene',
-    what: 'what `sherlo capture --scene` prints for a scene that came back with its record - the boot line, one line per play step done, the settled line, then the named tree',
+    what: 'what `sherlo capture --scene` prints for a scene that came back with its record - the boot line, one line per play step done, the route reached, the settled line, then the named tree',
     segment: {
       kind: 'captured-scene',
       state: {
         kind: 'scene',
         sceneId: 'chat--menu-open',
         bootMs: 1800,
-        reached: { route: ['ChatStack', 'Chat'], ms: 900 },
-        play: [{ tap: 'chat-header-menu' }],
+        reached: { route: ['ChatStack', 'Chat'], ms: 3100 },
+        play: [{ open: 'feeld://chat-list' }, { tap: 'chat-header-menu' }],
         settled: { ms: 800, frames: 5 },
         tree: {
           primitive: 'Text',
@@ -1560,8 +1560,10 @@ const PINS: Pin[] = [
       [
         `${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--menu-open${ESC}[22m captured, the way a test run records it`,
       ],
-      [`${ESC}[2m   booted fresh in 1.8s · reached ChatStack › Chat in 0.9s${ESC}[22m`],
+      [`${ESC}[2m   booted fresh in 1.8s${ESC}[22m`],
+      [`${ESC}[2m   played open feeld://chat-list${ESC}[22m`],
       [`${ESC}[2m   played tap chat-header-menu${ESC}[22m`],
+      [`${ESC}[2m   reached ChatStack › Chat in 3.1s${ESC}[22m`],
       [`${ESC}[2m   settled in 0.8s over 5 frames · testing mode${ESC}[22m`],
       [''],
       [`   ${ESC}[93m<${ESC}[39m${ESC}[95mChatHeaderName${ESC}[39m${ESC}[93m>${ESC}[39m`],

@@ -22,8 +22,8 @@
     ],
     "route": ["ChatStack", "Chat"],
     "bootMs": 1800,
-    "reachedMs": 900,
-    "play": [],
+    "reachedMs": 2400,
+    "play": [{ "tap": "Connections" }, { "tap": "connectionListItem" }],
     "settled": { "ms": 600, "frames": 4 },
     "tree": {
       "primitive": "View",

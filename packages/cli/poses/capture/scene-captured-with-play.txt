@@ -1,6 +1,9 @@
 [32m✔[39m  [1mchat--menu-open[22m captured, the way a test run records it
-[2m   booted fresh in 1.8s · reached ChatStack › Chat in 0.9s[22m
+[2m   booted fresh in 1.8s[22m
+[2m   played open feeld://chat-list[22m
+[2m   played tap connectionListItem[22m
 [2m   played tap chat-header-menu[22m
+[2m   reached ChatStack › Chat in 3.1s[22m
 [2m   settled in <SETTLED> over 5 frames · testing mode[22m
 
    [93m<[39m[95mChat[39m[93m>[39m

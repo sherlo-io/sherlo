@@ -7,9 +7,16 @@
       "ChatStack",
       "Chat"
     ],
-    "ms": 900
+    "ms": 2400
   },
-  "play": [],
+  "play": [
+    {
+      "tap": "Connections"
+    },
+    {
+      "tap": "connectionListItem"
+    }
+  ],
   "settled": {
     "ms": 600,
     "frames": 4

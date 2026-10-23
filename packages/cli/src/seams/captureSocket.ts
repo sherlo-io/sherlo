@@ -573,30 +573,32 @@ export type PosedCapture =
       scenes: string[];
       threwAtBoot: { name: string; message: string; file: string; line: number };
     }
-  /** A scene run: the app booted, and its navigation ended on another route than the scene's. */
+  /** A scene run: the app booted, and the scene's ready view never showed. */
   | {
       scenes: string[];
-      /** The route the scene file names, outermost screen first. */
-      route: string[];
-      /** The route the app was on when it gave up moving, outermost screen first. */
+      /** The testID of the view the scene waits for. */
+      ready: string;
+      /** The route the app was on when the wait ran out, outermost screen first. */
       stayedOn: string[];
     }
-  /** A scene run: the route was reached and a play step found no view with its testID. */
+  /** A scene run: a play step found no view with its testID. */
   | {
       scenes: string[];
+      /** The route the app stood on when the step found nothing, outermost screen first. */
       route: string[];
       bootMs: number;
       reachedMs: number;
       /** The steps that ran before the one that found nothing. */
       playDone: PosedPlayStep[];
-      /** The step that found nothing, and how long it looked. */
-      targetMissing: PosedPlayStep & { limitMs: number };
+      /** The tap that found nothing, and how long it looked. */
+      targetMissing: { tap: string; limitMs: number };
     }
   /** A scene run that came back with its record. */
   | {
       scenes: string[];
+      /** The route the app's navigation reached, read from the app, outermost screen first. */
       route: string[];
-      /** How long the fresh boot took, and how long the move from there to the route took. */
+      /** How long the fresh boot took, and how long from there until the ready view showed. */
       bootMs: number;
       reachedMs: number;
       /** The scene's play steps, all done. */
@@ -605,8 +607,8 @@ export type PosedCapture =
       tree: PosedView;
     };
 
-/** One step of a scene's `play`. Today the only step is a tap on the view with that testID. */
-export type PosedPlayStep = { tap: string };
+/** One step of a scene's `play`: a tap on the view with that testID, or one of the app's own links. */
+export type PosedPlayStep = { tap: string } | { open: string };
 
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own
@@ -712,7 +714,7 @@ export function posedCaptureSocket(
         return { kind: 'crashed-at-boot', sceneId, error: posed.threwAtBoot };
       }
       if ('stayedOn' in posed) {
-        return { kind: 'never-reached', sceneId, wanted: posed.route, stayedOn: posed.stayedOn };
+        return { kind: 'never-reached', sceneId, ready: posed.ready, stayedOn: posed.stayedOn };
       }
       if ('targetMissing' in posed) {
         return {

@@ -23,7 +23,7 @@
     "route": ["ChatStack", "Chat"],
     "bootMs": 1800,
     "reachedMs": 900,
-    "playDone": [],
+    "playDone": [{ "tap": "Connections" }, { "tap": "connectionListItem" }],
     "targetMissing": { "tap": "chat-header-menu", "limitMs": 5000 }
   }
 }

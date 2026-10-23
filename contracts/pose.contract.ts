@@ -671,19 +671,20 @@ export type PosedCapture =
     }
   | {
       scenes: string[];
-      /** The route the scene file names, outermost screen first. */
-      route: string[];
-      /** The route the app was on when it gave up moving, outermost screen first. */
+      /** The testID of the view the scene waits for. */
+      ready: string;
+      /** The route the app was on when the wait ran out, outermost screen first. */
       stayedOn: string[];
     }
   | {
       scenes: string[];
+      /** The route the app stood on when the step found nothing, outermost screen first. */
       route: string[];
       bootMs: number;
       reachedMs: number;
       /** The steps that ran before the one that found nothing. */
       playDone: PosedPlayStep[];
-      /** The step that found nothing, and how long it looked. */
+      /** The tap that found nothing, and how long it looked. */
       targetMissing: {
         tap: string;
         limitMs: number;
@@ -691,8 +692,9 @@ export type PosedCapture =
     }
   | {
       scenes: string[];
+      /** The route the app's navigation reached, read from the app, outermost screen first. */
       route: string[];
-      /** How long the fresh boot took, and how long the move from there to the route took. */
+      /** How long the fresh boot took, and how long from there until the ready view showed. */
       bootMs: number;
       reachedMs: number;
       /** The scene's play steps, all done. */
@@ -1251,10 +1253,14 @@ export type PosedView = {
   children?: PosedView[];
 };
 
-/** One step of a scene's `play`. Today the only step is a tap on the view with that testID. */
-export type PosedPlayStep = {
-  tap: string;
-};
+/** One step of a scene's `play`: a tap on the view with that testID, or one of the app's own links. */
+export type PosedPlayStep =
+  | {
+      tap: string;
+    }
+  | {
+      open: string;
+    };
 
 /**
  * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
