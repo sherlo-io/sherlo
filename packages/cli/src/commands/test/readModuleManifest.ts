@@ -157,6 +157,9 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
       ...(isPlainObject(parsed.storyCounts)
         ? { storyCounts: withBareKeys(parsed.storyCounts as Record<string, number>) }
         : {}),
+      ...(Array.isArray(parsed.sceneIds) && parsed.sceneIds.every((id) => typeof id === 'string')
+        ? { sceneIds: parsed.sceneIds as string[] }
+        : {}),
     },
   };
 }
@@ -224,9 +227,7 @@ export function countInBundles(
 }
 
 /**
- * How many scenes the bundle holds; a module map that records none holds none. The live reader
- * (`validateModuleManifestBuffer`) still drops `sceneIds`, so a real push counts 0 scenes until the
- * push-live task; only a posed bundle has any.
+ * How many scenes the bundle holds; a module map that records none holds none.
  */
 export function countBundleScenes(manifest: ValidatedModuleManifest): number {
   return manifest.parsed.sceneIds?.length ?? 0;

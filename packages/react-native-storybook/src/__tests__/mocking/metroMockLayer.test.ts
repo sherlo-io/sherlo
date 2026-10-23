@@ -187,6 +187,29 @@ describe('mockScan.findScanFiles / scanProjectForMocks (MK-09 discovery)', () =>
     expect(declared[0].key).toBe('expo-localization');
     expect(declared[0].file).toContain('Comp.stories.tsx');
   });
+
+  it('a mock list built in another file and imported by a scene file is scanned', () => {
+    const root = mkProject('sherlo-scan-scene-mocks-');
+    writeFile(
+      root,
+      'src/signedInFakes.ts',
+      `import { mock } from '@sherlo/react-native-storybook/mocking';
+export const signedInFakes = [mock(() => import('expo-localization'), { locale: 'en' })];`
+    );
+    writeFile(
+      root,
+      'src/Chat.scenes.tsx',
+      `import { scenes } from '@sherlo/react-native-storybook/scenes';
+import { signedInFakes } from './signedInFakes';
+export default scenes({ mocks: signedInFakes, scenes: { Conversation: {} } });`
+    );
+    writeFile(root, 'src/unrelated.ts', 'export default 1;');
+    const declared = mockScan.scanProjectForMocks(root);
+    cleanup(root);
+
+    expect(declared.map((entry: { key: string }) => entry.key)).toEqual(['expo-localization']);
+    expect(declared[0].file).toContain('signedInFakes.ts');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1206,8 +1229,4 @@ describe('applySherloTransforms - composes with a pre-existing resolveRequest wr
 
     expect(resolved.filePath).toBe(otherReal);
   });
-});
-
-describe('scene files are found and bundled', () => {
-  it.todo('a mock list built in another file and imported by a scene file is scanned');
 });
