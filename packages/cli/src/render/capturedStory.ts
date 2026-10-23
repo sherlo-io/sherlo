@@ -56,7 +56,7 @@ export type CapturedStory =
       /** The app's own modules the story reached that no mock replaced, by path. */
       stillReal?: string[];
       /** The requests the story made that no mock answered. */
-      unanswered?: { method: string; url: string }[];
+      unanswered?: { method: string; url: string; operation?: string }[];
       tree: CapturedView;
     }
   /** The screen never stopped changing before the stabilization gave up; a cloud run would hit the same limit. */
@@ -239,7 +239,9 @@ function stillRealLines(stillReal: string[] | undefined): string[] {
 }
 
 /** The requests that went to the real network: a test run sends them too, so a story that depends on them can change. */
-function unansweredLines(unanswered: { method: string; url: string }[] | undefined): string[] {
+function unansweredLines(
+  unanswered: { method: string; url: string; operation?: string }[] | undefined
+): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
@@ -247,7 +249,9 @@ function unansweredLines(unanswered: { method: string; url: string }[] | undefin
     `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock - a test run sends ${
       one ? 'it' : 'them'
     } to the real network:`,
-    ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
+    ...unanswered.map(
+      ({ method, url, operation }) => `     ${method} ${url}${operation ? ` ${operation}` : ''}`
+    ),
   ];
 }
 

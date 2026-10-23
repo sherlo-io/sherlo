@@ -15,6 +15,11 @@ vi.mock('../helpers/RunnerBridge', () => ({
 
 import { rememberAppMetadataCollector } from '../appMetadata';
 import { activateMocksForStory } from '../getStorybook/storyMockActivation';
+import {
+  clearStoryError,
+  readStoryError,
+  recordStoryError,
+} from '../getStorybook/storyErrorRegistry';
 import { __resetStorybookFactsForTests } from '../getStorybook/storybookFacts';
 import { mockRequest } from '../mocking/networkDeclaration';
 import { clearMocks } from '../mocking/registry';
@@ -308,6 +313,43 @@ describe('a story that is ready only once its requests are done', () => {
     await vi.advanceTimersByTimeAsync(2_000);
     await answer;
     expect(requestsInFlight()).toEqual([]);
+  });
+});
+
+describe('a story that names what must be on screen and throws', () => {
+  const thrown = {
+    name: 'TypeError',
+    message: "Cannot read property 'allowPWM' of undefined",
+    stack: '',
+    componentStack: '',
+  };
+
+  afterEach(() => clearStoryError(SCENE_ID));
+
+  it('reports the throw at once, not the ready timeout', async () => {
+    holdStories({ testID: 'discover.card' });
+    activateMocksForStory(SCENE_ID);
+
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(nativeStabilize).not.toHaveBeenCalled();
+
+    // What the error boundary does when the story throws while rendering.
+    recordStoryError(SCENE_ID, thrown);
+    await vi.advanceTimersByTimeAsync(100);
+
+    // No "was not ready after 30 s": the check goes on and the story's own error is read, as for
+    // a story with no `ready`.
+    expect(await settled).toBe(true);
+    expect(readStoryError(SCENE_ID)).toEqual(thrown);
+  });
+
+  it('does not wait at all for a story that had already thrown', async () => {
+    holdStories({ testID: 'discover.card' });
+    activateMocksForStory(SCENE_ID);
+    recordStoryError(SCENE_ID, thrown);
+
+    expect(await stabilize()).toBe(true);
   });
 });
 

@@ -18,7 +18,7 @@ import createMockable from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
 import { mockRequest } from '../../mocking/networkDeclaration';
 import { sherloFetch } from '../../mocking/network';
-import { UnmockedRequestError } from '../../mocking/networkRules';
+import { UnmockedRequestError, unansweredRequests } from '../../mocking/networkRules';
 import { __resetShimmedKeysForTests, clearMocks } from '../../mocking/registry';
 import type { StoryMocks } from '../../mocking/mockDeclaration';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
@@ -418,5 +418,59 @@ describe('the rules follow the story', () => {
     // And what the outer levels named and the story did not is still answered.
     await expect(get(`${BASE}/profile`)).resolves.toBe('the file profile');
     await expect(get(`${BASE}/settings`)).resolves.toBe('the project settings');
+  });
+});
+
+describe('the GraphQL operation of a request no rule answered', () => {
+  const graphql = `${BASE}/graphql`;
+  const post = (body: string) => fetch(graphql, { method: 'POST', body }).catch(() => {});
+
+  beforeEach(async () => {
+    await activateStory({ story: [mockRequest({ url: `${BASE}/other` }, { body: 'x' })] });
+  });
+
+  it('a fetch with a JSON body names its operationName', async () => {
+    const refusal = await refusalOf(
+      fetch(graphql, { method: 'POST', body: JSON.stringify({ operationName: 'GetProfile' }) })
+    );
+
+    expect(refusal.message).toBe(`no mock rule matches POST ${graphql}`);
+    expect(unansweredRequests()[0]).toEqual({
+      method: 'POST',
+      url: graphql,
+      operation: 'GetProfile',
+    });
+  });
+
+  it('an XMLHttpRequest with a JSON body names its operationName', async () => {
+    await sendXhr('POST', graphql, JSON.stringify({ operationName: 'SendMessage' }));
+
+    expect(unansweredRequests()).toEqual([
+      { method: 'POST', url: graphql, operation: 'SendMessage' },
+    ]);
+  });
+
+  it('a body holding only a query is named by the word after query, mutation or subscription', async () => {
+    await post(JSON.stringify({ query: 'query Feed($a: Int) { a }' }));
+    await post(JSON.stringify({ query: '  mutation Like { l }' }));
+    await post(JSON.stringify({ query: '{ anonymous }' }));
+
+    expect(unansweredRequests()).toEqual([
+      { method: 'POST', url: graphql, operation: 'Feed' },
+      { method: 'POST', url: graphql, operation: 'Like' },
+      { method: 'POST', url: graphql },
+    ]);
+  });
+
+  it('a body that is not JSON names no operation, and never throws', async () => {
+    await post('query Feed { a }');
+    await post('{"operationName": ');
+    await post('null');
+
+    expect(unansweredRequests()).toEqual([
+      { method: 'POST', url: graphql },
+      { method: 'POST', url: graphql },
+      { method: 'POST', url: graphql },
+    ]);
   });
 });

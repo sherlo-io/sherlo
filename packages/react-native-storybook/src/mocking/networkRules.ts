@@ -67,12 +67,34 @@ export function answerFor(request: MockedRequest): Verdict {
   const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
   if (rule) return { kind: 'answer', answer: rule.answer };
 
-  unanswered.push({ method: request.method, url: request.url });
+  const operation = graphqlOperationOf(request.body);
+  unanswered.push({ method: request.method, url: request.url, ...(operation && { operation }) });
   if (mocksInEffect.passthrough) return { kind: 'passthrough' };
 
   const refusal = new UnmockedRequestError(`no mock rule matches ${request.method} ${request.url}`);
   recordRefusal(refusal);
   return { kind: 'refusal', refusal };
+}
+
+/**
+ * The GraphQL operation a JSON request body names: its `operationName`, else the name after
+ * `query`, `mutation` or `subscription` in its `query` text. Never throws; no operation otherwise.
+ */
+export function graphqlOperationOf(body: string | undefined): string | undefined {
+  if (!body) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    const first = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!first || typeof first !== 'object') return undefined;
+    const { operationName, query } = first as { operationName?: unknown; query?: unknown };
+    if (typeof operationName === 'string' && operationName) return operationName;
+    if (typeof query === 'string') {
+      return /^\s*(?:query|mutation|subscription)\s+([_A-Za-z][_0-9A-Za-z]*)/.exec(query)?.[1];
+    }
+  } catch {
+    // Not JSON: no operation.
+  }
+  return undefined;
 }
 
 /** The answer's status, which is 200 unless the rule said otherwise. */

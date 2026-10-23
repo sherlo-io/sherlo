@@ -18,6 +18,7 @@
 import RunnerBridge from './helpers/RunnerBridge';
 import { collectAppMetadata } from './appMetadata';
 import { requestsInFlight } from './mocking/requestsInFlight';
+import { readStoryError } from './getStorybook/storyErrorRegistry';
 import { storyLevelsOf } from './mocking/storyMocksOf';
 import type { NativeCalls } from './sealedCore/seam';
 import type { ReadyRule } from './types/types';
@@ -78,6 +79,13 @@ async function waitUntilReady(storyId: string, rule: ReadyRule): Promise<void> {
   // The wait starts as busy: a request the screen sends a moment from now still counts.
   let lastBusyAtMs = 0;
   for (;;) {
+    // A story that threw (or whose mock or request failed it) will never show its views: end the
+    // wait at once and let the stillness check run, so the story's own error is reported, as it
+    // is for a story with no `ready`.
+    if (readStoryError(storyId)) {
+      RunnerBridge.log('story ready wait ended: the story errored', { storyId, waitedMs });
+      return;
+    }
     const missing = testIDsMissingFromScreen(testIDs);
     const pending = watchRequests ? requestsInFlight() : [];
     if (pending.length > 0) lastBusyAtMs = waitedMs;
