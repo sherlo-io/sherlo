@@ -252,6 +252,20 @@ describe('what a capture says went wrong or stayed real reaches the screen', () 
     expect(screen).toContain('GET https://api.example.com/me');
     expect(screen.indexOf('<Button>')).toBeGreaterThan(requests);
   });
+
+  it('a WebSocket no mock answered is listed as WS with its address alone', async () => {
+    const { screen } = await captureOneStory({
+      kind: 'captured',
+      storyId: STORY,
+      settled: SETTLED,
+      // As the SDK lists a socket no rule matched (networkRules socketVerdictFor).
+      unanswered: [{ method: 'WS', url: 'wss://subscriptions.example.com/graphql' }],
+      tree: ONE_VIEW,
+    });
+
+    expect(screen).toContain('1 request had no mock');
+    expect(screen).toContain('     WS wss://subscriptions.example.com/graphql\n');
+  });
 });
 
 describe("the app's own log lines never reach the drawn screen unasked, and `--logs` is the one door that puts them there", () => {

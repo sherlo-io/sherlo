@@ -19,6 +19,8 @@ import type {
   NetworkMockDeclaration,
   RequestAnswer,
   RequestMatcher,
+  SocketAnswer,
+  SocketMatcher,
 } from './mocking/networkDeclaration';
 
 export type { MockDeclaration } from './mocking/mockDeclaration';
@@ -28,6 +30,9 @@ export type {
   NetworkRule,
   RequestAnswer,
   RequestMatcher,
+  SocketAnswer,
+  SocketMatcher,
+  SocketRule,
 } from './mocking/networkDeclaration';
 export type * from './types';
 
@@ -61,6 +66,11 @@ export function mockRequest<Body = unknown>(
 }
 
 mockRequest.passthrough = (): NetworkMockDeclaration => ({ kind: 'network', passthrough: true });
+
+mockRequest.socket = (matcher: SocketMatcher, answer: SocketAnswer): NetworkMockDeclaration => ({
+  kind: 'network',
+  socket: { matcher, answer },
+});
 
 export function mockClock(moment: string | number | Date): ModuleMockDeclaration {
   return {

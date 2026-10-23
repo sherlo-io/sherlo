@@ -664,6 +664,8 @@ describe("the app's answer, read into this seam's own endings", () => {
           { method: 'POST', url: graphql },
           { method: 'POST', url: graphql, operation: '' },
           { method: 'POST', url: graphql, operation: 7, body: '{"token":"secret"}' },
+          // A WebSocket no rule matched (networkRules socketVerdictFor): no payload is ever kept.
+          { method: 'WS', url: 'wss://subscriptions.example.com/graphql', payload: 'token' },
         ],
       },
     });
@@ -674,6 +676,7 @@ describe("the app's answer, read into this seam's own endings", () => {
       { method: 'POST', url: graphql },
       { method: 'POST', url: graphql },
       { method: 'POST', url: graphql },
+      { method: 'WS', url: 'wss://subscriptions.example.com/graphql' },
     ]);
   });
 
