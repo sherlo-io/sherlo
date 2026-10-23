@@ -17,6 +17,7 @@ import {
   PORT_OPTION,
   SCENE_OPTION,
   STORY_OPTION,
+  sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
@@ -39,9 +40,7 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
   const sceneId = passedOptions[SCENE_OPTION];
 
   if (sceneId && storyId) {
-    throwError({
-      message: `\`npx sherlo capture\` takes \`--${SCENE_OPTION}\` or \`--${STORY_OPTION}\`, not both.`,
-    });
+    throwError({ message: sceneWithStoryRefusal('capture') });
   }
   if (sceneId) return captureScene(sceneId, passedOptions);
 
@@ -100,14 +99,14 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   if (passedOptions[JSON_OPTION]) {
     process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
   } else {
-    emit({ kind: 'captured-scene', state: sceneEndingFor(answer, port) });
+    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port) });
   }
 
   if (answer.kind !== 'scene') process.exit(EXIT_BLOCK);
 }
 
 /** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */
-export function sceneEndingFor(answer: SceneCaptureResult, port: number): CapturedScene {
+export function capturedSceneEnding(answer: SceneCaptureResult, port: number): CapturedScene {
   return answer.kind === 'no-bundler' || answer.kind === 'no-app'
     ? { kind: answer.kind, port }
     : answer;

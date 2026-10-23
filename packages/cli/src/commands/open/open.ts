@@ -16,6 +16,7 @@ import {
   STORY_OPTION,
   TIMEOUT_OPTION,
   WAIT_OPTION,
+  sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
@@ -42,9 +43,7 @@ async function open(passedOptions: OpenOptions): Promise<void> {
   const sceneId = passedOptions[SCENE_OPTION];
 
   if (sceneId && storyId) {
-    throwError({
-      message: `\`npx sherlo open\` takes \`--${SCENE_OPTION}\` or \`--${STORY_OPTION}\`, not both.`,
-    });
+    throwError({ message: sceneWithStoryRefusal('open') });
   }
   if (sceneId) return openScene(sceneId, passedOptions);
 
@@ -83,13 +82,13 @@ async function openScene(sceneId: string, passedOptions: OpenOptions): Promise<v
   const port = readPort(passedOptions[PORT_OPTION]);
 
   const answer = await letterbox().openScene({ sceneId, port });
-  emit({ kind: 'opened-scene', state: sceneEndingFor(answer, { sceneId, port }) });
+  emit({ kind: 'opened-scene', state: openedSceneEnding(answer, { sceneId, port }) });
 
   if (answer.kind !== 'scene-opened') process.exit(EXIT_BLOCK);
 }
 
 /** What the screen shows for what the letterbox answered about a scene. */
-export function sceneEndingFor(
+export function openedSceneEnding(
   answer: OpenSceneResult,
   run: { sceneId: string; port: number }
 ): OpenedScene {

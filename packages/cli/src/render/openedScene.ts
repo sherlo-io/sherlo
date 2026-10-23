@@ -3,10 +3,10 @@
  *
  * Pure, like everything under ./. The scene is booted fresh, as `capture --scene` boots it, and
  * then stays on screen for development. The refusals are the story screens' own words
- * (./openedStory), and the nearest-id list is the one `capture --scene` offers (./capturedScene).
+ * (./openedStory), and the unknown-scene refusal is the one `capture --scene` prints (./capturedScene).
  */
 import chalk from 'chalk';
-import { closestScenes, route } from './capturedScene';
+import { noSuchSceneLines, route } from './capturedScene';
 import { renderOpenedStory } from './openedStory';
 
 /** How a run of `sherlo open --scene` ended, as the screen needs it. */
@@ -24,12 +24,7 @@ export function renderOpenedScene(state: OpenedScene): string[] {
       return renderOpenedStory(state);
 
     case 'no-such-scene':
-      return [
-        `${chalk.red('✖')}  No scene ${chalk.bold(state.sceneId)} in this app`,
-        '',
-        ...closestScenes(state.sceneId, state.known),
-        '',
-      ];
+      return noSuchSceneLines(state.sceneId, state.known);
 
     case 'opened-scene':
       return [

@@ -135,9 +135,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
     case 'captured':
       return [
         `${chalk.green('✔')}  ${chalk.bold(state.storyId)} captured, the way a test run records it`,
-        chalk.dim(
-          `   settled in ${seconds(state.settledMs)} over ${state.frames} frames · testing mode`
-        ),
+        settledLine(state.settledMs, state.frames),
         ...(state.parts !== undefined && state.parts > 1
           ? [
               chalk.dim(
@@ -373,8 +371,14 @@ function countViews(view: CapturedView): number {
   return 1 + view.children.reduce((sum, child) => sum + countViews(child), 0);
 }
 
-function seconds(ms: number): string {
+/** `1.2s` - a duration the way every capture screen spells it. */
+export function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** The dim line that says how long the capture took to settle, for a story and for a scene alike. */
+export function settledLine(ms: number, frames: number): string {
+  return chalk.dim(`   settled in ${seconds(ms)} over ${frames} frames · testing mode`);
 }
 
 /** The same handful-and-a-count `sherlo open` offers, for the same reason. */

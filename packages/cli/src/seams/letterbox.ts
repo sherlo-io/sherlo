@@ -12,6 +12,7 @@
  * folded into an existing seam: `serverCalls` is Sherlo's backend, and `workstation` is what the
  * tool does to the machine it runs on.
  */
+import { SCENE_NOT_BUILT_YET } from '../constants';
 import { askTheBundlerLine } from './bundlerLine';
 
 /**
@@ -95,12 +96,8 @@ export const liveLetterbox: Letterbox = {
     return readOpenStoryAnswer(answer.reply, storyId);
   },
 
-  // Plan layer only: the app's side of a scene does not exist yet, so the live half refuses.
-  // Build debt of the scenes epic: the wire, the letterbox and the app's fresh boot.
   openScene: async () => {
-    throw new Error(
-      'openScene is plan-layer only: scenes have no live wire until the scenes epic builds one'
-    );
+    throw new Error(SCENE_NOT_BUILT_YET);
   },
 };
 
