@@ -18,7 +18,11 @@ import createMockable from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
 import { mockRequest } from '../../mocking/networkDeclaration';
 import { sherloFetch } from '../../mocking/network';
-import { UnmockedRequestError } from '../../mocking/networkRules';
+import {
+  UnmockedRequestError,
+  socketVerdictFor,
+  unansweredRequests,
+} from '../../mocking/networkRules';
 import { __resetShimmedKeysForTests, clearMocks } from '../../mocking/registry';
 import type { StoryMocks } from '../../mocking/mockDeclaration';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
@@ -418,5 +422,33 @@ describe('the rules follow the story', () => {
     // And what the outer levels named and the story did not is still answered.
     await expect(get(`${BASE}/profile`)).resolves.toBe('the file profile');
     await expect(get(`${BASE}/settings`)).resolves.toBe('the project settings');
+  });
+});
+
+describe('a socket rule is matched like a request rule', () => {
+  const WS = 'wss://mocking.sherlo.invalid/graphql';
+
+  it('a trailing star, a RegExp and an exact address each answer the socket they match', async () => {
+    await activateStory({
+      story: [
+        mockRequest.socket({ url: 'wss://mocking.sherlo.invalid/graph*' }, 'pending'),
+        mockRequest.socket({ url: /other/ }, 'refuse'),
+        mockRequest.socket({ url: 'wss://exact.sherlo.invalid/' }, 'refuse'),
+      ],
+    });
+
+    expect(socketVerdictFor(WS)).toEqual({ kind: 'answer', answer: 'pending' });
+    expect(socketVerdictFor('wss://x.invalid/other')).toEqual({ kind: 'answer', answer: 'refuse' });
+    expect(socketVerdictFor('wss://exact.sherlo.invalid/')).toEqual({
+      kind: 'answer',
+      answer: 'refuse',
+    });
+  });
+
+  it('a socket no rule matches is listed as WS, and a request rule never answers it', async () => {
+    await activateStory({ story: [mockRequest({ url: WS }, { body: 'x' })] });
+
+    expect(socketVerdictFor(WS).kind).toBe('refusal');
+    expect(unansweredRequests()).toEqual([{ method: 'WS', url: WS }]);
   });
 });

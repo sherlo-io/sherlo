@@ -235,6 +235,7 @@ describe('loading the sealed core', () => {
       {
         rules: [{ matcher: { url: 'https://example.com/orders' }, answer: { body: 'mocked' } }],
         passthrough: false,
+        sockets: [],
       },
       () => {}
     );
