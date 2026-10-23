@@ -4,7 +4,9 @@ import {
   isMockingModeActive,
   MOCKED_MODULE_ERROR_NAME,
   MockLookups,
+  wasBuiltBeforeMock,
 } from './registry';
+import { privateCopiesHandedByBundler } from './stillReal';
 import { MockSet } from './types';
 import { CLOCK_MOCK_KEY, ClockDefinition, installClock, restoreClock } from './clock';
 import { RANDOM_MOCK_KEY, RandomDefinition, installRandom, restoreRandom } from './random';
@@ -62,6 +64,17 @@ export function mockFailureOf(storyId: string): StoryError | undefined {
       ];
     }
     if (lookups.declaredByStory.has(key) && !lookups.reached.has(key)) {
+      const owners = privateCopiesHandedByBundler(key);
+      if (owners.length > 0) {
+        return [
+          `the mock of ${name} did not apply: ${owners.join(' and ')} has its own copy of it in its node_modules, and a mock reaches only the app's copy`,
+        ];
+      }
+      if (wasBuiltBeforeMock(key)) {
+        return [
+          `the mock of ${name} did not apply: the module was built before the mock was on - an instance made as the module loads keeps the real one`,
+        ];
+      }
       return [`the mock of ${name} did not apply: nothing in the story imported it`];
     }
     return [];

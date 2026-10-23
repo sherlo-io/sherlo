@@ -908,7 +908,7 @@ function applySherloTransforms(result, opts) {
   // mock that no import reached gets reported.
   // The list of the app's own modules a capture watches (stillReal.js): only a served bundle has it.
   var stillRealList =
-    opts && opts.enabled === false ? null : stillReal.listForServedBundles(projectRoot);
+    opts && opts.enabled === false ? null : stillReal.listForServedBundles(projectRoot, mockSetup.mockedModuleKeys);
   if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0 || stillRealList) {
     var existingCustomSerializer =
       result && result.serializer && typeof result.serializer.customSerializer === 'function'

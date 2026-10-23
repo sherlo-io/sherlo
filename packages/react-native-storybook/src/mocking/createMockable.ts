@@ -2,6 +2,7 @@ import {
   getOverrides,
   MOCKED_MODULE_ERROR_NAME,
   recordRealImportThrew,
+  recordRealRead,
   recordUndo,
   registerShimmedKey,
   resolveMockExports,
@@ -254,6 +255,9 @@ function buildMockable<T extends ModuleExports>(
       const written = getOverrides(key)?.get(prop);
       if (written) return written.get ? written.get.call(receiver) : written.value;
 
+      // An import's interop and a promise settling with the module look at these two; they take
+      // nothing out of the module.
+      if (prop !== 'then' && prop !== '__esModule') recordRealRead(key);
       const mock = mockOf();
       return mock && hasOwn(mock, prop) ? mock[prop] : real()[prop];
     },
