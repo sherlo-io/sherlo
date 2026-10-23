@@ -194,7 +194,8 @@ const PLATFORM_SELECTION = `
                   why
                   nativeChanges
                 }
-                storiesInBundle`;
+                storiesInBundle
+                scenesInBundle`;
 
 export function getEndpointUrl(): string {
   const sdkEnv = require('@sherlo/sdk-client/dist/env.json');
