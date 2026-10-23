@@ -18,6 +18,7 @@ import {
 } from '../mocking';
 import { MockLookups, newMockLookups } from '../mocking/registry';
 import { startStillRealStory } from '../mocking/stillReal';
+import { storyAboutToRender } from '../storyReady';
 import { namesAsWrittenOf } from '../mocking/declaredImports';
 import { MockSet } from '../mocking/types';
 import { recordStoryError } from './storyErrorRegistry';
@@ -52,6 +53,8 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
   // empty on every activation: a second capture of an unchanged story renders nothing again, so
   // it lists neither.
   startStillRealStory();
+  // And it is proven ready afresh before it is photographed (../storyReady).
+  storyAboutToRender(storyId);
 
   const { project, own = {} } = storyMockLevelsOf(storyId);
   const mocks = mergeStoryMocks(project, own);

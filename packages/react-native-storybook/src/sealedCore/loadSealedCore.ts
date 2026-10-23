@@ -30,6 +30,7 @@ import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
 import { unansweredRequests } from '../mocking/networkRules';
 import { stillRealModulesOfStory } from '../mocking/stillReal';
+import { stabilizeOnceReady } from '../storyReady';
 import type { CoreReport, SealedCore, SealedCoreHost } from './seam';
 
 /** The number of the contract (./seam) this SDK speaks. A core of any other is never installed. */
@@ -130,7 +131,8 @@ function withoutCore(why: string): LoadedCore {
 /** Everything the core may reach. It imports nothing, so this is all of it. */
 function hostForTheCore(): SealedCoreHost {
   return {
-    native: SherloModule,
+    // A story that says when it is ready is stilled only once it is (../storyReady).
+    native: stabilizeOnceReady(SherloModule),
     runner: {
       // START is built inside the core; the SDK adds which core ran to it on its way to the runner.
       // Outside testing mode the report is undefined, and a line written as JSON leaves it out.

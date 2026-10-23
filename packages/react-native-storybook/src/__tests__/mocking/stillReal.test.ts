@@ -74,6 +74,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete (globalThis as { __sherloStillReal?: Watcher }).__sherloStillReal;
+  delete (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports;
   clearMocks();
   vi.clearAllMocks();
 });
@@ -139,6 +140,41 @@ describe('what a captured story ran as real code', () => {
     client.exports.sendMessage();
     profile.exports.name;
 
+    expect(stillRealModulesOfStory()).toEqual(['src/profile.ts']);
+  });
+
+  // Feeld's case: `mock(() => import('utils/featureFlags/getFeatureFlagValue'), (real) => ({ ...real,
+  // ...fake }))`, where `utils` is a metro.config.js extraNodeModules alias for `src/utils`. The
+  // factory reads every real export as it spreads them, and the key names no path from the root.
+  it('a module the story mocks by an alias is never listed as real, though its factory read the real exports', () => {
+    const app = startAppIn('testing', {
+      '7': 'src/utils/featureFlags/getFeatureFlagValue.ts',
+      '8': 'src/components/provider/Chat/client.ts',
+      '9': 'src/profile.ts',
+    });
+    const flags = evaluateModule(app, 7, { getFeatureFlagValue: () => false, other: 1 });
+    const client = evaluateModule(app, 8, { client: {} });
+    const profile = evaluateModule(app, 9, { name: 'Ada' });
+    installWatcherOf(app);
+    (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports = {
+      storyFiles: {},
+      mockedModules: ['utils/featureFlags/getFeatureFlagValue', 'components/provider/Chat/client'],
+      moduleFiles: {
+        'utils/featureFlags/getFeatureFlagValue': 'src/utils/featureFlags/getFeatureFlagValue',
+        'components/provider/Chat/client': 'src/components/provider/Chat/client',
+      },
+    };
+    activateMocks({
+      'utils/featureFlags/getFeatureFlagValue': { getFeatureFlagValue: () => true },
+      'components/provider/Chat/client': { client: { fake: true } },
+    } as any);
+
+    startStillRealStory();
+    const spreadFlags = { ...flags.exports };
+    const spreadClient = { ...client.exports };
+    profile.exports.name;
+
+    expect(Object.keys(spreadFlags).concat(Object.keys(spreadClient))).toHaveLength(3);
     expect(stillRealModulesOfStory()).toEqual(['src/profile.ts']);
   });
 

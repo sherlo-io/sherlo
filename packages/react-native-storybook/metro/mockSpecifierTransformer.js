@@ -10,9 +10,11 @@
 // misses it. Metro transforms a story file again each time it is saved, so the transform is the
 // one place that always sees the file as it is now: here each such call is handed the module its
 // import names as a third argument (src/mocking/mockDeclaration.ts), and its failure names it.
+// Its import becomes a require of the bundle, so no split-bundle loader stands between a story
+// and the module it mocks (requiredLater).
 //
 // The transformer is Sherlo's in place of the project's own, which it hands every file to. It
-// changes only story and preview files, only their `mock` calls, and never what a mock serves.
+// changes only story and preview files and the app's files that name the SDK, only their `mock` calls, and never what a mock serves.
 
 var crypto = require('crypto');
 var fs = require('fs');
@@ -27,68 +29,70 @@ var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 // or this very source when the SDK runs unbuilt.
 var THIS_FILE = path.join(__dirname, 'mockSpecifierTransformer.js');
 
-// Whether `callee` is the SDK's `mock`, called by name or off a namespace (`Sherlo.mock`).
-function isMockCallee(callee) {
-  if (!callee) return false;
-  if (callee.type === 'Identifier') return callee.name === 'mock';
-  return (
-    callee.type === 'MemberExpression' &&
-    !callee.computed &&
-    callee.property &&
-    callee.property.type === 'Identifier' &&
-    callee.property.name === 'mock'
-  );
-}
-
-// The one module the function `importModule` imports, or null when it imports none or several.
-function soleImportedSpecifier(importModule) {
-  if (
-    !importModule ||
-    (importModule.type !== 'ArrowFunctionExpression' && importModule.type !== 'FunctionExpression')
-  ) {
-    return null;
-  }
-  var specifiers = new Set();
-  mockScan.walkNodes(importModule.body, function (node) {
-    var specifier = mockScan.importedSpecifier(node);
-    if (specifier !== null) specifiers.add(specifier);
-  });
-  return specifiers.size === 1 ? Array.from(specifiers)[0] : null;
-}
-
 /**
- * `source` with each `mock(() => import('x'), definition)` call given `'x'` as a third argument.
- * A file that is not a story or preview file, a call with other than two arguments, and a file
- * that does not parse are left as they are. Text is only inserted, on the call's own line, so
- * every other position in the file stays where it was.
+ * `source` with each `mock(() => import('x'), definition)` call given `'x'` as a third argument,
+ * and its import made a require of the bundle (requiredLater). A file that may declare no mock
+ * (mockScan.mayDeclareMocks), a call with other than two arguments, and a file that does not
+ * parse are left as they are. Only the call's own lines change, so every other line of the file
+ * stays where it was.
  *
  * @param {string} filename - the file's path, as Metro hands it to the transformer
  * @param {string} source - the file's source
  * @returns {string}
  */
 function markMockSpecifiers(filename, source) {
-  if (!mockScan.isScanTarget(path.basename(filename))) return source;
+  if (!mockScan.mayDeclareMocks(filename, source)) return source;
   if (source.indexOf('mock') === -1 || !/\bimport\s*\(/.test(source)) return source;
 
   var ast = mockScan.parseScanTarget(source);
   if (!ast) return source;
 
-  var insertions = [];
+  var edits = [];
   mockScan.walkNodes(ast.program || ast, function (node) {
-    if (node.type !== 'CallExpression' || !isMockCallee(node.callee)) return;
+    if (node.type !== 'CallExpression' || !mockScan.isMockCallee(node.callee)) return;
     if (node.arguments.length !== 2) return;
 
-    var specifier = soleImportedSpecifier(node.arguments[0]);
+    var specifier = mockScan.soleImportedSpecifier(node.arguments[0]);
     if (specifier === null) return;
-    insertions.push({ at: node.arguments[1].end, text: ', ' + JSON.stringify(specifier) });
+    mockScan.walkNodes(node.arguments[0].body, function (inner) {
+      if (mockScan.importedSpecifier(inner) === null) return;
+      edits.push({
+        from: inner.start,
+        to: inner.end,
+        text: requiredLater(specifier, source.slice(inner.start, inner.end)),
+      });
+    });
+    var end = node.arguments[1].end;
+    edits.push({ from: end, to: end, text: ', ' + JSON.stringify(specifier) });
   });
 
-  insertions.sort(function (first, second) {
-    return second.at - first.at;
+  edits.sort(function (first, second) {
+    return second.from - first.from;
   });
-  return insertions.reduce(function (marked, insertion) {
-    return marked.slice(0, insertion.at) + insertion.text + marked.slice(insertion.at);
+  return edits.reduce(function (marked, edit) {
+    return marked.slice(0, edit.from) + edit.text + marked.slice(edit.to);
   }, source);
+}
+
+/**
+ * The text an `import('x')` in a mock becomes: the same promise, from the bundle's own require.
+ * In a lazy dev bundle an import() is a split bundle the project's loader fetches, and Expo's
+ * loader on a bundler started with `react-native start` rejects after loading it ("Expected
+ * HMRClient.setup() call at startup."): the mock would learn no module. The require is still
+ * made only when the mock asks, so a module that throws as it loads still rejects. The import's
+ * line breaks are kept, so every later line of the file stays where it was.
+ *
+ * @param {string} specifier - the module the import names
+ * @param {string} importText - the import expression as written
+ * @returns {string}
+ */
+function requiredLater(specifier, importText) {
+  return (
+    'Promise.resolve().then(function () { return require(' +
+    JSON.stringify(specifier) +
+    '); })' +
+    importText.replace(/[^\n]/g, '')
+  );
 }
 
 /**

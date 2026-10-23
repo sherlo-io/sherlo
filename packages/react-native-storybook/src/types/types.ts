@@ -29,6 +29,17 @@ export interface SherloParameters {
   mocks?: StoryMocks;
 
   /**
+   * When the story is ready to photograph, for a story that boots a whole app. The screen's
+   * stillness check waits until a view carrying each `testID` is on screen and, unless
+   * `requestsIdle` is false, no request the screen made through fetch or XMLHttpRequest is still
+   * on its way. A story not ready within `timeoutMs` (30000 by default) fails, naming what was
+   * missing.
+   *
+   *   ready: { testID: 'discover.card' }
+   */
+  ready?: ReadyRule;
+
+  /**
    * Setting exclude to true skips the story during testing. This might be
    * useful if the story has animations that cannot be stabilized for testing
    * or the component behaves in less predictable ways.
@@ -56,6 +67,13 @@ export interface SherloParameters {
    * platforms specified in sherlo.config.json.
    */
   platform?: 'ios' | 'android';
+}
+
+/** What a story waits for before it is photographed - see SherloParameters.ready. */
+export interface ReadyRule {
+  testID: string | string[];
+  timeoutMs?: number;
+  requestsIdle?: boolean;
 }
 
 export type StorybookView = View;

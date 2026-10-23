@@ -1,3 +1,4 @@
+import { mockedModuleFileOf } from './declaredImports';
 import { activeMockLookups } from './registry';
 
 /**
@@ -60,10 +61,15 @@ export function stillRealModulesWithExports(): StillRealModule[] {
 
 /**
  * The paths of the modules the current story ran as real code, from the project root with no
- * leading './' - and never a module the story mocks.
+ * leading './' - and never a module the story mocks, by whatever name its key wrote it (an alias
+ * names its file only in the bundler's record, mockedModuleFileOf). Its factory's reads of the real
+ * module, `(real) => ({ ...real })`, are the mock's own.
  */
 export function stillRealModulesOfStory(): string[] {
-  const mockedKeys = Object.keys(activeMockLookups()?.mocks ?? {}).map(withoutExtension);
+  const mockedKeys = Object.keys(activeMockLookups()?.mocks ?? {}).flatMap((key) => {
+    const file = mockedModuleFileOf(key);
+    return file ? [withoutExtension(key), file] : [withoutExtension(key)];
+  });
   return stillRealModulesWithExports()
     .map(({ module }) => module)
     .filter((module) => !mockedKeys.some((key) => isMockedBy(withoutExtension(module), key)));
