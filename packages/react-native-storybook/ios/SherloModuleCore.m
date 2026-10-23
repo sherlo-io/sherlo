@@ -28,6 +28,9 @@ static NSString * const MODE_TESTING = @"testing";
 static NSString * const DRIVER_RUNNER = @"runner";
 static NSString * const DRIVER_CAPTURE = @"capture";
 
+/** The launch argument that starts a debug build in testing mode for `sherlo capture`. */
+static NSString * const CAPTURE_ARGUMENT = @"-sherloCapture";
+
 /**
  * How long a launch the runner handed an address waits for the runner's settings before its
  * JavaScript starts without them. The runner answers hello at once over loopback; this only keeps a
@@ -118,9 +121,36 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
                        dispatch_get_main_queue(),
                        block);
         NSLog(@"[%@] storybookNotDisplayed native timer scheduled (30s)", LOG_TAG);
+    } else {
+        [SherloModuleCore startFromCaptureHandedAtLaunch];
     }
 
     return self;
+}
+
+/**
+ * A launch handed `-sherloCapture [<storyId>]` starts in testing mode for `sherlo capture`, as a
+ * capture's own move (openTesting) leaves it, but with no boot of the app before it: the first
+ * JavaScript that runs is already in testing mode, on the story, so the app's own start never runs
+ * and the capture finds an app already in testing mode. A debug build only: a capture needs a
+ * bundler beside the app, and a shipped app is never put in testing mode by an argument.
+ */
++ (void)startFromCaptureHandedAtLaunch {
+#if DEBUG
+    NSArray<NSString *> *arguments = NSProcessInfo.processInfo.arguments;
+    NSUInteger argumentIndex = [arguments indexOfObject:CAPTURE_ARGUMENT];
+    if (argumentIndex == NSNotFound) return;
+
+    NSString *storyId = argumentIndex + 1 < arguments.count ? arguments[argumentIndex + 1] : nil;
+    currentMode = MODE_TESTING;
+    driver = DRIVER_CAPTURE;
+    if (storyId.length > 0 && ![storyId hasPrefix:@"-"]) {
+        @synchronized([SherloModuleCore class]) {
+            lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"" };
+        }
+    }
+    NSLog(@"[%@] Testing mode: a capture launch%@", LOG_TAG, lastState ? @", on its story" : @"");
+#endif
 }
 
 #pragma mark - The connection
