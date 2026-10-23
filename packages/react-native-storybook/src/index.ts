@@ -63,3 +63,9 @@ function installSherloIntegration(): void {
     }
   }
 }
+
+// The early-boot module, imported so every bundle that holds the SDK holds it: Sherlo's bundler
+// config has Metro run it before the app's entry (./sceneBoot). Imported last, so a scene file it
+// requires, which imports this module back, finds every export above already in place. It
+// switches the scene on once, however many copies of the SDK the app imports.
+import './sceneBoot';

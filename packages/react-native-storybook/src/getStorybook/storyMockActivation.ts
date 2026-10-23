@@ -5,10 +5,18 @@
  *
  * Its three levels - the project's, the file's and the story's - all come from what Storybook's
  * start() was handed (../mocking/storyMocksOf), so they are all there on the first pass.
+ *
+ * A scene's mocks, which no Storybook knows, are installed through the same path by the early-boot
+ * module (../sceneBoot), from the scene's own file.
  */
 import { storyMockLevelsOf } from '../mocking/storyMocksOf';
 import { mergeStoryMocks } from '../mocking/mergeMocks';
-import { declarationsOf } from '../mocking/mockDeclaration';
+import {
+  declarationsOf,
+  isModuleDeclaration,
+  MockDeclaration,
+  StoryMocks,
+} from '../mocking/mockDeclaration';
 import {
   activateNetworkMocks,
   activateStoryMocks,
@@ -18,7 +26,7 @@ import {
 } from '../mocking';
 import { MockLookups, newMockLookups } from '../mocking/registry';
 import { startStillRealStory } from '../mocking/stillReal';
-import { namesAsWrittenOf } from '../mocking/declaredImports';
+import { namesAsWrittenOf, standInKeyAtBundlerStart } from '../mocking/declaredImports';
 import { MockSet } from '../mocking/types';
 import { recordStoryError } from './storyErrorRegistry';
 import { readStorybookFacts } from './storybookFacts';
@@ -36,6 +44,9 @@ let latestInstall = 0;
 // What the latest attempt answered: what a superseded attempt hands its caller to wait on instead.
 let latestInstalled: Promise<void> | null = null;
 
+// The scene this launch switched on at boot (../sceneBoot), whose mocks stay on for the launch.
+let sceneOnSinceBoot: string | undefined;
+
 /**
  * Install `storyId`'s merged mocks, and say when they ARE installed: null when that has already
  * happened - the object form, and a story with no mocks at all - or the promise that settles
@@ -47,13 +58,72 @@ let latestInstalled: Promise<void> | null = null;
  */
 export function activateMocksForStory(storyId: string | undefined): Promise<void> | null {
   if (!storyId) return null;
+  // A scene's mocks went on before the app's first module, and its launch shows that scene alone:
+  // activating it again would install what Storybook knows of it, which is nothing.
+  if (storyId === sceneOnSinceBoot) return latestInstalled;
 
+  const { project, own = {} } = storyMockLevelsOf(storyId);
+  const storyFilePath = readStorybookFacts()?.storyIndex[storyId]?.importPath;
+  return installMergedMocks(storyId, project, own, storyFilePath);
+}
+
+/**
+ * Install the launched scene's mocks - its file's, and its own over them - at boot, before the app's
+ * first module runs (../sceneBoot). Every module mock whose stand-in the bundler's scan named when
+ * it started is in effect when this returns: no import is waited for, as a module that reads a
+ * mocked module as it loads runs straight after. The declarations are then resolved as a story's
+ * are, which names an import that reached no stand-in in the scene's failure.
+ */
+export function activateSceneMocks(
+  sceneId: string,
+  fileMocks: StoryMocks | undefined,
+  sceneMocks: StoryMocks | undefined,
+  sceneFilePath: string
+): void {
+  sceneOnSinceBoot = sceneId;
+  const own = mergeStoryMocks({}, fileMocks, sceneMocks);
+  if (Array.isArray(own)) {
+    const knownAtBundlerStart = moduleMocksKnownAtBundlerStart(own, sceneFilePath);
+    installMocksOfStory(
+      sceneId,
+      knownAtBundlerStart,
+      Object.keys(knownAtBundlerStart),
+      sceneFilePath
+    );
+  }
+  installMergedMocks(sceneId, {}, own, sceneFilePath);
+}
+
+// Each module mock of `declarations` whose stand-in's name the scan recorded, by that name; a
+// later declaration of the same module wins, as resolveDeclarations has it.
+function moduleMocksKnownAtBundlerStart(
+  declarations: MockDeclaration[],
+  filePath: string
+): MockSet {
+  const mocks: MockSet = {};
+  declarations.filter(isModuleDeclaration).forEach(({ specifierAsWritten, definition }) => {
+    const key =
+      specifierAsWritten === undefined
+        ? undefined
+        : standInKeyAtBundlerStart(specifierAsWritten, filePath);
+    if (key) mocks[key] = definition;
+  });
+  return mocks;
+}
+
+// Installs the mocks of `storyId` - `project`'s, and `own` over them - as activateMocksForStory
+// says, each mocked module named as `filePath` wrote it.
+function installMergedMocks(
+  storyId: string,
+  project: StoryMocks,
+  own: StoryMocks,
+  filePath: string | undefined
+): Promise<void> | null {
   // Like the requests no rule answered, the list of app modules the story ran as real code starts
   // empty on every activation: a second capture of an unchanged story renders nothing again, so
   // it lists neither.
   startStillRealStory();
 
-  const { project, own = {} } = storyMockLevelsOf(storyId);
   const mocks = mergeStoryMocks(project, own);
   const install = (latestInstall += 1);
 
@@ -64,7 +134,7 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
   // The object form already names every module it mocks, so it installs at once.
   // (Every level is then the object form, the story's own part too.)
   if (!Array.isArray(mocks)) {
-    installMocksOfStory(storyId, mocks, Object.keys(own));
+    installMocksOfStory(storyId, mocks, Object.keys(own), filePath);
     latestInstalled = null;
     return null;
   }
@@ -80,19 +150,24 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
     resolveDeclarations(declarationsOf(own)),
   ]).then(([projectMocks, ownMocks]) => {
     if (install !== latestInstall) return latestInstalled ?? undefined;
-    installMocksOfStory(storyId, { ...projectMocks, ...ownMocks }, Object.keys(ownMocks));
+    installMocksOfStory(storyId, { ...projectMocks, ...ownMocks }, Object.keys(ownMocks), filePath);
   });
   return latestInstalled;
 }
 
 // Installs `mocks` for `storyId` with the story's record of what its reads met, each mocked module
-// named as the story's file wrote it, and `declaredByStory` the keys the story or its file declare.
-function installMocksOfStory(storyId: string, mocks: MockSet, declaredByStory: string[]): void {
+// named as its file, `filePath`, wrote it, and `declaredByStory` the keys the story or its file
+// declare.
+function installMocksOfStory(
+  storyId: string,
+  mocks: MockSet,
+  declaredByStory: string[],
+  filePath: string | undefined
+): void {
   const lookups = lookupsOnScreen?.storyId === storyId ? lookupsOnScreen : newMockLookups(storyId);
   lookupsOnScreen = lookups;
   lookups.declaredByStory = new Set(declaredByStory);
-  const storyFilePath = readStorybookFacts()?.storyIndex[storyId]?.importPath;
-  namesAsWrittenOf(storyFilePath, Object.keys(mocks)).forEach((name, key) =>
+  namesAsWrittenOf(filePath, Object.keys(mocks)).forEach((name, key) =>
     lookups.namesAsWritten.set(key, name)
   );
   activateStoryMocks(mocks, lookups);

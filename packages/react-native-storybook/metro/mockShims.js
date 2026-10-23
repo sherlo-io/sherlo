@@ -70,6 +70,15 @@ function realFilePath(filePath) {
   }
 }
 
+// Whether a resolution is a source file whose symlink-followed path is `realFile` (already real).
+function resolvesToFile(resolution, realFile) {
+  return (
+    !!resolution &&
+    resolution.type === 'sourceFile' &&
+    realFilePath(resolution.filePath) === realFile
+  );
+}
+
 // Whether `file` lies somewhere under `folder` (both absolute). False when either is missing.
 function isInsideFolder(file, folder) {
   return !!file && !!folder && file.indexOf(folder + path.sep) === 0;
@@ -617,6 +626,7 @@ module.exports = {
   canonicalizeModulePath: canonicalizeModulePath,
   isInsideFolder: isInsideFolder,
   realFilePath: realFilePath,
+  resolvesToFile: resolvesToFile,
   resolveMockKey: resolveMockKey,
   shimFileName: shimFileName,
   generateShimContent: generateShimContent,
