@@ -28,6 +28,8 @@ import { clearMocks } from '../mocking';
 import { collectAppMetadata, providerFirstRenderedAt } from '../appMetadata';
 import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
+import { unansweredRequests } from '../mocking/networkRules';
+import { stillRealModulesOfStory } from '../mocking/stillReal';
 import type { CoreReport, SealedCore, SealedCoreHost } from './seam';
 
 /** The number of the contract (./seam) this SDK speaks. A core of any other is never installed. */
@@ -147,6 +149,8 @@ function hostForTheCore(): SealedCoreHost {
     storybookFacts: readStorybookFacts,
     storybookChannel: () => readStorybookChannel().value,
     activateMocksForStory,
+    stillRealModulesOfStory,
+    unansweredRequestsOfStory: unansweredRequests,
     clearMocks,
     // The seam keeps a story's mocks opaque; what the core hands back here is what the story's
     // parameters handed it, so it is read as the SDK's own again.
