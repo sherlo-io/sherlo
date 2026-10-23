@@ -442,6 +442,35 @@ describe('the GraphQL operation of a request no rule answered', () => {
     });
   });
 
+  it("Apollo's HttpLink call, refused, names its operation and records nothing of the body", async () => {
+    // Exactly what @apollo/client 3.12 createHttpLink hands fetch (Feeld's app): the address, and
+    // options whose body is the serialized operation, with its headers and an abort signal.
+    const body = JSON.stringify({
+      operationName: 'AuthProvider',
+      variables: { token: 'secret-token' },
+      query: 'query AuthProvider { account { id email } }',
+    });
+    const refusal = await refusalOf(
+      fetch(graphql, {
+        method: 'POST',
+        headers: {
+          accept: 'application/graphql-response+json,application/json;q=0.9',
+          'content-type': 'application/json',
+          'x-graphql-operation-name': 'AuthProvider',
+        },
+        body,
+        signal: new AbortController().signal,
+      })
+    );
+
+    expect(refusal.message).toBe(`no mock rule matches POST ${graphql}`);
+    // toEqual, not toMatchObject: the entry holds these three keys and nothing of the body.
+    expect(unansweredRequests()).toEqual([
+      { method: 'POST', url: graphql, operation: 'AuthProvider' },
+    ]);
+    expect(JSON.stringify(unansweredRequests())).not.toContain('secret-token');
+  });
+
   it('an XMLHttpRequest with a JSON body names its operationName', async () => {
     await sendXhr('POST', graphql, JSON.stringify({ operationName: 'SendMessage' }));
 
