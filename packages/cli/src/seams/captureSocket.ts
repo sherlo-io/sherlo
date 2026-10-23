@@ -12,6 +12,7 @@
  * asks; a capture is a conversation - settings one way, a whole view tree the other - and the two
  * roads fail differently.
  */
+import { SCENE_NOT_BUILT_YET } from '../constants';
 import type { CapturedView } from '../render/capturedStory';
 import type { SceneEnding } from '../render/capturedScene';
 import { askTheBundlerLine } from './bundlerLine';
@@ -223,12 +224,8 @@ export const liveCaptureSocket: CaptureSocket = {
     return result;
   },
 
-  // Plan layer only: the app's side of a scene does not exist yet, so the live half refuses.
-  // Build debt of the scenes epic: the wire, the relay and the app's fresh boot.
   captureScene: async () => {
-    throw new Error(
-      'captureScene is plan-layer only: scenes have no live wire until the scenes epic builds one'
-    );
+    throw new Error(SCENE_NOT_BUILT_YET);
   },
 };
 

@@ -173,6 +173,16 @@ export const STORY_OPTION = 'story';
  * Storybook's id style gives it (`chat--conversation`). Booted fresh each time, with no Storybook.
  */
 export const SCENE_OPTION = 'scene';
+/** The refusal when `--scene` and `--story` are both given; `command` is `open` or `capture`. */
+export function sceneWithStoryRefusal(command: 'open' | 'capture'): string {
+  return `\`npx sherlo ${command}\` takes \`--${SCENE_OPTION}\` or \`--${STORY_OPTION}\`, not both.`;
+}
+/**
+ * What the live half of a scene says until the scenes epic builds it (the wire, the relay and the
+ * app's fresh boot). Posed runs never reach it.
+ */
+export const SCENE_NOT_BUILT_YET =
+  "Scenes are not built into the live app yet: this is the scenes epic's build debt.";
 /** Where the bundler is, for the rare project that moved it off {@link DEFAULT_BUNDLER_PORT}. */
 export const PORT_OPTION = 'port';
 /**

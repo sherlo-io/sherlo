@@ -12,7 +12,7 @@
  * the story screen's own. The tree is the story screen's tree: one drawing of a view, not two.
  */
 import chalk from 'chalk';
-import { treeLines, renderCapturedStory } from './capturedStory';
+import { treeLines, renderCapturedStory, seconds, settledLine } from './capturedStory';
 import type { CapturedView } from './capturedStory';
 
 /** One step of a scene's `play`, as the scene file wrote it: a tap by testID, or one of the app's own links. */
@@ -64,12 +64,7 @@ export function renderCapturedScene(state: CapturedScene): string[] {
       return renderCapturedStory(state);
 
     case 'no-such-scene':
-      return [
-        `${chalk.red('✖')}  No scene ${chalk.bold(state.sceneId)} in this app`,
-        '',
-        ...closestScenes(state.sceneId, state.known),
-        '',
-      ];
+      return noSuchSceneLines(state.sceneId, state.known);
 
     case 'crashed-at-boot': {
       const { name, message, file, line } = state.error;
@@ -111,9 +106,7 @@ export function renderCapturedScene(state: CapturedScene): string[] {
         chalk.dim(`   booted fresh in ${seconds(state.bootMs)}`),
         ...state.play.map((step) => chalk.dim(`   played ${playStep(step)}`)),
         chalk.dim(`   reached ${route(state.reached.route)} in ${seconds(state.reached.ms)}`),
-        chalk.dim(
-          `   settled in ${seconds(state.settled.ms)} over ${state.settled.frames} frames · testing mode`
-        ),
+        settledLine(state.settled.ms, state.settled.frames),
         '',
         ...treeLines(state.tree),
         '',
@@ -133,15 +126,21 @@ export function playStep(step: PlayStep): string {
   return 'tap' in step ? `tap ${step.tap}` : `open ${step.open}`;
 }
 
-function seconds(ms: number): string {
-  return `${(ms / 1000).toFixed(1)}s`;
+/** The refusal for a scene id the app does not have, shared by `open --scene` and `capture --scene`. */
+export function noSuchSceneLines(sceneId: string, known: string[]): string[] {
+  return [
+    `${chalk.red('✖')}  No scene ${chalk.bold(sceneId)} in this app`,
+    '',
+    ...closestScenes(sceneId, known),
+    '',
+  ];
 }
 
 /**
  * The scenes offered back when the id was wrong: the few nearest to what was typed, by edit
  * distance, so a typo finds its target and a different screen's scenes stay out of the way.
  */
-export function closestScenes(typed: string, known: string[]): string[] {
+function closestScenes(typed: string, known: string[]): string[] {
   if (known.length === 0) return [chalk.dim('This app has no scenes at all.')];
 
   const nearest = [...known]
