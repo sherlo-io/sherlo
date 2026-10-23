@@ -35,17 +35,37 @@ export function storyMockLevelsOf(storyId: string): { project: StoryMocks; own?:
 
   const project = projectMocksOf(facts.previewAnnotations);
 
-  const fileExports = facts.storyFiles[indexEntry.importPath] as Record<string, any> | undefined;
-  if (!fileExports) return { project };
+  const levels = storyLevelsOf(storyId);
+  if (!levels) return { project };
 
-  const meta: StoryLevelParameters = fileExports.default ?? {};
-  const story = storyExportNamed(fileExports, indexEntry.name) ?? {};
+  const { meta, story } = levels;
   const own = mergeStoryMocks(
     {},
     meta.parameters?.sherlo?.mocks ?? {},
     story.parameters?.sherlo?.mocks ?? {}
   );
   return { project, own };
+}
+
+/**
+ * The two levels of the story Storybook knows as `storyId` that its own file writes: the file's
+ * meta, and the story's export. Undefined for a story its index does not hold, or whose file is not
+ * among the story files.
+ */
+export function storyLevelsOf(
+  storyId: string
+): { meta: StoryLevelParameters; story: StoryLevelParameters } | undefined {
+  const facts = readStorybookFacts();
+  const indexEntry = facts?.storyIndex[storyId];
+  if (!facts || !indexEntry) return undefined;
+
+  const fileExports = facts.storyFiles[indexEntry.importPath] as Record<string, any> | undefined;
+  if (!fileExports) return undefined;
+
+  return {
+    meta: fileExports.default ?? {},
+    story: storyExportNamed(fileExports, indexEntry.name) ?? {},
+  };
 }
 
 /* ========================================================================== */

@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { FiberProvider, useFiber, type Fiber } from 'its-fine';
 import { RunnerBridge } from '../../../helpers';
-import { rememberAppMetadataCollector } from '../../../appMetadata';
+import { rememberAppFiberRoots, rememberAppMetadataCollector } from '../../../appMetadata';
 import { getSealedCore } from '../../../sealedCore/loadSealedCore';
 import type { Metadata } from '../../../sealedCore/seam';
 
@@ -76,7 +76,16 @@ const MetadataCollector = forwardRef<MetadataProviderRef, { children: ReactNode 
     // withholds this one story's testID from the merged reading is still unmeasured; do not re-move
     // this publish call on the strength of the reasoning above alone.
     rememberAppMetadataCollector(collectMetadata);
-    useLayoutEffect(() => () => rememberAppMetadataCollector(undefined), []);
+    // The fibers themselves, for a story's `ready.gone`: a view hidden by an ancestor is only
+    // found by climbing from the view, which the flat reading above cannot do.
+    rememberAppFiberRoots(() => [fiber, fiber?.alternate].filter((root): root is Fiber => !!root));
+    useLayoutEffect(
+      () => () => {
+        rememberAppMetadataCollector(undefined);
+        rememberAppFiberRoots(undefined);
+      },
+      []
+    );
 
     return children;
   }

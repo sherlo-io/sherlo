@@ -648,6 +648,38 @@ describe("the app's answer, read into this seam's own endings", () => {
     expect(bare).not.toHaveProperty('unanswered');
   });
 
+  it('an unanswered GraphQL request keeps the operation the app named, and nothing else it sent', async () => {
+    const r = await relay();
+    const graphql = 'https://core.dev-api.fldcore.com/graphql';
+
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: {
+        ...ANSWER_A,
+        unanswered: [
+          // As the SDK lists Apollo's refused AuthProvider query (networkRules answerFor).
+          { method: 'POST', url: graphql, operation: 'AuthProvider' },
+          // No operation could be named: method and address alone.
+          { method: 'POST', url: graphql },
+          { method: 'POST', url: graphql, operation: '' },
+          { method: 'POST', url: graphql, operation: 7, body: '{"token":"secret"}' },
+          // A WebSocket no rule matched (networkRules socketVerdictFor): no payload is ever kept.
+          { method: 'WS', url: 'wss://subscriptions.example.com/graphql', payload: 'token' },
+        ],
+      },
+    });
+
+    // toEqual on the list, not toMatchObject: an entry holds no key beyond these.
+    expect((answer as { unanswered?: unknown }).unanswered).toEqual([
+      { method: 'POST', url: graphql, operation: 'AuthProvider' },
+      { method: 'POST', url: graphql },
+      { method: 'POST', url: graphql },
+      { method: 'POST', url: graphql },
+      { method: 'WS', url: 'wss://subscriptions.example.com/graphql' },
+    ]);
+  });
+
   it("an answer that says the app crashed as it started carries the app's own error", async () => {
     const r = await relay();
     const error = { name: 'Invariant Violation', message: 'Native module cannot be null' };

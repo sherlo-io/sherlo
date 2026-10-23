@@ -420,6 +420,8 @@ function setupMocks(opts) {
   var shimmedKeys = [];
   // The name each module's stand-in is installed under, by the module path it was filed under.
   var moduleKeyByModulePath = new Map();
+  // Each app module's file, from the project root with no extension, by its stand-in's name.
+  var moduleFiles = {};
 
   mocksByModulePath.forEach(function (declared) {
     var key = declared.key;
@@ -476,6 +478,12 @@ function setupMocks(opts) {
     shimPaths.push(shimPath);
     shimmedKeys.push(key);
     moduleKeyByModulePath.set(modulePathOf(declared), resolved.moduleKey);
+    // An app module's stand-in requires its file by absolute path; the capture names the file
+    // from the project root, which a key written by alias (`utils/x` for src/utils/x) never is.
+    var appFile =
+      path.isAbsolute(resolved.requireSpecifier) &&
+      toRelativePath(resolved.requireSpecifier, realFilePath(projectRoot));
+    if (appFile) moduleFiles[resolved.moduleKey] = appFile.slice(2);
   });
 
   // One line at every bundler start that reads mocks, so a log always says which mocks can apply.
@@ -493,7 +501,13 @@ function setupMocks(opts) {
     shimPaths: shimPaths,
     declaredImportsPolyfill:
       mocksByModulePath.size > 0
-        ? writeDeclaredImportsPolyfill(cacheDir, projectRoot, declaredMocks, moduleKeyByModulePath)
+        ? writeDeclaredImportsPolyfill(
+            cacheDir,
+            projectRoot,
+            declaredMocks,
+            moduleKeyByModulePath,
+            moduleFiles
+          )
         : null,
   };
 }
@@ -508,11 +522,19 @@ function modulePathOf(declared) {
 // What the scan saw, for the run-time check that fails a story whose mock did not take effect
 // (src/mocking/declaredImports.ts): each story file's mocks declared by an import expression, as
 // the file wrote them, with the name each one's stand-in is installed under (null when the scan
-// made it none), and every name a stand-in was made for. A stand-in loads only when something
+// made it none), every name a stand-in was made for, and the file of each app module mocked (the
+// capture leaves a mocked module out of what ran real, src/mocking/stillReal.ts, and a key written by
+// alias names no file). A stand-in loads only when something
 // imports it, so the app cannot learn this from the stand-ins it has loaded. Story files are filed
 // under the path Storybook knows them by (`./src/X.stories.tsx`, from the project root). It
 // reaches run time as a polyfill setting `globalThis.__sherloDeclaredImports`; returns its path.
-function writeDeclaredImportsPolyfill(cacheDir, projectRoot, declaredMocks, moduleKeyByModulePath) {
+function writeDeclaredImportsPolyfill(
+  cacheDir,
+  projectRoot,
+  declaredMocks,
+  moduleKeyByModulePath,
+  moduleFiles
+) {
   var storyFiles = {};
   declaredMocks.forEach(function (declared) {
     var storyPath = declared.file.charAt(0) !== '<' && toRelativePath(declared.file, projectRoot);
@@ -530,6 +552,7 @@ function writeDeclaredImportsPolyfill(cacheDir, projectRoot, declaredMocks, modu
   var declaredImports = {
     storyFiles: storyFiles,
     mockedModules: Array.from(new Set(moduleKeyByModulePath.values())),
+    moduleFiles: moduleFiles,
   };
 
   fs.mkdirSync(cacheDir, { recursive: true });

@@ -208,8 +208,15 @@ describe('loading the sealed core', () => {
         'warn',
       ].sort()
     );
+    // Native code as the SDK speaks to it, every call its own but the stillness check, which a
+    // story that says when it is ready holds back until it is (../storyReady).
     const SherloModule = (await import('../SherloModule')).default;
-    expect(host!.native).toBe(SherloModule);
+    const native = host!.native as typeof SherloModule;
+    for (const call of Object.keys(SherloModule) as (keyof typeof SherloModule)[]) {
+      if (call === 'stabilize') continue;
+      expect(native[call], call).toBe(SherloModule[call]);
+    }
+    expect(native.stabilize).not.toBe(SherloModule.stabilize);
   });
 
   it('hands the core the fetch from before any mock wrapped it', async () => {

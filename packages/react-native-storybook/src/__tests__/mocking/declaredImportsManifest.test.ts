@@ -19,7 +19,7 @@ import * as vm from 'vm';
 
 import { createLazyMockable } from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
-import { clearMocks, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
 import { readStoryError } from '../../getStorybook/storyErrorRegistry';
@@ -107,6 +107,8 @@ describe("a story's declared mocks", () => {
     ]);
 
     await activateMocksForStory('chat--default');
+    // The story's stillness check ran: every read its render makes is in.
+    markStorySettled();
 
     expect(readStoryError('chat--default')).toMatchObject({
       name: 'MockedModuleError',

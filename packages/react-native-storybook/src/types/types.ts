@@ -29,6 +29,39 @@ export interface SherloParameters {
   mocks?: StoryMocks;
 
   /**
+   * When the story is ready to photograph, for a story that boots a whole app. The screen's
+   * stillness check waits until a view carrying each `testID` is on screen and, unless
+   * `requestsIdle` is false, no request the screen made through fetch or XMLHttpRequest is still
+   * on its way. A story not ready within `timeoutMs` (30000 by default) fails, naming what was
+   * missing.
+   *
+   * `gone` names views that must have left first, such as a splash that covers the app while it
+   * boots: a view is gone once it is no longer rendered, or is rendered but invisible - its own
+   * or an ancestor's is hidden or near-transparent, or it has no width or height. This is read
+   * from the native view tree the capture records, so an animated opacity counts; the style
+   * React rendered is read only when that tree cannot be.
+   *
+   *   ready: { testID: 'discover.card', gone: 'splash-screen' }
+   */
+  ready?: ReadyRule;
+
+  /**
+   * What a member does to reach the screen, played before the story is photographed: each step
+   * presses a view or waits for the screen, in order, on every capture, and `ready` then ends the
+   * wait. A press waits for its view to be on screen and visible, and presses the topmost one
+   * (or the `index`-th from the top) the way a finger's tap reaches React Native's press handling.
+   * A view is named by its testID, or by the text it shows. A step that cannot be played fails the
+   * story, naming the step.
+   *
+   *   steps: [
+   *     { press: 'Connections' },
+   *     { press: 'connectionListItem' },
+   *     { ready: { testID: 'chat.input.message' } },
+   *   ]
+   */
+  steps?: PlayStep[];
+
+  /**
    * Setting exclude to true skips the story during testing. This might be
    * useful if the story has animations that cannot be stabilized for testing
    * or the component behaves in less predictable ways.
@@ -56,6 +89,32 @@ export interface SherloParameters {
    * platforms specified in sherlo.config.json.
    */
   platform?: 'ios' | 'android';
+}
+
+/** What a story waits for before it is photographed - see SherloParameters.ready. */
+export interface ReadyRule {
+  testID?: string | string[];
+  /** Views that must be gone (not rendered, or invisible) before the stillness check starts. */
+  gone?: string | string[];
+  timeoutMs?: number;
+  requestsIdle?: boolean;
+}
+
+/** One step of SherloParameters.steps: press a view, or wait until the screen is ready. */
+export type PlayStep =
+  | {
+      press: string | PressTarget;
+      /** How long the view may take to be on screen and visible; 10000 by default. */
+      timeoutMs?: number;
+    }
+  | { ready: ReadyRule };
+
+/** The view a step presses: by testID or by the text it shows, the `index`-th from the top. */
+export interface PressTarget {
+  testID?: string;
+  text?: string;
+  /** 0 (the topmost visible match) by default. */
+  index?: number;
 }
 
 export type StorybookView = View;

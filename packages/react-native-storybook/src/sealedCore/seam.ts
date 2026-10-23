@@ -19,7 +19,8 @@
 /* ---- The core and its host ------------------------------------------------------------------ */
 
 /** A network request no mock rule answered. */
-export type UnansweredRequest = { method: string; url: string };
+/** `operation` is the GraphQL operation the request body names, when it names one. */
+export type UnansweredRequest = { method: string; url: string; operation?: string };
 
 export type SealedCoreHost = {
   /** Sherlo's native module: the calls of it the core makes. */

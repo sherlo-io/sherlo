@@ -21,6 +21,10 @@ type MockLookups = {
   // The keys the story or its file declare. A project mock is a default most stories never read,
   // so reaching nothing fails the story only for these.
   declaredByStory: Set<string>;
+  // Whether the story's screen has been judged: its stillness check ran, or its ready wait ran out.
+  // A whole-app story first imports a mocked module as the app renders, well after activation, so
+  // only from then on is a mock no read reached one that reached nothing.
+  settled: boolean;
 };
 
 function newMockLookups(storyId: string | undefined): MockLookups {
@@ -30,6 +34,7 @@ function newMockLookups(storyId: string | undefined): MockLookups {
     realImportThrew: new Map(),
     namesAsWritten: new Map(),
     declaredByStory: new Set(),
+    settled: false,
   };
 }
 
@@ -90,6 +95,11 @@ function recordRealImportThrew(key: string, message: string): string | undefined
   const { lookups } = activeActivation;
   lookups.realImportThrew.set(key, message);
   return lookups.namesAsWritten.get(key) ?? key;
+}
+
+// The story whose mocks are in effect has been judged on screen (see MockLookups' `settled`).
+function markStorySettled(): void {
+  if (activeActivation) activeActivation.lookups.settled = true;
 }
 
 // Puts back what the ending story wrote to real objects, newest write first.
@@ -183,6 +193,7 @@ export {
   newMockLookups,
   activeMockLookups,
   recordRealImportThrew,
+  markStorySettled,
   activateMocks,
   clearMocks,
   resolveMockExports,

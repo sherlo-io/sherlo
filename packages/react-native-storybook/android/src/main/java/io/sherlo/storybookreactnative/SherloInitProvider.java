@@ -40,6 +40,12 @@ public class SherloInitProvider extends ContentProvider {
     /** The launch intent's extra that carries the connection's address (`--es sherloAddress <url>`). */
     private static final String ADDRESS_EXTRA = "sherloAddress";
 
+    /**
+     * The launch intent's extra that starts a debug build in testing mode for `sherlo capture`
+     * (`--es sherloCapture <storyId>`), so no boot of the app runs before the capture.
+     */
+    private static final String CAPTURE_EXTRA = "sherloCapture";
+
     // Native watchdog timer: fires if getStorybook() is never called within 30s of launch.
     private static final AtomicBoolean getStorybookCalled = new AtomicBoolean(false);
     private static Handler timerHandler;
@@ -102,6 +108,9 @@ public class SherloInitProvider extends ContentProvider {
                     SherloModuleCore.startFromAddressHandedAtLaunch(address);
                     if (SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
                         startTestingWatch(ctx);
+                    } else if (intent != null && intent.hasExtra(CAPTURE_EXTRA)) {
+                        SherloModuleCore.startFromCaptureHandedAtLaunch(
+                                ctx, intent.getStringExtra(CAPTURE_EXTRA));
                     }
                 } catch (Throwable t) {
                     Log.e(TAG, "Failed to read the address handed at launch", t);

@@ -120,7 +120,7 @@ export type SceneCaptureResult = { kind: 'no-bundler' } | { kind: 'no-app' } | S
 export type BrokenStoryFile = { file: string; error: { name: string; message: string } };
 
 /** A request a story made that no mock answered, so it went to the real network. */
-export type UnansweredRequest = { method: string; url: string };
+export type UnansweredRequest = { method: string; url: string; operation?: string };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
 export type WaitOutcome = {
@@ -497,8 +497,14 @@ function readUnanswered(value: unknown): UnansweredRequest[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const read: UnansweredRequest[] = [];
   for (const entry of value) {
-    const { method, url } = (entry ?? {}) as { method?: unknown; url?: unknown };
-    if (typeof method === 'string' && typeof url === 'string') read.push({ method, url });
+    const { method, url, operation } = (entry ?? {}) as {
+      method?: unknown;
+      url?: unknown;
+      operation?: unknown;
+    };
+    if (typeof method === 'string' && typeof url === 'string') {
+      read.push({ method, url, ...(typeof operation === 'string' && operation && { operation }) });
+    }
   }
   return read.length > 0 ? read : undefined;
 }

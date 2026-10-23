@@ -162,6 +162,37 @@ public class SherloModuleCore {
     }
 
     /**
+     * A launch whose intent carried `sherloCapture` starts in testing mode for `sherlo capture`, as
+     * a capture's own move (openTesting) leaves it, but with no boot of the app before it: the
+     * first JavaScript that runs is already in testing mode, on `storyId` when one is given, so the
+     * app's own start never runs. A debuggable build only: a capture needs a bundler beside the
+     * app, and any app on the device can send an intent with extras to a shipped app.
+     */
+    public static void startFromCaptureHandedAtLaunch(Context context, String storyId) {
+        boolean debuggable =
+                (context.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        if (!debuggable) return;
+        synchronized (stateLock) {
+            if (modeKeptAcrossRestart) return;
+            if (storyId != null && !storyId.isEmpty()) {
+                try {
+                    JSONObject nextSnapshot = new JSONObject();
+                    nextSnapshot.put("storyId", storyId);
+                    JSONObject storyToShow = new JSONObject();
+                    storyToShow.put("nextSnapshot", nextSnapshot);
+                    storyToShow.put("requestId", "");
+                    lastState = storyToShow;
+                } catch (JSONException cannotHappen) {
+                    Log.e(TAG, "Failed to keep the story a capture launch handed over", cannotHappen);
+                }
+            }
+        }
+        currentMode = MODE_TESTING;
+        driver = DRIVER_CAPTURE;
+        Log.d(TAG, "Testing mode: a capture launch");
+    }
+
+    /**
      * A run the runner launched: testing mode, the connection opened, and the native load said
      * before any JavaScript runs, so a crash at the top of the bundle still leaves a trace.
      */

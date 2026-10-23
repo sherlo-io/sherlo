@@ -4,7 +4,8 @@
  *   - storyFiles: each story file, by the path Storybook knows it by (`./src/X.stories.tsx`), to
  *     the modules it declares a mock for by import - each as the file wrote it (`specifier`) and the
  *     name its stand-in is installed under (`moduleKey`), or null when the scan made it no stand-in;
- *   - mockedModules: every name the scan made a stand-in for.
+ *   - mockedModules: every name the scan made a stand-in for;
+ *   - moduleFiles: each app module's file, from the project root with no extension, by that name.
  *
  * A declaration `mock(() => import('../x'), {...})` names its module only by the name its import's
  * stand-in answers, and that name is a path the story never wrote, so this is where a failure finds
@@ -19,6 +20,7 @@ type DeclaredImport = { specifier: string; moduleKey: string | null };
 type DeclaredImports = {
   storyFiles: Record<string, DeclaredImport[]>;
   mockedModules: string[];
+  moduleFiles?: Record<string, string>;
 };
 
 function readDeclaredImports(): DeclaredImports | undefined {
@@ -28,6 +30,12 @@ function readDeclaredImports(): DeclaredImports | undefined {
 // What `storyFilePath` declares a mock for by import; none when the scan did not see the file.
 export function declaredImportsOf(storyFilePath: string): DeclaredImport[] {
   return readDeclaredImports()?.storyFiles[storyFilePath] ?? [];
+}
+
+// The app file the stand-in named `key` stands for, from the project root with no extension
+// (`src/utils/flags` for a key written by alias as `utils/flags`); none for a package.
+export function mockedModuleFileOf(key: string): string | undefined {
+  return readDeclaredImports()?.moduleFiles?.[key];
 }
 
 // Whether the bundler made `key` a stand-in when it started. A key no stand-in answered with - an

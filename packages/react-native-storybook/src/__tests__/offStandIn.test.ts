@@ -41,6 +41,9 @@ describe("the SDK's stand-in in a build without Sherlo", () => {
 
     expect(standIn.mockRequest({ url: 'https://example.com' }, { body: [] }).kind).toBe('network');
     expect(standIn.mockRequest.passthrough().kind).toBe('network');
+    expect(standIn.mockRequest.socket({ url: 'wss://example.com' }, 'pending').kind).toBe(
+      'network'
+    );
     expect(standIn.mockClock('2020-01-02T03:04:05.000Z').kind).toBe('module');
     expect(standIn.mockRandom(42).kind).toBe('module');
 

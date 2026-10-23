@@ -3,6 +3,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import * as vm from 'vm';
 
 // The Metro layer is plain CommonJS .js - require it the same way the existing
 // applySherloTransforms.test.ts does.
@@ -1060,6 +1061,150 @@ describe('applySherloTransforms resolver redirect', () => {
     expect(denyWarning!.toLowerCase()).toContain('wrapper');
     expect(denyWarning).toContain('[Sherlo]');
     expect(goodResolved.filePath).toContain(path.join('.cache', 'sherlo', 'mocks')); // others still resolve
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mocks a story takes from a file of its own (Feeld's scene: `mocks: signedInFakes`, the list
+// built with `mock(...)` in src/components/storybook/scenes/fakes.ts)
+// ---------------------------------------------------------------------------
+
+describe('mocks declared in a file a story imports them from', () => {
+  // A story that writes no mock itself: it imports its list, by alias, from another file.
+  function writeSceneProject(root: string): void {
+    // The alias resolves through the project's metro-resolver; a temp project gets the repository's.
+    fs.mkdirSync(path.join(root, 'node_modules'), { recursive: true });
+    fs.symlinkSync(
+      path.dirname(require.resolve('metro-resolver/package.json')),
+      path.join(root, 'node_modules', 'metro-resolver'),
+      'dir'
+    );
+    writePackage(root, 'native-auth', 'index.js', { 'index.js': 'module.exports = {};' });
+    writeFile(root, 'src/utils/flags.ts', 'export const flag = () => "real";');
+    writeFile(root, 'src/components/provider/client.ts', 'export const client = {};');
+    writeFile(
+      root,
+      'src/components/storybook/scenes/fakes.ts',
+      "import { mock } from '@sherlo/react-native-storybook';\n" +
+        'export const signedInFakes = [\n' +
+        "  mock(() => import('native-auth'), (real) => real),\n" +
+        "  mock(() => import('utils/flags'), { flag: () => 'control' }),\n" +
+        "  mock(() => import('../../provider/client'), { client: {} }),\n" +
+        '];\n'
+    );
+    writeFile(
+      root,
+      'src/components/root/Scene.stories.tsx',
+      "import { signedInFakes } from 'components/storybook/scenes/fakes';\n" +
+        'export default { parameters: { sherlo: { mocks: signedInFakes } } };\n' +
+        'export const Conversation = {};\n'
+    );
+  }
+
+  it('each module the imported list mocks - a package, an alias, a relative path - reaches its shim', () => {
+    const root = mkProject('sherlo-imported-mocks-');
+    writeSceneProject(root);
+
+    const result = applySherloTransforms({
+      projectRoot: root,
+      resolver: { extraNodeModules: { utils: path.join(root, 'src', 'utils') } },
+    });
+    const importer = path.join(root, 'src', 'components', 'root', 'AppRoot.tsx');
+    const resolvedFiles = [
+      ['native-auth', path.join(root, 'node_modules', 'native-auth', 'index.js')],
+      ['utils/flags', path.join(root, 'src', 'utils', 'flags.ts')],
+      ['../provider/client', path.join(root, 'src', 'components', 'provider', 'client.ts')],
+    ].map(([name, file]) => {
+      const ctx = makeContext(importer, { [name]: file });
+      return result.resolver.resolveRequest(ctx, name, 'ios').filePath;
+    });
+    cleanup(root);
+
+    for (const file of resolvedFiles) {
+      expect(file).toContain(path.join('.cache', 'sherlo', 'mocks'));
+    }
+  });
+
+  // Feeld's case: the scene mocks app modules by their metro.config.js aliases (`utils` ->
+  // src/utils, `components` -> src/components), and the app imports the same files by alias, by a
+  // relative path, or by an absolute one. Every importer gets the stand-in, and the record the
+  // capture reads names each aliased module's file, so a read of the real one (the factory's
+  // `...real`) is never taken for the app running it unmocked (src/mocking/stillReal.ts).
+  it('a module mocked by an alias reaches its shim from every importer, and its file is on record', () => {
+    const root = fs.realpathSync(mkProject('sherlo-aliased-mocks-'));
+    writeSceneProject(root);
+    writeFile(root, 'src/components/provider/Chat/client.ts', 'export const client = {};');
+    writeFile(
+      root,
+      'src/components/root/Chat.stories.tsx',
+      "import { mock } from '@sherlo/react-native-storybook';\n" +
+        'export default { parameters: { sherlo: { mocks: [\n' +
+        "  mock(() => import('components/provider/Chat/client'), ((real) => ({ ...real })) as never),\n" +
+        '] } } };\n'
+    );
+
+    const result = applySherloTransforms({
+      projectRoot: root,
+      resolver: {
+        extraNodeModules: {
+          utils: path.join(root, 'src', 'utils'),
+          components: path.join(root, 'src', 'components'),
+        },
+      },
+    });
+    const clientFile = path.join(root, 'src', 'components', 'provider', 'Chat', 'client.ts');
+    const importers: Array<[string, string]> = [
+      [
+        path.join(root, 'src', 'components', 'root', 'AppRoot.tsx'),
+        'components/provider/Chat/client',
+      ],
+      [path.join(root, 'src', 'components', 'provider', 'Chat', 'ChatProvider.tsx'), './client'],
+      [path.join(root, 'src', 'screens', 'Chat.tsx'), '../components/provider/Chat/client'],
+      [path.join(root, 'src', 'App.tsx'), clientFile.replace(/\.ts$/, '')],
+    ];
+    const resolvedFiles = importers.map(([importer, name]) => {
+      const ctx = makeContext(importer, { [name]: clientFile });
+      return result.resolver.resolveRequest(ctx, name, 'ios').filePath;
+    });
+    const record: { global: { __sherloDeclaredImports?: any } } = { global: {} };
+    vm.runInNewContext(
+      fs.readFileSync(
+        path.join(root, 'node_modules', '.cache', 'sherlo', 'declared-imports.js'),
+        'utf8'
+      ),
+      record
+    );
+    cleanup(root);
+
+    const shim = path.join(
+      root,
+      'node_modules',
+      '.cache',
+      'sherlo',
+      'mocks',
+      mockShims.shimFileName('components/provider/Chat/client')
+    );
+    expect(resolvedFiles).toEqual([shim, shim, shim, shim]);
+    expect(record.global.__sherloDeclaredImports.moduleFiles).toEqual({
+      'components/provider/Chat/client': 'src/components/provider/Chat/client',
+      'utils/flags': 'src/utils/flags',
+      [path.join(root, 'src', 'components', 'provider', 'client')]:
+        'src/components/provider/client',
+    });
+  });
+
+  it('a file under node_modules that calls mock is never read as the app declaring one', () => {
+    const root = mkProject('sherlo-imported-mocks-deps-');
+    writeFile(
+      root,
+      'node_modules/some-lib/fakes.js',
+      "const { mock } = require('@sherlo/react-native-storybook');\n" +
+        "module.exports = [mock(() => import('./x'), {})];\n"
+    );
+    const declared = mockScan.scanProjectForMocks(root);
+    cleanup(root);
+
+    expect(declared).toEqual([]);
   });
 });
 

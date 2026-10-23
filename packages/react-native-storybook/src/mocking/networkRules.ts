@@ -4,6 +4,7 @@ import {
   NO_NETWORK_MOCKS,
   RequestAnswer,
   RequestMatcher,
+  SocketAnswer,
 } from './networkDeclaration';
 import type { UnansweredRequest } from '../sealedCore/seam';
 
@@ -43,7 +44,22 @@ export type Verdict =
 /** How a refusal is told to whoever is keeping the story's record. */
 export type RecordRefusal = (refusal: UnmockedRequestError) => void;
 
+/**
+ * What becomes of a WebSocket the app opens:
+ * - 'untouched': no story's mocks are in effect; it is the app's own socket, listed nowhere.
+ * - 'listed': a capture's story that declared no network mock; it reaches the network, listed.
+ * - 'held': a story declared network mocks; a socket rule answers it, or it is refused.
+ */
+export type SocketPolicy = 'untouched' | 'listed' | 'held';
+
+/** What a WebSocket being opened gets. */
+export type SocketVerdict =
+  | { kind: 'answer'; answer: SocketAnswer }
+  | { kind: 'real' }
+  | { kind: 'refusal'; refusal: UnmockedRequestError };
+
 let mocksInEffect: NetworkMocks = NO_NETWORK_MOCKS;
+let socketPolicy: SocketPolicy = 'untouched';
 let recordRefusal: RecordRefusal = () => {};
 
 // Every request no rule answered since the rules in effect were put in, in the order made. The
@@ -51,10 +67,37 @@ let recordRefusal: RecordRefusal = () => {};
 let unanswered: UnansweredRequest[] = [];
 
 /** Put `mocks` in effect, replacing whatever was in effect before. */
-export function setNetworkMocks(mocks: NetworkMocks, recordTheRefusal: RecordRefusal): void {
+export function setNetworkMocks(
+  mocks: NetworkMocks,
+  recordTheRefusal: RecordRefusal,
+  policyForSockets: SocketPolicy = 'untouched'
+): void {
   mocksInEffect = mocks;
+  socketPolicy = policyForSockets;
   recordRefusal = recordTheRefusal;
   unanswered = [];
+}
+
+/**
+ * What the rules in effect say about a WebSocket opened to `url`. A socket no rule matches is
+ * listed as method "WS" with its address and nothing it would carry (its messages hold tokens and
+ * personal data), and in a story with network mocks it is refused like an unmatched request -
+ * `passthrough` lets requests through, never a socket.
+ */
+export function socketVerdictFor(url: string): SocketVerdict {
+  if (socketPolicy === 'untouched') return { kind: 'real' };
+
+  const rule = mocksInEffect.sockets.find(
+    (candidate) => candidate.matcher.url === undefined || urlMatches(candidate.matcher.url, url)
+  );
+  if (rule) return { kind: 'answer', answer: rule.answer };
+
+  unanswered.push({ method: 'WS', url });
+  if (socketPolicy === 'listed') return { kind: 'real' };
+
+  const refusal = new UnmockedRequestError(`no mock rule matches WS ${url}`);
+  recordRefusal(refusal);
+  return { kind: 'refusal', refusal };
 }
 
 /** Every request no rule answered under the rules in effect, in the order made. */
@@ -67,12 +110,34 @@ export function answerFor(request: MockedRequest): Verdict {
   const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
   if (rule) return { kind: 'answer', answer: rule.answer };
 
-  unanswered.push({ method: request.method, url: request.url });
+  const operation = graphqlOperationOf(request.body);
+  unanswered.push({ method: request.method, url: request.url, ...(operation && { operation }) });
   if (mocksInEffect.passthrough) return { kind: 'passthrough' };
 
   const refusal = new UnmockedRequestError(`no mock rule matches ${request.method} ${request.url}`);
   recordRefusal(refusal);
   return { kind: 'refusal', refusal };
+}
+
+/**
+ * The GraphQL operation a JSON request body names: its `operationName`, else the name after
+ * `query`, `mutation` or `subscription` in its `query` text. Never throws; no operation otherwise.
+ */
+export function graphqlOperationOf(body: string | undefined): string | undefined {
+  if (!body) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    const first = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!first || typeof first !== 'object') return undefined;
+    const { operationName, query } = first as { operationName?: unknown; query?: unknown };
+    if (typeof operationName === 'string' && operationName) return operationName;
+    if (typeof query === 'string') {
+      return /^\s*(?:query|mutation|subscription)\s+([_A-Za-z][_0-9A-Za-z]*)/.exec(query)?.[1];
+    }
+  } catch {
+    // Not JSON: no operation.
+  }
+  return undefined;
 }
 
 /** The answer's status, which is 200 unless the rule said otherwise. */

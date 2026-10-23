@@ -16,6 +16,9 @@ export type {
   NetworkRule,
   RequestAnswer,
   RequestMatcher,
+  SocketAnswer,
+  SocketMatcher,
+  SocketRule,
 } from './mocking/networkDeclaration';
 export { UnmockedRequestError } from './mocking/networkRules';
 export { mockClock } from './mocking/clock';

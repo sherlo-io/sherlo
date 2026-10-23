@@ -30,6 +30,7 @@ import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
 import { unansweredRequests } from '../mocking/networkRules';
 import { stillRealModulesOfStory } from '../mocking/stillReal';
+import { proveReadyAgain, stabilizeOnceReady } from '../storyReady';
 import type { CoreReport, SealedCore, SealedCoreHost } from './seam';
 
 /** The number of the contract (./seam) this SDK speaks. A core of any other is never installed. */
@@ -130,7 +131,8 @@ function withoutCore(why: string): LoadedCore {
 /** Everything the core may reach. It imports nothing, so this is all of it. */
 function hostForTheCore(): SealedCoreHost {
   return {
-    native: SherloModule,
+    // A story that says when it is ready is stilled only once it is (../storyReady).
+    native: stabilizeOnceReady(SherloModule),
     runner: {
       // START is built inside the core; the SDK adds which core ran to it on its way to the runner.
       // Outside testing mode the report is undefined, and a line written as JSON leaves it out.
@@ -151,7 +153,12 @@ function hostForTheCore(): SealedCoreHost {
     activateMocksForStory,
     stillRealModulesOfStory,
     unansweredRequestsOfStory: unansweredRequests,
-    clearMocks,
+    // The core clears a story's mocks when it is done with it - a capture, once its record is read -
+    // and the next capture of the story still on screen proves it ready again (../storyReady).
+    clearMocks: () => {
+      clearMocks();
+      proveReadyAgain();
+    },
     // The seam keeps a story's mocks opaque; what the core hands back here is what the story's
     // parameters handed it, so it is read as the SDK's own again.
     mergeStoryMocks: (global, meta, story) =>
