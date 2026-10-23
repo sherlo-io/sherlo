@@ -35,7 +35,13 @@ export interface SherloParameters {
    * on its way. A story not ready within `timeoutMs` (30000 by default) fails, naming what was
    * missing.
    *
-   *   ready: { testID: 'discover.card' }
+   * `gone` names views that must have left first, such as a splash that covers the app while it
+   * boots: a view is gone once it is no longer rendered, or is rendered but invisible - its own
+   * or an ancestor's is hidden or near-transparent, or it has no width or height. This is read
+   * from the native view tree the capture records, so an animated opacity counts; the style
+   * React rendered is read only when that tree cannot be.
+   *
+   *   ready: { testID: 'discover.card', gone: 'splash-screen' }
    */
   ready?: ReadyRule;
 
@@ -71,7 +77,9 @@ export interface SherloParameters {
 
 /** What a story waits for before it is photographed - see SherloParameters.ready. */
 export interface ReadyRule {
-  testID: string | string[];
+  testID?: string | string[];
+  /** Views that must be gone (not rendered, or invisible) before the stillness check starts. */
+  gone?: string | string[];
   timeoutMs?: number;
   requestsIdle?: boolean;
 }

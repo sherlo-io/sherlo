@@ -13,7 +13,7 @@ vi.mock('../helpers/RunnerBridge', () => ({
   default: { log: mockLog, send: vi.fn() },
 }));
 
-import { rememberAppMetadataCollector } from '../appMetadata';
+import { rememberAppFiberRoots, rememberAppMetadataCollector } from '../appMetadata';
 import { activateMocksForStory } from '../getStorybook/storyMockActivation';
 import {
   clearStoryError,
@@ -24,7 +24,7 @@ import { __resetStorybookFactsForTests } from '../getStorybook/storybookFacts';
 import { mockRequest } from '../mocking/networkDeclaration';
 import { clearMocks } from '../mocking/registry';
 import { __resetRequestsInFlightForTests, requestsInFlight } from '../mocking/requestsInFlight';
-import type { Metadata } from '../sealedCore/seam';
+import type { Metadata, WalkedFiber } from '../sealedCore/seam';
 import { stabilizeOnceReady } from '../storyReady';
 import { startStorybookHolding } from './mocking/storybookHolding';
 
@@ -98,6 +98,7 @@ beforeEach(() => {
 afterEach(() => {
   clearMocks();
   rememberAppMetadataCollector(undefined);
+  rememberAppFiberRoots(undefined);
   __resetStorybookFactsForTests();
   globalThis.fetch = realFetch;
   vi.useRealTimers();
@@ -199,6 +200,235 @@ describe('a story that names what must be on screen', () => {
     onScreen = ['discover.card'];
     await vi.advanceTimersByTimeAsync(1_000);
     expect(await again).toBe(true);
+  });
+});
+
+/** A host view as the renderer holds it, with the views it draws and its parent set. */
+function hostView(
+  props: { testID?: string; style?: unknown },
+  children: WalkedFiber[] = []
+): WalkedFiber {
+  const fiber: WalkedFiber = {
+    type: 'View',
+    pendingProps: props,
+    memoizedProps: props,
+    child: children[0] ?? null,
+  };
+  children.forEach((child, index) => {
+    child.return = fiber;
+    child.sibling = children[index + 1] ?? null;
+  });
+  return fiber;
+}
+
+/** The app is on screen: a splash over a card, as the renderer draws them now. */
+function appShowing(splash: WalkedFiber | undefined, shown: string[]): void {
+  onScreen = shown;
+  const card = hostView({ testID: 'discover.card' });
+  const root = hostView({}, splash ? [card, splash] : [card]);
+  rememberAppFiberRoots(() => [root]);
+}
+
+describe('a story that names views that must be gone', () => {
+  const splashLine = `Story ${SCENE_ID} was not ready after 3 s: view "splash-screen" is still showing.`;
+
+  async function readyAfter(rule: object, change: () => void): Promise<boolean> {
+    holdStories({ testID: 'discover.card', gone: 'splash-screen', ...rule });
+    activateMocksForStory(SCENE_ID);
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(nativeStabilize).not.toHaveBeenCalled();
+    change();
+    await vi.advanceTimersByTimeAsync(1_000);
+    return settled;
+  }
+
+  it('waits while the view is still rendered, and goes on once it is not', async () => {
+    appShowing(hostView({ testID: 'splash-screen' }), ['discover.card', 'splash-screen']);
+    const settled = readyAfter({}, () => appShowing(undefined, ['discover.card']));
+    expect(await settled).toBe(true);
+  });
+
+  it('goes on once the view stays rendered but at opacity 0', async () => {
+    appShowing(hostView({ testID: 'splash-screen', style: [{ flex: 1 }, { opacity: 1 }] }), [
+      'discover.card',
+      'splash-screen',
+    ]);
+    const settled = readyAfter({}, () =>
+      appShowing(hostView({ testID: 'splash-screen', style: [{ flex: 1 }, { opacity: 0 }] }), [
+        'discover.card',
+        'splash-screen',
+      ])
+    );
+    expect(await settled).toBe(true);
+  });
+
+  it('goes on once an ancestor of the view is at opacity 0', async () => {
+    const shown = ['discover.card', 'splash-screen'];
+    const under = (opacity: number) =>
+      hostView({ style: { opacity } }, [hostView({ testID: 'splash-screen' })]);
+    appShowing(under(1), shown);
+    const settled = readyAfter({}, () => appShowing(under(0), shown));
+    expect(await settled).toBe(true);
+  });
+
+  it('goes on once the view has no width or no height', async () => {
+    const shown = ['discover.card', 'splash-screen'];
+    appShowing(hostView({ testID: 'splash-screen', style: { width: 360, height: 800 } }), shown);
+    const settled = readyAfter({}, () =>
+      appShowing(hostView({ testID: 'splash-screen', style: { width: 360, height: 0 } }), shown)
+    );
+    expect(await settled).toBe(true);
+  });
+
+  it('fails in one line naming the view when it is still visible at the timeout', async () => {
+    appShowing(hostView({ testID: 'splash-screen', style: { opacity: 0.4 } }), [
+      'discover.card',
+      'splash-screen',
+    ]);
+    holdStories({ testID: 'discover.card', gone: 'splash-screen', timeoutMs: 3_000 });
+    activateMocksForStory(SCENE_ID);
+
+    const failure = expect(stabilize()).rejects.toThrow(splashLine);
+    await vi.advanceTimersByTimeAsync(4_000);
+    await failure;
+    expect(nativeStabilize).not.toHaveBeenCalled();
+  });
+
+  it('waits for the views named by testID and by gone together', async () => {
+    appShowing(hostView({ testID: 'splash-screen' }), ['splash-screen']);
+    holdStories({ testID: ['discover.card'], gone: ['splash-screen', 'boot.loader'] });
+    activateMocksForStory(SCENE_ID);
+    const settled = stabilize();
+
+    // The card mounts behind the splash: the splash still holds the check back.
+    onScreen = ['discover.card', 'splash-screen'];
+    appShowing(hostView({ testID: 'splash-screen' }), ['discover.card', 'splash-screen']);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(nativeStabilize).not.toHaveBeenCalled();
+
+    appShowing(undefined, ['discover.card']);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await settled).toBe(true);
+  });
+
+  it('still lets a story that threw through at once', async () => {
+    appShowing(hostView({ testID: 'splash-screen' }), ['splash-screen']);
+    holdStories({ gone: 'splash-screen' });
+    activateMocksForStory(SCENE_ID);
+    recordStoryError(SCENE_ID, { name: 'Error', message: 'boom', stack: '', componentStack: '' });
+    try {
+      expect(await stabilize()).toBe(true);
+    } finally {
+      clearStoryError(SCENE_ID);
+    }
+  });
+});
+
+describe('a story that names views that must be gone, read from the native view tree', () => {
+  type Node = {
+    id: number;
+    className: string;
+    isVisible: boolean;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    children?: Node[];
+  };
+  const node = (id: number, over: Partial<Node> = {}, children: Node[] = []): Node => ({
+    id,
+    className: 'View',
+    isVisible: true,
+    x: 0,
+    y: 0,
+    width: 390,
+    height: 800,
+    children,
+    ...over,
+  });
+
+  // The card is tag 1 and the splash tag 2 (screenWith numbers views in onScreen order).
+  let nativeTree: Node = node(99);
+  const nativeWithInspector = {
+    ...native,
+    getInspectorData: vi.fn(async () => ({
+      viewHierarchy: nativeTree,
+      density: 3,
+      fontScale: 1,
+    })),
+  };
+  const stabilizeNatively = () =>
+    stabilizeOnceReady(nativeWithInspector).stabilize(3, 6, 500, 20_000, false, 0.02, true);
+
+  async function run(change: () => void): Promise<boolean> {
+    onScreen = ['discover.card', 'splash-screen'];
+    // The fibers say the splash is fully visible: only the native tree can tell it is not.
+    const splash = {
+      type: 'View',
+      pendingProps: {},
+      memoizedProps: { testID: 'splash-screen', style: { opacity: 1 } },
+    };
+    rememberAppFiberRoots(() => [splash as WalkedFiber]);
+    holdStories({ testID: 'discover.card', gone: 'splash-screen' });
+    activateMocksForStory(SCENE_ID);
+    const settled = stabilizeNatively();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(nativeStabilize).not.toHaveBeenCalled();
+    change();
+    await vi.advanceTimersByTimeAsync(1_000);
+    return settled;
+  }
+
+  it('goes on once the native view fades to invisible, though it is still mounted', async () => {
+    nativeTree = node(99, {}, [node(1), node(2)]);
+    const settled = await run(() => {
+      nativeTree = node(99, {}, [node(1), node(2, { isVisible: false })]);
+    });
+    expect(settled).toBe(true);
+  });
+
+  it('goes on once an ancestor of the native view is invisible', async () => {
+    nativeTree = node(99, {}, [node(1), node(2)]);
+    const settled = await run(() => {
+      nativeTree = node(99, {}, [node(1), node(50, { isVisible: false }, [node(2)])]);
+    });
+    expect(settled).toBe(true);
+  });
+
+  it('goes on once the native view has a zero frame', async () => {
+    nativeTree = node(99, {}, [node(1), node(2)]);
+    const settled = await run(() => {
+      nativeTree = node(99, {}, [node(1), node(2, { width: 0 })]);
+    });
+    expect(settled).toBe(true);
+  });
+
+  it('goes on once the native tree no longer reaches the view', async () => {
+    nativeTree = node(99, {}, [node(1), node(2)]);
+    const settled = await run(() => {
+      nativeTree = node(99, {}, [node(1)]);
+    });
+    expect(settled).toBe(true);
+  });
+
+  it('keeps waiting while the native view is drawn, whatever the fibers say', async () => {
+    nativeTree = node(99, {}, [node(1), node(2)]);
+    holdStories({ testID: 'discover.card', gone: 'splash-screen', timeoutMs: 3_000 });
+    onScreen = ['discover.card', 'splash-screen'];
+    rememberAppFiberRoots(() => [
+      {
+        type: 'View',
+        pendingProps: {},
+        memoizedProps: { testID: 'splash-screen', style: { opacity: 0 } },
+      },
+    ]);
+    activateMocksForStory(SCENE_ID);
+    const failure = expect(stabilizeNatively()).rejects.toThrow(
+      'view "splash-screen" is still showing'
+    );
+    await vi.advanceTimersByTimeAsync(4_000);
+    await failure;
   });
 });
 

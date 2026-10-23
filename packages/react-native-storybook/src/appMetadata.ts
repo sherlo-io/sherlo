@@ -15,7 +15,20 @@
  *
  * This file keeps no React: it is the seam, not a reader.
  */
-import type { Metadata } from './sealedCore/seam';
+import type { Metadata, WalkedFiber } from './sealedCore/seam';
+
+/** The fibers the app is rendered from: the one the provider sits at, and its alternate. */
+let theFiberRoots: (() => WalkedFiber[]) | undefined;
+
+/** The app's fibers can be read this way while it is rendered; `undefined` forgets them. */
+export function rememberAppFiberRoots(roots: (() => WalkedFiber[]) | undefined): void {
+  theFiberRoots = roots;
+}
+
+/** The app's fibers, or none before the app has rendered. */
+export function appFiberRoots(): WalkedFiber[] {
+  return theFiberRoots?.() ?? [];
+}
 
 /** How the app's views are read while the component that renders them is mounted. */
 type CollectAppMetadata = () => Metadata;
