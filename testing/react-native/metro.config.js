@@ -4,9 +4,8 @@ const withStorybook = require('@sherlo/react-native-storybook/metro/withStoryboo
 
 const resolvePath = relativePath => path.resolve(__dirname, relativePath);
 
-const linkedModules = {
-  '@sherlo/react-native-storybook': resolvePath('../../packages/react-native-storybook/src'),
-};
+// SPIKE scene-cloud-speed: the src link gave the mock shim a second registry in Release; not for landing.
+const linkedModules = {};
 
 const extraNodeModules = new Proxy(
   {},
@@ -25,6 +24,8 @@ const customConfig = mergeConfig(defaultConfig, {
   },
   resolver: {
     extraNodeModules,
+    // SPIKE scene-cloud-speed: on by default from RN 0.79; the SDK's `/mocking` entry needs it.
+    unstable_enablePackageExports: true,
     // Some deps (e.g. @tamagui/config/v4) ship only .mjs/.cjs entrypoints and
     // declare no matching package `exports` subpath, so Metro must fall back to
     // filesystem resolution - which only works if these extensions are known.

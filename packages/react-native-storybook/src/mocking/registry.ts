@@ -126,6 +126,14 @@ function resolveMockExports(
   realModule: ModuleExports | undefined,
   loadRealModule?: () => ModuleExports
 ): ModuleExports | undefined {
+  // SPIKE scene-cloud-speed: why a scene's module mock is unreached in Release; not for landing.
+  if (key.endsWith('Scene/member')) {
+    require('../helpers/RunnerBridge').default.log('spike member read', {
+      active: !!activeActivation,
+      storyId: activeActivation?.lookups.storyId,
+      keys: activeActivation ? Object.keys(activeActivation.mocks) : [],
+    });
+  }
   if (!activeActivation) {
     return undefined;
   }

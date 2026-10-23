@@ -91,6 +91,11 @@ export function activateMocksForStory(storyId: string | undefined): Promise<void
 // Installs `mocks` for `storyId` with the story's record of what its reads met, each mocked module
 // named as the story's file wrote it, and `declaredByStory` the keys the story or its file declare.
 function installMocksOfStory(storyId: string, mocks: MockSet, declaredByStory: string[]): void {
+  // SPIKE scene-cloud-speed: install order against the reads; not for landing.
+  require('../helpers/RunnerBridge').default.log('spike mocks installed', {
+    storyId,
+    keys: Object.keys(mocks),
+  });
   const lookups = lookupsOnScreen?.storyId === storyId ? lookupsOnScreen : newMockLookups(storyId);
   lookupsOnScreen = lookups;
   lookups.declaredByStory = new Set(declaredByStory);

@@ -64,6 +64,8 @@ export function stabilizeOnceReady<
     ...native,
     stabilize: async (...settings: Parameters<NativeCalls['stabilize']>) => {
       const story = storyToReady;
+      // SPIKE scene-cloud-speed: timing marks for the reload-to-record split; not for landing.
+      RunnerBridge.log('spike stabilize asked', { storyId: story?.storyId });
       if (story && !story.proven) {
         const { storyId } = story;
         const steps = stepsOf(storyId);
@@ -82,7 +84,10 @@ export function stabilizeOnceReady<
         story.proven = true;
       }
       try {
-        return await native.stabilize(...settings);
+        const stable = await native.stabilize(...settings);
+        // SPIKE scene-cloud-speed: timing mark, see above.
+        RunnerBridge.log('spike settled', { storyId: story?.storyId });
+        return stable;
       } finally {
         // The screen is judged: every read the story's render makes is in (../mocking/activateStoryMocks).
         markStorySettled();

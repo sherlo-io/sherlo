@@ -209,6 +209,9 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
         [self keepRunSettings:message];
     } else if ([action isEqual:@"story"]) {
         [self showStory:message];
+        // SPIKE scene-cloud-speed: the reload already shows the story; handing it to a JavaScript
+        // that is being torn down crashed the Release app (EXC_ARM_DA_ALIGN in runEventLoopTick).
+        return;
     }
 
     void (^receiver)(NSString *) = nil;
