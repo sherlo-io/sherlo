@@ -89,6 +89,7 @@ afterEach(() => {
   clearMocks();
   clearStoryError(STORY_ID);
   delete (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports;
+  delete (globalThis as { __sherloPrivateCopies?: unknown }).__sherloPrivateCopies;
   __resetShimmedKeysForTests();
   __resetStorybookFactsForTests();
   vi.restoreAllMocks();
@@ -279,7 +280,38 @@ describe("a project's mock that reached nothing", () => {
   });
 });
 
-describe('mocks resolve in a scene file', () => {
-  it.todo('a mock that missed an instance built at module load says so');
-  it.todo("a library's private copy of a mocked package is named");
+describe('why a mock that reached nothing says it did', () => {
+  it('a mock that missed an instance built at module load says so', () => {
+    bundlerStartedHaving(['pkg/storage']);
+    // The app's storage module made its instance as it loaded, before any story's mocks were on,
+    // and the story's render reads that instance, never the module again.
+    expect(inlineRequiredShim('pkg/storage', () => ({ label: 'real' }))().label).toBe('real');
+    const storyId = storyWith({ 'pkg/storage': { label: 'mocked' } });
+
+    activateMocksForStory(storyId);
+
+    expect(readStoryError(storyId)).toMatchObject({
+      name: 'MockedModuleError',
+      message:
+        'the mock of pkg/storage did not apply: the module was built before the mock was on - an instance made as the module loads keeps the real one',
+    });
+  });
+
+  it("a library's private copy of a mocked package is named", () => {
+    bundlerStartedHaving(['pkg/analytics']);
+    inlineRequiredShim('pkg/analytics', () => ({ track: () => 'real' }));
+    // The bundler's list: amp-lib holds node_modules/amp-lib/node_modules/pkg.
+    (globalThis as { __sherloPrivateCopies?: unknown }).__sherloPrivateCopies = {
+      'pkg/analytics': ['amp-lib'],
+    };
+    const storyId = storyWith({ 'pkg/analytics': { track: () => 'mocked' } });
+
+    activateMocksForStory(storyId);
+
+    expect(readStoryError(storyId)).toMatchObject({
+      name: 'MockedModuleError',
+      message:
+        "the mock of pkg/analytics did not apply: amp-lib has its own copy of it in its node_modules, and a mock reaches only the app's copy",
+    });
+  });
 });

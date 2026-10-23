@@ -500,6 +500,7 @@ function setupMocks(opts) {
     bareKeyShims: bareKeyShims,
     reachedShims: new Set(),
     shimPaths: shimPaths,
+    mockedModuleKeys: Array.from(new Set(moduleKeyByModulePath.values())),
     declaredImportsPolyfill:
       mocksByModulePath.size > 0
         ? writeDeclaredImportsPolyfill(cacheDir, projectRoot, declaredMocks, moduleKeyByModulePath)
@@ -623,6 +624,7 @@ module.exports = {
   MOCK_DENY_LIST: MOCK_DENY_LIST,
   CREATE_MOCKABLE_SPECIFIER: CREATE_MOCKABLE_SPECIFIER,
   isDeniedKey: isDeniedKey,
+  packageNameOf: packageNameOf,
   canonicalizeModulePath: canonicalizeModulePath,
   isInsideFolder: isInsideFolder,
   realFilePath: realFilePath,

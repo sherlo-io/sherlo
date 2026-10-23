@@ -82,3 +82,15 @@ function isMockedBy(modulePath: string, key: string): boolean {
 function withoutExtension(path: string): string {
   return path.replace(/(\.(android|ios|native|web))?\.[cm]?[jt]sx?$/, '');
 }
+
+/**
+ * The libraries that carry a private copy of the package `key` names
+ * (node_modules/amp-lib/node_modules/pkg), which a mock of the app's copy never reaches. The
+ * bundler hands them over keyed by package name (metro/stillReal.js, privateCopiesOf) beside the
+ * app's modules; none when it did not.
+ */
+export function privateCopiesHandedByBundler(key: string): string[] {
+  const listed = (globalThis as { __sherloPrivateCopies?: Record<string, string[]> })
+    .__sherloPrivateCopies;
+  return listed?.[key] ?? [];
+}

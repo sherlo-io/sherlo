@@ -81,17 +81,27 @@ export function activateSceneMocks(
   sceneFilePath: string
 ): void {
   sceneOnSinceBoot = sceneId;
-  const own = mergeStoryMocks({}, fileMocks, sceneMocks);
-  if (Array.isArray(own)) {
-    const knownAtBundlerStart = moduleMocksKnownAtBundlerStart(own, sceneFilePath);
+  const file = fileMocks ?? {};
+  const own = sceneMocks ?? {};
+  if (Array.isArray(file) || Array.isArray(own)) {
+    // Each level on its own, the scene's over the file's: the file's mocks are shared defaults, so
+    // only the scene's own can fail it for reaching nothing.
+    const fileKnown = knownAtBundlerStart(file, sceneFilePath);
+    const ownKnown = knownAtBundlerStart(own, sceneFilePath);
     installMocksOfStory(
       sceneId,
-      knownAtBundlerStart,
-      Object.keys(knownAtBundlerStart),
+      { ...fileKnown, ...ownKnown },
+      Object.keys(ownKnown),
       sceneFilePath
     );
   }
-  installMergedMocks(sceneId, {}, own, sceneFilePath);
+  installMergedMocks(sceneId, file, own, sceneFilePath);
+}
+
+// The mocks of one level whose module's name is known with no import waited for: an object names
+// its modules as its keys, a list only by the scan's record of each stand-in.
+function knownAtBundlerStart(mocks: StoryMocks, filePath: string): MockSet {
+  return Array.isArray(mocks) ? moduleMocksKnownAtBundlerStart(mocks, filePath) : mocks;
 }
 
 // Each module mock of `declarations` whose stand-in's name the scan recorded, by that name; a

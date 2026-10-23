@@ -49,9 +49,29 @@ const MOCKED_MODULE_ERROR_NAME = 'MockedModuleError';
 
 let activeActivation: Activation | null = null;
 
+// ONE COPY OF THIS MODULE MAY RUN. A second copy has its own active mocks, so the shims that read
+// it never meet the mocks the first copy was handed, and every mock silently misses. An app gets
+// two copies when package exports are off and the SDK's files resolve once by "main" and once by
+// "exports"; loading says so here instead of failing story by story.
+const REGISTRY_LOADED_FLAG = '__sherloMockRegistryLoaded';
+{
+  const host = globalThis as Record<string, unknown>;
+  if (host[REGISTRY_LOADED_FLAG]) {
+    throw new Error(
+      'Sherlo loaded its mock registry twice, so no mock can reach the module it names. This happens ' +
+        'when package exports are off: set resolver.unstable_enablePackageExports to true in metro.config.js'
+    );
+  }
+  host[REGISTRY_LOADED_FLAG] = true;
+}
+
 // Keys that a generated shim has actually registered via createMockable, i.e. modules
 // that are really mockable at runtime. Populated as shim modules are evaluated (FG-03).
 const shimmedKeys = new Set<string>();
+
+// Keys whose module was read while no mock of them was on. What the app built from such a read - an
+// MMKV instance made at module scope - holds the real module, and no later mock reaches it.
+const builtBeforeMock = new Set<string>();
 
 // Installs the mock set for one story, replacing any previously active set.
 //
@@ -166,6 +186,17 @@ function registerShimmedKey(key: string): void {
   shimmedKeys.add(key);
 }
 
+// An export of module `key` is being read: remembered when no mock of it is on, as that read hands
+// the app the real export.
+function recordRealRead(key: string): void {
+  if (!activeActivation || !(key in activeActivation.mocks)) builtBeforeMock.add(key);
+}
+
+// Whether the module `key` was built before any mock of it was on (see builtBeforeMock).
+function wasBuiltBeforeMock(key: string): boolean {
+  return builtBeforeMock.has(key);
+}
+
 // Whether `key` has a generated shim that has actually run createMockable. A declared
 // mock key that is NOT shimmed can never apply (see mockFailureOf in ./activateStoryMocks).
 function isKeyShimmed(key: string): boolean {
@@ -175,6 +206,7 @@ function isKeyShimmed(key: string): boolean {
 /** Test-only: reset shimmedKeys between unit tests so shim registration doesn't leak. */
 function __resetShimmedKeysForTests(): void {
   shimmedKeys.clear();
+  builtBeforeMock.clear();
 }
 
 export type { MockLookups };
@@ -190,6 +222,8 @@ export {
   recordUndo,
   registerShimmedKey,
   isKeyShimmed,
+  recordRealRead,
+  wasBuiltBeforeMock,
   isMockingModeActive,
   __resetShimmedKeysForTests,
 };
