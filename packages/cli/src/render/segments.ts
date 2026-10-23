@@ -34,7 +34,7 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { CoverageScreen } from './coverage';
 import type { TeamList } from './teamList';
-import type { VerdictScreen } from './verdictCloser';
+import type { AppFailedToStart, VerdictScreen } from './verdictCloser';
 import type { FeedbackKind, LastCommand } from './feedback';
 import type { FeedbackContext } from '../seams/serverCalls';
 import type { IntroducedCommand, PlatformCapture, SherloProject } from './testSteps';
@@ -293,7 +293,13 @@ export type TranscriptSegment =
       counts: { unreviewed: number; reported: number };
     }
   /** `✖ Running Test 14 failed`, the state it ended in, the server's error blob if any, and help. */
-  | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown; testIndex?: number }
+  | {
+      kind: 'verdict-run-errored';
+      runStatus: string;
+      runError: unknown;
+      testIndex?: number;
+      appFailed?: AppFailedToStart;
+    }
   /* ---------------------------------------------------------------------- *
    * GATED. The three kinds below are emitted by the shipped wait loop, but   *
    * ONLY for a build the server marked `showsOnlyBranchChanges` - a project  *
