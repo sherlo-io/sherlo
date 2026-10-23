@@ -13,6 +13,13 @@ static int64_t nowMs(void) {
     return (int64_t)(CACurrentMediaTime() * 1000.0);
 }
 
+// The run's config counts screenshots in a row that match; the C core counts pairs in a row with no
+// differing pixel. Three matching screenshots are two still pairs, so a still screen ends the loop
+// at its third screenshot. Android keeps the same rule.
+static int32_t stillPairsForMatchingScreenshots(double matchingScreenshots) {
+    return MAX((int32_t)matchingScreenshots - 1, 1);
+}
+
 /**
  * One screenshot drawn once into premultiplied RGBA8, the bytes the C core compares. Each
  * screenshot is drawn once and kept until the next one has been compared with it.
@@ -83,7 +90,8 @@ static int64_t nowMs(void) {
  * Resolves the promise when the required number of matching screenshots is reached,
  * or when the timeout is exceeded.
  *
- * @param requiredMatches Number of consecutive matching screenshots needed to consider UI stable
+ * @param requiredMatches Number of consecutive matching screenshots needed to consider UI stable,
+ *        the first of them included (stillPairsForMatchingScreenshots)
  * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Time interval between screenshots in milliseconds
  * @param timeoutMs Maximum time to wait for stability in milliseconds
@@ -125,7 +133,7 @@ static int64_t nowMs(void) {
         // iOS's own constants: the clock starts once the first screenshot is taken, and that
         // screenshot does not count towards the minimum.
         sherlo_still_params params;
-        params.required_still_pairs = (int32_t)requiredMatches;
+        params.required_still_pairs = stillPairsForMatchingScreenshots(requiredMatches);
         params.minimum_screenshots = (int32_t)minScreenshotsCount;
         params.counts_first_screenshot = 0;
         params.time_limit_ms = (int64_t)timeoutMs;
