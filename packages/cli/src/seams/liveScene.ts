@@ -39,7 +39,7 @@ export async function captureLiveScene(params: {
   const { sceneId, port, settings, target } = params;
   if (!target) return { kind: 'no-app' };
 
-  await launchFresh(target, sceneId);
+  await launchFresh(target, sceneId, port);
 
   const helloDeadline = Date.now() + APP_HELLO_PATIENCE_MS;
   for (;;) {
@@ -67,7 +67,7 @@ export async function captureLiveScene(params: {
 }
 
 /** Stop the app if it runs, then start it with the scene's id in the launch. */
-async function launchFresh(target: SceneTarget, sceneId: string): Promise<void> {
+async function launchFresh(target: SceneTarget, sceneId: string, port: number): Promise<void> {
   const { device, app } = target;
   const run = deviceState().run;
 
@@ -99,23 +99,44 @@ async function launchFresh(target: SceneTarget, sceneId: string): Promise<void> 
   if (!component) throw new Error(resolved.trim());
 
   await adb('am', 'force-stop', app.id).catch(() => '');
-  // The MAIN action and LAUNCHER category make it a start like a tap on the icon: an Expo
-  // development build then reopens its last bundle instead of staying on its launcher screen.
+  const link = await developmentLauncherLink(adb, app.id, port);
+  if (link) {
+    // A clean phone has no last bundle for Expo's development launcher to reopen (the data is
+    // wiped before each scene), so the start hands it the bundler's address through its own link.
+    await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
+  }
   const started = await adb(
     'am',
     'start',
     '-n',
     component,
-    '-a',
-    'android.intent.action.MAIN',
-    '-c',
-    'android.intent.category.LAUNCHER',
+    ...(link
+      ? ['-a', 'android.intent.action.VIEW', '-d', `'${link}'`]
+      : ['-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHER']),
     '--es',
     'sherloCapture',
     sceneId
   );
   // `adb shell am start` exits 0 even when the phone refuses, so its words are read here.
   if (/^Error:/m.test(started)) throw new Error(started.trim());
+}
+
+/**
+ * The link that opens the bundler in Expo's development launcher, or nothing when the installed app
+ * has no launcher. The phone says both: the launcher's activity in the package listing, and the
+ * `exp+<scheme>` the app registers.
+ */
+async function developmentLauncherLink(
+  adb: (...args: string[]) => Promise<string>,
+  appId: string,
+  port: number
+): Promise<string | undefined> {
+  const listing = await adb('dumpsys', 'package', appId).catch(() => '');
+  if (!listing.includes('expo.modules.devlauncher')) return undefined;
+  const scheme = listing.match(/exp\+[A-Za-z0-9._-]+/)?.[0];
+  if (!scheme) return undefined;
+  const bundlerUrl = encodeURIComponent(`http://localhost:${port}`);
+  return `${scheme}://expo-development-client/?url=${bundlerUrl}`;
 }
 
 /* ========================================================================== */
