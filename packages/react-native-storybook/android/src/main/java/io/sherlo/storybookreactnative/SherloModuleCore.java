@@ -149,7 +149,7 @@ public class SherloModuleCore {
      * mode and opens the connection; anything else, or a switch kept across the SDK's own restart,
      * leaves the mode alone.
      */
-    public static void startFromAddressHandedAtLaunch(String address) {
+    public static void startFromAddressHandedAtLaunch(String address, String sceneId) {
         if (address == null || address.isEmpty()) return;
         synchronized (stateLock) {
             if (modeKeptAcrossRestart) return;
@@ -159,6 +159,9 @@ public class SherloModuleCore {
             return;
         }
         startTestingRun(address);
+        // A scene launch hands the scene's id beside the address: that scene is the story the
+        // app starts on, and the connection to the runner stays.
+        keepStory(sceneId);
     }
 
     /**
@@ -184,22 +187,26 @@ public class SherloModuleCore {
      * the story the next start of the JavaScript lands on.
      */
     private static void startCaptureTestingOn(String storyId) {
-        if (storyId != null && !storyId.isEmpty()) {
-            try {
-                JSONObject nextSnapshot = new JSONObject();
-                nextSnapshot.put("storyId", storyId);
-                JSONObject storyToShow = new JSONObject();
-                storyToShow.put("nextSnapshot", nextSnapshot);
-                storyToShow.put("requestId", "");
-                synchronized (stateLock) {
-                    lastState = storyToShow;
-                }
-            } catch (JSONException cannotHappen) {
-                Log.e(TAG, "Failed to keep the story a capture handed over", cannotHappen);
-            }
-        }
+        keepStory(storyId);
         currentMode = MODE_TESTING;
         driver = DRIVER_CAPTURE;
+    }
+
+    /** Keeps `storyId` (when one is given) as the story the next start of the JavaScript lands on. */
+    private static void keepStory(String storyId) {
+        if (storyId == null || storyId.isEmpty()) return;
+        try {
+            JSONObject nextSnapshot = new JSONObject();
+            nextSnapshot.put("storyId", storyId);
+            JSONObject storyToShow = new JSONObject();
+            storyToShow.put("nextSnapshot", nextSnapshot);
+            storyToShow.put("requestId", "");
+            synchronized (stateLock) {
+                lastState = storyToShow;
+            }
+        } catch (JSONException cannotHappen) {
+            Log.e(TAG, "Failed to keep the story a capture handed over", cannotHappen);
+        }
     }
 
     /**
