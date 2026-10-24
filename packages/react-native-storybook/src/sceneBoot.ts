@@ -16,11 +16,27 @@
 import SherloModule from './SherloModule';
 import bundledScenes from './bundledScenes';
 import { activateSceneMocks } from './getStorybook/storyMockActivation';
+import { readStorybookFacts } from './getStorybook/storybookFacts';
+import { getSealedCore } from './sealedCore/loadSealedCore';
 import type { SceneFile } from './scenes';
 
 // Set once a copy of this module has run: an app that holds two copies of the SDK switches the
 // scene on once.
 const SWITCHED_ON_FLAG = '__sherloLaunchedSceneSwitchedOn';
+
+/**
+ * The story batch launch of an app that holds scenes and no Storybook: no component of the SDK is
+ * rendered to start the test session, so it is started here, once the bundle's main module has run
+ * and Storybook, if the app has it, has recorded its facts (an app with Storybook keeps its own
+ * road: ./getStorybook/components/TestingMode). The core lists the scenes in START.
+ */
+function startTheSessionOfAnAppWithoutStorybook(): void {
+  if (Object.keys(bundledScenes).length === 0) return;
+  Promise.resolve().then(() => {
+    if (readStorybookFacts()) return;
+    getSealedCore()?.startTestSession();
+  });
+}
 
 function switchOnTheLaunchedScene(): void {
   const host = globalThis as Record<string, unknown>;
@@ -29,8 +45,12 @@ function switchOnTheLaunchedScene(): void {
 
   if (SherloModule.getMode() !== 'testing') return;
   const sceneId = SherloModule.getLastState()?.nextSnapshot.storyId;
-  const scene = sceneId ? bundledScenes[sceneId] : undefined;
-  if (!sceneId || !scene) return;
+  if (!sceneId) {
+    startTheSessionOfAnAppWithoutStorybook();
+    return;
+  }
+  const scene = bundledScenes[sceneId];
+  if (!scene) return;
 
   const file = (scene.loadFile() as { default?: SceneFile } | undefined)?.default;
   activateSceneMocks(sceneId, file?.mocks, file?.scenes[scene.sceneName]?.mocks, scene.filePath);

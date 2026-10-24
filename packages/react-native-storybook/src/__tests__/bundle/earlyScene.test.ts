@@ -122,6 +122,15 @@ function createOldSetupAppWithAScene(): string {
       '  },\n' +
       '};\n'
   );
+  // The early-boot module's two reads for a launch with no scene: neither is used in these launches.
+  sdk(
+    'dist/getStorybook/storybookFacts.js',
+    'exports.readStorybookFacts = function () { return null; };\n'
+  );
+  sdk(
+    'dist/sealedCore/loadSealedCore.js',
+    'exports.getSealedCore = function () { return null; };\n'
+  );
   sdk(
     'dist/getStorybook/storyMockActivation.js',
     'exports.activateSceneMocks = function (sceneId, fileMocks, sceneMocks) {\n' +

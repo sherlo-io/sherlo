@@ -43,12 +43,20 @@ export class SherloStepError extends Error {
     sceneId: string,
     readonly step: string,
     reason: string,
-    readonly played: string[]
+    readonly played: string[],
+    /** True when the step was a tap whose view never showed within its limit. */
+    readonly viewNeverShowed = false
   ) {
     super(`Scene ${sceneId} could not play ${step}: ${reason}`);
     this.name = 'SherloStepError';
   }
 }
+
+/** A tap's view that never showed on screen: the one failure the sealed core records as missing. */
+class NoVisibleView extends Error {}
+
+/** How long a tap looks for its view, in ms: the limit the record names for a missing step. */
+export const TAP_LOOKS_FOR_MS = STEP_TIMEOUT_MS;
 
 /**
  * Play the steps of scene `sceneId` in order, once its mocks are installed. Answers the steps
@@ -60,12 +68,13 @@ export async function playSteps(sceneId: string): Promise<string[]> {
   const scene = sceneOf(sceneId);
   const steps = scene?.play ?? [];
   const played: string[] = [];
-  const fail = (index: number, reason: string) =>
+  const fail = (index: number, reason: string, viewNeverShowed = false) =>
     new SherloStepError(
       sceneId,
       `step ${index + 1} of ${steps.length} (${describe(steps[index])})`,
       reason,
-      played
+      played,
+      viewNeverShowed
     );
 
   // A link the app routes nowhere changes nothing and gives no signal: only a ready view after it
@@ -92,7 +101,11 @@ export async function playSteps(sceneId: string): Promise<string[]> {
         await readyOrThrow(step.ready);
       }
     } catch (error) {
-      throw fail(index, error instanceof Error ? error.message : String(error));
+      throw fail(
+        index,
+        error instanceof Error ? error.message : String(error),
+        error instanceof NoVisibleView
+      );
     }
     played.push(describe(step));
     RunnerBridge.log('scene step played', { sceneId, step: index + 1 });
@@ -168,7 +181,7 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
     if (found) return found;
     if (waitedMs >= STEP_TIMEOUT_MS) {
       const wanted = target.index ? ` (wanted #${target.index}, ${visible.length} visible)` : '';
-      throw new Error(
+      throw new NoVisibleView(
         `no visible view with ${nameOf(target)} after ${STEP_TIMEOUT_MS / 1000} s${wanted}`
       );
     }
