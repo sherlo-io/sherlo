@@ -132,6 +132,7 @@ describe('a scene is captured and opened live', () => {
     // The app is launched fresh with the scene's id in the launch, before anything is asked of it.
     expect(ran).toEqual([
       'xcrun simctl terminate UDID-1 com.example.chat',
+      'xcrun simctl get_app_container UDID-1 com.example.chat',
       `xcrun simctl launch UDID-1 com.example.chat -sherloCapture ${SCENE}`,
     ]);
     expect(bundler.asked[0]).toMatchObject({ action: 'captureStory', storyId: SCENE });
@@ -302,6 +303,56 @@ describe('a scene is captured and opened live', () => {
 
     expect(answer).toEqual({ kind: 'no-app' });
     expect(bundler.asked).toEqual([]);
+  });
+
+  it("an iOS capture of an Expo development build opens the bundler's bundle through the development launcher's link", async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      get_app_container: '/Devices/UDID-1/Bundle/Application/X/Chat.app\n',
+      plutil: '{\n  "CFBundleURLSchemes" => [\n    0 => "exp+chat"\n  ]\n}\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+    } finally {
+      uninstall();
+    }
+
+    const url = encodeURIComponent(`http://localhost:${bundler.port}`);
+    expect(ran).toContain(
+      `xcrun simctl launch UDID-1 com.example.chat --initialUrl exp+chat://expo-development-client/?url=${url} -sherloCapture ${SCENE}`
+    );
+  });
+
+  it('an iOS capture of an app with no development launcher starts it as before', async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      get_app_container: '/Devices/UDID-1/Bundle/Application/X/Chat.app\n',
+      plutil: '{\n  "CFBundleURLSchemes" => [\n    0 => "chat"\n  ]\n}\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+    } finally {
+      uninstall();
+    }
+
+    expect(ran).toContain(`xcrun simctl launch UDID-1 com.example.chat -sherloCapture ${SCENE}`);
+    expect(ran.join('\n')).not.toContain('--initialUrl');
   });
 
   it('an Android capture launch is a main launcher start so a development build reopens its bundle', async () => {
