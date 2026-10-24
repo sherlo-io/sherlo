@@ -63,16 +63,11 @@ import { buildBundles } from './bundleAndPreview';
 import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
-import {
-  bundleStoryFiles,
-  countBundleStories,
-  countStoriesIn,
-  titledStoryFilesIn,
-  type ValidatedModuleManifest,
-} from './readModuleManifest';
+import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
+import { capturePerPlatform } from './capturePerPlatform';
 import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
 import type { PlatformRow } from '../../render/runRows';
-import type { PlatformCapture } from '../../render/testSteps';
+import type { PlatformCapture, SherloProject } from '../../render/testSteps';
 import { rowsAbove, printPlatformRowInALog } from './platformRows';
 
 /**
@@ -417,6 +412,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       devices: commandParams.devices,
       serverBypassed,
       platformRows,
+      project: { teamId, projectIndex },
     });
   }
 
@@ -546,14 +542,12 @@ export function collectModuleManifests(
  * partial capture took what it took is `npx sherlo view <n> --json`'s. The review link is the
  * ending's (./closeTheRun).
  *
- * `full: true` means EVERY story was in scope: an empty `storyFilePaths` then means "everything",
- * not "nothing". A platform the server made no decision for (no `captureScope`) adds no count -
- * silence, never an invented "captured everything". A test the server closed without a device run has no started row
- * (./closeTheRun ends it, and decides where its platforms' rows go).
+ * `full: true` means EVERY story was in scope: an empty `storyFilePaths` then means "everything".
+ * A platform with no `captureScope` adds no count, never an invented "captured everything". A test
+ * the server closed without a device run has no started row (./closeTheRun ends it).
  *
- * Exported because the SIM road reuses this exact output road - it has no
- * bundles, so the count is keyed on each platform's module manifest, the one input
- * the line actually reads.
+ * Exported because the SIM road reuses it: it has no bundles, so the count is keyed on each
+ * platform's module manifest.
  */
 export function printTestStarted({
   openBuildReturn,
@@ -562,7 +556,10 @@ export function printTestStarted({
   devices,
   serverBypassed,
   platformRows,
+  project,
 }: {
+  /** The project's address, for the branching-off warning's link; none, no warning. */
+  project?: SherloProject;
   openBuildReturn: OpenBuildAnswer;
   moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
@@ -575,48 +572,29 @@ export function printTestStarted({
   // finished step that says so (./closeTheRun).
   if (serverBypassed) return;
 
-  const diffScopeInfo = openBuildReturn.build.diffScopeInfo;
+  const capture = capturePerPlatform({ openBuildReturn, moduleManifests, platformsToTest });
 
-  const capture: PlatformCapture[] = [];
-  for (const platform of platformsToTest) {
-    const captureScope = openBuildReturn.buildRun?.config?.[platform]?.captureScope;
-    if (!captureScope) continue;
-
-    const manifest = moduleManifests[platform];
-    capture.push({
-      platform,
-      // INVERSION GUARD: full === true is "every story", regardless of the list.
-      full: captureScope.full,
-      capturedStories: captureScope.full
-        ? 0
-        : manifest
-          ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
-          : (captureScope.storyFilePaths ?? []).length,
-      // The whole bundle's story set, counted the ONE canonical way.
-      storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
-      // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
-      // a machine code. The line prints it only for a full capture.
-      reason: diffScopeInfo?.platforms?.[platform]?.reason,
-      // A full capture takes every story file the bundle holds.
-      storyFiles: captureScope.full
-        ? manifest
-          ? bundleStoryFiles(manifest)
-          : []
-        : (captureScope.storyFilePaths ?? []),
-      newStoryFiles: captureScope.newStoryFilePaths ?? [],
-      ...(manifest ? { storyTitles: titledStoryFilesIn(manifest) } : {}),
-      // A partial capture takes exactly what a change reaches.
-      changedStoryFiles: captureScope.full
-        ? (captureScope.changedStoryFilePaths ?? [])
-        : (captureScope.storyFilePaths ?? []),
-    });
-  }
+  // Branching is off when the server captured every story and said why: the project has no main
+  // branch. The warning says it, so the Started row drops the same words.
+  const showBranchingOff = !!project && hasNoMainBranch(capture);
 
   emit({
     kind: 'test-started',
     buildIndex: openBuildReturn.build.index,
     devices,
-    capture,
+    capture: showBranchingOff ? capture.map((c) => ({ ...c, reason: undefined })) : capture,
     rowsAbove: rowsAbove(platformRows),
   });
+
+  if (showBranchingOff) {
+    emit({ kind: 'branching-off', project });
+  }
+}
+
+/** The server's own words for a full capture that has no main branch to measure against. */
+const NO_MAIN_BRANCH_REASON = 'no main branch is set';
+
+/** Every platform was captured in full for want of a main branch. */
+function hasNoMainBranch(capture: PlatformCapture[]): boolean {
+  return capture.length > 0 && capture.every((c) => c.reason === NO_MAIN_BRANCH_REASON);
 }

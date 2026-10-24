@@ -268,6 +268,17 @@ export class GitFixture {
     return new GitFixture(cloneDir);
   }
 
+  /** A bare copy of this repo, as a fixture of its own: what a git host holds. */
+  bareClone(): GitFixture {
+    const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-git-bare-'));
+    execFileSync('git', ['clone', '-q', '--bare', this.dir, bareDir], {
+      cwd: os.tmpdir(),
+      encoding: 'utf8',
+      env: this.env({}),
+    });
+    return new GitFixture(bareDir);
+  }
+
   /** Introduces an uncommitted change so the working tree is dirty. */
   makeDirty(file = 'dirty.txt'): void {
     this.writeFile(file, `uncommitted-${this.commitCount}\n`);

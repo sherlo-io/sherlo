@@ -455,6 +455,36 @@ const PINS: Pin[] = [
     ],
   },
   {
+    kind: 'git-history-fetch-refused',
+    what: "the warning when git refuses the tool's own history fetch - git's reason, what it costs, the fix, on stderr in yellow",
+    segment: { kind: 'git-history-fetch-refused', reason: 'fatal: could not read Username' },
+    stream: 'stderr',
+    prints: [
+      [`${ESC}[33m! Couldn't fetch the git history: fatal: could not read Username${ESC}[39m`],
+      [
+        `${ESC}[33m  The build goes on, but without history Sherlo can't find earlier approved pictures.${ESC}[39m`,
+      ],
+      [
+        `${ESC}[33m  Keep your CI checkout's credentials, or fetch the full history in the checkout.${ESC}[39m`,
+      ],
+    ],
+  },
+  {
+    kind: 'branching-off',
+    what: "the warning when the project has no main branch - what it means, and the project's settings address, on stderr in yellow",
+    segment: { kind: 'branching-off', project: { teamId: 'tm000001', projectIndex: 7 } },
+    stream: 'stderr',
+    prints: [
+      [`${ESC}[33m! Branching is off: this project has no main branch.${ESC}[39m`],
+      [
+        `${ESC}[33m  Every build is treated as a main build, so each one captures every story.${ESC}[39m`,
+      ],
+      [
+        `${ESC}[33m  Set the main branch in the project's settings: https://app.sherlo.io/project?t=tm000001&p=7${ESC}[39m`,
+      ],
+    ],
+  },
+  {
     kind: 'notice',
     what: 'a warning with no learn-more link - one line, a yellow bang',
     segment: { kind: 'notice', level: 'warning', message: 'Staged uploads unavailable - reason.' },

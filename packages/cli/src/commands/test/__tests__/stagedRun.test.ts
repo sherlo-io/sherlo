@@ -613,6 +613,49 @@ describe('live capture plan', () => {
     logSpy.mockRestore();
   });
 
+  /** A full capture on one platform, with the server's reason for it. */
+  function fullCaptureBecause(reason: string): any {
+    return {
+      build: {
+        index: 7,
+        diffScopeInfo: { isFullCapture: true, platforms: { ios: { reason } } },
+      },
+      buildRun: {
+        config: { ios: { devices: [], captureScope: { full: true, storyFilePaths: [] } } },
+      },
+    };
+  }
+
+  it('a project with no main branch prints the branching-off warning and drops the reason from the Started row', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    setup({ openBuildReturn: fullCaptureBecause('no main branch is set') });
+
+    await stagedRun(mockOptions());
+
+    expect(printed(warnSpy)).toContain('! Branching is off: this project has no main branch.');
+    expect(printed(warnSpy)).toContain('/project?t=team&p=3');
+    expect(printed(logSpy)).toContain('Test 7      ✔ Started: all 22 stories on 1 device');
+    expect(printed(logSpy)).not.toContain('no main branch is set');
+
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it('a project with a main branch prints no branching-off warning', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    setup({ openBuildReturn: fullCaptureBecause('native code changed') });
+
+    await stagedRun(mockOptions());
+
+    expect(printed(warnSpy)).not.toContain('Branching is off');
+    expect(printed(logSpy)).toContain('native code changed');
+
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
   it('Case 3: nothing to capture - none of the bundle needs capture, no "Build created" closer', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({
