@@ -23,7 +23,21 @@ const GIT_ENV_KEYS = [
   'CM_BRANCH',
   'BUILD_SOURCEBRANCH',
   'SYSTEM_PULLREQUEST_SOURCEBRANCH',
+  'GIT_CONFIG_GLOBAL',
 ] as const;
+
+/**
+ * The tool deepens a shallow clone before it reads git. These cases read a clone AS shallow, so
+ * their git host refuses every pack: the global config sets a pack-objects hook that fails.
+ */
+export function refusingHostConfig(): string {
+  const file = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-refusing-host-')),
+    'gitconfig'
+  );
+  fs.writeFileSync(file, '[uploadpack]\n\tpackObjectsHook = false\n');
+  return file;
+}
 
 const eventFiles: string[] = [];
 const repositoriesOfThisCase: GitFixture[] = [];
@@ -40,6 +54,9 @@ export function isolateEachCase(): void {
       savedEnv[key] = process.env[key];
       delete process.env[key];
     }
+    const refusing = refusingHostConfig();
+    eventFiles.push(refusing);
+    process.env.GIT_CONFIG_GLOBAL = refusing;
   });
 
   afterEach(() => {

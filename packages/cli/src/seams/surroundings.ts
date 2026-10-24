@@ -168,7 +168,7 @@ export function posedSurroundings({
 
     readGitInfo: async (_projectRoot: string, options?: { branchOverride?: string }) => {
       // THE WORDING IS GIT'S OWN. `readGitInfoFromDisk` degrades on the stderr of a failed
-      // `git rev-parse HEAD` (see ../helpers/getGitInfo's `reasonFor`), and this is the exact
+      // `git rev-parse HEAD` (see ../helpers/gitFailureReason), and this is the exact
       // sentence git 2.x has printed for that failure since 1.8.5 (2013): a folder with no `.git`
       // anywhere above it. A posed `git: 'none'` must fail with that same sentence, or a screen
       // built on the pose is proof of nothing about the real failure it stands in for.
