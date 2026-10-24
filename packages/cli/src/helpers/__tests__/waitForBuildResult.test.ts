@@ -1384,3 +1384,71 @@ describe('the wait shows the test live, and in a JSON wait keeps stdout clean', 
     expect(stdoutWrite).not.toHaveBeenCalled();
   });
 });
+
+describe('the wait names an app that could not start', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockFetch.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  /** Waits on a build that errored with `details` beside its run error; returns the lines printed. */
+  async function linesPrintedFor(details: Record<string, unknown>): Promise<string[]> {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const response = buildResponse('error', undefined, 'user_runner');
+    Object.assign(response.getBuildStatus, details);
+    mockGraphqlResponse(200, response);
+
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await promise).toBe(EXIT_ERROR);
+    return logSpy.mock.calls.map((call) => String(call[0]));
+  }
+
+  it("an app that failed to start prints the platform, the error's first line and the build link", async () => {
+    const lines = await linesPrintedFor({
+      runErrorReason: 'appFailedToStart',
+      runErrorPlatform: 'android',
+      runErrorMessage: "TypeError: Cannot read property 'getItem' of undefined\n    at loadSession",
+    });
+
+    const at = lines.indexOf('App failed to start on Android');
+    expect(at).toBeGreaterThan(-1);
+    expect(lines[at + 1]).toBe("TypeError: Cannot read property 'getItem' of undefined");
+    expect(lines[at + 2]).toContain('Review');
+    expect(lines.join('\n')).not.toContain('Error: "user_runner"');
+  });
+
+  it('an app that failed to start with no message still prints the platform and the build link', async () => {
+    const lines = await linesPrintedFor({
+      runErrorReason: 'appFailedToStart',
+      runErrorPlatform: 'ios',
+      runErrorMessage: null,
+    });
+
+    const at = lines.indexOf('App failed to start on iOS');
+    expect(at).toBeGreaterThan(-1);
+    expect(lines[at + 1]).toContain('Review');
+  });
+
+  it('any other run error keeps printing its error code', async () => {
+    const lines = await linesPrintedFor({
+      runErrorReason: null,
+      runErrorPlatform: 'android',
+      runErrorMessage: 'ignored',
+    });
+
+    expect(lines.join('\n')).toContain('Error: "user_runner"');
+    expect(lines.join('\n')).not.toContain('App failed to start');
+  });
+});
