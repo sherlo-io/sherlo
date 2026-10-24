@@ -15,3 +15,12 @@ export function bundlerOrigin(): string | null {
   const origin = /^(https?:\/\/[^/]+)/.exec(scriptURL);
   return origin ? origin[1] : null;
 }
+
+/**
+ * Whether `url` is an asset the bundler itself serves: a file of the app, no network image. The
+ * bundler's origin is the app's own side.
+ */
+export function isBundlerAssetUrl(url: string): boolean {
+  const origin = bundlerOrigin();
+  return origin !== null && url.startsWith(`${origin}/assets/`);
+}
