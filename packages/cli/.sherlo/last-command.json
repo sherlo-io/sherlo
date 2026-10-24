@@ -1,0 +1,8 @@
+{
+  "command": "init",
+  "flags": {
+    "token": "[hidden]"
+  },
+  "exitCode": 0,
+  "errorLines": []
+}

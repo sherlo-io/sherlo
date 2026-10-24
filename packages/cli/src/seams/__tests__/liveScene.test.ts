@@ -85,14 +85,26 @@ async function pretendBundler(say: (question: { action: string }) => unknown): P
   return bundler;
 }
 
-/** A device that records every command it is told to run and answers each with nothing. */
-function recordingDevice(): { ran: string[]; uninstall: () => void } {
+/** What the phone prints for the launcher activity of the example app. */
+const LAUNCHER_ANSWER =
+  'priority=0 preferredOrder=0 match=0x108000\ncom.example.chat/.ChatActivity\n';
+
+/**
+ * A device that records every command it is told to run and answers each with nothing, except what
+ * `answers` gives for a command that contains the key.
+ */
+function recordingDevice(answers: Record<string, string> = {}): {
+  ran: string[];
+  uninstall: () => void;
+} {
   const ran: string[] = [];
   const uninstall = installDeviceState({
     ...posedDeviceState(),
     run: async (tool, args) => {
-      ran.push(`${tool} ${args.join(' ')}`);
-      return '';
+      const command = `${tool} ${args.join(' ')}`;
+      ran.push(command);
+      const key = Object.keys(answers).find((part) => command.includes(part));
+      return key ? answers[key] : '';
     },
   });
   return { ran, uninstall };
@@ -136,7 +148,7 @@ describe('a scene is captured and opened live', () => {
     const bundler = await pretendBundler((question) =>
       question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
     );
-    const { ran, uninstall } = recordingDevice();
+    const { ran, uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
 
     let answer;
     try {
@@ -149,8 +161,8 @@ describe('a scene is captured and opened live', () => {
       uninstall();
     }
 
-    expect(ran[1]).toContain('am start');
-    expect(ran[1]).toContain(`--es sherloCapture ${SCENE}`);
+    expect(ran[2]).toContain('am start');
+    expect(ran[2]).toContain(`--es sherloCapture ${SCENE}`);
 
     const screen = renderOpenedScene(
       openedSceneEnding(answer, { sceneId: SCENE, port: bundler.port })
@@ -289,6 +301,54 @@ describe('a scene is captured and opened live', () => {
     });
 
     expect(answer).toEqual({ kind: 'no-app' });
+    expect(bundler.asked).toEqual([]);
+  });
+
+  it("an Android capture starts the app's launcher activity by name with the scene's id", async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: ANDROID,
+      });
+    } finally {
+      uninstall();
+    }
+
+    expect(ran[0]).toContain('resolve-activity');
+    expect(ran).toContain(
+      `adb -s emulator-5554 shell am start -n com.example.chat/.ChatActivity --es sherloCapture ${SCENE}`
+    );
+    expect(ran.join('\n')).not.toContain('-p com.example.chat');
+  });
+
+  it('an Android launch the phone refuses stops the capture with what the phone printed', async () => {
+    const bundler = await pretendBundler(() => SCENE_RECORD);
+    const refusal =
+      'Error: Activity not started, unable to resolve Intent { cmp=com.example.chat/.ChatActivity }';
+    const { uninstall } = recordingDevice({
+      'resolve-activity': LAUNCHER_ANSWER,
+      'am start': `Starting: Intent { cmp=com.example.chat/.ChatActivity }\n${refusal}\n`,
+    });
+
+    try {
+      await expect(
+        captureLiveScene({
+          sceneId: SCENE,
+          port: bundler.port,
+          settings: STABILIZATION_SETTINGS,
+          target: ANDROID,
+        })
+      ).rejects.toThrow(refusal);
+    } finally {
+      uninstall();
+    }
     expect(bundler.asked).toEqual([]);
   });
 });
