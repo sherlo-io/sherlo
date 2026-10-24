@@ -31,6 +31,7 @@ import { sherloFetch } from '../mocking/network';
 import { unansweredRequests } from '../mocking/networkRules';
 import { stillRealModulesOfStory } from '../mocking/stillReal';
 import { proveReadyAgain, stabilizeOnceReady } from '../storyReady';
+import { sceneCallsForTheCore } from './sceneCalls';
 import type { CoreReport, SealedCore, SealedCoreHost } from './seam';
 
 /** The number of the contract (./seam) this SDK speaks. A core of any other is never installed. */
@@ -180,6 +181,8 @@ function hostForTheCore(): SealedCoreHost {
       clear: clearStoryError,
       fallbackText: STORY_ERROR_FALLBACK_TEXT,
     },
+    // The scenes, and the calls that capture one: its steps, its ready rule, its route, its clock.
+    ...sceneCallsForTheCore(),
     storybookFacts: readStorybookFacts,
     storybookChannel: () => readStorybookChannel().value,
     activateMocksForStory,

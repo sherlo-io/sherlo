@@ -2,6 +2,7 @@
  * The seam (../sealedCore/seam.ts): the one open contract between the SDK and its sealed cores,
  * which sherlo-runner keeps a tracked copy of and types the cores against.
  */
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -126,6 +127,30 @@ function everyNameDeclaredIn(source: string): string[] {
 }
 
 describe('the sealed core seam serves scenes', () => {
-  it.todo("the SDK's seam matches the seam the pinned core was typed against");
-  it.todo('a scene host hands the core playSteps, awaitReady, reachedRoute and monotonicNow');
+  it("the SDK's seam matches the seam the pinned core was typed against", () => {
+    const pin = JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'sherlo-core.json'), 'utf8'));
+    const seamHash = createHash('sha256').update(fs.readFileSync(SEAM_FILE)).digest('hex');
+
+    expect(seamHash).toBe(pin.seamHash);
+  });
+
+  it('a scene host hands the core playSteps, awaitReady, reachedRoute and monotonicNow', async () => {
+    vi.resetModules();
+    const { getSealedCore } = await import('../sealedCore/loadSealedCore');
+    const { reachedRoute } = await import('../reachedScreen');
+    const { monotonicNow } = await import('../settleClock');
+    const { rulesNeverMatched } = await import('../mocking/registry');
+    getSealedCore();
+    const host = (globalThis as { __SHERLO_CORE__?: { installedWith?: SealedCoreHost } })
+      .__SHERLO_CORE__?.installedWith;
+
+    expect(typeof host?.playSteps).toBe('function');
+    expect(typeof host?.awaitReady).toBe('function');
+    expect(host?.reachedRoute).toBe(reachedRoute);
+    expect(host?.monotonicNow).toBe(monotonicNow);
+    expect(host?.rulesNeverMatched).toBe(rulesNeverMatched);
+    expect(host?.scenes()).toEqual([]);
+
+    delete (globalThis as { __SHERLO_CORE__?: unknown }).__SHERLO_CORE__;
+  });
 });

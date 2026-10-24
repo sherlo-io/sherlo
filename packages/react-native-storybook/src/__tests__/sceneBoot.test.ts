@@ -116,3 +116,33 @@ describe('the early-boot module switches the launched scene on', () => {
     expect(api.whoAmI()).toBe('mocked');
   });
 });
+
+describe('the early-boot module starts the test session of an app with scenes and no Storybook', () => {
+  type FakeCore = { calls: { method: string }[] };
+  const sessionStarts = () =>
+    (globalThis as { __SHERLO_CORE__?: FakeCore }).__SHERLO_CORE__?.calls.filter(
+      (call) => call.method === 'startTestSession'
+    ).length;
+
+  beforeEach(() => {
+    delete (globalThis as { __SHERLO_CORE__?: unknown }).__SHERLO_CORE__;
+  });
+
+  it('a story batch launch with scenes and no Storybook starts the core session once', async () => {
+    launch.storyId = undefined;
+    await import('../sceneBoot');
+    await Promise.resolve();
+
+    expect(sessionStarts()).toBe(1);
+  });
+
+  it('a story batch launch of an app that has Storybook leaves the session to its own road', async () => {
+    launch.storyId = undefined;
+    const { recordStorybookFacts } = await import('../getStorybook/storybookFacts');
+    recordStorybookFacts({ storyIndex: {}, storyFiles: {}, previewAnnotations: [] });
+    await import('../sceneBoot');
+    await Promise.resolve();
+
+    expect(sessionStarts() ?? 0).toBe(0);
+  });
+});
