@@ -23,7 +23,12 @@ import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS, captureSocket } from '../../seams/captureSocket';
-import { appIsInstalled, deviceState, prepareCleanDevice } from '../../seams/deviceState';
+import {
+  appIsInstalled,
+  deviceState,
+  endOnNotDebuggable,
+  prepareCleanDevice,
+} from '../../seams/deviceState';
 import type { CaptureResult, SceneCaptureResult } from '../../seams/captureSocket';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene } from '../../render/capturedScene';
@@ -96,7 +101,9 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
   const installed = !target || (await appIsInstalled(target));
   const restore =
-    target && installed ? await prepareCleanDevice(target.device, target.app) : undefined;
+    target && installed
+      ? await prepareCleanDevice(target.device, target.app).catch(endOnNotDebuggable)
+      : undefined;
   let answer: SceneCaptureResult;
   try {
     answer = installed

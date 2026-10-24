@@ -236,15 +236,13 @@ function stillRealLines(stillReal: string[] | undefined): string[] {
   ];
 }
 
-/** The requests that went to the real network: a test run sends them too, so a story that depends on them can change. */
+/** The requests no mock answered, each a method and an address. */
 function unansweredLines(unanswered: { method: string; url: string }[] | undefined): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
     '',
-    `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock - a test run sends ${
-      one ? 'it' : 'them'
-    } to the real network:`,
+    `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock:`,
     ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
   ];
 }

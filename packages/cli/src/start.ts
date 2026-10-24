@@ -336,7 +336,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [JSON_OPTION]: [`--${JSON_OPTION}`, 'Print the whole record as JSON instead of a screen'],
   [LOGS_OPTION]: [
     `--${LOGS_OPTION}`,
-    "Also print the app's own log lines from this capture, after the story",
+    "Print Sherlo's latest log lines from the app not shown before (at most 1000)",
   ],
   [PROPS_OPTION]: [
     `--${PROPS_OPTION}`,

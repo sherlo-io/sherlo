@@ -83,10 +83,7 @@ export async function playSteps(sceneId: string): Promise<string[]> {
     (step, index) => 'open' in step && !('ready' in (steps[index + 1] ?? {})) && !scene?.ready
   );
   if (unguarded >= 0) {
-    throw fail(
-      unguarded,
-      "an open step needs a ready after it (a ready step, or the scene's ready)"
-    );
+    throw fail(unguarded, "needs a ready after it (a ready step, or the scene's ready)");
   }
 
   for (const [index, step] of steps.entries()) {

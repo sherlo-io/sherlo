@@ -1,5 +1,5 @@
 /**
- * THE APP'S CONSOLE LINES OFF THE BUNDLER'S LINE - the one reading of the log feed, shared by the
+ * SHERLO'S OWN LOG LINES FROM THE APP OFF THE BUNDLER'S LINE - the one reading of the log feed, shared by the
  * capture socket and the live scene, and the one filter that keeps only the strings of a list.
  */
 import { askTheBundlerLine } from './bundlerLine';
@@ -11,7 +11,7 @@ import { askTheBundlerLine } from './bundlerLine';
 const LOG_FEED_PATIENCE_MS = 5000;
 
 /**
- * Every console line the app pushed to the line since it booted. An unreachable feed (an app old
+ * Every log line Sherlo pushed to the line since it booted. An unreachable feed (an app old
  * enough to have never pushed to it, a bundler that went away between the main answer and this
  * read) answers with nothing readable, and that is not this capture's own failure to report.
  */

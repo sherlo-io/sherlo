@@ -26,6 +26,7 @@ import {
   appIsInstalled,
   deviceState,
   holdTheCleanDevice,
+  endOnNotDebuggable,
   prepareCleanDevice,
 } from '../../seams/deviceState';
 import type { OpenStoryResult } from '../../seams/letterbox';
@@ -93,7 +94,9 @@ async function openScene(sceneId: string, passedOptions: OpenOptions): Promise<v
   // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
   const installed = !target || (await appIsInstalled(target));
   const restore =
-    target && installed ? await prepareCleanDevice(target.device, target.app) : undefined;
+    target && installed
+      ? await prepareCleanDevice(target.device, target.app).catch(endOnNotDebuggable)
+      : undefined;
   let answer: OpenSceneResult;
   try {
     answer = installed

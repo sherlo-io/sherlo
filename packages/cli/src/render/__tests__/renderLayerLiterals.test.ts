@@ -1606,7 +1606,7 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[2mThe app's own log - 1 line recorded during this capture:${ESC}[22m`],
+      [`${ESC}[2mSherlo's log from the app - 1 new line:${ESC}[22m`],
       ['  12:34:56: storybook style : {"style":"dark"}'],
       [''],
     ],
@@ -1617,7 +1617,7 @@ const PINS: Pin[] = [
     what: '`sherlo capture --logs` with an empty feed - a plain dim sentence, not a zero',
     segment: { kind: 'captured-log', logs: [] },
     stream: 'stdout',
-    prints: [[`${ESC}[2mThe app logged nothing during this capture.${ESC}[22m`], ['']],
+    prints: [[`${ESC}[2mSherlo has logged nothing new from the app.${ESC}[22m`], ['']],
   },
 
   {

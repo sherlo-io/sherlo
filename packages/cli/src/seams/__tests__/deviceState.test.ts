@@ -214,6 +214,73 @@ describe('a local capture leaves the device clean', () => {
     expect(readFiles(container)).toEqual(THE_DEVELOPERS_DATA);
   });
 
+  it.each([
+    ['capture', capture],
+    ['open', open],
+  ])(
+    '%s --scene on an Android build that is not debuggable prints the debug build line',
+    async (_name, command) => {
+      uninstall();
+      const device = recordingDevice(ANDROID);
+      uninstall = installDeviceState({
+        ...device,
+        run: async (tool, args, options) => {
+          if (args.includes('run-as')) {
+            throw new Error(
+              `adb ${args.join(' ')} failed: run-as: package not debuggable: com.example.app`
+            );
+          }
+          return device.run(tool, args, options);
+        },
+      });
+      let reachedTheApp = false;
+      const uninstallSocket = installCaptureSocket({
+        captureStory: async () => ({ kind: 'no-app' }),
+        captureScene: async () => {
+          reachedTheApp = true;
+          return { kind: 'no-app' };
+        },
+      });
+      const uninstallApp = installLetterbox({
+        openStory: async () => ({ kind: 'no-app' }),
+        openScene: async () => {
+          reachedTheApp = true;
+          return { kind: 'no-app' };
+        },
+      });
+      const exits: Array<number | undefined> = [];
+      const exit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+        exits.push(code);
+        throw new Error('exit');
+      }) as never);
+
+      let printed = '';
+      const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(((text: string) => {
+        printed += text;
+        return true;
+      }) as never);
+      try {
+        const transcript = await captureTranscript(() =>
+          command({ [SCENE_OPTION]: 'inbox--full' }).catch(() => undefined)
+        );
+        printed += transcript.stdout + transcript.stderr;
+      } finally {
+        stderr.mockRestore();
+        exit.mockRestore();
+        uninstallSocket();
+        uninstallApp();
+      }
+
+      expect(printed).toContain(
+        'This build is not a debug build, so Sherlo cannot read its data on the device. ' +
+          'Install a debug build of your app (the debug variant, not release) and run the command again.'
+      );
+      expect(printed).not.toContain('run-as');
+      expect(exits).toEqual([1]);
+      expect(reachedTheApp).toBe(false);
+    }
+  );
+
   it('the keychain is never touched locally', async () => {
     for (const target of [IOS, ANDROID]) {
       const folder = fs.mkdtempSync(path.join(scratch, 'saved-'));

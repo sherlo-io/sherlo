@@ -371,7 +371,7 @@ describe('a scene that opens one of the app links', () => {
     const unguarded = await played().catch((thrown) => thrown);
     expect(unguarded.message).toBe(
       `Scene ${SCENE_ID} could not play step 1 of 1 (open myapp://chat): ` +
-        "an open step needs a ready after it (a ready step, or the scene's ready)"
+        "needs a ready after it (a ready step, or the scene's ready)"
     );
     expect(opened).toEqual([]);
 

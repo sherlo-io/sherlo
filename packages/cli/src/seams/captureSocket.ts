@@ -119,7 +119,7 @@ export type CaptureResult =
 
 /** What the app answered about the scene the command asked it to boot fresh on and capture. */
 export type SceneCaptureResult = ({ kind: 'no-bundler' } | { kind: 'no-app' } | SceneEnding) & {
-  /** The app's console lines since it booted, drained from the bundler's feed after the answer. */
+  /** Sherlo's own log lines from the app since it booted, drained from the bundler's feed after the answer. */
   logs?: string[];
 };
 

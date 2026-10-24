@@ -158,7 +158,7 @@ describe('a scene is captured and opened live', () => {
     expect(screen.join('\n')).toContain(`${SCENE} is on screen, booted fresh at ChatStack › Chat`);
   });
 
-  it("--logs carries the app's console lines", async () => {
+  it("a scene's log lines are Sherlo's own, at most 1000, emptied on each read", async () => {
     const bundler = await pretendBundler((question) =>
       question.action === 'readLogLines' ? { lines: ['12:00:00: chat opened'] } : SCENE_RECORD
     );
