@@ -103,7 +103,7 @@ give the action a CLI to find. The first line of the log names the one that ran.
 
 See [`examples/standard`](./examples/standard) for the complete workflow.
 
-No `fetch-depth` needed on `actions/checkout` - the action deepens a shallow
+No `fetch-depth` needed on `actions/checkout` - the CLI deepens a shallow
 checkout itself, so Sherlo always has the commit history it needs to inherit a
 baseline.
 

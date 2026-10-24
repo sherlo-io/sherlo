@@ -1,6 +1,9 @@
 import fs from 'fs';
 import { Build } from '@sherlo/api-types';
+import deepenShallowClone from './deepenShallowClone';
 import getDefaultBranch from './getDefaultBranch';
+import gitFailureReason from './gitFailureReason';
+import parseRepoSlug from './parseRepoSlug';
 import runShellCommand from './runShellCommand';
 import { emit } from './transcriptSink';
 
@@ -360,22 +363,6 @@ async function getAdditionalGitInfo(
 }
 
 /**
- * Parses an `owner/repo` slug out of any common git remote URL format.
- *
- * Handles HTTPS (`https://host/owner/repo.git`) and SSH
- * (`git@host:owner/repo.git`) forms, host-agnostic.
- */
-function parseRepoSlug(remoteUrl: string): string | undefined {
-  // SSH: git@host:owner/repo.git
-  const sshMatch = remoteUrl.match(/^[^@]+@[^:]+:([^/]+\/[^/]+?)(?:\.git)?$/);
-  if (sshMatch) return sshMatch[1];
-  // HTTPS: https://host/owner/repo.git or http://host/owner/repo
-  const httpsMatch = remoteUrl.match(/^https?:\/\/[^/]+\/([^/]+\/[^/]+?)(?:\.git)?(?:\/)?$/);
-  if (httpsMatch) return httpsMatch[1];
-  return undefined;
-}
-
-/**
  * THE REAL GIT READ - what the tool asks a real repository, in a real folder.
  *
  * Exported as the LIVE half of the surroundings seam (../seams/surroundings): `getGitInfo` below
@@ -387,6 +374,10 @@ export async function readGitInfoFromDisk(
   opts?: { branchOverride?: string }
 ): Promise<GitInfo> {
   try {
+    const deepened = await deepenShallowClone(runShellCommand, projectRoot, ANCESTOR_LIMIT);
+    if (deepened.kind === 'refused') {
+      emit({ kind: 'git-history-fetch-refused', reason: deepened.reason });
+    }
     const { additional, canonicalSha } = await getAdditionalGitInfo(projectRoot);
 
     // On a merge ref the commit is the PR head, read locally or from the event payload, so every
@@ -413,23 +404,6 @@ export async function readGitInfoFromDisk(
 const GIT_INFO_UNKNOWN = 'unknown';
 
 /**
- * The one sentence a git failure is worth: the shell error `executeCommand` throws carries the
- * subprocess's own stderr (e.g. `fatal: not a git repository (or any of the parent
- * directories): .git`), which is the reason a reader needs - everything else on that error
- * (its stack, `code`/`killed`/`signal`, this machine's paths) is the tool's own internals, not
- * theirs to read. Falls back to the error's `message` for anything that isn't a failed shell
- * command (e.g. a plain `Error` a caller states directly).
- */
-function reasonFor(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const { stderr, message } = error as { stderr?: unknown; message?: unknown };
-    if (typeof stderr === 'string' && stderr.trim().length > 0) return stderr.trim();
-    if (typeof message === 'string') return message;
-  }
-  return String(error);
-}
-
-/**
  * Rebuilds `error` as one line: a message and nothing else - no frames, no `code`/`killed`/
  * `signal`/`stdout` object tail. Node's `console.error(text, error)` inspects a SECOND-argument
  * Error by its `.stack`, so an error whose stack IS its one-line message (nothing appended)
@@ -437,7 +411,7 @@ function reasonFor(error: unknown): string {
  * dump this exists to prevent.
  */
 function oneLineError(error: unknown): Error {
-  const reason = reasonFor(error);
+  const reason = gitFailureReason(error);
   const oneLine = new Error(reason);
   oneLine.stack = `Error: ${reason}`;
   return oneLine;

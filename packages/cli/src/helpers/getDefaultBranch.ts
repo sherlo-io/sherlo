@@ -10,6 +10,9 @@ type RunShellCommand = typeof runShellCommandType;
 /** How long a push waits for the git host to name the default branch before it goes on without. */
 export const HOST_ASK_TIMEOUT_MS = 10_000;
 
+/** Every git command that talks to the host runs with prompts off: terminal prompts off, askpass a program that fails. */
+export const PROMPT_OFF_ENV = { GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'false' };
+
 /**
  * The repository's default branch as reported by GitHub Actions.
  *
@@ -49,7 +52,7 @@ async function getDefaultBranchFromHost(
     const answer = await runShellCommand({
       command: 'git ls-remote --symref origin HEAD',
       projectRoot,
-      env: { GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: 'false' },
+      env: PROMPT_OFF_ENV,
       timeoutMs,
     });
     const line = answer.split('\n').find((candidate) => candidate.startsWith('ref: refs/heads/'));

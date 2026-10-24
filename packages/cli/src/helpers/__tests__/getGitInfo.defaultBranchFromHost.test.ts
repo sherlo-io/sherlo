@@ -1,13 +1,11 @@
-import { execFileSync } from 'child_process';
 import fs from 'fs';
-import os from 'os';
-import path from 'path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import getDefaultBranch, { HOST_ASK_TIMEOUT_MS } from '../getDefaultBranch';
 // The REAL git read, not the seam's dispatcher (../../seams/surroundings): this suite is
 // about what the tool asks a real repository.
 import { readGitInfoFromDisk as getGitInfo } from '../getGitInfo';
 import runShellCommand from '../runShellCommand';
+import fakeGit from './support/fakeGit';
 import type GitFixture from './support/gitFixture';
 import { isolateEachCase, shallowCloneOfBareOrigin } from './support/gitInfoRepositories';
 
@@ -19,9 +17,7 @@ import { isolateEachCase, shallowCloneOfBareOrigin } from './support/gitInfoRepo
 
 isolateEachCase();
 
-const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
-const savedPath = process.env.PATH;
-const fakeDirs: string[] = [];
+const removals: Array<() => void> = [];
 
 /** A depth 1 clone of a bare origin with no origin/HEAD, read by every case. */
 let clone: GitFixture;
@@ -33,32 +29,15 @@ beforeAll(() => {
 
 afterAll(() => removeClone());
 
-/** Puts a git first on PATH that runs onLsRemote for ls-remote and real git for everything else. */
+/** A fake git that runs onLsRemote for ls-remote; taken off PATH after the case. */
 function fakeGitHost(onLsRemote: string): { envLog: string } {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-fake-git-'));
-  fakeDirs.push(dir);
-  const envLog = path.join(dir, 'env.log');
-  const script = [
-    '#!/bin/sh',
-    'if [ "$1" = "ls-remote" ]; then',
-    `  echo "$GIT_TERMINAL_PROMPT|$GIT_ASKPASS" > "${envLog}"`,
-    `  ${onLsRemote}`,
-    'fi',
-    `exec "${realGit}" "$@"`,
-    '',
-  ].join('\n');
-  fs.writeFileSync(path.join(dir, 'git'), script, { mode: 0o755 });
-  process.env.PATH = `${dir}${path.delimiter}${savedPath}`;
+  const { envLog, remove } = fakeGit('ls-remote', onLsRemote);
+  removals.push(remove);
   return { envLog };
 }
 
-beforeEach(() => {
-  process.env.PATH = savedPath;
-});
-
 afterEach(() => {
-  process.env.PATH = savedPath;
-  while (fakeDirs.length) fs.rmSync(fakeDirs.pop()!, { recursive: true, force: true });
+  while (removals.length) removals.pop()!();
 });
 
 describe('the default branch asked of the git host', () => {
