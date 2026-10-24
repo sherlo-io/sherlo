@@ -77,23 +77,31 @@ async function launchFresh(target: SceneTarget, sceneId: string): Promise<void> 
     return;
   }
 
-  await run('adb', ['-s', device.serial, 'shell', 'am', 'force-stop', app.id]).catch(() => '');
-  await run('adb', [
-    '-s',
-    device.serial,
-    'shell',
-    'am',
-    'start',
+  const adb = (...args: string[]) => run('adb', ['-s', device.serial, 'shell', ...args]);
+
+  // An app names its own launcher activity, so ask the phone which one it is.
+  const resolved = await adb(
+    'cmd',
+    'package',
+    'resolve-activity',
+    '--brief',
     '-a',
     'android.intent.action.MAIN',
     '-c',
     'android.intent.category.LAUNCHER',
-    '-p',
-    app.id,
-    '--es',
-    'sherloCapture',
-    sceneId,
-  ]);
+    app.id
+  );
+  const component = resolved
+    .split('\n')
+    .map((line) => line.trim())
+    .reverse()
+    .find((line) => /^\S+\/\S+$/.test(line));
+  if (!component) throw new Error(resolved.trim());
+
+  await adb('am', 'force-stop', app.id).catch(() => '');
+  const started = await adb('am', 'start', '-n', component, '--es', 'sherloCapture', sceneId);
+  // `adb shell am start` exits 0 even when the phone refuses, so its words are read here.
+  if (/^Error:/m.test(started)) throw new Error(started.trim());
 }
 
 /* ========================================================================== */
