@@ -369,9 +369,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-run-errored':
       return {
         stream: 'stdout',
-        prints: renderVerdictRunErrored(segment.runStatus, segment.runError, segment.testIndex).map(
-          (line) => [line]
-        ),
+        prints: renderVerdictRunErrored(
+          segment.runStatus,
+          segment.runError,
+          segment.testIndex,
+          segment.appFailed
+        ).map((line) => [line]),
       };
 
     /* GATED on showsOnlyBranchChanges - see ./verdictCloser and helpers/sparseBuildVerdict. */

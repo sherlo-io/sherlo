@@ -820,7 +820,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     unusedCalls: () => remaining,
 
     getBuildStatus: async ({ buildIndex }) =>
-      answerFor('getBuildStatus', { buildIndex }) as BuildStatus | null,
+      answerFor('getBuildStatus', { buildIndex }) as BuildStatusAnswer | null,
 
     createProject: async ({ name, teamId }) =>
       answerFor('createProject', { teamId, name }) as ProjectCreated,
