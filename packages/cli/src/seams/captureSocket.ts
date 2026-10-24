@@ -12,12 +12,14 @@
  * asks; a capture is a conversation - settings one way, a whole view tree the other - and the two
  * roads fail differently.
  */
-import { SCENE_NOT_BUILT_YET } from '../constants';
 import type { CapturedView } from '../render/capturedStory';
 import type { SceneEnding } from '../render/capturedScene';
 import { readAppError, type AppError } from './appError';
+import { drainAppLog, keepStrings } from './appLog';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
+import type { SceneTarget } from './deviceState';
+import { captureLiveScene } from './liveScene';
 
 /**
  * The stabilization settings a capture sends, as the runner sends them today.
@@ -63,7 +65,7 @@ export type CaptureResult =
        * Every line the app's own RunnerBridge.log formed since the previous capture (or since it
        * booted, for the first one), drained from the bundler's own live feed - not carried in the
        * app's own answer, which a crash inside the walk can leave never sent at all (see
-       * drainCaptureLog and the SDK's captureLogSink.ts). Absent when nothing was logged, or the
+       * drainAppLog and the SDK's captureLogSink.ts). Absent when nothing was logged, or the
        * feed itself is unreachable.
        */
       logs?: string[];
@@ -116,7 +118,10 @@ export type CaptureResult =
     };
 
 /** What the app answered about the scene the command asked it to boot fresh on and capture. */
-export type SceneCaptureResult = { kind: 'no-bundler' } | { kind: 'no-app' } | SceneEnding;
+export type SceneCaptureResult = ({ kind: 'no-bundler' } | { kind: 'no-app' } | SceneEnding) & {
+  /** The app's console lines since it booted, drained from the bundler's feed after the answer. */
+  logs?: string[];
+};
 
 /** A story file that threw as the app loaded it, and what it threw, in its own words. */
 export type BrokenStoryFile = { file: string; error: AppError };
@@ -180,14 +185,10 @@ export type CaptureSocket = {
     sceneId: string;
     port: number;
     settings: typeof STABILIZATION_SETTINGS;
+    /** The device and app the scene launches on; none when the machine has not exactly one. */
+    target?: SceneTarget;
   }): Promise<SceneCaptureResult>;
 };
-
-/**
- * How long the command waits for the bundler's line to read out the app's log lines. The line
- * answers this at once, so any real delay is a bundler that went away.
- */
-const LOG_FEED_PATIENCE_MS = 5000;
 
 /**
  * How long the command stays on the line for the app to answer. A capture restarts the app and
@@ -212,43 +213,21 @@ export const liveCaptureSocket: CaptureSocket = {
       // The app was handed the story and then stopped answering - a fatal error, a native crash,
       // or the app being closed. The tree and the settle time are gone with it, but whatever it
       // logged on the way is not: it was already pushed to the bundler's own feed, live, before
-      // whatever silenced the app had a chance to (see drainCaptureLog).
-      const logs = await drainCaptureLog(port);
+      // whatever silenced the app had a chance to (see drainAppLog).
+      const logs = await drainAppLog(port);
       return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
     }
 
     const result = readCaptureAnswer(answer.reply, storyId);
     if (result.kind === 'captured' || result.kind === 'crashed') {
-      const logs = await drainCaptureLog(port);
+      const logs = await drainAppLog(port);
       if (logs.length > 0) result.logs = logs;
     }
     return result;
   },
 
-  captureScene: async () => {
-    throw new Error(SCENE_NOT_BUILT_YET);
-  },
+  captureScene: captureLiveScene,
 };
-
-/**
- * Drain the app's own live log feed - every line pushed since the last drain, which is either this
- * app's boot (nobody has read the feed yet) or this capture's own previous story. Best-effort: an
- * unreachable feed (an app old enough to have never pushed to it, a bundler that went away between
- * the main answer and this read) answers with nothing readable, and that is not this capture's own
- * failure to report - it already has its answer.
- */
-async function drainCaptureLog(port: number): Promise<string[]> {
-  const answer = await askTheBundlerLine({
-    port,
-    question: { action: 'readLogLines' },
-    patienceMs: LOG_FEED_PATIENCE_MS,
-  });
-
-  if (answer.kind !== 'said') return [];
-
-  const lines: unknown = answer.reply?.lines;
-  return Array.isArray(lines) ? lines.filter(isString) : [];
-}
 
 let installed: CaptureSocket = liveCaptureSocket;
 
@@ -475,8 +454,7 @@ function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
 
 /** A list of strings off the wire, or nothing when the wire sent no list or only empty ones. */
 function readStrings(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const read = value.filter(isString);
+  const read = keepStrings(value);
   return read.length > 0 ? read : undefined;
 }
 

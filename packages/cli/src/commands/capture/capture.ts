@@ -23,7 +23,7 @@ import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS, captureSocket } from '../../seams/captureSocket';
-import { deviceState, prepareCleanDevice } from '../../seams/deviceState';
+import { appIsInstalled, deviceState, prepareCleanDevice } from '../../seams/deviceState';
 import type { CaptureResult, SceneCaptureResult } from '../../seams/captureSocket';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene } from '../../render/capturedScene';
@@ -93,14 +93,20 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
 
   // The scene runs on a clean device, and every ending - a throw included - puts it back.
   const target = await deviceState().sceneTarget();
-  const restore = target && (await prepareCleanDevice(target.device, target.app));
+  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
+  const installed = !target || (await appIsInstalled(target));
+  const restore =
+    target && installed ? await prepareCleanDevice(target.device, target.app) : undefined;
   let answer: SceneCaptureResult;
   try {
-    answer = await captureSocket().captureScene({
-      sceneId,
-      port,
-      settings: STABILIZATION_SETTINGS,
-    });
+    answer = installed
+      ? await captureSocket().captureScene({
+          sceneId,
+          port,
+          settings: STABILIZATION_SETTINGS,
+          target,
+        })
+      : { kind: 'no-app' };
   } finally {
     await restore?.();
   }
@@ -109,6 +115,9 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
     process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
   } else {
     emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port) });
+    if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
+      emit({ kind: 'captured-log', logs: answer.logs ?? [] });
+    }
   }
 
   if (answer.kind !== 'scene') process.exit(EXIT_BLOCK);

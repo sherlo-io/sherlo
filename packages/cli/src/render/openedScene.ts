@@ -6,7 +6,8 @@
  * (./openedStory), and the unknown-scene refusal is the one `capture --scene` prints (./capturedScene).
  */
 import chalk from 'chalk';
-import { noSuchSceneLines, route } from './capturedScene';
+import { noSuchSceneLines, renderCapturedScene, route } from './capturedScene';
+import type { SceneEnding } from './capturedScene';
 import { renderOpenedStory } from './openedStory';
 
 /** How a run of `sherlo open --scene` ended, as the screen needs it. */
@@ -14,7 +15,9 @@ export type OpenedScene =
   | { kind: 'no-bundler'; port: number }
   | { kind: 'no-app'; port: number }
   | { kind: 'no-such-scene'; sceneId: string; known: string[] }
-  | { kind: 'opened-scene'; sceneId: string; route: string[] };
+  | { kind: 'opened-scene'; sceneId: string; route: string[] }
+  /** The scene did not come up: the app booted, and the ending is the one a capture prints. */
+  | Exclude<SceneEnding, { kind: 'no-such-scene' | 'scene' }>;
 
 /** Every line `sherlo open --scene` prints, in order. */
 export function renderOpenedScene(state: OpenedScene): string[] {
@@ -38,5 +41,8 @@ export function renderOpenedScene(state: OpenedScene): string[] {
         ),
         '',
       ];
+
+    default:
+      return renderCapturedScene(state);
   }
 }
