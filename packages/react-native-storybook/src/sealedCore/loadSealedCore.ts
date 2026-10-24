@@ -35,7 +35,7 @@ import { sceneCallsForTheCore } from './sceneCalls';
 import type { CoreReport, SealedCore, SealedCoreHost } from './seam';
 
 /** The number of the contract (./seam) this SDK speaks. A core of any other is never installed. */
-const SEAM_THIS_SDK_SPEAKS = 2;
+const SEAM_THIS_SDK_SPEAKS = 3;
 
 /** What native code's `loadCore()` answers, as JSON (SherloCoreLoader on iOS and Android). */
 type NativeCorePick =

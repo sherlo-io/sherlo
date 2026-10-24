@@ -12,7 +12,7 @@
  * module resets (__getSentMessages, __getDialedAddresses). __emitMessageFromTheConnection plays a
  * message the connection brings, to whoever listens through NativeEventEmitter.
  */
-import { fakeSealedCoreSource } from './fakeSealedCore';
+import { fakeSealedCoreSource, seamThisSdkSpeaks } from './fakeSealedCore';
 
 export { fakeSealedCoreSource };
 
@@ -140,7 +140,7 @@ export function __resetSealedCoreNative(): void {
 }
 
 function defaultLoadCore(): string {
-  return nativePickOf(fakeSealedCoreSource(2));
+  return nativePickOf(fakeSealedCoreSource(seamThisSdkSpeaks()));
 }
 
 export const NativeModules: Record<string, any> = {

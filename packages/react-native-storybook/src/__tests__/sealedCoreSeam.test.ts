@@ -15,6 +15,7 @@ import {
   SHERLO_PROTOCOL_VERSION,
 } from '../sealedCore/seam';
 import type { SealedCoreHost, StorybookFacts } from '../sealedCore/seam';
+import { seamTheSdkSpeaksIn } from '../../scripts/sdkSeam.js';
 import { importedModules } from './importedModules';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
@@ -26,7 +27,24 @@ const COMPILED_CORE_JAVA = path.join(
 );
 const CONSUMER_RULES = path.join(SDK_ROOT, 'android', 'consumer-rules.pro');
 
+/** The number a native loader gives SUPPORTED_SEAM, such as `SUPPORTED_SEAM = 3;`. */
+function supportedSeamIn(nativeLoader: string): number {
+  const source = fs.readFileSync(path.join(SDK_ROOT, nativeLoader), 'utf8');
+  const statement = /\bSUPPORTED_SEAM\s*=\s*(\d+)\s*;/.exec(source);
+  if (!statement) throw new Error(`${nativeLoader} states no SUPPORTED_SEAM`);
+  return Number(statement[1]);
+}
+
 describe('the seam', () => {
+  it("the SDK's seam number is the same in JS, the Android loader and the iOS loader", () => {
+    const inJs = seamTheSdkSpeaksIn(SDK_ROOT);
+    const inAndroid = supportedSeamIn(
+      'android/src/main/java/io/sherlo/storybookreactnative/SherloCoreLoader.java'
+    );
+    const inIos = supportedSeamIn('ios/SherloCoreLoader.m');
+    expect({ inJs, inAndroid, inIos }).toEqual({ inJs, inAndroid: inJs, inIos: inJs });
+  });
+
   it('the seam imports nothing from the rest of the SDK', () => {
     // Every import, `export ... from`, `import()` and `require()` the file makes, as the compiler
     // reads them.

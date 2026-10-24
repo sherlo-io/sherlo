@@ -15,6 +15,14 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vm from 'node:vm';
+import { LAID_PATHS, packSealedCore } from '../../scripts/packSealedCore.js';
+import {
+  fakeCoreFiles,
+  fakeStorage,
+  fillFakeSdkPinnedTo,
+  manifestOf,
+  seamThisSdkSpeaks,
+} from './__mocks__/fakeStoredCore';
 import {
   LOADERS,
   refuseTestPublicKey,
@@ -404,6 +412,29 @@ describe('what the published package carries', () => {
         encoding: 'utf8',
       });
       expect(ignored.trim()).toBe(laidPart);
+    }
+  });
+
+  it('a pinned core whose header states another seam than the SDK speaks is refused at packing', async () => {
+    const otherSeam = seamThisSdkSpeaks() + 1;
+    const files = fakeCoreFiles(otherSeam);
+    const manifest = manifestOf(files);
+    const { readStoredFile } = fakeStorage([{ manifest, files }]);
+    const sdkRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-'));
+    try {
+      fillFakeSdkPinnedTo(sdkRoot, manifest);
+
+      await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
+        'states the seam ' +
+          otherSeam +
+          ' in its header, but this SDK speaks the seam ' +
+          seamThisSdkSpeaks()
+      );
+      for (const { inSdk } of LAID_PATHS) {
+        expect(fs.existsSync(path.join(sdkRoot, inSdk))).toBe(false);
+      }
+    } finally {
+      fs.rmSync(sdkRoot, { recursive: true, force: true });
     }
   });
 
