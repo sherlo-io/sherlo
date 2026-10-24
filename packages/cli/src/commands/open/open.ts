@@ -22,7 +22,12 @@ import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { letterbox } from '../../seams/letterbox';
-import { deviceState, holdTheCleanDevice, prepareCleanDevice } from '../../seams/deviceState';
+import {
+  appIsInstalled,
+  deviceState,
+  holdTheCleanDevice,
+  prepareCleanDevice,
+} from '../../seams/deviceState';
 import type { OpenStoryResult } from '../../seams/letterbox';
 import type { OpenedStory } from '../../render/openedStory';
 import type { OpenedScene } from '../../render/openedScene';
@@ -85,10 +90,15 @@ async function openScene(sceneId: string, passedOptions: OpenOptions): Promise<v
   // The scene opens on a clean device, which stays clean until the developer stops the command;
   // every ending - a throw and an interrupt included - puts it back.
   const target = await deviceState().sceneTarget();
-  const restore = target && (await prepareCleanDevice(target.device, target.app));
+  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
+  const installed = !target || (await appIsInstalled(target));
+  const restore =
+    target && installed ? await prepareCleanDevice(target.device, target.app) : undefined;
   let answer: OpenSceneResult;
   try {
-    answer = await letterbox().openScene({ sceneId, port });
+    answer = installed
+      ? await letterbox().openScene({ sceneId, port, target })
+      : { kind: 'no-app' };
     emit({ kind: 'opened-scene', state: openedSceneEnding(answer, { sceneId, port }) });
     if (restore && answer.kind === 'scene-opened') await holdTheCleanDevice();
   } finally {
@@ -111,6 +121,8 @@ export function openedSceneEnding(
       return { kind: 'no-such-scene', sceneId: run.sceneId, known: answer.known };
     case 'scene-opened':
       return { kind: 'opened-scene', sceneId: answer.sceneId, route: answer.route };
+    default:
+      return answer;
   }
 }
 

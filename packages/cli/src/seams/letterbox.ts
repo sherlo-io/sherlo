@@ -12,8 +12,11 @@
  * folded into an existing seam: `serverCalls` is Sherlo's backend, and `workstation` is what the
  * tool does to the machine it runs on.
  */
-import { SCENE_NOT_BUILT_YET } from '../constants';
+import type { SceneEnding } from '../render/capturedScene';
 import { askTheBundlerLine } from './bundlerLine';
+import { STABILIZATION_SETTINGS } from './captureSocket';
+import type { SceneTarget } from './deviceState';
+import { captureLiveScene } from './liveScene';
 
 /**
  * What a story threw while rendering, as the app recorded it and the letterbox passed it on. The
@@ -48,12 +51,19 @@ export type OpenSceneResult =
   | { kind: 'no-app' }
   | { kind: 'no-such-scene'; known: string[] }
   /** The app booted fresh and is on the scene, at this route (outermost screen first). */
-  | { kind: 'scene-opened'; sceneId: string; route: string[] };
+  | { kind: 'scene-opened'; sceneId: string; route: string[] }
+  /** The app booted and the scene did not come up: the ending a capture of it would print. */
+  | Exclude<SceneEnding, { kind: 'no-such-scene' | 'scene' }>;
 
 /** Everything the tool asks of a running app, and nothing else. */
 export type Letterbox = {
   /** Boot the app fresh on one scene and leave it there. */
-  openScene(params: { sceneId: string; port: number }): Promise<OpenSceneResult>;
+  openScene(params: {
+    sceneId: string;
+    port: number;
+    /** The device and app the scene launches on; none when the machine has not exactly one. */
+    target?: SceneTarget;
+  }): Promise<OpenSceneResult>;
   /** Post one story to the waiting app, waiting for it to reach the screen when asked to. */
   openStory(params: {
     storyId: string;
@@ -96,8 +106,18 @@ export const liveLetterbox: Letterbox = {
     return readOpenStoryAnswer(answer.reply, storyId);
   },
 
-  openScene: async () => {
-    throw new Error(SCENE_NOT_BUILT_YET);
+  openScene: async ({ sceneId, port, target }) => {
+    const answer = await captureLiveScene({
+      sceneId,
+      port,
+      settings: STABILIZATION_SETTINGS,
+      target,
+    });
+    if (answer.kind === 'no-such-scene') return { kind: 'no-such-scene', known: answer.known };
+    if (answer.kind === 'scene') {
+      return { kind: 'scene-opened', sceneId: answer.sceneId, route: answer.reached.route };
+    }
+    return answer;
   },
 };
 

@@ -179,6 +179,41 @@ describe('a local capture leaves the device clean', () => {
     expect(process.listenerCount('SIGINT')).toBe(listenersBefore);
   });
 
+  it('an app that is not installed ends as no app attached, and nothing on the device is touched', async () => {
+    uninstall();
+    const device = recordingDevice(IOS);
+    uninstall = installDeviceState({
+      ...device,
+      run: async (tool, args, options) => {
+        if (args.includes('get_app_container')) throw new Error('No such app');
+        return device.run(tool, args, options);
+      },
+    });
+    let reachedTheApp = false;
+    const uninstallSocket = installCaptureSocket({
+      captureStory: async () => ({ kind: 'no-app' }),
+      captureScene: async () => {
+        reachedTheApp = true;
+        return { kind: 'no-app' };
+      },
+    });
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+    let printed = '';
+    try {
+      const transcript = await captureTranscript(() => capture({ [SCENE_OPTION]: 'inbox--full' }));
+      printed = transcript.stdout + transcript.stderr;
+    } finally {
+      exit.mockRestore();
+      uninstallSocket();
+    }
+
+    expect(printed).toContain('no Sherlo app is attached');
+    expect(reachedTheApp).toBe(false);
+    expect(commands()).toEqual([]);
+    expect(readFiles(container)).toEqual(THE_DEVELOPERS_DATA);
+  });
+
   it('the keychain is never touched locally', async () => {
     for (const target of [IOS, ANDROID]) {
       const folder = fs.mkdtempSync(path.join(scratch, 'saved-'));
@@ -217,6 +252,7 @@ function recordingDevice(target: SceneTarget | undefined): DeviceState {
 
 function answerOf(line: string, stdoutTo: string | undefined): string {
   if (line.includes('get_app_container')) return `${container}\n`;
+  if (line.includes('pm path com.example.app')) return 'package:/data/app/example/base.apk\n';
   if (line.includes('defaults read com.apple.Accessibility ReduceMotionEnabled')) return '0\n';
   if (line.startsWith('applesimutils')) {
     const bulletins = path.join(simulator, 'Library/BulletinBoard/VersionedSectionInfo.plist');

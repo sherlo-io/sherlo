@@ -130,6 +130,29 @@ export async function prepareCleanDevice(
 
 /* ========================================================================== */
 
+/** Whether the app is installed on the device: a scene cannot launch, or be cleaned, without it. */
+export async function appIsInstalled(target: SceneTarget): Promise<boolean> {
+  const { device, app } = target;
+  try {
+    if (device.platform === 'ios') {
+      await deviceState().run('xcrun', ['simctl', 'get_app_container', device.udid, app.id]);
+      return true;
+    }
+    const listed = await deviceState().run('adb', [
+      '-s',
+      device.serial,
+      'shell',
+      'pm',
+      'path',
+      app.id,
+    ]);
+    return listed.includes('package:');
+  } catch {
+    // Both tools exit non-zero for an app that is not there.
+    return false;
+  }
+}
+
 let hold: { timer: NodeJS.Timeout; release: () => void } | undefined;
 
 /**
