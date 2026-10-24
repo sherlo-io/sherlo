@@ -161,8 +161,8 @@ describe('a scene is captured and opened live', () => {
       uninstall();
     }
 
-    expect(ran[2]).toContain('am start');
-    expect(ran[2]).toContain(`--es sherloCapture ${SCENE}`);
+    const start = ran.find((command) => command.includes('am start'));
+    expect(start).toContain(`--es sherloCapture ${SCENE}`);
 
     const screen = renderOpenedScene(
       openedSceneEnding(answer, { sceneId: SCENE, port: bundler.port })
@@ -326,6 +326,60 @@ describe('a scene is captured and opened live', () => {
       `adb -s emulator-5554 shell am start -n com.example.chat/.ChatActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER --es sherloCapture ${SCENE}`
     );
     expect(ran.join('\n')).not.toContain('-p com.example.chat');
+  });
+
+  it("an Android capture of an Expo development build opens the bundler's bundle through the development launcher's link", async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      'resolve-activity': LAUNCHER_ANSWER,
+      'dumpsys package':
+        'Activity expo.modules.devlauncher.launcher.DevLauncherActivity\n  Scheme: "exp+chat"\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: ANDROID,
+      });
+    } finally {
+      uninstall();
+    }
+
+    const url = encodeURIComponent(`http://localhost:${bundler.port}`);
+    expect(ran).toContain(`adb -s emulator-5554 reverse tcp:${bundler.port} tcp:${bundler.port}`);
+    expect(ran).toContain(
+      `adb -s emulator-5554 shell am start -n com.example.chat/.ChatActivity -a android.intent.action.VIEW -d 'exp+chat://expo-development-client/?url=${url}' --es sherloCapture ${SCENE}`
+    );
+  });
+
+  it('an Android capture of an app with no development launcher starts it as before', async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      'resolve-activity': LAUNCHER_ANSWER,
+      'dumpsys package': 'Activity com.example.chat.ChatActivity\n  Scheme: "chat"\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: ANDROID,
+      });
+    } finally {
+      uninstall();
+    }
+
+    expect(ran.join('\n')).not.toContain('reverse');
+    expect(ran).toContain(
+      `adb -s emulator-5554 shell am start -n com.example.chat/.ChatActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER --es sherloCapture ${SCENE}`
+    );
   });
 
   it('an Android launch the phone refuses stops the capture with what the phone printed', async () => {
