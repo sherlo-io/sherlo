@@ -15,6 +15,7 @@
 import { SCENE_NOT_BUILT_YET } from '../constants';
 import type { CapturedView } from '../render/capturedStory';
 import type { SceneEnding } from '../render/capturedScene';
+import { readAppError, type AppError } from './appError';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 
@@ -57,7 +58,7 @@ export type CaptureResult =
   | {
       kind: 'crashed';
       storyId: string;
-      error?: { name: string; message: string };
+      error?: AppError;
       /**
        * Every line the app's own RunnerBridge.log formed since the previous capture (or since it
        * booted, for the first one), drained from the bundler's own live feed - not carried in the
@@ -78,7 +79,7 @@ export type CaptureResult =
       stillReal?: string[];
       /** The requests the story made that no mock answered, in the order it made them. Absent when none were. */
       unanswered?: UnansweredRequest[];
-      threw?: { name: string; message: string };
+      threw?: AppError;
       /**
        * How many screenfuls the story was captured in - 1 is a story that fits the screen. Absent
        * when the app said nothing readable about it, which an app older than this field does.
@@ -118,7 +119,7 @@ export type CaptureResult =
 export type SceneCaptureResult = { kind: 'no-bundler' } | { kind: 'no-app' } | SceneEnding;
 
 /** A story file that threw as the app loaded it, and what it threw, in its own words. */
-export type BrokenStoryFile = { file: string; error: { name: string; message: string } };
+export type BrokenStoryFile = { file: string; error: AppError };
 
 /** A request a story made that no mock answered, so it went to the real network. */
 export type UnansweredRequest = { method: string; url: string };
@@ -271,7 +272,7 @@ export function installCaptureSocket(next: CaptureSocket): () => void {
  * The story id is the one that was POSTED rather than the one that came back, for the same reason
  * the letterbox reads it that way: a caller reads the answer about the id they typed.
  */
-function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
+export function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
   const answer = said as {
     kind?: unknown;
     known?: unknown;
@@ -300,12 +301,12 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
   }
 
   if (answer.kind === 'crashed') {
-    const error = readError(answer.error);
+    const error = readAppError(answer.error);
     return { kind: 'crashed', storyId, ...(error && { error }) };
   }
 
   if (answer.kind === 'captured') {
-    const threw = readError(answer.threw);
+    const threw = readAppError(answer.threw);
     const parts = readParts(answer.parts);
     const waited = readWaited(answer.waited);
     const root = readRoot(answer.root);
@@ -460,22 +461,12 @@ function readWindowReason(value: unknown): WindowReason | undefined {
   return undefined;
 }
 
-/**
- * What the app said its story threw, or what it said crashed, in its own words - or nothing when
- * it said nothing readable. The error's own name and message are the whole of it.
- */
-function readError(said: unknown): { name: string; message: string } | undefined {
-  const error = said as { name?: unknown; message?: unknown } | null | undefined;
-  if (typeof error?.name !== 'string' || typeof error?.message !== 'string') return undefined;
-  return { name: error.name, message: error.message };
-}
-
 /** The files the app said threw as it loaded them, each with its error; a malformed entry is dropped. */
 function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const read: BrokenStoryFile[] = [];
   for (const entry of value) {
-    const error = readError((entry as { error?: unknown } | null)?.error);
+    const error = readAppError((entry as { error?: unknown } | null)?.error);
     const file = (entry as { file?: unknown } | null)?.file;
     if (typeof file === 'string' && error) read.push({ file, error });
   }

@@ -5,6 +5,7 @@ import {
   RequestAnswer,
   RequestMatcher,
   SocketAnswer,
+  SocketRule,
 } from './networkDeclaration';
 import type { UnansweredRequest } from '../sealedCore/seam';
 
@@ -66,6 +67,9 @@ let recordRefusal: RecordRefusal = () => {};
 // story's error keeps only the last refusal; this keeps them all, and the ones let through too.
 let unanswered: UnansweredRequest[] = [];
 
+// The rules in effect that answered at least one request or socket since they were put in.
+let matchedRules = new Set<NetworkRule | SocketRule>();
+
 /** Put `mocks` in effect, replacing whatever was in effect before. */
 export function setNetworkMocks(
   mocks: NetworkMocks,
@@ -76,6 +80,7 @@ export function setNetworkMocks(
   socketPolicy = policyForSockets;
   recordRefusal = recordTheRefusal;
   unanswered = [];
+  matchedRules = new Set();
 }
 
 /**
@@ -90,7 +95,10 @@ export function socketVerdictFor(url: string): SocketVerdict {
   const rule = mocksInEffect.sockets.find(
     (candidate) => candidate.matcher.url === undefined || urlMatches(candidate.matcher.url, url)
   );
-  if (rule) return { kind: 'answer', answer: rule.answer };
+  if (rule) {
+    matchedRules.add(rule);
+    return { kind: 'answer', answer: rule.answer };
+  }
 
   unanswered.push({ method: 'WS', url });
   if (socketPolicy === 'listed') return { kind: 'real' };
@@ -105,10 +113,34 @@ export function unansweredRequests(): UnansweredRequest[] {
   return unanswered.map((request) => ({ ...request }));
 }
 
+/** How many request rules and socket rules are in effect: the proof that a story's rules went in. */
+export function rulesInEffect(): { requests: number; sockets: number } {
+  return { requests: mocksInEffect.rules.length, sockets: mocksInEffect.sockets.length };
+}
+
+/** The rules in effect that no request or socket matched, each told by what it matches. */
+export function unmatchedRules(): string[] {
+  return [
+    ...mocksInEffect.rules
+      .filter((rule) => !matchedRules.has(rule))
+      .map(({ matcher: { method, url, operationName } }) =>
+        [method ?? 'ANY', url === undefined ? '*' : String(url), operationName]
+          .filter((part) => part !== undefined)
+          .join(' ')
+      ),
+    ...mocksInEffect.sockets
+      .filter((rule) => !matchedRules.has(rule))
+      .map(({ matcher: { url } }) => `WS ${url === undefined ? '*' : String(url)}`),
+  ];
+}
+
 /** What the rules in effect say about `request` - and, when they refuse it, who is told. */
 export function answerFor(request: MockedRequest): Verdict {
   const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
-  if (rule) return { kind: 'answer', answer: rule.answer };
+  if (rule) {
+    matchedRules.add(rule);
+    return { kind: 'answer', answer: rule.answer };
+  }
 
   unanswered.push({ method: request.method, url: request.url });
   if (mocksInEffect.passthrough) return { kind: 'passthrough' };

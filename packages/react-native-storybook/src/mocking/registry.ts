@@ -1,4 +1,5 @@
 import { clearNetworkMocks } from './network';
+import { rulesInEffect, unmatchedRules } from './networkRules';
 import { MockSet, ModuleExports } from './types';
 import SherloModule from '../SherloModule';
 import { restoreClock } from './clock';
@@ -122,6 +123,33 @@ function markStorySettled(): void {
   if (activeActivation) activeActivation.lookups.settled = true;
 }
 
+// Positive proof that `storyId`'s rules are the ones in effect: how many module mocks, request
+// rules and socket rules went in. A record that says nothing of its rules cannot tell a scene with
+// none from a scene whose rules never went in.
+function rulesInstalledProof(storyId: string): {
+  installed: boolean;
+  modules: number;
+  requests: number;
+  sockets: number;
+} {
+  const active = activeActivation;
+  if (!active || active.lookups.storyId !== storyId) {
+    return { installed: false, modules: 0, requests: 0, sockets: 0 };
+  }
+  return { installed: true, modules: Object.keys(active.mocks).length, ...rulesInEffect() };
+}
+
+// The rules in effect that were never used: a declared module mock no read reached, and a request
+// or socket rule nothing matched. Empty when no rules are in effect.
+function rulesNeverMatched(): string[] {
+  if (!activeActivation) return [];
+  const { mocks, lookups } = activeActivation;
+  const modules = Object.keys(mocks)
+    .filter((key) => lookups.declaredByStory.has(key) && !lookups.reached.has(key))
+    .map((key) => `module ${lookups.namesAsWritten.get(key) ?? key}`);
+  return [...modules, ...unmatchedRules()];
+}
+
 // Puts back what the ending story wrote to real objects, newest write first.
 function endActivation(): void {
   activeActivation?.undo.reverse().forEach((undo) => undo());
@@ -226,6 +254,8 @@ export {
   activeMockLookups,
   recordRealImportThrew,
   markStorySettled,
+  rulesInstalledProof,
+  rulesNeverMatched,
   activateMocks,
   clearMocks,
   resolveMockExports,

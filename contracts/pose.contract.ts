@@ -1219,10 +1219,7 @@ export type PosedPlatformBuild =
 /** A story file that threw as the app loaded it, and what it threw, in its own words. */
 export type BrokenStoryFile = {
   file: string;
-  error: {
-    name: string;
-    message: string;
-  };
+  error: AppError;
 };
 
 /** A request a story made that no mock answered, so it went to the real network. */
@@ -1364,6 +1361,20 @@ export type StoredBaseSources = {
     name: string;
     version: string;
   }>;
+};
+
+/**
+ * An error as the app tells it over the capture socket: its name and message, and - when the app
+ * sent them - where it came from: the component stack and the top frames of the error's stack.
+ * `--json` prints all of it; what the terminal prints stays the name and message alone.
+ */
+export type AppError = {
+  name: string;
+  message: string;
+  /** The React components the error passed through, innermost first, as the app wrote them. */
+  componentStack?: string;
+  /** The first few frames of the error's own stack, one line each. */
+  topFrames?: string[];
 };
 
 /** One source of a stored app build's list. */

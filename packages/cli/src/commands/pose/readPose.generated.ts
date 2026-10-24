@@ -2274,13 +2274,7 @@ function readBrokenStoryFile(value: unknown, path: string, problems: string[]): 
   const object1 = asObject(value, path, problems);
   if (object1) {
     expectString(object1.file, at(path, 'file'), problems);
-    const where2 = at(path, 'error');
-    const object3 = asObject(object1.error, where2, problems);
-    if (object3) {
-      expectString(object3.name, at(where2, 'name'), problems);
-      expectString(object3.message, at(where2, 'message'), problems);
-      reportUnknownFields(object3, ['name', 'message'], where2, problems);
-    }
+    readAppError(object1.error, at(path, 'error'), problems);
     reportUnknownFields(object1, ['file', 'error'], path, problems);
   }
 }
@@ -2570,6 +2564,27 @@ function readStoredBaseSources(value: unknown, path: string, problems: string[])
       });
     }
     reportUnknownFields(object1, ['buildIndex', 'sources', 'modules'], path, problems);
+  }
+}
+
+/** The shape of a `AppError`, as `contracts/pose.contract.ts` publishes it. */
+function readAppError(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectString(object1.name, at(path, 'name'), problems);
+    expectString(object1.message, at(path, 'message'), problems);
+    if ('componentStack' in object1) {
+      expectString(object1.componentStack, at(path, 'componentStack'), problems);
+    }
+    if ('topFrames' in object1) {
+      expectStringArray(object1.topFrames, at(path, 'topFrames'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      ['name', 'message', 'componentStack', 'topFrames'],
+      path,
+      problems
+    );
   }
 }
 
