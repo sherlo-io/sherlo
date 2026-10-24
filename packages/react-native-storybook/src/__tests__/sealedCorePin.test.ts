@@ -7,14 +7,22 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { LAID_PATHS, packSealedCore } from '../../scripts/packSealedCore.js';
 import { PIN_FILE, pinCore } from '../../scripts/pinCore.js';
 import {
-  coreFingerprint,
+  ANDROID_ABIS,
+  fakeCoreFiles,
+  fakeStorage,
+  fillFakeSdkPinnedTo,
+  manifestOf,
+  SEAM_FILE,
+  sha256,
+} from './__mocks__/fakeStoredCore';
+import type { Manifest } from './__mocks__/fakeStoredCore';
+import {
   describeFailure,
   readFingerprintBySource,
   storageReaderWith,
@@ -22,76 +30,7 @@ import {
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
-const SEAM_FILE = path.join(SDK_ROOT, 'src', 'sealedCore', 'seam.ts');
 const PIN_FIELDS = ['version', 'fingerprint', 'runnerSha', 'sourceTree', 'seamHash'];
-
-type StoredFile = { path: string; sha256: string };
-type Manifest = {
-  version: string;
-  fingerprint: string;
-  runnerSha: string;
-  sourceTree: string;
-  seamHash: string;
-  abis: string[];
-  files: StoredFile[];
-};
-
-function sha256(bytes: Buffer | string): string {
-  return crypto.createHash('sha256').update(bytes).digest('hex');
-}
-
-const ANDROID_ABIS = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'];
-
-/** A fake core's files, by their path inside the core's stored folder: each file holds its path. */
-function fakeCoreFiles(): Map<string, Buffer> {
-  const paths = [
-    'sherlo-core.js',
-    'sherlo-core.js.sig',
-    'SherloCore.xcframework/Info.plist',
-    'SherloCore.xcframework/ios-arm64/SherloCore.framework/SherloCore',
-    'SherloCore.xcframework/ios-arm64/SherloCore.framework/Headers/sherlo_core.h',
-    'SherloCore.xcframework/ios-arm64_x86_64-simulator/SherloCore.framework/SherloCore',
-    'SherloCore.xcframework/ios-arm64_x86_64-simulator/SherloCore.framework/Headers/sherlo_core.h',
-    ...ANDROID_ABIS.map((abi) => 'jniLibs/' + abi + '/libsherlocore.so'),
-  ];
-  return new Map(paths.map((filePath) => [filePath, Buffer.from('fake ' + filePath)]));
-}
-
-/** The manifest sherlo-runner would store beside the files. */
-function manifestOf(files: Map<string, Buffer>, seamHash = sha256(fs.readFileSync(SEAM_FILE))) {
-  const storedFiles = [...files].map(([filePath, bytes]) => ({
-    path: filePath,
-    sha256: sha256(bytes),
-  }));
-  return {
-    version: '2.0.9',
-    fingerprint: coreFingerprint(storedFiles),
-    runnerSha: 'a'.repeat(40),
-    sourceTree: 'b'.repeat(40),
-    seamHash,
-    abis: ANDROID_ABIS,
-    files: storedFiles,
-  } as Manifest;
-}
-
-/**
- * Package storage holding the given cores, each under `cores/<fingerprint>/`, as the reader
- * storedCore.js makes; every key read is recorded.
- */
-function fakeStorage(cores: Array<{ manifest: Manifest; files: Map<string, Buffer> }>) {
-  const objects = new Map<string, Buffer>();
-  for (const { manifest, files } of cores) {
-    const folderKey = 'cores/' + manifest.fingerprint + '/';
-    for (const [filePath, bytes] of files) objects.set(folderKey + filePath, bytes);
-    objects.set(folderKey + 'manifest.json', Buffer.from(JSON.stringify(manifest)));
-  }
-  const keysRead: string[] = [];
-  const readStoredFile = async (objectKey: string) => {
-    keysRead.push(objectKey);
-    return objects.get(objectKey) ?? null;
-  };
-  return { objects, keysRead, readStoredFile };
-}
 
 const temporaryFolders: string[] = [];
 function temporaryFolder(prefix: string): string {
@@ -105,22 +44,9 @@ afterEach(() => {
   }
 });
 
-/**
- * A stand-in SDK folder: its pin copies every pin field the given core has (a bare fingerprint
- * pins a core nothing stores), and its seam is this commit's seam.
- */
+/** A stand-in SDK folder pinned to the given core (see fillFakeSdkPinnedTo). */
 function fakeSdkPinnedTo(core: { fingerprint: string } & Partial<Manifest>): string {
-  const sdkRoot = temporaryFolder('sherlo-sdk-');
-  const pin = Object.fromEntries(
-    PIN_FIELDS.filter((field) => field in core).map((field) => [
-      field,
-      core[field as keyof Manifest],
-    ])
-  );
-  fs.writeFileSync(path.join(sdkRoot, 'sherlo-core.json'), JSON.stringify(pin));
-  fs.mkdirSync(path.join(sdkRoot, 'src', 'sealedCore'), { recursive: true });
-  fs.copyFileSync(SEAM_FILE, path.join(sdkRoot, 'src', 'sealedCore', 'seam.ts'));
-  return sdkRoot;
+  return fillFakeSdkPinnedTo(temporaryFolder('sherlo-sdk-'), core);
 }
 
 /** The environment of this test run, without the package token. */
@@ -255,7 +181,7 @@ describe('a pack', () => {
     expect(storage.keysRead).toContain(pinnedFolderKey + 'manifest.json');
     expect(storage.keysRead.filter((key) => !key.startsWith(pinnedFolderKey))).toEqual([]);
     expect(fs.readFileSync(path.join(sdkRoot, 'ios/Resources/assets/sherlo-core.js'), 'utf8')).toBe(
-      'fake sherlo-core.js'
+      pinnedFiles.get('sherlo-core.js')!.toString()
     );
   });
 
@@ -381,8 +307,9 @@ describe('a pack', () => {
     await packSealedCore({ sdkRoot, readStoredFile });
 
     const laidFile = (sdkPath: string) => fs.readFileSync(path.join(sdkRoot, sdkPath), 'utf8');
-    expect(laidFile('ios/Resources/assets/sherlo-core.js')).toBe('fake sherlo-core.js');
-    expect(laidFile('android/src/main/assets/sherlo-core.js')).toBe('fake sherlo-core.js');
+    const jsCore = files.get('sherlo-core.js')!.toString();
+    expect(laidFile('ios/Resources/assets/sherlo-core.js')).toBe(jsCore);
+    expect(laidFile('android/src/main/assets/sherlo-core.js')).toBe(jsCore);
     for (const slice of ['ios-arm64', 'ios-arm64_x86_64-simulator']) {
       const sliceFile = 'SherloCore.xcframework/' + slice + '/SherloCore.framework/SherloCore';
       expect(laidFile('ios/' + sliceFile)).toBe('fake ' + sliceFile);
