@@ -11,12 +11,12 @@ import chalk from 'chalk';
 /** Every line `sherlo capture --logs` prints, in order. */
 export function renderCapturedLog(logs: string[]): string[] {
   if (logs.length === 0) {
-    return [chalk.dim('The app logged nothing during this capture.'), ''];
+    return [chalk.dim('Sherlo has logged nothing new from the app.'), ''];
   }
 
   const noun = logs.length === 1 ? 'line' : 'lines';
   return [
-    chalk.dim(`The app's own log - ${logs.length} ${noun} recorded during this capture:`),
+    chalk.dim(`Sherlo's log from the app - ${logs.length} new ${noun}:`),
     ...logs.map((line) => `  ${line}`),
     '',
   ];

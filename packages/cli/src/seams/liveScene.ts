@@ -5,8 +5,8 @@
  * The launch carries the scene's id (`-sherloCapture <id>` on iOS, `--es sherloCapture <id>` on
  * Android), so the app boots once, already in capture mode, on the scene. The command that calls
  * this has already made the device clean (`prepareCleanDevice`) and puts it back; this module never
- * does either. The record comes back down the same line a story's does, and the app's own console
- * lines are drained from the line's feed after it.
+ * does either. The record comes back down the same line a story's does, and Sherlo's own log
+ * lines from the app are drained from the line's feed after it.
  */
 import type { SceneEnding, PlayStep } from '../render/capturedScene';
 import { drainAppLog, keepStrings } from './appLog';

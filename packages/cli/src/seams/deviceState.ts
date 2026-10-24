@@ -26,6 +26,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import getCwd from '../helpers/getCwd';
+import { EXIT_BLOCK } from '../helpers/exitCodes';
 import { readProjectJson } from '../helpers/projectJson';
 import { cleanTheDevice, saveDeviceState } from './deviceStateSave';
 import { restoreDeviceState } from './deviceStateRestore';
@@ -59,6 +60,27 @@ export type DeviceState = {
   makeSaveFolder(app: SceneApp): string;
 };
 
+/** An Android build that `run-as` will not open: it is not a debug build. */
+export class NotDebuggableBuild extends Error {
+  constructor() {
+    super(
+      'This build is not a debug build, so Sherlo cannot read its data on the device. ' +
+        'Install a debug build of your app (the debug variant, not release) and run the command again.'
+    );
+    this.name = 'NotDebuggableBuild';
+  }
+}
+
+/**
+ * What `sherlo capture --scene` and `sherlo open --scene` do when the device cannot be made clean:
+ * a build that is not debuggable prints its own line and ends the command; anything else throws on.
+ */
+export function endOnNotDebuggable(error: unknown): never {
+  if (!(error instanceof NotDebuggableBuild)) throw error;
+  process.stderr.write(`${error.message}\n`);
+  return process.exit(EXIT_BLOCK);
+}
+
 /* ========================================================================== */
 
 /**
@@ -79,6 +101,9 @@ export async function prepareCleanDevice(
   } catch (error) {
     // Nothing on the device has changed yet, so the half-made save is worth nothing.
     fs.rmSync(folder, { recursive: true, force: true });
+    // Only `run-as` reads an Android app's data, and it refuses a build that is not debuggable.
+    const refusedByRunAs = error instanceof Error && error.message.includes('run-as');
+    if (device.platform === 'android' && refusedByRunAs) throw new NotDebuggableBuild();
     throw error;
   }
 
