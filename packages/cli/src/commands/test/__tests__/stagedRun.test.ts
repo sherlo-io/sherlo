@@ -1160,3 +1160,11 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     logSpy.mockRestore();
   });
 });
+
+// Shells written in plan for bwg-reshape-sherlo: the builder makes each one true.
+describe('the branching-off warning', () => {
+  it.todo(
+    'a project with no main branch prints the branching-off warning and drops the reason from the Started row'
+  );
+  it.todo('a project with a main branch prints no branching-off warning');
+});
