@@ -99,7 +99,21 @@ async function launchFresh(target: SceneTarget, sceneId: string): Promise<void> 
   if (!component) throw new Error(resolved.trim());
 
   await adb('am', 'force-stop', app.id).catch(() => '');
-  const started = await adb('am', 'start', '-n', component, '--es', 'sherloCapture', sceneId);
+  // The MAIN action and LAUNCHER category make it a start like a tap on the icon: an Expo
+  // development build then reopens its last bundle instead of staying on its launcher screen.
+  const started = await adb(
+    'am',
+    'start',
+    '-n',
+    component,
+    '-a',
+    'android.intent.action.MAIN',
+    '-c',
+    'android.intent.category.LAUNCHER',
+    '--es',
+    'sherloCapture',
+    sceneId
+  );
   // `adb shell am start` exits 0 even when the phone refuses, so its words are read here.
   if (/^Error:/m.test(started)) throw new Error(started.trim());
 }
