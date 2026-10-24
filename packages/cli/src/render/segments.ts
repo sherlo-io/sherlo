@@ -108,8 +108,8 @@ export type TranscriptSegment =
    */
   | { kind: 'git-history-fetch-refused'; reason: string }
   /**
-   * `! Branching is off: no main branch is set` - neither the settings nor the clone nor the git
-   * host named one, so every build is judged a main build. `project` addresses its settings.
+   * `! Branching is off: this project has no main branch.` - neither the settings nor the clone nor
+   * the git host named one, so every build is judged a main build. `project` addresses its settings.
    */
   | { kind: 'branching-off'; project: SherloProject }
   /* ---------------------------------------------------------------------- *
