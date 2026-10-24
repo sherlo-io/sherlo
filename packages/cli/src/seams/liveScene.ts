@@ -73,7 +73,19 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
 
   if (device.platform === 'ios') {
     await run('xcrun', ['simctl', 'terminate', device.udid, app.id]).catch(() => '');
-    await run('xcrun', ['simctl', 'launch', device.udid, app.id, '-sherloCapture', sceneId]);
+    const link = await iosDevelopmentLauncherLink(run, device.udid, app.id, port);
+    // expo-dev-launcher reads `--initialUrl <url>` from the process arguments at launch and opens
+    // that link first (EXDevLauncherController `initialUrlFromProcessInfo`), so one launch carries
+    // both the bundle's link and the scene's id. A simulator reaches the bundler on localhost.
+    await run('xcrun', [
+      'simctl',
+      'launch',
+      device.udid,
+      app.id,
+      ...(link ? ['--initialUrl', link] : []),
+      '-sherloCapture',
+      sceneId,
+    ]);
     return;
   }
 
@@ -99,7 +111,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
   if (!component) throw new Error(resolved.trim());
 
   await adb('am', 'force-stop', app.id).catch(() => '');
-  const link = await developmentLauncherLink(adb, app.id, port);
+  const link = await androidDevelopmentLauncherLink(adb, app.id, port);
   if (link) {
     // A clean phone has no last bundle for Expo's development launcher to reopen (the data is
     // wiped before each scene), so the start hands it the bundler's address through its own link.
@@ -121,22 +133,43 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
   if (/^Error:/m.test(started)) throw new Error(started.trim());
 }
 
+/** The link that opens the bundler in Expo's development launcher, from the `exp+<scheme>` in `listing`. */
+function developmentLauncherLink(listing: string, port: number): string | undefined {
+  const scheme = listing.match(/exp\+[A-Za-z0-9._-]+/)?.[0];
+  if (!scheme) return undefined;
+  const bundlerUrl = encodeURIComponent(`http://localhost:${port}`);
+  return `${scheme}://expo-development-client/?url=${bundlerUrl}`;
+}
+
 /**
- * The link that opens the bundler in Expo's development launcher, or nothing when the installed app
- * has no launcher. The phone says both: the launcher's activity in the package listing, and the
- * `exp+<scheme>` the app registers.
+ * The launcher's link for an installed Android app, or nothing when it has no launcher. The phone
+ * says both: the launcher's activity in the package listing, and the `exp+<scheme>` the app registers.
  */
-async function developmentLauncherLink(
+async function androidDevelopmentLauncherLink(
   adb: (...args: string[]) => Promise<string>,
   appId: string,
   port: number
 ): Promise<string | undefined> {
   const listing = await adb('dumpsys', 'package', appId).catch(() => '');
   if (!listing.includes('expo.modules.devlauncher')) return undefined;
-  const scheme = listing.match(/exp\+[A-Za-z0-9._-]+/)?.[0];
-  if (!scheme) return undefined;
-  const bundlerUrl = encodeURIComponent(`http://localhost:${port}`);
-  return `${scheme}://expo-development-client/?url=${bundlerUrl}`;
+  return developmentLauncherLink(listing, port);
+}
+
+/**
+ * The launcher's link for an installed iPhone app, or nothing when it has no launcher: the
+ * `exp+<scheme>` URL scheme in the installed bundle's Info.plist is the one the development launcher
+ * adds to an app.
+ */
+async function iosDevelopmentLauncherLink(
+  run: ReturnType<typeof deviceState>['run'],
+  udid: string,
+  appId: string,
+  port: number
+): Promise<string | undefined> {
+  const container = (await run('xcrun', ['simctl', 'get_app_container', udid, appId])).trim();
+  if (!container) return undefined;
+  const plist = await run('xcrun', ['plutil', '-p', `${container}/Info.plist`]).catch(() => '');
+  return developmentLauncherLink(plist, port);
 }
 
 /* ========================================================================== */
