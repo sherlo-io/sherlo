@@ -304,7 +304,7 @@ describe('a scene is captured and opened live', () => {
     expect(bundler.asked).toEqual([]);
   });
 
-  it("an Android capture starts the app's launcher activity by name with the scene's id", async () => {
+  it('an Android capture launch is a main launcher start so a development build reopens its bundle', async () => {
     const bundler = await pretendBundler((question) =>
       question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
     );
@@ -323,7 +323,7 @@ describe('a scene is captured and opened live', () => {
 
     expect(ran[0]).toContain('resolve-activity');
     expect(ran).toContain(
-      `adb -s emulator-5554 shell am start -n com.example.chat/.ChatActivity --es sherloCapture ${SCENE}`
+      `adb -s emulator-5554 shell am start -n com.example.chat/.ChatActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER --es sherloCapture ${SCENE}`
     );
     expect(ran.join('\n')).not.toContain('-p com.example.chat');
   });
