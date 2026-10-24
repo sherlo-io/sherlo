@@ -9,17 +9,25 @@
  * keeps what the JavaScript sends and plays what the connection brings; the core is the suite's
  * fake (./__mocks__/fakeSealedCore), which records what it is handed.
  */
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeModules } from 'react-native';
 import {
   __emitMessageFromTheConnection,
+  __getDialedAddresses,
   __getSentMessages,
   __resetConnection,
 } from './__mocks__/react-native';
 import { bundlerCapture, startCaptureTransport, stopCaptureTransport } from '../captureTransport';
+import { __resetForTests as __resetTheLine, startTheLine } from '../connection/appLine';
+import { BUNDLER_LINE_PATH } from '../constants';
 import { bundlerLetterbox, startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
 import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
+
+const withStorybook = require('../../metro/withStorybook');
 
 /** What the SDK handed the fake core's `method`, the last time it called it. */
 function lastHandedTo(method: 'startCaptureTransport' | 'startOpenStoryChannel'): unknown {
@@ -154,5 +162,40 @@ describe("the SDK's road to the bundler's letterbox", () => {
     startOpenStoryChannel({ view, channel: makeChannel(), atTheStoryBrowser: true });
 
     expect(lastHandedTo('startOpenStoryChannel')).toBeUndefined();
+  });
+});
+
+describe("the bundler's address on the road of an app with scene files and no Storybook", () => {
+  it("a scenes-only bundle carries the bundler's address the app dials", () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-scenes-only-')));
+    fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+    fs.mkdirSync(path.join(root, 'src'));
+    fs.writeFileSync(path.join(root, 'src/Chat.scenes.js'), 'export default { scenes: {} };\n');
+
+    let config;
+    try {
+      config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // The bundler answers at the line's address, on the road no Storybook wrapper is loaded on.
+    const answered: { status?: number; body?: string } = {};
+    const response = {
+      writeHead: (status: number) => (answered.status = status),
+      end: (body: string) => (answered.body = body),
+    };
+    const passedOn = vi.fn();
+    const middleware = config.server.enhanceMiddleware(passedOn, {});
+    middleware({ url: `${BUNDLER_LINE_PATH}?platform=android`, socket: {} }, response, vi.fn());
+
+    expect(passedOn).not.toHaveBeenCalled();
+    expect(answered.status).toBe(200);
+    expect(JSON.parse(answered.body!)).toEqual({ protocolVersion: expect.any(Number) });
+
+    // And the SDK the bundle loads dials that same address on the bundler it came from.
+    __resetTheLine();
+    startTheLine();
+    expect(__getDialedAddresses()).toEqual([`ws://localhost:8081${BUNDLER_LINE_PATH}`]);
   });
 });
