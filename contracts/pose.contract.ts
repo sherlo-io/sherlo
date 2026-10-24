@@ -779,6 +779,10 @@ export type BuildStatusAnswer = {
    * is not one platform's.
    */
   runErrorPlatform?: 'android' | 'ios' | null;
+  /** Why a `user_runner` run ended: `appFailedToStart` when the app could not start. */
+  runErrorReason?: 'appFailedToStart' | null;
+  /** The error the app raised; the closer prints its first line. */
+  runErrorMessage?: string | null;
   /**
    * Build-wide Diff Scope capture accounting, mirrored off Build.diffScopeInfo (same shape already
    * used by BuildFragment/CloseBuildFragment elsewhere in the API). Absent on older API responses
