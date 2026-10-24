@@ -8,9 +8,16 @@
  * that makes a fresh fake (`fakeSealedCoreSource`). So the SDK evaluates, checks and installs it the
  * way an app does the shipped core, and each fresh import of the SDK gets a core of its own.
  */
+import * as path from 'node:path';
+import { seamTheSdkSpeaksIn } from '../../../scripts/sdkSeam.js';
 import type { Metadata, SealedCore, SealedCoreHost } from '../../sealedCore/seam';
 
 export const FAKE_CORE_VERSION = '0.0.0-fake';
+
+/** The seam number this SDK speaks, as its loader states it (SEAM_THIS_SDK_SPEAKS). */
+export function seamThisSdkSpeaks(): number {
+  return seamTheSdkSpeaksIn(path.join(__dirname, '..', '..', '..'));
+}
 
 export type FakeSealedCore = SealedCore & {
   /** The host the SDK installed this core with, once it has. */

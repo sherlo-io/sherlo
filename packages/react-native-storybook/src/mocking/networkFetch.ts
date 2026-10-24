@@ -1,4 +1,5 @@
 import { answerFor, bodyOf, delay, MockedRequest, statusOf } from './networkRules';
+import { requestStarted } from './requestsInFlight';
 
 /**
  * THE FETCH HALF OF THE INTERCEPTOR - one wrapper that asks the rules in effect about every
@@ -11,16 +12,23 @@ type FetchInit = Parameters<typeof fetch>[1];
 
 export function mockedFetchOf(realFetch: typeof fetch): typeof fetch {
   const mockedFetch = async (input: FetchInput, init?: FetchInit): Promise<Response> => {
-    const verdict = answerFor(await requestOf(input, init));
+    const request = await requestOf(input, init);
+    // In flight from here until it is answered, however it is answered (./requestsInFlight).
+    const ended = requestStarted(request);
+    try {
+      const verdict = answerFor(request);
 
-    if (verdict.kind === 'passthrough') return realFetch(input, init);
-    if (verdict.kind === 'refusal') throw verdict.refusal;
+      if (verdict.kind === 'passthrough') return await realFetch(input, init);
+      if (verdict.kind === 'refusal') throw verdict.refusal;
 
-    const { answer } = verdict;
-    await delay(answer.delayMs);
+      const { answer } = verdict;
+      await delay(answer.delayMs);
 
-    const { text, headers } = bodyOf(answer);
-    return new Response(text, { status: statusOf(answer), headers });
+      const { text, headers } = bodyOf(answer);
+      return new Response(text, { status: statusOf(answer), headers });
+    } finally {
+      ended();
+    }
   };
 
   return mockedFetch as typeof fetch;

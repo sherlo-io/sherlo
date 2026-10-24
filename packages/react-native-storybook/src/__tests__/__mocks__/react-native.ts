@@ -12,7 +12,7 @@
  * module resets (__getSentMessages, __getDialedAddresses). __emitMessageFromTheConnection plays a
  * message the connection brings, to whoever listens through NativeEventEmitter.
  */
-import { fakeSealedCoreSource } from './fakeSealedCore';
+import { fakeSealedCoreSource, seamThisSdkSpeaks } from './fakeSealedCore';
 
 export { fakeSealedCoreSource };
 
@@ -140,7 +140,7 @@ export function __resetSealedCoreNative(): void {
 }
 
 function defaultLoadCore(): string {
-  return nativePickOf(fakeSealedCoreSource(2));
+  return nativePickOf(fakeSealedCoreSource(seamThisSdkSpeaks()));
 }
 
 export const NativeModules: Record<string, any> = {
@@ -203,9 +203,34 @@ export const Alert = {
 };
 
 export const Platform = { OS: 'ios' };
+
+/** Linking.openURL: what a test makes of the link (reject for one no app takes). */
+let openURLImplementation: (url: string) => Promise<void> = async () => {};
+export function __setOpenURL(implementation: (url: string) => Promise<void>): void {
+  openURLImplementation = implementation;
+}
+export const Linking = { openURL: (url: string) => openURLImplementation(url) };
 export const DevSettings = {
   addMenuItem: (_label: string, _cb: () => void): void => {},
 };
 export const TurboModuleRegistry = {
   getEnforcing: <T>(_name: string): T | null => null,
+  /** A module a test laid in NativeModules, as React Native's registry falls back to them. */
+  get: <T>(name: string): T | null => NativeModules[name] ?? null,
+};
+export type TurboModule = Record<string, unknown>;
+
+type DeviceListener = (event: any) => void;
+const deviceListeners = new Map<string, Set<DeviceListener>>();
+
+/** React Native's RCTDeviceEventEmitter: one listener set per event name. */
+export const DeviceEventEmitter = {
+  addListener(eventName: string, listener: DeviceListener) {
+    if (!deviceListeners.has(eventName)) deviceListeners.set(eventName, new Set());
+    deviceListeners.get(eventName)!.add(listener);
+    return { remove: () => deviceListeners.get(eventName)?.delete(listener) };
+  },
+  emit(eventName: string, event: unknown): void {
+    deviceListeners.get(eventName)?.forEach((listener) => listener(event));
+  },
 };

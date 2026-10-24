@@ -170,6 +170,16 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Whether each view named by testID is drawn, from the native view tree.
+ */
+- (void)getViewVisibility:(NSString *)testIDsJson
+                  resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject
+{
+  [core getViewVisibility:testIDsJson resolve:resolve reject:reject];
+}
+
+/**
  * Checks UI stability by comparing screenshots taken over a specified interval.
  */
 - (void)stabilize:(double)requiredMatches
@@ -331,6 +341,15 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
 RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
   [core getInspectorData:resolve reject:reject];
+}
+
+/**
+ * Whether each view named by testID is drawn, from the native view tree.
+ */
+RCT_EXPORT_METHOD(getViewVisibility:(NSString *)testIDsJson
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core getViewVisibility:testIDsJson resolve:resolve reject:reject];
 }
 
 /**

@@ -5,4 +5,8 @@
 
 + (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
++ (void)getViewVisibility:(NSString *)testIDsJson
+                  resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject;
+
 @end

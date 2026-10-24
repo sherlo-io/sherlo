@@ -12,7 +12,11 @@
  * folded into an existing seam: `serverCalls` is Sherlo's backend, and `workstation` is what the
  * tool does to the machine it runs on.
  */
+import type { SceneEnding } from '../render/capturedScene';
 import { askTheBundlerLine } from './bundlerLine';
+import { STABILIZATION_SETTINGS } from './captureSocket';
+import type { SceneTarget } from './deviceState';
+import { captureLiveScene } from './liveScene';
 
 /**
  * What a story threw while rendering, as the app recorded it and the letterbox passed it on. The
@@ -41,8 +45,25 @@ export type OpenStoryResult =
       threw?: StoryThrew;
     };
 
+/** What the letterbox answered about a scene the command asked it to boot fresh on and keep on screen. */
+export type OpenSceneResult =
+  | { kind: 'no-bundler' }
+  | { kind: 'no-app' }
+  | { kind: 'no-such-scene'; known: string[] }
+  /** The app booted fresh and is on the scene, at this route (outermost screen first). */
+  | { kind: 'scene-opened'; sceneId: string; route: string[] }
+  /** The app booted and the scene did not come up: the ending a capture of it would print. */
+  | Exclude<SceneEnding, { kind: 'no-such-scene' | 'scene' }>;
+
 /** Everything the tool asks of a running app, and nothing else. */
 export type Letterbox = {
+  /** Boot the app fresh on one scene and leave it there. */
+  openScene(params: {
+    sceneId: string;
+    port: number;
+    /** The device and app the scene launches on; none when the machine has not exactly one. */
+    target?: SceneTarget;
+  }): Promise<OpenSceneResult>;
   /** Post one story to the waiting app, waiting for it to reach the screen when asked to. */
   openStory(params: {
     storyId: string;
@@ -83,6 +104,20 @@ export const liveLetterbox: Letterbox = {
     }
 
     return readOpenStoryAnswer(answer.reply, storyId);
+  },
+
+  openScene: async ({ sceneId, port, target }) => {
+    const answer = await captureLiveScene({
+      sceneId,
+      port,
+      settings: STABILIZATION_SETTINGS,
+      target,
+    });
+    if (answer.kind === 'no-such-scene') return { kind: 'no-such-scene', known: answer.known };
+    if (answer.kind === 'scene') {
+      return { kind: 'scene-opened', sceneId: answer.sceneId, route: answer.reached.route };
+    }
+    return answer;
   },
 };
 
@@ -189,6 +224,12 @@ export type PosedLetterbox =
        * `rendered: 'yes'` and nowhere else. Absent poses a story that drew cleanly.
        */
       threw?: { name: string; message: string };
+    }
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      /** The route the app is on once it has booted fresh and moved to the scene, outermost first. */
+      route: string[];
     };
 
 export function posedLetterbox(
@@ -213,6 +254,10 @@ export function posedLetterbox(
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('stories' in posed)) {
+        refuse('openStory');
+        return { kind: 'no-bundler' };
+      }
       if (!posed.stories.includes(storyId)) {
         return { kind: 'no-such-story', known: posed.stories };
       }
@@ -222,6 +267,22 @@ export function posedLetterbox(
       const threw = rendered === 'yes' ? posed.threw : undefined;
 
       return { kind: 'handed-over', storyId, rendered, ...(threw && { threw }) };
+    },
+
+    openScene: async ({ sceneId }) => {
+      if (!posed) {
+        refuse('openScene');
+        return { kind: 'no-bundler' };
+      }
+      if (posed === 'no-bundler') return { kind: 'no-bundler' };
+      if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('scenes' in posed)) {
+        refuse('openScene');
+        return { kind: 'no-bundler' };
+      }
+      if (!posed.scenes.includes(sceneId)) return { kind: 'no-such-scene', known: posed.scenes };
+
+      return { kind: 'scene-opened', sceneId, route: posed.route };
     },
   };
 }

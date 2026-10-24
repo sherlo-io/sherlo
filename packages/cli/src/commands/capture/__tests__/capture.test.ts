@@ -18,6 +18,7 @@ import { EXIT_BLOCK } from '../../../helpers/exitCodes';
 import { captureTranscript } from '../../../helpers/transcriptSink';
 import { STABILIZATION_SETTINGS, installCaptureSocket } from '../../../seams/captureSocket';
 import type { CaptureResult, CaptureSocket } from '../../../seams/captureSocket';
+import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
 import type { CapturedView } from '../../../render/capturedStory';
 import { JSON_OPTION, LOGS_OPTION, STORY_OPTION } from '../../../constants';
 
@@ -218,6 +219,28 @@ describe('every ending the capture screen draws is reached from an answer the ap
   });
 });
 
+describe('only a scene is given a clean device', () => {
+  it("a story capture never touches the developer's device", async () => {
+    // A story is captured in the app already running; wiping its data would be a loss for nothing.
+    let askedForADevice = false;
+    const uninstall = installDeviceState({
+      ...posedDeviceState(),
+      sceneTarget: async () => {
+        askedForADevice = true;
+        return undefined;
+      },
+    });
+
+    try {
+      await captureOneStory({ kind: 'captured', storyId: STORY, settled: SETTLED, tree: ONE_VIEW });
+    } finally {
+      uninstall();
+    }
+
+    expect(askedForADevice).toBe(false);
+  });
+});
+
 describe('what a capture says went wrong or stayed real reaches the screen', () => {
   it("a story whose mock did not take effect ends with the module's name and no tree", async () => {
     const { screen } = await captureOneStory({
@@ -273,7 +296,7 @@ describe("the app's own log lines never reach the drawn screen unasked, and `--l
     const { screen } = await captureOneStory(WITH_LOGS, { [LOGS_OPTION]: true });
 
     expect(screen).toContain('captured, the way a test run records it');
-    expect(screen).toContain('1 line recorded during this capture');
+    expect(screen).toContain("Sherlo's log from the app - 1 new line:");
     expect(screen).toContain('12:00:00: storybook style : {"style":"dark"}');
   });
 
@@ -283,7 +306,7 @@ describe("the app's own log lines never reach the drawn screen unasked, and `--l
       { [LOGS_OPTION]: true }
     );
 
-    expect(screen).toContain('The app logged nothing during this capture.');
+    expect(screen).toContain('Sherlo has logged nothing new from the app.');
   });
 
   it('`--logs` prints nothing extra for an ending that never reached an app - there is no log to have asked for', async () => {
@@ -292,7 +315,7 @@ describe("the app's own log lines never reach the drawn screen unasked, and `--l
       { [LOGS_OPTION]: true }
     );
 
-    expect(screen).not.toContain('recorded during this capture');
+    expect(screen).not.toContain("Sherlo's log from the app");
     expect(screen).not.toContain('logged nothing');
   });
 
@@ -332,6 +355,9 @@ async function captureOneStory(
     captureStory: async (params) => {
       asked = { storyId: params.storyId, settings: params.settings };
       return answer;
+    },
+    captureScene: async () => {
+      throw new Error('a story capture asked about a scene');
     },
   };
 

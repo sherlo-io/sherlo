@@ -6,6 +6,11 @@
 
 static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
 
+/** Whether the view itself is drawn: not hidden, not faded out, and in a window. */
+static BOOL sherloViewIsDrawn(UIView *view) {
+    return !view.hidden && view.alpha > 0.01 && view.window != nil;
+}
+
 /**
  * The views the walk keeps, in pre-order, as the C core reads them: one node per view, and the
  * table of class names the nodes point into.
@@ -108,29 +113,8 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     }
 
     UIWindow *keyWindow = nil;
-    if (@available(iOS 13.0, *)) {
-        NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
-        UIScene *scene = scenes.allObjects.firstObject;
-        if ([scene isKindOfClass:[UIWindowScene class]]) {
-            UIWindowScene *windowScene = (UIWindowScene *)scene;
-            keyWindow = windowScene.windows.firstObject;
-        }
-    }
-
-    if (!keyWindow) {
-        if (error) {
-            *error = [NSError errorWithDomain:@"InspectorHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Could not find the key window"}];
-        }
-        return nil;
-    }
-
-    UIView *rootView = keyWindow.rootViewController.view;
-    if (!rootView) {
-        if (error) {
-            *error = [NSError errorWithDomain:@"InspectorHelper" code:2 userInfo:@{NSLocalizedDescriptionKey: @"Could not find the root view"}];
-        }
-        return nil;
-    }
+    UIView *rootView = [self rootView:&keyWindow error:error];
+    if (!rootView) return nil;
 
     // Walk the view hierarchy, clipped to the visible viewport (window coordinates)
     SherloInspectorWalk *walk = [[SherloInspectorWalk alloc] init];
@@ -189,7 +173,7 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
     node.class_index = [walk classIndexOf:view];
 
     // Visibility
-    node.is_visible = (!view.hidden && view.alpha > 0.01 && view.window != nil) ? 1 : 0;
+    node.is_visible = sherloViewIsDrawn(view) ? 1 : 0;
 
     // Frame in physical pixels; the core leaves out a number that is not finite
     node.x = windowFrame.origin.x * walk.screenScale;
@@ -224,6 +208,116 @@ static NSString *const LOG_TAG = @"SherloModule:InspectorHelper";
         }
 
         [self collectView:subview depth:depth + 1 windowFrame:childWindowFrame walk:walk];
+    }
+}
+
+/**
+ * The key window and its root view, or nil with `error` set when the app has neither.
+ */
++ (UIView *)rootView:(UIWindow **)keyWindowOut error:(NSError **)error {
+    UIWindow *keyWindow = nil;
+    if (@available(iOS 13.0, *)) {
+        NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
+        UIScene *scene = scenes.allObjects.firstObject;
+        if ([scene isKindOfClass:[UIWindowScene class]]) {
+            UIWindowScene *windowScene = (UIWindowScene *)scene;
+            keyWindow = windowScene.windows.firstObject;
+        }
+    }
+
+    if (!keyWindow) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"InspectorHelper" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Could not find the key window"}];
+        }
+        return nil;
+    }
+
+    UIView *rootView = keyWindow.rootViewController.view;
+    if (!rootView) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"InspectorHelper" code:2 userInfo:@{NSLocalizedDescriptionKey: @"Could not find the root view"}];
+        }
+        return nil;
+    }
+    if (keyWindowOut) *keyWindowOut = keyWindow;
+    return rootView;
+}
+
+/**
+ * Whether each view named by testID is drawn: walks the whole view tree (no viewport culling) as far
+ * as the inspector's depth and node limits allow, and resolves a JSON object of
+ * `visible` | `invisible` | `absent` | `unreached` by testID. React Native puts a view's testID in
+ * its accessibilityIdentifier. A view is drawn when it, and every view above it, is not hidden, has
+ * alpha above the inspector's threshold, sits in a window and has a width and a height. A testID
+ * found twice is `visible` when any view carrying it is. A testID not found after the walk was cut
+ * short at a limit is `unreached`: nothing can be said of it.
+ */
++ (void)getViewVisibility:(NSString *)testIDsJson
+                  resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSString *unusableReason = CompiledCoreUnusableReason();
+        if (unusableReason) {
+            reject(@"E_INSPECTOR", unusableReason, nil);
+            return;
+        }
+        NSArray *testIDs = [NSJSONSerialization JSONObjectWithData:[testIDsJson dataUsingEncoding:NSUTF8StringEncoding]
+                                                           options:0
+                                                             error:nil];
+        if (![testIDs isKindOfClass:[NSArray class]]) {
+            reject(@"E_INSPECTOR", @"The testIDs are not a JSON list", nil);
+            return;
+        }
+        NSError *error = nil;
+        UIView *rootView = [InspectorHelper rootView:nil error:&error];
+        if (!rootView) {
+            reject(@"E_INSPECTOR", @"Error getting the view tree", error);
+            return;
+        }
+
+        NSSet *wanted = [NSSet setWithArray:testIDs];
+        NSMutableDictionary<NSString *, NSString *> *found = [NSMutableDictionary dictionary];
+        int32_t nodeCount = 0;
+        BOOL cutShort = NO;
+        [self findViews:rootView wanted:wanted ancestorsDrawn:YES depth:0 nodeCount:&nodeCount found:found cutShort:&cutShort];
+
+        NSMutableDictionary<NSString *, NSString *> *states = [NSMutableDictionary dictionary];
+        for (NSString *testID in testIDs) {
+            states[testID] = found[testID] ?: (cutShort ? @"unreached" : @"absent");
+        }
+        NSData *data = [NSJSONSerialization dataWithJSONObject:states options:0 error:nil];
+        resolve([[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding]);
+    });
+}
+
+/**
+ * Records the state of each wanted testID that `view` or a view below it carries, then walks into
+ * its children while the inspector's limits leave room.
+ */
++ (void)findViews:(UIView *)view
+           wanted:(NSSet *)wanted
+   ancestorsDrawn:(BOOL)ancestorsDrawn
+            depth:(int32_t)depth
+        nodeCount:(int32_t *)nodeCount
+            found:(NSMutableDictionary<NSString *, NSString *> *)found
+         cutShort:(BOOL *)cutShort {
+    (*nodeCount)++;
+    BOOL drawn = ancestorsDrawn && sherloViewIsDrawn(view) &&
+                 view.bounds.size.width > 0 && view.bounds.size.height > 0;
+
+    NSString *testID = view.accessibilityIdentifier;
+    if (testID.length > 0 && [wanted containsObject:testID]) {
+        // One drawn view is enough for visible; an invisible one never overwrites it.
+        if (drawn) found[testID] = @"visible";
+        else if (!found[testID]) found[testID] = @"invisible";
+    }
+
+    for (UIView *subview in view.subviews) {
+        if (!sherlo_inspector_has_room(depth + 1, *nodeCount)) {
+            *cutShort = YES;
+            break;
+        }
+        [self findViews:subview wanted:wanted ancestorsDrawn:drawn depth:depth + 1 nodeCount:nodeCount found:found cutShort:cutShort];
     }
 }
 

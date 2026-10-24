@@ -149,7 +149,7 @@ public class SherloModuleCore {
      * mode and opens the connection; anything else, or a switch kept across the SDK's own restart,
      * leaves the mode alone.
      */
-    public static void startFromAddressHandedAtLaunch(String address) {
+    public static void startFromAddressHandedAtLaunch(String address, String sceneId) {
         if (address == null || address.isEmpty()) return;
         synchronized (stateLock) {
             if (modeKeptAcrossRestart) return;
@@ -159,6 +159,54 @@ public class SherloModuleCore {
             return;
         }
         startTestingRun(address);
+        // A scene launch hands the scene's id beside the address: that scene is the story the
+        // app starts on, and the connection to the runner stays.
+        keepStory(sceneId);
+    }
+
+    /**
+     * A launch whose intent carried `sherloCapture` starts in testing mode for `sherlo capture`, as
+     * a capture's own move (openTesting) leaves it, but with no boot of the app before it: the
+     * first JavaScript that runs is already in testing mode, on `storyId` when one is given, so the
+     * app's own start never runs. A debuggable build only: a capture needs a bundler beside the
+     * app, and any app on the device can send an intent with extras to a shipped app.
+     */
+    public static void startFromCaptureHandedAtLaunch(Context context, String storyId) {
+        boolean debuggable =
+                (context.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        if (!debuggable) return;
+        synchronized (stateLock) {
+            if (modeKeptAcrossRestart) return;
+        }
+        startCaptureTestingOn(storyId);
+        Log.d(TAG, "Testing mode: a capture launch");
+    }
+
+    /**
+     * Puts the app in testing mode driven by a capture, keeping `storyId` (when one is given) as
+     * the story the next start of the JavaScript lands on.
+     */
+    private static void startCaptureTestingOn(String storyId) {
+        keepStory(storyId);
+        currentMode = MODE_TESTING;
+        driver = DRIVER_CAPTURE;
+    }
+
+    /** Keeps `storyId` (when one is given) as the story the next start of the JavaScript lands on. */
+    private static void keepStory(String storyId) {
+        if (storyId == null || storyId.isEmpty()) return;
+        try {
+            JSONObject nextSnapshot = new JSONObject();
+            nextSnapshot.put("storyId", storyId);
+            JSONObject storyToShow = new JSONObject();
+            storyToShow.put("nextSnapshot", nextSnapshot);
+            storyToShow.put("requestId", "");
+            synchronized (stateLock) {
+                lastState = storyToShow;
+            }
+        } catch (JSONException cannotHappen) {
+            Log.e(TAG, "Failed to keep the story a capture handed over", cannotHappen);
+        }
     }
 
     /**
@@ -559,25 +607,10 @@ public class SherloModuleCore {
             }
         }
 
-        JSONObject storyToShow = null;
-        if (storyId != null && !storyId.isEmpty()) {
-            try {
-                JSONObject nextSnapshot = new JSONObject();
-                nextSnapshot.put("storyId", storyId);
-                storyToShow = new JSONObject();
-                storyToShow.put("nextSnapshot", nextSnapshot);
-                storyToShow.put("requestId", "");
-            } catch (JSONException cannotHappen) {
-                Log.e(TAG, "Failed to keep the story a capture handed over", cannotHappen);
-            }
-        }
-
         synchronized (stateLock) {
             if (captureSettings != null) runSettings = captureSettings;
-            if (storyToShow != null) lastState = storyToShow;
         }
-        currentMode = MODE_TESTING;
-        driver = DRIVER_CAPTURE;
+        startCaptureTestingOn(storyId);
         reloadJavaScript("Sherlo: a capture moves the app into testing mode");
     }
 
@@ -667,6 +700,17 @@ public class SherloModuleCore {
      */
     public void getInspectorData(Activity activity, Promise promise) {
         InspectorHelper.getInspectorData(activity, promise);
+    }
+
+    /**
+     * Whether each view named by testID is drawn, from the native view tree.
+     *
+     * @param activity The current activity
+     * @param testIDsJson A JSON list of testIDs
+     * @param promise Promise to resolve with a JSON object of visible, invisible, absent or unreached by testID
+     */
+    public void getViewVisibility(Activity activity, String testIDsJson, Promise promise) {
+        InspectorHelper.getViewVisibility(activity, testIDsJson, promise);
     }
 
     /**

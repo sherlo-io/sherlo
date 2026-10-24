@@ -83,6 +83,7 @@ function emitManifest(
   moduleHashes: Record<string, string>;
   storyClosures: Record<string, string[]>;
   storyTitles: Record<string, string>;
+  sceneIds: string[];
 } {
   const result = applySherloTransforms(
     { projectRoot: root, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
@@ -138,6 +139,22 @@ describe('module manifest - a story newly taken into the Storybook glob', () => 
     expect(currentManifest.storyClosures['./src/Button.stories.tsx']).toEqual(
       ancestorManifest.storyClosures['./src/Button.stories.tsx']
     );
+  });
+
+  it('the manifest carries scene ids beside story ids', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-scenes-'));
+    const graph = buildStorybookGraph(root, ['src/Button.stories.tsx']);
+    fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'src', 'Inbox.scenes.tsx'),
+      `import { scenes } from '@sherlo/react-native-storybook/scenes';
+export default scenes({ scenes: { Full: {}, 'Empty Inbox': {} } });`
+    );
+    const manifest = emitManifest(root, graph);
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(Object.keys(manifest.storyClosures)).toEqual(['./src/Button.stories.tsx']);
+    expect(manifest.sceneIds).toEqual(['inbox--empty-inbox', 'inbox--full']);
   });
 });
 

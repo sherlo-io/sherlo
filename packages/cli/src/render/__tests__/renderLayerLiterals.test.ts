@@ -1074,6 +1074,127 @@ const PINS: Pin[] = [
     ],
   },
   {
+    kind: 'verdict-passed',
+    what: 'test/scenes-only-push-again, the green verdict of a build that holds scenes alone - the screens are scenes, as the started line says',
+    segment: { kind: 'verdict-passed', holds: 'scenes' },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`${ESC}[1m✅ All scenes passed${ESC}[22m`],
+      [`${ESC}[2m════════════════════${ESC}[22m`],
+    ],
+  },
+  {
+    kind: 'verdict-passed',
+    what: 'the green verdict of a build that holds stories and scenes (beside test/scenes-only-push-again: both kinds in one push)',
+    segment: { kind: 'verdict-passed', holds: 'stories and scenes' },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`${ESC}[1m✅ All stories and scenes passed${ESC}[22m`],
+      [`${ESC}[2m════════════════════════════════${ESC}[22m`],
+    ],
+  },
+  {
+    kind: 'verdict-review-required',
+    what: 'test/scenes-only-push, the review verdict of a build that holds scenes alone, its screens never learned - the scenes counted, the reported ones counted as scenes',
+    segment: {
+      kind: 'verdict-review-required',
+      counts: { unreviewed: 4, reported: 1 },
+      holds: 'scenes',
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`${ESC}[1m⚠️ 5 scenes need review${ESC}[22m`],
+      [`${ESC}[2m═══════════════════════${ESC}[22m`],
+      [''],
+      ['1 scene reported'],
+      ['Open them in Sherlo to approve or report.'],
+    ],
+  },
+  {
+    kind: 'verdict-review-required',
+    what: 'test/scenes-only-push, the review verdict of a build that holds scenes alone with ONE screen waiting - singular verb, singular noun, and the rest counted in the dim line as scenes',
+    segment: {
+      kind: 'verdict-review-required',
+      screens: [
+        { name: 'Inbox - Full', status: 'changed' },
+        { name: 'Inbox - Empty', status: 'unchanged' },
+        { name: 'Home - Default', status: 'unchanged' },
+      ],
+      counts: { unreviewed: 1, reported: 0 },
+      holds: 'scenes',
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`${ESC}[1m⚠️ 1 scene needs review${ESC}[22m`],
+      [`${ESC}[2m═══════════════════════${ESC}[22m`],
+      [''],
+      ['Inbox - Full   changed'],
+      [`${ESC}[2m2 other scenes have no changes.${ESC}[22m`],
+    ],
+  },
+  {
+    kind: 'verdict-review-required',
+    what: 'the review verdict of a build that holds stories and scenes (beside test/scenes-only-push: both kinds in one push) - the plural names both, the singular says story or scene',
+    segment: {
+      kind: 'verdict-review-required',
+      screens: [
+        { name: 'Inbox - Full', status: 'changed' },
+        { name: 'Storefront - Banner', status: 'unchanged' },
+      ],
+      counts: { unreviewed: 1, reported: 0 },
+      holds: 'stories and scenes',
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`${ESC}[1m⚠️ 1 story or scene needs review${ESC}[22m`],
+      [`${ESC}[2m════════════════════════════════${ESC}[22m`],
+      [''],
+      ['Inbox - Full   changed'],
+      [`${ESC}[2m1 other story or scene has no changes.${ESC}[22m`],
+    ],
+  },
+  {
+    kind: 'build-view-status',
+    what: 'test/scenes-only-push, as `sherlo view` reads it: a finished scenes-only test that needs review - counted as scenes off the tally',
+    segment: {
+      kind: 'build-view-status',
+      runStatus: 'finished',
+      status: 'unreviewed',
+      counts: { approved: 0, noChanges: 0, reported: 0, unreviewed: 5 },
+      holds: 'scenes',
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`${ESC}[1m⚠️ 5 scenes need review${ESC}[22m`],
+      [`${ESC}[2m═══════════════════════${ESC}[22m`],
+      [''],
+      ['Open them in Sherlo to approve or report.'],
+    ],
+  },
+  {
+    kind: 'build-view-status',
+    what: 'test/scenes-only-push-again, as `sherlo view` reads it: a finished scenes-only test whose every change was approved',
+    segment: {
+      kind: 'build-view-status',
+      runStatus: 'finished',
+      status: 'approved',
+      counts: { approved: 5, noChanges: 0, reported: 0, unreviewed: 0 },
+      holds: 'scenes',
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      [`${ESC}[1m✅ All scenes passed${ESC}[22m`],
+      [`${ESC}[2m════════════════════${ESC}[22m`],
+    ],
+  },
+  {
     kind: 'verdict-run-errored',
     what: "the infrastructure closer as init's failed step, the server's error blob stringified rather than phrased, then the help block",
     segment: {
@@ -1415,6 +1536,68 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'captured-scene',
+    what: 'what `sherlo capture --scene` prints for a scene that came back with its record - the boot line, one line per play step done, the route reached, the settled line, then the named tree',
+    segment: {
+      kind: 'captured-scene',
+      state: {
+        kind: 'scene',
+        sceneId: 'chat--menu-open',
+        bootMs: 1800,
+        reached: { route: ['ChatStack', 'Chat'], ms: 3100 },
+        play: [{ open: 'feeld://chat-list' }, { tap: 'chat-header-menu' }],
+        settled: { ms: 800, frames: 5 },
+        tree: {
+          primitive: 'Text',
+          components: ['ChatHeaderName'],
+          text: 'Mateo',
+          children: [],
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--menu-open${ESC}[22m captured, the way a test run records it`,
+      ],
+      [`${ESC}[2m   booted fresh in 1.8s${ESC}[22m`],
+      [`${ESC}[2m   played open feeld://chat-list${ESC}[22m`],
+      [`${ESC}[2m   played tap chat-header-menu${ESC}[22m`],
+      [`${ESC}[2m   reached ChatStack › Chat in 3.1s${ESC}[22m`],
+      [`${ESC}[2m   settled in 0.8s over 5 frames · testing mode${ESC}[22m`],
+      [''],
+      [`   ${ESC}[93m<${ESC}[39m${ESC}[95mChatHeaderName${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      [`     ${ESC}[93m<${ESC}[39m${ESC}[36mText${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      ['       Mateo'],
+      [`     ${ESC}[93m</${ESC}[39m${ESC}[36mText${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      [`   ${ESC}[93m</${ESC}[39m${ESC}[95mChatHeaderName${ESC}[39m${ESC}[93m>${ESC}[39m`],
+      [''],
+      [`${ESC}[2m   1 views · --json prints the record${ESC}[22m`],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'opened-scene',
+    what: 'what `sherlo open --scene` prints once the app booted fresh and is on the scene - the id bold, then the dim line saying which edits reload in place',
+    segment: {
+      kind: 'opened-scene',
+      state: { kind: 'opened-scene', sceneId: 'chat--conversation', route: ['ChatStack', 'Chat'] },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--conversation${ESC}[22m is on screen, booted fresh at ChatStack › Chat`,
+      ],
+      [''],
+      [
+        `${ESC}[2mEdits to the screen reload in place. Edits to a mock or a scene need \`npx sherlo open --scene chat--conversation\` again.${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
     kind: 'captured-log',
     what: '`sherlo capture --logs` with lines the app pushed - the dim count line, then each line verbatim, indented',
     segment: {
@@ -1423,7 +1606,7 @@ const PINS: Pin[] = [
     },
     stream: 'stdout',
     prints: [
-      [`${ESC}[2mThe app's own log - 1 line recorded during this capture:${ESC}[22m`],
+      [`${ESC}[2mSherlo's log from the app - 1 new line:${ESC}[22m`],
       ['  12:34:56: storybook style : {"style":"dark"}'],
       [''],
     ],
@@ -1434,7 +1617,7 @@ const PINS: Pin[] = [
     what: '`sherlo capture --logs` with an empty feed - a plain dim sentence, not a zero',
     segment: { kind: 'captured-log', logs: [] },
     stream: 'stdout',
-    prints: [[`${ESC}[2mThe app logged nothing during this capture.${ESC}[22m`], ['']],
+    prints: [[`${ESC}[2mSherlo has logged nothing new from the app.${ESC}[22m`], ['']],
   },
 
   {

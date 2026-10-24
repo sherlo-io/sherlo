@@ -64,7 +64,16 @@ function isPreviewFile(filePath) {
   return basenameWithoutExtension(filePath) === 'preview';
 }
 
+// `chat.scenes.tsx` - a file of scenes, in any source extension
+function isSceneFile(filePath) {
+  return (
+    SOURCE_EXTENSIONS.indexOf(path.extname(filePath)) !== -1 &&
+    /\.scenes$/.test(basenameWithoutExtension(filePath))
+  );
+}
+
 module.exports = {
+  isSceneFile: isSceneFile,
   isPreviewFile: isPreviewFile,
   SOURCE_EXTENSIONS: SOURCE_EXTENSIONS,
   isExistingFile: isExistingFile,

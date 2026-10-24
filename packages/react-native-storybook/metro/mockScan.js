@@ -8,13 +8,13 @@
 // does the app declare under `parameters.sherlo.mocks`?
 //
 // It does two things and nothing more:
-//   1. findScanFiles(projectRoot)     - locate story files and preview.* files.
+//   1. findScanFiles(projectRoot)     - locate story files, preview.* files, and every other
+//      file of the app's own that names the SDK: a story may import its list of mocks from
+//      one (`mocks: signedInFakes`), and the list's `mock(...)` calls sit there.
 //   2. collectMockEntriesFromSource() - shallow-parse one file with the Babel
-//      parser Metro already ships and return the module keys declared under any
-//      `sherlo: { mocks: ... }`, in either form a story may write:
-//        - a list of declarations, where each names its module with an import
-//          expression: `mock(() => import('some-module'), ...)`,
-//        - the older object, whose STRING-LITERAL keys name the modules.
+//      parser Metro already ships and return the module keys it declares:
+//        - each `mock(() => import('some-module'), ...)` call, wherever it sits in the file,
+//        - and under any `sherlo: { mocks: ... }`, the older object's STRING-LITERAL keys.
 //
 // Deliberately narrow: it extracts module KEYS only. It never reads, evaluates,
 // or otherwise touches the mock VALUES - those live entirely in the Phase 1
@@ -43,6 +43,9 @@ var IGNORED_DIRS = {
   '.expo': true,
 };
 
+// The package a file imports `mock` from.
+var SDK_PACKAGE = '@sherlo/react-native-storybook';
+
 // A file is a scan target when it is a Storybook story (`*.stories.<ext>`) or a
 // Storybook preview entry (`preview.<ext>`, e.g. .storybook/preview.tsx).
 function isScanTarget(fileName) {
@@ -51,10 +54,37 @@ function isScanTarget(fileName) {
   return isPreviewFile(fileName) || basenameWithoutExtension(fileName).slice(-8) === '.stories';
 }
 
-// Recursively collect absolute paths of every story/preview file under
-// projectRoot, skipping IGNORED_DIRS. Filesystem errors on a single entry are
-// swallowed so one unreadable directory never fails the whole build.
-function findScanFiles(projectRoot) {
+// Whether the file at `filePath`, whose text is `source`, may declare mocks: a story or preview
+// file, or any other source file of the app's own that names the SDK - a story may import its
+// list of mocks from such a file. A file inside node_modules is never the app's declaration.
+function mayDeclareMocks(filePath, source) {
+  if (/(^|[\\/])node_modules[\\/]/.test(filePath)) return false;
+  var fileName = path.basename(filePath);
+  if (isScanTarget(fileName)) return true;
+  if (SOURCE_EXTENSIONS.indexOf(path.extname(fileName)) === -1) return false;
+  // Many app files name the SDK for other reasons (isStorybookMode); only one that also calls
+  // `mock` with an import expression is worth a parse.
+  return (
+    source.indexOf(SDK_PACKAGE) !== -1 && /\bmock\s*\(/.test(source) && /\bimport\s*\(/.test(source)
+  );
+}
+
+// Whether the source file at `filePath` may declare mocks; an unreadable file declares none.
+function fileMayDeclareMocks(filePath) {
+  // A story or preview file's name decides alone, so it is not read twice.
+  if (isScanTarget(path.basename(filePath))) return mayDeclareMocks(filePath, '');
+  if (SOURCE_EXTENSIONS.indexOf(path.extname(filePath)) === -1) return false;
+  try {
+    return mayDeclareMocks(filePath, fs.readFileSync(filePath, 'utf8'));
+  } catch (_) {
+    return false;
+  }
+}
+
+// Recursively collect absolute paths of every file under projectRoot that `isWanted` accepts,
+// skipping IGNORED_DIRS. Filesystem errors on a single entry are swallowed so one unreadable
+// directory never fails the whole build.
+function findFiles(projectRoot, isWanted) {
   var found = [];
 
   function walk(dir) {
@@ -69,7 +99,7 @@ function findScanFiles(projectRoot) {
       var full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         if (!IGNORED_DIRS[entry.name]) walk(full);
-      } else if (entry.isFile() && isScanTarget(entry.name)) {
+      } else if (entry.isFile() && isWanted(full)) {
         found.push(full);
       }
     }
@@ -77,6 +107,11 @@ function findScanFiles(projectRoot) {
 
   walk(projectRoot);
   return found;
+}
+
+// Every file under projectRoot that may declare mocks (mayDeclareMocks).
+function findScanFiles(projectRoot) {
+  return findFiles(projectRoot, fileMayDeclareMocks);
 }
 
 // Strip TypeScript-only expression wrappers so we can see the ObjectExpression
@@ -177,6 +212,46 @@ function collectKeysFromMockDeclarations(declarationList, addMockKey) {
   });
 }
 
+// Whether `callee` is the SDK's `mock`, called by name or off a namespace (`Sherlo.mock`).
+function isMockCallee(callee) {
+  if (!callee) return false;
+  if (callee.type === 'Identifier') return callee.name === 'mock';
+  return (
+    callee.type === 'MemberExpression' &&
+    !callee.computed &&
+    callee.property &&
+    callee.property.type === 'Identifier' &&
+    callee.property.name === 'mock'
+  );
+}
+
+// The one module the function `importModule` imports, or null when it imports none or several.
+function soleImportedSpecifier(importModule) {
+  if (
+    !importModule ||
+    (importModule.type !== 'ArrowFunctionExpression' && importModule.type !== 'FunctionExpression')
+  ) {
+    return null;
+  }
+  var specifiers = new Set();
+  walkNodes(importModule.body, function (node) {
+    var specifier = importedSpecifier(node);
+    if (specifier !== null) specifiers.add(specifier);
+  });
+  return specifiers.size === 1 ? Array.from(specifiers)[0] : null;
+}
+
+// Collect the module of every `mock(() => import('some-module'), ...)` call in the tree, wherever
+// it sits: a story may build its list in another file and import it (`mocks: signedInFakes`),
+// where no `sherlo: { mocks: [...] }` surrounds the calls.
+function collectKeysFromMockCalls(ast, addMockKey) {
+  walkNodes(ast, function (node) {
+    if (node.type !== 'CallExpression' || !isMockCallee(node.callee)) return;
+    var specifier = soleImportedSpecifier((node.arguments || [])[0]);
+    if (specifier !== null) addMockKey(specifier, true);
+  });
+}
+
 // Harvest the module keys of every `sherlo: { mocks: ... }` in the tree. Runs for the
 // preview-, meta- and story-level parameter declarations alike, because it visits the whole
 // tree; TS wrappers on any value are unwrapped on the way down.
@@ -231,13 +306,15 @@ function collectMockEntriesFromSource(source) {
   if (!ast) return [];
 
   var namedByImport = new Map();
-  walkForMockKeys(ast.program || ast, function (key, fromImportExpression) {
+  function addMockKey(key, fromImportExpression) {
     // A story that writes a string key looks its mock up by that same string at runtime, so
     // when one file names the same module both ways, the string form is the one that decides.
     if (!namedByImport.has(key) || !fromImportExpression) {
       namedByImport.set(key, fromImportExpression);
     }
-  });
+  }
+  walkForMockKeys(ast.program || ast, addMockKey);
+  collectKeysFromMockCalls(ast.program || ast, addMockKey);
 
   var entries = [];
   namedByImport.forEach(function (fromImportExpression, key) {
@@ -272,11 +349,14 @@ function scanFileForMocks(file) {
 }
 
 module.exports = {
+  findFiles: findFiles,
   findScanFiles: findScanFiles,
-  isScanTarget: isScanTarget,
+  mayDeclareMocks: mayDeclareMocks,
   parseScanTarget: parseScanTarget,
   walkNodes: walkNodes,
+  isMockCallee: isMockCallee,
   importedSpecifier: importedSpecifier,
+  soleImportedSpecifier: soleImportedSpecifier,
   collectMockEntriesFromSource: collectMockEntriesFromSource,
   scanFileForMocks: scanFileForMocks,
   scanProjectForMocks: scanProjectForMocks,

@@ -32,12 +32,14 @@ import type { TeamCreated } from './teamCreated';
 import type { ProjectList } from './projectList';
 import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
+import type { OpenedScene } from './openedScene';
+import type { CapturedScene } from './capturedScene';
 import type { CoverageScreen } from './coverage';
 import type { TeamList } from './teamList';
 import type { VerdictScreen } from './verdictCloser';
 import type { FeedbackKind, LastCommand } from './feedback';
 import type { FeedbackContext } from '../seams/serverCalls';
-import type { IntroducedCommand, PlatformCapture, SherloProject } from './testSteps';
+import type { IntroducedCommand, PlatformCapture, SherloProject, ScreenKind } from './testSteps';
 import type { PlatformRow, RowsAbove, TestWaitsFor } from './runRows';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
@@ -272,8 +274,11 @@ export type TranscriptSegment =
   | { kind: 'wait-timed-out'; timeoutMinutes: number; testIndex?: number }
   /** The Ctrl-C closer: the waiting stopped, the run did not. */
   | { kind: 'wait-interrupted'; testIndex?: number }
-  /** The green verdict, as a section: `✅ All stories passed`. */
-  | { kind: 'verdict-passed' }
+  /**
+   * The green verdict, as a section: `✅ All stories passed`. `holds` names what the build holds
+   * (`stories` when absent), so the section words its screens as the started line does.
+   */
+  | { kind: 'verdict-passed'; holds?: ScreenKind }
   /**
    * The compact closer for a build the server closed without a device run, under the platforms'
    * rows: `Test 15     ✔ Finished: nothing to test: no change reaches any story` (./runRows).
@@ -291,6 +296,8 @@ export type TranscriptSegment =
       screens?: VerdictScreen[];
       /** The build's tally, printed when the screens name nobody. */
       counts: { unreviewed: number; reported: number };
+      /** What the build holds (`stories` when absent); the screens are counted as that. */
+      holds?: ScreenKind;
     }
   /** `✖ Running Test 14 failed`, the state it ended in, the server's error blob if any, and help. */
   | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown; testIndex?: number }
@@ -332,6 +339,8 @@ export type TranscriptSegment =
       runStatus: string;
       status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
       counts?: { approved: number; noChanges: number; reported: number; unreviewed: number };
+      /** What the build holds (see `verdict-passed`). */
+      holds?: ScreenKind;
     }
   /**
    * `sherlo view --json`'s WHOLE output: the
@@ -361,9 +370,13 @@ export type TranscriptSegment =
   | { kind: 'opened-story'; state: OpenedStory }
   /** The whole screen output of `sherlo capture`. See ./capturedStory. */
   | { kind: 'captured-story'; state: CapturedStory }
+  /** The whole output of `sherlo open --scene`. See ./openedScene. */
+  | { kind: 'opened-scene'; state: OpenedScene }
+  /** The whole screen output of `sherlo capture --scene`. See ./capturedScene. */
+  | { kind: 'captured-scene'; state: CapturedScene }
   /** The whole screen output of `sherlo coverage`. See ./coverage. */
   | { kind: 'coverage'; screen: CoverageScreen }
-  /** `sherlo capture --logs` - the app's own log lines, printed after the story. See ./capturedLog. */
+  /** `sherlo capture --logs` - Sherlo's log from the app, printed after the story. See ./capturedLog. */
   | { kind: 'captured-log'; logs: string[] }
   /* ---------------------------------------------------------------------- *
    * LOGGING IN - what `sherlo login` and `sherlo logout` print when they    *

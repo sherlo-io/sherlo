@@ -16,7 +16,9 @@
  */
 import { execFileSync } from 'child_process';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import { buildSync } from 'esbuild';
 import { describe, expect, it } from 'vitest';
 import { applyMasks, resolvedConfigPath, runPose } from '../pose';
 import type { CommandPose } from '../../../seams/commandPose';
@@ -235,13 +237,8 @@ function recordThroughAPty(
   projectRoot: string,
   scenarioEnv: Record<string, string>
 ): string {
-  const command = [
-    process.execPath,
-    '-r',
-    require.resolve('tsx/cjs'),
-    path.join(__dirname, 'support', 'cliEntry.ts'),
-    ...argv,
-  ];
+  const bundleFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-cli-bundle-'));
+  const command = [process.execPath, bundleCliEntry(bundleFolder), ...argv];
 
   const [scriptCommand, scriptArgs] =
     process.platform === 'darwin'
@@ -267,12 +264,8 @@ function recordThroughAPty(
         COLUMNS: '80',
         LINES: '24',
         FORCE_COLOR: '1',
-        TS_NODE_COMPILER_OPTIONS: JSON.stringify({
-          module: 'commonjs',
-          target: 'es2021',
-          esModuleInterop: true,
-          resolveJsonModule: true,
-        }),
+        // The packages the bundle leaves out (see bundleCliEntry) are found here.
+        NODE_PATH: CLI_NODE_MODULES,
       },
     });
   } catch (error) {
@@ -292,6 +285,8 @@ function recordThroughAPty(
     }
 
     recorded = failure.stdout ?? '';
+  } finally {
+    fs.rmSync(bundleFolder, { recursive: true, force: true });
   }
 
   if (recorded.trim() === '') {
@@ -303,6 +298,35 @@ function recordThroughAPty(
   }
 
   return stripRecorderKeystrokes(recorded);
+}
+
+const CLI_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
+const CLI_NODE_MODULES = [
+  path.join(CLI_ROOT, 'node_modules'),
+  path.join(CLI_ROOT, '..', '..', 'node_modules'),
+].join(path.delimiter);
+
+/**
+ * The CLI's own source, bundled into `folder` with every package left out, and the path of the
+ * file. Starting the child through a TypeScript loader instead compiled every file of the CLI
+ * inside the child, which took seconds on an idle machine and far longer on a busy one; the bundle
+ * is one file of plain JavaScript that node reads straight.
+ */
+function bundleCliEntry(folder: string): string {
+  const outfile = path.join(folder, 'cli.js');
+
+  buildSync({
+    entryPoints: [path.join(__dirname, 'support', 'cliEntry.ts')],
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node18',
+    packages: 'external',
+    logLevel: 'silent',
+    outfile,
+  });
+
+  return outfile;
 }
 
 /**

@@ -113,6 +113,14 @@ function attach(httpServer, WebSocketServer, settings) {
   return { ask: line.ask, onApp: line.onApp, close: close };
 }
 
+/** A title the way Storybook turns it into the first part of a story id. */
+function idPartOfTitle(title) {
+  return String(title)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 /**
  * Why the line refuses this `hello`, in words naming both versions, or null when it speaks it.
  *
@@ -142,7 +150,10 @@ function createLine(settings) {
   };
 
   var letterbox = createLetterbox(appHoldMs);
-  var captureRelay = createCaptureRelay(appHoldMs, settings.storyFileChangedSince || nothingChanged);
+  var captureRelay = createCaptureRelay(
+    appHoldMs,
+    settings.storyFileChangedSince || nothingChanged
+  );
   var logFeed = createLogFeed();
 
   /** Everyone who wants to hear of each app that says hello. */
@@ -646,14 +657,6 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     holdTheApp(app, stories, brokenFiles, mode);
   }
 
-  /** A title the way Storybook turns it into the first part of a story id. */
-  function idPartOfTitle(title) {
-    return String(title)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
-
   /**
    * The answer for a story the app does not have. The broken files it names are those whose title
    * is the story id's title part (the id before "--"); when none is, every broken file, because a
@@ -835,6 +838,7 @@ function secondsOf(passed) {
 module.exports = {
   attach: attach,
   refusalOfHello: refusalOfHello,
+  idPartOfTitle: idPartOfTitle,
   LINE_PATH: LINE_PATH,
   PROTOCOL_VERSION: PROTOCOL_VERSION,
 };

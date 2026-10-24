@@ -35,3 +35,30 @@ describe('checkSdkCompatibility', () => {
     expect(mockSendNativeError).not.toHaveBeenCalled();
   });
 });
+
+describe('the capture record says what happened', () => {
+  it('an SDK older than the installed package warns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { JS_MODULE_VERSION } = require('../sdk-compatibility.json');
+
+    mockGetNativeVersion.mockReturnValue(JS_MODULE_VERSION);
+    expect(checkSdkCompatibility()).toBe(true);
+    expect(warn).not.toHaveBeenCalled();
+
+    __resetCacheForTests();
+    mockGetNativeVersion.mockReturnValue('3.0.0');
+    const older = JS_MODULE_VERSION.replace(/^\d+\.\d+\.\d+/, '3.1.0');
+    vi.doMock('../sdk-compatibility.json', () => ({
+      REQUIRED_MIN_NATIVE_VERSION: '3.0.0',
+      JS_MODULE_VERSION: older,
+    }));
+    vi.resetModules();
+    return import('../checkSdkCompatibility').then(({ default: check }) => {
+      expect(check()).toBe(true);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain('3.0.0');
+      warn.mockRestore();
+      vi.doUnmock('../sdk-compatibility.json');
+    });
+  });
+});

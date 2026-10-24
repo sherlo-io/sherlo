@@ -1,5 +1,6 @@
 import { RequestAnswer } from './networkDeclaration';
 import { answerFor, bodyOf, delay, statusOf } from './networkRules';
+import { requestStarted } from './requestsInFlight';
 
 /**
  * THE XMLHttpRequest HALF OF THE INTERCEPTOR - the same rules, delivered the way a real request
@@ -24,6 +25,7 @@ interface Xhr {
   getResponseHeader(name: string): string | null;
   getAllResponseHeaders(): string;
   dispatchEvent?: (event: unknown) => boolean;
+  addEventListener?: (type: string, listener: () => void) => void;
 }
 
 export type XhrClass = new () => Xhr;
@@ -52,9 +54,18 @@ export function mockedXhrOf(RealXhr: XhrClass): XhrClass {
       // The two mocked branches are deliberately not awaited: a real send() returns at once and
       // answers later, so a caller that awaited this one would be waiting on a request that is
       // already on its way back.
-      if (verdict.kind === 'passthrough') super.send(body);
-      else if (verdict.kind === 'answer') this.answer(verdict.answer);
-      else this.refuse();
+      // In flight until it ends (./requestsInFlight). A real request ends at its loadend event; a
+      // runtime whose XMLHttpRequest has no listeners cannot say, so its request is not counted.
+      if (verdict.kind === 'passthrough') {
+        if (typeof this.addEventListener === 'function') {
+          this.addEventListener('loadend', requestStarted(this.request));
+        }
+        super.send(body);
+        return;
+      }
+      const ended = requestStarted(this.request);
+      const answered = verdict.kind === 'answer' ? this.answer(verdict.answer) : this.refuse();
+      void answered.finally(ended);
     }
 
     getResponseHeader(name: string): string | null {

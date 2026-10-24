@@ -25,7 +25,7 @@ import {
   fakeSealedCoreSource,
   nativePickOf,
 } from './__mocks__/react-native';
-import { FAKE_CORE_VERSION } from './__mocks__/fakeSealedCore';
+import { FAKE_CORE_VERSION, seamThisSdkSpeaks } from './__mocks__/fakeSealedCore';
 import { importedModules } from './importedModules';
 import { REQUIRED_MIN_NATIVE_VERSION } from '../sdk-compatibility.json';
 import type { SealedCoreHost } from '../sealedCore/seam';
@@ -33,16 +33,19 @@ import type { SealedCoreHost } from '../sealedCore/seam';
 // src: this file is at src/__tests__/.
 const SDK_SOURCE_DIR = path.resolve(__dirname, '..');
 // The two scripts that fetch a real core from package storage, and the only test files that may
-// import them: the pin's and the packaging check's, which test the pack, not a run.
+// import them: the pin's and the packaging check's, which test the pack, not a run, and the fake
+// stored core only those two share.
 const CORE_FETCHING_SCRIPTS = ['packSealedCore', 'storedCore'].map((scriptName) =>
   path.resolve(SDK_SOURCE_DIR, '..', 'scripts', scriptName)
 );
-const TESTS_OF_THE_PACK = ['sealedCorePin.test.ts', 'sealedCorePackaging.test.ts'].map((testName) =>
-  path.join(SDK_SOURCE_DIR, '__tests__', testName)
-);
+const TESTS_OF_THE_PACK = [
+  'sealedCorePin.test.ts',
+  'sealedCorePackaging.test.ts',
+  '__mocks__/fakeStoredCore.ts',
+].map((testName) => path.join(SDK_SOURCE_DIR, '__tests__', testName));
 // The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in ../sealedCore/loadSealedCore), and one before it.
-const SEAM_THE_SDK_SPEAKS = 2;
-const OLDER_SEAM = 1;
+const SEAM_THE_SDK_SPEAKS = seamThisSdkSpeaks();
+const OLDER_SEAM = SEAM_THE_SDK_SPEAKS - 1;
 
 vi.mock('react', () => ({
   default: { useEffect: () => {}, useRef: (initial: unknown) => ({ current: initial }) },
@@ -190,15 +193,25 @@ describe('loading the sealed core', () => {
     expect(Object.keys(host!).sort()).toEqual(
       [
         'activateMocksForStory',
+        'awaitReady',
         'bundlerOrigin',
+        'causeOfCrash',
         'clearMocks',
         'collectAppMetadata',
         'fetch',
+        'isBundlerAssetUrl',
         'mergeStoryMocks',
+        'monotonicNow',
         'native',
+        'playSteps',
         'providerFirstRenderedAt',
+        'reachedRoute',
+        'rulesInstalledProof',
+        'rulesNeverMatched',
         'runner',
+        'scenes',
         'setCaptureLogSink',
+        'threwOf',
         'storyErrors',
         'storybookChannel',
         'storybookFacts',
@@ -208,8 +221,17 @@ describe('loading the sealed core', () => {
         'warn',
       ].sort()
     );
+    // Native code as the SDK speaks to it, every call its own but the two reloads of the
+    // JavaScript, which wait until it is idle (./launchArgument.test.ts).
     const SherloModule = (await import('../SherloModule')).default;
-    expect(host!.native).toBe(SherloModule);
+    const native = host!.native as typeof SherloModule;
+    // The stillness check is held back until the scene says it is ready (../storyReady.ts).
+    const reloads = ['openTesting', 'reloadJavaScript', 'stabilize'];
+    expect(Object.keys(native).sort()).toEqual(Object.keys(SherloModule).sort());
+    for (const call of Object.keys(SherloModule) as (keyof typeof SherloModule)[]) {
+      if (reloads.includes(call)) expect(native[call], call).not.toBe(SherloModule[call]);
+      else expect(native[call], call).toBe(SherloModule[call]);
+    }
   });
 
   it('hands the core the fetch from before any mock wrapped it', async () => {
@@ -227,6 +249,7 @@ describe('loading the sealed core', () => {
       {
         rules: [{ matcher: { url: 'https://example.com/orders' }, answer: { body: 'mocked' } }],
         passthrough: false,
+        sockets: [],
       },
       () => {}
     );

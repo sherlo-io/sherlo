@@ -28,6 +28,9 @@ static NSString * const MODE_TESTING = @"testing";
 static NSString * const DRIVER_RUNNER = @"runner";
 static NSString * const DRIVER_CAPTURE = @"capture";
 
+/** The launch argument that starts a debug build in testing mode for `sherlo capture`. */
+static NSString * const CAPTURE_ARGUMENT = @"-sherloCapture";
+
 /**
  * How long a launch the runner handed an address waits for the runner's settings before its
  * JavaScript starts without them. The runner answers hello at once over loopback; this only keeps a
@@ -83,6 +86,9 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
     if (addressHandedAtLaunch) {
         currentMode = MODE_TESTING;
         driver = DRIVER_RUNNER;
+        // A scene launch hands the scene's id beside the address: that scene is the story the
+        // app starts on, and the connection to the runner stays.
+        [SherloModuleCore keepStory:[SherloModuleCore captureArgument]];
 
         runSettingsArrival = dispatch_group_create();
         dispatch_group_enter(runSettingsArrival);
@@ -118,9 +124,59 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
                        dispatch_get_main_queue(),
                        block);
         NSLog(@"[%@] storybookNotDisplayed native timer scheduled (30s)", LOG_TAG);
+    } else {
+        [SherloModuleCore startFromCaptureHandedAtLaunch];
     }
 
     return self;
+}
+
+/**
+ * A launch handed `-sherloCapture [<storyId>]` starts in testing mode for `sherlo capture`, as a
+ * capture's own move (openTesting) leaves it, but with no boot of the app before it: the first
+ * JavaScript that runs is already in testing mode, on the story, so the app's own start never runs
+ * and the capture finds an app already in testing mode. A debug build only: a capture needs a
+ * bundler beside the app, and a shipped app is never put in testing mode by an argument.
+ */
++ (void)startFromCaptureHandedAtLaunch {
+#if DEBUG
+    NSString *storyId = [SherloModuleCore captureArgument];
+    if (!storyId) return;
+
+    [SherloModuleCore startCaptureTestingOn:storyId];
+    NSLog(@"[%@] Testing mode: a capture launch%@", LOG_TAG, lastState ? @", on its story" : @"");
+#endif
+}
+
+/**
+ * The id after `-sherloCapture` in the launch arguments: @"" when the argument has none, nil when
+ * the launch has no such argument. The only place the argument is read.
+ */
++ (NSString *)captureArgument {
+    NSArray<NSString *> *arguments = NSProcessInfo.processInfo.arguments;
+    NSUInteger argumentIndex = [arguments indexOfObject:CAPTURE_ARGUMENT];
+    if (argumentIndex == NSNotFound) return nil;
+
+    NSString *storyId = argumentIndex + 1 < arguments.count ? arguments[argumentIndex + 1] : nil;
+    return (storyId == nil || [storyId hasPrefix:@"-"]) ? @"" : storyId;
+}
+
+/** Keeps `storyId` (when one is given) as the story the next start of the JavaScript lands on. */
++ (void)keepStory:(NSString *)storyId {
+    if (storyId.length == 0) return;
+    @synchronized([SherloModuleCore class]) {
+        lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"" };
+    }
+}
+
+/**
+ * Puts the app in testing mode driven by a capture, keeping `storyId` (when one is given) as the
+ * story the next start of the JavaScript lands on.
+ */
++ (void)startCaptureTestingOn:(NSString *)storyId {
+    currentMode = MODE_TESTING;
+    driver = DRIVER_CAPTURE;
+    [SherloModuleCore keepStory:storyId];
 }
 
 #pragma mark - The connection
@@ -411,9 +467,6 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
  *                    answer, since no runner sends a capture its settings.
  */
 - (void)openTesting:(RCTBridge *)bridge storyId:(NSString *)storyId configJson:(NSString *)configJson {
-    currentMode = MODE_TESTING;
-    driver = DRIVER_CAPTURE;
-
     if (configJson.length > 0) {
         NSData *jsonData = [configJson dataUsingEncoding:NSUTF8StringEncoding];
         NSError *jsonError = nil;
@@ -427,11 +480,7 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
         }
     }
 
-    if (storyId.length > 0) {
-        @synchronized([SherloModuleCore class]) {
-            lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"" };
-        }
-    }
+    [SherloModuleCore startCaptureTestingOn:storyId];
 
     [RestartHelper restart:bridge];
 }
@@ -469,6 +518,17 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
  */
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
     [InspectorHelper getInspectorData:resolve reject:reject];
+}
+
+/**
+ * Whether each view named by testID is drawn, from the native view tree.
+ *
+ * @param testIDsJson JSON list of testIDs
+ * @param resolve Promise resolver called with a JSON object of visible, invisible, absent or unreached by testID
+ * @param reject Promise rejecter called if an error occurs
+ */
+- (void)getViewVisibility:(NSString *)testIDsJson resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    [InspectorHelper getViewVisibility:testIDsJson resolve:resolve reject:reject];
 }
 
 /**

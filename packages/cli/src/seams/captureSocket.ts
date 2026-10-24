@@ -13,8 +13,13 @@
  * roads fail differently.
  */
 import type { CapturedView } from '../render/capturedStory';
+import type { SceneEnding } from '../render/capturedScene';
+import { readAppError, type AppError } from './appError';
+import { drainAppLog, keepStrings } from './appLog';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
+import type { SceneTarget } from './deviceState';
+import { captureLiveScene } from './liveScene';
 
 /**
  * The stabilization settings a capture sends, as the runner sends them today.
@@ -55,12 +60,12 @@ export type CaptureResult =
   | {
       kind: 'crashed';
       storyId: string;
-      error?: { name: string; message: string };
+      error?: AppError;
       /**
        * Every line the app's own RunnerBridge.log formed since the previous capture (or since it
        * booted, for the first one), drained from the bundler's own live feed - not carried in the
        * app's own answer, which a crash inside the walk can leave never sent at all (see
-       * drainCaptureLog and the SDK's captureLogSink.ts). Absent when nothing was logged, or the
+       * drainAppLog and the SDK's captureLogSink.ts). Absent when nothing was logged, or the
        * feed itself is unreachable.
        */
       logs?: string[];
@@ -76,7 +81,7 @@ export type CaptureResult =
       stillReal?: string[];
       /** The requests the story made that no mock answered, in the order it made them. Absent when none were. */
       unanswered?: UnansweredRequest[];
-      threw?: { name: string; message: string };
+      threw?: AppError;
       /**
        * How many screenfuls the story was captured in - 1 is a story that fits the screen. Absent
        * when the app said nothing readable about it, which an app older than this field does.
@@ -112,10 +117,16 @@ export type CaptureResult =
       logs?: string[];
     };
 
-/** A story file that threw as the app loaded it, and what it threw, in its own words. */
-export type BrokenStoryFile = { file: string; error: { name: string; message: string } };
+/** What the app answered about the scene the command asked it to boot fresh on and capture. */
+export type SceneCaptureResult = ({ kind: 'no-bundler' } | { kind: 'no-app' } | SceneEnding) & {
+  /** Sherlo's own log lines from the app since it booted, drained from the bundler's feed after the answer. */
+  logs?: string[];
+};
 
-/** A request a story made that no mock answered, so it went to the real network. */
+/** A story file that threw as the app loaded it, and what it threw, in its own words. */
+export type BrokenStoryFile = { file: string; error: AppError };
+
+/** A request a story made that no mock answered; the app lists it whether the story refused it or let it through. */
 export type UnansweredRequest = { method: string; url: string };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
@@ -169,13 +180,15 @@ export type CaptureSocket = {
     port: number;
     settings: typeof STABILIZATION_SETTINGS;
   }): Promise<CaptureResult>;
+  /** Boot the app fresh on one scene, run its play, stabilize with the same settings, and read it. */
+  captureScene(params: {
+    sceneId: string;
+    port: number;
+    settings: typeof STABILIZATION_SETTINGS;
+    /** The device and app the scene launches on; none when the machine has not exactly one. */
+    target?: SceneTarget;
+  }): Promise<SceneCaptureResult>;
 };
-
-/**
- * How long the command waits for the bundler's line to read out the app's log lines. The line
- * answers this at once, so any real delay is a bundler that went away.
- */
-const LOG_FEED_PATIENCE_MS = 5000;
 
 /**
  * How long the command stays on the line for the app to answer. A capture restarts the app and
@@ -200,39 +213,21 @@ export const liveCaptureSocket: CaptureSocket = {
       // The app was handed the story and then stopped answering - a fatal error, a native crash,
       // or the app being closed. The tree and the settle time are gone with it, but whatever it
       // logged on the way is not: it was already pushed to the bundler's own feed, live, before
-      // whatever silenced the app had a chance to (see drainCaptureLog).
-      const logs = await drainCaptureLog(port);
+      // whatever silenced the app had a chance to (see drainAppLog).
+      const logs = await drainAppLog(port);
       return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
     }
 
     const result = readCaptureAnswer(answer.reply, storyId);
     if (result.kind === 'captured' || result.kind === 'crashed') {
-      const logs = await drainCaptureLog(port);
+      const logs = await drainAppLog(port);
       if (logs.length > 0) result.logs = logs;
     }
     return result;
   },
+
+  captureScene: captureLiveScene,
 };
-
-/**
- * Drain the app's own live log feed - every line pushed since the last drain, which is either this
- * app's boot (nobody has read the feed yet) or this capture's own previous story. Best-effort: an
- * unreachable feed (an app old enough to have never pushed to it, a bundler that went away between
- * the main answer and this read) answers with nothing readable, and that is not this capture's own
- * failure to report - it already has its answer.
- */
-async function drainCaptureLog(port: number): Promise<string[]> {
-  const answer = await askTheBundlerLine({
-    port,
-    question: { action: 'readLogLines' },
-    patienceMs: LOG_FEED_PATIENCE_MS,
-  });
-
-  if (answer.kind !== 'said') return [];
-
-  const lines: unknown = answer.reply?.lines;
-  return Array.isArray(lines) ? lines.filter(isString) : [];
-}
 
 let installed: CaptureSocket = liveCaptureSocket;
 
@@ -256,7 +251,7 @@ export function installCaptureSocket(next: CaptureSocket): () => void {
  * The story id is the one that was POSTED rather than the one that came back, for the same reason
  * the letterbox reads it that way: a caller reads the answer about the id they typed.
  */
-function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
+export function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
   const answer = said as {
     kind?: unknown;
     known?: unknown;
@@ -285,12 +280,12 @@ function readCaptureAnswer(said: unknown, storyId: string): CaptureResult {
   }
 
   if (answer.kind === 'crashed') {
-    const error = readError(answer.error);
+    const error = readAppError(answer.error);
     return { kind: 'crashed', storyId, ...(error && { error }) };
   }
 
   if (answer.kind === 'captured') {
-    const threw = readError(answer.threw);
+    const threw = readAppError(answer.threw);
     const parts = readParts(answer.parts);
     const waited = readWaited(answer.waited);
     const root = readRoot(answer.root);
@@ -445,22 +440,12 @@ function readWindowReason(value: unknown): WindowReason | undefined {
   return undefined;
 }
 
-/**
- * What the app said its story threw, or what it said crashed, in its own words - or nothing when
- * it said nothing readable. The error's own name and message are the whole of it.
- */
-function readError(said: unknown): { name: string; message: string } | undefined {
-  const error = said as { name?: unknown; message?: unknown } | null | undefined;
-  if (typeof error?.name !== 'string' || typeof error?.message !== 'string') return undefined;
-  return { name: error.name, message: error.message };
-}
-
 /** The files the app said threw as it loaded them, each with its error; a malformed entry is dropped. */
 function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const read: BrokenStoryFile[] = [];
   for (const entry of value) {
-    const error = readError((entry as { error?: unknown } | null)?.error);
+    const error = readAppError((entry as { error?: unknown } | null)?.error);
     const file = (entry as { file?: unknown } | null)?.file;
     if (typeof file === 'string' && error) read.push({ file, error });
   }
@@ -469,8 +454,7 @@ function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
 
 /** A list of strings off the wire, or nothing when the wire sent no list or only empty ones. */
 function readStrings(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const read = value.filter(isString);
+  const read = keepStrings(value);
   return read.length > 0 ? read : undefined;
 }
 
@@ -548,7 +532,49 @@ export type PosedCapture =
       hasNetworkImage?: boolean;
       /** The view tree the app read, from the story's own root. */
       tree: PosedView;
+    }
+  /** A scene run: the app's own JS threw while it started, before any scene could be put on it. */
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      threwAtBoot: { name: string; message: string; file: string; line: number };
+    }
+  /** A scene run: the app booted, and the scene's ready view never showed. */
+  | {
+      scenes: string[];
+      /** The testID of the view the scene waits for. */
+      ready: string;
+      /** The route the app was on when the wait ran out, outermost screen first. */
+      stayedOn: string[];
+    }
+  /** A scene run: a play step found no view with its testID. */
+  | {
+      scenes: string[];
+      /** The route the app stood on when the step found nothing, outermost screen first. */
+      route: string[];
+      bootMs: number;
+      reachedMs: number;
+      /** The steps that ran before the one that found nothing. */
+      playDone: PosedPlayStep[];
+      /** The tap that found nothing, and how long it looked. */
+      targetMissing: { tap: string; limitMs: number };
+    }
+  /** A scene run that came back with its record. */
+  | {
+      scenes: string[];
+      /** The route the app's navigation reached, read from the app, outermost screen first. */
+      route: string[];
+      /** How long the fresh boot took, and how long from there until the ready view showed. */
+      bootMs: number;
+      reachedMs: number;
+      /** The scene's play steps, all done. */
+      play: PosedPlayStep[];
+      settled: { ms: number; frames: number };
+      tree: PosedView;
     };
+
+/** One step of a scene's `play`: a tap on the view with that testID, or one of the app's own links. */
+export type PosedPlayStep = { tap: string } | { open: string };
 
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own
@@ -586,6 +612,14 @@ export function posedCaptureSocket(
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
       if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('stories' in posed)) {
+        refusals.push({
+          call: 'captureStory',
+          problem:
+            'the pose states a scene run, and the command asked for a story - state `stories`',
+        });
+        return { kind: 'no-bundler' };
+      }
       // A CRASH COMES FIRST: an app that died as it started never said which stories it had, so its empty
       // list must not read as a missing story.
       if ('crashed' in posed) {
@@ -616,6 +650,55 @@ export function posedCaptureSocket(
         ...(posed.threw && { threw: posed.threw }),
         ...(posed.parts !== undefined && { parts: posed.parts }),
         ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),
+        tree: withChildren(posed.tree),
+      };
+    },
+
+    captureScene: async ({ sceneId }) => {
+      if (!posed) {
+        refusals.push({
+          call: 'captureScene',
+          problem:
+            'the pose states no `capture`, and the command asked for one - say what answered',
+        });
+        return { kind: 'no-bundler' };
+      }
+      if (posed === 'no-bundler') return { kind: 'no-bundler' };
+      if (posed === 'no-app') return { kind: 'no-app' };
+      if (!('scenes' in posed)) {
+        refusals.push({
+          call: 'captureScene',
+          problem:
+            'the pose states a story run, and the command asked for a scene - state `scenes`',
+        });
+        return { kind: 'no-bundler' };
+      }
+      if (!posed.scenes.includes(sceneId)) {
+        return { kind: 'no-such-scene', sceneId, known: posed.scenes };
+      }
+      if ('threwAtBoot' in posed) {
+        return { kind: 'crashed-at-boot', sceneId, error: posed.threwAtBoot };
+      }
+      if ('stayedOn' in posed) {
+        return { kind: 'never-reached', sceneId, ready: posed.ready, stayedOn: posed.stayedOn };
+      }
+      if ('targetMissing' in posed) {
+        return {
+          kind: 'play-target-missing',
+          sceneId,
+          route: posed.route,
+          done: posed.playDone,
+          missing: { tap: posed.targetMissing.tap },
+          limitMs: posed.targetMissing.limitMs,
+        };
+      }
+      return {
+        kind: 'scene',
+        sceneId,
+        bootMs: posed.bootMs,
+        reached: { route: posed.route, ms: posed.reachedMs },
+        play: posed.play,
+        settled: posed.settled,
         tree: withChildren(posed.tree),
       };
     },

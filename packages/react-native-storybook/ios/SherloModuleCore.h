@@ -127,6 +127,15 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
+ * Whether each view named by testID (a JSON list) is drawn, from the native view tree: resolves a
+ * JSON object of visible, invisible, absent or unreached by testID
+ * @param testIDsJson JSON list of testIDs
+ * @param resolve Promise resolver
+ * @param reject Promise rejecter
+ */
+- (void)getViewVisibility:(NSString *)testIDsJson resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+
+/**
  * Checks if the UI is stable by comparing screenshots
  * @param requiredMatches Number of matching screenshots needed
  * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability

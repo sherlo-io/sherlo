@@ -15,17 +15,27 @@ import {
   JSON_OPTION,
   LOGS_OPTION,
   PORT_OPTION,
+  SCENE_OPTION,
   STORY_OPTION,
+  sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS, captureSocket } from '../../seams/captureSocket';
-import type { CaptureResult } from '../../seams/captureSocket';
+import {
+  appIsInstalled,
+  deviceState,
+  endOnNotDebuggable,
+  prepareCleanDevice,
+} from '../../seams/deviceState';
+import type { CaptureResult, SceneCaptureResult } from '../../seams/captureSocket';
 import type { CapturedStory } from '../../render/capturedStory';
+import type { CapturedScene } from '../../render/capturedScene';
 
 export type CaptureOptions = {
   [STORY_OPTION]?: string;
+  [SCENE_OPTION]?: string;
   [PORT_OPTION]?: string;
   [JSON_OPTION]?: boolean;
   [LOGS_OPTION]?: boolean;
@@ -33,6 +43,13 @@ export type CaptureOptions = {
 
 async function capture(passedOptions: CaptureOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
+  const sceneId = passedOptions[SCENE_OPTION];
+
+  if (sceneId && storyId) {
+    throwError({ message: sceneWithStoryRefusal('capture') });
+  }
+  if (sceneId) return captureScene(sceneId, passedOptions);
+
   if (!storyId) {
     throwError({
       message:
@@ -71,6 +88,54 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
 export default capture;
 
 /* ========================================================================== */
+
+/**
+ * `sherlo capture --scene <id>` - the app is booted fresh on one scene and read the way a test run
+ * reads it. Any ending but the record is a refusal and leaves the process with EXIT_BLOCK.
+ */
+async function captureScene(sceneId: string, passedOptions: CaptureOptions): Promise<void> {
+  const port = readPort(passedOptions[PORT_OPTION]);
+
+  // The scene runs on a clean device, and every ending - a throw included - puts it back.
+  const target = await deviceState().sceneTarget();
+  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
+  const installed = !target || (await appIsInstalled(target));
+  const restore =
+    target && installed
+      ? await prepareCleanDevice(target.device, target.app).catch(endOnNotDebuggable)
+      : undefined;
+  let answer: SceneCaptureResult;
+  try {
+    answer = installed
+      ? await captureSocket().captureScene({
+          sceneId,
+          port,
+          settings: STABILIZATION_SETTINGS,
+          target,
+        })
+      : { kind: 'no-app' };
+  } finally {
+    await restore?.();
+  }
+
+  if (passedOptions[JSON_OPTION]) {
+    process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
+  } else {
+    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port) });
+    if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
+      emit({ kind: 'captured-log', logs: answer.logs ?? [] });
+    }
+  }
+
+  if (answer.kind !== 'scene') process.exit(EXIT_BLOCK);
+}
+
+/** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */
+export function capturedSceneEnding(answer: SceneCaptureResult, port: number): CapturedScene {
+  return answer.kind === 'no-bundler' || answer.kind === 'no-app'
+    ? { kind: answer.kind, port }
+    : answer;
+}
 
 /** What the screen shows for what the app answered. */
 export function endingFor(

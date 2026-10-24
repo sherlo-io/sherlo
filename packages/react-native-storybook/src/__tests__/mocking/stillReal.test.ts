@@ -269,6 +269,41 @@ describe('the bundler list', () => {
     expect(modules[0].output[0].data.code).toContain('__sherloStillRealPaths');
   });
 
+  it('lists the libraries that hold a private copy of a package, scoped packages included', () => {
+    const graph = new Map(
+      [
+        '/app/node_modules/amp-lib/index.js',
+        '/app/node_modules/pkg/index.js',
+        '/app/node_modules/amp-lib/node_modules/pkg/index.js',
+        '/app/node_modules/other-lib/node_modules/pkg/dist/a.js',
+        '/app/node_modules/amp-lib/node_modules/@scope/kit/index.js',
+      ].map((p) => [p, {}])
+    );
+
+    // Keyed by each declared mock key, a subpath's package found through its package name.
+    const mockKeys = ['pkg/analytics', '@scope/kit/deep', 'amp-lib', 'unrelated'];
+
+    expect(stillRealBundler.privateCopiesOf(graph, mockKeys)).toEqual({
+      'pkg/analytics': ['amp-lib', 'other-lib'],
+      '@scope/kit/deep': ['amp-lib'],
+    });
+  });
+
+  it('adds the private copies to the script only when there are some', () => {
+    const delegate = vi.fn(() => 'bundle');
+    const options = { createModuleId: create, projectRoot: '/app' };
+    const withCopy = { dependencies: new Map([['/app/node_modules/a/node_modules/b/i.js', {}]]) };
+    const without = { dependencies: new Map([['/app/node_modules/b/i.js', {}]]) };
+
+    const keys = ['b/sub'];
+    stillRealBundler.withStillRealList(delegate, '/app', keys)('entry', [], withCopy, options);
+    stillRealBundler.withStillRealList(delegate, '/app', keys)('entry', [], without, options);
+
+    const code = (call: number) => (delegate.mock.calls[call] as any[])[1][0].output[0].data.code;
+    expect(code(0)).toContain('__sherloPrivateCopies = {"b/sub":["a"]}');
+    expect(code(1)).not.toContain('__sherloPrivateCopies');
+  });
+
   it('a bundler config carries the list serializer unless Sherlo is disabled', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const applySherloTransforms = require('../../../metro/applySherloTransforms');

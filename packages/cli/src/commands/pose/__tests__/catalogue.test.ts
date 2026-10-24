@@ -56,6 +56,23 @@ vi.mock('../pose', async (importOriginal) => {
   };
 });
 
+/**
+ * A POSED PUSH FINGERPRINTS THE PROJECT, and the fingerprint asks `npx` about the project's native
+ * modules - a real process, 60 to 130 ms each, on a scratch folder that has no such modules. In
+ * that folder the ask fails and the fingerprint takes its no-modules road, so it fails here at
+ * once, with the same answer and none of the wait. Every other command still runs for real.
+ */
+vi.mock('../../../helpers/runShellCommand', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../../helpers/runShellCommand')>();
+
+  return {
+    default: (...args: Parameters<typeof original.default>) =>
+      String(args[0].command).startsWith('npx ')
+        ? Promise.reject(new Error('npx is not run by the pose catalogue'))
+        : original.default(...args),
+  };
+});
+
 const POSES = catalogue();
 
 describe('the pose catalogue under packages/cli/poses', () => {

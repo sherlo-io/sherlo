@@ -65,7 +65,10 @@ import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerpri
 import { resolveSuppliedBundles } from './suppliedBundle';
 import {
   bundleStoryFiles,
+  collectModuleManifests,
+  countBundleScenes,
   countBundleStories,
+  countInBundles,
   countStoriesIn,
   titledStoryFilesIn,
   type ValidatedModuleManifest,
@@ -350,7 +353,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     // Nothing was built on this road: the facts are the bundles' story counts and the CI run.
     const pushFacts = pushFactsOf({
       appBuilds: {},
-      storiesInBundle: storiesInBundleOf(bundles, platformsToTest),
+      storiesInBundle: countInBundles(bundles, platformsToTest, countBundleStories),
+      scenesInBundle: countInBundles(bundles, platformsToTest, countBundleScenes),
       env: process.env,
       runIdFlag: (passedOptions as BuildFlags).runId,
     });
@@ -511,33 +515,6 @@ type GateAnswers = {
   storedBuildIndexOf: Partial<Record<Platform, number>>;
 };
 
-/** How many stories each platform's bundle holds, counted off its module map. */
-function storiesInBundleOf(
-  bundles: Partial<Record<Platform, BundleResult>>,
-  platformsToTest: Platform[]
-): Partial<Record<Platform, number>> {
-  const counts: Partial<Record<Platform, number>> = {};
-  for (const [platform, moduleManifest] of Object.entries(
-    collectModuleManifests(bundles, platformsToTest)
-  ) as Array<[Platform, ValidatedModuleManifest]>) {
-    counts[platform] = countBundleStories(moduleManifest);
-  }
-  return counts;
-}
-
-/** The per-platform module manifests the capture plan reads, lifted off the bundles. */
-export function collectModuleManifests(
-  bundles: Partial<Record<Platform, BundleResult>>,
-  platformsToTest: Platform[]
-): Partial<Record<Platform, ValidatedModuleManifest>> {
-  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
-  for (const platform of platformsToTest) {
-    const manifest = bundles[platform]?.moduleManifest;
-    if (manifest) moduleManifests[platform] = manifest;
-  }
-  return moduleManifests;
-}
-
 /**
  * The test's row under the platforms' rows, saying what it captures - per platform, straight off
  * the openBuild response (SHERLO-1919): `Test 14     ✔ Started: 3 of 24 stories on 1 device
@@ -594,6 +571,7 @@ export function printTestStarted({
           : (captureScope.storyFilePaths ?? []).length,
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
+      scenesInBundle: manifest ? countBundleScenes(manifest) : undefined,
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
       // a machine code. The line prints it only for a full capture.
       reason: diffScopeInfo?.platforms?.[platform]?.reason,

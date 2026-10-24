@@ -10,8 +10,13 @@ import com.facebook.react.bridge.Promise;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 
 /**
@@ -43,6 +48,92 @@ public class InspectorHelper {
                 promise.reject("ERROR_INSPECTOR_DATA", e.getMessage(), e);
             }
         });
+    }
+
+    /**
+     * Whether each view named by testID is drawn: walks the whole view tree (no viewport culling) as
+     * far as the inspector's depth and node limits allow, and resolves a JSON object of
+     * `visible` | `invisible` | `absent` | `unreached` by testID. React Native keeps a view's testID
+     * in its react_test_id tag. A view is drawn when it, and every view above it, is VISIBLE, has an
+     * alpha above the inspector's threshold, is attached to a window and has a width and a height. A
+     * testID found twice is `visible` when any view carrying it is. A testID not found after the walk
+     * was cut short at a limit is `unreached`: nothing can be said of it.
+     *
+     * @param activity The current activity containing the view hierarchy
+     * @param testIDsJson A JSON list of the testIDs to look for
+     * @param promise Promise to resolve with the JSON object or reject with an error
+     */
+    public static void getViewVisibility(Activity activity, String testIDsJson, Promise promise) {
+        if (activity == null) {
+            promise.reject("no_activity", "No current activity");
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                String unusableReason = CompiledCore.unusableReason();
+                if (unusableReason != null) {
+                    throw new IllegalStateException("The C core cannot bound the view walk: " + unusableReason);
+                }
+                JSONArray testIDs = new JSONArray(testIDsJson);
+                Set<String> wanted = new HashSet<>();
+                for (int i = 0; i < testIDs.length(); i++) {
+                    wanted.add(testIDs.getString(i));
+                }
+
+                Map<String, String> found = new HashMap<>();
+                int[] nodeCount = {0};
+                boolean[] cutShort = {false};
+                findViews(activity.getWindow().getDecorView().getRootView(), wanted, true, 0, nodeCount, found, cutShort);
+
+                JSONObject states = new JSONObject();
+                for (int i = 0; i < testIDs.length(); i++) {
+                    String testID = testIDs.getString(i);
+                    String state = found.get(testID);
+                    states.put(testID, state != null ? state : (cutShort[0] ? "unreached" : "absent"));
+                }
+                promise.resolve(states.toString());
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage(), e);
+                promise.reject("ERROR_VIEW_VISIBILITY", e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * Records the state of each wanted testID that `view` or a view below it carries, then walks into
+     * its children while the inspector's limits leave room.
+     */
+    private static void findViews(View view, Set<String> wanted, boolean ancestorsDrawn, int depth,
+                                  int[] nodeCount, Map<String, String> found, boolean[] cutShort) {
+        nodeCount[0]++;
+        boolean drawn = ancestorsDrawn
+                && view.getVisibility() == View.VISIBLE
+                && view.getAlpha() > 0.01f
+                && view.isAttachedToWindow()
+                && view.getWidth() > 0
+                && view.getHeight() > 0;
+
+        Object testID = view.getTag(com.facebook.react.R.id.react_test_id);
+        if (testID instanceof String && wanted.contains(testID)) {
+            // One drawn view is enough for visible; an invisible one never overwrites it.
+            if (drawn) {
+                found.put((String) testID, "visible");
+            } else if (!found.containsKey(testID)) {
+                found.put((String) testID, "invisible");
+            }
+        }
+
+        if (view instanceof ViewGroup) {
+            ViewGroup viewGroup = (ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                if (!CompiledCore.nativeInspectorHasRoom(depth + 1, nodeCount[0])) {
+                    cutShort[0] = true;
+                    break;
+                }
+                findViews(viewGroup.getChildAt(i), wanted, drawn, depth + 1, nodeCount, found, cutShort);
+            }
+        }
     }
 
     /**

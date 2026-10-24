@@ -206,6 +206,9 @@ function readPosedBundle(value: unknown, path: string, problems: string[]): void
         }
       }
     }
+    if ('sceneIds' in object1) {
+      expectStringArray(object1.sceneIds, at(path, 'sceneIds'), problems);
+    }
     reportUnknownFields(
       object1,
       [
@@ -217,6 +220,7 @@ function readPosedBundle(value: unknown, path: string, problems: string[]): void
         'storyClosureKeys',
         'storyTitles',
         'storyCounts',
+        'sceneIds',
       ],
       path,
       problems
@@ -1120,27 +1124,43 @@ function readPosedLetterbox(value: unknown, path: string, problems: string[]): v
   if (oneOf1 === 'no-bundler' || oneOf1 === 'no-app') {
     // the value is one of these
   } else if (isPlainObject(oneOf1)) {
-    const object2 = asObject(oneOf1, path, problems);
-    if (object2) {
-      expectStringArray(object2.stories, at(path, 'stories'), problems);
-      if ('rendered' in object2) {
-        expectOneOf(object2.rendered, ['yes', 'timed-out'], at(path, 'rendered'), problems);
-      }
-      if ('threw' in object2) {
-        const where3 = at(path, 'threw');
-        const object4 = asObject(object2.threw, where3, problems);
-        if (object4) {
-          expectString(object4.name, at(where3, 'name'), problems);
-          expectString(object4.message, at(where3, 'message'), problems);
-          reportUnknownFields(object4, ['name', 'message'], where3, problems);
+    if ('stories' in oneOf1) {
+      const object2 = asObject(oneOf1, path, problems);
+      if (object2) {
+        expectStringArray(object2.stories, at(path, 'stories'), problems);
+        if ('rendered' in object2) {
+          expectOneOf(object2.rendered, ['yes', 'timed-out'], at(path, 'rendered'), problems);
         }
+        if ('threw' in object2) {
+          const where3 = at(path, 'threw');
+          const object4 = asObject(object2.threw, where3, problems);
+          if (object4) {
+            expectString(object4.name, at(where3, 'name'), problems);
+            expectString(object4.message, at(where3, 'message'), problems);
+            reportUnknownFields(object4, ['name', 'message'], where3, problems);
+          }
+        }
+        reportUnknownFields(object2, ['stories', 'rendered', 'threw'], path, problems);
       }
-      reportUnknownFields(object2, ['stories', 'rendered', 'threw'], path, problems);
+    } else if ('scenes' in oneOf1) {
+      const object5 = asObject(oneOf1, path, problems);
+      if (object5) {
+        expectStringArray(object5.scenes, at(path, 'scenes'), problems);
+        expectStringArray(object5.route, at(path, 'route'), problems);
+        reportUnknownFields(object5, ['scenes', 'route'], path, problems);
+      }
+    } else {
+      reportWrongShape(
+        oneOf1,
+        "`{ stories: string[]; rendered?: 'yes' | 'timed-out'; threw?: { name: string; message: string } }` or `{ scenes: string[]; route: string[] }`",
+        path,
+        problems
+      );
     }
   } else {
     reportWrongShape(
       oneOf1,
-      '`"no-bundler"`, `"no-app"` or `{ stories: string[]; rendered?: \'yes\' | \'timed-out\'; threw?: { name: string; message: string } }`',
+      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; rendered?: \'yes\' | \'timed-out\'; threw?: { name: string; message: string } }` or `{ scenes: string[]; route: string[] }`',
       path,
       problems
     );
@@ -1183,62 +1203,142 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
         }
         reportUnknownFields(object5, ['stories', 'brokenFiles'], path, problems);
       }
-    } else if ('settled' in oneOf1) {
+    } else if ('threwAtBoot' in oneOf1) {
       const object10 = asObject(oneOf1, path, problems);
       if (object10) {
-        expectStringArray(object10.stories, at(path, 'stories'), problems);
-        const oneOf11 = object10.settled;
-        const where12 = at(path, 'settled');
-        if (oneOf11 === 'timed-out') {
+        expectStringArray(object10.scenes, at(path, 'scenes'), problems);
+        const where11 = at(path, 'threwAtBoot');
+        const object12 = asObject(object10.threwAtBoot, where11, problems);
+        if (object12) {
+          expectString(object12.name, at(where11, 'name'), problems);
+          expectString(object12.message, at(where11, 'message'), problems);
+          expectString(object12.file, at(where11, 'file'), problems);
+          expectNumber(object12.line, at(where11, 'line'), problems);
+          reportUnknownFields(object12, ['name', 'message', 'file', 'line'], where11, problems);
+        }
+        reportUnknownFields(object10, ['scenes', 'threwAtBoot'], path, problems);
+      }
+    } else if ('ready' in oneOf1) {
+      const object13 = asObject(oneOf1, path, problems);
+      if (object13) {
+        expectStringArray(object13.scenes, at(path, 'scenes'), problems);
+        expectString(object13.ready, at(path, 'ready'), problems);
+        expectStringArray(object13.stayedOn, at(path, 'stayedOn'), problems);
+        reportUnknownFields(object13, ['scenes', 'ready', 'stayedOn'], path, problems);
+      }
+    } else if ('playDone' in oneOf1) {
+      const object14 = asObject(oneOf1, path, problems);
+      if (object14) {
+        expectStringArray(object14.scenes, at(path, 'scenes'), problems);
+        expectStringArray(object14.route, at(path, 'route'), problems);
+        expectNumber(object14.bootMs, at(path, 'bootMs'), problems);
+        expectNumber(object14.reachedMs, at(path, 'reachedMs'), problems);
+        const where15 = at(path, 'playDone');
+        const list16 = asArray(object14.playDone, where15, problems);
+        if (list16) {
+          list16.forEach((entry17, index18) => {
+            readPosedPlayStep(entry17, atIndex(where15, index18), problems);
+          });
+        }
+        const where19 = at(path, 'targetMissing');
+        const object20 = asObject(object14.targetMissing, where19, problems);
+        if (object20) {
+          expectString(object20.tap, at(where19, 'tap'), problems);
+          expectNumber(object20.limitMs, at(where19, 'limitMs'), problems);
+          reportUnknownFields(object20, ['tap', 'limitMs'], where19, problems);
+        }
+        reportUnknownFields(
+          object14,
+          ['scenes', 'route', 'bootMs', 'reachedMs', 'playDone', 'targetMissing'],
+          path,
+          problems
+        );
+      }
+    } else if ('play' in oneOf1) {
+      const object21 = asObject(oneOf1, path, problems);
+      if (object21) {
+        expectStringArray(object21.scenes, at(path, 'scenes'), problems);
+        expectStringArray(object21.route, at(path, 'route'), problems);
+        expectNumber(object21.bootMs, at(path, 'bootMs'), problems);
+        expectNumber(object21.reachedMs, at(path, 'reachedMs'), problems);
+        const where22 = at(path, 'play');
+        const list23 = asArray(object21.play, where22, problems);
+        if (list23) {
+          list23.forEach((entry24, index25) => {
+            readPosedPlayStep(entry24, atIndex(where22, index25), problems);
+          });
+        }
+        const where26 = at(path, 'settled');
+        const object27 = asObject(object21.settled, where26, problems);
+        if (object27) {
+          expectNumber(object27.ms, at(where26, 'ms'), problems);
+          expectNumber(object27.frames, at(where26, 'frames'), problems);
+          reportUnknownFields(object27, ['ms', 'frames'], where26, problems);
+        }
+        readPosedView(object21.tree, at(path, 'tree'), problems);
+        reportUnknownFields(
+          object21,
+          ['scenes', 'route', 'bootMs', 'reachedMs', 'play', 'settled', 'tree'],
+          path,
+          problems
+        );
+      }
+    } else {
+      const object28 = asObject(oneOf1, path, problems);
+      if (object28) {
+        expectStringArray(object28.stories, at(path, 'stories'), problems);
+        const oneOf29 = object28.settled;
+        const where30 = at(path, 'settled');
+        if (oneOf29 === 'timed-out') {
           // the value is one of these
-        } else if (isPlainObject(oneOf11)) {
-          const object13 = asObject(oneOf11, where12, problems);
-          if (object13) {
-            expectNumber(object13.ms, at(where12, 'ms'), problems);
-            expectNumber(object13.frames, at(where12, 'frames'), problems);
-            reportUnknownFields(object13, ['ms', 'frames'], where12, problems);
+        } else if (isPlainObject(oneOf29)) {
+          const object31 = asObject(oneOf29, where30, problems);
+          if (object31) {
+            expectNumber(object31.ms, at(where30, 'ms'), problems);
+            expectNumber(object31.frames, at(where30, 'frames'), problems);
+            reportUnknownFields(object31, ['ms', 'frames'], where30, problems);
           }
         } else {
           reportWrongShape(
-            oneOf11,
+            oneOf29,
             '`"timed-out"` or `{ ms: number; frames: number }`',
-            where12,
+            where30,
             problems
           );
         }
-        if ('changing' in object10) {
-          expectStringArray(object10.changing, at(path, 'changing'), problems);
+        if ('changing' in object28) {
+          expectStringArray(object28.changing, at(path, 'changing'), problems);
         }
-        if ('stillReal' in object10) {
-          expectStringArray(object10.stillReal, at(path, 'stillReal'), problems);
+        if ('stillReal' in object28) {
+          expectStringArray(object28.stillReal, at(path, 'stillReal'), problems);
         }
-        if ('unanswered' in object10) {
-          const where14 = at(path, 'unanswered');
-          const list15 = asArray(object10.unanswered, where14, problems);
-          if (list15) {
-            list15.forEach((entry16, index17) => {
-              readUnansweredRequest(entry16, atIndex(where14, index17), problems);
+        if ('unanswered' in object28) {
+          const where32 = at(path, 'unanswered');
+          const list33 = asArray(object28.unanswered, where32, problems);
+          if (list33) {
+            list33.forEach((entry34, index35) => {
+              readUnansweredRequest(entry34, atIndex(where32, index35), problems);
             });
           }
         }
-        if ('threw' in object10) {
-          const where18 = at(path, 'threw');
-          const object19 = asObject(object10.threw, where18, problems);
-          if (object19) {
-            expectString(object19.name, at(where18, 'name'), problems);
-            expectString(object19.message, at(where18, 'message'), problems);
-            reportUnknownFields(object19, ['name', 'message'], where18, problems);
+        if ('threw' in object28) {
+          const where36 = at(path, 'threw');
+          const object37 = asObject(object28.threw, where36, problems);
+          if (object37) {
+            expectString(object37.name, at(where36, 'name'), problems);
+            expectString(object37.message, at(where36, 'message'), problems);
+            reportUnknownFields(object37, ['name', 'message'], where36, problems);
           }
         }
-        if ('parts' in object10) {
-          expectNumber(object10.parts, at(path, 'parts'), problems);
+        if ('parts' in object28) {
+          expectNumber(object28.parts, at(path, 'parts'), problems);
         }
-        if ('hasNetworkImage' in object10) {
-          expectBoolean(object10.hasNetworkImage, at(path, 'hasNetworkImage'), problems);
+        if ('hasNetworkImage' in object28) {
+          expectBoolean(object28.hasNetworkImage, at(path, 'hasNetworkImage'), problems);
         }
-        readPosedView(object10.tree, at(path, 'tree'), problems);
+        readPosedView(object28.tree, at(path, 'tree'), problems);
         reportUnknownFields(
-          object10,
+          object28,
           [
             'stories',
             'settled',
@@ -1254,18 +1354,11 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
           problems
         );
       }
-    } else {
-      reportWrongShape(
-        oneOf1,
-        "`{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: 'timed-out' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`",
-        path,
-        problems
-      );
     }
   } else {
     reportWrongShape(
       oneOf1,
-      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }` or `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`',
+      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }`, `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`, `{ scenes: string[]; threwAtBoot: { name: string; message: string; file: string; line: number } }`, `{ scenes: string[]; ready: string; stayedOn: string[] }`, `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; playDone: PosedPlayStep[]; targetMissing: { tap: string; limitMs: number } }` or `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; play: PosedPlayStep[]; settled: { ms: number; frames: number }; tree: PosedView }`',
       path,
       problems
     );
@@ -1806,9 +1899,12 @@ function readPushFactsPlatform(value: unknown, path: string, problems: string[])
     if ('storiesInBundle' in object1) {
       expectNumber(object1.storiesInBundle, at(path, 'storiesInBundle'), problems);
     }
+    if ('scenesInBundle' in object1) {
+      expectNumber(object1.scenesInBundle, at(path, 'scenesInBundle'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['madeBy', 'why', 'nativeChanges', 'storiesInBundle'],
+      ['madeBy', 'why', 'nativeChanges', 'storiesInBundle', 'scenesInBundle'],
       path,
       problems
     );
@@ -1895,6 +1991,9 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           if ('storiesInBundle' in object13) {
             expectNumber(object13.storiesInBundle, at(where12, 'storiesInBundle'), problems);
           }
+          if ('scenesInBundle' in object13) {
+            expectNumber(object13.scenesInBundle, at(where12, 'scenesInBundle'), problems);
+          }
           if ('reason' in object13) {
             expectString(object13.reason, at(where12, 'reason'), problems);
           }
@@ -1943,6 +2042,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
               'full',
               'capturedStories',
               'storiesInBundle',
+              'scenesInBundle',
               'reason',
               'storyFiles',
               'newStoryFiles',
@@ -2174,13 +2274,7 @@ function readBrokenStoryFile(value: unknown, path: string, problems: string[]): 
   const object1 = asObject(value, path, problems);
   if (object1) {
     expectString(object1.file, at(path, 'file'), problems);
-    const where2 = at(path, 'error');
-    const object3 = asObject(object1.error, where2, problems);
-    if (object3) {
-      expectString(object3.name, at(where2, 'name'), problems);
-      expectString(object3.message, at(where2, 'message'), problems);
-      reportUnknownFields(object3, ['name', 'message'], where2, problems);
-    }
+    readAppError(object1.error, at(path, 'error'), problems);
     reportUnknownFields(object1, ['file', 'error'], path, problems);
   }
 }
@@ -2252,6 +2346,30 @@ function readPosedView(value: unknown, path: string, problems: string[]): void {
       path,
       problems
     );
+  }
+}
+
+/** The shape of a `PosedPlayStep`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedPlayStep(value: unknown, path: string, problems: string[]): void {
+  const oneOf1 = value;
+  if (isPlainObject(oneOf1)) {
+    if ('tap' in oneOf1) {
+      const object2 = asObject(oneOf1, path, problems);
+      if (object2) {
+        expectString(object2.tap, at(path, 'tap'), problems);
+        reportUnknownFields(object2, ['tap'], path, problems);
+      }
+    } else if ('open' in oneOf1) {
+      const object3 = asObject(oneOf1, path, problems);
+      if (object3) {
+        expectString(object3.open, at(path, 'open'), problems);
+        reportUnknownFields(object3, ['open'], path, problems);
+      }
+    } else {
+      reportWrongShape(oneOf1, '`{ tap: string }` or `{ open: string }`', path, problems);
+    }
+  } else {
+    reportWrongShape(oneOf1, '`{ tap: string }` or `{ open: string }`', path, problems);
   }
 }
 
@@ -2376,9 +2494,18 @@ function readBuildStatusPlatform(value: unknown, path: string, problems: string[
         reportWrongShape(oneOf18, 'a number or `null`', where19, problems);
       }
     }
+    if ('scenesInBundle' in object1) {
+      const oneOf20 = object1.scenesInBundle;
+      const where21 = at(path, 'scenesInBundle');
+      if (typeof oneOf20 === 'number' || oneOf20 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf20, 'a number or `null`', where21, problems);
+      }
+    }
     reportUnknownFields(
       object1,
-      ['arrived', 'capture', 'appBuild', 'storiesInBundle'],
+      ['arrived', 'capture', 'appBuild', 'storiesInBundle', 'scenesInBundle'],
       path,
       problems
     );
@@ -2437,6 +2564,27 @@ function readStoredBaseSources(value: unknown, path: string, problems: string[])
       });
     }
     reportUnknownFields(object1, ['buildIndex', 'sources', 'modules'], path, problems);
+  }
+}
+
+/** The shape of a `AppError`, as `contracts/pose.contract.ts` publishes it. */
+function readAppError(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectString(object1.name, at(path, 'name'), problems);
+    expectString(object1.message, at(path, 'message'), problems);
+    if ('componentStack' in object1) {
+      expectString(object1.componentStack, at(path, 'componentStack'), problems);
+    }
+    if ('topFrames' in object1) {
+      expectStringArray(object1.topFrames, at(path, 'topFrames'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      ['name', 'message', 'componentStack', 'topFrames'],
+      path,
+      problems
+    );
   }
 }
 

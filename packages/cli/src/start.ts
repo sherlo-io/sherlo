@@ -67,6 +67,7 @@ import {
   LOGS_OPTION,
   PROPS_OPTION,
   STORY_OPTION,
+  SCENE_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
   DEFAULT_BUNDLER_PORT,
@@ -193,7 +194,7 @@ const COMMAND_DESCRIPTION = {
     'Record one story the way a Sherlo test run does, on the app you are running.\n' +
     '  Testing mode, the same stabilization, the same view tree - printed here, uploaded\n' +
     `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
-    `  includes the app's own log lines; \`--${LOGS_OPTION}\` prints those lines on the screen too.\n` +
+    `  includes Sherlo's log from the app; \`--${LOGS_OPTION}\` prints that log on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
   [COVERAGE_COMMAND]:
     'List the components no story draws, the most imported first.\n' +
@@ -324,6 +325,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${STORY_OPTION} <id>`,
     'The story to put on screen, by the id Storybook gives it (e.g. foundation-typography--scales)',
   ],
+  [SCENE_OPTION]: [
+    `--${SCENE_OPTION} <id>`,
+    'The scene to boot the app fresh on, by its id (e.g. chat--conversation) - instead of --story',
+  ],
   [PORT_OPTION]: [
     `--${PORT_OPTION} <port>`,
     `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
@@ -331,7 +336,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [JSON_OPTION]: [`--${JSON_OPTION}`, 'Print the whole record as JSON instead of a screen'],
   [LOGS_OPTION]: [
     `--${LOGS_OPTION}`,
-    "Also print the app's own log lines from this capture, after the story",
+    "Print Sherlo's latest log lines from the app not shown before (at most 1000)",
   ],
   [PROPS_OPTION]: [
     `--${PROPS_OPTION}`,
@@ -395,7 +400,7 @@ function addOpenCommand(program: Command) {
   addCommand({
     program,
     command: OPEN_COMMAND,
-    options: [STORY_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
+    options: [STORY_OPTION, SCENE_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
     action: open,
     withTimeout: false,
   });
@@ -407,7 +412,7 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [STORY_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
+    options: [STORY_OPTION, SCENE_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
     action: capture,
     withTimeout: false,
   });

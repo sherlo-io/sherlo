@@ -23,11 +23,13 @@
  */
 import chalk from 'chalk';
 import {
-  countStories,
+  countScreens,
+  nameScreens,
   renderFailedTestStep,
   renderHelpBlock,
   renderTestStep,
   renderVerdictSection,
+  type ScreenKind,
 } from './testSteps';
 
 /* ========================================================================== */
@@ -119,11 +121,13 @@ export function renderTestFinished(testIndex: number): string {
 
 /**
  * The green verdict, as a section: every story either matched or was already approved. The title
- * says it all, so nothing stands under it but the link.
+ * says it all, so nothing stands under it but the link. A build that holds scenes says so, as the
+ * started line does: `All scenes passed`, or `All stories and scenes passed` for both.
  */
-export function renderVerdictPassed(): string[] {
+export function renderVerdictPassed(holds: ScreenKind = 'stories'): string[] {
+  const title = `✅ All ${holds} passed`;
   // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
-  return renderVerdictSection('✅ All stories passed', [], 21);
+  return renderVerdictSection(title, [], title.length + 1);
 }
 
 /**
@@ -204,18 +208,20 @@ const NAMED_SCREEN_LIMIT = 10;
  * nobody says less than the tally does. Both fall back to `counts`.
  *
  * As a section, in init's grammar: the title says how many stories need review,
- * then one row per story - its name, and beside it in one column what happened.
+ * then one row per story - its name, and beside it in one column what happened. A build that
+ * holds scenes counts them as the started line does (`holds`: scenes, or stories and scenes).
  */
 export function renderVerdictReviewRequired(
   screens: VerdictScreen[] | undefined,
-  counts: { unreviewed: number; reported: number }
+  counts: { unreviewed: number; reported: number },
+  holds: ScreenKind = 'stories'
 ): string[] {
   const allScreens = screens ?? [];
   const needAPerson = allScreens.filter((screen) => !SETTLED_STATUSES.has(screen.status));
   if (needAPerson.length === 0) {
     return renderVerdictSection(
-      needReviewTitle(counts.unreviewed + counts.reported),
-      renderCountLines(counts)
+      needReviewTitle(counts.unreviewed + counts.reported, holds),
+      renderCountLines(counts, holds)
     );
   }
 
@@ -224,31 +230,38 @@ export function renderVerdictReviewRequired(
   const settled = allScreens.length - needAPerson.length;
   const nameWidth = Math.max(...named.map((screen) => screen.name.length));
 
-  return renderVerdictSection(needReviewTitle(needAPerson.length), [
+  return renderVerdictSection(needReviewTitle(needAPerson.length, holds), [
     ...named.map(
       (screen) => `${screen.name.padEnd(nameWidth)}   ${storyStatusWord(screen.status)}`
     ),
     ...(unnamed > 0 ? [`And ${unnamed} more to review.`] : []),
     ...(settled > 0
-      ? [chalk.dim(`${settled} other ${settled === 1 ? 'story has' : 'stories have'} no changes.`)]
+      ? [
+          chalk.dim(
+            `${settled} other ${nameScreens(settled, holds)} ${settled === 1 ? 'has' : 'have'} no changes.`
+          ),
+        ]
       : []),
   ]);
 }
 
 /** `⚠️ 3 stories need review`, `⚠️ 1 story needs review`. */
-function needReviewTitle(count: number): string {
-  return `⚠️ ${countStories(count)} ${count === 1 ? 'needs' : 'need'} review`;
+function needReviewTitle(count: number, holds: ScreenKind): string {
+  return `⚠️ ${countScreens(count, holds)} ${count === 1 ? 'needs' : 'need'} review`;
 }
 
 /**
  * The body when the wait could not name the stories: the reported ones counted, when there are
  * any, then what to do. The title above already counts the ones that need review.
  */
-function renderCountLines(counts: { unreviewed: number; reported: number }): string[] {
+function renderCountLines(
+  counts: { unreviewed: number; reported: number },
+  holds: ScreenKind
+): string[] {
   const { unreviewed, reported } = counts;
 
   return [
-    ...(reported > 0 ? [`${countStories(reported)} reported`] : []),
+    ...(reported > 0 ? [`${countScreens(reported, holds)} reported`] : []),
     `Open ${unreviewed + reported === 1 ? 'it' : 'them'} in Sherlo to approve or report.`,
   ];
 }

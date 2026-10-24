@@ -15,6 +15,14 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vm from 'node:vm';
+import { LAID_PATHS, packSealedCore } from '../../scripts/packSealedCore.js';
+import {
+  fakeCoreFiles,
+  fakeStorage,
+  fillFakeSdkPinnedTo,
+  manifestOf,
+  seamThisSdkSpeaks,
+} from './__mocks__/fakeStoredCore';
 import {
   LOADERS,
   refuseTestPublicKey,
@@ -407,6 +415,29 @@ describe('what the published package carries', () => {
     }
   });
 
+  it('a pinned core whose header states another seam than the SDK speaks is refused at packing', async () => {
+    const otherSeam = seamThisSdkSpeaks() + 1;
+    const files = fakeCoreFiles(otherSeam);
+    const manifest = manifestOf(files);
+    const { readStoredFile } = fakeStorage([{ manifest, files }]);
+    const sdkRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-'));
+    try {
+      fillFakeSdkPinnedTo(sdkRoot, manifest);
+
+      await expect(packSealedCore({ sdkRoot, readStoredFile })).rejects.toThrow(
+        'states the seam ' +
+          otherSeam +
+          ' in its header, but this SDK speaks the seam ' +
+          seamThisSdkSpeaks()
+      );
+      for (const { inSdk } of LAID_PATHS) {
+        expect(fs.existsSync(path.join(sdkRoot, inSdk))).toBe(false);
+      }
+    } finally {
+      fs.rmSync(sdkRoot, { recursive: true, force: true });
+    }
+  });
+
   it('a release build refuses the test public key', () => {
     // The repository's own loaders carry the test key, so a release pack stops before it fetches.
     const releasePack = () =>
@@ -632,5 +663,41 @@ describe('what CI and a release check', () => {
       expect.arrayContaining(['cli', 'react-native-storybook'])
     );
     expect(workflow).not.toMatch(/sherlo-core|@sherlo\/core|ndk/i);
+  });
+});
+
+describe('the native side starts capture from a launch argument', () => {
+  it('the packed SDK keeps ios/SherloCore.xcframework', () => {
+    // Outside CI no pack is made, so npm itself packs the SDK's own manifest and ignore file over
+    // an xcframework laid as a stored core lays it, file for file. A file list, ignore rule or
+    // glob that drops any part of it fails here, on every machine, not only in a pull request.
+    const sdkCopy = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-sdk-files-'));
+    for (const file of ['package.json', '.gitignore']) {
+      fs.copyFileSync(path.join(SDK_ROOT, file), path.join(sdkCopy, file));
+    }
+    const frameworkFiles = [
+      XCFRAMEWORK + '/Info.plist',
+      ...XCFRAMEWORK_SLICE_NAMES.flatMap((sliceName) =>
+        ['Headers/sherlo_core.h', 'Info.plist', 'SherloCore'].map(
+          (file) => XCFRAMEWORK + '/' + sliceName + '/SherloCore.framework/' + file
+        )
+      ),
+    ];
+    for (const file of frameworkFiles) {
+      fs.mkdirSync(path.dirname(path.join(sdkCopy, file)), { recursive: true });
+      fs.writeFileSync(path.join(sdkCopy, file), 'a laid core part');
+    }
+
+    const [packReport] = JSON.parse(
+      execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+        cwd: sdkCopy,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+    ) as [{ files: { path: string }[] }];
+    const packedFiles = packReport.files.map((file) => file.path);
+    fs.rmSync(sdkCopy, { recursive: true, force: true });
+
+    for (const file of frameworkFiles) expect(packedFiles, file).toContain(file);
   });
 });

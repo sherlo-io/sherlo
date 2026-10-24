@@ -135,9 +135,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
     case 'captured':
       return [
         `${chalk.green('✔')}  ${chalk.bold(state.storyId)} captured, the way a test run records it`,
-        chalk.dim(
-          `   settled in ${seconds(state.settledMs)} over ${state.frames} frames · testing mode`
-        ),
+        settledLine(state.settledMs, state.frames),
         ...(state.parts !== undefined && state.parts > 1
           ? [
               chalk.dim(
@@ -238,21 +236,19 @@ function stillRealLines(stillReal: string[] | undefined): string[] {
   ];
 }
 
-/** The requests that went to the real network: a test run sends them too, so a story that depends on them can change. */
+/** The requests no mock answered, each a method and an address. */
 function unansweredLines(unanswered: { method: string; url: string }[] | undefined): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
     '',
-    `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock - a test run sends ${
-      one ? 'it' : 'them'
-    } to the real network:`,
+    `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock:`,
     ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
   ];
 }
 
 /** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
-function treeLines(root: CapturedView): string[] {
+export function treeLines(root: CapturedView): string[] {
   return [
     ...viewLines(root, 0),
     '',
@@ -373,8 +369,14 @@ function countViews(view: CapturedView): number {
   return 1 + view.children.reduce((sum, child) => sum + countViews(child), 0);
 }
 
-function seconds(ms: number): string {
+/** `1.2s` - a duration the way every capture screen spells it. */
+export function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** The dim line that says how long the capture took to settle, for a story and for a scene alike. */
+export function settledLine(ms: number, frames: number): string {
+  return chalk.dim(`   settled in ${seconds(ms)} over ${frames} frames · testing mode`);
 }
 
 /** The same handful-and-a-count `sherlo open` offers, for the same reason. */
