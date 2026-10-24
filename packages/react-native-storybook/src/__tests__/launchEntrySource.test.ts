@@ -1,5 +1,6 @@
 /**
- * The launch entry Sherlo writes on Storybook's default setup (metro/launchTimeEntry.js): what it
+ * The launch entry Sherlo writes on Storybook's default setup, and for an app with scene files and
+ * no Storybook (metro/launchTimeEntry.js): what it
  * requires, and in which order, for each mode the native module can answer. The source is run with
  * a stubbed `require` and a stubbed native module; the open and capture listeners go to the suite's
  * fake core (./__mocks__/fakeSealedCore).
@@ -7,6 +8,13 @@
 import * as vm from 'vm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { NativeModules } from 'react-native';
+import {
+  __emitMessageFromTheConnection,
+  __getDialedAddresses,
+  __getSentMessages,
+  __resetConnection,
+} from './__mocks__/react-native';
+import { __resetForTests as resetTheLine, startTheLine } from '../connection/appLine';
 import { startWaitingAsTheApp } from '../openStoryChannel';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
 import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
@@ -22,13 +30,15 @@ type SherloBuild = 'storybook' | 'app-and-storybook';
 
 /**
  * Runs the launch entry of a build carrying `sherloBuild`, in an app the native module says is in
- * `mode`. Returns what happened, in order.
+ * `mode`; `hasStorybook` false is an app with scene files and no Storybook. Loading the SDK starts
+ * its line, as its index does. Returns what happened, in order.
  */
-function launch(sherloBuild: SherloBuild, mode: Mode): string[] {
+function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): string[] {
   const happened: string[] = [];
   const modules: Record<string, () => unknown> = {
     '@sherlo/react-native-storybook': () => {
       happened.push('the SDK');
+      startTheLine();
       return {};
     },
     '@sherlo/react-native-storybook/dist/SherloModule.js': () => ({
@@ -67,7 +77,7 @@ function launch(sherloBuild: SherloBuild, mode: Mode): string[] {
   }
 
   const runLaunchEntry = vm.runInThisContext(
-    '(function (require) {\n' + launchEntrySource(sherloBuild) + '\n})'
+    '(function (require) {\n' + launchEntrySource(sherloBuild, hasStorybook) + '\n})'
   );
   runLaunchEntry(stubbedRequire);
   return happened;
@@ -79,6 +89,8 @@ function fakeCore(): FakeSealedCore {
 
 beforeEach(() => {
   fakeCore().calls.length = 0;
+  __resetConnection();
+  resetTheLine();
   NativeModules.SourceCode = {
     getConstants: () => ({ scriptURL: 'http://localhost:8081/index.bundle?platform=ios' }),
   };
@@ -144,6 +156,51 @@ describe('the generated launch entry', () => {
     fakeCore().calls.length = 0;
     delete NativeModules.SourceCode;
     launch('app-and-storybook', 'default');
+    expect(fakeCore().calls.filter((call) => call.method === 'startWaitingAsTheApp')).toEqual([]);
+  });
+
+  it("a scenes-only app says hello on the bundler's line and waits for a capture", async () => {
+    expect(launch('app-and-storybook', 'default', false)).toEqual([
+      'the SDK',
+      'the open and capture listeners',
+      'the app side',
+    ]);
+
+    expect(__getSentMessages()[0]).toMatchObject({ action: 'hello' });
+    expect(__getDialedAddresses()).toEqual(['ws://localhost:8081/sherlo/line']);
+
+    const handedToTheCore = fakeCore().calls.filter(
+      (call) => call.method === 'startWaitingAsTheApp'
+    );
+    expect(handedToTheCore).toHaveLength(1);
+    const { capture } = handedToTheCore[0].args[0] as {
+      capture: { waitForACapture: (saying: unknown) => Promise<unknown> };
+    };
+    const saying = { mode: 'default', stories: ['chat--conversation'], answer: null };
+    const instruction = capture.waitForACapture(saying);
+    expect(__getSentMessages()).toContainEqual({ action: 'waitForACapture', ...saying });
+    __emitMessageFromTheConnection({ action: 'captureInstruction', storyId: 'chat--conversation' });
+    await expect(instruction).resolves.toEqual({ storyId: 'chat--conversation' });
+
+    // It has no Storybook side to reach.
+    expect(launchEntrySource('app-and-storybook', false)).not.toContain(STORYBOOK_SIDE_REQUEST);
+  });
+
+  it("a scenes-only app launched by a capture waits for that capture on the bundler's line", () => {
+    // A capture moves the app into testing mode on the scene, its JavaScript still the bundler's.
+    expect(launch('app-and-storybook', 'testing', false)).toContain(
+      'the open and capture listeners'
+    );
+    expect(__getDialedAddresses()).toEqual(['ws://localhost:8081/sherlo/line']);
+    expect(fakeCore().calls.filter((call) => call.method === 'startWaitingAsTheApp')).toHaveLength(
+      1
+    );
+
+    // A runner's launch of a scene runs JavaScript from the device, with no bundler beside it:
+    // nothing waits there, and its session is the early-boot module's (src/sceneBoot.ts).
+    fakeCore().calls.length = 0;
+    delete NativeModules.SourceCode;
+    launch('app-and-storybook', 'testing', false);
     expect(fakeCore().calls.filter((call) => call.method === 'startWaitingAsTheApp')).toEqual([]);
   });
 });
