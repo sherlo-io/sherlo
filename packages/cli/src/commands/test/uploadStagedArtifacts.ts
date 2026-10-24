@@ -68,7 +68,10 @@ async function uploadStagedArtifacts({
 
   // 2. Upload the assets archive - only when the bundler produced assets.
   if (bundleResult.assetsDest) {
-    const archivePath = path.join(os.tmpdir(), `sherlo-staged-assets-${platform}.tar.gz`);
+    // A folder of its own, so a second push of the same platform on this machine never
+    // shares (or removes) this archive.
+    const archiveFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-staged-assets-'));
+    const archivePath = path.join(archiveFolder, 'assets.tar.gz');
     try {
       // Pack the assets dir into a single gzipped tar (one S3 object). Use the
       // system tar via execFileSync (no shell) - the same approach buildBundle
@@ -87,7 +90,7 @@ async function uploadStagedArtifacts({
 
       keys.assetsS3Key = urls.assets.s3Key;
     } finally {
-      fs.rmSync(archivePath, { force: true });
+      fs.rmSync(archiveFolder, { recursive: true, force: true });
     }
   }
 
