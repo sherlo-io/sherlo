@@ -248,25 +248,15 @@ describe('a local capture leaves the device clean', () => {
           return { kind: 'no-app' };
         },
       });
-      const exits: Array<number | undefined> = [];
-      const exit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-        exits.push(code);
-        throw new Error('exit');
-      }) as never);
-
       let printed = '';
-      const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(((text: string) => {
-        printed += text;
-        return true;
-      }) as never);
       try {
         const transcript = await captureTranscript(() =>
-          command({ [SCENE_OPTION]: 'inbox--full' }).catch(() => undefined)
+          command({ [SCENE_OPTION]: 'inbox--full' }).catch((error: Error) => {
+            printed += error.message;
+          })
         );
         printed += transcript.stdout + transcript.stderr;
       } finally {
-        stderr.mockRestore();
-        exit.mockRestore();
         uninstallSocket();
         uninstallApp();
       }
@@ -276,10 +266,35 @@ describe('a local capture leaves the device clean', () => {
           'Install a debug build of your app (the debug variant, not release) and run the command again.'
       );
       expect(printed).not.toContain('run-as');
-      expect(exits).toEqual([1]);
+      expect(printed).toContain('ERROR:');
       expect(reachedTheApp).toBe(false);
     }
   );
+
+  it('a lost device or an unknown package is not called a non-debug build', async () => {
+    const lostDevice = 'adb: device offline while running run-as com.example.app';
+    const unknownPackage = 'run-as: unknown package: com.example.app';
+    for (const text of [lostDevice, unknownPackage]) {
+      uninstall();
+      const device = recordingDevice(ANDROID);
+      uninstall = installDeviceState({
+        ...device,
+        run: async (tool, args, options) => {
+          if (args.includes('run-as')) throw new Error(text);
+          return device.run(tool, args, options);
+        },
+      });
+
+      const refusal = await prepareCleanDevice(ANDROID.device, ANDROID.app).then(
+        () => undefined,
+        (error: unknown) => error
+      );
+
+      expect(refusal).toBeInstanceOf(Error);
+      expect((refusal as Error).name).not.toBe('NotDebuggableBuild');
+      expect((refusal as Error).message).toContain(text);
+    }
+  });
 
   it('the keychain is never touched locally', async () => {
     for (const target of [IOS, ANDROID]) {

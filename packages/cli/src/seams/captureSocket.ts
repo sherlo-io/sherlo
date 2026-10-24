@@ -126,7 +126,7 @@ export type SceneCaptureResult = ({ kind: 'no-bundler' } | { kind: 'no-app' } | 
 /** A story file that threw as the app loaded it, and what it threw, in its own words. */
 export type BrokenStoryFile = { file: string; error: AppError };
 
-/** A request a story made that no mock answered, so it went to the real network. */
+/** A request a story made that no mock answered; the app lists it whether the story refused it or let it through. */
 export type UnansweredRequest = { method: string; url: string };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */

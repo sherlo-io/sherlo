@@ -194,7 +194,7 @@ const COMMAND_DESCRIPTION = {
     'Record one story the way a Sherlo test run does, on the app you are running.\n' +
     '  Testing mode, the same stabilization, the same view tree - printed here, uploaded\n' +
     `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
-    `  includes the app's own log lines; \`--${LOGS_OPTION}\` prints those lines on the screen too.\n` +
+    `  includes Sherlo's log from the app; \`--${LOGS_OPTION}\` prints that log on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
   [COVERAGE_COMMAND]:
     'List the components no story draws, the most imported first.\n' +

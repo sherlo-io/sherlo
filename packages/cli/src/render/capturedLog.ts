@@ -2,7 +2,7 @@
  * WHAT `sherlo capture --logs` PRINTS, BESIDE THE STORY.
  *
  * A separate block from ../render/capturedStory (fixed, its golden poses pin it byte for byte): the
- * app's own log lines are additive evidence a developer opts into, never woven into the screen that
+ * Sherlo's log from the app is additive evidence a developer opts into, never woven into the screen that
  * command already prints. `--json` carries the same lines unconditionally (see ../seams/captureSocket);
  * this is the one door that puts them on a terminal too.
  */
