@@ -4,6 +4,7 @@ import deepenShallowClone from './deepenShallowClone';
 import getDefaultBranch from './getDefaultBranch';
 import gitFailureReason from './gitFailureReason';
 import parseRepoSlug from './parseRepoSlug';
+import { readMergedParents, readParentWindows } from './readMergeHistory';
 import runShellCommand from './runShellCommand';
 import { emit } from './transcriptSink';
 
@@ -45,6 +46,8 @@ export type GitInfo = Build['gitInfo'] & {
    * Only present when the canonical commit is a merge commit.
    */
   perParentAncestorCommitHashes?: string[][];
+  /** Each merge in the history sent: its hash, then its non-first parents. */
+  mergedParentCommitHashes?: string[][];
   /**
    * True fork-point between the PR branch and the base branch, computed as
    * `git merge-base HEAD^1 HEAD^2` on a synthetic merge ref.  This is the
@@ -297,21 +300,15 @@ async function getAdditionalGitInfo(
   await safe(async () => {
     const parents = additional.parentCommitHashes;
     if (!parents || parents.length < 2) return;
-    const windows: string[][] = [];
-    for (const parentSha of parents.slice(1)) {
-      try {
-        const out = await runShellCommand({
-          command: `git rev-list --first-parent --skip=1 --max-count=${ANCESTOR_LIMIT} ${parentSha}`,
-          projectRoot,
-        });
-        windows.push(out.split('\n').filter(Boolean));
-      } catch {
-        windows.push([]);
-      }
-    }
-    if (windows.length > 0) {
-      additional.perParentAncestorCommitHashes = windows;
-    }
+    const rest = parents.slice(1);
+    const windows = await readParentWindows(runShellCommand, projectRoot, rest, ANCESTOR_LIMIT);
+    if (windows.length > 0) additional.perParentAncestorCommitHashes = windows;
+  });
+
+  await safe(async () => {
+    const tips = [canonicalSha ?? 'HEAD', ...(additional.parentCommitHashes ?? []).slice(1)];
+    const merges = await readMergedParents(runShellCommand, projectRoot, tips, ANCESTOR_LIMIT);
+    if (merges.length > 0) additional.mergedParentCommitHashes = merges;
   });
 
   // mergeBaseSha: true fork-point between PR branch and base branch.

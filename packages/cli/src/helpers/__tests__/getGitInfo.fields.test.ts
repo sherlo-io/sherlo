@@ -183,6 +183,36 @@ describe('getGitInfo - perParentAncestorCommitHashes', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Merge parents (readMergeHistory)
+// ---------------------------------------------------------------------------
+
+describe('getGitInfo - mergedParentCommitHashes', () => {
+  it('names the other parents of every merge commit in the history it sends', async () => {
+    const fixture = ownRepository();
+    const { f1, merge1, g1, merge2 } = fixture.buildHistory([
+      { mark: 'c1', branch: 'main', message: 'c1', parents: [] },
+      { mark: 'f1', branch: 'feature', message: 'f1', file: 'f.txt', parents: ['c1'] },
+      mergeStep('merge1', ['c1', 'f1']),
+      { mark: 'g1', branch: 'other', message: 'g1', file: 'g.txt', parents: ['c1'] },
+      mergeStep('merge2', ['merge1', 'g1']),
+    ]);
+
+    const info = await getGitInfo(fixture.dir);
+
+    expect(info.mergedParentCommitHashes).toEqual([
+      [merge2, g1],
+      [merge1, f1],
+    ]);
+  });
+
+  it('names no merge parents for a history with no merges', async () => {
+    const info = await getGitInfo(threeCommits.repository.dir);
+
+    expect(info.mergedParentCommitHashes).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Dirty working tree
 // ---------------------------------------------------------------------------
 
