@@ -189,7 +189,7 @@ export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
 /** `sherlo capture --json`, `sherlo view --json` - print the whole record as JSON instead of a screen. */
 export const JSON_OPTION = 'json';
 /**
- * `sherlo capture --logs` - print the app's own log lines after the story. The record already
+ * `sherlo capture --logs` - print Sherlo's log from the app after the story. The record already
  * carries them (see `--json`); this is the one flag that puts them on the screen too.
  */
 export const LOGS_OPTION = 'logs';

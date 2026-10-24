@@ -376,7 +376,7 @@ export type TranscriptSegment =
   | { kind: 'captured-scene'; state: CapturedScene }
   /** The whole screen output of `sherlo coverage`. See ./coverage. */
   | { kind: 'coverage'; screen: CoverageScreen }
-  /** `sherlo capture --logs` - the app's own log lines, printed after the story. See ./capturedLog. */
+  /** `sherlo capture --logs` - Sherlo's log from the app, printed after the story. See ./capturedLog. */
   | { kind: 'captured-log'; logs: string[] }
   /* ---------------------------------------------------------------------- *
    * LOGGING IN - what `sherlo login` and `sherlo logout` print when they    *

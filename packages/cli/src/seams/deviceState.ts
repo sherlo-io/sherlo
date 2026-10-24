@@ -26,7 +26,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import getCwd from '../helpers/getCwd';
-import { EXIT_BLOCK } from '../helpers/exitCodes';
+import throwError from '../helpers/throwError';
 import { readProjectJson } from '../helpers/projectJson';
 import { cleanTheDevice, saveDeviceState } from './deviceStateSave';
 import { restoreDeviceState } from './deviceStateRestore';
@@ -73,12 +73,12 @@ export class NotDebuggableBuild extends Error {
 
 /**
  * What `sherlo capture --scene` and `sherlo open --scene` do when the device cannot be made clean:
- * a build that is not debuggable prints its own line and ends the command; anything else throws on.
+ * a build that is not debuggable ends the command through `throwError`, like every other refusal;
+ * anything else throws on.
  */
 export function endOnNotDebuggable(error: unknown): never {
   if (!(error instanceof NotDebuggableBuild)) throw error;
-  process.stderr.write(`${error.message}\n`);
-  return process.exit(EXIT_BLOCK);
+  return throwError({ message: error.message });
 }
 
 /* ========================================================================== */
@@ -101,8 +101,12 @@ export async function prepareCleanDevice(
   } catch (error) {
     // Nothing on the device has changed yet, so the half-made save is worth nothing.
     fs.rmSync(folder, { recursive: true, force: true });
-    // Only `run-as` reads an Android app's data, and it refuses a build that is not debuggable.
-    const refusedByRunAs = error instanceof Error && error.message.includes('run-as');
+    // Only `run-as` reads an Android app's data, and it refuses a build that is not debuggable
+    // with "package not debuggable"; a lost device or an unknown package says something else.
+    const refusedByRunAs =
+      error instanceof Error &&
+      error.message.includes('run-as') &&
+      error.message.includes('not debuggable');
     if (device.platform === 'android' && refusedByRunAs) throw new NotDebuggableBuild();
     throw error;
   }

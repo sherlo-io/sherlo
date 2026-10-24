@@ -1222,7 +1222,10 @@ export type BrokenStoryFile = {
   error: AppError;
 };
 
-/** A request a story made that no mock answered, so it went to the real network. */
+/**
+ * A request a story made that no mock answered; the app lists it whether the story refused it or
+ * let it through.
+ */
 export type UnansweredRequest = {
   method: string;
   url: string;
