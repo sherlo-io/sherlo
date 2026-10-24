@@ -86,6 +86,9 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
     if (addressHandedAtLaunch) {
         currentMode = MODE_TESTING;
         driver = DRIVER_RUNNER;
+        // A scene launch hands the scene's id beside the address: that scene is the story the
+        // app starts on, and the connection to the runner stays.
+        [SherloModuleCore keepStory:[SherloModuleCore captureArgument]];
 
         runSettingsArrival = dispatch_group_create();
         dispatch_group_enter(runSettingsArrival);
@@ -137,14 +140,33 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
  */
 + (void)startFromCaptureHandedAtLaunch {
 #if DEBUG
-    NSArray<NSString *> *arguments = NSProcessInfo.processInfo.arguments;
-    NSUInteger argumentIndex = [arguments indexOfObject:CAPTURE_ARGUMENT];
-    if (argumentIndex == NSNotFound) return;
+    NSString *storyId = [SherloModuleCore captureArgument];
+    if (!storyId) return;
 
-    NSString *storyId = argumentIndex + 1 < arguments.count ? arguments[argumentIndex + 1] : nil;
-    [SherloModuleCore startCaptureTestingOn:([storyId hasPrefix:@"-"] ? nil : storyId)];
+    [SherloModuleCore startCaptureTestingOn:storyId];
     NSLog(@"[%@] Testing mode: a capture launch%@", LOG_TAG, lastState ? @", on its story" : @"");
 #endif
+}
+
+/**
+ * The id after `-sherloCapture` in the launch arguments: @"" when the argument has none, nil when
+ * the launch has no such argument. The only place the argument is read.
+ */
++ (NSString *)captureArgument {
+    NSArray<NSString *> *arguments = NSProcessInfo.processInfo.arguments;
+    NSUInteger argumentIndex = [arguments indexOfObject:CAPTURE_ARGUMENT];
+    if (argumentIndex == NSNotFound) return nil;
+
+    NSString *storyId = argumentIndex + 1 < arguments.count ? arguments[argumentIndex + 1] : nil;
+    return (storyId == nil || [storyId hasPrefix:@"-"]) ? @"" : storyId;
+}
+
+/** Keeps `storyId` (when one is given) as the story the next start of the JavaScript lands on. */
++ (void)keepStory:(NSString *)storyId {
+    if (storyId.length == 0) return;
+    @synchronized([SherloModuleCore class]) {
+        lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"" };
+    }
 }
 
 /**
@@ -154,11 +176,7 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
 + (void)startCaptureTestingOn:(NSString *)storyId {
     currentMode = MODE_TESTING;
     driver = DRIVER_CAPTURE;
-    if (storyId.length > 0) {
-        @synchronized([SherloModuleCore class]) {
-            lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"" };
-        }
-    }
+    [SherloModuleCore keepStory:storyId];
 }
 
 #pragma mark - The connection

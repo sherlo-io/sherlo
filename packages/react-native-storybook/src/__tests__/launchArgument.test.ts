@@ -57,13 +57,13 @@ describe('the native side starts capture from a launch argument', () => {
     );
     const iosStart = methodBody(ios, /^\+ \(void\)startFromCaptureHandedAtLaunch \{/m);
     expect(iosStart).toMatch(/^#if DEBUG\n[\s\S]*^#endif$/m);
-    expect(iosStart).toContain('NSProcessInfo.processInfo.arguments');
+    expect(iosStart).toContain('[SherloModuleCore captureArgument]');
     // One helper sets the mode, the driver and the kept story; the capture's own move uses it too.
     expect(iosStart).toContain('[SherloModuleCore startCaptureTestingOn:');
     const iosKeep = methodBody(ios, /^\+ \(void\)startCaptureTestingOn:\(NSString \*\)storyId \{/m);
     expect(iosKeep).toContain('currentMode = MODE_TESTING;');
     expect(iosKeep).toContain('driver = DRIVER_CAPTURE;');
-    expect(iosKeep).toContain('@"nextSnapshot": @{ @"storyId": storyId }');
+    expect(iosKeep).toContain('[SherloModuleCore keepStory:storyId];');
     expect(methodBody(ios, /^- \(void\)openTesting:\(RCTBridge \*\)bridge/m)).toContain(
       '[SherloModuleCore startCaptureTestingOn:storyId]'
     );
@@ -95,7 +95,7 @@ describe('the native side starts capture from a launch argument', () => {
       /private static void startCaptureTestingOn\(String storyId\) \{/,
       '    '
     );
-    expect(androidKeep).toContain('nextSnapshot.put("storyId", storyId);');
+    expect(androidKeep).toContain('keepStory(storyId);');
     expect(androidKeep).toContain('currentMode = MODE_TESTING;');
     expect(androidKeep).toContain('driver = DRIVER_CAPTURE;');
     expect(androidCore.split('startCaptureTestingOn(storyId);').length - 1).toBe(2);

@@ -105,7 +105,9 @@ public class SherloInitProvider extends ContentProvider {
                 try {
                     Intent intent = activity.getIntent();
                     String address = intent != null ? intent.getStringExtra(ADDRESS_EXTRA) : null;
-                    SherloModuleCore.startFromAddressHandedAtLaunch(address);
+                    String captureId = intent != null && intent.hasExtra(CAPTURE_EXTRA)
+                            ? intent.getStringExtra(CAPTURE_EXTRA) : null;
+                    SherloModuleCore.startFromAddressHandedAtLaunch(address, captureId);
                     if (SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
                         startTestingWatch(ctx);
                     } else if (intent != null && intent.hasExtra(CAPTURE_EXTRA)) {
