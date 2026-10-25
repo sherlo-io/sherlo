@@ -89,12 +89,13 @@ export type WhatIsOnScreenReply =
   | { kind: 'not-at-story-browser' }
   | { kind: 'showing'; storyId: string };
 
-/** `sherlo capture`: walk this story with these numbers, and answer with its record. */
-export type CaptureStoryQuestion = {
-  action: 'captureStory';
-  storyId: string;
-  settings?: CaptureSettings;
-};
+/**
+ * `sherlo capture`: walk this story with these numbers, and answer with its record. A scene
+ * (`sherlo capture --scene`, `sherlo open --scene`) is asked by `sceneId` in place of `storyId`.
+ */
+export type CaptureStoryQuestion =
+  | { action: 'captureStory'; storyId: string; settings?: CaptureSettings }
+  | { action: 'captureStory'; sceneId: string; settings?: CaptureSettings };
 
 export type CaptureStoryReply =
   | CapturedAnswer

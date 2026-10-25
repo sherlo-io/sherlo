@@ -28,7 +28,8 @@
  *
  *   THE CAPTURE RELAY (`captureStory`) RELAYS. It pairs one waiting app with one waiting driver and
  *   keeps nothing once the answer has crossed. An app not in testing mode is told to move there,
- *   and is handed the story with the order, so it lands on it. An app whose JavaScript died as it
+ *   and is handed the story with the order, so it lands on it. A scene, asked by `sceneId`, is
+ *   handed to the app as `sceneId`, never as a story. An app whose JavaScript died as it
  *   started (`start-failed`) is the one thing it keeps: a capture of it is answered `crashed`, with
  *   the app's error, until that app's JavaScript waits for a capture again or its connection goes.
  *
@@ -635,23 +636,14 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     // A wait with no answer is the app ready for a capture. Pair it with a waiting driver now, or
     // hold it until a driver comes.
     if (driverWaiting !== null) {
-      // An app that cannot list its stories is not checked yet: it is checked once it is in
-      // testing mode and lists them.
-      if (stories !== null && stories.indexOf(driverWaiting.storyId) === -1) {
+      if (isAStoryTheAppLacks(stories, driverWaiting)) {
         var refused = driverWaiting;
         driverWaiting = null;
         refused.reply(noSuchStory(stories, brokenFiles, refused.storyId));
         return answerApp(app, {});
       }
 
-      // The story the app walks has to count as a test run, so the app has to be in testing mode,
-      // running code that reads the story files as they are now. Tell it to reload there, with the
-      // story to land on; the driver keeps waiting across the reload.
-      if (mustRestartForACapture(app, mode)) {
-        return answerApp(app, { restartIntoTesting: true, storyId: driverWaiting.storyId });
-      }
-
-      return answerApp(app, { storyId: driverWaiting.storyId, settings: driverWaiting.settings });
+      return answerApp(app, instructionFor(driverWaiting, app, mode));
     }
 
     holdTheApp(app, stories, brokenFiles, mode);
@@ -706,18 +698,51 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     appHolding = held;
   }
 
-  /** A driver: capture this story with these settings, and wait for what the app records. */
+  /**
+   * Whether the app's list of stories rules out the story a driver waits for. An app that cannot
+   * list its stories is not checked yet: it is checked once it is in testing mode and lists them.
+   * A scene is never in the list, so a scene is never checked against it.
+   */
+  function isAStoryTheAppLacks(stories, waiting) {
+    if (waiting.sceneId !== undefined) return false;
+    return stories !== null && stories.indexOf(waiting.storyId) === -1;
+  }
+
+  /**
+   * What the app is handed for the capture a driver waits for.
+   *
+   * The capture has to count as a test run, so the app has to be in testing mode, running code that
+   * reads the story files as they are now. Else it is told to reload there, with the id to land on
+   * (a scene's too: the app boots on a scene the way it lands on a story); the driver keeps waiting
+   * across the reload. An app in testing mode is handed a scene as `sceneId`, which the core walks
+   * with no Storybook, and a story as `storyId`, which it walks through Storybook's channel.
+   */
+  function instructionFor(waiting, app, mode) {
+    var isAScene = waiting.sceneId !== undefined;
+    if (mustRestartForACapture(app, mode)) {
+      return { restartIntoTesting: true, storyId: isAScene ? waiting.sceneId : waiting.storyId };
+    }
+    if (isAScene) return { sceneId: waiting.sceneId, settings: waiting.settings };
+    return { storyId: waiting.storyId, settings: waiting.settings };
+  }
+
+  /**
+   * A driver: capture this story, or this scene (`sceneId` in place of `storyId`, as
+   * `sherlo capture --scene` asks), with these settings, and wait for what the app records.
+   */
   function captureStory(question, reply) {
+    var sceneId = typeof question.sceneId === 'string' ? question.sceneId : undefined;
     var storyId = typeof question.storyId === 'string' ? question.storyId : '';
     var settings = question.settings;
 
     // No app is alive and waiting, and one died as it started: that is the answer, at once.
     if (appHolding === null && startFailures.length > 0) {
-      reply({
-        kind: 'crashed',
-        storyId: storyId,
-        error: startFailures[startFailures.length - 1].error,
-      });
+      var error = startFailures[startFailures.length - 1].error;
+      reply(
+        sceneId !== undefined
+          ? { kind: 'crashed', sceneId: sceneId, error: error }
+          : { kind: 'crashed', storyId: storyId, error: error }
+      );
       return function () {};
     }
 
@@ -726,7 +751,7 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
       return function () {};
     }
 
-    var waiting = { storyId: storyId, settings: settings, reply: reply };
+    var waiting = { storyId: storyId, sceneId: sceneId, settings: settings, reply: reply };
     driverWaiting = waiting;
 
     /** A driver that gave up waiting frees its place for the next one. */
@@ -738,18 +763,14 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
 
     var held = appHolding;
 
-    if (held.stories !== null && held.stories.indexOf(storyId) === -1) {
+    if (isAStoryTheAppLacks(held.stories, waiting)) {
       driverWaiting = null;
       held.answer({});
       reply(noSuchStory(held.stories, held.brokenFiles, storyId));
       return withdraw;
     }
 
-    if (mustRestartForACapture(held.app, held.mode)) {
-      held.answer({ restartIntoTesting: true, storyId: storyId });
-    } else {
-      held.answer({ storyId: storyId, settings: settings });
-    }
+    held.answer(instructionFor(waiting, held.app, held.mode));
     return withdraw;
   }
 

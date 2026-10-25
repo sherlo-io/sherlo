@@ -45,7 +45,8 @@ export async function captureLiveScene(params: {
   for (;;) {
     const answer = await askTheBundlerLine({
       port,
-      question: { action: 'captureStory', storyId: sceneId, settings },
+      // Asked as a scene, so the line hands the app a scene to walk, never a story.
+      question: { action: 'captureStory', sceneId, settings },
       patienceMs: SCENE_PATIENCE_MS,
     });
 
