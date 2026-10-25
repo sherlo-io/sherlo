@@ -48,7 +48,8 @@ export function __resetConnection(): void {
 export function __emitMessageFromTheConnection(message: Record<string, unknown>): void {
   const listeners: Array<(messageJson: string) => void> =
     (globalThis as any).__sherloTestMessageListeners ?? [];
-  listeners.forEach((listener) => listener(JSON.stringify(message)));
+  // A copy, as a real emitter has: a listener that stops itself must not skip the next one.
+  [...listeners].forEach((listener) => listener(JSON.stringify(message)));
 }
 
 export class NativeEventEmitter {
