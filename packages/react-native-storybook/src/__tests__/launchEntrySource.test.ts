@@ -8,19 +8,32 @@
 import * as http from 'http';
 import type { AddressInfo } from 'net';
 import * as vm from 'vm';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeModules } from 'react-native';
 import {
   __emitMessageFromTheConnection,
   __getDialedAddresses,
   __getSentMessages,
+  __getWrapperComponentProvider,
+  __resetWrapperComponentProvider,
   __resetConnection,
 } from './__mocks__/react-native';
 import { __resetForTests as resetTheLine, startTheLine } from '../connection/appLine';
+import { currentAppFiber } from '../componentNames';
 import { startWaitingAsTheApp } from '../openStoryChannel';
+import * as storyOfTheApp from '../storyOfTheApp';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
 import type { SherloLine } from '../../metro/sherloLine';
 import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
+
+// No renderer is installed here: the fiber StoryOfTheApp renders from is stood in for, and its
+// effect runs at once.
+const theAppsRootFiber: Record<string, unknown> = {};
+vi.mock('its-fine', () => ({ useFiber: () => theAppsRootFiber }));
+vi.mock('react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react')>()),
+  useEffect: (effect: () => void) => void effect(),
+}));
 
 const {
   launchEntrySource,
@@ -61,6 +74,12 @@ function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): s
       startWaitingAsTheApp: () => {
         happened.push('the open and capture listeners');
         startWaitingAsTheApp();
+      },
+    }),
+    '@sherlo/react-native-storybook/dist/storyOfTheApp.js': () => ({
+      wrapTheAppInStoryOfTheApp: () => {
+        happened.push('the app wrapped');
+        storyOfTheApp.wrapTheAppInStoryOfTheApp();
       },
     }),
     [STORYBOOK_SIDE_REQUEST]: () => {
@@ -138,6 +157,7 @@ async function aBundlersLineWithTheAppOnIt() {
 beforeEach(() => {
   fakeCore().calls.length = 0;
   __resetConnection();
+  __resetWrapperComponentProvider();
   resetTheLine();
   NativeModules.SourceCode = {
     getConstants: () => ({ scriptURL: 'http://localhost:8081/index.bundle?platform=ios' }),
@@ -210,6 +230,7 @@ describe('the generated launch entry', () => {
   it("a scenes-only app says hello on the bundler's line and waits for a capture", async () => {
     expect(launch('app-and-storybook', 'default', false)).toEqual([
       'the SDK',
+      'the app wrapped',
       'the open and capture listeners',
       'the app side',
     ]);
@@ -232,6 +253,30 @@ describe('the generated launch entry', () => {
 
     // It has no Storybook side to reach.
     expect(launchEntrySource('app-and-storybook', false)).not.toContain(STORYBOOK_SIDE_REQUEST);
+  });
+
+  it("a scenes-only app's own root is remembered as the app the play steps walk", () => {
+    expect(launch('app-and-storybook', 'testing', false).slice(0, 3)).toEqual([
+      'the SDK',
+      'the app wrapped',
+      'the open and capture listeners',
+    ]);
+
+    // The app's root renders inside the wrapper React Native was given, before its entry runs.
+    const Wrapper = __getWrapperComponentProvider()?.() as (props: {
+      children: unknown;
+    }) => unknown;
+    const theAppsViews = { type: 'View', memoizedProps: {}, pendingProps: {} };
+    Object.assign(theAppsRootFiber, { child: theAppsViews, return: null });
+    theAppsRootFiber.stateNode = { current: theAppsRootFiber };
+    expect(currentAppFiber()).toBeUndefined();
+    expect(Wrapper({ children: 'the app' })).toBe('the app');
+    expect(currentAppFiber()?.child).toBe(theAppsViews);
+
+    // The Storybook roads set no wrapper: their decorator renders it.
+    __resetWrapperComponentProvider();
+    launch('app-and-storybook', 'testing');
+    expect(__getWrapperComponentProvider()).toBeUndefined();
   });
 
   it("a scenes-only app launched by a capture waits for that capture on the bundler's line", () => {
