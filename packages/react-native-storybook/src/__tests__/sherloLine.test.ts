@@ -503,6 +503,27 @@ describe('the relay hands the restart a story to land on, from whichever side as
       settings: SETTINGS,
     });
   });
+
+  it("refuses a scene the app's bundle does not hold once the app is in testing mode, naming the scenes it holds", async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const HELD = ['home--welcome', 'inbox--full'];
+    const MISSING = 'inbox--menu-open';
+
+    // An app not yet in testing mode reloads first: the reload brings the bundle as it is now.
+    await app.waitsForACapture({ mode: 'default', stories: null, scenes: HELD, answer: null });
+    const reply = driver.ask({ action: 'captureStory', sceneId: MISSING, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      restartIntoTesting: true,
+      storyId: MISSING,
+    });
+
+    // Back in testing mode on a bundle that still lacks it, the scene is never handed over.
+    await app.waitsForACapture({ mode: 'testing', stories: null, scenes: HELD, answer: null });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+    await expect(reply).resolves.toEqual({ kind: 'no-such-story', known: HELD });
+  });
 });
 
 describe('a capture of an app whose story files changed after its code loaded', () => {

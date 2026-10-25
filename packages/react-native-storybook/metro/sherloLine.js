@@ -29,7 +29,8 @@
  *   THE CAPTURE RELAY (`captureStory`) RELAYS. It pairs one waiting app with one waiting driver and
  *   keeps nothing once the answer has crossed. An app not in testing mode is told to move there,
  *   and is handed the story with the order, so it lands on it. A scene, asked by `sceneId`, is
- *   handed to the app as `sceneId`, never as a story. An app whose JavaScript died as it
+ *   handed to the app as `sceneId`, never as a story, and refused as a story the app does not have
+ *   when the scenes its bundle holds (`scenes`) rule it out. An app whose JavaScript died as it
  *   started (`start-failed`) is the one thing it keeps: a capture of it is answered `crashed`, with
  *   the app's error, until that app's JavaScript waits for a capture again or its connection goes.
  *
@@ -606,7 +607,7 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     return mode !== 'testing' || storyFileChangedSince(app.javaScriptStartedAt());
   }
 
-  /** The app: here is my mode, my stories and my answer; hand me the next capture. */
+  /** The app: here is my mode, my stories, my scenes and my answer; hand me the next capture. */
   function appWaitsForACapture(app, said) {
     appEverWaited = true;
     // An app whose JavaScript waits started cleanly this time, whatever the one before it did.
@@ -615,12 +616,16 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     // The JavaScript running now is the one that listens: an app's earlier wait is dropped.
     if (appHolding !== null && appHolding.app === app) appHolding.stopWaiting();
 
-    // Null stays null: an app that cannot list its stories is not an app with none.
-    var stories = Array.isArray(said.stories) ? said.stories : null;
-    // The story files that threw as the app loaded them, kept as the app said them.
-    var brokenFiles = Array.isArray(said.brokenFiles) ? said.brokenFiles : [];
+    var facts = {
+      // Null stays null: an app that cannot list its stories is not an app with none.
+      stories: Array.isArray(said.stories) ? said.stories : null,
+      // The scenes the app's bundle holds; null from an app whose SDK does not say them.
+      scenes: Array.isArray(said.scenes) ? said.scenes : null,
+      // The story files that threw as the app loaded them, kept as the app said them.
+      brokenFiles: Array.isArray(said.brokenFiles) ? said.brokenFiles : [],
+      mode: typeof said.mode === 'string' ? said.mode : '',
+    };
     var answer = said.answer == null ? null : said.answer;
-    var mode = typeof said.mode === 'string' ? said.mode : '';
 
     // A wait that carries an answer is the app answering the capture it was handed. Pass it to the
     // waiting driver, and let the app come back for the next capture.
@@ -636,17 +641,18 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     // A wait with no answer is the app ready for a capture. Pair it with a waiting driver now, or
     // hold it until a driver comes.
     if (driverWaiting !== null) {
-      if (isAStoryTheAppLacks(stories, driverWaiting)) {
+      var refusal = refusalOf(driverWaiting, app, facts);
+      if (refusal !== null) {
         var refused = driverWaiting;
         driverWaiting = null;
-        refused.reply(noSuchStory(stories, brokenFiles, refused.storyId));
+        refused.reply(refusal);
         return answerApp(app, {});
       }
 
-      return answerApp(app, instructionFor(driverWaiting, app, mode));
+      return answerApp(app, instructionFor(driverWaiting, app, facts.mode));
     }
 
-    holdTheApp(app, stories, brokenFiles, mode);
+    holdTheApp(app, facts);
   }
 
   /**
@@ -669,12 +675,10 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     return answer;
   }
 
-  function holdTheApp(app, stories, brokenFiles, mode) {
+  function holdTheApp(app, facts) {
     var held = {
       app: app,
-      stories: stories,
-      brokenFiles: brokenFiles,
-      mode: mode,
+      facts: facts,
       done: false,
 
       /** Take this wait off the line, once. True when this call is the one that took it off. */
@@ -699,13 +703,23 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
   }
 
   /**
-   * Whether the app's list of stories rules out the story a driver waits for. An app that cannot
-   * list its stories is not checked yet: it is checked once it is in testing mode and lists them.
-   * A scene is never in the list, so a scene is never checked against it.
+   * The answer that refuses what a driver waits for, or null when the app may be handed it.
+   *
+   * - A story is refused when the app's list of stories rules it out. An app that cannot list its
+   *   stories is not checked yet: it is checked once it is in testing mode and lists them.
+   * - A scene is never in that list. It is refused when the scenes the app's bundle holds rule it
+   *   out, and only on the JavaScript it would be handed to: an app told to reload first comes back
+   *   with the bundle as it is now, and is checked then. An app that does not say its scenes is not
+   *   checked. The refusal names the scenes the bundle holds, the way a story's names the stories.
    */
-  function isAStoryTheAppLacks(stories, waiting) {
-    if (waiting.sceneId !== undefined) return false;
-    return stories !== null && stories.indexOf(waiting.storyId) === -1;
+  function refusalOf(waiting, app, facts) {
+    if (waiting.sceneId === undefined) {
+      var lacksTheStory = facts.stories !== null && facts.stories.indexOf(waiting.storyId) === -1;
+      return lacksTheStory ? noSuchStory(facts.stories, facts.brokenFiles, waiting.storyId) : null;
+    }
+    var lacksTheScene = facts.scenes !== null && facts.scenes.indexOf(waiting.sceneId) === -1;
+    if (!lacksTheScene || mustRestartForACapture(app, facts.mode)) return null;
+    return { kind: 'no-such-story', known: facts.scenes };
   }
 
   /**
@@ -763,14 +777,15 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
 
     var held = appHolding;
 
-    if (isAStoryTheAppLacks(held.stories, waiting)) {
+    var refusal = refusalOf(waiting, held.app, held.facts);
+    if (refusal !== null) {
       driverWaiting = null;
       held.answer({});
-      reply(noSuchStory(held.stories, held.brokenFiles, storyId));
+      reply(refusal);
       return withdraw;
     }
 
-    held.answer(instructionFor(waiting, held.app, held.mode));
+    held.answer(instructionFor(waiting, held.app, held.facts.mode));
     return withdraw;
   }
 

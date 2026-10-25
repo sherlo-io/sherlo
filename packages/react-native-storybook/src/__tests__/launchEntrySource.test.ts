@@ -10,7 +10,7 @@ import type { AddressInfo } from 'net';
 import * as vm from 'vm';
 import { createElement, type ComponentType, type ReactNode } from 'react';
 import { act, create } from 'react-test-renderer';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeModules } from 'react-native';
 import {
   __emitMessageFromTheConnection,
@@ -51,6 +51,13 @@ const {
 } = require('../../metro/launchTimeEntry');
 const { attach, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
 const ws = require('ws');
+
+// The bundle holds the scene these captures ask for, as Sherlo's bundler writes its list.
+vi.mock('../bundledScenes', () => ({
+  default: {
+    'inbox--full': { filePath: './src/inbox.scenes.tsx', sceneName: 'Full', loadFile: () => ({}) },
+  },
+}));
 
 type Mode = 'default' | 'storybook' | 'testing';
 type SherloBuild = 'storybook' | 'app-and-storybook';
@@ -256,7 +263,11 @@ describe('the generated launch entry', () => {
     };
     const saying = { mode: 'default', stories: ['chat--conversation'], answer: null };
     const instruction = capture.waitForACapture(saying);
-    expect(__getSentMessages()).toContainEqual({ action: 'waitForACapture', ...saying });
+    expect(__getSentMessages()).toContainEqual({
+      action: 'waitForACapture',
+      scenes: ['inbox--full'],
+      ...saying,
+    });
     __emitMessageFromTheConnection({ action: 'captureInstruction', storyId: 'chat--conversation' });
     await expect(instruction).resolves.toEqual({ storyId: 'chat--conversation' });
 

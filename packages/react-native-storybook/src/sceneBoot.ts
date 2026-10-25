@@ -50,6 +50,9 @@ function switchOnTheLaunchedScene(): void {
     return;
   }
   const scene = bundledScenes[sceneId];
+  // An id this bundle holds no scene for is a story's, launched the same way, or a scene the
+  // bundle lacks. The launch cannot tell the two apart, the capture can: each of the app's waits
+  // says the scenes the bundle holds (./captureTransport), and the bundler refuses a scene it lacks.
   if (!scene) return;
 
   const file = (scene.loadFile() as { default?: SceneFile } | undefined)?.default;

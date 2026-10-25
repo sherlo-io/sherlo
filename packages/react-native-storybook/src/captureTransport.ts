@@ -13,6 +13,7 @@
  * `sherlo capture` finds no app waiting.
  */
 import { bundlerOrigin } from './bundlerOrigin';
+import bundledScenes from './bundledScenes';
 import { sendAndAwaitAnswer } from './connection/appLine';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import type { CaptureTransport, StorybookChannel } from './sealedCore/seam';
@@ -59,6 +60,9 @@ export function stopCaptureTransport(): void {
  * The capture relay on the bundler this app's JavaScript came from, or null when it did not come
  * from one. React Native names that bundler in the url it loaded the bundle from; a built app names
  * a file on the device instead, and a file has no capture relay.
+ *
+ * Each wait also says the scenes this bundle holds (./bundledScenes), so the relay refuses a scene
+ * the bundle lacks instead of handing it to an app that would capture its first screen.
  */
 export function bundlerCapture(): CaptureTransport | null {
   if (!bundlerOrigin()) return null;
@@ -66,7 +70,7 @@ export function bundlerCapture(): CaptureTransport | null {
   return {
     waitForACapture: (saying) =>
       sendAndAwaitAnswer(
-        { action: 'waitForACapture', ...saying },
+        { action: 'waitForACapture', scenes: Object.keys(bundledScenes), ...saying },
         'captureInstruction',
         ANSWER_TIMEOUT_MS
       ),
