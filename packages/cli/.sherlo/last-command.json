@@ -1,8 +1,0 @@
-{
-  "command": "test",
-  "flags": {
-    "ios": "app.tar.gz"
-  },
-  "exitCode": 0,
-  "errorLines": []
-}
