@@ -15,7 +15,7 @@ vi.mock('../SherloModule', () => ({
   },
 }));
 
-vi.mock('../connection/appLine', () => ({ send: sent }));
+vi.mock('../connection/appLine', () => ({ send: sent, logTheLine: () => {} }));
 
 vi.mock('../bundledScenes', () => ({
   default: {

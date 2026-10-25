@@ -8,6 +8,7 @@
  */
 import bundledScenes from '../bundledScenes';
 import { isBundlerAssetUrl } from '../bundlerOrigin';
+import { logTheLine } from '../connection/appLine';
 import { causeOfCrash, recordStoryError, threwOf } from '../getStorybook/storyErrorRegistry';
 import {
   SherloStepError,
@@ -123,7 +124,10 @@ async function waitForReady(sceneId: string): Promise<SceneReadyOutcome> {
   const rule = asRule(sceneOf(sceneId)?.ready) ?? {};
   const ready = [rule.testID ?? []].flat().join(', ');
   try {
+    logTheLine(`scene ${sceneId} ready rule waited`);
     const ended = await awaitReady(rule);
+    const ending = ended.outcome === 'timed-out' ? 'timed out' : 'met';
+    logTheLine(`scene ${sceneId} ready rule ${ending}`);
     if (ended.outcome === 'shown') return { outcome: 'shown', ready };
     if (ended.outcome === 'gone') return { outcome: 'gone', gone: [rule.gone ?? []].flat() };
     return { outcome: 'timed-out', ready, stayedOn: ended.route, seen: await viewsSeen() };

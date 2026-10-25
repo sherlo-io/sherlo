@@ -135,12 +135,10 @@ function createOldSetupAppWithAScene(): string {
     'dist/helpers/reportStorybookLoaded.js',
     'exports.__esModule = true;\nexports.default = function () {};\n'
   );
-  // The early-boot module's capture start for an app with its own Storybook: not used here.
-  sdk(
-    'dist/captureLaunch.js',
-    'exports.sceneOfTheCaptureOfAnAppWithStorybook = function () { return undefined; };\n'
-  );
+  // The launch's id and the bundle's scenes are read as the real module reads them.
+  sdk('dist/captureLaunch.js', transpiledSdkFile('captureLaunch.ts'));
   sdk('dist/captureTransport.js', 'exports.startCaptureOfTheLaunch = function () {};\n');
+  sdk('dist/connection/appLine.js', 'exports.logTheLine = function () {};\n');
   // The early-boot module's other imports, for a launch of an app with no Storybook: not used here.
   sdk('dist/appMetadata.js', 'exports.collectAppMetadata = function () {};\n');
   sdk(

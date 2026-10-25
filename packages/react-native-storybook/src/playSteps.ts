@@ -19,7 +19,7 @@
  * Time here is counted in polls, never read off the clock: a scene may freeze `Date.now()`.
  */
 import { Linking } from 'react-native';
-import RunnerBridge from './helpers/RunnerBridge';
+import { logTheLine } from './connection/appLine';
 import SherloModule from './SherloModule';
 import { currentAppFiber } from './componentNames';
 import type { InspectorDataNode, WalkedFiber } from './sealedCore/seam';
@@ -91,6 +91,7 @@ export async function playSteps(sceneId: string): Promise<string[]> {
   }
 
   for (const [index, step] of steps.entries()) {
+    logTheLine(`scene ${sceneId} step ${index + 1} of ${steps.length} started`);
     try {
       if ('tap' in step) {
         const found = await waitForTarget(targetOf(step.tap));
@@ -109,7 +110,7 @@ export async function playSteps(sceneId: string): Promise<string[]> {
       );
     }
     played.push(describe(step));
-    RunnerBridge.log('scene step played', { sceneId, step: index + 1 });
+    logTheLine(`scene ${sceneId} step ${index + 1} of ${steps.length} done`);
   }
   return played;
 }
