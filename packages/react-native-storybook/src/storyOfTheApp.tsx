@@ -11,6 +11,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { AppRegistry, View } from 'react-native';
 import { useFiber } from 'its-fine';
 import { rememberStoryOfTheApp } from './componentNames';
+import { logTheLine } from './connection/appLine';
 import { idOfTheTestingLaunch, sceneOfTheCaptureOfAnAppWithStorybook } from './captureLaunch';
 import { MetadataProvider } from './getStorybook/components/TestingMode/MetadataProvider';
 
@@ -71,6 +72,9 @@ function TheAppsWrapper({
   children: ReactNode;
   sceneId: string | undefined;
 }): ReactNode {
+  useEffect(() => {
+    if (sceneId) logTheLine(`scene ${sceneId} root rendered`);
+  }, [sceneId]);
   // Storybook's story view is a View whose testID is the story's id (@storybook/react-native's
   // StoryView), and the capture core keeps the collector's reading only when a view carries the
   // story's id (captureTransport.ts, namesTheStory). The view fills the screen as the app's root

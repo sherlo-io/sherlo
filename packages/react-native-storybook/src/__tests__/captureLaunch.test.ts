@@ -27,7 +27,7 @@ vi.mock('../bundledScenes', () => ({
   },
 }));
 
-import { sceneOfTheCaptureOfAnAppWithStorybook } from '../captureLaunch';
+import { idOfTheTestingLaunch, sceneOfTheCaptureOfAnAppWithStorybook } from '../captureLaunch';
 
 beforeEach(() => {
   launch.mode = 'testing';
@@ -65,4 +65,13 @@ it('a launch with no Storybook facts, a runner driving it, no story id or anothe
   launch.storyId = 'chat--conversation';
   launch.mode = 'default';
   expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+});
+
+it('a runner-driven launch reads the scene id the runner carries for a scene', () => {
+  launch.bundler = null;
+  launch.storyId = 'inbox--full';
+
+  expect(idOfTheTestingLaunch()).toBe('inbox--full');
+  launch.storyId = '';
+  expect(idOfTheTestingLaunch()).toBeUndefined();
 });

@@ -29,6 +29,7 @@ import {
   sceneOfTheCaptureOfAnAppWithStorybook,
 } from './captureLaunch';
 import { startCaptureOfTheLaunch } from './captureTransport';
+import { logTheLine } from './connection/appLine';
 import { activateSceneMocks } from './getStorybook/storyMockActivation';
 import { readStorybookFacts } from './getStorybook/storybookFacts';
 import { getSealedCore } from './sealedCore/loadSealedCore';
@@ -73,6 +74,7 @@ function startTheSessionOfAnAppWithoutStorybook(sceneId: string | undefined): vo
     announceAppShowsWhatItTests();
     reportStorybookLoaded();
     if (sceneId && isDrivenByRunner()) {
+      logTheLine(`scene ${sceneId} capture asked for`);
       // Before the safe area settles, the Storybook road's insets are zero too.
       walkTheStoryForTheRunner({
         insets: {
@@ -99,9 +101,11 @@ function switchOnTheLaunchedScene(): void {
   // bundle lacks. The launch cannot tell the two apart, the capture can: each of the app's waits
   // says the scenes the bundle holds (./captureTransport), and the bundler refuses a scene it lacks.
   if (!scene) return;
+  logTheLine(`scene ${sceneId} found in the bundle`);
 
   const file = (scene.loadFile() as { default?: SceneFile } | undefined)?.default;
   activateSceneMocks(sceneId, file?.mocks, file?.scenes[scene.sceneName]?.mocks, scene.filePath);
+  logTheLine(`scene ${sceneId} mocks applied`);
 }
 
 switchOnTheLaunchedScene();

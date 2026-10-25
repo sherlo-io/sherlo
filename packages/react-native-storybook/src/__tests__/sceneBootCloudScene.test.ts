@@ -22,7 +22,7 @@ vi.mock('../SherloModule', () => ({
     notifyGetStorybookCalled: () => {},
   },
 }));
-vi.mock('../connection/appLine', () => ({ send: vi.fn() }));
+vi.mock('../connection/appLine', () => ({ send: vi.fn(), logTheLine: () => {} }));
 vi.mock('../sealedCore/loadSealedCore', () => ({ getSealedCore: () => core }));
 vi.mock('../bundlerOrigin', () => ({ bundlerOrigin: () => launch.bundler }));
 vi.mock(import('../mocking'), async (importOriginal) => ({
