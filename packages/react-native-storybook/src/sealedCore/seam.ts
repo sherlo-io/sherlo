@@ -141,7 +141,12 @@ export type ScenePlayOutcome =
 export type SceneReadyOutcome =
   | { outcome: 'shown'; ready: string }
   | { outcome: 'gone'; gone: string[] }
-  | { outcome: 'timed-out'; ready: string; stayedOn: string[] };
+  | {
+      outcome: 'timed-out';
+      ready: string;
+      stayedOn: string[];
+      seen?: { testIDs: string[]; more: number };
+    };
 
 export type SealedCore = {
   /** The core's own version. */
@@ -939,8 +944,13 @@ export type CapturedScene =
       /** The app's whole window: a scene renders the app's own root. */
       tree: CapturedViewTree;
     })
-  /** The scene's ready view never showed; `stayedOn` is the route the app was on when it gave up. */
-  | (SceneFacts & { kind: 'never-reached'; ready: string; stayedOn: string[] })
+  /** The ready view never showed; `stayedOn` is the route the app was on, `seen` the test ids on screen (first ones, and the count of the rest). */
+  | (SceneFacts & {
+      kind: 'never-reached';
+      ready: string;
+      stayedOn: string[];
+      seen?: { testIDs: string[]; more: number };
+    })
   /** A play step found no view with its testID within its limit; `route` is where the app stood. */
   | (SceneFacts & {
       kind: 'play-target-missing';

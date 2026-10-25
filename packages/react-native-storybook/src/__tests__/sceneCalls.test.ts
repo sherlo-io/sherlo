@@ -8,11 +8,13 @@ const behind = vi.hoisted(() => ({
   scene: { play: [] as unknown[], ready: undefined as unknown },
   playSteps: vi.fn(),
   awaitReady: vi.fn(),
+  testIDsOnScreen: vi.fn(),
 }));
 
 vi.mock('../playSteps', async () => ({
   ...(await vi.importActual<typeof import('../playSteps')>('../playSteps')),
   playSteps: behind.playSteps,
+  testIDsOnScreen: behind.testIDsOnScreen,
 }));
 
 vi.mock('../storyReady', async () => ({
@@ -41,6 +43,8 @@ beforeEach(() => {
   behind.scene.ready = { testID: ['chat', 'composer'], gone: ['spinner'] };
   behind.playSteps.mockReset();
   behind.awaitReady.mockReset();
+  behind.testIDsOnScreen.mockReset();
+  behind.testIDsOnScreen.mockResolvedValue({ testIDs: [], more: 0 });
 });
 
 describe('the scene calls of the host', () => {
@@ -83,6 +87,7 @@ describe('the scene calls of the host', () => {
       outcome: 'timed-out',
       ready: 'inbox',
       stayedOn: ['SignIn'],
+      seen: { testIDs: [], more: 0 },
     });
     expect(behind.awaitReady).toHaveBeenCalledTimes(1);
   });
@@ -140,6 +145,32 @@ describe('the scene calls of the host', () => {
       outcome: 'timed-out',
       ready: 'chat, composer',
       stayedOn: ['Home', 'Chat'],
+      seen: { testIDs: [], more: 0 },
+    });
+  });
+
+  it('a scene whose ready view never shows reports the test ids that were on screen', async () => {
+    behind.awaitReady.mockResolvedValue({ outcome: 'timed-out', route: ['Home'], line: 'x' });
+    behind.testIDsOnScreen.mockResolvedValue({ testIDs: ['list', 'row-1'], more: 3 });
+
+    await expect(calls.awaitReady!(SCENE_ID)).resolves.toEqual({
+      outcome: 'timed-out',
+      ready: 'chat, composer',
+      stayedOn: ['Home'],
+      seen: { testIDs: ['list', 'row-1'], more: 3 },
+    });
+    expect(behind.testIDsOnScreen).toHaveBeenCalledWith(50);
+  });
+
+  it('a never-ready ending still reports when the screen cannot be read for its test ids', async () => {
+    behind.awaitReady.mockResolvedValue({ outcome: 'timed-out', route: ['Home'], line: 'x' });
+    behind.testIDsOnScreen.mockRejectedValue(new Error('no view tree'));
+
+    await expect(calls.awaitReady!(SCENE_ID)).resolves.toEqual({
+      outcome: 'timed-out',
+      ready: 'chat, composer',
+      stayedOn: ['Home'],
+      seen: { testIDs: [], more: 0 },
     });
   });
 

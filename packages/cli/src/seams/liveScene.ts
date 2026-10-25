@@ -235,6 +235,14 @@ async function iosDevelopmentLauncherLink(
 
 /* ========================================================================== */
 
+/** The test ids a never-reached scene saw on screen, as the app listed them; nothing when it listed none. */
+function keptSeen(said: unknown): { seen?: { testIDs: string[]; more: number } } {
+  const seen = said as { testIDs?: unknown; more?: unknown } | null | undefined;
+  if (!Array.isArray(seen?.testIDs)) return {};
+  const more = typeof seen.more === 'number' ? seen.more : 0;
+  return { seen: { testIDs: keepStrings(seen.testIDs), more } };
+}
+
 /** What the line said about the scene it was asked for, as one named ending. */
 export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | { kind: 'no-app' } {
   const answer = said as Record<string, unknown> | null | undefined;
@@ -253,6 +261,7 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
       sceneId,
       ready: typeof answer.ready === 'string' ? answer.ready : '',
       stayedOn: keepStrings(answer.stayedOn),
+      ...keptSeen(answer.seen),
     };
   }
 

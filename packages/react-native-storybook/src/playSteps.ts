@@ -180,7 +180,7 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
   }
   let waitedMs = 0;
   for (;;) {
-    const drawn = await visibleMatches(target);
+    const drawn = await visibleViews((fiber) => isTarget(fiber, target));
     const visible = drawn.filter((view) => view.reach !== 'offScreen');
     const found = visible[target.index ?? 0];
     if (found?.reach === 'underBars') throw new Error(UNDER_BARS_REASON);
@@ -199,14 +199,14 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
 }
 
 /**
- * The drawn views matching `target`, topmost first (then leftmost), each with where its middle
+ * The drawn views that `matching` accepts, topmost first (then leftmost), each with where its middle
  * lies (see `reachOf`). Read against the native tree when it can be: a view it does not draw is
  * left out. Without the tree, or the tags that join it to React's views (the old
  * renderer), every rendered match in render order.
  */
-async function visibleMatches(target: TapTarget): Promise<Found[]> {
+async function visibleViews(matching: (fiber: WalkedFiber) => boolean): Promise<Found[]> {
   const root = currentAppFiber();
-  const matches = root ? hostViewsMatching(root, target) : [];
+  const matches = root ? hostViewsMatching(root, matching) : [];
   if (matches.length === 0) return [];
 
   const drawn = await framesDrawnNatively();
@@ -224,18 +224,29 @@ async function visibleMatches(target: TapTarget): Promise<Found[]> {
   return found.sort((a, b) => a.frame!.y - b.frame!.y || a.frame!.x - b.frame!.x);
 }
 
-/** The host views under `root` carrying the target's testID or label, or showing its text. */
-function hostViewsMatching(root: WalkedFiber, target: TapTarget): WalkedFiber[] {
+/** The host views under `root` that `matching` accepts, in render order. */
+function hostViewsMatching(
+  root: WalkedFiber,
+  matching: (f: WalkedFiber) => boolean
+): WalkedFiber[] {
   const found: WalkedFiber[] = [];
   const pending: WalkedFiber[] = [root];
   for (let fiber = pending.pop(); fiber; fiber = pending.pop()) {
-    if (typeof fiber.type === 'string' && isTarget(fiber, target)) found.push(fiber);
+    if (typeof fiber.type === 'string' && matching(fiber)) found.push(fiber);
     // Children are pushed last-first so the walk visits them in render order.
     const children: WalkedFiber[] = [];
     for (let child = fiber.child; child; child = child.sibling) children.push(child);
     pending.push(...children.reverse());
   }
   return found;
+}
+
+/** The testIDs of the views on screen now: unique, in screen order, the first `limit` and the count of the rest. */
+export async function testIDsOnScreen(limit: number): Promise<{ testIDs: string[]; more: number }> {
+  const views = await visibleViews((fiber) => typeof fiber.memoizedProps?.testID === 'string');
+  const onScreen = views.filter((view) => view.reach !== 'offScreen');
+  const unique = [...new Set(onScreen.map((view) => String(view.fiber.memoizedProps?.testID)))];
+  return { testIDs: unique.slice(0, limit), more: Math.max(0, unique.length - limit) };
 }
 
 function isTarget(fiber: WalkedFiber, target: TapTarget): boolean {

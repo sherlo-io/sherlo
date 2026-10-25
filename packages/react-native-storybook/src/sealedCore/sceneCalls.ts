@@ -9,7 +9,14 @@
 import bundledScenes from '../bundledScenes';
 import { isBundlerAssetUrl } from '../bundlerOrigin';
 import { causeOfCrash, recordStoryError, threwOf } from '../getStorybook/storyErrorRegistry';
-import { SherloStepError, TAP_LOOKS_FOR_MS, nameOf, playSteps, targetOf } from '../playSteps';
+import {
+  SherloStepError,
+  TAP_LOOKS_FOR_MS,
+  nameOf,
+  playSteps,
+  targetOf,
+  testIDsOnScreen,
+} from '../playSteps';
 import { reachedRoute } from '../reachedScreen';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
 import { monotonicNow } from '../settleClock';
@@ -119,11 +126,24 @@ async function waitForReady(sceneId: string): Promise<SceneReadyOutcome> {
     const ended = await awaitReady(rule);
     if (ended.outcome === 'shown') return { outcome: 'shown', ready };
     if (ended.outcome === 'gone') return { outcome: 'gone', gone: [rule.gone ?? []].flat() };
-    return { outcome: 'timed-out', ready, stayedOn: ended.route };
+    return { outcome: 'timed-out', ready, stayedOn: ended.route, seen: await viewsSeen() };
   } catch (_) {
     // What the app threw while the wait ran is already the scene's error (./storyReady keeps it),
     // and the record reports that in place of the ready failure.
-    return { outcome: 'timed-out', ready, stayedOn: reachedRoute() };
+    return { outcome: 'timed-out', ready, stayedOn: reachedRoute(), seen: await viewsSeen() };
+  }
+}
+
+/** The most test ids a never-reached ending lists; the rest are only counted. */
+const SEEN_LIMIT = 50;
+
+/** The test ids on screen as the wait gave up; none listed when the screen cannot be read. */
+async function viewsSeen(): Promise<Awaited<ReturnType<typeof testIDsOnScreen>>> {
+  try {
+    return await testIDsOnScreen(SEEN_LIMIT);
+  } catch (_) {
+    // The list only helps the developer: a screen that cannot be read must not hide the ending.
+    return { testIDs: [], more: 0 };
   }
 }
 
