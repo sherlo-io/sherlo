@@ -44,7 +44,7 @@ let hasStarted = false;
  * One line in the phone's log about the bundler's line, so a capture that finds no app can be told
  * from the log: it holds the address, an action name or a wait's length, never a message body.
  */
-function logTheLine(what: string): void {
+export function logTheLine(what: string): void {
   console.log(`@sherlo/react-native-storybook: the bundler line ${what}`);
 }
 

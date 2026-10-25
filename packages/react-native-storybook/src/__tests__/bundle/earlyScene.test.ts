@@ -135,6 +135,29 @@ function createOldSetupAppWithAScene(): string {
     'dist/helpers/reportStorybookLoaded.js',
     'exports.__esModule = true;\nexports.default = function () {};\n'
   );
+  // The early-boot module's capture start for an app with its own Storybook: not used here.
+  sdk(
+    'dist/captureLaunch.js',
+    'exports.sceneOfTheCaptureOfAnAppWithStorybook = function () { return undefined; };\n'
+  );
+  sdk('dist/captureTransport.js', 'exports.startCaptureOfTheLaunch = function () {};\n');
+  // The early-boot module's other imports, for a launch of an app with no Storybook: not used here.
+  sdk('dist/appMetadata.js', 'exports.collectAppMetadata = function () {};\n');
+  sdk(
+    'dist/runnerWalk.js',
+    'exports.isDrivenByRunner = function () { return false; };\n' +
+      'exports.walkTheStoryForTheRunner = function () {};\n'
+  );
+  sdk(
+    'dist/storyOfTheApp.js',
+    'exports.installTheWrapperThatWrapsWhenSherlosStorybookIsAbsent = function () {};\n'
+  );
+  writeStandInPackage(
+    write,
+    'react-native-safe-area-context',
+    '5.0.0',
+    'exports.initialWindowMetrics = null;\n'
+  );
   sdk(
     'dist/sealedCore/loadSealedCore.js',
     'exports.getSealedCore = function () { return null; };\n'

@@ -7,11 +7,12 @@
  *
  * It draws nothing of its own: it hands back exactly the story it was given.
  */
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { AppRegistry, View } from 'react-native';
 import { useFiber } from 'its-fine';
 import { rememberStoryOfTheApp } from './componentNames';
 import SherloModule from './SherloModule';
+import { sceneOfTheCaptureOfAnAppWithStorybook } from './captureLaunch';
 import { MetadataProvider } from './getStorybook/components/TestingMode/MetadataProvider';
 
 export function StoryOfTheApp({ children }: { children: ReactNode }): ReactNode {
@@ -33,7 +34,33 @@ export function StoryOfTheApp({ children }: { children: ReactNode }): ReactNode 
  * back the root it was given. Called by the launch entry before the app's entry runs.
  */
 export function wrapTheAppInStoryOfTheApp(): void {
-  AppRegistry.setWrapperComponentProvider(() => TheAppsWrapper);
+  AppRegistry.setWrapperComponentProvider(() => TheScenesOnlyWrapper);
+}
+
+/** A scenes-only launch's scene is the launch's storyId, known at render, as sceneBoot.ts reads it. */
+function TheScenesOnlyWrapper({ children }: { children: ReactNode }): ReactNode {
+  const sceneId =
+    SherloModule.getMode() === 'testing'
+      ? SherloModule.getLastState()?.nextSnapshot.storyId
+      : undefined;
+  return <TheAppsWrapper sceneId={sceneId}>{children}</TheAppsWrapper>;
+}
+
+/**
+ * For a capture launch of an app with its own Storybook: install, before the app's entry runs, a
+ * wrapper that wraps the app's root as the scenes-only launch does (wrapTheAppInStoryOfTheApp). An
+ * entry that sets its own wrapper later wins, as on the scenes-only road. Whether this wrapper wraps
+ * is decided once, when the root first renders, by what the launch asks for (./captureLaunch): a
+ * scene of the bundle. A story's id never matches, so an app that shows a story with Sherlo's
+ * Storybook is not wrapped, whenever its getStorybook runs.
+ */
+export function installTheWrapperThatWrapsWhenSherlosStorybookIsAbsent(): void {
+  AppRegistry.setWrapperComponentProvider(() => TheAppsWrapperWhenNoSherlosStorybook);
+}
+
+function TheAppsWrapperWhenNoSherlosStorybook({ children }: { children: ReactNode }): ReactNode {
+  const [sceneId] = useState(sceneOfTheCaptureOfAnAppWithStorybook);
+  return sceneId ? <TheAppsWrapper sceneId={sceneId}>{children}</TheAppsWrapper> : children;
 }
 
 /**
@@ -41,16 +68,17 @@ export function wrapTheAppInStoryOfTheApp(): void {
  * capture reads the views' text and style through, and it holds the FiberProvider StoryOfTheApp
  * reads its fiber through (its-fine).
  */
-function TheAppsWrapper({ children }: { children: ReactNode }): ReactNode {
+function TheAppsWrapper({
+  children,
+  sceneId,
+}: {
+  children: ReactNode;
+  sceneId: string | undefined;
+}): ReactNode {
   // Storybook's story view is a View whose testID is the story's id (@storybook/react-native's
   // StoryView), and the capture core keeps the collector's reading only when a view carries the
-  // story's id (captureTransport.ts, namesTheStory). A scene's id is the launch's storyId, known
-  // at render (SherloModule.getLastState), as sceneBoot.ts reads it. The view fills the screen as
-  // the app's root would and is not collapsed, so it stays a native view.
-  const sceneId =
-    SherloModule.getMode() === 'testing'
-      ? SherloModule.getLastState()?.nextSnapshot.storyId
-      : undefined;
+  // story's id (captureTransport.ts, namesTheStory). The view fills the screen as the app's root
+  // would and is not collapsed, so it stays a native view.
   const app = <StoryOfTheApp>{children}</StoryOfTheApp>;
   return (
     <MetadataProvider>
