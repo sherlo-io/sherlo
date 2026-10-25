@@ -1,7 +1,9 @@
 /**
  * THE EARLY-BOOT MODULE: switches the launched scene's mocks on before the app's first module
  * runs, so a module that reads storage, the clock or a flag as it loads, or builds a socket class
- * at load, already meets the scene's fakes.
+ * at load, already meets the scene's fakes. It serves an app of scenes with no Storybook and a
+ * capture launch of an app with its own Storybook: it starts the session or the capture, and
+ * installs the wrapper that wraps the root in the scene's view.
  *
  * Sherlo's bundler config names this module to Metro as one to run before the bundle's main
  * module, after React Native's own start-up modules (metro/withStorybook.js, withSceneBoot): those
@@ -20,8 +22,12 @@
 import SherloModule from './SherloModule';
 import announceAppShowsWhatItTests from './helpers/announceAppShowsWhatItTests';
 import reportStorybookLoaded from './helpers/reportStorybookLoaded';
-import bundledScenes from './bundledScenes';
-import { sceneOfTheCaptureOfAnAppWithStorybook } from './captureLaunch';
+import {
+  bundleHoldsScenes,
+  bundledSceneOfId,
+  idOfTheTestingLaunch,
+  sceneOfTheCaptureOfAnAppWithStorybook,
+} from './captureLaunch';
 import { startCaptureOfTheLaunch } from './captureTransport';
 import { activateSceneMocks } from './getStorybook/storyMockActivation';
 import { readStorybookFacts } from './getStorybook/storybookFacts';
@@ -50,7 +56,7 @@ const SWITCHED_ON_FLAG = '__sherloLaunchedSceneSwitchedOn';
  * which waits until the scene is ready and answers the runner.
  */
 function startTheSessionOfAnAppWithoutStorybook(sceneId: string | undefined): void {
-  if (Object.keys(bundledScenes).length === 0) return;
+  if (!bundleHoldsScenes()) return;
   // Synchronously, before the app's entry runs: an entry that sets its own wrapper later wins, and
   // the wrapper decides at render whether it wraps (./storyOfTheApp). Both setups run this module
   // before the main module (metro/withStorybook.js, withSceneBoot).
@@ -85,10 +91,10 @@ function switchOnTheLaunchedScene(): void {
   host[SWITCHED_ON_FLAG] = true;
 
   if (SherloModule.getMode() !== 'testing') return;
-  const sceneId = SherloModule.getLastState()?.nextSnapshot.storyId;
-  startTheSessionOfAnAppWithoutStorybook(sceneId || undefined);
+  const sceneId = idOfTheTestingLaunch();
+  startTheSessionOfAnAppWithoutStorybook(sceneId);
   if (!sceneId) return;
-  const scene = bundledScenes[sceneId];
+  const scene = bundledSceneOfId(sceneId);
   // An id this bundle holds no scene for is a story's, launched the same way, or a scene the
   // bundle lacks. The launch cannot tell the two apart, the capture can: each of the app's waits
   // says the scenes the bundle holds (./captureTransport), and the bundler refuses a scene it lacks.

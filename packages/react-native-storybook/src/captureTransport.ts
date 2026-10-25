@@ -12,7 +12,7 @@
  * With no core installed there is no capture: `startCaptureTransport` starts nothing, and
  * `sherlo capture` finds no app waiting.
  */
-import { bundlerOrigin } from './bundlerOrigin';
+import { isDrivenByRunner } from './runnerWalk';
 import bundledScenes from './bundledScenes';
 import { logTheLine, sendAndAwaitAnswer } from './connection/appLine';
 import { readStorybookChannel } from './getStorybook/storybookReads';
@@ -86,7 +86,7 @@ export function stopCaptureTransport(): void {
  * the bundle lacks instead of handing it to an app that would capture its first screen.
  */
 export function bundlerCapture(): CaptureTransport | null {
-  if (!bundlerOrigin()) return null;
+  if (isDrivenByRunner()) return null;
 
   return {
     waitForACapture: (saying) =>
