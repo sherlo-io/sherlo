@@ -12,6 +12,11 @@ export default defineConfig({
       // react-native/index.js uses Flow syntax (`import typeof`) that Vite/Rollup
       // cannot parse. Alias to a minimal stub for the test environment.
       'react-native': path.resolve(__dirname, 'src/__tests__/__mocks__/react-native.ts'),
+      // The package's source is not plain JavaScript either.
+      'react-native-safe-area-context': path.resolve(
+        __dirname,
+        'src/__tests__/__mocks__/react-native-safe-area-context.ts'
+      ),
       // expo-dev-menu is an optional native peer dependency not installed in dev.
       'expo-dev-menu': path.resolve(__dirname, 'src/__tests__/__mocks__/expo-dev-menu.ts'),
     },

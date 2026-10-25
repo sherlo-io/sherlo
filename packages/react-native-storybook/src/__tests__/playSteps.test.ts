@@ -57,6 +57,7 @@ import { reachedRoute } from '../reachedScreen';
 import type { InspectorDataNode, WalkedFiber } from '../sealedCore/seam';
 import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
 import { __setOpenURL } from './__mocks__/react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 const SCENE_ID = 'chat--conversation';
 
@@ -76,6 +77,11 @@ type View = {
 let screen: 'discover' | 'chatList' | 'chat' = 'discover';
 const pressed: string[] = [];
 const WINDOW = { x: 0, y: 0, width: 390, height: 844 };
+/** The context providers wrapping the fake app's views, outermost first; none by default. */
+const safeArea: { providers: { context: unknown; value: object }[] } = { providers: [] };
+const INSETS = { top: 47, right: 0, bottom: 84, left: 0 };
+/** A spacing context of the same shape as the insets, which is not the safe area. */
+const SPACING_CONTEXT = { Provider: {}, displayName: 'SpacingContext' };
 
 /** What Pressability does with a responder's grant and release: `onPress` after a grant. */
 function pressable(name: string, onPress: () => void, delayPressInMs = 0): Record<string, any> {
@@ -200,7 +206,28 @@ function appRoot(): WalkedFiber {
   const props = { value: { getRootState: () => stateOf[screen] } };
   const root: WalkedFiber = { type: () => null, pendingProps: props, memoizedProps: props };
   // The views are built when asked, so they are always those of the screen now on.
-  Object.defineProperty(root, 'child', { get: () => fiberOf(views.now(), root) });
+  Object.defineProperty(root, 'child', {
+    get: () => {
+      // The providers wrap the views, the first outermost: a context fiber, as React 19 renders it.
+      let parent = root;
+      let top: WalkedFiber | undefined;
+      for (const { context, value } of safeArea.providers) {
+        const provider: WalkedFiber = {
+          type: context,
+          pendingProps: { value },
+          memoizedProps: { value },
+          return: parent,
+        };
+        if (parent === root) top = provider;
+        else parent.child = provider;
+        parent = provider;
+      }
+      const built = fiberOf(views.now(), parent);
+      if (!top) return built;
+      parent.child = built;
+      return top;
+    },
+  });
   return root;
 }
 
@@ -218,6 +245,7 @@ beforeEach(() => {
   rowsOnScreen = [];
   views.now = appViews;
   nativeTree.readable = true;
+  safeArea.providers = [];
   scene.play = [];
   scene.ready = undefined;
   rememberStoryOfTheApp(appRoot());
@@ -316,6 +344,21 @@ describe('a scene plays its steps', () => {
   });
 });
 
+/** The app is the one tab `Connections`, its top at `y`, 60 points high. */
+function tabAt(y: number): void {
+  views.now = () => ({
+    tag: 1,
+    frame: WINDOW,
+    children: [
+      {
+        tag: 12,
+        props: { testID: 'Connections', ...pressable('Connections', () => {}) },
+        frame: { x: 195, y, width: 97, height: 60 },
+      },
+    ],
+  });
+}
+
 describe('a step that cannot be played', () => {
   it('a step whose target never shows throws, naming the step', async () => {
     scene.play = [{ tap: 'Connections' }, { tap: 'connectionListItem' }];
@@ -347,6 +390,71 @@ describe('a step that cannot be played', () => {
 
     expect((outcome as Error).message).toContain('after 5 s');
     expect(TAP_LOOKS_FOR_MS).toBe(5_000);
+  });
+
+  it("a tap whose view lies under the phone's navigation bar fails the step and says the view is under the phone's bars", async () => {
+    safeArea.providers = [{ context: SafeAreaInsetsContext, value: INSETS }];
+    scene.play = [{ tap: 'Connections' }];
+
+    const error = await played().catch((thrown) => thrown);
+
+    expect(error).toBeInstanceOf(SherloStepError);
+    expect(error.message).toBe(
+      `Scene ${SCENE_ID} could not play step 1 of 1 (tap testID "Connections"): ` +
+        "the view is there but under the phone's bars or off screen, so a tap cannot reach it; keep it inside the safe area"
+    );
+    expect(pressed).toEqual([]);
+  });
+
+  it('a tap whose view lies inside the safe area still taps', async () => {
+    safeArea.providers = [{ context: SafeAreaInsetsContext, value: INSETS }];
+    tabAt(676);
+    scene.play = [{ tap: 'Connections' }];
+
+    await played();
+
+    expect(pressed).toEqual(['Connections']);
+  });
+
+  it('a context of the same shape as the insets does not put a view under the bars', async () => {
+    safeArea.providers = [{ context: SPACING_CONTEXT, value: INSETS }];
+    tabAt(780);
+    scene.play = [{ tap: 'Connections' }];
+
+    await played();
+
+    expect(pressed).toEqual(['Connections']);
+  });
+
+  it('the nearest safe-area provider above the view gives the insets, not an outer one', async () => {
+    safeArea.providers = [
+      { context: SafeAreaInsetsContext, value: INSETS },
+      { context: SafeAreaInsetsContext, value: { top: 0, right: 0, bottom: 0, left: 0 } },
+    ];
+    tabAt(780);
+    scene.play = [{ tap: 'Connections' }];
+
+    await played();
+
+    expect(pressed).toEqual(['Connections']);
+  });
+
+  it('a tap whose view lies off screen waits 5 seconds, then says the view is out of reach', async () => {
+    tabAt(900);
+    scene.play = [{ tap: 'Connections' }];
+    let outcome: unknown;
+    playSteps(SCENE_ID).then(
+      () => (outcome = 'played'),
+      (error) => (outcome = error)
+    );
+
+    await vi.advanceTimersByTimeAsync(4_800);
+    expect(outcome).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect((outcome as Error).message).toContain('a tap cannot reach it');
+    expect((outcome as Error).message).not.toContain('no visible view');
+    expect(pressed).toEqual([]);
   });
 
   it('throws for a view nothing answers a tap for, naming the step', async () => {

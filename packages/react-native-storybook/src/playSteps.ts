@@ -24,6 +24,8 @@ import SherloModule from './SherloModule';
 import { currentAppFiber } from './componentNames';
 import type { InspectorDataNode, WalkedFiber } from './sealedCore/seam';
 import type { OpenStep, PlayStep, TapTarget } from './scenes';
+import { reachOf, safeAreaInsetsAbove, UNDER_BARS_REASON } from './tapReach';
+import type { Frame, Reach } from './tapReach';
 import { asRule, awaitReady, mocksInstalled, sceneOf } from './storyReady';
 
 /** How long a link waits for the system to take it. */
@@ -164,9 +166,12 @@ async function openLink(step: OpenStep): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, LINK_SETTLE_MS));
 }
 
-/** Where a view sits in the window, in points. */
-type Frame = { x: number; y: number; width: number; height: number };
-type Found = { fiber: WalkedFiber; frame: Frame | undefined };
+type Found = {
+  fiber: WalkedFiber;
+  frame: Frame | undefined;
+  /** Where the middle of the view lies; unknown (taken as inside) without the native tree. */
+  reach?: Reach;
+};
 
 /** Poll until the target is on screen and drawn, and answer it. Throws when it never shows. */
 async function waitForTarget(target: TapTarget): Promise<Found> {
@@ -175,10 +180,14 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
   }
   let waitedMs = 0;
   for (;;) {
-    const visible = await visibleMatches(target);
+    const drawn = await visibleMatches(target);
+    const visible = drawn.filter((view) => view.reach !== 'offScreen');
     const found = visible[target.index ?? 0];
+    if (found?.reach === 'underBars') throw new Error(UNDER_BARS_REASON);
     if (found) return found;
     if (waitedMs >= TAP_WAIT_MS) {
+      // Views are there and every middle is off screen: a view animating in had its 5 s.
+      if (drawn.length > 0 && visible.length === 0) throw new Error(UNDER_BARS_REASON);
       const wanted = target.index ? ` (wanted #${target.index}, ${visible.length} visible)` : '';
       throw new NoVisibleView(
         `no visible view with ${nameOf(target)} after ${TAP_WAIT_MS / 1000} s${wanted}`
@@ -190,9 +199,9 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
 }
 
 /**
- * The views matching `target` that a finger could reach now, topmost first (then leftmost). Read
- * against the native tree when it can be: a view it does not draw, or whose middle is outside the
- * window, is left out. Without the tree, or the tags that join it to React's views (the old
+ * The drawn views matching `target`, topmost first (then leftmost), each with where its middle
+ * lies (see `reachOf`). Read against the native tree when it can be: a view it does not draw is
+ * left out. Without the tree, or the tags that join it to React's views (the old
  * renderer), every rendered match in render order.
  */
 async function visibleMatches(target: TapTarget): Promise<Found[]> {
@@ -208,7 +217,9 @@ async function visibleMatches(target: TapTarget): Promise<Found[]> {
   for (const fiber of matches) {
     const tag = nativeTagOf(fiber);
     const frame = tag === undefined ? undefined : drawn.frames.get(tag);
-    if (frame && middleIsInside(frame, drawn.window)) found.push({ fiber, frame });
+    if (frame) {
+      found.push({ fiber, frame, reach: reachOf(frame, drawn.window, safeAreaInsetsAbove(fiber)) });
+    }
   }
   return found.sort((a, b) => a.frame!.y - b.frame!.y || a.frame!.x - b.frame!.x);
 }
@@ -284,14 +295,6 @@ async function framesDrawnNatively(): Promise<
     pending.push(...(node.children ?? []));
   }
   return { frames, window: inPoints(data.viewHierarchy) };
-}
-
-function middleIsInside(frame: Frame, window: Frame): boolean {
-  const x = frame.x + frame.width / 2;
-  const y = frame.y + frame.height / 2;
-  return (
-    x >= window.x && x < window.x + window.width && y >= window.y && y < window.y + window.height
-  );
 }
 
 /* ---- The tap ------------------------------------------------------------------------------- */
