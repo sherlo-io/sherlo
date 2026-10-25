@@ -18,7 +18,8 @@ import { installCaptureSocket } from '../captureSocket';
 import type { CaptureSocket } from '../captureSocket';
 import { installLetterbox } from '../letterbox';
 import type { Letterbox } from '../letterbox';
-import { installDeviceState, prepareCleanDevice } from '../deviceState';
+import { installProjectFiles } from '../projectFiles';
+import { installDeviceState, liveDeviceState, prepareCleanDevice } from '../deviceState';
 import type { DeviceState, DeviceTool, SceneTarget } from '../deviceState';
 import { saveDeviceState } from '../deviceStateSave';
 import { restoreDeviceState } from '../deviceStateRestore';
@@ -310,12 +311,96 @@ describe('a local capture leaves the device clean', () => {
   });
 });
 
+describe('a capture finds the phone that has the app', () => {
+  const SIMULATORS = JSON.stringify({ devices: { ios: [{ udid: 'SIM-1', state: 'Booted' }] } });
+  const ADB_DEVICES = 'List of devices attached\nemulator-5554\tdevice\n';
+  const restores: Array<() => void> = [];
+
+  /** A Mac with a booted simulator and a connected emulator; the app is on the phones named. */
+  function twoPhones(appIsOn: Array<'ios' | 'android'>, project: Record<string, unknown>): void {
+    fs.writeFileSync(path.join(scratch, 'app.json'), JSON.stringify(project));
+    restores.push(installProjectFiles({ root: () => scratch }));
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    restores.push(() => Object.defineProperty(process, 'platform', platform!));
+    const lists = vi.spyOn(liveDeviceState, 'run').mockImplementation(async (tool) => {
+      return tool === 'xcrun' ? SIMULATORS : ADB_DEVICES;
+    });
+    restores.push(() => lists.mockRestore());
+    restores.push(
+      installDeviceState({
+        ...recordingDevice(undefined),
+        run: async (tool) => {
+          if (tool === 'xcrun' && !appIsOn.includes('ios')) throw new Error('not installed');
+          return tool === 'adb' && appIsOn.includes('android') ? 'package:/data/app/base.apk' : '';
+        },
+      })
+    );
+  }
+
+  afterEach(() => {
+    while (restores.length) restores.pop()!();
+  });
+
+  const BOTH_IDS = {
+    expo: { ios: { bundleIdentifier: 'com.a.ios' }, android: { package: 'com.a.and' } },
+  };
+
+  it('with a simulator and an emulator running, the capture picks the phone that has the app', async () => {
+    twoPhones(['android'], BOTH_IDS);
+    expect(await liveDeviceState.sceneTarget()).toEqual({
+      device: { platform: 'android', serial: 'emulator-5554' },
+      app: { id: 'com.a.and' },
+    });
+
+    restores
+      .splice(0)
+      .reverse()
+      .forEach((restore) => restore());
+    twoPhones(['ios'], BOTH_IDS);
+    expect(await liveDeviceState.sceneTarget()).toEqual({
+      device: { platform: 'ios', udid: 'SIM-1' },
+      app: { id: 'com.a.ios' },
+    });
+  });
+
+  it('several phones with the app, or none, name every phone found', async () => {
+    twoPhones(['ios', 'android'], BOTH_IDS);
+    const found = [
+      { platform: 'ios', appId: 'com.a.ios', hasApp: true },
+      { platform: 'android', appId: 'com.a.and', hasApp: true },
+    ];
+    expect(await liveDeviceState.sceneTarget()).toEqual({ cause: 'several-phones', found });
+
+    restores
+      .splice(0)
+      .reverse()
+      .forEach((restore) => restore());
+    twoPhones([], BOTH_IDS);
+    expect(await liveDeviceState.sceneTarget()).toEqual({
+      cause: 'several-phones',
+      found: found.map((phone) => ({ ...phone, hasApp: false })),
+    });
+  });
+
+  it('a project with no app id for any running phone is named no app id', async () => {
+    twoPhones(['ios', 'android'], {});
+    expect(await liveDeviceState.sceneTarget()).toEqual({
+      cause: 'no-app-id',
+      found: [
+        { platform: 'ios', hasApp: false },
+        { platform: 'android', hasApp: false },
+      ],
+    });
+  });
+});
+
 /* ========================================================================== */
 
 /** A device that answers the way a simulator or an emulator does, and keeps every call. */
 function recordingDevice(target: SceneTarget | undefined): DeviceState {
   return {
-    sceneTarget: async () => target,
+    sceneTarget: async () => target ?? { cause: 'no-phone', found: [] },
     simulatorFolder: () => simulator,
     makeSaveFolder: () => {
       const folder = fs.mkdtempSync(path.join(scratch, 'sherlo-clean-device-'));

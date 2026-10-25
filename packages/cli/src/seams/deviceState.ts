@@ -42,12 +42,26 @@ export type SceneApp = { id: string };
 
 export type SceneTarget = { device: SceneDevice; app: SceneApp };
 
+/** One running phone as the lookup saw it: its platform, the project's app id for it, and whether the app is on it. */
+export type PhoneFound = { platform: SceneDevice['platform']; appId?: string; hasApp: boolean };
+
+/** No target, and which of the three causes it was; `found` lists every running phone. */
+export type NoTarget = {
+  cause: 'no-phone' | 'several-phones' | 'no-app-id';
+  found: PhoneFound[];
+};
+
+/** Whether the lookup found the phone to run on. */
+export function isTarget(answer: SceneTarget | NoTarget): answer is SceneTarget {
+  return 'device' in answer;
+}
+
 /** The only programs this seam runs. */
 export type DeviceTool = 'xcrun' | 'adb' | 'applesimutils';
 
 export type DeviceState = {
-  /** The one device and app a local scene runs on, or nothing when there is not exactly one. */
-  sceneTarget(): Promise<SceneTarget | undefined>;
+  /** The one device and app a local scene runs on, or the cause of there being none. */
+  sceneTarget(): Promise<SceneTarget | NoTarget>;
   /** Run one device tool and answer what it printed; a tool that fails throws. */
   run(
     tool: DeviceTool,
@@ -210,10 +224,28 @@ function releaseTheHold(): void {
 export const liveDeviceState: DeviceState = {
   sceneTarget: async () => {
     const devices = [...(await bootedSimulators()), ...(await connectedAndroids())];
-    if (devices.length !== 1) return undefined;
+    const root = getCwd();
+    const phones = devices.map((device) => {
+      const id = appIdOf(device.platform, root);
+      const target = id ? { device, app: { id } } : undefined;
+      return { target, found: { platform: device.platform, appId: id, hasApp: false } };
+    });
+    // One phone is the target whether or not the app is on it: the capture then says "not installed".
+    if (phones.length === 1 && phones[0].target) return phones[0].target;
 
-    const id = appIdOf(devices[0].platform, getCwd());
-    return id ? { device: devices[0], app: { id } } : undefined;
+    // Several phones: the ones that have the app are the candidates.
+    const candidates: SceneTarget[] = [];
+    for (const { target, found } of phones) {
+      if (target && (await appIsInstalled(target))) {
+        found.hasApp = true;
+        candidates.push(target);
+      }
+    }
+    if (candidates.length === 1) return candidates[0];
+
+    const found = phones.map((phone) => phone.found);
+    if (phones.length === 0) return { cause: 'no-phone', found };
+    return { cause: found.every((phone) => !phone.appId) ? 'no-app-id' : 'several-phones', found };
   },
 
   run: (tool, args, { stdoutTo, stdinFrom } = {}) =>
@@ -336,7 +368,7 @@ export function posedDeviceState(): DeviceState {
     throw new Error('A pose has no device: a posed scene is never given a clean device.');
   };
   return {
-    sceneTarget: async () => undefined,
+    sceneTarget: async () => ({ cause: 'no-phone', found: [] }),
     run: noDevice,
     simulatorFolder: noDevice,
     makeSaveFolder: noDevice,

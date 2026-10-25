@@ -15,7 +15,7 @@
 import type { SceneEnding } from '../render/capturedScene';
 import { askTheBundlerLine } from './bundlerLine';
 import { STABILIZATION_SETTINGS } from './captureSocket';
-import type { SceneTarget } from './deviceState';
+import type { NoTarget, SceneTarget } from './deviceState';
 import { captureLiveScene } from './liveScene';
 
 /**
@@ -61,8 +61,8 @@ export type Letterbox = {
   openScene(params: {
     sceneId: string;
     port: number;
-    /** The device and app the scene launches on; none when the machine has not exactly one. */
-    target?: SceneTarget;
+    /** The device and app the scene launches on, or the cause of there being none. */
+    target: SceneTarget | NoTarget;
   }): Promise<OpenSceneResult>;
   /** Post one story to the waiting app, waiting for it to reach the screen when asked to. */
   openStory(params: {

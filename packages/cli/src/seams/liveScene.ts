@@ -13,8 +13,8 @@ import { drainAppLog, keepStrings } from './appLog';
 import { readAppError } from './appError';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
-import { deviceState } from './deviceState';
-import type { SceneTarget } from './deviceState';
+import { deviceState, isTarget } from './deviceState';
+import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
 import type { SceneCaptureResult, STABILIZATION_SETTINGS } from './captureSocket';
 
 /** How long the app has to boot, play the scene and settle before the command gives up on it. */
@@ -33,8 +33,17 @@ const HELLO_RETRY_MS = 1000;
  */
 export type NoApp = {
   kind: 'no-app';
-  why: 'no-target' | 'not-installed' | 'line-broke' | 'gave-up-waiting' | 'never-said-hello';
+  why:
+    | 'no-phone'
+    | 'several-phones'
+    | 'no-app-id'
+    | 'not-installed'
+    | 'line-broke'
+    | 'gave-up-waiting'
+    | 'never-said-hello';
   detail?: string;
+  /** For the causes of no target: every running phone, with its app id and whether it has the app. */
+  found?: PhoneFound[];
 };
 
 /**
@@ -45,10 +54,10 @@ export async function captureLiveScene(params: {
   sceneId: string;
   port: number;
   settings: typeof STABILIZATION_SETTINGS;
-  target: SceneTarget | undefined;
+  target: SceneTarget | NoTarget;
 }): Promise<SceneCaptureResult> {
   const { sceneId, port, settings, target } = params;
-  if (!target) return { kind: 'no-app', why: 'no-target' };
+  if (!isTarget(target)) return { kind: 'no-app', why: target.cause, found: target.found };
 
   await launchFresh(target, sceneId, port);
 

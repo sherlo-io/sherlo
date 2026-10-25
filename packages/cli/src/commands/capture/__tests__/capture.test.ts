@@ -227,7 +227,7 @@ describe('only a scene is given a clean device', () => {
       ...posedDeviceState(),
       sceneTarget: async () => {
         askedForADevice = true;
-        return undefined;
+        return { cause: 'no-phone', found: [] };
       },
     });
 

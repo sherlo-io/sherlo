@@ -27,6 +27,7 @@ import {
   appIsInstalled,
   deviceState,
   endOnNotDebuggable,
+  isTarget,
   prepareCleanDevice,
 } from '../../seams/deviceState';
 import type { CaptureResult, SceneCaptureResult } from '../../seams/captureSocket';
@@ -99,9 +100,9 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   // The scene runs on a clean device, and every ending - a throw included - puts it back.
   const target = await deviceState().sceneTarget();
   // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
-  const installed = !target || (await appIsInstalled(target));
+  const installed = !isTarget(target) || (await appIsInstalled(target));
   const restore =
-    target && installed
+    isTarget(target) && installed
       ? await prepareCleanDevice(target.device, target.app).catch(endOnNotDebuggable)
       : undefined;
   let answer: SceneCaptureResult;
