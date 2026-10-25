@@ -14,7 +14,8 @@
  */
 import { bundlerOrigin } from './bundlerOrigin';
 import bundledScenes from './bundledScenes';
-import { sendAndAwaitAnswer } from './connection/appLine';
+import { logTheLine, sendAndAwaitAnswer } from './connection/appLine';
+import { readStorybookChannel } from './getStorybook/storybookReads';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import type { CaptureTransport, StorybookChannel } from './sealedCore/seam';
 
@@ -27,7 +28,9 @@ const ANSWER_TIMEOUT_MS = 25000;
 
 /**
  * Start waiting on the bundler's capture relay: the core's driver walks the captures that arrive
- * on the road. A second call while the first is still collecting is a no-op.
+ * on the road. A second start while one is collecting does nothing (the core's own guard), so the
+ * start may come from `getStorybook` or from the scene boot (`startCaptureOfTheLaunch`), whichever
+ * runs first. It answers whether the core was handed the road.
  *
  * `capture` defaults to the bundler this app's JavaScript came from. A built app's JavaScript came
  * from inside the app, so there is no bundler beside it and no relay to wait on: nothing starts,
@@ -40,15 +43,33 @@ export function startCaptureTransport({
 }: {
   channel: StorybookChannel | null;
   capture?: CaptureTransport | null;
-}): void {
-  if (!channel) return;
+}): boolean {
+  if (!channel) return false;
   const core = getSealedCore();
-  if (!core) return;
+  if (!core) return false;
 
   const road = capture === undefined ? bundlerCapture() : capture;
-  if (!road) return;
+  if (!road) return false;
 
   core.startCaptureTransport({ channel, capture: road });
+  return true;
+}
+
+/**
+ * A capture launch of an app whose Storybook is not Sherlo's: `getStorybook` never runs, so nobody
+ * else asks the bundler's line for the capture. The scene boot calls this once Storybook has
+ * started; the core starts once while collecting, so `getStorybook` running too is fine. The caller
+ * has decided the launch is a capture (./captureLaunch). When the transport cannot start, the
+ * phone's log says so, so a capture that finds no app is not silent on this side.
+ */
+export function startCaptureOfTheLaunch(): void {
+  try {
+    if (startCaptureTransport({ channel: readStorybookChannel().value })) return;
+  } catch (error) {
+    logTheLine(`could not start waiting for a capture: ${String(error)}`);
+    return;
+  }
+  logTheLine('could not start waiting for a capture: no Storybook channel or no sealed core');
 }
 
 /** Stop waiting. The wait already sent is left to be answered, and its answer dropped. */

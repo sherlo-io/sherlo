@@ -12,17 +12,24 @@
  * The scene comes from the launch: in testing mode, the story the launch was handed is the
  * scene's id. Its file is required here, the one app file required before the entry: a scene
  * file names its mocks by import, and an import runs nothing until it is asked.
+ *
+ * A capture launch of an app with its own Storybook also installs, here and before the app's entry,
+ * the wrapper provider that wraps the app's root in the scene's view (./storyOfTheApp); an entry
+ * that sets its own provider later wins.
  */
 import SherloModule from './SherloModule';
 import announceAppShowsWhatItTests from './helpers/announceAppShowsWhatItTests';
 import reportStorybookLoaded from './helpers/reportStorybookLoaded';
 import bundledScenes from './bundledScenes';
+import { sceneOfTheCaptureOfAnAppWithStorybook } from './captureLaunch';
+import { startCaptureOfTheLaunch } from './captureTransport';
 import { activateSceneMocks } from './getStorybook/storyMockActivation';
 import { readStorybookFacts } from './getStorybook/storybookFacts';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { collectAppMetadata } from './appMetadata';
 import { isDrivenByRunner, walkTheStoryForTheRunner } from './runnerWalk';
+import { installTheWrapperThatWrapsWhenSherlosStorybookIsAbsent } from './storyOfTheApp';
 import type { SceneFile } from './scenes';
 
 // Set once a copy of this module has run: an app that holds two copies of the SDK switches the
@@ -44,7 +51,17 @@ const SWITCHED_ON_FLAG = '__sherloLaunchedSceneSwitchedOn';
  */
 function startTheSessionOfAnAppWithoutStorybook(sceneId: string | undefined): void {
   if (Object.keys(bundledScenes).length === 0) return;
+  // Synchronously, before the app's entry runs: an entry that sets its own wrapper later wins, and
+  // the wrapper decides at render whether it wraps (./storyOfTheApp). Both setups run this module
+  // before the main module (metro/withStorybook.js, withSceneBoot).
+  if (sceneId) installTheWrapperThatWrapsWhenSherlosStorybookIsAbsent();
   Promise.resolve().then(() => {
+    // Storybook is there, but Sherlo's getStorybook may never run (the app starts its own): a
+    // capture launch asks for its capture either way, and the core starts it once while collecting.
+    if (sceneOfTheCaptureOfAnAppWithStorybook()) {
+      startCaptureOfTheLaunch();
+      return;
+    }
     if (readStorybookFacts()) return;
     if (!sceneId) getSealedCore()?.startTestSession();
     announceAppShowsWhatItTests();

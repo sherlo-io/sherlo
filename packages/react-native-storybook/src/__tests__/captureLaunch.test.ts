@@ -1,0 +1,57 @@
+// src/captureLaunch.ts: the one decision that a launch is a capture of a scene of an app with its
+// own Storybook.
+const launch = vi.hoisted(() => ({
+  mode: 'testing',
+  storyId: 'chat--conversation' as string | undefined,
+  bundler: 'http://localhost:8081' as string | null,
+  facts: true,
+}));
+
+vi.mock('../SherloModule', () => ({
+  default: {
+    getMode: () => launch.mode,
+    getLastState: () => ({ nextSnapshot: { storyId: launch.storyId } }),
+  },
+}));
+vi.mock('../bundlerOrigin', () => ({ bundlerOrigin: () => launch.bundler }));
+vi.mock('../getStorybook/storybookFacts', () => ({
+  readStorybookFacts: () => (launch.facts ? {} : null),
+}));
+vi.mock('../bundledScenes', () => ({
+  default: {
+    'chat--conversation': { filePath: './a.scenes.tsx', sceneName: 'A', loadFile: () => {} },
+  },
+}));
+
+import { sceneOfTheCaptureOfAnAppWithStorybook } from '../captureLaunch';
+
+beforeEach(() => {
+  launch.mode = 'testing';
+  launch.storyId = 'chat--conversation';
+  launch.bundler = 'http://localhost:8081';
+  launch.facts = true;
+});
+
+it('a testing launch that names a scene of the bundle, with Storybook and a bundler, is a capture of that scene', () => {
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBe('chat--conversation');
+});
+
+it('a launch that names a story the bundle holds no scene for is not a capture', () => {
+  launch.storyId = 'button--primary';
+
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+});
+
+it('a launch with no Storybook facts, a runner driving it, no story id or another mode is not a capture', () => {
+  launch.facts = false;
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+  launch.facts = true;
+  launch.bundler = null;
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+  launch.bundler = 'http://localhost:8081';
+  launch.storyId = undefined;
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+  launch.storyId = 'chat--conversation';
+  launch.mode = 'default';
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+});
