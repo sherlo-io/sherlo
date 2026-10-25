@@ -26,8 +26,10 @@ import type { InspectorDataNode, WalkedFiber } from './sealedCore/seam';
 import type { OpenStep, PlayStep, TapTarget } from './scenes';
 import { asRule, awaitReady, mocksInstalled, sceneOf } from './storyReady';
 
-/** How long a tap waits for its view, and a link for the system to take it. */
+/** How long a link waits for the system to take it. */
 const STEP_TIMEOUT_MS = 10_000;
+/** How long a tap looks for its view: the 5 s the signed terminal text promises. */
+const TAP_WAIT_MS = 5_000;
 const POLL_MS = 100;
 /** How long the finger rests on the view: past a Pressable's press-in delay, short of a long press. */
 const PRESS_HOLD_MS = 150;
@@ -56,7 +58,7 @@ export class SherloStepError extends Error {
 class NoVisibleView extends Error {}
 
 /** How long a tap looks for its view, in ms: the limit the record names for a missing step. */
-export const TAP_LOOKS_FOR_MS = STEP_TIMEOUT_MS;
+export const TAP_LOOKS_FOR_MS = TAP_WAIT_MS;
 
 /**
  * Play the steps of scene `sceneId` in order, once its mocks are installed. Answers the steps
@@ -176,10 +178,10 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
     const visible = await visibleMatches(target);
     const found = visible[target.index ?? 0];
     if (found) return found;
-    if (waitedMs >= STEP_TIMEOUT_MS) {
+    if (waitedMs >= TAP_WAIT_MS) {
       const wanted = target.index ? ` (wanted #${target.index}, ${visible.length} visible)` : '';
       throw new NoVisibleView(
-        `no visible view with ${nameOf(target)} after ${STEP_TIMEOUT_MS / 1000} s${wanted}`
+        `no visible view with ${nameOf(target)} after ${TAP_WAIT_MS / 1000} s${wanted}`
       );
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
