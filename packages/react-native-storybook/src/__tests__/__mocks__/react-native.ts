@@ -12,7 +12,13 @@
  * module resets (__getSentMessages, __getDialedAddresses). __emitMessageFromTheConnection plays a
  * message the connection brings, to whoever listens through NativeEventEmitter.
  */
+import { createElement, type ReactNode } from 'react';
 import { fakeSealedCoreSource, seamThisSdkSpeaks } from './fakeSealedCore';
+
+/** A View that draws as a host element named View, keeping its props for a test to read. */
+export function View(props: { children?: ReactNode } & Record<string, unknown>) {
+  return createElement('View', props);
+}
 
 export { fakeSealedCoreSource };
 
