@@ -97,9 +97,7 @@ export function renderCapturedScene(state: CapturedScene): string[] {
         )} - its play could not go on`,
         ...state.done.map((step) => chalk.dim(`   ${playStep(step)}`)),
         '',
-        `  ${playStep(state.missing)} found no view with that testID within ${
-          state.limitMs / 1000
-        }s.`,
+        `  ${missedStep(state.missing.tap)} within ${state.limitMs / 1000}s.`,
         '',
       ];
 
@@ -122,6 +120,15 @@ export function renderCapturedScene(state: CapturedScene): string[] {
 /** `ChatStack › Chat` - the route as the app's navigation names it, outermost first. */
 export function route(names: string[]): string {
   return names.join(' › ');
+}
+
+/**
+ * `tap chat-header-menu found no view with that testID`. The app spells a tap by text or label as
+ * `text "Row"` / `label "Row"`; a bare name is a testID.
+ */
+function missedStep(tap: string): string {
+  const [, by, name] = /^(text|label) "([\s\S]*)"$/.exec(tap) ?? [];
+  return `tap ${by ? name : tap} found no view with that ${by ?? 'testID'}`;
 }
 
 /** `tap chat-header-menu` or `open feeld://chat-list` - one play step, spelt as the scene file spells it. */
