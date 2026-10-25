@@ -1,6 +1,6 @@
 /**
  * What each platform captures, read straight off the openBuild response for the test's Started row
- * (./stagedRun printTestStarted).
+ * (./startTheTest printTestStarted).
  */
 import type { Platform } from '@sherlo/api-types';
 import type { OpenBuildAnswer } from '../../seams/serverCalls';
