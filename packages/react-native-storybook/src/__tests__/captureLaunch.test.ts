@@ -5,6 +5,7 @@ const launch = vi.hoisted(() => ({
   storyId: 'chat--conversation' as string | undefined,
   bundler: 'http://localhost:8081' as string | null,
   facts: true,
+  storyIds: [] as string[],
 }));
 
 vi.mock('../SherloModule', () => ({
@@ -15,7 +16,10 @@ vi.mock('../SherloModule', () => ({
 }));
 vi.mock('../bundlerOrigin', () => ({ bundlerOrigin: () => launch.bundler }));
 vi.mock('../getStorybook/storybookFacts', () => ({
-  readStorybookFacts: () => (launch.facts ? {} : null),
+  readStorybookFacts: () =>
+    launch.facts
+      ? { storyIndex: Object.fromEntries(launch.storyIds.map((id) => [id, { id }])) }
+      : null,
 }));
 vi.mock('../bundledScenes', () => ({
   default: {
@@ -30,6 +34,13 @@ beforeEach(() => {
   launch.storyId = 'chat--conversation';
   launch.bundler = 'http://localhost:8081';
   launch.facts = true;
+  launch.storyIds = [];
+});
+
+it('a capture launch of a story whose id is also a scene id is not taken for a scene', () => {
+  launch.storyIds = ['chat--conversation'];
+
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
 });
 
 it('a testing launch that names a scene of the bundle, with Storybook and a bundler, is a capture of that scene', () => {
