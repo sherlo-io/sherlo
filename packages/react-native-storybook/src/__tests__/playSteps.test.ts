@@ -52,7 +52,7 @@ import { mock } from '../mocking/mockDeclaration';
 import { startStorybookHolding } from './mocking/storybookHolding';
 import { __resetRequestsInFlightForTests } from '../mocking/requestsInFlight';
 import { clearMocks } from '../mocking/registry';
-import { playSteps, SherloStepError } from '../playSteps';
+import { playSteps, SherloStepError, TAP_LOOKS_FOR_MS } from '../playSteps';
 import { reachedRoute } from '../reachedScreen';
 import type { InspectorDataNode, WalkedFiber } from '../sealedCore/seam';
 import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
@@ -326,11 +326,27 @@ describe('a step that cannot be played', () => {
     expect(error.name).toBe('SherloStepError');
     expect(error.message).toBe(
       `Scene ${SCENE_ID} could not play step 2 of 2 (tap testID "connectionListItem"): ` +
-        'no visible view with testID "connectionListItem" after 10 s'
+        'no visible view with testID "connectionListItem" after 5 s'
     );
     // The steps that did play are carried, so the record says how far the scene got.
     expect(error.played).toEqual(['tap testID "Connections"']);
     expect(pressed).toEqual(['Connections']);
+  });
+
+  it('a tap whose test id is on no view gives up after 5 seconds and reports the limit it waited', async () => {
+    scene.play = [{ tap: 'inbox-menu-button' }];
+    let outcome: unknown;
+    playSteps(SCENE_ID).then(
+      () => (outcome = 'played'),
+      (error) => (outcome = error)
+    );
+
+    await vi.advanceTimersByTimeAsync(4_800);
+    expect(outcome).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect((outcome as Error).message).toContain('after 5 s');
+    expect(TAP_LOOKS_FOR_MS).toBe(5_000);
   });
 
   it('throws for a view nothing answers a tap for, naming the step', async () => {

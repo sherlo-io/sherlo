@@ -65,7 +65,7 @@ describe('the scene calls of the host', () => {
     await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
       played: [{ open: 'app://home' }],
       missing: { tap: 'text "Row"' },
-      limitMs: 10_000,
+      limitMs: 5_000,
     });
   });
 
@@ -98,7 +98,7 @@ describe('the scene calls of the host', () => {
     await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
       played: [],
       missing: { tap: 'Inbox' },
-      limitMs: 10_000,
+      limitMs: 5_000,
     });
   });
 
