@@ -9,7 +9,16 @@
  * and requiring a scene file is left to the one launch that opens it.
  * A bundle made without Sherlo's bundler config holds no scenes.
  */
-export type BundledScene = { filePath: string; sceneName: string; loadFile: () => unknown };
+export type BundledScene = {
+  filePath: string;
+  /** The scene's key in its file (`MenuOpen`). */
+  sceneName: string;
+  /** The component's title in words (`Sign In`). */
+  title: string;
+  /** The scene's name in words (`Menu Open`). */
+  name: string;
+  loadFile: () => unknown;
+};
 
 const bundledScenes: Record<string, BundledScene> = {};
 

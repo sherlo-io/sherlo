@@ -1,7 +1,7 @@
 {
-  "version": "3.4.3",
-  "fingerprint": "56d8075030d106523367e9a313b9eafd5e9e7491baaef61965c40567ccb7d783",
-  "runnerSha": "90d7ad85fe7b04b6d2992358de14161d0315f08f",
-  "sourceTree": "a0d0d715a8463a559a2e253cf2815e139279e56c",
-  "seamHash": "c691d6a6d60945b64819681aceec3ddf123989bc8a8c6f406221f0f0059b34d5"
+  "version": "3.4.4",
+  "fingerprint": "e29efffa34756afffd7dc128f0ca9d884c017b10afa25f6f3ec4143a13001339",
+  "runnerSha": "22ffd82a53b9e26ccd434eda16c19caee2aad65b",
+  "sourceTree": "bcb0c446ac41afe87f49c6a6b8b16a037580d642",
+  "seamHash": "c00fe23ffd08564425baddb02254f2b60c2698a7d3d05013d1574b9369d72e44"
 }

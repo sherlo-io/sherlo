@@ -37,8 +37,12 @@ export type SealedCoreHost = {
   };
   /** What Storybook's start() was handed, or null in a launch where Storybook has not started. */
   storybookFacts: () => StorybookFacts | null;
-  /** The scenes the app holds, each with its id and its scene file; none when the app has none. */
-  scenes(): { id: string; file: string }[];
+  /**
+   * The scenes the app holds, in the order the app declares them, each with its id, its scene
+   * file, its component title and its scene name (already words, "Sign In" and "Menu Open");
+   * none when the app has none.
+   */
+  scenes(): { id: string; file: string; title: string; name: string }[];
   /** Storybook's channel, or null when nothing usable is reachable. */
   storybookChannel: () => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
@@ -550,7 +554,7 @@ export type Snapshot = {
    * Absent on older SDK versions; runner captures every story when missing.
    */
   importPath?: string;
-  /** True for a scene of the app (its id in displayName, its scene file in importPath), absent for a story. */
+  /** True for a scene of the app (its id in storyId, its scene file in importPath), absent for a story. */
   scene?: true;
 
   // storybook parameters

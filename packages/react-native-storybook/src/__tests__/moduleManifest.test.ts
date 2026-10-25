@@ -154,7 +154,7 @@ export default scenes({ scenes: { Full: {}, 'Empty Inbox': {} } });`
     fs.rmSync(root, { recursive: true, force: true });
 
     expect(Object.keys(manifest.storyClosures)).toEqual(['./src/Button.stories.tsx']);
-    expect(manifest.sceneIds).toEqual(['inbox--empty-inbox', 'inbox--full']);
+    expect(manifest.sceneIds).toEqual(['inbox--full', 'inbox--empty-inbox']);
   });
 });
 
