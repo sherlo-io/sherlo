@@ -127,6 +127,7 @@
     "esbuild": "^0.25.0",
     "react": "^19.2.3",
     "react-native-safe-area-context": "4.11.0",
+    "react-test-renderer": "^19.2.3",
     "storybook": "^9.1.20",
     "terser": "^5.46.0",
     "typescript": "7.0.2",

@@ -8,7 +8,9 @@
 import * as http from 'http';
 import type { AddressInfo } from 'net';
 import * as vm from 'vm';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createElement, type ComponentType, type ReactNode } from 'react';
+import { act, create } from 'react-test-renderer';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { NativeModules } from 'react-native';
 import {
   __emitMessageFromTheConnection,
@@ -26,14 +28,21 @@ import { getSealedCore } from '../sealedCore/loadSealedCore';
 import type { SherloLine } from '../../metro/sherloLine';
 import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
 
-// No renderer is installed here: the fiber StoryOfTheApp renders from is stood in for, and its
-// effect runs at once.
-const theAppsRootFiber: Record<string, unknown> = {};
-vi.mock('its-fine', () => ({ useFiber: () => theAppsRootFiber }));
-vi.mock('react', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('react')>()),
-  useEffect: (effect: () => void) => void effect(),
-}));
+/**
+ * Renders an app root inside the wrapper React Native was given, for real: no mock of its-fine or
+ * of React's hooks, and no provider of the test's own around it. A host element stands for the
+ * app's views.
+ */
+function renderTheAppInItsWrapper() {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const Wrapper = __getWrapperComponentProvider()?.() as ComponentType<{ children: ReactNode }>;
+  const theAppsViews = createElement('View', { testID: 'root' });
+  let rendered!: ReturnType<typeof create>;
+  act(() => {
+    rendered = create(createElement(Wrapper, null, theAppsViews));
+  });
+  return { rendered, theAppsViews };
+}
 
 const {
   launchEntrySource,
@@ -255,6 +264,16 @@ describe('the generated launch entry', () => {
     expect(launchEntrySource('app-and-storybook', false)).not.toContain(STORYBOOK_SIDE_REQUEST);
   });
 
+  it("a scenes-only app's wrapped root renders with no provider of the app's own around it", () => {
+    launch('app-and-storybook', 'testing', false);
+
+    // A provider the wrapper lacks throws here, as it did on the phone.
+    const { rendered, theAppsViews } = renderTheAppInItsWrapper();
+    expect(rendered.toJSON()).toEqual({ type: 'View', props: { testID: 'root' }, children: null });
+    expect(currentAppFiber()?.child?.memoizedProps).toBe(theAppsViews.props);
+    act(() => rendered.unmount());
+  });
+
   it("a scenes-only app's own root is remembered as the app the play steps walk", () => {
     expect(launch('app-and-storybook', 'testing', false).slice(0, 3)).toEqual([
       'the SDK',
@@ -263,15 +282,11 @@ describe('the generated launch entry', () => {
     ]);
 
     // The app's root renders inside the wrapper React Native was given, before its entry runs.
-    const Wrapper = __getWrapperComponentProvider()?.() as (props: {
-      children: unknown;
-    }) => unknown;
-    const theAppsViews = { type: 'View', memoizedProps: {}, pendingProps: {} };
-    Object.assign(theAppsRootFiber, { child: theAppsViews, return: null });
-    theAppsRootFiber.stateNode = { current: theAppsRootFiber };
     expect(currentAppFiber()).toBeUndefined();
-    expect(Wrapper({ children: 'the app' })).toBe('the app');
-    expect(currentAppFiber()?.child).toBe(theAppsViews);
+    const { rendered } = renderTheAppInItsWrapper();
+    expect(currentAppFiber()?.child?.type).toBe('View');
+    act(() => rendered.unmount());
+    expect(currentAppFiber()).toBeUndefined();
 
     // The Storybook roads set no wrapper: their decorator renders it.
     __resetWrapperComponentProvider();

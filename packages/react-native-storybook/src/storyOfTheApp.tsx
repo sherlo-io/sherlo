@@ -9,7 +9,7 @@
  */
 import { type ReactNode, useEffect } from 'react';
 import { AppRegistry } from 'react-native';
-import { useFiber } from 'its-fine';
+import { FiberProvider, useFiber } from 'its-fine';
 import { rememberStoryOfTheApp } from './componentNames';
 
 export function StoryOfTheApp({ children }: { children: ReactNode }): ReactNode {
@@ -31,5 +31,14 @@ export function StoryOfTheApp({ children }: { children: ReactNode }): ReactNode 
  * back the root it was given. Called by the launch entry before the app's entry runs.
  */
 export function wrapTheAppInStoryOfTheApp(): void {
-  AppRegistry.setWrapperComponentProvider(() => StoryOfTheApp);
+  AppRegistry.setWrapperComponentProvider(() => TheAppsWrapper);
+}
+
+/** StoryOfTheApp reads its fiber through its-fine, which needs the FiberProvider above it. */
+function TheAppsWrapper({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <FiberProvider>
+      <StoryOfTheApp>{children}</StoryOfTheApp>
+    </FiberProvider>
+  );
 }
