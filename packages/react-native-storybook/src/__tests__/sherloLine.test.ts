@@ -471,6 +471,38 @@ describe('the relay hands the restart a story to land on, from whichever side as
     await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer });
     await expect(reply).resolves.toEqual(answer);
   });
+
+  it('hands the app a scene asked for as a scene as its sceneId, and a story as its storyId', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const SCENE = 'inbox--full';
+
+    // An app not yet in testing mode reloads onto the scene, the way it lands on a story.
+    await app.waitsForACapture({ mode: 'default', stories: [STORY], answer: null });
+    void driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      restartIntoTesting: true,
+      storyId: SCENE,
+    });
+
+    // Back in testing mode it is handed the scene as a scene, never checked against its stories.
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: { kind: 'captured' } });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+
+    // A story is still handed as a story.
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
+  });
 });
 
 describe('a capture of an app whose story files changed after its code loaded', () => {

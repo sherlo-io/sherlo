@@ -135,7 +135,9 @@ describe('a scene is captured and opened live', () => {
       'xcrun simctl get_app_container UDID-1 com.example.chat',
       `xcrun simctl launch UDID-1 com.example.chat -sherloCapture ${SCENE}`,
     ]);
-    expect(bundler.asked[0]).toMatchObject({ action: 'captureStory', storyId: SCENE });
+    // The scene is asked for as a scene, so the line hands the app a scene to walk.
+    expect(bundler.asked[0]).toMatchObject({ action: 'captureStory', sceneId: SCENE });
+    expect(bundler.asked[0]).not.toHaveProperty('storyId');
 
     const screen = renderCapturedScene(capturedSceneEnding(answer, bundler.port)).join('\n');
     expect(screen).toContain('captured, the way a test run records it');
@@ -232,7 +234,7 @@ describe('a scene is captured and opened live', () => {
     });
   });
 
-  it('the app accepts a scene id where a story id goes, and answers with the scene record', async () => {
+  it('the app is handed the scene as a scene, and answers with the scene record', async () => {
     const server = http.createServer((request, response) => {
       response.writeHead(request.url === LINE_PATH ? 200 : 404, {
         'Content-Type': 'application/json',
@@ -273,7 +275,8 @@ describe('a scene is captured and opened live', () => {
         settings: STABILIZATION_SETTINGS,
         target: PHONE,
       });
-      expect(await instruction).toMatchObject({ storyId: SCENE, settings: STABILIZATION_SETTINGS });
+      // The core walks a scene only when handed it as `sceneId`: as a story it is never walked.
+      expect(await instruction).toEqual({ sceneId: SCENE, settings: STABILIZATION_SETTINGS });
       app.send(
         JSON.stringify({
           action: 'waitForACapture',
