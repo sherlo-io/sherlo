@@ -281,9 +281,3 @@ describe('getGitInfo - failure fallback', () => {
     }
   });
 });
-
-// Shells written in plan for bwg-sherlo-sends-merge-parents: the builder makes each one true.
-describe('the merges a push names', () => {
-  it.todo('names the other parents of every merge commit in the history it sends');
-  it.todo('names no merge parents for a history with no merges');
-});
