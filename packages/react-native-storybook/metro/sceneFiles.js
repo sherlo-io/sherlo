@@ -20,12 +20,11 @@ var toRelativePath = require('./projectPaths').toRelativePath;
 var idPart = require('./sherloLine').idPartOfTitle;
 
 /**
- * A scene's name the way Storybook turns a story's export name into the second part of its id:
- * `storyNameFromExport` splits the name into words (`MenuOpen` is "Menu Open", `Item2Full` is
- * "Item 2 Full"), then `toId` sanitizes. Follows storybook/internal/csf (`toStartCaseStr` and
- * `sanitize`), which an app without Storybook does not carry, so the rule is written out here.
+ * An export name or a file name in words, the way Storybook's `storyNameFromExport` makes a story's
+ * name (`toStartCaseStr`): `MenuOpen` is "Menu Open", `SignIn` is "Sign In". It is the one place
+ * the SDK makes words: a scene's name, a scene file's title and the id part all come from it.
  */
-function namePart(name) {
+function wordsOfName(name) {
   return String(name)
     .replace(/_/g, ' ')
     .replace(/-/g, ' ')
@@ -38,7 +37,17 @@ function namePart(name) {
       return space + letter.toUpperCase();
     })
     .replace(/ +/g, ' ')
-    .trim()
+    .trim();
+}
+
+/**
+ * A scene's name the way Storybook turns a story's export name into the second part of its id:
+ * `storyNameFromExport` splits the name into words (`MenuOpen` is "Menu Open", `Item2Full` is
+ * "Item 2 Full"), then `toId` sanitizes. Follows storybook/internal/csf (`toStartCaseStr` and
+ * `sanitize`), which an app without Storybook does not carry, so the rule is written out here.
+ */
+function namePart(name) {
+  return wordsOfName(name)
     .toLowerCase()
     .replace(/[ ’–—―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>{}[\]\\/]/gi, '-')
     .replace(/-+/g, '-')
@@ -102,11 +111,17 @@ function sceneIdsOfSource(fileName, source) {
   });
 }
 
-// Each scene one scene file declares: its id and its name in the file, in the order it lists them.
+// Each scene one scene file declares, in the order it lists them: its id, its key in the file, its
+// component title and its name, both in words (`Sign In`, `Menu Open`).
 function scenesOfSource(fileName, source) {
-  var fileId = idPart(sourceFiles.basenameWithoutExtension(fileName).replace(/\.scenes$/, ''));
-  return sceneNamesOf(source).map(function (name) {
-    return { id: fileId + '--' + namePart(name), name: name };
+  var component = sourceFiles.basenameWithoutExtension(fileName).replace(/\.scenes$/, '');
+  return sceneNamesOf(source).map(function (key) {
+    return {
+      id: idPart(component) + '--' + namePart(key),
+      key: key,
+      title: wordsOfName(component),
+      name: wordsOfName(key),
+    };
   });
 }
 
@@ -118,17 +133,18 @@ function scenesOfSource(fileName, source) {
  * @returns {string[]}
  */
 function findSceneFiles(projectRoot) {
-  return mockScan.findFiles(projectRoot, sourceFiles.isSceneFile);
+  return mockScan.findFiles(projectRoot, sourceFiles.isSceneFile).sort();
 }
 
 /**
- * The ids of every scene in the project, sorted, each once.
+ * The ids of every scene in the project, each once: files in path order, each file's scenes in the
+ * order it declares them. The CLI reads the manifest's ids as a set, so this order serves it.
  *
  * @param {string} projectRoot
  * @returns {string[]}
  */
 function readSceneIds(projectRoot) {
-  return Object.keys(scenesOfProject(projectRoot)).sort();
+  return Object.keys(scenesOfProject(projectRoot));
 }
 
 // Every scene in the project by its id: its name and its file, symlinks followed. A scene whose
@@ -143,7 +159,14 @@ function scenesOfProject(projectRoot) {
       return;
     }
     scenesOfSource(path.basename(file), source).forEach(function (scene) {
-      if (!scenes[scene.id]) scenes[scene.id] = { name: scene.name, file: fs.realpathSync(file) };
+      if (!scenes[scene.id]) {
+        scenes[scene.id] = {
+          key: scene.key,
+          title: scene.title,
+          name: scene.name,
+          file: fs.realpathSync(file),
+        };
+      }
     });
   });
   return scenes;
@@ -218,7 +241,7 @@ function isSceneFilePath(filePath) {
 // Writes the list of `scenes` into `cacheDir`, unless the file already says exactly that: every
 // write is a change the bundler rebuilds for.
 function writeSceneList(projectRoot, cacheDir, scenes) {
-  var ids = Object.keys(scenes).sort();
+  var ids = Object.keys(scenes);
   var realProjectRoot = fs.realpathSync(projectRoot);
   var entries = ids.map(function (id) {
     var scene = scenes[id];
@@ -227,7 +250,9 @@ function writeSceneList(projectRoot, cacheDir, scenes) {
       JSON.stringify(id) +
       ': {\n' +
       ('    filePath: ' + JSON.stringify(toRelativePath(scene.file, realProjectRoot)) + ',\n') +
-      ('    sceneName: ' + JSON.stringify(scene.name) + ',\n') +
+      ('    sceneName: ' + JSON.stringify(scene.key) + ',\n') +
+      ('    title: ' + JSON.stringify(scene.title) + ',\n') +
+      ('    name: ' + JSON.stringify(scene.name) + ',\n') +
       ('    loadFile: function () { return require(' + JSON.stringify(scene.file) + '); },\n') +
       '  },\n'
     );

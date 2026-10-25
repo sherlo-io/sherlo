@@ -25,7 +25,12 @@ vi.mock('../storyReady', async () => ({
 
 vi.mock('../bundledScenes', () => ({
   default: {
-    'chat--conversation': { filePath: './src/chat.scenes.tsx', sceneName: 'Conversation' },
+    'chat--conversation': {
+      filePath: './src/chat.scenes.tsx',
+      sceneName: 'Conversation',
+      title: 'Chat',
+      name: 'Conversation',
+    },
   },
 }));
 
@@ -48,8 +53,10 @@ beforeEach(() => {
 });
 
 describe('the scene calls of the host', () => {
-  it('lists every scene of the bundle with its id and its file', () => {
-    expect(calls.scenes()).toEqual([{ id: SCENE_ID, file: './src/chat.scenes.tsx' }]);
+  it('lists every scene of the bundle with its id, its file, its title and its name', () => {
+    expect(calls.scenes()).toEqual([
+      { id: SCENE_ID, file: './src/chat.scenes.tsx', title: 'Chat', name: 'Conversation' },
+    ]);
   });
 
   it('a scene whose steps all played answers the views and links it played, not its ready steps', async () => {

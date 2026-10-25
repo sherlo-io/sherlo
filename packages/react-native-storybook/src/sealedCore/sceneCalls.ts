@@ -43,7 +43,12 @@ type SceneCalls = Pick<
 export function sceneCallsForTheCore(): SceneCalls {
   return {
     scenes: () =>
-      Object.entries(bundledScenes).map(([id, scene]) => ({ id, file: scene.filePath })),
+      Object.entries(bundledScenes).map(([id, scene]) => ({
+        id,
+        file: scene.filePath,
+        title: scene.title,
+        name: scene.name,
+      })),
     playSteps: playTheSteps,
     awaitReady: waitForReady,
     reachedRoute,

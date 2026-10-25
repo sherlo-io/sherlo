@@ -126,6 +126,32 @@ describe('scene files are found and bundled', () => {
     expect(ids.slice(0, 2)).toEqual(['inbox--menu-open', 'inbox--full']);
   });
 
+  it("the scene list carries each scene's title and name in words, in declared order", () => {
+    const root = mkProject();
+    const cacheDir = path.join(root, 'cache');
+    const declare = (names: string[]) =>
+      `export default scenes({ scenes: { ${names.map((name) => name + ': {}').join(', ')} } });`;
+    writeFile(root, 'src/signin/SignIn.scenes.tsx', declare(['Empty']));
+    writeFile(root, 'src/inbox/Inbox.scenes.tsx', declare(['Full', 'Empty', 'MenuOpen']));
+    writeFile(root, 'src/home/Home.scenes.tsx', declare(['Default']));
+
+    const modulePath = sceneFiles.writeBundledScenesModule(root, cacheDir);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const list = require(modulePath).default;
+    const entries = Object.keys(list).map((id) => [id, list[id].title, list[id].name]);
+    const sceneIds = sceneFiles.readSceneIds(root);
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(entries).toEqual([
+      ['home--default', 'Home', 'Default'],
+      ['inbox--full', 'Inbox', 'Full'],
+      ['inbox--empty', 'Inbox', 'Empty'],
+      ['inbox--menu-open', 'Inbox', 'Menu Open'],
+      ['signin--empty', 'Sign In', 'Empty'],
+    ]);
+    expect(sceneIds).toEqual(entries.map(([id]) => id));
+  });
+
   it('an app with scene files and no Storybook setup bundles without a setup file', () => {
     const root = mkProject();
     writeFile(root, 'index.js', 'module.exports = 1;');
