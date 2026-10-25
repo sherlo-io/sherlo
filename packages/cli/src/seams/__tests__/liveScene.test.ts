@@ -15,7 +15,7 @@ import { liveCaptureSocket, STABILIZATION_SETTINGS } from '../captureSocket';
 import { liveLetterbox } from '../letterbox';
 import { captureLiveScene, readSceneAnswer } from '../liveScene';
 import { installDeviceState, posedDeviceState } from '../deviceState';
-import type { SceneTarget } from '../deviceState';
+import type { NoTarget, SceneTarget } from '../deviceState';
 import { renderCapturedScene } from '../../render/capturedScene';
 import { renderOpenedScene } from '../../render/openedScene';
 import { renderCapturedLog } from '../../render/capturedLog';
@@ -31,6 +31,7 @@ const ANDROID: SceneTarget = {
   device: { platform: 'android', serial: 'emulator-5554' },
   app: { id: 'com.example.chat' },
 };
+const NO_PHONE: NoTarget = { cause: 'no-phone', found: [] };
 
 /** What the app records for a scene that came up, in the app's own words. */
 const SCENE_RECORD = {
@@ -324,10 +325,34 @@ describe('a scene is captured and opened live', () => {
       sceneId: SCENE,
       port: bundler.port,
       settings: STABILIZATION_SETTINGS,
-      target: undefined,
+      target: NO_PHONE,
     });
 
-    expect(answer).toEqual({ kind: 'no-app', why: 'no-target' });
+    expect(answer).toEqual({ kind: 'no-app', why: 'no-phone', found: [] });
+    expect(bundler.asked).toEqual([]);
+  });
+
+  it('a capture with no target says whether no phone, several phones or no app id was found', async () => {
+    const bundler = await pretendBundler(() => SCENE_RECORD);
+    const phones = [
+      { platform: 'ios' as const, appId: 'com.example.chat', hasApp: false },
+      { platform: 'android' as const, appId: 'com.example.chat', hasApp: false },
+    ];
+    const causes: NoTarget[] = [
+      NO_PHONE,
+      { cause: 'several-phones', found: phones },
+      { cause: 'no-app-id', found: [{ platform: 'ios', hasApp: false }] },
+    ];
+
+    for (const cause of causes) {
+      const answer = await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: cause,
+      });
+      expect(answer).toEqual({ kind: 'no-app', why: cause.cause, found: cause.found });
+    }
     expect(bundler.asked).toEqual([]);
   });
 
@@ -338,8 +363,8 @@ describe('a scene is captured and opened live', () => {
       // No target: the phone has nothing to launch on.
       const quiet = await pretendBundler(() => ({ kind: 'no-app' }));
       expect(
-        await captureLiveScene({ sceneId: SCENE, port: quiet.port, settings, target: undefined })
-      ).toEqual({ kind: 'no-app', why: 'no-target' });
+        await captureLiveScene({ sceneId: SCENE, port: quiet.port, settings, target: NO_PHONE })
+      ).toEqual({ kind: 'no-app', why: 'no-phone', found: [] });
 
       // The line broke: its socket closes on the question, and the close code is kept.
       const broken = await pretendBundler(() => ({ kind: 'no-app' }), 4001);

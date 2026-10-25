@@ -18,7 +18,7 @@ import { readAppError, type AppError } from './appError';
 import { drainAppLog, keepStrings } from './appLog';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
-import type { SceneTarget } from './deviceState';
+import type { NoTarget, SceneTarget } from './deviceState';
 import { captureLiveScene, type NoApp } from './liveScene';
 
 /**
@@ -185,8 +185,8 @@ export type CaptureSocket = {
     sceneId: string;
     port: number;
     settings: typeof STABILIZATION_SETTINGS;
-    /** The device and app the scene launches on; none when the machine has not exactly one. */
-    target?: SceneTarget;
+    /** The device and app the scene launches on, or the cause of there being none. */
+    target: SceneTarget | NoTarget;
   }): Promise<SceneCaptureResult>;
 };
 
