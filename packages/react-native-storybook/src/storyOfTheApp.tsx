@@ -8,9 +8,10 @@
  * It draws nothing of its own: it hands back exactly the story it was given.
  */
 import { type ReactNode, useEffect } from 'react';
-import { AppRegistry } from 'react-native';
+import { AppRegistry, View } from 'react-native';
 import { useFiber } from 'its-fine';
 import { rememberStoryOfTheApp } from './componentNames';
+import SherloModule from './SherloModule';
 import { MetadataProvider } from './getStorybook/components/TestingMode/MetadataProvider';
 
 export function StoryOfTheApp({ children }: { children: ReactNode }): ReactNode {
@@ -41,9 +42,25 @@ export function wrapTheAppInStoryOfTheApp(): void {
  * reads its fiber through (its-fine).
  */
 function TheAppsWrapper({ children }: { children: ReactNode }): ReactNode {
+  // Storybook's story view is a View whose testID is the story's id (@storybook/react-native's
+  // StoryView), and the capture core keeps the collector's reading only when a view carries the
+  // story's id (captureTransport.ts, namesTheStory). A scene's id is the launch's storyId, known
+  // at render (SherloModule.getLastState), as sceneBoot.ts reads it. The view fills the screen as
+  // the app's root would and is not collapsed, so it stays a native view.
+  const sceneId =
+    SherloModule.getMode() === 'testing'
+      ? SherloModule.getLastState()?.nextSnapshot.storyId
+      : undefined;
+  const app = <StoryOfTheApp>{children}</StoryOfTheApp>;
   return (
     <MetadataProvider>
-      <StoryOfTheApp>{children}</StoryOfTheApp>
+      {sceneId ? (
+        <View testID={sceneId} collapsable={false} style={{ flex: 1 }}>
+          {app}
+        </View>
+      ) : (
+        app
+      )}
     </MetadataProvider>
   );
 }
