@@ -436,6 +436,91 @@ describe('a scene is captured and opened live', () => {
     );
   });
 
+  it("an iOS clean-device start of an Expo development build marks the developer menu's first-run sheet as seen", async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      get_app_container: '/Devices/UDID-1/Bundle/Application/X/Chat.app\n',
+      plutil: '{\n  "CFBundleURLSchemes" => [\n    0 => "exp+chat"\n  ]\n}\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+    } finally {
+      uninstall();
+    }
+
+    const mark =
+      'xcrun simctl spawn UDID-1 defaults write com.example.chat EXDevMenuIsOnboardingFinished -bool YES';
+    const launch = ran.findIndex((command) => command.startsWith('xcrun simctl launch'));
+    expect(ran.indexOf(mark)).toBeGreaterThan(-1);
+    expect(ran.indexOf(mark)).toBeLessThan(launch);
+    expect(ran.filter((command) => command.includes('defaults write'))).toEqual([mark]);
+  });
+
+  it("an Android clean-device start of an Expo development build marks the developer menu's first-run sheet as seen", async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      'resolve-activity': LAUNCHER_ANSWER,
+      'dumpsys package':
+        'Activity expo.modules.devlauncher.launcher.DevLauncherActivity\n  Scheme: "exp+chat"\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: ANDROID,
+      });
+    } finally {
+      uninstall();
+    }
+
+    const write = ran.findIndex((command) => command.includes('run-as com.example.chat sh -c'));
+    const start = ran.findIndex((command) => command.includes('shell am start'));
+    const stop = ran.findIndex((command) => command.includes('am force-stop'));
+    expect(stop).toBeGreaterThan(-1);
+    expect(write).toBeGreaterThan(stop);
+    expect(write).toBeLessThan(start);
+    const encoded = /echo (\S+) \| base64 -d/.exec(ran[write])?.[1] ?? '';
+    const xml = Buffer.from(encoded, 'base64').toString('utf-8');
+    expect(xml).toContain('<boolean name="isOnboardingFinished" value="true" />');
+    expect(xml).not.toContain('showFab');
+    expect(ran[write]).toContain('expo.modules.devmenu.sharedpreferences.xml');
+  });
+
+  it('an Android clean-device start of an app with no development launcher writes no preferences', async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      'resolve-activity': LAUNCHER_ANSWER,
+      'dumpsys package': 'Activity com.example.chat.ChatActivity\n  Scheme: "chat"\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: ANDROID,
+      });
+    } finally {
+      uninstall();
+    }
+
+    expect(ran.join('\n')).not.toContain('run-as');
+  });
+
   it('an Android launch the phone refuses stops the capture with what the phone printed', async () => {
     const bundler = await pretendBundler(() => SCENE_RECORD);
     const refusal =
