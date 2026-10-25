@@ -128,6 +128,14 @@ function createOldSetupAppWithAScene(): string {
     'exports.readStorybookFacts = function () { return null; };\n'
   );
   sdk(
+    'dist/helpers/announceAppShowsWhatItTests.js',
+    'exports.__esModule = true;\nexports.default = function () {};\n'
+  );
+  sdk(
+    'dist/helpers/reportStorybookLoaded.js',
+    'exports.__esModule = true;\nexports.default = function () {};\n'
+  );
+  sdk(
     'dist/sealedCore/loadSealedCore.js',
     'exports.getSealedCore = function () { return null; };\n'
   );
