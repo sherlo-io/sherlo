@@ -17,6 +17,7 @@ vi.mock('../SherloModule', () => ({
     getMode: () => launch.mode,
     getLastState: () => ({ requestId: 'r', nextSnapshot: { storyId: launch.storyId } }),
     getConfigOrDefault: () => ({}),
+    notifyGetStorybookCalled: () => {},
   },
 }));
 

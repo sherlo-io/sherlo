@@ -14,6 +14,8 @@
  * file names its mocks by import, and an import runs nothing until it is asked.
  */
 import SherloModule from './SherloModule';
+import announceAppShowsWhatItTests from './helpers/announceAppShowsWhatItTests';
+import reportStorybookLoaded from './helpers/reportStorybookLoaded';
 import bundledScenes from './bundledScenes';
 import { activateSceneMocks } from './getStorybook/storyMockActivation';
 import { readStorybookFacts } from './getStorybook/storybookFacts';
@@ -29,12 +31,18 @@ const SWITCHED_ON_FLAG = '__sherloLaunchedSceneSwitchedOn';
  * rendered to start the test session, so it is started here, once the bundle's main module has run
  * and Storybook, if the app has it, has recorded its facts (an app with Storybook keeps its own
  * road: ./getStorybook/components/TestingMode). The core lists the scenes in START.
+ *
+ * Every testing-mode launch of such an app, with a scene named or not, also tells the watchdogs the
+ * app is up and the runner it takes scenes: no Storybook wrapper renders and no getStorybook() runs
+ * to do it. A launch that names a scene starts no session here.
  */
-function startTheSessionOfAnAppWithoutStorybook(): void {
+function startTheSessionOfAnAppWithoutStorybook(startsTheSession: boolean): void {
   if (Object.keys(bundledScenes).length === 0) return;
   Promise.resolve().then(() => {
     if (readStorybookFacts()) return;
-    getSealedCore()?.startTestSession();
+    if (startsTheSession) getSealedCore()?.startTestSession();
+    announceAppShowsWhatItTests();
+    reportStorybookLoaded();
   });
 }
 
@@ -45,10 +53,8 @@ function switchOnTheLaunchedScene(): void {
 
   if (SherloModule.getMode() !== 'testing') return;
   const sceneId = SherloModule.getLastState()?.nextSnapshot.storyId;
-  if (!sceneId) {
-    startTheSessionOfAnAppWithoutStorybook();
-    return;
-  }
+  startTheSessionOfAnAppWithoutStorybook(!sceneId);
+  if (!sceneId) return;
   const scene = bundledScenes[sceneId];
   // An id this bundle holds no scene for is a story's, launched the same way, or a scene the
   // bundle lacks. The launch cannot tell the two apart, the capture can: each of the app's waits
