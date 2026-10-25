@@ -276,6 +276,8 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
       },
       play: playSteps(answer.play),
       settled: { ms: settled.ms, frames: typeof settled.frames === 'number' ? settled.frames : 0 },
+      ...(typeof answer.density === 'number' && { density: answer.density }),
+      ...(typeof answer.fontScale === 'number' && { fontScale: answer.fontScale }),
       tree: readCapturedView(answer.tree),
     };
   }

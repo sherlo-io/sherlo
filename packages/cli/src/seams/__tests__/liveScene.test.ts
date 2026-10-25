@@ -220,6 +220,13 @@ describe('a scene is captured and opened live', () => {
     });
   });
 
+  it("a captured scene's answer keeps the phone's density and font scale", () => {
+    const ending = readSceneAnswer({ ...SCENE_RECORD, density: 2.625, fontScale: 1.3 }, SCENE);
+
+    expect(ending).toMatchObject({ kind: 'scene', density: 2.625, fontScale: 1.3 });
+    expect(readSceneAnswer(SCENE_RECORD, SCENE)).not.toHaveProperty('density');
+  });
+
   it('a scene whose ready wait timed out ends as never got ready, never as settled', () => {
     const ending = readSceneAnswer(
       { ...SCENE_RECORD, settled: 'timed-out', ready: 'chat-list' },
