@@ -20,6 +20,9 @@ import bundledScenes from './bundledScenes';
 import { activateSceneMocks } from './getStorybook/storyMockActivation';
 import { readStorybookFacts } from './getStorybook/storybookFacts';
 import { getSealedCore } from './sealedCore/loadSealedCore';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
+import { collectAppMetadata } from './appMetadata';
+import { isDrivenByRunner, walkTheStoryForTheRunner } from './runnerWalk';
 import type { SceneFile } from './scenes';
 
 // Set once a copy of this module has run: an app that holds two copies of the SDK switches the
@@ -34,15 +37,28 @@ const SWITCHED_ON_FLAG = '__sherloLaunchedSceneSwitchedOn';
  *
  * Every testing-mode launch of such an app, with a scene named or not, also tells the watchdogs the
  * app is up and the runner it takes scenes: no Storybook wrapper renders and no getStorybook() runs
- * to do it. A launch that names a scene starts no session here.
+ * to do it. A launch that names a scene starts no session here: when a runner drives it (the
+ * bundle came from the device, not a bundler), the scene goes to the core's testStory, the call the
+ * Storybook road makes (./getStorybook/components/TestingMode/useTestAllStories/useTestStory),
+ * which waits until the scene is ready and answers the runner.
  */
-function startTheSessionOfAnAppWithoutStorybook(startsTheSession: boolean): void {
+function startTheSessionOfAnAppWithoutStorybook(sceneId: string | undefined): void {
   if (Object.keys(bundledScenes).length === 0) return;
   Promise.resolve().then(() => {
     if (readStorybookFacts()) return;
-    if (startsTheSession) getSealedCore()?.startTestSession();
+    if (!sceneId) getSealedCore()?.startTestSession();
     announceAppShowsWhatItTests();
     reportStorybookLoaded();
+    if (sceneId && isDrivenByRunner()) {
+      // Before the safe area settles, the Storybook road's insets are zero too.
+      walkTheStoryForTheRunner({
+        insets: {
+          top: initialWindowMetrics?.insets.top ?? 0,
+          bottom: initialWindowMetrics?.insets.bottom ?? 0,
+        },
+        collectMetadata: collectAppMetadata,
+      });
+    }
   });
 }
 
@@ -53,7 +69,7 @@ function switchOnTheLaunchedScene(): void {
 
   if (SherloModule.getMode() !== 'testing') return;
   const sceneId = SherloModule.getLastState()?.nextSnapshot.storyId;
-  startTheSessionOfAnAppWithoutStorybook(!sceneId);
+  startTheSessionOfAnAppWithoutStorybook(sceneId || undefined);
   if (!sceneId) return;
   const scene = bundledScenes[sceneId];
   // An id this bundle holds no scene for is a story's, launched the same way, or a scene the
