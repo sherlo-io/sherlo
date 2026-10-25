@@ -194,7 +194,7 @@ describe('a local capture leaves the device clean', () => {
       captureStory: async () => ({ kind: 'no-app' }),
       captureScene: async () => {
         reachedTheApp = true;
-        return { kind: 'no-app' };
+        return { kind: 'no-app', why: 'never-said-hello' };
       },
     });
     const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
@@ -238,14 +238,14 @@ describe('a local capture leaves the device clean', () => {
         captureStory: async () => ({ kind: 'no-app' }),
         captureScene: async () => {
           reachedTheApp = true;
-          return { kind: 'no-app' };
+          return { kind: 'no-app', why: 'never-said-hello' };
         },
       });
       const uninstallApp = installLetterbox({
         openStory: async () => ({ kind: 'no-app' }),
         openScene: async () => {
           reachedTheApp = true;
-          return { kind: 'no-app' };
+          return { kind: 'no-app', why: 'never-said-hello' };
         },
       });
       let printed = '';

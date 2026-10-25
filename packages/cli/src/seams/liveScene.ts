@@ -27,6 +27,17 @@ const APP_HELLO_PATIENCE_MS = 60_000;
 const HELLO_RETRY_MS = 1000;
 
 /**
+ * A capture that found no app, and why: the phone had no target, the app was not on it, the line
+ * broke (`detail` is the line's own account), nothing answered in time, or the launched app never
+ * said hello.
+ */
+export type NoApp = {
+  kind: 'no-app';
+  why: 'no-target' | 'not-installed' | 'line-broke' | 'gave-up-waiting' | 'never-said-hello';
+  detail?: string;
+};
+
+/**
  * Launch the app fresh on `sceneId`, wait for it to play the scene, and answer with its record.
  * Every way of not getting one is a named ending, never a thrown error.
  */
@@ -37,7 +48,7 @@ export async function captureLiveScene(params: {
   target: SceneTarget | undefined;
 }): Promise<SceneCaptureResult> {
   const { sceneId, port, settings, target } = params;
-  if (!target) return { kind: 'no-app' };
+  if (!target) return { kind: 'no-app', why: 'no-target' };
 
   await launchFresh(target, sceneId, port);
 
@@ -51,9 +62,10 @@ export async function captureLiveScene(params: {
     });
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
-    if (answer.kind === 'not-in-sherlos-words' || answer.kind === 'gave-up-waiting') {
-      return { kind: 'no-app' };
+    if (answer.kind === 'not-in-sherlos-words') {
+      return { kind: 'no-app', why: 'line-broke', detail: answer.detail };
     }
+    if (answer.kind === 'gave-up-waiting') return { kind: 'no-app', why: 'gave-up-waiting' };
 
     const ending = readSceneAnswer(answer.reply, sceneId);
     // The relay says no app has come yet until the launched one says hello: ask again.
@@ -61,6 +73,8 @@ export async function captureLiveScene(params: {
       await new Promise((resolve) => setTimeout(resolve, HELLO_RETRY_MS));
       continue;
     }
+
+    if (ending.kind === 'no-app') return { kind: 'no-app', why: 'never-said-hello' };
 
     const logs = await drainAppLog(port);
     return logs.length > 0 ? { ...ending, logs } : ending;

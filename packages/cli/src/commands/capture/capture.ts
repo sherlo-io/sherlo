@@ -113,7 +113,7 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
           settings: STABILIZATION_SETTINGS,
           target,
         })
-      : { kind: 'no-app' };
+      : { kind: 'no-app', why: 'not-installed' };
   } finally {
     await restore?.();
   }
