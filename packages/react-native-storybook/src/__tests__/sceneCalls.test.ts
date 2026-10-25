@@ -64,9 +64,53 @@ describe('the scene calls of the host', () => {
 
     await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
       played: [{ open: 'app://home' }],
-      missing: { tap: 'Row' },
+      missing: { tap: 'text "Row"' },
       limitMs: 10_000,
     });
+  });
+
+  it('a scene whose first tap is missing and whose ready view never shows ends as never-reached on SignIn', async () => {
+    behind.scene.play = [{ tap: { testID: 'Inbox' } }];
+    behind.scene.ready = { testID: 'inbox' };
+    behind.awaitReady.mockResolvedValue({ outcome: 'timed-out', route: ['SignIn'], line: 'x' });
+    behind.playSteps.mockRejectedValue(
+      new SherloStepError(SCENE_ID, 'step 1 of 1', 'no visible view', [], true)
+    );
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({ played: [] });
+    expect(readStoryError(SCENE_ID)).toBeUndefined();
+    await expect(calls.awaitReady!(SCENE_ID)).resolves.toEqual({
+      outcome: 'timed-out',
+      ready: 'inbox',
+      stayedOn: ['SignIn'],
+    });
+    expect(behind.awaitReady).toHaveBeenCalledTimes(1);
+  });
+
+  it('a scene whose first tap is missing ends as play-target-missing when its ready view shows later', async () => {
+    behind.scene.play = [{ tap: { testID: 'Inbox' } }];
+    behind.scene.ready = { testID: 'inbox' };
+    behind.awaitReady.mockResolvedValue({ outcome: 'shown' });
+    behind.playSteps.mockRejectedValue(
+      new SherloStepError(SCENE_ID, 'step 1 of 1', 'no visible view', [], true)
+    );
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
+      played: [],
+      missing: { tap: 'Inbox' },
+      limitMs: 10_000,
+    });
+  });
+
+  it('a scene with no ready view whose first tap is missing stays play-target-missing', async () => {
+    behind.scene.play = [{ tap: { testID: 'Inbox' } }];
+    behind.scene.ready = undefined;
+    behind.awaitReady.mockResolvedValue({ outcome: 'shown' });
+    behind.playSteps.mockRejectedValue(
+      new SherloStepError(SCENE_ID, 'step 1 of 1', 'no visible view', [], true)
+    );
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toMatchObject({ missing: { tap: 'Inbox' } });
   });
 
   it("any other failed step is kept as the scene's own error, and the steps before it are answered", async () => {

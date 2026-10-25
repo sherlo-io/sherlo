@@ -118,11 +118,11 @@ async function readyOrThrow(ready: Parameters<typeof asRule>[0]): Promise<void> 
 
 /* ========================================================================== */
 
-function targetOf(tap: string | TapTarget): TapTarget {
+export function targetOf(tap: string | TapTarget): TapTarget {
   return typeof tap === 'string' ? { testID: tap } : tap;
 }
 
-function nameOf(target: TapTarget): string {
+export function nameOf(target: TapTarget): string {
   if (target.testID !== undefined) return `testID "${target.testID}"`;
   if (target.text !== undefined) return `text "${target.text}"`;
   return `label "${target.label}"`;

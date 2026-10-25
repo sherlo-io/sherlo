@@ -9,7 +9,7 @@
 import bundledScenes from '../bundledScenes';
 import { isBundlerAssetUrl } from '../bundlerOrigin';
 import { causeOfCrash, recordStoryError, threwOf } from '../getStorybook/storyErrorRegistry';
-import { SherloStepError, TAP_LOOKS_FOR_MS, playSteps } from '../playSteps';
+import { SherloStepError, TAP_LOOKS_FOR_MS, nameOf, playSteps, targetOf } from '../playSteps';
 import { reachedRoute } from '../reachedScreen';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
 import { monotonicNow } from '../settleClock';
@@ -74,15 +74,45 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
     const played = recordedSteps(steps.slice(0, playedCount));
     const [failed] = recordedSteps(steps.slice(playedCount, playedCount + 1));
     if (error instanceof SherloStepError && error.viewNeverShowed && failed && 'tap' in failed) {
-      return { played, missing: { tap: failed.tap }, limitMs: TAP_LOOKS_FOR_MS };
+      // The first tap found nothing: the ready wait decides what that means. If the ready view
+      // never shows either, the app never got to the screen the scene meant (a sign-in, say) and
+      // the scene ends as never-reached, the ready wait's answer kept for the core's own ask. If
+      // the view shows, the tap is what failed, and nothing is captured.
+      if (playedCount === 0) {
+        const ended = await waitForReady(sceneId);
+        if (ended.outcome === 'timed-out') {
+          readyEndedDuringPlay.set(sceneId, ended);
+          return { played };
+        }
+      }
+      return {
+        played,
+        missing: { tap: missedTapName(steps[playedCount]) },
+        limitMs: TAP_LOOKS_FOR_MS,
+      };
     }
     keepAsTheScenesError(sceneId, error);
     return { played };
   }
 }
 
+/** The ready wait that already ended while a scene's first tap was missing, by scene; the core's ask takes it. */
+const readyEndedDuringPlay = new Map<string, SceneReadyOutcome>();
+
+/** A missed tap as the CLI names it: a testID bare, a text or label as `text "Row"` (./playSteps). */
+function missedTapName(step: PlayStep | undefined): string {
+  if (!step || !('tap' in step)) return '';
+  const target = targetOf(step.tap);
+  return target.testID ?? nameOf(target);
+}
+
 /** Wait for the scene's own ready rule; the limit and an error the scene threw both end it. */
 async function waitForReady(sceneId: string): Promise<SceneReadyOutcome> {
+  const alreadyEnded = readyEndedDuringPlay.get(sceneId);
+  if (alreadyEnded) {
+    readyEndedDuringPlay.delete(sceneId);
+    return alreadyEnded;
+  }
   const rule = asRule(sceneOf(sceneId)?.ready) ?? {};
   const ready = [rule.testID ?? []].flat().join(', ');
   try {
