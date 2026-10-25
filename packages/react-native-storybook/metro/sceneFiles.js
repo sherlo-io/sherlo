@@ -19,6 +19,33 @@ var toRelativePath = require('./projectPaths').toRelativePath;
 // The same rule that turns a story's title into the first part of its id.
 var idPart = require('./sherloLine').idPartOfTitle;
 
+/**
+ * A scene's name the way Storybook turns a story's export name into the second part of its id:
+ * `storyNameFromExport` splits the name into words (`MenuOpen` is "Menu Open", `Item2Full` is
+ * "Item 2 Full"), then `toId` sanitizes. Follows storybook/internal/csf (`toStartCaseStr` and
+ * `sanitize`), which an app without Storybook does not carry, so the rule is written out here.
+ */
+function namePart(name) {
+  return String(name)
+    .replace(/_/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\./g, ' ')
+    .replace(/([^\n])([A-Z])([a-z])/g, '$1 $2$3')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([a-z])([0-9])/gi, '$1 $2')
+    .replace(/([0-9])([a-z])/gi, '$1 $2')
+    .replace(/(\s|^)(\w)/g, function (_match, space, letter) {
+      return space + letter.toUpperCase();
+    })
+    .replace(/ +/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/[ ’–—―′¿'`~!@#$%^&*()_|+\-=?;:'",.<>{}[\]\\/]/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
+}
+
 // The static name of an object property key; null for a computed or numeric key.
 function keyName(prop) {
   if (!prop.key || prop.computed) return null;
@@ -79,7 +106,7 @@ function sceneIdsOfSource(fileName, source) {
 function scenesOfSource(fileName, source) {
   var fileId = idPart(sourceFiles.basenameWithoutExtension(fileName).replace(/\.scenes$/, ''));
   return sceneNamesOf(source).map(function (name) {
-    return { id: fileId + '--' + idPart(name), name: name };
+    return { id: fileId + '--' + namePart(name), name: name };
   });
 }
 

@@ -112,6 +112,20 @@ describe('scene files are found and bundled', () => {
     expect(manifest.sceneIds).toEqual(['chat--conversation', 'chat--empty-chat']);
   });
 
+  it('a scene named MenuOpen gets the id inbox--menu-open, as Storybook names a story exported as MenuOpen', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { storyNameFromExport, toId } = require('storybook/internal/csf');
+    const names = ['MenuOpen', 'Full', 'Item2FullHD', 'Sign_inV2', 'Empty Chat'];
+    const source = `export default scenes({ scenes: { ${names
+      .map((name) => `'${name}': {}`)
+      .join(', ')} } });`;
+
+    const ids = sceneFiles.sceneIdsOfSource('inbox.scenes.tsx', source);
+
+    expect(ids).toEqual(names.map((name) => toId('inbox', storyNameFromExport(name))));
+    expect(ids.slice(0, 2)).toEqual(['inbox--menu-open', 'inbox--full']);
+  });
+
   it('an app with scene files and no Storybook setup bundles without a setup file', () => {
     const root = mkProject();
     writeFile(root, 'index.js', 'module.exports = 1;');
