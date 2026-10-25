@@ -52,7 +52,7 @@ import { mock } from '../mocking/mockDeclaration';
 import { startStorybookHolding } from './mocking/storybookHolding';
 import { __resetRequestsInFlightForTests } from '../mocking/requestsInFlight';
 import { clearMocks } from '../mocking/registry';
-import { playSteps, SherloStepError, TAP_LOOKS_FOR_MS } from '../playSteps';
+import { playSteps, SherloStepError, TAP_LOOKS_FOR_MS, testIDsOnScreen } from '../playSteps';
 import { reachedRoute } from '../reachedScreen';
 import type { InspectorDataNode, WalkedFiber } from '../sealedCore/seam';
 import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
@@ -358,6 +358,45 @@ function tabAt(y: number): void {
     ],
   });
 }
+
+describe('the test ids on screen', () => {
+  it('lists each id once in screen order, drops off-screen views, caps the list and counts the rest', async () => {
+    const row = (tag: number, id: string, y = 100): View => ({
+      tag,
+      props: { testID: id },
+      frame: { x: 0, y, width: 390, height: 20 },
+    });
+    const ids = Array.from({ length: 52 }, (_, index) => 'row-' + index);
+    views.now = () => ({
+      tag: 1,
+      frame: WINDOW,
+      children: [
+        ...ids.slice(0, 10).map((id, index) => row(10 + index, id)),
+        row(80, 'row-0'),
+        row(81, 'below-the-fold', 900),
+        ...ids.slice(10).map((id, index) => row(100 + index, id)),
+      ],
+    });
+
+    const seen = await testIDsOnScreen(50);
+
+    expect(seen.testIDs).toEqual(ids.slice(0, 50));
+    expect(seen.more).toBe(2);
+  });
+
+  it('answers every id and nothing more when the list is under the cap', async () => {
+    views.now = () => ({
+      tag: 1,
+      frame: WINDOW,
+      children: [
+        { tag: 2, props: { testID: 'a' } },
+        { tag: 3, props: { testID: 'b' } },
+      ],
+    });
+
+    await expect(testIDsOnScreen(50)).resolves.toEqual({ testIDs: ['a', 'b'], more: 0 });
+  });
+});
 
 describe('a step that cannot be played', () => {
   it('a step whose target never shows throws, naming the step', async () => {

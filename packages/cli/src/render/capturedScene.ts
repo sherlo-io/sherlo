@@ -28,7 +28,14 @@ export type SceneEnding =
       error: { name: string; message: string; file: string; line: number };
     }
   /** The app booted, and the scene's ready view never showed; `stayedOn` is the route the app was on. */
-  | { kind: 'never-reached'; sceneId: string; ready: string; stayedOn: string[] }
+  | {
+      kind: 'never-reached';
+      sceneId: string;
+      ready: string;
+      stayedOn: string[];
+      /** The test ids on screen when the wait gave up, for the json reply only. */
+      seen?: { testIDs: string[]; more: number };
+    }
   /** A play step found no view with its testID within its limit; `route` is where the app stood. */
   | {
       kind: 'play-target-missing';

@@ -232,6 +232,17 @@ describe('a scene is captured and opened live', () => {
     expect(readSceneAnswer(SCENE_RECORD, SCENE)).not.toHaveProperty('density');
   });
 
+  it('the test ids on screen reach the json reply of a scene that never got ready', () => {
+    const seen = { testIDs: ['inbox-list', 'row-1'], more: 4 };
+
+    expect(
+      readSceneAnswer({ kind: 'never-reached', ready: 'inbox', stayedOn: ['Home'], seen }, SCENE)
+    ).toEqual({ kind: 'never-reached', sceneId: SCENE, ready: 'inbox', stayedOn: ['Home'], seen });
+    expect(
+      readSceneAnswer({ kind: 'never-reached', ready: 'inbox', stayedOn: ['Home'], seen: 7 }, SCENE)
+    ).not.toHaveProperty('seen');
+  });
+
   it('a scene whose ready wait timed out ends as never got ready, never as settled', () => {
     const ending = readSceneAnswer(
       { ...SCENE_RECORD, settled: 'timed-out', ready: 'chat-list' },
