@@ -10,7 +10,7 @@ import {
   PROTOCOL_VERSION,
 } from '../../../../react-native-storybook/metro/sherloLine';
 import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { liveCaptureSocket, STABILIZATION_SETTINGS } from '../captureSocket';
 import { liveLetterbox } from '../letterbox';
 import { captureLiveScene, readSceneAnswer } from '../liveScene';
@@ -51,7 +51,10 @@ afterEach(async () => {
 });
 
 /** A bundler with the line on it, answering every question as `say` decides. */
-async function pretendBundler(say: (question: { action: string }) => unknown): Promise<Bundler> {
+async function pretendBundler(
+  say: (question: { action: string }) => unknown,
+  closeWith?: number
+): Promise<Bundler> {
   const asked: unknown[] = [];
   const server = http.createServer((request, response) => {
     if (request.url !== '/sherlo/line') {
@@ -64,6 +67,8 @@ async function pretendBundler(say: (question: { action: string }) => unknown): P
   const sockets = new WebSocketServer({ server, path: '/sherlo/line' });
   sockets.on('connection', (socket) => {
     socket.on('message', (data) => {
+      // A line that breaks on the question closes the socket with the code it was given.
+      if (closeWith !== undefined) return socket.close(closeWith);
       const { askId, ...question } = JSON.parse(data.toString());
       asked.push(question);
       socket.send(JSON.stringify({ action: 'reply', askId, reply: say(question) }));
@@ -311,8 +316,42 @@ describe('a scene is captured and opened live', () => {
       target: undefined,
     });
 
-    expect(answer).toEqual({ kind: 'no-app' });
+    expect(answer).toEqual({ kind: 'no-app', why: 'no-target' });
     expect(bundler.asked).toEqual([]);
+  });
+
+  it('a capture with no app names whether the phone had no target, the line broke, or the app never said hello', async () => {
+    const settings = STABILIZATION_SETTINGS;
+    const { uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
+    try {
+      // No target: the phone has nothing to launch on.
+      const quiet = await pretendBundler(() => ({ kind: 'no-app' }));
+      expect(
+        await captureLiveScene({ sceneId: SCENE, port: quiet.port, settings, target: undefined })
+      ).toEqual({ kind: 'no-app', why: 'no-target' });
+
+      // The line broke: its socket closes on the question, and the close code is kept.
+      const broken = await pretendBundler(() => ({ kind: 'no-app' }), 4001);
+      expect(
+        await captureLiveScene({ sceneId: SCENE, port: broken.port, settings, target: ANDROID })
+      ).toEqual({
+        kind: 'no-app',
+        why: 'line-broke',
+        detail: 'the socket closed with code 4001',
+      });
+
+      // The app never said hello: the line keeps saying no app until the hello wait is over.
+      const clock = vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(1e12);
+      try {
+        expect(
+          await captureLiveScene({ sceneId: SCENE, port: quiet.port, settings, target: ANDROID })
+        ).toEqual({ kind: 'no-app', why: 'never-said-hello' });
+      } finally {
+        clock.mockRestore();
+      }
+    } finally {
+      uninstall();
+    }
   });
 
   it("an iOS capture of an Expo development build opens the bundler's bundle through the development launcher's link", async () => {

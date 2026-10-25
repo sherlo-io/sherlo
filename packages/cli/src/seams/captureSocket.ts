@@ -19,7 +19,7 @@ import { drainAppLog, keepStrings } from './appLog';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import type { SceneTarget } from './deviceState';
-import { captureLiveScene } from './liveScene';
+import { captureLiveScene, type NoApp } from './liveScene';
 
 /**
  * The stabilization settings a capture sends, as the runner sends them today.
@@ -118,7 +118,7 @@ export type CaptureResult =
     };
 
 /** What the app answered about the scene the command asked it to boot fresh on and capture. */
-export type SceneCaptureResult = ({ kind: 'no-bundler' } | { kind: 'no-app' } | SceneEnding) & {
+export type SceneCaptureResult = ({ kind: 'no-bundler' } | NoApp | SceneEnding) & {
   /** Sherlo's own log lines from the app since it booted, drained from the bundler's feed after the answer. */
   logs?: string[];
 };
@@ -664,7 +664,7 @@ export function posedCaptureSocket(
         return { kind: 'no-bundler' };
       }
       if (posed === 'no-bundler') return { kind: 'no-bundler' };
-      if (posed === 'no-app') return { kind: 'no-app' };
+      if (posed === 'no-app') return { kind: 'no-app', why: 'never-said-hello' };
       if (!('scenes' in posed)) {
         refusals.push({
           call: 'captureScene',
