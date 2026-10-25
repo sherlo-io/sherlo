@@ -75,6 +75,20 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
   if (device.platform === 'ios') {
     await run('xcrun', ['simctl', 'terminate', device.udid, app.id]).catch(() => '');
     const link = await iosDevelopmentLauncherLink(run, device.udid, app.id, port);
+    if (link) {
+      // Mirrors sherlo-runner's ios launchApp.ts: the sheet's record is a user default of the app.
+      await run('xcrun', [
+        'simctl',
+        'spawn',
+        device.udid,
+        'defaults',
+        'write',
+        app.id,
+        'EXDevMenuIsOnboardingFinished',
+        '-bool',
+        'YES',
+      ]);
+    }
     // expo-dev-launcher reads `--initialUrl <url>` from the process arguments at launch and opens
     // that link first (EXDevLauncherController `initialUrlFromProcessInfo`), so one launch carries
     // both the bundle's link and the scene's id. A simulator reaches the bundler on localhost.
@@ -114,6 +128,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
   await adb('am', 'force-stop', app.id).catch(() => '');
   const link = await androidDevelopmentLauncherLink(adb, app.id, port);
   if (link) {
+    await markAndroidDevMenuSheetSeen(adb, app.id);
     // A clean phone has no last bundle for Expo's development launcher to reopen (the data is
     // wiped before each scene), so the start hands it the bundler's address through its own link.
     await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
@@ -132,6 +147,29 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
   );
   // `adb shell am start` exits 0 even when the phone refuses, so its words are read here.
   if (/^Error:/m.test(started)) throw new Error(started.trim());
+}
+
+/**
+ * Mark the developer menu's first-run sheet as seen in the stopped app's private preferences.
+ * Mirrors sherlo-runner's android preSeedExpoDevMenuPrefs.ts, but sets only the one key that hides
+ * the sheet. The XML goes through base64 because `run-as sh -c` strips its double quotes.
+ */
+async function markAndroidDevMenuSheetSeen(
+  adb: (...args: string[]) => Promise<string>,
+  appId: string
+): Promise<void> {
+  const xml =
+    `<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n` +
+    `    <boolean name="isOnboardingFinished" value="true" />\n</map>\n`;
+  const encoded = Buffer.from(xml, 'utf-8').toString('base64');
+  const dir = `/data/data/${appId}/shared_prefs`;
+  await adb(
+    'run-as',
+    appId,
+    'sh',
+    '-c',
+    `'mkdir -p ${dir} && echo ${encoded} | base64 -d > ${dir}/expo.modules.devmenu.sharedpreferences.xml'`
+  );
 }
 
 /** The link that opens the bundler in Expo's development launcher, from the `exp+<scheme>` in `listing`. */
