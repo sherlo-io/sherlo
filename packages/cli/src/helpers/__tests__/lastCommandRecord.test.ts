@@ -32,6 +32,19 @@ describe('the last command record', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
+  it('a CLI test leaves no last command record in the repository', () => {
+    const repositoryRecord = path.join(process.cwd(), '.sherlo', 'last-command.json');
+
+    // A posed run: the command starts in a temporary project, which is gone when the process ends.
+    recordLastCommand('login', {});
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    putLiveFolderBack();
+    endProcess(0);
+
+    expect(fs.existsSync(repositoryRecord)).toBe(false);
+    expect(fs.existsSync(projectRoot)).toBe(false);
+  });
+
   it("Every Sherlo command records its name, its flags with tokens hidden, its exit code and its error lines in the project's .sherlo folder", () => {
     recordLastCommand('test', { platform: 'ios', projectToken: 'secret-token', token: undefined });
     process.stderr.write('\u001b[31mNo devices in the config\u001b[0m\nFix sherlo.config.json\n');
