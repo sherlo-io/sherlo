@@ -30,6 +30,7 @@ import throwError from '../helpers/throwError';
 import { readProjectJson } from '../helpers/projectJson';
 import { cleanTheDevice, saveDeviceState } from './deviceStateSave';
 import { restoreDeviceState } from './deviceStateRestore';
+import { connectedAndroids } from './deviceStateAndroids';
 import { readIfThere } from './iosConfiguration';
 
 /** The device a scene runs on: a simulator by its UDID, or an emulator or phone by its adb serial. */
@@ -43,7 +44,14 @@ export type SceneApp = { id: string };
 export type SceneTarget = { device: SceneDevice; app: SceneApp };
 
 /** One running phone as the lookup saw it: its platform, the project's app id for it, and whether the app is on it. */
-export type PhoneFound = { platform: SceneDevice['platform']; appId?: string; hasApp: boolean };
+export type PhoneFound = {
+  platform: SceneDevice['platform'];
+  /** The simulator's udid or the phone's adb serial, so a run that finds several says which. */
+  udid?: string;
+  serial?: string;
+  appId?: string;
+  hasApp: boolean;
+};
 
 /** No target, and which of the three causes it was; `found` lists every running phone. */
 export type NoTarget = {
@@ -66,7 +74,7 @@ export type DeviceState = {
   run(
     tool: DeviceTool,
     args: string[],
-    options?: { stdoutTo?: string; stdinFrom?: string }
+    options?: { stdoutTo?: string; stdinFrom?: string; timeoutMs?: number }
   ): Promise<string>;
   /** The simulator's own data folder, where it keeps the notification settings of every app. */
   simulatorFolder(udid: string): string;
@@ -223,12 +231,20 @@ function releaseTheHold(): void {
 /** The shipped answers: the developer's own simulator or emulator. */
 export const liveDeviceState: DeviceState = {
   sceneTarget: async () => {
-    const devices = [...(await bootedSimulators()), ...(await connectedAndroids())];
+    const androids = await connectedAndroids((tool, args, options) =>
+      liveDeviceState.run(tool, args, options)
+    );
+    // An ANDROID_SERIAL that names no running phone is no phone, even with a simulator booted.
+    const devices =
+      process.env.ANDROID_SERIAL && androids.length === 0
+        ? []
+        : [...(await bootedSimulators()), ...androids];
     const root = getCwd();
     const phones = devices.map((device) => {
       const id = appIdOf(device.platform, root);
       const target = id ? { device, app: { id } } : undefined;
-      return { target, found: { platform: device.platform, appId: id, hasApp: false } };
+      const which = device.platform === 'ios' ? { udid: device.udid } : { serial: device.serial };
+      return { target, found: { platform: device.platform, ...which, appId: id, hasApp: false } };
     });
     // One phone is the target whether or not the app is on it: the capture then says "not installed".
     if (phones.length === 1 && phones[0].target) return phones[0].target;
@@ -248,9 +264,9 @@ export const liveDeviceState: DeviceState = {
     return { cause: found.every((phone) => !phone.appId) ? 'no-app-id' : 'several-phones', found };
   },
 
-  run: (tool, args, { stdoutTo, stdinFrom } = {}) =>
+  run: (tool, args, { stdoutTo, stdinFrom, timeoutMs } = {}) =>
     new Promise((resolve, reject) => {
-      const child = spawn(tool, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+      const child = spawn(tool, args, { stdio: ['pipe', 'pipe', 'pipe'], timeout: timeoutMs });
       const out: Buffer[] = [];
       const err: Buffer[] = [];
       const file = stdoutTo ? fs.createWriteStream(stdoutTo) : undefined;
@@ -289,21 +305,6 @@ async function bootedSimulators(): Promise<SceneDevice[]> {
       .map((simulator) => ({ platform: 'ios', udid: simulator.udid }));
   } catch {
     // No Xcode on this machine: it has no simulator to clean.
-    return [];
-  }
-}
-
-async function connectedAndroids(): Promise<SceneDevice[]> {
-  try {
-    const listed = await liveDeviceState.run('adb', ['devices']);
-    return listed
-      .split('\n')
-      .slice(1)
-      .map((line) => line.trim().split(/\s+/))
-      .filter(([serial, state]) => serial && state === 'device')
-      .map(([serial]) => ({ platform: 'android', serial }));
-  } catch {
-    // No Android tools on this machine: it has no emulator to clean.
     return [];
   }
 }
