@@ -202,6 +202,20 @@ export const Alert = {
   },
 };
 
+/** AppRegistry: the wrapper component provider a test reads back with __getWrapperComponentProvider. */
+let wrapperComponentProvider: (() => unknown) | undefined;
+export const AppRegistry = {
+  setWrapperComponentProvider: (provider: () => unknown): void => {
+    wrapperComponentProvider = provider;
+  },
+};
+export function __getWrapperComponentProvider(): (() => unknown) | undefined {
+  return wrapperComponentProvider;
+}
+export function __resetWrapperComponentProvider(): void {
+  wrapperComponentProvider = undefined;
+}
+
 export const Platform = { OS: 'ios' };
 
 /** Linking.openURL: what a test makes of the link (reject for one no app takes). */
