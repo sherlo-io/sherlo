@@ -32,6 +32,17 @@ export function bundleHoldsScenes(): boolean {
   return Object.keys(bundledScenes).length > 0;
 }
 
+/**
+ * Whether this launch names one of the bundle's scenes and no runner drives it. It is asked at
+ * import (./isStorybookMode), before Storybook has started and recorded its facts, so it cannot
+ * tell a scene from a story of the same id: that id counts as a scene here, while
+ * sceneOfTheCaptureOfAnAppWithStorybook, asked later, leaves it a story.
+ */
+export function launchNamesABundledScene(): boolean {
+  const id = idOfTheTestingLaunch();
+  return !!id && !!bundledSceneOfId(id) && !isDrivenByRunner();
+}
+
 /** The scene this launch captures, or undefined when the launch is not such a capture. */
 export function sceneOfTheCaptureOfAnAppWithStorybook(): string | undefined {
   const id = idOfTheTestingLaunch();
