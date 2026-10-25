@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -84,6 +85,40 @@ describe('scene files are found and bundled', () => {
     expect(setupFolders).toEqual([]);
     expect(launchEntry).not.toContain('sherlo-launch-entry:storybook');
     expect(launchEntry).toContain('sherlo-launch-entry:app');
+  });
+
+  it('a scene file added after the bundler started is in the scene list of the next bundle', () => {
+    const root = mkProject();
+    writeFile(root, 'index.js', 'module.exports = 1;');
+    writeFile(root, 'src/Chat.scenes.tsx', CHAT_SCENES);
+    const sdk = 'node_modules/@sherlo/react-native-storybook';
+    writeFile(root, `${sdk}/package.json`, '{ "name": "@sherlo/react-native-storybook" }');
+    writeFile(root, `${sdk}/dist/sceneBoot.js`, '');
+    writeFile(root, `${sdk}/dist/bundledScenes.js`, '');
+
+    // The bundler starts, and its file watcher is the one Metro's server holds.
+    const config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    const watcher = new EventEmitter();
+    const metroServer = {
+      getBundler: () => ({ getBundler: () => ({ getWatcher: () => watcher }) }),
+    };
+    const passOn = (_request: unknown, _response: unknown, next: () => void) => next();
+    config.server.enhanceMiddleware(passOn, metroServer);
+
+    // A scene file is added while it runs, and the watcher tells of it.
+    writeFile(root, 'src/Inbox.scenes.tsx', CHAT_SCENES.replace('Conversation', "'Menu Open'"));
+    const inbox = path.join(root, 'src', 'Inbox.scenes.tsx');
+    watcher.emit('change', { eventsQueue: [{ filePath: inbox, type: 'add', metadata: {} }] });
+
+    const sceneList = fs.readFileSync(
+      path.join(root, 'node_modules', '.cache', 'sherlo', 'bundled-scenes.js'),
+      'utf8'
+    );
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(sceneList).toContain('"chat--conversation"');
+    expect(sceneList).toContain('"inbox--menu-open"');
+    expect(sceneList).toContain('"./src/Inbox.scenes.tsx"');
   });
 
   it('a scene file name decides alone, in any source extension', () => {

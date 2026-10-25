@@ -12,6 +12,7 @@ var findStorybookEntry = require('./detectStorybookSetup').findStorybookEntry;
 var applyLaunchTimeEntry = require('./launchTimeEntry').applyLaunchTimeEntry;
 var findSceneFiles = require('./sceneFiles').findSceneFiles;
 var writeBundledScenesModule = require('./sceneFiles').writeBundledScenesModule;
+var keepSceneListCurrent = require('./sceneFiles').keepSceneListCurrent;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var resolvesToFile = require('./mockShims').resolvesToFile;
@@ -199,18 +200,21 @@ function sdkFileOfProject(projectRoot, relativePath) {
  *   config already runs there: React Native's own start-up installs the globals (fetch,
  *   XMLHttpRequest, WebSocket) the network mocks wrap, so it must run first. Metro runs a listed
  *   module only when it is in the bundle; the SDK's entry imports it.
- * - The early-boot module's import of the SDK's empty list of scenes (src/bundledScenes.ts) is
- *   answered with the project's own list, written now (sceneFiles.js, writeBundledScenesModule).
+ * - The SDK's import of its empty list of scenes (src/bundledScenes.ts) is answered with the
+ *   project's own list, written now (sceneFiles.js, writeBundledScenesModule).
  *
- * The record is as old as the bundler, as the module manifest's scene ids are: a scene added since
- * needs a restart of the bundler.
+ * The list follows the scene files while the bundler runs: once Metro's server hands over its file
+ * watcher, each scene file added, renamed or edited writes the list again (keepSceneListCurrent),
+ * and Metro rebuilds it like any changed file, so no restart is needed. The module manifest's scene
+ * ids are read from the files each time a bundle is made, so they follow the same files.
  */
 function withSceneBoot(config) {
   var projectRoot = projectRootOf(config);
   var sceneBootModule = sdkFileOfProject(projectRoot, 'dist/sceneBoot.js');
   var emptySceneList = sdkFileOfProject(projectRoot, 'dist/bundledScenes.js');
   if (!sceneBootModule || !emptySceneList) return config;
-  var sceneList = writeBundledScenesModule(projectRoot, sherloCacheFolder(projectRoot));
+  var cacheDir = sherloCacheFolder(projectRoot);
+  var sceneList = writeBundledScenesModule(projectRoot, cacheDir);
   if (!sceneList) return config;
 
   var resolveAsTheConfigDoes = applySherloTransforms.resolveThroughConfig(config);
@@ -233,12 +237,42 @@ function withSceneBoot(config) {
     return asConfigured.concat([sceneBootModule]);
   }
 
+  var server = config.server || {};
+  var enhanceAsConfigured = server.enhanceMiddleware;
+  var followedWatcher = null;
+  function enhanceMiddleware(middleware, metroServer) {
+    var watcher = fileWatcherOfMetro(metroServer);
+    if (watcher && watcher !== followedWatcher) {
+      followedWatcher = watcher;
+      keepSceneListCurrent(watcher, projectRoot, cacheDir);
+    }
+    return enhanceAsConfigured
+      ? enhanceAsConfigured.call(this, middleware, metroServer)
+      : middleware;
+  }
+
   return Object.assign({}, config, {
     resolver: Object.assign({}, config.resolver, { resolveRequest: resolveRequest }),
     serializer: Object.assign({}, serializer, {
       getModulesRunBeforeMainModule: getModulesRunBeforeMainModule,
     }),
+    server: Object.assign({}, server, { enhanceMiddleware: enhanceMiddleware }),
   });
+}
+
+/**
+ * The file watcher of a running Metro server: the one its dependency graph rebuilds from, reached
+ * the way Metro's own incremental bundler reaches it. Null when this Metro has no such road; the
+ * scene list then stays as the bundler's start wrote it.
+ */
+function fileWatcherOfMetro(metroServer) {
+  try {
+    var watcher = metroServer.getBundler().getBundler().getWatcher();
+    return watcher && typeof watcher.on === 'function' ? watcher : null;
+  } catch (_) {
+    // No such road on this Metro: the list keeps the scenes of the bundler's start.
+    return null;
+  }
 }
 
 /**

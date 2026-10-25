@@ -31,8 +31,11 @@ export type WaitForStoryMessage = { action: 'waitForStory' } & Parameters<
 /** The letterbox's answer to a WaitForStoryMessage. */
 export type LetterboxAnswerMessage = { action: 'letterboxAnswer' } & LetterboxAnswer;
 
-/** `sherlo capture`'s road: the app's CaptureTransport wait, over the line. */
-export type WaitForACaptureMessage = { action: 'waitForACapture' } & Parameters<
+/**
+ * `sherlo capture`'s road: the app's CaptureTransport wait, over the line, with the ids of the
+ * scenes the app's bundle holds (src/captureTransport.ts). An SDK that does not say them sends none.
+ */
+export type WaitForACaptureMessage = { action: 'waitForACapture'; scenes?: string[] } & Parameters<
   CaptureTransport['waitForACapture']
 >[0];
 
@@ -121,10 +124,10 @@ export type Question =
 export type ReplyTo<AskedQuestion extends Question> = AskedQuestion extends OpenStoryQuestion
   ? OpenStoryReply
   : AskedQuestion extends WhatIsOnScreenQuestion
-  ? WhatIsOnScreenReply
-  : AskedQuestion extends CaptureStoryQuestion
-  ? CaptureStoryReply
-  : ReadLogLinesReply;
+    ? WhatIsOnScreenReply
+    : AskedQuestion extends CaptureStoryQuestion
+      ? CaptureStoryReply
+      : ReadLogLinesReply;
 
 /**
  * A question asked over a driver's own socket. `askId` is the driver's own name for it, said back

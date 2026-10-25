@@ -3,6 +3,8 @@
 // writes, and the bundler's scan record (src/mocking/declaredImports.ts) names each mocked
 // module's stand-in. That the module runs before the app's first one is
 // bundle/earlyScene.test.ts's to show.
+import * as http from 'http';
+import type { AddressInfo } from 'net';
 
 const launch = vi.hoisted(() => ({
   mode: 'testing',
@@ -20,6 +22,22 @@ vi.mock('../SherloModule', () => ({
 
 vi.mock('../helpers/RunnerBridge', () => ({
   default: { log: vi.fn(), send: vi.fn() },
+}));
+
+// The app's waits on the bundler's line, as they leave the app; none is ever answered here.
+const sentOnTheLine = vi.hoisted(() => [] as Record<string, unknown>[]);
+vi.mock(import('../connection/appLine'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  sendAndAwaitAnswer: ((message: Record<string, unknown>) => {
+    sentOnTheLine.push(message);
+    return new Promise(() => {});
+  }) as never,
+}));
+
+// The app's JavaScript came from a bundler, so it waits on that bundler's line.
+vi.mock(import('../bundlerOrigin'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  bundlerOrigin: () => 'http://localhost:8081',
 }));
 
 vi.mock('../bundledScenes', () => ({
@@ -144,5 +162,65 @@ describe('the early-boot module starts the test session of an app with scenes an
     await Promise.resolve();
 
     expect(sessionStarts() ?? 0).toBe(0);
+  });
+});
+
+describe('a launch on a scene the bundle does not hold', () => {
+  const { attach, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
+  const ws = require('ws');
+  const toClose: Array<() => void> = [];
+
+  afterEach(() => {
+    toClose.splice(0).forEach((close) => close());
+    sentOnTheLine.splice(0);
+  });
+
+  /** The bundler's line on loopback, and the app's socket on it, past its hello. */
+  async function theBundlersLine() {
+    const server = http.createServer();
+    const line = attach(server, ws.WebSocketServer || ws.Server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    toClose.push(() => server.close());
+    const heard = new Promise<void>((resolve) =>
+      line.onApp((app: { onMessage: (listener: (m: { action: string }) => void) => void }) =>
+        app.onMessage((m) => m.action === 'waitForACapture' && resolve())
+      )
+    );
+    const port = (server.address() as AddressInfo).port;
+    const socket = new ws(`ws://127.0.0.1:${port}${LINE_PATH}`);
+    toClose.push(() => socket.terminate());
+    await new Promise((resolve) => socket.once('open', resolve));
+    socket.send(
+      JSON.stringify({
+        action: 'hello',
+        protocolVersion: PROTOCOL_VERSION,
+        nativeVersion: '3.0.0',
+        jsVersion: '3.0.0',
+      })
+    );
+    const instruction = new Promise<Record<string, unknown>>((resolve) =>
+      socket.on('message', (data: unknown) => {
+        const { action, ...rest } = JSON.parse(String(data));
+        if (action === 'captureInstruction') resolve(rest);
+      })
+    );
+    return { line, heard, instruction, send: (m: unknown) => socket.send(JSON.stringify(m)) };
+  }
+
+  it("a capture of a scene id missing from the bundle's list ends in an error, not in a picture of Home", async () => {
+    launch.storyId = 'chat--menu-open';
+    await appWithAScene();
+    await import('../sceneBoot');
+    const { bundlerCapture } = await import('../captureTransport');
+    void bundlerCapture()?.waitForACapture({ mode: 'testing', stories: null, answer: null });
+
+    const bundler = await theBundlersLine();
+    bundler.send(sentOnTheLine[0]);
+    await bundler.heard;
+    const reply = bundler.line.ask({ action: 'captureStory', sceneId: 'chat--menu-open' });
+
+    expect(launch.loadFile).not.toHaveBeenCalled();
+    await expect(bundler.instruction).resolves.toEqual({});
+    await expect(reply).resolves.toEqual({ kind: 'no-such-story', known: [SCENE_ID] });
   });
 });

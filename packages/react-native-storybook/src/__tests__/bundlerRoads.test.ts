@@ -67,7 +67,8 @@ describe("the SDK's road to the bundler's capture relay", () => {
 
     const instruction = bundlerCapture()!.waitForACapture(saying);
 
-    expect(__getSentMessages()).toEqual([{ action: 'waitForACapture', ...saying }]);
+    // With it go the scenes the bundle holds: none in a bundle made without Sherlo's bundler config.
+    expect(__getSentMessages()).toEqual([{ action: 'waitForACapture', scenes: [], ...saying }]);
     // Another message the connection brings is not the answer.
     __emitMessageFromTheConnection({ action: 'letterboxAnswer', storyId: 'not-for-the-capture' });
     __emitMessageFromTheConnection({ action: 'captureInstruction', storyId: STORY });
