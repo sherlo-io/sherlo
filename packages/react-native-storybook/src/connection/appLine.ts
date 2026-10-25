@@ -40,6 +40,14 @@ const nativeModule = TurboModule ?? NativeModules.SherloModule ?? null;
 
 let hasStarted = false;
 
+/**
+ * One line in the phone's log about the bundler's line, so a capture that finds no app can be told
+ * from the log: it holds the address, an action name or a wait's length, never a message body.
+ */
+function logTheLine(what: string): void {
+  console.log(`@sherlo/react-native-storybook: the bundler line ${what}`);
+}
+
 /** Send one message over the connection. */
 export function send(message: MessageFromTheAppToTheLine): void {
   if (typeof nativeModule?.sendMessage !== 'function') return;
@@ -71,6 +79,7 @@ export function sendAndAwaitAnswer<AnswerAction extends MessageFromTheLineToTheA
   return new Promise((resolve, reject) => {
     const giveUp = setTimeout(() => {
       stopListening();
+      logTheLine(`brought no ${answerAction} within ${timeoutMs}ms`);
       reject(new Error(`Sherlo's line brought no ${answerAction} within ${timeoutMs}ms`));
     }, timeoutMs);
 
@@ -110,9 +119,17 @@ export function startTheLine(): void {
     nativeVersion: SherloModule.getNativeVersion() ?? '',
     jsVersion: JS_MODULE_VERSION,
   });
+  logTheLine('sent its hello');
 
   const origin = bundlerOrigin();
-  if (origin !== null) dialBundler(`${origin.replace(/^http/, 'ws')}${BUNDLER_LINE_PATH}`);
+  if (origin === null) return;
+  const address = `${origin.replace(/^http/, 'ws')}${BUNDLER_LINE_PATH}`;
+  logTheLine(`dials ${address}`);
+  dialBundler(address);
+  const stopWaitingForAnAnswer = onMessage((heard) => {
+    stopWaitingForAnAnswer();
+    logTheLine(`answered: ${heard.action}`);
+  });
 }
 
 export function __resetForTests(): void {
