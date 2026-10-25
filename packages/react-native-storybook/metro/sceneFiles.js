@@ -144,24 +144,43 @@ function writeBundledScenesModule(projectRoot, cacheDir) {
  * list is written again from the files as they are now. That write is itself a change the watcher
  * tells the bundler of, so the next bundle the app loads holds the list as it is, with no restart.
  *
- * @param {{ on: Function }} watcher - Metro's file watcher: its `change` event carries `eventsQueue`,
- *   each event with the absolute `filePath` it is about
+ * @param {{ on: Function }} watcher - Metro's file watcher. Its `change` event, from Metro 0.84
+ *   (metro-file-map src/index.js), carries `changes`, whose `addedFiles`, `modifiedFiles` and
+ *   `removedFiles` are each an iterable of `[path, metadata]`, the path relative to `rootDir`; from
+ *   Metro 0.83 and older, it carries `eventsQueue`, each event with the absolute `filePath`
  * @param {string} projectRoot
  * @param {string} cacheDir - the folder the module is written into
  */
 function keepSceneListCurrent(watcher, projectRoot, cacheDir) {
   watcher.on('change', function (change) {
-    var events = (change && change.eventsQueue) || [];
-    var aSceneFileChanged = events.some(function (event) {
-      return !!event && typeof event.filePath === 'string' && isSceneFilePath(event.filePath);
-    });
-    if (!aSceneFileChanged) return;
+    if (!aSceneFileChanged(change)) return;
     try {
       writeSceneList(projectRoot, cacheDir, scenesOfProject(projectRoot));
     } catch (_) {
       // A scan that fails, such as on a file removed while it was read, leaves the list as it was:
       // the watcher's next change writes it again. Nothing is thrown into the bundler's watcher.
     }
+  });
+}
+
+// Metro 0.84 tells of a change as "changes": added, modified and removed files, each an iterable
+// of [path, metadata]. Metro 0.83 and older (React Native 0.81 to 0.83) tell of it as
+// "eventsQueue": a list of events, each with the absolute "filePath". The SDK supports both.
+function aSceneFileChanged(change) {
+  if (!change) return false;
+  var paths = [];
+  ['addedFiles', 'modifiedFiles', 'removedFiles'].forEach(function (kind) {
+    var files = change.changes && change.changes[kind];
+    if (!files) return;
+    Array.from(files).forEach(function (entry) {
+      if (Array.isArray(entry)) paths.push(entry[0]);
+    });
+  });
+  (change.eventsQueue || []).forEach(function (event) {
+    if (event) paths.push(event.filePath);
+  });
+  return paths.some(function (filePath) {
+    return typeof filePath === 'string' && isSceneFilePath(filePath);
   });
 }
 
