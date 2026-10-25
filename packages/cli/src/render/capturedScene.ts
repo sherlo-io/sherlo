@@ -47,6 +47,9 @@ export type SceneEnding =
       reached: { route: string[]; ms: number };
       play: PlayStep[];
       settled: { ms: number; frames: number };
+      /** The phone's own density and font scale; absent when an older app says nothing of them. */
+      density?: number;
+      fontScale?: number;
       tree: CapturedView;
     };
 

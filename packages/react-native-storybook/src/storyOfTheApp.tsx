@@ -9,8 +9,9 @@
  */
 import { type ReactNode, useEffect } from 'react';
 import { AppRegistry } from 'react-native';
-import { FiberProvider, useFiber } from 'its-fine';
+import { useFiber } from 'its-fine';
 import { rememberStoryOfTheApp } from './componentNames';
+import { MetadataProvider } from './getStorybook/components/TestingMode/MetadataProvider';
 
 export function StoryOfTheApp({ children }: { children: ReactNode }): ReactNode {
   const fiber = useFiber();
@@ -34,11 +35,15 @@ export function wrapTheAppInStoryOfTheApp(): void {
   AppRegistry.setWrapperComponentProvider(() => TheAppsWrapper);
 }
 
-/** StoryOfTheApp reads its fiber through its-fine, which needs the FiberProvider above it. */
+/**
+ * MetadataProvider is the same one Storybook's testing mode renders: it publishes the collector a
+ * capture reads the views' text and style through, and it holds the FiberProvider StoryOfTheApp
+ * reads its fiber through (its-fine).
+ */
 function TheAppsWrapper({ children }: { children: ReactNode }): ReactNode {
   return (
-    <FiberProvider>
+    <MetadataProvider>
       <StoryOfTheApp>{children}</StoryOfTheApp>
-    </FiberProvider>
+    </MetadataProvider>
   );
 }
