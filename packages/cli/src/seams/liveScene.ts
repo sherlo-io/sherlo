@@ -77,17 +77,24 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
     const link = await iosDevelopmentLauncherLink(run, device.udid, app.id, port);
     if (link) {
       // Mirrors sherlo-runner's ios launchApp.ts: the sheet's record is a user default of the app.
-      await run('xcrun', [
-        'simctl',
-        'spawn',
-        device.udid,
-        'defaults',
-        'write',
-        app.id,
-        'EXDevMenuIsOnboardingFinished',
-        '-bool',
-        'YES',
-      ]);
+      // The menu stays closed at launch too (the clean device wipes that setting); the floating
+      // button, gestures and key commands still open it.
+      for (const [key, value] of [
+        ['EXDevMenuIsOnboardingFinished', 'YES'],
+        ['EXDevMenuShowsAtLaunch', 'NO'],
+      ]) {
+        await run('xcrun', [
+          'simctl',
+          'spawn',
+          device.udid,
+          'defaults',
+          'write',
+          app.id,
+          key,
+          '-bool',
+          value,
+        ]);
+      }
     }
     // expo-dev-launcher reads `--initialUrl <url>` from the process arguments at launch and opens
     // that link first (EXDevLauncherController `initialUrlFromProcessInfo`), so one launch carries
@@ -151,8 +158,8 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
 
 /**
  * Mark the developer menu's first-run sheet as seen in the stopped app's private preferences.
- * Mirrors sherlo-runner's android preSeedExpoDevMenuPrefs.ts, but sets only the one key that hides
- * the sheet. The XML goes through base64 because `run-as sh -c` strips its double quotes.
+ * Mirrors sherlo-runner's android preSeedExpoDevMenuPrefs.ts, but sets only the two keys that hide
+ * the sheet and keep the menu closed at launch. The XML goes through base64 because `run-as sh -c` strips its double quotes.
  */
 async function markAndroidDevMenuSheetSeen(
   adb: (...args: string[]) => Promise<string>,
@@ -160,7 +167,8 @@ async function markAndroidDevMenuSheetSeen(
 ): Promise<void> {
   const xml =
     `<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n` +
-    `    <boolean name="isOnboardingFinished" value="true" />\n</map>\n`;
+    `    <boolean name="isOnboardingFinished" value="true" />\n` +
+    `    <boolean name="showsAtLaunch" value="false" />\n</map>\n`;
   const encoded = Buffer.from(xml, 'utf-8').toString('base64');
   const dir = `/data/data/${appId}/shared_prefs`;
   await adb(

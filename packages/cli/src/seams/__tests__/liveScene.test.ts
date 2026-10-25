@@ -461,7 +461,66 @@ describe('a scene is captured and opened live', () => {
     const launch = ran.findIndex((command) => command.startsWith('xcrun simctl launch'));
     expect(ran.indexOf(mark)).toBeGreaterThan(-1);
     expect(ran.indexOf(mark)).toBeLessThan(launch);
-    expect(ran.filter((command) => command.includes('defaults write'))).toEqual([mark]);
+    expect(ran.filter((command) => command.includes('defaults write'))).toEqual([
+      mark,
+      'xcrun simctl spawn UDID-1 defaults write com.example.chat EXDevMenuShowsAtLaunch -bool NO',
+    ]);
+  });
+
+  it('an iOS clean-device start of an Expo development build keeps the developer menu closed at launch', async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      get_app_container: '/Devices/UDID-1/Bundle/Application/X/Chat.app\n',
+      plutil: '{\n  "CFBundleURLSchemes" => [\n    0 => "exp+chat"\n  ]\n}\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+    } finally {
+      uninstall();
+    }
+
+    const hide =
+      'xcrun simctl spawn UDID-1 defaults write com.example.chat EXDevMenuShowsAtLaunch -bool NO';
+    const launch = ran.findIndex((command) => command.startsWith('xcrun simctl launch'));
+    expect(ran.indexOf(hide)).toBeGreaterThan(-1);
+    expect(ran.indexOf(hide)).toBeLessThan(launch);
+  });
+
+  it('an Android clean-device start of an Expo development build keeps the developer menu closed at launch', async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      'resolve-activity': LAUNCHER_ANSWER,
+      'dumpsys package':
+        'Activity expo.modules.devlauncher.launcher.DevLauncherActivity\n  Scheme: "exp+chat"\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: ANDROID,
+      });
+    } finally {
+      uninstall();
+    }
+
+    const writes = ran.filter((command) => command.includes('run-as com.example.chat sh -c'));
+    expect(writes).toHaveLength(1);
+    const encoded = /echo (\S+) \| base64 -d/.exec(writes[0])?.[1] ?? '';
+    const xml = Buffer.from(encoded, 'base64').toString('utf-8');
+    expect(xml).toContain('<boolean name="showsAtLaunch" value="false" />');
+    expect(xml).toContain('<boolean name="isOnboardingFinished" value="true" />');
   });
 
   it("an Android clean-device start of an Expo development build marks the developer menu's first-run sheet as seen", async () => {
