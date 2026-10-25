@@ -33,7 +33,16 @@ describe('the last command record', () => {
   });
 
   it('a CLI test leaves no last command record in the repository', () => {
-    const repositoryRecord = path.join(process.cwd(), '.sherlo', 'last-command.json');
+    // Only what THIS run writes is looked at: the repository's disk is shared with every other
+    // test file running beside this one, so a file found there may be another's. The writes are
+    // held back and listed, so nothing lands on disk and nothing else's can be mistaken for ours.
+    const written: string[] = [];
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: unknown) => {
+      written.push(String(file));
+    }) as never);
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(((folder: unknown) => {
+      written.push(String(folder));
+    }) as never);
 
     // A posed run: the command starts in a temporary project, which is gone when the process ends.
     recordLastCommand('login', {});
@@ -41,7 +50,8 @@ describe('the last command record', () => {
     putLiveFolderBack();
     endProcess(0);
 
-    expect(fs.existsSync(repositoryRecord)).toBe(false);
+    const repository = path.resolve(process.cwd());
+    expect(written.filter((file) => path.resolve(file).startsWith(repository))).toEqual([]);
     expect(fs.existsSync(projectRoot)).toBe(false);
   });
 

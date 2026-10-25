@@ -27,8 +27,13 @@ vi.mock('../helpers/reporting', () => ({
   },
 }));
 
-import start from '../start';
+// The record's exit handler would write into this folder when the worker ends, beside other files.
+vi.mock('../helpers/lastCommandRecord', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../helpers/lastCommandRecord')>()),
+  recordLastCommand: vi.fn(),
+}));
 
+import start from '../start';
 class ExitSignal extends Error {
   constructor(public readonly code: number | undefined) {
     super(`process.exit(${code})`);
