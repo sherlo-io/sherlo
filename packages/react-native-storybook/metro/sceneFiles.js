@@ -393,6 +393,7 @@ module.exports = {
   fileWatcherOfMetro: fileWatcherOfMetro,
   sceneIdsOfSource: sceneIdsOfSource,
   sceneDevicesOf: sceneDevicesOf,
+  scenesOfProject: scenesOfProject,
   readSceneIds: readSceneIds,
   writeBundledScenesModule: writeBundledScenesModule,
 };

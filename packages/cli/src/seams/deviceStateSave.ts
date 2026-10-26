@@ -100,14 +100,47 @@ export async function saveDeviceState(
     scales[scale] = value === 'null' || value === '' ? null : value;
   }
 
-  const permission = new RegExp(
-    `${POST_NOTIFICATIONS.replaceAll('.', '\\.')}: granted=(true|false)`
-  );
-  const granted = permission.exec(await adb('shell', 'dumpsys', 'package', app.id))?.[1];
+  const granted = (await androidPermissionStates(device.serial, app))[POST_NOTIFICATIONS];
   const notifications =
-    granted === 'true' ? 'granted' : granted === 'false' ? 'not-granted' : 'not-asked';
+    granted === true ? 'granted' : granted === false ? 'not-granted' : 'not-asked';
 
   return { platform: 'android', folder, dataTar, scales, notifications };
+}
+
+/** Each runtime permission the app's manifest declares on an Android phone, and whether it is granted. */
+export async function androidPermissionStates(
+  serial: string,
+  app: SceneApp
+): Promise<Record<string, boolean>> {
+  const dump = await deviceState().run('adb', [
+    '-s',
+    serial,
+    'shell',
+    'dumpsys',
+    'package',
+    app.id,
+  ]);
+  const states: Record<string, boolean> = {};
+  for (const match of dump.matchAll(/(android\.permission\.[A-Z_]+): granted=(true|false)/g)) {
+    states[match[1]] = match[2] === 'true';
+  }
+  return states;
+}
+
+/** Grant or deny the app's notifications on a simulator (`simctl privacy` has no such service). */
+export async function setIosNotifications(
+  udid: string,
+  app: SceneApp,
+  granted: boolean
+): Promise<void> {
+  await deviceState().run('applesimutils', [
+    '--byId',
+    udid,
+    '--bundle',
+    app.id,
+    '--setPermissions',
+    `notifications=${granted ? 'YES' : 'NO'}`,
+  ]);
 }
 
 /** Wipe the app's data, grant notifications, and still the animations - only after the save. */
@@ -120,14 +153,7 @@ export async function cleanTheDevice(
 
   if (device.platform === 'ios' && saved.platform === 'ios') {
     emptyTheContainer(saved.container, saved.parts);
-    await run('applesimutils', [
-      '--byId',
-      device.udid,
-      '--bundle',
-      app.id,
-      '--setPermissions',
-      'notifications=YES',
-    ]);
+    await setIosNotifications(device.udid, app, true);
     await run('xcrun', [
       'simctl',
       'spawn',

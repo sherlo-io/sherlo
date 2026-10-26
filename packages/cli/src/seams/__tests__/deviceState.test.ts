@@ -29,6 +29,8 @@ import type { DeviceState, DeviceTool, SceneTarget } from '../deviceState';
 import { SERIAL_LOOKUP_LIMIT_MS } from '../deviceStateAndroids';
 import { saveDeviceState } from '../deviceStateSave';
 import { restoreDeviceState } from '../deviceStateRestore';
+import { appIdOf } from '../deviceStateAppId';
+import { applySceneDevice } from '../sceneDevice';
 
 const IOS: SceneTarget = {
   device: { platform: 'ios', udid: 'SIM-1' },
@@ -62,6 +64,7 @@ beforeEach(() => {
   writeFiles(simulator, {
     'Library/BulletinBoard/VersionedSectionInfo.plist': 'notifications as I left them',
     'Library/Keychains/keychain-2.db': 'my logins',
+    'Library/TCC/TCC.db': 'camera as I left it',
   });
   saveFolders = [];
   calls = [];
@@ -104,6 +107,78 @@ describe('a local capture leaves the device clean', () => {
       'xcrun simctl spawn SIM-1 defaults write com.apple.Accessibility ReduceMotionEnabled -bool false'
     );
     expect(fs.existsSync(saveFolders[0])).toBe(false);
+  });
+
+  it("a scene's denied permission is revoked and its location set before launch, and both are put back after", async () => {
+    const field = {
+      permissions: { camera: 'denied', notifications: 'denied' },
+      location: { latitude: 52.5, longitude: 13.4 },
+    } as const;
+
+    const restoreIos = await prepareCleanDevice(IOS.device, IOS.app, field);
+    expect(await applySceneDevice(IOS, field)).toEqual([]);
+    expect(commands()).toContain('xcrun simctl privacy SIM-1 revoke camera com.example.app');
+    expect(commands()).toContain(
+      'applesimutils --byId SIM-1 --bundle com.example.app --setPermissions notifications=NO'
+    );
+    expect(commands()).toContain('xcrun simctl location SIM-1 set 52.5,13.4');
+    // The revoke is a change to the simulator's privacy database.
+    writeFiles(simulator, { 'Library/TCC/TCC.db': 'camera revoked by the scene' });
+    calls = [];
+    await restoreIos();
+    expect(readFiles(simulator)['Library/TCC/TCC.db']).toBe('camera as I left it');
+    expect(commands()).toContain('xcrun simctl spawn SIM-1 launchctl stop com.apple.tccd');
+    expect(commands()).toContain('xcrun simctl location SIM-1 clear');
+
+    calls = [];
+    const restoreAndroid = await prepareCleanDevice(ANDROID.device, ANDROID.app, field);
+    // The app's manifest declares the camera and the notifications; the phone is an emulator.
+    expect(await applySceneDevice(ANDROID, field)).toEqual([]);
+    expect(commands()).toContain(
+      'adb -s emulator-5554 shell pm revoke com.example.app android.permission.CAMERA'
+    );
+    expect(commands()).toContain('adb -s emulator-5554 emu geo fix 13.4 52.5');
+    calls = [];
+    await restoreAndroid();
+    // The camera was granted before the scene, so it is granted again; the phone goes back to
+    // where `dumpsys location` last saw it.
+    expect(commands()).toContain(
+      'adb -s emulator-5554 shell pm grant com.example.app android.permission.CAMERA'
+    );
+    expect(commands()).toContain('adb -s emulator-5554 emu geo fix -70.25 40.5');
+  });
+
+  it('an emulator whose earlier location cannot be read is not moved, and the location is not applied', async () => {
+    uninstall();
+    uninstall = installDeviceState({
+      ...recordingDevice(undefined),
+      run: async (tool, args) => {
+        calls.push({ tool, args });
+        return args.includes('location')
+          ? 'no location providers\n'
+          : answerOf(`${tool} ${args.join(' ')}`, undefined);
+      },
+    });
+    const field = { location: { latitude: 52.5, longitude: 13.4 } };
+
+    expect(await applySceneDevice(ANDROID, field)).toEqual(['location']);
+    expect(commands().filter((line) => line.includes('geo fix'))).toEqual([]);
+  });
+
+  it('a permission the app does not declare is not applied, and the capture goes on', async () => {
+    const field = { permissions: { calendar: 'granted' }, location: undefined } as const;
+
+    expect(await applySceneDevice(ANDROID, field)).toEqual(['calendar']);
+    expect(commands().filter((line) => line.includes('pm grant'))).toEqual([]);
+  });
+
+  it('an app id comes from the project, and an id with shell characters is none', () => {
+    const root = fs.mkdtempSync(path.join(scratch, 'project-'));
+    writeFiles(root, {
+      'app.json': JSON.stringify({ expo: { ios: { bundleIdentifier: 'a b;c' } } }),
+    });
+
+    expect(appIdOf('ios', root)).toBeUndefined();
   });
 
   it('a failed capture puts everything back', async () => {
@@ -563,10 +638,14 @@ function answerOf(line: string, stdoutTo: string | undefined): string {
   if (line.includes('settings get global window_animation_scale')) return '1.0\n';
   if (line.includes('settings get global transition_animation_scale')) return '0.5\n';
   if (line.includes('settings get global animator_duration_scale')) return 'null\n';
+  if (line.includes('dumpsys location')) {
+    return '  last location=Location[gps 40.5,-70.25 hAcc=5 et=+1d vAcc=1]\n';
+  }
   if (line.includes('dumpsys package com.example.app')) {
     return (
       '    runtime permissions:\n' +
-      '      android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED ]\n'
+      '      android.permission.POST_NOTIFICATIONS: granted=false, flags=[ USER_SENSITIVE_WHEN_GRANTED ]\n' +
+      '      android.permission.CAMERA: granted=true, flags=[ ]\n'
     );
   }
   return '';

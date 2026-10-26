@@ -22,6 +22,9 @@ import {
   sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
+import getCwd from '../../helpers/getCwd';
+import { applySceneDevice, deviceOfScene } from '../../seams/sceneDevice';
+import type { SceneDeviceField } from '../../seams/sceneDevice';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
@@ -111,14 +114,18 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   const target = await deviceState().sceneTarget();
   // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
   const installed = !isTarget(target) || (await appIsInstalled(target));
+  // The scene's own phone setup, read from its file before the device is touched.
+  const field = isTarget(target) && installed ? sceneDeviceField(sceneId) : undefined;
   const restore =
     isTarget(target) && installed
-      ? await prepareCleanDevice(target.device, target.app).catch(endOnNotDebuggable)
+      ? await prepareCleanDevice(target.device, target.app, field).catch(endOnNotDebuggable)
       : undefined;
   const pngPath = passedOptions[PNG_OPTION];
   let answer: SceneCaptureResult;
+  let notApplied: string[] = [];
   let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
   try {
+    if (isTarget(target) && installed) notApplied = await applySceneDevice(target, field);
     answer = installed
       ? await captureSocket().captureScene({
           sceneId,
@@ -137,7 +144,8 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
 
   if (passedOptions[JSON_OPTION]) {
     const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
-    process.stdout.write(`${JSON.stringify({ ...answer, ...saved }, null, 2)}\n`);
+    const unapplied = notApplied.length > 0 ? { deviceNotApplied: notApplied } : {};
+    process.stdout.write(`${JSON.stringify({ ...answer, ...saved, ...unapplied }, null, 2)}\n`);
   } else {
     emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port), picture });
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
@@ -146,6 +154,15 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   }
 
   if (answer.kind !== 'scene') process.exit(EXIT_BLOCK);
+}
+
+/** The device the scene's file declares; a field that is not a plain literal ends the command, naming the file. */
+function sceneDeviceField(sceneId: string): SceneDeviceField | undefined {
+  try {
+    return deviceOfScene(getCwd(), sceneId);
+  } catch (error) {
+    return throwError({ message: error instanceof Error ? error.message : String(error) });
+  }
 }
 
 /** Save the device's screen to `path`; a failed save is the picture's own error and changes no ending. */

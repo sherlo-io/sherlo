@@ -27,11 +27,12 @@ import os from 'os';
 import path from 'path';
 import getCwd from '../helpers/getCwd';
 import throwError from '../helpers/throwError';
-import { readProjectJson } from '../helpers/projectJson';
 import { cleanTheDevice, saveDeviceState } from './deviceStateSave';
 import { restoreDeviceState } from './deviceStateRestore';
 import { connectedAndroids } from './deviceStateAndroids';
-import { readIfThere } from './iosConfiguration';
+import { appIdOf } from './deviceStateAppId';
+import { restoreSceneDevice, saveSceneDevice } from './sceneDevice';
+import type { SavedSceneDevice, SceneDeviceField } from './sceneDevice';
 
 /** The device a scene runs on: a simulator by its UDID, or an emulator or phone by its adb serial. */
 export type SceneDevice =
@@ -113,13 +114,17 @@ export function endOnNotDebuggable(error: unknown): never {
  */
 export async function prepareCleanDevice(
   device: SceneDevice,
-  app: SceneApp
+  app: SceneApp,
+  sceneField?: SceneDeviceField
 ): Promise<() => Promise<void>> {
   const folder = deviceState().makeSaveFolder(app);
 
   let saved: Awaited<ReturnType<typeof saveDeviceState>>;
+  let sceneSaved: SavedSceneDevice | undefined;
   try {
     saved = await saveDeviceState(device, app, folder);
+    // What the scene's own phone setup will change is read now, before anything is changed.
+    if (sceneField) sceneSaved = await saveSceneDevice(device, app, sceneField, folder);
   } catch (error) {
     // Nothing on the device has changed yet, so the half-made save is worth nothing.
     fs.rmSync(folder, { recursive: true, force: true });
@@ -141,6 +146,9 @@ export async function prepareCleanDevice(
   const putBack = async (): Promise<void> => {
     releaseTheHold();
     const failures = await restoreDeviceState(device, app, saved);
+    if (sceneSaved) {
+      failures.push(...(await restoreSceneDevice(device, app, sceneSaved, folder)));
+    }
     // Only now: a second Ctrl-C while the device is being put back must not cut the restore short.
     process.off('SIGINT', onInterrupt);
     process.off('SIGTERM', onTerminate);
@@ -335,42 +343,6 @@ async function bootedSimulators(): Promise<SceneDevice[]> {
     // No Xcode on this machine: it has no simulator to clean.
     return [];
   }
-}
-
-/** The app's id as the project names it: Expo's app.json first, then the native project. */
-function appIdOf(platform: SceneDevice['platform'], root: string): string | undefined {
-  const expo = readProjectJson(root, 'app.json')?.expo as
-    | { ios?: { bundleIdentifier?: string }; android?: { package?: string } }
-    | undefined;
-  const fromExpo = platform === 'ios' ? expo?.ios?.bundleIdentifier : expo?.android?.package;
-  if (fromExpo) return safeId(fromExpo);
-
-  if (platform === 'ios') {
-    const iosFolder = path.join(root, 'ios');
-    const projects = fs.existsSync(iosFolder)
-      ? fs.readdirSync(iosFolder).filter((name) => name.endsWith('.xcodeproj'))
-      : [];
-    for (const project of projects) {
-      const pbxproj = readIfThere(path.join(iosFolder, project, 'project.pbxproj')) ?? '';
-      const ids = [...pbxproj.matchAll(/PRODUCT_BUNDLE_IDENTIFIER = "?([^";]+)"?;/g)]
-        .map((match) => match[1])
-        .filter((id) => !id.includes('$') && !/tests$/i.test(id));
-      if (ids[0]) return safeId(ids[0]);
-    }
-    return undefined;
-  }
-
-  for (const file of ['build.gradle', 'build.gradle.kts']) {
-    const gradle = readIfThere(path.join(root, 'android/app', file)) ?? '';
-    const id = /applicationId\s*=?\s*["']([^"']+)["']/.exec(gradle)?.[1];
-    if (id) return safeId(id);
-  }
-  return undefined;
-}
-
-/** An id goes into a device shell line, so only an id's own characters are taken. */
-function safeId(id: string): string | undefined {
-  return /^[A-Za-z0-9._-]+$/.test(id) ? id : undefined;
 }
 
 /* ========================================================================== */

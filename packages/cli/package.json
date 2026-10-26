@@ -35,7 +35,7 @@
     "cli.js"
   ],
   "scripts": {
-    "build": "rm -rf dist && esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --minify --keep-names --sourcemap --external:@expo/fingerprint --external:@napi-rs/keyring --outfile=dist/index.js && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
+    "build": "rm -rf dist && esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --minify --keep-names --sourcemap --external:@expo/fingerprint --external:@napi-rs/keyring --external:metro-babel-transformer/node_modules/@babel/parser --outfile=dist/index.js && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js",
     "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
     "check:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts --check",
     "generate:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts",

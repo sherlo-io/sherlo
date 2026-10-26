@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { scenes } from '../scenes';
+import type { SceneDevice } from '../sceneDeviceTypes';
 
 const sceneFiles = require('../../metro/sceneFiles');
 const sourceFiles = require('../../metro/sourceFiles');
@@ -297,6 +298,21 @@ export default scenes({ scenes: { Other: { device: { ...shared } } } });`;
       /o\.scenes\.tsx.*Other/
     );
     expect(() => sceneFiles.sceneDevicesOf('t.scenes.tsx', call)).toThrow(/t\.scenes\.tsx.*Third/);
+  });
+
+  it('scenesOfProject names each scene by id with its key and its file, and the key finds its device', () => {
+    const root = mkProject();
+    writeFile(
+      root,
+      'chat.scenes.tsx',
+      "export default scenes({ scenes: { 'Empty Chat': { device: { location: { latitude: 1, longitude: 2 } } } } });"
+    );
+    const scene = sceneFiles.scenesOfProject(root)['chat--empty-chat'];
+    const source = fs.readFileSync(scene.file, 'utf8');
+    const device: SceneDevice = sceneFiles.sceneDevicesOf('chat.scenes.tsx', source)[scene.key];
+
+    expect(scene.key).toBe('Empty Chat');
+    expect(device.location).toEqual({ latitude: 1, longitude: 2 });
   });
 
   it('stable stringify sorts keys at every depth', () => {
