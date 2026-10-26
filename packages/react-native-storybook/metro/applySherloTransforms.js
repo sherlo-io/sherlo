@@ -13,6 +13,8 @@ var storyTitleReader = require('./storyTitleReader');
 var stillReal = require('./stillReal');
 var stableStringify = require('./stableStringify');
 var readSceneIds = require('./sceneFiles').readSceneIds;
+var pathsOfChange = require('./sceneFiles').pathsOfChange;
+var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
@@ -729,6 +731,29 @@ function resolveThroughConfig(config) {
  */
 function mountTheLineOnTheBundler(projectRoot, opts) {
   var mountedOn = null;
+  var line = null;
+  var followedWatcher = null;
+
+  /**
+   * Tells the line of each file Metro's file watcher reports changed (named under the project
+   * root, never its contents), so a scene capture's log feed can say what the bundler saw. Metro
+   * hands a middleware enhancer its server, and the server hands over the watcher. What Metro
+   * sends the app over /hot, a full reload among it, never reaches this file: Metro owns that
+   * socket, and the line takes only its own path.
+   */
+  function followMetro(metroServer) {
+    var watcher = fileWatcherOfMetro(metroServer);
+    if (!watcher || watcher === followedWatcher) return;
+    followedWatcher = watcher;
+    watcher.on('change', function (change) {
+      if (line === null) return;
+      line.filesChanged(
+        pathsOfChange(change).map(function (changed) {
+          return path.isAbsolute(changed) ? path.relative(projectRoot, changed) : changed;
+        })
+      );
+    });
+  }
 
   function mountOn(httpServer) {
     if (!httpServer || httpServer === mountedOn) return;
@@ -746,7 +771,7 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
       return;
     }
 
-    sherloLine.attach(httpServer, WebSocketServer, {
+    line = sherloLine.attach(httpServer, WebSocketServer, {
       storyFileChangedSince: function (time) {
         return aStoryFileChangedSince(projectRoot, opts, time);
       },
@@ -769,7 +794,7 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
     response.end(body);
   }
 
-  return { middleware: middleware };
+  return { middleware: middleware, followMetro: followMetro };
 }
 
 /** `ws`'s WebSocketServer, as the project's Metro loads it. ws 7 calls it `Server`. */
@@ -944,6 +969,7 @@ function applySherloTransforms(result, opts) {
       : null;
 
   function enhanceMiddleware(metroMiddleware, metroServer) {
+    bundlerLine.followMetro(metroServer);
     var enhanced = existingEnhanceMiddleware
       ? existingEnhanceMiddleware(metroMiddleware, metroServer)
       : metroMiddleware;
@@ -1007,20 +1033,22 @@ function findStorybookRequires(projectRoot, opts) {
 }
 
 /**
- * Whether any story file the bundle's Storybook loads was modified after `time` (milliseconds since
- * 1970). The files are the ones the title record walks, read when asked and statted when asked.
+ * The first story file the bundle's Storybook loads that was modified after `time` (milliseconds
+ * since 1970), named under the project root; false when none was. The files are the ones the title
+ * record walks, read when asked and statted when asked.
  */
 function aStoryFileChangedSince(projectRoot, opts, time) {
   var requiresPath = findStorybookRequires(projectRoot, opts);
   if (!requiresPath) return false;
-  return storyTitleReader.readStoryFilePaths(requiresPath).some(function (file) {
+  var changed = storyTitleReader.readStoryFilePaths(requiresPath).filter(function (file) {
     try {
       return fs.statSync(file).mtimeMs > time;
     } catch (_) {
       // A file the disk no longer has is not a change the app could have loaded.
       return false;
     }
-  });
+  })[0];
+  return changed === undefined ? false : path.relative(projectRoot, changed);
 }
 
 /**

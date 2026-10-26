@@ -16,15 +16,28 @@ const LOG_FEED_PATIENCE_MS = 5000;
  * read) answers with nothing readable, and that is not this capture's own failure to report.
  */
 export async function drainAppLog(port: number): Promise<string[]> {
+  return (await readAppLog(port)).logs;
+}
+
+/**
+ * The same reading as drainAppLog, with the restarts the line counted for the latest launched
+ * capture: each time its app took the capture's instruction and then started over. None when the
+ * line counted none, or said nothing readable.
+ */
+export async function readAppLog(port: number): Promise<{ logs: string[]; restarts: number }> {
   const answer = await askTheBundlerLine({
     port,
     question: { action: 'readLogLines' },
     patienceMs: LOG_FEED_PATIENCE_MS,
   });
 
-  if (answer.kind !== 'said') return [];
+  if (answer.kind !== 'said') return { logs: [], restarts: 0 };
 
-  return keepStrings(answer.reply?.lines);
+  const restarts = answer.reply?.restarts;
+  return {
+    logs: keepStrings(answer.reply?.lines),
+    restarts: typeof restarts === 'number' ? restarts : 0,
+  };
 }
 
 /** The strings of a list off the wire; none when the wire sent no list. */

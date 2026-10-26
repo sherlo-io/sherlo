@@ -522,6 +522,41 @@ describe('a scene is captured and opened live', () => {
     }
   });
 
+  it('a capture that gave up after its app restarted ends as restarted mid-capture, not no app', async () => {
+    const stage = 'sherlo bundler: the app started over after taking the capture (restart 3)';
+    const { uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
+    try {
+      // The app took the instruction and started over; the capture is never answered.
+      const looping = await pretendBundler((question) =>
+        question.action === 'readLogLines' ? { lines: [stage], restarts: 3 } : NO_ANSWER
+      );
+      vi.useFakeTimers({ toFake: ['setTimeout'] });
+      try {
+        const ending = captureLiveScene({
+          sceneId: SCENE,
+          port: looping.port,
+          settings: STABILIZATION_SETTINGS,
+          target: ANDROID,
+        });
+        while (looping.asked.length === 0) await new Promise((next) => setImmediate(next));
+        await vi.advanceTimersByTimeAsync(130_000);
+        const restarted = {
+          kind: 'restarted-mid-capture',
+          sceneId: SCENE,
+          restarts: 3,
+          logs: [stage],
+        };
+        expect(await ending).toEqual(restarted);
+        const printed = renderCapturedScene(capturedSceneEnding(restarted as never, 8081));
+        expect(printed.join('\n')).toContain('started over 3 times');
+      } finally {
+        vi.useRealTimers();
+      }
+    } finally {
+      uninstall();
+    }
+  });
+
   it("an iOS capture of an Expo development build opens the bundler's bundle through the development launcher's link", async () => {
     const bundler = await pretendBundler((question) =>
       question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD

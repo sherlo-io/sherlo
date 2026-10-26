@@ -930,7 +930,10 @@ describe('aStoryFileChangedSince - the story files the bundle loads, checked whe
     const modifiedAt = Date.now() - 10_000;
     fs.utimesSync(storyFile, modifiedAt / 1000, modifiedAt / 1000);
 
-    expect(applySherloTransforms.aStoryFileChangedSince(project, {}, modifiedAt - 1000)).toBe(true);
+    // It names the changed file under the project root, for the restart's cause on the log feed.
+    expect(applySherloTransforms.aStoryFileChangedSince(project, {}, modifiedAt - 1000)).toBe(
+      path.join('src', 'Button.stories.tsx')
+    );
     fs.rmSync(project, { recursive: true, force: true });
   });
 

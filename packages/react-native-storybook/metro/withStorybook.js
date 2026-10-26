@@ -13,6 +13,7 @@ var applyLaunchTimeEntry = require('./launchTimeEntry').applyLaunchTimeEntry;
 var findSceneFiles = require('./sceneFiles').findSceneFiles;
 var writeBundledScenesModule = require('./sceneFiles').writeBundledScenesModule;
 var keepSceneListCurrent = require('./sceneFiles').keepSceneListCurrent;
+var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var resolvesToFile = require('./mockShims').resolvesToFile;
@@ -258,21 +259,6 @@ function withSceneBoot(config) {
     }),
     server: Object.assign({}, server, { enhanceMiddleware: enhanceMiddleware }),
   });
-}
-
-/**
- * The file watcher of a running Metro server: the one its dependency graph rebuilds from, reached
- * the way Metro's own incremental bundler reaches it. Null when this Metro has no such road; the
- * scene list then stays as the bundler's start wrote it.
- */
-function fileWatcherOfMetro(metroServer) {
-  try {
-    var watcher = metroServer.getBundler().getBundler().getWatcher();
-    return watcher && typeof watcher.on === 'function' ? watcher : null;
-  } catch (_) {
-    // No such road on this Metro: the list keeps the scenes of the bundler's start.
-    return null;
-  }
 }
 
 /**
