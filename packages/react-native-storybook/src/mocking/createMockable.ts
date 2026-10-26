@@ -138,21 +138,29 @@ function createMockable<T extends ModuleExports>(key: string, realModule: T): T 
 // A real module that throws when it loads throws again at every read that needs it: Metro does not
 // cache a module that threw. While a story mocks the module, what it throws is a MockedModuleError
 // naming the module as the story wrote it and the error the real import threw (kept as `cause`),
-// and the story fails with it even when the app catches it. With no mock of it active, the real
-// error passes through as it would without the stand-in, and still names the stand-in's module to
-// the story's own import of it (./mockDeclaration).
+// and the story fails with it even when the app catches it. With no mock of it active, or at an
+// import's interop, the real error passes through as it would without the stand-in.
 function createLazyMockable<T extends ModuleExports>(key: string, loadRealModule: () => T): T {
   let loaded: { module: T } | undefined;
-  const real = (): T => {
+  const load = (failure: (thrown: unknown) => unknown): T => {
     if (loaded) return loaded.module;
     try {
       loaded = { module: loadThrowingWhatItThrew(loadRealModule) };
     } catch (error) {
-      throw realImportFailure(key, error);
+      throw failure(error);
     }
     return loaded.module;
   };
-  return buildMockable(key, real, undefined);
+  // An import's interop reads the module for no story: what the real module throws then names the
+  // stand-in's module to the story's own import of it, mocked or not (./mockDeclaration). A scene's
+  // mocks are on before its lazy imports land, and the mock must outlive that landing.
+  const realForInterop = (): T =>
+    load((thrown) => {
+      recordThrownByStandIn(key, thrown);
+      return thrown;
+    });
+  const real = (): T => load((thrown) => realImportFailure(key, thrown));
+  return buildMockable(key, real, undefined, realForInterop);
 }
 
 type FatalErrorReporter = { reportFatalError?: (error: unknown) => void };
@@ -198,11 +206,13 @@ function realImportFailure(key: string, thrown: unknown): unknown {
 }
 
 // `eagerReal` is the real module when it is already in hand; a lazy stand-in passes only `real`,
-// and a mock factory is what loads it.
+// and a mock factory is what loads it. `realForInterop` is the real module as an import's interop
+// reads it.
 function buildMockable<T extends ModuleExports>(
   key: string,
   real: () => T,
-  eagerReal: T | undefined
+  eagerReal: T | undefined,
+  realForInterop: () => T = real
 ): T {
   const mockOf = (): ModuleExports | undefined =>
     resolveMockExports(key, eagerReal, eagerReal ? undefined : real);
@@ -257,9 +267,11 @@ function buildMockable<T extends ModuleExports>(
 
       // An import's interop and a promise settling with the module look at these two; they take
       // nothing out of the module.
-      if (prop !== 'then' && prop !== '__esModule') recordRealRead(key);
+      const byInterop = prop === 'then' || prop === '__esModule';
+      if (!byInterop) recordRealRead(key);
       const mock = mockOf();
-      return mock && hasOwn(mock, prop) ? mock[prop] : real()[prop];
+      if (mock && hasOwn(mock, prop)) return mock[prop];
+      return (byInterop ? realForInterop() : real())[prop];
     },
 
     has(_target, prop) {
