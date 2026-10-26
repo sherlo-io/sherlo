@@ -124,9 +124,7 @@ export function unmatchedRules(): string[] {
     ...mocksInEffect.rules
       .filter((rule) => !matchedRules.has(rule))
       .map(({ matcher: { method, url, operationName } }) =>
-        [method ?? 'ANY', url === undefined ? '*' : String(url), operationName]
-          .filter((part) => part !== undefined)
-          .join(' ')
+        requestWords(method ?? 'ANY', url === undefined ? '*' : String(url), operationName)
       ),
     ...mocksInEffect.sockets
       .filter((rule) => !matchedRules.has(rule))
@@ -145,7 +143,9 @@ export function answerFor(request: MockedRequest): Verdict {
   unanswered.push({ method: request.method, url: request.url });
   if (mocksInEffect.passthrough) return { kind: 'passthrough' };
 
-  const refusal = new UnmockedRequestError(`no mock rule matches ${request.method} ${request.url}`);
+  const refusal = new UnmockedRequestError(
+    `no mock rule matches ${requestWords(request.method, request.url, operationNameOf(request.body))}`
+  );
   recordRefusal(refusal);
   return { kind: 'refusal', refusal };
 }
@@ -190,6 +190,11 @@ function urlMatches(pattern: string | RegExp, url: string): boolean {
   if (pattern instanceof RegExp) return pattern.test(url);
   if (pattern.endsWith('*')) return url.startsWith(pattern.slice(0, -1));
   return url === pattern;
+}
+
+/** A request told by method, address and, when it has one, GraphQL operation: how a rule and a refusal name it. */
+function requestWords(method: string, url: string, operationName: string | undefined): string {
+  return [method, url, operationName].filter((part) => part !== undefined).join(' ');
 }
 
 /** The GraphQL operation a request body names, or nothing when the body names none. */

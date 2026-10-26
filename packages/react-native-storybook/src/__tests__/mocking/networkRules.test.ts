@@ -220,7 +220,7 @@ describe('a request the story names', () => {
         body: JSON.stringify({ operationName: 'Profile', query: 'query Profile { me { id } }' }),
       })
     );
-    expect(refusal.message).toBe(`no mock rule matches POST ${BASE}/graphql`);
+    expect(refusal.message).toBe(`no mock rule matches POST ${BASE}/graphql Profile`);
   });
 
   it('a request made through XMLHttpRequest is answered by the same rules as fetch', async () => {
@@ -277,6 +277,23 @@ describe('a request no rule names', () => {
 
     expect(refusal.name).toBe('UnmockedRequestError');
     expect(refusal.message).toBe('no mock rule matches GET https://mocking.sherlo.invalid/orders');
+  });
+
+  it('a refused GraphQL request names its operation', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/graphql`, operationName: 'Me' }, { body: 'me' })],
+    });
+
+    const refusal = await refusalOf(
+      fetch(`${BASE}/graphql`, {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'Orders', query: '{ orders }' }),
+      })
+    );
+
+    expect(refusal.message).toBe(
+      'no mock rule matches POST https://mocking.sherlo.invalid/graphql Orders'
+    );
   });
 
   it('a story that opts into passthrough lets an unmatched request reach the network', async () => {

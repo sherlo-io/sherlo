@@ -118,7 +118,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           '',
           ...state.brokenFiles.flatMap(({ file, error }) => [
             `  ${chalk.bold(file)}`,
-            `  ${error.name}: ${error.message}`,
+            errorLine(error),
           ]),
           '',
           chalk.dim('Fix the file and save it, then try again.'),
@@ -182,7 +182,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       return [
         `${chalk.red('✖')}  ${chalk.bold(state.storyId)} captured, and it threw while rendering`,
         '',
-        `  ${state.threw.name}: ${state.threw.message}`,
+        errorLine(state.threw),
         '',
         ...treeLines(state.tree),
         '',
@@ -195,7 +195,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         )} captured to a crash - the app stopped answering`,
         '',
         ...(state.error
-          ? [`  ${state.error.name}: ${state.error.message}`]
+          ? [errorLine(state.error)]
           : [
               chalk.dim(
                 '   The app said nothing before it died - a native crash, or the app was closed.'
@@ -226,8 +226,13 @@ const INK = {
   component: chalk.hex('#D97AB8'),
 };
 
+/** An error the app threw, as one indented line: its name, then its message. */
+export function errorLine(error: { name: string; message: string }): string {
+  return `  ${error.name}: ${error.message}`;
+}
+
 /** The app's own modules the story ran as real code, because no mock replaced them. */
-function stillRealLines(stillReal: string[] | undefined): string[] {
+export function stillRealLines(stillReal: string[] | undefined): string[] {
   if (!stillReal || stillReal.length === 0) return [];
   return [
     '',
@@ -237,7 +242,9 @@ function stillRealLines(stillReal: string[] | undefined): string[] {
 }
 
 /** The requests no mock answered, each a method and an address. */
-function unansweredLines(unanswered: { method: string; url: string }[] | undefined): string[] {
+export function unansweredLines(
+  unanswered: { method: string; url: string }[] | undefined
+): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
