@@ -6,6 +6,7 @@ const core = vi.hoisted(() => ({
   startTestSession: vi.fn(),
   testStory: vi.fn(async (_story: unknown) => {}),
 }));
+const native = vi.hoisted(() => ({ sendMessage: vi.fn() }));
 const scene = vi.hoisted(() => ({
   file: {
     mocks: undefined as unknown,
@@ -21,6 +22,7 @@ vi.mock('../SherloModule', () => ({
     notifyGetStorybookCalled: () => {},
   },
 }));
+vi.mock('../specs/NativeSherloModule', () => ({ default: native }));
 vi.mock('../connection/appLine', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../connection/appLine')>()),
   send: vi.fn(),
@@ -51,6 +53,7 @@ import { sceneCallsForTheCore } from '../sealedCore/sceneCalls';
 const PREFIX = '@sherlo/react-native-storybook';
 
 beforeEach(() => {
+  native.sendMessage.mockClear();
   vi.resetModules();
   delete (globalThis as Record<string, unknown>).__sherloLaunchedSceneSwitchedOn;
 });
@@ -80,4 +83,26 @@ it('a scene launch writes one log line as it loads the scene, applies its mocks,
   expect(places).not.toContain(-1);
   expect(places).toEqual([...places].sort((a, b) => a - b));
   expect(lines.join('\n')).not.toContain('secret-testid');
+});
+
+it("each stage line of a scene boot goes onto the line's log feed", async () => {
+  const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+  await import('../sceneBoot');
+  for (let turn = 0; turn < 6; turn++) await Promise.resolve();
+  const calls = sceneCallsForTheCore();
+  await calls.playSteps!('inbox--full');
+  await calls.awaitReady!('inbox--full');
+
+  const consoleLines = log.mock.calls
+    .map(([line]) => String(line))
+    .filter((l) => l.startsWith(PREFIX));
+  log.mockRestore();
+  const fed = native.sendMessage.mock.calls
+    .map(([json]) => JSON.parse(String(json)) as { action: string; line: string })
+    .filter((message) => message.action === 'log')
+    .map((message) => message.line);
+
+  expect(consoleLines.length).toBeGreaterThan(0);
+  expect(fed).toEqual(expect.arrayContaining(consoleLines));
+  expect(fed.join('\n')).not.toContain('secret-testid');
 });

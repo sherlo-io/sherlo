@@ -44,6 +44,9 @@ const SCENE_RECORD = {
   tree: { primitive: 'RCTView', components: [], children: [] },
 };
 
+/** What a pretend bundler's `say` returns for a question the line never answers. */
+const NO_ANSWER = Symbol('no answer');
+
 type Bundler = { port: number; asked: unknown[]; close: () => Promise<void> };
 const open: Bundler[] = [];
 
@@ -72,7 +75,9 @@ async function pretendBundler(
       if (closeWith !== undefined) return socket.close(closeWith);
       const { askId, ...question } = JSON.parse(data.toString());
       asked.push(question);
-      socket.send(JSON.stringify({ action: 'reply', askId, reply: say(question) }));
+      const reply = say(question);
+      if (reply === NO_ANSWER) return;
+      socket.send(JSON.stringify({ action: 'reply', askId, reply }));
     });
   });
   await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
@@ -384,6 +389,48 @@ describe('a scene is captured and opened live', () => {
         ).toEqual({ kind: 'no-app', why: 'never-said-hello' });
       } finally {
         clock.mockRestore();
+      }
+    } finally {
+      uninstall();
+    }
+  });
+
+  it('a capture that ends with no app or gave up waiting carries the stage lines the app logged', async () => {
+    const settings = STABILIZATION_SETTINGS;
+    const stage = '@sherlo/react-native-storybook: scene chat--conversation capture asked for';
+    const { uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
+    try {
+      // The app never said hello, yet the feed holds the lines it logged.
+      const silent = await pretendBundler((question) =>
+        question.action === 'readLogLines' ? { lines: [stage] } : { kind: 'no-app' }
+      );
+      const clock = vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(1e12);
+      try {
+        expect(
+          await captureLiveScene({ sceneId: SCENE, port: silent.port, settings, target: ANDROID })
+        ).toEqual({ kind: 'no-app', why: 'never-said-hello', logs: [stage] });
+      } finally {
+        clock.mockRestore();
+      }
+
+      // The wait ran out: the lines are carried the same way.
+      const slow = await pretendBundler((question) =>
+        question.action === 'readLogLines' ? { lines: [stage] } : NO_ANSWER
+      );
+      vi.useFakeTimers({ toFake: ['setTimeout'] });
+      try {
+        const ending = captureLiveScene({
+          sceneId: SCENE,
+          port: slow.port,
+          settings,
+          target: ANDROID,
+        });
+        // Let the real sockets carry the question, then let the patience run out.
+        while (slow.asked.length === 0) await new Promise((next) => setImmediate(next));
+        await vi.advanceTimersByTimeAsync(130_000);
+        expect(await ending).toEqual({ kind: 'no-app', why: 'gave-up-waiting', logs: [stage] });
+      } finally {
+        vi.useRealTimers();
       }
     } finally {
       uninstall();
