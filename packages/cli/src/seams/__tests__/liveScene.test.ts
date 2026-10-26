@@ -318,6 +318,33 @@ describe('a scene is captured and opened live', () => {
     ).not.toHaveProperty('seen');
   });
 
+  it('every scene ending read from the app keeps what it threw, what ran real and what no mock answered', () => {
+    const left = {
+      threw: { name: 'UnmockedRequestError', message: 'no mock rule matches POST /graphql Me' },
+      stillReal: ['src/auth'],
+      unanswered: [{ method: 'POST', url: '/graphql' }],
+    };
+
+    expect(
+      readSceneAnswer({ kind: 'never-reached', ready: 'inbox', stayedOn: ['Home'], ...left }, SCENE)
+    ).toMatchObject({ kind: 'never-reached', ...left });
+    expect(
+      readSceneAnswer(
+        { kind: 'play-target-missing', route: [], done: [], missing: { tap: 'a' }, ...left },
+        SCENE
+      )
+    ).toMatchObject({ kind: 'play-target-missing', ...left });
+    expect(readSceneAnswer({ ...SCENE_RECORD, ...left }, SCENE)).toMatchObject({
+      kind: 'scene',
+      ...left,
+    });
+    expect(
+      readSceneAnswer({ ...SCENE_RECORD, settled: 'timed-out', ready: 'x', ...left }, SCENE)
+    ).toMatchObject({ kind: 'never-reached', ...left });
+    expect(readSceneAnswer(SCENE_RECORD, SCENE)).not.toHaveProperty('threw');
+    expect(readSceneAnswer(SCENE_RECORD, SCENE)).not.toHaveProperty('unanswered');
+  });
+
   it('a scene whose ready wait timed out ends as never got ready, never as settled', () => {
     const ending = readSceneAnswer(
       { ...SCENE_RECORD, settled: 'timed-out', ready: 'chat-list' },

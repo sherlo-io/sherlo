@@ -38,6 +38,35 @@ describe('a scene whose app started over while it was captured', () => {
   });
 });
 
+describe('a scene that never got ready', () => {
+  const neverReached = (left: object) =>
+    renderCapturedScene({
+      kind: 'never-reached',
+      sceneId: 'inbox--full',
+      ready: 'inbox',
+      stayedOn: ['Home'],
+      ...left,
+    }).join('\n');
+
+  it('a scene that never got ready because it threw prints the error and the requests no mock answered', () => {
+    const printed = neverReached({
+      threw: { name: 'UnmockedRequestError', message: 'no mock rule matches POST /graphql Me' },
+      unanswered: [{ method: 'POST', url: '/graphql' }],
+      stillReal: ['src/auth'],
+    });
+
+    expect(printed).toContain('  UnmockedRequestError: no mock rule matches POST /graphql Me');
+    expect(printed).toContain('1 request had no mock:');
+    expect(printed).toContain('POST /graphql');
+    expect(printed).toContain("1 of the app's own modules ran as real code");
+    expect(printed).not.toContain('logged-in');
+  });
+
+  it('a scene that never got ready and did not throw prints the logged-in hint as before', () => {
+    expect(neverReached({})).toContain("Add a logged-in user to the scene's mocks.");
+  });
+});
+
 describe('a scene whose play could not go on', () => {
   it('a missed tap by test id names the testID', () => {
     expect(missedTap('Inbox')).toContain('tap Inbox found no view with that testID within 10s.');

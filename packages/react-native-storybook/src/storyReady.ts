@@ -263,6 +263,7 @@ function endedByTheScenesError(sceneId: string, waitedMs: number): boolean {
     storyId: sceneId,
     waitedMs,
     error: error.name,
+    message: error.message,
   });
   return true;
 }

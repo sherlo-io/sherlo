@@ -453,13 +453,13 @@ function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
 }
 
 /** A list of strings off the wire, or nothing when the wire sent no list or only empty ones. */
-function readStrings(value: unknown): string[] | undefined {
+export function readStrings(value: unknown): string[] | undefined {
   const read = keepStrings(value);
   return read.length > 0 ? read : undefined;
 }
 
 /** The requests no mock answered, each a method and an address; a malformed entry is dropped. */
-function readUnanswered(value: unknown): UnansweredRequest[] | undefined {
+export function readUnanswered(value: unknown): UnansweredRequest[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const read: UnansweredRequest[] = [];
   for (const entry of value) {

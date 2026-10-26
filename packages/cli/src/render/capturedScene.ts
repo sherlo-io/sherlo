@@ -12,8 +12,23 @@
  * the story screen's own. The tree is the story screen's tree: one drawing of a view, not two.
  */
 import chalk from 'chalk';
-import { treeLines, renderCapturedStory, seconds, settledLine } from './capturedStory';
+import {
+  errorLine,
+  stillRealLines,
+  treeLines,
+  renderCapturedStory,
+  seconds,
+  settledLine,
+  unansweredLines,
+} from './capturedStory';
 import type { CapturedView } from './capturedStory';
+
+/** What the app threw, ran as real code and left unanswered, as the story's record keeps them; each only when there is any. */
+export type SceneLeft = {
+  threw?: { name: string; message: string };
+  stillReal?: string[];
+  unanswered?: { method: string; url: string }[];
+};
 
 /** One step of a scene's `play`, as the scene file wrote it: a tap by testID, or one of the app's own links. */
 export type PlayStep = { tap: string } | { open: string };
@@ -28,16 +43,16 @@ export type SceneEnding =
       error: { name: string; message: string; file: string; line: number };
     }
   /** The app booted, and the scene's ready view never showed; `stayedOn` is the route the app was on. */
-  | {
+  | ({
       kind: 'never-reached';
       sceneId: string;
       ready: string;
       stayedOn: string[];
       /** The test ids on screen when the wait gave up, for the json reply only. */
       seen?: { testIDs: string[]; more: number };
-    }
+    } & SceneLeft)
   /** A play step found no view with its testID within its limit; `route` is where the app stood. */
-  | {
+  | ({
       kind: 'play-target-missing';
       sceneId: string;
       route: string[];
@@ -45,11 +60,11 @@ export type SceneEnding =
       done: PlayStep[];
       missing: { tap: string };
       limitMs: number;
-    }
+    } & SceneLeft)
   /** The app took the capture and started over `restarts` times, and no picture came of it. */
   | { kind: 'restarted-mid-capture'; sceneId: string; restarts: number }
   /** The record. `bootMs` is the fresh boot; `reached.ms` is from there to the ready view showing. */
-  | {
+  | ({
       kind: 'scene';
       sceneId: string;
       bootMs: number;
@@ -60,7 +75,7 @@ export type SceneEnding =
       density?: number;
       fontScale?: number;
       tree: CapturedView;
-    };
+    } & SceneLeft);
 
 /** How a run of `sherlo capture --scene` ended, as the screen needs it. */
 export type CapturedScene =
@@ -94,8 +109,13 @@ export function renderCapturedScene(state: CapturedScene): string[] {
           state.ready
         } showed, and the app stayed on ${route(state.stayedOn)}`,
         '',
-        '  Nothing faked who is logged in, so the app sent itself to sign-in. ' +
-          "Add a logged-in user to the scene's mocks.",
+        ...(state.threw
+          ? [errorLine(state.threw)]
+          : [
+              '  Nothing faked who is logged in, so the app sent itself to sign-in. ' +
+                "Add a logged-in user to the scene's mocks.",
+            ]),
+        ...leftLines(state),
         '',
       ];
 
@@ -107,6 +127,8 @@ export function renderCapturedScene(state: CapturedScene): string[] {
         ...state.done.map((step) => chalk.dim(`   ${playStep(step)}`)),
         '',
         `  ${missedStep(state.missing.tap)} within ${state.limitMs / 1000}s.`,
+        ...(state.threw ? ['', errorLine(state.threw)] : []),
+        ...leftLines(state),
         '',
       ];
 
@@ -129,9 +151,16 @@ export function renderCapturedScene(state: CapturedScene): string[] {
         settledLine(state.settled.ms, state.settled.frames),
         '',
         ...treeLines(state.tree),
+        ...(state.threw ? ['', errorLine(state.threw)] : []),
+        ...leftLines(state),
         '',
       ];
   }
+}
+
+/** The modules that ran real and the requests no mock answered, as the story prints them; nothing when there are none. */
+function leftLines({ stillReal, unanswered }: SceneLeft): string[] {
+  return [...stillRealLines(stillReal), ...unansweredLines(unanswered)];
 }
 
 /* ========================================================================== */

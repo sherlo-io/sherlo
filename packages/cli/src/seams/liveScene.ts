@@ -8,13 +8,14 @@
  * does either. The record comes back down the same line a story's does, and Sherlo's own log
  * lines from the app are drained from the line's feed after it.
  */
-import type { SceneEnding, PlayStep } from '../render/capturedScene';
+import type { SceneEnding, SceneLeft, PlayStep } from '../render/capturedScene';
 import { drainAppLog, keepStrings, readAppLog } from './appLog';
 import { readAppError } from './appError';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { deviceState, isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
+import { readStrings, readUnanswered } from './captureSocket';
 import type { SceneCaptureResult, STABILIZATION_SETTINGS } from './captureSocket';
 
 /** How long the app has to boot, play the scene and settle before the command gives up on it. */
@@ -292,6 +293,18 @@ function keptSeen(said: unknown): { seen?: { testIDs: string[]; more: number } }
   return { seen: { testIDs: keepStrings(seen.testIDs), more } };
 }
 
+/** What the scene threw, ran as real code and left unanswered, as the story's record reads them. */
+function keptLeft(answer: Record<string, unknown>): SceneLeft {
+  const threw = readAppError(answer.threw);
+  const stillReal = readStrings(answer.stillReal);
+  const unanswered = readUnanswered(answer.unanswered);
+  return {
+    ...(threw && { threw: { name: threw.name, message: threw.message } }),
+    ...(stillReal && { stillReal }),
+    ...(unanswered && { unanswered }),
+  };
+}
+
 /** What the line said about the scene it was asked for, as one named ending. */
 export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | { kind: 'no-app' } {
   const answer = said as Record<string, unknown> | null | undefined;
@@ -311,6 +324,7 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
       ready: typeof answer.ready === 'string' ? answer.ready : '',
       stayedOn: keepStrings(answer.stayedOn),
       ...keptSeen(answer.seen),
+      ...keptLeft(answer),
     };
   }
 
@@ -323,6 +337,7 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
       done: playSteps(answer.done),
       missing: { tap: typeof missing?.tap === 'string' ? missing.tap : '' },
       limitMs: typeof answer.limitMs === 'number' ? answer.limitMs : 0,
+      ...keptLeft(answer),
     };
   }
 
@@ -336,6 +351,7 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
         sceneId,
         ready: typeof answer.ready === 'string' ? answer.ready : '',
         stayedOn: keepStrings(reached?.route),
+        ...keptLeft(answer),
       };
     }
     return {
@@ -351,6 +367,7 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
       ...(typeof answer.density === 'number' && { density: answer.density }),
       ...(typeof answer.fontScale === 'number' && { fontScale: answer.fontScale }),
       tree: readCapturedView(answer.tree),
+      ...keptLeft(answer),
     };
   }
 
