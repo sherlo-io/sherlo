@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - 'dev'
-          - 'test'
           - 'prod'
       all_devices:
         description: 'all-devices'
