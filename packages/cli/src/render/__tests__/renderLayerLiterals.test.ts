@@ -462,7 +462,7 @@ const PINS: Pin[] = [
     prints: [
       [`${ESC}[33m! Couldn't fetch the git history: fatal: could not read Username${ESC}[39m`],
       [
-        `${ESC}[33m  The build goes on, but without history Sherlo can't find earlier approved pictures.${ESC}[39m`,
+        `${ESC}[33m  The build goes on and is still checked against main's approved pictures; only screens that differ wait for review.${ESC}[39m`,
       ],
       [
         `${ESC}[33m  Keep your CI checkout's credentials, or fetch the full history in the checkout.${ESC}[39m`,
@@ -1879,6 +1879,16 @@ describe('A MANAGEMENT COMMAND PRINTS ITS FACTS AS KEY=VALUE LINES AND NEVER A C
     };
 
     pinnedBytes(pin, renderSegment(pin.segment));
+  });
+
+  it("the history-refused warning says the build compares with main's approved pictures", () => {
+    const rendered = renderSegment({ kind: 'git-history-fetch-refused', reason: 'fatal: nope' });
+    const text = JSON.stringify(rendered.prints);
+
+    expect(text).toContain(
+      "The build goes on and is still checked against main's approved pictures; only screens that differ wait for review."
+    );
+    expect(text).not.toContain('without history');
   });
 
   it('the intro: wordmark shape, styled tagline, and the bare newline that closes it', () => {

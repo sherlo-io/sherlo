@@ -3,7 +3,7 @@ Testing your app...
 🤖 Android  Bundling the JavaScript...
 🤖 Android  [32m✔[39m Reused from Test 1
 [33m! Couldn't fetch the git history: fatal: could not read Username for 'https://gitlab.example.com': terminal prompts disabled[39m
-[33m  The build goes on, but without history Sherlo can't find earlier approved pictures.[39m
+[33m  The build goes on and is still checked against main's approved pictures; only screens that differ wait for review.[39m
 [33m  Keep your CI checkout's credentials, or fetch the full history in the checkout.[39m
 
 Test 2      [32m✔[39m Started: all 24 stories on 1 device (Pixel 7)
