@@ -12,7 +12,7 @@
  * on stdout, so an ending the command cannot reach - a branch behind a condition that never holds -
  * fails here rather than in front of a developer.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import capture from '../capture';
 import { EXIT_BLOCK } from '../../../helpers/exitCodes';
 import { captureTranscript } from '../../../helpers/transcriptSink';
@@ -21,7 +21,18 @@ import { installCaptureSocket } from '../../../seams/captureSocket';
 import type { CaptureResult, CaptureSocket } from '../../../seams/captureSocket';
 import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
 import type { CapturedView } from '../../../render/capturedStory';
-import { JSON_OPTION, LOGS_OPTION, STORY_OPTION } from '../../../constants';
+import {
+  JSON_OPTION,
+  LOGS_OPTION,
+  PNG_OPTION,
+  SCENE_OPTION,
+  STORY_OPTION,
+} from '../../../constants';
+import type { SceneTarget } from '../../../seams/deviceState';
+import type { SceneCaptureResult } from '../../../seams/liveScene';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 const STORY = 'components-button--primary';
 
@@ -217,6 +228,200 @@ describe('every ending the capture screen draws is reached from an answer the ap
       const { exitCode } = await captureOneStory(answer);
       expect(exitCode).toBeUndefined();
     }
+  });
+});
+
+describe('a scene capture can save the screen it captured', () => {
+  const CHAT_PNG = path.join(os.tmpdir(), 'sherlo-capture-png-test', 'chat.png');
+  beforeEach(() => fs.mkdirSync(path.dirname(CHAT_PNG), { recursive: true }));
+  afterEach(() => fs.rmSync(path.dirname(CHAT_PNG), { recursive: true, force: true }));
+
+  const ON_ONE_PHONE: SceneTarget = {
+    device: { platform: 'ios', udid: 'SIM-1' },
+    app: { id: 'com.example.app' },
+  };
+  const ON_ANDROID: SceneTarget = {
+    device: { platform: 'android', serial: 'emulator-5554' },
+    app: { id: 'com.example.app' },
+  };
+  const A_SCENE: SceneCaptureResult = {
+    kind: 'scene',
+    sceneId: 'chat--open',
+    bootMs: 900,
+    reached: { route: ['Chat'], ms: 300 },
+    play: [],
+    settled: SETTLED,
+    tree: ONE_VIEW,
+  };
+
+  /** Capture one scene on a recording simulator; `events` is the order of what happened to it. */
+  async function captureOneScene(
+    answer: SceneCaptureResult,
+    options: Record<string, string | boolean>,
+    {
+      target = ON_ONE_PHONE,
+      failScreenshot = false,
+    }: { target?: SceneTarget; failScreenshot?: boolean } = {}
+  ) {
+    const events: string[] = [];
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-png-test-'));
+    const uninstallDevice = installDeviceState({
+      sceneTarget: async () => target,
+      simulatorFolder: () => folder,
+      makeSaveFolder: () => fs.mkdtempSync(path.join(folder, 'save-')),
+      run: async (tool, args, { stdoutTo } = {}) => {
+        const line = `${tool} ${args.join(' ')}`;
+        events.push(line);
+        // What the tool prints goes to the file it was handed, as the real runner does.
+        if (stdoutTo) fs.writeFileSync(stdoutTo, 'bytes');
+        if (line.includes('screenshot') && !failScreenshot) {
+          fs.writeFileSync(args[args.length - 1], 'bytes');
+        }
+        if (/screenshot|screencap/.test(line) && failScreenshot) {
+          throw new Error('screenshot failed');
+        }
+        if (line.includes('pm path')) return 'package:/data/app/base.apk\n';
+        return line.includes('get_app_container') ? `${folder}\n` : '';
+      },
+    });
+    const uninstallSocket = installCaptureSocket({
+      captureStory: async () => {
+        throw new Error('a scene capture asked about a story');
+      },
+      captureScene: async () => {
+        events.push('the app answered');
+        return answer;
+      },
+    });
+    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new LeftTheProcess('process.exit');
+    }) as never);
+    try {
+      const { stdout } = await captureTranscript(async () => {
+        try {
+          await capture({ [SCENE_OPTION]: 'chat--open', ...options });
+        } catch (error) {
+          if (!(error instanceof LeftTheProcess)) throw error;
+        }
+      });
+      return { screen: stdout, events };
+    } finally {
+      exit.mockRestore();
+      uninstallSocket();
+      uninstallDevice();
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it('a captured scene with --png saves the screen before the device is put back', async () => {
+    const { screen, events } = await captureOneScene(A_SCENE, { [PNG_OPTION]: CHAT_PNG });
+
+    const screenshot = events.findIndex((line) => line.includes('simctl io SIM-1 screenshot'));
+    // The picture is written beside the path and renamed onto it only when the save worked.
+    expect(events[screenshot]).toMatch(
+      new RegExp(
+        `^xcrun simctl io SIM-1 screenshot ${path.dirname(CHAT_PNG)}/\\.sherlo-\\d+-chat\\.png$`
+      )
+    );
+    expect(screenshot).toBeGreaterThan(events.indexOf('the app answered'));
+    // Cleaning the device stops the app first too; the put-back is the stop that comes last.
+    const terminates = events.filter((line) => line.includes('simctl terminate'));
+    expect(events.lastIndexOf(terminates[terminates.length - 1])).toBeGreaterThan(screenshot);
+    expect(screen).toContain(`Picture saved to ${CHAT_PNG}`);
+    expect(fs.readFileSync(CHAT_PNG, 'utf8')).toBe('bytes');
+  });
+
+  it('a scene that was not captured saves no picture and says so', async () => {
+    const { screen, events } = await captureOneScene(
+      { kind: 'no-such-scene', sceneId: 'chat--open', known: [] },
+      { [PNG_OPTION]: CHAT_PNG }
+    );
+
+    expect(events.join('\n')).not.toContain('screenshot');
+    expect(screen).toContain('No picture saved: the scene was not captured');
+  });
+
+  it('a failed save prints the error and leaves the scene captured', async () => {
+    const { screen } = await captureOneScene(
+      A_SCENE,
+      { [PNG_OPTION]: CHAT_PNG },
+      { failScreenshot: true }
+    );
+
+    expect(screen).toContain('No picture saved: screenshot failed');
+    expect(screen).toContain('captured, the way a test run records it');
+  });
+
+  it('an android scene with --png saves the screen to the path before the device is put back', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-png-out-'));
+    const png = path.join(dir, 'chat.png');
+    try {
+      const { screen, events } = await captureOneScene(
+        A_SCENE,
+        { [PNG_OPTION]: png },
+        { target: ON_ANDROID }
+      );
+
+      const screencap = events.indexOf('adb -s emulator-5554 exec-out screencap -p');
+      expect(screencap).toBeGreaterThan(events.indexOf('the app answered'));
+      // Cleaning the device stops the app first too; the put-back is the stop that comes last.
+      const stops = events.filter((line) => line.includes('force-stop'));
+      expect(events.lastIndexOf(stops[stops.length - 1])).toBeGreaterThan(screencap);
+      expect(fs.readFileSync(png, 'utf8')).toBe('bytes');
+      expect(screen).toContain(`Picture saved to ${png}`);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('a failed android save leaves no file and the scene captured', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-png-out-'));
+    const png = path.join(dir, 'chat.png');
+    try {
+      const { screen } = await captureOneScene(
+        A_SCENE,
+        { [PNG_OPTION]: png },
+        { target: ON_ANDROID, failScreenshot: true }
+      );
+
+      expect(fs.existsSync(png)).toBe(false);
+      expect(screen).toContain('No picture saved: screenshot failed');
+      expect(screen).toContain('captured, the way a test run records it');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('--json carries png when the save worked and leaves it out when it failed', async () => {
+    const written: string[] = [];
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+      written.push(String(text));
+      return true;
+    }) as never);
+    let saved: string;
+    let failed: string;
+    try {
+      await captureOneScene(A_SCENE, { [PNG_OPTION]: CHAT_PNG, [JSON_OPTION]: true });
+      saved = written.join('');
+      written.length = 0;
+      await captureOneScene(
+        A_SCENE,
+        { [PNG_OPTION]: CHAT_PNG, [JSON_OPTION]: true },
+        { failScreenshot: true }
+      );
+      failed = written.join('');
+    } finally {
+      write.mockRestore();
+    }
+
+    expect(JSON.parse(saved).png).toBe(CHAT_PNG);
+    expect(JSON.parse(failed)).not.toHaveProperty('png');
+  });
+
+  it('--png with --story is refused the way --scene with --story is', async () => {
+    await expect(capture({ [STORY_OPTION]: STORY, [PNG_OPTION]: CHAT_PNG })).rejects.toThrow(
+      '`npx sherlo capture` takes `--png` only with `--scene`.'
+    );
   });
 });
 

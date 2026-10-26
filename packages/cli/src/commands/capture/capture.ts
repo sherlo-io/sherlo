@@ -14,9 +14,11 @@ import {
   DEFAULT_BUNDLER_PORT,
   JSON_OPTION,
   LOGS_OPTION,
+  PNG_OPTION,
   PORT_OPTION,
   SCENE_OPTION,
   STORY_OPTION,
+  pngWithoutSceneRefusal,
   sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
@@ -30,11 +32,13 @@ import {
   endOnNotDebuggable,
   isTarget,
   prepareCleanDevice,
+  saveScreenPicture,
 } from '../../seams/deviceState';
+import type { SceneDevice } from '../../seams/deviceState';
 import type { CaptureResult } from '../../seams/captureSocket';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
-import type { CapturedScene } from '../../render/capturedScene';
+import type { CapturedScene, ScenePicture } from '../../render/capturedScene';
 
 export type CaptureOptions = {
   [STORY_OPTION]?: string;
@@ -42,6 +46,7 @@ export type CaptureOptions = {
   [PORT_OPTION]?: string;
   [JSON_OPTION]?: boolean;
   [LOGS_OPTION]?: boolean;
+  [PNG_OPTION]?: string;
 };
 
 async function capture(passedOptions: CaptureOptions): Promise<void> {
@@ -50,6 +55,9 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
 
   if (sceneId && storyId) {
     throwError({ message: sceneWithStoryRefusal('capture') });
+  }
+  if (passedOptions[PNG_OPTION] && !sceneId) {
+    throwError({ message: pngWithoutSceneRefusal() });
   }
   if (sceneId) return captureScene(sceneId, passedOptions);
 
@@ -107,7 +115,9 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
     isTarget(target) && installed
       ? await prepareCleanDevice(target.device, target.app).catch(endOnNotDebuggable)
       : undefined;
+  const pngPath = passedOptions[PNG_OPTION];
   let answer: SceneCaptureResult;
+  let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
   try {
     answer = installed
       ? await captureSocket().captureScene({
@@ -117,20 +127,35 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
           target,
         })
       : { kind: 'no-app', why: 'not-installed' };
+    // The screen as the app left it: the clean device's put-back below would show the home screen.
+    if (picture && answer.kind === 'scene' && isTarget(target)) {
+      picture = await savePicture(target.device, picture.path);
+    }
   } finally {
     await restore?.();
   }
 
   if (passedOptions[JSON_OPTION]) {
-    process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
+    const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
+    process.stdout.write(`${JSON.stringify({ ...answer, ...saved }, null, 2)}\n`);
   } else {
-    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port) });
+    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port), picture });
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
   }
 
   if (answer.kind !== 'scene') process.exit(EXIT_BLOCK);
+}
+
+/** Save the device's screen to `path`; a failed save is the picture's own error and changes no ending. */
+async function savePicture(device: SceneDevice, path: string): Promise<ScenePicture> {
+  try {
+    await saveScreenPicture(device, path);
+    return { path };
+  } catch (error) {
+    return { path, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 /** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */

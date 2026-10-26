@@ -204,6 +204,29 @@ export async function appIsInstalled(target: SceneTarget): Promise<boolean> {
   }
 }
 
+/**
+ * Save what the device's screen shows to `file` as a PNG. The picture is written to a temporary
+ * sibling and renamed onto `file` only when the save worked: a failure throws, removes only the
+ * temporary file, and never touches a file already at `file`.
+ */
+export async function saveScreenPicture(device: SceneDevice, file: string): Promise<void> {
+  // The name keeps the extension, which simctl reads the picture's type from.
+  const temporary = path.join(path.dirname(file), `.sherlo-${process.pid}-${path.basename(file)}`);
+  try {
+    if (device.platform === 'ios') {
+      await deviceState().run('xcrun', ['simctl', 'io', device.udid, 'screenshot', temporary]);
+    } else {
+      await deviceState().run('adb', ['-s', device.serial, 'exec-out', 'screencap', '-p'], {
+        stdoutTo: temporary,
+      });
+    }
+    fs.renameSync(temporary, file);
+  } catch (error) {
+    fs.rmSync(temporary, { force: true });
+    throw error;
+  }
+}
+
 let hold: { timer: NodeJS.Timeout; release: () => void } | undefined;
 
 /**
@@ -270,6 +293,11 @@ export const liveDeviceState: DeviceState = {
       const out: Buffer[] = [];
       const err: Buffer[] = [];
       const file = stdoutTo ? fs.createWriteStream(stdoutTo) : undefined;
+      // A folder that is missing or not writable is a failed run, not a crash of the process.
+      file?.on('error', (error) => {
+        child.kill();
+        reject(error);
+      });
       if (file) child.stdout.pipe(file);
       else child.stdout.on('data', (chunk: Buffer) => out.push(chunk));
       child.stderr.on('data', (chunk: Buffer) => err.push(chunk));

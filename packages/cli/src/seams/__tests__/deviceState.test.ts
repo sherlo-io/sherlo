@@ -19,7 +19,12 @@ import type { CaptureSocket } from '../captureSocket';
 import { installLetterbox } from '../letterbox';
 import type { Letterbox } from '../letterbox';
 import { installProjectFiles } from '../projectFiles';
-import { installDeviceState, liveDeviceState, prepareCleanDevice } from '../deviceState';
+import {
+  installDeviceState,
+  liveDeviceState,
+  prepareCleanDevice,
+  saveScreenPicture,
+} from '../deviceState';
 import type { DeviceState, DeviceTool, SceneTarget } from '../deviceState';
 import { SERIAL_LOOKUP_LIMIT_MS } from '../deviceStateAndroids';
 import { saveDeviceState } from '../deviceStateSave';
@@ -309,6 +314,56 @@ describe('a local capture leaves the device clean', () => {
 
     expect(commands().filter((line) => /keychain/i.test(line))).toEqual([]);
     expect(readFiles(simulator)['Library/Keychains/keychain-2.db']).toBe('my logins');
+  });
+});
+
+describe('a screen picture that cannot be saved is a failed save', () => {
+  it('a tool whose output has no folder to go to fails the run instead of crashing the process', async () => {
+    const missing = path.join(scratch, 'no-such-folder', 'screen.png');
+
+    // `node` stands in for adb: any program that prints bytes.
+    await expect(
+      liveDeviceState.run('node' as DeviceTool, ['-e', 'process.stdout.write("x")'], {
+        stdoutTo: missing,
+      })
+    ).rejects.toThrow();
+  });
+
+  it('a save that fails leaves no file behind', async () => {
+    const file = path.join(scratch, 'screen.png');
+    uninstall();
+    uninstall = installDeviceState({
+      ...recordingDevice(undefined),
+      run: async (_tool, _args, options) => {
+        fs.writeFileSync(options?.stdoutTo ?? file, 'half a picture');
+        throw new Error('adb failed');
+      },
+    });
+
+    await expect(saveScreenPicture(ANDROID.device, file)).rejects.toThrow('adb failed');
+    expect(fs.existsSync(file)).toBe(false);
+  });
+
+  it.each([
+    ['ios', IOS.device],
+    ['android', ANDROID.device],
+  ])('a failed %s save keeps the picture already at the path', async (_name, device) => {
+    const file = path.join(scratch, 'screen.png');
+    fs.writeFileSync(file, 'the picture I had');
+    uninstall();
+    uninstall = installDeviceState({
+      ...recordingDevice(undefined),
+      // The tool opens whatever file it is handed and fails: the way adb truncates, and simctl does not.
+      run: async (_tool, args, options) => {
+        const target = options?.stdoutTo ?? args[args.length - 1];
+        if (options?.stdoutTo) fs.writeFileSync(target, '');
+        throw new Error('the tool failed');
+      },
+    });
+
+    await expect(saveScreenPicture(device, file)).rejects.toThrow('the tool failed');
+    expect(fs.readFileSync(file, 'utf8')).toBe('the picture I had');
+    expect(fs.readdirSync(scratch).filter((name) => name.includes('.sherlo-'))).toEqual([]);
   });
 });
 
