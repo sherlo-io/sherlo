@@ -12,11 +12,11 @@ import type { SceneEnding, SceneLeft, PlayStep } from '../render/capturedScene';
 import { drainAppLog, keepStrings, readAppLog } from './appLog';
 import { readAppError } from './appError';
 import { askTheBundlerLine } from './bundlerLine';
+import type { STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { deviceState, isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
-import { readStrings, readUnanswered } from './captureSocket';
-import type { SceneCaptureResult, STABILIZATION_SETTINGS } from './captureSocket';
+import { readStrings, readUnanswered } from './readAppAnswer';
 
 /** How long the app has to boot, play the scene and settle before the command gives up on it. */
 const SCENE_PATIENCE_MS = 120_000;
@@ -45,6 +45,12 @@ export type NoApp = {
   detail?: string;
   /** For the causes of no target: every running phone, with its app id and whether it has the app. */
   found?: PhoneFound[];
+};
+
+/** What the app answered about the scene the command asked it to boot fresh on and capture. */
+export type SceneCaptureResult = ({ kind: 'no-bundler' } | NoApp | SceneEnding) & {
+  /** Sherlo's own log lines from the app since it booted, drained from the bundler's feed after the answer. */
+  logs?: string[];
 };
 
 /**
@@ -313,8 +319,15 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
     return { kind: 'no-such-scene', sceneId, known: keepStrings(answer.known) };
   }
 
+  // The core sends "crashed" for a scene only from the catch around its capture, after the app booted.
   if (answer?.kind === 'crashed') {
-    return { kind: 'crashed-at-boot', sceneId, error: bootError(answer.error) };
+    const error = readAppError(answer.error);
+    return {
+      kind: 'crashed-mid-capture',
+      sceneId,
+      ...(error && { error: { name: error.name, message: error.message } }),
+      ...keptLeft(answer),
+    };
   }
 
   if (answer?.kind === 'never-reached') {
@@ -372,19 +385,6 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
   }
 
   return { kind: 'no-app' };
-}
-
-/** The error a scene's boot died of, with the file and line of its top frame when it has one. */
-function bootError(said: unknown): { name: string; message: string; file: string; line: number } {
-  const error = said as { name?: unknown; message?: unknown; topFrames?: unknown } | undefined;
-  const frame = keepStrings(error?.topFrames)[0] ?? readAppError(said)?.topFrames?.[0] ?? '';
-  const place = /([^\s(]+):(\d+):\d+\)?$/.exec(frame);
-  return {
-    name: typeof error?.name === 'string' ? error.name : 'Error',
-    message: typeof error?.message === 'string' ? error.message : '',
-    file: place?.[1] ?? 'unknown',
-    line: place ? Number(place[2]) : 0,
-  };
 }
 
 function playSteps(value: unknown): PlayStep[] {

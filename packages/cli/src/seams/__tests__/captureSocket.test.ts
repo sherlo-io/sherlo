@@ -19,7 +19,8 @@ import {
   PROTOCOL_VERSION,
 } from '../../../../react-native-storybook/metro/sherloLine';
 import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
-import { liveCaptureSocket, STABILIZATION_SETTINGS } from '../captureSocket';
+import { STABILIZATION_SETTINGS } from '../bundlerLine';
+import { liveCaptureSocket } from '../captureSocket';
 
 const STORY_A = 'components-button--primary';
 const STORY_B = 'components-avatar--basic';
