@@ -23,7 +23,7 @@ import { loggedErrors } from '../loggedErrors';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
 import { monotonicNow } from '../settleClock';
 import type { PlayStep } from '../scenes';
-import { awaitReady, readyRuleOf, sceneOf } from '../storyReady';
+import { awaitReady, readyRuleOf, readyShowsNow, sceneOf } from '../storyReady';
 import type { ScenePlayOutcome, ScenePlayStep, SceneReadyOutcome, SealedCoreHost } from './seam';
 
 type SceneCalls = Pick<
@@ -83,10 +83,17 @@ function recordedSteps(steps: PlayStep[]): ScenePlayStep[] {
 async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
   const steps = sceneOf(sceneId)?.play ?? [];
   playUnfinished.add(sceneId);
+  let readyTooEarly: { atStep: number; of: number } | undefined;
+  const rule = readyRuleOf(sceneId);
   try {
-    await playSteps(sceneId);
+    await playSteps(sceneId, async (atStep, of) => {
+      if (readyTooEarly || !rule) return;
+      if (await readyShowsNow(rule)) readyTooEarly = { atStep, of };
+    });
     playUnfinished.delete(sceneId);
-    return { played: recordedSteps(steps) };
+    return readyTooEarly
+      ? { played: recordedSteps(steps), readyTooEarly }
+      : { played: recordedSteps(steps) };
   } catch (error) {
     const playedCount = error instanceof SherloStepError ? error.played.length : 0;
     const played = recordedSteps(steps.slice(0, playedCount));

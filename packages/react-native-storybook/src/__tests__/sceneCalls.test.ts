@@ -8,6 +8,7 @@ const behind = vi.hoisted(() => ({
   scene: { play: [] as unknown[], ready: undefined as unknown },
   playSteps: vi.fn(),
   awaitReady: vi.fn(),
+  readyShowsNow: vi.fn(),
   testIDsOnScreen: vi.fn(),
 }));
 
@@ -24,6 +25,7 @@ vi.mock('../storyReady', async () => {
     sceneOf: () => behind.scene,
     readyRuleOf: () => actual.asRule(behind.scene.ready as string | undefined),
     awaitReady: behind.awaitReady,
+    readyShowsNow: behind.readyShowsNow,
   };
 });
 
@@ -57,6 +59,8 @@ beforeEach(async () => {
   behind.scene.ready = { testID: ['chat', 'composer'], gone: ['spinner'] };
   behind.playSteps.mockReset();
   behind.awaitReady.mockReset();
+  behind.readyShowsNow.mockReset();
+  behind.readyShowsNow.mockResolvedValue(false);
   behind.testIDsOnScreen.mockReset();
   behind.testIDsOnScreen.mockResolvedValue({ testIDs: [], more: 0 });
 });
@@ -74,6 +78,34 @@ describe('the scene calls of the host', () => {
     await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
       played: [{ tap: 'Connections' }, { open: 'app://chat/1' }],
     });
+  });
+
+  it('a ready view met before the last step played is noted in the outcome and the steps play on as today', async () => {
+    behind.readyShowsNow.mockResolvedValueOnce(false).mockResolvedValue(true);
+    behind.playSteps.mockImplementation(
+      async (_id: string, beforeStep: (index: number, total: number) => Promise<void>) => {
+        await beforeStep(1, 3);
+        await beforeStep(2, 3);
+        return [];
+      }
+    );
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
+      played: [{ tap: 'Connections' }, { open: 'app://chat/1' }],
+      readyTooEarly: { atStep: 2, of: 3 },
+    });
+  });
+
+  it('a scene whose ready view shows only after the last step has no readyTooEarly', async () => {
+    behind.playSteps.mockImplementation(
+      async (_id: string, beforeStep: (index: number, total: number) => Promise<void>) => {
+        await beforeStep(1, 3);
+        return [];
+      }
+    );
+
+    const outcome = await calls.playSteps!(SCENE_ID);
+    expect(outcome).not.toHaveProperty('readyTooEarly');
   });
 
   it('a tap whose view never showed answers the missing step, the steps before it and its limit', async () => {
