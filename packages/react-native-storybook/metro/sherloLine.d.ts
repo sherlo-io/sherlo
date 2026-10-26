@@ -103,7 +103,12 @@ export type WhatIsOnScreenReply =
  */
 export type CaptureStoryQuestion =
   | { action: 'captureStory'; storyId: string; settings?: CaptureSettings }
-  | { action: 'captureStory'; sceneId: string; settings?: CaptureSettings; launchedAt?: number };
+  | {
+      action: 'captureStory';
+      sceneId: string;
+      settings?: CaptureSettings;
+      launchedAt?: number;
+    };
 
 export type CaptureStoryReply =
   | CapturedAnswer
@@ -118,7 +123,14 @@ export type CaptureStoryReply =
 /** Every log line the apps sent since the last read; the read empties the feed. */
 export type ReadLogLinesQuestion = { action: 'readLogLines' };
 
-export type ReadLogLinesReply = { lines: string[] };
+export type ReadLogLinesReply = {
+  lines: string[];
+  /**
+   * How many times the app of the latest launched capture took its instruction and started over;
+   * absent when it did not. A driver that gave up on its capture reads this with the lines.
+   */
+  restarts?: number;
+};
 
 export type Question =
   | OpenStoryQuestion
@@ -165,6 +177,11 @@ export type SherloLine = {
   ask: <AskedQuestion extends Question>(question: AskedQuestion) => Promise<ReplyTo<AskedQuestion>>;
   /** Hear of each app that says hello in the line's protocol. */
   onApp: (listener: (app: AppOnTheLine) => void) => void;
+  /**
+   * Metro's file watcher told the bundler of these files, named relative to the project root. While
+   * a scene capture waits, one line on the log feed names them.
+   */
+  filesChanged: (paths: string[]) => void;
   /** Close every socket on the line. */
   close: () => void;
 };
@@ -207,7 +224,7 @@ export declare function attach(
      * Whether any story file the bundle's Storybook loads was modified after `time` (milliseconds
      * since 1970). Asked once per capture, never on a timer.
      */
-    storyFileChangedSince?: (time: number) => boolean;
+    storyFileChangedSince?: (time: number) => boolean | string;
   }
 ): SherloLine;
 

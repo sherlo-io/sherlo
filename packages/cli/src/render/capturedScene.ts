@@ -46,6 +46,8 @@ export type SceneEnding =
       missing: { tap: string };
       limitMs: number;
     }
+  /** The app took the capture and started over `restarts` times, and no picture came of it. */
+  | { kind: 'restarted-mid-capture'; sceneId: string; restarts: number }
   /** The record. `bootMs` is the fresh boot; `reached.ms` is from there to the ready view showing. */
   | {
       kind: 'scene';
@@ -105,6 +107,16 @@ export function renderCapturedScene(state: CapturedScene): string[] {
         ...state.done.map((step) => chalk.dim(`   ${playStep(step)}`)),
         '',
         `  ${missedStep(state.missing.tap)} within ${state.limitMs / 1000}s.`,
+        '',
+      ];
+
+    case 'restarted-mid-capture':
+      return [
+        `${chalk.red('✖')}  ${chalk.bold(state.sceneId)} never finished - the app started over ${
+          state.restarts
+        } ${state.restarts === 1 ? 'time' : 'times'} while it was being captured`,
+        '',
+        '  Add --json to see the log lines of each restart and what the bundler saw before it.',
         '',
       ];
 

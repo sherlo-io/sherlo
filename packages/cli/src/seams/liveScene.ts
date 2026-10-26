@@ -9,7 +9,7 @@
  * lines from the app are drained from the line's feed after it.
  */
 import type { SceneEnding, PlayStep } from '../render/capturedScene';
-import { drainAppLog, keepStrings } from './appLog';
+import { drainAppLog, keepStrings, readAppLog } from './appLog';
 import { readAppError } from './appError';
 import { askTheBundlerLine } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
@@ -76,7 +76,14 @@ export async function captureLiveScene(params: {
       return { kind: 'no-app', why: 'line-broke', detail: answer.detail };
     }
     if (answer.kind === 'gave-up-waiting') {
-      return withStageLines({ kind: 'no-app', why: 'gave-up-waiting' }, port);
+      // The line counts each time the app took the instruction and started over: no picture came
+      // because the app kept starting over, which is not the same as no app.
+      const { logs, restarts } = await readAppLog(port);
+      const ending: NoApp | SceneEnding =
+        restarts > 0
+          ? { kind: 'restarted-mid-capture', sceneId, restarts }
+          : { kind: 'no-app', why: 'gave-up-waiting' };
+      return logs.length > 0 ? { ...ending, logs } : ending;
     }
 
     const ending = readSceneAnswer(answer.reply, sceneId);

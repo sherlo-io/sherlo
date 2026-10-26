@@ -117,6 +117,8 @@ async function connectAnApp(running: RunningLine) {
     logs: (line: string) => say({ action: 'log', line }),
     /** The JavaScript starts again on this same connection, as it does after a reload. */
     startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),
+    /** The app's socket closes. */
+    leaves: () => app.socket.close(),
     /** The polyfill's word that this app's JavaScript died as it started. */
     startFails: (error: Message) => say({ action: 'start-failed', ...error }),
     /** The letterbox's next answer to this app, without its action. */
@@ -919,5 +921,94 @@ describe("the app's log lines land in the feed for the next reader", () => {
     expect(lines).toHaveLength(1000);
     expect(lines[0]).toBe('line 2');
     expect(lines[999]).toBe('line 1001');
+  });
+});
+
+describe('a scene capture whose app starts over after taking its instruction', () => {
+  const SCENE = 'inbox--full';
+  const inMode = (mode: string) => ({ mode, stories: null, scenes: [SCENE], answer: null });
+  const launch = { action: 'captureStory', sceneId: SCENE, settings: SETTINGS, launchedAt: 1 };
+
+  /** What a driver that gave up reads off the feed: the lines, and the restarts counted. */
+  async function readFeed(running: RunningLine) {
+    return (await running.line.ask({ action: 'readLogLines' })) as {
+      lines: string[];
+      restarts?: number;
+    };
+  }
+  const feedLines = async (running: RunningLine) => (await readFeed(running)).lines;
+
+  it("a capture whose app says hello again after taking the instruction is counted as a restart, with the bundler's own cause when it has one", async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode('default'));
+    void driver.ask(launch);
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      restartIntoTesting: true,
+      storyId: SCENE,
+    });
+
+    // The bundler asked for this restart: the app was not in testing mode.
+    await app.startsItsJavaScript();
+    await app.waitsForACapture(inMode('testing'));
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+
+    // Nobody asked for this one: the app took the scene and started over.
+    await app.startsItsJavaScript();
+    await app.waitsForACapture(inMode('testing'));
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+
+    // The capture is given up: the read of the feed carries what the bundler counted.
+    const { lines, restarts } = await readFeed(running);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('restart 1');
+    expect(lines[0]).toContain('the bundler asked for it');
+    expect(lines[0]).toContain('default');
+    expect(lines[1]).toContain('restart 2');
+    expect(lines[1]).toContain('the bundler did not ask for it');
+    expect(restarts).toBe(2);
+  });
+
+  it('an app that leaves after taking the instruction is counted once, and a capture without a restart is not blamed on one', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode('testing'));
+    await expect(readFeed(running)).resolves.toEqual({ lines: [] });
+
+    void driver.ask(launch);
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+    app.leaves();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const feed = await readFeed(running);
+    expect(feed.lines).toHaveLength(1);
+    expect(feed.restarts).toBe(1);
+  });
+
+  it('files the bundler sees change while a scene capture waits are written on the feed, by path under the project root', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode('testing'));
+
+    running.line.filesChanged(['src/before.ts']);
+    void driver.ask(launch);
+    await app.nextCaptureInstruction();
+    running.line.filesChanged(['src/inbox/Inbox.scene.tsx']);
+
+    expect(await feedLines(running)).toEqual([
+      expect.stringContaining('src/inbox/Inbox.scene.tsx'),
+    ]);
   });
 });

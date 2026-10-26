@@ -216,8 +216,8 @@ function keepSceneListCurrent(watcher, projectRoot, cacheDir) {
 // Metro 0.84 tells of a change as "changes": added, modified and removed files, each an iterable
 // of [path, metadata]. Metro 0.83 and older (React Native 0.81 to 0.83) tell of it as
 // "eventsQueue": a list of events, each with the absolute "filePath". The SDK supports both.
-function aSceneFileChanged(change) {
-  if (!change) return false;
+function pathsOfChange(change) {
+  if (!change) return [];
   var paths = [];
   ['addedFiles', 'modifiedFiles', 'removedFiles'].forEach(function (kind) {
     var files = change.changes && change.changes[kind];
@@ -229,9 +229,27 @@ function aSceneFileChanged(change) {
   (change.eventsQueue || []).forEach(function (event) {
     if (event) paths.push(event.filePath);
   });
-  return paths.some(function (filePath) {
-    return typeof filePath === 'string' && isSceneFilePath(filePath);
+  return paths.filter(function (filePath) {
+    return typeof filePath === 'string';
   });
+}
+
+function aSceneFileChanged(change) {
+  return pathsOfChange(change).some(isSceneFilePath);
+}
+
+/**
+ * The file watcher of a running Metro server: the one its dependency graph rebuilds from, reached
+ * the way Metro's own incremental bundler reaches it. Null when this Metro has no such road.
+ */
+function fileWatcherOfMetro(metroServer) {
+  try {
+    var watcher = metroServer.getBundler().getBundler().getWatcher();
+    return watcher && typeof watcher.on === 'function' ? watcher : null;
+  } catch (_) {
+    // No such road on this Metro: whoever asked keeps what it had when the bundler started.
+    return null;
+  }
 }
 
 function isSceneFilePath(filePath) {
@@ -284,6 +302,8 @@ function readFileOrNull(file) {
 module.exports = {
   findSceneFiles: findSceneFiles,
   keepSceneListCurrent: keepSceneListCurrent,
+  pathsOfChange: pathsOfChange,
+  fileWatcherOfMetro: fileWatcherOfMetro,
   sceneIdsOfSource: sceneIdsOfSource,
   readSceneIds: readSceneIds,
   writeBundledScenesModule: writeBundledScenesModule,
