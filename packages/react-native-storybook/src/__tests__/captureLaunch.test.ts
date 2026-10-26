@@ -3,6 +3,7 @@
 const launch = vi.hoisted(() => ({
   mode: 'testing',
   storyId: 'chat--conversation' as string | undefined,
+  discover: undefined as boolean | undefined,
   bundler: 'http://localhost:8081' as string | null,
   facts: true,
   storyIds: [] as string[],
@@ -11,7 +12,10 @@ const launch = vi.hoisted(() => ({
 vi.mock('../SherloModule', () => ({
   default: {
     getMode: () => launch.mode,
-    getLastState: () => ({ nextSnapshot: { storyId: launch.storyId } }),
+    getLastState: () => ({
+      nextSnapshot: { storyId: launch.storyId },
+      discover: launch.discover,
+    }),
   },
 }));
 vi.mock('../bundlerOrigin', () => ({ bundlerOrigin: () => launch.bundler }));
@@ -27,11 +31,16 @@ vi.mock('../bundledScenes', () => ({
   },
 }));
 
-import { idOfTheTestingLaunch, sceneOfTheCaptureOfAnAppWithStorybook } from '../captureLaunch';
+import {
+  discoverOfTheTestingLaunch,
+  idOfTheTestingLaunch,
+  sceneOfTheCaptureOfAnAppWithStorybook,
+} from '../captureLaunch';
 
 beforeEach(() => {
   launch.mode = 'testing';
   launch.storyId = 'chat--conversation';
+  launch.discover = undefined;
   launch.bundler = 'http://localhost:8081';
   launch.facts = true;
   launch.storyIds = [];
@@ -74,4 +83,14 @@ it('a runner-driven launch reads the scene id the runner carries for a scene', (
   expect(idOfTheTestingLaunch()).toBe('inbox--full');
   launch.storyId = '';
   expect(idOfTheTestingLaunch()).toBeUndefined();
+});
+
+it('a launch carrying the discover flag turns discover mode on', () => {
+  expect(discoverOfTheTestingLaunch()).toBe(false);
+
+  launch.discover = true;
+  expect(discoverOfTheTestingLaunch()).toBe(true);
+
+  launch.mode = 'default';
+  expect(discoverOfTheTestingLaunch()).toBe(false);
 });

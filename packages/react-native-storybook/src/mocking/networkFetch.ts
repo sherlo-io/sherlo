@@ -20,6 +20,7 @@ export function mockedFetchOf(realFetch: typeof fetch): typeof fetch {
 
       if (verdict.kind === 'passthrough') return await realFetch(input, init);
       if (verdict.kind === 'refusal') throw verdict.refusal;
+      if (verdict.kind === 'held') return await heldUntilAborted(init?.signal);
 
       const { answer } = verdict;
       await delay(answer.delayMs);
@@ -32,6 +33,20 @@ export function mockedFetchOf(realFetch: typeof fetch): typeof fetch {
   };
 
   return mockedFetch as typeof fetch;
+}
+
+/** A request that is never answered; an abort signal still ends it, as it ends a real one. */
+function heldUntilAborted(signal: NonNullable<FetchInit>['signal']): Promise<Response> {
+  return new Promise<Response>((_resolve, reject) => {
+    if (!signal) return;
+    const abort = () => {
+      const aborted = new Error('The operation was aborted.');
+      aborted.name = 'AbortError';
+      reject(aborted);
+    };
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
+  });
 }
 
 /** The one request the caller is making, however it spelled it out. */

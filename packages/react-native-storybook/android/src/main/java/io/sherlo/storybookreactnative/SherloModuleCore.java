@@ -192,6 +192,14 @@ public class SherloModuleCore {
         driver = DRIVER_CAPTURE;
     }
 
+    /** Whether the launch has the capture discover; kept in the state beside the story. */
+    private static volatile boolean discover = false;
+
+    /** Called before the launch keeps its story: the intent's sherloDiscover extra. */
+    public static void setDiscover(boolean on) {
+        discover = on;
+    }
+
     /** Keeps `storyId` (when one is given) as the story the next start of the JavaScript lands on. */
     private static void keepStory(String storyId) {
         if (storyId == null || storyId.isEmpty()) return;
@@ -201,6 +209,7 @@ public class SherloModuleCore {
             JSONObject storyToShow = new JSONObject();
             storyToShow.put("nextSnapshot", nextSnapshot);
             storyToShow.put("requestId", "");
+            storyToShow.put("discover", discover);
             synchronized (stateLock) {
                 lastState = storyToShow;
             }

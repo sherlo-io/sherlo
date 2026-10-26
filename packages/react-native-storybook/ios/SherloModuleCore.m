@@ -31,6 +31,8 @@ static NSString * const DRIVER_CAPTURE = @"capture";
 
 /** The launch argument that starts a debug build in testing mode for `sherlo capture`. */
 static NSString * const CAPTURE_ARGUMENT = @"-sherloCapture";
+/** The launch argument that has the capture discover: requests no rule names are held and listed. */
+static NSString * const DISCOVER_ARGUMENT = @"-sherloDiscover";
 
 /**
  * How long a launch the runner handed an address waits for the runner's settings before its
@@ -166,7 +168,8 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
 + (void)keepStory:(NSString *)storyId {
     if (storyId.length == 0) return;
     @synchronized([SherloModuleCore class]) {
-        lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"" };
+        BOOL discover = [NSProcessInfo.processInfo.arguments containsObject:DISCOVER_ARGUMENT];
+        lastState = @{ @"nextSnapshot": @{ @"storyId": storyId }, @"requestId": @"", @"discover": @(discover) };
     }
 }
 

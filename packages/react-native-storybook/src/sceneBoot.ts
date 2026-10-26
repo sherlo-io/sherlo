@@ -29,12 +29,14 @@ import reportStorybookLoaded from './helpers/reportStorybookLoaded';
 import {
   bundleHoldsScenes,
   bundledSceneOfId,
+  discoverOfTheTestingLaunch,
   idOfTheTestingLaunch,
   sceneOfTheCaptureOfAnAppWithStorybook,
 } from './captureLaunch';
 import { startCaptureOfTheLaunch } from './captureTransport';
 import { logTheLine } from './connection/appLine';
 import { activateSceneMocks } from './getStorybook/storyMockActivation';
+import { setDiscover } from './mocking/networkRules';
 import { readStorybookFacts } from './getStorybook/storybookFacts';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import { initialWindowMetrics } from 'react-native-safe-area-context';
@@ -110,6 +112,7 @@ function switchOnTheLaunchedScene(): void {
   if (!scene) return;
   logTheLine(`scene ${sceneId} found in the bundle`);
 
+  setDiscover(discoverOfTheTestingLaunch());
   const file = (scene.loadFile() as { default?: SceneFile } | undefined)?.default;
   activateSceneMocks(sceneId, file?.mocks, file?.scenes[scene.sceneName]?.mocks, scene.filePath);
   logTheLine(`scene ${sceneId} mocks applied`);

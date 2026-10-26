@@ -179,6 +179,7 @@ function createOldSetupAppWithAScene(): string {
       '  });\n' +
       '};\n'
   );
+  sdk('dist/mocking/networkRules.js', 'exports.setDiscover = function () {};\n');
   // createLazyMockable as the real one behaves: each read asks the active mocks first.
   sdk(
     'dist/mocking/index.js',

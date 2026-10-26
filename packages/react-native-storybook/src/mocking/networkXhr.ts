@@ -56,6 +56,8 @@ export function mockedXhrOf(RealXhr: XhrClass): XhrClass {
       // already on its way back.
       // In flight until it ends (./requestsInFlight). A real request ends at its loadend event; a
       // runtime whose XMLHttpRequest has no listeners cannot say, so its request is not counted.
+      // Held: never fires load or error, and abort() still works.
+      if (verdict.kind === 'held') return;
       if (verdict.kind === 'passthrough') {
         if (typeof this.addEventListener === 'function') {
           this.addEventListener('loadend', requestStarted(this.request));

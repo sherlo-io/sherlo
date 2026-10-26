@@ -22,6 +22,12 @@ export function idOfTheTestingLaunch(): string | undefined {
   return SherloModule.getLastState()?.nextSnapshot.storyId || undefined;
 }
 
+/** Whether the testing launch has the capture discover: requests no rule names are held, listed. */
+export function discoverOfTheTestingLaunch(): boolean {
+  if (SherloModule.getMode() !== 'testing') return false;
+  return (SherloModule.getLastState() as { discover?: boolean } | undefined)?.discover === true;
+}
+
 /** The bundle's scene of this id, or undefined when the bundle holds none. */
 export function bundledSceneOfId(id: string): (typeof bundledScenes)[string] | undefined {
   return bundledScenes[id];
