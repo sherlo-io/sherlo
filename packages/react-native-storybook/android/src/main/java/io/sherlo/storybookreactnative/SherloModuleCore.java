@@ -703,6 +703,31 @@ public class SherloModuleCore {
     }
 
     /**
+     * Touches the app window at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+     * Resolves, once the touch ended, with whether a React view took it, the hit view's tag (-1 for
+     * none) and class. Android has no private calls to lack, so `missing` is always empty.
+     */
+    public void tap(Activity activity, double x, double y, double holdMs, final Promise promise) {
+        if (activity == null) {
+            promise.reject("no_window", "The app has no window to tap");
+            return;
+        }
+        View decor = activity.getWindow().getDecorView();
+        TouchHelper.tap(decor, x, y, holdMs, decor.getResources().getDisplayMetrics().density,
+                new TouchHelper.Done() {
+                    @Override
+                    public void tapped(TouchHelper.Result result) {
+                        WritableMap answer = Arguments.createMap();
+                        answer.putBoolean("reachedReact", result.reachedReact);
+                        answer.putInt("hitTag", result.hitTag);
+                        answer.putString("hitClass", result.hitClass);
+                        answer.putArray("missing", Arguments.createArray());
+                        promise.resolve(answer);
+                    }
+                });
+    }
+
+    /**
      * Whether each view named by testID is drawn, from the native view tree.
      *
      * @param activity The current activity

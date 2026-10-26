@@ -79,12 +79,13 @@ export interface Spec extends TurboModule {
   /** Start the app's JavaScript again in the same process; the connection stays open. */
   reloadJavaScript: () => void;
   /**
-   * Touch the app window (the first window of the first connected scene, where the inspector measures frames) at (x, y), in points, for holdMs, as a finger does (iOS only, ios/TouchHelper;
-   * optional, so Android's generated module needs no body for it). Resolves once the touch ended:
-   * whether a React Native or gesture-handler recognizer took it, the React tag of the view it hit
-   * (-1 for none) and that view's class, and the private calls this iOS lacks (none touched then).
+   * Touch the app window (the first window of the first connected scene, where the inspector measures frames) at (x, y), in points, for holdMs, as a finger does (ios/TouchHelper, android
+   * TouchHelper; a native build from before the touch lacks the method). Resolves once the touch
+   * ended: whether a React Native or gesture-handler recognizer took it, the React tag of the view
+   * it hit (-1 for none) and that view's class, and the private calls this iOS lacks (none touched
+   * then; always empty on Android).
    */
-  tap?: (
+  tap: (
     x: number,
     y: number,
     holdMs: number
