@@ -13,39 +13,13 @@
  * roads fail differently.
  */
 import type { CapturedView } from '../render/capturedStory';
-import type { SceneEnding } from '../render/capturedScene';
 import { readAppError, type AppError } from './appError';
-import { drainAppLog, keepStrings } from './appLog';
-import { askTheBundlerLine } from './bundlerLine';
+import { drainAppLog } from './appLog';
+import { askTheBundlerLine, type STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import type { NoTarget, SceneTarget } from './deviceState';
-import { captureLiveScene, type NoApp } from './liveScene';
-
-/**
- * The stabilization settings a capture sends, as the runner sends them today.
- *
- * TWO COPIES OF ONE SET OF NUMBERS, and this is the second. The runner writes the same values into
- * the file it hands the app. They are meant to come from Sherlo's API, read by both, and this copy
- * goes away then; until then a change to the runner's numbers must be made here too.
- *
- * EVERY SETTING THAT DECIDES WHETHER A STORY SETTLED IS HERE, which is why `threshold` and
- * `includeAA` are not optional extras: they decide whether two frames count as the same frame, so a
- * capture that left them to the app's own config would call a story never-settled that a test run
- * would have settled. The app's config holds the SDK's fallback values on an app that has never taken
- * a run, which is exactly the app a developer captures on.
- *
- * `saveScreenshots` is the one runner setting deliberately left out: the runner sets it true, and a
- * capture writes nothing to the device, so the app turns it off itself rather than being told to.
- * There are seven numbers in the runner's file; a capture sends the other six.
- */
-export const STABILIZATION_SETTINGS = {
-  requiredMatches: 3,
-  minScreenshotsCount: 6,
-  intervalMs: 500,
-  timeoutMs: 20_000,
-  threshold: 0.02,
-  includeAA: true,
-} as const;
+import { captureLiveScene, type SceneCaptureResult } from './liveScene';
+import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
 
 /** What the app answered about the story the command asked it to capture. */
 export type CaptureResult =
@@ -117,17 +91,8 @@ export type CaptureResult =
       logs?: string[];
     };
 
-/** What the app answered about the scene the command asked it to boot fresh on and capture. */
-export type SceneCaptureResult = ({ kind: 'no-bundler' } | NoApp | SceneEnding) & {
-  /** Sherlo's own log lines from the app since it booted, drained from the bundler's feed after the answer. */
-  logs?: string[];
-};
-
 /** A story file that threw as the app loaded it, and what it threw, in its own words. */
 export type BrokenStoryFile = { file: string; error: AppError };
-
-/** A request a story made that no mock answered; the app lists it whether the story refused it or let it through. */
-export type UnansweredRequest = { method: string; url: string };
 
 /** How one of the app's waits ended, as it reports it - see the SDK's own WaitOutcome. */
 export type WaitOutcome = {
@@ -448,23 +413,6 @@ function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
     const error = readAppError((entry as { error?: unknown } | null)?.error);
     const file = (entry as { file?: unknown } | null)?.file;
     if (typeof file === 'string' && error) read.push({ file, error });
-  }
-  return read.length > 0 ? read : undefined;
-}
-
-/** A list of strings off the wire, or nothing when the wire sent no list or only empty ones. */
-export function readStrings(value: unknown): string[] | undefined {
-  const read = keepStrings(value);
-  return read.length > 0 ? read : undefined;
-}
-
-/** The requests no mock answered, each a method and an address; a malformed entry is dropped. */
-export function readUnanswered(value: unknown): UnansweredRequest[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const read: UnansweredRequest[] = [];
-  for (const entry of value) {
-    const { method, url } = (entry ?? {}) as { method?: unknown; url?: unknown };
-    if (typeof method === 'string' && typeof url === 'string') read.push({ method, url });
   }
   return read.length > 0 ? read : undefined;
 }

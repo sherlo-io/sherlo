@@ -11,7 +11,8 @@ import {
 } from '../../../../react-native-storybook/metro/sherloLine';
 import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { liveCaptureSocket, STABILIZATION_SETTINGS } from '../captureSocket';
+import { STABILIZATION_SETTINGS } from '../bundlerLine';
+import { liveCaptureSocket } from '../captureSocket';
 import { liveLetterbox } from '../letterbox';
 import { captureLiveScene, readSceneAnswer } from '../liveScene';
 import { installDeviceState, posedDeviceState } from '../deviceState';
@@ -275,21 +276,38 @@ describe('a scene is captured and opened live', () => {
     expect(renderCapturedLog(answer.logs ?? []).join('\n')).toContain('12:00:00: chat opened');
   });
 
-  it('a scene the app does not have, a boot that threw and a missing ready view each end in their own words', () => {
+  it('a scene that crashed after its app booted is never read as one that never booted', () => {
+    const crashed = readSceneAnswer(
+      {
+        kind: 'crashed',
+        error: { name: 'TypeError', message: 'boom', stack: 'at start (/app/index.js:12:3)' },
+        threw: { name: 'TypeError', message: 'boom' },
+        stillReal: ['src/api.ts'],
+        unanswered: [{ method: 'GET', url: 'https://x.test/a' }],
+      },
+      SCENE
+    );
+
+    expect(crashed).toEqual({
+      kind: 'crashed-mid-capture',
+      sceneId: SCENE,
+      error: { name: 'TypeError', message: 'boom' },
+      threw: { name: 'TypeError', message: 'boom' },
+      stillReal: ['src/api.ts'],
+      unanswered: [{ method: 'GET', url: 'https://x.test/a' }],
+    });
+    expect(readSceneAnswer({ kind: 'crashed' }, SCENE)).toEqual({
+      kind: 'crashed-mid-capture',
+      sceneId: SCENE,
+    });
+  });
+
+  it('a scene the app does not have and a missing ready view each end in their own words', () => {
     expect(readSceneAnswer({ kind: 'no-such-story', known: ['a--b'] }, SCENE)).toEqual({
       kind: 'no-such-scene',
       sceneId: SCENE,
       known: ['a--b'],
     });
-    expect(
-      readSceneAnswer(
-        {
-          kind: 'crashed',
-          error: { name: 'TypeError', message: 'boom', stack: 'at start (/app/index.js:12:3)' },
-        },
-        SCENE
-      )
-    ).toMatchObject({ kind: 'crashed-at-boot', error: { file: '/app/index.js', line: 12 } });
     expect(
       readSceneAnswer({ kind: 'never-reached', ready: 'chat-list', stayedOn: ['Auth'] }, SCENE)
     ).toEqual({

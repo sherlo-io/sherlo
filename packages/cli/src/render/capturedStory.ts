@@ -88,6 +88,10 @@ const START_THE_APP = 'Start your app with the bundler running, then try again.'
 /** The name of the error the SDK fails a story with when a mock it declares reached nothing or its module's import threw. */
 const MOCKED_MODULE_ERROR = 'MockedModuleError';
 
+/** What a crash with no error from the app says, for a story and a scene alike. */
+export const NOTHING_BEFORE_DEATH =
+  '   The app said nothing before it died - a native crash, or the app was closed.';
+
 /** Every line `sherlo capture` prints, in order. */
 export function renderCapturedStory(state: CapturedStory): string[] {
   switch (state.kind) {
@@ -194,13 +198,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           state.storyId
         )} captured to a crash - the app stopped answering`,
         '',
-        ...(state.error
-          ? [errorLine(state.error)]
-          : [
-              chalk.dim(
-                '   The app said nothing before it died - a native crash, or the app was closed.'
-              ),
-            ]),
+        ...(state.error ? [errorLine(state.error)] : [chalk.dim(NOTHING_BEFORE_DEATH)]),
         '',
       ];
   }

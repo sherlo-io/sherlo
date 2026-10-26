@@ -22,7 +22,8 @@ import {
 import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
-import { STABILIZATION_SETTINGS, captureSocket } from '../../seams/captureSocket';
+import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
+import { captureSocket } from '../../seams/captureSocket';
 import {
   appIsInstalled,
   deviceState,
@@ -30,7 +31,8 @@ import {
   isTarget,
   prepareCleanDevice,
 } from '../../seams/deviceState';
-import type { CaptureResult, SceneCaptureResult } from '../../seams/captureSocket';
+import type { CaptureResult } from '../../seams/captureSocket';
+import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene } from '../../render/capturedScene';
 

@@ -21,6 +21,34 @@ function missedTap(tap: string): string {
   }).join('\n');
 }
 
+describe('a scene whose app crashed after it booted', () => {
+  it('a scene that crashed after its app booted prints its own headline and its error', () => {
+    const lines = renderCapturedScene({
+      kind: 'crashed-mid-capture',
+      sceneId: 'inbox--full',
+      error: { name: 'TypeError', message: 'boom' },
+      stillReal: ['src/api.ts'],
+      unanswered: [{ method: 'GET', url: 'https://x.test/a' }],
+    }).join('\n');
+
+    expect(lines).toContain(
+      '✖  inbox--full failed after it booted - the capture stopped before it finished'
+    );
+    expect(lines).not.toContain('never booted');
+    expect(lines).toContain('TypeError: boom');
+    expect(lines).toContain('src/api.ts');
+    expect(lines).toContain('GET https://x.test/a');
+  });
+
+  it('a scene that crashed with no error says the app said nothing before it died', () => {
+    const lines = renderCapturedScene({ kind: 'crashed-mid-capture', sceneId: 'inbox--full' });
+
+    expect(lines.join('\n')).toContain(
+      'The app said nothing before it died - a native crash, or the app was closed.'
+    );
+  });
+});
+
 describe('a scene whose app started over while it was captured', () => {
   const restarted = (restarts: number) =>
     renderCapturedScene({ kind: 'restarted-mid-capture', sceneId: 'inbox--full', restarts });

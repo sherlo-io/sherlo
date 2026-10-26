@@ -13,8 +13,7 @@
  * tool does to the machine it runs on.
  */
 import type { SceneEnding } from '../render/capturedScene';
-import { askTheBundlerLine } from './bundlerLine';
-import { STABILIZATION_SETTINGS } from './captureSocket';
+import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import type { NoTarget, SceneTarget } from './deviceState';
 import { captureLiveScene } from './liveScene';
 

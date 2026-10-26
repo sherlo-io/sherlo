@@ -13,6 +13,7 @@
  */
 import chalk from 'chalk';
 import {
+  NOTHING_BEFORE_DEATH,
   errorLine,
   stillRealLines,
   treeLines,
@@ -42,6 +43,12 @@ export type SceneEnding =
       sceneId: string;
       error: { name: string; message: string; file: string; line: number };
     }
+  /** The app booted and took the capture, and the capture threw; `error` is what the app said, when it said. */
+  | ({
+      kind: 'crashed-mid-capture';
+      sceneId: string;
+      error?: { name: string; message: string };
+    } & SceneLeft)
   /** The app booted, and the scene's ready view never showed; `stayedOn` is the route the app was on. */
   | ({
       kind: 'never-reached';
@@ -102,6 +109,17 @@ export function renderCapturedScene(state: CapturedScene): string[] {
         '',
       ];
     }
+
+    case 'crashed-mid-capture':
+      return [
+        `${chalk.red('✖')}  ${chalk.bold(
+          state.sceneId
+        )} failed after it booted - the capture stopped before it finished`,
+        '',
+        ...(state.error ? [errorLine(state.error)] : [chalk.dim(NOTHING_BEFORE_DEATH)]),
+        ...leftLines(state),
+        '',
+      ];
 
     case 'never-reached':
       return [
