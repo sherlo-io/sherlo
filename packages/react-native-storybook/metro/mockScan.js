@@ -354,6 +354,7 @@ module.exports = {
   mayDeclareMocks: mayDeclareMocks,
   parseScanTarget: parseScanTarget,
   walkNodes: walkNodes,
+  unwrapExpression: unwrapExpression,
   isMockCallee: isMockCallee,
   importedSpecifier: importedSpecifier,
   soleImportedSpecifier: soleImportedSpecifier,

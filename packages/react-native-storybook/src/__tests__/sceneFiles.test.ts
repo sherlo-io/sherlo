@@ -260,6 +260,45 @@ describe('scene files are found and bundled', () => {
     expect(scenes(file)).toBe(file);
   });
 
+  it("a scene's permissions and location are read from the scene file, the scene's over the file's", () => {
+    const source = `import { scenes } from '@sherlo/react-native-storybook/scenes';
+export default scenes({
+  device: { permissions: { camera: 'granted', photos: 'denied' }, location: { latitude: 1, longitude: 2 } },
+  scenes: {
+    Scan: { device: { permissions: { photos: 'granted' }, location: { latitude: -52.5, longitude: 13.4 } } },
+    Plain: {},
+  },
+});`;
+
+    expect(sceneFiles.sceneDevicesOf('scan.scenes.tsx', source)).toEqual({
+      Scan: {
+        permissions: { camera: 'granted', photos: 'granted' },
+        location: { latitude: -52.5, longitude: 13.4 },
+      },
+      Plain: {
+        permissions: { camera: 'granted', photos: 'denied' },
+        location: { latitude: 1, longitude: 2 },
+      },
+    });
+  });
+
+  it('a device field that is not a literal is refused with the file and scene named', () => {
+    const shared = `const shared = { permissions: { camera: 'granted' } };`;
+    const identifier = `${shared}
+export default scenes({ scenes: { Scan: { device: shared } } });`;
+    const spread = `${shared}
+export default scenes({ scenes: { Other: { device: { ...shared } } } });`;
+    const call = `export default scenes({ scenes: { Third: { device: { permissions: { camera: grant() } } } } });`;
+
+    expect(() => sceneFiles.sceneDevicesOf('scan.scenes.tsx', identifier)).toThrow(
+      /scan\.scenes\.tsx.*Scan/
+    );
+    expect(() => sceneFiles.sceneDevicesOf('o.scenes.tsx', spread)).toThrow(
+      /o\.scenes\.tsx.*Other/
+    );
+    expect(() => sceneFiles.sceneDevicesOf('t.scenes.tsx', call)).toThrow(/t\.scenes\.tsx.*Third/);
+  });
+
   it('stable stringify sorts keys at every depth', () => {
     expect(stableStringify({ b: [{ d: 1, c: 2 }], a: null })).toBe(
       '{"a":null,"b":[{"c":2,"d":1}]}'
