@@ -68,6 +68,12 @@ export class NativeEventEmitter {
   }
 }
 
+export const LogBox = {
+  ignoreAllLogs: (ignore?: boolean) => {
+    ((globalThis as any).__sherloTestLogBoxIgnored ??= []).push(ignore);
+  },
+};
+
 export function __setNativeMode(mode: string): void {
   (globalThis as any).__sherloTestNativeMode = mode;
 }
