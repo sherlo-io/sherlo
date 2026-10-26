@@ -8,8 +8,9 @@
  * there, every view the scene says must be gone has left (not in the view tree, or invisible), and
  * no request the screen made is still on its way. Then the check runs as ever.
  *
- * A scene loads no Storybook, so nothing here reads the app through its React tree: every view is
- * judged by the native view tree, asked by testID (SherloModule.getViewVisibility).
+ * A scene loads no Storybook. A view named by testID is judged by the native view tree
+ * (SherloModule.getViewVisibility). A view named by its text or label is found as a tap step finds
+ * its target (./visibleViews) and counts once it is drawn on screen.
  *
  * The hold sits in the native calls the sealed core is handed (./sealedCore/loadSealedCore), so a
  * capture and a test run both wait the same way, with no change to the core. A scene never ready
@@ -27,6 +28,7 @@ import { readStoryError, recordStoryError } from './getStorybook/storyErrorRegis
 import { markStorySettled } from './mocking/registry';
 import type { NativeCalls } from './sealedCore/seam';
 import { reachedRoute } from './reachedScreen';
+import { isDrawn } from './visibleViews';
 import type { Scene, SceneFile } from './scenes';
 import type { ReadyRule, ViewVisibility } from './types/types';
 
@@ -164,6 +166,8 @@ async function waitUntilReady(
 ): Promise<ReadyOutcome | 'errored'> {
   const testIDs = listOf(rule.testID);
   const goneIDs = listOf(rule.gone);
+  const texts = listOf(rule.text);
+  const labels = listOf(rule.label);
   const timeoutMs = rule.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const watchRequests = rule.requestsIdle !== false;
 
@@ -182,22 +186,53 @@ async function waitUntilReady(
     const notShown = views ? testIDs.filter((testID) => views[testID] !== 'visible') : testIDs;
     const showing = views ? goneIDs.filter((testID) => views[testID] === 'visible') : goneIDs;
 
-    if (views && notShown.length === 0 && showing.length === 0 && requestsDone) {
+    const unseen = {
+      texts: await notDrawn(texts, (text) => ({ text })),
+      labels: await notDrawn(labels, (label) => ({ label })),
+    };
+    const namesViewToShow = testIDs.length + texts.length + labels.length > 0;
+
+    if (
+      views &&
+      notShown.length === 0 &&
+      showing.length === 0 &&
+      unseen.texts.length === 0 &&
+      unseen.labels.length === 0 &&
+      requestsDone
+    ) {
       RunnerBridge.log('story ready', { storyId: sceneId, waitedMs });
-      return { outcome: testIDs.length === 0 && goneIDs.length > 0 ? 'gone' : 'shown' };
+      return { outcome: !namesViewToShow && goneIDs.length > 0 ? 'gone' : 'shown' };
     }
     if (waitedMs >= timeoutMs) {
       // The wait ran out: the screen is judged as it is, so a declared mock the app never read now
       // counts - and it, like any throw, is what the scene reports rather than the timeout.
       markStorySettled();
       if (sceneId && endedByTheScenesError(sceneId, waitedMs)) return 'errored';
-      const line = notReadyLine(sceneId, timeoutMs, { views, testIDs, goneIDs, pending });
+      const line = notReadyLine(sceneId, timeoutMs, {
+        views,
+        testIDs,
+        goneIDs,
+        unseen,
+        pending,
+      });
       return { outcome: 'timed-out', route: reachedRoute(), line };
     }
 
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     waitedMs += POLL_MS;
   }
+}
+
+/** The names, of those given, that no view on screen answers to. */
+async function notDrawn(
+  names: string[],
+  asTarget: (name: string) => { text: string } | { label: string }
+): Promise<string[]> {
+  const unseen: string[] = [];
+  for (const name of names) {
+    if (!(await isDrawn(asTarget(name)))) unseen.push(name);
+  }
+  return unseen;
 }
 
 /** What the native view tree says of each view; undefined when it cannot be read. */
@@ -246,10 +281,12 @@ function notReadyLine(
     views: ViewVisibility | undefined;
     testIDs: string[];
     goneIDs: string[];
+    /** The texts and labels of the rule that no view on screen shows. */
+    unseen: { texts: string[]; labels: string[] };
     pending: { method: string; url: string }[];
   }
 ): string {
-  const { views, testIDs, goneIDs, pending } = waited;
+  const { views, testIDs, goneIDs, unseen, pending } = waited;
   const reasons: string[] = [];
   if (!views) {
     reasons.push('the native view tree could not be read');
@@ -271,6 +308,10 @@ function notReadyLine(
         reasons.push(`view "${testID}" is past the inspector's depth limit and was read as gone`);
       }
     }
+  }
+  for (const text of unseen.texts) reasons.push(`no view on screen shows the text "${text}"`);
+  for (const label of unseen.labels) {
+    reasons.push(`no view on screen has the accessibility label "${label}"`);
   }
   if (pending.length > 0) {
     reasons.push(

@@ -25,8 +25,9 @@ export type Scene = {
   /** Taps and links that take the app from its first screen to this one. */
   play?: PlayStep[];
   /**
-   * When the screen is there: a `testID` whose showing means so, or a rule (ReadyRule) that also
-   * names views that must be gone, a time limit and whether requests must be done.
+   * When the screen is there: a `testID` whose showing means so, or a rule (ReadyRule) that names
+   * views by `text` or `label` as well, views that must be gone, a time limit and whether requests
+   * must be done.
    */
   ready?: string | ReadyRule;
 };
