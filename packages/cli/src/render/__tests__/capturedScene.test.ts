@@ -177,6 +177,19 @@ describe('a discover capture lists what the scene needs', () => {
     expect(printed).not.toContain('Mock answers');
   });
 
+  it('a discover capture prints no module list, and its json record still keeps stillReal', () => {
+    const stillReal = ['src/a.ts', 'src/b.ts'];
+    const printed = discovered({ stillReal });
+    const plain = neverReachedPlain({ stillReal });
+
+    expect(printed).not.toContain('src/a.ts');
+    expect(printed).not.toContain('src/b.ts');
+    expect(printed).not.toContain('ran as real code');
+    expect(plain).toContain('src/a.ts');
+    expect(plain).toContain('src/b.ts');
+    expect(stillReal).toEqual(['src/a.ts', 'src/b.ts']);
+  });
+
   function neverReachedPlain(left: object): string {
     return renderCapturedScene({
       kind: 'never-reached',
