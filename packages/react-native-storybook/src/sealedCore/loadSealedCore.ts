@@ -28,7 +28,7 @@ import { clearMocks } from '../mocking';
 import { collectAppMetadata, providerFirstRenderedAt } from '../appMetadata';
 import { storyOfTheAppFiber } from '../componentNames';
 import { sherloFetch } from '../mocking/network';
-import { unansweredRequests } from '../mocking/networkRules';
+import { answerFindings, unansweredRequests } from '../mocking/networkRules';
 import { stillRealModulesOfStory } from '../mocking/stillReal';
 import { proveReadyAgain, stabilizeOnceReady } from '../storyReady';
 import { sceneCallsForTheCore } from './sceneCalls';
@@ -188,6 +188,7 @@ function hostForTheCore(): SealedCoreHost {
     activateMocksForStory,
     stillRealModulesOfStory,
     unansweredRequestsOfStory: unansweredRequests,
+    answerFindings,
     // The core clears a scene's mocks when it is done with it - a capture, once its record is read -
     // and the next capture of the scene still on screen proves it ready again (../storyReady).
     clearMocks: () => {

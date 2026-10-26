@@ -44,6 +44,48 @@ export function bodyExcerptOf(
   return undefined;
 }
 
+/**
+ * The GraphQL operation a request names: its name, or else "persisted" and the start of its hash.
+ * The record and the answer check read the address too (a GET); a rule matches on the body alone.
+ */
+export function graphqlOperationOf(url: string, body: string | undefined): string | undefined {
+  const fromBody = jsonObjectOf(body);
+  const fromUrl = url.includes('?') ? queryParamsOf(url) : {};
+
+  const name = operationNameOf(body) || fromUrl.operationName;
+  if (name) return name;
+
+  const hash = persistedQueryHashOf(fromBody?.extensions ?? jsonObjectOf(fromUrl.extensions));
+  return hash === undefined ? undefined : `persisted ${hash.slice(0, 12)}`;
+}
+
+/** The hash a persisted GraphQL query is sent by, read from a request's `extensions`. */
+export function persistedQueryHashOf(extensions: unknown): string | undefined {
+  const hash = (extensions as { persistedQuery?: { sha256Hash?: unknown } } | undefined)
+    ?.persistedQuery?.sha256Hash;
+  return typeof hash === 'string' && hash !== '' ? hash : undefined;
+}
+
+/** The GraphQL operation a request body names, or nothing when the body names none. */
+export function operationNameOf(body: string | undefined): string | undefined {
+  const name = jsonObjectOf(body)?.operationName;
+  return typeof name === 'string' ? name : undefined;
+}
+
+/** The object a JSON text holds, or nothing when the text is not JSON or holds no object. */
+export function jsonObjectOf(text: string | undefined): Record<string, unknown> | undefined {
+  if (text === undefined) return undefined;
+
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return typeof parsed === 'object' && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch (_) {
+    return undefined;
+  }
+}
+
 function maskedJson(body: string): string | undefined {
   try {
     const parsed: unknown = JSON.parse(body);
