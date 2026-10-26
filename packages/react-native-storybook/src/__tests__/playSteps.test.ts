@@ -478,6 +478,62 @@ describe('a scene plays its steps', () => {
       Platform.OS = 'ios';
     }
   });
+
+  it('a tap step logs one line with how it pressed, the point and what the touch hit', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const tapLines = () =>
+      log.mock.calls.map(([line]) => String(line)).filter((line) => line.includes(' tap by '));
+    scene.play = [{ tap: 'Connections' }];
+
+    // The native touch reached React: one line with the point, the target and the answer.
+    tabAt(600);
+    nativeTouch.tap = async () => ({
+      reachedReact: true,
+      hitTag: 12,
+      hitClass: 'RCTViewComponentView',
+      missing: [],
+    });
+    await played();
+    expect(tapLines()).toEqual([
+      '@sherlo/react-native-storybook: the bundler line scene chat--conversation step 1 of 1 tap by native touch at 243.5,630 target 12 hitClass RCTViewComponentView hitTag 12 reachedReact true',
+    ]);
+
+    // The touch answered null: the synthetic press.
+    log.mockClear();
+    nativeTouch.tap = async () => null;
+    await played();
+    expect(tapLines()).toEqual([
+      '@sherlo/react-native-storybook: the bundler line scene chat--conversation step 1 of 1 tap by synthetic press at 243.5,630 target 12',
+    ]);
+
+    // The touch landed inside the target and no recognizer took it, and no responder is on the
+    // way up: the nearest onPress answers.
+    log.mockClear();
+    const onPress = vi.fn();
+    views.now = () => ({
+      tag: 1,
+      frame: WINDOW,
+      children: [
+        {
+          tag: 12,
+          props: { testID: 'Connections', onPress },
+          frame: { x: 195, y: 600, width: 97, height: 60 },
+        },
+      ],
+    });
+    nativeTouch.tap = async () => ({
+      reachedReact: false,
+      hitTag: 12,
+      hitClass: 'RCTViewComponentView',
+      missing: [],
+    });
+    await played();
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(tapLines()).toEqual([
+      '@sherlo/react-native-storybook: the bundler line scene chat--conversation step 1 of 1 tap by the nearest onPress at 243.5,630 target 12 hitClass RCTViewComponentView hitTag 12 reachedReact false',
+    ]);
+    log.mockRestore();
+  });
 });
 
 /** The app is the one tab `Connections`, its top at `y`, 60 points high. */
