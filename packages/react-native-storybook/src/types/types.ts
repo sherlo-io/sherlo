@@ -71,10 +71,18 @@ export interface SherloParameters {
  * counts. A view past the inspector's depth or node limit cannot be seen at all and reads as gone;
  * the failure line names such views.
  *
+ * A screen with no testID is named as a tap names its target: by the `text` a Text view shows
+ * (the whole string, trimmed; typed and typographic quote marks count as the same) or by the
+ * accessibility `label` of a view. Each is ready once such a view is drawn on screen. `gone` names
+ * testIDs only.
+ *
  *   ready: { testID: 'discover.card', gone: 'splash-screen' }
+ *   ready: { text: 'Discover' }
  */
 export interface ReadyRule {
   testID?: string | string[];
+  text?: string | string[];
+  label?: string | string[];
   gone?: string | string[];
   timeoutMs?: number;
   requestsIdle?: boolean;

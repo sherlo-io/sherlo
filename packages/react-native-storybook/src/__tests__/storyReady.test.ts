@@ -24,6 +24,9 @@ vi.mock('../SherloModule', () => ({
     getMode: mockGetMode,
     getConfigOrDefault: () => ({}),
     getViewVisibility: readVisibility,
+    getInspectorData: async () => {
+      throw new Error('no view tree');
+    },
   },
 }));
 
@@ -243,6 +246,64 @@ describe('a scene file that waits for a view itself', () => {
     await vi.advanceTimersByTimeAsync(200);
 
     expect(await waiting).toMatchObject({ name: 'RangeError', message: 'bad' });
+  });
+});
+
+/** A rendered app: host Text views showing `texts`, and one view carrying each of `labels`. */
+function renderedApp(texts: string[], labels: string[] = []) {
+  const views = [
+    ...texts.map((text) => ({
+      type: 'RCTText',
+      memoizedProps: {},
+      child: { memoizedProps: text, child: null, sibling: null },
+    })),
+    ...labels.map((accessibilityLabel) => ({
+      type: 'RCTView',
+      memoizedProps: { accessibilityLabel },
+      child: null,
+    })),
+  ];
+  views.forEach((view, index) => Object.assign(view, { sibling: views[index + 1] ?? null }));
+  return { type: 'RCTView', memoizedProps: {}, child: views[0] ?? null, sibling: null };
+}
+
+describe('a scene named by its text or label', () => {
+  afterEach(() => rememberStoryOfTheApp(undefined));
+
+  it("a scene's ready rule met by visible text or by label, and its reason names the text or label it never saw", async () => {
+    scene.ready = { text: 'Discover', label: 'Back', timeoutMs: 1_000, requestsIdle: false };
+    rememberStoryOfTheApp(renderedApp(['Discover']));
+    const failure = stabilize().catch((error: Error) => error.message);
+    await vi.advanceTimersByTimeAsync(1_200);
+    expect(await failure).toBe(
+      'Story chat--conversation was not ready after 1 s: no view on screen has the accessibility label "Back".'
+    );
+
+    rememberStoryOfTheApp(renderedApp([], ['Back']));
+    const textFailure = stabilize().catch((error: Error) => error.message);
+    await vi.advanceTimersByTimeAsync(1_200);
+    expect(await textFailure).toBe(
+      'Story chat--conversation was not ready after 1 s: no view on screen shows the text "Discover".'
+    );
+
+    rememberStoryOfTheApp(renderedApp(['Discover'], ['Back']));
+    expect(await stabilize()).toBe(true);
+    expect(nativeStabilize).toHaveBeenCalledTimes(1);
+  });
+
+  it('reads typed and typographic quote marks as the same, and matches the whole string only', async () => {
+    rememberStoryOfTheApp(renderedApp(['It’s “ready”', 'Nearby: 5 km']));
+    const met = awaitReady({ text: ['It\'s "ready"'], requestsIdle: false });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await met).toEqual({ outcome: 'shown' });
+
+    const typographic = awaitReady({ text: 'It’s “ready”', requestsIdle: false });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await typographic).toEqual({ outcome: 'shown' });
+
+    const part = awaitReady({ text: 'Nearby', timeoutMs: 300, requestsIdle: false });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(await part).toMatchObject({ outcome: 'timed-out' });
   });
 });
 

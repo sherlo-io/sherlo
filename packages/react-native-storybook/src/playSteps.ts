@@ -26,19 +26,12 @@ import { Linking, Platform } from 'react-native';
 import { logTheLine } from './connection/appLine';
 import SherloModule from './SherloModule';
 import { currentAppFiber } from './componentNames';
-import type { InspectorDataNode, WalkedFiber } from './sealedCore/seam';
+import type { WalkedFiber } from './sealedCore/seam';
 import type { OpenStep, PlayStep, TapTarget } from './scenes';
-import {
-  coverOf,
-  hostViewsMatching,
-  nativeTagOf,
-  publicInstanceOf,
-  reachOf,
-  safeAreaInsetsAbove,
-  touchEvent,
-  UNDER_BARS_REASON,
-} from './tapReach';
-import type { Frame, Reach } from './tapReach';
+import { coverOf, nativeTagOf, publicInstanceOf, touchEvent, UNDER_BARS_REASON } from './tapReach';
+import type { Frame } from './tapReach';
+import { isTarget, visibleViews } from './visibleViews';
+import type { Found } from './visibleViews';
 import { asRule, awaitReady, mocksInstalled, sceneOf } from './storyReady';
 
 /** How long a link waits for the system to take it. */
@@ -182,13 +175,6 @@ async function openLink(step: OpenStep): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, LINK_SETTLE_MS));
 }
 
-type Found = {
-  fiber: WalkedFiber;
-  frame: Frame | undefined;
-  /** Where the middle of the view lies; unknown (taken as inside) without the native tree. */
-  reach?: Reach;
-};
-
 /** Poll until the target is on screen and drawn, and answer it. Throws when it never shows. */
 async function waitForTarget(target: TapTarget): Promise<Found> {
   if (target.testID === undefined && target.text === undefined && target.label === undefined) {
@@ -214,91 +200,12 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
   }
 }
 
-/**
- * The drawn views that `matching` accepts, topmost first (then leftmost), each with where its middle
- * lies (see `reachOf`). Read against the native tree when it can be: a view it does not draw is
- * left out. Without the tree, or the tags that join it to React's views (the old
- * renderer), every rendered match in render order.
- */
-async function visibleViews(matching: (fiber: WalkedFiber) => boolean): Promise<Found[]> {
-  const root = currentAppFiber();
-  const matches = root ? hostViewsMatching(root, matching) : [];
-  if (matches.length === 0) return [];
-
-  const drawn = await framesDrawnNatively();
-  if (!drawn || !matches.some((fiber) => nativeTagOf(fiber) !== undefined)) {
-    return matches.map((fiber) => ({ fiber, frame: undefined }));
-  }
-  const found: Found[] = [];
-  for (const fiber of matches) {
-    const tag = nativeTagOf(fiber);
-    const frame = tag === undefined ? undefined : drawn.frames.get(tag);
-    if (frame) {
-      found.push({ fiber, frame, reach: reachOf(frame, drawn.window, safeAreaInsetsAbove(fiber)) });
-    }
-  }
-  return found.sort((a, b) => a.frame!.y - b.frame!.y || a.frame!.x - b.frame!.x);
-}
-
 /** The testIDs of the views on screen now: unique, in screen order, the first `limit` and the count of the rest. */
 export async function testIDsOnScreen(limit: number): Promise<{ testIDs: string[]; more: number }> {
   const views = await visibleViews((fiber) => typeof fiber.memoizedProps?.testID === 'string');
   const onScreen = views.filter((view) => view.reach !== 'offScreen');
   const unique = [...new Set(onScreen.map((view) => String(view.fiber.memoizedProps?.testID)))];
   return { testIDs: unique.slice(0, limit), more: Math.max(0, unique.length - limit) };
-}
-
-function isTarget(fiber: WalkedFiber, target: TapTarget): boolean {
-  if (target.testID !== undefined) return fiber.memoizedProps?.testID === target.testID;
-  if (target.label !== undefined) return fiber.memoizedProps?.accessibilityLabel === target.label;
-  return fiber.type === 'RCTText' && textOf(fiber).trim() === target.text?.trim();
-}
-
-/** The text a host Text view shows: every string rendered under it, in order. */
-function textOf(fiber: WalkedFiber): string {
-  let text = '';
-  const pending: WalkedFiber[] = fiber.child ? [fiber.child] : [];
-  for (let node = pending.pop(); node; node = pending.pop()) {
-    if (node.sibling) pending.push(node.sibling);
-    if (typeof node.memoizedProps === 'string' || typeof node.memoizedProps === 'number') {
-      text += String(node.memoizedProps);
-    } else if (node.child) {
-      pending.push(node.child);
-    }
-  }
-  return text;
-}
-
-/**
- * Every view the native tree draws, by tag, with its frame in points, and the window's frame. A view
- * hidden, near-transparent or with no size hides everything under it. Undefined when the tree
- * cannot be read.
- */
-async function framesDrawnNatively(): Promise<
-  { frames: Map<number, Frame>; window: Frame } | undefined
-> {
-  let data;
-  try {
-    data = await SherloModule.getInspectorData();
-  } catch (_) {
-    // No view tree this time: the rendered matches are used, as for the old renderer.
-    return undefined;
-  }
-  const density = data.density > 0 ? data.density : 1;
-  const inPoints = (node: InspectorDataNode): Frame => ({
-    x: node.x / density,
-    y: node.y / density,
-    width: node.width / density,
-    height: node.height / density,
-  });
-  const frames = new Map<number, Frame>();
-  const pending = [data.viewHierarchy];
-  for (let node = pending.pop(); node; node = pending.pop()) {
-    if (!node.isVisible || node.width <= 0 || node.height <= 0) continue;
-    frames.set(node.id, inPoints(node));
-    pending.push(...(node.children ?? []));
-  }
-  return { frames, window: inPoints(data.viewHierarchy) };
 }
 
 /* ---- The tap ------------------------------------------------------------------------------- */

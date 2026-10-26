@@ -142,7 +142,8 @@ async function waitForReady(sceneId: string): Promise<SceneReadyOutcome> {
 /** The scene's ready rule and the names of the views it waits for, joined for the record. */
 function ruleAndReadyNames(sceneId: string) {
   const rule = readyRuleOf(sceneId) ?? {};
-  return { rule, ready: [rule.testID ?? []].flat().join(', ') };
+  const names = [rule.testID ?? [], rule.text ?? [], rule.label ?? []].flat();
+  return { rule, ready: names.join(', ') };
 }
 
 /** The scene's ready view never showed: the ready names, where the app stayed and what was on screen. */
