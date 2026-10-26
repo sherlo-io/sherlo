@@ -59,7 +59,21 @@ async function requestOf(input: FetchInput, init?: FetchInit): Promise<MockedReq
     method: (init?.method ?? asRequest?.method ?? 'GET').toUpperCase(),
     url: asRequest ? asRequest.url : String(input),
     body: typeof init?.body === 'string' ? init.body : await bodyTextOf(asRequest),
+    contentType: contentTypeOf(init?.headers ?? asRequest?.headers),
   };
+}
+
+function contentTypeOf(
+  headers: ConstructorParameters<typeof Headers>[0] | undefined
+): string | undefined {
+  if (!headers) return undefined;
+
+  try {
+    return new Headers(headers).get('content-type') ?? undefined;
+  } catch (_) {
+    // A runtime whose Headers cannot read this shape: the request has no content type to record.
+    return undefined;
+  }
 }
 
 function isRequest(input: FetchInput): input is Request {
