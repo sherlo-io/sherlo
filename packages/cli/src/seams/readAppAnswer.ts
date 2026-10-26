@@ -8,6 +8,22 @@ import { keepStrings } from './appLog';
 /** A request a story made that no mock answered; the app lists it whether the story refused it or let it through. */
 export type UnansweredRequest = { method: string; url: string };
 
+/** The errors the app logged during a scene: distinct messages with counts, and how many more were left out. */
+type ErrorsTheAppLogged = { messages: { message: string; times: number }[]; moreLeftOut: number };
+
+/** The logged errors off the wire; a malformed message is dropped, and nothing when none is left. */
+export function readLoggedErrors(value: unknown): ErrorsTheAppLogged | undefined {
+  const { messages, moreLeftOut } = (value ?? {}) as { messages?: unknown; moreLeftOut?: unknown };
+  if (!Array.isArray(messages)) return undefined;
+  const read: ErrorsTheAppLogged['messages'] = [];
+  for (const entry of messages) {
+    const { message, times } = (entry ?? {}) as { message?: unknown; times?: unknown };
+    if (typeof message === 'string' && typeof times === 'number') read.push({ message, times });
+  }
+  if (read.length === 0) return undefined;
+  return { messages: read, moreLeftOut: typeof moreLeftOut === 'number' ? moreLeftOut : 0 };
+}
+
 /** A list of strings off the wire, or nothing when the wire sent no list or only empty ones. */
 export function readStrings(value: unknown): string[] | undefined {
   const read = keepStrings(value);

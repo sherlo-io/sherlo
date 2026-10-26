@@ -21,6 +21,7 @@
  */
 import SherloModule from './SherloModule';
 import hideErrorOverlay from './helpers/hideErrorOverlay';
+import { startKeepingLoggedErrors } from './loggedErrors';
 import announceAppShowsWhatItTests from './helpers/announceAppShowsWhatItTests';
 import reportStorybookLoaded from './helpers/reportStorybookLoaded';
 import {
@@ -96,6 +97,7 @@ function switchOnTheLaunchedScene(): void {
   if (SherloModule.getMode() !== 'testing') return;
   // Before the app's first module runs, so no console error of the boot opens the overlay.
   hideErrorOverlay();
+  startKeepingLoggedErrors();
   const sceneId = idOfTheTestingLaunch();
   startTheSessionOfAnAppWithoutStorybook(sceneId);
   if (!sceneId) return;

@@ -200,6 +200,7 @@ describe('loading the sealed core', () => {
         'collectAppMetadata',
         'fetch',
         'isBundlerAssetUrl',
+        'loggedErrors',
         'mergeStoryMocks',
         'monotonicNow',
         'native',

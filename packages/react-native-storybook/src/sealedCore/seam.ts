@@ -94,6 +94,8 @@ export type SealedCoreHost = {
   monotonicNow?: () => number;
   /** The mock rules the scene declared that no request ever matched, each as one line. */
   rulesNeverMatched?: () => string[];
+  /** The distinct errors the app logged during the scene, as the SDK capped them. Optional. */
+  loggedErrors?: () => LoggedErrors;
 
   /*
    * THE PROOF A RECORD CARRIES. Each is optional: an SDK without it still talks to this core, and
@@ -980,6 +982,14 @@ type SceneFacts = {
   unanswered?: UnansweredRequest[];
   /** The mock rules the scene declared that no request matched. Left out when none. */
   rulesNeverMatched?: string[];
+  /** The distinct errors the app logged during the scene. Left out when none. */
+  loggedErrors?: LoggedErrors;
+};
+
+/** The errors the app logged during a scene: each distinct message with its count, and the rest. */
+export type LoggedErrors = {
+  messages: { message: string; times: number }[];
+  moreLeftOut: number;
 };
 
 /**
