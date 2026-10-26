@@ -22,7 +22,7 @@ import { reachedRoute } from '../reachedScreen';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
 import { monotonicNow } from '../settleClock';
 import type { PlayStep } from '../scenes';
-import { asRule, awaitReady, sceneOf } from '../storyReady';
+import { awaitReady, readyRuleOf, sceneOf } from '../storyReady';
 import type { ScenePlayOutcome, ScenePlayStep, SceneReadyOutcome, SealedCoreHost } from './seam';
 
 type SceneCalls = Pick<
@@ -79,8 +79,10 @@ function recordedSteps(steps: PlayStep[]): ScenePlayStep[] {
 /** Play the scene's steps; a tap whose view never showed is the outcome, any other failure the scene's error. */
 async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
   const steps = sceneOf(sceneId)?.play ?? [];
+  playUnfinished.add(sceneId);
   try {
     await playSteps(sceneId);
+    playUnfinished.delete(sceneId);
     return { played: recordedSteps(steps) };
   } catch (error) {
     const playedCount = error instanceof SherloStepError ? error.played.length : 0;
@@ -92,7 +94,7 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
       // the scene ends as never-reached, the ready wait's answer kept for the core's own ask. If
       // the view shows, the tap is what failed, and nothing is captured.
       if (playedCount === 0) {
-        const ended = await waitForReady(sceneId);
+        const ended = await waitOnReadyRule(sceneId);
         if (ended.outcome === 'timed-out') {
           readyEndedDuringPlay.set(sceneId, ended);
           return { played };
@@ -109,6 +111,9 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
   }
 }
 
+/** The scenes whose steps began and did not all play (lost, missed or still running): none is captured. */
+const playUnfinished = new Set<string>();
+
 /** The ready wait that already ended while a scene's first tap was missing, by scene; the core's ask takes it. */
 const readyEndedDuringPlay = new Map<string, SceneReadyOutcome>();
 
@@ -119,15 +124,36 @@ function missedTapName(step: PlayStep | undefined): string {
   return target.testID ?? nameOf(target);
 }
 
-/** Wait for the scene's own ready rule; the limit and an error the scene threw both end it. */
+/** The core's ask for the ready view: a scene whose steps did not all play is never ready. */
 async function waitForReady(sceneId: string): Promise<SceneReadyOutcome> {
   const alreadyEnded = readyEndedDuringPlay.get(sceneId);
   if (alreadyEnded) {
     readyEndedDuringPlay.delete(sceneId);
+    playUnfinished.delete(sceneId);
     return alreadyEnded;
   }
-  const rule = asRule(sceneOf(sceneId)?.ready) ?? {};
-  const ready = [rule.testID ?? []].flat().join(', ');
+  if (playUnfinished.delete(sceneId)) {
+    // A ready view met before every step played (a tab button every tab draws, say) is no capture.
+    return neverReached(sceneId, reachedRoute());
+  }
+  return waitOnReadyRule(sceneId);
+}
+
+/** The scene's ready rule and the names of the views it waits for, joined for the record. */
+function ruleAndReadyNames(sceneId: string) {
+  const rule = readyRuleOf(sceneId) ?? {};
+  return { rule, ready: [rule.testID ?? []].flat().join(', ') };
+}
+
+/** The scene's ready view never showed: the ready names, where the app stayed and what was on screen. */
+async function neverReached(sceneId: string, stayedOn: string[]): Promise<SceneReadyOutcome> {
+  const { ready } = ruleAndReadyNames(sceneId);
+  return { outcome: 'timed-out', ready, stayedOn, seen: await viewsSeen() };
+}
+
+/** Wait for the scene's own ready rule; the limit and an error the scene threw both end it. */
+async function waitOnReadyRule(sceneId: string): Promise<SceneReadyOutcome> {
+  const { rule, ready } = ruleAndReadyNames(sceneId);
   try {
     logTheLine(`scene ${sceneId} ready rule waited`);
     const ended = await awaitReady(rule);
@@ -135,11 +161,11 @@ async function waitForReady(sceneId: string): Promise<SceneReadyOutcome> {
     logTheLine(`scene ${sceneId} ready rule ${ending}`);
     if (ended.outcome === 'shown') return { outcome: 'shown', ready };
     if (ended.outcome === 'gone') return { outcome: 'gone', gone: [rule.gone ?? []].flat() };
-    return { outcome: 'timed-out', ready, stayedOn: ended.route, seen: await viewsSeen() };
+    return neverReached(sceneId, ended.route);
   } catch (_) {
     // What the app threw while the wait ran is already the scene's error (./storyReady keeps it),
     // and the record reports that in place of the ready failure.
-    return { outcome: 'timed-out', ready, stayedOn: reachedRoute(), seen: await viewsSeen() };
+    return neverReached(sceneId, reachedRoute());
   }
 }
 

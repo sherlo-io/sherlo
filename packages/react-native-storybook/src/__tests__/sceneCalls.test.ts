@@ -17,11 +17,15 @@ vi.mock('../playSteps', async () => ({
   testIDsOnScreen: behind.testIDsOnScreen,
 }));
 
-vi.mock('../storyReady', async () => ({
-  ...(await vi.importActual<typeof import('../storyReady')>('../storyReady')),
-  sceneOf: () => behind.scene,
-  awaitReady: behind.awaitReady,
-}));
+vi.mock('../storyReady', async () => {
+  const actual = await vi.importActual<typeof import('../storyReady')>('../storyReady');
+  return {
+    ...actual,
+    sceneOf: () => behind.scene,
+    readyRuleOf: () => actual.asRule(behind.scene.ready as string | undefined),
+    awaitReady: behind.awaitReady,
+  };
+});
 
 vi.mock('../bundledScenes', () => ({
   default: {
@@ -43,7 +47,12 @@ import { sceneCallsForTheCore } from '../sealedCore/sceneCalls';
 const SCENE_ID = 'chat--conversation';
 const calls = sceneCallsForTheCore();
 
-beforeEach(() => {
+beforeEach(async () => {
+  // Playing a scene whose steps all play clears what a previous test left of an unfinished play.
+  behind.scene.play = [];
+  behind.playSteps.mockResolvedValue([]);
+  await calls.playSteps!(SCENE_ID);
+
   behind.scene.play = [{ tap: 'Connections' }, { ready: 'list' }, { open: 'app://chat/1' }];
   behind.scene.ready = { testID: ['chat', 'composer'], gone: ['spinner'] };
   behind.playSteps.mockReset();
@@ -112,6 +121,42 @@ describe('the scene calls of the host', () => {
       missing: { tap: 'Inbox' },
       limitMs: 5_000,
     });
+  });
+
+  it('a scene whose first tap is lost while its ready view is already on screen is not captured', async () => {
+    behind.scene.play = [{ tap: { testID: 'Inbox' } }];
+    behind.scene.ready = { testID: 'tab-button' };
+    behind.awaitReady.mockResolvedValue({ outcome: 'shown' });
+    behind.playSteps.mockRejectedValue(new Error('the root re-mounted under the step'));
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({ played: [] });
+    await expect(calls.awaitReady!(SCENE_ID)).resolves.toMatchObject({ outcome: 'timed-out' });
+
+    behind.playSteps.mockResolvedValue([]);
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({ played: [{ tap: 'Inbox' }] });
+    await expect(calls.awaitReady!(SCENE_ID)).resolves.toEqual({
+      outcome: 'shown',
+      ready: 'tab-button',
+    });
+  });
+
+  it('a scene whose ready step timed out is not captured, though its ready view is on screen', async () => {
+    behind.awaitReady.mockResolvedValue({ outcome: 'shown' });
+    behind.playSteps.mockRejectedValue(
+      new SherloStepError(SCENE_ID, 'step 2 of 3', 'ready timed out', ['tap testID "Connections"'])
+    );
+
+    await calls.playSteps!(SCENE_ID);
+    await expect(calls.awaitReady!(SCENE_ID)).resolves.toMatchObject({ outcome: 'timed-out' });
+  });
+
+  it('a scene with no steps is captured once its ready view shows', async () => {
+    behind.scene.play = [];
+    behind.awaitReady.mockResolvedValue({ outcome: 'shown' });
+    behind.playSteps.mockResolvedValue([]);
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({ played: [] });
+    await expect(calls.awaitReady!(SCENE_ID)).resolves.toMatchObject({ outcome: 'shown' });
   });
 
   it('a scene with no ready view whose first tap is missing stays play-target-missing', async () => {
