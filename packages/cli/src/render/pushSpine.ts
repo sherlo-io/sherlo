@@ -71,7 +71,7 @@ export function renderHistoryFetchRefused(reason: string): string[] {
   return [
     chalk.yellow(`! Couldn't fetch the git history: ${reason}`),
     chalk.yellow(
-      "  The build goes on, but without history Sherlo can't find earlier approved pictures."
+      "  The build goes on and is still checked against main's approved pictures; only screens that differ wait for review."
     ),
     chalk.yellow(
       "  Keep your CI checkout's credentials, or fetch the full history in the checkout."
