@@ -194,4 +194,15 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
                    resolve:(RCTPromiseResolveBlock)resolve
                     reject:(RCTPromiseRejectBlock)reject;
 
+/**
+ * Touches the app window (InspectorHelper +appWindow) at (x, y), in points, for holdMs, as a finger
+ * does (TouchHelper), and resolves what the touch reached once it ended. Rejects only when the app
+ * has no window.
+ */
+- (void)tap:(double)x
+          y:(double)y
+     holdMs:(double)holdMs
+    resolve:(RCTPromiseResolveBlock)resolve
+     reject:(RCTPromiseRejectBlock)reject;
+
 @end 

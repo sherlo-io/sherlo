@@ -5,7 +5,11 @@
  * by tapping a tab, then a row, or by opening a link the app routes. The sealed core calls
  * `playSteps(sceneId)` before the stillness check and writes the record from what it answers.
  *
- * A tap goes through the handlers React Native's responder system calls for a finger: the views on
+ * On iOS a tap is a real touch: the native module puts one at the middle of the view's frame
+ * (ios/TouchHelper), so every recognizer a finger reaches sees it - React Native's own and
+ * gesture-handler's alike. Where there is no such touch (Android, until its own; the old renderer,
+ * whose views carry no native tag, so no frame is read; a native build from before the touch) the
+ * tap goes through the handlers React Native's responder system calls for a finger: the views on
  * the way to the root are asked to become the responder (capture from the root down, then bubbling
  * up from the view), and the one that accepts is granted the touch and released a moment later. A
  * Pressable, a Touchable or a TextInput answers that as it answers a finger - press in, its delay,
@@ -18,13 +22,20 @@
  *
  * Time here is counted in polls, never read off the clock: a scene may freeze `Date.now()`.
  */
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { logTheLine } from './connection/appLine';
 import SherloModule from './SherloModule';
 import { currentAppFiber } from './componentNames';
 import type { InspectorDataNode, WalkedFiber } from './sealedCore/seam';
 import type { OpenStep, PlayStep, TapTarget } from './scenes';
-import { reachOf, safeAreaInsetsAbove, UNDER_BARS_REASON } from './tapReach';
+import {
+  coverOf,
+  hostViewsMatching,
+  nativeTagOf,
+  reachOf,
+  safeAreaInsetsAbove,
+  UNDER_BARS_REASON,
+} from './tapReach';
 import type { Frame, Reach } from './tapReach';
 import { asRule, awaitReady, mocksInstalled, sceneOf } from './storyReady';
 
@@ -94,8 +105,7 @@ export async function playSteps(sceneId: string): Promise<string[]> {
     logTheLine(`scene ${sceneId} step ${index + 1} of ${steps.length} started`);
     try {
       if ('tap' in step) {
-        const found = await waitForTarget(targetOf(step.tap));
-        await pressView(found.fiber, found.frame);
+        await tapView(await waitForTarget(targetOf(step.tap)));
       } else if ('open' in step) {
         await openLink(step);
         if (!('ready' in (steps[index + 1] ?? {}))) await readyOrThrow(scene?.ready);
@@ -225,23 +235,6 @@ async function visibleViews(matching: (fiber: WalkedFiber) => boolean): Promise<
   return found.sort((a, b) => a.frame!.y - b.frame!.y || a.frame!.x - b.frame!.x);
 }
 
-/** The host views under `root` that `matching` accepts, in render order. */
-function hostViewsMatching(
-  root: WalkedFiber,
-  matching: (f: WalkedFiber) => boolean
-): WalkedFiber[] {
-  const found: WalkedFiber[] = [];
-  const pending: WalkedFiber[] = [root];
-  for (let fiber = pending.pop(); fiber; fiber = pending.pop()) {
-    if (typeof fiber.type === 'string' && matching(fiber)) found.push(fiber);
-    // Children are pushed last-first so the walk visits them in render order.
-    const children: WalkedFiber[] = [];
-    for (let child = fiber.child; child; child = child.sibling) children.push(child);
-    pending.push(...children.reverse());
-  }
-  return found;
-}
-
 /** The testIDs of the views on screen now: unique, in screen order, the first `limit` and the count of the rest. */
 export async function testIDsOnScreen(limit: number): Promise<{ testIDs: string[]; more: number }> {
   const views = await visibleViews((fiber) => typeof fiber.memoizedProps?.testID === 'string');
@@ -269,12 +262,6 @@ function textOf(fiber: WalkedFiber): string {
     }
   }
   return text;
-}
-
-/** A host view's native tag, as the new renderer keeps it (the old renderer's are not read). */
-function nativeTagOf(fiber: WalkedFiber): number | undefined {
-  const tag = fiber.stateNode?.canonical?.nativeTag;
-  return typeof tag === 'number' ? tag : undefined;
 }
 
 /**
@@ -312,7 +299,37 @@ async function framesDrawnNatively(): Promise<
 /* ---- The tap ------------------------------------------------------------------------------- */
 
 /**
- * Tap `fiber` as a finger would: the view that becomes the responder is granted the touch and
+ * Tap the view found: on iOS by the native touch at its frame's middle, held PRESS_HOLD_MS, else by
+ * the synthetic press (see the top of this file for where that is), which also stands in when the
+ * touch landed inside the target and no React recognizer took it. Throws when the touch hit
+ * another view, or when this iOS lacks the private calls the touch is made of.
+ */
+async function tapView({ fiber, frame }: Found): Promise<void> {
+  const touched =
+    Platform.OS === 'ios' && frame
+      ? await SherloModule.tap(frame.x + frame.width / 2, frame.y + frame.height / 2, PRESS_HOLD_MS)
+      : null;
+  if (!touched) return pressView(fiber, frame);
+  if (touched.missing.length > 0) {
+    throw new Error(
+      `Sherlo cannot tap on iOS ${Platform.Version} yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this`
+    );
+  }
+  const cover = coverOf(currentAppFiber(), nativeTagOf(fiber), touched);
+  if (cover) {
+    const covering =
+      cover.testID !== undefined ? nameOf({ testID: cover.testID }) : cover.className;
+    throw new Error(
+      `the target is covered by ${covering}, so the tap never reached it. Wait for the cover to close, or close it with a tap step before this one`
+    );
+  }
+  // The touch landed inside the target and no React recognizer took it (a native control, say):
+  // nothing covers the target, so the synthetic press stands in.
+  if (!touched.reachedReact) return pressView(fiber, frame);
+}
+
+/**
+ * The synthetic press of `fiber`: the view that becomes the responder is granted the touch and
  * released after PRESS_HOLD_MS. With no responder on the way to the root, the nearest component
  * above the view that takes an `onPress` is called. Throws when nothing answers.
  */

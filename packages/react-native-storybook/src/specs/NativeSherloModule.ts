@@ -79,6 +79,17 @@ export interface Spec extends TurboModule {
   /** Start the app's JavaScript again in the same process; the connection stays open. */
   reloadJavaScript: () => void;
   /**
+   * Touch the app window (the first window of the first connected scene, where the inspector measures frames) at (x, y), in points, for holdMs, as a finger does (iOS only, ios/TouchHelper;
+   * optional, so Android's generated module needs no body for it). Resolves once the touch ended:
+   * whether a React Native or gesture-handler recognizer took it, the React tag of the view it hit
+   * (-1 for none) and that view's class, and the private calls this iOS lacks (none touched then).
+   */
+  tap?: (
+    x: number,
+    y: number,
+    holdMs: number
+  ) => Promise<{ reachedReact: boolean; hitTag: number; hitClass: string; missing: string[] }>;
+  /**
    * NativeEventEmitter's two calls. Native code raises one `SherloMessage` event for each message
    * the connection brings, its argument the message's JSON (src/connection/appLine).
    */

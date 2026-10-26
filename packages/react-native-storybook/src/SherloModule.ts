@@ -35,8 +35,21 @@ const DEFAULT_CONFIG: Config = {
   paintBarrierPerScrollPart: true,
 };
 
+/** What the native touch answers (../specs/NativeSherloModule `tap`). */
+export type NativeTapAnswer = {
+  reachedReact: boolean;
+  hitTag: number;
+  hitClass: string;
+  missing: string[];
+};
+
 type SherloModule = {
   isTurboModule: boolean;
+  /**
+   * Touch the screen at (x, y), in points, for holdMs, as a finger does. iOS alone carries it; null
+   * when the native module has no touch (no module, or a native build from before it).
+   */
+  tap: (x: number, y: number, holdMs: number) => Promise<NativeTapAnswer | null>;
   getMode: () => StorybookViewMode;
   /** Throws when the runner handed no settings - use getConfigOrDefault where that is normal. */
   getConfig: () => Config;
@@ -129,6 +142,8 @@ function createSherloModule(): SherloModule {
 
   const sherloModule: SherloModule = {
     isTurboModule: !!TurboModule,
+    tap: async (x: number, y: number, holdMs: number) =>
+      typeof module.tap === 'function' ? module.tap(x, y, holdMs) : null,
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
@@ -236,6 +251,7 @@ function createSherloModule(): SherloModule {
 function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
+    tap: async () => null,
     getViewVisibility: async (testIDs: string[]) =>
       Object.fromEntries(testIDs.map((testID) => [testID, 'absent' as const])),
     getInspectorData: async () => ({

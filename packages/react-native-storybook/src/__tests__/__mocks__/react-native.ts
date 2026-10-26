@@ -223,7 +223,8 @@ export function __resetWrapperComponentProvider(): void {
   wrapperComponentProvider = undefined;
 }
 
-export const Platform = { OS: 'ios' };
+/** The phone: iOS, at the version its `Version` names, as React Native reads it from UIDevice. */
+export const Platform = { OS: 'ios', Version: '26.2' };
 
 /** Linking.openURL: what a test makes of the link (reject for one no app takes). */
 let openURLImplementation: (url: string) => Promise<void> = async () => {};
