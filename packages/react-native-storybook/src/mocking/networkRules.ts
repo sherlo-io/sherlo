@@ -40,6 +40,7 @@ export interface MockedRequest {
 export type Verdict =
   | { kind: 'answer'; answer: RequestAnswer }
   | { kind: 'passthrough' }
+  | { kind: 'held' }
   | { kind: 'refusal'; refusal: UnmockedRequestError };
 
 /** How a refusal is told to whoever is keeping the story's record. */
@@ -63,12 +64,20 @@ let mocksInEffect: NetworkMocks = NO_NETWORK_MOCKS;
 let socketPolicy: SocketPolicy = 'untouched';
 let recordRefusal: RecordRefusal = () => {};
 
+// A discover launch: a request no rule names waits forever, so every request the app makes is listed.
+let discover = false;
+
 // Every request no rule answered since the rules in effect were put in, in the order made. The
 // story's error keeps only the last refusal; this keeps them all, and the ones let through too.
 let unanswered: UnansweredRequest[] = [];
 
 // The rules in effect that answered at least one request or socket since they were put in.
 let matchedRules = new Set<NetworkRule | SocketRule>();
+
+/** Turn discover mode on or off; it outlasts the rules put in. */
+export function setDiscover(on: boolean): void {
+  discover = on;
+}
 
 /** Put `mocks` in effect, replacing whatever was in effect before. */
 export function setNetworkMocks(
@@ -142,6 +151,7 @@ export function answerFor(request: MockedRequest): Verdict {
 
   unanswered.push({ method: request.method, url: request.url });
   if (mocksInEffect.passthrough) return { kind: 'passthrough' };
+  if (discover) return { kind: 'held' };
 
   const refusal = new UnmockedRequestError(
     `no mock rule matches ${requestWords(request.method, request.url, operationNameOf(request.body))}`

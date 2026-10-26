@@ -46,6 +46,9 @@ public class SherloInitProvider extends ContentProvider {
      */
     private static final String CAPTURE_EXTRA = "sherloCapture";
 
+    /** The launch intent's boolean extra that has the capture discover (--ez sherloDiscover true). */
+    private static final String DISCOVER_EXTRA = "sherloDiscover";
+
     // Native watchdog timer: fires if getStorybook() is never called within 30s of launch.
     private static final AtomicBoolean getStorybookCalled = new AtomicBoolean(false);
     private static Handler timerHandler;
@@ -107,6 +110,8 @@ public class SherloInitProvider extends ContentProvider {
                     String address = intent != null ? intent.getStringExtra(ADDRESS_EXTRA) : null;
                     String captureId = intent != null && intent.hasExtra(CAPTURE_EXTRA)
                             ? intent.getStringExtra(CAPTURE_EXTRA) : null;
+                    SherloModuleCore.setDiscover(
+                            intent != null && intent.getBooleanExtra(DISCOVER_EXTRA, false));
                     SherloModuleCore.startFromAddressHandedAtLaunch(address, captureId);
                     if (SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
                         startTestingWatch(ctx);

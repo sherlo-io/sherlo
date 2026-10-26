@@ -20,6 +20,7 @@ import { mockRequest } from '../../mocking/networkDeclaration';
 import { sherloFetch } from '../../mocking/network';
 import {
   UnmockedRequestError,
+  setDiscover,
   socketVerdictFor,
   unansweredRequests,
 } from '../../mocking/networkRules';
@@ -83,6 +84,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setDiscover(false);
   clearMocks();
   __resetShimmedKeysForTests();
   clearStoryError(STORY_ID);
@@ -294,6 +296,37 @@ describe('a request no rule names', () => {
     expect(refusal.message).toBe(
       'no mock rule matches POST https://mocking.sherlo.invalid/graphql Orders'
     );
+  });
+
+  it('in discover mode an unmatched request is held and still listed as unanswered', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/profile` }, { body: 'the profile' })],
+    });
+    setDiscover(true);
+
+    const outcome = await Promise.race([
+      fetch(`${BASE}/orders`).then(
+        () => 'answered',
+        () => 'refused'
+      ),
+      new Promise((resolve) => setTimeout(() => resolve('held'), 50)),
+    ]);
+
+    expect(outcome).toBe('held');
+    expect(unansweredRequests()).toEqual([{ method: 'GET', url: `${BASE}/orders` }]);
+    expect(readStoryError(STORY_ID)).toBeUndefined();
+  });
+
+  it('outside discover mode an unmatched request is still refused', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/profile` }, { body: 'the profile' })],
+    });
+    setDiscover(true);
+    setDiscover(false);
+
+    const refusal = await refusalOf(fetch(`${BASE}/orders`));
+
+    expect(refusal).toBeInstanceOf(UnmockedRequestError);
   });
 
   it('a story that opts into passthrough lets an unmatched request reach the network', async () => {
