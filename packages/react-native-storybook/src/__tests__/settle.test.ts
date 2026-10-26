@@ -94,6 +94,33 @@ describe('a scene settles faster and honestly', () => {
     expect(ANDROID_SOURCE).toContain('SystemClock.uptimeMillis()');
   });
 
+  it("the boot reading counts from the scene's JavaScript start, never from the phone's own start", async () => {
+    const clock = { ms: 356_130_293.7 };
+    const priorNow = globalThis.performance.now;
+    Object.defineProperty(globalThis.performance, 'now', {
+      configurable: true,
+      writable: true,
+      value: () => clock.ms,
+    });
+    try {
+      vi.resetModules();
+      // Booting a scene loads the clock before the app's first module (sceneBoot imports it first).
+      await import('../settleClock');
+      clock.ms += 1_500;
+      const { monotonicNow: freshMonotonicNow } = await import('../settleClock');
+      expect(freshMonotonicNow()).toBe(1_500);
+    } finally {
+      Object.defineProperty(globalThis.performance, 'now', {
+        configurable: true,
+        writable: true,
+        value: priorNow,
+      });
+    }
+    expect(fs.readFileSync(path.join(SDK_ROOT, 'src', 'sceneBoot.ts'), 'utf8')).toMatch(
+      /^import '\.\/settleClock';$/m
+    );
+  });
+
   it('a settle that times out fails the capture', () => {
     // Every verdict but still resolves the native promise false, on both platforms.
     expect(IOS_SOURCE).toContain('resolve(verdict == SHERLO_STILL_STABLE ? @YES : @NO);');

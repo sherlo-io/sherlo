@@ -19,6 +19,8 @@
  * the wrapper provider that wraps the app's root in the scene's view (./storyOfTheApp); an entry
  * that sets its own provider later wins.
  */
+// First, so the clock's start is taken before the app's first module (./settleClock).
+import './settleClock';
 import SherloModule from './SherloModule';
 import hideErrorOverlay from './helpers/hideErrorOverlay';
 import { startKeepingLoggedErrors } from './loggedErrors';

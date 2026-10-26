@@ -102,6 +102,7 @@ function createOldSetupAppWithAScene(): string {
     write(`${SDK_FOLDER_IN_FIXTURE}/${relativePath}`, content);
   sdk('dist/sceneBoot.js', transpiledSdkFile('sceneBoot.ts'));
   sdk('dist/bundledScenes.js', transpiledSdkFile('bundledScenes.ts'));
+  sdk('dist/settleClock.js', transpiledSdkFile('settleClock.ts'));
   // The SDK's entry imports the early-boot module, as the real one does, so it is in the graph.
   sdk(
     'dist/index.js',
