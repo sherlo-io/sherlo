@@ -24,12 +24,17 @@ import {
 } from './capturedStory';
 import type { CapturedView } from './capturedStory';
 import { moreLines } from './moreLines';
+import type { AnswerFinding, LikelyCause, UnansweredRequest } from '../seams/readAppAnswer';
 
 /** What the app threw, ran as real code and left unanswered, as the story's record keeps them; each only when there is any. */
 export type SceneLeft = {
   threw?: { name: string; message: string };
   stillReal?: string[];
-  unanswered?: { method: string; url: string }[];
+  unanswered?: UnansweredRequest[];
+  /** The ready view showed after step `atStep` of `of`, before the last one. */
+  readyTooEarly?: { atStep: number; of: number };
+  /** What the SDK found wrong in the faked GraphQL answers of the scene. */
+  answerFindings?: AnswerFinding[];
   /** The distinct errors the app logged during the scene, counted and capped, as the app listed them. */
   loggedErrors?: { messages: { message: string; times: number }[]; moreLeftOut: number };
 };
@@ -60,6 +65,8 @@ export type SceneEnding =
       stayedOn: string[];
       /** The test ids on screen when the wait gave up, for the json reply only. */
       seen?: { testIDs: string[]; more: number };
+      /** What the record points to as the likely cause. */
+      likelyCause?: LikelyCause;
     } & SceneLeft)
   /** A play step found no view with its testID within its limit; `route` is where the app stood. */
   | ({
@@ -88,10 +95,14 @@ export type SceneEnding =
     } & SceneLeft);
 
 /** How a run of `sherlo capture --scene` ended, as the screen needs it. */
-export type CapturedScene =
+export type CapturedScene = (
   | { kind: 'no-bundler'; port: number }
   | { kind: 'no-app'; port: number }
-  | SceneEnding;
+  | SceneEnding
+) & {
+  /** The scene was a discover capture: its unanswered requests are the result, listed as rules. */
+  discover?: true;
+};
 
 /** The picture `--png` asked for: where it goes, and why saving it failed when it did. */
 export type ScenePicture = { path: string; error?: string };
@@ -158,6 +169,7 @@ function sceneLines(state: CapturedScene): string[] {
               '  Nothing faked who is logged in, so the app sent itself to sign-in. ' +
                 "Add a logged-in user to the scene's mocks.",
             ]),
+        ...(state.discover && state.likelyCause ? likelyCauseLines(state.likelyCause) : []),
         ...leftLines(state),
         '',
       ];
@@ -202,12 +214,86 @@ function sceneLines(state: CapturedScene): string[] {
 }
 
 /** The modules that ran real and the requests no mock answered, as the story prints them; nothing when there are none. */
-function leftLines({ stillReal, unanswered, loggedErrors }: SceneLeft): string[] {
+function leftLines(left: SceneLeft & { discover?: true }): string[] {
+  const { stillReal, unanswered, loggedErrors } = left;
   return [
     ...stillRealLines(stillReal),
-    ...unansweredLines(unanswered),
+    ...(left.discover ? discoverLines(left) : unansweredLines(unanswered)),
     ...loggedErrorLines(loggedErrors),
   ];
+}
+
+/**
+ * A discover capture's result: each request no mock answered as the rule that would answer it, once
+ * and in the order the app asked, then the early ready view and the findings about faked answers.
+ */
+function discoverLines({ unanswered, readyTooEarly, answerFindings }: SceneLeft): string[] {
+  const rules = new Map<string, UnansweredRequest>();
+  for (const request of unanswered ?? []) {
+    const rule = ruleOf(request);
+    if (!rules.has(rule)) rules.set(rule, request);
+  }
+  return [
+    ...(rules.size === 0
+      ? ['', 'No request went without a mock.']
+      : [
+          '',
+          `${chalk.yellow('◦')}  ${rules.size} ${rules.size === 1 ? 'request' : 'requests'} had no mock - add ${rules.size === 1 ? 'this rule' : 'these rules'} to the scene file:`,
+          ...[...rules].map(([rule, request]) => `     ${rule}${requestNote(request)}`),
+        ]),
+    ...(readyTooEarly
+      ? [
+          '',
+          `  The ready view showed after step ${readyTooEarly.atStep} of ${readyTooEarly.of}, before the last step of the play.`,
+        ]
+      : []),
+    ...(answerFindings && answerFindings.length > 0
+      ? ['', 'Faked answers the app could not use:', ...answerFindings.map(findingLine)]
+      : []),
+  ];
+}
+
+/** The rule that answers a request, with its body left to fill in; a GraphQL request is matched by its operation name. */
+function ruleOf({ method, url, operation }: UnansweredRequest): string {
+  const matcher = operation ? `operationName: ${quoted(operation)}` : `url: ${quoted(url)}`;
+  return `mockRequest({ method: ${quoted(method)}, ${matcher} }, { body: /* fill in */ })`;
+}
+
+/** What the app knows of a request's body, after the rule: its content type and masked excerpt, on one line. */
+function requestNote({ contentType, bodyExcerpt }: UnansweredRequest): string {
+  const parts = [
+    ...(contentType ? [contentType] : []),
+    ...(bodyExcerpt ? [`body ${bodyExcerpt.replace(/\s+/g, ' ')}`] : []),
+  ];
+  return parts.length > 0 ? chalk.dim(`  // ${parts.join(', ')}`) : '';
+}
+
+function quoted(text: string): string {
+  return `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+}
+
+/** One finding about a faked GraphQL answer, as the app listed it. */
+function findingLine({ kind, operation, path, expected }: AnswerFinding): string {
+  const where = `${operation ?? 'an operation'}${path ? ` at ${path}` : ''}`;
+  const want = expected ? ` (expected ${expected})` : '';
+  switch (kind) {
+    case 'field-missing':
+      return `  ${where}: the faked answer has no such field${want}`;
+    case 'typename-missing':
+      return `  ${where}: the faked answer has no __typename${want}`;
+    case 'typename-matches-no-fragment':
+      return `  ${where}: its __typename matches no fragment of the query${want}`;
+    case 'no-query-text':
+      return `  ${operation ?? 'a request'}: skipped, the request sent no query text, so its answer was not checked`;
+  }
+}
+
+/** Why a scene that never got ready likely did not, in the words the record's causes map to. */
+function likelyCauseLines(causes: LikelyCause): string[] {
+  const words = causes.map((cause) =>
+    cause === 'unanswered-requests' ? 'requests no mock answered' : 'errors the app logged'
+  );
+  return [`  Likely cause: ${words.join(' and ')}.`];
 }
 
 /** The errors the app logged during the scene, in the content's words; nothing when it logged none. */

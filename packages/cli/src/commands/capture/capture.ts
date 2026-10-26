@@ -14,10 +14,12 @@ import {
   DEFAULT_BUNDLER_PORT,
   JSON_OPTION,
   LOGS_OPTION,
+  DISCOVER_OPTION,
   PNG_OPTION,
   PORT_OPTION,
   SCENE_OPTION,
   STORY_OPTION,
+  discoverRefusal,
   pngWithoutSceneRefusal,
   sceneWithStoryRefusal,
 } from '../../constants';
@@ -46,6 +48,7 @@ import type { CapturedScene, ScenePicture } from '../../render/capturedScene';
 export type CaptureOptions = {
   [STORY_OPTION]?: string;
   [SCENE_OPTION]?: string;
+  [DISCOVER_OPTION]?: boolean;
   [PORT_OPTION]?: string;
   [JSON_OPTION]?: boolean;
   [LOGS_OPTION]?: boolean;
@@ -61,6 +64,9 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
   }
   if (passedOptions[PNG_OPTION] && !sceneId) {
     throwError({ message: pngWithoutSceneRefusal() });
+  }
+  if (passedOptions[DISCOVER_OPTION] && (!sceneId || passedOptions[PNG_OPTION])) {
+    throwError({ message: discoverRefusal() });
   }
   if (sceneId) return captureScene(sceneId, passedOptions);
 
@@ -121,6 +127,7 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
       ? await prepareCleanDevice(target.device, target.app, field).catch(endOnNotDebuggable)
       : undefined;
   const pngPath = passedOptions[PNG_OPTION];
+  const discover = passedOptions[DISCOVER_OPTION] === true;
   let answer: SceneCaptureResult;
   let notApplied: string[] = [];
   let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
@@ -132,6 +139,7 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
           port,
           settings: STABILIZATION_SETTINGS,
           target,
+          discover,
         })
       : { kind: 'no-app', why: 'not-installed' };
     // The screen as the app left it: the clean device's put-back below would show the home screen.
@@ -145,15 +153,19 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   if (passedOptions[JSON_OPTION]) {
     const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
     const unapplied = notApplied.length > 0 ? { deviceNotApplied: notApplied } : {};
-    process.stdout.write(`${JSON.stringify({ ...answer, ...saved, ...unapplied }, null, 2)}\n`);
+    const listed = discover ? { discover: true } : {};
+    const record = { ...answer, ...saved, ...unapplied, ...listed };
+    process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
   } else {
-    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port), picture });
+    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port, discover), picture });
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
   }
 
-  if (answer.kind !== 'scene') process.exit(EXIT_BLOCK);
+  // A discover capture holds requests, so the scene often never gets ready: that is its list, not a failure.
+  const gotTheList = discover && answer.kind === 'never-reached';
+  if (answer.kind !== 'scene' && !gotTheList) process.exit(EXIT_BLOCK);
 }
 
 /** The device the scene's file declares; a field that is not a plain literal ends the command, naming the file. */
@@ -176,10 +188,13 @@ async function savePicture(device: SceneDevice, path: string): Promise<ScenePict
 }
 
 /** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */
-export function capturedSceneEnding(answer: SceneCaptureResult, port: number): CapturedScene {
-  return answer.kind === 'no-bundler' || answer.kind === 'no-app'
-    ? { kind: answer.kind, port }
-    : answer;
+export function capturedSceneEnding(
+  answer: SceneCaptureResult,
+  port: number,
+  discover = false
+): CapturedScene {
+  if (answer.kind === 'no-bundler' || answer.kind === 'no-app') return { kind: answer.kind, port };
+  return discover ? { ...answer, discover: true } : answer;
 }
 
 /** What the screen shows for what the app answered. */

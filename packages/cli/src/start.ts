@@ -69,6 +69,7 @@ import {
   PROPS_OPTION,
   STORY_OPTION,
   SCENE_OPTION,
+  DISCOVER_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
   DEFAULT_BUNDLER_PORT,
@@ -107,35 +108,20 @@ async function start() {
       .description('Sherlo CLI: Visual testing for React Native');
 
     addInitCommand(program);
-
     addLoginCommand(program);
-
     addLogoutCommand(program);
-
     addTestCommand(program);
-
     addBuildCommand(program);
-
     addViewCommand(program);
-
     addEasBuildOnCompleteCommand(program);
-
     addFeedbackCommand(program);
-
     addFingerprintCommand(program);
-
     addProjectCommand(program);
-
     addTeamCommand(program);
-
     addOpenCommand(program);
-
     addCaptureCommand(program);
-
     addCoverageCommand(program);
-
     addPoseCommand(program);
-
     addMaskCommand(program);
 
     if (process.argv.length === 2) {
@@ -333,6 +319,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${SCENE_OPTION} <id>`,
     'The scene to boot the app fresh on, by its id (e.g. chat--conversation) - instead of --story',
   ],
+  [DISCOVER_OPTION]: [
+    `--${DISCOVER_OPTION}`,
+    'List every request the scene makes that no mock answers, as rules to paste into the scene file - instead of a picture',
+  ],
   [PORT_OPTION]: [
     `--${PORT_OPTION} <port>`,
     `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
@@ -420,7 +410,15 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [STORY_OPTION, SCENE_OPTION, PNG_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
+    options: [
+      STORY_OPTION,
+      SCENE_OPTION,
+      DISCOVER_OPTION,
+      PNG_OPTION,
+      PORT_OPTION,
+      JSON_OPTION,
+      LOGS_OPTION,
+    ],
     action: capture,
     withTimeout: false,
   });

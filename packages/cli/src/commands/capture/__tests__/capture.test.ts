@@ -23,6 +23,7 @@ import { installDeviceState, posedDeviceState } from '../../../seams/deviceState
 import { installProjectFiles } from '../../../seams/projectFiles';
 import type { CapturedView } from '../../../render/capturedStory';
 import {
+  DISCOVER_OPTION,
   JSON_OPTION,
   LOGS_OPTION,
   PNG_OPTION,
@@ -295,7 +296,9 @@ describe('a scene capture can save the screen it captured', () => {
         return answer;
       },
     });
-    const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
+    let exitedWith: number | undefined;
+    const exit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      exitedWith = code;
       throw new LeftTheProcess('process.exit');
     }) as never);
     const uninstallFiles = installProjectFiles({ root: () => projectRoot ?? folder });
@@ -307,7 +310,7 @@ describe('a scene capture can save the screen it captured', () => {
           if (!(error instanceof LeftTheProcess)) throw error;
         }
       });
-      return { screen: stdout, events };
+      return { screen: stdout, events, exitedWith };
     } finally {
       exit.mockRestore();
       uninstallFiles();
@@ -497,6 +500,65 @@ describe('a scene capture can save the screen it captured', () => {
 
     expect(record.deviceNotApplied).toEqual(['location']);
     expect(events.filter((line) => line.includes('geo fix'))).toEqual([]);
+  });
+
+  const NEVER_READY: SceneCaptureResult = {
+    kind: 'never-reached',
+    sceneId: 'chat--open',
+    ready: 'chat-ready',
+    stayedOn: ['Chat'],
+    likelyCause: ['unanswered-requests'],
+    readyTooEarly: { atStep: 1, of: 2 },
+    answerFindings: [{ kind: 'no-query-text', operation: 'Chat' }],
+    unanswered: [
+      {
+        method: 'POST',
+        url: '/graphql',
+        contentType: 'application/json',
+        operation: 'Chat',
+        bodyExcerpt: '{"query":"***"}',
+      },
+    ],
+  };
+
+  it('discover is refused without a scene', async () => {
+    await expect(capture({ [DISCOVER_OPTION]: true, [STORY_OPTION]: STORY })).rejects.toThrow(
+      '`npx sherlo capture` takes `--discover` only with `--scene`, and not with `--png`.'
+    );
+    await expect(
+      capture({ [DISCOVER_OPTION]: true, [SCENE_OPTION]: 'chat--open', [PNG_OPTION]: CHAT_PNG })
+    ).rejects.toThrow('takes `--discover` only with `--scene`');
+  });
+
+  it('a discover capture whose scene never got ready leaves with zero and takes no picture', async () => {
+    const { screen, exitedWith, events } = await captureOneScene(NEVER_READY, {
+      [DISCOVER_OPTION]: true,
+    });
+
+    expect(exitedWith).toBeUndefined();
+    expect(screen).toContain("mockRequest({ method: 'POST', operationName: 'Chat' }");
+    expect(events.filter((line) => /screenshot|screencap/.test(line))).toEqual([]);
+  });
+
+  it('a scene that never got ready without discover still leaves with the block code', async () => {
+    const { exitedWith } = await captureOneScene(NEVER_READY, {});
+
+    expect(exitedWith).toBe(EXIT_BLOCK);
+  });
+
+  it("a scene's json record carries the early ready view, likely cause, answer findings and each unanswered request's details unchanged", async () => {
+    const written: string[] = [];
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+      written.push(String(text));
+      return true;
+    }) as never);
+    try {
+      await captureOneScene(NEVER_READY, { [JSON_OPTION]: true, [DISCOVER_OPTION]: true });
+    } finally {
+      write.mockRestore();
+    }
+
+    expect(JSON.parse(written.join(''))).toEqual({ ...NEVER_READY, discover: true });
   });
 
   it('--png with --story is refused the way --scene with --story is', async () => {

@@ -17,8 +17,7 @@ import { readAppError, type AppError } from './appError';
 import { drainAppLog } from './appLog';
 import { askTheBundlerLine, type STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
-import type { NoTarget, SceneTarget } from './deviceState';
-import { captureLiveScene, type SceneCaptureResult } from './liveScene';
+import { captureLiveScene, type SceneCaptureParams, type SceneCaptureResult } from './liveScene';
 import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
 
 /** What the app answered about the story the command asked it to capture. */
@@ -146,13 +145,7 @@ export type CaptureSocket = {
     settings: typeof STABILIZATION_SETTINGS;
   }): Promise<CaptureResult>;
   /** Boot the app fresh on one scene, run its play, stabilize with the same settings, and read it. */
-  captureScene(params: {
-    sceneId: string;
-    port: number;
-    settings: typeof STABILIZATION_SETTINGS;
-    /** The device and app the scene launches on, or the cause of there being none. */
-    target: SceneTarget | NoTarget;
-  }): Promise<SceneCaptureResult>;
+  captureScene(params: SceneCaptureParams): Promise<SceneCaptureResult>;
 };
 
 /**
@@ -494,6 +487,8 @@ export type PosedCapture =
       ready: string;
       /** The route the app was on when the wait ran out, outermost screen first. */
       stayedOn: string[];
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: UnansweredRequest[];
     }
   /** A scene run: a play step found no view with its testID. */
   | {
@@ -518,6 +513,8 @@ export type PosedCapture =
       /** The scene's play steps, all done. */
       play: PosedPlayStep[];
       settled: { ms: number; frames: number };
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: UnansweredRequest[];
       tree: PosedView;
     };
 
@@ -628,7 +625,8 @@ export function posedCaptureSocket(
         return { kind: 'crashed-at-boot', sceneId, error: posed.threwAtBoot };
       }
       if ('stayedOn' in posed) {
-        return { kind: 'never-reached', sceneId, ready: posed.ready, stayedOn: posed.stayedOn };
+        const { ready, stayedOn, unanswered } = posed;
+        return { kind: 'never-reached', sceneId, ready, stayedOn, unanswered };
       }
       if ('targetMissing' in posed) {
         return {
@@ -647,6 +645,7 @@ export function posedCaptureSocket(
         reached: { route: posed.route, ms: posed.reachedMs },
         play: posed.play,
         settled: posed.settled,
+        ...(posed.unanswered && { unanswered: posed.unanswered }),
         tree: withChildren(posed.tree),
       };
     },
