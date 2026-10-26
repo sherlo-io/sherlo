@@ -32,8 +32,10 @@ import {
   coverOf,
   hostViewsMatching,
   nativeTagOf,
+  publicInstanceOf,
   reachOf,
   safeAreaInsetsAbove,
+  touchEvent,
   UNDER_BARS_REASON,
 } from './tapReach';
 import type { Frame, Reach } from './tapReach';
@@ -105,7 +107,10 @@ export async function playSteps(sceneId: string): Promise<string[]> {
     logTheLine(`scene ${sceneId} step ${index + 1} of ${steps.length} started`);
     try {
       if ('tap' in step) {
-        await tapView(await waitForTarget(targetOf(step.tap)));
+        await tapView(
+          await waitForTarget(targetOf(step.tap)),
+          `scene ${sceneId} step ${index + 1} of ${steps.length}`
+        );
       } else if ('open' in step) {
         await openLink(step);
         if (!('ready' in (steps[index + 1] ?? {}))) await readyOrThrow(scene?.ready);
@@ -304,18 +309,29 @@ async function framesDrawnNatively(): Promise<
  * touch landed inside the target and no React recognizer took it. Throws when the touch hit
  * another view, or when this iOS lacks the private calls the touch is made of.
  */
-async function tapView({ fiber, frame }: Found): Promise<void> {
-  const touched = frame
-    ? await SherloModule.tap(frame.x + frame.width / 2, frame.y + frame.height / 2, PRESS_HOLD_MS)
-    : null;
-  if (!touched) return pressView(fiber, frame);
+async function tapView({ fiber, frame }: Found, stage: string): Promise<void> {
+  const x = frame ? frame.x + frame.width / 2 : 0;
+  const y = frame ? frame.y + frame.height / 2 : 0;
+  const touched = frame ? await SherloModule.tap(x, y, PRESS_HOLD_MS) : null;
+  // One line per tap step, written where the step ends: the path it took, the point, the target's
+  // native tag and, when the native touch answered, what it hit.
+  const logTap = (path: string) =>
+    logTheLine(
+      `${stage} tap by ${path} at ${x},${y} target ${nativeTagOf(fiber)}` +
+        (touched
+          ? ` hitClass ${touched.hitClass} hitTag ${touched.hitTag} reachedReact ${touched.reachedReact}`
+          : '')
+    );
+  if (!touched) return logTap(await pressView(fiber, frame));
   if (touched.missing.length > 0) {
+    logTap('native touch');
     throw new Error(
       `Sherlo cannot tap on iOS ${Platform.Version} yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this`
     );
   }
   const cover = coverOf(currentAppFiber(), nativeTagOf(fiber), touched);
   if (cover) {
+    logTap('native touch');
     const covering =
       cover.testID !== undefined ? nameOf({ testID: cover.testID }) : cover.className;
     throw new Error(
@@ -324,15 +340,19 @@ async function tapView({ fiber, frame }: Found): Promise<void> {
   }
   // The touch landed inside the target and no React recognizer took it (a native control, say):
   // nothing covers the target, so the synthetic press stands in.
-  if (!touched.reachedReact) return pressView(fiber, frame);
+  logTap(touched.reachedReact ? 'native touch' : await pressView(fiber, frame));
 }
 
 /**
  * The synthetic press of `fiber`: the view that becomes the responder is granted the touch and
  * released after PRESS_HOLD_MS. With no responder on the way to the root, the nearest component
- * above the view that takes an `onPress` is called. Throws when nothing answers.
+ * above the view that takes an `onPress` is called. Says which of the two answered, and throws
+ * when nothing does.
  */
-async function pressView(fiber: WalkedFiber, frame: Frame | undefined): Promise<void> {
+async function pressView(
+  fiber: WalkedFiber,
+  frame: Frame | undefined
+): Promise<'synthetic press' | 'the nearest onPress'> {
   const path: WalkedFiber[] = [];
   for (let node: WalkedFiber | null | undefined = fiber; node; node = node.return) {
     if (typeof node.type === 'string' && node.memoizedProps) path.push(node);
@@ -351,13 +371,13 @@ async function pressView(fiber: WalkedFiber, frame: Frame | undefined): Promise<
     await new Promise((resolve) => setTimeout(resolve, PRESS_HOLD_MS));
     timestamp += PRESS_HOLD_MS;
     responder.memoizedProps.onResponderRelease?.(eventFor(responder, 'onResponderRelease'));
-    return;
+    return 'synthetic press';
   }
   for (let above: WalkedFiber | null | undefined = fiber; above; above = above.return) {
     const onPress = above.memoizedProps?.onPress;
     if (typeof onPress === 'function') {
       onPress(eventFor(fiber, 'onPress'));
-      return;
+      return 'the nearest onPress';
     }
   }
   throw new Error('nothing at the view answers a tap (no responder and no onPress above it)');
@@ -380,36 +400,4 @@ function findResponder(
     .reverse()
     .find((fiber) => asks(fiber, 'onStartShouldSetResponderCapture'));
   return capturing ?? path.find((fiber) => asks(fiber, 'onStartShouldSetResponder'));
-}
-
-/** What handlers are handed as the view: the new renderer's public instance, or the old view. */
-function publicInstanceOf(fiber: WalkedFiber): unknown {
-  return fiber.stateNode?.canonical?.publicInstance ?? fiber.stateNode;
-}
-
-/**
- * A touch event in the shape React Native hands responder handlers, naming its `phase` (the handler
- * it is handed to) as `dispatchConfig.registrationName` does: TouchableOpacity reads it.
- */
-function touchEvent(
-  target: unknown,
-  currentTarget: unknown,
-  at: { pageX: number; pageY: number },
-  timestamp: number,
-  phase: string
-): object {
-  const touch = { identifier: 0, ...at, locationX: 0, locationY: 0, timestamp, target };
-  return {
-    nativeEvent: { ...touch, touches: [touch], changedTouches: [touch] },
-    target,
-    currentTarget,
-    timeStamp: timestamp,
-    dispatchConfig: { registrationName: phase },
-    persist: () => {},
-    isPersistent: () => true,
-    preventDefault: () => {},
-    stopPropagation: () => {},
-    isDefaultPrevented: () => false,
-    isPropagationStopped: () => false,
-  };
 }

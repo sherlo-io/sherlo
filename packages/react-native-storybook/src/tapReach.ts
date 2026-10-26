@@ -101,3 +101,35 @@ export function coverOf(
   const testID = hit?.memoizedProps?.testID;
   return typeof testID === 'string' ? { testID, className } : { className };
 }
+
+/** What handlers are handed as the view: the new renderer's public instance, or the old view. */
+export function publicInstanceOf(fiber: WalkedFiber): unknown {
+  return fiber.stateNode?.canonical?.publicInstance ?? fiber.stateNode;
+}
+
+/**
+ * A touch event in the shape React Native hands responder handlers, naming its `phase` (the handler
+ * it is handed to) as `dispatchConfig.registrationName` does: TouchableOpacity reads it.
+ */
+export function touchEvent(
+  target: unknown,
+  currentTarget: unknown,
+  at: { pageX: number; pageY: number },
+  timestamp: number,
+  phase: string
+): object {
+  const touch = { identifier: 0, ...at, locationX: 0, locationY: 0, timestamp, target };
+  return {
+    nativeEvent: { ...touch, touches: [touch], changedTouches: [touch] },
+    target,
+    currentTarget,
+    timeStamp: timestamp,
+    dispatchConfig: { registrationName: phase },
+    persist: () => {},
+    isPersistent: () => true,
+    preventDefault: () => {},
+    stopPropagation: () => {},
+    isDefaultPrevented: () => false,
+    isPropagationStopped: () => false,
+  };
+}
