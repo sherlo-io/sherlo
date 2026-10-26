@@ -54,10 +54,15 @@ afterEach(async () => {
   await Promise.all(open.splice(0).map((bundler) => bundler.close()));
 });
 
+/** Whether a question the pretend bundler heard is the capture's own, not the feed being read. */
+const isTheCapture = (question: unknown) =>
+  (question as { action?: string }).action === 'captureStory';
+
 /** A bundler with the line on it, answering every question as `say` decides. */
 async function pretendBundler(
   say: (question: { action: string }) => unknown,
-  closeWith?: number
+  closeWith?: number,
+  breakOnly?: string
 ): Promise<Bundler> {
   const asked: unknown[] = [];
   const server = http.createServer((request, response) => {
@@ -72,8 +77,10 @@ async function pretendBundler(
   sockets.on('connection', (socket) => {
     socket.on('message', (data) => {
       // A line that breaks on the question closes the socket with the code it was given.
-      if (closeWith !== undefined) return socket.close(closeWith);
       const { askId, ...question } = JSON.parse(data.toString());
+      if (closeWith !== undefined && (breakOnly === undefined || question.action === breakOnly)) {
+        return socket.close(closeWith);
+      }
       asked.push(question);
       const reply = say(question);
       if (reply === NO_ANSWER) return;
@@ -208,8 +215,9 @@ describe('a scene is captured and opened live', () => {
       `xcrun simctl launch UDID-1 com.example.chat -sherloCapture ${SCENE}`,
     ]);
     // The scene is asked for as a scene, so the line hands the app a scene to walk.
-    expect(bundler.asked[0]).toMatchObject({ action: 'captureStory', sceneId: SCENE });
-    expect(bundler.asked[0]).not.toHaveProperty('storyId');
+    expect(bundler.asked[0]).toEqual({ action: 'readLogLines' });
+    expect(bundler.asked[1]).toMatchObject({ action: 'captureStory', sceneId: SCENE });
+    expect(bundler.asked[1]).not.toHaveProperty('storyId');
 
     const screen = renderCapturedScene(capturedSceneEnding(answer, bundler.port)).join('\n');
     expect(screen).toContain('captured, the way a test run records it');
@@ -446,6 +454,42 @@ describe('a scene is captured and opened live', () => {
     expect(bundler.asked).toEqual([]);
   });
 
+  it("a scene's log lines hold none of the scene before it, and a broken line keeps the lines the app sent", async () => {
+    const settings = STABILIZATION_SETTINGS;
+    // The feed holds a line the scene before it left; each read of it drains it.
+    const feed = ['the scene before it'];
+    const say = (question: { action: string }) =>
+      question.action === 'readLogLines' ? { lines: feed.splice(0) } : SCENE_RECORD;
+    // The app's launch sends a line, as the app does once it starts.
+    const uninstall = launchingDevice(async () => {
+      feed.push('the app launched now');
+    });
+    try {
+      const fine = await pretendBundler(say);
+      const scene = await captureLiveScene({
+        sceneId: SCENE,
+        port: fine.port,
+        settings,
+        target: PHONE,
+      });
+      expect(scene).toMatchObject({ kind: 'scene', logs: ['the app launched now'] });
+
+      // The line answers outside Sherlo's words to the capture alone; the feed still reads.
+      feed.push('the scene before it');
+      const broken = await pretendBundler(say, 4001, 'captureStory');
+      expect(
+        await captureLiveScene({ sceneId: SCENE, port: broken.port, settings, target: PHONE })
+      ).toEqual({
+        kind: 'no-app',
+        why: 'line-broke',
+        detail: 'the socket closed with code 4001',
+        logs: ['the app launched now'],
+      });
+    } finally {
+      uninstall();
+    }
+  });
+
   it('a capture with no app names whether the phone had no target, the line broke, or the app never said hello', async () => {
     const settings = STABILIZATION_SETTINGS;
     const { uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
@@ -467,7 +511,9 @@ describe('a scene is captured and opened live', () => {
       });
 
       // The app never said hello: the line keeps saying no app until the hello wait is over.
-      const clock = vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(1e12);
+      // Each look at the clock is 40 seconds later than the last, so the hello wait runs out.
+      let now = 0;
+      const clock = vi.spyOn(Date, 'now').mockImplementation(() => (now += 40_000));
       try {
         expect(
           await captureLiveScene({ sceneId: SCENE, port: quiet.port, settings, target: ANDROID })
@@ -489,7 +535,8 @@ describe('a scene is captured and opened live', () => {
       const silent = await pretendBundler((question) =>
         question.action === 'readLogLines' ? { lines: [stage] } : { kind: 'no-app' }
       );
-      const clock = vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(1e12);
+      let now = 0;
+      const clock = vi.spyOn(Date, 'now').mockImplementation(() => (now += 40_000));
       try {
         expect(
           await captureLiveScene({ sceneId: SCENE, port: silent.port, settings, target: ANDROID })
@@ -511,7 +558,7 @@ describe('a scene is captured and opened live', () => {
           target: ANDROID,
         });
         // Let the real sockets carry the question, then let the patience run out.
-        while (slow.asked.length === 0) await new Promise((next) => setImmediate(next));
+        while (!slow.asked.some(isTheCapture)) await new Promise((next) => setImmediate(next));
         await vi.advanceTimersByTimeAsync(130_000);
         expect(await ending).toEqual({ kind: 'no-app', why: 'gave-up-waiting', logs: [stage] });
       } finally {
@@ -539,7 +586,7 @@ describe('a scene is captured and opened live', () => {
           settings: STABILIZATION_SETTINGS,
           target: ANDROID,
         });
-        while (looping.asked.length === 0) await new Promise((next) => setImmediate(next));
+        while (!looping.asked.some(isTheCapture)) await new Promise((next) => setImmediate(next));
         await vi.advanceTimersByTimeAsync(130_000);
         const restarted = {
           kind: 'restarted-mid-capture',
@@ -851,6 +898,7 @@ describe('a scene is captured and opened live', () => {
     } finally {
       uninstall();
     }
-    expect(bundler.asked).toEqual([]);
+    // The feed was emptied before the launch, which is the only thing asked.
+    expect(bundler.asked).toEqual([{ action: 'readLogLines' }]);
   });
 });
