@@ -73,7 +73,8 @@ export async function captureLiveScene(params: {
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
     if (answer.kind === 'not-in-sherlos-words') {
-      return { kind: 'no-app', why: 'line-broke', detail: answer.detail };
+      // The feed is read on its own question: it often still answers when the capture's did not.
+      return withStageLines({ kind: 'no-app', why: 'line-broke', detail: answer.detail }, port);
     }
     if (answer.kind === 'gave-up-waiting') {
       // The line counts each time the app took the instruction and started over: no picture came
@@ -112,6 +113,16 @@ async function withStageLines(ending: NoApp, port: number): Promise<NoApp & { lo
 }
 
 /**
+ * Empty the log feed of what an earlier scene left. Called once the old app is stopped and before
+ * the new one starts, so no line is of the new launch; the feed keeps no time, so `launchedAt`
+ * cannot do this for it. A line of the old app still in flight on the socket when it was stopped
+ * is the one thing this cannot rule out.
+ */
+async function dropStaleLines(port: number): Promise<void> {
+  await drainAppLog(port);
+}
+
+/**
  * Stop the app if it runs, then start it with the scene's id in the launch. Answers when the start
  * was asked, after the stop: the bundler runs on this machine, so the line reads the same clock.
  */
@@ -146,6 +157,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
     // expo-dev-launcher reads `--initialUrl <url>` from the process arguments at launch and opens
     // that link first (EXDevLauncherController `initialUrlFromProcessInfo`), so one launch carries
     // both the bundle's link and the scene's id. A simulator reaches the bundler on localhost.
+    await dropStaleLines(port);
     const launchedAt = Date.now();
     await run('xcrun', [
       'simctl',
@@ -188,6 +200,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
     // wiped before each scene), so the start hands it the bundler's address through its own link.
     await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
   }
+  await dropStaleLines(port);
   const launchedAt = Date.now();
   const started = await adb(
     'am',
