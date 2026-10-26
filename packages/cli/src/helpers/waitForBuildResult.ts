@@ -775,10 +775,9 @@ export async function readBuildStatus({
  * immediately; it is a single read, not a wait.
  *
  * Best-effort by contract (SHERLO-1952 guard rail): any failure - network, auth,
- * timeout, malformed response, or simply no per-platform reason - degrades to
- * `undefined`, and the caller falls back to today's review URL. A build that
- * succeeded must never be reported failed over this cosmetic closing query, so
- * nothing here is allowed to throw.
+ * timeout, malformed response, or no per-platform reason - degrades to no `reason`
+ * and no waiting story (the caller falls back to today's review URL); nothing here
+ * may throw. The same read says whether a story waits, which earns the review link.
  */
 export async function fetchServerBypassReason({
   token,
@@ -790,7 +789,7 @@ export async function fetchServerBypassReason({
   buildIndex: number;
   projectIndex: number;
   teamId: string;
-}): Promise<string | undefined> {
+}): Promise<{ reason?: string; storyWaits: boolean }> {
   try {
     const build = await serverCalls().getBuildStatus({
       token,
@@ -799,9 +798,13 @@ export async function fetchServerBypassReason({
       teamId,
       boundedRead: true,
     });
-    return getServerBypassReason(build?.diffScopeInfo);
+    const counts = build?.viewStatusesCount;
+    return {
+      reason: getServerBypassReason(build?.diffScopeInfo),
+      storyWaits: (counts?.unreviewed ?? 0) + (counts?.reported ?? 0) > 0,
+    };
   } catch {
-    return undefined;
+    return { storyWaits: false };
   }
 }
 

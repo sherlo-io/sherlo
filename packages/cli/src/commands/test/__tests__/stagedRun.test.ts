@@ -1046,7 +1046,10 @@ describe('server-bypassed build (SHERLO-1952)', () => {
   it('NON-wait: prints the compact closer naming the test and NO Review URL', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: true });
-    mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
+    mockFetchServerBypassReason.mockResolvedValue({
+      reason: 'no change reaches any story',
+      storyWaits: false,
+    });
 
     await stagedRun(mockOptions());
 
@@ -1073,7 +1076,7 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: true });
     // The read degraded (network / older API / no per-platform prose).
-    mockFetchServerBypassReason.mockResolvedValue(undefined);
+    mockFetchServerBypassReason.mockResolvedValue({ storyWaits: false });
 
     await stagedRun(mockOptions());
 
@@ -1118,7 +1121,10 @@ describe('server-bypassed build (SHERLO-1952)', () => {
   it('NON-wait bypassed output is pinned', async () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     setup({ wait: false, bypassed: true });
-    mockFetchServerBypassReason.mockResolvedValue('no change reaches any story');
+    mockFetchServerBypassReason.mockResolvedValue({
+      reason: 'no change reaches any story',
+      storyWaits: false,
+    });
 
     await stagedRun(mockOptions());
 
