@@ -5,10 +5,10 @@
  * by tapping a tab, then a row, or by opening a link the app routes. The sealed core calls
  * `playSteps(sceneId)` before the stillness check and writes the record from what it answers.
  *
- * On iOS a tap is a real touch: the native module puts one at the middle of the view's frame
- * (ios/TouchHelper), so every recognizer a finger reaches sees it - React Native's own and
- * gesture-handler's alike. Where there is no such touch (Android, until its own; the old renderer,
- * whose views carry no native tag, so no frame is read; a native build from before the touch) the
+ * A tap is a real touch: the native module puts one at the middle of the view's frame (ios and
+ * android TouchHelper), so every recognizer a finger reaches sees it - React Native's own and
+ * gesture-handler's alike. Where there is no such touch (the old renderer, whose views carry no
+ * native tag, so no frame is read; a native build from before the touch) the
  * tap goes through the handlers React Native's responder system calls for a finger: the views on
  * the way to the root are asked to become the responder (capture from the root down, then bubbling
  * up from the view), and the one that accepts is granted the touch and released a moment later. A
@@ -299,16 +299,15 @@ async function framesDrawnNatively(): Promise<
 /* ---- The tap ------------------------------------------------------------------------------- */
 
 /**
- * Tap the view found: on iOS by the native touch at its frame's middle, held PRESS_HOLD_MS, else by
- * the synthetic press (see the top of this file for where that is), which also stands in when the
+ * Tap the view found: by the native touch at its frame's middle, held PRESS_HOLD_MS, else by the
+ * synthetic press (see the top of this file for where that is), which also stands in when the
  * touch landed inside the target and no React recognizer took it. Throws when the touch hit
  * another view, or when this iOS lacks the private calls the touch is made of.
  */
 async function tapView({ fiber, frame }: Found): Promise<void> {
-  const touched =
-    Platform.OS === 'ios' && frame
-      ? await SherloModule.tap(frame.x + frame.width / 2, frame.y + frame.height / 2, PRESS_HOLD_MS)
-      : null;
+  const touched = frame
+    ? await SherloModule.tap(frame.x + frame.width / 2, frame.y + frame.height / 2, PRESS_HOLD_MS)
+    : null;
   if (!touched) return pressView(fiber, frame);
   if (touched.missing.length > 0) {
     throw new Error(

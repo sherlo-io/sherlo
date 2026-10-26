@@ -178,6 +178,16 @@ public class SherloModule extends NativeSherloModuleSpec {
     }
 
     /**
+     * Touches the screen at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+     *
+     * @param promise Promise to resolve with whether React took the touch, the hit view's tag and class
+     */
+    @Override
+    public void tap(double x, double y, double holdMs, Promise promise) {
+        moduleCore.tap(getCurrentActivity(), x, y, holdMs, promise);
+    }
+
+    /**
      * Whether each view named by testID is drawn, from the native view tree.
      *
      * @param testIDsJson A JSON list of testIDs

@@ -46,7 +46,7 @@ export type NativeTapAnswer = {
 type SherloModule = {
   isTurboModule: boolean;
   /**
-   * Touch the screen at (x, y), in points, for holdMs, as a finger does. iOS alone carries it; null
+   * Touch the screen at (x, y), in points, for holdMs, as a finger does. Null
    * when the native module has no touch (no module, or a native build from before it).
    */
   tap: (x: number, y: number, holdMs: number) => Promise<NativeTapAnswer | null>;

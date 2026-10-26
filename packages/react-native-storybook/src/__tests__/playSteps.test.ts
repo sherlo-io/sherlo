@@ -423,24 +423,60 @@ describe('a scene plays its steps', () => {
     expect(pressed).toEqual(['Connections']);
   });
 
-  it('Android keeps the synthetic press even when the native module has a touch', async () => {
-    const touched = vi.fn(async () => ({
+  it("an Android tap presses through the native touch at the target's centre, and a covered target ends the step with its line", async () => {
+    const touches: number[][] = [];
+    let answer = {
       reachedReact: true,
       hitTag: 12,
-      hitClass: 'RCTViewComponentView',
+      hitClass: 'com.facebook.react.views.view.ReactViewGroup',
       missing: [] as string[],
-    }));
-    nativeTouch.tap = touched;
-    tabAt(600);
+    };
+    nativeTouch.tap = async (x, y, holdMs) => {
+      touches.push([x, y, holdMs]);
+      return answer;
+    };
+    views.now = () => ({
+      tag: 1,
+      frame: WINDOW,
+      children: [
+        {
+          tag: 12,
+          props: { testID: 'Connections', ...pressable('Connections', () => {}) },
+          frame: { x: 195, y: 600, width: 97, height: 60 },
+        },
+        {
+          tag: 99,
+          props: { testID: 'modal.backdrop' },
+          frame: { x: 0, y: 0, width: 390, height: 300 },
+        },
+      ],
+    });
     scene.play = [{ tap: 'Connections' }];
     Platform.OS = 'android';
     try {
+      // The touch lands on the target and is held as a finger holds: no synthetic press beside it.
       expect(await played()).toEqual(['tap testID "Connections"']);
+      expect(touches).toEqual([[243.5, 630, 150]]);
+      expect(pressed).toEqual([]);
+
+      const failed = async () => (await played().catch((thrown) => thrown)).message;
+      const frame = `Scene ${SCENE_ID} could not play step 1 of 1 (tap testID "Connections"): `;
+      const covered = (by: string) =>
+        `the target is covered by ${by}, so the tap never reached it. ` +
+        'Wait for the cover to close, or close it with a tap step before this one';
+      answer = { ...answer, hitTag: 99 };
+      expect(await failed()).toBe(frame + covered('testID "modal.backdrop"'));
+      answer = {
+        reachedReact: false,
+        hitTag: -1,
+        hitClass: 'android.widget.PopupWindow$PopupDecorView',
+        missing: [],
+      };
+      expect(await failed()).toBe(frame + covered('android.widget.PopupWindow$PopupDecorView'));
+      expect(pressed).toEqual([]);
     } finally {
       Platform.OS = 'ios';
     }
-    expect(touched).not.toHaveBeenCalled();
-    expect(pressed).toEqual(['Connections']);
   });
 });
 
