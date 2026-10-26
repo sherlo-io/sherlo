@@ -217,7 +217,7 @@ function sceneLines(state: CapturedScene): string[] {
 function leftLines(left: SceneLeft & { discover?: true }): string[] {
   const { stillReal, unanswered, loggedErrors } = left;
   return [
-    ...stillRealLines(stillReal),
+    ...(left.discover ? [] : stillRealLines(stillReal)),
     ...(left.discover ? discoverLines(left) : unansweredLines(unanswered)),
     ...loggedErrorLines(loggedErrors),
   ];
