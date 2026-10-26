@@ -103,6 +103,20 @@ export async function awaitReady(rule: string | ReadyRule): Promise<ReadyOutcome
   return ended;
 }
 
+/**
+ * Whether the rule's views are on screen this moment: one look, no wait, no request watch, and
+ * nothing settled for the scene's mocks. False when the screen cannot be read or the scene threw.
+ */
+export async function readyShowsNow(rule: ReadyRule): Promise<boolean> {
+  const ended = await waitUntilReady(
+    sceneToReady?.sceneId,
+    { ...rule, timeoutMs: 0, requestsIdle: false },
+    SherloModule.getViewVisibility,
+    true
+  );
+  return ended !== 'errored' && ended.outcome !== 'timed-out';
+}
+
 /** `native`, with its stillness check held back until the scene on screen is ready. */
 export function stabilizeOnceReady<
   Native extends Pick<NativeCalls, 'stabilize'> & { getViewVisibility?: ReadVisibility },
@@ -162,7 +176,8 @@ function listOf(names: string | string[] | undefined): string[] {
 async function waitUntilReady(
   sceneId: string | undefined,
   rule: ReadyRule,
-  readVisibility: ReadVisibility | undefined
+  readVisibility: ReadVisibility | undefined,
+  justLooking = false
 ): Promise<ReadyOutcome | 'errored'> {
   const testIDs = listOf(rule.testID);
   const goneIDs = listOf(rule.gone);
@@ -206,6 +221,7 @@ async function waitUntilReady(
     if (waitedMs >= timeoutMs) {
       // The wait ran out: the screen is judged as it is, so a declared mock the app never read now
       // counts - and it, like any throw, is what the scene reports rather than the timeout.
+      if (justLooking) return { outcome: 'timed-out', route: [], line: '' };
       markStorySettled();
       if (sceneId && endedByTheScenesError(sceneId, waitedMs)) return 'errored';
       const line = notReadyLine(sceneId, timeoutMs, {

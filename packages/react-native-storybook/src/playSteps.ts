@@ -73,7 +73,11 @@ export const TAP_LOOKS_FOR_MS = TAP_WAIT_MS;
  * played, each as the words that name it (`tap testID "Connections"`). Throws a SherloStepError for
  * the first step that cannot be played, carrying the steps that did play.
  */
-export async function playSteps(sceneId: string): Promise<string[]> {
+export async function playSteps(
+  sceneId: string,
+  /** Called before each step after the first, with the count of steps played and of all steps. */
+  beforeStep?: (played: number, of: number) => Promise<void>
+): Promise<string[]> {
   await mocksInstalled();
   const scene = sceneOf(sceneId);
   const steps = scene?.play ?? [];
@@ -97,6 +101,7 @@ export async function playSteps(sceneId: string): Promise<string[]> {
   }
 
   for (const [index, step] of steps.entries()) {
+    if (index > 0) await beforeStep?.(index, steps.length);
     logTheLine(`scene ${sceneId} step ${index + 1} of ${steps.length} started`);
     try {
       if ('tap' in step) {

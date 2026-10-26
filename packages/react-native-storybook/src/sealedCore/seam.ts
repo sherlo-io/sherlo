@@ -19,7 +19,21 @@
 /* ---- The core and its host ------------------------------------------------------------------ */
 
 /** A network request no mock rule answered. */
-export type UnansweredRequest = { method: string; url: string };
+export type UnansweredRequest = {
+  method: string;
+  url: string;
+  contentType?: string;
+  operation?: string;
+  bodyExcerpt?: string;
+};
+
+/** What the SDK finds wrong in a faked GraphQL answer. */
+export type AnswerFinding = {
+  kind: 'field-missing' | 'typename-missing' | 'typename-matches-no-fragment' | 'no-query-text';
+  operation?: string;
+  path?: string;
+  expected?: string;
+};
 
 export type SealedCoreHost = {
   /** Sherlo's native module: the calls of it the core makes. */
@@ -96,6 +110,8 @@ export type SealedCoreHost = {
   rulesNeverMatched?: () => string[];
   /** The distinct errors the app logged during the scene, as the SDK capped them. Optional. */
   loggedErrors?: () => LoggedErrors;
+  /** What the SDK found wrong in the faked GraphQL answers of the scene. Optional. */
+  answerFindings?: () => AnswerFinding[];
 
   /*
    * THE PROOF A RECORD CARRIES. Each is optional: an SDK without it still talks to this core, and
@@ -131,7 +147,11 @@ export type ScenePlayStep = { tap: string } | { open: string };
 
 /** How a scene's play went: every step played, or the tap whose view never showed. */
 export type ScenePlayOutcome =
-  | { played: ScenePlayStep[] }
+  | {
+      played: ScenePlayStep[];
+      /** The ready view showed after step `atStep` of `of`, before the last one. Left out otherwise. */
+      readyTooEarly?: { atStep: number; of: number };
+    }
   | {
       /** The steps played before the one that found nothing. */
       played: ScenePlayStep[];
@@ -956,6 +976,8 @@ export type CapturedScene =
       ready: string;
       stayedOn: string[];
       seen?: { testIDs: string[]; more: number };
+      /** What the record points to as the likely cause. Left out when both lists are empty. */
+      likelyCause?: ('unanswered-requests' | 'logged-errors')[];
     })
   /** A play step found no view with its testID within its limit; `route` is where the app stood. */
   | (SceneFacts & {
@@ -984,6 +1006,10 @@ type SceneFacts = {
   rulesNeverMatched?: string[];
   /** The distinct errors the app logged during the scene. Left out when none. */
   loggedErrors?: LoggedErrors;
+  /** The ready view showed before the last step. Left out when it was not met before the last step. */
+  readyTooEarly?: { atStep: number; of: number };
+  /** What the SDK found wrong in the scene's faked GraphQL answers. Left out when none. */
+  answerFindings?: AnswerFinding[];
 };
 
 /** The errors the app logged during a scene: each distinct message with its count, and the rest. */
