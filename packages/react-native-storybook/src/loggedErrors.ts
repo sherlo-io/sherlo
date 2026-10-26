@@ -18,12 +18,30 @@ const SHERLOS_OWN = ['@sherlo/', 'Sherlo:'];
 const timesOf = new Map<string, number>();
 let wrapped = false;
 
+/**
+ * Apollo Client without its error messages loaded logs a link whose fragment is URL-encoded JSON
+ * holding the error code and arguments; the arguments sit past the length cap, so the link is
+ * replaced by the same text made readable. Text that does not decode comes back as it was.
+ */
+function decodedApollo(text: string): string {
+  const link = text.match(/https:\/\/go\.apollo\.dev\/c\/err#(\S+)/);
+  if (!link) return text;
+  try {
+    const data = JSON.parse(decodeURIComponent(link[1]));
+    if (typeof data?.message !== 'number' || !Array.isArray(data.args)) return text;
+    return `Apollo Client error ${data.message}: ${data.args.map(String).join(', ')}`;
+  } catch {
+    return text; // not the JSON Apollo encodes: keep the text as it was logged
+  }
+}
+
 /** The one-line text of a console.error call's first argument, or nothing when it keeps none. */
 function messageOf(first: unknown): string | undefined {
   let text: string | undefined;
   if (first instanceof Error) text = `${first.name}: ${first.message}`;
   else if (typeof first === 'string') text = first;
-  const line = text?.trim().split('\n')[0].trim().slice(0, MOST_CHARACTERS);
+  const firstLine = text?.trim().split('\n')[0].trim();
+  const line = (firstLine && decodedApollo(firstLine))?.slice(0, MOST_CHARACTERS);
   if (!line || SHERLOS_OWN.some((start) => line.startsWith(start))) return undefined;
   return line;
 }
