@@ -193,6 +193,7 @@ describe('loading the sealed core', () => {
     expect(Object.keys(host!).sort()).toEqual(
       [
         'activateMocksForStory',
+        'answerFindings',
         'awaitReady',
         'bundlerOrigin',
         'causeOfCrash',

@@ -20,6 +20,7 @@ import { mockRequest } from '../../mocking/networkDeclaration';
 import { sherloFetch } from '../../mocking/network';
 import {
   UnmockedRequestError,
+  answerFindings,
   setDiscover,
   socketVerdictFor,
   unansweredRequests,
@@ -225,6 +226,32 @@ describe('a request the story names', () => {
       })
     );
     expect(refusal.message).toBe(`no mock rule matches POST ${BASE}/graphql Profile`);
+  });
+
+  it('what a faked GraphQL answer lacks is kept for the story, the answer unchanged, until its rules go', async () => {
+    const answer = { data: { orders: [{ id: 'o1' }] } };
+    await activateStory({
+      story: [mockRequest({ operationName: 'Orders' }, { body: answer })],
+    });
+
+    const ask = () =>
+      fetch(`${BASE}/graphql`, {
+        method: 'POST',
+        body: JSON.stringify({
+          operationName: 'Orders',
+          query: 'query Orders { orders { id total } }',
+        }),
+      });
+    const asked = await ask();
+    await expect(asked.json()).resolves.toEqual(answer);
+    // The app polls: the same answer again adds no second copy of the same finding.
+    await ask();
+    expect(answerFindings()).toEqual([
+      { kind: 'field-missing', operation: 'Orders', path: 'orders.0.total', expected: 'total' },
+    ]);
+
+    clearMocks();
+    expect(answerFindings()).toEqual([]);
   });
 
   it('a request made through XMLHttpRequest is answered by the same rules as fetch', async () => {

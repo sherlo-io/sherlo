@@ -7,8 +7,9 @@ import {
   SocketAnswer,
   SocketRule,
 } from './networkDeclaration';
-import { bodyExcerptOf, queryParamsOf } from './networkRequestText';
-import type { UnansweredRequest } from '../sealedCore/seam';
+import { bodyExcerptOf, graphqlOperationOf, operationNameOf } from './networkRequestText';
+import { graphqlAnswerFindings } from './graphqlAnswerCheck';
+import type { AnswerFinding, UnansweredRequest } from '../sealedCore/seam';
 
 /**
  * THE RULES IN EFFECT, AND WHAT THEY SAY ABOUT ONE REQUEST.
@@ -74,6 +75,9 @@ let discover = false;
 // story's error keeps only the last refusal; this keeps them all, and the ones let through too.
 let unanswered: UnansweredRequest[] = [];
 
+// What the GraphQL answer check found in the answers the rules in effect gave (./graphqlAnswerCheck).
+let answerCheckFindings: AnswerFinding[] = [];
+
 // The rules in effect that answered at least one request or socket since they were put in.
 let matchedRules = new Set<NetworkRule | SocketRule>();
 
@@ -92,6 +96,7 @@ export function setNetworkMocks(
   socketPolicy = policyForSockets;
   recordRefusal = recordTheRefusal;
   unanswered = [];
+  answerCheckFindings = [];
   matchedRules = new Set();
 }
 
@@ -125,6 +130,11 @@ export function unansweredRequests(): UnansweredRequest[] {
   return unanswered.map((request) => ({ ...request }));
 }
 
+/** What the faked GraphQL answers given under the rules in effect lack, in the order given. */
+export function answerFindings(): AnswerFinding[] {
+  return answerCheckFindings.map((finding) => ({ ...finding }));
+}
+
 /** How many request rules and socket rules are in effect: the proof that a story's rules went in. */
 export function rulesInEffect(): { requests: number; sockets: number } {
   return { requests: mocksInEffect.rules.length, sockets: mocksInEffect.sockets.length };
@@ -149,6 +159,10 @@ export function answerFor(request: MockedRequest): Verdict {
   const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
   if (rule) {
     matchedRules.add(rule);
+    // A request the app polls is answered again and again: each finding is kept once.
+    graphqlAnswerFindings(request.url, request.body, rule.answer.body)
+      .filter((found) => !answerCheckFindings.some((kept) => sameFinding(kept, found)))
+      .forEach((found) => answerCheckFindings.push(found));
     return { kind: 'answer', answer: rule.answer };
   }
 
@@ -210,9 +224,13 @@ function requestWords(method: string, url: string, operationName: string | undef
   return [method, url, operationName].filter((part) => part !== undefined).join(' ');
 }
 
+function sameFinding(kept: AnswerFinding, found: AnswerFinding): boolean {
+  return kept.kind === found.kind && kept.operation === found.operation && kept.path === found.path;
+}
+
 /** The request as the record keeps it: the fields it has, and no field it lacks. */
 function recordOf(request: MockedRequest): UnansweredRequest {
-  const operation = operationOf(request);
+  const operation = graphqlOperationOf(request.url, request.body);
   const bodyExcerpt = bodyExcerptOf(request.contentType, request.body);
 
   return {
@@ -222,44 +240,4 @@ function recordOf(request: MockedRequest): UnansweredRequest {
     ...(operation !== undefined && { operation }),
     ...(bodyExcerpt !== undefined && { bodyExcerpt }),
   };
-}
-
-/**
- * The GraphQL operation the record names: its name, or else "persisted" and the start of its hash.
- * Only the record reads the address (a GET); a rule matches on the body alone.
- */
-function operationOf(request: MockedRequest): string | undefined {
-  const fromBody = jsonObjectOf(request.body);
-  const fromUrl = request.url.includes('?') ? queryParamsOf(request.url) : {};
-
-  const name = operationNameOf(request.body) || fromUrl.operationName;
-  if (name) return name;
-
-  const hash = persistedHashOf(fromBody?.extensions ?? jsonObjectOf(fromUrl.extensions));
-  return hash === undefined ? undefined : `persisted ${hash.slice(0, 12)}`;
-}
-
-/** The GraphQL operation a request body names, or nothing when the body names none. */
-function operationNameOf(body: string | undefined): string | undefined {
-  const name = jsonObjectOf(body)?.operationName;
-  return typeof name === 'string' ? name : undefined;
-}
-
-function persistedHashOf(extensions: unknown): string | undefined {
-  const hash = (extensions as { persistedQuery?: { sha256Hash?: unknown } } | undefined)
-    ?.persistedQuery?.sha256Hash;
-  return typeof hash === 'string' && hash !== '' ? hash : undefined;
-}
-
-function jsonObjectOf(text: string | undefined): Record<string, unknown> | undefined {
-  if (text === undefined) return undefined;
-
-  try {
-    const parsed: unknown = JSON.parse(text);
-    return typeof parsed === 'object' && parsed !== null
-      ? (parsed as Record<string, unknown>)
-      : undefined;
-  } catch (_) {
-    return undefined;
-  }
 }
