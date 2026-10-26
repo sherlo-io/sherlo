@@ -1,5 +1,6 @@
 import type { StoryMocks } from './mocking/mockDeclaration';
 import type { ReadyRule } from './types/types';
+import type { SceneDevice } from './sceneDeviceTypes';
 
 /**
  * The view a tap names: by `testID` (with an `index` among the visible matches, topmost first), by
@@ -18,25 +19,7 @@ export type ReadyStep = { ready: string | ReadyRule };
 
 export type PlayStep = TapStep | OpenStep | ReadyStep;
 
-/** A phone permission a scene can grant or deny; the set the runner can set on both platforms. */
-export type ScenePermission =
-  | 'camera'
-  | 'microphone'
-  | 'photos'
-  | 'contacts'
-  | 'location'
-  | 'notifications'
-  | 'calendar';
-
-/**
- * The phone a scene runs on: which permissions are granted or denied, and where the phone is.
- * It must be a plain literal in the scene file (no variable, spread or call), because the phone is
- * set before the app starts and Sherlo reads the file without running it.
- */
-export type SceneDevice = {
-  permissions?: Partial<Record<ScenePermission, 'granted' | 'denied'>>;
-  location?: { latitude: number; longitude: number };
-};
+export type { SceneDevice, ScenePermission } from './sceneDeviceTypes';
 
 /** One variant of one screen. */
 export type Scene = {

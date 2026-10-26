@@ -20,6 +20,7 @@ import { STABILIZATION_SETTINGS } from '../../../seams/bundlerLine';
 import { installCaptureSocket } from '../../../seams/captureSocket';
 import type { CaptureResult, CaptureSocket } from '../../../seams/captureSocket';
 import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
+import { installProjectFiles } from '../../../seams/projectFiles';
 import type { CapturedView } from '../../../render/capturedStory';
 import {
   JSON_OPTION,
@@ -261,7 +262,8 @@ describe('a scene capture can save the screen it captured', () => {
     {
       target = ON_ONE_PHONE,
       failScreenshot = false,
-    }: { target?: SceneTarget; failScreenshot?: boolean } = {}
+      projectRoot,
+    }: { target?: SceneTarget; failScreenshot?: boolean; projectRoot?: string } = {}
   ) {
     const events: string[] = [];
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-png-test-'));
@@ -296,6 +298,7 @@ describe('a scene capture can save the screen it captured', () => {
     const exit = vi.spyOn(process, 'exit').mockImplementation((() => {
       throw new LeftTheProcess('process.exit');
     }) as never);
+    const uninstallFiles = installProjectFiles({ root: () => projectRoot ?? folder });
     try {
       const { stdout } = await captureTranscript(async () => {
         try {
@@ -307,6 +310,7 @@ describe('a scene capture can save the screen it captured', () => {
       return { screen: stdout, events };
     } finally {
       exit.mockRestore();
+      uninstallFiles();
       uninstallSocket();
       uninstallDevice();
       fs.rmSync(folder, { recursive: true, force: true });
@@ -416,6 +420,83 @@ describe('a scene capture can save the screen it captured', () => {
 
     expect(JSON.parse(saved).png).toBe(CHAT_PNG);
     expect(JSON.parse(failed)).not.toHaveProperty('png');
+  });
+
+  /** A project folder with one scene file, `chat.scenes.tsx`, whose scene `Open` declares `device`. */
+  function projectWithScene(device: string): string {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-scene-device-'));
+    const field = device ? `device: ${device},` : '';
+    fs.writeFileSync(
+      path.join(root, 'chat.scenes.tsx'),
+      `export default scenes({ scenes: { Open: { ${field} } } });\n`
+    );
+    return root;
+  }
+
+  /** Capture the scene with `--json`: the record it printed and the device calls around it. */
+  async function jsonOfScene(root: string, target: SceneTarget) {
+    const written: string[] = [];
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+      written.push(String(text));
+      return true;
+    }) as never);
+    try {
+      const { events } = await captureOneScene(
+        A_SCENE,
+        { [JSON_OPTION]: true },
+        { target, projectRoot: root }
+      );
+      return { events, record: JSON.parse(written.join('')) };
+    } finally {
+      write.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  it('a scene with no device field is captured exactly as today', async () => {
+    const { events, record } = await jsonOfScene(projectWithScene(''), ON_ONE_PHONE);
+
+    const changes = events.filter((line) =>
+      /privacy|simctl location|pm grant|pm revoke|geo fix/.test(line)
+    );
+    expect(changes).toEqual([]);
+    expect(record).not.toHaveProperty('deviceNotApplied');
+  });
+
+  it("capture reads the scene's device from the scene file before launching", async () => {
+    const root = projectWithScene(
+      "{ permissions: { camera: 'denied' }, location: { latitude: 52.5, longitude: 13.4 } }"
+    );
+    const { events } = await jsonOfScene(root, ON_ONE_PHONE);
+
+    const revoked = events.indexOf('xcrun simctl privacy SIM-1 revoke camera com.example.app');
+    expect(revoked).toBeGreaterThan(-1);
+    expect(events).toContain('xcrun simctl location SIM-1 set 52.5,13.4');
+    expect(revoked).toBeLessThan(events.indexOf('the app answered'));
+    // Both are put back once the capture ends.
+    expect(events.lastIndexOf('xcrun simctl location SIM-1 clear')).toBeGreaterThan(
+      events.indexOf('the app answered')
+    );
+  });
+
+  it('an android scene with no device field is captured exactly as today', async () => {
+    const { events, record } = await jsonOfScene(projectWithScene(''), ON_ANDROID);
+
+    const changes = events.filter((line) => /pm revoke|geo fix|dumpsys location/.test(line));
+    expect(changes).toEqual([]);
+    expect(record).not.toHaveProperty('deviceNotApplied');
+  });
+
+  it('a location the phone cannot take is listed in the json record as not applied', async () => {
+    const aRealPhone: SceneTarget = {
+      device: { platform: 'android', serial: 'R58M123ABC' },
+      app: { id: 'com.example.app' },
+    };
+    const root = projectWithScene('{ location: { latitude: 52.5, longitude: 13.4 } }');
+    const { events, record } = await jsonOfScene(root, aRealPhone);
+
+    expect(record.deviceNotApplied).toEqual(['location']);
+    expect(events.filter((line) => line.includes('geo fix'))).toEqual([]);
   });
 
   it('--png with --story is refused the way --scene with --story is', async () => {
