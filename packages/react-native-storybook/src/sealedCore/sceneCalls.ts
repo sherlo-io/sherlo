@@ -19,6 +19,7 @@ import {
   testIDsOnScreen,
 } from '../playSteps';
 import { reachedRoute } from '../reachedScreen';
+import { loggedErrors } from '../loggedErrors';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
 import { monotonicNow } from '../settleClock';
 import type { PlayStep } from '../scenes';
@@ -33,6 +34,7 @@ type SceneCalls = Pick<
   | 'reachedRoute'
   | 'monotonicNow'
   | 'rulesNeverMatched'
+  | 'loggedErrors'
   | 'rulesInstalledProof'
   | 'threwOf'
   | 'causeOfCrash'
@@ -54,6 +56,7 @@ export function sceneCallsForTheCore(): SceneCalls {
     reachedRoute,
     monotonicNow,
     rulesNeverMatched,
+    loggedErrors,
     rulesInstalledProof,
     threwOf,
     causeOfCrash,

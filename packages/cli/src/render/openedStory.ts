@@ -13,6 +13,7 @@
  * a bundler with an app attached, and neither changes a line of what is printed.
  */
 import chalk from 'chalk';
+import { moreLines } from './moreLines';
 
 /** How a run of `sherlo open` ended, as the screen needs it. */
 export type OpenedStory =
@@ -114,6 +115,6 @@ function suggestions(known: string[]): string[] {
   return [
     chalk.dim('This app has:'),
     ...shown.map((storyId) => `  ${storyId}`),
-    ...(rest > 0 ? [chalk.dim(`  ... and ${rest} more`)] : []),
+    ...moreLines(rest),
   ];
 }

@@ -150,6 +150,45 @@ describe('a scene that was not captured, asked for with --png', () => {
   });
 });
 
+describe('the errors the app logged during a scene', () => {
+  it("a scene's ending is followed by the errors the app logged, in the content's words", () => {
+    const crashed = renderCapturedScene({
+      kind: 'crashed-mid-capture',
+      sceneId: 'inbox--full',
+      loggedErrors: {
+        messages: [{ message: 'Both secret and user tokens are not set', times: 1 }],
+        moreLeftOut: 0,
+      },
+    }).join('\n');
+    const never = renderCapturedScene({
+      kind: 'never-reached',
+      sceneId: 'inbox--full',
+      ready: 'inbox',
+      stayedOn: ['SignIn'],
+      loggedErrors: {
+        messages: [
+          { message: 'TypeError: a', times: 33 },
+          { message: 'b', times: 1 },
+        ],
+        moreLeftOut: 3,
+      },
+    }).join('\n');
+
+    expect(crashed).toContain(
+      'The app logged 1 different error message during this scene:\n  Both secret and user tokens are not set\n'
+    );
+    expect(never).toContain(
+      'The app logged 5 different error messages during this scene:\n  TypeError: a (logged 33 times)\n  b\n  ... and 3 more\n'
+    );
+  });
+
+  it('a scene whose app logged no errors prints no such lines', () => {
+    const printed = renderCapturedScene({ kind: 'crashed-mid-capture', sceneId: 'inbox--full' });
+
+    expect(printed.join('\n')).not.toContain('The app logged');
+  });
+});
+
 describe('a scene whose play could not go on', () => {
   it('a missed tap by test id names the testID', () => {
     expect(missedTap('Inbox')).toContain('tap Inbox found no view with that testID within 10s.');

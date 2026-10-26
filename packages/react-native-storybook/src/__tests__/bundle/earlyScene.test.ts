@@ -135,6 +135,7 @@ function createOldSetupAppWithAScene(): string {
     'dist/helpers/hideErrorOverlay.js',
     'exports.__esModule = true;\nexports.default = function () {};\n'
   );
+  sdk('dist/loggedErrors.js', 'exports.startKeepingLoggedErrors = function () {};\n');
   sdk(
     'dist/helpers/reportStorybookLoaded.js',
     'exports.__esModule = true;\nexports.default = function () {};\n'

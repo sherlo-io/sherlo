@@ -15,6 +15,7 @@
  */
 import chalk from 'chalk';
 import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
+import { moreLines } from './moreLines';
 
 /** One view in the tree, as the screen needs it. */
 export type CapturedView = {
@@ -394,6 +395,6 @@ function suggestions(known: string[]): string[] {
   return [
     chalk.dim('This app has:'),
     ...shown.map((storyId) => `  ${storyId}`),
-    ...(rest > 0 ? [chalk.dim(`  ... and ${rest} more`)] : []),
+    ...moreLines(rest),
   ];
 }

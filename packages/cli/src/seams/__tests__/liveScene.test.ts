@@ -276,6 +276,26 @@ describe('a scene is captured and opened live', () => {
     expect(renderCapturedLog(answer.logs ?? []).join('\n')).toContain('12:00:00: chat opened');
   });
 
+  it('the errors the app logged are kept with the record, and a malformed entry is dropped', () => {
+    const crashed = readSceneAnswer(
+      {
+        kind: 'crashed',
+        loggedErrors: {
+          messages: [{ message: 'no token', times: 2 }, { message: 7 }, null],
+          moreLeftOut: 1,
+        },
+      },
+      SCENE
+    );
+
+    expect(crashed).toMatchObject({
+      loggedErrors: { messages: [{ message: 'no token', times: 2 }], moreLeftOut: 1 },
+    });
+    expect(readSceneAnswer({ kind: 'crashed', loggedErrors: 'x' }, SCENE)).not.toHaveProperty(
+      'loggedErrors'
+    );
+  });
+
   it('a scene that crashed after its app booted is never read as one that never booted', () => {
     const crashed = readSceneAnswer(
       {

@@ -22,11 +22,11 @@ afterEach(() => {
 
 it('a scene launch hides the error overlay the same way the testing mode does', async () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-  const before = console.error;
   await import('../sceneBoot');
 
   expect((globalThis as Record<string, unknown>).__sherloTestLogBoxIgnored).toEqual([true]);
-  // The errors still reach the console: only the overlay is hidden.
-  expect(console.error).toBe(before);
+  // The errors still reach the console: only the overlay is hidden, and the scene keeps a list.
+  console.error('still logged');
+  expect(error).toHaveBeenCalledWith('still logged');
   error.mockRestore();
 });

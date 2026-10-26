@@ -16,7 +16,7 @@ import type { STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { deviceState, isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
-import { readStrings, readUnanswered } from './readAppAnswer';
+import { readLoggedErrors, readStrings, readUnanswered } from './readAppAnswer';
 
 /** How long the app has to boot, play the scene and settle before the command gives up on it. */
 const SCENE_PATIENCE_MS = 120_000;
@@ -304,10 +304,12 @@ function keptLeft(answer: Record<string, unknown>): SceneLeft {
   const threw = readAppError(answer.threw);
   const stillReal = readStrings(answer.stillReal);
   const unanswered = readUnanswered(answer.unanswered);
+  const loggedErrors = readLoggedErrors(answer.loggedErrors);
   return {
     ...(threw && { threw: { name: threw.name, message: threw.message } }),
     ...(stillReal && { stillReal }),
     ...(unanswered && { unanswered }),
+    ...(loggedErrors && { loggedErrors }),
   };
 }
 

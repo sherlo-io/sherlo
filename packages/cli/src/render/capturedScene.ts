@@ -23,12 +23,15 @@ import {
   unansweredLines,
 } from './capturedStory';
 import type { CapturedView } from './capturedStory';
+import { moreLines } from './moreLines';
 
 /** What the app threw, ran as real code and left unanswered, as the story's record keeps them; each only when there is any. */
 export type SceneLeft = {
   threw?: { name: string; message: string };
   stillReal?: string[];
   unanswered?: { method: string; url: string }[];
+  /** The distinct errors the app logged during the scene, counted and capped, as the app listed them. */
+  loggedErrors?: { messages: { message: string; times: number }[]; moreLeftOut: number };
 };
 
 /** One step of a scene's `play`, as the scene file wrote it: a tap by testID, or one of the app's own links. */
@@ -199,8 +202,26 @@ function sceneLines(state: CapturedScene): string[] {
 }
 
 /** The modules that ran real and the requests no mock answered, as the story prints them; nothing when there are none. */
-function leftLines({ stillReal, unanswered }: SceneLeft): string[] {
-  return [...stillRealLines(stillReal), ...unansweredLines(unanswered)];
+function leftLines({ stillReal, unanswered, loggedErrors }: SceneLeft): string[] {
+  return [
+    ...stillRealLines(stillReal),
+    ...unansweredLines(unanswered),
+    ...loggedErrorLines(loggedErrors),
+  ];
+}
+
+/** The errors the app logged during the scene, in the content's words; nothing when it logged none. */
+function loggedErrorLines(logged: SceneLeft['loggedErrors']): string[] {
+  if (!logged || logged.messages.length === 0) return [];
+  const count = logged.messages.length + logged.moreLeftOut;
+  return [
+    '',
+    `The app logged ${count === 1 ? '1 different error message' : `${count} different error messages`} during this scene:`,
+    ...logged.messages.map(({ message, times }) =>
+      times > 1 ? `  ${message} (logged ${times} times)` : `  ${message}`
+    ),
+    ...moreLines(logged.moreLeftOut),
+  ];
 }
 
 /* ========================================================================== */
