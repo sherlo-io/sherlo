@@ -43,6 +43,7 @@ vi.mock('../bundledScenes', () => ({
 }));
 vi.mock('../storyReady', () => ({
   mocksInstalled: async () => {},
+  storyAboutToRender: () => {},
   sceneOf: () => scene.file.scenes.Full,
   asRule: (rule: unknown) => (typeof rule === 'string' ? { testID: rule } : rule),
   awaitReady: async () => ({ outcome: 'shown' }),

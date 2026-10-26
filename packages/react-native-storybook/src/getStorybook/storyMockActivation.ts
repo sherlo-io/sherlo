@@ -105,7 +105,10 @@ export function activateSceneMocks(
       sceneFilePath
     );
   }
-  installMergedMocks(sceneId, file, own, sceneFilePath);
+  // Each lazily imported mock is a split bundle of its own, and its landing loads the module it
+  // mocks. The scene's first step waits for them all (../playSteps, ../storyReady), so none lands
+  // while a step opens a screen.
+  storyAboutToRender(sceneId, installMergedMocks(sceneId, file, own, sceneFilePath));
 }
 
 // The mocks of one level whose module's name is known with no import waited for: an object names
