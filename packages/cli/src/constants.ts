@@ -173,6 +173,15 @@ export const STORY_OPTION = 'story';
  * Storybook's id style gives it (`chat--conversation`). Booted fresh each time, with no Storybook.
  */
 export const SCENE_OPTION = 'scene';
+/**
+ * `sherlo capture --scene <id> --discover` - hold every request the scene makes that no mock
+ * answers, and list them as the rules that would answer them instead of capturing a picture.
+ */
+export const DISCOVER_OPTION = 'discover';
+/** The refusal when `--discover` is given without `--scene`, or with `--png` (a discover capture writes no picture). */
+export function discoverRefusal(): string {
+  return `\`npx sherlo capture\` takes \`--${DISCOVER_OPTION}\` only with \`--${SCENE_OPTION}\`, and not with \`--${PNG_OPTION}\`.`;
+}
 /** The refusal when `--scene` and `--story` are both given; `command` is `open` or `capture`. */
 export function sceneWithStoryRefusal(command: 'open' | 'capture'): string {
   return `\`npx sherlo ${command}\` takes \`--${SCENE_OPTION}\` or \`--${STORY_OPTION}\`, not both.`;

@@ -696,6 +696,89 @@ describe('a scene is captured and opened live', () => {
     );
   });
 
+  it('a discover capture launches the app with the discover flag on both platforms', async () => {
+    const launched: Record<string, string[]> = {};
+    for (const [platform, target] of [
+      ['ios', PHONE],
+      ['android', ANDROID],
+    ] as const) {
+      const bundler = await pretendBundler((question) =>
+        question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+      );
+      const { ran, uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
+      try {
+        await captureLiveScene({
+          sceneId: SCENE,
+          port: bundler.port,
+          settings: STABILIZATION_SETTINGS,
+          target,
+          discover: true,
+        });
+      } finally {
+        uninstall();
+      }
+      launched[platform] = ran;
+    }
+
+    expect(launched.ios).toContain(
+      `xcrun simctl launch UDID-1 com.example.chat -sherloCapture ${SCENE} -sherloDiscover YES`
+    );
+    expect(launched.android.join('\n')).toContain(
+      `--es sherloCapture ${SCENE} --ez sherloDiscover true`
+    );
+  });
+
+  it('a capture that is not a discover capture adds no discover flag to the launch', async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice();
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+    } finally {
+      uninstall();
+    }
+
+    expect(ran.join('\n')).not.toContain('sherloDiscover');
+  });
+
+  it('a scene answer keeps the early ready view, likely cause, answer findings and request details', () => {
+    const request = {
+      method: 'POST',
+      url: '/graphql',
+      contentType: 'application/json',
+      operation: 'Chat',
+      bodyExcerpt: '{"q":"***"}',
+    };
+    const ending = readSceneAnswer(
+      {
+        kind: 'never-reached',
+        ready: 'chat-ready',
+        stayedOn: ['Chat'],
+        likelyCause: ['unanswered-requests', 'nonsense'],
+        readyTooEarly: { atStep: 1, of: 2 },
+        answerFindings: [
+          { kind: 'field-missing', operation: 'Chat', path: 'chat.id' },
+          { kind: 'bogus' },
+        ],
+        unanswered: [request],
+      },
+      SCENE
+    );
+
+    expect(ending).toMatchObject({
+      likelyCause: ['unanswered-requests'],
+      readyTooEarly: { atStep: 1, of: 2 },
+      answerFindings: [{ kind: 'field-missing', operation: 'Chat', path: 'chat.id' }],
+      unanswered: [request],
+    });
+  });
+
   it('an iOS capture of an app with no development launcher starts it as before', async () => {
     const bundler = await pretendBundler((question) =>
       question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD

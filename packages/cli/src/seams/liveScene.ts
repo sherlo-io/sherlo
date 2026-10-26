@@ -16,7 +16,19 @@ import type { STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { deviceState, isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
-import { readLoggedErrors, readStrings, readUnanswered } from './readAppAnswer';
+import {
+  androidDevelopmentLauncherLink,
+  iosDevelopmentLauncherLink,
+  markAndroidDevMenuSheetSeen,
+} from './developmentLauncher';
+import {
+  readAnswerFindings,
+  readLikelyCause,
+  readLoggedErrors,
+  readReadyTooEarly,
+  readStrings,
+  readUnanswered,
+} from './readAppAnswer';
 
 /** How long the app has to boot, play the scene and settle before the command gives up on it. */
 const SCENE_PATIENCE_MS = 120_000;
@@ -53,20 +65,26 @@ export type SceneCaptureResult = ({ kind: 'no-bundler' } | NoApp | SceneEnding) 
   logs?: string[];
 };
 
+/** What a scene capture is asked: where, on what, and whether it only lists the requests no mock answers. */
+export type SceneCaptureParams = {
+  sceneId: string;
+  port: number;
+  settings: typeof STABILIZATION_SETTINGS;
+  /** The device and app the scene launches on, or the cause of there being none. */
+  target: SceneTarget | NoTarget;
+  /** Hold the requests no rule names and list them (`-sherloDiscover YES`, `--ez sherloDiscover true`). */
+  discover?: boolean;
+};
+
 /**
  * Launch the app fresh on `sceneId`, wait for it to play the scene, and answer with its record.
  * Every way of not getting one is a named ending, never a thrown error.
  */
-export async function captureLiveScene(params: {
-  sceneId: string;
-  port: number;
-  settings: typeof STABILIZATION_SETTINGS;
-  target: SceneTarget | NoTarget;
-}): Promise<SceneCaptureResult> {
-  const { sceneId, port, settings, target } = params;
+export async function captureLiveScene(params: SceneCaptureParams): Promise<SceneCaptureResult> {
+  const { sceneId, port, settings, target, discover } = params;
   if (!isTarget(target)) return { kind: 'no-app', why: target.cause, found: target.found };
 
-  const launchedAt = await launchFresh(target, sceneId, port);
+  const launchedAt = await launchFresh(target, sceneId, port, discover);
 
   const helloDeadline = launchedAt + APP_HELLO_PATIENCE_MS;
   for (;;) {
@@ -133,7 +151,12 @@ async function dropStaleLines(port: number): Promise<void> {
  * Stop the app if it runs, then start it with the scene's id in the launch. Answers when the start
  * was asked, after the stop: the bundler runs on this machine, so the line reads the same clock.
  */
-async function launchFresh(target: SceneTarget, sceneId: string, port: number): Promise<number> {
+async function launchFresh(
+  target: SceneTarget,
+  sceneId: string,
+  port: number,
+  discover = false
+): Promise<number> {
   const { device, app } = target;
   const run = deviceState().run;
 
@@ -174,6 +197,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
       ...(link ? ['--initialUrl', link] : []),
       '-sherloCapture',
       sceneId,
+      ...(discover ? ['-sherloDiscover', 'YES'] : []),
     ]);
     return launchedAt;
   }
@@ -219,74 +243,12 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
       : ['-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHER']),
     '--es',
     'sherloCapture',
-    sceneId
+    sceneId,
+    ...(discover ? ['--ez', 'sherloDiscover', 'true'] : [])
   );
   // `adb shell am start` exits 0 even when the phone refuses, so its words are read here.
   if (/^Error:/m.test(started)) throw new Error(started.trim());
   return launchedAt;
-}
-
-/**
- * Mark the developer menu's first-run sheet as seen in the stopped app's private preferences.
- * Mirrors sherlo-runner's android preSeedExpoDevMenuPrefs.ts, but sets only the two keys that hide
- * the sheet and keep the menu closed at launch. The XML goes through base64 because `run-as sh -c` strips its double quotes.
- */
-async function markAndroidDevMenuSheetSeen(
-  adb: (...args: string[]) => Promise<string>,
-  appId: string
-): Promise<void> {
-  const xml =
-    `<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n` +
-    `    <boolean name="isOnboardingFinished" value="true" />\n` +
-    `    <boolean name="showsAtLaunch" value="false" />\n</map>\n`;
-  const encoded = Buffer.from(xml, 'utf-8').toString('base64');
-  const dir = `/data/data/${appId}/shared_prefs`;
-  await adb(
-    'run-as',
-    appId,
-    'sh',
-    '-c',
-    `'mkdir -p ${dir} && echo ${encoded} | base64 -d > ${dir}/expo.modules.devmenu.sharedpreferences.xml'`
-  );
-}
-
-/** The link that opens the bundler in Expo's development launcher, from the `exp+<scheme>` in `listing`. */
-function developmentLauncherLink(listing: string, port: number): string | undefined {
-  const scheme = listing.match(/exp\+[A-Za-z0-9._-]+/)?.[0];
-  if (!scheme) return undefined;
-  const bundlerUrl = encodeURIComponent(`http://localhost:${port}`);
-  return `${scheme}://expo-development-client/?url=${bundlerUrl}`;
-}
-
-/**
- * The launcher's link for an installed Android app, or nothing when it has no launcher. The phone
- * says both: the launcher's activity in the package listing, and the `exp+<scheme>` the app registers.
- */
-async function androidDevelopmentLauncherLink(
-  adb: (...args: string[]) => Promise<string>,
-  appId: string,
-  port: number
-): Promise<string | undefined> {
-  const listing = await adb('dumpsys', 'package', appId).catch(() => '');
-  if (!listing.includes('expo.modules.devlauncher')) return undefined;
-  return developmentLauncherLink(listing, port);
-}
-
-/**
- * The launcher's link for an installed iPhone app, or nothing when it has no launcher: the
- * `exp+<scheme>` URL scheme in the installed bundle's Info.plist is the one the development launcher
- * adds to an app.
- */
-async function iosDevelopmentLauncherLink(
-  run: ReturnType<typeof deviceState>['run'],
-  udid: string,
-  appId: string,
-  port: number
-): Promise<string | undefined> {
-  const container = (await run('xcrun', ['simctl', 'get_app_container', udid, appId])).trim();
-  if (!container) return undefined;
-  const plist = await run('xcrun', ['plutil', '-p', `${container}/Info.plist`]).catch(() => '');
-  return developmentLauncherLink(plist, port);
 }
 
 /* ========================================================================== */
@@ -303,12 +265,16 @@ function keptSeen(said: unknown): { seen?: { testIDs: string[]; more: number } }
 function keptLeft(answer: Record<string, unknown>): SceneLeft {
   const threw = readAppError(answer.threw);
   const stillReal = readStrings(answer.stillReal);
-  const unanswered = readUnanswered(answer.unanswered);
+  const unanswered = readUnanswered(answer.unanswered, true);
   const loggedErrors = readLoggedErrors(answer.loggedErrors);
+  const readyTooEarly = readReadyTooEarly(answer.readyTooEarly);
+  const answerFindings = readAnswerFindings(answer.answerFindings);
   return {
     ...(threw && { threw: { name: threw.name, message: threw.message } }),
     ...(stillReal && { stillReal }),
     ...(unanswered && { unanswered }),
+    ...(readyTooEarly && { readyTooEarly }),
+    ...(answerFindings && { answerFindings }),
     ...(loggedErrors && { loggedErrors }),
   };
 }
@@ -333,12 +299,14 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
   }
 
   if (answer?.kind === 'never-reached') {
+    const likelyCause = readLikelyCause(answer.likelyCause);
     return {
       kind: 'never-reached',
       sceneId,
       ready: typeof answer.ready === 'string' ? answer.ready : '',
       stayedOn: keepStrings(answer.stayedOn),
       ...keptSeen(answer.seen),
+      ...(likelyCause && { likelyCause }),
       ...keptLeft(answer),
     };
   }

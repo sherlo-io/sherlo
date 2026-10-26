@@ -674,6 +674,8 @@ export type PosedCapture =
       ready: string;
       /** The route the app was on when the wait ran out, outermost screen first. */
       stayedOn: string[];
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: UnansweredRequest[];
     }
   | {
       scenes: string[];
@@ -702,6 +704,8 @@ export type PosedCapture =
         ms: number;
         frames: number;
       };
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: UnansweredRequest[];
       tree: PosedView;
     };
 
@@ -1227,12 +1231,16 @@ export type BrokenStoryFile = {
 };
 
 /**
- * A request a story made that no mock answered; the app lists it whether the story refused it or
- * let it through.
+ * A request that no mock answered; the app lists it whether the story refused it or let it
+ * through. The details are what a discover capture sends (masked, never a whole body); a story
+ * record keeps none.
  */
 export type UnansweredRequest = {
   method: string;
   url: string;
+  contentType?: string;
+  operation?: string;
+  bodyExcerpt?: string;
 };
 
 /**

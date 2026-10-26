@@ -96,6 +96,94 @@ describe('a scene that never got ready', () => {
   });
 });
 
+describe('a discover capture lists what the scene needs', () => {
+  const discovered = (left: object) =>
+    renderCapturedScene({
+      kind: 'never-reached',
+      sceneId: 'inbox--full',
+      ready: 'inbox',
+      stayedOn: ['Home'],
+      discover: true,
+      ...left,
+    }).join('\n');
+
+  it('a discover capture prints every unanswered request as a ready-to-paste rule', () => {
+    const printed = discovered({
+      unanswered: [
+        { method: 'GET', url: 'https://x.test/a' },
+        {
+          method: 'POST',
+          url: '/graphql',
+          operation: 'Me',
+          contentType: 'application/json',
+          bodyExcerpt: '{"query":"***"}',
+        },
+        { method: 'GET', url: 'https://x.test/a' },
+        { method: 'GET', url: "https://x.test/it's" },
+      ],
+    });
+
+    expect(printed).toContain('3 requests had no mock - add these rules to the scene file:');
+    expect(printed).toContain(
+      "mockRequest({ method: 'GET', url: 'https://x.test/a' }, { body: /* fill in */ })"
+    );
+    expect(printed).toContain(
+      'mockRequest({ method: \'POST\', operationName: \'Me\' }, { body: /* fill in */ })  // application/json, body {"query":"***"}'
+    );
+    expect(printed).toContain("url: 'https://x.test/it\\'s'");
+    expect(printed.split("url: 'https://x.test/a'")).toHaveLength(2);
+    expect(printed.indexOf("url: 'https://x.test/a'")).toBeLessThan(
+      printed.indexOf('operationName')
+    );
+    expect(printed).not.toContain('request had no mock:');
+  });
+
+  it('a discover capture prints the early ready view, the likely cause and each faked-answer finding', () => {
+    const printed = discovered({
+      likelyCause: ['unanswered-requests', 'logged-errors'],
+      readyTooEarly: { atStep: 1, of: 3 },
+      answerFindings: [
+        { kind: 'field-missing', operation: 'Me', path: 'me.name', expected: 'String' },
+        { kind: 'typename-missing', operation: 'Me', path: 'me' },
+        { kind: 'typename-matches-no-fragment', operation: 'Me', path: 'me', expected: 'User' },
+        { kind: 'no-query-text', operation: 'Feed' },
+      ],
+    });
+
+    expect(printed).toContain('The ready view showed after step 1 of 3');
+    expect(printed).toContain('Likely cause: requests no mock answered and errors the app logged.');
+    expect(printed).toContain(
+      'Me at me.name: the faked answer has no such field (expected String)'
+    );
+    expect(printed).toContain('Me at me: the faked answer has no __typename');
+    expect(printed).toContain('its __typename matches no fragment of the query (expected User)');
+    expect(printed).toContain('Feed: skipped, the request sent no query text');
+  });
+
+  it('a capture that is not a discover capture prints none of the discover lines', () => {
+    const printed = neverReachedPlain({
+      unanswered: [{ method: 'GET', url: '/a', operation: 'X' }],
+      readyTooEarly: { atStep: 1, of: 3 },
+      answerFindings: [{ kind: 'no-query-text' }],
+    });
+
+    expect(printed).toContain('1 request had no mock:');
+    expect(printed).not.toContain('mockRequest');
+    expect(printed).not.toContain('ready view showed');
+    expect(printed).not.toContain('Faked answers');
+  });
+
+  function neverReachedPlain(left: object): string {
+    return renderCapturedScene({
+      kind: 'never-reached',
+      sceneId: 'inbox--full',
+      ready: 'inbox',
+      stayedOn: ['Home'],
+      ...left,
+    }).join('\n');
+  }
+});
+
 describe('a scene that was not captured, asked for with --png', () => {
   const NO_PICTURE = 'No picture saved: the scene was not captured';
   const id = 'inbox--full';
