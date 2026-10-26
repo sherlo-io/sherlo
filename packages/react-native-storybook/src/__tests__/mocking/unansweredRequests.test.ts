@@ -93,6 +93,65 @@ describe('the requests no rule answered', () => {
     ]);
   });
 
+  it('an unanswered request keeps its content type and a body excerpt', async () => {
+    await activateStory([mockRequest({ url: `${BASE}/known` }, { body: 'known' })]);
+
+    await fetch(`${BASE}/graphql`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operationName: 'Orders',
+        query: '{ o }',
+        variables: { first: 5, e: 'a@b.c' },
+      }),
+    }).catch(() => {});
+
+    expect(unansweredRequests()).toEqual([
+      {
+        method: 'POST',
+        url: `${BASE}/graphql`,
+        contentType: 'application/json',
+        operation: 'Orders',
+        bodyExcerpt:
+          '{"operationName":"Orders","query":"{ o }","variables":{"first":5,"e":"<text>"}}',
+      },
+    ]);
+  });
+
+  it('a persisted GraphQL query sent by GET is named by its hash', async () => {
+    await activateStory([mockRequest({ url: `${BASE}/known` }, { body: 'known' })]);
+    const hash = 'abcdef0123456789abcdef';
+    const extensions = encodeURIComponent(JSON.stringify({ persistedQuery: { sha256Hash: hash } }));
+    const url = `${BASE}/graphql?extensions=${extensions}`;
+
+    await fetch(url).catch(() => {});
+
+    expect(unansweredRequests()).toEqual([
+      { method: 'GET', url, operation: 'persisted abcdef012345' },
+    ]);
+  });
+
+  it('a password in a JSON or form body never reaches the record', async () => {
+    await activateStory([mockRequest({ url: `${BASE}/known` }, { body: 'known' })]);
+
+    await fetch(`${BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: { password: 'hunter2-json' }, remember: true }),
+    }).catch(() => {});
+    await fetch(`${BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'password=hunter2-form&remember=true',
+    }).catch(() => {});
+
+    expect(JSON.stringify(unansweredRequests())).not.toContain('hunter2');
+    expect(unansweredRequests().map((request) => request.bodyExcerpt)).toEqual([
+      '{"user":{"password":"<text>"},"remember":true}',
+      'password=<text>&remember=true',
+    ]);
+  });
+
   it('a story with no network mock still lists the requests it made', async () => {
     await activateStory([]);
 

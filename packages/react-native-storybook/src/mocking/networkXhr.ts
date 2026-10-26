@@ -21,6 +21,7 @@ interface Xhr {
   response: unknown;
   responseType: string;
   open(method: string, url: string, ...rest: unknown[]): void;
+  setRequestHeader(name: string, value: string): void;
   send(body?: unknown): void;
   getResponseHeader(name: string): string | null;
   getAllResponseHeaders(): string;
@@ -38,17 +39,25 @@ const DONE = 4;
 export function mockedXhrOf(RealXhr: XhrClass): XhrClass {
   return class SherloMockedXhr extends RealXhr {
     private request: { method: string; url: string } = { method: 'GET', url: '' };
+    private contentType: string | undefined;
     private answeredHeaders: Record<string, string> | null = null;
 
     open(method: string, url: string, ...rest: unknown[]): void {
       this.request = { method: String(method).toUpperCase(), url: String(url) };
+      this.contentType = undefined;
       super.open(method, url, ...rest);
+    }
+
+    setRequestHeader(name: string, value: string): void {
+      if (String(name).toLowerCase() === 'content-type') this.contentType = String(value);
+      super.setRequestHeader(name, value);
     }
 
     send(body?: unknown): void {
       const verdict = answerFor({
         ...this.request,
         body: typeof body === 'string' ? body : undefined,
+        contentType: this.contentType,
       });
 
       // The two mocked branches are deliberately not awaited: a real send() returns at once and

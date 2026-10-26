@@ -60,6 +60,8 @@ class FakeXhr {
     this.readyState = 1;
   }
 
+  setRequestHeader(_name: string, _value: string): void {}
+
   send(body?: unknown): void {
     FakeXhr.sent.push({ ...this.opened, body });
   }
@@ -296,6 +298,38 @@ describe('a request no rule names', () => {
     expect(refusal.message).toBe(
       'no mock rule matches POST https://mocking.sherlo.invalid/graphql Orders'
     );
+  });
+
+  it('a GraphQL request sent by GET is named by its operation', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/graphql*`, operationName: 'Me' }, { body: 'me' })],
+    });
+
+    // A rule matches on the body alone, so the operation in the address does not match it, and the
+    // refusal line is the one a request without an operation gets.
+    const url = `${BASE}/graphql?operationName=Me`;
+    const refusal = await refusalOf(fetch(url));
+
+    expect(refusal.message).toBe(`no mock rule matches GET ${url}`);
+    expect(unansweredRequests()).toEqual([{ method: 'GET', url, operation: 'Me' }]);
+  });
+
+  it('a request made through XMLHttpRequest keeps the content type it set', async () => {
+    await activateStory({ story: [mockRequest({ url: `${BASE}/known` }, { body: 'known' })] });
+
+    const xhr = new (globals.XMLHttpRequest as new () => FakeXhr)();
+    xhr.open('POST', `${BASE}/orders`);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send('{"id":7}');
+
+    expect(unansweredRequests()).toEqual([
+      {
+        method: 'POST',
+        url: `${BASE}/orders`,
+        contentType: 'application/json',
+        bodyExcerpt: '{"id":7}',
+      },
+    ]);
   });
 
   it('in discover mode an unmatched request is held and still listed as unanswered', async () => {

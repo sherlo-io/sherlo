@@ -7,6 +7,7 @@ import {
   SocketAnswer,
   SocketRule,
 } from './networkDeclaration';
+import { bodyExcerptOf, queryParamsOf } from './networkRequestText';
 import type { UnansweredRequest } from '../sealedCore/seam';
 
 /**
@@ -34,6 +35,8 @@ export interface MockedRequest {
   url: string;
   /** The request body when it is text, which is what a GraphQL operation name is read from. */
   body?: string;
+  /** The content-type header the request was sent with, when it set one. */
+  contentType?: string;
 }
 
 /** What the rules in effect say about one request. */
@@ -149,7 +152,7 @@ export function answerFor(request: MockedRequest): Verdict {
     return { kind: 'answer', answer: rule.answer };
   }
 
-  unanswered.push({ method: request.method, url: request.url });
+  unanswered.push(recordOf(request));
   if (mocksInEffect.passthrough) return { kind: 'passthrough' };
   if (discover) return { kind: 'held' };
 
@@ -207,13 +210,55 @@ function requestWords(method: string, url: string, operationName: string | undef
   return [method, url, operationName].filter((part) => part !== undefined).join(' ');
 }
 
+/** The request as the record keeps it: the fields it has, and no field it lacks. */
+function recordOf(request: MockedRequest): UnansweredRequest {
+  const operation = operationOf(request);
+  const bodyExcerpt = bodyExcerptOf(request.contentType, request.body);
+
+  return {
+    method: request.method,
+    url: request.url,
+    ...(request.contentType !== undefined && { contentType: request.contentType }),
+    ...(operation !== undefined && { operation }),
+    ...(bodyExcerpt !== undefined && { bodyExcerpt }),
+  };
+}
+
+/**
+ * The GraphQL operation the record names: its name, or else "persisted" and the start of its hash.
+ * Only the record reads the address (a GET); a rule matches on the body alone.
+ */
+function operationOf(request: MockedRequest): string | undefined {
+  const fromBody = jsonObjectOf(request.body);
+  const fromUrl = request.url.includes('?') ? queryParamsOf(request.url) : {};
+
+  const name = operationNameOf(request.body) || fromUrl.operationName;
+  if (name) return name;
+
+  const hash = persistedHashOf(fromBody?.extensions ?? jsonObjectOf(fromUrl.extensions));
+  return hash === undefined ? undefined : `persisted ${hash.slice(0, 12)}`;
+}
+
 /** The GraphQL operation a request body names, or nothing when the body names none. */
 function operationNameOf(body: string | undefined): string | undefined {
-  if (body === undefined) return undefined;
+  const name = jsonObjectOf(body)?.operationName;
+  return typeof name === 'string' ? name : undefined;
+}
+
+function persistedHashOf(extensions: unknown): string | undefined {
+  const hash = (extensions as { persistedQuery?: { sha256Hash?: unknown } } | undefined)
+    ?.persistedQuery?.sha256Hash;
+  return typeof hash === 'string' && hash !== '' ? hash : undefined;
+}
+
+function jsonObjectOf(text: string | undefined): Record<string, unknown> | undefined {
+  if (text === undefined) return undefined;
 
   try {
-    const parsed = JSON.parse(body) as { operationName?: unknown };
-    return typeof parsed?.operationName === 'string' ? parsed.operationName : undefined;
+    const parsed: unknown = JSON.parse(text);
+    return typeof parsed === 'object' && parsed !== null
+      ? (parsed as Record<string, unknown>)
+      : undefined;
   } catch (_) {
     return undefined;
   }
