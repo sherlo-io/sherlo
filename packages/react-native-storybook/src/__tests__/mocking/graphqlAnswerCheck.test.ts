@@ -191,6 +191,36 @@ describe('a faked GraphQL answer is checked against its query', () => {
     ]);
   });
 
+  it('a field missing under a fragment spread at the root of the query is a finding', () => {
+    const query = `
+      query ShelfMeta { ...ShelfFragment ... on Query { motto } }
+      fragment ShelfFragment on Query { shelf { __typename books { id } page { total } } }
+    `;
+    const answer = { data: { shelf: { __typename: 'Shelf', books: [], page: {} } } };
+
+    expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([
+      {
+        kind: 'field-missing',
+        operation: 'ShelfMeta',
+        path: 'shelf.page.total',
+        expected: 'total',
+      },
+      { kind: 'field-missing', operation: 'ShelfMeta', path: 'motto', expected: 'motto' },
+    ]);
+  });
+
+  it('a __typename missing under a fragment spread at the root of the query is a finding', () => {
+    const query = `
+      query ShelfMeta { ...ShelfFragment }
+      fragment ShelfFragment on Query { shelf { __typename books { id } } }
+    `;
+    const answer = { data: { shelf: { books: [] } } };
+
+    expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([
+      { kind: 'typename-missing', operation: 'ShelfMeta', path: 'shelf' },
+    ]);
+  });
+
   it('a request with no query text is skipped and noted as such', () => {
     const persisted = JSON.stringify({
       operationName: 'ShelfOfBooks',

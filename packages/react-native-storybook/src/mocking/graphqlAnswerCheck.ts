@@ -77,7 +77,7 @@ export function graphqlAnswerFindings(
     answeredTypes: typenamesIn(data),
     findings: [],
   };
-  walkNode(data, chosen.selections, [], walk);
+  walkNode(data, chosen.selections, [], walk, true);
   return walk.findings;
 }
 
@@ -108,8 +108,17 @@ function record(walk: Walk, found: AnswerFinding): void {
   if (walk.findings.length < MOST_FINDINGS_PER_ANSWER) walk.findings.push(found);
 }
 
-/** Walk one answer node beside the selection it answers; a list is walked item by item. */
-function walkNode(node: unknown, selections: GraphqlSelection[], path: string[], walk: Walk): void {
+/**
+ * Walk one answer node beside the selection it answers; a list is walked item by item. The root of
+ * an answer has one type, the operation's own, so every fragment applies there.
+ */
+function walkNode(
+  node: unknown,
+  selections: GraphqlSelection[],
+  path: string[],
+  walk: Walk,
+  atRoot = false
+): void {
   if (Array.isArray(node)) {
     node.forEach((item, index) => walkNode(item, selections, [...path, String(index)], walk));
     return;
@@ -120,7 +129,9 @@ function walkNode(node: unknown, selections: GraphqlSelection[], path: string[],
   const typename = typeof answered.__typename === 'string' ? answered.__typename : undefined;
   const conditions = [...new Set(typeConditionsAt(selections, walk.fragments, new Set()))];
   const expectedTypes = conditions.length > 0 ? conditions.join(' | ') : undefined;
-  const applying = mergedByKey(fieldsThatApply(selections, typename, walk.fragments, new Set()));
+  const applying = mergedByKey(
+    fieldsThatApply(selections, typename, walk.fragments, new Set(), false, atRoot)
+  );
 
   if (typename !== undefined && expectedTypes !== undefined && !conditions.includes(typename)) {
     const readKeys = new Set(applying.map((field) => field.key));
@@ -228,7 +239,8 @@ function fieldsThatApply(
   typename: string | undefined,
   fragments: Fragments,
   spreadsFollowed: Set<string>,
-  underCondition = false
+  underCondition = false,
+  atRoot = false
 ): GraphqlField[] {
   return selections.flatMap((selection): GraphqlField[] => {
     const conditional = underCondition || selection.conditional;
@@ -236,13 +248,14 @@ function fieldsThatApply(
 
     const fragment = fragmentOf(selection, fragments, spreadsFollowed);
     if (fragment === undefined) return [];
-    if (fragment.on !== undefined && fragment.on !== typename) return [];
+    if (!atRoot && fragment.on !== undefined && fragment.on !== typename) return [];
     return fieldsThatApply(
       fragment.selections,
       typename,
       fragments,
       fragment.followed,
-      conditional
+      conditional,
+      atRoot
     );
   });
 }
