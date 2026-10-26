@@ -68,4 +68,47 @@ describe('the errors the app logs during a scene', () => {
 
     expect(loggedErrors().messages).toEqual([{ message: 'once', times: 1 }]);
   });
+
+  it('an Apollo error link is kept as its decoded code and arguments, not as the link', async () => {
+    const { loggedErrors } = await installedKeeper();
+    const link = (data: string) =>
+      `An error occurred! For more details, see the full error text at https://go.apollo.dev/c/err#${data}`;
+    const encoded = encodeURIComponent(
+      JSON.stringify({ version: '3.12.7', message: 12, args: ['Account', 'displayName', 7] })
+    );
+    const notDecoding = link('%7Bnot-json');
+
+    console.error(link(encoded));
+    console.error(notDecoding);
+
+    expect(loggedErrors().messages.map((entry) => entry.message)).toEqual([
+      'Apollo Client error 12: Account, displayName, 7',
+      notDecoding.slice(0, 200),
+    ]);
+  });
+
+  it('an Apollo link is decoded on the first line only, and only when its JSON has a code and arguments', async () => {
+    const { loggedErrors } = await installedKeeper();
+    const link = (data: object) =>
+      `https://go.apollo.dev/c/err#${encodeURIComponent(JSON.stringify(data))}`;
+    const valid = { version: '3.12.7', message: 5, args: ['Query', 'name'] };
+    const secondLine = `Foo failed\n see ${link(valid)}`;
+    const noCode = `see ${link({ version: '3.12.7', args: ['a'] })}`;
+    const noArgs = `see ${link({ version: '3.12.7', message: 5 })}`;
+    const longArgs = `see ${link({ message: 9, args: ['x'.repeat(300)] })}`;
+
+    console.error(`Cache miss, see ${link(valid)}`);
+    console.error(secondLine);
+    console.error(noCode);
+    console.error(noArgs);
+    console.error(longArgs);
+
+    expect(loggedErrors().messages.map((entry) => entry.message)).toEqual([
+      'Apollo Client error 5: Query, name',
+      'Foo failed',
+      noCode,
+      noArgs,
+      `Apollo Client error 9: ${'x'.repeat(300)}`.slice(0, 200),
+    ]);
+  });
 });
