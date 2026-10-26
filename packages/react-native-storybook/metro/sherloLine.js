@@ -80,7 +80,7 @@ var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogL
  *
  * @param {object} httpServer Node's http.Server, already carrying its own upgrade listeners, if any.
  * @param {Function} WebSocketServer `ws`'s WebSocketServer class (ws 7 calls it `Server`).
- * @param {{ appHoldMs?: number, warn?: (message: string) => void, storyFileChangedSince?: (time: number) => boolean }} [settings]
+ * @param {{ appHoldMs?: number, warn?: (message: string) => void, storyFileChangedSince?: (time: number) => boolean | string }} [settings]
  */
 function attach(httpServer, WebSocketServer, settings) {
   var line = createLine(settings || {});
@@ -707,14 +707,14 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     forgetTheInstructionOf(app);
     waiting.restarts += 1;
     writeOnTheLogFeed(
-      'sherlo bundler: the app started over after taking the capture of ' +
+      'Sherlo bundler: the app took the capture instruction for ' +
         (waiting.sceneId || waiting.storyId) +
-        ' (restart ' +
+        ' and started over (restart ' +
         waiting.restarts +
-        '): ' +
+        '). ' +
         (taken.cause === null
-          ? 'the bundler did not ask for it'
-          : 'the bundler asked for it, because ' + taken.cause)
+          ? 'Sherlo did not ask for it.'
+          : 'Sherlo asked for it, because ' + taken.cause + '.')
     );
   }
 
@@ -722,12 +722,12 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
   function filesChanged(paths) {
     if (driverWaiting === null || driverWaiting.sceneId === undefined || paths.length === 0) return;
     writeOnTheLogFeed(
-      'sherlo bundler: Metro saw ' +
+      'Sherlo bundler: Metro saw ' +
         paths.slice(0, MOST_CHANGED_FILES_NAMED).join(', ') +
         (paths.length > MOST_CHANGED_FILES_NAMED
           ? ' and ' + (paths.length - MOST_CHANGED_FILES_NAMED) + ' more'
           : '') +
-        ' change while the scene was captured'
+        ' change while the scene was captured.'
     );
   }
 

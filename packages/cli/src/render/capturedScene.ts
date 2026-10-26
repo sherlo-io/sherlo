@@ -112,11 +112,11 @@ export function renderCapturedScene(state: CapturedScene): string[] {
 
     case 'restarted-mid-capture':
       return [
-        `${chalk.red('✖')}  ${chalk.bold(state.sceneId)} never finished - the app started over ${
+        `${chalk.red('✖')}  Scene ${chalk.bold(state.sceneId)} never finished: the app started over ${
           state.restarts
-        } ${state.restarts === 1 ? 'time' : 'times'} while it was being captured`,
+        } ${state.restarts === 1 ? 'time' : 'times'} while Sherlo captured it`,
         '',
-        '  Add --json to see the log lines of each restart and what the bundler saw before it.',
+        '  Add --json or --logs to see the log lines of each restart and what the bundler saw before it.',
         '',
       ];
 
