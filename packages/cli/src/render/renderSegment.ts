@@ -465,7 +465,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'captured-scene':
       return {
         stream: 'stdout',
-        prints: renderCapturedScene(segment.state).map((line) => [line]),
+        prints: renderCapturedScene(segment.state, segment.picture).map((line) => [line]),
       };
 
     case 'coverage':

@@ -65,6 +65,7 @@ import {
   COVERAGE_COMMAND,
   JSON_OPTION,
   LOGS_OPTION,
+  PNG_OPTION,
   PROPS_OPTION,
   STORY_OPTION,
   SCENE_OPTION,
@@ -79,14 +80,17 @@ import { printTheLogoInATerminal } from './commands/shared/terminal';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
-import { reporting, throwError, withCommandTimeout } from './helpers';
+import { reporting, withCommandTimeout } from './helpers';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
+import {
+  refuseBinaryPathFlags,
+  refuseTokenFlag,
+  refuseUnknownPlatformFlag,
+} from './helpers/refusedFlags';
 import { emit } from './helpers/transcriptSink';
-import { renderBinaryPathFlagGone, renderPlatformUnknown } from './render/appBuild';
 import type { FeedbackOptions } from './commands/feedback/feedback';
 import { renderFeedbackFormat } from './render/feedback';
 import { renderHelpBlock } from './render/testSteps';
-import { renderTokenGone } from './render/pushCredential';
 
 // Disable all Node.js warnings
 process.removeAllListeners('warning');
@@ -338,6 +342,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${LOGS_OPTION}`,
     "Print Sherlo's latest log lines from the app not shown before (at most 1000)",
   ],
+  [PNG_OPTION]: [
+    `--${PNG_OPTION} <path>`,
+    'Save the screen as Sherlo captured it to this path (a PNG file)',
+  ],
   [PROPS_OPTION]: [
     `--${PROPS_OPTION}`,
     'Also read the story files and list the prop values no story file sets',
@@ -412,7 +420,7 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [STORY_OPTION, SCENE_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
+    options: [STORY_OPTION, SCENE_OPTION, PNG_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
     action: capture,
     withTimeout: false,
   });
@@ -503,7 +511,7 @@ function addTestCommand(program: Command) {
       emit({ kind: 'command-intro', command: 'test' });
       refuseBinaryPathFlags(options);
       refuseTokenFlag(TEST_COMMAND, options);
-      refuseUnknownPlatform(options);
+      refuseUnknownPlatformFlag(options);
       return test(options);
     },
   });
@@ -514,40 +522,6 @@ function addTestCommand(program: Command) {
   testCommand.addOption(new Option(`--${ANDROID_OPTION} <path>`).hideHelp());
   testCommand.addOption(new Option(`--${IOS_OPTION} <path>`).hideHelp());
   testCommand.addOption(new Option(`--${TOKEN_OPTION} <token>`).hideHelp());
-}
-
-/**
- * Sherlo 3 takes a push's credential from SHERLO_TOKEN or the saved login only, so a token on the command line is refused before anything runs - exit 1, naming the
- * two that remain. The same words refuse a `token` in sherlo.config.json (resolvePushCredential).
- *
- * `sherlo init --token` keeps its flag.
- */
-function refuseTokenFlag(command: string, options: { [TOKEN_OPTION]?: string }) {
-  if (options[TOKEN_OPTION] === undefined) return;
-
-  throwError(renderTokenGone(command));
-}
-
-/**
- * `--platform` names one of the two platforms, or is left out for both. Any other value is refused
- * before anything runs - exit 1, naming the two - rather than read as "no platform matched".
- */
-function refuseUnknownPlatform(options: { [PLATFORM_OPTION]?: string }) {
-  const givenPlatform = options[PLATFORM_OPTION];
-  if (givenPlatform === undefined || givenPlatform === 'android' || givenPlatform === 'ios') return;
-
-  throwError(renderPlatformUnknown(givenPlatform));
-}
-
-/**
- * Sherlo 3 tests only app builds it made itself, so a path handed in is refused before anything
- * runs - exit 1, like every other refused argument. The `android` and `ios` keys of
- * sherlo.config.json are refused with the same words (validateConfigProperties).
- */
-function refuseBinaryPathFlags(options: { [ANDROID_OPTION]?: string; [IOS_OPTION]?: string }) {
-  if (options[ANDROID_OPTION] === undefined && options[IOS_OPTION] === undefined) return;
-
-  throwError(renderBinaryPathFlagGone());
 }
 
 // `sherlo build` builds the app into the local build cache and pushes nothing, so a later
@@ -570,7 +544,7 @@ function addBuildCommand(program: Command) {
     action: (options) => {
       printTheLogoInATerminal();
       emit({ kind: 'command-intro', command: 'build' });
-      refuseUnknownPlatform(options);
+      refuseUnknownPlatformFlag(options);
       return build(options);
     },
     withTimeout: false,

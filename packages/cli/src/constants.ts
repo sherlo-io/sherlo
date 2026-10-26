@@ -193,6 +193,12 @@ export const JSON_OPTION = 'json';
  * carries them (see `--json`); this is the one flag that puts them on the screen too.
  */
 export const LOGS_OPTION = 'logs';
+/** `sherlo capture --scene <id> --png <path>` - save the screen as Sherlo captured it. */
+export const PNG_OPTION = 'png';
+/** The refusal when `--png` is given without `--scene` (with `--story`, or alone): the same shape as {@link sceneWithStoryRefusal}. */
+export function pngWithoutSceneRefusal(): string {
+  return `\`npx sherlo capture\` takes \`--${PNG_OPTION}\` only with \`--${SCENE_OPTION}\`.`;
+}
 /** `sherlo coverage --props` - also list the prop values no story file sets. */
 export const PROPS_OPTION = 'props';
 

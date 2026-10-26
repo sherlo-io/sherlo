@@ -5,6 +5,7 @@
 import chalk from 'chalk';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { renderCapturedScene } from '../capturedScene';
+import type { CapturedScene } from '../capturedScene';
 
 beforeAll(() => {
   (chalk as unknown as { level: number }).level = 0;
@@ -92,6 +93,60 @@ describe('a scene that never got ready', () => {
 
   it('a scene that never got ready and did not throw prints the logged-in hint as before', () => {
     expect(neverReached({})).toContain("Add a logged-in user to the scene's mocks.");
+  });
+});
+
+describe('a scene that was not captured, asked for with --png', () => {
+  const NO_PICTURE = 'No picture saved: the scene was not captured';
+  const id = 'inbox--full';
+  const endings: CapturedScene[] = [
+    { kind: 'no-such-scene', sceneId: id, known: [] },
+    {
+      kind: 'crashed-at-boot',
+      sceneId: id,
+      error: { name: 'Error', message: 'boom', file: 'App.tsx', line: 3 },
+    },
+    { kind: 'never-reached', sceneId: id, ready: 'inbox-list', stayedOn: ['SignIn'] },
+    {
+      kind: 'play-target-missing',
+      sceneId: id,
+      route: ['SignIn'],
+      done: [],
+      missing: { tap: 'Inbox' },
+      limitMs: 10_000,
+    },
+    { kind: 'restarted-mid-capture', sceneId: id, restarts: 2 },
+    { kind: 'no-bundler', port: 8081 },
+    { kind: 'no-app', port: 8081 },
+  ];
+
+  it('a scene that was not captured says no picture was saved', () => {
+    for (const ending of endings) {
+      const printed = renderCapturedScene(ending, { path: 'out.png' });
+
+      expect(printed.filter((line) => line === NO_PICTURE)).toHaveLength(1);
+      expect(printed.join('\n')).not.toContain('Picture saved to');
+      expect(renderCapturedScene(ending).join('\n')).not.toContain(NO_PICTURE);
+    }
+  });
+
+  it('a captured scene says where its picture was saved, and a failed save says why', () => {
+    const captured: CapturedScene = {
+      kind: 'scene',
+      sceneId: id,
+      bootMs: 1000,
+      reached: { route: ['Inbox'], ms: 500 },
+      play: [],
+      settled: { ms: 400, frames: 3 },
+      tree: { primitive: 'View', components: [], children: [] },
+    };
+
+    expect(renderCapturedScene(captured, { path: 'out.png' })).toContain(
+      'Picture saved to out.png'
+    );
+    expect(
+      renderCapturedScene(captured, { path: 'out.png', error: 'no space' }).join('\n')
+    ).toContain('No picture saved: no space');
   });
 });
 

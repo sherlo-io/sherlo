@@ -90,8 +90,30 @@ export type CapturedScene =
   | { kind: 'no-app'; port: number }
   | SceneEnding;
 
-/** Every line `sherlo capture --scene` prints, in order. */
-export function renderCapturedScene(state: CapturedScene): string[] {
+/** The picture `--png` asked for: where it goes, and why saving it failed when it did. */
+export type ScenePicture = { path: string; error?: string };
+
+/**
+ * Every line `sherlo capture --scene` prints, in order. With `--png`, the last line before the
+ * closing blank says whether the picture was saved: one place that all endings reach.
+ */
+export function renderCapturedScene(state: CapturedScene, picture?: ScenePicture): string[] {
+  const lines = sceneLines(state);
+  if (!picture) return lines;
+
+  return [...lines.slice(0, -1), ...pictureLines(state, picture), ''];
+}
+
+/** What `--png` came to: the saved path under a captured scene, the save's error, or that no scene was captured. */
+function pictureLines(state: CapturedScene, picture: ScenePicture): string[] {
+  if (state.kind !== 'scene') return [chalk.dim('No picture saved: the scene was not captured')];
+
+  return picture.error
+    ? [chalk.dim(`No picture saved: ${picture.error}`)]
+    : [chalk.dim(`Picture saved to ${picture.path}`)];
+}
+
+function sceneLines(state: CapturedScene): string[] {
   switch (state.kind) {
     case 'no-bundler':
     case 'no-app':
