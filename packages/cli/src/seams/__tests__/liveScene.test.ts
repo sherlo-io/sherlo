@@ -121,6 +121,67 @@ function recordingDevice(answers: Record<string, string> = {}): {
   return { ran, uninstall };
 }
 
+/** A device whose launch of the app runs `launch`, as the app's start on a real phone does. */
+function launchingDevice(launch: () => Promise<void>): () => void {
+  return installDeviceState({
+    ...posedDeviceState(),
+    run: async (tool, args) => {
+      if (tool === 'xcrun' && args[1] === 'launch') await launch();
+      return '';
+    },
+  });
+}
+
+/** A bundler with the real Sherlo line on it. */
+async function realLine(): Promise<{ port: number; close: () => void }> {
+  const server = http.createServer((request, response) => {
+    response.writeHead(request.url === LINE_PATH ? 200 : 404, {
+      'Content-Type': 'application/json',
+    });
+    response.end(JSON.stringify({ protocolVersion: PROTOCOL_VERSION }));
+  });
+  attach(server, WebSocketServer as unknown as WebSocketServerClass);
+  await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
+  return {
+    port: (server.address() as { port: number }).port,
+    close: () => {
+      (server as { closeAllConnections?: () => void }).closeAllConnections?.();
+      server.close();
+    },
+  };
+}
+
+type Instruction = Record<string, unknown>;
+
+/** An app that said hello on the line, handing each capture instruction it gets to `told`. */
+async function appOnTheLine(
+  port: number,
+  told: (instruction: Instruction) => void
+): Promise<{ say: (message: Record<string, unknown>) => void; leave: () => void }> {
+  const socket = new WebSocket(`ws://127.0.0.1:${port}${LINE_PATH}`);
+  socket.on('message', (data) => {
+    const { action, ...rest } = JSON.parse(data.toString());
+    if (action === 'captureInstruction') told(rest);
+  });
+  await new Promise((opened) => socket.once('open', opened));
+  const say = (message: Record<string, unknown>) => socket.send(JSON.stringify(message));
+  say({
+    action: 'hello',
+    protocolVersion: PROTOCOL_VERSION,
+    nativeVersion: 'test',
+    jsVersion: null,
+  });
+  return { say, leave: () => socket.terminate() };
+}
+
+/** An app's wait for a capture, in `mode`, with the scene in its bundle. */
+function waitForACapture(mode: string, answer: unknown) {
+  return { action: 'waitForACapture', mode, stories: [SCENE], scenes: [SCENE], answer };
+}
+
+/** Long enough for what an app sent to land on the line. */
+const landed = () => new Promise((resolve) => setTimeout(resolve, 50));
+
 describe('a scene is captured and opened live', () => {
   it('capture --scene boots, plays, settles and prints the signed picture', async () => {
     const bundler = await pretendBundler((question) =>
@@ -264,62 +325,86 @@ describe('a scene is captured and opened live', () => {
   });
 
   it('the app is handed the scene as a scene, and answers with the scene record', async () => {
-    const server = http.createServer((request, response) => {
-      response.writeHead(request.url === LINE_PATH ? 200 : 404, {
-        'Content-Type': 'application/json',
-      });
-      response.end(JSON.stringify({ protocolVersion: PROTOCOL_VERSION }));
-    });
-    attach(server, WebSocketServer as unknown as WebSocketServerClass);
-    await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
-    const port = (server.address() as { port: number }).port;
+    const line = await realLine();
+    const told: Instruction[] = [];
+    let app: Awaited<ReturnType<typeof appOnTheLine>> | undefined;
 
-    // The app lists its scenes as its stories, as the START snapshot does, and waits for a capture.
-    const app = new WebSocket(`ws://127.0.0.1:${port}${LINE_PATH}`);
-    const instruction = new Promise<Record<string, unknown>>((got) => {
-      app.on('message', (data) => {
-        const { action, ...rest } = JSON.parse(data.toString());
-        if (action === 'captureInstruction') got(rest);
+    // The launched app lists its scenes as its stories, as the START snapshot does, and waits.
+    const uninstall = launchingDevice(async () => {
+      app = await appOnTheLine(line.port, (instruction) => {
+        told.push(instruction);
+        if (instruction.sceneId) app?.say(waitForACapture('testing', SCENE_RECORD));
       });
+      app.say(waitForACapture('testing', null));
+      await landed();
     });
-    await new Promise((opened) => app.once('open', opened));
-    app.send(
-      JSON.stringify({
-        action: 'hello',
-        protocolVersion: PROTOCOL_VERSION,
-        nativeVersion: 'test',
-        jsVersion: null,
-      })
-    );
-    app.send(
-      JSON.stringify({ action: 'waitForACapture', mode: 'testing', stories: [SCENE], answer: null })
-    );
-    await new Promise((landed) => setTimeout(landed, 50));
-
-    const { uninstall } = recordingDevice();
     try {
-      const asked = captureLiveScene({
+      const ending = await captureLiveScene({
         sceneId: SCENE,
-        port,
+        port: line.port,
         settings: STABILIZATION_SETTINGS,
         target: PHONE,
       });
       // The core walks a scene only when handed it as `sceneId`: as a story it is never walked.
-      expect(await instruction).toEqual({ sceneId: SCENE, settings: STABILIZATION_SETTINGS });
-      app.send(
-        JSON.stringify({
-          action: 'waitForACapture',
-          mode: 'testing',
-          stories: [SCENE],
-          answer: SCENE_RECORD,
-        })
-      );
-      expect(await asked).toMatchObject({ kind: 'scene', sceneId: SCENE });
+      expect(told[0]).toEqual({ sceneId: SCENE, settings: STABILIZATION_SETTINGS });
+      expect(ending).toMatchObject({ kind: 'scene', sceneId: SCENE });
     } finally {
       uninstall();
-      app.terminate();
-      (server as { closeAllConnections?: () => void }).closeAllConnections?.();
-      server.close();
+      app?.leave();
+      line.close();
+    }
+  });
+
+  it('a capture whose app reloads into testing mode is still paired and captured', async () => {
+    const line = await realLine();
+
+    // The app the last capture launched: stopped, but its socket not closed yet. Whatever it is
+    // handed, it answers with the last capture's record.
+    const LAST_RECORD = { ...SCENE_RECORD, bootMs: 99999 };
+    const leftover = await appOnTheLine(line.port, (instruction) => {
+      if (instruction.sceneId) leftover.say(waitForACapture('testing', LAST_RECORD));
+    });
+    leftover.say(waitForACapture('testing', null));
+    await landed();
+
+    // The launched app starts out of testing mode, so the line reloads it there: its JavaScript
+    // starts again on the same socket, and waits in testing mode.
+    const told: Instruction[] = [];
+    let launched: Awaited<ReturnType<typeof appOnTheLine>> | undefined;
+    const uninstall = launchingDevice(async () => {
+      launched = await appOnTheLine(line.port, (instruction) => {
+        told.push(instruction);
+        if (instruction.restartIntoTesting) {
+          launched?.say({ action: 'JS_EVAL_COMPLETE' });
+          launched?.say(waitForACapture('testing', null));
+        } else if (instruction.sceneId) {
+          launched?.say(waitForACapture('testing', SCENE_RECORD));
+        }
+      });
+      launched.say(waitForACapture('default', null));
+      await landed();
+      // The leftover's wait lands after the launched app's: the retry of a wait that failed.
+      leftover.say(waitForACapture('testing', null));
+      await landed();
+    });
+    try {
+      const ending = await captureLiveScene({
+        sceneId: SCENE,
+        port: line.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+      expect(ending).toMatchObject({ kind: 'scene', sceneId: SCENE, bootMs: SCENE_RECORD.bootMs });
+      // One launch, one reload into testing mode, then the scene.
+      expect(told.slice(0, 2)).toEqual([
+        { restartIntoTesting: true, storyId: SCENE },
+        { sceneId: SCENE, settings: STABILIZATION_SETTINGS },
+      ]);
+    } finally {
+      uninstall();
+      leftover.leave();
+      launched?.leave();
+      line.close();
     }
   });
 
