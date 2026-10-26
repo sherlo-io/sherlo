@@ -714,6 +714,121 @@ describe('a capture of an app that cannot list its stories', () => {
   });
 });
 
+describe('captures asked one after another on one bundler, each of the app it launched', () => {
+  const SCENE = 'inbox--full';
+  const LAST_RECORD = { kind: 'scene', sceneId: SCENE, bootMs: 1 };
+  const NEW_RECORD = { kind: 'scene', sceneId: SCENE, bootMs: 2 };
+  const START_ERROR = { name: 'TypeError', message: 'undefined is not a function' };
+
+  /** A wait of an app in testing mode with this scene in its bundle. */
+  const waitInTesting = (answer: Message | null) => ({
+    mode: 'testing',
+    stories: null,
+    scenes: [SCENE],
+    answer,
+  });
+
+  /** Long enough for the clock to move past the last hello. */
+  const aMoment = () => new Promise((resolve) => setTimeout(resolve, 5));
+
+  /** The driver's reply when the line answers it at once, or 'parked' when it keeps it waiting. */
+  function replyOrParked(
+    reply: Promise<Message>,
+    driver: Awaited<ReturnType<typeof connectADriver>>
+  ): Promise<Message | 'parked'> {
+    return Promise.race([reply, driver.settled().then(() => 'parked' as const)]);
+  }
+
+  it("a second capture on one bundler is paired with the app it launched, not the first capture's leftovers", async () => {
+    const running = await startALine();
+    let hellos = 0;
+    running.line.onApp(() => (hellos += 1));
+    const driver = await connectADriver(running);
+
+    // The first capture: the app it launched is handed the scene, and answers with its record.
+    const firstLaunchedAt = Date.now();
+    const firstApp = await connectAnApp(running);
+    await firstApp.waitsForACapture(waitInTesting(null));
+    const firstReply = driver.ask({
+      action: 'captureStory',
+      sceneId: SCENE,
+      settings: SETTINGS,
+      launchedAt: firstLaunchedAt,
+    });
+    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+    await firstApp.waitsForACapture(waitInTesting(LAST_RECORD));
+    await expect(firstReply).resolves.toEqual(LAST_RECORD);
+    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({});
+
+    // The first app comes back for the next capture: its process is stopped, its socket not closed.
+    await firstApp.waitsForACapture(waitInTesting(null));
+
+    // The second capture launches the app again. Until the launched app waits, there is no app yet,
+    // as on the first try: the first app's wait is no wait of the launched one.
+    await aMoment();
+    const launchedAt = Date.now();
+    const question = {
+      action: 'captureStory',
+      sceneId: SCENE,
+      settings: SETTINGS,
+      launchedAt,
+    };
+    await expect(replyOrParked(driver.ask(question), driver)).resolves.toEqual({ kind: 'no-app' });
+
+    // The launched app waits, then the first app's wait lands late, the retry of a wait that failed.
+    const secondApp = await connectAnApp(running);
+    await secondApp.waitsForACapture(waitInTesting(null));
+    await firstApp.waitsForACapture(waitInTesting(null));
+    const secondReply = driver.ask(question);
+    await expect(secondApp.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+
+    // The first app says its last answer again: it is no answer to the capture the second walks.
+    await firstApp.waitsForACapture(waitInTesting(LAST_RECORD));
+    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({});
+    await secondApp.waitsForACapture(waitInTesting(NEW_RECORD));
+    await expect(secondReply).resolves.toEqual(NEW_RECORD);
+
+    // One launch per capture, and the second app was never told to reload.
+    expect(hellos).toBe(2);
+  });
+
+  it('a start failure of an app from before the launch is no crash of the launched app', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const earlierApp = await connectAnApp(running);
+    await earlierApp.startFails(START_ERROR);
+
+    await aMoment();
+    const question = { action: 'captureStory', sceneId: SCENE, launchedAt: Date.now() };
+    await expect(driver.ask(question)).resolves.toEqual({ kind: 'no-app' });
+
+    const launchedApp = await connectAnApp(running);
+    await launchedApp.waitsForACapture(waitInTesting(null));
+    void driver.ask(question);
+    await expect(launchedApp.nextCaptureInstruction()).resolves.toEqual({ sceneId: SCENE });
+  });
+
+  it('CONTROL: a capture that names no launch is paired with whichever app waits, as before', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(waitInTesting(null));
+
+    await aMoment();
+    void driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+  });
+});
+
 describe('a capture of an app whose JavaScript died as it started', () => {
   const START_ERROR = { name: 'TypeError', message: 'undefined is not a function' };
 

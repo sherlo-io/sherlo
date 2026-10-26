@@ -59,14 +59,15 @@ export async function captureLiveScene(params: {
   const { sceneId, port, settings, target } = params;
   if (!isTarget(target)) return { kind: 'no-app', why: target.cause, found: target.found };
 
-  await launchFresh(target, sceneId, port);
+  const launchedAt = await launchFresh(target, sceneId, port);
 
-  const helloDeadline = Date.now() + APP_HELLO_PATIENCE_MS;
+  const helloDeadline = launchedAt + APP_HELLO_PATIENCE_MS;
   for (;;) {
     const answer = await askTheBundlerLine({
       port,
-      // Asked as a scene, so the line hands the app a scene to walk, never a story.
-      question: { action: 'captureStory', sceneId, settings },
+      // Asked as a scene, so the line hands the app a scene to walk, never a story; and of the app
+      // launched now, never one an earlier capture left on the line.
+      question: { action: 'captureStory', sceneId, settings, launchedAt },
       patienceMs: SCENE_PATIENCE_MS,
     });
 
@@ -103,8 +104,11 @@ async function withStageLines(ending: NoApp, port: number): Promise<NoApp & { lo
   return logs.length > 0 ? { ...ending, logs } : ending;
 }
 
-/** Stop the app if it runs, then start it with the scene's id in the launch. */
-async function launchFresh(target: SceneTarget, sceneId: string, port: number): Promise<void> {
+/**
+ * Stop the app if it runs, then start it with the scene's id in the launch. Answers when the start
+ * was asked, after the stop: the bundler runs on this machine, so the line reads the same clock.
+ */
+async function launchFresh(target: SceneTarget, sceneId: string, port: number): Promise<number> {
   const { device, app } = target;
   const run = deviceState().run;
 
@@ -135,6 +139,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
     // expo-dev-launcher reads `--initialUrl <url>` from the process arguments at launch and opens
     // that link first (EXDevLauncherController `initialUrlFromProcessInfo`), so one launch carries
     // both the bundle's link and the scene's id. A simulator reaches the bundler on localhost.
+    const launchedAt = Date.now();
     await run('xcrun', [
       'simctl',
       'launch',
@@ -144,7 +149,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
       '-sherloCapture',
       sceneId,
     ]);
-    return;
+    return launchedAt;
   }
 
   const adb = (...args: string[]) => run('adb', ['-s', device.serial, 'shell', ...args]);
@@ -176,6 +181,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
     // wiped before each scene), so the start hands it the bundler's address through its own link.
     await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
   }
+  const launchedAt = Date.now();
   const started = await adb(
     'am',
     'start',
@@ -190,6 +196,7 @@ async function launchFresh(target: SceneTarget, sceneId: string, port: number): 
   );
   // `adb shell am start` exits 0 even when the phone refuses, so its words are read here.
   if (/^Error:/m.test(started)) throw new Error(started.trim());
+  return launchedAt;
 }
 
 /**

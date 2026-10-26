@@ -95,10 +95,15 @@ export type WhatIsOnScreenReply =
 /**
  * `sherlo capture`: walk this story with these numbers, and answer with its record. A scene
  * (`sherlo capture --scene`, `sherlo open --scene`) is asked by `sceneId` in place of `storyId`.
+ *
+ * `launchedAt` is when the asker launched the app, in milliseconds on the clock of the machine the
+ * bundler runs on. The capture then goes only to an app that said hello since, and is answered
+ * no-app until one has waited: an app of an earlier capture whose socket has not closed yet is not
+ * the one launched. Without it, the capture goes to whichever app waits.
  */
 export type CaptureStoryQuestion =
   | { action: 'captureStory'; storyId: string; settings?: CaptureSettings }
-  | { action: 'captureStory'; sceneId: string; settings?: CaptureSettings };
+  | { action: 'captureStory'; sceneId: string; settings?: CaptureSettings; launchedAt?: number };
 
 export type CaptureStoryReply =
   | CapturedAnswer
