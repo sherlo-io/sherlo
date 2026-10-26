@@ -1,6 +1,7 @@
 // tapReach reads where a finger can land: the safe-area insets the nearest provider above a view
-// gives, and where a view's middle lies against the window and the bars those insets name.
-import { reachOf, safeAreaInsetsAbove } from '../tapReach';
+// gives, where a view's middle lies against the window and the bars those insets name, and what
+// took a native touch meant for a view.
+import { coverOf, reachOf, safeAreaInsetsAbove } from '../tapReach';
 import type { WalkedFiber } from '../sealedCore/seam';
 
 import { SafeAreaInsetsContext as insetsContext } from 'react-native-safe-area-context';
@@ -50,5 +51,54 @@ describe('the bars a tap cannot reach', () => {
     expect(reachOf({ x: 0, y: 700, width: 100, height: 60 }, WINDOW, INSETS)).toBe('inside');
     expect(reachOf({ x: 0, y: 900, width: 100, height: 60 }, WINDOW, INSETS)).toBe('offScreen');
     expect(reachOf({ x: 0, y: 780, width: 100, height: 64 }, WINDOW, undefined)).toBe('inside');
+  });
+});
+
+describe('what a native touch hit', () => {
+  /** A host view tagged `tag`, with these props, its children under it. */
+  function host(tag: number, props: object, children: WalkedFiber[] = []): WalkedFiber {
+    const fiber: WalkedFiber = {
+      type: 'RCTView',
+      pendingProps: props,
+      memoizedProps: props,
+      stateNode: { canonical: { nativeTag: tag } },
+    };
+    children.forEach((child, index) => {
+      child.return = fiber;
+      if (index === 0) fiber.child = child;
+      else children[index - 1].sibling = child;
+    });
+    return fiber;
+  }
+  const root = host(1, {}, [
+    host(12, { testID: 'Connections' }, [host(13, {})]),
+    host(99, { testID: 'modal.backdrop' }),
+    host(98, {}),
+  ]);
+  const touch = (hitTag: number, reachedReact = true) => ({
+    reachedReact,
+    hitTag,
+    hitClass: 'RCTViewComponentView',
+    missing: [],
+  });
+
+  it('finds no cover when the touch hit the target or a view inside it', () => {
+    expect(coverOf(root, 12, touch(12))).toBeUndefined();
+    expect(coverOf(root, 12, touch(13))).toBeUndefined();
+    // A hit inside the target that no React recognizer took is no cover: nothing lies over it.
+    expect(coverOf(root, 12, touch(12, false))).toBeUndefined();
+  });
+
+  it('names another view the touch hit by its testID, else by its class, as a native view no React recognizer saw', () => {
+    expect(coverOf(root, 12, touch(99))).toEqual({
+      testID: 'modal.backdrop',
+      className: 'RCTViewComponentView',
+    });
+    expect(coverOf(root, 12, touch(98))).toEqual({ className: 'RCTViewComponentView' });
+    expect(coverOf(root, 12, touch(99, false))).toEqual({
+      testID: 'modal.backdrop',
+      className: 'RCTViewComponentView',
+    });
+    expect(coverOf(root, 12, touch(-1))).toEqual({ className: 'RCTViewComponentView' });
   });
 });

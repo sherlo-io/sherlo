@@ -215,6 +215,18 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Touches the screen at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+ */
+- (void)tap:(double)x
+          y:(double)y
+     holdMs:(double)holdMs
+    resolve:(RCTPromiseResolveBlock)resolve
+     reject:(RCTPromiseRejectBlock)reject
+{
+  [core tap:x y:y holdMs:holdMs resolve:resolve reject:reject];
+}
+
+/**
  * Deterministically scrolls to a checkpoint index.
  */
 - (void)scrollToCheckpoint:(double)index
@@ -382,6 +394,17 @@ RCT_EXPORT_METHOD(awaitFrameCommit:(double)timeoutMs
 RCT_EXPORT_METHOD(isScrollable:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
   [core isScrollable:resolve reject:reject];
+}
+
+/**
+ * Touches the screen at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+ */
+RCT_EXPORT_METHOD(tap:(double)x
+                  y:(double)y
+                  holdMs:(double)holdMs
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core tap:x y:y holdMs:holdMs resolve:resolve reject:reject];
 }
 
 /**

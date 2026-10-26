@@ -181,10 +181,9 @@ static BOOL sherloViewIsDrawn(UIView *view) {
     node.width = windowFrame.size.width * walk.screenScale;
     node.height = windowFrame.size.height * walk.screenScale;
 
-    NSNumber *reactTag = view.reactTag;
-    NSInteger nativeTag = view.tag;
-    node.has_id = (reactTag != nil || nativeTag > 0) ? 1 : 0;
-    node.id = reactTag != nil ? reactTag.longLongValue : nativeTag;
+    long long viewId = [self idOf:view];
+    node.has_id = viewId >= 0 ? 1 : 0;
+    node.id = viewId;
 
     // The edges the viewport culling reads, in window coordinates
     node.top = windowFrame.origin.y;
@@ -211,19 +210,28 @@ static BOOL sherloViewIsDrawn(UIView *view) {
     }
 }
 
-/**
- * The key window and its root view, or nil with `error` set when the app has neither.
- */
-+ (UIView *)rootView:(UIWindow **)keyWindowOut error:(NSError **)error {
-    UIWindow *keyWindow = nil;
++ (long long)idOf:(UIView *)view {
+    if (view.reactTag != nil) return view.reactTag.longLongValue;
+    if (view.tag > 0) return view.tag;
+    return -1;
+}
+
++ (UIWindow *)appWindow {
     if (@available(iOS 13.0, *)) {
         NSSet<UIScene *> *scenes = UIApplication.sharedApplication.connectedScenes;
         UIScene *scene = scenes.allObjects.firstObject;
         if ([scene isKindOfClass:[UIWindowScene class]]) {
-            UIWindowScene *windowScene = (UIWindowScene *)scene;
-            keyWindow = windowScene.windows.firstObject;
+            return ((UIWindowScene *)scene).windows.firstObject;
         }
     }
+    return nil;
+}
+
+/**
+ * The app's window and its root view, or nil with `error` set when the app has neither.
+ */
++ (UIView *)rootView:(UIWindow **)keyWindowOut error:(NSError **)error {
+    UIWindow *keyWindow = [self appWindow];
 
     if (!keyWindow) {
         if (error) {

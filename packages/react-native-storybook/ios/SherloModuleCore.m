@@ -8,6 +8,7 @@
 #import "SherloJsonHelper.h"
 #import "SherloCoreLoader.h"
 #import "SherloLine.h"
+#import "TouchHelper.h"
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -677,6 +678,22 @@ static UIScrollView *lockedScrollView = nil;
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     return [UIApplication sharedApplication].keyWindow;
 #pragma clang diagnostic pop
+}
+
+- (void)tap:(double)x
+          y:(double)y
+     holdMs:(double)holdMs
+    resolve:(RCTPromiseResolveBlock)resolve
+     reject:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // The window the inspector measures frames in, so a tap never mixes windows.
+        UIWindow *window = [InspectorHelper appWindow];
+        if (!window) {
+            reject(@"no_window", @"The app has no window to tap", nil);
+            return;
+        }
+        [TouchHelper tapInWindow:window at:CGPointMake(x, y) holdMs:holdMs resolve:resolve];
+    });
 }
 
 /**

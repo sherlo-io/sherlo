@@ -2,14 +2,18 @@
 // or open the app's own link, each once its target is on screen and drawn. A step that cannot be
 // played throws, naming the step. The app here is small: Discover with a tab bar, a chat list, a chat.
 
-const { views, scene, nativeTree } = vi.hoisted(() => ({
+const { views, scene, nativeTree, nativeTouch } = vi.hoisted(() => ({
   views: { now: undefined as unknown as () => any },
   scene: { play: [] as unknown[], ready: undefined as unknown },
   nativeTree: { readable: true },
+  /** The native module's touch: none (a native build without it) unless a test lays one. */
+  nativeTouch: { tap: undefined as undefined | ((x: number, y: number, holdMs: number) => any) },
 }));
 
 vi.mock('../SherloModule', () => ({
   default: {
+    tap: async (x: number, y: number, holdMs: number) =>
+      nativeTouch.tap ? nativeTouch.tap(x, y, holdMs) : null,
     getMode: () => 'testing',
     getConfigOrDefault: () => ({}),
     getInspectorData: async () => {
@@ -56,7 +60,7 @@ import { playSteps, SherloStepError, TAP_LOOKS_FOR_MS, testIDsOnScreen } from '.
 import { reachedRoute } from '../reachedScreen';
 import type { InspectorDataNode, WalkedFiber } from '../sealedCore/seam';
 import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
-import { __setOpenURL } from './__mocks__/react-native';
+import { __setOpenURL, Platform } from './__mocks__/react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 
 const SCENE_ID = 'chat--conversation';
@@ -245,6 +249,7 @@ beforeEach(() => {
   rowsOnScreen = [];
   views.now = appViews;
   nativeTree.readable = true;
+  nativeTouch.tap = undefined;
   safeArea.providers = [];
   scene.play = [];
   scene.ready = undefined;
@@ -341,6 +346,101 @@ describe('a scene plays its steps', () => {
     scene.play = [{ tap: 'gh.button' }];
     await played();
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it("a tap presses through the native touch at the target's centre, and a covered target or a phone that lacks the touch ends the step with its line", async () => {
+    const touches: number[][] = [];
+    let answer = {
+      reachedReact: true,
+      hitTag: 13,
+      hitClass: 'RCTParagraphComponentView',
+      missing: [] as string[],
+    };
+    nativeTouch.tap = async (x, y, holdMs) => {
+      touches.push([x, y, holdMs]);
+      return answer;
+    };
+    views.now = () => ({
+      tag: 1,
+      frame: WINDOW,
+      children: [
+        {
+          tag: 12,
+          props: { testID: 'Connections', ...pressable('Connections', () => {}) },
+          frame: { x: 195, y: 600, width: 97, height: 60 },
+          children: [
+            {
+              tag: 13,
+              type: 'RCTText',
+              text: 'Connections',
+              frame: { x: 205, y: 620, width: 77, height: 20 },
+            },
+          ],
+        },
+        {
+          tag: 99,
+          props: { testID: 'modal.backdrop' },
+          frame: { x: 0, y: 0, width: 390, height: 300 },
+        },
+      ],
+    });
+    scene.play = [{ tap: 'Connections' }];
+
+    // The touch lands on the label inside the target, held as a finger holds: the step is done,
+    // and no synthetic press is made beside it.
+    expect(await played()).toEqual(['tap testID "Connections"']);
+    expect(touches).toEqual([[243.5, 630, 150]]);
+    expect(pressed).toEqual([]);
+
+    const failed = async () => (await played().catch((thrown) => thrown)).message;
+    const frame = `Scene ${SCENE_ID} could not play step 1 of 1 (tap testID "Connections"): `;
+    const covered = (by: string) =>
+      `the target is covered by ${by}, so the tap never reached it. ` +
+      'Wait for the cover to close, or close it with a tap step before this one';
+    answer = { ...answer, hitTag: 99, hitClass: 'RCTViewComponentView' };
+    expect(await failed()).toBe(frame + covered('testID "modal.backdrop"'));
+    // A native view over the app (no React view, no React recognizer) is named by its class.
+    answer = { reachedReact: false, hitTag: -1, hitClass: 'UITransitionView', missing: [] };
+    expect(await failed()).toBe(frame + covered('UITransitionView'));
+    answer = { reachedReact: false, hitTag: -1, hitClass: '', missing: ['UIEvent._setHIDEvent:'] };
+    expect(await failed()).toBe(
+      frame +
+        'Sherlo cannot tap on iOS 26.2 yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this'
+    );
+    expect(pressed).toEqual([]);
+  });
+
+  it('a touch inside the target that no React recognizer took is no cover: the synthetic press stands in', async () => {
+    tabAt(600);
+    nativeTouch.tap = async () => ({
+      reachedReact: false,
+      hitTag: 12,
+      hitClass: 'RCTViewComponentView',
+      missing: [],
+    });
+    scene.play = [{ tap: 'Connections' }];
+    expect(await played()).toEqual(['tap testID "Connections"']);
+    expect(pressed).toEqual(['Connections']);
+  });
+
+  it('Android keeps the synthetic press even when the native module has a touch', async () => {
+    const touched = vi.fn(async () => ({
+      reachedReact: true,
+      hitTag: 12,
+      hitClass: 'RCTViewComponentView',
+      missing: [] as string[],
+    }));
+    nativeTouch.tap = touched;
+    tabAt(600);
+    scene.play = [{ tap: 'Connections' }];
+    Platform.OS = 'android';
+    try {
+      expect(await played()).toEqual(['tap testID "Connections"']);
+    } finally {
+      Platform.OS = 'ios';
+    }
+    expect(touched).not.toHaveBeenCalled();
+    expect(pressed).toEqual(['Connections']);
   });
 });
 
