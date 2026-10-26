@@ -20,6 +20,7 @@
  * that sets its own provider later wins.
  */
 import SherloModule from './SherloModule';
+import hideErrorOverlay from './helpers/hideErrorOverlay';
 import announceAppShowsWhatItTests from './helpers/announceAppShowsWhatItTests';
 import reportStorybookLoaded from './helpers/reportStorybookLoaded';
 import {
@@ -93,6 +94,8 @@ function switchOnTheLaunchedScene(): void {
   host[SWITCHED_ON_FLAG] = true;
 
   if (SherloModule.getMode() !== 'testing') return;
+  // Before the app's first module runs, so no console error of the boot opens the overlay.
+  hideErrorOverlay();
   const sceneId = idOfTheTestingLaunch();
   startTheSessionOfAnAppWithoutStorybook(sceneId);
   if (!sceneId) return;
