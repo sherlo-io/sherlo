@@ -74,7 +74,9 @@ export async function captureLiveScene(params: {
     if (answer.kind === 'not-in-sherlos-words') {
       return { kind: 'no-app', why: 'line-broke', detail: answer.detail };
     }
-    if (answer.kind === 'gave-up-waiting') return { kind: 'no-app', why: 'gave-up-waiting' };
+    if (answer.kind === 'gave-up-waiting') {
+      return withStageLines({ kind: 'no-app', why: 'gave-up-waiting' }, port);
+    }
 
     const ending = readSceneAnswer(answer.reply, sceneId);
     // The relay says no app has come yet until the launched one says hello: ask again.
@@ -83,11 +85,22 @@ export async function captureLiveScene(params: {
       continue;
     }
 
-    if (ending.kind === 'no-app') return { kind: 'no-app', why: 'never-said-hello' };
+    if (ending.kind === 'no-app') {
+      return withStageLines({ kind: 'no-app', why: 'never-said-hello' }, port);
+    }
 
     const logs = await drainAppLog(port);
     return logs.length > 0 ? { ...ending, logs } : ending;
   }
+}
+
+/**
+ * A no-app ending with the lines the app logged before it went quiet, so the last stage it reached
+ * can be read. They ride in the --json reply only: the terminal words for no app stay as signed.
+ */
+async function withStageLines(ending: NoApp, port: number): Promise<NoApp & { logs?: string[] }> {
+  const logs = await drainAppLog(port);
+  return logs.length > 0 ? { ...ending, logs } : ending;
 }
 
 /** Stop the app if it runs, then start it with the scene's id in the launch. */

@@ -45,7 +45,13 @@ let hasStarted = false;
  * from the log: it holds the address, an action name or a wait's length, never a message body.
  */
 export function logTheLine(what: string): void {
-  console.log(`@sherlo/react-native-storybook: the bundler line ${what}`);
+  const line = `@sherlo/react-native-storybook: the bundler line ${what}`;
+  console.log(line);
+  // React Native 0.77 and later no longer stream console.log to the bundler, so the line also goes
+  // over the connection as a log message, where the capture reads it. Native code queues a send
+  // until its hello, and `send` drops one only when the native calls are absent. Only a testing
+  // run sends it, as RunnerBridge.log does: an app outside one sends nothing but its hello.
+  if (SherloModule.getMode() === 'testing') send({ action: 'log', line });
 }
 
 /** Send one message over the connection. */
