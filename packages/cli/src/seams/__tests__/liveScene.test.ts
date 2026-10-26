@@ -523,7 +523,8 @@ describe('a scene is captured and opened live', () => {
   });
 
   it('a capture that gave up after its app restarted ends as restarted mid-capture, not no app', async () => {
-    const stage = 'sherlo bundler: the app started over after taking the capture (restart 3)';
+    const stage =
+      'Sherlo bundler: the app took the capture instruction for inbox--full and started over (restart 3). Sherlo did not ask for it.';
     const { uninstall } = recordingDevice({ 'resolve-activity': LAUNCHER_ANSWER });
     try {
       // The app took the instruction and started over; the capture is never answered.

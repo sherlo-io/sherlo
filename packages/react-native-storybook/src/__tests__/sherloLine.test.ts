@@ -968,11 +968,12 @@ describe('a scene capture whose app starts over after taking its instruction', (
     // The capture is given up: the read of the feed carries what the bundler counted.
     const { lines, restarts } = await readFeed(running);
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain('restart 1');
-    expect(lines[0]).toContain('the bundler asked for it');
-    expect(lines[0]).toContain('default');
-    expect(lines[1]).toContain('restart 2');
-    expect(lines[1]).toContain('the bundler did not ask for it');
+    expect(lines[0]).toBe(
+      `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 1). Sherlo asked for it, because the app was in default mode, not testing mode.`
+    );
+    expect(lines[1]).toBe(
+      `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 2). Sherlo did not ask for it.`
+    );
     expect(restarts).toBe(2);
   });
 
@@ -1010,5 +1011,44 @@ describe('a scene capture whose app starts over after taking its instruction', (
     expect(await feedLines(running)).toEqual([
       expect.stringContaining('src/inbox/Inbox.scene.tsx'),
     ]);
+  });
+
+  it("each restart cause and Metro's file list are written in the approved words", async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode(''));
+    void driver.ask(launch);
+    await app.nextCaptureInstruction();
+    await app.startsItsJavaScript();
+    await app.waitsForACapture(inMode('testing'));
+
+    running.line.filesChanged(['a.ts', 'b.ts']);
+    running.line.filesChanged(['1.ts', '2.ts', '3.ts', '4.ts', '5.ts', '6.ts', '7.ts']);
+
+    expect(await feedLines(running)).toEqual([
+      `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 1). Sherlo asked for it, because the app was in an unknown mode, not testing mode.`,
+      'Sherlo bundler: Metro saw a.ts, b.ts change while the scene was captured.',
+      'Sherlo bundler: Metro saw 1.ts, 2.ts, 3.ts, 4.ts, 5.ts and 2 more change while the scene was captured.',
+    ]);
+
+    // The app, in testing mode, is told to start over when a story file changed since it loaded.
+    const startedOverBecause = async (changed: boolean | string) => {
+      const second = await startALine({ storyFileChangedSince: () => changed });
+      const secondDriver = await connectADriver(second);
+      const secondApp = await connectAnApp(second);
+      await secondApp.waitsForACapture(inMode('testing'));
+      void secondDriver.ask(launch);
+      await secondApp.nextCaptureInstruction();
+      await secondApp.startsItsJavaScript();
+      await secondApp.waitsForACapture(inMode('testing'));
+      return feedLines(second);
+    };
+    const started = `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 1). Sherlo asked for it, because`;
+
+    expect(await startedOverBecause('src/inbox/Inbox.stories.tsx')).toEqual([
+      `${started} the story file src/inbox/Inbox.stories.tsx changed.`,
+    ]);
+    expect(await startedOverBecause(true)).toEqual([`${started} a story file changed.`]);
   });
 });

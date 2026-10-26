@@ -21,6 +21,23 @@ function missedTap(tap: string): string {
   }).join('\n');
 }
 
+describe('a scene whose app started over while it was captured', () => {
+  const restarted = (restarts: number) =>
+    renderCapturedScene({ kind: 'restarted-mid-capture', sceneId: 'inbox--full', restarts });
+
+  it('a scene whose app started over prints the approved line, with 1 time when once, and the hint', () => {
+    expect(restarted(3)[0]).toContain(
+      'Scene inbox--full never finished: the app started over 3 times while Sherlo captured it'
+    );
+    expect(restarted(1)[0]).toContain(
+      'Scene inbox--full never finished: the app started over 1 time while Sherlo captured it'
+    );
+    expect(restarted(1)).toContain(
+      '  Add --json or --logs to see the log lines of each restart and what the bundler saw before it.'
+    );
+  });
+});
+
 describe('a scene whose play could not go on', () => {
   it('a missed tap by test id names the testID', () => {
     expect(missedTap('Inbox')).toContain('tap Inbox found no view with that testID within 10s.');
