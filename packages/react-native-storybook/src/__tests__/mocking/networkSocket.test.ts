@@ -20,7 +20,7 @@ vi.mock('../../helpers/RunnerBridge', () => ({
   default: { log: vi.fn(), send: vi.fn() },
 }));
 
-import { DeviceEventEmitter, NativeModules } from 'react-native';
+import { DeviceEventEmitter, NativeModules, TurboModuleRegistry } from 'react-native';
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import { clearStoryError, readStoryError } from '../../getStorybook/storyErrorRegistry';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
@@ -283,15 +283,66 @@ describe('WebSockets in a story with network mocks', () => {
     expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS }]);
   });
 
-  it("the bundler's own socket (hot reload) is never a story's", async () => {
+  it("a mocked story keeps every socket to the bundler the dev tools use, and still refuses the app's own sockets", async () => {
+    vi.useFakeTimers();
     NativeModules.SourceCode = { scriptURL: 'http://localhost:50524/index.bundle?platform=ios' };
     await activateStory(OTHER_API);
 
-    openSocket('ws://localhost:50524/hot');
+    const devTools = [
+      'ws://localhost:50524/hot',
+      // React Native 0.83 hands Fast Refresh's socket to the native module with an http scheme.
+      'http://localhost:50524/hot',
+      'ws://localhost:50524/message',
+      'ws://127.0.0.1:50524/inspector/debug?device=1&page=1',
+    ];
+    devTools.forEach((url) => openSocket(url));
+    const foreignHost = eventsOf(openSocket('ws://api.sherlo.invalid:50524/hot'));
+    const otherPort = eventsOf(openSocket('ws://localhost:9999/hot'));
+    await vi.advanceTimersByTimeAsync(0);
 
-    expect(WebSocketModule.connected).toEqual(['ws://localhost:50524/hot']);
-    expect(unansweredRequests()).toEqual([]);
+    expect(WebSocketModule.connected).toEqual(devTools);
+    expect(foreignHost).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
+    expect(otherPort).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
+    // Only the app's own two sockets are listed; the bundler's are never unanswered.
+    expect(unansweredRequests()).toEqual([
+      { method: 'WS', url: 'ws://api.sherlo.invalid:50524/hot' },
+      { method: 'WS', url: 'ws://localhost:9999/hot' },
+    ]);
   });
+
+  it("the bundler's address is read from the SourceCode TurboModule when NativeModules has none", async () => {
+    const sourceCode = {
+      getConstants: () => ({ scriptURL: 'http://localhost:50524/index.bundle' }),
+    };
+    const lookup = vi
+      .spyOn(TurboModuleRegistry, 'get')
+      .mockImplementation(((name: string) => (name === 'SourceCode' ? sourceCode : null)) as never);
+    delete NativeModules.SourceCode;
+    await activateStory(OTHER_API);
+
+    openSocket('http://localhost:50524/hot');
+
+    expect(WebSocketModule.connected).toEqual(['http://localhost:50524/hot']);
+    expect(unansweredRequests()).toEqual([]);
+    lookup.mockRestore();
+  });
+
+  it.each([
+    ['[::1]', 'http://[::1]:50524/index.bundle', 'ws://[::1]:50524/hot'],
+    ['10.0.2.2', 'http://10.0.2.2:50524/index.bundle', 'ws://localhost:50524/hot'],
+    ['10.0.2.2 the other way', 'http://localhost:50524/index.bundle', 'ws://10.0.2.2:50524/hot'],
+  ])(
+    'a bundler spelled %s still gets its dev-tools socket for real',
+    async (_name, script, hot) => {
+      NativeModules.SourceCode = { scriptURL: script };
+      await activateStory(OTHER_API);
+
+      openSocket(hot);
+
+      expect(WebSocketModule.connected).toEqual([hot]);
+      expect(unansweredRequests()).toEqual([]);
+    }
+  );
 });
 
 describe('WebSockets in a story with no network mock', () => {

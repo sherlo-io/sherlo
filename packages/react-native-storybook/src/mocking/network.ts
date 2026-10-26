@@ -5,7 +5,7 @@ import { RecordRefusal, setNetworkMocks } from './networkRules';
 import { TurboModule, TurboModuleRegistry } from 'react-native';
 import { holdNativeSockets, NativeSocketModule } from './networkSocket';
 import { isACapture } from './stillReal';
-import { bundlerOrigin } from '../bundlerOrigin';
+import { isBundlerSocketUrl } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
 
 /**
@@ -81,20 +81,13 @@ export function holdWebSockets(): void {
   );
   if (!nativeSockets || typeof nativeSockets.connect !== 'function') return;
 
-  releaseSockets = holdNativeSockets(nativeSockets, isTheBundlersSocket);
+  releaseSockets = holdNativeSockets(nativeSockets, isBundlerSocketUrl);
 }
 
 /** Test-only: put React Native's own socket calls back, as a fresh boot of the JavaScript has them. */
 export function __releaseWebSocketsForTests(): void {
   releaseSockets?.();
   releaseSockets = null;
-}
-
-/** A socket to the bundler the app came from (hot reload, its status) is never a story's. */
-function isTheBundlersSocket(url: string): boolean {
-  const origin = bundlerOrigin();
-  if (!origin) return false;
-  return /^wss?:\/\/([^/?#]+)/.exec(url)?.[1] === origin.replace(/^https?:\/\//, '');
 }
 
 /**
