@@ -46,6 +46,10 @@ vi.mock('../storyReady', () => ({
   storyAboutToRender: () => {},
   sceneOf: () => scene.file.scenes.Full,
   asRule: (rule: unknown) => (typeof rule === 'string' ? { testID: rule } : rule),
+  readyRuleOf: () => {
+    const ready: unknown = scene.file.scenes.Full.ready;
+    return typeof ready === 'string' ? { testID: ready } : ready;
+  },
   awaitReady: async () => ({ outcome: 'shown' }),
 }));
 

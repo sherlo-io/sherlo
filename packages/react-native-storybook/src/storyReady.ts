@@ -148,7 +148,7 @@ export function asRule(ready: string | ReadyRule | undefined): ReadyRule | undef
 }
 
 /** The scene's `ready`, as a rule; undefined when the scene names none. */
-function readyRuleOf(sceneId: string): ReadyRule | undefined {
+export function readyRuleOf(sceneId: string): ReadyRule | undefined {
   return asRule(sceneOf(sceneId)?.ready);
 }
 
