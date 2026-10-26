@@ -321,7 +321,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
   [DISCOVER_OPTION]: [
     `--${DISCOVER_OPTION}`,
-    'List every request the scene makes that no mock answers, as rules to paste into the scene file - instead of a picture',
+    'List the requests the scene makes that no mock answers, as rules to paste into the scene file. Writes no picture. Needs --scene.',
   ],
   [PORT_OPTION]: [
     `--${PORT_OPTION} <port>`,

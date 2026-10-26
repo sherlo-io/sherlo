@@ -180,7 +180,7 @@ export const SCENE_OPTION = 'scene';
 export const DISCOVER_OPTION = 'discover';
 /** The refusal when `--discover` is given without `--scene`, or with `--png` (a discover capture writes no picture). */
 export function discoverRefusal(): string {
-  return `\`npx sherlo capture\` takes \`--${DISCOVER_OPTION}\` only with \`--${SCENE_OPTION}\`, and not with \`--${PNG_OPTION}\`.`;
+  return `\`npx sherlo capture --${DISCOVER_OPTION}\` needs \`--${SCENE_OPTION}\` and cannot be combined with \`--${PNG_OPTION}\`.`;
 }
 /** The refusal when `--scene` and `--story` are both given; `command` is `open` or `capture`. */
 export function sceneWithStoryRefusal(command: 'open' | 'capture'): string {
