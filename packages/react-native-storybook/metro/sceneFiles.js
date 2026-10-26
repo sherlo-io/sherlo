@@ -76,12 +76,12 @@ function isScenesCall(node) {
   );
 }
 
-// The names of the scenes one file's source declares.
-function sceneNamesOf(source) {
+// Calls `visit(name, sceneValue, definition)` for each scene one file's source declares, in order:
+// the scene's key, its value node and the object the file handed to `scenes()`.
+function eachSceneOf(source, visit) {
   var ast = mockScan.parseScanTarget(source);
-  if (!ast) return [];
+  if (!ast) return;
 
-  var names = [];
   mockScan.walkNodes(ast.program || ast, function (node) {
     if (!isScenesCall(node)) return;
     var definition = (node.arguments || [])[0];
@@ -91,11 +91,98 @@ function sceneNamesOf(source) {
       if (!prop.value || prop.value.type !== 'ObjectExpression') return;
       prop.value.properties.forEach(function (sceneProp) {
         var name = sceneProp.type === 'ObjectProperty' ? keyName(sceneProp) : null;
-        if (name) names.push(name);
+        if (name) visit(name, sceneProp.value, definition);
       });
     });
   });
+}
+
+// The names of the scenes one file's source declares.
+function sceneNamesOf(source) {
+  var names = [];
+  eachSceneOf(source, function (name) {
+    names.push(name);
+  });
   return names;
+}
+
+// The plain value a literal node stands for: strings, numbers (a minus sign allowed), booleans,
+// null, and objects and arrays of those. Anything else (an identifier, a spread, a call) throws
+// `NotLiteral`, because the phone is set before the app starts and nothing is run to get a value.
+function literalValueOf(node) {
+  node = mockScan.unwrapExpression(node);
+  if (node.type === 'StringLiteral' || node.type === 'NumericLiteral') return node.value;
+  if (node.type === 'BooleanLiteral') return node.value;
+  if (node.type === 'NullLiteral') return null;
+  if (
+    node.type === 'UnaryExpression' &&
+    node.operator === '-' &&
+    node.argument.type === 'NumericLiteral'
+  ) {
+    return -node.argument.value;
+  }
+  if (node.type === 'ArrayExpression') {
+    return node.elements.map(function (element) {
+      if (!element) throw new Error('NotLiteral');
+      return literalValueOf(element);
+    });
+  }
+  if (node.type === 'ObjectExpression') {
+    var value = {};
+    node.properties.forEach(function (prop) {
+      var name = prop.type === 'ObjectProperty' ? keyName(prop) : null;
+      if (name === null) throw new Error('NotLiteral');
+      value[name] = literalValueOf(prop.value);
+    });
+    return value;
+  }
+  throw new Error('NotLiteral');
+}
+
+// The `device` literal among an object's properties, or null; `where` names it in a refusal.
+function deviceLiteralOf(object, fileName, where) {
+  if (!object || object.type !== 'ObjectExpression') return null;
+  for (var i = 0; i < object.properties.length; i++) {
+    var prop = object.properties[i];
+    if (prop.type !== 'ObjectProperty' || keyName(prop) !== 'device') continue;
+    try {
+      return literalValueOf(prop.value);
+    } catch (error) {
+      if (error.message !== 'NotLiteral') throw error;
+      throw new Error(
+        'Scene file ' +
+          fileName +
+          ': the device field of ' +
+          where +
+          ' must be a plain literal (no variable, spread or call), because the phone is set before the app starts.'
+      );
+    }
+  }
+  return null;
+}
+
+/**
+ * The phone setup of each scene one scene file declares: the `device` literal of the file merged
+ * with the scene's own, the scene's winning per permission and for the location.
+ *
+ * @param {string} fileName - the file's name, such as `chat.scenes.tsx`
+ * @param {string} source - the file's source
+ * @returns {Object<string, {permissions?: object, location?: object}>} by the scene's key in the file
+ * @throws when a `device` value is not a literal, naming the file and the scene
+ */
+function sceneDevicesOf(fileName, source) {
+  var devices = {};
+  eachSceneOf(source, function (name, sceneValue, definition) {
+    var fileDevice = deviceLiteralOf(definition, fileName, 'the file') || {};
+    var own = deviceLiteralOf(sceneValue, fileName, 'scene ' + name) || {};
+    var merged = {};
+    var permissions = Object.assign({}, fileDevice.permissions, own.permissions);
+    if (Object.keys(permissions).length > 0) merged.permissions = permissions;
+    var location = own.location || fileDevice.location;
+    if (location) merged.location = location;
+    devices[name] = merged;
+  });
+  return devices;
 }
 
 /**
@@ -305,6 +392,7 @@ module.exports = {
   pathsOfChange: pathsOfChange,
   fileWatcherOfMetro: fileWatcherOfMetro,
   sceneIdsOfSource: sceneIdsOfSource,
+  sceneDevicesOf: sceneDevicesOf,
   readSceneIds: readSceneIds,
   writeBundledScenesModule: writeBundledScenesModule,
 };

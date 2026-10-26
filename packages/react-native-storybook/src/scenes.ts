@@ -18,8 +18,30 @@ export type ReadyStep = { ready: string | ReadyRule };
 
 export type PlayStep = TapStep | OpenStep | ReadyStep;
 
+/** A phone permission a scene can grant or deny; the set the runner can set on both platforms. */
+export type ScenePermission =
+  | 'camera'
+  | 'microphone'
+  | 'photos'
+  | 'contacts'
+  | 'location'
+  | 'notifications'
+  | 'calendar';
+
+/**
+ * The phone a scene runs on: which permissions are granted or denied, and where the phone is.
+ * It must be a plain literal in the scene file (no variable, spread or call), because the phone is
+ * set before the app starts and Sherlo reads the file without running it.
+ */
+export type SceneDevice = {
+  permissions?: Partial<Record<ScenePermission, 'granted' | 'denied'>>;
+  location?: { latitude: number; longitude: number };
+};
+
 /** One variant of one screen. */
 export type Scene = {
+  /** This scene's phone setup; it merges over the file's, per permission, and the scene's wins. */
+  device?: SceneDevice;
   /** This scene's own mocks; they merge over the file's, and the scene's win. */
   mocks?: StoryMocks;
   /** Taps and links that take the app from its first screen to this one. */
@@ -34,6 +56,8 @@ export type Scene = {
 
 /** What a scene file hands to `scenes()`. */
 export type SceneFile = {
+  /** The phone setup every scene of the file shares. */
+  device?: SceneDevice;
   /** Mocks every scene of the file shares. */
   mocks?: StoryMocks;
   /** The file's scenes by name; a name gives the scene its id, `chat--conversation`. */
