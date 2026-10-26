@@ -95,7 +95,11 @@ async function wakeTheLine(
   let response: Response;
 
   try {
+    // "Connection: close" puts the GET on a connection of its own, closed after the answer. Node's
+    // fetch otherwise keeps the connection open and reuses it for the next ask, and a bundler closes
+    // an idle one: the next ask would go out on a dead connection and end as "the GET failed".
     response = await fetch(`http://localhost:${port}${LINE_PATH}`, {
+      headers: { Connection: 'close' },
       signal: AbortSignal.timeout(patienceMs),
     });
   } catch (error) {
