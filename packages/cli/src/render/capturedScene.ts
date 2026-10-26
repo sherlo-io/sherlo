@@ -225,7 +225,7 @@ function leftLines(left: SceneLeft & { discover?: true }): string[] {
 
 /**
  * A discover capture's result: each request no mock answered as the rule that would answer it, once
- * and in the order the app asked, then the early ready view and the findings about faked answers.
+ * and in the order the app asked, then the early ready view and the findings about mock answers.
  */
 function discoverLines({ unanswered, readyTooEarly, answerFindings }: SceneLeft): string[] {
   const rules = new Map<string, UnansweredRequest>();
@@ -238,17 +238,19 @@ function discoverLines({ unanswered, readyTooEarly, answerFindings }: SceneLeft)
       ? ['', 'No request went without a mock.']
       : [
           '',
-          `${chalk.yellow('◦')}  ${rules.size} ${rules.size === 1 ? 'request' : 'requests'} had no mock - add ${rules.size === 1 ? 'this rule' : 'these rules'} to the scene file:`,
+          `${chalk.yellow('◦')}  ${rules.size} ${rules.size === 1 ? 'request' : 'requests'} had no mock. Paste ${rules.size === 1 ? 'this rule' : 'these rules'} into the scene file:`,
           ...[...rules].map(([rule, request]) => `     ${rule}${requestNote(request)}`),
+          '',
+          '  Paste the rules, fill in each body, then capture again without --discover.',
         ]),
     ...(readyTooEarly
       ? [
           '',
-          `  The ready view showed after step ${readyTooEarly.atStep} of ${readyTooEarly.of}, before the last step of the play.`,
+          `  The ready view showed after step ${readyTooEarly.atStep} of ${readyTooEarly.of}, before the last step of the play ran.`,
         ]
       : []),
     ...(answerFindings && answerFindings.length > 0
-      ? ['', 'Faked answers the app could not use:', ...answerFindings.map(findingLine)]
+      ? ['', 'Mock answers the app could not use:', ...answerFindings.map(findingLine)]
       : []),
   ];
 }
@@ -272,26 +274,26 @@ function quoted(text: string): string {
   return `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 }
 
-/** One finding about a faked GraphQL answer, as the app listed it. */
+/** One finding about a mock GraphQL answer, as the app listed it. */
 function findingLine({ kind, operation, path, expected }: AnswerFinding): string {
   const where = `${operation ?? 'an operation'}${path ? ` at ${path}` : ''}`;
   const want = expected ? ` (expected ${expected})` : '';
   switch (kind) {
     case 'field-missing':
-      return `  ${where}: the faked answer has no such field${want}`;
+      return `  ${where}: the mock answer has no such field${want}`;
     case 'typename-missing':
-      return `  ${where}: the faked answer has no __typename${want}`;
+      return `  ${where}: the mock answer has no __typename${want}`;
     case 'typename-matches-no-fragment':
       return `  ${where}: its __typename matches no fragment of the query${want}`;
     case 'no-query-text':
-      return `  ${operation ?? 'a request'}: skipped, the request sent no query text, so its answer was not checked`;
+      return `  ${operation ?? 'a request'}: not checked, the request sent no query text`;
   }
 }
 
 /** Why a scene that never got ready likely did not, in the words the record's causes map to. */
 function likelyCauseLines(causes: LikelyCause): string[] {
   const words = causes.map((cause) =>
-    cause === 'unanswered-requests' ? 'requests no mock answered' : 'errors the app logged'
+    cause === 'unanswered-requests' ? 'requests with no mock' : 'errors the app logged'
   );
   return [`  Likely cause: ${words.join(' and ')}.`];
 }

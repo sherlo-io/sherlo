@@ -523,11 +523,11 @@ describe('a scene capture can save the screen it captured', () => {
 
   it('discover is refused without a scene', async () => {
     await expect(capture({ [DISCOVER_OPTION]: true, [STORY_OPTION]: STORY })).rejects.toThrow(
-      '`npx sherlo capture` takes `--discover` only with `--scene`, and not with `--png`.'
+      '`npx sherlo capture --discover` needs `--scene` and cannot be combined with `--png`.'
     );
     await expect(
       capture({ [DISCOVER_OPTION]: true, [SCENE_OPTION]: 'chat--open', [PNG_OPTION]: CHAT_PNG })
-    ).rejects.toThrow('takes `--discover` only with `--scene`');
+    ).rejects.toThrow('needs `--scene` and cannot be combined');
   });
 
   it('a discover capture whose scene never got ready leaves with zero and takes no picture', async () => {

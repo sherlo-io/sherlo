@@ -123,7 +123,10 @@ describe('a discover capture lists what the scene needs', () => {
       ],
     });
 
-    expect(printed).toContain('3 requests had no mock - add these rules to the scene file:');
+    expect(printed).toContain('3 requests had no mock. Paste these rules into the scene file:');
+    expect(printed).toContain(
+      '\n\n  Paste the rules, fill in each body, then capture again without --discover.'
+    );
     expect(printed).toContain(
       "mockRequest({ method: 'GET', url: 'https://x.test/a' }, { body: /* fill in */ })"
     );
@@ -150,14 +153,15 @@ describe('a discover capture lists what the scene needs', () => {
       ],
     });
 
-    expect(printed).toContain('The ready view showed after step 1 of 3');
-    expect(printed).toContain('Likely cause: requests no mock answered and errors the app logged.');
     expect(printed).toContain(
-      'Me at me.name: the faked answer has no such field (expected String)'
+      'The ready view showed after step 1 of 3, before the last step of the play ran.'
     );
-    expect(printed).toContain('Me at me: the faked answer has no __typename');
+    expect(printed).toContain('Likely cause: requests with no mock and errors the app logged.');
+    expect(printed).toContain('Me at me.name: the mock answer has no such field (expected String)');
+    expect(printed).toContain('Mock answers the app could not use:');
+    expect(printed).toContain('Me at me: the mock answer has no __typename');
     expect(printed).toContain('its __typename matches no fragment of the query (expected User)');
-    expect(printed).toContain('Feed: skipped, the request sent no query text');
+    expect(printed).toContain('Feed: not checked, the request sent no query text');
   });
 
   it('a capture that is not a discover capture prints none of the discover lines', () => {
@@ -170,7 +174,7 @@ describe('a discover capture lists what the scene needs', () => {
     expect(printed).toContain('1 request had no mock:');
     expect(printed).not.toContain('mockRequest');
     expect(printed).not.toContain('ready view showed');
-    expect(printed).not.toContain('Faked answers');
+    expect(printed).not.toContain('Mock answers');
   });
 
   function neverReachedPlain(left: object): string {
