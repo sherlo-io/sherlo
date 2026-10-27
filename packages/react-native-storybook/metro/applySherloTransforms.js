@@ -13,6 +13,7 @@ var storyTitleReader = require('./storyTitleReader');
 var stillReal = require('./stillReal');
 var stableStringify = require('./stableStringify');
 var readSceneIds = require('./sceneFiles').readSceneIds;
+var findSceneFiles = require('./sceneFiles').findSceneFiles;
 var pathsOfChange = require('./sceneFiles').pathsOfChange;
 var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
@@ -773,7 +774,7 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
 
     line = sherloLine.attach(httpServer, WebSocketServer, {
       storyFileChangedSince: function (time) {
-        return aStoryFileChangedSince(projectRoot, opts, time);
+        return aStoryOrSceneFileChangedSince(projectRoot, opts, time);
       },
       warn: function (message) {
         console.warn('@sherlo/react-native-storybook: ' + message);
@@ -933,7 +934,9 @@ function applySherloTransforms(result, opts) {
   // mock that no import reached gets reported.
   // The list of the app's own modules a capture watches (stillReal.js): only a served bundle has it.
   var stillRealList =
-    opts && opts.enabled === false ? null : stillReal.listForServedBundles(projectRoot, mockSetup.mockedModuleKeys);
+    opts && opts.enabled === false
+      ? null
+      : stillReal.listForServedBundles(projectRoot, mockSetup.mockedModuleKeys);
   if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0 || stillRealList) {
     var existingCustomSerializer =
       result && result.serializer && typeof result.serializer.customSerializer === 'function'
@@ -1033,14 +1036,15 @@ function findStorybookRequires(projectRoot, opts) {
 }
 
 /**
- * The first story file the bundle's Storybook loads that was modified after `time` (milliseconds
- * since 1970), named under the project root; false when none was. The files are the ones the title
- * record walks, read when asked and statted when asked.
+ * The first story or scene file the bundle loads that was modified after `time` (milliseconds
+ * since 1970), named under the project root; false when none was. The story files are the ones the
+ * title record walks, and only when the project has a Storybook; the scene files are the project's
+ * own, always. Both are read when asked and statted when asked.
  */
-function aStoryFileChangedSince(projectRoot, opts, time) {
+function aStoryOrSceneFileChangedSince(projectRoot, opts, time) {
   var requiresPath = findStorybookRequires(projectRoot, opts);
-  if (!requiresPath) return false;
-  var changed = storyTitleReader.readStoryFilePaths(requiresPath).filter(function (file) {
+  var storyFiles = requiresPath ? storyTitleReader.readStoryFilePaths(requiresPath) : [];
+  var changed = storyFiles.concat(findSceneFiles(projectRoot)).filter(function (file) {
     try {
       return fs.statSync(file).mtimeMs > time;
     } catch (_) {
@@ -1203,7 +1207,7 @@ function installedStorybookVersion(wrapperPath) {
 module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
-module.exports.aStoryFileChangedSince = aStoryFileChangedSince;
+module.exports.aStoryOrSceneFileChangedSince = aStoryOrSceneFileChangedSince;
 module.exports.resolveThroughConfig = resolveThroughConfig;
 module.exports.isInsideFolder = mockShims.isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
