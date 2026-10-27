@@ -85,7 +85,9 @@ describe('the requests no rule answered', () => {
     await fetch(`${BASE}/orders`).catch(() => {});
 
     // The story's error keeps one refusal, the last; the list keeps all of them.
-    expect(readStoryError(STORY_ID)?.message).toBe(`no mock rule matches GET ${BASE}/orders`);
+    expect(readStoryError(STORY_ID)?.message).toBe(
+      `no mock rule matches GET ${BASE}/orders. Add a rule for it, or let it through.`
+    );
     expect(unansweredRequests()).toEqual([
       { method: 'GET', url: `${BASE}/orders` },
       { method: 'POST', url: `${BASE}/graphql` },

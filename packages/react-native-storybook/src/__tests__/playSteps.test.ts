@@ -761,7 +761,8 @@ describe('a scene plays its steps', () => {
     );
     nativeTree.readable = false;
     expect(await failed()).toBe(
-      frame + 'Sherlo could not read where the view is on screen, so it could not swipe it'
+      frame +
+        'the view has no readable position on screen, so it could not be swiped. Point the step at a view that is on screen.'
     );
   });
 });

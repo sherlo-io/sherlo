@@ -204,7 +204,9 @@ describe('a request the story names', () => {
 
     // The method is part of the rule: the same address with another method matches neither.
     const refusal = await refusalOf(fetch(`${BASE}/orders`));
-    expect(refusal.message).toBe(`no mock rule matches GET ${BASE}/orders`);
+    expect(refusal.message).toBe(
+      `no mock rule matches GET ${BASE}/orders. Add a rule for it, or let it through.`
+    );
   });
 
   it('a GraphQL request is matched by the operation name in its body', async () => {
@@ -225,7 +227,9 @@ describe('a request the story names', () => {
         body: JSON.stringify({ operationName: 'Profile', query: 'query Profile { me { id } }' }),
       })
     );
-    expect(refusal.message).toBe(`no mock rule matches POST ${BASE}/graphql Profile`);
+    expect(refusal.message).toBe(
+      `no mock rule matches POST ${BASE}/graphql Profile. Add a rule for it, or let it through.`
+    );
   });
 
   it('what a faked GraphQL answer lacks is kept for the story, the answer unchanged, until its rules go', async () => {
@@ -307,7 +311,9 @@ describe('a request no rule names', () => {
     const refusal = await refusalOf(fetch(`${BASE}/orders`));
 
     expect(refusal.name).toBe('UnmockedRequestError');
-    expect(refusal.message).toBe('no mock rule matches GET https://mocking.sherlo.invalid/orders');
+    expect(refusal.message).toBe(
+      'no mock rule matches GET https://mocking.sherlo.invalid/orders. Add a rule for it, or let it through.'
+    );
   });
 
   it('a refused GraphQL request names its operation', async () => {
@@ -323,7 +329,7 @@ describe('a request no rule names', () => {
     );
 
     expect(refusal.message).toBe(
-      'no mock rule matches POST https://mocking.sherlo.invalid/graphql Orders'
+      'no mock rule matches POST https://mocking.sherlo.invalid/graphql Orders. Add a rule for it, or let it through.'
     );
   });
 
@@ -337,7 +343,9 @@ describe('a request no rule names', () => {
     const url = `${BASE}/graphql?operationName=Me`;
     const refusal = await refusalOf(fetch(url));
 
-    expect(refusal.message).toBe(`no mock rule matches GET ${url}`);
+    expect(refusal.message).toBe(
+      `no mock rule matches GET ${url}. Add a rule for it, or let it through.`
+    );
     expect(unansweredRequests()).toEqual([{ method: 'GET', url, operation: 'Me' }]);
   });
 
@@ -505,7 +513,9 @@ describe('the rules follow the story', () => {
     await expect(get(`${BASE}/profile`)).resolves.toBe('the profile');
     expect(globals.fetch).toBe(wrappedFetch);
     const refusal = await refusalOf(fetch(`${BASE}/orders`));
-    expect(refusal.message).toBe(`no mock rule matches GET ${BASE}/orders`);
+    expect(refusal.message).toBe(
+      `no mock rule matches GET ${BASE}/orders. Add a rule for it, or let it through.`
+    );
     clearStoryError(STORY_ID);
 
     clearMocks();

@@ -187,7 +187,9 @@ describe('WebSockets in a story with network mocks', () => {
     expect(events).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
     expect(socket.readyState).toBe(ReactNativeWebSocket.CLOSED);
     expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS }]);
-    expect(readStoryError(STORY_ID)?.message).toBe(`no mock rule matches WS ${SUBSCRIPTIONS}`);
+    expect(readStoryError(STORY_ID)?.message).toBe(
+      `no mock rule matches WS ${SUBSCRIPTIONS}. Add a rule for it.`
+    );
   });
 
   it('passthrough lets requests through, never a socket', async () => {

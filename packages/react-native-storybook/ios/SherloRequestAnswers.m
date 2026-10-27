@@ -147,7 +147,7 @@ static BOOL SherloTakesRequest(NSURLRequest *request) {
 
   // Refused, as fetch refuses it - or the rules changed since the request was taken, and it can
   // no longer reach the network from here.
-  NSString *words = [NSString stringWithFormat:@"no mock rule matches %@ %@",
+  NSString *words = [NSString stringWithFormat:@"no mock rule matches %@ %@. Add a rule for it, or let it through.",
                                                (self.request.HTTPMethod ?: @"GET").uppercaseString,
                                                self.request.URL.absoluteString];
   NSError *refusal = [NSError errorWithDomain:NSURLErrorDomain

@@ -734,7 +734,7 @@ public class SherloModuleCore {
     public void swipe(Activity activity, double fromX, double fromY, double toX, double toY,
             double durationMs, final Promise promise) {
         if (activity == null) {
-            promise.reject("no_window", "The app has no window to swipe");
+            promise.reject("no_window", "the app has no window open, so there was nothing to swipe. Open the app on a screen and swipe again.");
             return;
         }
         View decor = activity.getWindow().getDecorView();

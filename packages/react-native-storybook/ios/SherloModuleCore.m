@@ -717,7 +717,7 @@ static UIScrollView *lockedScrollView = nil;
         // The window the inspector measures frames in, as the tap's.
         UIWindow *window = [InspectorHelper appWindow];
         if (!window) {
-            reject(@"no_window", @"The app has no window to swipe", nil);
+            reject(@"no_window", @"the app has no window open, so there was nothing to swipe. Open the app on a screen and swipe again.", nil);
             return;
         }
         [TouchHelper swipeInWindow:window

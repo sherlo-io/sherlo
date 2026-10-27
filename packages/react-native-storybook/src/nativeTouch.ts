@@ -70,7 +70,9 @@ export async function swipeView(
   direction: SwipeStep['swipe']['direction']
 ): Promise<void> {
   if (!frame) {
-    throw new Error('Sherlo could not read where the view is on screen, so it could not swipe it');
+    throw new Error(
+      'the view has no readable position on screen, so it could not be swiped. Point the step at a view that is on screen.'
+    );
   }
   const { fromX, fromY, toX, toY } = swipeLine(frame, direction);
   const touched = await SherloModule.swipe(fromX, fromY, toX, toY, SWIPE_MS);

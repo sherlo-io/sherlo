@@ -212,7 +212,9 @@ describe('the requests native code met that no rule matches', () => {
     ]);
     expect(refusals).toHaveLength(1);
     expect(refusals[0]).toBeInstanceOf(UnmockedRequestError);
-    expect(refusals[0].message).toBe('no mock rule matches GET https://pictures.example/cat.png');
+    expect(refusals[0].message).toBe(
+      'no mock rule matches GET https://pictures.example/cat.png. Add a rule for it, or let it through.'
+    );
   });
 
   it('a native request in a story that lets requests through is listed and refuses nothing', () => {

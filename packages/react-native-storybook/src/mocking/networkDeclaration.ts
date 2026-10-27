@@ -28,9 +28,9 @@ export interface RequestAnswer<Body = unknown> {
   /** How long to wait before answering - a slow server, told as a number. */
   delayMs?: number;
   /**
-   * The body as bytes, base64-encoded - a picture. Only a request native code makes itself is
-   * answered with it (an image view's own loader, a file download); fetch and XMLHttpRequest
-   * answer with `body`.
+   * The body as bytes, base64-encoded, so a picture can be answered. Only a request that native
+   * code makes itself gets it, such as an image view's own loader or a file download. fetch and
+   * XMLHttpRequest answer with `body`.
    */
   bodyBase64?: string;
 }
