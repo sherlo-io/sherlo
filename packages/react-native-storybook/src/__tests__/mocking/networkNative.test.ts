@@ -7,8 +7,9 @@ const { mockGetMode, setNativeRequestAnswers, nativeModule } = vi.hoisted(() => 
   return {
     mockGetMode: vi.fn(),
     setNativeRequestAnswers,
-    nativeModule: { setNativeRequestAnswers } as {
+    nativeModule: { setNativeRequestAnswers, addListener: () => {} } as {
       setNativeRequestAnswers?: typeof setNativeRequestAnswers;
+      addListener: () => void;
     },
   };
 });
@@ -26,7 +27,8 @@ import {
   NetworkMockDeclaration,
   networkMocksOf,
 } from '../../mocking/networkDeclaration';
-import { setDiscover } from '../../mocking/networkRules';
+import { setDiscover, UnmockedRequestError, unansweredRequests } from '../../mocking/networkRules';
+import { __emitMessageFromTheConnection } from '../__mocks__/react-native';
 
 const realFetch = globalThis.fetch;
 
@@ -161,5 +163,86 @@ describe('the rules handed to native code', () => {
     expect(() =>
       activate(mockRequest({ url: 'https://api.example/a' }, { body: 'a' }))
     ).not.toThrow();
+  });
+});
+
+describe('the requests native code met that no rule matches', () => {
+  /** Native code raising its event for one request it met, as the fake module sends it. */
+  function nativeMeets(request: Record<string, unknown>): void {
+    __emitMessageFromTheConnection(request, 'SherloUnansweredRequest');
+  }
+
+  it('a fetch let through and the native echo of it give one entry', async () => {
+    globalThis.fetch = vi.fn(async () => new Response('ok')) as unknown as typeof fetch;
+    activateNetworkMocks(networkMocksOf([mockRequest.passthrough()]), () => {});
+
+    await fetch('https://api.example');
+    nativeMeets({ method: 'GET', url: 'https://api.example/' });
+
+    expect(unansweredRequests()).toEqual([{ method: 'GET', url: 'https://api.example' }]);
+
+    nativeMeets({ method: 'GET', url: 'https://api.example/' });
+
+    expect(unansweredRequests()).toHaveLength(2);
+  });
+
+  it('an event of another name is not heard as a native request', () => {
+    activate(mockRequest({ url: 'https://api.example/a' }, { body: 'a' }));
+
+    __emitMessageFromTheConnection({ method: 'GET', url: 'https://pictures.example/cat.png' });
+
+    expect(unansweredRequests()).toEqual([]);
+  });
+
+  it('a native request no rule matches is listed and refuses the story the way a JS request does', () => {
+    const refusals: Error[] = [];
+    activateNetworkMocks(
+      networkMocksOf([mockRequest({ url: 'https://api.example/a' }, { body: 'a' })]),
+      (refusal) => refusals.push(refusal)
+    );
+
+    nativeMeets({
+      method: 'get',
+      url: 'https://pictures.example/cat.png',
+      contentType: 'image/png',
+    });
+
+    expect(unansweredRequests()).toEqual([
+      { method: 'GET', url: 'https://pictures.example/cat.png', contentType: 'image/png' },
+    ]);
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0]).toBeInstanceOf(UnmockedRequestError);
+    expect(refusals[0].message).toBe('no mock rule matches GET https://pictures.example/cat.png');
+  });
+
+  it('a native request in a story that lets requests through is listed and refuses nothing', () => {
+    const refusals: Error[] = [];
+    activateNetworkMocks(networkMocksOf([mockRequest.passthrough()]), (refusal) =>
+      refusals.push(refusal)
+    );
+
+    nativeMeets({ method: 'GET', url: 'https://pictures.example/cat.png' });
+
+    expect(unansweredRequests()).toEqual([
+      { method: 'GET', url: 'https://pictures.example/cat.png' },
+    ]);
+    expect(refusals).toEqual([]);
+  });
+
+  it('a native request told with no address is not listed', () => {
+    activate(mockRequest({ url: 'https://api.example/a' }, { body: 'a' }));
+
+    nativeMeets({ method: 'GET' });
+
+    expect(unansweredRequests()).toEqual([]);
+  });
+
+  it('a native request is not listed once the mocks are cleared', () => {
+    activate(mockRequest({ url: 'https://api.example/a' }, { body: 'a' }));
+    clearNetworkMocks();
+
+    nativeMeets({ method: 'GET', url: 'https://pictures.example/cat.png' });
+
+    expect(unansweredRequests()).toEqual([]);
   });
 });

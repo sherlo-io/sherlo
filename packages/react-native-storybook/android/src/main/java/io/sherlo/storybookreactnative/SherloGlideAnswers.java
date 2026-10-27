@@ -84,6 +84,7 @@ final class SherloGlideAnswers {
                 callback.onDataReady(new ByteArrayInputStream(rule.body));
                 return;
             }
+            SherloRequestAnswers.tellUnanswered("GET", url, null);
             // A held picture never arrives, as a held fetch is never answered; a refused one fails.
             if (SherloRequestAnswers.unmatched() == SherloRequestAnswers.Unmatched.HELD) return;
             callback.onLoadFailed(SherloRequestAnswers.refusalOf("GET", url));

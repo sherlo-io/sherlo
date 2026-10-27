@@ -5,6 +5,7 @@ import android.net.Uri;
 import android.util.Base64;
 import android.util.Log;
 
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.modules.network.OkHttpClientProvider;
 
 import org.json.JSONArray;
@@ -12,11 +13,9 @@ import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -30,13 +29,14 @@ import java.util.regex.Pattern;
  */
 public final class SherloRequestAnswers {
     private static final String TAG = "SherloRequestAnswers";
-    private static final List<String> LOOPBACK_HOSTS = Arrays.asList("localhost", "127.0.0.1", "::1", "[::1]", "10.0.2.2");
+    /** The event raised for each request native code met that no rule matches. */
+    private static final String UNANSWERED_REQUEST_EVENT = "SherloUnansweredRequest";
 
     /** What a request no rule matches gets. */
     enum Unmatched { PASSTHROUGH, HELD, REFUSAL }
 
     /** One rule, as src/mocking/networkNative hands it over. */
-    static final class Rule {
+    static final class Rule implements SherloRequestKind.Matching {
         String method;
         String urlKind;
         String urlValue;
@@ -46,7 +46,8 @@ public final class SherloRequestAnswers {
         byte[] body;
         String contentType;
 
-        boolean matches(String requestMethod, String url) {
+        @Override
+        public boolean matches(String requestMethod, String url) {
             if (method != null && !method.equals(requestMethod)) return false;
             if (urlKind == null) return true;
             switch (urlKind) {
@@ -72,6 +73,8 @@ public final class SherloRequestAnswers {
     }
 
     private static volatile InEffect inEffect = new InEffect(Collections.<Rule>emptyList(), Unmatched.PASSTHROUGH, null);
+    // Whether JavaScript has handed rules over: only then is it told of a request no rule matches.
+    private static volatile boolean rulesHanded = false;
     private static boolean glideHeld = false;
     private static boolean clientsAnswered = false;
 
@@ -118,6 +121,7 @@ public final class SherloRequestAnswers {
             Log.w(TAG, "rules unreadable, none put in effect", unreadable);
             return false;
         }
+        rulesHanded = true;
         if (inEffect.unmatched != Unmatched.PASSTHROUGH || !inEffect.rules.isEmpty()) holdGlide(context);
         return true;
     }
@@ -125,13 +129,7 @@ public final class SherloRequestAnswers {
     /** Whether native code answers, holds or refuses this request, rather than letting it through. */
     static boolean takes(String method, String url) {
         InEffect current = inEffect;
-        if (current.unmatched == Unmatched.PASSTHROUGH && current.rules.isEmpty()) return false;
-        if (url == null) return false;
-        Uri uri = Uri.parse(url);
-        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
-        if (!scheme.equals("http") && !scheme.equals("https")) return false;
-        if (isBundlerUrl(uri, current.bundlerOrigin)) return false;
-        return current.unmatched != Unmatched.PASSTHROUGH || ruleFor(method, url) != null;
+        return SherloRequestKind.isTaken(SherloRequestKind.of(current.rules, current.bundlerOrigin, method, url), current.unmatched == Unmatched.PASSTHROUGH);
     }
 
     /** The rule that answers a request, or null. */
@@ -143,6 +141,31 @@ public final class SherloRequestAnswers {
         return null;
     }
 
+    /**
+     * Tell JavaScript of a request no rule matches, as a SherloUnansweredRequest event carrying
+     * method, address and content type when there is one - never a body or headers
+     * (src/mocking/networkNative records it). Nothing is told before rules were handed over.
+     */
+    static void tellUnanswered(String method, String url, String contentType) {
+        if (!rulesHanded || url == null) return;
+        ReactApplicationContext reactContext = SherloModuleCore.currentReactContext();
+        if (reactContext == null || !reactContext.hasActiveReactInstance()) return;
+        try {
+            JSONObject told = new JSONObject().put("method", method).put("url", url);
+            if (contentType != null) told.put("contentType", contentType);
+            reactContext.emitDeviceEvent(UNANSWERED_REQUEST_EVENT, told.toString());
+        } catch (Throwable failed) {
+            Log.w(TAG, "Failed to tell JavaScript of an unanswered request", failed);
+        }
+    }
+
+    /** Tell JavaScript of a request let through that no rule matches (one `takes` did not take). */
+    static void tellIfLetThrough(String method, String url, String contentType) {
+        InEffect current = inEffect;
+        SherloRequestKind.Kind kind = SherloRequestKind.of(current.rules, current.bundlerOrigin, method, url);
+        if (SherloRequestKind.isToldWhenLetThrough(kind, current.unmatched == Unmatched.PASSTHROUGH, rulesHanded)) tellUnanswered(method, url, contentType);
+    }
+
     /** What a request no rule matches gets now. */
     static Unmatched unmatched() {
         return inEffect.unmatched;
@@ -151,15 +174,6 @@ public final class SherloRequestAnswers {
     /** The refusal a request no rule matches gets, worded as fetch's is. */
     static IOException refusalOf(String method, String url) {
         return new IOException("no mock rule matches " + method + " " + url);
-    }
-
-    /** The bundler's own address: its host and port, or its port on another spelling of this machine. */
-    private static boolean isBundlerUrl(Uri url, Uri bundler) {
-        if (bundler == null || url.getHost() == null || bundler.getHost() == null) return false;
-        if (url.getPort() != bundler.getPort()) return false;
-        String host = url.getHost().toLowerCase(Locale.ROOT);
-        String bundlerHost = bundler.getHost().toLowerCase(Locale.ROOT);
-        return host.equals(bundlerHost) || (LOOPBACK_HOSTS.contains(host) && LOOPBACK_HOSTS.contains(bundlerHost));
     }
 
     private static synchronized void holdGlide(Context context) {

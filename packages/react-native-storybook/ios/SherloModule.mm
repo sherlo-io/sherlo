@@ -10,6 +10,9 @@
 
 RCT_EXPORT_MODULE(SherloModule)
 
+/** The event raised for each request native code met that no rule matches (src/mocking/networkNative). */
+static NSString * const SHERLO_UNANSWERED_REQUEST_EVENT = @"SherloUnansweredRequest";
+
 static SherloModuleCore *core;
 
 /** The module whose JavaScript listens for the connection's messages now, if any. */
@@ -20,6 +23,9 @@ __attribute__((constructor))
 static void SherloEarlyInit(void) {
   [SherloModuleCore setMessageReceiver:^(NSString *messageJson) {
     [listeningModule sendEventWithName:SHERLO_MESSAGE_EVENT body:messageJson];
+  }];
+  [SherloRequestAnswers setUnansweredReceiver:^(NSString *requestJson) {
+    [listeningModule sendEventWithName:SHERLO_UNANSWERED_REQUEST_EVENT body:requestJson];
   }];
   core = [[SherloModuleCore alloc] init];
   if ([[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
@@ -49,7 +55,7 @@ static void SherloEarlyInit(void) {
 }
 
 - (NSArray<NSString *> *)supportedEvents {
-  return @[ SHERLO_MESSAGE_EVENT ];
+  return @[ SHERLO_MESSAGE_EVENT, SHERLO_UNANSWERED_REQUEST_EVENT ];
 }
 
 /** The JavaScript started listening for the connection's messages. */

@@ -35,6 +35,8 @@ final class SherloAnsweringInterceptor implements Interceptor {
     public Response intercept(@NonNull Chain chain) throws IOException {
         Request request = chain.request();
         if (!SherloRequestAnswers.takes(request.method().toUpperCase(), request.url().toString())) {
+            SherloRequestAnswers.tellIfLetThrough(
+                    request.method().toUpperCase(), request.url().toString(), request.header("Content-Type"));
             return chain.proceed(request);
         }
         return new LastLink(chain, interceptorsAfterThis(chain), 0, request).proceed(request);
@@ -65,7 +67,11 @@ final class SherloAnsweringInterceptor implements Interceptor {
         SherloRequestAnswers.Rule rule = SherloRequestAnswers.ruleFor(method, url);
         if (rule != null) return answerOf(request, rule);
 
-        switch (SherloRequestAnswers.unmatched()) {
+        SherloRequestAnswers.Unmatched unmatched = SherloRequestAnswers.unmatched();
+        if (unmatched != SherloRequestAnswers.Unmatched.PASSTHROUGH) {
+            SherloRequestAnswers.tellUnanswered(method, url, request.header("Content-Type"));
+        }
+        switch (unmatched) {
             case HELD:
                 holdUntilCanceled(original.call());
                 throw new IOException("Canceled");

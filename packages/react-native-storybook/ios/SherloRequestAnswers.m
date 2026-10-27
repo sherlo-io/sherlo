@@ -65,18 +65,60 @@ static SherloAnswerRule *SherloRuleFor(SherloAnswersInEffect *answers, NSURLRequ
   return nil;
 }
 
-/** Whether the request is one native code answers, refuses or holds, rather than lets through. */
+static void (^unansweredReceiver)(NSString *) = nil;
+
+/** Tell JavaScript of a request no rule matches: method, address and content type, nothing else. */
+static void SherloTellUnanswered(NSURLRequest *request) {
+  void (^receiver)(NSString *);
+  @synchronized (answersLock) { receiver = unansweredReceiver; }
+  if (!receiver) return;
+
+  NSMutableDictionary *told = [NSMutableDictionary dictionaryWithDictionary:@{
+    @"method" : (request.HTTPMethod ?: @"GET").uppercaseString,
+    @"url" : request.URL.absoluteString ?: @"",
+  }];
+  NSString *contentType = [request valueForHTTPHeaderField:@"Content-Type"];
+  if (contentType) told[@"contentType"] = contentType;
+  NSData *json = [NSJSONSerialization dataWithJSONObject:told options:0 error:nil];
+  if (json) receiver([[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding]);
+}
+
+// When each method and address was last told of. The loading system asks every registered protocol
+// about one request more than once, each time with a copy of it (so identity tells nothing); a
+// second ask for the same method and address within this window is that same request.
+static NSMutableDictionary<NSString *, NSDate *> *recentlyTold = nil;
+static const NSTimeInterval SHERLO_SAME_REQUEST_WINDOW = 1.0;
+
+static void SherloTellUnansweredOnce(NSURLRequest *request) {
+  NSString *key = [NSString stringWithFormat:@"%@ %@", (request.HTTPMethod ?: @"GET").uppercaseString, request.URL.absoluteString];
+  NSDate *now = [NSDate date];
+  @synchronized (answersLock) {
+    recentlyTold = recentlyTold ?: [NSMutableDictionary dictionary];
+    for (NSString *old in [recentlyTold allKeys]) {
+      if ([now timeIntervalSinceDate:recentlyTold[old]] > SHERLO_SAME_REQUEST_WINDOW) [recentlyTold removeObjectForKey:old];
+    }
+    if (recentlyTold[key]) return;
+    recentlyTold[key] = now;
+  }
+  SherloTellUnanswered(request);
+}
+
+/**
+ * Whether the request is one native code answers, refuses or holds, rather than lets through. A
+ * request let through that no rule matches is told to JavaScript here, as it never reaches a protocol.
+ */
 static BOOL SherloTakesRequest(NSURLRequest *request) {
   SherloAnswersInEffect *answers = SherloCurrentAnswers();
   if (!answers) return NO;
-  BOOL letThrough = [answers.unmatched isEqualToString:@"passthrough"];
-  if (letThrough && answers.rules.count == 0) return NO;
 
   NSString *scheme = request.URL.scheme.lowercaseString;
   if (![scheme isEqualToString:@"http"] && ![scheme isEqualToString:@"https"]) return NO;
   if (SherloIsBundlerUrl(request.URL, answers.bundlerOrigin)) return NO;
 
-  return !letThrough || SherloRuleFor(answers, request) != nil;
+  if (SherloRuleFor(answers, request) != nil) return YES;
+  if (![answers.unmatched isEqualToString:@"passthrough"]) return YES;
+  SherloTellUnansweredOnce(request);
+  return NO;
 }
 
 @interface SherloAnswerProtocol : NSURLProtocol
@@ -99,6 +141,7 @@ static BOOL SherloTakesRequest(NSURLRequest *request) {
     [self answerWith:rule];
     return;
   }
+  SherloTellUnanswered(self.request);
   // A held request is never answered, as fetch's is not in a discover launch.
   if ([answers.unmatched isEqualToString:@"held"]) return;
 
@@ -213,6 +256,10 @@ static void SherloInstallAnswering(void) {
   // No mode is read yet at load: a launch outside default mode installs it when its JavaScript
   // hands rules over (setRulesJson).
   if ([SherloLine runCanFollowInDefaultMode:YES]) SherloInstallAnswering();
+}
+
++ (void)setUnansweredReceiver:(void (^)(NSString *))receiver {
+  @synchronized (answersLock) { unansweredReceiver = [receiver copy]; }
 }
 
 + (BOOL)setRulesJson:(NSString *)rulesJson {

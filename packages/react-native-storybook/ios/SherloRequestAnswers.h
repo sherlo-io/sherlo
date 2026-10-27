@@ -14,4 +14,11 @@
 /** Put the rules in effect: the JSON src/mocking/networkNative hands over. */
 + (BOOL)setRulesJson:(NSString *)rulesJson;
 
+/**
+ * Who is told, as JSON `{method, url, contentType?}` and never a body or headers, of each request
+ * native code meets that no rule in effect matches (SherloModule raises it to JavaScript as a
+ * `SherloUnansweredRequest` event). Nothing is told before rules were handed over.
+ */
++ (void)setUnansweredReceiver:(void (^)(NSString *requestJson))receiver;
+
 @end

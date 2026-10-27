@@ -75,6 +75,10 @@ let discover = false;
 // story's error keeps only the last refusal; this keeps them all, and the ones let through too.
 let unanswered: UnansweredRequest[] = [];
 
+// The requests fetch or XMLHttpRequest let through that native code may tell of again, by method and
+// address: each is listed once, by JavaScript, so the first native tell of one is not listed.
+let expectedNativeEchoes = new Set<string>();
+
 // What the GraphQL answer check found in the answers the rules in effect gave (./graphqlAnswerCheck).
 let answerCheckFindings: AnswerFinding[] = [];
 
@@ -96,6 +100,7 @@ export function setNetworkMocks(
   socketPolicy = policyForSockets;
   recordRefusal = recordTheRefusal;
   unanswered = [];
+  expectedNativeEchoes = new Set();
   answerCheckFindings = [];
   matchedRules = new Set();
 }
@@ -166,6 +171,33 @@ export function answerFor(request: MockedRequest): Verdict {
     return { kind: 'answer', answer: rule.answer };
   }
 
+  const verdict = verdictForUnanswered(request);
+  // Let through, it reaches native code, which tells JavaScript of it again: that echo is dropped.
+  if (verdict.kind === 'passthrough') expectedNativeEchoes.add(echoKeyOf(request));
+  return verdict;
+}
+
+/**
+ * A request native code met that no rule matches, recorded as `verdictForUnanswered` does - unless
+ * it is the echo of one fetch or XMLHttpRequest let through and so already listed.
+ */
+export function verdictForNativeUnanswered(request: MockedRequest): Verdict | undefined {
+  if (expectedNativeEchoes.delete(echoKeyOf(request))) return undefined;
+  return verdictForUnanswered(request);
+}
+
+/** Method and address as native code tells them: no fragment, and a bare host ends in a slash. */
+function echoKeyOf({ method, url }: MockedRequest): string {
+  const withoutFragment = url.replace(/#.*$/, '');
+  return `${method} ${withoutFragment.replace(/^(https?:\/\/[^/?]+)(?=\?|$)/i, '$1/')}`;
+}
+
+/**
+ * A request no rule answers: listed among the unanswered, then let through, held or refused as the
+ * rules in effect say - a refusal told to whoever keeps the story's record. fetch and XMLHttpRequest
+ * reach it through `answerFor`; a request native code met and decided itself is recorded by it too.
+ */
+export function verdictForUnanswered(request: MockedRequest): Verdict {
   unanswered.push(recordOf(request));
   const unmatched = unmatchedRequestVerdict();
   if (unmatched !== 'refusal') return { kind: unmatched };

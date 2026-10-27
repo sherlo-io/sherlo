@@ -1,7 +1,8 @@
 import base64 from 'base-64';
 import utf8 from 'utf8';
 import type { NetworkRule } from './networkDeclaration';
-import { bodyOf, statusOf, urlPrefixOf } from './networkRules';
+import { NativeEventEmitter } from 'react-native';
+import { bodyOf, statusOf, urlPrefixOf, verdictForNativeUnanswered } from './networkRules';
 import { bundlerOrigin } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
 import NativeSherloModule from '../specs/NativeSherloModule';
@@ -21,8 +22,15 @@ import NativeSherloModule from '../specs/NativeSherloModule';
  *   loader put first in Glide's registry (SherloGlideAnswers.java).
  *
  * A request no native rule matches gets what fetch would in the same story: let through, held
- * for good (a discover launch), or refused - without the story being recorded as one that threw.
+ * for good (a discover launch), or refused.
  * The bundler's own address is always let through.
+ *
+ * Each request native code meets that no rule matches is told back to JavaScript as a
+ * `SherloUnansweredRequest` event - method, url and content type when there is one, never a body or
+ * headers - and recorded by the code a fetch no rule matches goes through (`verdictForNativeUnanswered`):
+ * listed, and the story ended by the refusal where fetch would be refused. The decision stays
+ * native. Native code raises the event only once rules were handed over. A fetch or XMLHttpRequest
+ * let through reaches native code too and is told again: that echo is dropped, as it is listed.
  *
  * Rules that name a GraphQL operation, and every rule's delayMs, stay in JavaScript: native code
  * reads no request body and answers at once.
@@ -67,6 +75,31 @@ export function handRulesToNative(
   } catch {
     return;
   }
+}
+
+/** The event native code raises for each request it met that no rule matches, with its JSON. */
+const UNANSWERED_EVENT = 'SherloUnansweredRequest';
+
+/**
+ * Record every request native code tells of from now on as one no rule answers; the answer stops
+ * listening. A native build from before the event raises none.
+ */
+export function listenForNativeUnanswered(): () => void {
+  if (typeof NativeSherloModule?.addListener !== 'function') return () => {};
+
+  const subscription = new NativeEventEmitter(NativeSherloModule).addListener(
+    UNANSWERED_EVENT,
+    (requestJson: string) => {
+      const { method, url, contentType } = JSON.parse(requestJson) as Record<string, unknown>;
+      if (typeof method !== 'string' || typeof url !== 'string') return;
+      verdictForNativeUnanswered({
+        method: method.toUpperCase(),
+        url,
+        ...(typeof contentType === 'string' && { contentType }),
+      });
+    }
+  );
+  return () => subscription.remove();
 }
 
 function nativeRuleOf({ matcher, answer }: NetworkRule): NativeRule {
