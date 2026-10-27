@@ -44,25 +44,33 @@ export function __resetConnection(): void {
   (globalThis as any).__sherloTestMessageListeners = [];
 }
 
-/** Bring one message over the connection, as native code raises its `SherloMessage` event. */
-export function __emitMessageFromTheConnection(message: Record<string, unknown>): void {
-  const listeners: Array<(messageJson: string) => void> =
-    (globalThis as any).__sherloTestMessageListeners ?? [];
+type EventListening = { eventName: string; listener: (messageJson: string) => void };
+
+/**
+ * Bring one message over the connection, as native code raises its `SherloMessage` event - or the
+ * event named, which only the listeners of that name hear, as a real emitter has it.
+ */
+export function __emitMessageFromTheConnection(
+  message: Record<string, unknown>,
+  eventName = 'SherloMessage'
+): void {
+  const listenings: EventListening[] = (globalThis as any).__sherloTestMessageListeners ?? [];
   // A copy, as a real emitter has: a listener that stops itself must not skip the next one.
-  [...listeners].forEach((listener) => listener(JSON.stringify(message)));
+  [...listenings]
+    .filter((listening) => listening.eventName === eventName)
+    .forEach(({ listener }) => listener(JSON.stringify(message)));
 }
 
 export class NativeEventEmitter {
   constructor(_nativeModule?: unknown) {}
 
-  addListener(_eventName: string, listener: (messageJson: string) => void) {
-    const listeners: Array<(messageJson: string) => void> = ((
-      globalThis as any
-    ).__sherloTestMessageListeners ??= []);
-    listeners.push(listener);
+  addListener(eventName: string, listener: (messageJson: string) => void) {
+    const listenings: EventListening[] = ((globalThis as any).__sherloTestMessageListeners ??= []);
+    const listening = { eventName, listener };
+    listenings.push(listening);
     return {
       remove: () => {
-        listeners.splice(listeners.indexOf(listener), 1);
+        listenings.splice(listenings.indexOf(listening), 1);
       },
     };
   }

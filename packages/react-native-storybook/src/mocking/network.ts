@@ -5,7 +5,7 @@ import { RecordRefusal, setNetworkMocks, unmatchedRequestVerdict } from './netwo
 import { TurboModule, TurboModuleRegistry } from 'react-native';
 import { holdNativeSockets, NativeSocketModule } from './networkSocket';
 import { isACapture } from './stillReal';
-import { handRulesToNative } from './networkNative';
+import { handRulesToNative, listenForNativeUnanswered } from './networkNative';
 import { isBundlerSocketUrl } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
 
@@ -28,6 +28,9 @@ type NetworkGlobals = {
 
 /** What was replaced, kept so it can be put back. Null whenever nothing is replaced. */
 let realNetwork: NetworkGlobals | null = null;
+
+// Stops hearing the requests native code met that no rule matches, while the wrappers are in.
+let stopListeningToNative: () => void = () => {};
 
 /**
  * Put one story's network mocks in effect. A story that declares none puts the real fetch and
@@ -122,6 +125,7 @@ function install(): void {
 
   const globals = globalThis as unknown as NetworkGlobals;
   realNetwork = { fetch: globals.fetch, XMLHttpRequest: globals.XMLHttpRequest };
+  stopListeningToNative = listenForNativeUnanswered();
 
   globals.fetch = mockedFetchOf(realNetwork.fetch);
   // A runtime without XMLHttpRequest has nothing to wrap; fetch alone still answers.
@@ -135,5 +139,7 @@ function restore(): void {
   globals.fetch = realNetwork.fetch;
   if (realNetwork.XMLHttpRequest) globals.XMLHttpRequest = realNetwork.XMLHttpRequest;
 
+  stopListeningToNative();
+  stopListeningToNative = () => {};
   realNetwork = null;
 }
