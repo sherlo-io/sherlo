@@ -14,7 +14,7 @@ import {
   type ValidatedModuleManifest,
 } from '../commands/test/readModuleManifest';
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
-import { printTestStarted } from '../commands/test/stagedRun';
+import { printTestStarted } from '../commands/test/startTheTest';
 import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
 import type { PlatformRow } from '../render/runRows';

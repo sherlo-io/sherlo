@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // The REAL git read, not the seam's dispatcher (../../seams/surroundings): this suite is
 // about what the tool asks a real repository.
 import { ANCESTOR_LIMIT, readGitInfoFromDisk as getGitInfo } from '../getGitInfo';
+import { captureTranscript } from '../transcriptSink';
 import GitFixture from './support/gitFixture';
 import {
   isolateEachCase,
@@ -87,6 +88,20 @@ describe('getGitInfo - shallow clone', () => {
     const info = await getGitInfo(threeCommitsShallow.dir);
 
     expect(info.isShallow).toBe(true);
+  });
+
+  it("warns once, on one line, with git's reason when the host refuses the history fetch", async () => {
+    let info: Awaited<ReturnType<typeof getGitInfo>> | undefined;
+    const { stderr } = await captureTranscript(async () => {
+      info = await getGitInfo(threeCommitsShallow.dir);
+    });
+
+    const warningLines = stderr
+      .split('\n')
+      .filter((line) => line.includes("Couldn't fetch the git history"));
+    expect(warningLines).toHaveLength(1);
+    expect(warningLines[0].length).toBeGreaterThan("! Couldn't fetch the git history: ".length);
+    expect(info?.isShallow).toBe(true);
   });
 
   it('degrades gracefully on a shallow merge-ref clone: no crash, base fields populated', async () => {

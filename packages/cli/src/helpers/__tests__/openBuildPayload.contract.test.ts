@@ -81,7 +81,7 @@ vi.mock('../getBuildRunConfig', () => ({ default: mocks.getBuildRunConfig }));
 vi.mock('../getAppBuildUrl', () => ({ default: mocks.getAppBuildUrl }));
 // The run's started line and its ending are the staged road's own (../../commands/test), stubbed
 // here: what this file pins is the payload the spine sends.
-vi.mock('../../commands/test/stagedRun', () => ({ printTestStarted: mocks.printTestStarted }));
+vi.mock('../../commands/test/startTheTest', () => ({ printTestStarted: mocks.printTestStarted }));
 vi.mock('../../commands/test/closeTheRun', () => ({ closeTheRun: mocks.closeTheRun }));
 vi.mock('../handleClientError', () => ({ default: mocks.handleClientError }));
 vi.mock('../reporting', () => ({ default: mocks.reporting }));

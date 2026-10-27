@@ -23,9 +23,8 @@
 import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
-import { Config, Options } from '../../types';
+import { Options } from '../../types';
 import {
-  getAppBuildUrl,
   getBuildRunConfig,
   getGitInfo,
   getPlatformsToTest,
@@ -34,17 +33,12 @@ import {
   reporting,
   throwError,
 } from '../../helpers';
-import { emit } from '../../helpers/transcriptSink';
-import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { baseFingerprintsOf } from '../../helpers/fingerprint/baseFingerprintsOf';
-import { closeTheRun } from './closeTheRun';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
 import { parseStagedGateRefusal, type StagedGateRefusal } from './stagedGateRefusal';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
-import { joinTheRun } from './appBuild/joinTheRun';
-import { pushFactsOf } from './appBuild/pushFacts';
 import {
   type BuildFlags,
   type BuildSettings,
@@ -63,17 +57,10 @@ import { buildBundles } from './bundleAndPreview';
 import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
-import {
-  bundleStoryFiles,
-  countBundleStories,
-  countStoriesIn,
-  titledStoryFilesIn,
-  type ValidatedModuleManifest,
-} from './readModuleManifest';
-import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
-import type { PlatformRow } from '../../render/runRows';
-import type { PlatformCapture } from '../../render/testSteps';
-import { rowsAbove, printPlatformRowInALog } from './platformRows';
+import type { ValidatedModuleManifest } from './readModuleManifest';
+import { serverCalls } from '../../seams/serverCalls';
+import { printPlatformRowInALog } from './platformRows';
+import { openAndEndTheTest } from './startTheTest';
 
 /**
  * The ONLY gate metadata the pre-bundle probe may send: the `none` derivation
@@ -328,13 +315,15 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     level: 'info',
   });
 
-  let openBuildReturn;
-  /** A split job whose test starts in the other job: its run waits for that job's platform. */
-  let joinedRunWaits = false;
-  try {
-    // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
-    // the network. The payload is the one this run composed, unchanged.
-    const request = {
+  // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
+  // the network. The payload is the one this run composed, unchanged; the push facts, the join, the
+  // test's row and its ending are the ones every bundled road shares (./startTheTest).
+  return openAndEndTheTest({
+    passedOptions,
+    commandParams,
+    platformsToTest,
+    joinKey,
+    request: {
       teamId,
       projectIndex,
       buildRunConfig,
@@ -346,91 +335,22 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
         platformsToTest
       ),
       gateMetadata: gateMetadata as GateMetadataByPlatform,
-    };
-    // Nothing was built on this road: the facts are the bundles' story counts and the CI run.
-    const pushFacts = pushFactsOf({
-      appBuilds: {},
-      storiesInBundle: storiesInBundleOf(bundles, platformsToTest),
-      env: process.env,
-      runIdFlag: (passedOptions as BuildFlags).runId,
-    });
-    if (joinKey) {
-      // A joined run decides what it captures when its last platform is in, so this job
-      // has no capture plan to print - only the run's link.
-      const joined = await joinTheRun({
-        token,
-        joinKey,
-        platform: platformsToTest[0],
-        request,
-        pushFacts: pushFacts.platforms[platformsToTest[0]],
-        platformRows,
-        testDevices: commandParams.testDevices,
-      });
-      joinedRunWaits = joined.waitingFor.length > 0;
-      openBuildReturn = {
-        build: joined.build,
-        buildRun: { config: {} },
-      } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>;
-    } else {
-      openBuildReturn = await serverCalls().openBuild({ token, pushFacts, ...request });
-    }
-  } catch (error) {
+    },
+    moduleManifests: collectModuleManifests(bundles, platformsToTest),
+    platformRows,
     // Safety net: the server gate may still refuse at openBuild even though the
     // checks above said fast (e.g. a base registered between calls). It is the
     // SAME routing answer, so it is published the SAME way.
-    const refusal = parseStagedGateRefusal(error);
-    if (refusal) {
-      return buildTheRefusedPlatforms({
-        refusals: [refusal],
-        storedBuildIndexOf: identityAnswers.storedBuildIndexOf,
-      });
-    }
-    handleClientError(error, token); // always throws
-    throw error; // unreachable - satisfies control flow / typing
-  }
-
-  const { build } = openBuildReturn;
-  const buildIndex = build.index;
-  // Sentry tags must be strings; buildIndex is a number from the API response.
-  reporting.setTag('build_index', String(buildIndex));
-  reporting.setTag('platform', platformsToTest.length === 2 ? 'both' : platformsToTest[0]);
-
-  const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
-
-  // The API may close the build itself, without ever running it on a device
-  // (SHERLO-1959), when every story's screenshot can be inherited from the
-  // previous build. Detected off the openBuild COUNTS (the per-platform prose
-  // reason is not selected by BuildFragment, so it is unavailable here). Such a
-  // build has nothing to review and the review page cannot render its shape yet
-  // (SHERLO-1974), so - in BOTH modes - we withhold the review/build URL and
-  // print the compact bypassed closer instead (SHERLO-1952).
-  const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
-
-  // The test's row, with what it captures (SHERLO-1919) - read straight off the openBuild response,
-  // no extra API call (a joined run's row was printed by joinTheRun) - then its ending
-  // (./closeTheRun).
-  if (!joinKey) {
-    printTestStarted({
-      openBuildReturn,
-      moduleManifests: collectModuleManifests(bundles, platformsToTest),
-      platformsToTest,
-      devices: commandParams.devices,
-      serverBypassed,
-      platformRows,
-    });
-  }
-
-  await closeTheRun({
-    commandParams,
-    buildIndex,
-    url,
-    serverBypassed,
-    platformRows,
-    endsOnNextStep: !joinedRunWaits,
-    hasCiToken: openBuildReturn.hasCiToken,
+    refusedAtOpen: (error) => {
+      const refusal = parseStagedGateRefusal(error);
+      return refusal
+        ? buildTheRefusedPlatforms({
+            refusals: [refusal],
+            storedBuildIndexOf: identityAnswers.storedBuildIndexOf,
+          })
+        : undefined;
+    },
   });
-
-  return { url };
 }
 
 export default stagedRun;
@@ -511,20 +431,6 @@ type GateAnswers = {
   storedBuildIndexOf: Partial<Record<Platform, number>>;
 };
 
-/** How many stories each platform's bundle holds, counted off its module map. */
-function storiesInBundleOf(
-  bundles: Partial<Record<Platform, BundleResult>>,
-  platformsToTest: Platform[]
-): Partial<Record<Platform, number>> {
-  const counts: Partial<Record<Platform, number>> = {};
-  for (const [platform, moduleManifest] of Object.entries(
-    collectModuleManifests(bundles, platformsToTest)
-  ) as Array<[Platform, ValidatedModuleManifest]>) {
-    counts[platform] = countBundleStories(moduleManifest);
-  }
-  return counts;
-}
-
 /** The per-platform module manifests the capture plan reads, lifted off the bundles. */
 export function collectModuleManifests(
   bundles: Partial<Record<Platform, BundleResult>>,
@@ -536,87 +442,4 @@ export function collectModuleManifests(
     if (manifest) moduleManifests[platform] = manifest;
   }
   return moduleManifests;
-}
-
-/**
- * The test's row under the platforms' rows, saying what it captures - per platform, straight off
- * the openBuild response (SHERLO-1919): `Test 14     ✔ Started: 3 of 24 stories on 1 device
- * (Pixel 7)`, with the story files it captures under it, new and changed marked (../../render/runRows).
- * No extra API call: `captureScope` carries the captured set and `diffScopeInfo` the reason. Why a
- * partial capture took what it took is `npx sherlo view <n> --json`'s. The review link is the
- * ending's (./closeTheRun).
- *
- * `full: true` means EVERY story was in scope: an empty `storyFilePaths` then means "everything",
- * not "nothing". A platform the server made no decision for (no `captureScope`) adds no count -
- * silence, never an invented "captured everything". A test the server closed without a device run has no started row
- * (./closeTheRun ends it, and decides where its platforms' rows go).
- *
- * Exported because the SIM road reuses this exact output road - it has no
- * bundles, so the count is keyed on each platform's module manifest, the one input
- * the line actually reads.
- */
-export function printTestStarted({
-  openBuildReturn,
-  moduleManifests,
-  platformsToTest,
-  devices,
-  serverBypassed,
-  platformRows,
-}: {
-  openBuildReturn: OpenBuildAnswer;
-  moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
-  platformsToTest: Platform[];
-  devices: Config['devices'];
-  serverBypassed: boolean;
-  /** What became of each platform's app build: the rows above the test's row. The sim road has none. */
-  platformRows: PlatformRow[];
-}): void {
-  // A test the server closed without a device run never started on one: its ending is the one
-  // finished step that says so (./closeTheRun).
-  if (serverBypassed) return;
-
-  const diffScopeInfo = openBuildReturn.build.diffScopeInfo;
-
-  const capture: PlatformCapture[] = [];
-  for (const platform of platformsToTest) {
-    const captureScope = openBuildReturn.buildRun?.config?.[platform]?.captureScope;
-    if (!captureScope) continue;
-
-    const manifest = moduleManifests[platform];
-    capture.push({
-      platform,
-      // INVERSION GUARD: full === true is "every story", regardless of the list.
-      full: captureScope.full,
-      capturedStories: captureScope.full
-        ? 0
-        : manifest
-          ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
-          : (captureScope.storyFilePaths ?? []).length,
-      // The whole bundle's story set, counted the ONE canonical way.
-      storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
-      // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
-      // a machine code. The line prints it only for a full capture.
-      reason: diffScopeInfo?.platforms?.[platform]?.reason,
-      // A full capture takes every story file the bundle holds.
-      storyFiles: captureScope.full
-        ? manifest
-          ? bundleStoryFiles(manifest)
-          : []
-        : (captureScope.storyFilePaths ?? []),
-      newStoryFiles: captureScope.newStoryFilePaths ?? [],
-      ...(manifest ? { storyTitles: titledStoryFilesIn(manifest) } : {}),
-      // A partial capture takes exactly what a change reaches.
-      changedStoryFiles: captureScope.full
-        ? (captureScope.changedStoryFilePaths ?? [])
-        : (captureScope.storyFilePaths ?? []),
-    });
-  }
-
-  emit({
-    kind: 'test-started',
-    buildIndex: openBuildReturn.build.index,
-    devices,
-    capture,
-    rowsAbove: rowsAbove(platformRows),
-  });
 }

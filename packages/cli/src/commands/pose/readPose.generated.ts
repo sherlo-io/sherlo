@@ -153,12 +153,20 @@ function readPosedGit(value: unknown, path: string, problems: string[]): void {
       expectString(object2.branch, at(path, 'branch'), problems);
       expectString(object2.commit, at(path, 'commit'), problems);
       expectBoolean(object2.dirty, at(path, 'dirty'), problems);
-      reportUnknownFields(object2, ['branch', 'commit', 'dirty'], path, problems);
+      if ('historyFetchRefused' in object2) {
+        expectString(object2.historyFetchRefused, at(path, 'historyFetchRefused'), problems);
+      }
+      reportUnknownFields(
+        object2,
+        ['branch', 'commit', 'dirty', 'historyFetchRefused'],
+        path,
+        problems
+      );
     }
   } else {
     reportWrongShape(
       oneOf1,
-      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean }`',
+      '`"none"`, `"unavailable"` or `{ branch: string; commit: string; dirty: boolean; historyFetchRefused?: string }`',
       path,
       problems
     );

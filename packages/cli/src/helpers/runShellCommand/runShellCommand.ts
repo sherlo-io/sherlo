@@ -12,6 +12,8 @@ interface Options {
    * See executeCommand for details (SHERLO-1744).
    */
   envMode?: 'merge' | 'replace';
+  /** Kill the command and reject when it runs longer than this many milliseconds. */
+  timeoutMs?: number;
 }
 
 /**
@@ -27,9 +29,10 @@ async function runShellCommand({
   encoding = 'utf8',
   env,
   envMode,
+  timeoutMs,
 }: Options): Promise<string | Buffer> {
   try {
-    return await executeCommand({ command, projectRoot, encoding, env, envMode });
+    return await executeCommand({ command, projectRoot, encoding, env, envMode, timeoutMs });
   } catch (error) {
     if (
       error instanceof Error &&

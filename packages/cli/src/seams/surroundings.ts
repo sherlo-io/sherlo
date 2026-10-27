@@ -19,6 +19,7 @@
  */
 import type { GitInfo } from '../helpers/getGitInfo';
 import { degradeGitInfo, readGitInfoFromDisk } from '../helpers/getGitInfo';
+import { emit } from '../helpers/transcriptSink';
 
 /** What a command reads from outside its project folder. */
 export type Surroundings = {
@@ -87,7 +88,16 @@ export function installSurroundings(next: Surroundings): () => void {
  * `"unavailable"` is a read that failed (the tool prints its own warning for it); otherwise the
  * three facts the tool asks for.
  */
-export type PosedGit = { branch: string; commit: string; dirty: boolean } | 'none' | 'unavailable';
+export type PosedGit =
+  | {
+      branch: string;
+      commit: string;
+      dirty: boolean;
+      /** Git's own sentence when the tool's fetch of 200 commits of a shallow clone was refused. */
+      historyFetchRefused?: string;
+    }
+  | 'none'
+  | 'unavailable';
 
 /**
  * The surroundings a pose declares.
@@ -158,7 +168,7 @@ export function posedSurroundings({
 
     readGitInfo: async (_projectRoot: string, options?: { branchOverride?: string }) => {
       // THE WORDING IS GIT'S OWN. `readGitInfoFromDisk` degrades on the stderr of a failed
-      // `git rev-parse HEAD` (see ../helpers/getGitInfo's `reasonFor`), and this is the exact
+      // `git rev-parse HEAD` (see ../helpers/gitFailureReason), and this is the exact
       // sentence git 2.x has printed for that failure since 1.8.5 (2013): a folder with no `.git`
       // anywhere above it. A posed `git: 'none'` must fail with that same sentence, or a screen
       // built on the pose is proof of nothing about the real failure it stands in for.
@@ -168,6 +178,10 @@ export function posedSurroundings({
         );
       }
       if (git === 'unavailable') return degradeGitInfo(statedError('the git read failed'));
+
+      if (git.historyFetchRefused !== undefined) {
+        emit({ kind: 'git-history-fetch-refused', reason: git.historyFetchRefused });
+      }
 
       return {
         // `--git-branch` overrides whatever git said, on a posed run exactly as on a live one.
