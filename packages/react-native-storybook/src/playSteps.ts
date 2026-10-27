@@ -41,6 +41,8 @@ const TAP_WAIT_MS = 5_000;
 const POLL_MS = 100;
 /** How long the finger rests on the view: past a Pressable's press-in delay, short of a long press. */
 const PRESS_HOLD_MS = 150;
+/** How long the finger rests for a long-press: past a Pressable's 500 ms long-press delay. */
+const LONG_PRESS_HOLD_MS = 800;
 /** How long a link has to reach the app's navigation (a `url` event is native code's, a tick later). */
 const LINK_SETTLE_MS = 300;
 
@@ -110,6 +112,13 @@ export async function playSteps(
           await waitForTarget(targetOf(step.tap)),
           `scene ${sceneId} step ${index + 1} of ${steps.length}`
         );
+      } else if ('longPress' in step) {
+        await tapView(
+          await waitForTarget(targetOf(step.longPress)),
+          `scene ${sceneId} step ${index + 1} of ${steps.length}`,
+          LONG_PRESS_HOLD_MS,
+          'long-press'
+        );
       } else if ('open' in step) {
         await openLink(step);
         if (!('ready' in (steps[index + 1] ?? {}))) await readyOrThrow(scene?.ready);
@@ -150,8 +159,9 @@ export function nameOf(target: TapTarget): string {
 function describe(step: PlayStep): string {
   if ('open' in step) return `open ${step.open}`;
   if ('ready' in step) return 'ready';
-  const target = targetOf(step.tap);
-  return `tap ${nameOf(target)}${target.index ? ` #${target.index}` : ''}`;
+  const [verb, named] = 'longPress' in step ? ['long-press', step.longPress] : ['tap', step.tap];
+  const target = targetOf(named);
+  return `${verb} ${nameOf(target)}${target.index ? ` #${target.index}` : ''}`;
 }
 
 /**
@@ -222,24 +232,29 @@ export async function testIDsOnScreen(limit: number): Promise<{ testIDs: string[
  * touch landed inside the target and no React recognizer took it. Throws when the touch hit
  * another view, or when this iOS lacks the private calls the touch is made of.
  */
-async function tapView({ fiber, frame }: Found, stage: string): Promise<void> {
+async function tapView(
+  { fiber, frame }: Found,
+  stage: string,
+  holdMs = PRESS_HOLD_MS,
+  verb: 'tap' | 'long-press' = 'tap'
+): Promise<void> {
   const x = frame ? frame.x + frame.width / 2 : 0;
   const y = frame ? frame.y + frame.height / 2 : 0;
-  const touched = frame ? await SherloModule.tap(x, y, PRESS_HOLD_MS) : null;
+  const touched = frame ? await SherloModule.tap(x, y, holdMs) : null;
   // One line per tap step, written where the step ends: the path it took, the point, the target's
   // native tag and, when the native touch answered, what it hit.
   const logTap = (path: string) =>
     logTheLine(
-      `${stage} tap by ${path} at ${x},${y} target ${nativeTagOf(fiber)}` +
+      `${stage} ${verb} by ${path} at ${x},${y} target ${nativeTagOf(fiber)}` +
         (touched
           ? ` hitClass ${touched.hitClass} hitTag ${touched.hitTag} reachedReact ${touched.reachedReact}`
           : '')
     );
-  if (!touched) return logTap(await pressView(fiber, frame));
+  if (!touched) return logTap(await pressView(fiber, frame, holdMs, verb));
   if (touched.missing.length > 0) {
     logTap('native touch');
     throw new Error(
-      `Sherlo cannot tap on iOS ${Platform.Version} yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this`
+      `Sherlo cannot ${verb} on iOS ${Platform.Version} yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this`
     );
   }
   const cover = coverOf(currentAppFiber(), nativeTagOf(fiber), touched);
@@ -248,12 +263,12 @@ async function tapView({ fiber, frame }: Found, stage: string): Promise<void> {
     const covering =
       cover.testID !== undefined ? nameOf({ testID: cover.testID }) : cover.className;
     throw new Error(
-      `the target is covered by ${covering}, so the tap never reached it. Wait for the cover to close, or close it with a tap step before this one`
+      `the target is covered by ${covering}, so the ${verb} never reached it. Wait for the cover to close, or close it with a tap step before this one`
     );
   }
   // The touch landed inside the target and no React recognizer took it (a native control, say):
   // nothing covers the target, so the synthetic press stands in.
-  logTap(touched.reachedReact ? 'native touch' : await pressView(fiber, frame));
+  logTap(touched.reachedReact ? 'native touch' : await pressView(fiber, frame, holdMs, verb));
 }
 
 /**
@@ -264,8 +279,11 @@ async function tapView({ fiber, frame }: Found, stage: string): Promise<void> {
  */
 async function pressView(
   fiber: WalkedFiber,
-  frame: Frame | undefined
-): Promise<'synthetic press' | 'the nearest onPress'> {
+  frame: Frame | undefined,
+  holdMs = PRESS_HOLD_MS,
+  verb: 'tap' | 'long-press' = 'tap'
+): Promise<'synthetic press' | 'the nearest onPress' | 'the nearest onLongPress'> {
+  const handler = verb === 'tap' ? 'onPress' : 'onLongPress';
   const path: WalkedFiber[] = [];
   for (let node: WalkedFiber | null | undefined = fiber; node; node = node.return) {
     if (typeof node.type === 'string' && node.memoizedProps) path.push(node);
@@ -281,19 +299,21 @@ async function pressView(
   const responder = findResponder(path, eventFor);
   if (responder) {
     responder.memoizedProps.onResponderGrant?.(eventFor(responder, 'onResponderGrant'));
-    await new Promise((resolve) => setTimeout(resolve, PRESS_HOLD_MS));
-    timestamp += PRESS_HOLD_MS;
+    await new Promise((resolve) => setTimeout(resolve, holdMs));
+    timestamp += holdMs;
     responder.memoizedProps.onResponderRelease?.(eventFor(responder, 'onResponderRelease'));
     return 'synthetic press';
   }
   for (let above: WalkedFiber | null | undefined = fiber; above; above = above.return) {
-    const onPress = above.memoizedProps?.onPress;
-    if (typeof onPress === 'function') {
-      onPress(eventFor(fiber, 'onPress'));
-      return 'the nearest onPress';
+    const onHandler = above.memoizedProps?.[handler];
+    if (typeof onHandler === 'function') {
+      onHandler(eventFor(fiber, handler));
+      return verb === 'tap' ? 'the nearest onPress' : 'the nearest onLongPress';
     }
   }
-  throw new Error('nothing at the view answers a tap (no responder and no onPress above it)');
+  throw new Error(
+    `nothing at the view answers a ${verb} (no responder and no ${handler} above it)`
+  );
 }
 
 /**

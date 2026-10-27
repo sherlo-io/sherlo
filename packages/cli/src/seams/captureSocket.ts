@@ -499,8 +499,12 @@ export type PosedCapture =
       reachedMs: number;
       /** The steps that ran before the one that found nothing. */
       playDone: PosedPlayStep[];
-      /** The tap that found nothing, and how long it looked. */
-      targetMissing: { tap: string; limitMs: number };
+      /** The step that found nothing, and how long it looked. */
+      targetMissing:
+        | { tap: string; limitMs: number }
+        | { longPress: string; limitMs: number }
+        | { type: string; limitMs: number }
+        | { swipe: string; direction: 'left' | 'right' | 'up' | 'down'; limitMs: number };
     }
   /** A scene run that came back with its record. */
   | {
@@ -518,8 +522,16 @@ export type PosedCapture =
       tree: PosedView;
     };
 
-/** One step of a scene's `play`: a tap on the view with that testID, or one of the app's own links. */
-export type PosedPlayStep = { tap: string } | { open: string };
+/**
+ * One step of a scene's `play`: a tap, a long-press, a typing (its name only) or a swipe on a view,
+ * or one of the app's own links.
+ */
+export type PosedPlayStep =
+  | { tap: string }
+  | { longPress: string }
+  | { type: string }
+  | { swipe: string; direction: 'left' | 'right' | 'up' | 'down' }
+  | { open: string };
 
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own
@@ -629,13 +641,14 @@ export function posedCaptureSocket(
         return { kind: 'never-reached', sceneId, ready, stayedOn, unanswered };
       }
       if ('targetMissing' in posed) {
+        const { limitMs, ...missing } = posed.targetMissing;
         return {
           kind: 'play-target-missing',
           sceneId,
           route: posed.route,
           done: posed.playDone,
-          missing: { tap: posed.targetMissing.tap },
-          limitMs: posed.targetMissing.limitMs,
+          missing,
+          limitMs,
         };
       }
       return {

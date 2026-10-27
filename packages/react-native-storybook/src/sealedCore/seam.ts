@@ -142,10 +142,21 @@ export type RulesInstalledProof = {
   sockets: number;
 };
 
-/** One step of a scene's play: a tap on the view with that testID, or a link the app is handed. */
-export type ScenePlayStep = { tap: string } | { open: string };
+/**
+ * One step of a scene's play: a tap, a long-press or a typing on the view with that testID (its
+ * name only, never the typed text), a swipe on it in a direction, or a link the app is handed.
+ */
+export type ScenePlayStep =
+  | { tap: string }
+  | { longPress: string }
+  | { type: string }
+  | { swipe: string; direction: 'left' | 'right' | 'up' | 'down' }
+  | { open: string };
 
-/** How a scene's play went: every step played, or the tap whose view never showed. */
+/** The step whose view never showed: any kind of step but a link. */
+export type ScenePlayMissing = Exclude<ScenePlayStep, { open: string }>;
+
+/** How a scene's play went: every step played, or the step whose view never showed. */
 export type ScenePlayOutcome =
   | {
       played: ScenePlayStep[];
@@ -155,7 +166,7 @@ export type ScenePlayOutcome =
   | {
       /** The steps played before the one that found nothing. */
       played: ScenePlayStep[];
-      missing: { tap: string };
+      missing: ScenePlayMissing;
       /** How long the step looked for its view, in ms. */
       limitMs: number;
     };
@@ -985,7 +996,7 @@ export type CapturedScene =
       route: string[];
       /** The steps played before the one that found nothing. */
       done: ScenePlayStep[];
-      missing: { tap: string };
+      missing: ScenePlayMissing;
       limitMs: number;
     })
   /** The scene's walk itself failed: the app stops and says why. */

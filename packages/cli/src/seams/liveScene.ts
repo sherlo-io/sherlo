@@ -8,7 +8,7 @@
  * does either. The record comes back down the same line a story's does, and Sherlo's own log
  * lines from the app are drained from the line's feed after it.
  */
-import type { SceneEnding, SceneLeft, PlayStep } from '../render/capturedScene';
+import type { SceneEnding, SceneLeft, PlayStep, PlayMissing } from '../render/capturedScene';
 import { drainAppLog, keepStrings, readAppLog } from './appLog';
 import { readAppError } from './appError';
 import { askTheBundlerLine } from './bundlerLine';
@@ -314,13 +314,12 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
   }
 
   if (answer?.kind === 'play-target-missing') {
-    const missing = answer.missing as { tap?: unknown } | undefined;
     return {
       kind: 'play-target-missing',
       sceneId,
       route: keepStrings(answer.route),
       done: playSteps(answer.done),
-      missing: { tap: typeof missing?.tap === 'string' ? missing.tap : '' },
+      missing: playMissing(answer.missing as PlayStepAnswer | undefined) ?? { tap: '' },
       limitMs: typeof answer.limitMs === 'number' ? answer.limitMs : 0,
       ...keptLeft(answer),
     };
@@ -361,9 +360,33 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
 
 function playSteps(value: unknown): PlayStep[] {
   if (!Array.isArray(value)) return [];
-  return value.flatMap((step: { tap?: unknown; open?: unknown }): PlayStep[] => {
-    if (typeof step?.tap === 'string') return [{ tap: step.tap }];
+  return value.flatMap((step: PlayStepAnswer): PlayStep[] => {
     if (typeof step?.open === 'string') return [{ open: step.open }];
-    return [];
+    const played = playMissing(step);
+    return played ? [played] : [];
   });
+}
+
+type PlayStepAnswer = {
+  tap?: unknown;
+  longPress?: unknown;
+  type?: unknown;
+  swipe?: unknown;
+  direction?: unknown;
+  open?: unknown;
+};
+
+/** The step as the app answered it, when it is a tap, a long-press, a typing or a swipe. */
+function playMissing(step: PlayStepAnswer | undefined): PlayMissing | undefined {
+  if (typeof step?.tap === 'string') return { tap: step.tap };
+  if (typeof step?.longPress === 'string') return { longPress: step.longPress };
+  if (typeof step?.type === 'string') return { type: step.type };
+  const { swipe, direction } = step ?? {};
+  if (
+    typeof swipe === 'string' &&
+    (direction === 'left' || direction === 'right' || direction === 'up' || direction === 'down')
+  ) {
+    return { swipe, direction };
+  }
+  return undefined;
 }

@@ -1262,12 +1262,58 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
             readPosedPlayStep(entry21, atIndex(where19, index22), problems);
           });
         }
-        const where23 = at(path, 'targetMissing');
-        const object24 = asObject(object18.targetMissing, where23, problems);
-        if (object24) {
-          expectString(object24.tap, at(where23, 'tap'), problems);
-          expectNumber(object24.limitMs, at(where23, 'limitMs'), problems);
-          reportUnknownFields(object24, ['tap', 'limitMs'], where23, problems);
+        const oneOf23 = object18.targetMissing;
+        const where24 = at(path, 'targetMissing');
+        if (isPlainObject(oneOf23)) {
+          if ('tap' in oneOf23) {
+            const object25 = asObject(oneOf23, where24, problems);
+            if (object25) {
+              expectString(object25.tap, at(where24, 'tap'), problems);
+              expectNumber(object25.limitMs, at(where24, 'limitMs'), problems);
+              reportUnknownFields(object25, ['tap', 'limitMs'], where24, problems);
+            }
+          } else if ('longPress' in oneOf23) {
+            const object26 = asObject(oneOf23, where24, problems);
+            if (object26) {
+              expectString(object26.longPress, at(where24, 'longPress'), problems);
+              expectNumber(object26.limitMs, at(where24, 'limitMs'), problems);
+              reportUnknownFields(object26, ['longPress', 'limitMs'], where24, problems);
+            }
+          } else if ('type' in oneOf23) {
+            const object27 = asObject(oneOf23, where24, problems);
+            if (object27) {
+              expectString(object27.type, at(where24, 'type'), problems);
+              expectNumber(object27.limitMs, at(where24, 'limitMs'), problems);
+              reportUnknownFields(object27, ['type', 'limitMs'], where24, problems);
+            }
+          } else if ('swipe' in oneOf23) {
+            const object28 = asObject(oneOf23, where24, problems);
+            if (object28) {
+              expectString(object28.swipe, at(where24, 'swipe'), problems);
+              expectOneOf(
+                object28.direction,
+                ['left', 'right', 'up', 'down'],
+                at(where24, 'direction'),
+                problems
+              );
+              expectNumber(object28.limitMs, at(where24, 'limitMs'), problems);
+              reportUnknownFields(object28, ['swipe', 'direction', 'limitMs'], where24, problems);
+            }
+          } else {
+            reportWrongShape(
+              oneOf23,
+              "`{ tap: string; limitMs: number }`, `{ longPress: string; limitMs: number }`, `{ type: string; limitMs: number }` or `{ swipe: string; direction: 'left' | 'right' | 'up' | 'down'; limitMs: number }`",
+              where24,
+              problems
+            );
+          }
+        } else {
+          reportWrongShape(
+            oneOf23,
+            "`{ tap: string; limitMs: number }`, `{ longPress: string; limitMs: number }`, `{ type: string; limitMs: number }` or `{ swipe: string; direction: 'left' | 'right' | 'up' | 'down'; limitMs: number }`",
+            where24,
+            problems
+          );
         }
         reportUnknownFields(
           object18,
@@ -1277,99 +1323,99 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
         );
       }
     } else if ('play' in oneOf1) {
-      const object25 = asObject(oneOf1, path, problems);
-      if (object25) {
-        expectStringArray(object25.scenes, at(path, 'scenes'), problems);
-        expectStringArray(object25.route, at(path, 'route'), problems);
-        expectNumber(object25.bootMs, at(path, 'bootMs'), problems);
-        expectNumber(object25.reachedMs, at(path, 'reachedMs'), problems);
-        const where26 = at(path, 'play');
-        const list27 = asArray(object25.play, where26, problems);
-        if (list27) {
-          list27.forEach((entry28, index29) => {
-            readPosedPlayStep(entry28, atIndex(where26, index29), problems);
+      const object29 = asObject(oneOf1, path, problems);
+      if (object29) {
+        expectStringArray(object29.scenes, at(path, 'scenes'), problems);
+        expectStringArray(object29.route, at(path, 'route'), problems);
+        expectNumber(object29.bootMs, at(path, 'bootMs'), problems);
+        expectNumber(object29.reachedMs, at(path, 'reachedMs'), problems);
+        const where30 = at(path, 'play');
+        const list31 = asArray(object29.play, where30, problems);
+        if (list31) {
+          list31.forEach((entry32, index33) => {
+            readPosedPlayStep(entry32, atIndex(where30, index33), problems);
           });
         }
-        const where30 = at(path, 'settled');
-        const object31 = asObject(object25.settled, where30, problems);
-        if (object31) {
-          expectNumber(object31.ms, at(where30, 'ms'), problems);
-          expectNumber(object31.frames, at(where30, 'frames'), problems);
-          reportUnknownFields(object31, ['ms', 'frames'], where30, problems);
+        const where34 = at(path, 'settled');
+        const object35 = asObject(object29.settled, where34, problems);
+        if (object35) {
+          expectNumber(object35.ms, at(where34, 'ms'), problems);
+          expectNumber(object35.frames, at(where34, 'frames'), problems);
+          reportUnknownFields(object35, ['ms', 'frames'], where34, problems);
         }
-        if ('unanswered' in object25) {
-          const where32 = at(path, 'unanswered');
-          const list33 = asArray(object25.unanswered, where32, problems);
-          if (list33) {
-            list33.forEach((entry34, index35) => {
-              readUnansweredRequest(entry34, atIndex(where32, index35), problems);
+        if ('unanswered' in object29) {
+          const where36 = at(path, 'unanswered');
+          const list37 = asArray(object29.unanswered, where36, problems);
+          if (list37) {
+            list37.forEach((entry38, index39) => {
+              readUnansweredRequest(entry38, atIndex(where36, index39), problems);
             });
           }
         }
-        readPosedView(object25.tree, at(path, 'tree'), problems);
+        readPosedView(object29.tree, at(path, 'tree'), problems);
         reportUnknownFields(
-          object25,
+          object29,
           ['scenes', 'route', 'bootMs', 'reachedMs', 'play', 'settled', 'unanswered', 'tree'],
           path,
           problems
         );
       }
     } else {
-      const object36 = asObject(oneOf1, path, problems);
-      if (object36) {
-        expectStringArray(object36.stories, at(path, 'stories'), problems);
-        const oneOf37 = object36.settled;
-        const where38 = at(path, 'settled');
-        if (oneOf37 === 'timed-out') {
+      const object40 = asObject(oneOf1, path, problems);
+      if (object40) {
+        expectStringArray(object40.stories, at(path, 'stories'), problems);
+        const oneOf41 = object40.settled;
+        const where42 = at(path, 'settled');
+        if (oneOf41 === 'timed-out') {
           // the value is one of these
-        } else if (isPlainObject(oneOf37)) {
-          const object39 = asObject(oneOf37, where38, problems);
-          if (object39) {
-            expectNumber(object39.ms, at(where38, 'ms'), problems);
-            expectNumber(object39.frames, at(where38, 'frames'), problems);
-            reportUnknownFields(object39, ['ms', 'frames'], where38, problems);
+        } else if (isPlainObject(oneOf41)) {
+          const object43 = asObject(oneOf41, where42, problems);
+          if (object43) {
+            expectNumber(object43.ms, at(where42, 'ms'), problems);
+            expectNumber(object43.frames, at(where42, 'frames'), problems);
+            reportUnknownFields(object43, ['ms', 'frames'], where42, problems);
           }
         } else {
           reportWrongShape(
-            oneOf37,
+            oneOf41,
             '`"timed-out"` or `{ ms: number; frames: number }`',
-            where38,
+            where42,
             problems
           );
         }
-        if ('changing' in object36) {
-          expectStringArray(object36.changing, at(path, 'changing'), problems);
+        if ('changing' in object40) {
+          expectStringArray(object40.changing, at(path, 'changing'), problems);
         }
-        if ('stillReal' in object36) {
-          expectStringArray(object36.stillReal, at(path, 'stillReal'), problems);
+        if ('stillReal' in object40) {
+          expectStringArray(object40.stillReal, at(path, 'stillReal'), problems);
         }
-        if ('unanswered' in object36) {
-          const where40 = at(path, 'unanswered');
-          const list41 = asArray(object36.unanswered, where40, problems);
-          if (list41) {
-            list41.forEach((entry42, index43) => {
-              readUnansweredRequest(entry42, atIndex(where40, index43), problems);
+        if ('unanswered' in object40) {
+          const where44 = at(path, 'unanswered');
+          const list45 = asArray(object40.unanswered, where44, problems);
+          if (list45) {
+            list45.forEach((entry46, index47) => {
+              readUnansweredRequest(entry46, atIndex(where44, index47), problems);
             });
           }
         }
-        if ('threw' in object36) {
-          const where44 = at(path, 'threw');
-          const object45 = asObject(object36.threw, where44, problems);
-          if (object45) {
-            expectString(object45.name, at(where44, 'name'), problems);
-            expectString(object45.message, at(where44, 'message'), problems);
-            reportUnknownFields(object45, ['name', 'message'], where44, problems);
+        if ('threw' in object40) {
+          const where48 = at(path, 'threw');
+          const object49 = asObject(object40.threw, where48, problems);
+          if (object49) {
+            expectString(object49.name, at(where48, 'name'), problems);
+            expectString(object49.message, at(where48, 'message'), problems);
+            reportUnknownFields(object49, ['name', 'message'], where48, problems);
           }
         }
-        if ('parts' in object36) {
-          expectNumber(object36.parts, at(path, 'parts'), problems);
+        if ('parts' in object40) {
+          expectNumber(object40.parts, at(path, 'parts'), problems);
         }
-        if ('hasNetworkImage' in object36) {
-          expectBoolean(object36.hasNetworkImage, at(path, 'hasNetworkImage'), problems);
+        if ('hasNetworkImage' in object40) {
+          expectBoolean(object40.hasNetworkImage, at(path, 'hasNetworkImage'), problems);
         }
-        readPosedView(object36.tree, at(path, 'tree'), problems);
+        readPosedView(object40.tree, at(path, 'tree'), problems);
         reportUnknownFields(
-          object36,
+          object40,
           [
             'stories',
             'settled',
@@ -1389,7 +1435,7 @@ function readPosedCapture(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      '`"no-bundler"`, `"no-app"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }`, `{ stories: string[]; settled: \'timed-out\' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`, `{ scenes: string[]; threwAtBoot: { name: string; message: string; file: string; line: number } }`, `{ scenes: string[]; ready: string; stayedOn: string[]; unanswered?: UnansweredRequest[] }`, `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; playDone: PosedPlayStep[]; targetMissing: { tap: string; limitMs: number } }` or `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; play: PosedPlayStep[]; settled: { ms: number; frames: number }; unanswered?: UnansweredRequest[]; tree: PosedView }`',
+      "`\"no-bundler\"`, `\"no-app\"`, `{ stories: string[]; crashed: { name?: string; message?: string } }`, `{ stories: string[]; brokenFiles: BrokenStoryFile[] }`, `{ stories: string[]; settled: 'timed-out' | { ms: number; frames: number }; changing?: string[]; stillReal?: string[]; unanswered?: UnansweredRequest[]; threw?: { name: string; message: string }; parts?: number; hasNetworkImage?: boolean; tree: PosedView }`, `{ scenes: string[]; threwAtBoot: { name: string; message: string; file: string; line: number } }`, `{ scenes: string[]; ready: string; stayedOn: string[]; unanswered?: UnansweredRequest[] }`, `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; playDone: PosedPlayStep[]; targetMissing: { tap: string; limitMs: number } | { longPress: string; limitMs: number } | { type: string; limitMs: number } | { swipe: string; direction: 'left' | 'right' | 'up' | 'down'; limitMs: number } }` or `{ scenes: string[]; route: string[]; bootMs: number; reachedMs: number; play: PosedPlayStep[]; settled: { ms: number; frames: number }; unanswered?: UnansweredRequest[]; tree: PosedView }`",
       path,
       problems
     );
@@ -2424,17 +2470,51 @@ function readPosedPlayStep(value: unknown, path: string, problems: string[]): vo
         expectString(object2.tap, at(path, 'tap'), problems);
         reportUnknownFields(object2, ['tap'], path, problems);
       }
-    } else if ('open' in oneOf1) {
+    } else if ('longPress' in oneOf1) {
       const object3 = asObject(oneOf1, path, problems);
       if (object3) {
-        expectString(object3.open, at(path, 'open'), problems);
-        reportUnknownFields(object3, ['open'], path, problems);
+        expectString(object3.longPress, at(path, 'longPress'), problems);
+        reportUnknownFields(object3, ['longPress'], path, problems);
+      }
+    } else if ('type' in oneOf1) {
+      const object4 = asObject(oneOf1, path, problems);
+      if (object4) {
+        expectString(object4.type, at(path, 'type'), problems);
+        reportUnknownFields(object4, ['type'], path, problems);
+      }
+    } else if ('swipe' in oneOf1) {
+      const object5 = asObject(oneOf1, path, problems);
+      if (object5) {
+        expectString(object5.swipe, at(path, 'swipe'), problems);
+        expectOneOf(
+          object5.direction,
+          ['left', 'right', 'up', 'down'],
+          at(path, 'direction'),
+          problems
+        );
+        reportUnknownFields(object5, ['swipe', 'direction'], path, problems);
+      }
+    } else if ('open' in oneOf1) {
+      const object6 = asObject(oneOf1, path, problems);
+      if (object6) {
+        expectString(object6.open, at(path, 'open'), problems);
+        reportUnknownFields(object6, ['open'], path, problems);
       }
     } else {
-      reportWrongShape(oneOf1, '`{ tap: string }` or `{ open: string }`', path, problems);
+      reportWrongShape(
+        oneOf1,
+        "`{ tap: string }`, `{ longPress: string }`, `{ type: string }`, `{ swipe: string; direction: 'left' | 'right' | 'up' | 'down' }` or `{ open: string }`",
+        path,
+        problems
+      );
     }
   } else {
-    reportWrongShape(oneOf1, '`{ tap: string }` or `{ open: string }`', path, problems);
+    reportWrongShape(
+      oneOf1,
+      "`{ tap: string }`, `{ longPress: string }`, `{ type: string }`, `{ swipe: string; direction: 'left' | 'right' | 'up' | 'down' }` or `{ open: string }`",
+      path,
+      problems
+    );
   }
 }
 

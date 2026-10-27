@@ -305,4 +305,26 @@ describe('a scene whose play could not go on', () => {
     expect(printed).toContain('tap Row found no view with that text within 10s.');
     expect(printed).not.toContain('testID');
   });
+
+  it("a long-press, a type and a swipe step are named in the capture's output", () => {
+    const printed = renderCapturedScene({
+      kind: 'play-target-missing',
+      sceneId: 'inbox--full',
+      route: ['Inbox'],
+      done: [
+        { longPress: 'row' },
+        { longPress: 'text "Ada"' },
+        { type: 'search' },
+        { swipe: 'row', direction: 'left' },
+      ],
+      missing: { longPress: 'Inbox' },
+      limitMs: 10_000,
+    }).join('\n');
+
+    expect(printed).toContain('long-press testID "row"');
+    expect(printed).toContain('long-press text "Ada"');
+    expect(printed).toContain('type testID "search"');
+    expect(printed).toContain('swipe left testID "row"');
+    expect(printed).toContain('long-press Inbox found no view with that testID within 10s.');
+  });
 });
