@@ -6,18 +6,19 @@
 import type { deviceState } from './deviceState';
 
 /**
- * Mark the developer menu's first-run sheet as seen in the stopped app's private preferences.
- * Mirrors sherlo-runner's android preSeedExpoDevMenuPrefs.ts, but sets only the two keys that hide
- * the sheet and keep the menu closed at launch. The XML goes through base64 because `run-as sh -c` strips its double quotes.
+ * Prepare the developer menu for a capture in the stopped app's private preferences: its first-run
+ * sheet seen, the menu closed at launch, and its floating Tools button off.
+ * Mirrors sherlo-runner's android preSeedExpoDevMenuPrefs.ts, but sets only those three keys. The XML goes through base64 because `run-as sh -c` strips its double quotes.
  */
-export async function markAndroidDevMenuSheetSeen(
+export async function prepareAndroidDevMenuForCapture(
   adb: (...args: string[]) => Promise<string>,
   appId: string
 ): Promise<void> {
   const xml =
     `<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n<map>\n` +
     `    <boolean name="isOnboardingFinished" value="true" />\n` +
-    `    <boolean name="showsAtLaunch" value="false" />\n</map>\n`;
+    `    <boolean name="showsAtLaunch" value="false" />\n` +
+    `    <boolean name="showFab" value="false" />\n</map>\n`;
   const encoded = Buffer.from(xml, 'utf-8').toString('base64');
   const dir = `/data/data/${appId}/shared_prefs`;
   await adb(

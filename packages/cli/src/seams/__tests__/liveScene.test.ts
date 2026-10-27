@@ -909,7 +909,35 @@ describe('a scene is captured and opened live', () => {
     expect(ran.filter((command) => command.includes('defaults write'))).toEqual([
       mark,
       'xcrun simctl spawn UDID-1 defaults write com.example.chat EXDevMenuShowsAtLaunch -bool NO',
+      'xcrun simctl spawn UDID-1 defaults write com.example.chat EXDevMenuShowFloatingActionButton -bool NO',
     ]);
+  });
+
+  it("an iPhone scene launch writes the dev menu's Tools button off before it launches", async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
+    );
+    const { ran, uninstall } = recordingDevice({
+      get_app_container: '/Devices/UDID-1/Bundle/Application/X/Chat.app\n',
+      plutil: '{\n  "CFBundleURLSchemes" => [\n    0 => "exp+chat"\n  ]\n}\n',
+    });
+
+    try {
+      await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+    } finally {
+      uninstall();
+    }
+
+    const hide =
+      'xcrun simctl spawn UDID-1 defaults write com.example.chat EXDevMenuShowFloatingActionButton -bool NO';
+    const launch = ran.findIndex((command) => command.startsWith('xcrun simctl launch'));
+    expect(ran.indexOf(hide)).toBeGreaterThan(-1);
+    expect(ran.indexOf(hide)).toBeLessThan(launch);
   });
 
   it('an iOS clean-device start of an Expo development build keeps the developer menu closed at launch', async () => {
@@ -998,7 +1026,7 @@ describe('a scene is captured and opened live', () => {
     const encoded = /echo (\S+) \| base64 -d/.exec(ran[write])?.[1] ?? '';
     const xml = Buffer.from(encoded, 'base64').toString('utf-8');
     expect(xml).toContain('<boolean name="isOnboardingFinished" value="true" />');
-    expect(xml).not.toContain('showFab');
+    expect(xml).not.toContain('motionGestureEnabled');
     expect(ran[write]).toContain('expo.modules.devmenu.sharedpreferences.xml');
   });
 
