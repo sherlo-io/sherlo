@@ -58,17 +58,11 @@ final class TouchHelper {
                 final float py = (float) (y * density);
                 final Result result = hitAt(decor, px, py);
                 final long downTime = SystemClock.uptimeMillis();
-                MotionEvent down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, px, py, 0);
-                down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-                decor.dispatchTouchEvent(down);
-                down.recycle();
+                send(decor, downTime, MotionEvent.ACTION_DOWN, px, py);
                 ui.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        MotionEvent up = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, px, py, 0);
-                        up.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-                        decor.dispatchTouchEvent(up);
-                        up.recycle();
+                        send(decor, downTime, MotionEvent.ACTION_UP, px, py);
                         done.tapped(result);
                     }
                 }, (long) holdMs);
@@ -120,9 +114,13 @@ final class TouchHelper {
         });
     }
 
-    /** One touch-screen event of a finger that went down at downTime, sent now to the decor view. */
+    /**
+     * One touch-screen event of a finger that went down at downTime, sent to the decor view. The
+     * down is stamped at downTime itself; every later event at the moment it is sent.
+     */
     private static void send(View decor, long downTime, int action, float x, float y) {
-        MotionEvent event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, x, y, 0);
+        long eventTime = action == MotionEvent.ACTION_DOWN ? downTime : SystemClock.uptimeMillis();
+        MotionEvent event = MotionEvent.obtain(downTime, eventTime, action, x, y, 0);
         event.setSource(InputDevice.SOURCE_TOUCHSCREEN);
         decor.dispatchTouchEvent(event);
         event.recycle();
