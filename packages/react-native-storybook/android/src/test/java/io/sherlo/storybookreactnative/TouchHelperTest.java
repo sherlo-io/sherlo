@@ -11,7 +11,9 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
 
+import com.facebook.react.PointerEventsReactView;
 import com.facebook.react.RecordingReactView;
+import com.facebook.react.uimanager.PointerEvents;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -203,6 +205,51 @@ public class TouchHelperTest {
         TouchHelper.Result result = tapAt(decor, 540, 1750);
 
         assertEquals(0, react.actions.size());
+        assertEquals(1, result.hitTag);
+        assertTrue(result.reachedReact);
+    }
+
+    @Test
+    public void a_React_view_that_lets_touches_through_is_passed_over_and_the_view_under_it_is_hit() {
+        Context context = RuntimeEnvironment.getApplication();
+        // Like React's debugging overlay: as big as the window, drawn last, pointer events none.
+        PointerEventsReactView none = new PointerEventsReactView(context, PointerEvents.NONE);
+        FrameLayout decor = windowWithOverlay(new FrameLayout(context), none, false);
+        decor.findViewById(36).setClickable(true);
+
+        TouchHelper.Result result = tapAt(decor, 540, 1750);
+
+        assertEquals(36, result.hitTag);
+        assertEquals("android.view.View", result.hitClass);
+    }
+
+    @Test
+    public void a_React_view_that_says_box_none_is_passed_over_but_its_children_are_still_asked() {
+        Context context = RuntimeEnvironment.getApplication();
+        PointerEventsReactView boxNone = new PointerEventsReactView(context, PointerEvents.BOX_NONE);
+        FrameLayout decor = windowWithOverlay(new FrameLayout(context), boxNone, false);
+        decor.findViewById(36).setClickable(true);
+        // A child of the box-none view, over the target, takes the touch.
+        View inside = new View(context);
+        inside.setId(2);
+        inside.setClickable(true);
+        boxNone.addView(inside, new FrameLayout.LayoutParams(300, 200));
+        inside.layout(400, 1650, 700, 1850);
+
+        assertEquals(2, tapAt(decor, 540, 1750).hitTag);
+        // Away from the child, the box-none view itself is passed over.
+        assertEquals(36, tapAt(decor, 380, 1750).hitTag);
+    }
+
+    @Test
+    public void a_React_view_that_takes_touches_still_covers_the_view_under_it() {
+        Context context = RuntimeEnvironment.getApplication();
+        PointerEventsReactView auto = new PointerEventsReactView(context, PointerEvents.AUTO);
+        FrameLayout decor = windowWithOverlay(new FrameLayout(context), auto, false);
+        decor.findViewById(36).setClickable(true);
+
+        TouchHelper.Result result = tapAt(decor, 540, 1750);
+
         assertEquals(1, result.hitTag);
         assertTrue(result.reachedReact);
     }
