@@ -2,7 +2,11 @@
 // or open the app's own link, each once its target is on screen and drawn. A step that cannot be
 // played throws, naming the step. The app here is small: Discover with a tab bar, a chat list, a chat.
 
-const { views, scene, nativeTree, nativeTouch } = vi.hoisted(() => ({
+// The type step lives in typeInto.ts; its tests are here, with the rest of the steps.
+
+const { views, scene, nativeTree, nativeTouch, textCommands } = vi.hoisted(() => ({
+  /** The text input's own commands, as the new architecture has them: every call is kept. */
+  textCommands: { calls: [] as unknown[][], available: true },
   views: { now: undefined as unknown as () => any },
   scene: { play: [] as unknown[], ready: undefined as unknown },
   nativeTree: { readable: true },
@@ -36,6 +40,13 @@ vi.mock('../SherloModule', () => ({
       return Object.fromEntries(testIDs.map((id) => [id, drawn.has(id) ? 'visible' : 'absent']));
     },
   },
+}));
+
+vi.mock('../textInputCommands', () => ({
+  textInputCommandsFor: () =>
+    textCommands.available
+      ? { setTextAndSelection: (...call: unknown[]) => textCommands.calls.push(call) }
+      : undefined,
 }));
 
 vi.mock('../helpers/RunnerBridge', () => ({ default: { log: vi.fn(), send: vi.fn() } }));
@@ -492,6 +503,62 @@ describe('a scene plays its steps', () => {
     expect(await played()).toEqual(['type testID "chat.input.message"']);
     expect(changed).toEqual(['On my way']);
     expect(shown).toEqual([{ text: 'On my way' }]);
+  });
+
+  describe('on the new architecture', () => {
+    const fabric = globalThis as { nativeFabricUIManager?: unknown };
+    const field = (instance: Record<string, any>, changed: string[]) => {
+      views.now = () => ({
+        tag: 1,
+        frame: WINDOW,
+        children: [
+          {
+            tag: 30,
+            type: 'RCTSinglelineTextInputView',
+            props: {
+              testID: 'chat.input.message',
+              mostRecentEventCount: 4,
+              onChange: (event: any) => changed.push(event.nativeEvent.text),
+            },
+            instance,
+            frame: { x: 0, y: 700, width: 390, height: 44 },
+          },
+        ],
+      });
+      scene.play = [{ type: { testID: 'chat.input.message', text: 'On my way' } }];
+    };
+
+    beforeEach(() => {
+      fabric.nativeFabricUIManager = {};
+      textCommands.calls = [];
+      textCommands.available = true;
+    });
+    afterEach(() => {
+      delete fabric.nativeFabricUIManager;
+    });
+
+    it("a type step on the new architecture sets the field's text through the text input's own command", async () => {
+      const changed: string[] = [];
+      const shown: unknown[] = [];
+      field({ setNativeProps: (props: unknown) => shown.push(props) }, changed);
+
+      expect(await played()).toEqual(['type testID "chat.input.message"']);
+      expect(textCommands.calls).toHaveLength(1);
+      expect(textCommands.calls[0].slice(1)).toEqual([4, 'On my way', -1, -1]);
+      expect(shown).toEqual([]);
+      expect(changed).toEqual(['On my way']);
+    });
+
+    it('a type step with no command and no setNativeProps ends with its line, never the typed text', async () => {
+      textCommands.available = false;
+      field({}, []);
+      const error = await played().catch((thrown) => thrown);
+      expect(error.message).toBe(
+        `Scene ${SCENE_ID} could not play step 1 of 1 (type testID "chat.input.message"): ` +
+          'this text field takes no native text, so nothing could be typed. Update React Native or point the step at another field.'
+      );
+      expect(error.message).not.toContain('On my way');
+    });
   });
 
   it('a type step aimed at a view that is no text field ends with its line', async () => {
