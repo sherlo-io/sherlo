@@ -36,6 +36,7 @@ export type {
   TapTarget,
   TypeStep,
 } from './scenes';
+export type { SwipeStep } from './scenes';
 
 export * from './types';
 

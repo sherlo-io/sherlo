@@ -111,6 +111,36 @@ describe('the scene calls of the host', () => {
     });
   });
 
+  it('a played swipe is recorded by its testID and direction, and one whose view never showed is the missing step', async () => {
+    behind.scene.play = [
+      { swipe: { testID: 'row', direction: 'left' } },
+      { swipe: { testID: 'row', direction: 'up', index: 1 } },
+    ];
+    behind.playSteps.mockResolvedValue([]);
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
+      played: [
+        { swipe: 'row', direction: 'left' },
+        { swipe: 'row', direction: 'up' },
+      ],
+    });
+
+    behind.playSteps.mockRejectedValue(
+      new SherloStepError(
+        SCENE_ID,
+        'step 2 of 2',
+        'no visible view',
+        ['swipe left testID "row"'],
+        true
+      )
+    );
+    behind.awaitReady.mockResolvedValue({ outcome: 'shown' });
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toMatchObject({
+      played: [{ swipe: 'row', direction: 'left' }],
+      missing: { swipe: 'row', direction: 'up' },
+      limitMs: 5_000,
+    });
+  });
+
   it('a ready view met before the last step played is noted in the outcome and the steps play on as today', async () => {
     behind.readyShowsNow.mockResolvedValueOnce(false).mockResolvedValue(true);
     behind.playSteps.mockImplementation(

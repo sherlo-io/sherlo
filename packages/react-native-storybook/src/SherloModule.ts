@@ -50,6 +50,18 @@ type SherloModule = {
    * when the native module has no touch (no module, or a native build from before it).
    */
   tap: (x: number, y: number, holdMs: number) => Promise<NativeTapAnswer | null>;
+  /**
+   * Drag a finger from (fromX, fromY) to (toX, toY), in points, over durationMs, then lift it. It
+   * answers as the tap does, for the view the finger went down on. Null when the native module
+   * has no swipe (no module, or a native build from before it).
+   */
+  swipe: (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    durationMs: number
+  ) => Promise<NativeTapAnswer | null>;
   getMode: () => StorybookViewMode;
   /** Throws when the runner handed no settings - use getConfigOrDefault where that is normal. */
   getConfig: () => Config;
@@ -144,6 +156,8 @@ function createSherloModule(): SherloModule {
     isTurboModule: !!TurboModule,
     tap: async (x: number, y: number, holdMs: number) =>
       typeof module.tap === 'function' ? module.tap(x, y, holdMs) : null,
+    swipe: async (fromX, fromY, toX, toY, durationMs) =>
+      typeof module.swipe === 'function' ? module.swipe(fromX, fromY, toX, toY, durationMs) : null,
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
@@ -252,6 +266,7 @@ function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
     tap: async () => null,
+    swipe: async () => null,
     getViewVisibility: async (testIDs: string[]) =>
       Object.fromEntries(testIDs.map((testID) => [testID, 'absent' as const])),
     getInspectorData: async () => ({

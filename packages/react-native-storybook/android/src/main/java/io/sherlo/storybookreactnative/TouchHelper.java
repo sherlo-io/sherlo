@@ -58,22 +58,72 @@ final class TouchHelper {
                 final float py = (float) (y * density);
                 final Result result = hitAt(decor, px, py);
                 final long downTime = SystemClock.uptimeMillis();
-                MotionEvent down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, px, py, 0);
-                down.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-                decor.dispatchTouchEvent(down);
-                down.recycle();
+                send(decor, downTime, MotionEvent.ACTION_DOWN, px, py);
                 ui.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        MotionEvent up = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, px, py, 0);
-                        up.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-                        decor.dispatchTouchEvent(up);
-                        up.recycle();
+                        send(decor, downTime, MotionEvent.ACTION_UP, px, py);
                         done.tapped(result);
                     }
                 }, (long) holdMs);
             }
         });
+    }
+
+    /** How many moves a second a swipe's finger reports, as a screen's digitizer does at 60 Hz. */
+    private static final double MOVES_PER_SECOND = 60;
+
+    /**
+     * Put a finger down at (fromX, fromY), drag it in a straight line to (toX, toY), in points, over
+     * durationMs with a move about every 1/60 s, then lift: a down, the moves and an up, each with
+     * the time it is sent. Answers what the tap answers, read where the finger went down. Any thread
+     * may call it.
+     */
+    static void swipe(final View decor, final double fromX, final double fromY, final double toX,
+            final double toY, final double durationMs, final float density, final Done done) {
+        final Handler ui = new Handler(Looper.getMainLooper());
+        final int moves = Math.max(1, (int) Math.round(durationMs / 1000 * MOVES_PER_SECOND));
+        final long moveMs = Math.max(1, Math.round(durationMs / moves));
+        ui.post(new Runnable() {
+            @Override
+            public void run() {
+                final float startX = (float) (fromX * density);
+                final float startY = (float) (fromY * density);
+                final Result result = hitAt(decor, startX, startY);
+                final long downTime = SystemClock.uptimeMillis();
+                send(decor, downTime, MotionEvent.ACTION_DOWN, startX, startY);
+                ui.postDelayed(new Runnable() {
+                    private int step = 1;
+
+                    @Override
+                    public void run() {
+                        float part = (float) step / moves;
+                        float x = (float) ((fromX + (toX - fromX) * part) * density);
+                        float y = (float) ((fromY + (toY - fromY) * part) * density);
+                        send(decor, downTime, MotionEvent.ACTION_MOVE, x, y);
+                        if (step < moves) {
+                            step++;
+                            ui.postDelayed(this, moveMs);
+                            return;
+                        }
+                        send(decor, downTime, MotionEvent.ACTION_UP, x, y);
+                        done.tapped(result);
+                    }
+                }, moveMs);
+            }
+        });
+    }
+
+    /**
+     * One touch-screen event of a finger that went down at downTime, sent to the decor view. The
+     * down is stamped at downTime itself; every later event at the moment it is sent.
+     */
+    private static void send(View decor, long downTime, int action, float x, float y) {
+        long eventTime = action == MotionEvent.ACTION_DOWN ? downTime : SystemClock.uptimeMillis();
+        MotionEvent event = MotionEvent.obtain(downTime, eventTime, action, x, y, 0);
+        event.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        decor.dispatchTouchEvent(event);
+        event.recycle();
     }
 
     /**

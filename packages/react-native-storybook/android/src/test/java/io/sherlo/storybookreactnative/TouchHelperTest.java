@@ -100,6 +100,46 @@ public class TouchHelperTest {
         assertFalse(answer[0].reachedReact);
     }
 
+    @Test
+    public void a_swipe_sends_a_down_moves_at_sixty_a_second_and_an_up_along_its_line_in_window_pixels() {
+        Context context = RuntimeEnvironment.getApplication();
+        RecordingDecor decor = new RecordingDecor(context);
+        decor.layout(0, 0, 1080, 2400);
+        View target = new View(context);
+        target.setId(42);
+        decor.addView(target, new FrameLayout.LayoutParams(400, 100));
+        target.layout(100, 300, 500, 400);
+        final TouchHelper.Result[] answer = new TouchHelper.Result[1];
+
+        // From the target's centre, (150, 175) in points at density 2, 90 points to the left.
+        TouchHelper.swipe(decor, 150, 175, 60, 175, 300, 2f, new TouchHelper.Done() {
+            @Override
+            public void tapped(TouchHelper.Result result) {
+                answer[0] = result;
+            }
+        });
+        ShadowLooper.idleMainLooper();
+        assertEquals("the moves wait for their time", 1, decor.actions.size());
+        ShadowLooper.idleMainLooper(400, TimeUnit.MILLISECONDS);
+
+        // 300 ms at 60 a second is 18 moves, between the down and the up.
+        assertEquals(20, decor.actions.size());
+        assertEquals(MotionEvent.ACTION_DOWN, (int) decor.actions.get(0));
+        for (int i = 1; i <= 18; i++) {
+            assertEquals(MotionEvent.ACTION_MOVE, (int) decor.actions.get(i));
+            assertEquals(300f - 180f * i / 18, decor.touches.get(i)[0], 0.01f);
+            assertEquals(350f, decor.touches.get(i)[1], 0f);
+        }
+        assertEquals(MotionEvent.ACTION_UP, (int) decor.actions.get(19));
+        assertEquals(300f, decor.touches.get(0)[0], 0f);
+        assertEquals(120f, decor.touches.get(19)[0], 0f);
+        for (int source : decor.sources) {
+            assertEquals(InputDevice.SOURCE_TOUCHSCREEN, source & InputDevice.SOURCE_TOUCHSCREEN);
+        }
+        assertNotNull(answer[0]);
+        assertEquals(42, answer[0].hitTag);
+    }
+
     /** Taps (x, y) in pixels at density 1 and answers what the helper says the touch hit. */
     private static TouchHelper.Result tapAt(View decor, double x, double y) {
         final TouchHelper.Result[] answer = new TouchHelper.Result[1];

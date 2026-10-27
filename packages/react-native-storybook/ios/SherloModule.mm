@@ -227,6 +227,20 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * Drags a finger from (fromX, fromY) to (toX, toY), in points, over durationMs: a scene's swipe.
+ */
+- (void)swipe:(double)fromX
+        fromY:(double)fromY
+          toX:(double)toX
+          toY:(double)toY
+   durationMs:(double)durationMs
+      resolve:(RCTPromiseResolveBlock)resolve
+       reject:(RCTPromiseRejectBlock)reject
+{
+  [core swipe:fromX fromY:fromY toX:toX toY:toY durationMs:durationMs resolve:resolve reject:reject];
+}
+
+/**
  * Deterministically scrolls to a checkpoint index.
  */
 - (void)scrollToCheckpoint:(double)index
@@ -405,6 +419,19 @@ RCT_EXPORT_METHOD(tap:(double)x
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
   [core tap:x y:y holdMs:holdMs resolve:resolve reject:reject];
+}
+
+/**
+ * Drags a finger from (fromX, fromY) to (toX, toY), in points, over durationMs: a scene's swipe.
+ */
+RCT_EXPORT_METHOD(swipe:(double)fromX
+                  fromY:(double)fromY
+                  toX:(double)toX
+                  toY:(double)toY
+                  durationMs:(double)durationMs
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core swipe:fromX fromY:fromY toX:toX toY:toY durationMs:durationMs resolve:resolve reject:reject];
 }
 
 /**

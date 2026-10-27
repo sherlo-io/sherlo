@@ -20,13 +20,21 @@ export type LongPressStep = { longPress: string | TapTarget };
  */
 export type TypeStep = { type: { testID: string; text: string } };
 
+/**
+ * A finger dragged from the middle of the view with that `testID` (the `index`-th visible match,
+ * topmost first) toward its edge in `direction`, so a row's swipe actions open.
+ */
+export type SwipeStep = {
+  swipe: { testID: string; direction: 'left' | 'right' | 'up' | 'down'; index?: number };
+};
+
 /** The app's own link, handed to the app as a link it received. */
 export type OpenStep = { open: string };
 
 /** A wait for a view between two steps. */
 export type ReadyStep = { ready: string | ReadyRule };
 
-export type PlayStep = TapStep | LongPressStep | TypeStep | OpenStep | ReadyStep;
+export type PlayStep = TapStep | LongPressStep | TypeStep | SwipeStep | OpenStep | ReadyStep;
 
 export type { SceneDevice, ScenePermission } from './sceneDeviceTypes';
 

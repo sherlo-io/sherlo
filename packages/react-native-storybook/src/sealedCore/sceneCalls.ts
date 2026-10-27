@@ -13,11 +13,11 @@ import { causeOfCrash, recordStoryError, threwOf } from '../getStorybook/storyEr
 import {
   SherloStepError,
   TAP_LOOKS_FOR_MS,
-  nameOf,
   playSteps,
   targetOf,
   testIDsOnScreen,
 } from '../playSteps';
+import { nameOf } from '../visibleViews';
 import { reachedRoute } from '../reachedScreen';
 import { loggedErrors } from '../loggedErrors';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
@@ -78,6 +78,9 @@ function recordedSteps(steps: PlayStep[]): ScenePlayStep[] {
     if ('tap' in step) recorded.push({ tap: recordedName(step.tap) });
     if ('longPress' in step) recorded.push({ longPress: recordedName(step.longPress) });
     if ('type' in step) recorded.push({ type: step.type.testID });
+    if ('swipe' in step) {
+      recorded.push({ swipe: step.swipe.testID, direction: step.swipe.direction });
+    }
   }
   return recorded;
 }
@@ -110,7 +113,7 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
       error instanceof SherloStepError &&
       error.viewNeverShowed &&
       failed &&
-      ('tap' in failed || 'longPress' in failed || 'type' in failed)
+      ('tap' in failed || 'longPress' in failed || 'type' in failed || 'swipe' in failed)
     ) {
       // The first tap found nothing: the ready wait decides what that means. If the ready view
       // never shows either, the app never got to the screen the scene meant (a sign-in, say) and
@@ -140,7 +143,7 @@ const playUnfinished = new Set<string>();
 /** The ready wait that already ended while a scene's first tap was missing, by scene; the core's ask takes it. */
 const readyEndedDuringPlay = new Map<string, SceneReadyOutcome>();
 
-/** A missed tap, long-press or typing as the CLI names it: a testID bare, a text or label as `text "Row"` (./playSteps). */
+/** A missed tap, long-press, typing or swipe as the CLI names it: a testID bare, a text or label as `text "Row"` (./playSteps). */
 function missedStep(step: PlayStep | undefined): ScenePlayMissing {
   const named = (target: Parameters<typeof targetOf>[0]) => {
     const resolved = targetOf(target);
@@ -148,6 +151,7 @@ function missedStep(step: PlayStep | undefined): ScenePlayMissing {
   };
   if (step && 'longPress' in step) return { longPress: named(step.longPress) };
   if (step && 'type' in step) return { type: step.type.testID };
+  if (step && 'swipe' in step) return { swipe: step.swipe.testID, direction: step.swipe.direction };
   return { tap: step && 'tap' in step ? named(step.tap) : '' };
 }
 

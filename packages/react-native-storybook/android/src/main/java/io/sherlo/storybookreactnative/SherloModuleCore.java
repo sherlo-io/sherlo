@@ -723,17 +723,38 @@ public class SherloModuleCore {
         }
         View decor = activity.getWindow().getDecorView();
         TouchHelper.tap(decor, x, y, holdMs, decor.getResources().getDisplayMetrics().density,
-                new TouchHelper.Done() {
-                    @Override
-                    public void tapped(TouchHelper.Result result) {
-                        WritableMap answer = Arguments.createMap();
-                        answer.putBoolean("reachedReact", result.reachedReact);
-                        answer.putInt("hitTag", result.hitTag);
-                        answer.putString("hitClass", result.hitClass);
-                        answer.putArray("missing", Arguments.createArray());
-                        promise.resolve(answer);
-                    }
-                });
+                touchAnswer(promise));
+    }
+
+    /**
+     * Drags a finger across the app window from (fromX, fromY) to (toX, toY), in points, over
+     * durationMs: a scene's swipe. Resolves, once the finger lifted, what the tap resolves, read
+     * where the finger went down.
+     */
+    public void swipe(Activity activity, double fromX, double fromY, double toX, double toY,
+            double durationMs, final Promise promise) {
+        if (activity == null) {
+            promise.reject("no_window", "The app has no window to swipe");
+            return;
+        }
+        View decor = activity.getWindow().getDecorView();
+        TouchHelper.swipe(decor, fromX, fromY, toX, toY, durationMs,
+                decor.getResources().getDisplayMetrics().density, touchAnswer(promise));
+    }
+
+    /** Resolves `promise` with what a touch reached, as iOS answers it. */
+    private static TouchHelper.Done touchAnswer(final Promise promise) {
+        return new TouchHelper.Done() {
+            @Override
+            public void tapped(TouchHelper.Result result) {
+                WritableMap answer = Arguments.createMap();
+                answer.putBoolean("reachedReact", result.reachedReact);
+                answer.putInt("hitTag", result.hitTag);
+                answer.putString("hitClass", result.hitClass);
+                answer.putArray("missing", Arguments.createArray());
+                promise.resolve(answer);
+            }
+        };
     }
 
     /**

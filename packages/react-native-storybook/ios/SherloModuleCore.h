@@ -205,4 +205,17 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
     resolve:(RCTPromiseResolveBlock)resolve
      reject:(RCTPromiseRejectBlock)reject;
 
+/**
+ * Drags a finger across the app window (InspectorHelper +appWindow) from (fromX, fromY) to
+ * (toX, toY), in points, over durationMs (TouchHelper), and resolves, once the finger lifted, what
+ * it went down on, as the tap does. Rejects only when the app has no window.
+ */
+- (void)swipe:(double)fromX
+        fromY:(double)fromY
+          toX:(double)toX
+          toY:(double)toY
+   durationMs:(double)durationMs
+      resolve:(RCTPromiseResolveBlock)resolve
+       reject:(RCTPromiseRejectBlock)reject;
+
 @end 

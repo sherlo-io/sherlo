@@ -14,7 +14,8 @@
  * up from the view), and the one that accepts is granted the touch and released a moment later. A
  * Pressable, a Touchable or a TextInput answers that as it answers a finger - press in, its delay,
  * press out, `onPress`. A view no responder answers for (a gesture-handler button) is tapped
- * through the nearest component above it that takes an `onPress`.
+ * through the nearest component above it that takes an `onPress`. A swipe is a real touch too,
+ * dragged across its view (./nativeTouch), and has no such stand-in.
  *
  * A tap waits for its view to be on screen and drawn - read from the native view tree - and taps
  * the topmost match. A step that cannot be played throws a SherloStepError naming the step, so the
@@ -22,16 +23,16 @@
  *
  * Time here is counted in polls, never read off the clock: a scene may freeze `Date.now()`.
  */
-import { Linking, Platform } from 'react-native';
+import { Linking } from 'react-native';
 import { logTheLine } from './connection/appLine';
 import SherloModule from './SherloModule';
-import { currentAppFiber } from './componentNames';
+import { swipeView, unreachedReason } from './nativeTouch';
 import type { WalkedFiber } from './sealedCore/seam';
 import type { OpenStep, PlayStep, TapTarget } from './scenes';
-import { coverOf, nativeTagOf, publicInstanceOf, touchEvent, UNDER_BARS_REASON } from './tapReach';
+import { nativeTagOf, publicInstanceOf, touchEvent, UNDER_BARS_REASON } from './tapReach';
 import type { Frame } from './tapReach';
 import { typeInto } from './typeInto';
-import { isTarget, visibleViews } from './visibleViews';
+import { isTarget, nameOf, visibleViews } from './visibleViews';
 import type { Found } from './visibleViews';
 import { asRule, awaitReady, mocksInstalled, sceneOf, stepsBeganFor } from './storyReady';
 
@@ -122,6 +123,9 @@ export async function playSteps(
         );
       } else if ('type' in step) {
         typeInto((await waitForTarget({ testID: step.type.testID })).fiber, step.type.text);
+      } else if ('swipe' in step) {
+        const { testID, index: at, direction } = step.swipe;
+        await swipeView(await waitForTarget({ testID, index: at }), direction);
       } else if ('open' in step) {
         await openLink(step);
         if (!('ready' in (steps[index + 1] ?? {}))) await readyOrThrow(scene?.ready);
@@ -153,17 +157,15 @@ export function targetOf(tap: string | TapTarget): TapTarget {
   return typeof tap === 'string' ? { testID: tap } : tap;
 }
 
-export function nameOf(target: TapTarget): string {
-  if (target.testID !== undefined) return `testID "${target.testID}"`;
-  if (target.text !== undefined) return `text "${target.text}"`;
-  return `label "${target.label}"`;
-}
-
 function describe(step: PlayStep): string {
   if ('open' in step) return `open ${step.open}`;
   if ('ready' in step) return 'ready';
   // The typed text is no part of the name: it reaches no record and no log line.
   if ('type' in step) return `type ${nameOf({ testID: step.type.testID })}`;
+  if ('swipe' in step) {
+    const { testID, index, direction } = step.swipe;
+    return `swipe ${direction} ${nameOf({ testID })}${index ? ` #${index}` : ''}`;
+  }
   const [verb, named] = 'longPress' in step ? ['long-press', step.longPress] : ['tap', step.tap];
   const target = targetOf(named);
   return `${verb} ${nameOf(target)}${target.index ? ` #${target.index}` : ''}`;
@@ -256,20 +258,10 @@ async function tapView(
           : '')
     );
   if (!touched) return logTap(await pressView(fiber, frame, holdMs, verb));
-  if (touched.missing.length > 0) {
+  const unreached = unreachedReason(fiber, touched, verb);
+  if (unreached) {
     logTap('native touch');
-    throw new Error(
-      `Sherlo cannot ${verb} on iOS ${Platform.Version} yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this`
-    );
-  }
-  const cover = coverOf(currentAppFiber(), nativeTagOf(fiber), touched);
-  if (cover) {
-    logTap('native touch');
-    const covering =
-      cover.testID !== undefined ? nameOf({ testID: cover.testID }) : cover.className;
-    throw new Error(
-      `the target is covered by ${covering}, so the ${verb} never reached it. Wait for the cover to close, or close it with a tap step before this one`
-    );
+    throw new Error(unreached);
   }
   // The touch landed inside the target and no React recognizer took it (a native control, say):
   // nothing covers the target, so the synthetic press stands in.
