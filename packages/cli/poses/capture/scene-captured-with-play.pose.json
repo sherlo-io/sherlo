@@ -24,7 +24,7 @@
     "bootMs": 1800,
     "reachedMs": 3100,
     "play": [
-      { "open": "feeld://chat-list" },
+      { "open": "myapp://chat-list" },
       { "tap": "connectionListItem" },
       { "tap": "chat-header-menu" }
     ],

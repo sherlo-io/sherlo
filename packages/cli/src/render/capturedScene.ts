@@ -351,7 +351,7 @@ function verbAndTarget(step: PlayMissing): [string, string] {
   return [`swipe ${step.direction}`, step.swipe];
 }
 
-/** `tap chat-header-menu`, `long-press testID "row"` or `open feeld://chat-list` - one play step, named for the capture. */
+/** `tap chat-header-menu`, `long-press testID "row"` or `open myapp://chat-list` - one play step, named for the capture. */
 export function playStep(step: PlayStep): string {
   if ('open' in step) return `open ${step.open}`;
   if ('tap' in step) return `tap ${step.tap}`;
