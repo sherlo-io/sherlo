@@ -185,10 +185,7 @@ export async function buildApps({
           : {}),
         ...(iosScheme !== undefined
           ? {
-              ios: {
-                scheme: iosScheme,
-                configuration: platformSettings.configuration ?? 'Release',
-              },
+              ios: { scheme: iosScheme, configuration: platformSettings.configuration },
             }
           : {}),
         ...(ownCommand ? { custom: ownCommand } : {}),

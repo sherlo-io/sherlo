@@ -50,11 +50,7 @@ const ANDROID_LIBRARIES = ANDROID_ABIS.map(
   (abi) => 'android/src/main/jniLibs/' + abi + '/libsherlocore.so'
 );
 const ANDROID_PAGE_SIZE = 16384;
-const RELEASE_WORKFLOWS = [
-  'release-sherlo-packages.yml',
-  'release_to_test.yml',
-  'release_to_dev.yml',
-];
+const RELEASE_WORKFLOWS = ['release-sherlo-packages.yml', 'release_to_dev.yml'];
 const TESTING_APP_TARBALLS = [
   'testing/expo/sherlo-lib/react-native-storybook.tgz',
   'testing/react-native/sherlo-lib/react-native-storybook.tgz',
@@ -291,7 +287,7 @@ describe('what the published package carries', () => {
     );
     expect(readableMetroSources).toEqual([]);
 
-    for (const bundleName of ['withStorybook.js', 'polyfill.js']) {
+    for (const bundleName of ['withStorybook.js', 'polyfill.js', 'mockSpecifierTransformer.js']) {
       expect(packedFilePaths).toContain('dist-metro/' + bundleName);
       const bundleSource = fs.readFileSync(
         path.join(unpackedPackageDir, 'dist-metro', bundleName),
@@ -500,27 +496,43 @@ describe('what the published package carries', () => {
 });
 
 describe('what CI and a release check', () => {
-  it('a test or dev release packs the SDK before it renames the package', () => {
-    for (const workflowFile of ['release_to_test.yml', 'release_to_dev.yml']) {
-      const publishStep = namedStepsOf(workflowFile).find(
-        (step) => step.name === 'Prepare and publish to GitHub Packages'
-      );
-      expect(publishStep, workflowFile).toBeDefined();
-      const stepBody = publishStep!.body;
+  it('the release to dev packs the SDK before it renames the package', () => {
+    const workflowFile = 'release_to_dev.yml';
+    const publishStep = namedStepsOf(workflowFile).find(
+      (step) => step.name === 'Prepare and publish to GitHub Packages'
+    );
+    expect(publishStep, workflowFile).toBeDefined();
+    const stepBody = publishStep!.body;
 
-      const prepackPosition = stepBody.indexOf(
-        '(cd packages/react-native-storybook && npm run prepack)'
-      );
-      const renamePosition = stepBody.indexOf("sdk.name = '@sherlo-io/react-native-storybook'");
-      expect(prepackPosition, workflowFile).toBeGreaterThanOrEqual(0);
-      expect(renamePosition, workflowFile).toBeGreaterThanOrEqual(0);
-      expect(prepackPosition, workflowFile).toBeLessThan(renamePosition);
+    const prepackPosition = stepBody.indexOf(
+      '(cd packages/react-native-storybook && npm run prepack)'
+    );
+    const renamePosition = stepBody.indexOf("sdk.name = '@sherlo-io/react-native-storybook'");
+    expect(prepackPosition, workflowFile).toBeGreaterThanOrEqual(0);
+    expect(renamePosition, workflowFile).toBeGreaterThanOrEqual(0);
+    expect(prepackPosition, workflowFile).toBeLessThan(renamePosition);
 
-      // The publish must not run prepack again, now under the new name.
-      expect(stepBody, workflowFile).toMatch(
-        /cd \.\.\/react-native-storybook && npm publish --ignore-scripts /
-      );
-    }
+    // The publish must not run prepack again, now under the new name.
+    expect(stepBody, workflowFile).toMatch(
+      /cd \.\.\/react-native-storybook && npm publish --ignore-scripts /
+    );
+  });
+
+  it('the release to dev publishes the SDK and the CLI it depends on under one version', () => {
+    const publishStep = namedStepsOf('release_to_dev.yml').find(
+      (step) => step.name === 'Prepare and publish to GitHub Packages'
+    );
+    expect(publishStep).toBeDefined();
+    const publishBody = publishStep!.body;
+
+    expect(publishBody).toContain("cli.version = '${DEV_VERSION}'");
+    expect(publishBody).toContain("sdk.version = '${DEV_VERSION}'");
+    expect(publishBody).toMatch(/npm publish --tag dev/);
+    expect(publishBody).toMatch(/npm publish --ignore-scripts --tag dev/);
+  });
+
+  it('there is no release to test', () => {
+    expect(fs.existsSync(path.join(WORKFLOWS_DIR, 'release_to_test.yml'))).toBe(false);
   });
 
   it('a release with no signing key stops before it commits anything', () => {
@@ -549,21 +561,6 @@ describe('what CI and a release check', () => {
     );
   });
 
-  // The SDK's prepack must run inside the workspace yarn knows, so it runs before the rename,
-  // and the publish skips it.
-  it('the release to test runs the SDK prepack before the rename, and the publish skips it', () => {
-    const publishStep = namedStepsOf('release_to_test.yml').find(
-      (step) => step.name === 'Prepare and publish to GitHub Packages'
-    );
-    expect(publishStep).toBeDefined();
-    const publishBody = publishStep!.body;
-
-    const prepackPosition = publishBody.indexOf('npm run prepack');
-    expect(prepackPosition).toBeGreaterThanOrEqual(0);
-    expect(prepackPosition).toBeLessThan(publishBody.search(/\bsdk\.name\s*=/));
-    expect(publishBody).toMatch(/npm publish --ignore-scripts --tag test/);
-  });
-
   it('every workflow step that packs the SDK has the package token', () => {
     const packingSteps = fs
       .readdirSync(WORKFLOWS_DIR)
@@ -574,7 +571,7 @@ describe('what CI and a release check', () => {
           .map((step) => ({ workflowFile, stepName: step.name, body: step.body }))
       );
 
-    // The release, both channels, and the packaging check on a pull request and by hand.
+    // The release and the packaging check on a pull request and by hand.
     const workflowsThatPack = new Set(packingSteps.map(({ workflowFile }) => workflowFile));
     expect([...workflowsThatPack].sort()).toEqual(
       [...RELEASE_WORKFLOWS, 'pr_checks.yml', 'manual_tests.yml'].sort()

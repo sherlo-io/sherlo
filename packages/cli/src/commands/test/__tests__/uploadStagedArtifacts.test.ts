@@ -7,6 +7,8 @@
  * semantics (that is NOT bailed open).
  */
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import zlib from 'zlib';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -150,5 +152,65 @@ describe('module manifest upload (SHERLO-1894)', () => {
         urls: urls(true),
       })
     ).rejects.toThrow();
+  });
+});
+
+describe('assets archive of concurrent pushes', () => {
+  it('two uploads of one platform at once each send their own assets archive', async () => {
+    // Real files this time: the beforeEach stub of readFileSync is lifted.
+    vi.restoreAllMocks();
+    const work = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-test-concurrent-'));
+    const realRead = fs.readFileSync;
+    try {
+      const pushes = ['a', 'b'].map((name) => {
+        const assetsDest = path.join(work, `assets-${name}`);
+        fs.mkdirSync(assetsDest);
+        fs.writeFileSync(path.join(assetsDest, `asset-${name}.txt`), `bytes of ${name}`);
+        const bundlePath = path.join(work, `bundle-${name}.js`);
+        fs.writeFileSync(bundlePath, `bundle ${name}`);
+        return { name, assetsDest, bundlePath, assetsUrl: `http://s3/assets-${name}` };
+      });
+
+      // Another push of the same platform finishes and removes the fixed archive path older
+      // versions shared, just as this push is about to read its own archive.
+      const sharedPath = path.join(os.tmpdir(), 'sherlo-staged-assets-android.tar.gz');
+      vi.spyOn(fs, 'readFileSync').mockImplementation(((file: any, ...rest: any[]) => {
+        if (String(file).endsWith('.tar.gz')) fs.rmSync(sharedPath, { force: true });
+        return (realRead as any)(file, ...rest);
+      }) as any);
+
+      const sent: Record<string, Buffer> = {};
+      mockFetch.mockImplementation(async (url: string, init: any) => {
+        sent[url] = init.body;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return okResponse();
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await Promise.all(
+        pushes.map((push) =>
+          uploadStagedArtifacts({
+            platform: 'android',
+            bundleResult: bundleResult({
+              bundlePath: push.bundlePath,
+              assetsDest: push.assetsDest,
+            }),
+            urls: {
+              jsBundle: { s3Key: `js-${push.name}`, url: `http://s3/js-${push.name}` },
+              assets: { s3Key: `assets-${push.name}`, url: push.assetsUrl },
+            } as any,
+          })
+        )
+      );
+
+      for (const push of pushes) {
+        const archive = zlib.gunzipSync(sent[push.assetsUrl]).toString('latin1');
+        expect(archive).toContain(`asset-${push.name}.txt`);
+        const other = push.name === 'a' ? 'b' : 'a';
+        expect(archive).not.toContain(`asset-${other}.txt`);
+      }
+    } finally {
+      fs.rmSync(work, { recursive: true, force: true });
+    }
   });
 });

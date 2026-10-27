@@ -30,7 +30,9 @@ describe('createMockable - ESM/CJS interop (VT-14..16)', () => {
     activateMocks({ 'pkg/default-function': { default: MockFn } });
 
     expect(mockable.__esModule).toBe(true);
-    expect(mockable.default).toBe(MockFn);
+    // The default is now one stable forwarding proxy (so code that captured it early still reaches
+    // the mock), so identity with MockFn no longer holds; calling it is what must reach the mock.
+    expect(typeof mockable.default).toBe('function');
     expect(mockable.default()).toBe('mock');
   });
 

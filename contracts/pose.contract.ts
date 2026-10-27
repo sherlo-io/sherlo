@@ -153,6 +153,13 @@ export type CommandPose = {
    */
   capture?: PosedCapture;
   /**
+   * What the scan of the app found - the road `sherlo coverage` reads the app down. THE FIFTH
+   * OPTIONAL FIELD, for the one command that scans: the components no story imports and, for
+   * `--props`, the prop values no story file sets. A pose that states it for any other command is
+   * refused, and a coverage with no `coverage` is refused at run time.
+   */
+  coverage?: PosedCoverage;
+  /**
    * What the browser did when `sherlo login` opened it on the authorize link: whether it came up.
    * For the commands that log in - `login`, and `init` when it runs the login itself - and refused
    * for any other. Nothing opens on a posed run; a login with no `browser` is refused at run time.
@@ -601,6 +608,15 @@ export type PosedCapture =
       };
     }
   | {
+      /** Every story the running app's Storybook knows, by id - the one asked for is not among them. */
+      stories: string[];
+      /**
+       * The story files that threw as the app loaded them, which is why the story asked for is
+       * missing.
+       */
+      brokenFiles: BrokenStoryFile[];
+    }
+  | {
       /** Every story the running app's Storybook knows, by id. */
       stories: string[];
       /** How the stabilization ended: settled after so long over so many frames, or gave up. */
@@ -610,6 +626,12 @@ export type PosedCapture =
             ms: number;
             frames: number;
           };
+      /** The views still changing when the stabilization gave up. Absent prints no names. */
+      changing?: string[];
+      /** The app's own modules the story reached that no mock replaced. Absent prints no list. */
+      stillReal?: string[];
+      /** The requests the story made that no mock answered. Absent prints no list. */
+      unanswered?: UnansweredRequest[];
       /** What the story threw while rendering, in its own words. Absent for a clean story. */
       threw?: {
         name: string;
@@ -625,6 +647,48 @@ export type PosedCapture =
       /** The view tree the app read, from the story's own root. */
       tree: PosedView;
     };
+
+/**
+ * What the scan found, as a pose states it.
+ *
+ * As with the capture socket, a pose never supplies the words the screen shows: it states the
+ * findings, and the tool prints whatever it prints for them.
+ */
+export type PosedCoverage = {
+  /** How many components the app has. */
+  components: number;
+  /** The components no story file imports directly, in any order: the scan ranks them. */
+  gaps: Array<{
+    name: string;
+    /** Where the component lives, relative to the project folder. */
+    file: string;
+    /** How many of the app's own files import it. */
+    importedBy: number;
+    /** True when the only story that imports it is marked `sherlo: { exclude: true }`. */
+    excluded?: true;
+  }>;
+  /** What reading the story files found. Stated only when the pose runs `--props`. */
+  props?: {
+    /** How many story files were read. */
+    storyFiles: number;
+    components: Array<{
+      name: string;
+      file: string;
+      props: Array<{
+        prop: string;
+        /** How many values the type allows. */
+        allowed: number;
+        /** How many of them some story file sets. */
+        set: number;
+        /**
+         * The values no story file sets, by name. Stated only for a prop with at most 10 allowed
+         * values.
+         */
+        missing?: string[];
+      }>;
+    }>;
+  };
+};
 
 /** What the browser did when a login opened it, as a pose states it. */
 export type PosedBrowser = {
@@ -715,6 +779,10 @@ export type BuildStatusAnswer = {
    * is not one platform's.
    */
   runErrorPlatform?: 'android' | 'ios' | null;
+  /** Why a `user_runner` run ended: `appFailedToStart` when the app could not start. */
+  runErrorReason?: 'appFailedToStart' | null;
+  /** The error the app raised; the closer prints its first line. */
+  runErrorMessage?: string | null;
   /**
    * Build-wide Diff Scope capture accounting, mirrored off Build.diffScopeInfo (same shape already
    * used by BuildFragment/CloseBuildFragment elsewhere in the API). Absent on older API responses
@@ -1087,6 +1155,21 @@ export type PosedPlatformBuild =
       /** The EAS build this platform started, by its id. */
       easBuild: string;
     };
+
+/** A story file that threw as the app loaded it, and what it threw, in its own words. */
+export type BrokenStoryFile = {
+  file: string;
+  error: {
+    name: string;
+    message: string;
+  };
+};
+
+/** A request a story made that no mock answered, so it went to the real network. */
+export type UnansweredRequest = {
+  method: string;
+  url: string;
+};
 
 /**
  * One view in a posed tree. Only what the view has is stated: `components` are the app's own

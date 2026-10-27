@@ -6,44 +6,20 @@ var crypto = require('crypto');
 
 var getBabelParser = require('./babelParser');
 var mockShims = require('./mockShims');
+var writeMockSpecifierTransformer =
+  require('./mockSpecifierTransformer').writeMockSpecifierTransformer;
 var sherloLine = require('./sherloLine');
 var storyTitleReader = require('./storyTitleReader');
+var stillReal = require('./stillReal');
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
+var resolveConfigDir = require('./ensureStorybookRequires').resolveConfigDir;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var handOverFilePath = require('./projectPaths').handOverFilePath;
 
-// ---------------------------------------------------------------------------
-// Module path helper (shared by the Diff Scope module manifest)
-// ---------------------------------------------------------------------------
-
-/**
- * Converts an absolute Metro module path to a project-root-relative path
- * (e.g. "./src/Button.tsx").  Returns null for:
- *   - synthetic/virtual paths (Metro require.context modules contain "?")
- *   - paths outside the project root
- */
-function toRelativePath(absPath, projectRoot) {
-  if (!absPath || absPath.indexOf('?') !== -1 || absPath.indexOf('\0') !== -1) {
-    return null;
-  }
-  var rel = path.relative(projectRoot, absPath);
-  if (rel.indexOf('..') === 0) return null; // outside project root
-  // The leading "./" is INTENTIONAL and load-bearing - do not strip it to match
-  // sherlo-api's DiffScope.md "Serialized shape" doc, which shows bare paths
-  // (e.g. "src/Button.tsx"). That doc describes the server's canonicalized
-  // form, not what the SDK is supposed to emit. This helper's "./"-prefixed
-  // output feeds the Diff Scope module manifest (the moduleHashes/storyClosures
-  // keys emitted by emitModuleManifestSidecar below). The server strips the
-  // prefix at ingestion, in sherlo-api's parseModuleManifest
-  // (computeDiffScopeDecision/moduleManifest.ts), per SHERLO-1912. Emitting bare
-  // paths here would mismatch every "./"-keyed ancestor manifest already stored
-  // in S3 - making every module look changed and silently degrading partial
-  // capture to whole-suite capture for every diff going forward.
-  return './' + rel.split(path.sep).join('/');
-}
+var toRelativePath = require('./projectPaths').toRelativePath;
 
 // ---------------------------------------------------------------------------
 // Module manifest sidecar (SHERLO-1890 Diff Scope - Phase A)
@@ -725,17 +701,6 @@ function writeDisabledFlagPolyfill(cacheDir) {
 }
 
 /**
- * Whether `file` lies somewhere under `folder` (both absolute). False when either is missing.
- *
- * @param {string|null|undefined} file
- * @param {string|null|undefined} folder
- * @returns {boolean}
- */
-function isInsideFolder(file, folder) {
-  return !!file && !!folder && file.indexOf(folder + path.sep) === 0;
-}
-
-/**
  * How `config` resolves a module before Sherlo adds a step: the resolveRequest it already set, or
  * Metro's own when it set none. Every resolver step Sherlo adds hands what it does not answer
  * itself to this, so the project's own step, and Storybook's, still run.
@@ -776,9 +741,10 @@ function resolveThroughConfig(config) {
  * required on the first request, never as the config loads: loading a config must never fail on it.
  *
  * @param {string} projectRoot
+ * @param {object} opts the options applySherloTransforms was given
  * @returns {{ middleware: Function }}
  */
-function mountTheLineOnTheBundler(projectRoot) {
+function mountTheLineOnTheBundler(projectRoot, opts) {
   var mountedOn = null;
 
   function mountOn(httpServer) {
@@ -798,6 +764,9 @@ function mountTheLineOnTheBundler(projectRoot) {
     }
 
     sherloLine.attach(httpServer, WebSocketServer, {
+      storyFileChangedSince: function (time) {
+        return aStoryFileChangedSince(projectRoot, opts, time);
+      },
       warn: function (message) {
         console.warn('@sherlo/react-native-storybook: ' + message);
       },
@@ -855,7 +824,7 @@ function applySherloTransforms(result, opts) {
   var wrapperPath = path.join(cacheDir, 'storybook-wrapper.js');
 
   // Creates cacheDir too.
-  generateWrapper(wrapperPath);
+  generateWrapper(wrapperPath, readFileTitles(projectRoot, opts));
 
   // ---- Module Mocking (SHERLO-1734 Phase 2) ----
   // Installed for every project, with no option to name: the scan reads the modules the
@@ -868,6 +837,7 @@ function applySherloTransforms(result, opts) {
     projectRoot: projectRoot,
     cacheDir: cacheDir,
     mockModules: opts && opts.mockModules,
+    metroConfig: result,
   });
   var mocksDir = mockSetup.mocksDir;
   var mockedPathToShim = mockSetup.mockedPathToShim;
@@ -876,7 +846,7 @@ function applySherloTransforms(result, opts) {
   // originating from a shim must NEVER be redirected back into a shim, otherwise
   // the shim's own require(real) would loop onto itself.
   function isShimPath(absPath) {
-    return isInsideFolder(absPath, mocksDir);
+    return mockShims.isInsideFolder(absPath, mocksDir);
   }
 
   var delegateResolve = resolveThroughConfig(result);
@@ -902,7 +872,7 @@ function applySherloTransforms(result, opts) {
       resolution.filePath &&
       !isShimPath(context.originModulePath)
     ) {
-      var shimPath = mockedPathToShim.get(mockShims.canonicalizeModulePath(resolution.filePath));
+      var shimPath = mockShims.shimForRequest(mockSetup, moduleName, resolution.filePath);
       if (shimPath && shimPath !== resolution.filePath) {
         return { type: 'sourceFile', filePath: shimPath };
       }
@@ -916,6 +886,11 @@ function applySherloTransforms(result, opts) {
     opts && opts.enabled === false
       ? [writeDisabledFlagPolyfill(cacheDir)] // minimal only
       : [polyfillPath]; // full polyfill for enabled: true
+  // What the mock scan saw, for the run-time check that fails a story whose mock did not take
+  // effect (src/mocking/declaredImports.ts).
+  if (!(opts && opts.enabled === false) && mockSetup.declaredImportsPolyfill) {
+    sherloPolyfills.unshift(mockSetup.declaredImportsPolyfill);
+  }
 
   var existingGetPolyfills =
     result && result.serializer && typeof result.serializer.getPolyfills === 'function'
@@ -946,7 +921,12 @@ function applySherloTransforms(result, opts) {
   // that also fails to load we skip the wrapper rather than risk corrupting the
   // bundle (bail-open).
   var sherloCustomSerializer = null;
-  if (moduleManifestEnabled) {
+  // A project that mocks a bare package needs the wrapper too: the end of the bundle is where a
+  // mock that no import reached gets reported.
+  // The list of the app's own modules a capture watches (stillReal.js): only a served bundle has it.
+  var stillRealList =
+    opts && opts.enabled === false ? null : stillReal.listForServedBundles(projectRoot);
+  if (moduleManifestEnabled || mockSetup.bareKeyShims.size > 0 || stillRealList) {
     var existingCustomSerializer =
       result && result.serializer && typeof result.serializer.customSerializer === 'function'
         ? result.serializer.customSerializer
@@ -956,11 +936,15 @@ function applySherloTransforms(result, opts) {
     if (delegateSerializer) {
       sherloCustomSerializer = function sherloSerializer(entryPoint, preModules, graph, options) {
         // Emit the manifest as a pure side-effect; never affects bundle output.
-        var serializerProjectRoot = (options && options.projectRoot) || projectRoot;
-        emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+        if (moduleManifestEnabled) {
+          var serializerProjectRoot = (options && options.projectRoot) || projectRoot;
+          emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+        }
+        mockShims.warnUnreachedMocks(mockSetup);
         // Delegate to the original serializer and return its output unchanged.
         return delegateSerializer(entryPoint, preModules, graph, options);
       };
+      if (stillRealList) sherloCustomSerializer = stillRealList.wrap(sherloCustomSerializer);
     }
   }
 
@@ -969,7 +953,7 @@ function applySherloTransforms(result, opts) {
   // the road `sherlo open` and `sherlo capture` reach a running app down. It is mounted
   // unconditionally: with no Sherlo app attached it simply has nobody to answer, and a developer
   // never adds anything for it to be there.
-  var bundlerLine = mountTheLineOnTheBundler(projectRoot);
+  var bundlerLine = mountTheLineOnTheBundler(projectRoot, opts);
 
   var existingEnhanceMiddleware =
     result && result.server && typeof result.server.enhanceMiddleware === 'function'
@@ -982,6 +966,7 @@ function applySherloTransforms(result, opts) {
       : metroMiddleware;
 
     return function sherloMiddleware(request, response, next) {
+      if (stillRealList) stillRealList.bundlerServes();
       // Sherlo's address first, everything else untouched behind it.
       return bundlerLine.middleware(request, response, function () {
         return enhanced(request, response, next);
@@ -1002,8 +987,11 @@ function applySherloTransforms(result, opts) {
     // unstable_allowRequireContext: sb8/sb9 withStorybook(enabled:false) omits this flag, but
     // storybook.requires.ts still uses require.context(). Without this, Metro 0.81.x embeds a
     // throwing stub for r.context, crashing the app before any Sherlo error handling fires.
+    // babelTransformerPath: the project's own transformer, behind one that hands each story file's
+    // mocks the module they import (mockSpecifierTransformer.js).
     transformer: Object.assign({}, baseResult.transformer, {
       unstable_allowRequireContext: true,
+      babelTransformerPath: writeMockSpecifierTransformer(baseResult),
     }),
     resolver: Object.assign({}, baseResult.resolver, {
       resolveRequest: resolveRequest,
@@ -1016,6 +1004,43 @@ function applySherloTransforms(result, opts) {
 }
 
 /**
+ * Each story file's title by its import path, from the project's generated requires file; empty
+ * when the project has none yet.
+ */
+function readFileTitles(projectRoot, opts) {
+  var requiresPath = findStorybookRequires(projectRoot, opts);
+  return requiresPath ? storyTitleReader.readTitlesByImportPath(requiresPath) : {};
+}
+
+/** The project's generated storybook.requires file, or null when it has none yet. */
+function findStorybookRequires(projectRoot, opts) {
+  var configDir = resolveConfigDir(projectRoot, opts);
+  if (!configDir) return null;
+  for (var i = 0; i < STORYBOOK_REQUIRES_BASENAMES.length; i++) {
+    var requiresPath = path.join(configDir, STORYBOOK_REQUIRES_BASENAMES[i]);
+    if (fs.existsSync(requiresPath)) return requiresPath;
+  }
+  return null;
+}
+
+/**
+ * Whether any story file the bundle's Storybook loads was modified after `time` (milliseconds since
+ * 1970). The files are the ones the title record walks, read when asked and statted when asked.
+ */
+function aStoryFileChangedSince(projectRoot, opts, time) {
+  var requiresPath = findStorybookRequires(projectRoot, opts);
+  if (!requiresPath) return false;
+  return storyTitleReader.readStoryFilePaths(requiresPath).some(function (file) {
+    try {
+      return fs.statSync(file).mtimeMs > time;
+    } catch (_) {
+      // A file the disk no longer has is not a change the app could have loaded.
+      return false;
+    }
+  });
+}
+
+/**
  * Generates the storybook-wrapper.js file.
  *
  * The wrapper redirects @storybook/react-native imports through Sherlo's patched start().
@@ -1024,8 +1049,10 @@ function applySherloTransforms(result, opts) {
  * to the polyfill list; src/index.ts reads the flag and emits the WITHSTORYBOOK_DISABLED marker.
  *
  * @param {string} wrapperPath
+ * @param {Record<string, string>} [fileTitles] each story file's title by its import path, handed
+ *   to the app so a story file that throws as it loads can still be matched to its story ids
  */
-function generateWrapper(wrapperPath) {
+function generateWrapper(wrapperPath, fileTitles) {
   var cacheDir = path.dirname(wrapperPath);
   if (!fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true });
@@ -1055,6 +1082,11 @@ function generateWrapper(wrapperPath) {
     JSON.stringify(installedStorybookVersion(wrapperPath)) +
     ';\n' +
     '\n' +
+    "// Each story file's title by its import path, read when the bundle was built.\n" +
+    'var FILE_TITLES = ' +
+    JSON.stringify(fileTitles || {}) +
+    ';\n' +
+    '\n' +
     "// Patched start(): keeps what Storybook is handed, adds Sherlo's annotation last, and\n" +
     '// wraps view.getStorybookUI to route through sherlo getStorybook\n' +
     'exports.start = function patchedStart(config) {\n' +
@@ -1075,7 +1107,7 @@ function generateWrapper(wrapperPath) {
     '\n' +
     '  // Keep the story entries and the annotations Storybook is handed, as plain facts for the\n' +
     "  // SDK and its core, and hand Storybook the same, with Sherlo's own annotation last.\n" +
-    '  sherlosStorybook.recordWhatStartWasHanded(config, real.prepareStories);\n' +
+    '  sherlosStorybook.recordWhatStartWasHanded(config, real.prepareStories, FILE_TITLES);\n' +
     '  var view = real.start(\n' +
     '    Object.assign({}, config, {\n' +
     '      annotations: (config.annotations || []).concat([sherlosStorybook.sherloAnnotation]),\n' +
@@ -1115,7 +1147,8 @@ function generateWrapper(wrapperPath) {
     "  var sherlosStorybook = require('@sherlo/react-native-storybook/dist/getStorybook/index.js');\n" +
     '  sherlosStorybook.recordWhatStartWasHanded(\n' +
     '    { annotations: annotations, storyEntries: storyEntries, options: options },\n' +
-    '    real.prepareStories\n' +
+    '    real.prepareStories,\n' +
+    '    FILE_TITLES\n' +
     '  );\n' +
     '  return real.updateView(\n' +
     '    view,\n' +
@@ -1159,8 +1192,9 @@ function installedStorybookVersion(wrapperPath) {
 module.exports = applySherloTransforms;
 module.exports.applySherloTransforms = applySherloTransforms;
 module.exports.generateWrapper = generateWrapper;
+module.exports.aStoryFileChangedSince = aStoryFileChangedSince;
 module.exports.resolveThroughConfig = resolveThroughConfig;
-module.exports.isInsideFolder = isInsideFolder;
+module.exports.isInsideFolder = mockShims.isInsideFolder;
 module.exports.writeDisabledFlagPolyfill = writeDisabledFlagPolyfill;
 // Exported for SHERLO-1890 spike unit tests (module manifest sidecar).
 module.exports.emitModuleManifestSidecar = emitModuleManifestSidecar;

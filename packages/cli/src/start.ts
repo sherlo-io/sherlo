@@ -13,6 +13,7 @@ import {
   teamCreate,
   teamList,
   capture,
+  coverage,
   open,
   test,
   view,
@@ -61,8 +62,10 @@ import {
   VIEW_COMMAND,
   OPEN_COMMAND,
   CAPTURE_COMMAND,
+  COVERAGE_COMMAND,
   JSON_OPTION,
   LOGS_OPTION,
+  PROPS_OPTION,
   STORY_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
@@ -123,6 +126,8 @@ async function start() {
     addOpenCommand(program);
 
     addCaptureCommand(program);
+
+    addCoverageCommand(program);
 
     addPoseCommand(program);
 
@@ -190,6 +195,12 @@ const COMMAND_DESCRIPTION = {
     `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
     `  includes the app's own log lines; \`--${LOGS_OPTION}\` prints those lines on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
+  [COVERAGE_COMMAND]:
+    'List the components no story draws, the most imported first.\n' +
+    '  Reads your source files: no bundler, no phone, no login. A component only a story\n' +
+    '  marked `sherlo: { exclude: true }` imports counts as not covered.\n' +
+    `  \`--${PROPS_OPTION}\` also reads your story files and TypeScript types and lists the prop\n` +
+    '  values no story file sets for its own component.',
   [`${PROJECT_COMMAND} ${PROJECT_CREATE_SUBCOMMAND}`]:
     'Create a project in a team and print its project token ONCE.\n' +
     `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`), which is a different credential\n` +
@@ -322,6 +333,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${LOGS_OPTION}`,
     "Also print the app's own log lines from this capture, after the story",
   ],
+  [PROPS_OPTION]: [
+    `--${PROPS_OPTION}`,
+    'Also read the story files and list the prop values no story file sets',
+  ],
   [TIMEOUT_OPTION]: [
     `--${TIMEOUT_OPTION} <seconds>`,
     `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
@@ -395,6 +410,18 @@ function addCaptureCommand(program: Command) {
     options: [STORY_OPTION, PORT_OPTION, JSON_OPTION, LOGS_OPTION],
     action: capture,
     withTimeout: false,
+  });
+}
+
+// Reads the app's source files and, with `--props`, its story files (../seams/
+// coverageScan). Hidden from `--help` like `fingerprint`.
+function addCoverageCommand(program: Command) {
+  addCommand({
+    program,
+    command: COVERAGE_COMMAND,
+    options: [PROPS_OPTION, JSON_OPTION],
+    action: coverage,
+    hidden: true,
   });
 }
 
@@ -703,14 +730,12 @@ function addTeamCommand(program: Command) {
 
 /**
  * `sherlo pose <pose.json|->` - run one command against a declared world and print the whole
- * screen it put on a terminal (see ./commands/pose/pose).
- *
- * HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
+ * screen it put on a terminal (see ./commands/pose/pose). HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
  * for the people who work on the tool, and a user who runs `sherlo --help` has no use for a verb
  * that takes a JSON document describing a run they are not making.
  *
- * The command is loaded only when it runs. It reaches back into THIS module - the routing it
- * exists to exercise is `start` itself - so a static import here would be a load-time cycle.
+ * The command is loaded only when it runs (it reaches back into THIS module, so a static import
+ * would be a load-time cycle).
  */
 function addPoseCommand(program: Command) {
   if (process.env.SHERLO_DEVTOOLS !== '1') return;
@@ -719,10 +744,11 @@ function addPoseCommand(program: Command) {
     .command(`${POSE_COMMAND} <pose>`)
     .description(COMMAND_DESCRIPTION[POSE_COMMAND])
     .option('--no-terminal', 'Print what an agent or a CI log receives, with no terminal attached')
-    .action(async (documentPath: string, actionOptions: { terminal: boolean }) => {
+    .option('--play <castFile>', 'Run with every wait at 2 seconds and write the cast to this file')
+    .action(async (documentPath: string, actionOptions: { terminal: boolean; play?: string }) => {
       const { pose } = await import('./commands/pose/pose');
 
-      await pose(documentPath, { terminal: actionOptions.terminal });
+      await pose(documentPath, actionOptions);
     });
 }
 
