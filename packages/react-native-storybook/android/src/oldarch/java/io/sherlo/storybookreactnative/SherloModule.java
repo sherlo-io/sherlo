@@ -169,6 +169,12 @@ public class SherloModule extends ReactContextBaseJavaModule {
         return moduleCore.reportEarlyJsError(name, message, stack);
     }
 
+    /** Puts a story's request rules in effect in native code (SherloRequestAnswers). */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    public boolean setNativeRequestAnswers(String rulesJson) {
+        return SherloRequestAnswers.setRulesJson(getReactApplicationContext(), rulesJson);
+    }
+
     // ==== Inspector Methods ====
 
     /**

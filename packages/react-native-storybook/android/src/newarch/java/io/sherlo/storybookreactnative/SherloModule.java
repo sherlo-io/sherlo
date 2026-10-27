@@ -164,6 +164,12 @@ public class SherloModule extends NativeSherloModuleSpec {
         return moduleCore.reportEarlyJsError(name, message, stack);
     }
 
+    /** Puts a story's request rules in effect in native code (SherloRequestAnswers). */
+    @Override
+    public boolean setNativeRequestAnswers(String rulesJson) {
+        return SherloRequestAnswers.setRulesJson(getReactApplicationContext(), rulesJson);
+    }
+
     // ==== Inspector Methods ====
 
     /**
