@@ -26,6 +26,17 @@ describe('a view named by its text', () => {
     expect(isTarget(textView('Say "hi"'), { text: 'Say “hi”' })).toBe(true);
     expect(isTarget(textView('It’s'), { text: 'It’s' })).toBe(true);
   });
+
+  it('a ready text written on one line matches a view whose text breaks the line where a space reads', () => {
+    const broken = textView('first line\nsecond line');
+    expect(isTarget(broken, { text: 'first line second line' })).toBe(true);
+    expect(isTarget(textView('first line second line'), { text: 'first line\nsecond line' })).toBe(
+      true
+    );
+    expect(isTarget(textView('first line'), { text: 'first  line' })).toBe(true);
+    expect(isTarget(textView('first line'), { text: 'first line' })).toBe(true);
+    expect(isTarget(broken, { text: 'first line second lime' })).toBe(false);
+  });
 });
 
 describe('a view named by its label or testID', () => {

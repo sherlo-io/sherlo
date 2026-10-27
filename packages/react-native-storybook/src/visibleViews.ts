@@ -51,11 +51,13 @@ export async function isDrawn(target: TapTarget): Promise<boolean> {
 
 /**
  * A text as the match reads it: trimmed, with the typed quote marks and the app's typographic ones
- * taken as the same (’ ‘ and ', “ ” and "). The whole string stays: no part of it is matched.
+ * taken as the same (’ ‘ and ', “ ” and "), and every run of whitespace (spaces, tabs, line breaks,
+ * the non-breaking space) read as one space. The whole string stays: no part of it is matched.
  */
 function textAsMatched(text: string): string {
   return text
     .trim()
+    .replace(/\s+/g, ' ')
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"');
 }
