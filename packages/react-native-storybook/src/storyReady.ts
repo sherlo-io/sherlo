@@ -27,6 +27,7 @@ import { requestsInFlight } from './mocking/requestsInFlight';
 import { readStoryError, recordStoryError } from './getStorybook/storyErrorRegistry';
 import { markStorySettled } from './mocking/registry';
 import type { NativeCalls } from './sealedCore/seam';
+import { playSteps } from './playSteps';
 import { reachedRoute } from './reachedScreen';
 import { isDrawn } from './visibleViews';
 import type { Scene, SceneFile } from './scenes';
@@ -58,7 +59,9 @@ type ReadVisibility = (testIDs: string[]) => Promise<ViewVisibility>;
  * The scene about to be photographed, whether it has already been proven ready, and the promise
  * that settles once its mocks are installed (null when they already are).
  */
-let sceneToReady: { sceneId: string; proven: boolean; installed: Promise<void> | null } | undefined;
+let sceneToReady:
+  | { sceneId: string; proven: boolean; installed: Promise<void> | null; stepsBegan: boolean }
+  | undefined;
 
 /**
  * A scene is about to be photographed: its readiness is proven afresh, once, before its first
@@ -66,7 +69,16 @@ let sceneToReady: { sceneId: string; proven: boolean; installed: Promise<void> |
  * (./getStorybook/storyMockActivation), with the promise that installing them returned.
  */
 export function storyAboutToRender(sceneId: string, installed: Promise<void> | null = null): void {
-  sceneToReady = { sceneId, proven: false, installed };
+  sceneToReady = { sceneId, proven: false, installed, stepsBegan: false };
+}
+
+/**
+ * The steps of `sceneId` are being played, by whoever plays them (./playSteps): the stillness check
+ * then does not play them again. Keyed on the scene, so a capture, where the core plays them
+ * first, and a test run, where the stillness check does, both play them once.
+ */
+export function stepsBeganFor(sceneId: string): void {
+  if (sceneToReady?.sceneId === sceneId) sceneToReady.stepsBegan = true;
 }
 
 /**
@@ -128,6 +140,11 @@ export function stabilizeOnceReady<
       // installing was photographed with its steps skipped).
       await mocksInstalled();
       const scene = sceneToReady;
+      // A test run's core knows no steps: play them here, once, before the screen is judged. A
+      // missed step throws its own line (a capture's core has played them already).
+      if (scene && !scene.stepsBegan && (sceneOf(scene.sceneId)?.play?.length ?? 0) > 0) {
+        await playSteps(scene.sceneId);
+      }
       const rule = scene && !scene.proven ? readyRuleOf(scene.sceneId) : undefined;
       if (scene && rule) {
         const ended = await waitUntilReady(scene.sceneId, rule, native.getViewVisibility);

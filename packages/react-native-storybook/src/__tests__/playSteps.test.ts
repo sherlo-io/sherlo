@@ -796,3 +796,55 @@ describe('the mocks of a scene are installing', () => {
     expect(await settled).toBe(true);
   });
 });
+
+describe('a scene in a test run', () => {
+  it('a scene in a test run plays its steps once before its ready wait', async () => {
+    scene.play = [{ tap: 'Connections' }, { tap: 'connectionListItem' }];
+    scene.ready = { testID: 'chat.input.message', requestsIdle: false };
+    rowsOnScreen = [{ name: 'Ada', y: 100 }];
+
+    // The run's core never plays steps: only the stillness check is asked.
+    const first = stabilize();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(await first).toBe(true);
+    expect(pressed).toEqual(['Connections', 'row Ada']);
+    expect(screen).toBe('chat');
+
+    const second = stabilize();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(await second).toBe(true);
+    expect(pressed).toEqual(['Connections', 'row Ada']);
+  });
+
+  it("a scene whose step misses in a test run fails with the step's line, not the ready timeout", async () => {
+    scene.play = [{ tap: 'connectionListItem' }];
+    scene.ready = { testID: 'chat.input.message', requestsIdle: false };
+
+    const settled = stabilize().then(
+      () => undefined,
+      (error) => error
+    );
+    await vi.advanceTimersByTimeAsync(40_000);
+    const error = await settled;
+
+    expect(error).toBeInstanceOf(SherloStepError);
+    expect(error.message).toBe(
+      `Scene ${SCENE_ID} could not play step 1 of 1 (tap testID "connectionListItem"): ` +
+        'no visible view with testID "connectionListItem" after 5 s'
+    );
+    expect(nativeStabilize).not.toHaveBeenCalled();
+  });
+
+  it("a capture plays a scene's steps once, not again at the stillness check", async () => {
+    scene.play = [{ tap: 'Connections' }];
+
+    const steps = playSteps(SCENE_ID);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await steps;
+    const settled = stabilize();
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(await settled).toBe(true);
+    expect(pressed).toEqual(['Connections']);
+  });
+});
