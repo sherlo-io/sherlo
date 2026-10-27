@@ -39,8 +39,19 @@ export type SceneLeft = {
   loggedErrors?: { messages: { message: string; times: number }[]; moreLeftOut: number };
 };
 
-/** One step of a scene's `play`, as the scene file wrote it: a tap by testID, or one of the app's own links. */
-export type PlayStep = { tap: string } | { open: string };
+/**
+ * One step of a scene's `play`, as the scene file wrote it: a tap, a long-press, a typing or a
+ * swipe on a view (named, never the typed text), or one of the app's own links.
+ */
+export type PlayStep =
+  | { tap: string }
+  | { longPress: string }
+  | { type: string }
+  | { swipe: string; direction: 'left' | 'right' | 'up' | 'down' }
+  | { open: string };
+
+/** The step whose view never showed: any step but a link. */
+export type PlayMissing = Exclude<PlayStep, { open: string }>;
 
 /** How a scene run ended, without the bundler's two refusals, which carry a port. */
 export type SceneEnding =
@@ -75,7 +86,7 @@ export type SceneEnding =
       route: string[];
       /** The steps done before the one that found nothing. */
       done: PlayStep[];
-      missing: { tap: string };
+      missing: PlayMissing;
       limitMs: number;
     } & SceneLeft)
   /** The app took the capture and started over `restarts` times, and no picture came of it. */
@@ -181,7 +192,7 @@ function sceneLines(state: CapturedScene): string[] {
         )} - its play could not go on`,
         ...state.done.map((step) => chalk.dim(`   ${playStep(step)}`)),
         '',
-        `  ${missedStep(state.missing.tap)} within ${state.limitMs / 1000}s.`,
+        `  ${missedStep(state.missing)} within ${state.limitMs / 1000}s.`,
         ...(state.threw ? ['', errorLine(state.threw)] : []),
         ...leftLines(state),
         '',
@@ -323,14 +334,28 @@ export function route(names: string[]): string {
  * `tap chat-header-menu found no view with that testID`. The app spells a tap by text or label as
  * `text "Row"` / `label "Row"`; a bare name is a testID.
  */
-function missedStep(tap: string): string {
-  const [, by, name] = /^(text|label) "([\s\S]*)"$/.exec(tap) ?? [];
-  return `tap ${by ? name : tap} found no view with that ${by ?? 'testID'}`;
+function missedStep(step: PlayMissing): string {
+  const [verb, target] = verbAndTarget(step);
+  const [, by, name] = TEXT_OR_LABEL_TARGET.exec(target) ?? [];
+  return `${verb} ${by ? name : target} found no view with that ${by ?? 'testID'}`;
 }
 
-/** `tap chat-header-menu` or `open feeld://chat-list` - one play step, spelt as the scene file spells it. */
+/** A target the app spells `text "Row"` or `label "Row"`; any other is a bare testID. */
+const TEXT_OR_LABEL_TARGET = /^(text|label) "([\s\S]*)"$/;
+
+function verbAndTarget(step: PlayMissing): [string, string] {
+  if ('tap' in step) return ['tap', step.tap];
+  if ('longPress' in step) return ['long-press', step.longPress];
+  if ('type' in step) return ['type', step.type];
+  return [`swipe ${step.direction}`, step.swipe];
+}
+
+/** `tap chat-header-menu`, `long-press testID "row"` or `open feeld://chat-list` - one play step, named for the capture. */
 export function playStep(step: PlayStep): string {
-  return 'tap' in step ? `tap ${step.tap}` : `open ${step.open}`;
+  if ('open' in step) return `open ${step.open}`;
+  if ('tap' in step) return `tap ${step.tap}`;
+  const [verb, target] = verbAndTarget(step);
+  return `${verb} ${TEXT_OR_LABEL_TARGET.test(target) ? target : `testID "${target}"`}`;
 }
 
 /** The refusal for a scene id the app does not have, shared by `open --scene` and `capture --scene`. */

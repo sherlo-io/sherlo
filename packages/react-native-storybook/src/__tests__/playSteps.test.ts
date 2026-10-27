@@ -423,6 +423,40 @@ describe('a scene plays its steps', () => {
     expect(pressed).toEqual(['Connections']);
   });
 
+  it("a long-press holds the native touch on the target's centre for its hold time", async () => {
+    tabAt(600);
+    const touches: number[][] = [];
+    nativeTouch.tap = async (x, y, holdMs) => {
+      touches.push([x, y, holdMs]);
+      return { reachedReact: true, hitTag: 12, hitClass: 'RCTViewComponentView', missing: [] };
+    };
+    scene.play = [{ longPress: 'Connections' }];
+
+    expect(await played()).toEqual(['long-press testID "Connections"']);
+    expect(touches).toHaveLength(1);
+    expect(touches[0][2]).toBe(800);
+    expect(pressed).toEqual([]);
+  });
+
+  it('a long-press with no native touch calls the nearest onLongPress, held 800 ms', async () => {
+    const longPressed: string[] = [];
+    views.now = () => ({
+      tag: 1,
+      frame: WINDOW,
+      children: [
+        {
+          tag: 12,
+          props: { testID: 'Row', onLongPress: () => longPressed.push('Row') },
+          frame: { x: 195, y: 600, width: 97, height: 60 },
+        },
+      ],
+    });
+    scene.play = [{ longPress: 'Row' }];
+
+    expect(await played()).toEqual(['long-press testID "Row"']);
+    expect(longPressed).toEqual(['Row']);
+  });
+
   it("an Android tap presses through the native touch at the target's centre, and a covered target ends the step with its line", async () => {
     const touches: number[][] = [];
     let answer = {

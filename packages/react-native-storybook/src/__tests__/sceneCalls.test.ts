@@ -80,6 +80,28 @@ describe('the scene calls of the host', () => {
     });
   });
 
+  it("a played long-press is recorded by its target's name", async () => {
+    behind.scene.play = [{ longPress: { text: 'Row' } }, { longPress: 'Inbox' }];
+    behind.playSteps.mockResolvedValue([]);
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toEqual({
+      played: [{ longPress: 'Row' }, { longPress: 'Inbox' }],
+    });
+  });
+
+  it('a long-press whose view never showed answers itself as the missing step', async () => {
+    behind.scene.play = [{ longPress: { text: 'Row' } }];
+    behind.playSteps.mockRejectedValue(
+      new SherloStepError(SCENE_ID, 'step 1 of 1', 'no visible view', [], true)
+    );
+    behind.awaitReady.mockResolvedValue({ outcome: 'shown' });
+
+    await expect(calls.playSteps!(SCENE_ID)).resolves.toMatchObject({
+      missing: { longPress: 'text "Row"' },
+      limitMs: 5_000,
+    });
+  });
+
   it('a ready view met before the last step played is noted in the outcome and the steps play on as today', async () => {
     behind.readyShowsNow.mockResolvedValueOnce(false).mockResolvedValue(true);
     behind.playSteps.mockImplementation(

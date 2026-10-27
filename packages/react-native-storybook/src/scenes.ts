@@ -11,13 +11,16 @@ export type TapTarget = { testID?: string; text?: string; label?: string; index?
 /** A plain tap on a view. */
 export type TapStep = { tap: string | TapTarget };
 
+/** A finger held on a view long enough to open a menu; the target is named as a tap's is. */
+export type LongPressStep = { longPress: string | TapTarget };
+
 /** The app's own link, handed to the app as a link it received. */
 export type OpenStep = { open: string };
 
 /** A wait for a view between two steps. */
 export type ReadyStep = { ready: string | ReadyRule };
 
-export type PlayStep = TapStep | OpenStep | ReadyStep;
+export type PlayStep = TapStep | LongPressStep | OpenStep | ReadyStep;
 
 export type { SceneDevice, ScenePermission } from './sceneDeviceTypes';
 

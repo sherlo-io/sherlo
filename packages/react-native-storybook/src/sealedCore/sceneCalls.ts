@@ -24,7 +24,13 @@ import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
 import { monotonicNow } from '../settleClock';
 import type { PlayStep } from '../scenes';
 import { awaitReady, readyRuleOf, readyShowsNow, sceneOf } from '../storyReady';
-import type { ScenePlayOutcome, ScenePlayStep, SceneReadyOutcome, SealedCoreHost } from './seam';
+import type {
+  ScenePlayMissing,
+  ScenePlayOutcome,
+  ScenePlayStep,
+  SceneReadyOutcome,
+  SealedCoreHost,
+} from './seam';
 
 type SceneCalls = Pick<
   SealedCoreHost,
@@ -69,14 +75,15 @@ function recordedSteps(steps: PlayStep[]): ScenePlayStep[] {
   const recorded: ScenePlayStep[] = [];
   for (const step of steps) {
     if ('open' in step) recorded.push({ open: step.open });
-    if ('tap' in step) {
-      const { tap } = step;
-      recorded.push({
-        tap: typeof tap === 'string' ? tap : (tap.testID ?? tap.text ?? tap.label ?? ''),
-      });
-    }
+    if ('tap' in step) recorded.push({ tap: recordedName(step.tap) });
+    if ('longPress' in step) recorded.push({ longPress: recordedName(step.longPress) });
   }
   return recorded;
+}
+
+/** A target as the record names it: the string itself, else its testID, text or label. */
+function recordedName(target: Parameters<typeof targetOf>[0]): string {
+  return typeof target === 'string' ? target : (target.testID ?? target.text ?? target.label ?? '');
 }
 
 /** Play the scene's steps; a tap whose view never showed is the outcome, any other failure the scene's error. */
@@ -98,7 +105,12 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
     const playedCount = error instanceof SherloStepError ? error.played.length : 0;
     const played = recordedSteps(steps.slice(0, playedCount));
     const [failed] = recordedSteps(steps.slice(playedCount, playedCount + 1));
-    if (error instanceof SherloStepError && error.viewNeverShowed && failed && 'tap' in failed) {
+    if (
+      error instanceof SherloStepError &&
+      error.viewNeverShowed &&
+      failed &&
+      ('tap' in failed || 'longPress' in failed)
+    ) {
       // The first tap found nothing: the ready wait decides what that means. If the ready view
       // never shows either, the app never got to the screen the scene meant (a sign-in, say) and
       // the scene ends as never-reached, the ready wait's answer kept for the core's own ask. If
@@ -112,7 +124,7 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
       }
       return {
         played,
-        missing: { tap: missedTapName(steps[playedCount]) },
+        missing: missedStep(steps[playedCount]),
         limitMs: TAP_LOOKS_FOR_MS,
       };
     }
@@ -127,11 +139,14 @@ const playUnfinished = new Set<string>();
 /** The ready wait that already ended while a scene's first tap was missing, by scene; the core's ask takes it. */
 const readyEndedDuringPlay = new Map<string, SceneReadyOutcome>();
 
-/** A missed tap as the CLI names it: a testID bare, a text or label as `text "Row"` (./playSteps). */
-function missedTapName(step: PlayStep | undefined): string {
-  if (!step || !('tap' in step)) return '';
-  const target = targetOf(step.tap);
-  return target.testID ?? nameOf(target);
+/** A missed tap or long-press as the CLI names it: a testID bare, a text or label as `text "Row"` (./playSteps). */
+function missedStep(step: PlayStep | undefined): ScenePlayMissing {
+  const named = (target: Parameters<typeof targetOf>[0]) => {
+    const resolved = targetOf(target);
+    return resolved.testID ?? nameOf(resolved);
+  };
+  if (step && 'longPress' in step) return { longPress: named(step.longPress) };
+  return { tap: step && 'tap' in step ? named(step.tap) : '' };
 }
 
 /** The core's ask for the ready view: a scene whose steps did not all play is never ready. */

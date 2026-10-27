@@ -687,11 +687,25 @@ export type PosedCapture =
       reachedMs: number;
       /** The steps that ran before the one that found nothing. */
       playDone: PosedPlayStep[];
-      /** The tap that found nothing, and how long it looked. */
-      targetMissing: {
-        tap: string;
-        limitMs: number;
-      };
+      /** The step that found nothing, and how long it looked. */
+      targetMissing:
+        | {
+            tap: string;
+            limitMs: number;
+          }
+        | {
+            longPress: string;
+            limitMs: number;
+          }
+        | {
+            type: string;
+            limitMs: number;
+          }
+        | {
+            swipe: string;
+            direction: 'left' | 'right' | 'up' | 'down';
+            limitMs: number;
+          };
     }
   | {
       scenes: string[];
@@ -1265,10 +1279,23 @@ export type PosedView = {
   children?: PosedView[];
 };
 
-/** One step of a scene's `play`: a tap on the view with that testID, or one of the app's own links. */
+/**
+ * One step of a scene's `play`: a tap, a long-press, a typing (its name only) or a swipe on a
+ * view, or one of the app's own links.
+ */
 export type PosedPlayStep =
   | {
       tap: string;
+    }
+  | {
+      longPress: string;
+    }
+  | {
+      type: string;
+    }
+  | {
+      swipe: string;
+      direction: 'left' | 'right' | 'up' | 'down';
     }
   | {
       open: string;

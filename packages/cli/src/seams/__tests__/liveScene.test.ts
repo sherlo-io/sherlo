@@ -383,6 +383,16 @@ describe('a scene is captured and opened live', () => {
     expect(readSceneAnswer(SCENE_RECORD, SCENE)).not.toHaveProperty('unanswered');
   });
 
+  it('a missing long-press step is read back as a long-press, not as a tap', () => {
+    const answer = readSceneAnswer(
+      { kind: 'play-target-missing', route: [], done: [], missing: { longPress: 'row' } },
+      SCENE
+    );
+
+    expect(answer).toMatchObject({ kind: 'play-target-missing', missing: { longPress: 'row' } });
+    expect(answer).not.toHaveProperty('missing.tap');
+  });
+
   it('a scene whose ready wait timed out ends as never got ready, never as settled', () => {
     const ending = readSceneAnswer(
       { ...SCENE_RECORD, settled: 'timed-out', ready: 'chat-list' },
