@@ -151,6 +151,8 @@ function walkNode(
     if (value === undefined) {
       if (field.conditional) return;
       if (field.name === '__typename') {
+        // The client keys the root by itself and never reads its type name.
+        if (atRoot) return;
         record(walk, finding('typename-missing', walk.operation, path, expectedTypes));
       } else {
         record(walk, finding('field-missing', walk.operation, [...path, field.key], field.name));
