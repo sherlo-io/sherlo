@@ -224,11 +224,12 @@ function sceneLines(state: CapturedScene): string[] {
   }
 }
 
-/** The modules that ran real and the requests no mock answered, as the story prints them; nothing when there are none. */
+/** The requests no mock answered, and the modules that ran real beside an error or an unanswered request; nothing when there are none. */
 function leftLines(left: SceneLeft & { discover?: true }): string[] {
   const { stillReal, unanswered, loggedErrors } = left;
+  const hasCause = Boolean(left.threw) || (unanswered ?? []).length > 0;
   return [
-    ...(left.discover ? [] : stillRealLines(stillReal)),
+    ...(left.discover || !hasCause ? [] : stillRealLines(stillReal)),
     ...(left.discover ? discoverLines(left) : unansweredLines(unanswered)),
     ...loggedErrorLines(loggedErrors),
   ];

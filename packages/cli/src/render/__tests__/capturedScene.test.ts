@@ -91,6 +91,23 @@ describe('a scene that never got ready', () => {
     expect(printed).not.toContain('logged-in');
   });
 
+  it('a scene that stayed on sign-in with nothing thrown and nothing unanswered prints no real modules', () => {
+    const printed = neverReached({ stillReal: ['src/a.ts', 'src/b.ts'] });
+
+    expect(printed).not.toContain('ran as real code');
+    expect(printed).not.toContain('src/a.ts');
+  });
+
+  it('a scene that threw lists the modules that ran as real code', () => {
+    const printed = neverReached({
+      threw: { name: 'TypeError', message: 'boom' },
+      stillReal: ['src/a.ts', 'src/b.ts'],
+    });
+
+    expect(printed).toContain("2 of the app's own modules ran as real code");
+    expect(printed).toContain('src/a.ts');
+  });
+
   it('a scene that never got ready and did not throw prints the logged-in hint as before', () => {
     expect(neverReached({})).toContain("Add a logged-in user to the scene's mocks.");
   });
@@ -179,8 +196,9 @@ describe('a discover capture lists what the scene needs', () => {
 
   it('a discover capture prints no module list, and its json record still keeps stillReal', () => {
     const stillReal = ['src/a.ts', 'src/b.ts'];
-    const printed = discovered({ stillReal });
-    const plain = neverReachedPlain({ stillReal });
+    const unanswered = [{ method: 'GET', url: '/a' }];
+    const printed = discovered({ stillReal, unanswered });
+    const plain = neverReachedPlain({ stillReal, unanswered });
 
     expect(printed).not.toContain('src/a.ts');
     expect(printed).not.toContain('src/b.ts');
