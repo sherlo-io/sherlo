@@ -24,9 +24,10 @@
  * No bundler runs, no fingerprint is computed, no routing gate is asked - a sim
  * world has no native base to route against - and the staged trio
  * (jsBundleS3Key/bundleSizeMb/assetsS3Key) is deliberately NOT sent, so no
- * baseFingerprint is owed. Output reuses the staged road's own closer verbatim
- * (capture plan, Review URL, --wait contract, server-bypass closer): sim mode
- * changes the machine, never the conversation.
+ * baseFingerprint is owed. From the open on, it runs the staged road's own code
+ * (./startTheTest: push facts, join, capture plan with story counts and titles,
+ * branching-off warning, Review URL, --wait contract, server-bypass closer): sim
+ * mode changes the machine, never the conversation.
  *
  * Unlike the module-manifest sidecar's bail-open contract, EVERY failure here
  * is fatal: the manifest and the world ARE the run - there is nothing to
@@ -37,7 +38,6 @@ import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import { Options } from '../../types';
 import {
-  getAppBuildUrl,
   getBuildRunConfig,
   getGitInfo,
   getPlatformsToTest,
@@ -46,18 +46,14 @@ import {
   reporting,
   throwError,
 } from '../../helpers';
-import { isServerBypassed } from '../../helpers/waitForBuildResult';
-import type { PlatformRow } from '../../render/runRows';
 import { serverCalls } from '../../seams/serverCalls';
 import { THIS_COMMAND } from './constants';
 import { splitRunKeyOf } from './appBuild/buildThenPush';
 import type { BuildFlags } from './appBuild/buildSettings';
-import { joinTheRun } from './appBuild/joinTheRun';
 import composeSimWorldFile from './composeSimWorldFile';
 import deriveSimManifest from './deriveSimManifest';
 import { readSimWorld } from './simWorld';
-import { closeTheRun } from './closeTheRun';
-import { printTestStarted } from './stagedRun';
+import { openAndEndTheTest } from './startTheTest';
 import { putBuffer, type StagedUploadUrlsWithManifest } from './uploadStagedArtifacts';
 import type { ValidatedModuleManifest } from './readModuleManifest';
 
@@ -165,58 +161,25 @@ async function simRun(
     level: 'info',
   });
 
-  // A sim world has no app build, so no platform has a row above the test's.
-  const platformRows: PlatformRow[] = [];
-
-  let openBuildReturn;
-  try {
-    const request = {
+  // 8. The rest is the staged road's own code, not a copy of it (./startTheTest): the push facts,
+  //    the join, the test's row with the stories' counts and titles, the branching-off warning and
+  //    the ending, so this road prints what a customer's push prints. A sim world has no app
+  //    build, so no platform has a row above the test's.
+  return openAndEndTheTest({
+    passedOptions,
+    commandParams,
+    platformsToTest,
+    joinKey,
+    request: {
       teamId,
       projectIndex,
       buildRunConfig,
       gitInfo,
       message: commandParams.message,
-    };
-    openBuildReturn = joinKey
-      ? ({
-          ...(await joinTheRun({
-            token,
-            joinKey,
-            platform: platformsToTest[0],
-            request,
-            platformRows,
-          })),
-          buildRun: { config: {} },
-        } as unknown as Awaited<ReturnType<ReturnType<typeof serverCalls>['openBuild']>>)
-      : await serverCalls().openBuild({ token, ...request });
-  } catch (error) {
-    handleClientError(error, token); // always throws
-    throw error; // unreachable - satisfies control flow / typing
-  }
-
-  // 8. The output road - the staged road's own, reused verbatim.
-  const { build } = openBuildReturn;
-  const buildIndex = build.index;
-  reporting.setTag('build_index', String(buildIndex));
-  reporting.setTag('platform', platformsToTest.length === 2 ? 'both' : platformsToTest[0]);
-
-  const url = getAppBuildUrl({ buildIndex, projectIndex, teamId });
-  const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
-
-  if (!joinKey) {
-    printTestStarted({
-      openBuildReturn,
-      moduleManifests: manifestForEveryPlatform(manifest, platformsToTest),
-      platformsToTest,
-      devices: commandParams.devices,
-      serverBypassed,
-      platformRows,
-    });
-  }
-
-  await closeTheRun({ commandParams, buildIndex, url, serverBypassed, platformRows });
-
-  return { url };
+    },
+    moduleManifests: manifestForEveryPlatform(manifest, platformsToTest),
+    platformRows: [],
+  });
 }
 
 export default simRun;

@@ -1,5 +1,10 @@
 import fs from 'fs';
 import { Build } from '@sherlo/api-types';
+import deepenShallowClone from './deepenShallowClone';
+import getDefaultBranch from './getDefaultBranch';
+import gitFailureReason from './gitFailureReason';
+import parseRepoSlug from './parseRepoSlug';
+import { readMergedParents, readParentWindows } from './readMergeHistory';
 import runShellCommand from './runShellCommand';
 import { emit } from './transcriptSink';
 
@@ -41,6 +46,8 @@ export type GitInfo = Build['gitInfo'] & {
    * Only present when the canonical commit is a merge commit.
    */
   perParentAncestorCommitHashes?: string[][];
+  /** Each merge in the history sent: its hash, then its non-first parents. */
+  mergedParentCommitHashes?: string[][];
   /**
    * True fork-point between the PR branch and the base branch, computed as
    * `git merge-base HEAD^1 HEAD^2` on a synthetic merge ref.  This is the
@@ -106,64 +113,6 @@ function getPrHeadShaFromGitHubEvent(): string | undefined {
     const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
     const sha = payload?.pull_request?.head?.sha;
     return typeof sha === 'string' && sha.length > 0 ? sha : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * The repository's default branch as reported by GitHub Actions.
- *
- * The runner writes the triggering event's JSON payload to the file named by
- * `GITHUB_EVENT_PATH` - the same road {@link getPrHeadShaFromGitHubEvent}
- * travels - and MOST events (push, pull_request, workflow_dispatch, …) embed
- * the full `repository` object, whose `default_branch` is the branch GitHub
- * itself considers the project's main line. That makes this the most
- * authoritative rung: it is the platform's own answer, and it holds even on a
- * fetch-depth:1 checkout that carries no remote refs at all.
- *
- * Returns undefined when the variable, the file, or the field is absent (e.g.
- * outside GitHub Actions, or on an event type that carries no `repository`).
- */
-function getDefaultBranchFromGitHubEvent(): string | undefined {
-  const eventPath = process.env.GITHUB_EVENT_PATH;
-  if (!eventPath) return undefined;
-  try {
-    const payload = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
-    const branch = payload?.repository?.default_branch;
-    return typeof branch === 'string' && branch.length > 0 ? branch : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Resolves the repository's default branch, most authoritative rung first:
- *
- * 1. **GitHub Actions event payload** - `repository.default_branch`, the
- *    platform's own answer (see {@link getDefaultBranchFromGitHubEvent}).
- * 2. **`git symbolic-ref refs/remotes/origin/HEAD`** - the generic, host-
- *    agnostic fallback. That ref is written by a normal `git clone` and points
- *    at the remote's HEAD, so on a full clone it is an honest local record of
- *    the default branch. It is ABSENT on many CI checkouts (shallow or
- *    `--single-branch` clones fetch no such ref, and `actions/checkout` never
- *    writes one), in which case the command fails.
- * 3. **undefined** - neither source answered. We never fall back to a guess
- *    like "main"/"master": a wrong main line is worse for the server than no
- *    main line, which it can simply treat as unknown.
- */
-async function getDefaultBranch(projectRoot: string): Promise<string | undefined> {
-  const fromEvent = getDefaultBranchFromGitHubEvent();
-  if (fromEvent) return fromEvent;
-
-  try {
-    // e.g. "refs/remotes/origin/main" -> "main"
-    const ref = await runShellCommand({
-      command: 'git symbolic-ref refs/remotes/origin/HEAD',
-      projectRoot,
-    });
-    const branch = ref.trim().replace(/^refs\/remotes\/origin\//, '');
-    return branch.length > 0 && branch !== ref.trim() ? branch : undefined;
   } catch {
     return undefined;
   }
@@ -351,21 +300,15 @@ async function getAdditionalGitInfo(
   await safe(async () => {
     const parents = additional.parentCommitHashes;
     if (!parents || parents.length < 2) return;
-    const windows: string[][] = [];
-    for (const parentSha of parents.slice(1)) {
-      try {
-        const out = await runShellCommand({
-          command: `git rev-list --first-parent --skip=1 --max-count=${ANCESTOR_LIMIT} ${parentSha}`,
-          projectRoot,
-        });
-        windows.push(out.split('\n').filter(Boolean));
-      } catch {
-        windows.push([]);
-      }
-    }
-    if (windows.length > 0) {
-      additional.perParentAncestorCommitHashes = windows;
-    }
+    const rest = parents.slice(1);
+    const windows = await readParentWindows(runShellCommand, projectRoot, rest, ANCESTOR_LIMIT);
+    if (windows.length > 0) additional.perParentAncestorCommitHashes = windows;
+  });
+
+  await safe(async () => {
+    const tips = [canonicalSha ?? 'HEAD', ...(additional.parentCommitHashes ?? []).slice(1)];
+    const merges = await readMergedParents(runShellCommand, projectRoot, tips, ANCESTOR_LIMIT);
+    if (merges.length > 0) additional.mergedParentCommitHashes = merges;
   });
 
   // mergeBaseSha: true fork-point between PR branch and base branch.
@@ -401,7 +344,7 @@ async function getAdditionalGitInfo(
 
   // defaultBranch: the repository's main line (NOT the branch being built).
   await safe(async () => {
-    const defaultBranch = await getDefaultBranch(projectRoot);
+    const defaultBranch = await getDefaultBranch(runShellCommand, projectRoot);
     if (defaultBranch) additional.defaultBranch = defaultBranch;
   });
 
@@ -417,22 +360,6 @@ async function getAdditionalGitInfo(
 }
 
 /**
- * Parses an `owner/repo` slug out of any common git remote URL format.
- *
- * Handles HTTPS (`https://host/owner/repo.git`) and SSH
- * (`git@host:owner/repo.git`) forms, host-agnostic.
- */
-function parseRepoSlug(remoteUrl: string): string | undefined {
-  // SSH: git@host:owner/repo.git
-  const sshMatch = remoteUrl.match(/^[^@]+@[^:]+:([^/]+\/[^/]+?)(?:\.git)?$/);
-  if (sshMatch) return sshMatch[1];
-  // HTTPS: https://host/owner/repo.git or http://host/owner/repo
-  const httpsMatch = remoteUrl.match(/^https?:\/\/[^/]+\/([^/]+\/[^/]+?)(?:\.git)?(?:\/)?$/);
-  if (httpsMatch) return httpsMatch[1];
-  return undefined;
-}
-
-/**
  * THE REAL GIT READ - what the tool asks a real repository, in a real folder.
  *
  * Exported as the LIVE half of the surroundings seam (../seams/surroundings): `getGitInfo` below
@@ -444,6 +371,10 @@ export async function readGitInfoFromDisk(
   opts?: { branchOverride?: string }
 ): Promise<GitInfo> {
   try {
+    const deepened = await deepenShallowClone(runShellCommand, projectRoot, ANCESTOR_LIMIT);
+    if (deepened.kind === 'refused') {
+      emit({ kind: 'git-history-fetch-refused', reason: deepened.reason });
+    }
     const { additional, canonicalSha } = await getAdditionalGitInfo(projectRoot);
 
     // On a merge ref the commit is the PR head, read locally or from the event payload, so every
@@ -470,23 +401,6 @@ export async function readGitInfoFromDisk(
 const GIT_INFO_UNKNOWN = 'unknown';
 
 /**
- * The one sentence a git failure is worth: the shell error `executeCommand` throws carries the
- * subprocess's own stderr (e.g. `fatal: not a git repository (or any of the parent
- * directories): .git`), which is the reason a reader needs - everything else on that error
- * (its stack, `code`/`killed`/`signal`, this machine's paths) is the tool's own internals, not
- * theirs to read. Falls back to the error's `message` for anything that isn't a failed shell
- * command (e.g. a plain `Error` a caller states directly).
- */
-function reasonFor(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const { stderr, message } = error as { stderr?: unknown; message?: unknown };
-    if (typeof stderr === 'string' && stderr.trim().length > 0) return stderr.trim();
-    if (typeof message === 'string') return message;
-  }
-  return String(error);
-}
-
-/**
  * Rebuilds `error` as one line: a message and nothing else - no frames, no `code`/`killed`/
  * `signal`/`stdout` object tail. Node's `console.error(text, error)` inspects a SECOND-argument
  * Error by its `.stack`, so an error whose stack IS its one-line message (nothing appended)
@@ -494,7 +408,7 @@ function reasonFor(error: unknown): string {
  * dump this exists to prevent.
  */
 function oneLineError(error: unknown): Error {
-  const reason = reasonFor(error);
+  const reason = gitFailureReason(error);
   const oneLine = new Error(reason);
   oneLine.stack = `Error: ${reason}`;
   return oneLine;

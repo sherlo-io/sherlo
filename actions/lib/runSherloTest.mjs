@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * The body of the Sherlo GitHub Action: repair a shallow checkout, run
- * `sherlo test` once, then publish the review address as the `url` output.
+ * The body of the Sherlo GitHub Action: run `sherlo test` once, then publish the
+ * review address as the `url` output.
  *
  * This script is the glue - every decision it makes lives in a unit-tested module
- * next to it (./cliEntry.mjs, ./deepenCheckout.mjs, ./testCommand.mjs).
+ * next to it (./cliEntry.mjs, ./testCommand.mjs).
  *
  * THE STEP EXITS WITH THE CLI'S OWN CODE: 0 once the run is open or joined, or when
  * the job has nothing to test; 1 for a refusal; 2 for a failed app build.
@@ -15,7 +15,6 @@
 import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { resolveCliEntry } from './cliEntry.mjs';
-import { deepenShallowCheckout } from './deepenCheckout.mjs';
 import { buildTestArgs } from './testCommand.mjs';
 
 main();
@@ -30,10 +29,6 @@ async function main() {
       cli.source === 'project' ? 'installed in your project' : 'carried by this action';
     console.log(`Sherlo CLI: ${cli.packageName}@${cli.version} (${origin})`);
     console.log(`            ${cli.entry}`);
-
-    // On a full clone this is one `git rev-parse` and nothing more; when it cannot
-    // repair a shallow one it warns and returns, because the CLI survives a shallow clone.
-    deepenShallowCheckout({ workingDirectory: process.cwd() });
 
     const args = buildTestArgs({
       platform: process.env.SHERLO_PLATFORM,
