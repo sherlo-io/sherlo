@@ -32,7 +32,7 @@ import { coverOf, nativeTagOf, publicInstanceOf, touchEvent, UNDER_BARS_REASON }
 import type { Frame } from './tapReach';
 import { isTarget, visibleViews } from './visibleViews';
 import type { Found } from './visibleViews';
-import { asRule, awaitReady, mocksInstalled, sceneOf } from './storyReady';
+import { asRule, awaitReady, mocksInstalled, sceneOf, stepsBeganFor } from './storyReady';
 
 /** How long a link waits for the system to take it. */
 const STEP_TIMEOUT_MS = 10_000;
@@ -78,6 +78,7 @@ export async function playSteps(
   /** Called before each step after the first, with the count of steps played and of all steps. */
   beforeStep?: (played: number, of: number) => Promise<void>
 ): Promise<string[]> {
+  stepsBeganFor(sceneId);
   await mocksInstalled();
   const scene = sceneOf(sceneId);
   const steps = scene?.play ?? [];
