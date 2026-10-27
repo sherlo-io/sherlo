@@ -11,6 +11,11 @@ export interface Spec extends TurboModule {
   getViewVisibility: (testIDsJson: string) => Promise<string>;
   sendNativeError: (errorCode: string, message: string, dataJson: string) => void;
   reportEarlyJsError: (name: string, message: string, stack: string) => boolean;
+  /**
+   * Put a story's request rules in effect in native code, as JSON (src/mocking/networkNative).
+   * Synchronous, so they are in before the story renders and its first native download starts.
+   */
+  setNativeRequestAnswers: (rulesJson: string) => boolean;
   openStorybook: () => void;
   closeStorybook: () => void;
   toggleStorybook: () => void;

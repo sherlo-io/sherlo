@@ -1,10 +1,11 @@
 import { NetworkMocks, NO_NETWORK_MOCKS } from './networkDeclaration';
 import { mockedFetchOf } from './networkFetch';
 import { mockedXhrOf, XhrClass } from './networkXhr';
-import { RecordRefusal, setNetworkMocks } from './networkRules';
+import { RecordRefusal, setNetworkMocks, unmatchedRequestVerdict } from './networkRules';
 import { TurboModule, TurboModuleRegistry } from 'react-native';
 import { holdNativeSockets, NativeSocketModule } from './networkSocket';
 import { isACapture } from './stillReal';
+import { handRulesToNative } from './networkNative';
 import { isBundlerSocketUrl } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
 
@@ -51,11 +52,16 @@ export function activateNetworkMocks(mocks: NetworkMocks, recordRefusal: RecordR
   // declared network mocks, the app's own everywhere else.
   if (!storyDeclaredNetworkMocks && isACapture()) {
     setNetworkMocks({ rules: [], passthrough: true, sockets: [] }, recordRefusal, 'listed');
+    handRulesToNative([], 'passthrough');
     install();
     return;
   }
 
   setNetworkMocks(mocks, recordRefusal, storyDeclaredNetworkMocks ? 'held' : 'untouched');
+  handRulesToNative(
+    mocks.rules,
+    storyDeclaredNetworkMocks ? unmatchedRequestVerdict() : 'passthrough'
+  );
   if (storyDeclaredNetworkMocks) install();
   else restore();
 }
@@ -107,6 +113,7 @@ export function sherloFetch(
 /** Put the real fetch and XMLHttpRequest back, and leave no rules in effect. */
 export function clearNetworkMocks(): void {
   setNetworkMocks(NO_NETWORK_MOCKS, () => {});
+  handRulesToNative([], 'passthrough');
   restore();
 }
 

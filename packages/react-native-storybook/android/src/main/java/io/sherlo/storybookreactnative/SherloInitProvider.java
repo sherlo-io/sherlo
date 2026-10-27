@@ -68,6 +68,8 @@ public class SherloInitProvider extends ContentProvider {
             }
             installJsExceptionHandler();
             installJsBundleEvalHook();
+            // Before Application.onCreate, so before any client is made.
+            if (ctx != null) SherloRequestAnswers.installWhereARunCanFollow(ctx, null);
         } catch (Throwable t) {
             // Never let a provider crash take down app startup for every SDK user.
             Log.e(TAG, "SherloInitProvider.onCreate failed", t);
@@ -113,6 +115,7 @@ public class SherloInitProvider extends ContentProvider {
                     SherloModuleCore.setDiscover(
                             intent != null && intent.getBooleanExtra(DISCOVER_EXTRA, false));
                     SherloModuleCore.startFromAddressHandedAtLaunch(address, captureId);
+                    SherloRequestAnswers.installWhereARunCanFollow(ctx, address);
                     if (SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
                         startTestingWatch(ctx);
                     } else if (intent != null && intent.hasExtra(CAPTURE_EXTRA)) {

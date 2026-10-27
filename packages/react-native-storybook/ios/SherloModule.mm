@@ -4,6 +4,7 @@
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
 #import "SherloIOSExceptionHandler.h"
+#import "SherloRequestAnswers.h"
 
 @implementation SherloModule
 
@@ -158,6 +159,12 @@ static void SherloEarlyInit(void) {
                            stack:(NSString *)stack
 {
   return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
+}
+
+/** Puts a story's request rules in effect in native code (SherloRequestAnswers). */
+- (NSNumber *)setNativeRequestAnswers:(NSString *)rulesJson
+{
+  return [SherloRequestAnswers setRulesJson:rulesJson] ? @YES : @NO;
 }
 
 /**
@@ -359,6 +366,11 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
                                        message:(NSString *)message
                                          stack:(NSString *)stack) {
   return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
+}
+
+/** Puts a story's request rules in effect in native code (SherloRequestAnswers). */
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(setNativeRequestAnswers:(NSString *)rulesJson) {
+  return [SherloRequestAnswers setRulesJson:rulesJson] ? @YES : @NO;
 }
 
 /**

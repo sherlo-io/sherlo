@@ -167,14 +167,21 @@ export function answerFor(request: MockedRequest): Verdict {
   }
 
   unanswered.push(recordOf(request));
-  if (mocksInEffect.passthrough) return { kind: 'passthrough' };
-  if (discover) return { kind: 'held' };
+  const unmatched = unmatchedRequestVerdict();
+  if (unmatched !== 'refusal') return { kind: unmatched };
 
   const refusal = new UnmockedRequestError(
     `no mock rule matches ${requestWords(request.method, request.url, operationNameOf(request.body))}`
   );
   recordRefusal(refusal);
   return { kind: 'refusal', refusal };
+}
+
+/** What a request no rule in effect matches gets: let through, held for good, or refused. */
+export function unmatchedRequestVerdict(): 'passthrough' | 'held' | 'refusal' {
+  if (mocksInEffect.passthrough) return 'passthrough';
+  if (discover) return 'held';
+  return 'refusal';
 }
 
 /** The answer's status, which is 200 unless the rule said otherwise. */
@@ -215,8 +222,14 @@ function matches(rule: NetworkRule, request: MockedRequest): boolean {
 
 function urlMatches(pattern: string | RegExp, url: string): boolean {
   if (pattern instanceof RegExp) return pattern.test(url);
-  if (pattern.endsWith('*')) return url.startsWith(pattern.slice(0, -1));
+  const prefix = urlPrefixOf(pattern);
+  if (prefix !== undefined) return url.startsWith(prefix);
   return url === pattern;
+}
+
+/** The start every matching address shares when `pattern` ends in `*`; undefined for an exact address. */
+export function urlPrefixOf(pattern: string): string | undefined {
+  return pattern.endsWith('*') ? pattern.slice(0, -1) : undefined;
 }
 
 /** A request told by method, address and, when it has one, GraphQL operation: how a rule and a refusal name it. */
