@@ -26,6 +26,7 @@ export { mockRandom } from './mocking/random';
 export { awaitReady } from './storyReady';
 export type { ReadyOutcome } from './storyReady';
 export type {
+  LongPressStep,
   OpenStep,
   PlayStep,
   ReadyStep,
@@ -33,6 +34,7 @@ export type {
   ScenePermission,
   TapStep,
   TapTarget,
+  TypeStep,
 } from './scenes';
 
 export * from './types';
