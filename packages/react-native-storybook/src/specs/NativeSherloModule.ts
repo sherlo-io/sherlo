@@ -91,6 +91,18 @@ export interface Spec extends TurboModule {
     holdMs: number
   ) => Promise<{ reachedReact: boolean; hitTag: number; hitClass: string; missing: string[] }>;
   /**
+   * Put a finger down at (fromX, fromY) in the same window, move it to (toX, toY) at a finger's
+   * pace over durationMs, and lift it there (a native build from before the swipe lacks the
+   * method). Resolves once the finger lifted, answered as `tap` is, for the view it went down on.
+   */
+  swipe: (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    durationMs: number
+  ) => Promise<{ reachedReact: boolean; hitTag: number; hitClass: string; missing: string[] }>;
+  /**
    * NativeEventEmitter's two calls. Native code raises one `SherloMessage` event for each message
    * the connection brings, its argument the message's JSON (src/connection/appLine).
    */

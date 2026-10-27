@@ -699,6 +699,28 @@ static UIScrollView *lockedScrollView = nil;
     });
 }
 
+- (void)swipe:(double)fromX
+        fromY:(double)fromY
+          toX:(double)toX
+          toY:(double)toY
+   durationMs:(double)durationMs
+      resolve:(RCTPromiseResolveBlock)resolve
+       reject:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // The window the inspector measures frames in, as the tap's.
+        UIWindow *window = [InspectorHelper appWindow];
+        if (!window) {
+            reject(@"no_window", @"The app has no window to swipe", nil);
+            return;
+        }
+        [TouchHelper swipeInWindow:window
+                              from:CGPointMake(fromX, fromY)
+                                to:CGPointMake(toX, toY)
+                        durationMs:durationMs
+                           resolve:resolve];
+    });
+}
+
 /**
  * BFS traversal from root to find the first (shallowest / most-wrapping) scrollable UIScrollView.
  * BFS guarantees breadth-first order so the outermost scrollable view is found first. The C core

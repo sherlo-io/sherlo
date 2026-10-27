@@ -9,11 +9,16 @@ const { views, scene, nativeTree, nativeTouch } = vi.hoisted(() => ({
   /** The native module's touch: none (a native build without it) unless a test lays one. */
   nativeTouch: { tap: undefined as undefined | ((x: number, y: number, holdMs: number) => any) },
 }));
+/** The native module's swipe: none (a native build from before it) unless a test lays one. */
+const nativeSwipe = vi.hoisted(() => ({
+  swipe: undefined as undefined | ((...line: number[]) => any),
+}));
 
 vi.mock('../SherloModule', () => ({
   default: {
     tap: async (x: number, y: number, holdMs: number) =>
       nativeTouch.tap ? nativeTouch.tap(x, y, holdMs) : null,
+    swipe: async (...line: number[]) => (nativeSwipe.swipe ? nativeSwipe.swipe(...line) : null),
     getMode: () => 'testing',
     getConfigOrDefault: () => ({}),
     getInspectorData: async () => {
@@ -254,6 +259,7 @@ beforeEach(() => {
   views.now = appViews;
   nativeTree.readable = true;
   nativeTouch.tap = undefined;
+  nativeSwipe.swipe = undefined;
   safeArea.providers = [];
   scene.play = [];
   scene.ready = undefined;
@@ -610,7 +616,105 @@ describe('a scene plays its steps', () => {
     ]);
     log.mockRestore();
   });
+
+  it('a swipe drags the native touch across the target in its direction', async () => {
+    swipeRows();
+    const swipes: number[][] = [];
+    nativeSwipe.swipe = async (...line: number[]) => {
+      swipes.push(line);
+      return {
+        reachedReact: true,
+        hitTag: line[1] < 300 ? 50 : 51,
+        hitClass: 'RCTView',
+        missing: [],
+      };
+    };
+    scene.play = [
+      { swipe: { testID: 'row', direction: 'left' } },
+      { swipe: { testID: 'row', direction: 'right', index: 1 } },
+      { swipe: { testID: 'row', direction: 'up' } },
+      { swipe: { testID: 'row', direction: 'down', index: 1 } },
+    ];
+
+    expect(await played()).toEqual([
+      'swipe left testID "row"',
+      'swipe right testID "row" #1',
+      'swipe up testID "row"',
+      'swipe down testID "row" #1',
+    ]);
+    // From the row's middle most of the way to its edge, at a finger's pace.
+    expect(swipes).toEqual([
+      [195, 250, 19.5, 250, 300],
+      [195, 350, 370.5, 350, 300],
+      [195, 250, 195, 205, 300],
+      [195, 350, 195, 395, 300],
+    ]);
+    expect(pressed).toEqual([]);
+  });
+
+  it('a swipe on a phone whose Sherlo has no swipe ends with its line', async () => {
+    swipeRows();
+    scene.play = [{ swipe: { testID: 'row', direction: 'left' } }];
+    const failed = async () => (await played().catch((thrown) => thrown)).message;
+    const frame = `Scene ${SCENE_ID} could not play step 1 of 1 (swipe left testID "row"): `;
+
+    expect(await failed()).toBe(
+      frame + 'this app was built before swipes existed. Rebuild it with the newest Sherlo.'
+    );
+    // An iOS that lacks the touch's private calls ends the step as a tap does.
+    nativeSwipe.swipe = async () => ({
+      reachedReact: false,
+      hitTag: -1,
+      hitClass: '',
+      missing: ['UITouch.setPhase:'],
+    });
+    expect(await failed()).toBe(
+      frame +
+        'Sherlo cannot swipe on iOS 26.2 yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this'
+    );
+  });
+
+  it('a swipe whose target is covered, or whose place on screen cannot be read, ends with its line', async () => {
+    swipeRows();
+    scene.play = [{ swipe: { testID: 'row', direction: 'left' } }];
+    nativeSwipe.swipe = async () => ({
+      reachedReact: true,
+      hitTag: 99,
+      hitClass: 'RCTView',
+      missing: [],
+    });
+    const failed = async () => (await played().catch((thrown) => thrown)).message;
+    const frame = `Scene ${SCENE_ID} could not play step 1 of 1 (swipe left testID "row"): `;
+
+    expect(await failed()).toBe(
+      frame +
+        'the target is covered by testID "toast", so the swipe never reached it. ' +
+        'Wait for the cover to close, or close it with a tap step before this one'
+    );
+    nativeTree.readable = false;
+    expect(await failed()).toBe(
+      frame + 'Sherlo could not read where the view is on screen, so it could not swipe it'
+    );
+  });
 });
+
+/** The app is two rows `row`, 100 points high, at y 200 and 300, and a toast at the top. */
+function swipeRows(): void {
+  const row = (tag: number, y: number): View => ({
+    tag,
+    props: { testID: 'row' },
+    frame: { x: 0, y, width: 390, height: 100 },
+  });
+  views.now = () => ({
+    tag: 1,
+    frame: WINDOW,
+    children: [
+      row(50, 200),
+      row(51, 300),
+      { tag: 99, props: { testID: 'toast' }, frame: { x: 0, y: 100, width: 390, height: 60 } },
+    ],
+  });
+}
 
 /** The app is the one tab `Connections`, its top at `y`, 60 points high. */
 function tabAt(y: number): void {

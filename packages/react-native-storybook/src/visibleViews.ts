@@ -72,6 +72,13 @@ export function isTarget(fiber: WalkedFiber, target: TapTarget): boolean {
   );
 }
 
+/** A target as a step's words name it: `testID "Row"`, `text "Row"` or `label "Row"`. */
+export function nameOf(target: TapTarget): string {
+  if (target.testID !== undefined) return `testID "${target.testID}"`;
+  if (target.text !== undefined) return `text "${target.text}"`;
+  return `label "${target.label}"`;
+}
+
 /** The text a host Text view shows: every string rendered under it, in order. */
 function textOf(fiber: WalkedFiber): string {
   let text = '';

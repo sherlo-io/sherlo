@@ -76,6 +76,58 @@ final class TouchHelper {
         });
     }
 
+    /** How many moves a second a swipe's finger reports, as a screen's digitizer does at 60 Hz. */
+    private static final double MOVES_PER_SECOND = 60;
+
+    /**
+     * Put a finger down at (fromX, fromY), drag it in a straight line to (toX, toY), in points, over
+     * durationMs with a move about every 1/60 s, then lift: a down, the moves and an up, each with
+     * the time it is sent. Answers what the tap answers, read where the finger went down. Any thread
+     * may call it.
+     */
+    static void swipe(final View decor, final double fromX, final double fromY, final double toX,
+            final double toY, final double durationMs, final float density, final Done done) {
+        final Handler ui = new Handler(Looper.getMainLooper());
+        final int moves = Math.max(1, (int) Math.round(durationMs / 1000 * MOVES_PER_SECOND));
+        final long moveMs = Math.max(1, Math.round(durationMs / moves));
+        ui.post(new Runnable() {
+            @Override
+            public void run() {
+                final float startX = (float) (fromX * density);
+                final float startY = (float) (fromY * density);
+                final Result result = hitAt(decor, startX, startY);
+                final long downTime = SystemClock.uptimeMillis();
+                send(decor, downTime, MotionEvent.ACTION_DOWN, startX, startY);
+                ui.postDelayed(new Runnable() {
+                    private int step = 1;
+
+                    @Override
+                    public void run() {
+                        float part = (float) step / moves;
+                        float x = (float) ((fromX + (toX - fromX) * part) * density);
+                        float y = (float) ((fromY + (toY - fromY) * part) * density);
+                        send(decor, downTime, MotionEvent.ACTION_MOVE, x, y);
+                        if (step < moves) {
+                            step++;
+                            ui.postDelayed(this, moveMs);
+                            return;
+                        }
+                        send(decor, downTime, MotionEvent.ACTION_UP, x, y);
+                        done.tapped(result);
+                    }
+                }, moveMs);
+            }
+        });
+    }
+
+    /** One touch-screen event of a finger that went down at downTime, sent now to the decor view. */
+    private static void send(View decor, long downTime, int action, float x, float y) {
+        MotionEvent event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, x, y, 0);
+        event.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+        decor.dispatchTouchEvent(event);
+        event.recycle();
+    }
+
     /**
      * The deepest visible view holding the point that would receive the touch, and what it says of
      * React. Where several children hold the point, the topmost that takes the touch wins, and one

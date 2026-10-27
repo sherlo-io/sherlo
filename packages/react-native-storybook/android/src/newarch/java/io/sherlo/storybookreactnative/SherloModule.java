@@ -188,6 +188,17 @@ public class SherloModule extends NativeSherloModuleSpec {
     }
 
     /**
+     * Drags a finger from (fromX, fromY) to (toX, toY), in points, over durationMs: a scene's swipe.
+     *
+     * @param promise Promise to resolve with whether React took the touch, the hit view's tag and class
+     */
+    @Override
+    public void swipe(double fromX, double fromY, double toX, double toY, double durationMs,
+            Promise promise) {
+        moduleCore.swipe(getCurrentActivity(), fromX, fromY, toX, toY, durationMs, promise);
+    }
+
+    /**
      * Whether each view named by testID is drawn, from the native view tree.
      *
      * @param testIDsJson A JSON list of testIDs
