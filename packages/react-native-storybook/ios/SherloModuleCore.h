@@ -169,6 +169,13 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
                   reject:(RCTPromiseRejectBlock)reject;
 
 /**
+ * Hold every animation that loops forever in the app's windows on its first frame, before a
+ * picture (SherloAnimationHold). Only where a Sherlo run can follow; a release app outside one
+ * keeps its animations. Call on the main queue. YES when one was held.
+ */
+- (BOOL)holdAnimationsStill;
+
+/**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  * Uses read-only view inspection: finds a primary scroll container, checks scroll metrics,
  * and validates with a small programmatic nudge that is immediately restored.

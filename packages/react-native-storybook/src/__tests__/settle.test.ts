@@ -18,8 +18,25 @@ const appClock = vi.hoisted(() => {
   return clock;
 });
 
+// What the native side was asked, in order: the hold of every animation, and the stillness check.
+const nativeAsked = vi.hoisted(() => [] as string[]);
+
+vi.mock('../SherloModule', () => ({
+  default: {
+    holdAnimationsStill: async () => {
+      nativeAsked.push('hold animations still');
+      return true;
+    },
+  },
+}));
+
+vi.mock('../helpers/RunnerBridge', () => ({
+  default: { log: vi.fn(), send: vi.fn() },
+}));
+
 import { monotonicNow } from '../settleClock';
 import { installClock, restoreClock } from '../mocking/clock';
+import { stabilizeOnceReady } from '../storyReady';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -133,5 +150,51 @@ describe('a scene settles faster and honestly', () => {
     expect(ANDROID_SOURCE).toMatch(
       /catch \(RuntimeException firstCaptureFailed\) \{[^}]*onResult\(false\);/
     );
+  });
+
+  it('a capture asks the native side to hold every animation still before the picture', async () => {
+    nativeAsked.length = 0;
+    const native = {
+      stabilize: vi.fn(async () => {
+        nativeAsked.push('stabilize');
+        return true;
+      }),
+    };
+    await stabilizeOnceReady(native).stabilize(3, 3, 500, 5_000, false, 0, true);
+    expect(nativeAsked).toEqual(['hold animations still', 'stabilize']);
+
+    // iOS holds each Core Animation loop in the app's windows on its own start, never wherever the
+    // loop happened to be, and leaves an animation that ends alone, so a screen with no loop
+    // settles as before. Only where a Sherlo run can follow: a release app keeps its animations.
+    const hold = fs.readFileSync(path.join(SDK_ROOT, 'ios', 'SherloAnimationHold.m'), 'utf8');
+    expect(hold).toMatch(
+      /if \(!SherloLoopsForever\(animation\) \|\| animation\.speed == 0\) continue;/
+    );
+    expect(hold).toContain('held.speed = 0;');
+    expect(hold).toContain('held.timeOffset = animation.timeOffset;');
+    const iosModule = fs.readFileSync(path.join(SDK_ROOT, 'ios', 'SherloModuleCore.m'), 'utf8');
+    // One gate decides it for the hold and for the answering of requests alike (SherloLine).
+    const gateCall = /\[SherloLine runCanFollowInDefaultMode:/;
+    expect(iosModule).toMatch(
+      /- \(BOOL\)holdAnimationsStill \{\s*if \(!\[SherloLine runCanFollowInDefaultMode:/
+    );
+    const answers = fs.readFileSync(path.join(SDK_ROOT, 'ios', 'SherloRequestAnswers.m'), 'utf8');
+    expect(answers).toMatch(gateCall);
+    const line = fs.readFileSync(path.join(SDK_ROOT, 'ios', 'SherloLine.m'), 'utf8');
+    expect(line).toMatch(
+      /runCanFollowInDefaultMode:\(BOOL\)defaultMode \{\s*#if DEBUG\s*return YES;\s*#else\s*return !defaultMode \|\| \[self addressHandedAtLaunch\] != nil;/
+    );
+    // Android's animator scale of 0, set by the runner and by a local capture's clean device,
+    // already ends every Lottie and native loop on one frame: its hold changes nothing.
+    for (const arch of ['newarch', 'oldarch']) {
+      const androidModule = fs.readFileSync(
+        path.join(
+          SDK_ROOT,
+          `android/src/${arch}/java/io/sherlo/storybookreactnative/SherloModule.java`
+        ),
+        'utf8'
+      );
+      expect(androidModule, arch).toMatch(/public void holdAnimationsStill\(Promise promise\)/);
+    }
   });
 });

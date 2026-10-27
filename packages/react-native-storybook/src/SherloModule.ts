@@ -104,6 +104,11 @@ type SherloModule = {
     threshold: number,
     includeAA: boolean
   ) => Promise<boolean>;
+  /**
+   * Hold every animation that loops forever on its first frame before a picture (../specs).
+   * False when nothing was held, and when native code has no hold (a native build from before it).
+   */
+  holdAnimationsStill: () => Promise<boolean>;
   awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
   isScrollable: () => Promise<{
     scrollable: boolean;
@@ -184,6 +189,8 @@ function createSherloModule(): SherloModule {
         includeAA
       );
     },
+    holdAnimationsStill: async () =>
+      typeof module.holdAnimationsStill === 'function' ? module.holdAnimationsStill() : false,
     awaitFrameCommit: async (timeoutMs: number) => {
       // Graceful degradation: an OLD native binary paired with this newer JS may
       // not expose awaitFrameCommit. Treat its absence as "no barrier available"
@@ -297,6 +304,7 @@ function createDummySherloModule(): SherloModule {
     openTesting: () => {},
     reloadJavaScript: () => {},
     getMemoryMb: async () => null,
+    holdAnimationsStill: async () => false,
     awaitFrameCommit: async () => false,
     isScrollable: async () => ({ scrollable: false }),
     scrollToCheckpoint: async () => ({

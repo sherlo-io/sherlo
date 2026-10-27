@@ -210,11 +210,9 @@ static void SherloInstallAnswering(void) {
 
 + (void)load {
   answersLock = [NSObject new];
-#if DEBUG
-  SherloInstallAnswering();
-#else
-  if ([SherloLine addressHandedAtLaunch]) SherloInstallAnswering();
-#endif
+  // No mode is read yet at load: a launch outside default mode installs it when its JavaScript
+  // hands rules over (setRulesJson).
+  if ([SherloLine runCanFollowInDefaultMode:YES]) SherloInstallAnswering();
 }
 
 + (BOOL)setRulesJson:(NSString *)rulesJson {

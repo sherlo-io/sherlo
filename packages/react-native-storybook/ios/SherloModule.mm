@@ -212,6 +212,13 @@ static void SherloEarlyInit(void) {
   [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
 }
 
+/** Holds every looping animation on its first frame, before a picture. */
+- (void)holdAnimationsStill:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(dispatch_get_main_queue(), ^{ resolve(@([core holdAnimationsStill])); });
+}
+
 /**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  */
@@ -412,6 +419,12 @@ RCT_EXPORT_METHOD(awaitFrameCommit:(double)timeoutMs
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
   [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
+}
+
+/** Holds every looping animation on its first frame, before a picture. */
+RCT_EXPORT_METHOD(holdAnimationsStill:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  dispatch_async(dispatch_get_main_queue(), ^{ resolve(@([core holdAnimationsStill])); });
 }
 
 /**

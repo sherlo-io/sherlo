@@ -23,6 +23,7 @@ vi.mock('../SherloModule', () => ({
   default: {
     getMode: mockGetMode,
     getConfigOrDefault: () => ({}),
+    holdAnimationsStill: async () => false,
     getViewVisibility: readVisibility,
     getInspectorData: async () => {
       throw new Error('no view tree');
