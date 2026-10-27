@@ -221,6 +221,20 @@ describe('a faked GraphQL answer is checked against its query', () => {
     ]);
   });
 
+  it('a __typename the client added to a fragment on the root type is never asked of the answer root', () => {
+    const query = `
+      query Q { ...F }
+      fragment F on Query { __typename items { __typename id } }
+    `;
+    const answer = { data: { items: [{ __typename: 'Item', id: '1' }] } };
+    const nested = { data: { items: [{ id: '1' }] } };
+
+    expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([]);
+    expect(graphqlAnswerFindings(URL, post(query), nested)).toEqual([
+      { kind: 'typename-missing', operation: 'Q', path: 'items.0' },
+    ]);
+  });
+
   it('a request with no query text is skipped and noted as such', () => {
     const persisted = JSON.stringify({
       operationName: 'ShelfOfBooks',
