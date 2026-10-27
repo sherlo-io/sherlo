@@ -331,6 +331,35 @@ describe('format parity', () => {
     expect(Object.keys(validated!.parsed.storyClosures)).toEqual([STORY_FILE]);
   });
 
+  it("records each story file's title and story count, as the serializer does", () => {
+    const modules = baseWorld();
+    moduleAt(modules, STORY_FILE).stories.push({
+      id: `${STORY_ID}-compact`,
+      title: 'Storefront/ProductCard',
+      render: { text: 'Compact', bg: '#ffffff' },
+    });
+
+    const validated = validateModuleManifestBuffer(deriveSimManifest(world(modules)).raw);
+
+    expect(validated!.parsed.storyTitles).toEqual({ [STORY_FILE]: 'Storefront/ProductCard' });
+    expect(validated!.parsed.storyCounts).toEqual({ [STORY_FILE]: 2 });
+  });
+
+  it('leaves out the title of a story file whose stories declare none or two', () => {
+    const untitled = baseWorld();
+    delete moduleAt(untitled, STORY_FILE).stories[0].title;
+    const twoTitles = baseWorld();
+    moduleAt(twoTitles, STORY_FILE).stories.push({
+      id: `${STORY_ID}-other`,
+      title: 'Storefront/Other',
+      render: { text: 'Other', bg: '#ffffff' },
+    });
+
+    expect(deriveSimManifest(world(untitled)).parsed.storyTitles).toEqual({});
+    expect(deriveSimManifest(world(twoTitles)).parsed.storyTitles).toEqual({});
+    expect(deriveSimManifest(world(twoTitles)).parsed.storyCounts).toEqual({ [STORY_FILE]: 2 });
+  });
+
   it('emits a CONSTANT header and version across different worlds (comparability)', () => {
     const first = deriveSimManifest(world(baseWorld()));
 

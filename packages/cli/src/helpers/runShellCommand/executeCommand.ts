@@ -9,6 +9,7 @@ function executeCommand({
   encoding,
   env,
   envMode = 'merge',
+  timeoutMs,
 }: {
   command: string;
   projectRoot: string;
@@ -23,6 +24,8 @@ function executeCommand({
    *     with (SHERLO-1744 - the autolinking resolve subprocess).
    */
   envMode?: 'merge' | 'replace';
+  /** Kill the command and reject when it runs longer than this many milliseconds. */
+  timeoutMs?: number;
 }): Promise<string | Buffer> {
   return new Promise((resolve, reject) => {
     const options: {
@@ -30,8 +33,10 @@ function executeCommand({
       maxBuffer: number;
       encoding?: BufferEncoding | null;
       env: NodeJS.ProcessEnv;
+      timeout?: number;
     } = {
       cwd: projectRoot,
+      timeout: timeoutMs,
       maxBuffer: 1 * 1024 * 1024 * 1024, // 1GB max buffer - very safe limit
       env:
         envMode === 'replace'

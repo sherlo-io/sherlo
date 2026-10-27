@@ -31,8 +31,8 @@ branding:
 #   If it has none, the action runs the CLI committed at the ref you pinned. The
 #   first line of the log names the one that ran. See actions/lib/cliEntry.mjs.
 #
-# YOU DO NOT NEED `fetch-depth` ON actions/checkout: this action deepens a shallow
-# checkout itself before running the CLI. See actions/lib/deepenCheckout.mjs.
+# YOU DO NOT NEED `fetch-depth` ON actions/checkout: the CLI deepens a shallow
+# checkout itself before it reads git.
 # ══════════════════════════════════════════════════════════════════════════════
 
 inputs:

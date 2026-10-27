@@ -455,6 +455,36 @@ const PINS: Pin[] = [
     ],
   },
   {
+    kind: 'git-history-fetch-refused',
+    what: "the warning when git refuses the tool's own history fetch - git's reason, what it costs, the fix, on stderr in yellow",
+    segment: { kind: 'git-history-fetch-refused', reason: 'fatal: could not read Username' },
+    stream: 'stderr',
+    prints: [
+      [`${ESC}[33m! Couldn't fetch the git history: fatal: could not read Username${ESC}[39m`],
+      [
+        `${ESC}[33m  The build goes on and is still checked against main's approved pictures; only screens that differ wait for review.${ESC}[39m`,
+      ],
+      [
+        `${ESC}[33m  Keep your CI checkout's credentials, or fetch the full history in the checkout.${ESC}[39m`,
+      ],
+    ],
+  },
+  {
+    kind: 'branching-off',
+    what: "the warning when the project has no main branch - what it means, and the project's settings address, on stderr in yellow",
+    segment: { kind: 'branching-off', project: { teamId: 'tm000001', projectIndex: 7 } },
+    stream: 'stderr',
+    prints: [
+      [`${ESC}[33m! Branching is off: this project has no main branch.${ESC}[39m`],
+      [
+        `${ESC}[33m  Every build is treated as a main build, so each one captures every story.${ESC}[39m`,
+      ],
+      [
+        `${ESC}[33m  Set the main branch in the project's settings: https://app.sherlo.io/project?t=tm000001&p=7${ESC}[39m`,
+      ],
+    ],
+  },
+  {
     kind: 'notice',
     what: 'a warning with no learn-more link - one line, a yellow bang',
     segment: { kind: 'notice', level: 'warning', message: 'Staged uploads unavailable - reason.' },
@@ -1088,6 +1118,33 @@ const PINS: Pin[] = [
       [''],
       ['Test 14 ended as "error".'],
       [`${ESC}[2mError: {"code":"RUNNER_CRASH"}${ESC}[22m`],
+      [''],
+      ...HELP_BLOCK_PRINTS,
+    ],
+  },
+  {
+    kind: 'verdict-run-errored',
+    what: "the infrastructure closer for an app that could not start: the platform, the error's first line dimmed (only the first), the build page link, then the help block",
+    segment: {
+      kind: 'verdict-run-errored',
+      runStatus: 'error',
+      runError: 'user_runner',
+      testIndex: 3,
+      appFailed: {
+        reason: 'appFailedToStart',
+        platform: 'android',
+        errorMessage:
+          "TypeError: Cannot read property 'getItem' of undefined\n    at loadSession (index.android.bundle:1:2345)",
+        buildUrl: 'https://app.sherlo.io/build?t=tm000001&p=7&b=3',
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[31m✖${ESC}[39m Running Test 3 failed`],
+      [''],
+      ['App failed to start on Android'],
+      [`${ESC}[2mTypeError: Cannot read property 'getItem' of undefined${ESC}[22m`],
+      [`🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=3${ESC}[39m`],
       [''],
       ...HELP_BLOCK_PRINTS,
     ],
@@ -1820,6 +1877,16 @@ describe('A MANAGEMENT COMMAND PRINTS ITS FACTS AS KEY=VALUE LINES AND NEVER A C
     pinnedBytes(pin, renderSegment(pin.segment));
   });
 
+  it("the history-refused warning says the build compares with main's approved pictures", () => {
+    const rendered = renderSegment({ kind: 'git-history-fetch-refused', reason: 'fatal: nope' });
+    const text = JSON.stringify(rendered.prints);
+
+    expect(text).toContain(
+      "The build goes on and is still checked against main's approved pictures; only screens that differ wait for review."
+    );
+    expect(text).not.toContain('without history');
+  });
+
   it('the intro: wordmark shape, styled tagline, and the bare newline that closes it', () => {
     const { stream, prints } = renderSegment({ kind: 'intro' });
 
@@ -1954,6 +2021,29 @@ describe('CONTROL: the pin catches what the masker hides', () => {
 
   // The header this example was taken from no longer prints (the dry run opens with `Testing your app...` like every test), so the example stays a worked one, and
   // the pins above are what compare against the shipped renderer.
+});
+
+describe('the app failed to start closer', () => {
+  it('the app failed to start closer leaves out the error line when there is no message', () => {
+    const { prints } = renderSegment({
+      kind: 'verdict-run-errored',
+      runStatus: 'error',
+      runError: 'user_runner',
+      testIndex: 3,
+      appFailed: {
+        reason: 'appFailedToStart',
+        platform: 'ios',
+        buildUrl: 'https://app.sherlo.io/build?t=tm000001&p=7&b=3',
+      },
+    });
+
+    expect(prints.slice(0, 4)).toEqual([
+      [`${ESC}[31m✖${ESC}[39m Running Test 3 failed`],
+      [''],
+      ['App failed to start on iOS'],
+      [`🔗 Review: ${ESC}[36mhttps://app.sherlo.io/build?t=tm000001&p=7&b=3${ESC}[39m`],
+    ]);
+  });
 });
 
 /* ========================================================================== */

@@ -34,7 +34,7 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { CoverageScreen } from './coverage';
 import type { TeamList } from './teamList';
-import type { VerdictScreen } from './verdictCloser';
+import type { AppFailedToStart, VerdictScreen } from './verdictCloser';
 import type { FeedbackKind, LastCommand } from './feedback';
 import type { FeedbackContext } from '../seams/serverCalls';
 import type { IntroducedCommand, PlatformCapture, SherloProject } from './testSteps';
@@ -102,6 +102,16 @@ export type TranscriptSegment =
   | { kind: 'platform-bundle-failed'; message: string }
   /** `Couldn't get git info <error>` - on stderr, the one degrade the family shows. */
   | { kind: 'git-info-unavailable'; error: unknown }
+  /**
+   * `! Couldn't fetch the git history: <git's reason>` - the tool deepened a shallow clone itself
+   * and git refused. `reason` is git's own sentence, on one line. The build goes on.
+   */
+  | { kind: 'git-history-fetch-refused'; reason: string }
+  /**
+   * `! Branching is off: this project has no main branch.` - neither the settings nor the clone nor
+   * the git host named one, so every build is judged a main build. `project` addresses its settings.
+   */
+  | { kind: 'branching-off'; project: SherloProject }
   /* ---------------------------------------------------------------------- *
    * THE PUSH SPINE (F1). The order below is the order a push prints them.   *
    * ---------------------------------------------------------------------- */
@@ -293,7 +303,13 @@ export type TranscriptSegment =
       counts: { unreviewed: number; reported: number };
     }
   /** `✖ Running Test 14 failed`, the state it ended in, the server's error blob if any, and help. */
-  | { kind: 'verdict-run-errored'; runStatus: string; runError: unknown; testIndex?: number }
+  | {
+      kind: 'verdict-run-errored';
+      runStatus: string;
+      runError: unknown;
+      testIndex?: number;
+      appFailed?: AppFailedToStart;
+    }
   /* ---------------------------------------------------------------------- *
    * GATED. The three kinds below are emitted by the shipped wait loop, but   *
    * ONLY for a build the server marked `showsOnlyBranchChanges` - a project  *

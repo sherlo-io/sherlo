@@ -10,6 +10,7 @@ import fetch from 'node-fetch';
 import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import waitForBuildResult, { fetchServerBypassReason, waitForTest } from '../waitForBuildResult';
+import { closeTheRun } from '../../commands/test/closeTheRun';
 import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from '../exitCodes';
 
 chalk.level = 0;
@@ -906,6 +907,96 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
   });
 });
 
+describe('a build the server closed at once ends on the review link only when a story waits', () => {
+  const REVIEW_URL = 'https://app.sherlo.test/build?b=1';
+  const CLOSED_AT_ONCE = {
+    capturedSnapshotCount: 0,
+    inheritedSnapshotCount: 6,
+    platforms: { android: { reason: 'no change reaches any story' } },
+  };
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let exitSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockFetch.mockReset();
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    logSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  async function closeTheClosedBuild(wait: boolean): Promise<string> {
+    const running = closeTheRun({
+      commandParams: {
+        credential: {
+          kind: 'projectToken',
+          token: TOKEN,
+          apiToken: API_TOKEN,
+          teamId: TEAM_ID,
+          projectIndex: PROJECT_INDEX,
+        },
+        wait,
+      } as never,
+      buildIndex: BUILD_INDEX,
+      url: REVIEW_URL,
+      serverBypassed: true,
+      platformRows: [],
+    });
+    await vi.runAllTimersAsync();
+    await running;
+    return logSpy.mock.calls.map((call: unknown[]) => call[0] ?? '').join('\n');
+  }
+
+  it('a build closed at once with a story waiting ends on the review link', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 0, noChanges: 5, reported: 0, unreviewed: 1 },
+        undefined,
+        CLOSED_AT_ONCE
+      )
+    );
+
+    const printed = await closeTheClosedBuild(true);
+
+    expect(printed.trimEnd().split('\n').pop()).toContain(`Review: ${REVIEW_URL}`);
+  });
+
+  it('a build closed at once with nothing waiting ends with no link', async () => {
+    mockGraphqlResponse(
+      200,
+      buildResponse(
+        'finished',
+        { approved: 0, noChanges: 6, reported: 0, unreviewed: 0 },
+        undefined,
+        CLOSED_AT_ONCE
+      )
+    );
+
+    expect(await closeTheClosedBuild(true)).not.toContain(REVIEW_URL);
+  });
+
+  it('a build closed at once with a story waiting ends on the review link without --wait', async () => {
+    const waiting = buildResponse(
+      'finished',
+      { approved: 0, noChanges: 5, reported: 0, unreviewed: 1 },
+      undefined,
+      CLOSED_AT_ONCE
+    );
+    mockGraphqlResponse(200, waiting);
+
+    const printed = await closeTheClosedBuild(false);
+
+    expect(printed.trimEnd().split('\n').pop()).toContain(`Review: ${REVIEW_URL}`);
+  });
+});
+
 /* ========================================================================== */
 /* fetchServerBypassReason - the non-wait single-shot reason read (SHERLO-1952) */
 /*                                                                              */
@@ -944,13 +1035,16 @@ describe('fetchServerBypassReason reads the bypass reason once and never throws'
       )
     );
 
-    await expect(fetchServerBypassReason(args)).resolves.toBe('no change reaches any story');
+    await expect(fetchServerBypassReason(args)).resolves.toEqual({
+      reason: 'no change reaches any story',
+      storyWaits: false,
+    });
   });
 
   it('resolves undefined (never throws) when the request rejects - network error', async () => {
     mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
 
-    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+    await expect(fetchServerBypassReason(args)).resolves.toEqual({ storyWaits: false });
   });
 
   it('resolves undefined (never throws) on an auth failure - an expired token must not turn a green build red', async () => {
@@ -963,7 +1057,7 @@ describe('fetchServerBypassReason reads the bypass reason once and never throws'
       json: async () => ({}),
     });
 
-    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+    await expect(fetchServerBypassReason(args)).resolves.toEqual({ storyWaits: false });
   });
 
   it('resolves undefined for a non-bypassed shape (counts do not match)', async () => {
@@ -981,7 +1075,7 @@ describe('fetchServerBypassReason reads the bypass reason once and never throws'
       )
     );
 
-    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+    await expect(fetchServerBypassReason(args)).resolves.toEqual({ storyWaits: false });
   });
 
   it('resolves undefined for a bypassed shape carrying no per-platform reason', async () => {
@@ -998,7 +1092,7 @@ describe('fetchServerBypassReason reads the bypass reason once and never throws'
       )
     );
 
-    await expect(fetchServerBypassReason(args)).resolves.toBeUndefined();
+    await expect(fetchServerBypassReason(args)).resolves.toEqual({ storyWaits: false });
   });
 
   it('makes EXACTLY ONE request and passes the 10s timeout to fetch (a read, not a poll)', async () => {
@@ -1382,5 +1476,73 @@ describe('the wait shows the test live, and in a JSON wait keeps stdout clean', 
 
     expect(stdoutLog, 'stdout stays free for the record').not.toHaveBeenCalled();
     expect(stdoutWrite).not.toHaveBeenCalled();
+  });
+});
+
+describe('the wait names an app that could not start', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockFetch.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  /** Waits on a build that errored with `details` beside its run error; returns the lines printed. */
+  async function linesPrintedFor(details: Record<string, unknown>): Promise<string[]> {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const response = buildResponse('error', undefined, 'user_runner');
+    Object.assign(response.getBuildStatus, details);
+    mockGraphqlResponse(200, response);
+
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+    await vi.runAllTimersAsync();
+
+    expect(await promise).toBe(EXIT_ERROR);
+    return logSpy.mock.calls.map((call) => String(call[0]));
+  }
+
+  it("an app that failed to start prints the platform, the error's first line and the build link", async () => {
+    const lines = await linesPrintedFor({
+      runErrorReason: 'appFailedToStart',
+      runErrorPlatform: 'android',
+      runErrorMessage: "TypeError: Cannot read property 'getItem' of undefined\n    at loadSession",
+    });
+
+    const at = lines.indexOf('App failed to start on Android');
+    expect(at).toBeGreaterThan(-1);
+    expect(lines[at + 1]).toBe("TypeError: Cannot read property 'getItem' of undefined");
+    expect(lines[at + 2]).toContain('Review');
+    expect(lines.join('\n')).not.toContain('Error: "user_runner"');
+  });
+
+  it('an app that failed to start with no message still prints the platform and the build link', async () => {
+    const lines = await linesPrintedFor({
+      runErrorReason: 'appFailedToStart',
+      runErrorPlatform: 'ios',
+      runErrorMessage: null,
+    });
+
+    const at = lines.indexOf('App failed to start on iOS');
+    expect(at).toBeGreaterThan(-1);
+    expect(lines[at + 1]).toContain('Review');
+  });
+
+  it('any other run error keeps printing its error code', async () => {
+    const lines = await linesPrintedFor({
+      runErrorReason: null,
+      runErrorPlatform: 'android',
+      runErrorMessage: 'ignored',
+    });
+
+    expect(lines.join('\n')).toContain('Error: "user_runner"');
+    expect(lines.join('\n')).not.toContain('App failed to start');
   });
 });

@@ -505,10 +505,18 @@ describe('every door is a seam', () => {
 
   it('the staged run opens its build through the server seam, never through a client of its own', () => {
     const simRunSource = fs.readFileSync(path.join(CLI_SRC, 'commands/test/simRun.ts'), 'utf8');
+    // The sim road opens its build through the open the staged road shares with it.
+    const startTheTestSource = fs.readFileSync(
+      path.join(CLI_SRC, 'commands/test/startTheTest.ts'),
+      'utf8'
+    );
 
-    expect(simRunSource).toMatch(/serverCalls\(\)\s*\.\s*openBuild\(/);
+    expect(simRunSource).toMatch(/\bopenAndEndTheTest\(/);
+    expect(startTheTestSource).toMatch(/serverCalls\(\)\s*\.\s*openBuild\(/);
     expect(simRunSource).toMatch(/serverCalls\(\)\s*\.\s*getStagedUploadUrls\(/);
-    expect(simRunSource).not.toMatch(/\bclient\.(openBuild|getStagedUploadUrls)\(/);
+    for (const source of [simRunSource, startTheTestSource]) {
+      expect(source).not.toMatch(/\bclient\.(openBuild|getStagedUploadUrls)\(/);
+    }
 
     // --emit-bundle-dir bundles through the SAME bundler seam the built road uses (a fourth
     // bypass found while proving this file's own reach claim, below) - never the real bundler.

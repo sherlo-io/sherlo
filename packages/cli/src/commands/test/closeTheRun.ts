@@ -12,13 +12,13 @@
  *     for its verdict, because an agent cannot click the link - and, on a person's terminal while
  *     the project has no CI token, a second step: run Sherlo on every pull request;
  *   - a test the server closed without a device run ends on its one finished step, with no link -
- *     there is nothing to review (SHERLO-1952).
+ *     there is nothing to review (SHERLO-1952) - unless a story still waits, and then on the link.
  *
  * Every road passes the `openBuild` answer's `hasCiToken`, so a project's very first test - which
  * builds the app - suggests pull request tests too.
  */
 import { reporting, waitForBuildResult } from '../../helpers';
-import { EXIT_ERROR, EXIT_SIGINT, EXIT_TIMEOUT } from '../../helpers/exitCodes';
+import { EXIT_BLOCK, EXIT_ERROR, EXIT_SIGINT, EXIT_TIMEOUT } from '../../helpers/exitCodes';
 import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
@@ -77,7 +77,11 @@ export async function closeTheRun({
       rowsNotYetShown,
     });
 
-    if (!serverBypassed) endAfterTheWait({ exitCode, testIndex: buildIndex, url });
+    // A test the server closed with nothing waiting ends with no link; one that still has a story
+    // waiting (a verdict of EXIT_BLOCK) ends on the Review link like any other.
+    if (!serverBypassed || exitCode === EXIT_BLOCK) {
+      endAfterTheWait({ exitCode, testIndex: buildIndex, url });
+    }
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
     await reporting.flush().finally(() => process.exit(exitCode));
@@ -156,12 +160,19 @@ async function printBypassedCloser({
   url: string;
   rowsNotYetShown: PlatformRow[];
 }): Promise<void> {
-  const reason = await fetchServerBypassReason({ token, buildIndex, projectIndex, teamId });
+  const { reason, storyWaits } = await fetchServerBypassReason({
+    token,
+    buildIndex,
+    projectIndex,
+    teamId,
+  });
 
   // The same finished step the wait loop ends a bypassed test on, naming the test.
   if (reason) {
     printServerBypassCloser(reason, buildIndex, rowsNotYetShown);
-  } else {
+  }
+  // A story that still waits needs the link; so does a read that gave no reason to print.
+  if (storyWaits || !reason) {
     emit({ kind: 'results-url', url });
   }
 }

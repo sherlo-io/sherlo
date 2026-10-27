@@ -30,6 +30,11 @@
  *   the closure was whatever they typed rather than anything the graph implied,
  *   and a depth-two change could not be expressed at all.
  *
+ * - `storyTitles[storyFile]` and `storyCounts[storyFile]` are what the serializer records beside
+ *   the closures: the file's Storybook title and how many stories it holds. The test's Started row
+ *   counts and names the stories off them, so without them the sim road would count story files
+ *   and print paths where a customer's push prints story counts and titles.
+ *
  * - `header` is CONSTANT across builds and worlds. The server compares headers
  *   byte-for-byte (`areManifestsComparable`); ANY variation would hit the
  *   toolchain-mismatch rung and force a full capture, silently disabling the
@@ -74,6 +79,8 @@ export type SimModuleManifest = ValidatedModuleManifest & {
     header: typeof SIM_MANIFEST_HEADER;
     moduleHashes: Record<string, string>;
     storyClosures: Record<string, string[]>;
+    storyTitles: Record<string, string>;
+    storyCounts: Record<string, number>;
   };
 };
 
@@ -91,9 +98,14 @@ function deriveSimManifest(world: SimWorld): SimModuleManifest {
   }
 
   const storyClosures: Record<string, string[]> = {};
+  const storyTitles: Record<string, string> = {};
+  const storyCounts: Record<string, number> = {};
   for (const module of world.modules) {
     if (module.stories.length === 0) continue;
     storyClosures[module.path] = collectTransitiveImports(module.path, importsByModule);
+    storyCounts[module.path] = module.stories.length;
+    const title = fileTitleOf(module);
+    if (title !== undefined) storyTitles[module.path] = title;
   }
 
   const parsed = {
@@ -101,6 +113,8 @@ function deriveSimManifest(world: SimWorld): SimModuleManifest {
     header: SIM_MANIFEST_HEADER,
     moduleHashes,
     storyClosures,
+    storyTitles,
+    storyCounts,
   };
 
   return { raw: Buffer.from(stableStringify(parsed), 'utf8'), parsed };
@@ -109,6 +123,17 @@ function deriveSimManifest(world: SimWorld): SimModuleManifest {
 export default deriveSimManifest;
 
 /* ========================================================================== */
+
+/**
+ * The Storybook title of a story file: the one title every story in it declares. A file whose
+ * stories declare none, or more than one, has no title the map can be certain of, so it is left
+ * out, as the SDK leaves out a title it cannot read: the Started row then names the file's path.
+ */
+function fileTitleOf(module: SimModule): string | undefined {
+  const titles = new Set(module.stories.map((story) => story.title));
+  const [title] = titles;
+  return titles.size === 1 ? title : undefined;
+}
 
 /**
  * A module's hash pre-image: everything its own file declares, canonically
