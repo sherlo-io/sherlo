@@ -173,7 +173,7 @@ public final class SherloRequestAnswers {
 
     /** The refusal a request no rule matches gets, worded as fetch's is. */
     static IOException refusalOf(String method, String url) {
-        return new IOException("no mock rule matches " + method + " " + url);
+        return new IOException("no mock rule matches " + method + " " + url + ". Add a rule for it, or let it through.");
     }
 
     private static synchronized void holdGlide(Context context) {

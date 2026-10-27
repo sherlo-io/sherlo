@@ -125,7 +125,7 @@ export function socketVerdictFor(url: string): SocketVerdict {
   unanswered.push({ method: 'WS', url });
   if (socketPolicy === 'listed') return { kind: 'real' };
 
-  const refusal = new UnmockedRequestError(`no mock rule matches WS ${url}`);
+  const refusal = new UnmockedRequestError(`no mock rule matches WS ${url}. Add a rule for it.`);
   recordRefusal(refusal);
   return { kind: 'refusal', refusal };
 }
@@ -203,7 +203,7 @@ export function verdictForUnanswered(request: MockedRequest): Verdict {
   if (unmatched !== 'refusal') return { kind: unmatched };
 
   const refusal = new UnmockedRequestError(
-    `no mock rule matches ${requestWords(request.method, request.url, operationNameOf(request.body))}`
+    `no mock rule matches ${requestWords(request.method, request.url, operationNameOf(request.body))}. Add a rule for it, or let it through.`
   );
   recordRefusal(refusal);
   return { kind: 'refusal', refusal };

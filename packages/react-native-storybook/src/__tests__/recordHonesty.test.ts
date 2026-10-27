@@ -102,14 +102,16 @@ describe('the capture record says what happened', () => {
 
     recordStoryError(STORY_ID, {
       name: 'UnmockedRequestError',
-      message: 'no mock rule matches GET https://a.invalid/x',
+      message:
+        'no mock rule matches GET https://a.invalid/x. Add a rule for it, or let it through.',
       stack: 'at somewhere',
       componentStack: '',
     });
 
     expect(threwOf(STORY_ID)).toEqual({
       name: 'UnmockedRequestError',
-      message: 'no mock rule matches GET https://a.invalid/x',
+      message:
+        'no mock rule matches GET https://a.invalid/x. Add a rule for it, or let it through.',
     });
   });
 

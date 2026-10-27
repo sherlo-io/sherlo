@@ -35,9 +35,10 @@ import NativeSherloModule from '../specs/NativeSherloModule';
  * Rules that name a GraphQL operation, and every rule's delayMs, stay in JavaScript: native code
  * reads no request body and answers at once.
  *
- * Still out of native reach: on iOS, background sessions and sessions made from any other
- * configuration; on Android, a client factory the app sets itself, a client a library builds
- * itself outside Glide, and HttpURLConnection.
+ * Native answers do not reach everything yet. On iOS they miss background sessions and sessions
+ * made from any other configuration. On Android they miss a client factory the app sets itself, a
+ * client a library builds outside Glide, and HttpURLConnection. Those requests go to the real
+ * network.
  */
 
 /** One rule as native code reads it. */
