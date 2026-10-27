@@ -89,6 +89,15 @@ describe('the scene calls of the host', () => {
     });
   });
 
+  it("a played type step is recorded by its target's name, never its text", async () => {
+    behind.scene.play = [{ type: { testID: 'chat.input.message', text: 'On my way' } }];
+    behind.playSteps.mockResolvedValue([]);
+
+    const outcome = await calls.playSteps!(SCENE_ID);
+    expect(outcome).toEqual({ played: [{ type: 'chat.input.message' }] });
+    expect(JSON.stringify(outcome)).not.toContain('On my way');
+  });
+
   it('a long-press whose view never showed answers itself as the missing step', async () => {
     behind.scene.play = [{ longPress: { text: 'Row' } }];
     behind.playSteps.mockRejectedValue(
