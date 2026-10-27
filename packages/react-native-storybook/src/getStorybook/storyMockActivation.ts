@@ -117,18 +117,21 @@ function knownAtBundlerStart(mocks: StoryMocks, filePath: string): MockSet {
   return Array.isArray(mocks) ? moduleMocksKnownAtBundlerStart(mocks, filePath) : mocks;
 }
 
-// Each module mock of `declarations` whose stand-in's name the scan recorded, by that name; a
-// later declaration of the same module wins, as resolveDeclarations has it.
+// Each module mock of `declarations` whose stand-in's name the scan recorded, by that name, and
+// each that names its key itself (the clock, the random numbers); a later declaration of the same
+// module wins, as resolveDeclarations has it.
 function moduleMocksKnownAtBundlerStart(
   declarations: MockDeclaration[],
   filePath: string
 ): MockSet {
   const mocks: MockSet = {};
-  declarations.filter(isModuleDeclaration).forEach(({ specifierAsWritten, definition }) => {
+  declarations.filter(isModuleDeclaration).forEach((declaration) => {
+    const { specifierAsWritten, keyAtDeclaration, definition } = declaration;
     const key =
-      specifierAsWritten === undefined
+      keyAtDeclaration ??
+      (specifierAsWritten === undefined
         ? undefined
-        : standInKeyAtBundlerStart(specifierAsWritten, filePath);
+        : standInKeyAtBundlerStart(specifierAsWritten, filePath));
     if (key) mocks[key] = definition;
   });
   return mocks;

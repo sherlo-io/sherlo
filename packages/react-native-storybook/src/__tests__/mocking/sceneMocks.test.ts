@@ -18,6 +18,8 @@ import { mock } from '../../mocking/mockDeclaration';
 import { mockFailureOf } from '../../mocking/activateStoryMocks';
 import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateSceneMocks } from '../../getStorybook/storyMockActivation';
+import { mockClock } from '../../mocking/clock';
+import { mockRandom } from '../../mocking/random';
 
 const SCENE_FILE = './src/chat.scenes.tsx';
 const SCENE_ID = 'chat--conversation';
@@ -102,6 +104,20 @@ describe('mocks resolve in a scene file', () => {
       name: 'MockedModuleError',
       message: 'the mock of ../own did not apply: nothing in the story imported it',
     });
+  });
+
+  it("a scene's clock and random numbers are fixed the moment its mocks go on, before the app's first module", () => {
+    bundlerStartedHaving([]);
+    const moment = '2020-01-02T03:04:05.000Z';
+
+    // A loop the app starts on its first frame reads the clock straight after this call, with no
+    // import awaited: a clock that only arrived later gave each capture its own angle.
+    activateSceneMocks(SCENE_ID, [mockClock(moment)], [mockRandom(42)], SCENE_FILE);
+    const firstRandom = Math.random();
+
+    expect(Date.now()).toBe(Date.parse(moment));
+    activateSceneMocks(SCENE_ID, [mockClock(moment)], [mockRandom(42)], SCENE_FILE);
+    expect(Math.random()).toBe(firstRandom);
   });
 
   it('two copies of the mock registry fail loudly', async () => {

@@ -62,6 +62,13 @@ export interface Spec extends TurboModule {
    */
   awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
   /**
+   * Hold every animation that loops forever on one fixed frame, its first, before a picture: on
+   * iOS each Core Animation loop in the app's windows (a Lottie, a native spinner). An animation
+   * that ends is left to end. Resolves whether anything was held; false on Android, where the
+   * animator scale of 0 a run sets already ends such loops, and outside a Sherlo run.
+   */
+  holdAnimationsStill: () => Promise<boolean>;
+  /**
    * The sealed JS core native code picked, as JSON `{source, origin, version, reason}` (see
    * SherloCoreLoader on each platform). Synchronous: the SDK evaluates it while it is imported.
    */

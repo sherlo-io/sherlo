@@ -248,6 +248,15 @@ public class SherloModule extends NativeSherloModuleSpec {
     }
 
     /**
+     * Holds nothing and resolves false: the animator scale of 0 that a test run and a local
+     * capture's clean device set already ends every Lottie and native loop on one frame.
+     */
+    @Override
+    public void holdAnimationsStill(Promise promise) {
+        promise.resolve(false);
+    }
+
+    /**
      * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
      *
      * @param promise Promise to resolve with boolean (true if scrollable, false otherwise)

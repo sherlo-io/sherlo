@@ -20,6 +20,7 @@ export function mockClock(moment: string | number | Date): ModuleMockDeclaration
     // It rides the module-declaration channel, so it is one - see the note on the key above.
     kind: 'module',
     moduleKey: () => Promise.resolve(CLOCK_MOCK_KEY),
+    keyAtDeclaration: CLOCK_MOCK_KEY,
     definition: { moment } as MockDefinition,
   };
 }

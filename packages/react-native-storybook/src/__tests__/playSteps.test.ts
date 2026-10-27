@@ -20,6 +20,7 @@ const nativeSwipe = vi.hoisted(() => ({
 
 vi.mock('../SherloModule', () => ({
   default: {
+    holdAnimationsStill: async () => false,
     tap: async (x: number, y: number, holdMs: number) =>
       nativeTouch.tap ? nativeTouch.tap(x, y, holdMs) : null,
     swipe: async (...line: number[]) => (nativeSwipe.swipe ? nativeSwipe.swipe(...line) : null),

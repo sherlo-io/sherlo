@@ -9,6 +9,7 @@
 #import "SherloCoreLoader.h"
 #import "SherloLine.h"
 #import "TouchHelper.h"
+#import "SherloAnimationHold.h"
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
@@ -567,6 +568,12 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
                  resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject {
     [StabilityHelper awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
+}
+
+// Only where a Sherlo run can follow (SherloLine's one gate): a release app keeps its animations.
+- (BOOL)holdAnimationsStill {
+    if (![SherloLine runCanFollowInDefaultMode:[currentMode isEqualToString:MODE_DEFAULT]]) return NO;
+    return [SherloAnimationHold holdLoopsInAppWindows];
 }
 
 #pragma mark - Scroll Detection

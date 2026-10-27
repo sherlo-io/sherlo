@@ -17,6 +17,10 @@
  * fails the stillness check with one line naming what it waited for: a capture reports it as the
  * scene's crash. An error the app threw while waiting is reported instead of that line.
  *
+ * Before every stillness check, of a scene or a story, native code holds each animation that loops
+ * forever on its first frame (SherloModule.holdAnimationsStill), so a looping spinner or Lottie
+ * shows the same frame every run instead of wherever its loop happened to be.
+ *
  * Time here is counted in polls, never read off the clock: a scene that mocks the clock freezes
  * `Date.now()` for the whole app, Sherlo's own code included.
  */
@@ -152,6 +156,7 @@ export function stabilizeOnceReady<
         if (ended !== 'errored' && ended.outcome === 'timed-out') throw new Error(ended.line);
         scene.proven = true;
       }
+      await SherloModule.holdAnimationsStill();
       try {
         return await native.stabilize(...settings);
       } finally {
