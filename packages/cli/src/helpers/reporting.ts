@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { ENV } from '@sherlo/sdk-client';
+import { version } from '../../package.json';
 import { blankSecrets } from './blankSecrets';
 import stripAnsi from './stripAnsi';
 
@@ -17,6 +18,7 @@ const reporting = {
     Sentry.init({
       dsn: dsn[ENV],
       environment: ENV,
+      release: `sherlo-cli@${version}`,
     }),
   setContext: Sentry.setContext,
   setTag: Sentry.setTag,

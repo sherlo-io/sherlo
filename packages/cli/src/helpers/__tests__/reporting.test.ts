@@ -5,6 +5,7 @@
  * suite builds the reporting helper once per stage, with `ENV` stubbed to that stage, and
  * reads the options `Sentry.init` was called with.
  */
+import { version } from '../../../package.json';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sentryInit = vi.fn();
@@ -21,7 +22,7 @@ vi.mock('@sentry/node', () => ({
 
 async function initReportingBuiltForStage(
   stage: string
-): Promise<{ dsn?: string; environment: string }> {
+): Promise<{ dsn?: string; environment: string; release: string }> {
   vi.resetModules();
   vi.doMock('@sherlo/sdk-client', () => ({ ENV: stage }));
 
@@ -80,7 +81,10 @@ describe('the tool reports errors only from a stack that outlives the run', () =
   });
 });
 
-// Shells for epic release-watch-on-prod. Each `it.todo` becomes a real `it(...)` with the exact same name.
 describe('the cli Sentry release', () => {
-  it.todo('Sentry is started with the release sherlo-cli at the package version');
+  it('Sentry is started with the release sherlo-cli at the package version', async () => {
+    const options = await initReportingBuiltForStage('prod');
+
+    expect(options.release).toBe(`sherlo-cli@${version}`);
+  });
 });
