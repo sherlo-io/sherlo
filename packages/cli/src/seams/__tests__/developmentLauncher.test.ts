@@ -3,7 +3,11 @@
  * Expo development build is handed so it opens the bundler on this machine.
  */
 import { describe, expect, it } from 'vitest';
-import { androidDevelopmentLauncherLink, developmentLauncherLink } from '../developmentLauncher';
+import {
+  androidDevelopmentLauncherLink,
+  developmentLauncherLink,
+  prepareAndroidDevMenuForCapture,
+} from '../developmentLauncher';
 
 describe('the development launcher link of a fresh launch', () => {
   it('a listing with an exp+ scheme becomes the link that opens the bundler on that port', () => {
@@ -22,5 +26,19 @@ describe('the development launcher link of a fresh launch', () => {
     const adb = async () => 'exp+chat but no launcher';
 
     expect(await androidDevelopmentLauncherLink(adb, 'com.example.chat', 8081)).toBeUndefined();
+  });
+
+  it('the Android dev menu prefs a scene launch writes switch the Tools button off', async () => {
+    const calls: string[][] = [];
+    const adb = async (...args: string[]) => {
+      calls.push(args);
+      return '';
+    };
+
+    await prepareAndroidDevMenuForCapture(adb, 'com.example.chat');
+
+    const encoded = /echo (\S+) \| base64 -d/.exec(calls[0].join(' '))?.[1] ?? '';
+    const xml = Buffer.from(encoded, 'base64').toString('utf-8');
+    expect(xml).toContain('<boolean name="showFab" value="false" />');
   });
 });

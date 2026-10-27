@@ -19,7 +19,7 @@ import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
 import {
   androidDevelopmentLauncherLink,
   iosDevelopmentLauncherLink,
-  markAndroidDevMenuSheetSeen,
+  prepareAndroidDevMenuForCapture,
 } from './developmentLauncher';
 import {
   readAnswerFindings,
@@ -165,11 +165,13 @@ async function launchFresh(
     const link = await iosDevelopmentLauncherLink(run, device.udid, app.id, port);
     if (link) {
       // Mirrors sherlo-runner's ios launchApp.ts: the sheet's record is a user default of the app.
-      // The menu stays closed at launch too (the clean device wipes that setting); the floating
-      // button, gestures and key commands still open it.
+      // The menu stays closed at launch too (the clean device wipes that setting), and its floating
+      // Tools button is off so it never covers the scene; the shake gesture and key commands still
+      // open the menu.
       for (const [key, value] of [
         ['EXDevMenuIsOnboardingFinished', 'YES'],
         ['EXDevMenuShowsAtLaunch', 'NO'],
+        ['EXDevMenuShowFloatingActionButton', 'NO'],
       ]) {
         await run('xcrun', [
           'simctl',
@@ -226,7 +228,7 @@ async function launchFresh(
   await adb('am', 'force-stop', app.id).catch(() => '');
   const link = await androidDevelopmentLauncherLink(adb, app.id, port);
   if (link) {
-    await markAndroidDevMenuSheetSeen(adb, app.id);
+    await prepareAndroidDevMenuForCapture(adb, app.id);
     // A clean phone has no last bundle for Expo's development launcher to reopen (the data is
     // wiped before each scene), so the start hands it the bundler's address through its own link.
     await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
