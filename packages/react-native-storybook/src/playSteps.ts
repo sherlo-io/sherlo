@@ -119,6 +119,8 @@ export async function playSteps(
           LONG_PRESS_HOLD_MS,
           'long-press'
         );
+      } else if ('type' in step) {
+        typeInto((await waitForTarget({ testID: step.type.testID })).fiber, step.type.text);
       } else if ('open' in step) {
         await openLink(step);
         if (!('ready' in (steps[index + 1] ?? {}))) await readyOrThrow(scene?.ready);
@@ -159,9 +161,51 @@ export function nameOf(target: TapTarget): string {
 function describe(step: PlayStep): string {
   if ('open' in step) return `open ${step.open}`;
   if ('ready' in step) return 'ready';
+  // The typed text is no part of the name: it reaches no record and no log line.
+  if ('type' in step) return `type ${nameOf({ testID: step.type.testID })}`;
   const [verb, named] = 'longPress' in step ? ['long-press', step.longPress] : ['tap', step.tap];
   const target = targetOf(named);
   return `${verb} ${nameOf(target)}${target.index ? ` #${target.index}` : ''}`;
+}
+
+/** The host component of a text field, drawn by the old and the new renderer alike (iOS and Android). */
+const TEXT_FIELD_HOSTS = [
+  'RCTSinglelineTextInputView',
+  'RCTMultilineTextInputView',
+  'AndroidTextInput',
+];
+
+/** The text field at `fiber`: the view itself, else the first one below it. */
+function textFieldIn(fiber: WalkedFiber): WalkedFiber | undefined {
+  const pending: WalkedFiber[] = [fiber];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    if (typeof node.type === 'string' && TEXT_FIELD_HOSTS.includes(node.type)) return node;
+    if (node.sibling && node !== fiber) pending.push(node.sibling);
+    if (node.child) pending.push(node.child);
+  }
+  return undefined;
+}
+
+/**
+ * Put `text` into the text field at `fiber` as typing would. The field's host `onChange` is what a
+ * keystroke reaches: React Native's own handler there calls the app's `onChange` and `onChangeText`
+ * and keeps a controlled field's state. The native text is set too, through the instance's
+ * `setNativeProps`, so a field the app does not control (a `defaultValue` only) shows it. Throws
+ * one line when the view holds no text field.
+ */
+function typeInto(fiber: WalkedFiber, text: string): void {
+  const field = textFieldIn(fiber);
+  if (!field) {
+    throw new Error(
+      "not a text field, so nothing could be typed. Point the step at the text field's testID."
+    );
+  }
+  const props = field.memoizedProps;
+  const instance = publicInstanceOf(field) as { setNativeProps?: (props: object) => void };
+  instance.setNativeProps?.({ text });
+  props.onChange?.({
+    nativeEvent: { text, eventCount: props.mostRecentEventCount ?? 0, target: nativeTagOf(field) },
+  });
 }
 
 /**

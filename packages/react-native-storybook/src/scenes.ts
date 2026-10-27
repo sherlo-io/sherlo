@@ -14,13 +14,19 @@ export type TapStep = { tap: string | TapTarget };
 /** A finger held on a view long enough to open a menu; the target is named as a tap's is. */
 export type LongPressStep = { longPress: string | TapTarget };
 
+/**
+ * Text put into the text field with that `testID`, as if typed: the field's change handlers get it
+ * and the field shows it. The typed text is never recorded or logged.
+ */
+export type TypeStep = { type: { testID: string; text: string } };
+
 /** The app's own link, handed to the app as a link it received. */
 export type OpenStep = { open: string };
 
 /** A wait for a view between two steps. */
 export type ReadyStep = { ready: string | ReadyRule };
 
-export type PlayStep = TapStep | LongPressStep | OpenStep | ReadyStep;
+export type PlayStep = TapStep | LongPressStep | TypeStep | OpenStep | ReadyStep;
 
 export type { SceneDevice, ScenePermission } from './sceneDeviceTypes';
 

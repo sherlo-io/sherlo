@@ -76,6 +76,8 @@ type View = {
   children?: View[];
   /** A component between this view and its parent, with these props (a gesture-handler button). */
   composite?: Record<string, any>;
+  /** What the view's public instance can do besides being a tag (a text field's setNativeProps). */
+  instance?: Record<string, any>;
 };
 
 let screen: 'discover' | 'chatList' | 'chat' = 'discover';
@@ -158,7 +160,9 @@ function fiberOf(view: View, parent: WalkedFiber | null): WalkedFiber {
     type: view.type ?? 'RCTView',
     pendingProps: view.props ?? {},
     memoizedProps: view.props ?? {},
-    stateNode: { canonical: { nativeTag: view.tag, publicInstance: { tag: view.tag } } },
+    stateNode: {
+      canonical: { nativeTag: view.tag, publicInstance: { tag: view.tag, ...view.instance } },
+    },
     return: parent,
   };
   let top = host;
@@ -455,6 +459,44 @@ describe('a scene plays its steps', () => {
 
     expect(await played()).toEqual(['long-press testID "Row"']);
     expect(longPressed).toEqual(['Row']);
+  });
+
+  it("typed text reaches the field's change handler and shows in the field", async () => {
+    const changed: string[] = [];
+    const shown: Record<string, unknown>[] = [];
+    views.now = () => ({
+      tag: 1,
+      frame: WINDOW,
+      children: [
+        {
+          tag: 30,
+          type: 'RCTSinglelineTextInputView',
+          props: {
+            testID: 'chat.input.message',
+            mostRecentEventCount: 4,
+            onChange: (event: any) => changed.push(event.nativeEvent.text),
+          },
+          instance: { setNativeProps: (props: Record<string, unknown>) => shown.push(props) },
+          frame: { x: 0, y: 700, width: 390, height: 44 },
+        },
+      ],
+    });
+    scene.play = [{ type: { testID: 'chat.input.message', text: 'On my way' } }];
+
+    expect(await played()).toEqual(['type testID "chat.input.message"']);
+    expect(changed).toEqual(['On my way']);
+    expect(shown).toEqual([{ text: 'On my way' }]);
+  });
+
+  it('a type step aimed at a view that is no text field ends with its line', async () => {
+    tabAt(600);
+    scene.play = [{ type: { testID: 'Connections', text: 'secret words' } }];
+    const error = await played().catch((thrown) => thrown);
+    expect(error.message).toBe(
+      `Scene ${SCENE_ID} could not play step 1 of 1 (type testID "Connections"): ` +
+        "not a text field, so nothing could be typed. Point the step at the text field's testID."
+    );
+    expect(error.message).not.toContain('secret words');
   });
 
   it("an Android tap presses through the native touch at the target's centre, and a covered target ends the step with its line", async () => {
