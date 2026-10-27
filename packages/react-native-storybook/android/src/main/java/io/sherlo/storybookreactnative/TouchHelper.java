@@ -95,12 +95,10 @@ final class TouchHelper {
             List<View> holding = new ArrayList<>();
             List<float[]> points = new ArrayList<>();
             for (View child : inTouchOrder(group)) {
-                float childX = localX + group.getScrollX() - child.getLeft();
-                float childY = localY + group.getScrollY() - child.getTop();
-                if (child.getVisibility() == View.VISIBLE && childX >= 0 && childY >= 0
-                        && childX < child.getWidth() && childY < child.getHeight()) {
+                float[] point = pointInChild(group, child, localX, localY);
+                if (point != null) {
                     holding.add(child);
-                    points.add(new float[] {childX, childY});
+                    points.add(point);
                 }
             }
             // The lowest is never asked: whether or not it keeps the touch, the touch ends there.
@@ -159,12 +157,21 @@ final class TouchHelper {
     }
 
     /**
-     * Whether `view` would keep a touch at (x, y), in its own pixels. A view that holds React is
-     * taken as keeping it, unasked: React's root takes every touch in its bounds, and asking would
-     * start a touch in the app. Any other view is asked as Android asks it: it is handed a down,
-     * and a view that keeps it is handed a cancel at once, so no press is left behind.
+     * Whether `view` would keep a touch at (x, y), in its own pixels. A React view that says pointer
+     * events none keeps none, and one that says box-none keeps one only where a child does, as React
+     * Native's own hit test has it. Any other view that holds React is taken as keeping it, unasked:
+     * React's root takes every touch in its bounds, and asking would start a touch in the app. A view
+     * that holds none is asked as Android asks it: it is handed a down, and a view that keeps it is
+     * handed a cancel at once, so no press is left behind.
      */
     private static boolean takesTouch(View view, float x, float y) {
+        String pointerEvents = pointerEventsOf(view);
+        if (pointerEvents.equals("NONE")) {
+            return false;
+        }
+        if (pointerEvents.equals("BOX_NONE")) {
+            return view instanceof ViewGroup && aChildTakesTouch((ViewGroup) view, x, y);
+        }
         if (holdsReact(view)) {
             return true;
         }
@@ -180,6 +187,52 @@ final class TouchHelper {
             cancel.recycle();
         }
         return kept;
+    }
+
+    /** Whether any child of the group holding the point (x, y), in the group's pixels, keeps the touch. */
+    private static boolean aChildTakesTouch(ViewGroup group, float x, float y) {
+        for (View child : inTouchOrder(group)) {
+            float[] point = pointInChild(group, child, x, y);
+            if (point != null && takesTouch(child, point[0], point[1])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The point (x, y), in the group's pixels, in the pixels of its child; null when the child is
+     * not visible or does not hold the point.
+     */
+    private static float[] pointInChild(ViewGroup group, View child, float x, float y) {
+        float childX = x + group.getScrollX() - child.getLeft();
+        float childY = y + group.getScrollY() - child.getTop();
+        if (child.getVisibility() == View.VISIBLE && childX >= 0 && childY >= 0
+                && childX < child.getWidth() && childY < child.getHeight()) {
+            return new float[] {childX, childY};
+        }
+        return null;
+    }
+
+    /**
+     * What a view says of its pointer events, as React Native names them on Android (its
+     * ReactPointerEventsView interface, read by name as nothing here imports React Native): "NONE",
+     * "BOX_NONE", "BOX_ONLY" or "AUTO", which is also the answer of a view that says nothing.
+     */
+    private static String pointerEventsOf(View view) {
+        for (Class<?> type = view.getClass(); type != null; type = type.getSuperclass()) {
+            for (Class<?> implemented : type.getInterfaces()) {
+                if (implemented.getName().equals("com.facebook.react.uimanager.ReactPointerEventsView")) {
+                    try {
+                        return ((Enum<?>) implemented.getMethod("getPointerEvents").invoke(view)).name();
+                    } catch (ReflectiveOperationException | RuntimeException error) {
+                        // A view whose pointer events cannot be read is taken as taking touches.
+                        return "AUTO";
+                    }
+                }
+            }
+        }
+        return "AUTO";
     }
 
     /** Whether `view` is React Native's or holds one of React Native's views. */
