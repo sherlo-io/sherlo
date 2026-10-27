@@ -66,9 +66,11 @@ describe('a bare push is posable', () => {
     const M = androidStoryCount(document);
 
     expect(refusals).toEqual([]);
-    // The plan is one count on the test's row, with the reason a full capture keeps; no plan step
-    // of its own.
-    expect(screen).toContain(`all ${M} stories on 1 device (Pixel 7), no main branch is set`);
+    // The plan is one count on the test's row; a full capture for want of a main branch drops that
+    // reason from the row, because the branching-off warning under it says so. No plan step of its own.
+    expect(screen).toContain(`all ${M} stories on 1 device (Pixel 7)\n`);
+    expect(screen).not.toContain('no main branch is set');
+    expect(screen).toContain('! Branching is off: this project has no main branch.');
     expect(screen).not.toContain('Planned the capture');
     // The one-line "Diff Scope:" summary repeated the plan in internal words, and is gone.
     expect(screen).not.toContain('Diff Scope');

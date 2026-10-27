@@ -23,7 +23,21 @@ const GIT_ENV_KEYS = [
   'CM_BRANCH',
   'BUILD_SOURCEBRANCH',
   'SYSTEM_PULLREQUEST_SOURCEBRANCH',
+  'GIT_CONFIG_GLOBAL',
 ] as const;
+
+/**
+ * The tool deepens a shallow clone before it reads git. These cases read a clone AS shallow, so
+ * their git host refuses every pack: the global config sets a pack-objects hook that fails.
+ */
+export function refusingHostConfig(): string {
+  const file = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-refusing-host-')),
+    'gitconfig'
+  );
+  fs.writeFileSync(file, '[uploadpack]\n\tpackObjectsHook = false\n');
+  return file;
+}
 
 const eventFiles: string[] = [];
 const repositoriesOfThisCase: GitFixture[] = [];
@@ -40,6 +54,9 @@ export function isolateEachCase(): void {
       savedEnv[key] = process.env[key];
       delete process.env[key];
     }
+    const refusing = refusingHostConfig();
+    eventFiles.push(refusing);
+    process.env.GIT_CONFIG_GLOBAL = refusing;
   });
 
   afterEach(() => {
@@ -100,6 +117,27 @@ export function threeCommitRepository(): ThreeCommits {
     { mark: 'c3', branch: 'main', message: 'c3', parents: ['c2'] },
   ]);
   return { repository, c1, c2, c3 };
+}
+
+/**
+ * What a CI checkout of a plain git host is: a depth 1 single-branch file:// clone of a bare
+ * origin, with no origin/HEAD recorded. Returns the clone, whose origin is the bare repository.
+ * Built once by a file in its beforeAll, since getGitInfo only reads it; `remove` deletes the
+ * clone and the origin behind it.
+ */
+export function shallowCloneOfBareOrigin(): { clone: GitFixture; remove: () => void } {
+  const source = oneCommitRepository();
+  const origin = source.bareClone();
+  source.cleanup();
+  const clone = origin.shallowClone(1, 'main');
+  clone.git(['update-ref', '--no-deref', '-d', 'refs/remotes/origin/HEAD']);
+  return {
+    clone,
+    remove: () => {
+      clone.cleanup();
+      origin.cleanup();
+    },
+  };
 }
 
 /** A pull request merged into main: `base`, then a merge of `feature`, whose one commit is `prHead`. */

@@ -7,8 +7,8 @@
  * review address as `url`.
  *
  * The last test is the OTHER end-to-end promise: run the script in a genuinely
- * shallow clone and the checkout is deep enough for the CLI to read lineage from
- * by the time the CLI starts - which is what lets a workflow omit `fetch-depth`.
+ * shallow clone and the Action leaves the clone alone - the CLI deepens it itself, which is
+ * what lets a workflow omit `fetch-depth`.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -130,7 +130,7 @@ describe('the action body', () => {
     expect(run.log).toContain('a line on stderr');
   });
 
-  it('deepens a real shallow clone BEFORE the CLI runs, so the CLI can read lineage', () => {
+  it('leaves a real shallow clone as it found it, because the CLI deepens it itself', () => {
     const projectRoot = shallowCloneWithFakeCli();
 
     const result = spawnSync(process.execPath, [RUNNER], {
@@ -139,17 +139,11 @@ describe('the action body', () => {
       env: { ...process.env, SHERLO_TOKEN: 'TOKEN', GITHUB_OUTPUT: '', FAKE_KEYS: 'completed' },
     });
 
-    // The repair is announced, and it is announced before the CLI is invoked.
-    expect(result.stdout).toContain('Shallow checkout detected');
-    expect(result.stdout.indexOf('Shallow checkout detected')).toBeLessThan(
-      result.stdout.indexOf('argv=')
-    );
+    // The action announces and fetches nothing: HEAD is still a lone grafted commit.
+    expect(result.stdout).not.toContain('Shallow checkout detected');
     expect(result.stdout).not.toContain('::warning');
-
-    // And the repair actually landed: HEAD is no longer a lone grafted commit,
-    // which is precisely what the CLI walks to build its ancestry payload.
     const reachable = git(projectRoot, ['rev-list', '--count', '--first-parent', 'HEAD']);
-    expect(Number(reachable.stdout.trim())).toBe(3);
+    expect(Number(reachable.stdout.trim())).toBe(1);
   });
 });
 

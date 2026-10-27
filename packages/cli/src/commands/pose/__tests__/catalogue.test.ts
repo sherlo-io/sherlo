@@ -14,7 +14,8 @@
  *
  *     ALLOW_LOCAL_TEST_EXEC=1 MINT_POSES=1 yarn test src/commands/pose/__tests__/catalogue.test.ts
  *
- * and the diff is read like any other diff. Without `MINT_POSES` this file only ever compares -
+ * (under MINT_POSES this file mints the WHOLE catalogue and the shard files stand aside) and the
+ * diff is read like any other diff. Without `MINT_POSES` this file only ever compares -
  * a ratchet that could quietly rewrite its own baseline is not a ratchet.
  *
  * ------------------------------------------------------------------------
@@ -31,30 +32,21 @@ import { runPose } from '../pose';
 import { readPoseDocument } from '../readPose';
 import type { CommandPose } from '../../../seams/commandPose';
 import type { PosedCaptureDecision } from '../../../seams/serverCalls';
+import {
+  DIVERGED_MESSAGE,
+  SHARD_COUNT,
+  posesDivergingFromCommitted,
+  posesOfShard,
+  posesWithLeftoverCalls,
+} from './support/catalogueShards';
+import { keepRunsOfPoses } from './support/keptRuns';
 
-/**
- * RUNNING A POSE IS THE SLOW PART (116 of them), and two cases below read the same run of every
- * pose: the committed-bytes case and the leftover-calls case. So a run is kept the first time and
- * handed back after - one pass over the catalogue, not two. The determinism case turns the keeping
- * off, because it exists to run the same pose twice and compare.
- */
-const runsKept = new Map<string, Promise<unknown>>();
-let keepRuns = true;
-
-vi.mock('../pose', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../pose')>();
-
-  return {
-    ...original,
-    runPose: (...args: Parameters<typeof original.runPose>) => {
-      if (!keepRuns) return original.runPose(...args);
-
-      const key = JSON.stringify(args);
-      if (!runsKept.has(key)) runsKept.set(key, original.runPose(...args));
-      return runsKept.get(key) as ReturnType<typeof original.runPose>;
-    },
-  };
-});
+// Two cases read the same run of every pose, so a run is kept the first time (see posesRunOnce).
+vi.mock('../pose', async (importOriginal) =>
+  (await import('./support/keptRuns')).posesRunOnce(
+    await importOriginal<typeof import('../pose')>()
+  )
+);
 
 /**
  * A POSED PUSH FINGERPRINTS THE PROJECT, and the fingerprint asks `npx` about the project's native
@@ -81,53 +73,36 @@ describe('the pose catalogue under packages/cli/poses', () => {
   });
 
   it('every catalog pose renders and its rendered bytes are committed beside it', async () => {
-    // ONE CASE OVER THE WHOLE CATALOGUE, not one per pose. The name IS the rule, and a rule
-    // spelled out once with the poses that break it named in the failure reads better than a
-    // hundred near-identical case names - and it is the name the plan sign-off promised.
-    const diverged: string[] = [];
+    // THIS FILE CHECKS SHARD 1 OF THE CATALOGUE (shards 2 to 4 sit in catalogueShard2.test.ts to
+    // catalogueShard4.test.ts, so the poses render in parallel workers), or all of it when
+    // re-minting. The next case proves the shards together are the whole catalogue. The name IS
+    // the rule, and a rule spelled out once with the poses that break it named in the failure
+    // reads better than a hundred near-identical case names.
+    const mine = process.env.MINT_POSES === '1' ? POSES : posesOfShard(POSES, 1);
 
-    for (const { name, posePath, screenPath } of POSES) {
-      const rendered = await renderPose(posePath);
+    expect(await posesDivergingFromCommitted(mine), DIVERGED_MESSAGE).toEqual([]);
+  });
 
-      if (process.env.MINT_POSES === '1') {
-        fs.writeFileSync(screenPath, rendered);
-        continue;
-      }
+  it('the shards of the catalogue together are every pose, each in exactly one shard', () => {
+    const inShards = Array.from({ length: SHARD_COUNT }, (_, index) =>
+      posesOfShard(POSES, index + 1)
+    ).flat();
 
-      if (!fs.existsSync(screenPath)) {
-        diverged.push(`${name} - no committed screen`);
-        continue;
-      }
-
-      const committed = fs.readFileSync(screenPath, 'utf8');
-      if (rendered === committed) continue;
-
-      diverged.push(`${name} - ${describeFirstDivergence(rendered, committed)}`);
-    }
-
-    expect(
-      diverged,
-      'THE TOOL NO LONGER PRINTS WHAT THESE SCREENS COMMITTED. A committed screen is the ' +
-        "tool's own output for that pose, reviewed into git by a person; a divergence means the " +
-        'screen a real user reads has changed - its wording, its colour, its blank lines, its ' +
-        'box or its exit code. That is a product change to argue for, not a file to re-record: ' +
-        "if the new screen is intended, re-mint it in the same PR (see this file's header) and " +
-        'say so.'
-    ).toEqual([]);
+    expect(inShards.map(({ name }) => name).sort()).toEqual(POSES.map(({ name }) => name).sort());
   });
 
   it('renders the same bytes twice', async () => {
     // Determinism, not truth - a producer agrees with itself by construction. What this catches
     // is a clock, a counter, a temporary path or an environment read leaking onto a screen,
     // which would make the catalogue unmintable rather than wrong.
-    keepRuns = false;
+    keepRunsOfPoses(false);
     let first: string;
     let second: string;
     try {
       first = await renderPose(POSES[0].posePath);
       second = await renderPose(POSES[0].posePath);
     } finally {
-      keepRuns = true;
+      keepRunsOfPoses(true);
     }
 
     expect(first).toBe(second);
@@ -174,17 +149,9 @@ describe('the pose catalogue under packages/cli/poses', () => {
     // The mirror of the refusal rule. A pose that scripts a call the run never reaches is
     // describing a different road from the one its screen shows, and its screen would go on
     // looking perfectly reasonable - so it is caught here rather than read past.
-    const withLeftovers: string[] = [];
+    const mine = process.env.MINT_POSES === '1' ? POSES : posesOfShard(POSES, 1);
 
-    for (const { name, posePath } of POSES) {
-      const { unusedCalls } = await runPose(readPoseDocument(fs.readFileSync(posePath, 'utf8')));
-
-      if (unusedCalls.length > 0) {
-        withLeftovers.push(`${name} - ${unusedCalls.map(({ call }) => call).join(', ')}`);
-      }
-    }
-
-    expect(withLeftovers).toEqual([]);
+    expect(await posesWithLeftoverCalls(mine)).toEqual([]);
   });
 
   it('a staged push that closed at open, with no wait, ends on Nothing needed capturing and prints no link', async () => {
@@ -260,25 +227,4 @@ function poseNamed(name: string): CommandPose {
 function printsTheJsonContract(posePath: string): boolean {
   const { argv } = readPoseDocument(fs.readFileSync(posePath, 'utf8'));
   return argv.includes('--json') || argv.includes('--help');
-}
-
-/**
- * The first line the two screens disagree on, said so a reader can act on it without opening a
- * diff tool. Escapes are shown, because a moved style boundary is exactly the kind of change
- * this catalogue exists to catch and it is invisible otherwise.
- */
-function describeFirstDivergence(rendered: string, committed: string): string {
-  const renderedLines = rendered.split('\n');
-  const committedLines = committed.split('\n');
-
-  for (let line = 0; line < Math.max(renderedLines.length, committedLines.length); line += 1) {
-    if (renderedLines[line] === committedLines[line]) continue;
-
-    return (
-      `line ${line + 1}: committed ${JSON.stringify(committedLines[line] ?? null)}, ` +
-      `now ${JSON.stringify(renderedLines[line] ?? null)}`
-    );
-  }
-
-  return 'the screens differ in a way a line-by-line read cannot see';
 }

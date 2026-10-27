@@ -123,6 +123,9 @@ describe('getGitInfo - defaultBranch', () => {
 
   it('is omitted on a shallow single-branch checkout, which records no origin/HEAD', async () => {
     const shallow = oneCommit.shallowClone(1, 'main');
+    // The git host is asked after origin/HEAD (getGitInfo.defaultBranchFromHost.test.ts), so
+    // this case has an origin that cannot answer: only the local record is under test here.
+    shallow.git(['remote', 'set-url', 'origin', '/no-such-git-host']);
     try {
       const info = await getGitInfo(shallow.dir);
       expect(info.defaultBranch).toBeUndefined();

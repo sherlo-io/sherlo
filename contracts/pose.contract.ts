@@ -195,6 +195,8 @@ export type PosedGit =
       branch: string;
       commit: string;
       dirty: boolean;
+      /** Git's own sentence when the tool's fetch of 200 commits of a shallow clone was refused. */
+      historyFetchRefused?: string;
     };
 
 /** One platform's bundle as the bundler reports it. */

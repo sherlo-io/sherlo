@@ -40,7 +40,12 @@ import {
   renderAppBuildNextStep,
   renderEasHostedVariables,
 } from './appBuild';
-import { renderOutputKeys, renderTestNotice } from './pushSpine';
+import {
+  renderBranchingOff,
+  renderHistoryFetchRefused,
+  renderOutputKeys,
+  renderTestNotice,
+} from './pushSpine';
 import { renderStepInProgress } from './stepInProgress';
 import { renderSignedInThroughGitHub } from './pushCredential';
 import {
@@ -222,6 +227,18 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stderr',
         prints: [[GIT_INFO_UNAVAILABLE, segment.error]],
+      };
+
+    case 'git-history-fetch-refused':
+      return {
+        stream: 'stderr',
+        prints: renderHistoryFetchRefused(segment.reason).map((line) => [line]),
+      };
+
+    case 'branching-off':
+      return {
+        stream: 'stderr',
+        prints: renderBranchingOff(segment.project).map((line) => [line]),
       };
 
     /* ---------------------- the push spine (F1) ---------------------- */

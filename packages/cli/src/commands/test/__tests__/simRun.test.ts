@@ -29,11 +29,13 @@ vi.mock('../../../helpers', () => ({
 vi.mock('../simWorld', () => ({
   readSimWorld: vi.fn(() => ({ dirPath: '/world', parsed: {} })),
 }));
-vi.mock('../deriveSimManifest', () => ({ default: vi.fn(() => ({ raw: '{}' })) }));
+// The push facts count the stories off the derived map, so it carries one, with no story file.
+vi.mock('../deriveSimManifest', () => ({
+  default: vi.fn(() => ({ raw: '{}', parsed: { storyClosures: {} } })),
+}));
 vi.mock('../composeSimWorldFile', () => ({ default: vi.fn(() => Buffer.from('{}')) }));
 vi.mock('../uploadStagedArtifacts', () => ({ putBuffer: vi.fn() }));
 vi.mock('../closeTheRun', () => ({ closeTheRun: vi.fn() }));
-vi.mock('../stagedRun', () => ({ printTestStarted: vi.fn() }));
 vi.mock('../appBuild/joinTheRun', () => ({
   joinTheRun: vi.fn(async () => ({ build: { index: 7 }, waitingFor: [] })),
 }));
