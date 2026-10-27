@@ -1602,7 +1602,7 @@ const PINS: Pin[] = [
         sceneId: 'chat--menu-open',
         bootMs: 1800,
         reached: { route: ['ChatStack', 'Chat'], ms: 3100 },
-        play: [{ open: 'feeld://chat-list' }, { tap: 'chat-header-menu' }],
+        play: [{ open: 'myapp://chat-list' }, { tap: 'chat-header-menu' }],
         settled: { ms: 800, frames: 5 },
         tree: {
           primitive: 'Text',
@@ -1618,7 +1618,7 @@ const PINS: Pin[] = [
         `${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--menu-open${ESC}[22m captured, the way a test run records it`,
       ],
       [`${ESC}[2m   booted fresh in 1.8s${ESC}[22m`],
-      [`${ESC}[2m   played open feeld://chat-list${ESC}[22m`],
+      [`${ESC}[2m   played open myapp://chat-list${ESC}[22m`],
       [`${ESC}[2m   played tap chat-header-menu${ESC}[22m`],
       [`${ESC}[2m   reached ChatStack › Chat in 3.1s${ESC}[22m`],
       [`${ESC}[2m   settled in 0.8s over 5 frames · testing mode${ESC}[22m`],
