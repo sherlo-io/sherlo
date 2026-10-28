@@ -1,5 +1,5 @@
 import { RequestAnswer } from './networkDeclaration';
-import { answerFor, bodyOf, delay, statusOf } from './networkRules';
+import { answerFor, bodyOf, delay, sentByFetch, statusOf } from './networkRules';
 import { requestStarted } from './requestsInFlight';
 
 /**
@@ -54,6 +54,11 @@ export function mockedXhrOf(RealXhr: XhrClass): XhrClass {
     }
 
     send(body?: unknown): void {
+      // fetch's own request: fetch already asked the rules and listed it (./networkFetch).
+      if (sentByFetch()) {
+        super.send(body);
+        return;
+      }
       const verdict = answerFor({
         ...this.request,
         body: typeof body === 'string' ? body : undefined,
