@@ -200,3 +200,22 @@ describe("the bundler's address on the road of an app with scene files and no St
     expect(__getDialedAddresses()).toEqual([`ws://localhost:8081${BUNDLER_LINE_PATH}`]);
   });
 });
+
+describe('the road of an app with no Storybook and no scene file yet', () => {
+  it('an app with no Storybook and no scene file yet bundles on the scenes-only road', () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-no-scenes-yet-')));
+    fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+    fs.writeFileSync(path.join(root, 'package.json'), '{"name":"app"}\n');
+
+    let config;
+    try {
+      config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // Sherlo's transforms and launch entry are on, and no Storybook wrapper was asked for.
+    expect(typeof config.resolver.resolveRequest).toBe('function');
+    expect(typeof config.server.enhanceMiddleware).toBe('function');
+  });
+});

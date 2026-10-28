@@ -159,15 +159,34 @@ function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuil
 }
 
 /**
- * Whether the project keeps its scenes in files of their own and has no Storybook at all: no
- * Storybook config folder, and at least one scene file.
+ * Whether the project has no Storybook: no Storybook config folder, and either at least one scene
+ * file or no `@storybook/react-native` the project can load.
+ *
+ * The rule: a config folder means the app set Storybook up, so it keeps Storybook's road. Without
+ * one, the app is on the scenes-only road when it has scene files (as before) or when Storybook is
+ * not installed, which is every new app before its first scene file: the old road would throw on
+ * the Storybook wrapper the app never installed. An app that installed Storybook but has no config
+ * folder and no scene file yet keeps the old road, which can load that wrapper.
  */
-function hasSceneFilesAndNoStorybook(projectRoot, opts) {
-  return resolveConfigDir(projectRoot, opts) === null && findSceneFiles(projectRoot).length > 0;
+function hasNoStorybook(projectRoot, opts) {
+  if (resolveConfigDir(projectRoot, opts) !== null) return false;
+  return findSceneFiles(projectRoot).length > 0 || !storybookIsInstalled(projectRoot);
+}
+
+function storybookIsInstalled(projectRoot) {
+  try {
+    require('module')
+      .createRequire(path.join(projectRoot, 'package.json'))
+      .resolve('@storybook/react-native/package.json');
+    return true;
+  } catch (_) {
+    // Not resolvable from the project: Storybook is not installed there.
+    return false;
+  }
 }
 
 /**
- * The road of an app with scene files and no Storybook: Sherlo's transforms, then a launch entry
+ * The road of an app with no Storybook, with scene files or not yet: Sherlo's transforms, then a launch entry
  * with only the app's side. No Storybook wrapper is loaded and no setup file is written.
  */
 function withScenesOnly(config, opts, sherloBuild) {
@@ -282,7 +301,7 @@ function withStorybook(config, opts) {
   var thisBuild = whatThisBuildCarries(process.env, isReleaseBundle(), opts && opts.enabled);
   var defaultSetupEntry = defaultSetupStorybookEntry(projectRoot, opts);
 
-  if (!defaultSetupEntry && hasSceneFilesAndNoStorybook(projectRoot, opts)) {
+  if (!defaultSetupEntry && hasNoStorybook(projectRoot, opts)) {
     return withScenesOnly(config, opts, thisBuild.sherloBuild);
   }
 
