@@ -6,8 +6,25 @@ import { describe, expect, it } from 'vitest';
 import {
   androidDevelopmentLauncherLink,
   developmentLauncherLink,
+  pointAndroidAppAtBundler,
+  pointIosAppAtBundler,
   prepareAndroidDevMenuForCapture,
 } from '../developmentLauncher';
+
+describe('a plain React Native app on the default port', () => {
+  it('a bundler on 8081 needs nothing new on either platform', async () => {
+    const calls: string[][] = [];
+    const run = async (_tool: string, args: string[]) => {
+      calls.push(args);
+      return '';
+    };
+
+    await pointIosAppAtBundler(run, 'UDID-1', 'com.example.chat', 8081);
+    await pointAndroidAppAtBundler((...args) => run('adb', args), 'com.example.chat', 8081);
+
+    expect(calls).toEqual([]);
+  });
+});
 
 describe('the development launcher link of a fresh launch', () => {
   it('a listing with an exp+ scheme becomes the link that opens the bundler on that port', () => {

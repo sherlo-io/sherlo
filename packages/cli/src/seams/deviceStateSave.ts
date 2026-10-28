@@ -43,6 +43,8 @@ export type SavedDevice =
       reduceMotion: '1' | '0' | null;
       /** Whether the simulator had a BulletinBoard file, copied to `<folder>/bulletins.plist`. */
       hadBulletins: boolean;
+      /** The user default `RCT_jsLocation` (where the app looks for the bundler) the app had, or null. */
+      jsLocation: string | null;
     }
   | {
       platform: 'android';
@@ -52,6 +54,11 @@ export type SavedDevice =
       scales: Record<(typeof ANIMATION_SCALES)[number], string | null>;
       /** `not-asked`: the app does not ask for notifications on this Android, so nothing is changed. */
       notifications: 'granted' | 'not-granted' | 'not-asked';
+      /**
+       * The phone's `adb reverse` mappings, each `tcp:<on the phone> tcp:<on this machine>`; null
+       * when the phone would not say, and then the restore touches no mapping.
+       */
+      reversed: string[] | null;
     };
 
 /** Read everything a clean device changes into `folder`, changing nothing on the device. */
@@ -83,6 +90,7 @@ export async function saveDeviceState(
       parts,
       reduceMotion: await readReduceMotion(device.udid),
       hadBulletins,
+      jsLocation: await readJsLocation(device.udid, app.id),
     };
   }
 
@@ -104,7 +112,27 @@ export async function saveDeviceState(
   const notifications =
     granted === true ? 'granted' : granted === false ? 'not-granted' : 'not-asked';
 
-  return { platform: 'android', folder, dataTar, scales, notifications };
+  return {
+    platform: 'android',
+    folder,
+    dataTar,
+    scales,
+    notifications,
+    reversed: await reverseMappings(adb),
+  };
+}
+
+/** The phone's `adb reverse` mappings, each `tcp:<on the phone> tcp:<on this machine>`. */
+export async function reverseMappings(
+  adb: (...args: string[]) => Promise<string>
+): Promise<string[] | null> {
+  try {
+    const listed = await adb('reverse', '--list');
+    return [...listed.matchAll(/(tcp:\d+)\s+(tcp:\d+)/g)].map((match) => `${match[1]} ${match[2]}`);
+  } catch {
+    // The phone would not list its mappings: say so, never pass it off as an empty list.
+    return null;
+  }
 }
 
 /** Each runtime permission the app's manifest declares on an Android phone, and whether it is granted. */
@@ -215,6 +243,21 @@ export async function emptyTheAndroidData(serial: string, app: SceneApp): Promis
     'shell',
     `run-as ${app.id} find . -mindepth 1 -maxdepth 1 ! -name lib -exec rm -rf {} +`,
   ]);
+}
+
+/**
+ * The bundler address the app was told by hand. User defaults live in the simulator's preferences
+ * daemon, which keeps its answer after the app's files are put back, so the restore sets this one
+ * through the daemon too.
+ */
+async function readJsLocation(udid: string, appId: string): Promise<string | null> {
+  try {
+    const args = ['simctl', 'spawn', udid, 'defaults', 'read', appId, 'RCT_jsLocation'];
+    return (await deviceState().run('xcrun', args)).trim() || null;
+  } catch {
+    // `defaults read` fails on a key the app never had.
+    return null;
+  }
 }
 
 async function readReduceMotion(udid: string): Promise<'1' | '0' | null> {
