@@ -12,6 +12,11 @@ export default defineConfig({
       // react-native/index.js uses Flow syntax (`import typeof`) that Vite/Rollup
       // cannot parse. Alias to a minimal stub for the test environment.
       'react-native': path.resolve(__dirname, 'src/__tests__/__mocks__/react-native.ts'),
+      // The package's source is not plain JavaScript either.
+      'react-native-safe-area-context': path.resolve(
+        __dirname,
+        'src/__tests__/__mocks__/react-native-safe-area-context.ts'
+      ),
       // expo-dev-menu is an optional native peer dependency not installed in dev.
       'expo-dev-menu': path.resolve(__dirname, 'src/__tests__/__mocks__/expo-dev-menu.ts'),
     },
@@ -25,7 +30,7 @@ export default defineConfig({
     // Vitest 5 clears every mock between tests by default; these tests read calls a beforeAll made.
     clearMocks: false,
     maxWorkers,
-    setupFiles: ['@sherlo-io/time-limits/vitest-setup'],
+    setupFiles: ['@sherlo-io/time-limits/vitest-setup', './src/__tests__/freshRegistry.ts'],
     // A test file over five seconds fails the run, naming itself: the limit every suite shares.
     reporters: ['default', ['@sherlo-io/time-limits/vitest', { limit: 'ordinary' }]],
   },

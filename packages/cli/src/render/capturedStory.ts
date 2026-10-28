@@ -15,6 +15,7 @@
  */
 import chalk from 'chalk';
 import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
+import { moreLines } from './moreLines';
 
 /** One view in the tree, as the screen needs it. */
 export type CapturedView = {
@@ -88,6 +89,10 @@ const START_THE_APP = 'Start your app with the bundler running, then try again.'
 /** The name of the error the SDK fails a story with when a mock it declares reached nothing or its module's import threw. */
 const MOCKED_MODULE_ERROR = 'MockedModuleError';
 
+/** What a crash with no error from the app says, for a story and a scene alike. */
+export const NOTHING_BEFORE_DEATH =
+  '   The app said nothing before it died - a native crash, or the app was closed.';
+
 /** Every line `sherlo capture` prints, in order. */
 export function renderCapturedStory(state: CapturedStory): string[] {
   switch (state.kind) {
@@ -118,7 +123,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           '',
           ...state.brokenFiles.flatMap(({ file, error }) => [
             `  ${chalk.bold(file)}`,
-            `  ${error.name}: ${error.message}`,
+            errorLine(error),
           ]),
           '',
           chalk.dim('Fix the file and save it, then try again.'),
@@ -135,9 +140,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
     case 'captured':
       return [
         `${chalk.green('✔')}  ${chalk.bold(state.storyId)} captured, the way a test run records it`,
-        chalk.dim(
-          `   settled in ${seconds(state.settledMs)} over ${state.frames} frames · testing mode`
-        ),
+        settledLine(state.settledMs, state.frames),
         ...(state.parts !== undefined && state.parts > 1
           ? [
               chalk.dim(
@@ -184,7 +187,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       return [
         `${chalk.red('✖')}  ${chalk.bold(state.storyId)} captured, and it threw while rendering`,
         '',
-        `  ${state.threw.name}: ${state.threw.message}`,
+        errorLine(state.threw),
         '',
         ...treeLines(state.tree),
         '',
@@ -196,13 +199,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           state.storyId
         )} captured to a crash - the app stopped answering`,
         '',
-        ...(state.error
-          ? [`  ${state.error.name}: ${state.error.message}`]
-          : [
-              chalk.dim(
-                '   The app said nothing before it died - a native crash, or the app was closed.'
-              ),
-            ]),
+        ...(state.error ? [errorLine(state.error)] : [chalk.dim(NOTHING_BEFORE_DEATH)]),
         '',
       ];
   }
@@ -228,8 +225,13 @@ const INK = {
   component: chalk.hex('#D97AB8'),
 };
 
+/** An error the app threw, as one indented line: its name, then its message. */
+export function errorLine(error: { name: string; message: string }): string {
+  return `  ${error.name}: ${error.message}`;
+}
+
 /** The app's own modules the story ran as real code, because no mock replaced them. */
-function stillRealLines(stillReal: string[] | undefined): string[] {
+export function stillRealLines(stillReal: string[] | undefined): string[] {
   if (!stillReal || stillReal.length === 0) return [];
   return [
     '',
@@ -238,21 +240,21 @@ function stillRealLines(stillReal: string[] | undefined): string[] {
   ];
 }
 
-/** The requests that went to the real network: a test run sends them too, so a story that depends on them can change. */
-function unansweredLines(unanswered: { method: string; url: string }[] | undefined): string[] {
+/** The requests no mock answered, each a method and an address. */
+export function unansweredLines(
+  unanswered: { method: string; url: string }[] | undefined
+): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
     '',
-    `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock - a test run sends ${
-      one ? 'it' : 'them'
-    } to the real network:`,
+    `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock:`,
     ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
   ];
 }
 
 /** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
-function treeLines(root: CapturedView): string[] {
+export function treeLines(root: CapturedView): string[] {
   return [
     ...viewLines(root, 0),
     '',
@@ -373,8 +375,14 @@ function countViews(view: CapturedView): number {
   return 1 + view.children.reduce((sum, child) => sum + countViews(child), 0);
 }
 
-function seconds(ms: number): string {
+/** `1.2s` - a duration the way every capture screen spells it. */
+export function seconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** The dim line that says how long the capture took to settle, for a story and for a scene alike. */
+export function settledLine(ms: number, frames: number): string {
+  return chalk.dim(`   settled in ${seconds(ms)} over ${frames} frames · testing mode`);
 }
 
 /** The same handful-and-a-count `sherlo open` offers, for the same reason. */
@@ -387,6 +395,6 @@ function suggestions(known: string[]): string[] {
   return [
     chalk.dim('This app has:'),
     ...shown.map((storyId) => `  ${storyId}`),
-    ...(rest > 0 ? [chalk.dim(`  ... and ${rest} more`)] : []),
+    ...moreLines(rest),
   ];
 }

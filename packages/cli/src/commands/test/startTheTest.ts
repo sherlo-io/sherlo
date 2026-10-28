@@ -21,7 +21,11 @@ import { capturePerPlatform } from './capturePerPlatform';
 import { closeTheRun } from './closeTheRun';
 import type { THIS_COMMAND } from './constants';
 import { rowsAbove } from './platformRows';
-import { countBundleStories, type ValidatedModuleManifest } from './readModuleManifest';
+import {
+  countBundleScenes,
+  countBundleStories,
+  type ValidatedModuleManifest,
+} from './readModuleManifest';
 
 /**
  * Open the test (or, for one job of a split CI run, join the run its CI run shares), print its
@@ -60,7 +64,8 @@ export async function openAndEndTheTest({
     // Nothing was built on these roads: the facts are the module maps' story counts and the CI run.
     const pushFacts = pushFactsOf({
       appBuilds: {},
-      storiesInBundle: storiesInBundleOf(moduleManifests),
+      storiesInBundle: countInBundleOf(moduleManifests, countBundleStories),
+      scenesInBundle: countInBundleOf(moduleManifests, countBundleScenes),
       env: process.env,
       runIdFlag: (passedOptions as BuildFlags).runId,
     });
@@ -137,15 +142,16 @@ export async function openAndEndTheTest({
   return { url };
 }
 
-/** How many stories each platform's bundle holds, counted off its module map. */
-function storiesInBundleOf(
-  moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>
+/** How many stories (`countBundleStories`) or scenes (`countBundleScenes`) each platform's bundle holds, counted off its module map. */
+function countInBundleOf(
+  moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>,
+  count: (moduleManifest: ValidatedModuleManifest) => number
 ): Partial<Record<Platform, number>> {
   const counts: Partial<Record<Platform, number>> = {};
   for (const [platform, moduleManifest] of Object.entries(moduleManifests) as Array<
     [Platform, ValidatedModuleManifest]
   >) {
-    counts[platform] = countBundleStories(moduleManifest);
+    counts[platform] = count(moduleManifest);
   }
   return counts;
 }

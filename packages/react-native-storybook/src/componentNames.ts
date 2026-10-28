@@ -9,7 +9,7 @@
  * React.
  */
 
-import type { RenderedFiber } from './sealedCore/seam';
+import type { RenderedFiber, WalkedFiber } from './sealedCore/seam';
 
 /** The top of the app's story, or nothing before it has been rendered. */
 let storyOfTheApp: RenderedFiber | undefined;
@@ -25,4 +25,19 @@ export function rememberStoryOfTheApp(fiber: RenderedFiber | undefined): void {
 /** The top of the app's story, or nothing before it has been rendered. */
 export function storyOfTheAppFiber(): RenderedFiber | undefined {
   return storyOfTheApp;
+}
+
+/**
+ * The fiber the app is rendered from now, in the shape a walk of the app's props needs. React keeps
+ * two copies of every fiber and shows one; the one with the live root above it is the one read.
+ */
+export function currentAppFiber(): WalkedFiber | undefined {
+  const rendered = storyOfTheApp as (WalkedFiber & { alternate?: WalkedFiber | null }) | undefined;
+  const copies = [rendered, rendered?.alternate].filter((copy): copy is WalkedFiber => !!copy);
+  const shown = copies.find((copy) => {
+    let top = copy;
+    while (top.return) top = top.return;
+    return top.stateNode?.current === top;
+  });
+  return shown ?? copies[0];
 }

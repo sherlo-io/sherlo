@@ -17,6 +17,7 @@
  */
 import { existsSync, readFileSync, rmSync } from 'fs';
 import path from 'path';
+import type { Platform } from '@sherlo/api-types';
 import logWarning from '../../helpers/logWarning';
 
 /** Validated shape of the manifest sidecar (SHERLO-1894 §1). */
@@ -29,6 +30,8 @@ export type ModuleManifest = {
   storyTitles?: Record<string, string>;
   /** Per story file, how many stories it holds. */
   storyCounts?: Record<string, number>;
+  /** The scene ids the bundle holds; absent means none. */
+  sceneIds?: string[];
 };
 
 export type ValidatedModuleManifest = {
@@ -154,6 +157,9 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
       ...(isPlainObject(parsed.storyCounts)
         ? { storyCounts: withBareKeys(parsed.storyCounts as Record<string, number>) }
         : {}),
+      ...(Array.isArray(parsed.sceneIds) && parsed.sceneIds.every((id) => typeof id === 'string')
+        ? { sceneIds: parsed.sceneIds as string[] }
+        : {}),
     },
   };
 }
@@ -187,6 +193,44 @@ function withBareKeys<T>(byStoryFile: Record<string, T>): Record<string, T> {
  */
 export function countBundleStories(manifest: ValidatedModuleManifest): number {
   return countStoriesIn(manifest, bundleStoryFiles(manifest));
+}
+
+/** The per-platform module manifests lifted off the bundles of these platforms. */
+export function collectModuleManifests(
+  bundles: Partial<Record<Platform, { moduleManifest?: ValidatedModuleManifest }>>,
+  platforms: Platform[]
+): Partial<Record<Platform, ValidatedModuleManifest>> {
+  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
+  for (const platform of platforms) {
+    const manifest = bundles[platform]?.moduleManifest;
+    if (manifest) moduleManifests[platform] = manifest;
+  }
+  return moduleManifests;
+}
+
+/**
+ * How many stories (`countBundleStories`) or scenes (`countBundleScenes`) each of these platforms'
+ * bundle holds, counted off its module map.
+ */
+export function countInBundles(
+  bundles: Partial<Record<Platform, { moduleManifest?: ValidatedModuleManifest }>>,
+  platforms: Platform[],
+  count: (moduleManifest: ValidatedModuleManifest) => number
+): Partial<Record<Platform, number>> {
+  const counts: Partial<Record<Platform, number>> = {};
+  for (const [platform, moduleManifest] of Object.entries(
+    collectModuleManifests(bundles, platforms)
+  ) as Array<[Platform, ValidatedModuleManifest]>) {
+    counts[platform] = count(moduleManifest);
+  }
+  return counts;
+}
+
+/**
+ * How many scenes the bundle holds; a module map that records none holds none.
+ */
+export function countBundleScenes(manifest: ValidatedModuleManifest): number {
+  return manifest.parsed.sceneIds?.length ?? 0;
 }
 
 /**

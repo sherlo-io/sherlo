@@ -1,5 +1,5 @@
-import { LogBox } from 'react-native';
 import SherloModule from '../../../SherloModule';
+import hideErrorOverlay from '../../../helpers/hideErrorOverlay';
 
 /**
  * Silences RN's default error/warning UI in testing mode so YellowBox/RedBox
@@ -9,7 +9,7 @@ import SherloModule from '../../../SherloModule';
 function setupErrorSilencing(): void {
   if (SherloModule.getMode() !== 'testing') return;
 
-  LogBox.ignoreAllLogs(true); // hide LogBox UI overlay
+  hideErrorOverlay(); // hide LogBox UI overlay
   console.warn = () => null; // hide YellowBox-style warnings
   console.error = () => null; // hide RedBox-style errors
   // @ts-ignore

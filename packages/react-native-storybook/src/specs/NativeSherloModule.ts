@@ -3,8 +3,19 @@ import { TurboModuleRegistry } from 'react-native';
 
 export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
+  /**
+   * Whether each view the JSON list of testIDs names is drawn, read from the native view tree:
+   * resolves a JSON object, `{ [testID]: 'visible' | 'invisible' | 'absent' | 'unreached' }`
+   * (the states are named in src/types/types ViewVisibility).
+   */
+  getViewVisibility: (testIDsJson: string) => Promise<string>;
   sendNativeError: (errorCode: string, message: string, dataJson: string) => void;
   reportEarlyJsError: (name: string, message: string, stack: string) => boolean;
+  /**
+   * Put a story's request rules in effect in native code, as JSON (src/mocking/networkNative).
+   * Synchronous, so they are in before the story renders and its first native download starts.
+   */
+  setNativeRequestAnswers: (rulesJson: string) => boolean;
   openStorybook: () => void;
   closeStorybook: () => void;
   toggleStorybook: () => void;
@@ -51,6 +62,13 @@ export interface Spec extends TurboModule {
    */
   awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
   /**
+   * Hold every animation that loops forever on one fixed frame, its first, before a picture: on
+   * iOS each Core Animation loop in the app's windows (a Lottie, a native spinner). An animation
+   * that ends is left to end. Resolves whether anything was held; false on Android, where the
+   * animator scale of 0 a run sets already ends such loops, and outside a Sherlo run.
+   */
+  holdAnimationsStill: () => Promise<boolean>;
+  /**
    * The sealed JS core native code picked, as JSON `{source, origin, version, reason}` (see
    * SherloCoreLoader on each platform). Synchronous: the SDK evaluates it while it is imported.
    */
@@ -72,6 +90,30 @@ export interface Spec extends TurboModule {
   getMemoryMb: () => Promise<number>;
   /** Start the app's JavaScript again in the same process; the connection stays open. */
   reloadJavaScript: () => void;
+  /**
+   * Touch the app window (the first window of the first connected scene, where the inspector measures frames) at (x, y), in points, for holdMs, as a finger does (ios/TouchHelper, android
+   * TouchHelper; a native build from before the touch lacks the method). Resolves once the touch
+   * ended: whether a React Native or gesture-handler recognizer took it, the React tag of the view
+   * it hit (-1 for none) and that view's class, and the private calls this iOS lacks (none touched
+   * then; always empty on Android).
+   */
+  tap: (
+    x: number,
+    y: number,
+    holdMs: number
+  ) => Promise<{ reachedReact: boolean; hitTag: number; hitClass: string; missing: string[] }>;
+  /**
+   * Put a finger down at (fromX, fromY) in the same window, move it to (toX, toY) at a finger's
+   * pace over durationMs, and lift it there (a native build from before the swipe lacks the
+   * method). Resolves once the finger lifted, answered as `tap` is, for the view it went down on.
+   */
+  swipe: (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    durationMs: number
+  ) => Promise<{ reachedReact: boolean; hitTag: number; hitClass: string; missing: string[] }>;
   /**
    * NativeEventEmitter's two calls. Native code raises one `SherloMessage` event for each message
    * the connection brings, its argument the message's JSON (src/connection/appLine).

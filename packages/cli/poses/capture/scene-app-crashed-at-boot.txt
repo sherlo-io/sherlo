@@ -1,0 +1,6 @@
+[31m✖[39m  [1mchat--conversation[22m never booted - the app's own code threw at start
+
+  ReferenceError: Property 'analytics' doesn't exist (src/app/bootstrap.ts:41)
+
+
+[exit 1]

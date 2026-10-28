@@ -6,12 +6,13 @@ import {
   realFreshBundleEffects,
   uploadFreshBundles,
   type FreshBundleEffects,
-  type UploadedFreshBundle,
 } from './uploadFreshBundles';
 import { closeTheRun } from '../commands/test/closeTheRun';
 import {
+  collectModuleManifests,
+  countBundleScenes,
   countBundleStories,
-  type ValidatedModuleManifest,
+  countInBundles,
 } from '../commands/test/readModuleManifest';
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
 import { printTestStarted } from '../commands/test/startTheTest';
@@ -318,6 +319,7 @@ async function uploadOrReuseBuildsAndRunTests({
     teamId,
     effects: io.freshBundle,
   });
+  const platformsWithBundles = Object.keys(freshBundles) as Platform[];
 
   // A stored platform's gate facts come from its fresh bundle: the service checks that bundle fits
   // the stored app build it is spliced into, as on the staged road.
@@ -374,7 +376,8 @@ async function uploadOrReuseBuildsAndRunTests({
     nativeFingerprint,
     pushFacts: pushFactsOf({
       appBuilds,
-      storiesInBundle: storiesInBundleOf(freshBundles),
+      storiesInBundle: countInBundles(freshBundles, platformsWithBundles, countBundleStories),
+      scenesInBundle: countInBundles(freshBundles, platformsWithBundles, countBundleScenes),
       env: process.env,
       runIdFlag,
     }),
@@ -417,7 +420,7 @@ async function uploadOrReuseBuildsAndRunTests({
   if (openedAlone) {
     printTestStarted({
       openBuildReturn: openedAlone,
-      moduleManifests: moduleManifestsOf(freshBundles),
+      moduleManifests: collectModuleManifests(freshBundles, platformsWithBundles),
       platformsToTest: platformsInTheRun(buildRunConfig),
       devices: commandParams.devices,
       serverBypassed,
@@ -445,32 +448,6 @@ export default uploadOrReuseBuildsAndRunTests;
 /** The platforms the run's config names a device for - every platform the started test runs on. */
 function platformsInTheRun(buildRunConfig: ReturnType<typeof getBuildRunConfig>): Platform[] {
   return (['android', 'ios'] as const).filter((platform) => buildRunConfig[platform]);
-}
-
-/** Each fresh bundle's module map, which the test's row counts the bundle's stories from. */
-function moduleManifestsOf(
-  freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
-): Partial<Record<Platform, ValidatedModuleManifest>> {
-  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
-  for (const [platform, freshBundle] of Object.entries(freshBundles) as [
-    Platform,
-    UploadedFreshBundle,
-  ][]) {
-    if (freshBundle.moduleManifest) moduleManifests[platform] = freshBundle.moduleManifest;
-  }
-  return moduleManifests;
-}
-
-/** How many stories each fresh bundle holds, counted off its module map. */
-function storiesInBundleOf(
-  freshBundles: Partial<Record<Platform, UploadedFreshBundle>>
-): Partial<Record<Platform, number>> {
-  return Object.fromEntries(
-    Object.entries(moduleManifestsOf(freshBundles)).map(([platform, moduleManifest]) => [
-      platform,
-      countBundleStories(moduleManifest),
-    ])
-  );
 }
 
 /** The platforms this push uploads an app build for, Android first. */

@@ -2,6 +2,7 @@
  * The seam (../sealedCore/seam.ts): the one open contract between the SDK and its sealed cores,
  * which sherlo-runner keeps a tracked copy of and types the cores against.
  */
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -14,6 +15,7 @@ import {
   SHERLO_PROTOCOL_VERSION,
 } from '../sealedCore/seam';
 import type { SealedCoreHost, StorybookFacts } from '../sealedCore/seam';
+import { seamTheSdkSpeaksIn } from '../../scripts/sdkSeam.js';
 import { importedModules } from './importedModules';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
@@ -25,7 +27,24 @@ const COMPILED_CORE_JAVA = path.join(
 );
 const CONSUMER_RULES = path.join(SDK_ROOT, 'android', 'consumer-rules.pro');
 
+/** The number a native loader gives SUPPORTED_SEAM, such as `SUPPORTED_SEAM = 3;`. */
+function supportedSeamIn(nativeLoader: string): number {
+  const source = fs.readFileSync(path.join(SDK_ROOT, nativeLoader), 'utf8');
+  const statement = /\bSUPPORTED_SEAM\s*=\s*(\d+)\s*;/.exec(source);
+  if (!statement) throw new Error(`${nativeLoader} states no SUPPORTED_SEAM`);
+  return Number(statement[1]);
+}
+
 describe('the seam', () => {
+  it("the SDK's seam number is the same in JS, the Android loader and the iOS loader", () => {
+    const inJs = seamTheSdkSpeaksIn(SDK_ROOT);
+    const inAndroid = supportedSeamIn(
+      'android/src/main/java/io/sherlo/storybookreactnative/SherloCoreLoader.java'
+    );
+    const inIos = supportedSeamIn('ios/SherloCoreLoader.m');
+    expect({ inJs, inAndroid, inIos }).toEqual({ inJs, inAndroid: inJs, inIos: inJs });
+  });
+
   it('the seam imports nothing from the rest of the SDK', () => {
     // Every import, `export ... from`, `import()` and `require()` the file makes, as the compiler
     // reads them.
@@ -124,3 +143,32 @@ function everyNameDeclaredIn(source: string): string[] {
   });
   return names;
 }
+
+describe('the sealed core seam serves scenes', () => {
+  it("the SDK's seam matches the seam the pinned core was typed against", () => {
+    const pin = JSON.parse(fs.readFileSync(path.join(SDK_ROOT, 'sherlo-core.json'), 'utf8'));
+    const seamHash = createHash('sha256').update(fs.readFileSync(SEAM_FILE)).digest('hex');
+
+    expect(seamHash).toBe(pin.seamHash);
+  });
+
+  it('a scene host hands the core playSteps, awaitReady, reachedRoute and monotonicNow', async () => {
+    vi.resetModules();
+    const { getSealedCore } = await import('../sealedCore/loadSealedCore');
+    const { reachedRoute } = await import('../reachedScreen');
+    const { monotonicNow } = await import('../settleClock');
+    const { rulesNeverMatched } = await import('../mocking/registry');
+    getSealedCore();
+    const host = (globalThis as { __SHERLO_CORE__?: { installedWith?: SealedCoreHost } })
+      .__SHERLO_CORE__?.installedWith;
+
+    expect(typeof host?.playSteps).toBe('function');
+    expect(typeof host?.awaitReady).toBe('function');
+    expect(host?.reachedRoute).toBe(reachedRoute);
+    expect(host?.monotonicNow).toBe(monotonicNow);
+    expect(host?.rulesNeverMatched).toBe(rulesNeverMatched);
+    expect(host?.scenes()).toEqual([]);
+
+    delete (globalThis as { __SHERLO_CORE__?: unknown }).__SHERLO_CORE__;
+  });
+});

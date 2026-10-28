@@ -70,6 +70,8 @@ import { renderTeamCreated } from './teamCreated';
 import { renderProjectList } from './projectList';
 import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
+import { renderOpenedScene } from './openedScene';
+import { renderCapturedScene } from './capturedScene';
 import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
@@ -365,7 +367,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return { stream: 'stdout', prints: [[renderWaitInterrupted(segment.testIndex)]] };
 
     case 'verdict-passed':
-      return { stream: 'stdout', prints: renderVerdictPassed().map((line) => [line]) };
+      return { stream: 'stdout', prints: renderVerdictPassed(segment.holds).map((line) => [line]) };
 
     case 'verdict-server-bypassed':
       return {
@@ -376,7 +378,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'verdict-review-required':
       return {
         stream: 'stdout',
-        prints: renderVerdictReviewRequired(segment.screens, segment.counts).map((line) => [line]),
+        prints: renderVerdictReviewRequired(segment.screens, segment.counts, segment.holds).map(
+          (line) => [line]
+        ),
       };
 
     case 'verdict-run-errored':
@@ -467,6 +471,18 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderCapturedStory(segment.state).map((line) => [line]),
+      };
+
+    case 'opened-scene':
+      return {
+        stream: 'stdout',
+        prints: renderOpenedScene(segment.state).map((line) => [line]),
+      };
+
+    case 'captured-scene':
+      return {
+        stream: 'stdout',
+        prints: renderCapturedScene(segment.state, segment.picture).map((line) => [line]),
       };
 
     case 'coverage':

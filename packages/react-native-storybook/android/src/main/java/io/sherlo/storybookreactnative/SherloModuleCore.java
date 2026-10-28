@@ -149,7 +149,7 @@ public class SherloModuleCore {
      * mode and opens the connection; anything else, or a switch kept across the SDK's own restart,
      * leaves the mode alone.
      */
-    public static void startFromAddressHandedAtLaunch(String address) {
+    public static void startFromAddressHandedAtLaunch(String address, String sceneId) {
         if (address == null || address.isEmpty()) return;
         synchronized (stateLock) {
             if (modeKeptAcrossRestart) return;
@@ -159,6 +159,63 @@ public class SherloModuleCore {
             return;
         }
         startTestingRun(address);
+        // A scene launch hands the scene's id beside the address: that scene is the story the
+        // app starts on, and the connection to the runner stays.
+        keepStory(sceneId);
+    }
+
+    /**
+     * A launch whose intent carried `sherloCapture` starts in testing mode for `sherlo capture`, as
+     * a capture's own move (openTesting) leaves it, but with no boot of the app before it: the
+     * first JavaScript that runs is already in testing mode, on `storyId` when one is given, so the
+     * app's own start never runs. A debuggable build only: a capture needs a bundler beside the
+     * app, and any app on the device can send an intent with extras to a shipped app.
+     */
+    public static void startFromCaptureHandedAtLaunch(Context context, String storyId) {
+        boolean debuggable =
+                (context.getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        if (!debuggable) return;
+        synchronized (stateLock) {
+            if (modeKeptAcrossRestart) return;
+        }
+        startCaptureTestingOn(storyId);
+        Log.d(TAG, "Testing mode: a capture launch");
+    }
+
+    /**
+     * Puts the app in testing mode driven by a capture, keeping `storyId` (when one is given) as
+     * the story the next start of the JavaScript lands on.
+     */
+    private static void startCaptureTestingOn(String storyId) {
+        keepStory(storyId);
+        currentMode = MODE_TESTING;
+        driver = DRIVER_CAPTURE;
+    }
+
+    /** Whether the launch has the capture discover; kept in the state beside the story. */
+    private static volatile boolean discover = false;
+
+    /** Called before the launch keeps its story: the intent's sherloDiscover extra. */
+    public static void setDiscover(boolean on) {
+        discover = on;
+    }
+
+    /** Keeps `storyId` (when one is given) as the story the next start of the JavaScript lands on. */
+    private static void keepStory(String storyId) {
+        if (storyId == null || storyId.isEmpty()) return;
+        try {
+            JSONObject nextSnapshot = new JSONObject();
+            nextSnapshot.put("storyId", storyId);
+            JSONObject storyToShow = new JSONObject();
+            storyToShow.put("nextSnapshot", nextSnapshot);
+            storyToShow.put("requestId", "");
+            storyToShow.put("discover", discover);
+            synchronized (stateLock) {
+                lastState = storyToShow;
+            }
+        } catch (JSONException cannotHappen) {
+            Log.e(TAG, "Failed to keep the story a capture handed over", cannotHappen);
+        }
     }
 
     /**
@@ -559,25 +616,10 @@ public class SherloModuleCore {
             }
         }
 
-        JSONObject storyToShow = null;
-        if (storyId != null && !storyId.isEmpty()) {
-            try {
-                JSONObject nextSnapshot = new JSONObject();
-                nextSnapshot.put("storyId", storyId);
-                storyToShow = new JSONObject();
-                storyToShow.put("nextSnapshot", nextSnapshot);
-                storyToShow.put("requestId", "");
-            } catch (JSONException cannotHappen) {
-                Log.e(TAG, "Failed to keep the story a capture handed over", cannotHappen);
-            }
-        }
-
         synchronized (stateLock) {
             if (captureSettings != null) runSettings = captureSettings;
-            if (storyToShow != null) lastState = storyToShow;
         }
-        currentMode = MODE_TESTING;
-        driver = DRIVER_CAPTURE;
+        startCaptureTestingOn(storyId);
         reloadJavaScript("Sherlo: a capture moves the app into testing mode");
     }
 
@@ -667,6 +709,63 @@ public class SherloModuleCore {
      */
     public void getInspectorData(Activity activity, Promise promise) {
         InspectorHelper.getInspectorData(activity, promise);
+    }
+
+    /**
+     * Touches the app window at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+     * Resolves, once the touch ended, with whether a React view took it, the hit view's tag (-1 for
+     * none) and class. Android has no private calls to lack, so `missing` is always empty.
+     */
+    public void tap(Activity activity, double x, double y, double holdMs, final Promise promise) {
+        if (activity == null) {
+            promise.reject("no_window", "The app has no window to tap");
+            return;
+        }
+        View decor = activity.getWindow().getDecorView();
+        TouchHelper.tap(decor, x, y, holdMs, decor.getResources().getDisplayMetrics().density,
+                touchAnswer(promise));
+    }
+
+    /**
+     * Drags a finger across the app window from (fromX, fromY) to (toX, toY), in points, over
+     * durationMs: a scene's swipe. Resolves, once the finger lifted, what the tap resolves, read
+     * where the finger went down.
+     */
+    public void swipe(Activity activity, double fromX, double fromY, double toX, double toY,
+            double durationMs, final Promise promise) {
+        if (activity == null) {
+            promise.reject("no_window", "the app has no window open, so there was nothing to swipe. Open the app on a screen and swipe again.");
+            return;
+        }
+        View decor = activity.getWindow().getDecorView();
+        TouchHelper.swipe(decor, fromX, fromY, toX, toY, durationMs,
+                decor.getResources().getDisplayMetrics().density, touchAnswer(promise));
+    }
+
+    /** Resolves `promise` with what a touch reached, as iOS answers it. */
+    private static TouchHelper.Done touchAnswer(final Promise promise) {
+        return new TouchHelper.Done() {
+            @Override
+            public void tapped(TouchHelper.Result result) {
+                WritableMap answer = Arguments.createMap();
+                answer.putBoolean("reachedReact", result.reachedReact);
+                answer.putInt("hitTag", result.hitTag);
+                answer.putString("hitClass", result.hitClass);
+                answer.putArray("missing", Arguments.createArray());
+                promise.resolve(answer);
+            }
+        };
+    }
+
+    /**
+     * Whether each view named by testID is drawn, from the native view tree.
+     *
+     * @param activity The current activity
+     * @param testIDsJson A JSON list of testIDs
+     * @param promise Promise to resolve with a JSON object of visible, invisible, absent or unreached by testID
+     */
+    public void getViewVisibility(Activity activity, String testIDsJson, Promise promise) {
+        InspectorHelper.getViewVisibility(activity, testIDsJson, promise);
     }
 
     /**

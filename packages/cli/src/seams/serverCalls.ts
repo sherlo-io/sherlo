@@ -440,6 +440,8 @@ export type BuildStatusPlatform = {
   } | null;
   /** How many stories the pushed bundle holds, as the push counted them. */
   storiesInBundle?: number | null;
+  /** How many scenes the pushed bundle holds, as the push counted them. */
+  scenesInBundle?: number | null;
 };
 
 /**
@@ -465,6 +467,8 @@ export type PushFactsPlatform = {
   nativeChanges?: string[];
   /** How many stories the pushed bundle holds. */
   storiesInBundle?: number;
+  /** How many scenes the pushed bundle holds. */
+  scenesInBundle?: number;
 };
 
 /** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */

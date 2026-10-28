@@ -9,7 +9,7 @@
  *
  * With no core installed there is no `sherlo open`: `startOpenStoryChannel` starts nothing.
  */
-import { bundlerOrigin } from './bundlerOrigin';
+import { isDrivenByRunner } from './runnerWalk';
 import { bundlerCapture } from './captureTransport';
 import { sendAndAwaitAnswer } from './connection/appLine';
 import { getSealedCore } from './sealedCore/loadSealedCore';
@@ -171,7 +171,7 @@ export function startWaitingAsTheApp(): void {
  * file on the device instead, and a file has no letterbox.
  */
 export function bundlerLetterbox(): BundlerLetterbox | null {
-  if (!bundlerOrigin()) return null;
+  if (isDrivenByRunner()) return null;
 
   return {
     waitForStory: (saying) =>

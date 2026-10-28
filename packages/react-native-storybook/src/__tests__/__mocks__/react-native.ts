@@ -12,7 +12,13 @@
  * module resets (__getSentMessages, __getDialedAddresses). __emitMessageFromTheConnection plays a
  * message the connection brings, to whoever listens through NativeEventEmitter.
  */
-import { fakeSealedCoreSource } from './fakeSealedCore';
+import { createElement, type ReactNode } from 'react';
+import { fakeSealedCoreSource, seamThisSdkSpeaks } from './fakeSealedCore';
+
+/** A View that draws as a host element named View, keeping its props for a test to read. */
+export function View(props: { children?: ReactNode } & Record<string, unknown>) {
+  return createElement('View', props);
+}
 
 export { fakeSealedCoreSource };
 
@@ -38,28 +44,43 @@ export function __resetConnection(): void {
   (globalThis as any).__sherloTestMessageListeners = [];
 }
 
-/** Bring one message over the connection, as native code raises its `SherloMessage` event. */
-export function __emitMessageFromTheConnection(message: Record<string, unknown>): void {
-  const listeners: Array<(messageJson: string) => void> =
-    (globalThis as any).__sherloTestMessageListeners ?? [];
-  listeners.forEach((listener) => listener(JSON.stringify(message)));
+type EventListening = { eventName: string; listener: (messageJson: string) => void };
+
+/**
+ * Bring one message over the connection, as native code raises its `SherloMessage` event - or the
+ * event named, which only the listeners of that name hear, as a real emitter has it.
+ */
+export function __emitMessageFromTheConnection(
+  message: Record<string, unknown>,
+  eventName = 'SherloMessage'
+): void {
+  const listenings: EventListening[] = (globalThis as any).__sherloTestMessageListeners ?? [];
+  // A copy, as a real emitter has: a listener that stops itself must not skip the next one.
+  [...listenings]
+    .filter((listening) => listening.eventName === eventName)
+    .forEach(({ listener }) => listener(JSON.stringify(message)));
 }
 
 export class NativeEventEmitter {
   constructor(_nativeModule?: unknown) {}
 
-  addListener(_eventName: string, listener: (messageJson: string) => void) {
-    const listeners: Array<(messageJson: string) => void> = ((
-      globalThis as any
-    ).__sherloTestMessageListeners ??= []);
-    listeners.push(listener);
+  addListener(eventName: string, listener: (messageJson: string) => void) {
+    const listenings: EventListening[] = ((globalThis as any).__sherloTestMessageListeners ??= []);
+    const listening = { eventName, listener };
+    listenings.push(listening);
     return {
       remove: () => {
-        listeners.splice(listeners.indexOf(listener), 1);
+        listenings.splice(listenings.indexOf(listening), 1);
       },
     };
   }
 }
+
+export const LogBox = {
+  ignoreAllLogs: (ignore?: boolean) => {
+    ((globalThis as any).__sherloTestLogBoxIgnored ??= []).push(ignore);
+  },
+};
 
 export function __setNativeMode(mode: string): void {
   (globalThis as any).__sherloTestNativeMode = mode;
@@ -140,7 +161,7 @@ export function __resetSealedCoreNative(): void {
 }
 
 function defaultLoadCore(): string {
-  return nativePickOf(fakeSealedCoreSource(2));
+  return nativePickOf(fakeSealedCoreSource(seamThisSdkSpeaks()));
 }
 
 export const NativeModules: Record<string, any> = {
@@ -202,10 +223,50 @@ export const Alert = {
   },
 };
 
-export const Platform = { OS: 'ios' };
+/** AppRegistry: the wrapper component provider a test reads back with __getWrapperComponentProvider. */
+let wrapperComponentProvider: (() => unknown) | undefined;
+export const AppRegistry = {
+  setWrapperComponentProvider: (provider: () => unknown): void => {
+    wrapperComponentProvider = provider;
+  },
+};
+export function __getWrapperComponentProvider(): (() => unknown) | undefined {
+  return wrapperComponentProvider;
+}
+export function __resetWrapperComponentProvider(): void {
+  wrapperComponentProvider = undefined;
+}
+
+/** The phone: iOS, at the version its `Version` names, as React Native reads it from UIDevice. */
+export const Platform = { OS: 'ios', Version: '26.2' };
+
+/** Linking.openURL: what a test makes of the link (reject for one no app takes). */
+let openURLImplementation: (url: string) => Promise<void> = async () => {};
+export function __setOpenURL(implementation: (url: string) => Promise<void>): void {
+  openURLImplementation = implementation;
+}
+export const Linking = { openURL: (url: string) => openURLImplementation(url) };
 export const DevSettings = {
   addMenuItem: (_label: string, _cb: () => void): void => {},
 };
 export const TurboModuleRegistry = {
   getEnforcing: <T>(_name: string): T | null => null,
+  /** A module a test laid in NativeModules, as React Native's registry falls back to them. */
+  get: <T>(name: string): T | null => NativeModules[name] ?? null,
+};
+export type TurboModule = Record<string, unknown>;
+
+type DeviceListener = (event: any) => void;
+const deviceListeners = new Map<string, Set<DeviceListener>>();
+
+/** React Native's RCTDeviceEventEmitter: one listener set per event name. */
+export const DeviceEventEmitter = {
+  addListener(eventName: string, listener: DeviceListener) {
+    if (!deviceListeners.has(eventName)) deviceListeners.set(eventName, new Set());
+    deviceListeners.get(eventName)!.add(listener);
+    return { remove: () => deviceListeners.get(eventName)?.delete(listener) };
+  },
+  emit(eventName: string, event: unknown): void {
+    deviceListeners.get(eventName)?.forEach((listener) => listener(event));
+  },
 };

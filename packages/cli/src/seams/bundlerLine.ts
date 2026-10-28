@@ -21,13 +21,40 @@ import type {
   ReplyTo,
 } from '../../../react-native-storybook/metro/sherloLine';
 
+/**
+ * The stabilization settings a capture sends, as the runner sends them today.
+ *
+ * TWO COPIES OF ONE SET OF NUMBERS, and this is the second. The runner writes the same values into
+ * the file it hands the app. They are meant to come from Sherlo's API, read by both, and this copy
+ * goes away then; until then a change to the runner's numbers must be made here too.
+ *
+ * EVERY SETTING THAT DECIDES WHETHER A STORY SETTLED IS HERE, which is why `threshold` and
+ * `includeAA` are not optional extras: they decide whether two frames count as the same frame, so a
+ * capture that left them to the app's own config would call a story never-settled that a test run
+ * would have settled. The app's config holds the SDK's fallback values on an app that has never taken
+ * a run, which is exactly the app a developer captures on.
+ *
+ * `saveScreenshots` is the one runner setting deliberately left out: the runner sets it true, and a
+ * capture writes nothing to the device, so the app turns it off itself rather than being told to.
+ * There are seven numbers in the runner's file; a capture sends the other six.
+ */
+export const STABILIZATION_SETTINGS = {
+  requiredMatches: 3,
+  minScreenshotsCount: 6,
+  intervalMs: 500,
+  timeoutMs: 20_000,
+  threshold: 0.02,
+  includeAA: true,
+} as const;
+
 /** What came back from asking the line one question. */
 export type BundlerLineAnswer<AskedQuestion extends Question> =
   /** Nothing accepted a connection. */
   | { kind: 'nothing-on-the-port' }
   /** Something answered, and not in words this tool can read: a bundler nobody routed through
-   * Sherlo, a line speaking another protocol, or a different server on the port entirely. */
-  | { kind: 'not-in-sherlos-words' }
+   * Sherlo, a line speaking another protocol, a different server on the port entirely, or a line
+   * that broke. `detail` is the line's own account: the fetch error, the status, the close code. */
+  | { kind: 'not-in-sherlos-words'; detail: string }
   /** Nothing answered before the tool stopped listening. */
   | { kind: 'gave-up-waiting' }
   /** The line answered, and here is what it said. */
@@ -62,30 +89,39 @@ async function wakeTheLine(
 ): Promise<
   | { kind: 'awake' }
   | { kind: 'nothing-on-the-port' }
-  | { kind: 'not-in-sherlos-words' }
+  | { kind: 'not-in-sherlos-words'; detail: string }
   | { kind: 'gave-up-waiting' }
 > {
   let response: Response;
 
   try {
+    // "Connection: close" puts the GET on a connection of its own, closed after the answer. Node's
+    // fetch otherwise keeps the connection open and reuses it for the next ask, and a bundler closes
+    // an idle one: the next ask would go out on a dead connection and end as "the GET failed".
     response = await fetch(`http://localhost:${port}${LINE_PATH}`, {
+      headers: { Connection: 'close' },
       signal: AbortSignal.timeout(patienceMs),
     });
   } catch (error) {
     if (isNothingOnThePort(error)) return { kind: 'nothing-on-the-port' };
     if ((error as Error | undefined)?.name === 'TimeoutError') return { kind: 'gave-up-waiting' };
-    return { kind: 'not-in-sherlos-words' };
+    return { kind: 'not-in-sherlos-words', detail: `the GET failed: ${describeError(error)}` };
   }
 
-  if (!response.ok) return { kind: 'not-in-sherlos-words' };
+  if (!response.ok) {
+    return { kind: 'not-in-sherlos-words', detail: `the GET answered ${response.status}` };
+  }
 
   try {
     const said = (await response.json()) as { protocolVersion?: unknown } | null;
     return said?.protocolVersion === PROTOCOL_VERSION
       ? { kind: 'awake' }
-      : { kind: 'not-in-sherlos-words' };
+      : {
+          kind: 'not-in-sherlos-words',
+          detail: `the line speaks protocol ${String(said?.protocolVersion)}, not ${PROTOCOL_VERSION}`,
+        };
   } catch (_error) {
-    return { kind: 'not-in-sherlos-words' };
+    return { kind: 'not-in-sherlos-words', detail: 'the GET answered in words that are not JSON' };
   }
 }
 
@@ -122,8 +158,15 @@ function askOverTheWebSocket<AskedQuestion extends Question>({
       if (reply) finish({ kind: 'said', reply: reply as ReplyTo<AskedQuestion> });
     });
 
-    socket.on('error', () => finish({ kind: 'not-in-sherlos-words' }));
-    socket.on('close', () => finish({ kind: 'not-in-sherlos-words' }));
+    socket.on('error', (error) =>
+      finish({ kind: 'not-in-sherlos-words', detail: `the socket failed: ${describeError(error)}` })
+    );
+    socket.on('close', (code, reason) =>
+      finish({
+        kind: 'not-in-sherlos-words',
+        detail: `the socket closed with code ${code}${reason.length > 0 ? ` (${reason})` : ''}`,
+      })
+    );
   });
 }
 
@@ -147,4 +190,12 @@ function isNothingOnThePort(error: unknown): boolean {
   const codes = [cause?.code, ...(cause?.errors ?? []).map((one) => one.code)];
 
   return codes.some((code) => code === 'ECONNREFUSED' || code === 'ENOTFOUND');
+}
+
+/** An error in a few words: its own message, and the code of what caused it when it has one. */
+function describeError(error: unknown): string {
+  const failure = error as { message?: unknown; cause?: { code?: unknown } } | undefined;
+  const code = failure?.cause?.code;
+  const message = typeof failure?.message === 'string' ? failure.message : String(error);
+  return typeof code === 'string' ? `${message} (${code})` : message;
 }

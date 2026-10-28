@@ -39,6 +39,12 @@
       "require": "./dist-metro/withStorybook.js",
       "default": "./dist-metro/withStorybook.js"
     },
+    "./scenes": {
+      "types": "./dist/scenes.d.ts",
+      "react-native": "./dist/scenes.js",
+      "require": "./dist/scenes.js",
+      "default": "./dist/scenes.js"
+    },
     "./mocking": {
       "types": "./dist/mocking/index.d.ts",
       "react-native": "./dist/mocking/index.js",
@@ -121,6 +127,7 @@
     "esbuild": "^0.25.0",
     "react": "^19.2.3",
     "react-native-safe-area-context": "4.11.0",
+    "react-test-renderer": "^19.2.3",
     "storybook": "^9.1.20",
     "terser": "^5.46.0",
     "typescript": "7.0.2",
@@ -131,6 +138,11 @@
     "react": "*",
     "react-native": ">=0.81.0",
     "react-native-safe-area-context": "*"
+  },
+  "peerDependenciesMeta": {
+    "@storybook/react-native": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=18.0.0"

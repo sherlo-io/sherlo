@@ -31,8 +31,11 @@ export type WaitForStoryMessage = { action: 'waitForStory' } & Parameters<
 /** The letterbox's answer to a WaitForStoryMessage. */
 export type LetterboxAnswerMessage = { action: 'letterboxAnswer' } & LetterboxAnswer;
 
-/** `sherlo capture`'s road: the app's CaptureTransport wait, over the line. */
-export type WaitForACaptureMessage = { action: 'waitForACapture' } & Parameters<
+/**
+ * `sherlo capture`'s road: the app's CaptureTransport wait, over the line, with the ids of the
+ * scenes the app's bundle holds (src/captureTransport.ts). An SDK that does not say them sends none.
+ */
+export type WaitForACaptureMessage = { action: 'waitForACapture'; scenes?: string[] } & Parameters<
   CaptureTransport['waitForACapture']
 >[0];
 
@@ -89,12 +92,23 @@ export type WhatIsOnScreenReply =
   | { kind: 'not-at-story-browser' }
   | { kind: 'showing'; storyId: string };
 
-/** `sherlo capture`: walk this story with these numbers, and answer with its record. */
-export type CaptureStoryQuestion = {
-  action: 'captureStory';
-  storyId: string;
-  settings?: CaptureSettings;
-};
+/**
+ * `sherlo capture`: walk this story with these numbers, and answer with its record. A scene
+ * (`sherlo capture --scene`, `sherlo open --scene`) is asked by `sceneId` in place of `storyId`.
+ *
+ * `launchedAt` is when the asker launched the app, in milliseconds on the clock of the machine the
+ * bundler runs on. The capture then goes only to an app that said hello since, and is answered
+ * no-app until one has waited: an app of an earlier capture whose socket has not closed yet is not
+ * the one launched. Without it, the capture goes to whichever app waits.
+ */
+export type CaptureStoryQuestion =
+  | { action: 'captureStory'; storyId: string; settings?: CaptureSettings }
+  | {
+      action: 'captureStory';
+      sceneId: string;
+      settings?: CaptureSettings;
+      launchedAt?: number;
+    };
 
 export type CaptureStoryReply =
   | CapturedAnswer
@@ -109,7 +123,14 @@ export type CaptureStoryReply =
 /** Every log line the apps sent since the last read; the read empties the feed. */
 export type ReadLogLinesQuestion = { action: 'readLogLines' };
 
-export type ReadLogLinesReply = { lines: string[] };
+export type ReadLogLinesReply = {
+  lines: string[];
+  /**
+   * How many times the app of the latest launched capture took its instruction and started over;
+   * absent when it did not. A driver that gave up on its capture reads this with the lines.
+   */
+  restarts?: number;
+};
 
 export type Question =
   | OpenStoryQuestion
@@ -120,10 +141,10 @@ export type Question =
 export type ReplyTo<AskedQuestion extends Question> = AskedQuestion extends OpenStoryQuestion
   ? OpenStoryReply
   : AskedQuestion extends WhatIsOnScreenQuestion
-  ? WhatIsOnScreenReply
-  : AskedQuestion extends CaptureStoryQuestion
-  ? CaptureStoryReply
-  : ReadLogLinesReply;
+    ? WhatIsOnScreenReply
+    : AskedQuestion extends CaptureStoryQuestion
+      ? CaptureStoryReply
+      : ReadLogLinesReply;
 
 /**
  * A question asked over a driver's own socket. `askId` is the driver's own name for it, said back
@@ -156,6 +177,11 @@ export type SherloLine = {
   ask: <AskedQuestion extends Question>(question: AskedQuestion) => Promise<ReplyTo<AskedQuestion>>;
   /** Hear of each app that says hello in the line's protocol. */
   onApp: (listener: (app: AppOnTheLine) => void) => void;
+  /**
+   * Metro's file watcher told the bundler of these files, named relative to the project root. While
+   * a scene capture waits, one line on the log feed names them.
+   */
+  filesChanged: (paths: string[]) => void;
   /** Close every socket on the line. */
   close: () => void;
 };
@@ -198,7 +224,7 @@ export declare function attach(
      * Whether any story file the bundle's Storybook loads was modified after `time` (milliseconds
      * since 1970). Asked once per capture, never on a timer.
      */
-    storyFileChangedSince?: (time: number) => boolean;
+    storyFileChangedSince?: (time: number) => boolean | string;
   }
 ): SherloLine;
 

@@ -4,10 +4,14 @@
 #import <React/RCTBridge.h>
 #import "SherloModuleCore.h"
 #import "SherloIOSExceptionHandler.h"
+#import "SherloRequestAnswers.h"
 
 @implementation SherloModule
 
 RCT_EXPORT_MODULE(SherloModule)
+
+/** The event raised for each request native code met that no rule matches (src/mocking/networkNative). */
+static NSString * const SHERLO_UNANSWERED_REQUEST_EVENT = @"SherloUnansweredRequest";
 
 static SherloModuleCore *core;
 
@@ -19,6 +23,9 @@ __attribute__((constructor))
 static void SherloEarlyInit(void) {
   [SherloModuleCore setMessageReceiver:^(NSString *messageJson) {
     [listeningModule sendEventWithName:SHERLO_MESSAGE_EVENT body:messageJson];
+  }];
+  [SherloRequestAnswers setUnansweredReceiver:^(NSString *requestJson) {
+    [listeningModule sendEventWithName:SHERLO_UNANSWERED_REQUEST_EVENT body:requestJson];
   }];
   core = [[SherloModuleCore alloc] init];
   if ([[SherloModuleCore currentMode] isEqualToString:@"testing"]) {
@@ -48,7 +55,7 @@ static void SherloEarlyInit(void) {
 }
 
 - (NSArray<NSString *> *)supportedEvents {
-  return @[ SHERLO_MESSAGE_EVENT ];
+  return @[ SHERLO_MESSAGE_EVENT, SHERLO_UNANSWERED_REQUEST_EVENT ];
 }
 
 /** The JavaScript started listening for the connection's messages. */
@@ -160,6 +167,12 @@ static void SherloEarlyInit(void) {
   return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
 }
 
+/** Puts a story's request rules in effect in native code (SherloRequestAnswers). */
+- (NSNumber *)setNativeRequestAnswers:(NSString *)rulesJson
+{
+  return [SherloRequestAnswers setRulesJson:rulesJson] ? @YES : @NO;
+}
+
 /**
  * Gets UI inspector data from the current view hierarchy.
  */
@@ -167,6 +180,16 @@ static void SherloEarlyInit(void) {
                  reject:(RCTPromiseRejectBlock)reject
 {
   [core getInspectorData:resolve reject:reject];
+}
+
+/**
+ * Whether each view named by testID is drawn, from the native view tree.
+ */
+- (void)getViewVisibility:(NSString *)testIDsJson
+                  resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject
+{
+  [core getViewVisibility:testIDsJson resolve:resolve reject:reject];
 }
 
 /**
@@ -195,6 +218,13 @@ static void SherloEarlyInit(void) {
   [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
 }
 
+/** Holds every looping animation on its first frame, before a picture. */
+- (void)holdAnimationsStill:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(dispatch_get_main_queue(), ^{ resolve(@([core holdAnimationsStill])); });
+}
+
 /**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  */
@@ -202,6 +232,32 @@ static void SherloEarlyInit(void) {
                       reject:(RCTPromiseRejectBlock)reject
 {
   [core isScrollable:resolve reject:reject];
+}
+
+/**
+ * Touches the screen at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+ */
+- (void)tap:(double)x
+          y:(double)y
+     holdMs:(double)holdMs
+    resolve:(RCTPromiseResolveBlock)resolve
+     reject:(RCTPromiseRejectBlock)reject
+{
+  [core tap:x y:y holdMs:holdMs resolve:resolve reject:reject];
+}
+
+/**
+ * Drags a finger from (fromX, fromY) to (toX, toY), in points, over durationMs: a scene's swipe.
+ */
+- (void)swipe:(double)fromX
+        fromY:(double)fromY
+          toX:(double)toX
+          toY:(double)toY
+   durationMs:(double)durationMs
+      resolve:(RCTPromiseResolveBlock)resolve
+       reject:(RCTPromiseRejectBlock)reject
+{
+  [core swipe:fromX fromY:fromY toX:toX toY:toY durationMs:durationMs resolve:resolve reject:reject];
 }
 
 /**
@@ -325,12 +381,26 @@ RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(reportEarlyJsError:(NSString *)name
   return [core reportEarlyJsError:name message:message stack:stack] ? @YES : @NO;
 }
 
+/** Puts a story's request rules in effect in native code (SherloRequestAnswers). */
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(setNativeRequestAnswers:(NSString *)rulesJson) {
+  return [SherloRequestAnswers setRulesJson:rulesJson] ? @YES : @NO;
+}
+
 /**
  * Gets UI inspector data from the current view hierarchy.
  */
 RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
   [core getInspectorData:resolve reject:reject];
+}
+
+/**
+ * Whether each view named by testID is drawn, from the native view tree.
+ */
+RCT_EXPORT_METHOD(getViewVisibility:(NSString *)testIDsJson
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core getViewVisibility:testIDsJson resolve:resolve reject:reject];
 }
 
 /**
@@ -357,12 +427,42 @@ RCT_EXPORT_METHOD(awaitFrameCommit:(double)timeoutMs
   [core awaitFrameCommit:timeoutMs resolve:resolve reject:reject];
 }
 
+/** Holds every looping animation on its first frame, before a picture. */
+RCT_EXPORT_METHOD(holdAnimationsStill:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  dispatch_async(dispatch_get_main_queue(), ^{ resolve(@([core holdAnimationsStill])); });
+}
+
 /**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  */
 RCT_EXPORT_METHOD(isScrollable:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
   [core isScrollable:resolve reject:reject];
+}
+
+/**
+ * Touches the screen at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+ */
+RCT_EXPORT_METHOD(tap:(double)x
+                  y:(double)y
+                  holdMs:(double)holdMs
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core tap:x y:y holdMs:holdMs resolve:resolve reject:reject];
+}
+
+/**
+ * Drags a finger from (fromX, fromY) to (toX, toY), in points, over durationMs: a scene's swipe.
+ */
+RCT_EXPORT_METHOD(swipe:(double)fromX
+                  fromY:(double)fromY
+                  toX:(double)toX
+                  toY:(double)toY
+                  durationMs:(double)durationMs
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core swipe:fromX fromY:fromY toX:toX toY:toY durationMs:durationMs resolve:resolve reject:reject];
 }
 
 /**

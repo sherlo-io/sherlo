@@ -61,8 +61,9 @@ describe('installSherloIntegration - testing mode messages', () => {
     __setNativeMode('testing');
     await import('../index');
 
-    expect(getSentActions()).toEqual(['hello', 'JS_EVAL_COMPLETE']);
-    expect(__getSentMessages()[1]).toEqual({
+    // The 'log' is the stage line "sent its hello", which a testing run also sends over the line.
+    expect(getSentActions()).toEqual(['hello', 'log', 'JS_EVAL_COMPLETE']);
+    expect(__getSentMessages()[2]).toEqual({
       action: 'JS_EVAL_COMPLETE',
       jsVersion: JS_MODULE_VERSION,
     });
@@ -73,7 +74,7 @@ describe('installSherloIntegration - testing mode messages', () => {
     (global as any).__sherloWithStorybookApplied = true;
     await import('../index');
 
-    expect(getSentActions()).toEqual(['hello', 'JS_EVAL_COMPLETE', 'WITHSTORYBOOK_APPLIED']);
+    expect(getSentActions()).toEqual(['hello', 'log', 'JS_EVAL_COMPLETE', 'WITHSTORYBOOK_APPLIED']);
   });
 
   it('testing + applied + disabled → sends that the JavaScript loaded, the bundler setup is in place and Storybook is switched off', async () => {
@@ -84,6 +85,7 @@ describe('installSherloIntegration - testing mode messages', () => {
 
     expect(getSentActions()).toEqual([
       'hello',
+      'log',
       'JS_EVAL_COMPLETE',
       'WITHSTORYBOOK_APPLIED',
       'WITHSTORYBOOK_DISABLED',

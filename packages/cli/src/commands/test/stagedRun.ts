@@ -57,7 +57,7 @@ import { buildBundles } from './bundleAndPreview';
 import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
-import type { ValidatedModuleManifest } from './readModuleManifest';
+import { collectModuleManifests } from './readModuleManifest';
 import { serverCalls } from '../../seams/serverCalls';
 import { printPlatformRowInALog } from './platformRows';
 import { openAndEndTheTest } from './startTheTest';
@@ -430,16 +430,3 @@ type GateAnswers = {
   /** Per platform, the test its stored app build was built in - absent where nothing is stored. */
   storedBuildIndexOf: Partial<Record<Platform, number>>;
 };
-
-/** The per-platform module manifests the capture plan reads, lifted off the bundles. */
-export function collectModuleManifests(
-  bundles: Partial<Record<Platform, BundleResult>>,
-  platformsToTest: Platform[]
-): Partial<Record<Platform, ValidatedModuleManifest>> {
-  const moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {};
-  for (const platform of platformsToTest) {
-    const manifest = bundles[platform]?.moduleManifest;
-    if (manifest) moduleManifests[platform] = manifest;
-  }
-  return moduleManifests;
-}

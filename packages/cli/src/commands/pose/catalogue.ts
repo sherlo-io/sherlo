@@ -16,7 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import { runPose } from './pose';
-import { formatRefusals } from './pose';
+import { formatRefusals } from './poseProblems';
 import { readPoseDocument } from './readPose';
 
 /** The catalogue's root, relative to this file's home in `src/commands/pose`. */

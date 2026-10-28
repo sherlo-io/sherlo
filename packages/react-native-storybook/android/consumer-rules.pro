@@ -23,3 +23,14 @@
 -keep class io.sherlo.storybookreactnative.SherloModulePackage {
     <init>();
 }
+
+# A tap step reads a React view's pointer events by name (TouchHelper.pointerEventsOf): the
+# interface com.facebook.react.uimanager.ReactPointerEventsView, its getPointerEvents method and the
+# name of each PointerEvents value. Without these, R8 in a minified release build renames them and
+# the lookup silently reads every view as taking touches.
+-keepnames interface com.facebook.react.uimanager.ReactPointerEventsView {
+    *;
+}
+-keepnames class com.facebook.react.uimanager.PointerEvents {
+    *;
+}

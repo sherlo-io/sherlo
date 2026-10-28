@@ -1,8 +1,12 @@
 import { NetworkMocks, NO_NETWORK_MOCKS } from './networkDeclaration';
 import { mockedFetchOf } from './networkFetch';
 import { mockedXhrOf, XhrClass } from './networkXhr';
-import { RecordRefusal, setNetworkMocks } from './networkRules';
+import { RecordRefusal, setNetworkMocks, unmatchedRequestVerdict } from './networkRules';
+import { TurboModule, TurboModuleRegistry } from 'react-native';
+import { holdNativeSockets, NativeSocketModule } from './networkSocket';
 import { isACapture } from './stillReal';
+import { handRulesToNative, listenForNativeUnanswered } from './networkNative';
+import { isBundlerSocketUrl } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
 
 /**
@@ -25,6 +29,9 @@ type NetworkGlobals = {
 /** What was replaced, kept so it can be put back. Null whenever nothing is replaced. */
 let realNetwork: NetworkGlobals | null = null;
 
+// Stops hearing the requests native code met that no rule matches, while the wrappers are in.
+let stopListeningToNative: () => void = () => {};
+
 /**
  * Put one story's network mocks in effect. A story that declares none puts the real fetch and
  * XMLHttpRequest back, which is what makes activation atomic: the story that follows a mocked one
@@ -37,20 +44,59 @@ export function activateNetworkMocks(mocks: NetworkMocks, recordRefusal: RecordR
   const mode = SherloModule.getMode();
   if (mode !== 'testing' && mode !== 'storybook') return;
 
-  const storyDeclaredNetworkMocks = mocks.rules.length > 0 || mocks.passthrough;
+  holdWebSockets();
+  const storyDeclaredNetworkMocks =
+    mocks.rules.length > 0 || mocks.passthrough || mocks.sockets.length > 0;
 
   // Only a capture lists what a story requested: there, a story with no network mock is wrapped
   // too, with every request let through to the real network as before, so each one is listed. A
-  // cloud test run reports testing mode too, and is no capture.
+  // cloud test run reports testing mode too, and is no capture. WebSockets follow the same line:
+  // listed and let through there, held by the story's socket rules (or refused) in a story that
+  // declared network mocks, the app's own everywhere else.
   if (!storyDeclaredNetworkMocks && isACapture()) {
-    setNetworkMocks({ rules: [], passthrough: true }, recordRefusal);
+    setNetworkMocks({ rules: [], passthrough: true, sockets: [] }, recordRefusal, 'listed');
+    handRulesToNative([], 'passthrough');
     install();
     return;
   }
 
-  setNetworkMocks(mocks, recordRefusal);
+  setNetworkMocks(mocks, recordRefusal, storyDeclaredNetworkMocks ? 'held' : 'untouched');
+  handRulesToNative(
+    mocks.rules,
+    storyDeclaredNetworkMocks ? unmatchedRequestVerdict() : 'passthrough'
+  );
   if (storyDeclaredNetworkMocks) install();
   else restore();
+}
+
+/** What puts React Native's own socket calls back, once they are held. The hold stays in. */
+let releaseSockets: (() => void) | null = null;
+
+/**
+ * Hold React Native's WebSocketModule, so every socket opened asks the rules in effect
+ * (./networkSocket) - whichever class opened it and whenever that class was defined. Called at
+ * every story's activation; it holds once. With no story's mocks in effect every socket is the
+ * real one, so it is safe to leave in.
+ *
+ * Guarded like every other mock: an app in default mode is never held.
+ */
+export function holdWebSockets(): void {
+  const mode = SherloModule.getMode();
+  if (mode !== 'testing' && mode !== 'storybook') return;
+  if (releaseSockets) return;
+
+  const nativeSockets = TurboModuleRegistry.get<NativeSocketModule & TurboModule>(
+    'WebSocketModule'
+  );
+  if (!nativeSockets || typeof nativeSockets.connect !== 'function') return;
+
+  releaseSockets = holdNativeSockets(nativeSockets, isBundlerSocketUrl);
+}
+
+/** Test-only: put React Native's own socket calls back, as a fresh boot of the JavaScript has them. */
+export function __releaseWebSocketsForTests(): void {
+  releaseSockets?.();
+  releaseSockets = null;
 }
 
 /**
@@ -70,6 +116,7 @@ export function sherloFetch(
 /** Put the real fetch and XMLHttpRequest back, and leave no rules in effect. */
 export function clearNetworkMocks(): void {
   setNetworkMocks(NO_NETWORK_MOCKS, () => {});
+  handRulesToNative([], 'passthrough');
   restore();
 }
 
@@ -78,6 +125,7 @@ function install(): void {
 
   const globals = globalThis as unknown as NetworkGlobals;
   realNetwork = { fetch: globals.fetch, XMLHttpRequest: globals.XMLHttpRequest };
+  stopListeningToNative = listenForNativeUnanswered();
 
   globals.fetch = mockedFetchOf(realNetwork.fetch);
   // A runtime without XMLHttpRequest has nothing to wrap; fetch alone still answers.
@@ -91,5 +139,7 @@ function restore(): void {
   globals.fetch = realNetwork.fetch;
   if (realNetwork.XMLHttpRequest) globals.XMLHttpRequest = realNetwork.XMLHttpRequest;
 
+  stopListeningToNative();
+  stopListeningToNative = () => {};
   realNetwork = null;
 }

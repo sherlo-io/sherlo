@@ -7,7 +7,7 @@ static NSString *const HEADER_PREFIX = @"// sherlo-core ";
 
 // The seam this SDK speaks (SEAM_THIS_SDK_SPEAKS in src/sealedCore/loadSealedCore.ts). A sent core
 // whose header names another seam is never run.
-static const NSInteger SUPPORTED_SEAM = 2;
+static const NSInteger SUPPORTED_SEAM = 3;
 
 // The core the runner sent in its `config`, and its signature; nil until one is sent.
 static NSString *sentCoreSource = nil;

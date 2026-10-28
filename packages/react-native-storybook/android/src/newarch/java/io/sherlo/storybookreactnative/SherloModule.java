@@ -164,6 +164,12 @@ public class SherloModule extends NativeSherloModuleSpec {
         return moduleCore.reportEarlyJsError(name, message, stack);
     }
 
+    /** Puts a story's request rules in effect in native code (SherloRequestAnswers). */
+    @Override
+    public boolean setNativeRequestAnswers(String rulesJson) {
+        return SherloRequestAnswers.setRulesJson(getReactApplicationContext(), rulesJson);
+    }
+
     // ==== Inspector Methods ====
 
     /**
@@ -175,6 +181,39 @@ public class SherloModule extends NativeSherloModuleSpec {
     public void getInspectorData(Promise promise) {
         Activity activity = getCurrentActivity();
         moduleCore.getInspectorData(activity, promise);
+    }
+
+    /**
+     * Touches the screen at (x, y), in points, for holdMs, as a finger does: a scene's tap.
+     *
+     * @param promise Promise to resolve with whether React took the touch, the hit view's tag and class
+     */
+    @Override
+    public void tap(double x, double y, double holdMs, Promise promise) {
+        moduleCore.tap(getCurrentActivity(), x, y, holdMs, promise);
+    }
+
+    /**
+     * Drags a finger from (fromX, fromY) to (toX, toY), in points, over durationMs: a scene's swipe.
+     *
+     * @param promise Promise to resolve with whether React took the touch, the hit view's tag and class
+     */
+    @Override
+    public void swipe(double fromX, double fromY, double toX, double toY, double durationMs,
+            Promise promise) {
+        moduleCore.swipe(getCurrentActivity(), fromX, fromY, toX, toY, durationMs, promise);
+    }
+
+    /**
+     * Whether each view named by testID is drawn, from the native view tree.
+     *
+     * @param testIDsJson A JSON list of testIDs
+     * @param promise Promise to resolve with a JSON object of visible, invisible, absent or unreached by testID
+     */
+    @Override
+    public void getViewVisibility(String testIDsJson, Promise promise) {
+        Activity activity = getCurrentActivity();
+        moduleCore.getViewVisibility(activity, testIDsJson, promise);
     }
 
     /**
@@ -206,6 +245,15 @@ public class SherloModule extends NativeSherloModuleSpec {
     public void awaitFrameCommit(double timeoutMs, Promise promise) {
         Activity activity = getCurrentActivity();
         moduleCore.awaitFrameCommit(activity, (int)timeoutMs, promise);
+    }
+
+    /**
+     * Holds nothing and resolves false: the animator scale of 0 that a test run and a local
+     * capture's clean device set already ends every Lottie and native loop on one frame.
+     */
+    @Override
+    public void holdAnimationsStill(Promise promise) {
+        promise.resolve(false);
     }
 
     /**

@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.Choreographer;
 import android.view.PixelCopy;
@@ -37,23 +38,9 @@ public class StabilityHelper {
     }
 
     /**
-     * Checks if the UI is stable by taking consecutive screenshots and comparing
-     * them.
-     * Resolves the promise when the required number of matching screenshots is
-     * reached,
-     * or when the timeout is exceeded.
-     *
-     * @param activity        The current activity to check for stability
-     * @param requiredMatches Number of consecutive matching screenshots needed to
-     *                        consider UI stable
-     * @param intervalMs      Time interval between screenshots in milliseconds
-     * @param timeoutMs       Maximum time to wait for stability in milliseconds
-     * @param threshold       Matching threshold (0.0 to 1.0); smaller values are
-     *                        more sensitive
-     * @param includeAA       If false, ignore anti-aliased pixels when counting
-     *                        differences
-     * @param promise         Promise to resolve with true if UI becomes stable,
-     *                        false if timeout occurs
+     * Checks if the UI is stable by taking consecutive screenshots and comparing them (see
+     * checkIfStable). Resolves the promise true once the required number of matching
+     * screenshots is reached, false once the timeout is exceeded.
      */
     public static void stabilize(Activity activity, int requiredMatches, int minScreenshotsCount, int intervalMs,
             int timeoutMs, double threshold, boolean includeAA, Promise promise) {
@@ -231,21 +218,19 @@ public class StabilityHelper {
     }
 
     /**
-     * Checks for UI stability by comparing consecutive screenshots.
-     *
-     * @param requiredMatches     The number of consecutive matching screenshots
-     *                            needed.
-     * @param minScreenshotsCount The minimum number of screenshots to take when
-     *                            checking for stability.
-     * @param intervalMs          The interval between each screenshot (in
-     *                            milliseconds).
-     * @param timeoutMs           The overall timeout (in milliseconds).
-     * @param threshold          Matching threshold (0.0 to 1.0); smaller values
-     *                            are more sensitive
-     * @param includeAA           If false, ignore anti-aliased pixels when counting
-     *                            differences
-     * @param callback            Callback with the result: true if stable, false
-     *                            otherwise.
+     * The run's config counts screenshots in a row that match; the C core counts pairs in a row
+     * with no differing pixel. Three matching screenshots are two still pairs, so a still screen
+     * ends the loop at its third screenshot. iOS keeps the same rule.
+     */
+    static int stillPairsForMatchingScreenshots(int matchingScreenshots) {
+        return Math.max(matchingScreenshots - 1, 1);
+    }
+
+    /**
+     * Checks for UI stability by comparing consecutive screenshots, every interval, until
+     * requiredMatches screenshots in a row match (true) or, past timeoutMs and at least
+     * minScreenshotsCount screenshots, the latest two differ (false). threshold (0.0 to 1.0,
+     * smaller is more sensitive) and includeAA decide which pixels differ.
      */
     public void checkIfStable(final Activity activity, final int requiredMatches, final int minScreenshotsCount,
             final int intervalMs, final int timeoutMs, double threshold, boolean includeAA,
@@ -258,10 +243,11 @@ public class StabilityHelper {
         }
 
         // Android's own constants: the clock starts now, before the first screenshot, and that
-        // screenshot counts towards the minimum.
+        // screenshot counts towards the minimum. The clock is one that never steps back.
         final boolean countsFirstScreenshot = true;
-        final CompiledCore.StillnessDecision stillness = CompiledCore.StillnessDecision.begin(requiredMatches, minScreenshotsCount,
-                countsFirstScreenshot, timeoutMs, threshold, includeAA, System.currentTimeMillis());
+        final CompiledCore.StillnessDecision stillness = CompiledCore.StillnessDecision.begin(
+                stillPairsForMatchingScreenshots(requiredMatches), minScreenshotsCount,
+                countsFirstScreenshot, timeoutMs, threshold, includeAA, SystemClock.uptimeMillis());
         if (stillness == null) {
             Log.w(TAG, "UI is not stable - the C core could not start a stillness decision");
             callback.onResult(false);
@@ -280,8 +266,11 @@ public class StabilityHelper {
             try {
                 lastScreenshot[0] = captureScreenshot(activity);
             } catch (RuntimeException firstCaptureFailed) {
+                Log.e(TAG, "UI is not stable - the first screenshot failed", firstCaptureFailed);
+                callback.onResult(false);
                 stillness.end();
-                throw firstCaptureFailed;
+                captureThread.quitSafely();
+                return;
             }
 
             Runnable loop = new Runnable() {
@@ -290,7 +279,7 @@ public class StabilityHelper {
                     try {
                         Bitmap current = captureScreenshot(activity);
                         // Android reads its clock once the screenshot is taken.
-                        long capturedMs = System.currentTimeMillis();
+                        long capturedMs = SystemClock.uptimeMillis();
 
                         // Clear focus / IME on UI thread; a cleared focus starts the count and the
                         // clock again.
@@ -303,7 +292,7 @@ public class StabilityHelper {
                         long stepMs = capturedMs;
                         if (foundFocus[0]) {
                             Log.d(TAG, "Found and cleared focus");
-                            stepMs = System.currentTimeMillis();
+                            stepMs = SystemClock.uptimeMillis();
                         }
 
                         int verdict = stillness.step(lastScreenshot[0], current, stepMs, foundFocus[0],

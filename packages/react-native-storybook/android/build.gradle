@@ -112,4 +112,8 @@ repositories {
 dependencies {
     implementation "com.facebook.react:react-native:${safeExtGet('reactNativeVersion', '+')}"
     implementation 'com.jakewharton:process-phoenix:2.2.0'
+    // Compiled against, never shipped: OkHttp comes with React Native, and Glide is used only when
+    // the app has it (SherloRequestAnswers checks for it by name).
+    compileOnly 'com.squareup.okhttp3:okhttp:4.9.2'
+    compileOnly 'com.github.bumptech.glide:glide:4.16.0'
 }
