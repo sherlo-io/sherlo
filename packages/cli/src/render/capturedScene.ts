@@ -89,6 +89,16 @@ export type SceneEnding =
       missing: PlayMissing;
       limitMs: number;
     } & SceneLeft)
+  /** The scene got ready and was read, but its screen never stopped changing within `seconds`. */
+  | ({
+      kind: 'never-settled';
+      sceneId: string;
+      seconds: number;
+      reached: { route: string[]; ms: number };
+      /** The views still changing when the stabilization gave up, by the tag the tree draws each by. */
+      changing?: string[];
+      tree: CapturedView;
+    } & SceneLeft)
   /** The app took the capture and started over `restarts` times, and no picture came of it. */
   | { kind: 'restarted-mid-capture'; sceneId: string; restarts: number }
   /** The record. `bootMs` is the fresh boot; `reached.ms` is from there to the ready view showing. */
@@ -131,7 +141,9 @@ export function renderCapturedScene(state: CapturedScene, picture?: ScenePicture
 
 /** What `--png` came to: the saved path under a captured scene, the save's error, or that no scene was captured. */
 function pictureLines(state: CapturedScene, picture: ScenePicture): string[] {
-  if (state.kind !== 'scene') return [chalk.dim('No picture saved: the scene was not captured')];
+  if (state.kind !== 'scene' && state.kind !== 'never-settled') {
+    return [chalk.dim('No picture saved: the scene was not captured')];
+  }
 
   return picture.error
     ? [chalk.dim(`No picture saved: ${picture.error}`)]
@@ -181,6 +193,22 @@ function sceneLines(state: CapturedScene): string[] {
                 "Add a logged-in user to the scene's mocks.",
             ]),
         ...(state.discover && state.likelyCause ? likelyCauseLines(state.likelyCause) : []),
+        ...leftLines(state),
+        '',
+      ];
+
+    case 'never-settled':
+      return [
+        `${chalk.yellow('◦')}  ${chalk.bold(state.sceneId)} got ready but never stopped changing within ${
+          state.seconds
+        }s`,
+        chalk.dim('   A test run of this scene would stop at the same limit. What it read then:'),
+        ...(state.changing && state.changing.length > 0
+          ? [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
+          : []),
+        '',
+        ...treeLines(state.tree),
+        ...(state.threw ? ['', errorLine(state.threw)] : []),
         ...leftLines(state),
         '',
       ];

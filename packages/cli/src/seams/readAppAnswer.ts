@@ -15,6 +15,8 @@ export type UnansweredRequest = {
   contentType?: string;
   operation?: string;
   bodyExcerpt?: string;
+  /** The npm package whose code made the request, when the app's call stack names one. */
+  library?: string;
 };
 
 /** What the SDK finds wrong in a faked GraphQL answer, as the app lists it. */
@@ -67,7 +69,9 @@ export function readUnanswered(value: unknown, details = false): UnansweredReque
   for (const entry of value) {
     const { method, url, ...more } = (entry ?? {}) as Record<string, unknown>;
     if (typeof method !== 'string' || typeof url !== 'string') continue;
-    const kept = details ? keepStringFields(more, ['contentType', 'operation', 'bodyExcerpt']) : {};
+    const kept = details
+      ? keepStringFields(more, ['contentType', 'operation', 'bodyExcerpt', 'library'])
+      : {};
     read.push({ method, url, ...kept });
   }
   return read.length > 0 ? read : undefined;

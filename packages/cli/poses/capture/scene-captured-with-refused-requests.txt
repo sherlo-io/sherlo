@@ -1,0 +1,34 @@
+[32m✔[39m  [1mfeed--home[22m captured, the way a test run records it
+[2m   booted fresh in 1.7s[22m
+[2m   reached FeedStack › Feed in 2.3s[22m
+[2m   settled in <SETTLED> over 3 frames · testing mode[22m
+
+   [93m<[39m[95mFeed[39m[93m>[39m
+     [93m<[39m[36mView[39m
+       [37mstyle[39m[32m=[39m[36m{{[39m
+         [37mflex[39m[97m:[39m [93m1[39m[97m,[39m
+         [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m
+       [36m}}[39m
+     [93m>[39m [36m(<SIZE>)[39m
+       [93m<[39m[95mFeedTitle[39m[93m>[39m
+         [93m<[39m[36mText[39m
+           [37mstyle[39m[32m=[39m[36m{{[39m
+             [37mfontWeight[39m[97m:[39m [93m"600"[39m[97m,[39m
+             [37mfontSize[39m[97m:[39m [93m20[39m
+           [36m}}[39m
+         [93m>[39m [36m(<SIZE>)[39m
+           Home
+         [93m</[39m[36mText[39m[93m>[39m
+       [93m</[39m[95mFeedTitle[39m[93m>[39m
+     [93m</[39m[36mView[39m[93m>[39m
+   [93m</[39m[95mFeed[39m[93m>[39m
+
+[2m   2 views · --json prints the record[22m
+
+[33m◦[39m  3 requests had no mock:
+     POST https://api.example.com/graphql from @apollo/client
+     GET https://api.example.com/graphql?query=feed from @apollo/client
+     POST https://analytics.example.com/collect from an analytics SDK
+
+
+[exit 0]

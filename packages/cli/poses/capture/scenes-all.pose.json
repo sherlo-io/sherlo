@@ -1,0 +1,44 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--all-scenes", "./scenes-out"],
+  "capture": {
+    "scenes": ["feed--home", "feed--live-ticker", "profile--own-profile", "settings--account"],
+    "everyScene": [
+      {
+        "sceneId": "feed--home",
+        "ending": "captured",
+        "reachedMs": 2300,
+        "unanswered": [
+          {
+            "method": "POST",
+            "url": "https://api.example.com/graphql",
+            "library": "@apollo/client"
+          }
+        ]
+      },
+      {
+        "sceneId": "feed--live-ticker",
+        "ending": "never-settled",
+        "reachedMs": 2100,
+        "changing": ["TickerValue", "LoadingSpinner"]
+      },
+      {
+        "sceneId": "profile--own-profile",
+        "ending": "never-reached",
+        "ready": "profile.header"
+      },
+      {
+        "sceneId": "settings--account",
+        "ending": "crashed-at-boot"
+      }
+    ]
+  }
+}

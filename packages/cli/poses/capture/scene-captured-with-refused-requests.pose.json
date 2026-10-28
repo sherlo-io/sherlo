@@ -1,0 +1,52 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "feed--home"],
+  "capture": {
+    "scenes": ["feed--home", "feed--empty", "profile--own-profile"],
+    "route": ["FeedStack", "Feed"],
+    "bootMs": 1700,
+    "reachedMs": 2300,
+    "play": [],
+    "settled": { "ms": 500, "frames": 3 },
+    "unanswered": [
+      {
+        "method": "POST",
+        "url": "https://api.example.com/graphql",
+        "library": "@apollo/client"
+      },
+      {
+        "method": "GET",
+        "url": "https://api.example.com/graphql?query=feed",
+        "library": "@apollo/client"
+      },
+      {
+        "method": "POST",
+        "url": "https://analytics.example.com/collect",
+        "library": "an analytics SDK"
+      }
+    ],
+    "tree": {
+      "primitive": "View",
+      "components": ["Feed"],
+      "size": { "width": 360, "height": 800 },
+      "style": { "flex": 1, "backgroundColor": "#fff" },
+      "children": [
+        {
+          "primitive": "Text",
+          "components": ["FeedTitle"],
+          "size": { "width": 200, "height": 28 },
+          "style": { "fontSize": 20, "fontWeight": "600" },
+          "text": "Home"
+        }
+      ]
+    }
+  }
+}

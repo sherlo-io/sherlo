@@ -1,0 +1,10 @@
+[32m✔[39m  [1mfeed--home[22m captured[2m · ready in 2.3s · 1 refused[22m
+[33m◦[39m  [1mfeed--live-ticker[22m never settled - still changing: TickerValue, LoadingSpinner[2m · ready in 2.1s[22m
+[31m✖[39m  [1mprofile--own-profile[22m never reached - no view profile.header showed
+[31m✖[39m  [1msettings--account[22m failed (crashed-at-boot)
+
+4 scenes: 1 captured, 1 never settled, 1 never reached, 1 failed
+[2m   a picture (<id>.png, not for a scene that never came up) and a record (<id>.json) of each are in ./scenes-out[22m
+
+
+[exit 1]

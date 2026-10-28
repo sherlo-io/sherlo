@@ -716,13 +716,22 @@ export type PosedCapture =
       reachedMs: number;
       /** The scene's play steps, all done. */
       play: PosedPlayStep[];
-      settled: {
-        ms: number;
-        frames: number;
-      };
+      /** How the stabilization ended: settled after so long over so many frames, or gave up. */
+      settled:
+        | 'timed-out'
+        | {
+            ms: number;
+            frames: number;
+          };
+      /** The views still changing when the stabilization gave up. Absent prints no names. */
+      changing?: string[];
       /** The requests the scene made that no mock answered, a discover capture's result. */
       unanswered?: UnansweredRequest[];
       tree: PosedView;
+    }
+  | {
+      scenes: string[];
+      everyScene: PosedSceneRun[];
     };
 
 /**
@@ -1257,6 +1266,8 @@ export type UnansweredRequest = {
   contentType?: string;
   operation?: string;
   bodyExcerpt?: string;
+  /** The npm package whose code made the request, when the app's call stack names one. */
+  library?: string;
 };
 
 /**
@@ -1300,6 +1311,23 @@ export type PosedPlayStep =
   | {
       open: string;
     };
+
+/**
+ * One scene's run inside a run of every scene. Only the ending is required; a scene that came up
+ * states how long it took, and the views it left still changing when it never settled.
+ */
+export type PosedSceneRun = {
+  sceneId: string;
+  ending: 'captured' | 'never-settled' | 'never-reached' | 'crashed-at-boot';
+  /** How long the ready view took to show, from the fresh boot. */
+  reachedMs?: number;
+  /** The views still changing when the stabilization gave up. */
+  changing?: string[];
+  /** The testID of the view a scene that never got ready waits for. */
+  ready?: string;
+  /** The requests the scene made that no mock answered. */
+  unanswered?: UnansweredRequest[];
+};
 
 /**
  * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in

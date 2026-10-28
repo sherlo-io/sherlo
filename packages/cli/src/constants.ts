@@ -204,6 +204,17 @@ export const JSON_OPTION = 'json';
 export const LOGS_OPTION = 'logs';
 /** `sherlo capture --scene <id> --png <path>` - save the screen as Sherlo captured it. */
 export const PNG_OPTION = 'png';
+/**
+ * `sherlo capture --all-scenes <folder>` - every scene of the project, one after another, each
+ * saved as `<id>.png` and `<id>.json` in the folder.
+ */
+export const ALL_SCENES_OPTION = 'allScenes';
+/** The flag as typed: the command reads its value under {@link ALL_SCENES_OPTION}, the way commander camel-cases it. */
+export const ALL_SCENES_FLAG = 'all-scenes';
+/** The refusal when `--all-scenes` is given with one scene, one story, a picture path or a discover capture. */
+export function allScenesAloneRefusal(): string {
+  return `\`npx sherlo capture --${ALL_SCENES_FLAG}\` captures every scene: it takes no \`--${SCENE_OPTION}\`, \`--${STORY_OPTION}\`, \`--${PNG_OPTION}\` or \`--${DISCOVER_OPTION}\`.`;
+}
 /** The refusal when `--png` is given without `--scene` (with `--story`, or alone): the same shape as {@link sceneWithStoryRefusal}. */
 export function pngWithoutSceneRefusal(): string {
   return `\`npx sherlo capture\` takes \`--${PNG_OPTION}\` only with \`--${SCENE_OPTION}\`.`;

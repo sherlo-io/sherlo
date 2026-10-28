@@ -34,6 +34,7 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { OpenedScene } from './openedScene';
 import type { CapturedScene, ScenePicture } from './capturedScene';
+import type { AllScenesSummary, SceneRunLine } from './capturedAllScenes';
 import type { CoverageScreen } from './coverage';
 import type { TeamList } from './teamList';
 import type { AppFailedToStart, VerdictScreen } from './verdictCloser';
@@ -390,6 +391,10 @@ export type TranscriptSegment =
   | { kind: 'opened-scene'; state: OpenedScene }
   /** The whole screen output of `sherlo capture --scene`. See ./capturedScene. */
   | { kind: 'captured-scene'; state: CapturedScene; picture?: ScenePicture }
+  /** One scene's progress line of `sherlo capture --all-scenes`. See ./capturedAllScenes. */
+  | { kind: 'scene-run-line'; line: SceneRunLine }
+  /** The closing summary of `sherlo capture --all-scenes`. See ./capturedAllScenes. */
+  | { kind: 'all-scenes-summary'; summary: AllScenesSummary }
   /** The whole screen output of `sherlo coverage`. See ./coverage. */
   | { kind: 'coverage'; screen: CoverageScreen }
   /** `sherlo capture --logs` - Sherlo's log from the app, printed after the story. See ./capturedLog. */

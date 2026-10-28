@@ -242,14 +242,16 @@ export function stillRealLines(stillReal: string[] | undefined): string[] {
 
 /** The requests no mock answered, each a method and an address. */
 export function unansweredLines(
-  unanswered: { method: string; url: string }[] | undefined
+  unanswered: { method: string; url: string; library?: string }[] | undefined
 ): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
     '',
     `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock:`,
-    ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
+    ...unanswered.map(
+      ({ method, url, library }) => `     ${method} ${url}${library ? ` from ${library}` : ''}`
+    ),
   ];
 }
 
