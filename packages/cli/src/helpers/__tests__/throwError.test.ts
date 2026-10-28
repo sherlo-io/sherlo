@@ -43,4 +43,30 @@ describe('the error a command throws', () => {
     expect(error.message).toContain('UNEXPECTED ERROR');
     expect(error.message).toContain('exit code 1');
   });
+
+  it("an unexpected error prints its cause's code, host and reason under the message", () => {
+    vi.spyOn(reporting, 'captureException').mockImplementation(() => {});
+    const cause = Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:4000'), {
+      code: 'ECONNREFUSED',
+      address: '127.0.0.1',
+      port: 4000,
+    });
+    const unexpected = Object.assign(new Error('fetch failed'), { cause });
+
+    const error = caught(() => throwError({ type: 'unexpected', error: unexpected }));
+
+    expect(error.message).toContain(
+      'cause: ECONNREFUSED 127.0.0.1:4000 - connect ECONNREFUSED 127.0.0.1:4000'
+    );
+  });
+
+  it('an unexpected error with no cause prints no cause line', () => {
+    vi.spyOn(reporting, 'captureException').mockImplementation(() => {});
+
+    const error = caught(() =>
+      throwError({ type: 'unexpected', error: new Error('fetch failed') })
+    );
+
+    expect(error.message).not.toContain('cause:');
+  });
 });

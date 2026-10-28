@@ -15,7 +15,7 @@ type StandardErrorParams = {
 };
 
 type UnexpectedErrorParams = {
-  error: Error & { stdout?: string; stderr?: string };
+  error: Error & { stdout?: string; stderr?: string; cause?: unknown };
   type: Extract<ErrorType, 'unexpected'>;
 };
 
@@ -81,6 +81,9 @@ function getErrorMessage(params: Params): string {
     const errorLocation = getErrorLocation();
     if (errorLocation) errorMessageParts.push(chalk.dim(`(in ${errorLocation})`));
 
+    const causeLine = describeCause(params.error.cause, 1);
+    if (causeLine) errorMessageParts.push(chalk.dim(`cause: ${causeLine}`));
+
     const { stdout, stderr } = params.error;
     if (stdout) errorMessageParts.push(`\n${stdout}`);
     if (stderr) errorMessageParts.push(`\n${stderr}`);
@@ -94,6 +97,30 @@ function getErrorMessage(params: Params): string {
   }
 
   return blankSecrets(errorMessageParts.join('\n')) + '\n';
+}
+
+/**
+ * "code host:port - message" of a cause, each part skipped when missing, then the cause under it
+ * once (a failed fetch hides its real reason in error.cause).
+ */
+function describeCause(cause: unknown, nestedLeft: number): string {
+  if (!cause || typeof cause !== 'object') return '';
+  const {
+    code,
+    address,
+    hostname,
+    port,
+    message,
+    cause: nested,
+  } = cause as Record<string, unknown>;
+
+  const host = address ?? hostname;
+  const hostWithPort = host ? `${host}${port ? `:${port}` : ''}` : '';
+  const technical = [code, hostWithPort].filter(Boolean).join(' ');
+  const own = [technical, message].filter(Boolean).join(' - ');
+  const inner = nestedLeft > 0 ? describeCause(nested, nestedLeft - 1) : '';
+
+  return [own, inner].filter(Boolean).join(' <- ');
 }
 
 function reportError(params: Params) {
