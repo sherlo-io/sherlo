@@ -1,6 +1,6 @@
 import { NativeModules } from 'react-native';
 import isExpoGo from './helpers/isExpoGo';
-import { StorybookViewMode, InspectorData } from './types/types';
+import { StorybookViewMode, InspectorData, ViewVisibility } from './types/types';
 import type { Config, LastState } from './sealedCore/seam';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 
@@ -35,8 +35,33 @@ const DEFAULT_CONFIG: Config = {
   paintBarrierPerScrollPart: true,
 };
 
+/** What the native touch answers (../specs/NativeSherloModule `tap`). */
+export type NativeTapAnswer = {
+  reachedReact: boolean;
+  hitTag: number;
+  hitClass: string;
+  missing: string[];
+};
+
 type SherloModule = {
   isTurboModule: boolean;
+  /**
+   * Touch the screen at (x, y), in points, for holdMs, as a finger does. Null
+   * when the native module has no touch (no module, or a native build from before it).
+   */
+  tap: (x: number, y: number, holdMs: number) => Promise<NativeTapAnswer | null>;
+  /**
+   * Drag a finger from (fromX, fromY) to (toX, toY), in points, over durationMs, then lift it. It
+   * answers as the tap does, for the view the finger went down on. Null when the native module
+   * has no swipe (no module, or a native build from before it).
+   */
+  swipe: (
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    durationMs: number
+  ) => Promise<NativeTapAnswer | null>;
   getMode: () => StorybookViewMode;
   /** Throws when the runner handed no settings - use getConfigOrDefault where that is normal. */
   getConfig: () => Config;
@@ -52,6 +77,8 @@ type SherloModule = {
     data?: Record<string, string | null>
   ) => void;
   getInspectorData: () => Promise<InspectorData>;
+  /** Whether each view named by testID is drawn, from the native view tree (../specs). */
+  getViewVisibility: (testIDs: string[]) => Promise<ViewVisibility>;
   openStorybook: () => void;
   toggleStorybook: () => void;
   /**
@@ -77,6 +104,11 @@ type SherloModule = {
     threshold: number,
     includeAA: boolean
   ) => Promise<boolean>;
+  /**
+   * Hold every animation that loops forever on its first frame before a picture (../specs).
+   * False when nothing was held, and when native code has no hold (a native build from before it).
+   */
+  holdAnimationsStill: () => Promise<boolean>;
   awaitFrameCommit: (timeoutMs: number) => Promise<boolean>;
   isScrollable: () => Promise<{
     scrollable: boolean;
@@ -127,9 +159,16 @@ function createSherloModule(): SherloModule {
 
   const sherloModule: SherloModule = {
     isTurboModule: !!TurboModule,
+    tap: async (x: number, y: number, holdMs: number) =>
+      typeof module.tap === 'function' ? module.tap(x, y, holdMs) : null,
+    swipe: async (fromX, fromY, toX, toY, durationMs) =>
+      typeof module.swipe === 'function' ? module.swipe(fromX, fromY, toX, toY, durationMs) : null,
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
+    },
+    getViewVisibility: async (testIDs: string[]) => {
+      return JSON.parse(await module.getViewVisibility(JSON.stringify(testIDs))) as ViewVisibility;
     },
     stabilize: async (
       requiredMatches: number,
@@ -150,6 +189,8 @@ function createSherloModule(): SherloModule {
         includeAA
       );
     },
+    holdAnimationsStill: async () =>
+      typeof module.holdAnimationsStill === 'function' ? module.holdAnimationsStill() : false,
     awaitFrameCommit: async (timeoutMs: number) => {
       // Graceful degradation: an OLD native binary paired with this newer JS may
       // not expose awaitFrameCommit. Treat its absence as "no barrier available"
@@ -231,6 +272,10 @@ function createSherloModule(): SherloModule {
 function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
+    tap: async () => null,
+    swipe: async () => null,
+    getViewVisibility: async (testIDs: string[]) =>
+      Object.fromEntries(testIDs.map((testID) => [testID, 'absent' as const])),
     getInspectorData: async () => ({
       viewHierarchy: {
         id: 1,
@@ -259,6 +304,7 @@ function createDummySherloModule(): SherloModule {
     openTesting: () => {},
     reloadJavaScript: () => {},
     getMemoryMb: async () => null,
+    holdAnimationsStill: async () => false,
     awaitFrameCommit: async () => false,
     isScrollable: async () => ({ scrollable: false }),
     scrollToCheckpoint: async () => ({

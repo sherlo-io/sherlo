@@ -19,7 +19,21 @@
 /* ---- The core and its host ------------------------------------------------------------------ */
 
 /** A network request no mock rule answered. */
-export type UnansweredRequest = { method: string; url: string };
+export type UnansweredRequest = {
+  method: string;
+  url: string;
+  contentType?: string;
+  operation?: string;
+  bodyExcerpt?: string;
+};
+
+/** What the SDK finds wrong in a faked GraphQL answer. */
+export type AnswerFinding = {
+  kind: 'field-missing' | 'typename-missing' | 'typename-matches-no-fragment' | 'no-query-text';
+  operation?: string;
+  path?: string;
+  expected?: string;
+};
 
 export type SealedCoreHost = {
   /** Sherlo's native module: the calls of it the core makes. */
@@ -37,6 +51,12 @@ export type SealedCoreHost = {
   };
   /** What Storybook's start() was handed, or null in a launch where Storybook has not started. */
   storybookFacts: () => StorybookFacts | null;
+  /**
+   * The scenes the app holds, in the order the app declares them, each with its id, its scene
+   * file, its component title and its scene name (already words, "Sign In" and "Menu Open");
+   * none when the app has none.
+   */
+  scenes(): { id: string; file: string; title: string; name: string }[];
   /** Storybook's channel, or null when nothing usable is reachable. */
   storybookChannel: () => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
@@ -68,7 +88,102 @@ export type SealedCoreHost = {
   warn: (message: string) => void;
   /** The app's real fetch, taken before any story's mock wraps it. */
   fetch: typeof fetch;
+
+  /*
+   * A SCENE'S CALLS. A scene boots the app's own root already in capture mode, with its mocks in
+   * place, so the core never puts it on screen: it plays the scene's steps, waits for its ready
+   * rule, and reads what the app reached, through these. Each is optional, so a host that takes no
+   * scenes is the host it was; a capture that names a scene on such a host answers a crash.
+   */
+  /** Play the scene's steps in order, on the screen the app booted to. Never throws. */
+  playSteps?: (sceneId: string) => Promise<ScenePlayOutcome>;
+  /** Wait for the scene's own ready rule to hold, for at most its own limit. Never throws. */
+  awaitReady?: (sceneId: string) => Promise<SceneReadyOutcome>;
+  /** The route the app's navigation is on now, outermost screen first; empty when it cannot say. */
+  reachedRoute?: () => string[];
+  /**
+   * Milliseconds since the app's JavaScript started, on a clock no clock mock touches. A story or a
+   * scene may freeze `Date.now()` for the whole app, Sherlo's own code included.
+   */
+  monotonicNow?: () => number;
+  /** The mock rules the scene declared that no request ever matched, each as one line. */
+  rulesNeverMatched?: () => string[];
+  /** The distinct errors the app logged during the scene, as the SDK capped them. Optional. */
+  loggedErrors?: () => LoggedErrors;
+  /** What the SDK found wrong in the faked GraphQL answers of the scene. Optional. */
+  answerFindings?: () => AnswerFinding[];
+
+  /*
+   * THE PROOF A RECORD CARRIES. Each is optional: an SDK without it still talks to this core, and
+   * the record then says nothing of it.
+   */
+  /** Positive proof that the rules of the story or scene `storyId` are the ones in effect. */
+  rulesInstalledProof?: (storyId: string) => RulesInstalledProof;
+  /**
+   * What ended the capture of `id`, as the record's `threw`: the story's own error, a refused
+   * request, or a mock that did not apply. Undefined when nothing did.
+   */
+  threwOf?: (id: string) => StoryThrew | undefined;
+  /** Why the app crashed on `id`; a plain saying when no error was left. Never throws. */
+  causeOfCrash?: (id: string) => StoryError;
+  /** Whether `url` is an asset the bundler itself serves: a file of the app, no network image. */
+  isBundlerAssetUrl?: (url: string) => boolean;
 };
+
+/**
+ * How many rules went in for a story or scene: module mocks, request rules and socket rules.
+ * `installed` is false when the rules in effect are not this story's, so a scene with no rules
+ * differs from one whose rules never went in.
+ */
+export type RulesInstalledProof = {
+  installed: boolean;
+  modules: number;
+  requests: number;
+  sockets: number;
+};
+
+/**
+ * One step of a scene's play: a tap, a long-press or a typing on the view with that testID (its
+ * name only, never the typed text), a swipe on it in a direction, or a link the app is handed.
+ */
+export type ScenePlayStep =
+  | { tap: string }
+  | { longPress: string }
+  | { type: string }
+  | { swipe: string; direction: 'left' | 'right' | 'up' | 'down' }
+  | { open: string };
+
+/** The step whose view never showed: any kind of step but a link. */
+export type ScenePlayMissing = Exclude<ScenePlayStep, { open: string }>;
+
+/** How a scene's play went: every step played, or the step whose view never showed. */
+export type ScenePlayOutcome =
+  | {
+      played: ScenePlayStep[];
+      /** The ready view showed after step `atStep` of `of`, before the last one. Left out otherwise. */
+      readyTooEarly?: { atStep: number; of: number };
+    }
+  | {
+      /** The steps played before the one that found nothing. */
+      played: ScenePlayStep[];
+      missing: ScenePlayMissing;
+      /** How long the step looked for its view, in ms. */
+      limitMs: number;
+    };
+
+/**
+ * How a scene's ready wait ended: the named view showed, the views it waits out are gone, or the
+ * limit ran out with the ready view absent - and then the route the app stayed on.
+ */
+export type SceneReadyOutcome =
+  | { outcome: 'shown'; ready: string }
+  | { outcome: 'gone'; gone: string[] }
+  | {
+      outcome: 'timed-out';
+      ready: string;
+      stayedOn: string[];
+      seen?: { testIDs: string[]; more: number };
+    };
 
 export type SealedCore = {
   /** The core's own version. */
@@ -472,6 +587,8 @@ export type Snapshot = {
    * Absent on older SDK versions; runner captures every story when missing.
    */
   importPath?: string;
+  /** True for a scene of the app (its id in storyId, its scene file in importPath), absent for a story. */
+  scene?: true;
 
   // storybook parameters
   componentId: string; // components-avatar
@@ -671,7 +788,12 @@ export type ComponentNamesByNativeTag = Map<number, string[]>;
 /* ---- The capture socket: `sherlo capture` --------------------------------------------------- */
 
 /** What a story threw while rendering, as the app reports it to the bundler. */
-export type StoryThrew = { name: string; message: string };
+export type StoryThrew = {
+  name: string;
+  message: string;
+  /** The top 5 `at ` frames of the error's stack. Left out when the stack holds none. */
+  topFrames?: string[];
+};
 
 /**
  * How one of the capture's two waits ended: on the very first check, after re-checking one or more
@@ -799,6 +921,8 @@ export type CapturedAnswer =
        */
       changing?: string[];
       threw?: StoryThrew;
+      /** Proof the story's rules were installed. Left out when the SDK cannot give it. */
+      rulesInstalled?: RulesInstalledProof;
       /** The app modules the story ran as real code. Left out when none, or the SDK cannot say. */
       stillReal?: string[];
       /** The requests no mock answered, in the order made. Left out when none. */
@@ -832,7 +956,78 @@ export type CapturedAnswer =
       kind: 'crashed';
       storyId: string;
       error?: StoryThrew;
-    };
+    }
+  | CapturedScene;
+
+/**
+ * What the app answers about the scene it booted on. A scene's record and its two failures carry
+ * what the story's record carries about the screen's own code - what it threw, what ran real, what
+ * no mock answered - and the mock rules no request matched.
+ */
+export type CapturedScene =
+  | (SceneFacts & {
+      kind: 'scene';
+      /** How long the app took from its JavaScript's start to the scene's capture starting, in ms. */
+      bootMs: number;
+      /** The route the app reached, and how long from the capture's start until the scene was ready. */
+      reached: { route: string[]; ms: number };
+      play: ScenePlayStep[];
+      /** How the stabilization ended: settled after so long over so many reads, or gave up. */
+      settled: { ms: number; frames: number } | 'timed-out';
+      /** Only when the scene never settled: the views that differ between two reads of its tree. */
+      changing?: string[];
+      density: number;
+      fontScale: number;
+      /** The app's whole window: a scene renders the app's own root. */
+      tree: CapturedViewTree;
+    })
+  /** The ready view never showed; `stayedOn` is the route the app was on, `seen` the test ids on screen (first ones, and the count of the rest). */
+  | (SceneFacts & {
+      kind: 'never-reached';
+      ready: string;
+      stayedOn: string[];
+      seen?: { testIDs: string[]; more: number };
+      /** What the record points to as the likely cause. Left out when both lists are empty. */
+      likelyCause?: ('unanswered-requests' | 'logged-errors')[];
+    })
+  /** A play step found no view with its testID within its limit; `route` is where the app stood. */
+  | (SceneFacts & {
+      kind: 'play-target-missing';
+      route: string[];
+      /** The steps played before the one that found nothing. */
+      done: ScenePlayStep[];
+      missing: ScenePlayMissing;
+      limitMs: number;
+    })
+  /** The scene's walk itself failed: the app stops and says why. */
+  | { kind: 'crashed'; sceneId: string; error?: StoryThrew };
+
+/** What every scene ending that got past the walk says beside its own facts. */
+type SceneFacts = {
+  sceneId: string;
+  /** What the app threw while the scene ran, in its own words. A throw wins over a ready failure. */
+  threw?: StoryThrew;
+  /** Proof the scene's rules were installed. Left out when the SDK cannot give it. */
+  rulesInstalled?: RulesInstalledProof;
+  /** The app modules the scene ran as real code. Left out when none, or the SDK cannot say. */
+  stillReal?: string[];
+  /** The requests no mock answered, in the order made. Left out when none. */
+  unanswered?: UnansweredRequest[];
+  /** The mock rules the scene declared that no request matched. Left out when none. */
+  rulesNeverMatched?: string[];
+  /** The distinct errors the app logged during the scene. Left out when none. */
+  loggedErrors?: LoggedErrors;
+  /** The ready view showed before the last step. Left out when it was not met before the last step. */
+  readyTooEarly?: { atStep: number; of: number };
+  /** What the SDK found wrong in the scene's faked GraphQL answers. Left out when none. */
+  answerFindings?: AnswerFinding[];
+};
+
+/** The errors the app logged during a scene: each distinct message with its count, and the rest. */
+export type LoggedErrors = {
+  messages: { message: string; times: number }[];
+  moreLeftOut: number;
+};
 
 /**
  * The stabilization numbers a capture is handed, as the runner writes them today. Every one is
@@ -859,6 +1054,8 @@ export type CaptureInstruction = {
   restartIntoTesting?: boolean;
   /** The story to capture, sent only to an app already in testing mode. */
   storyId?: string;
+  /** The scene to capture, sent only to an app that booted on that scene. */
+  sceneId?: string;
   /** How to stabilize the story, sent with it. */
   settings?: CaptureSettings;
 };

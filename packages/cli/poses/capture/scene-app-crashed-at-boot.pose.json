@@ -1,0 +1,30 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "chat--conversation"],
+  "capture": {
+    "scenes": [
+      "chat--conversation",
+      "chat--no-messages-yet",
+      "chat--no-longer-active",
+      "chat--menu-open",
+      "chat-list--inbox",
+      "chat-list--empty",
+      "profile--own-profile",
+      "sign-in--empty"
+    ],
+    "threwAtBoot": {
+      "name": "ReferenceError",
+      "message": "Property 'analytics' doesn't exist",
+      "file": "src/app/bootstrap.ts",
+      "line": 41
+    }
+  }
+}

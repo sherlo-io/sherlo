@@ -13,12 +13,17 @@ import { MockDefinition, MockSet, MOCKED_MODULE_KEY } from './types';
  * transform of story files hands it to `mock` (metro/mockSpecifierTransformer.js), so it is as new
  * as the file. It names the module in a failure when no shim answered, and never decides which
  * mock applies.
+ *
+ * `keyAtDeclaration` is the key of a declaration that mocks no module and so waits for no import
+ * (`mockClock`, `mockRandom`): a scene's boot installs it at once, before the app's first module,
+ * so a loop the app starts on its first frame already reads the frozen clock.
  */
 export interface ModuleMockDeclaration {
   kind: 'module';
   moduleKey: () => Promise<string | undefined>;
   definition: MockDefinition;
   specifierAsWritten?: string;
+  keyAtDeclaration?: string;
 }
 
 /**

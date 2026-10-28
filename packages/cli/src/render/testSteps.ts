@@ -91,6 +91,11 @@ export type PlatformCapture = {
    * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as absent.
    */
   storiesInBundle?: number;
+  /**
+   * How many scenes the bundle holds; absent or 0 when it holds none. A scene is captured on a
+   * full capture and is stated beside the stories.
+   */
+  scenesInBundle?: number;
   /** The server's own reason, printed only on a full capture. */
   reason?: string;
   /** The story files the test captures: a partial capture's as openBuild recorded them, or the bundle's. */
@@ -161,13 +166,25 @@ function reasonEveryStoryIsCaptured(capture: PlatformCapture[]): string | undefi
   return reasons.size === 1 ? capture[0].reason : undefined;
 }
 
-/** `3 of 24 stories`, `all 24 stories`, `3 stories` when the bundle could not be counted. */
+/**
+ * `3 of 24 stories`, `all 24 stories`, `3 stories` when the bundle could not be counted; with
+ * scenes in a full capture, `all 5 scenes` (none else) or `all 4 stories and 5 scenes`.
+ */
 function describeCapturedStories({
   full,
   capturedStories,
   storiesInBundle,
+  scenesInBundle,
 }: PlatformCapture): string {
   // Uncounted is absent or null alike (see PlatformCapture.storiesInBundle).
+  const stories = storiesInBundle ?? 0;
+  const scenes = scenesInBundle ?? 0;
+  const holds = screenKindOf({ stories, scenes });
+  if (full && holds === 'scenes') return `all ${countScenes(scenes)}`;
+  if (full && holds === 'stories and scenes') {
+    return `all ${countStories(stories)} and ${countScenes(scenes)}`;
+  }
+
   if (full) {
     if (storiesInBundle == null) return 'all stories';
     return storiesInBundle === 1 ? '1 story' : `all ${countStories(storiesInBundle)}`;
@@ -274,7 +291,36 @@ export function renderHelpBlock(): string[] {
   ];
 }
 
+/** `1 scene`, `5 scenes` - every count of scenes a test prints. */
+export function countScenes(count: number): string {
+  return count === 1 ? '1 scene' : `${count} scenes`;
+}
+
 /** `1 story`, `3 stories` - every count of stories a test prints. */
 export function countStories(count: number): string {
   return count === 1 ? '1 story' : `${count} stories`;
+}
+
+/** What a build holds: stories alone, scenes alone, or both. */
+export type ScreenKind = 'stories' | 'scenes' | 'stories and scenes';
+
+/**
+ * THE ONE RULE that picks the word for a build's screens, for the started line and every verdict:
+ * scenes with no stories are `scenes`, both are `stories and scenes`, and anything else is `stories`.
+ */
+export function screenKindOf({ stories, scenes }: { stories: number; scenes: number }): ScreenKind {
+  if (scenes === 0) return 'stories';
+  return stories === 0 ? 'scenes' : 'stories and scenes';
+}
+
+/** `1 story`, `3 scenes`, `3 stories and scenes` - a count of the build's screens, worded by what it holds. */
+export function countScreens(count: number, holds: ScreenKind): string {
+  return `${count} ${nameScreens(count, holds)}`;
+}
+
+/** `story`, `scenes`, `story or scene` - the word for the build's screens without the number. */
+export function nameScreens(count: number, holds: ScreenKind): string {
+  if (holds === 'scenes') return count === 1 ? 'scene' : 'scenes';
+  if (holds === 'stories and scenes') return count === 1 ? 'story or scene' : 'stories and scenes';
+  return count === 1 ? 'story' : 'stories';
 }

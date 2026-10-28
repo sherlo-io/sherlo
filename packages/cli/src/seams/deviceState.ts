@@ -1,0 +1,377 @@
+/**
+ * THE CLEAN DEVICE SEAM - a local scene starts from nothing, and the developer's own device comes
+ * back when the command ends.
+ *
+ *     live   - the developer's one booted simulator or connected emulator, driven with `xcrun`,
+ *              `adb` and `applesimutils`, and the app named by the project's own files.
+ *     posed  - no device at all: a pose never reaches a machine, so no scene in a pose is given a
+ *              clean device and no screen changes because of one.
+ *
+ * WHAT A CLEAN DEVICE IS (sherlo scenes/stability.md, "What does the clean device do?"): the app's
+ * data is wiped, notifications are granted, and Reduce Motion is on (on Android, the three
+ * animation scales are 0). Each of those is SAVED FIRST, into a folder of its own in the system's
+ * temp folder, and nothing on the device changes until the whole save is in. ./deviceStateSave
+ * reads and changes; ./deviceStateRestore puts back.
+ *
+ * EVERY ENDING PUTS IT BACK. The command calls the restore this module hands out on its normal
+ * end and on a throw; an interrupt (SIGINT, SIGTERM) is caught here, restores, and only then ends
+ * the process. A restore that fails leaves the save folder where it is and names it, so the
+ * developer can put the rest back by hand.
+ *
+ * THE KEYCHAIN IS NEVER TOUCHED. It is the developer's own logins, it lives outside the app's
+ * container, and no tool here is asked to reset it. Cloud devices reset it; this machine is not one.
+ */
+import { spawn } from 'child_process';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import getCwd from '../helpers/getCwd';
+import throwError from '../helpers/throwError';
+import { cleanTheDevice, saveDeviceState } from './deviceStateSave';
+import { restoreDeviceState } from './deviceStateRestore';
+import { connectedAndroids } from './deviceStateAndroids';
+import { appIdOf } from './deviceStateAppId';
+import { restoreSceneDevice, saveSceneDevice } from './sceneDevice';
+import type { SavedSceneDevice, SceneDeviceField } from './sceneDevice';
+
+/** The device a scene runs on: a simulator by its UDID, or an emulator or phone by its adb serial. */
+export type SceneDevice =
+  | { platform: 'ios'; udid: string }
+  | { platform: 'android'; serial: string };
+
+/** The app under test: its iOS bundle identifier or its Android package name. */
+export type SceneApp = { id: string };
+
+export type SceneTarget = { device: SceneDevice; app: SceneApp };
+
+/** One running phone as the lookup saw it: its platform, the project's app id for it, and whether the app is on it. */
+export type PhoneFound = {
+  platform: SceneDevice['platform'];
+  /** The simulator's udid or the phone's adb serial, so a run that finds several says which. */
+  udid?: string;
+  serial?: string;
+  appId?: string;
+  hasApp: boolean;
+};
+
+/** No target, and which of the three causes it was; `found` lists every running phone. */
+export type NoTarget = {
+  cause: 'no-phone' | 'several-phones' | 'no-app-id';
+  found: PhoneFound[];
+};
+
+/** Whether the lookup found the phone to run on. */
+export function isTarget(answer: SceneTarget | NoTarget): answer is SceneTarget {
+  return 'device' in answer;
+}
+
+/** The only programs this seam runs. */
+export type DeviceTool = 'xcrun' | 'adb' | 'applesimutils';
+
+export type DeviceState = {
+  /** The one device and app a local scene runs on, or the cause of there being none. */
+  sceneTarget(): Promise<SceneTarget | NoTarget>;
+  /** Run one device tool and answer what it printed; a tool that fails throws. */
+  run(
+    tool: DeviceTool,
+    args: string[],
+    options?: { stdoutTo?: string; stdinFrom?: string; timeoutMs?: number }
+  ): Promise<string>;
+  /** The simulator's own data folder, where it keeps the notification settings of every app. */
+  simulatorFolder(udid: string): string;
+  /** A new, empty folder for one run's save, in the system's temp folder and named for the app. */
+  makeSaveFolder(app: SceneApp): string;
+};
+
+/** An Android build that `run-as` will not open: it is not a debug build. */
+export class NotDebuggableBuild extends Error {
+  constructor() {
+    super(
+      'This build is not a debug build, so Sherlo cannot read its data on the device. ' +
+        'Install a debug build of your app (the debug variant, not release) and run the command again.'
+    );
+    this.name = 'NotDebuggableBuild';
+  }
+}
+
+/**
+ * What `sherlo capture --scene` and `sherlo open --scene` do when the device cannot be made clean:
+ * a build that is not debuggable ends the command through `throwError`, like every other refusal;
+ * anything else throws on.
+ */
+export function endOnNotDebuggable(error: unknown): never {
+  if (!(error instanceof NotDebuggableBuild)) throw error;
+  return throwError({ message: error.message });
+}
+
+/* ========================================================================== */
+
+/**
+ * Save the device, then clean it for one scene, and hand back the restore that puts it back.
+ *
+ * Call the restore on every ending; calling it twice restores once. Until it runs, an interrupt
+ * restores and ends the process with the signal's own exit code.
+ */
+export async function prepareCleanDevice(
+  device: SceneDevice,
+  app: SceneApp,
+  sceneField?: SceneDeviceField
+): Promise<() => Promise<void>> {
+  const folder = deviceState().makeSaveFolder(app);
+
+  let saved: Awaited<ReturnType<typeof saveDeviceState>>;
+  let sceneSaved: SavedSceneDevice | undefined;
+  try {
+    saved = await saveDeviceState(device, app, folder);
+    // What the scene's own phone setup will change is read now, before anything is changed.
+    if (sceneField) sceneSaved = await saveSceneDevice(device, app, sceneField, folder);
+  } catch (error) {
+    // Nothing on the device has changed yet, so the half-made save is worth nothing.
+    fs.rmSync(folder, { recursive: true, force: true });
+    // Only `run-as` reads an Android app's data, and it refuses a build that is not debuggable
+    // with "package not debuggable"; a lost device or an unknown package says something else.
+    const refusedByRunAs =
+      error instanceof Error &&
+      error.message.includes('run-as') &&
+      error.message.includes('not debuggable');
+    if (device.platform === 'android' && refusedByRunAs) throw new NotDebuggableBuild();
+    throw error;
+  }
+
+  let restoring: Promise<void> | undefined;
+  const restore = (): Promise<void> => {
+    restoring ??= putBack();
+    return restoring;
+  };
+  const putBack = async (): Promise<void> => {
+    releaseTheHold();
+    const failures = await restoreDeviceState(device, app, saved);
+    if (sceneSaved) {
+      failures.push(...(await restoreSceneDevice(device, app, sceneSaved, folder)));
+    }
+    // Only now: a second Ctrl-C while the device is being put back must not cut the restore short.
+    process.off('SIGINT', onInterrupt);
+    process.off('SIGTERM', onTerminate);
+    if (failures.length === 0) {
+      fs.rmSync(folder, { recursive: true, force: true });
+      return;
+    }
+    process.stderr.write(
+      `Sherlo could not put the device back as it was (${failures.join('; ')}). ` +
+        `What it saved is in ${folder}\n`
+    );
+  };
+  // The signal's own exit codes, once the device is back: 128 + 2 for SIGINT, 128 + 15 for SIGTERM.
+  const onInterrupt = () => {
+    restore().then(
+      () => process.exit(130),
+      () => process.exit(130)
+    );
+  };
+  const onTerminate = () => {
+    restore().then(
+      () => process.exit(143),
+      () => process.exit(143)
+    );
+  };
+  process.on('SIGINT', onInterrupt);
+  process.on('SIGTERM', onTerminate);
+
+  try {
+    await cleanTheDevice(device, app, saved);
+  } catch (error) {
+    await restore();
+    throw error;
+  }
+
+  return restore;
+}
+
+/* ========================================================================== */
+
+/** Whether the app is installed on the device: a scene cannot launch, or be cleaned, without it. */
+export async function appIsInstalled(target: SceneTarget): Promise<boolean> {
+  const { device, app } = target;
+  try {
+    if (device.platform === 'ios') {
+      await deviceState().run('xcrun', ['simctl', 'get_app_container', device.udid, app.id]);
+      return true;
+    }
+    const listed = await deviceState().run('adb', [
+      '-s',
+      device.serial,
+      'shell',
+      'pm',
+      'path',
+      app.id,
+    ]);
+    return listed.includes('package:');
+  } catch {
+    // Both tools exit non-zero for an app that is not there.
+    return false;
+  }
+}
+
+/**
+ * Save what the device's screen shows to `file` as a PNG. The picture is written to a temporary
+ * sibling and renamed onto `file` only when the save worked: a failure throws, removes only the
+ * temporary file, and never touches a file already at `file`.
+ */
+export async function saveScreenPicture(device: SceneDevice, file: string): Promise<void> {
+  // The name keeps the extension, which simctl reads the picture's type from.
+  const temporary = path.join(path.dirname(file), `.sherlo-${process.pid}-${path.basename(file)}`);
+  try {
+    if (device.platform === 'ios') {
+      await deviceState().run('xcrun', ['simctl', 'io', device.udid, 'screenshot', temporary]);
+    } else {
+      await deviceState().run('adb', ['-s', device.serial, 'exec-out', 'screencap', '-p'], {
+        stdoutTo: temporary,
+      });
+    }
+    fs.renameSync(temporary, file);
+  } catch (error) {
+    fs.rmSync(temporary, { force: true });
+    throw error;
+  }
+}
+
+let hold: { timer: NodeJS.Timeout; release: () => void } | undefined;
+
+/**
+ * Keep the process, and so the clean device, alive until the developer stops the command: `open`
+ * leaves its scene on screen, and putting the device back would close the app under them. The
+ * restore of {@link prepareCleanDevice} releases it.
+ */
+export function holdTheCleanDevice(): Promise<void> {
+  return new Promise((resolve) => {
+    hold = { timer: setInterval(() => undefined, 60_000), release: resolve };
+  });
+}
+
+function releaseTheHold(): void {
+  if (!hold) return;
+  clearInterval(hold.timer);
+  hold.release();
+  hold = undefined;
+}
+
+/* ========================================================================== */
+/* The live device                                                            */
+/* ========================================================================== */
+
+/** The shipped answers: the developer's own simulator or emulator. */
+export const liveDeviceState: DeviceState = {
+  sceneTarget: async () => {
+    const androids = await connectedAndroids((tool, args, options) =>
+      liveDeviceState.run(tool, args, options)
+    );
+    // An ANDROID_SERIAL that names no running phone is no phone, even with a simulator booted.
+    const devices =
+      process.env.ANDROID_SERIAL && androids.length === 0
+        ? []
+        : [...(await bootedSimulators()), ...androids];
+    const root = getCwd();
+    const phones = devices.map((device) => {
+      const id = appIdOf(device.platform, root);
+      const target = id ? { device, app: { id } } : undefined;
+      const which = device.platform === 'ios' ? { udid: device.udid } : { serial: device.serial };
+      return { target, found: { platform: device.platform, ...which, appId: id, hasApp: false } };
+    });
+    // One phone is the target whether or not the app is on it: the capture then says "not installed".
+    if (phones.length === 1 && phones[0].target) return phones[0].target;
+
+    // Several phones: the ones that have the app are the candidates.
+    const candidates: SceneTarget[] = [];
+    for (const { target, found } of phones) {
+      if (target && (await appIsInstalled(target))) {
+        found.hasApp = true;
+        candidates.push(target);
+      }
+    }
+    if (candidates.length === 1) return candidates[0];
+
+    const found = phones.map((phone) => phone.found);
+    if (phones.length === 0) return { cause: 'no-phone', found };
+    return { cause: found.every((phone) => !phone.appId) ? 'no-app-id' : 'several-phones', found };
+  },
+
+  run: (tool, args, { stdoutTo, stdinFrom, timeoutMs } = {}) =>
+    new Promise((resolve, reject) => {
+      const child = spawn(tool, args, { stdio: ['pipe', 'pipe', 'pipe'], timeout: timeoutMs });
+      const out: Buffer[] = [];
+      const err: Buffer[] = [];
+      const file = stdoutTo ? fs.createWriteStream(stdoutTo) : undefined;
+      // A folder that is missing or not writable is a failed run, not a crash of the process.
+      file?.on('error', (error) => {
+        child.kill();
+        reject(error);
+      });
+      if (file) child.stdout.pipe(file);
+      else child.stdout.on('data', (chunk: Buffer) => out.push(chunk));
+      child.stderr.on('data', (chunk: Buffer) => err.push(chunk));
+      if (stdinFrom) fs.createReadStream(stdinFrom).pipe(child.stdin);
+      else child.stdin.end();
+      child.on('error', reject);
+      child.on('close', (code) => {
+        const said = Buffer.concat(err).toString('utf8').trim();
+        const finish = () =>
+          code === 0
+            ? resolve(Buffer.concat(out).toString('utf8'))
+            : reject(new Error(`${tool} ${args.join(' ')} failed: ${said || `exit ${code}`}`));
+        if (file) file.end(finish);
+        else finish();
+      });
+    }),
+
+  simulatorFolder: (udid) =>
+    path.join(os.homedir(), 'Library/Developer/CoreSimulator/Devices', udid, 'data'),
+
+  makeSaveFolder: (app) => fs.mkdtempSync(path.join(os.tmpdir(), `sherlo-clean-device-${app.id}-`)),
+};
+
+async function bootedSimulators(): Promise<SceneDevice[]> {
+  if (process.platform !== 'darwin') return [];
+  try {
+    const listed = JSON.parse(
+      await liveDeviceState.run('xcrun', ['simctl', 'list', 'devices', 'booted', '--json'])
+    ) as { devices: Record<string, Array<{ udid: string; state: string }>> };
+    return Object.values(listed.devices)
+      .flat()
+      .filter((simulator) => simulator.state === 'Booted')
+      .map((simulator) => ({ platform: 'ios', udid: simulator.udid }));
+  } catch {
+    // No Xcode on this machine: it has no simulator to clean.
+    return [];
+  }
+}
+
+/* ========================================================================== */
+
+let installed: DeviceState = liveDeviceState;
+
+/** The device in force. */
+export function deviceState(): DeviceState {
+  return installed;
+}
+
+/** Install a device for the duration of one posed run or one test; the returned function undoes it. */
+export function installDeviceState(next: DeviceState): () => void {
+  const previous = installed;
+  installed = next;
+  return () => {
+    installed = previous;
+  };
+}
+
+/** The device a pose has: none, so no posed scene is given a clean device. */
+export function posedDeviceState(): DeviceState {
+  const noDevice = (): never => {
+    throw new Error('A pose has no device: a posed scene is never given a clean device.');
+  };
+  return {
+    sceneTarget: async () => ({ cause: 'no-phone', found: [] }),
+    run: noDevice,
+    simulatorFolder: noDevice,
+    makeSaveFolder: noDevice,
+  };
+}

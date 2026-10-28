@@ -58,6 +58,14 @@ static const double REDIAL_AFTER_SECONDS = 0.5;
     return address;
 }
 
++ (BOOL)runCanFollowInDefaultMode:(BOOL)defaultMode {
+#if DEBUG
+    return YES;
+#else
+    return !defaultMode || [self addressHandedAtLaunch] != nil;
+#endif
+}
+
 - (instancetype)initWithAddress:(NSString *)address
                   nativeVersion:(NSString *)nativeVersion
                       onMessage:(void (^)(NSDictionary *message))onMessage {

@@ -1,0 +1,8 @@
+[31m✖[39m  [1mchat--menu-open[22m stopped on ChatStack › Chat - its play could not go on
+[2m   tap Connections[22m
+[2m   tap connectionListItem[22m
+
+  tap chat-header-menu found no view with that testID within 5s.
+
+
+[exit 1]

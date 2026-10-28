@@ -36,6 +36,14 @@ function checkSdkCompatibility(): boolean {
     return false;
   }
 
+  // The app was built with an older SDK than the package now installed: it still runs, but what
+  // the newer JavaScript expects of the native side may be missing, so say so.
+  if (compareCoreVersions(nativeVersion, jsVersion) < 0) {
+    console.warn(
+      `Sherlo: this app was built with SDK ${nativeVersion}, older than the installed package ${jsVersion}. Rebuild the app.`
+    );
+  }
+
   // A native build with no core loader, or a core this SDK cannot install, is the same mismatch
   // between the JavaScript and the native side, and a run without the core could not walk at all.
   const { whyThereIsNoCore } = loadSealedCore();

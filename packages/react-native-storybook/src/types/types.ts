@@ -58,6 +58,44 @@ export interface SherloParameters {
   platform?: 'ios' | 'android';
 }
 
+/**
+ * What a scene waits for before it is photographed: the `ready` of a scene (src/scenes).
+ *
+ * The screen's stillness check waits until a view carrying each `testID` is on screen and drawn,
+ * every view named in `gone` is gone, and - unless `requestsIdle` is false - no request the screen
+ * made through fetch or XMLHttpRequest is still on its way. A scene not ready within `timeoutMs`
+ * (30000 by default) fails, naming what was missing.
+ *
+ * A view is gone once it is not in the native view tree, or is there but invisible: its own or an
+ * ancestor's is hidden or near-transparent, or it has no width or height. An animated opacity
+ * counts. A view past the inspector's depth or node limit cannot be seen at all and reads as gone;
+ * the failure line names such views.
+ *
+ * A screen with no testID is named as a tap names its target: by the `text` a Text view shows
+ * (the whole string, trimmed; typed and typographic quote marks count as the same) or by the
+ * accessibility `label` of a view. Each is ready once such a view is drawn on screen. `gone` names
+ * testIDs only.
+ *
+ *   ready: { testID: 'discover.card', gone: 'splash-screen' }
+ *   ready: { text: 'Discover' }
+ */
+export interface ReadyRule {
+  testID?: string | string[];
+  text?: string | string[];
+  label?: string | string[];
+  gone?: string | string[];
+  timeoutMs?: number;
+  requestsIdle?: boolean;
+}
+
+/**
+ * What the native view tree says of one view named by testID: `visible` (drawn), `invisible`
+ * (in the tree but hidden, transparent or empty, itself or by an ancestor), `absent` (the whole
+ * tree was walked and it is not in it), or `unreached` (the walk stopped at the inspector's depth
+ * or node limit before finding it, so nothing can be said).
+ */
+export type ViewVisibility = Record<string, 'visible' | 'invisible' | 'absent' | 'unreached'>;
+
 export type StorybookView = View;
 
 type StorybookParamsRaw = Parameters<StorybookView['getStorybookUI']>[0];

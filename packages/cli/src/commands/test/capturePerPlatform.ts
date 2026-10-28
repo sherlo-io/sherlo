@@ -7,6 +7,7 @@ import type { OpenBuildAnswer } from '../../seams/serverCalls';
 import type { PlatformCapture } from '../../render/testSteps';
 import {
   bundleStoryFiles,
+  countBundleScenes,
   countBundleStories,
   countStoriesIn,
   titledStoryFilesIn,
@@ -42,6 +43,7 @@ export function capturePerPlatform({
           : (captureScope.storyFilePaths ?? []).length,
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
+      scenesInBundle: manifest ? countBundleScenes(manifest) : undefined,
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
       // a machine code. The line prints it only for a full capture.
       reason: diffScopeInfo?.platforms?.[platform]?.reason,

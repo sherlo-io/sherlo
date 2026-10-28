@@ -6,6 +6,7 @@ import { renderSegment } from '../render/renderSegment';
 import { rowsAbove } from '../commands/test/platformRows';
 import type { PlatformRow } from '../render/runRows';
 import type { TranscriptSegment } from '../render/segments';
+import { screenKindOf, type ScreenKind } from '../render/testSteps';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
@@ -570,18 +571,33 @@ function printTerminalCloser(
 
   printTestFinished(howItRan);
   emit({ kind: 'blank-line' });
+  const holds = readBuildScreenKind(build);
   if (unreviewed === 0 && reported === 0) {
     // No verbatim reason: the generic green. Covers the forward-compat degrade of a
     // counts-bypassed build whose poll carries no prose, and every ordinary green build.
-    emit({ kind: 'verdict-passed' });
+    emit({ kind: 'verdict-passed', holds });
   } else {
     emit({
       kind: 'verdict-review-required',
       screens: build.stories ?? undefined,
       counts: { unreviewed, reported },
+      holds,
     });
   }
   emit({ kind: 'blank-line' });
+}
+
+/**
+ * What the build holds, counted over every platform it pushed: the ONLY reader of the build's
+ * `storiesInBundle` and `scenesInBundle`. Every verdict, the wait's and `sherlo view`'s, takes its
+ * words from this answer.
+ */
+export function readBuildScreenKind(build: BuildStatus): ScreenKind {
+  const platforms = Object.values(build.platforms ?? {});
+  return screenKindOf({
+    stories: platforms.reduce((sum, platform) => sum + (platform?.storiesInBundle ?? 0), 0),
+    scenes: platforms.reduce((sum, platform) => sum + (platform?.scenesInBundle ?? 0), 0),
+  });
 }
 
 /** Which test the wait closed on, and how long it ran when the wait saw it start. */

@@ -2,6 +2,7 @@ import throwError from '../../helpers/throwError';
 import { emit } from '../../helpers/transcriptSink';
 import type { ViewJson } from '../../render/buildView';
 import type { BuildStatus } from '../../helpers/buildStatusRequest';
+import { readBuildScreenKind } from '../../helpers/waitForBuildResult';
 
 /**
  * EVERYTHING `sherlo view` PRINTS about a build it has already read - and it
@@ -60,6 +61,7 @@ export function printBuildView({
     runStatus: build.runStatus,
     status: build.status,
     counts: build.viewStatusesCount,
+    holds: readBuildScreenKind(build),
   });
 
   // Absent, not empty: a build with no view rows yet (queued, or errored before

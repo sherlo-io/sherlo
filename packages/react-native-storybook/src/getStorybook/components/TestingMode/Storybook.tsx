@@ -8,6 +8,7 @@ import { getStorybookComponent } from '../../helpers';
 import { RunnerBridge } from '../../../helpers';
 import { useRef } from 'react';
 import SherloModule from '../../../SherloModule';
+import announceAppShowsWhatItTests from '../../../helpers/announceAppShowsWhatItTests';
 
 /**
  * We applied styles based on how they are defined in the link below to ensure that user's stories
@@ -92,7 +93,7 @@ function Storybook({
 
   if (!reportedSherloJSLoaded.current) {
     reportedSherloJSLoaded.current = true;
-    (global as any).__sherloStorybookRendered = true;
+    announceAppShowsWhatItTests();
     send({
       action: 'STORYBOOK_RENDERED',
       ...(lastState?.requestId && { requestId: lastState.requestId }),

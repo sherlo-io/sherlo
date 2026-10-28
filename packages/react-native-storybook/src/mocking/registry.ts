@@ -1,4 +1,5 @@
 import { clearNetworkMocks } from './network';
+import { rulesInEffect, unmatchedRules } from './networkRules';
 import { MockSet, ModuleExports } from './types';
 import SherloModule from '../SherloModule';
 import { restoreClock } from './clock';
@@ -21,6 +22,10 @@ type MockLookups = {
   // The keys the story or its file declare. A project mock is a default most stories never read,
   // so reaching nothing fails the story only for these.
   declaredByStory: Set<string>;
+  // Whether the screen has been judged: its stillness check ran, or its ready wait ran out. An
+  // app booted as the scene (../storyReady) first imports a mocked module as it renders, well after
+  // activation, so only from then on is a mock no read reached one that reached nothing.
+  settled: boolean;
 };
 
 function newMockLookups(storyId: string | undefined): MockLookups {
@@ -30,6 +35,7 @@ function newMockLookups(storyId: string | undefined): MockLookups {
     realImportThrew: new Map(),
     namesAsWritten: new Map(),
     declaredByStory: new Set(),
+    settled: false,
   };
 }
 
@@ -49,9 +55,29 @@ const MOCKED_MODULE_ERROR_NAME = 'MockedModuleError';
 
 let activeActivation: Activation | null = null;
 
+// ONE COPY OF THIS MODULE MAY RUN. A second copy has its own active mocks, so the shims that read
+// it never meet the mocks the first copy was handed, and every mock silently misses. An app gets
+// two copies when package exports are off and the SDK's files resolve once by "main" and once by
+// "exports"; loading says so here instead of failing story by story.
+const REGISTRY_LOADED_FLAG = '__sherloMockRegistryLoaded';
+{
+  const host = globalThis as Record<string, unknown>;
+  if (host[REGISTRY_LOADED_FLAG]) {
+    throw new Error(
+      'Sherlo loaded its mock registry twice, so no mock can reach the module it names. This happens ' +
+        'when package exports are off: set resolver.unstable_enablePackageExports to true in metro.config.js'
+    );
+  }
+  host[REGISTRY_LOADED_FLAG] = true;
+}
+
 // Keys that a generated shim has actually registered via createMockable, i.e. modules
 // that are really mockable at runtime. Populated as shim modules are evaluated (FG-03).
 const shimmedKeys = new Set<string>();
+
+// Keys whose module was read while no mock of them was on. What the app built from such a read - an
+// MMKV instance made at module scope - holds the real module, and no later mock reaches it.
+const builtBeforeMock = new Set<string>();
 
 // Installs the mock set for one story, replacing any previously active set.
 //
@@ -90,6 +116,38 @@ function recordRealImportThrew(key: string, message: string): string | undefined
   const { lookups } = activeActivation;
   lookups.realImportThrew.set(key, message);
   return lookups.namesAsWritten.get(key) ?? key;
+}
+
+// The scene whose mocks are in effect has been judged on screen (see MockLookups' `settled`).
+function markStorySettled(): void {
+  if (activeActivation) activeActivation.lookups.settled = true;
+}
+
+// Positive proof that `storyId`'s rules are the ones in effect: how many module mocks, request
+// rules and socket rules went in. A record that says nothing of its rules cannot tell a scene with
+// none from a scene whose rules never went in.
+function rulesInstalledProof(storyId: string): {
+  installed: boolean;
+  modules: number;
+  requests: number;
+  sockets: number;
+} {
+  const active = activeActivation;
+  if (!active || active.lookups.storyId !== storyId) {
+    return { installed: false, modules: 0, requests: 0, sockets: 0 };
+  }
+  return { installed: true, modules: Object.keys(active.mocks).length, ...rulesInEffect() };
+}
+
+// The rules in effect that were never used: a declared module mock no read reached, and a request
+// or socket rule nothing matched. Empty when no rules are in effect.
+function rulesNeverMatched(): string[] {
+  if (!activeActivation) return [];
+  const { mocks, lookups } = activeActivation;
+  const modules = Object.keys(mocks)
+    .filter((key) => lookups.declaredByStory.has(key) && !lookups.reached.has(key))
+    .map((key) => `module ${lookups.namesAsWritten.get(key) ?? key}`);
+  return [...modules, ...unmatchedRules()];
 }
 
 // Puts back what the ending story wrote to real objects, newest write first.
@@ -166,6 +224,17 @@ function registerShimmedKey(key: string): void {
   shimmedKeys.add(key);
 }
 
+// An export of module `key` is being read: remembered when no mock of it is on, as that read hands
+// the app the real export.
+function recordRealRead(key: string): void {
+  if (!activeActivation || !(key in activeActivation.mocks)) builtBeforeMock.add(key);
+}
+
+// Whether the module `key` was built before any mock of it was on (see builtBeforeMock).
+function wasBuiltBeforeMock(key: string): boolean {
+  return builtBeforeMock.has(key);
+}
+
 // Whether `key` has a generated shim that has actually run createMockable. A declared
 // mock key that is NOT shimmed can never apply (see mockFailureOf in ./activateStoryMocks).
 function isKeyShimmed(key: string): boolean {
@@ -175,6 +244,7 @@ function isKeyShimmed(key: string): boolean {
 /** Test-only: reset shimmedKeys between unit tests so shim registration doesn't leak. */
 function __resetShimmedKeysForTests(): void {
   shimmedKeys.clear();
+  builtBeforeMock.clear();
 }
 
 export type { MockLookups };
@@ -183,6 +253,9 @@ export {
   newMockLookups,
   activeMockLookups,
   recordRealImportThrew,
+  markStorySettled,
+  rulesInstalledProof,
+  rulesNeverMatched,
   activateMocks,
   clearMocks,
   resolveMockExports,
@@ -190,6 +263,8 @@ export {
   recordUndo,
   registerShimmedKey,
   isKeyShimmed,
+  recordRealRead,
+  wasBuiltBeforeMock,
   isMockingModeActive,
   __resetShimmedKeysForTests,
 };

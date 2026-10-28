@@ -32,7 +32,7 @@ import {
 } from '../commands/test/uploadBundles';
 import type { StagedUploadKeys } from '../commands/test/uploadStagedArtifacts';
 import type { BuildSettings } from '../commands/test/appBuild/buildSettings';
-import { countBundleStories } from '../commands/test/readModuleManifest';
+import { countBundleScenes, countBundleStories } from '../commands/test/readModuleManifest';
 import { renderBundleHoldsNoStories } from '../render/appBuild';
 import throwError from './throwError';
 import type { GateMetadataInput } from './fingerprint';
@@ -182,11 +182,15 @@ export default uploadFreshBundles;
 /**
  * A bundle whose module map counts no stories is refused before anything is uploaded: Storybook
  * was switched off by a variable the build never saw, and a run that photographed nothing would
- * read green. A bundle with no module map says nothing about its stories, and goes on.
+ * read green. A bundle with no module map says nothing about its stories, and goes on; so does
+ * one that holds scenes, which are captured as stories are.
  */
 function refuseABundleWithNoStories(bundles: Partial<Record<Platform, BundleResult>>): void {
   const holdsNoStories = Object.values(bundles).some(
-    (bundle) => bundle?.moduleManifest && countBundleStories(bundle.moduleManifest) === 0
+    (bundle) =>
+      bundle?.moduleManifest &&
+      countBundleStories(bundle.moduleManifest) === 0 &&
+      countBundleScenes(bundle.moduleManifest) === 0
   );
   if (holdsNoStories) throwError(renderBundleHoldsNoStories());
 }

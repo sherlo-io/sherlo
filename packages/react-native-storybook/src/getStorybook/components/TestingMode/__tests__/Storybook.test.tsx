@@ -57,7 +57,9 @@ vi.mock('react-native-safe-area-context', () => ({
 }));
 vi.mock('../../../helpers', () => ({ getStorybookComponent: mockGetStorybookComponent }));
 vi.mock('../../../../helpers', () => ({ RunnerBridge: { log: vi.fn() } }));
-vi.mock('../../../../SherloModule', () => ({ default: { getLastState: mockGetLastState } }));
+vi.mock('../../../../SherloModule', () => ({
+  default: { getLastState: mockGetLastState, notifyGetStorybookCalled: vi.fn() },
+}));
 vi.mock('../../../../connection/appLine', () => ({ send: mockSend }));
 
 import Storybook from '../Storybook';

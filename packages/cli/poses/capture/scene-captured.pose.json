@@ -1,0 +1,195 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "chat--conversation"],
+  "capture": {
+    "scenes": [
+      "chat--conversation",
+      "chat--no-messages-yet",
+      "chat--no-longer-active",
+      "chat--menu-open",
+      "chat-list--inbox",
+      "chat-list--empty",
+      "profile--own-profile",
+      "sign-in--empty"
+    ],
+    "route": ["ChatStack", "Chat"],
+    "bootMs": 1800,
+    "reachedMs": 2400,
+    "play": [{ "tap": "Connections" }, { "tap": "connectionListItem" }],
+    "settled": { "ms": 600, "frames": 4 },
+    "tree": {
+      "primitive": "View",
+      "components": ["Chat"],
+      "size": { "width": 360, "height": 800 },
+      "style": { "flex": 1, "backgroundColor": "#fff" },
+      "children": [
+        {
+          "primitive": "View",
+          "components": ["ChatHeader"],
+          "size": { "width": 360, "height": 56 },
+          "style": {
+            "flexDirection": "row",
+            "alignItems": "center",
+            "paddingHorizontal": 12,
+            "borderBottomWidth": 1,
+            "borderBottomColor": "#e5e7eb"
+          },
+          "children": [
+            {
+              "primitive": "Image",
+              "components": ["Avatar"],
+              "size": { "width": 36, "height": 36 },
+              "style": { "borderRadius": 18, "marginRight": 10 },
+              "props": { "testID": "chat-header-avatar" }
+            },
+            {
+              "primitive": "Text",
+              "components": ["ChatHeaderName"],
+              "size": { "width": 200, "height": 22 },
+              "style": { "flex": 1, "fontSize": 17, "fontWeight": "600", "color": "#111827" },
+              "text": "Mateo"
+            },
+            {
+              "primitive": "View",
+              "components": ["IconButton"],
+              "size": { "width": 44, "height": 44 },
+              "style": { "alignItems": "center", "justifyContent": "center" },
+              "props": { "testID": "chat-header-menu", "accessibilityLabel": "Chat menu" }
+            }
+          ]
+        },
+        {
+          "primitive": "ScrollView",
+          "components": ["MessageList"],
+          "size": { "width": 360, "height": 688 },
+          "style": { "flex": 1, "padding": 16 },
+          "children": [
+            {
+              "primitive": "View",
+              "components": ["MessageBubble"],
+              "size": { "width": 236, "height": 66 },
+              "style": {
+                "alignSelf": "flex-end",
+                "backgroundColor": "#7c3aed",
+                "borderRadius": 18,
+                "paddingHorizontal": 14,
+                "paddingVertical": 10,
+                "marginBottom": 8
+              },
+              "children": [
+                {
+                  "primitive": "Text",
+                  "components": ["MessageText"],
+                  "size": { "width": 208, "height": 46 },
+                  "style": { "fontSize": 16, "color": "#fff" },
+                  "text": "Hey Mateo! Loved your photos from Lisbon"
+                }
+              ]
+            },
+            {
+              "primitive": "View",
+              "components": ["MessageBubble"],
+              "size": { "width": 248, "height": 66 },
+              "style": {
+                "alignSelf": "flex-start",
+                "backgroundColor": "#f3f4f6",
+                "borderRadius": 18,
+                "paddingHorizontal": 14,
+                "paddingVertical": 10,
+                "marginBottom": 8
+              },
+              "children": [
+                {
+                  "primitive": "Text",
+                  "components": ["MessageText"],
+                  "size": { "width": 220, "height": 46 },
+                  "style": { "fontSize": 16, "color": "#111827" },
+                  "text": "Thanks! The surf trip was unreal. Do you surf?"
+                }
+              ]
+            },
+            {
+              "primitive": "View",
+              "components": ["MessageBubble"],
+              "size": { "width": 236, "height": 42 },
+              "style": {
+                "alignSelf": "flex-end",
+                "backgroundColor": "#7c3aed",
+                "borderRadius": 18,
+                "paddingHorizontal": 14,
+                "paddingVertical": 10,
+                "marginBottom": 8
+              },
+              "children": [
+                {
+                  "primitive": "Text",
+                  "components": ["MessageText"],
+                  "size": { "width": 208, "height": 22 },
+                  "style": { "fontSize": 16, "color": "#fff" },
+                  "text": "Tried once, fell a lot"
+                }
+              ]
+            },
+            {
+              "primitive": "View",
+              "components": ["MessageBubble"],
+              "size": { "width": 248, "height": 42 },
+              "style": {
+                "alignSelf": "flex-start",
+                "backgroundColor": "#f3f4f6",
+                "borderRadius": 18,
+                "paddingHorizontal": 14,
+                "paddingVertical": 10,
+                "marginBottom": 8
+              },
+              "children": [
+                {
+                  "primitive": "Text",
+                  "components": ["MessageText"],
+                  "size": { "width": 220, "height": 22 },
+                  "style": { "fontSize": 16, "color": "#111827" },
+                  "text": "Ha, I can teach you. Saturday?"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "primitive": "View",
+          "components": ["MessageInput"],
+          "size": { "width": 360, "height": 56 },
+          "style": {
+            "flexDirection": "row",
+            "alignItems": "center",
+            "paddingHorizontal": 12,
+            "borderTopWidth": 1,
+            "borderTopColor": "#e5e7eb"
+          },
+          "children": [
+            {
+              "primitive": "TextInput",
+              "components": ["MessageInput"],
+              "size": { "width": 296, "height": 40 },
+              "style": {
+                "flex": 1,
+                "fontSize": 16,
+                "backgroundColor": "#fff",
+                "borderRadius": 20,
+                "paddingHorizontal": 14
+              },
+              "props": { "placeholder": "Message Mateo...", "testID": "chat-message-input" }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

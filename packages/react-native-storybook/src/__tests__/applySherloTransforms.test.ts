@@ -911,7 +911,7 @@ describe('applySherloTransforms - the header is the same wherever the project si
 // developer's bundler at all - the middleware Sherlo adds to the config it hands back. Without it
 // there is no road, and every test either side of it still passes.
 
-describe('aStoryFileChangedSince - the story files the bundle loads, checked when a capture asks', () => {
+describe('aStoryOrSceneFileChangedSince - the story and scene files the bundle loads, checked when a capture asks', () => {
   function projectWithAStoryFile() {
     const project = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-changed-since-'));
     fs.mkdirSync(path.join(project, 'src'));
@@ -930,7 +930,10 @@ describe('aStoryFileChangedSince - the story files the bundle loads, checked whe
     const modifiedAt = Date.now() - 10_000;
     fs.utimesSync(storyFile, modifiedAt / 1000, modifiedAt / 1000);
 
-    expect(applySherloTransforms.aStoryFileChangedSince(project, {}, modifiedAt - 1000)).toBe(true);
+    // It names the changed file under the project root, for the restart's cause on the log feed.
+    expect(
+      applySherloTransforms.aStoryOrSceneFileChangedSince(project, {}, modifiedAt - 1000)
+    ).toBe(path.join('src', 'Button.stories.tsx'));
     fs.rmSync(project, { recursive: true, force: true });
   });
 
@@ -939,9 +942,39 @@ describe('aStoryFileChangedSince - the story files the bundle loads, checked whe
     const modifiedAt = Date.now() - 10_000;
     fs.utimesSync(storyFile, modifiedAt / 1000, modifiedAt / 1000);
 
-    expect(applySherloTransforms.aStoryFileChangedSince(project, {}, modifiedAt + 1000)).toBe(
-      false
-    );
+    expect(
+      applySherloTransforms.aStoryOrSceneFileChangedSince(project, {}, modifiedAt + 1000)
+    ).toBe(false);
+    fs.rmSync(project, { recursive: true, force: true });
+  });
+
+  function projectWithASceneFile() {
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-scene-changed-since-'));
+    fs.mkdirSync(path.join(project, 'src'));
+    const sceneFile = path.join(project, 'src', 'Inbox.scenes.tsx');
+    fs.writeFileSync(sceneFile, 'export const Full = () => null;\n');
+    return { project, sceneFile };
+  }
+
+  it('a scene file changed after the app started is a reason to reload, with no Storybook in the project', () => {
+    const { project, sceneFile } = projectWithASceneFile();
+    const modifiedAt = Date.now() - 10_000;
+    fs.utimesSync(sceneFile, modifiedAt / 1000, modifiedAt / 1000);
+
+    expect(
+      applySherloTransforms.aStoryOrSceneFileChangedSince(project, {}, modifiedAt - 1000)
+    ).toBe(path.join('src', 'Inbox.scenes.tsx'));
+    fs.rmSync(project, { recursive: true, force: true });
+  });
+
+  it('a scene file unchanged since the app started is no reason to reload', () => {
+    const { project, sceneFile } = projectWithASceneFile();
+    const modifiedAt = Date.now() - 10_000;
+    fs.utimesSync(sceneFile, modifiedAt / 1000, modifiedAt / 1000);
+
+    expect(
+      applySherloTransforms.aStoryOrSceneFileChangedSince(project, {}, modifiedAt + 1000)
+    ).toBe(false);
     fs.rmSync(project, { recursive: true, force: true });
   });
 });

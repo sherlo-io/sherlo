@@ -1,0 +1,6 @@
+[32m✔[39m  [1mchat--conversation[22m is on screen, booted fresh at ChatStack › Chat
+
+[2mEdits to the screen reload in place. Edits to a mock or a scene need `npx sherlo open --scene chat--conversation` again.[22m
+
+
+[exit 0]

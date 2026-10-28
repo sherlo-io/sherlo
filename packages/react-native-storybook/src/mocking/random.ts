@@ -20,6 +20,7 @@ export function mockRandom(seed: number): ModuleMockDeclaration {
     // It rides the module-declaration channel, so it is one - see the note on the key above.
     kind: 'module',
     moduleKey: () => Promise.resolve(RANDOM_MOCK_KEY),
+    keyAtDeclaration: RANDOM_MOCK_KEY,
     definition: { seed } as MockDefinition,
   };
 }

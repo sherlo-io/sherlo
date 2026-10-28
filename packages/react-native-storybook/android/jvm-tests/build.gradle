@@ -27,7 +27,7 @@ android {
 }
 
 // Only the classes that have tests here are compiled; the rest of the module needs React Native.
-def classesUnderTest = ['SherloSocket.java', 'WebSocketFrames.java', 'RestartHelper.java']
+def classesUnderTest = ['SherloSocket.java', 'WebSocketFrames.java', 'RestartHelper.java', 'TouchHelper.java', 'SherloAnswersGate.java', 'SherloRequestKind.java']
 tasks.withType(JavaCompile).configureEach {
     exclude { element ->
         // A folder is never excluded, or its files would go with it.

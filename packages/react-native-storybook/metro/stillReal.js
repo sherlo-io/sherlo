@@ -19,6 +19,7 @@
 var path = require('path');
 var toRelativePath = require('./projectPaths').toRelativePath;
 var SOURCE_EXTENSIONS = require('./sourceFiles').SOURCE_EXTENSIONS;
+var packageNameOf = require('./mockShims').packageNameOf;
 
 var NOT_THE_APPS =
   /(^|\/)(node_modules|\.sherlo|\.rnstorybook|\.storybook|sherlo-lib)(\/|$)|\.stories\.[a-z]+$|storybook\.requires\.[a-z]+$/;
@@ -44,9 +45,49 @@ function appModulePathsOf(graphModules, createModuleId, projectRoot) {
   return paths;
 }
 
-/** A Metro pre-module (a script that runs before the modules) that sets the list. */
-function listPreModule(paths) {
-  var code = 'globalThis.__sherloStillRealPaths = ' + JSON.stringify(paths) + ';';
+/**
+ * The libraries that hold a private copy of what each declared mock names, as
+ * { mockKey: [library] }: a module under node_modules/<library>/node_modules/<package of the key>.
+ * A mock of the app's copy never reaches it, and the SDK names the library when such a mock misses
+ * (src/mocking/stillReal.ts privateCopiesHandedByBundler), reading by the mock key as written.
+ * @param {Map<string, any>} graphModules - Metro's graph.dependencies
+ * @param {string[]} mockedModuleKeys - the keys the project's mocks are declared under
+ */
+function privateCopiesOf(graphModules, mockedModuleKeys) {
+  var byPackage = privateCopiesByPackage(graphModules);
+  var owners = {};
+  (mockedModuleKeys || []).forEach(function (key) {
+    var found = byPackage[packageNameOf(key)];
+    if (found) owners[key] = found;
+  });
+  return owners;
+}
+
+function privateCopiesByPackage(graphModules) {
+  var owners = {};
+  graphModules.forEach(function (module, absPath) {
+    var names = absPath
+      .split('/node_modules/')
+      .slice(1)
+      .map(packageNameOf);
+    if (names.length < 2) return;
+    var owner = names[names.length - 2];
+    var copy = names[names.length - 1];
+    owners[copy] = owners[copy] || [];
+    if (owners[copy].indexOf(owner) === -1) owners[copy].push(owner);
+  });
+  return owners;
+}
+
+/** A Metro pre-module (a script that runs before the modules) that sets the lists. */
+function listPreModule(paths, privateCopies) {
+  var code =
+    'globalThis.__sherloStillRealPaths = ' +
+    JSON.stringify(paths) +
+    ';';
+  if (privateCopies && Object.keys(privateCopies).length > 0) {
+    code += 'globalThis.__sherloPrivateCopies = ' + JSON.stringify(privateCopies) + ';';
+  }
   return {
     path: '\0sherlo-still-real-paths',
     dependencies: new Map(),
@@ -67,7 +108,7 @@ function listPreModule(paths) {
  * Wrap a serializer so its bundle carries the list.
  * @returns {Function} a serializer
  */
-function withStillRealList(delegateSerializer, projectRoot) {
+function withStillRealList(delegateSerializer, projectRoot, mockedModuleKeys) {
   return function stillRealSerializer(entryPoint, preModules, graph, options) {
     var modules = preModules;
     try {
@@ -77,7 +118,8 @@ function withStillRealList(delegateSerializer, projectRoot) {
           options.createModuleId,
           (options && options.projectRoot) || projectRoot
         );
-        modules = preModules.concat([listPreModule(paths)]);
+        modules = preModules.concat([listPreModule(paths, privateCopiesOf(graph.dependencies, mockedModuleKeys)),
+        ]);
       }
     } catch (_) {
       // Never throw into a user's bundle: no list means nothing is watched.
@@ -91,14 +133,14 @@ function withStillRealList(delegateSerializer, projectRoot) {
  * bundler's middleware (`bundlerServes`) is how this process learns it serves one: a process that
  * only builds a bundle for a device answers no request, so what it serializes carries no list.
  */
-function listForServedBundles(projectRoot) {
+function listForServedBundles(projectRoot, mockedModuleKeys) {
   var serves = false;
   return {
     bundlerServes: function () {
       serves = true;
     },
     wrap: function (delegateSerializer) {
-      var withList = withStillRealList(delegateSerializer, projectRoot);
+      var withList = withStillRealList(delegateSerializer, projectRoot, mockedModuleKeys);
       return function servedBundleSerializer(entryPoint, preModules, graph, options) {
         return (serves ? withList : delegateSerializer)(entryPoint, preModules, graph, options);
       };
@@ -109,6 +151,7 @@ function listForServedBundles(projectRoot) {
 module.exports = {
   appModulePathsOf: appModulePathsOf,
   listForServedBundles: listForServedBundles,
+  privateCopiesOf: privateCopiesOf,
   listPreModule: listPreModule,
   withStillRealList: withStillRealList,
 };

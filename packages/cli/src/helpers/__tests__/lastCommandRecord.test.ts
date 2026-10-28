@@ -32,6 +32,29 @@ describe('the last command record', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
+  it('a CLI test leaves no last command record in the repository', () => {
+    // Only what THIS run writes is looked at: the repository's disk is shared with every other
+    // test file running beside this one, so a file found there may be another's. The writes are
+    // held back and listed, so nothing lands on disk and nothing else's can be mistaken for ours.
+    const written: string[] = [];
+    vi.spyOn(fs, 'writeFileSync').mockImplementation(((file: unknown) => {
+      written.push(String(file));
+    }) as never);
+    vi.spyOn(fs, 'mkdirSync').mockImplementation(((folder: unknown) => {
+      written.push(String(folder));
+    }) as never);
+
+    // A posed run: the command starts in a temporary project, which is gone when the process ends.
+    recordLastCommand('login', {});
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    putLiveFolderBack();
+    endProcess(0);
+
+    const repository = path.resolve(process.cwd());
+    expect(written.filter((file) => path.resolve(file).startsWith(repository))).toEqual([]);
+    expect(fs.existsSync(projectRoot)).toBe(false);
+  });
+
   it("Every Sherlo command records its name, its flags with tokens hidden, its exit code and its error lines in the project's .sherlo folder", () => {
     recordLastCommand('test', { platform: 'ios', projectToken: 'secret-token', token: undefined });
     process.stderr.write('\u001b[31mNo devices in the config\u001b[0m\nFix sherlo.config.json\n');

@@ -10,7 +10,12 @@ var whatThisBuildCarries = require('./sherloBuild').whatThisBuildCarries;
 var detectStorybookSetup = require('./detectStorybookSetup').detectStorybookSetup;
 var findStorybookEntry = require('./detectStorybookSetup').findStorybookEntry;
 var applyLaunchTimeEntry = require('./launchTimeEntry').applyLaunchTimeEntry;
+var writeBundledScenesModule = require('./sceneFiles').writeBundledScenesModule;
+var keepSceneListCurrent = require('./sceneFiles').keepSceneListCurrent;
+var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
 var projectRootOf = require('./projectPaths').projectRootOf;
+var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
+var resolvesToFile = require('./mockShims').resolvesToFile;
 
 var SDK_PACKAGE_NAME = '@sherlo/react-native-storybook';
 var STAND_IN_MODULE = '@sherlo/react-native-storybook/dist/offStandIn.js';
@@ -149,7 +154,119 @@ function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuil
   ensureStorybookRequires(projectRoot, storybookOptions);
   var withStorybookOn = loadNewerStorybookWrapper(projectRoot)(config, storybookOptions);
   var withSherlo = applySherloTransforms(withStorybookOn, storybookOptions);
-  return applyLaunchTimeEntry(withSherlo, storybookEntry, sherloBuild);
+  return withSceneBoot(applyLaunchTimeEntry(withSherlo, storybookEntry, sherloBuild));
+}
+
+/**
+ * Whether the project has no Storybook: no Storybook config folder, as `resolveConfigDir` finds it
+ * (it honours the config path option).
+ *
+ * Storybook's old road cannot work without one: its wrapper throws "main config file not found"
+ * when it has no config folder to read, and the default setup's entry file sits inside one. No app
+ * was found that the old road serves with no config folder, so no folder means the scenes-only
+ * road, whatever the package manager installed (npm 7+ installs the peer `@storybook/react-native`),
+ * with scene files or not yet.
+ */
+function hasNoStorybook(projectRoot, opts) {
+  return resolveConfigDir(projectRoot, opts) === null;
+}
+
+/**
+ * The road of an app with no Storybook, with scene files or not yet: Sherlo's transforms, then a launch entry
+ * with only the app's side. No Storybook wrapper is loaded and no setup file is written.
+ */
+function withScenesOnly(config, opts, sherloBuild) {
+  if (sherloBuild === 'off') return config;
+  return withSceneBoot(
+    applyLaunchTimeEntry(applySherloTransforms(config, opts), null, sherloBuild),
+    true
+  );
+}
+
+/**
+ * The SDK's file at `relativePath` inside its package, as the project loads the SDK, symlinks
+ * followed: the path Metro files the module under. Null when the project cannot load the SDK.
+ */
+function sdkFileOfProject(projectRoot, relativePath) {
+  try {
+    var requireFromProject = require('module').createRequire(
+      path.join(projectRoot, 'package.json')
+    );
+    var sdkFolder = path.dirname(requireFromProject.resolve(SDK_PACKAGE_NAME + '/package.json'));
+    return fs.realpathSync(path.join(sdkFolder, relativePath));
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * The launched scene's mocks on before the app's first module (src/sceneBoot.ts), on a config
+ * that carries Sherlo. Two steps, both only for a project with scene files, except on the
+ * scenes-only road (`installWithNoScene`), where a project with no scene file yet gets both with an
+ * empty list, so the watcher writes the first scene file added while the bundler runs:
+ *
+ * - Metro runs the SDK's early-boot module before the bundle's main module, after the modules the
+ *   config already runs there: React Native's own start-up installs the globals (fetch,
+ *   XMLHttpRequest, WebSocket) the network mocks wrap, so it must run first. Metro runs a listed
+ *   module only when it is in the bundle; the SDK's entry imports it.
+ * - The SDK's import of its empty list of scenes (src/bundledScenes.ts) is answered with the
+ *   project's own list, written now (sceneFiles.js, writeBundledScenesModule).
+ *
+ * The list follows the scene files while the bundler runs: once Metro's server hands over its file
+ * watcher, each scene file added, renamed or edited writes the list again (keepSceneListCurrent),
+ * and Metro rebuilds it like any changed file, so no restart is needed. The module manifest's scene
+ * ids are read from the files each time a bundle is made, so they follow the same files.
+ */
+function withSceneBoot(config, installWithNoScene) {
+  var projectRoot = projectRootOf(config);
+  var sceneBootModule = sdkFileOfProject(projectRoot, 'dist/sceneBoot.js');
+  var emptySceneList = sdkFileOfProject(projectRoot, 'dist/bundledScenes.js');
+  if (!sceneBootModule || !emptySceneList) return config;
+  var cacheDir = sherloCacheFolder(projectRoot);
+  var sceneList = writeBundledScenesModule(projectRoot, cacheDir, installWithNoScene);
+  if (!sceneList) return config;
+
+  var resolveAsTheConfigDoes = applySherloTransforms.resolveThroughConfig(config);
+  function resolveRequest(context, moduleName, platform) {
+    var resolution = resolveAsTheConfigDoes(context, moduleName, platform);
+    var isTheEmptySceneList =
+      !!resolution &&
+      resolution.type === 'sourceFile' &&
+      path.basename(resolution.filePath) === path.basename(emptySceneList) &&
+      resolvesToFile(resolution, emptySceneList);
+    return isTheEmptySceneList ? { type: 'sourceFile', filePath: sceneList } : resolution;
+  }
+
+  var serializer = config.serializer || {};
+  var runBeforeMainAsConfigured = serializer.getModulesRunBeforeMainModule;
+  function getModulesRunBeforeMainModule(entryFilePath) {
+    var asConfigured = runBeforeMainAsConfigured
+      ? runBeforeMainAsConfigured.call(this, entryFilePath)
+      : [];
+    return asConfigured.concat([sceneBootModule]);
+  }
+
+  var server = config.server || {};
+  var enhanceAsConfigured = server.enhanceMiddleware;
+  var followedWatcher = null;
+  function enhanceMiddleware(middleware, metroServer) {
+    var watcher = fileWatcherOfMetro(metroServer);
+    if (watcher && watcher !== followedWatcher) {
+      followedWatcher = watcher;
+      keepSceneListCurrent(watcher, projectRoot, cacheDir);
+    }
+    return enhanceAsConfigured
+      ? enhanceAsConfigured.call(this, middleware, metroServer)
+      : middleware;
+  }
+
+  return Object.assign({}, config, {
+    resolver: Object.assign({}, config.resolver, { resolveRequest: resolveRequest }),
+    serializer: Object.assign({}, serializer, {
+      getModulesRunBeforeMainModule: getModulesRunBeforeMainModule,
+    }),
+    server: Object.assign({}, server, { enhanceMiddleware: enhanceMiddleware }),
+  });
 }
 
 /**
@@ -173,6 +290,10 @@ function withStorybook(config, opts) {
   var thisBuild = whatThisBuildCarries(process.env, isReleaseBundle(), opts && opts.enabled);
   var defaultSetupEntry = defaultSetupStorybookEntry(projectRoot, opts);
 
+  if (!defaultSetupEntry && hasNoStorybook(projectRoot, opts)) {
+    return withScenesOnly(config, opts, thisBuild.sherloBuild);
+  }
+
   if (thisBuild.sherloBuild === 'off') {
     var storybookWrapper = defaultSetupEntry
       ? loadNewerStorybookWrapper(projectRoot)
@@ -191,7 +312,7 @@ function withStorybook(config, opts) {
   // requires file already exists.
   ensureStorybookRequires(projectRoot, storybookOptions);
   var result = loadOldSetupStorybookWrapper()(config, storybookOptions);
-  return applySherloTransforms(result, storybookOptions);
+  return withSceneBoot(applySherloTransforms(result, storybookOptions));
 }
 
 function isPromise(value) {
