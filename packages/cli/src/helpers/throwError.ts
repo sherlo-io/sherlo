@@ -84,6 +84,10 @@ function getErrorMessage(params: Params): string {
     const { stdout, stderr } = params.error;
     if (stdout) errorMessageParts.push(`\n${stdout}`);
     if (stderr) errorMessageParts.push(`\n${stderr}`);
+
+    // Node's fetch hides the host, the code and the reason one level down, in `cause`.
+    const reason = describeCause(params.error.cause);
+    if (reason) errorMessageParts.push(chalk.dim(`(cause: ${reason})`));
   } else {
     if (params.learnMoreLink) {
       errorMessageParts.push(chalk.dim(`↳ Learn more: ${printLink(params.learnMoreLink)}`));
@@ -94,6 +98,21 @@ function getErrorMessage(params: Params): string {
   }
 
   return blankSecrets(errorMessageParts.join('\n')) + '\n';
+}
+
+function describeCause(cause: unknown): string | null {
+  if (!(cause instanceof Error)) return null;
+
+  const { code, hostname, address, port } = cause as Error & {
+    code?: string;
+    hostname?: string;
+    address?: string;
+    port?: number;
+  };
+  const server = hostname ?? address;
+  const where = server ? ` at ${server}${port ? `:${port}` : ''}` : '';
+
+  return `${code ? `${code}: ` : ''}${cause.message}${where}`;
 }
 
 function reportError(params: Params) {
