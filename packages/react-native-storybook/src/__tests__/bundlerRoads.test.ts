@@ -22,12 +22,26 @@ import {
 } from './__mocks__/react-native';
 import { bundlerCapture, startCaptureTransport, stopCaptureTransport } from '../captureTransport';
 import { __resetForTests as __resetTheLine, startTheLine } from '../connection/appLine';
+import { enterBundlingProcess } from './bundlingProcess';
 import { BUNDLER_LINE_PATH } from '../constants';
 import { bundlerLetterbox, startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
 import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
 
 const withStorybook = require('../../metro/withStorybook');
+
+/** A project root with the SDK folder an installed Sherlo leaves in node_modules. */
+function mkSdkProject(prefix: string): string {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+  fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+  fs.writeFileSync(path.join(root, 'package.json'), '{"name":"app"}\n');
+  const sdk = path.join(root, 'node_modules/@sherlo/react-native-storybook');
+  fs.mkdirSync(path.join(sdk, 'dist'), { recursive: true });
+  fs.writeFileSync(path.join(sdk, 'package.json'), '{"name":"@sherlo/react-native-storybook"}\n');
+  fs.writeFileSync(path.join(sdk, 'dist/sceneBoot.js'), '');
+  fs.writeFileSync(path.join(sdk, 'dist/bundledScenes.js'), '');
+  return root;
+}
 
 /** What the SDK handed the fake core's `method`, the last time it called it. */
 function lastHandedTo(method: 'startCaptureTransport' | 'startOpenStoryChannel'): unknown {
@@ -217,5 +231,57 @@ describe('the road of an app with no Storybook and no scene file yet', () => {
     // Sherlo's transforms and launch entry are on, and no Storybook wrapper was asked for.
     expect(typeof config.resolver.resolveRequest).toBe('function');
     expect(typeof config.server.enhanceMiddleware).toBe('function');
+  });
+
+  it('an app with Storybook installed but no Storybook folder and no scene file bundles on the scenes-only road', () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-npm-no-folder-')));
+    fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+    fs.writeFileSync(path.join(root, 'package.json'), '{"name":"app"}\n');
+    // What npm 7+ installs for the SDK's peer.
+    const storybook = path.join(root, 'node_modules/@storybook/react-native');
+    fs.mkdirSync(storybook, { recursive: true });
+    fs.writeFileSync(path.join(storybook, 'package.json'), '{"name":"@storybook/react-native"}\n');
+
+    let config;
+    try {
+      config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // The old road would throw for want of a config folder; this one carries Sherlo's steps.
+    expect(typeof config.resolver.resolveRequest).toBe('function');
+    expect(typeof config.server.enhanceMiddleware).toBe('function');
+  });
+
+  it('an app with a Storybook config folder and no scene file gets no scene boot', () => {
+    const root = mkSdkProject('sherlo-storybook-road-');
+    fs.mkdirSync(path.join(root, '.rnstorybook'));
+    fs.writeFileSync(
+      path.join(root, '.rnstorybook/main.js'),
+      "module.exports = { stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'], addons: [] };\n"
+    );
+
+    const leaveBundlingProcess = enterBundlingProcess({ SHERLO_BUILD: 'app-and-storybook' }, [
+      'start',
+    ]);
+    let config;
+    let sceneListWritten;
+    try {
+      config = withStorybook(
+        { projectRoot: root, resolver: {}, serializer: {} },
+        { configPath: path.join(root, '.rnstorybook') }
+      );
+      sceneListWritten = fs.existsSync(
+        path.join(root, 'node_modules/.cache/sherlo/bundled-scenes.js')
+      );
+    } finally {
+      leaveBundlingProcess();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // Storybook's road, as before: no early-boot module run and no scene list written.
+    expect(config.serializer.getModulesRunBeforeMainModule).toBeUndefined();
+    expect(sceneListWritten).toBe(false);
   });
 });

@@ -267,11 +267,14 @@ function scenesOfProject(projectRoot) {
  *
  * @param {string} projectRoot
  * @param {string} cacheDir - the folder the module is written into
- * @returns {string|null} the module's path, or null when the project has no scene
+ * @param {boolean} [installWithNoScene] - write a list with no scene in it when the project has none,
+ *   so the watcher has a list to write the first scene into
+ * @returns {string|null} the module's path, or null when the project has no scene and
+ *   `installWithNoScene` is not set
  */
-function writeBundledScenesModule(projectRoot, cacheDir) {
+function writeBundledScenesModule(projectRoot, cacheDir, installWithNoScene) {
   var scenes = scenesOfProject(projectRoot);
-  if (Object.keys(scenes).length === 0) return null;
+  if (Object.keys(scenes).length === 0 && !installWithNoScene) return null;
   return writeSceneList(projectRoot, cacheDir, scenes);
 }
 
