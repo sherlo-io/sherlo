@@ -213,6 +213,7 @@ describe('a scene is captured and opened live', () => {
     expect(ran).toEqual([
       'xcrun simctl terminate UDID-1 com.example.chat',
       'xcrun simctl get_app_container UDID-1 com.example.chat',
+      `xcrun simctl spawn UDID-1 defaults write com.example.chat RCT_jsLocation localhost:${bundler.port}`,
       `xcrun simctl launch UDID-1 com.example.chat -sherloCapture ${SCENE}`,
     ]);
     // The scene is asked for as a scene, so the line hands the app a scene to walk.
@@ -865,7 +866,7 @@ describe('a scene is captured and opened live', () => {
     );
   });
 
-  it('an Android capture of an app with no development launcher starts it as before', async () => {
+  it('an Android capture of an app with no development launcher starts it with its own launch command', async () => {
     const bundler = await pretendBundler((question) =>
       question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
     );
@@ -885,7 +886,7 @@ describe('a scene is captured and opened live', () => {
       uninstall();
     }
 
-    expect(ran.join('\n')).not.toContain('reverse');
+    expect(ran).toContain(`adb -s emulator-5554 reverse tcp:${bundler.port} tcp:${bundler.port}`);
     expect(ran).toContain(
       `adb -s emulator-5554 shell am start -n com.example.chat/.ChatActivity -a android.intent.action.MAIN -c android.intent.category.LAUNCHER --es sherloCapture ${SCENE}`
     );
@@ -1040,7 +1041,7 @@ describe('a scene is captured and opened live', () => {
     expect(ran[write]).toContain('expo.modules.devmenu.sharedpreferences.xml');
   });
 
-  it('an Android clean-device start of an app with no development launcher writes no preferences', async () => {
+  it('an Android clean-device start of an app with no development launcher writes no developer menu preferences', async () => {
     const bundler = await pretendBundler((question) =>
       question.action === 'readLogLines' ? { lines: [] } : SCENE_RECORD
     );
@@ -1060,7 +1061,17 @@ describe('a scene is captured and opened live', () => {
       uninstall();
     }
 
-    expect(ran.join('\n')).not.toContain('run-as');
+    const written = ran
+      .filter((command) => command.includes('run-as'))
+      .map((command) => {
+        const [, encoded, file] = /echo (\S+) \| base64 -d > (\S+?)'?$/.exec(command) ?? [];
+        return { file, xml: Buffer.from(encoded ?? '', 'base64').toString() };
+      });
+    expect(written.map((one) => one.file)).toEqual([
+      '/data/data/com.example.chat/shared_prefs/com.example.chat_preferences.xml',
+    ]);
+    expect(written[0].xml.match(/name="/g)).toHaveLength(1);
+    expect(written[0].xml).toContain(`name="debug_http_host">localhost:${bundler.port}<`);
   });
 
   it('an Android launch the phone refuses stops the capture with what the phone printed', async () => {

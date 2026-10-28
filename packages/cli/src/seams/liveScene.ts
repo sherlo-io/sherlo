@@ -18,6 +18,8 @@ import { deviceState, isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
 import {
   androidDevelopmentLauncherLink,
+  pointAndroidAppAtBundler,
+  pointIosAppAtBundler,
   iosDevelopmentLauncherLink,
   prepareAndroidDevMenuForCapture,
 } from './developmentLauncher';
@@ -185,6 +187,8 @@ async function launchFresh(
           value,
         ]);
       }
+    } else {
+      await pointIosAppAtBundler(run, device.udid, app.id, port);
     }
     // expo-dev-launcher reads `--initialUrl <url>` from the process arguments at launch and opens
     // that link first (EXDevLauncherController `initialUrlFromProcessInfo`), so one launch carries
@@ -229,10 +233,12 @@ async function launchFresh(
   const link = await androidDevelopmentLauncherLink(adb, app.id, port);
   if (link) {
     await prepareAndroidDevMenuForCapture(adb, app.id);
-    // A clean phone has no last bundle for Expo's development launcher to reopen (the data is
-    // wiped before each scene), so the start hands it the bundler's address through its own link.
-    await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
+  } else {
+    await pointAndroidAppAtBundler(adb, app.id, port);
   }
+  // A clean phone has no last bundle for Expo's development launcher to reopen (the data is wiped
+  // before each scene), and a plain app asks localhost: either way the phone's port must reach the bundler.
+  await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
   await dropStaleLines(port);
   const launchedAt = Date.now();
   const started = await adb(

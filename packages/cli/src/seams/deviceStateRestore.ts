@@ -16,6 +16,7 @@ import {
   POST_NOTIFICATIONS,
   emptyTheAndroidData,
   emptyTheContainer,
+  reverseMappings,
   stopTheApp,
 } from './deviceStateSave';
 import type { SavedDevice } from './deviceStateSave';
@@ -38,7 +39,7 @@ export async function restoreDeviceState(
   await step('closing the app', () => stopTheApp(device, app));
 
   if (device.platform === 'ios' && saved.platform === 'ios') {
-    await restoreIos(device.udid, saved, step);
+    await restoreIos(device.udid, app.id, saved, step);
   }
   if (device.platform === 'android' && saved.platform === 'android') {
     await restoreAndroid(device.serial, app, saved, step);
@@ -51,6 +52,7 @@ type Step = (what: string, act: () => Promise<void> | void) => Promise<void>;
 
 async function restoreIos(
   udid: string,
+  appId: string,
   saved: Extract<SavedDevice, { platform: 'ios' }>,
   step: Step
 ): Promise<void> {
@@ -63,6 +65,16 @@ async function restoreIos(
         recursive: true,
       });
     }
+  });
+
+  await step("the app's bundler address", async () => {
+    // The preferences daemon still holds what the capture wrote, whatever the files now say.
+    const defaults = ['simctl', 'spawn', udid, 'defaults'];
+    const key = [appId, 'RCT_jsLocation'];
+    await (saved.jsLocation === null
+      ? // Deleting a key the daemon never had fails: the key is already gone.
+        run('xcrun', [...defaults, 'delete', ...key]).catch(() => '')
+      : run('xcrun', [...defaults, 'write', ...key, saved.jsLocation]));
   });
 
   await step('Reduce Motion', async () => {
@@ -109,6 +121,19 @@ async function restoreAndroid(
         : adb('shell', 'settings', 'put', 'global', scale, was));
     });
   }
+
+  await step("the phone's adb reverse mappings", async () => {
+    // Without a list from the save, nothing says which mappings were the phone's own: touch none.
+    const before = saved.reversed;
+    const now = await reverseMappings(adb);
+    if (before === null || now === null) return;
+    for (const mapping of now.filter((one) => !before.includes(one))) {
+      await adb('reverse', '--remove', mapping.split(' ')[0]);
+    }
+    for (const mapping of before.filter((one) => !now.includes(one))) {
+      await adb('reverse', ...mapping.split(' '));
+    }
+  });
 
   if (saved.notifications === 'not-granted') {
     await step('the notifications permission', async () => {
