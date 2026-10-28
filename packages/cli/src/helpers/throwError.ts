@@ -15,7 +15,7 @@ type StandardErrorParams = {
 };
 
 type UnexpectedErrorParams = {
-  error: Error & { stdout?: string; stderr?: string; cause?: unknown };
+  error: Error & { stdout?: string; stderr?: string; cause?: unknown; networkError?: unknown };
   type: Extract<ErrorType, 'unexpected'>;
 };
 
@@ -81,7 +81,7 @@ function getErrorMessage(params: Params): string {
     const errorLocation = getErrorLocation();
     if (errorLocation) errorMessageParts.push(chalk.dim(`(in ${errorLocation})`));
 
-    const causeLine = describeCause(params.error.cause, 1);
+    const causeLine = describeCause(params.error.cause ?? params.error.networkError, 1);
     if (causeLine) errorMessageParts.push(chalk.dim(`cause: ${causeLine}`));
 
     const { stdout, stderr } = params.error;

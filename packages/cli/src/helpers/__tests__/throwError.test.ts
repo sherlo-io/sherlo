@@ -60,6 +60,25 @@ describe('the error a command throws', () => {
     );
   });
 
+  it('an unexpected API error prints the cause of its network error', () => {
+    vi.spyOn(reporting, 'captureException').mockImplementation(() => {});
+    const networkError = Object.assign(new TypeError('fetch failed'), {
+      cause: {
+        code: 'ECONNREFUSED',
+        address: '127.0.0.1',
+        port: 4000,
+        message: 'connect ECONNREFUSED 127.0.0.1:4000',
+      },
+    });
+    const apiError = Object.assign(new Error('fetch failed'), { networkError });
+
+    const error = caught(() => throwError({ type: 'unexpected', error: apiError }));
+
+    expect(error.message).toContain(
+      'cause: fetch failed <- ECONNREFUSED 127.0.0.1:4000 - connect ECONNREFUSED 127.0.0.1:4000'
+    );
+  });
+
   it('an unexpected error with no cause prints no cause line', () => {
     vi.spyOn(reporting, 'captureException').mockImplementation(() => {});
 
