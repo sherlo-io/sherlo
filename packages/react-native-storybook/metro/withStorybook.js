@@ -10,7 +10,6 @@ var whatThisBuildCarries = require('./sherloBuild').whatThisBuildCarries;
 var detectStorybookSetup = require('./detectStorybookSetup').detectStorybookSetup;
 var findStorybookEntry = require('./detectStorybookSetup').findStorybookEntry;
 var applyLaunchTimeEntry = require('./launchTimeEntry').applyLaunchTimeEntry;
-var findSceneFiles = require('./sceneFiles').findSceneFiles;
 var writeBundledScenesModule = require('./sceneFiles').writeBundledScenesModule;
 var keepSceneListCurrent = require('./sceneFiles').keepSceneListCurrent;
 var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
@@ -159,30 +158,17 @@ function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuil
 }
 
 /**
- * Whether the project has no Storybook: no Storybook config folder, and either at least one scene
- * file or no `@storybook/react-native` the project can load.
+ * Whether the project has no Storybook: no Storybook config folder, as `resolveConfigDir` finds it
+ * (it honours the config path option).
  *
- * The rule: a config folder means the app set Storybook up, so it keeps Storybook's road. Without
- * one, the app is on the scenes-only road when it has scene files (as before) or when Storybook is
- * not installed, which is every new app before its first scene file: the old road would throw on
- * the Storybook wrapper the app never installed. An app that installed Storybook but has no config
- * folder and no scene file yet keeps the old road, which can load that wrapper.
+ * Storybook's old road cannot work without one: its wrapper throws "main config file not found"
+ * when it has no config folder to read, and the default setup's entry file sits inside one. No app
+ * was found that the old road serves with no config folder, so no folder means the scenes-only
+ * road, whatever the package manager installed (npm 7+ installs the peer `@storybook/react-native`),
+ * with scene files or not yet.
  */
 function hasNoStorybook(projectRoot, opts) {
-  if (resolveConfigDir(projectRoot, opts) !== null) return false;
-  return findSceneFiles(projectRoot).length > 0 || !storybookIsInstalled(projectRoot);
-}
-
-function storybookIsInstalled(projectRoot) {
-  try {
-    require('module')
-      .createRequire(path.join(projectRoot, 'package.json'))
-      .resolve('@storybook/react-native/package.json');
-    return true;
-  } catch (_) {
-    // Not resolvable from the project: Storybook is not installed there.
-    return false;
-  }
+  return resolveConfigDir(projectRoot, opts) === null;
 }
 
 /**
@@ -192,7 +178,8 @@ function storybookIsInstalled(projectRoot) {
 function withScenesOnly(config, opts, sherloBuild) {
   if (sherloBuild === 'off') return config;
   return withSceneBoot(
-    applyLaunchTimeEntry(applySherloTransforms(config, opts), null, sherloBuild)
+    applyLaunchTimeEntry(applySherloTransforms(config, opts), null, sherloBuild),
+    true
   );
 }
 
@@ -214,7 +201,9 @@ function sdkFileOfProject(projectRoot, relativePath) {
 
 /**
  * The launched scene's mocks on before the app's first module (src/sceneBoot.ts), on a config
- * that carries Sherlo. Two steps, both only for a project with scene files:
+ * that carries Sherlo. Two steps, both only for a project with scene files, except on the
+ * scenes-only road (`installWithNoScene`), where a project with no scene file yet gets both with an
+ * empty list, so the watcher writes the first scene file added while the bundler runs:
  *
  * - Metro runs the SDK's early-boot module before the bundle's main module, after the modules the
  *   config already runs there: React Native's own start-up installs the globals (fetch,
@@ -228,13 +217,13 @@ function sdkFileOfProject(projectRoot, relativePath) {
  * and Metro rebuilds it like any changed file, so no restart is needed. The module manifest's scene
  * ids are read from the files each time a bundle is made, so they follow the same files.
  */
-function withSceneBoot(config) {
+function withSceneBoot(config, installWithNoScene) {
   var projectRoot = projectRootOf(config);
   var sceneBootModule = sdkFileOfProject(projectRoot, 'dist/sceneBoot.js');
   var emptySceneList = sdkFileOfProject(projectRoot, 'dist/bundledScenes.js');
   if (!sceneBootModule || !emptySceneList) return config;
   var cacheDir = sherloCacheFolder(projectRoot);
-  var sceneList = writeBundledScenesModule(projectRoot, cacheDir);
+  var sceneList = writeBundledScenesModule(projectRoot, cacheDir, installWithNoScene);
   if (!sceneList) return config;
 
   var resolveAsTheConfigDoes = applySherloTransforms.resolveThroughConfig(config);

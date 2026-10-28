@@ -247,6 +247,36 @@ describe('scene files are found and bundled', () => {
     expect(sceneList).toContain('"./src/Inbox.scenes.tsx"');
   });
 
+  it('the first scene file added while the bundler runs is in the scene list without a restart', () => {
+    const root = mkProject();
+    writeFile(root, 'index.js', 'module.exports = 1;');
+    const sdk = 'node_modules/@sherlo/react-native-storybook';
+    writeFile(root, `${sdk}/package.json`, '{ "name": "@sherlo/react-native-storybook" }');
+    writeFile(root, `${sdk}/dist/sceneBoot.js`, '');
+    writeFile(root, `${sdk}/dist/bundledScenes.js`, '');
+
+    // The bundler starts with no scene file, and its file watcher is the one Metro's server holds.
+    const config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    const watcher = new EventEmitter();
+    const metroServer = {
+      getBundler: () => ({ getBundler: () => ({ getWatcher: () => watcher }) }),
+    };
+    const passOn = (_request: unknown, _response: unknown, next: () => void) => next();
+    config.server.enhanceMiddleware(passOn, metroServer);
+
+    // The first scene file is added while it runs, and the watcher tells of it.
+    writeFile(root, 'src/Chat.scenes.tsx', CHAT_SCENES);
+    watcher.emit('change', metro084Change({ addedFiles: ['src/Chat.scenes.tsx'] }));
+
+    const sceneList = fs.readFileSync(
+      path.join(root, 'node_modules', '.cache', 'sherlo', 'bundled-scenes.js'),
+      'utf8'
+    );
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(sceneList).toContain('"chat--conversation"');
+  });
+
   it('a scene file name decides alone, in any source extension', () => {
     const accepted = ['a.scenes.tsx', 'a.scenes.ts', 'a.scenes.jsx', 'a.scenes.js'];
     const refused = ['a.stories.tsx', 'scenes.tsx', 'a.scenes.json'];

@@ -139,6 +139,11 @@
     "react-native": ">=0.81.0",
     "react-native-safe-area-context": "*"
   },
+  "peerDependenciesMeta": {
+    "@storybook/react-native": {
+      "optional": true
+    }
+  },
   "engines": {
     "node": ">=18.0.0"
   },
