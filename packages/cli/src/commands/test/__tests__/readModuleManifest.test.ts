@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderTestStarted } from '../../../render/runRows';
 import {
   bundleStoryFiles,
+  countBundleScenes,
   countBundleStories,
   countStoriesIn,
   deleteModuleManifestSidecar,
@@ -60,6 +61,26 @@ describe('readValidatedModuleManifest - happy path', () => {
     expect(result!.parsed.version).toBe(1);
     expect(result!.parsed.moduleHashes['./src/Button.tsx']).toBe('a'.repeat(64));
     expect(result!.parsed.storyClosures['./src/Button.stories.tsx']).toEqual(['./src/Button.tsx']);
+  });
+});
+
+describe('scene ids from the module map', () => {
+  it('reads the scene ids the bundler wrote, and counts them', () => {
+    writeManifest(JSON.stringify({ ...validManifest(), sceneIds: ['chat--empty', 'chat--full'] }));
+
+    const manifest = readValidatedModuleManifest(projectRoot)!;
+
+    expect(manifest.parsed.sceneIds).toEqual(['chat--empty', 'chat--full']);
+    expect(countBundleScenes(manifest)).toBe(2);
+  });
+
+  it('a module map whose scene ids are not a list of strings holds no scenes', () => {
+    writeManifest(JSON.stringify({ ...validManifest(), sceneIds: [1, 'chat--full'] }));
+
+    const manifest = readValidatedModuleManifest(projectRoot)!;
+
+    expect(manifest.parsed.sceneIds).toBeUndefined();
+    expect(countBundleScenes(manifest)).toBe(0);
   });
 });
 

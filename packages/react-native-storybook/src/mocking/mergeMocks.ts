@@ -5,6 +5,11 @@ import {
   StoryMocks,
 } from './mockDeclaration';
 
+// A SCENE FILE USES THE SAME RULE WITH ONE LEVEL LESS: the file's mocks sit under the scene's own
+// (as `global` and `story`), so a scene's mocks are its file's plus its own, and for a module both
+// name the scene's definition replaces the file's whole (activateSceneMocks, in
+// getStorybook/storyMockActivation). The file's are shared defaults, as a project's are for a story.
+//
 // Precedence: story > meta > global. For any module, the most specific level that names it
 // wins outright - its whole definition replaces what an outer level declared for that module.
 // Modules an inner level leaves untouched still come through from whichever outer level

@@ -32,6 +32,14 @@ static const NSInteger SHERLO_PROTOCOL_VERSION = 1;
 + (nullable NSString *)addressHandedAtLaunch;
 
 /**
+ * Whether a Sherlo run can follow, the one gate for native code a shipped app must never run
+ * (Android: SherloAnswersGate.runCanFollow): in a debug build, where Storybook and a capture open
+ * by a reload in the same process; outside default mode; or when the runner handed its address at
+ * launch. A release app in default mode launched with no address is never touched.
+ */
++ (BOOL)runCanFollowInDefaultMode:(BOOL)defaultMode;
+
+/**
  * @param address The ws:// address to dial
  * @param nativeVersion The SDK's native version, for every hello
  * @param onMessage Called with each message the connection brings, on the line's own queue

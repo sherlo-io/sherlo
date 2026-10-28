@@ -217,6 +217,11 @@ export type PosedBundle = {
   storyTitles?: Record<string, string>;
   /** The serializer's `storyCounts`: per story file, how many stories it holds. */
   storyCounts?: Record<string, number>;
+  /**
+   * The scene ids the bundle holds, in Storybook's id style (`inbox--full`). Absent poses a bundle
+   * with no scenes. A real bundle fills it from the serializer's `sceneIds`.
+   */
+  sceneIds?: string[];
 };
 
 /**
@@ -585,6 +590,12 @@ export type PosedLetterbox =
         name: string;
         message: string;
       };
+    }
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      /** The route the app is on once it has booted fresh and moved to the scene, outermost first. */
+      route: string[];
     };
 
 /**
@@ -647,6 +658,70 @@ export type PosedCapture =
       /** Whether any view in the story loads an image over the network. Absent prints nothing. */
       hasNetworkImage?: boolean;
       /** The view tree the app read, from the story's own root. */
+      tree: PosedView;
+    }
+  | {
+      /** Every scene id the app's scene files make, in Storybook's id style. */
+      scenes: string[];
+      threwAtBoot: {
+        name: string;
+        message: string;
+        file: string;
+        line: number;
+      };
+    }
+  | {
+      scenes: string[];
+      /** The testID of the view the scene waits for. */
+      ready: string;
+      /** The route the app was on when the wait ran out, outermost screen first. */
+      stayedOn: string[];
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: UnansweredRequest[];
+    }
+  | {
+      scenes: string[];
+      /** The route the app stood on when the step found nothing, outermost screen first. */
+      route: string[];
+      bootMs: number;
+      reachedMs: number;
+      /** The steps that ran before the one that found nothing. */
+      playDone: PosedPlayStep[];
+      /** The step that found nothing, and how long it looked. */
+      targetMissing:
+        | {
+            tap: string;
+            limitMs: number;
+          }
+        | {
+            longPress: string;
+            limitMs: number;
+          }
+        | {
+            type: string;
+            limitMs: number;
+          }
+        | {
+            swipe: string;
+            direction: 'left' | 'right' | 'up' | 'down';
+            limitMs: number;
+          };
+    }
+  | {
+      scenes: string[];
+      /** The route the app's navigation reached, read from the app, outermost screen first. */
+      route: string[];
+      /** How long the fresh boot took, and how long from there until the ready view showed. */
+      bootMs: number;
+      reachedMs: number;
+      /** The scene's play steps, all done. */
+      play: PosedPlayStep[];
+      settled: {
+        ms: number;
+        frames: number;
+      };
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: UnansweredRequest[];
       tree: PosedView;
     };
 
@@ -958,6 +1033,8 @@ export type PushFactsPlatform = {
   nativeChanges?: string[];
   /** How many stories the pushed bundle holds. */
   storiesInBundle?: number;
+  /** How many scenes the pushed bundle holds. */
+  scenesInBundle?: number;
 };
 
 /**
@@ -1022,6 +1099,11 @@ export type StartedRun = {
      * absent.
      */
     storiesInBundle?: number;
+    /**
+     * How many scenes the bundle holds; absent or 0 when it holds none. A scene is captured on a
+     * full capture and is stated beside the stories.
+     */
+    scenesInBundle?: number;
     /** The server's own reason, printed only on a full capture. */
     reason?: string;
     /**
@@ -1161,16 +1243,20 @@ export type PosedPlatformBuild =
 /** A story file that threw as the app loaded it, and what it threw, in its own words. */
 export type BrokenStoryFile = {
   file: string;
-  error: {
-    name: string;
-    message: string;
-  };
+  error: AppError;
 };
 
-/** A request a story made that no mock answered, so it went to the real network. */
+/**
+ * A request that no mock answered; the app lists it whether the story refused it or let it
+ * through. The details are what a discover capture sends (masked, never a whole body); a story
+ * record keeps none.
+ */
 export type UnansweredRequest = {
   method: string;
   url: string;
+  contentType?: string;
+  operation?: string;
+  bodyExcerpt?: string;
 };
 
 /**
@@ -1192,6 +1278,28 @@ export type PosedView = {
   props?: Record<string, string | number | boolean>;
   children?: PosedView[];
 };
+
+/**
+ * One step of a scene's `play`: a tap, a long-press, a typing (its name only) or a swipe on a
+ * view, or one of the app's own links.
+ */
+export type PosedPlayStep =
+  | {
+      tap: string;
+    }
+  | {
+      longPress: string;
+    }
+  | {
+      type: string;
+    }
+  | {
+      swipe: string;
+      direction: 'left' | 'right' | 'up' | 'down';
+    }
+  | {
+      open: string;
+    };
 
 /**
  * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
@@ -1238,6 +1346,8 @@ export type BuildStatusPlatform = {
   } | null;
   /** How many stories the pushed bundle holds, as the push counted them. */
   storiesInBundle?: number | null;
+  /** How many scenes the pushed bundle holds, as the push counted them. */
+  scenesInBundle?: number | null;
 };
 
 /**
@@ -1295,6 +1405,20 @@ export type StoredBaseSources = {
     name: string;
     version: string;
   }>;
+};
+
+/**
+ * An error as the app tells it over the capture socket: its name and message, and - when the app
+ * sent them - where it came from: the component stack and the top frames of the error's stack.
+ * `--json` prints all of it; what the terminal prints stays the name and message alone.
+ */
+export type AppError = {
+  name: string;
+  message: string;
+  /** The React components the error passed through, innermost first, as the app wrote them. */
+  componentStack?: string;
+  /** The first few frames of the error's own stack, one line each. */
+  topFrames?: string[];
 };
 
 /** One source of a stored app build's list. */

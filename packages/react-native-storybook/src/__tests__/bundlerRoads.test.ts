@@ -9,17 +9,39 @@
  * keeps what the JavaScript sends and plays what the connection brings; the core is the suite's
  * fake (./__mocks__/fakeSealedCore), which records what it is handed.
  */
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeModules } from 'react-native';
 import {
   __emitMessageFromTheConnection,
+  __getDialedAddresses,
   __getSentMessages,
   __resetConnection,
 } from './__mocks__/react-native';
 import { bundlerCapture, startCaptureTransport, stopCaptureTransport } from '../captureTransport';
+import { __resetForTests as __resetTheLine, startTheLine } from '../connection/appLine';
+import { enterBundlingProcess } from './bundlingProcess';
+import { BUNDLER_LINE_PATH } from '../constants';
 import { bundlerLetterbox, startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
 import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
+
+const withStorybook = require('../../metro/withStorybook');
+
+/** A project root with the SDK folder an installed Sherlo leaves in node_modules. */
+function mkSdkProject(prefix: string): string {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+  fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+  fs.writeFileSync(path.join(root, 'package.json'), '{"name":"app"}\n');
+  const sdk = path.join(root, 'node_modules/@sherlo/react-native-storybook');
+  fs.mkdirSync(path.join(sdk, 'dist'), { recursive: true });
+  fs.writeFileSync(path.join(sdk, 'package.json'), '{"name":"@sherlo/react-native-storybook"}\n');
+  fs.writeFileSync(path.join(sdk, 'dist/sceneBoot.js'), '');
+  fs.writeFileSync(path.join(sdk, 'dist/bundledScenes.js'), '');
+  return root;
+}
 
 /** What the SDK handed the fake core's `method`, the last time it called it. */
 function lastHandedTo(method: 'startCaptureTransport' | 'startOpenStoryChannel'): unknown {
@@ -59,7 +81,8 @@ describe("the SDK's road to the bundler's capture relay", () => {
 
     const instruction = bundlerCapture()!.waitForACapture(saying);
 
-    expect(__getSentMessages()).toEqual([{ action: 'waitForACapture', ...saying }]);
+    // With it go the scenes the bundle holds: none in a bundle made without Sherlo's bundler config.
+    expect(__getSentMessages()).toEqual([{ action: 'waitForACapture', scenes: [], ...saying }]);
     // Another message the connection brings is not the answer.
     __emitMessageFromTheConnection({ action: 'letterboxAnswer', storyId: 'not-for-the-capture' });
     __emitMessageFromTheConnection({ action: 'captureInstruction', storyId: STORY });
@@ -154,5 +177,111 @@ describe("the SDK's road to the bundler's letterbox", () => {
     startOpenStoryChannel({ view, channel: makeChannel(), atTheStoryBrowser: true });
 
     expect(lastHandedTo('startOpenStoryChannel')).toBeUndefined();
+  });
+});
+
+describe("the bundler's address on the road of an app with scene files and no Storybook", () => {
+  it("a scenes-only bundle carries the bundler's address the app dials", () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-scenes-only-')));
+    fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+    fs.mkdirSync(path.join(root, 'src'));
+    fs.writeFileSync(path.join(root, 'src/Chat.scenes.js'), 'export default { scenes: {} };\n');
+
+    let config;
+    try {
+      config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // The bundler answers at the line's address, on the road no Storybook wrapper is loaded on.
+    const answered: { status?: number; body?: string } = {};
+    const response = {
+      writeHead: (status: number) => (answered.status = status),
+      end: (body: string) => (answered.body = body),
+    };
+    const passedOn = vi.fn();
+    const middleware = config.server.enhanceMiddleware(passedOn, {});
+    middleware({ url: `${BUNDLER_LINE_PATH}?platform=android`, socket: {} }, response, vi.fn());
+
+    expect(passedOn).not.toHaveBeenCalled();
+    expect(answered.status).toBe(200);
+    expect(JSON.parse(answered.body!)).toEqual({ protocolVersion: expect.any(Number) });
+
+    // And the SDK the bundle loads dials that same address on the bundler it came from.
+    __resetTheLine();
+    startTheLine();
+    expect(__getDialedAddresses()).toEqual([`ws://localhost:8081${BUNDLER_LINE_PATH}`]);
+  });
+});
+
+describe('the road of an app with no Storybook and no scene file yet', () => {
+  it('an app with no Storybook and no scene file yet bundles on the scenes-only road', () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-no-scenes-yet-')));
+    fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+    fs.writeFileSync(path.join(root, 'package.json'), '{"name":"app"}\n');
+
+    let config;
+    try {
+      config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // Sherlo's transforms and launch entry are on, and no Storybook wrapper was asked for.
+    expect(typeof config.resolver.resolveRequest).toBe('function');
+    expect(typeof config.server.enhanceMiddleware).toBe('function');
+  });
+
+  it('an app with Storybook installed but no Storybook folder and no scene file bundles on the scenes-only road', () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-npm-no-folder-')));
+    fs.writeFileSync(path.join(root, 'index.js'), 'module.exports = 1;\n');
+    fs.writeFileSync(path.join(root, 'package.json'), '{"name":"app"}\n');
+    // What npm 7+ installs for the SDK's peer.
+    const storybook = path.join(root, 'node_modules/@storybook/react-native');
+    fs.mkdirSync(storybook, { recursive: true });
+    fs.writeFileSync(path.join(storybook, 'package.json'), '{"name":"@storybook/react-native"}\n');
+
+    let config;
+    try {
+      config = withStorybook({ projectRoot: root, resolver: {}, serializer: {} }, {});
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // The old road would throw for want of a config folder; this one carries Sherlo's steps.
+    expect(typeof config.resolver.resolveRequest).toBe('function');
+    expect(typeof config.server.enhanceMiddleware).toBe('function');
+  });
+
+  it('an app with a Storybook config folder and no scene file gets no scene boot', () => {
+    const root = mkSdkProject('sherlo-storybook-road-');
+    fs.mkdirSync(path.join(root, '.rnstorybook'));
+    fs.writeFileSync(
+      path.join(root, '.rnstorybook/main.js'),
+      "module.exports = { stories: ['../src/**/*.stories.?(ts|tsx|js|jsx)'], addons: [] };\n"
+    );
+
+    const leaveBundlingProcess = enterBundlingProcess({ SHERLO_BUILD: 'app-and-storybook' }, [
+      'start',
+    ]);
+    let config;
+    let sceneListWritten;
+    try {
+      config = withStorybook(
+        { projectRoot: root, resolver: {}, serializer: {} },
+        { configPath: path.join(root, '.rnstorybook') }
+      );
+      sceneListWritten = fs.existsSync(
+        path.join(root, 'node_modules/.cache/sherlo/bundled-scenes.js')
+      );
+    } finally {
+      leaveBundlingProcess();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+
+    // Storybook's road, as before: no early-boot module run and no scene list written.
+    expect(config.serializer.getModulesRunBeforeMainModule).toBeUndefined();
+    expect(sceneListWritten).toBe(false);
   });
 });

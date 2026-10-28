@@ -28,7 +28,9 @@
  *
  *   THE CAPTURE RELAY (`captureStory`) RELAYS. It pairs one waiting app with one waiting driver and
  *   keeps nothing once the answer has crossed. An app not in testing mode is told to move there,
- *   and is handed the story with the order, so it lands on it. An app whose JavaScript died as it
+ *   and is handed the story with the order, so it lands on it. A scene, asked by `sceneId`, is
+ *   handed to the app as `sceneId`, never as a story, and refused as a story the app does not have
+ *   when the scenes its bundle holds (`scenes`) rule it out. An app whose JavaScript died as it
  *   started (`start-failed`) is the one thing it keeps: a capture of it is answered `crashed`, with
  *   the app's error, until that app's JavaScript waits for a capture again or its connection goes.
  *
@@ -57,6 +59,9 @@ var APP_HOLD_MS = 20000;
 /** How many log lines the feed keeps for a reader that has not come yet; the oldest go first. */
 var MOST_LOG_LINES_KEPT = 1000;
 
+/** How many changed files one log feed line names; the rest are counted. */
+var MOST_CHANGED_FILES_NAMED = 5;
+
 /** How long `--wait` waits for the app to draw the story, when the driver does not say. */
 var DEFAULT_PAINT_WAIT_SECONDS = 30;
 
@@ -75,7 +80,7 @@ var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogL
  *
  * @param {object} httpServer Node's http.Server, already carrying its own upgrade listeners, if any.
  * @param {Function} WebSocketServer `ws`'s WebSocketServer class (ws 7 calls it `Server`).
- * @param {{ appHoldMs?: number, warn?: (message: string) => void, storyFileChangedSince?: (time: number) => boolean }} [settings]
+ * @param {{ appHoldMs?: number, warn?: (message: string) => void, storyFileChangedSince?: (time: number) => boolean | string }} [settings]
  */
 function attach(httpServer, WebSocketServer, settings) {
   var line = createLine(settings || {});
@@ -110,7 +115,15 @@ function attach(httpServer, WebSocketServer, settings) {
   // The server's own sockets close with it; the line's close the same way.
   httpServer.on('close', close);
 
-  return { ask: line.ask, onApp: line.onApp, close: close };
+  return { ask: line.ask, onApp: line.onApp, filesChanged: line.filesChanged, close: close };
+}
+
+/** A title the way Storybook turns it into the first part of a story id. */
+function idPartOfTitle(title) {
+  return String(title)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
 /**
@@ -141,9 +154,13 @@ function createLine(settings) {
     return false;
   };
 
-  var letterbox = createLetterbox(appHoldMs);
-  var captureRelay = createCaptureRelay(appHoldMs, settings.storyFileChangedSince || nothingChanged);
   var logFeed = createLogFeed();
+  var letterbox = createLetterbox(appHoldMs);
+  var captureRelay = createCaptureRelay(
+    appHoldMs,
+    settings.storyFileChangedSince || nothingChanged,
+    logFeed.add
+  );
 
   /** Everyone who wants to hear of each app that says hello. */
   var appListeners = [];
@@ -225,7 +242,10 @@ function createLine(settings) {
 
     // The other two are answered at once, and leave nothing waiting.
     if (question.action === 'whatIsOnScreen') reply(letterbox.whatIsOnScreen());
-    if (question.action === 'readLogLines') reply({ lines: logFeed.drain() });
+    if (question.action === 'readLogLines') {
+      var restarts = captureRelay.restartsOfTheLatestCapture();
+      reply(restarts > 0 ? { lines: logFeed.drain(), restarts: restarts } : { lines: logFeed.drain() });
+    }
     return function nothingToWithdraw() {};
   }
 
@@ -236,7 +256,12 @@ function createLine(settings) {
     });
   }
 
-  return { takeSocket: takeSocket, onApp: onApp, ask: ask };
+  return {
+    takeSocket: takeSocket,
+    onApp: onApp,
+    ask: ask,
+    filesChanged: captureRelay.filesChanged,
+  };
 }
 
 /**
@@ -247,15 +272,20 @@ function appOnTheLine(webSocket, hello) {
   var messageListeners = [];
   var closeListeners = [];
 
+  /** When this connection said hello. */
+  var saidHelloAt = Date.now();
+
   /**
    * When the line last heard this app's JavaScript start: its hello first, then the
    * JS_EVAL_COMPLETE each run of the JavaScript sends on this same connection, because native code
    * says hello once per connection and a reload keeps the connection.
    */
-  var javaScriptStartedAt = Date.now();
+  var javaScriptStartedAt = saidHelloAt;
 
   return {
     hello: hello,
+    /** When this connection said hello: a process launched later says hello on a connection of its own. */
+    saidHelloAt: saidHelloAt,
     javaScriptStartedAt: function () {
       return javaScriptStartedAt;
     },
@@ -548,18 +578,72 @@ function createLetterbox(appHoldMs) {
 /* ========================================================================== */
 
 /** The capture relay: the rules `sherlo capture` meets. */
-function createCaptureRelay(appHoldMs, storyFileChangedSince) {
-  /** Whether an app has ever waited for a capture: how a driver tells no-app from idle. */
-  var appEverWaited = false;
+function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed) {
+  /**
+   * When the newest app to wait for a capture said hello, or null while none has waited: how a
+   * driver tells no-app from idle, and a capture of a launched app tells it from no launched app.
+   */
+  var newestHelloThatWaited = null;
 
-  /** The app waiting for a capture, when one is. */
-  var appHolding = null;
+  /**
+   * Each app waiting for a capture, latest last. One app per wait: when an app from an earlier
+   * capture waits after the one launched for this capture, both waits stay on the line.
+   */
+  var appsHolding = [];
 
   /** The driver waiting for the app's answer, when one is. */
   var driverWaiting = null;
 
   /** Each app on the line whose JavaScript died as it started, with what it threw, latest last. */
   var startFailures = [];
+
+  /**
+   * The latest capture that said when it launched its app, kept after its driver is gone: a driver
+   * that gave up reads the log feed, and the restarts this capture counted ride in that reading.
+   */
+  var lastLaunchedCapture = null;
+
+  /** How many times the app of the latest launched capture started over after its instruction. */
+  function restartsOfTheLatestCapture() {
+    return lastLaunchedCapture === null ? 0 : lastLaunchedCapture.restarts;
+  }
+
+  /** What identifies a capture of a launched app, or null for a capture that says no launch. */
+  function launchKeyOf(question) {
+    if (typeof question.launchedAt !== 'number') return null;
+    return String(question.sceneId || question.storyId) + '@' + question.launchedAt;
+  }
+
+  /**
+   * Whether a driver's capture may go to this app. A capture that says when it launched its app
+   * (`launchedAt`, as `sherlo capture --scene` does) goes only to an app that said hello since: an
+   * app of an earlier capture whose socket has not closed yet is not the one it launched. A capture
+   * that says no launch goes to any app.
+   */
+  function isTheAppFor(waiting, app) {
+    return waiting.launchedAt === undefined || app.saidHelloAt >= waiting.launchedAt;
+  }
+
+  function heldWaitOf(app) {
+    return (
+      appsHolding.filter(function (held) {
+        return held.app === app;
+      })[0] || null
+    );
+  }
+
+  /** The latest wait a driver's capture may go to, or null when there is none. */
+  function latestHeldWaitFor(waiting) {
+    var fitting = appsHolding.filter(function (held) {
+      return isTheAppFor(waiting, held.app);
+    });
+    return fitting.length > 0 ? fitting[fitting.length - 1] : null;
+  }
+
+  function stopTheHeldWaitOf(app) {
+    var held = heldWaitOf(app);
+    if (held !== null) held.stopWaiting();
+  }
 
   /** The app: my JavaScript died as it started, before it could wait; here is what it threw. */
   function appStartFailed(app, said) {
@@ -571,8 +655,8 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     startFailures.push({ app: app, error: error });
 
     // The JavaScript that waited before is gone, and the driver waiting on it is answered now.
-    if (appHolding !== null && appHolding.app === app) appHolding.stopWaiting();
-    if (driverWaiting !== null) {
+    stopTheHeldWaitOf(app);
+    if (driverWaiting !== null && isTheAppFor(driverWaiting, app)) {
       var told = driverWaiting;
       driverWaiting = null;
       told.reply({ kind: 'crashed', storyId: told.storyId, error: error });
@@ -586,34 +670,97 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
   }
 
   /**
-   * Whether this app must reload its JavaScript into testing mode before it walks a story: it is
-   * not in testing mode, or a story file changed after its JavaScript said hello. The files are
-   * checked here, when a capture is asked, never on a timer.
+   * Why this app must reload its JavaScript into testing mode before it walks a story, or null when
+   * it need not: it is not in testing mode, or a story file changed after its JavaScript said
+   * hello. The files are checked here, when a capture is asked, never on a timer.
    */
-  function mustRestartForACapture(app, mode) {
-    return mode !== 'testing' || storyFileChangedSince(app.javaScriptStartedAt());
+  function restartCauseOf(app, mode) {
+    if (mode !== 'testing') {
+      return 'the app was in ' + (mode || 'an unknown') + ' mode, not testing mode';
+    }
+    var changed = storyFileChangedSince(app.javaScriptStartedAt());
+    if (!changed) return null;
+    return typeof changed === 'string' ? 'the story file ' + changed + ' changed' : 'a story file changed';
   }
 
-  /** The app: here is my mode, my stories and my answer; hand me the next capture. */
+  /** The instruction this app took is forgotten: it answered, so it did not start over. */
+  function forgetTheInstructionOf(app) {
+    if (driverWaiting === null) return;
+    driverWaiting.instructed = driverWaiting.instructed.filter(function (taken) {
+      return taken.app !== app;
+    });
+  }
+
+  /**
+   * The app took the instruction of the capture the driver waits for and is back without an
+   * answer, or gone: it started over. Counted, and written on the log feed with the cause the
+   * bundler knows, which is the restart it asked for itself and why, or none.
+   */
+  function noteARestartOf(app) {
+    if (driverWaiting === null) return;
+    var waiting = driverWaiting;
+    var taken = waiting.instructed.filter(function (instruction) {
+      return instruction.app === app;
+    })[0];
+    if (taken === undefined) return;
+
+    forgetTheInstructionOf(app);
+    waiting.restarts += 1;
+    writeOnTheLogFeed(
+      'Sherlo bundler: the app took the capture instruction for ' +
+        (waiting.sceneId || waiting.storyId) +
+        ' and started over (restart ' +
+        waiting.restarts +
+        '). ' +
+        (taken.cause === null
+          ? 'Sherlo did not ask for it.'
+          : 'Sherlo asked for it, because ' + taken.cause + '.')
+    );
+  }
+
+  /** Metro's file watcher told the bundler of these files, named under the project root. */
+  function filesChanged(paths) {
+    if (driverWaiting === null || driverWaiting.sceneId === undefined || paths.length === 0) return;
+    writeOnTheLogFeed(
+      'Sherlo bundler: Metro saw ' +
+        paths.slice(0, MOST_CHANGED_FILES_NAMED).join(', ') +
+        (paths.length > MOST_CHANGED_FILES_NAMED
+          ? ' and ' + (paths.length - MOST_CHANGED_FILES_NAMED) + ' more'
+          : '') +
+        ' change while the scene was captured.'
+    );
+  }
+
+  /** The app: here is my mode, my stories, my scenes and my answer; hand me the next capture. */
   function appWaitsForACapture(app, said) {
-    appEverWaited = true;
+    if (newestHelloThatWaited === null || app.saidHelloAt > newestHelloThatWaited) {
+      newestHelloThatWaited = app.saidHelloAt;
+    }
     // An app whose JavaScript waits started cleanly this time, whatever the one before it did.
     forgetTheStartFailureOf(app);
 
     // The JavaScript running now is the one that listens: an app's earlier wait is dropped.
-    if (appHolding !== null && appHolding.app === app) appHolding.stopWaiting();
+    stopTheHeldWaitOf(app);
 
-    // Null stays null: an app that cannot list its stories is not an app with none.
-    var stories = Array.isArray(said.stories) ? said.stories : null;
-    // The story files that threw as the app loaded them, kept as the app said them.
-    var brokenFiles = Array.isArray(said.brokenFiles) ? said.brokenFiles : [];
+    var facts = {
+      // Null stays null: an app that cannot list its stories is not an app with none.
+      stories: Array.isArray(said.stories) ? said.stories : null,
+      // The scenes the app's bundle holds; null from an app whose SDK does not say them.
+      scenes: Array.isArray(said.scenes) ? said.scenes : null,
+      // The story files that threw as the app loaded them, kept as the app said them.
+      brokenFiles: Array.isArray(said.brokenFiles) ? said.brokenFiles : [],
+      mode: typeof said.mode === 'string' ? said.mode : '',
+    };
     var answer = said.answer == null ? null : said.answer;
-    var mode = typeof said.mode === 'string' ? said.mode : '';
+    // An app that waits again with no answer, after taking the instruction, started over.
+    if (answer === null) noteARestartOf(app);
+    else forgetTheInstructionOf(app);
+    var forTheDriver = driverWaiting !== null && isTheAppFor(driverWaiting, app);
 
     // A wait that carries an answer is the app answering the capture it was handed. Pass it to the
-    // waiting driver, and let the app come back for the next capture.
+    // waiting driver, when the capture may be this app's, and let the app come back for the next one.
     if (answer !== null) {
-      if (driverWaiting !== null) {
+      if (forTheDriver) {
         var answered = driverWaiting;
         driverWaiting = null;
         answered.reply(answer);
@@ -621,37 +768,21 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
       return answerApp(app, {});
     }
 
-    // A wait with no answer is the app ready for a capture. Pair it with a waiting driver now, or
-    // hold it until a driver comes.
-    if (driverWaiting !== null) {
-      // An app that cannot list its stories is not checked yet: it is checked once it is in
-      // testing mode and lists them.
-      if (stories !== null && stories.indexOf(driverWaiting.storyId) === -1) {
+    // A wait with no answer is the app ready for a capture. Pair it with a waiting driver whose
+    // capture may be this app's now, or hold it until a driver comes.
+    if (forTheDriver) {
+      var refusal = refusalOf(driverWaiting, app, facts);
+      if (refusal !== null) {
         var refused = driverWaiting;
         driverWaiting = null;
-        refused.reply(noSuchStory(stories, brokenFiles, refused.storyId));
+        refused.reply(refusal);
         return answerApp(app, {});
       }
 
-      // The story the app walks has to count as a test run, so the app has to be in testing mode,
-      // running code that reads the story files as they are now. Tell it to reload there, with the
-      // story to land on; the driver keeps waiting across the reload.
-      if (mustRestartForACapture(app, mode)) {
-        return answerApp(app, { restartIntoTesting: true, storyId: driverWaiting.storyId });
-      }
-
-      return answerApp(app, { storyId: driverWaiting.storyId, settings: driverWaiting.settings });
+      return answerApp(app, instructionFor(driverWaiting, app, facts.mode));
     }
 
-    holdTheApp(app, stories, brokenFiles, mode);
-  }
-
-  /** A title the way Storybook turns it into the first part of a story id. */
-  function idPartOfTitle(title) {
-    return String(title)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    holdTheApp(app, facts);
   }
 
   /**
@@ -674,12 +805,10 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     return answer;
   }
 
-  function holdTheApp(app, stories, brokenFiles, mode) {
+  function holdTheApp(app, facts) {
     var held = {
       app: app,
-      stories: stories,
-      brokenFiles: brokenFiles,
-      mode: mode,
+      facts: facts,
       done: false,
 
       /** Take this wait off the line, once. True when this call is the one that took it off. */
@@ -687,7 +816,9 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
         if (held.done) return false;
         held.done = true;
         clearTimeout(held.timer);
-        if (appHolding === held) appHolding = null;
+        appsHolding = appsHolding.filter(function (other) {
+          return other !== held;
+        });
         return true;
       },
 
@@ -700,30 +831,99 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
       held.answer({});
     }, appHoldMs);
 
-    appHolding = held;
+    appsHolding.push(held);
   }
 
-  /** A driver: capture this story with these settings, and wait for what the app records. */
+  /**
+   * The answer that refuses what a driver waits for, or null when the app may be handed it.
+   *
+   * - A story is refused when the app's list of stories rules it out. An app that cannot list its
+   *   stories is not checked yet: it is checked once it is in testing mode and lists them.
+   * - A scene is never in that list. It is refused when the scenes the app's bundle holds rule it
+   *   out, and only on the JavaScript it would be handed to: an app told to reload first comes back
+   *   with the bundle as it is now, and is checked then. An app that does not say its scenes is not
+   *   checked. The refusal names the scenes the bundle holds, the way a story's names the stories.
+   */
+  function refusalOf(waiting, app, facts) {
+    if (waiting.sceneId === undefined) {
+      var lacksTheStory = facts.stories !== null && facts.stories.indexOf(waiting.storyId) === -1;
+      return lacksTheStory ? noSuchStory(facts.stories, facts.brokenFiles, waiting.storyId) : null;
+    }
+    var lacksTheScene = facts.scenes !== null && facts.scenes.indexOf(waiting.sceneId) === -1;
+    if (!lacksTheScene || restartCauseOf(app, facts.mode) !== null) return null;
+    return { kind: 'no-such-story', known: facts.scenes };
+  }
+
+  /**
+   * What the app is handed for the capture a driver waits for.
+   *
+   * The capture has to count as a test run, so the app has to be in testing mode, running code that
+   * reads the story files as they are now. Else it is told to reload there, with the id to land on
+   * (a scene's too: the app boots on a scene the way it lands on a story); the driver keeps waiting
+   * across the reload. An app in testing mode is handed a scene as `sceneId`, which the core walks
+   * with no Storybook, and a story as `storyId`, which it walks through Storybook's channel.
+   */
+  function instructionFor(waiting, app, mode) {
+    var isAScene = waiting.sceneId !== undefined;
+    var cause = restartCauseOf(app, mode);
+    waiting.instructed.push({ app: app, cause: cause });
+    if (cause !== null) {
+      return { restartIntoTesting: true, storyId: isAScene ? waiting.sceneId : waiting.storyId };
+    }
+    if (isAScene) return { sceneId: waiting.sceneId, settings: waiting.settings };
+    return { storyId: waiting.storyId, settings: waiting.settings };
+  }
+
+  /**
+   * A driver: capture this story, or this scene (`sceneId` in place of `storyId`, as
+   * `sherlo capture --scene` asks), with these settings, and wait for what the app records. A
+   * capture that says when it launched its app (`launchedAt`) is of that app alone.
+   */
   function captureStory(question, reply) {
+    var sceneId = typeof question.sceneId === 'string' ? question.sceneId : undefined;
     var storyId = typeof question.storyId === 'string' ? question.storyId : '';
-    var settings = question.settings;
+    var launchedAt = typeof question.launchedAt === 'number' ? question.launchedAt : undefined;
+    var waiting = {
+      storyId: storyId,
+      sceneId: sceneId,
+      settings: question.settings,
+      launchedAt: launchedAt,
+      reply: reply,
+    };
+    var launchKey = launchKeyOf(question);
+
+    waiting.instructed = [];
+    waiting.launchKey = launchKey;
+    // The same capture asked again, as a launched app is until it says hello, keeps its count.
+    var asBefore = lastLaunchedCapture !== null && lastLaunchedCapture.launchKey === launchKey;
+    waiting.restarts = launchKey !== null && asBefore ? lastLaunchedCapture.restarts : 0;
+    if (launchKey !== null) lastLaunchedCapture = waiting;
+
+    var held = latestHeldWaitFor(waiting);
+    var failures = startFailures.filter(function (failure) {
+      return isTheAppFor(waiting, failure.app);
+    });
 
     // No app is alive and waiting, and one died as it started: that is the answer, at once.
-    if (appHolding === null && startFailures.length > 0) {
-      reply({
-        kind: 'crashed',
-        storyId: storyId,
-        error: startFailures[startFailures.length - 1].error,
-      });
+    if (held === null && failures.length > 0) {
+      var error = failures[failures.length - 1].error;
+      reply(
+        sceneId !== undefined
+          ? { kind: 'crashed', sceneId: sceneId, error: error }
+          : { kind: 'crashed', storyId: storyId, error: error }
+      );
       return function () {};
     }
 
-    if (!appEverWaited) {
+    // No app this capture may go to has waited yet: for a launched app, every try is a first try.
+    var waitedSinceTheLaunch =
+      newestHelloThatWaited !== null &&
+      (launchedAt === undefined || newestHelloThatWaited >= launchedAt);
+    if (!waitedSinceTheLaunch) {
       reply({ kind: 'no-app' });
       return function () {};
     }
 
-    var waiting = { storyId: storyId, settings: settings, reply: reply };
     driverWaiting = waiting;
 
     /** A driver that gave up waiting frees its place for the next one. */
@@ -731,27 +931,23 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
       if (driverWaiting === waiting) driverWaiting = null;
     }
 
-    if (appHolding === null) return withdraw;
+    if (held === null) return withdraw;
 
-    var held = appHolding;
-
-    if (held.stories !== null && held.stories.indexOf(storyId) === -1) {
+    var refusal = refusalOf(waiting, held.app, held.facts);
+    if (refusal !== null) {
       driverWaiting = null;
       held.answer({});
-      reply(noSuchStory(held.stories, held.brokenFiles, storyId));
+      reply(refusal);
       return withdraw;
     }
 
-    if (mustRestartForACapture(held.app, held.mode)) {
-      held.answer({ restartIntoTesting: true, storyId: storyId });
-    } else {
-      held.answer({ storyId: storyId, settings: settings });
-    }
+    held.answer(instructionFor(waiting, held.app, held.facts.mode));
     return withdraw;
   }
 
   function appLeft(app) {
-    if (appHolding !== null && appHolding.app === app) appHolding.stopWaiting();
+    noteARestartOf(app);
+    stopTheHeldWaitOf(app);
     forgetTheStartFailureOf(app);
   }
 
@@ -764,6 +960,8 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince) {
     appStartFailed: appStartFailed,
     appLeft: appLeft,
     captureStory: captureStory,
+    filesChanged: filesChanged,
+    restartsOfTheLatestCapture: restartsOfTheLatestCapture,
   };
 }
 
@@ -835,6 +1033,7 @@ function secondsOf(passed) {
 module.exports = {
   attach: attach,
   refusalOfHello: refusalOfHello,
+  idPartOfTitle: idPartOfTitle,
   LINE_PATH: LINE_PATH,
   PROTOCOL_VERSION: PROTOCOL_VERSION,
 };

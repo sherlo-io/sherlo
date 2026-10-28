@@ -19,7 +19,11 @@ import type {
   NetworkMockDeclaration,
   RequestAnswer,
   RequestMatcher,
+  SocketAnswer,
+  SocketMatcher,
 } from './mocking/networkDeclaration';
+import type { ReadyOutcome } from './storyReady';
+import type { ReadyRule } from './types';
 
 export type { MockDeclaration } from './mocking/mockDeclaration';
 export type {
@@ -28,6 +32,9 @@ export type {
   NetworkRule,
   RequestAnswer,
   RequestMatcher,
+  SocketAnswer,
+  SocketMatcher,
+  SocketRule,
 } from './mocking/networkDeclaration';
 export type * from './types';
 
@@ -61,6 +68,19 @@ export function mockRequest<Body = unknown>(
 }
 
 mockRequest.passthrough = (): NetworkMockDeclaration => ({ kind: 'network', passthrough: true });
+
+mockRequest.socket = (matcher: SocketMatcher, answer: SocketAnswer): NetworkMockDeclaration => ({
+  kind: 'network',
+  socket: { matcher, answer },
+});
+
+// Type-only, erased at build: nothing of ./storyReady reaches a build without Sherlo.
+export type { ReadyOutcome } from './storyReady';
+
+/** Nothing is on screen to wait for in a build without Sherlo: it answers that the views are shown. */
+export function awaitReady(_rule: string | ReadyRule): Promise<ReadyOutcome> {
+  return Promise.resolve({ outcome: 'shown' });
+}
 
 export function mockClock(moment: string | number | Date): ModuleMockDeclaration {
   return {

@@ -127,6 +127,15 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
+ * Whether each view named by testID (a JSON list) is drawn, from the native view tree: resolves a
+ * JSON object of visible, invisible, absent or unreached by testID
+ * @param testIDsJson JSON list of testIDs
+ * @param resolve Promise resolver
+ * @param reject Promise rejecter
+ */
+- (void)getViewVisibility:(NSString *)testIDsJson resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+
+/**
  * Checks if the UI is stable by comparing screenshots
  * @param requiredMatches Number of matching screenshots needed
  * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
@@ -160,6 +169,13 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
                   reject:(RCTPromiseRejectBlock)reject;
 
 /**
+ * Hold every animation that loops forever in the app's windows on its first frame, before a
+ * picture (SherloAnimationHold). Only where a Sherlo run can follow; a release app outside one
+ * keeps its animations. Call on the main queue. YES when one was held.
+ */
+- (BOOL)holdAnimationsStill;
+
+/**
  * Detects if the currently visible screen can be vertically scrolled for long-screenshot capture.
  * Uses read-only view inspection: finds a primary scroll container, checks scroll metrics,
  * and validates with a small programmatic nudge that is immediately restored.
@@ -184,5 +200,29 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
                   maxIndex:(double)maxIndex
                    resolve:(RCTPromiseResolveBlock)resolve
                     reject:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Touches the app window (InspectorHelper +appWindow) at (x, y), in points, for holdMs, as a finger
+ * does (TouchHelper), and resolves what the touch reached once it ended. Rejects only when the app
+ * has no window.
+ */
+- (void)tap:(double)x
+          y:(double)y
+     holdMs:(double)holdMs
+    resolve:(RCTPromiseResolveBlock)resolve
+     reject:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Drags a finger across the app window (InspectorHelper +appWindow) from (fromX, fromY) to
+ * (toX, toY), in points, over durationMs (TouchHelper), and resolves, once the finger lifted, what
+ * it went down on, as the tap does. Rejects only when the app has no window.
+ */
+- (void)swipe:(double)fromX
+        fromY:(double)fromY
+          toX:(double)toX
+          toY:(double)toY
+   durationMs:(double)durationMs
+      resolve:(RCTPromiseResolveBlock)resolve
+       reject:(RCTPromiseRejectBlock)reject;
 
 @end 

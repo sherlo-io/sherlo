@@ -54,13 +54,15 @@ function keepLastPrintedLines() {
 /** Starts the record, written when this process ends - by a return, by an error or by any `process.exit` in the command. */
 export function recordLastCommand(command: string, options: unknown) {
   const flags = hideTokens(options);
+  // Fixed now, while this command's project is the one in force: the process ends later.
+  const file = recordPath();
   lastPrintedLines = [];
   keepLastPrintedLines();
 
   process.once('exit', (exitCode) => {
     // A command that ended well has no error to hand over.
     const errorLines = exitCode === 0 ? [] : lastPrintedLines.map(blankSecrets);
-    writeRecord({ command, flags, exitCode, errorLines });
+    writeRecord(file, { command, flags, exitCode, errorLines });
   });
 }
 
@@ -85,16 +87,18 @@ function recordPath(): string {
   return path.join(projectFiles().root(), SHERLO_TEMP_DIRECTORY, RECORD_FILENAME);
 }
 
-function writeRecord(record: CommandRecord) {
+function writeRecord(file: string, record: CommandRecord) {
   try {
-    const folder = path.dirname(recordPath());
+    const folder = path.dirname(file);
+    // A project folder gone by the time the process ends (a posed run's, removed after it) gets no record.
+    if (!fs.existsSync(path.dirname(folder))) return;
     fs.mkdirSync(folder, { recursive: true });
 
     // So the record never marks the next run's `git status` dirty.
     const gitignore = path.join(folder, '.gitignore');
     if (!fs.existsSync(gitignore)) fs.writeFileSync(gitignore, '*\n');
 
-    fs.writeFileSync(recordPath(), JSON.stringify(record, null, 2));
+    fs.writeFileSync(file, JSON.stringify(record, null, 2));
   } catch {
     // A folder that cannot be written (read-only, no project) must not change how a command ends.
   }

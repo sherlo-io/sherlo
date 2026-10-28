@@ -9,7 +9,7 @@ import { TestingMode } from './components';
 import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { send } from '../connection/appLine';
+import reportStorybookLoaded from '../helpers/reportStorybookLoaded';
 import { readStorybookChannel } from './storybookReads';
 import { clearMocks } from '../mocking';
 import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
@@ -107,11 +107,7 @@ function getStorybook(view: StorybookView, params?: StorybookParams): () => Reac
       if (!isTestingMode) return;
       if (storybookLoadedReported.current) return;
       storybookLoadedReported.current = true;
-      try {
-        if (SherloModule.getMode() === 'testing') {
-          send({ action: 'STORYBOOK_LOADED' });
-        }
-      } catch (_e) {}
+      reportStorybookLoaded();
     }, []);
 
     // Leaving Storybook (unmount) passes every module through to real again, and stops waiting on

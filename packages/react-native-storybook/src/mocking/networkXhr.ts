@@ -1,5 +1,6 @@
 import { RequestAnswer } from './networkDeclaration';
-import { answerFor, bodyOf, delay, statusOf } from './networkRules';
+import { answerFor, bodyOf, delay, sentByFetch, statusOf } from './networkRules';
+import { requestStarted } from './requestsInFlight';
 
 /**
  * THE XMLHttpRequest HALF OF THE INTERCEPTOR - the same rules, delivered the way a real request
@@ -20,10 +21,12 @@ interface Xhr {
   response: unknown;
   responseType: string;
   open(method: string, url: string, ...rest: unknown[]): void;
+  setRequestHeader(name: string, value: string): void;
   send(body?: unknown): void;
   getResponseHeader(name: string): string | null;
   getAllResponseHeaders(): string;
   dispatchEvent?: (event: unknown) => boolean;
+  addEventListener?: (type: string, listener: () => void) => void;
 }
 
 export type XhrClass = new () => Xhr;
@@ -36,25 +39,49 @@ const DONE = 4;
 export function mockedXhrOf(RealXhr: XhrClass): XhrClass {
   return class SherloMockedXhr extends RealXhr {
     private request: { method: string; url: string } = { method: 'GET', url: '' };
+    private contentType: string | undefined;
     private answeredHeaders: Record<string, string> | null = null;
 
     open(method: string, url: string, ...rest: unknown[]): void {
       this.request = { method: String(method).toUpperCase(), url: String(url) };
+      this.contentType = undefined;
       super.open(method, url, ...rest);
     }
 
+    setRequestHeader(name: string, value: string): void {
+      if (String(name).toLowerCase() === 'content-type') this.contentType = String(value);
+      super.setRequestHeader(name, value);
+    }
+
     send(body?: unknown): void {
+      // fetch's own request: fetch already asked the rules and listed it (./networkFetch).
+      if (sentByFetch()) {
+        super.send(body);
+        return;
+      }
       const verdict = answerFor({
         ...this.request,
         body: typeof body === 'string' ? body : undefined,
+        contentType: this.contentType,
       });
 
       // The two mocked branches are deliberately not awaited: a real send() returns at once and
       // answers later, so a caller that awaited this one would be waiting on a request that is
       // already on its way back.
-      if (verdict.kind === 'passthrough') super.send(body);
-      else if (verdict.kind === 'answer') this.answer(verdict.answer);
-      else this.refuse();
+      // In flight until it ends (./requestsInFlight). A real request ends at its loadend event; a
+      // runtime whose XMLHttpRequest has no listeners cannot say, so its request is not counted.
+      // Held: never fires load or error, and abort() still works.
+      if (verdict.kind === 'held') return;
+      if (verdict.kind === 'passthrough') {
+        if (typeof this.addEventListener === 'function') {
+          this.addEventListener('loadend', requestStarted(this.request));
+        }
+        super.send(body);
+        return;
+      }
+      const ended = requestStarted(this.request);
+      const answered = verdict.kind === 'answer' ? this.answer(verdict.answer) : this.refuse();
+      void answered.finally(ended);
     }
 
     getResponseHeader(name: string): string | null {

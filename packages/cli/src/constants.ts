@@ -168,6 +168,24 @@ export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';
 /** `sherlo open --story <id>` - which story to put on screen. */
 export const STORY_OPTION = 'story';
+/**
+ * `sherlo open --scene <id>`, `sherlo capture --scene <id>` - one variant of one screen, by the id
+ * Storybook's id style gives it (`chat--conversation`). Booted fresh each time, with no Storybook.
+ */
+export const SCENE_OPTION = 'scene';
+/**
+ * `sherlo capture --scene <id> --discover` - hold every request the scene makes that no mock
+ * answers, and list them as the rules that would answer them instead of capturing a picture.
+ */
+export const DISCOVER_OPTION = 'discover';
+/** The refusal when `--discover` is given without `--scene`, or with `--png` (a discover capture writes no picture). */
+export function discoverRefusal(): string {
+  return `\`npx sherlo capture --${DISCOVER_OPTION}\` needs \`--${SCENE_OPTION}\` and cannot be combined with \`--${PNG_OPTION}\`.`;
+}
+/** The refusal when `--scene` and `--story` are both given; `command` is `open` or `capture`. */
+export function sceneWithStoryRefusal(command: 'open' | 'capture'): string {
+  return `\`npx sherlo ${command}\` takes \`--${SCENE_OPTION}\` or \`--${STORY_OPTION}\`, not both.`;
+}
 /** Where the bundler is, for the rare project that moved it off {@link DEFAULT_BUNDLER_PORT}. */
 export const PORT_OPTION = 'port';
 /**
@@ -180,10 +198,16 @@ export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
 /** `sherlo capture --json`, `sherlo view --json` - print the whole record as JSON instead of a screen. */
 export const JSON_OPTION = 'json';
 /**
- * `sherlo capture --logs` - print the app's own log lines after the story. The record already
+ * `sherlo capture --logs` - print Sherlo's log from the app after the story. The record already
  * carries them (see `--json`); this is the one flag that puts them on the screen too.
  */
 export const LOGS_OPTION = 'logs';
+/** `sherlo capture --scene <id> --png <path>` - save the screen as Sherlo captured it. */
+export const PNG_OPTION = 'png';
+/** The refusal when `--png` is given without `--scene` (with `--story`, or alone): the same shape as {@link sceneWithStoryRefusal}. */
+export function pngWithoutSceneRefusal(): string {
+  return `\`npx sherlo capture\` takes \`--${PNG_OPTION}\` only with \`--${SCENE_OPTION}\`.`;
+}
 /** `sherlo coverage --props` - also list the prop values no story file sets. */
 export const PROPS_OPTION = 'props';
 

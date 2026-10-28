@@ -40,6 +40,15 @@ public class SherloInitProvider extends ContentProvider {
     /** The launch intent's extra that carries the connection's address (`--es sherloAddress <url>`). */
     private static final String ADDRESS_EXTRA = "sherloAddress";
 
+    /**
+     * The launch intent's extra that starts a debug build in testing mode for `sherlo capture`
+     * (`--es sherloCapture <storyId>`), so no boot of the app runs before the capture.
+     */
+    private static final String CAPTURE_EXTRA = "sherloCapture";
+
+    /** The launch intent's boolean extra that has the capture discover (--ez sherloDiscover true). */
+    private static final String DISCOVER_EXTRA = "sherloDiscover";
+
     // Native watchdog timer: fires if getStorybook() is never called within 30s of launch.
     private static final AtomicBoolean getStorybookCalled = new AtomicBoolean(false);
     private static Handler timerHandler;
@@ -59,6 +68,8 @@ public class SherloInitProvider extends ContentProvider {
             }
             installJsExceptionHandler();
             installJsBundleEvalHook();
+            // Before Application.onCreate, so before any client is made.
+            if (ctx != null) SherloRequestAnswers.installWhereARunCanFollow(ctx, null);
         } catch (Throwable t) {
             // Never let a provider crash take down app startup for every SDK user.
             Log.e(TAG, "SherloInitProvider.onCreate failed", t);
@@ -99,9 +110,17 @@ public class SherloInitProvider extends ContentProvider {
                 try {
                     Intent intent = activity.getIntent();
                     String address = intent != null ? intent.getStringExtra(ADDRESS_EXTRA) : null;
-                    SherloModuleCore.startFromAddressHandedAtLaunch(address);
+                    String captureId = intent != null && intent.hasExtra(CAPTURE_EXTRA)
+                            ? intent.getStringExtra(CAPTURE_EXTRA) : null;
+                    SherloModuleCore.setDiscover(
+                            intent != null && intent.getBooleanExtra(DISCOVER_EXTRA, false));
+                    SherloModuleCore.startFromAddressHandedAtLaunch(address, captureId);
+                    SherloRequestAnswers.installWhereARunCanFollow(ctx, address);
                     if (SherloModuleCore.MODE_TESTING.equals(SherloModuleCore.getCurrentMode())) {
                         startTestingWatch(ctx);
+                    } else if (intent != null && intent.hasExtra(CAPTURE_EXTRA)) {
+                        SherloModuleCore.startFromCaptureHandedAtLaunch(
+                                ctx, intent.getStringExtra(CAPTURE_EXTRA));
                     }
                 } catch (Throwable t) {
                     Log.e(TAG, "Failed to read the address handed at launch", t);

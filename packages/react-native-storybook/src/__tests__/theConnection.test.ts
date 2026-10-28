@@ -145,6 +145,7 @@ describe('the connection', () => {
     const { default: RunnerBridge } = await import('../helpers/RunnerBridge');
     RunnerBridge.log('a line a story formed');
 
-    expect(actionsSent()).toEqual(['hello', 'JS_EVAL_COMPLETE', 'log']);
+    // The first 'log' is the stage line "sent its hello", the second the line the story formed.
+    expect(actionsSent()).toEqual(['hello', 'log', 'JS_EVAL_COMPLETE', 'log']);
   });
 });

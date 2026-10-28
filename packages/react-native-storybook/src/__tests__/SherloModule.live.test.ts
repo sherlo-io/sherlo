@@ -51,6 +51,7 @@ vi.mock('react-native', () => ({
 vi.mock('../helpers/isExpoGo', () => ({ default: false }));
 
 import SherloModule from '../SherloModule';
+import NativeSherloModuleMock from '../specs/NativeSherloModule';
 
 const NEW_ARCH_CONSTANTS = {
   mode: 'testing',
@@ -200,5 +201,26 @@ describe('SherloModule live - getConfigOrDefault() with nothing on disk', () => 
     mockGetConstants.mockReturnValue({});
     const config = SherloModule.getConfigOrDefault();
     expect(config.stabilization.requiredMatches).toBe(3);
+  });
+});
+
+describe('SherloModule live - the native tap', () => {
+  const native = NativeSherloModuleMock as unknown as { tap?: unknown };
+
+  afterEach(() => {
+    delete native.tap;
+  });
+
+  it('tap() answers null when the native module has no such method, so the step falls back to the synthetic press', async () => {
+    expect(native.tap).toBeUndefined();
+    expect(await SherloModule.tap(10, 20, 150)).toBeNull();
+  });
+
+  it('tap() hands the point and the hold to the native method and returns its answer', async () => {
+    const answer = { reachedReact: true, hitTag: 7, hitClass: 'RCTViewComponentView', missing: [] };
+    const tap = vi.fn().mockResolvedValue(answer);
+    native.tap = tap;
+    expect(await SherloModule.tap(10, 20, 150)).toEqual(answer);
+    expect(tap).toHaveBeenCalledWith(10, 20, 150);
   });
 });

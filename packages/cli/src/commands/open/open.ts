@@ -12,19 +12,32 @@
 import {
   DEFAULT_BUNDLER_PORT,
   PORT_OPTION,
+  SCENE_OPTION,
   STORY_OPTION,
   TIMEOUT_OPTION,
   WAIT_OPTION,
+  sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { letterbox } from '../../seams/letterbox';
+import {
+  appIsInstalled,
+  deviceState,
+  holdTheCleanDevice,
+  endOnNotDebuggable,
+  isTarget,
+  prepareCleanDevice,
+} from '../../seams/deviceState';
 import type { OpenStoryResult } from '../../seams/letterbox';
 import type { OpenedStory } from '../../render/openedStory';
+import type { OpenedScene } from '../../render/openedScene';
+import type { OpenSceneResult } from '../../seams/letterbox';
 
 export type OpenOptions = {
   [STORY_OPTION]?: string;
+  [SCENE_OPTION]?: string;
   [WAIT_OPTION]?: boolean;
   [PORT_OPTION]?: string;
   [TIMEOUT_OPTION]?: string;
@@ -35,6 +48,13 @@ const DEFAULT_TIMEOUT_SECONDS = 30;
 
 async function open(passedOptions: OpenOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
+  const sceneId = passedOptions[SCENE_OPTION];
+
+  if (sceneId && storyId) {
+    throwError({ message: sceneWithStoryRefusal('open') });
+  }
+  if (sceneId) return openScene(sceneId, passedOptions);
+
   if (!storyId) {
     throwError({
       message:
@@ -61,6 +81,54 @@ async function open(passedOptions: OpenOptions): Promise<void> {
 export default open;
 
 /* ========================================================================== */
+
+/**
+ * `sherlo open --scene <id>` - the app is booted fresh on one scene and stays there. `--wait` and
+ * `--timeout` mean nothing here: the answer comes once the app has booted and moved.
+ */
+async function openScene(sceneId: string, passedOptions: OpenOptions): Promise<void> {
+  const port = readPort(passedOptions[PORT_OPTION]);
+
+  // The scene opens on a clean device, which stays clean until the developer stops the command;
+  // every ending - a throw and an interrupt included - puts it back.
+  const target = await deviceState().sceneTarget();
+  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
+  const installed = !isTarget(target) || (await appIsInstalled(target));
+  const restore =
+    isTarget(target) && installed
+      ? await prepareCleanDevice(target.device, target.app).catch(endOnNotDebuggable)
+      : undefined;
+  let answer: OpenSceneResult;
+  try {
+    answer = installed
+      ? await letterbox().openScene({ sceneId, port, target })
+      : { kind: 'no-app' };
+    emit({ kind: 'opened-scene', state: openedSceneEnding(answer, { sceneId, port }) });
+    if (restore && answer.kind === 'scene-opened') await holdTheCleanDevice();
+  } finally {
+    await restore?.();
+  }
+
+  if (answer.kind !== 'scene-opened') process.exit(EXIT_BLOCK);
+}
+
+/** What the screen shows for what the letterbox answered about a scene. */
+export function openedSceneEnding(
+  answer: OpenSceneResult,
+  run: { sceneId: string; port: number }
+): OpenedScene {
+  switch (answer.kind) {
+    case 'no-bundler':
+    case 'no-app':
+      return { kind: answer.kind, port: run.port };
+    case 'no-such-scene':
+      return { kind: 'no-such-scene', sceneId: run.sceneId, known: answer.known };
+    case 'scene-opened':
+      return { kind: 'opened-scene', sceneId: answer.sceneId, route: answer.route };
+    default:
+      return answer;
+  }
+}
 
 /**
  * What the screen shows for what the letterbox answered.

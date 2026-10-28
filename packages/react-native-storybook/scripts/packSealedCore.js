@@ -27,6 +27,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { refuseTestPublicKey } = require('./sealedCoreKey.js');
+const { seamTheSdkSpeaksIn } = require('./sdkSeam.js');
 const {
   describeFailure,
   packageTokenFrom,
@@ -78,6 +79,25 @@ function readPin(sdkRoot) {
   return pin;
 }
 
+/**
+ * The seam the JS core's first line states: `// sherlo-core {"version":"3.4.0","seam":3}`, the line
+ * the native loaders read too. An error when the core has no such line.
+ */
+function seamInHeaderOf(coreBytes) {
+  const firstLine = coreBytes.toString('utf8').split('\n')[0];
+  const header = /^\/\/ sherlo-core (\{.*\})\s*$/.exec(firstLine);
+  let seam;
+  try {
+    seam = JSON.parse(header?.[1] ?? '').seam;
+  } catch {
+    seam = undefined;
+  }
+  if (typeof seam !== 'number') {
+    throw new Error('the JS core states no seam: its first line is not a sherlo-core header');
+  }
+  return seam;
+}
+
 /** Whether the stored path is `stored` itself or a file inside the folder `stored`. */
 function isStoredUnder(storedPath, stored) {
   return storedPath === stored || storedPath.startsWith(stored + '/');
@@ -104,8 +124,15 @@ async function packSealedCore({ sdkRoot = SDK_ROOT, readStoredFile } = {}) {
   for (const field of PIN_FIELDS_THE_MANIFEST_REPEATS) {
     if (pin[field] !== manifest[field]) {
       throw new Error(
-        'sherlo-core.json says ' + field + ' is ' + pin[field] + ', but the stored core ' +
-          pin.fingerprint + ' says ' + manifest[field] + '. Repin: yarn core:pin.'
+        'sherlo-core.json says ' +
+          field +
+          ' is ' +
+          pin[field] +
+          ', but the stored core ' +
+          pin.fingerprint +
+          ' says ' +
+          manifest[field] +
+          '. Repin: yarn core:pin.'
       );
     }
   }
@@ -117,7 +144,7 @@ async function packSealedCore({ sdkRoot = SDK_ROOT, readStoredFile } = {}) {
         pin.fingerprint +
         ' was typed against the seam ' +
         manifest.seamHash +
-        ', but this commit\'s src/sealedCore/seam.ts hashes to ' +
+        ", but this commit's src/sealedCore/seam.ts hashes to " +
         sdkSeamHash +
         '. A change to seam.ts lands with a repin to a core built against it: yarn core:pin.'
     );
@@ -136,7 +163,9 @@ async function packSealedCore({ sdkRoot = SDK_ROOT, readStoredFile } = {}) {
   );
   if (slicesWithoutFramework.length > 0) {
     throw new Error(
-      'core ' + pin.fingerprint + ' stores no SherloCore framework for ' +
+      'core ' +
+        pin.fingerprint +
+        ' stores no SherloCore framework for ' +
         slicesWithoutFramework.join(', ')
     );
   }
@@ -160,13 +189,31 @@ async function packSealedCore({ sdkRoot = SDK_ROOT, readStoredFile } = {}) {
         }
         if (sha256(bytes) !== file.sha256) {
           throw new Error(
-            'the stored ' + file.path + ' of core ' + pin.fingerprint +
+            'the stored ' +
+              file.path +
+              ' of core ' +
+              pin.fingerprint +
               ' does not have the sha256 its manifest lists'
           );
         }
         return { storedPath: file.path, bytes };
       })
   );
+
+  const jsCore = laidFiles.find((file) => file.storedPath === 'sherlo-core.js');
+  const seamTheCoreStates = seamInHeaderOf(jsCore.bytes);
+  const seamTheSdkSpeaks = seamTheSdkSpeaksIn(sdkRoot);
+  if (seamTheCoreStates !== seamTheSdkSpeaks) {
+    throw new Error(
+      'core ' +
+        pin.fingerprint +
+        ' states the seam ' +
+        seamTheCoreStates +
+        ' in its header, but this SDK speaks the seam ' +
+        seamTheSdkSpeaks +
+        ' (SEAM_THIS_SDK_SPEAKS in src/sealedCore/loadSealedCore.ts). Pin a core built for the seam the SDK speaks: yarn core:pin.'
+    );
+  }
 
   for (const { inSdk } of LAID_PATHS) {
     fs.rmSync(path.join(sdkRoot, inSdk), { recursive: true, force: true });

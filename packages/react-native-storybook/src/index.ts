@@ -16,10 +16,27 @@ export type {
   NetworkRule,
   RequestAnswer,
   RequestMatcher,
+  SocketAnswer,
+  SocketMatcher,
+  SocketRule,
 } from './mocking/networkDeclaration';
 export { UnmockedRequestError } from './mocking/networkRules';
 export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
+export { awaitReady } from './storyReady';
+export type { ReadyOutcome } from './storyReady';
+export type {
+  LongPressStep,
+  OpenStep,
+  PlayStep,
+  ReadyStep,
+  SceneDevice,
+  ScenePermission,
+  TapStep,
+  TapTarget,
+  TypeStep,
+} from './scenes';
+export type { SwipeStep } from './scenes';
 
 export * from './types';
 
@@ -63,3 +80,9 @@ function installSherloIntegration(): void {
     }
   }
 }
+
+// The early-boot module, imported so every bundle that holds the SDK holds it: Sherlo's bundler
+// config has Metro run it before the app's entry (./sceneBoot). Imported last, so a scene file it
+// requires, which imports this module back, finds every export above already in place. It
+// switches the scene on once, however many copies of the SDK the app imports.
+import './sceneBoot';

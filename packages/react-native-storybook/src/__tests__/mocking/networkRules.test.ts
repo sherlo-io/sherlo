@@ -18,7 +18,13 @@ import createMockable from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
 import { mockRequest } from '../../mocking/networkDeclaration';
 import { sherloFetch } from '../../mocking/network';
-import { UnmockedRequestError } from '../../mocking/networkRules';
+import {
+  UnmockedRequestError,
+  answerFindings,
+  setDiscover,
+  socketVerdictFor,
+  unansweredRequests,
+} from '../../mocking/networkRules';
 import { __resetShimmedKeysForTests, clearMocks } from '../../mocking/registry';
 import type { StoryMocks } from '../../mocking/mockDeclaration';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
@@ -55,6 +61,8 @@ class FakeXhr {
     this.readyState = 1;
   }
 
+  setRequestHeader(_name: string, _value: string): void {}
+
   send(body?: unknown): void {
     FakeXhr.sent.push({ ...this.opened, body });
   }
@@ -79,6 +87,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setDiscover(false);
   clearMocks();
   __resetShimmedKeysForTests();
   clearStoryError(STORY_ID);
@@ -195,7 +204,9 @@ describe('a request the story names', () => {
 
     // The method is part of the rule: the same address with another method matches neither.
     const refusal = await refusalOf(fetch(`${BASE}/orders`));
-    expect(refusal.message).toBe(`no mock rule matches GET ${BASE}/orders`);
+    expect(refusal.message).toBe(
+      `no mock rule matches GET ${BASE}/orders. Add a rule for it, or let it through.`
+    );
   });
 
   it('a GraphQL request is matched by the operation name in its body', async () => {
@@ -216,7 +227,35 @@ describe('a request the story names', () => {
         body: JSON.stringify({ operationName: 'Profile', query: 'query Profile { me { id } }' }),
       })
     );
-    expect(refusal.message).toBe(`no mock rule matches POST ${BASE}/graphql`);
+    expect(refusal.message).toBe(
+      `no mock rule matches POST ${BASE}/graphql Profile. Add a rule for it, or let it through.`
+    );
+  });
+
+  it('what a faked GraphQL answer lacks is kept for the story, the answer unchanged, until its rules go', async () => {
+    const answer = { data: { orders: [{ id: 'o1' }] } };
+    await activateStory({
+      story: [mockRequest({ operationName: 'Orders' }, { body: answer })],
+    });
+
+    const ask = () =>
+      fetch(`${BASE}/graphql`, {
+        method: 'POST',
+        body: JSON.stringify({
+          operationName: 'Orders',
+          query: 'query Orders { orders { id total } }',
+        }),
+      });
+    const asked = await ask();
+    await expect(asked.json()).resolves.toEqual(answer);
+    // The app polls: the same answer again adds no second copy of the same finding.
+    await ask();
+    expect(answerFindings()).toEqual([
+      { kind: 'field-missing', operation: 'Orders', path: 'orders.0.total', expected: 'total' },
+    ]);
+
+    clearMocks();
+    expect(answerFindings()).toEqual([]);
   });
 
   it('a request made through XMLHttpRequest is answered by the same rules as fetch', async () => {
@@ -272,7 +311,91 @@ describe('a request no rule names', () => {
     const refusal = await refusalOf(fetch(`${BASE}/orders`));
 
     expect(refusal.name).toBe('UnmockedRequestError');
-    expect(refusal.message).toBe('no mock rule matches GET https://mocking.sherlo.invalid/orders');
+    expect(refusal.message).toBe(
+      'no mock rule matches GET https://mocking.sherlo.invalid/orders. Add a rule for it, or let it through.'
+    );
+  });
+
+  it('a refused GraphQL request names its operation', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/graphql`, operationName: 'Me' }, { body: 'me' })],
+    });
+
+    const refusal = await refusalOf(
+      fetch(`${BASE}/graphql`, {
+        method: 'POST',
+        body: JSON.stringify({ operationName: 'Orders', query: '{ orders }' }),
+      })
+    );
+
+    expect(refusal.message).toBe(
+      'no mock rule matches POST https://mocking.sherlo.invalid/graphql Orders. Add a rule for it, or let it through.'
+    );
+  });
+
+  it('a GraphQL request sent by GET is named by its operation', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/graphql*`, operationName: 'Me' }, { body: 'me' })],
+    });
+
+    // A rule matches on the body alone, so the operation in the address does not match it, and the
+    // refusal line is the one a request without an operation gets.
+    const url = `${BASE}/graphql?operationName=Me`;
+    const refusal = await refusalOf(fetch(url));
+
+    expect(refusal.message).toBe(
+      `no mock rule matches GET ${url}. Add a rule for it, or let it through.`
+    );
+    expect(unansweredRequests()).toEqual([{ method: 'GET', url, operation: 'Me' }]);
+  });
+
+  it('a request made through XMLHttpRequest keeps the content type it set', async () => {
+    await activateStory({ story: [mockRequest({ url: `${BASE}/known` }, { body: 'known' })] });
+
+    const xhr = new (globals.XMLHttpRequest as new () => FakeXhr)();
+    xhr.open('POST', `${BASE}/orders`);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send('{"id":7}');
+
+    expect(unansweredRequests()).toEqual([
+      {
+        method: 'POST',
+        url: `${BASE}/orders`,
+        contentType: 'application/json',
+        bodyExcerpt: '{"id":7}',
+      },
+    ]);
+  });
+
+  it('in discover mode an unmatched request is held and still listed as unanswered', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/profile` }, { body: 'the profile' })],
+    });
+    setDiscover(true);
+
+    const outcome = await Promise.race([
+      fetch(`${BASE}/orders`).then(
+        () => 'answered',
+        () => 'refused'
+      ),
+      new Promise((resolve) => setTimeout(() => resolve('held'), 50)),
+    ]);
+
+    expect(outcome).toBe('held');
+    expect(unansweredRequests()).toEqual([{ method: 'GET', url: `${BASE}/orders` }]);
+    expect(readStoryError(STORY_ID)).toBeUndefined();
+  });
+
+  it('outside discover mode an unmatched request is still refused', async () => {
+    await activateStory({
+      story: [mockRequest({ url: `${BASE}/profile` }, { body: 'the profile' })],
+    });
+    setDiscover(true);
+    setDiscover(false);
+
+    const refusal = await refusalOf(fetch(`${BASE}/orders`));
+
+    expect(refusal).toBeInstanceOf(UnmockedRequestError);
   });
 
   it('a story that opts into passthrough lets an unmatched request reach the network', async () => {
@@ -390,7 +513,9 @@ describe('the rules follow the story', () => {
     await expect(get(`${BASE}/profile`)).resolves.toBe('the profile');
     expect(globals.fetch).toBe(wrappedFetch);
     const refusal = await refusalOf(fetch(`${BASE}/orders`));
-    expect(refusal.message).toBe(`no mock rule matches GET ${BASE}/orders`);
+    expect(refusal.message).toBe(
+      `no mock rule matches GET ${BASE}/orders. Add a rule for it, or let it through.`
+    );
     clearStoryError(STORY_ID);
 
     clearMocks();
@@ -418,5 +543,33 @@ describe('the rules follow the story', () => {
     // And what the outer levels named and the story did not is still answered.
     await expect(get(`${BASE}/profile`)).resolves.toBe('the file profile');
     await expect(get(`${BASE}/settings`)).resolves.toBe('the project settings');
+  });
+});
+
+describe('a socket rule is matched like a request rule', () => {
+  const WS = 'wss://mocking.sherlo.invalid/graphql';
+
+  it('a trailing star, a RegExp and an exact address each answer the socket they match', async () => {
+    await activateStory({
+      story: [
+        mockRequest.socket({ url: 'wss://mocking.sherlo.invalid/graph*' }, 'pending'),
+        mockRequest.socket({ url: /other/ }, 'refuse'),
+        mockRequest.socket({ url: 'wss://exact.sherlo.invalid/' }, 'refuse'),
+      ],
+    });
+
+    expect(socketVerdictFor(WS)).toEqual({ kind: 'answer', answer: 'pending' });
+    expect(socketVerdictFor('wss://x.invalid/other')).toEqual({ kind: 'answer', answer: 'refuse' });
+    expect(socketVerdictFor('wss://exact.sherlo.invalid/')).toEqual({
+      kind: 'answer',
+      answer: 'refuse',
+    });
+  });
+
+  it('a socket no rule matches is listed as WS, and a request rule never answers it', async () => {
+    await activateStory({ story: [mockRequest({ url: WS }, { body: 'x' })] });
+
+    expect(socketVerdictFor(WS).kind).toBe('refusal');
+    expect(unansweredRequests()).toEqual([{ method: 'WS', url: WS }]);
   });
 });

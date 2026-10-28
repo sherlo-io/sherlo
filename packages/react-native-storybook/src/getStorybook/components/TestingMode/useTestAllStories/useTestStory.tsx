@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MetadataProviderRef } from '../MetadataProvider';
-import { getSealedCore } from '../../../../sealedCore/loadSealedCore';
-import { clearMocks } from '../../../../mocking';
+import { walkTheStoryForTheRunner } from '../../../../runnerWalk';
 
 /**
  * A launch with a story: the sealed core waits until the story is ready and reports it to the
@@ -27,21 +26,10 @@ function useTestStory({
     // No walk happens for a capture: the mocks turned on for its story must stay on.
     if (!enabled) return;
 
-    (async (): Promise<void> => {
-      try {
-        const core = getSealedCore();
-        if (!core) return;
-
-        await core.testStory({
-          insets,
-          collectMetadata: () => metadataProviderRef?.current?.collectMetadata(),
-        });
-      } finally {
-        // IS-07: the walk for this story is over - pass every mocked module through to its real
-        // implementation again, however it ended.
-        clearMocks();
-      }
-    })();
+    walkTheStoryForTheRunner({
+      insets,
+      collectMetadata: () => metadataProviderRef?.current?.collectMetadata(),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

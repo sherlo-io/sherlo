@@ -14,25 +14,62 @@ import {
   DEFAULT_BUNDLER_PORT,
   JSON_OPTION,
   LOGS_OPTION,
+  DISCOVER_OPTION,
+  PNG_OPTION,
   PORT_OPTION,
+  SCENE_OPTION,
   STORY_OPTION,
+  discoverRefusal,
+  pngWithoutSceneRefusal,
+  sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
+import getCwd from '../../helpers/getCwd';
+import { applySceneDevice, deviceOfScene } from '../../seams/sceneDevice';
+import type { SceneDeviceField } from '../../seams/sceneDevice';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
-import { STABILIZATION_SETTINGS, captureSocket } from '../../seams/captureSocket';
+import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
+import { captureSocket } from '../../seams/captureSocket';
+import {
+  appIsInstalled,
+  deviceState,
+  endOnNotDebuggable,
+  isTarget,
+  prepareCleanDevice,
+  saveScreenPicture,
+} from '../../seams/deviceState';
+import type { SceneDevice } from '../../seams/deviceState';
 import type { CaptureResult } from '../../seams/captureSocket';
+import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
+import type { CapturedScene, ScenePicture } from '../../render/capturedScene';
 
 export type CaptureOptions = {
   [STORY_OPTION]?: string;
+  [SCENE_OPTION]?: string;
+  [DISCOVER_OPTION]?: boolean;
   [PORT_OPTION]?: string;
   [JSON_OPTION]?: boolean;
   [LOGS_OPTION]?: boolean;
+  [PNG_OPTION]?: string;
 };
 
 async function capture(passedOptions: CaptureOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
+  const sceneId = passedOptions[SCENE_OPTION];
+
+  if (sceneId && storyId) {
+    throwError({ message: sceneWithStoryRefusal('capture') });
+  }
+  if (passedOptions[PNG_OPTION] && !sceneId) {
+    throwError({ message: pngWithoutSceneRefusal() });
+  }
+  if (passedOptions[DISCOVER_OPTION] && (!sceneId || passedOptions[PNG_OPTION])) {
+    throwError({ message: discoverRefusal() });
+  }
+  if (sceneId) return captureScene(sceneId, passedOptions);
+
   if (!storyId) {
     throwError({
       message:
@@ -71,6 +108,94 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
 export default capture;
 
 /* ========================================================================== */
+
+/**
+ * `sherlo capture --scene <id>` - the app is booted fresh on one scene and read the way a test run
+ * reads it. Any ending but the record is a refusal and leaves the process with EXIT_BLOCK.
+ */
+async function captureScene(sceneId: string, passedOptions: CaptureOptions): Promise<void> {
+  const port = readPort(passedOptions[PORT_OPTION]);
+
+  // The scene runs on a clean device, and every ending - a throw included - puts it back.
+  const target = await deviceState().sceneTarget();
+  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
+  const installed = !isTarget(target) || (await appIsInstalled(target));
+  // The scene's own phone setup, read from its file before the device is touched.
+  const field = isTarget(target) && installed ? sceneDeviceField(sceneId) : undefined;
+  const restore =
+    isTarget(target) && installed
+      ? await prepareCleanDevice(target.device, target.app, field).catch(endOnNotDebuggable)
+      : undefined;
+  const pngPath = passedOptions[PNG_OPTION];
+  const discover = passedOptions[DISCOVER_OPTION] === true;
+  let answer: SceneCaptureResult;
+  let notApplied: string[] = [];
+  let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
+  try {
+    if (isTarget(target) && installed) notApplied = await applySceneDevice(target, field);
+    answer = installed
+      ? await captureSocket().captureScene({
+          sceneId,
+          port,
+          settings: STABILIZATION_SETTINGS,
+          target,
+          discover,
+        })
+      : { kind: 'no-app', why: 'not-installed' };
+    // The screen as the app left it: the clean device's put-back below would show the home screen.
+    if (picture && answer.kind === 'scene' && isTarget(target)) {
+      picture = await savePicture(target.device, picture.path);
+    }
+  } finally {
+    await restore?.();
+  }
+
+  if (passedOptions[JSON_OPTION]) {
+    const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
+    const unapplied = notApplied.length > 0 ? { deviceNotApplied: notApplied } : {};
+    const listed = discover ? { discover: true } : {};
+    const record = { ...answer, ...saved, ...unapplied, ...listed };
+    process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
+  } else {
+    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port, discover), picture });
+    if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
+      emit({ kind: 'captured-log', logs: answer.logs ?? [] });
+    }
+  }
+
+  // A discover capture holds requests, so the scene often never gets ready: that is its list, not a failure.
+  const gotTheList = discover && answer.kind === 'never-reached';
+  if (answer.kind !== 'scene' && !gotTheList) process.exit(EXIT_BLOCK);
+}
+
+/** The device the scene's file declares; a field that is not a plain literal ends the command, naming the file. */
+function sceneDeviceField(sceneId: string): SceneDeviceField | undefined {
+  try {
+    return deviceOfScene(getCwd(), sceneId);
+  } catch (error) {
+    return throwError({ message: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+/** Save the device's screen to `path`; a failed save is the picture's own error and changes no ending. */
+async function savePicture(device: SceneDevice, path: string): Promise<ScenePicture> {
+  try {
+    await saveScreenPicture(device, path);
+    return { path };
+  } catch (error) {
+    return { path, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */
+export function capturedSceneEnding(
+  answer: SceneCaptureResult,
+  port: number,
+  discover = false
+): CapturedScene {
+  if (answer.kind === 'no-bundler' || answer.kind === 'no-app') return { kind: answer.kind, port };
+  return discover ? { ...answer, discover: true } : answer;
+}
 
 /** What the screen shows for what the app answered. */
 export function endingFor(

@@ -117,6 +117,8 @@ async function connectAnApp(running: RunningLine) {
     logs: (line: string) => say({ action: 'log', line }),
     /** The JavaScript starts again on this same connection, as it does after a reload. */
     startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),
+    /** The app's socket closes. */
+    leaves: () => app.socket.close(),
     /** The polyfill's word that this app's JavaScript died as it started. */
     startFails: (error: Message) => say({ action: 'start-failed', ...error }),
     /** The letterbox's next answer to this app, without its action. */
@@ -471,6 +473,59 @@ describe('the relay hands the restart a story to land on, from whichever side as
     await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer });
     await expect(reply).resolves.toEqual(answer);
   });
+
+  it('hands the app a scene asked for as a scene as its sceneId, and a story as its storyId', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const SCENE = 'inbox--full';
+
+    // An app not yet in testing mode reloads onto the scene, the way it lands on a story.
+    await app.waitsForACapture({ mode: 'default', stories: [STORY], answer: null });
+    void driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      restartIntoTesting: true,
+      storyId: SCENE,
+    });
+
+    // Back in testing mode it is handed the scene as a scene, never checked against its stories.
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: { kind: 'captured' } });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+
+    // A story is still handed as a story.
+    await app.waitsForACapture({ mode: 'testing', stories: [STORY], answer: null });
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
+  });
+
+  it("refuses a scene the app's bundle does not hold once the app is in testing mode, naming the scenes it holds", async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const HELD = ['home--welcome', 'inbox--full'];
+    const MISSING = 'inbox--menu-open';
+
+    // An app not yet in testing mode reloads first: the reload brings the bundle as it is now.
+    await app.waitsForACapture({ mode: 'default', stories: null, scenes: HELD, answer: null });
+    const reply = driver.ask({ action: 'captureStory', sceneId: MISSING, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      restartIntoTesting: true,
+      storyId: MISSING,
+    });
+
+    // Back in testing mode on a bundle that still lacks it, the scene is never handed over.
+    await app.waitsForACapture({ mode: 'testing', stories: null, scenes: HELD, answer: null });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+    await expect(reply).resolves.toEqual({ kind: 'no-such-story', known: HELD });
+  });
 });
 
 describe('a capture of an app whose story files changed after its code loaded', () => {
@@ -661,6 +716,121 @@ describe('a capture of an app that cannot list its stories', () => {
   });
 });
 
+describe('captures asked one after another on one bundler, each of the app it launched', () => {
+  const SCENE = 'inbox--full';
+  const LAST_RECORD = { kind: 'scene', sceneId: SCENE, bootMs: 1 };
+  const NEW_RECORD = { kind: 'scene', sceneId: SCENE, bootMs: 2 };
+  const START_ERROR = { name: 'TypeError', message: 'undefined is not a function' };
+
+  /** A wait of an app in testing mode with this scene in its bundle. */
+  const waitInTesting = (answer: Message | null) => ({
+    mode: 'testing',
+    stories: null,
+    scenes: [SCENE],
+    answer,
+  });
+
+  /** Long enough for the clock to move past the last hello. */
+  const aMoment = () => new Promise((resolve) => setTimeout(resolve, 5));
+
+  /** The driver's reply when the line answers it at once, or 'parked' when it keeps it waiting. */
+  function replyOrParked(
+    reply: Promise<Message>,
+    driver: Awaited<ReturnType<typeof connectADriver>>
+  ): Promise<Message | 'parked'> {
+    return Promise.race([reply, driver.settled().then(() => 'parked' as const)]);
+  }
+
+  it("a second capture on one bundler is paired with the app it launched, not the first capture's leftovers", async () => {
+    const running = await startALine();
+    let hellos = 0;
+    running.line.onApp(() => (hellos += 1));
+    const driver = await connectADriver(running);
+
+    // The first capture: the app it launched is handed the scene, and answers with its record.
+    const firstLaunchedAt = Date.now();
+    const firstApp = await connectAnApp(running);
+    await firstApp.waitsForACapture(waitInTesting(null));
+    const firstReply = driver.ask({
+      action: 'captureStory',
+      sceneId: SCENE,
+      settings: SETTINGS,
+      launchedAt: firstLaunchedAt,
+    });
+    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+    await firstApp.waitsForACapture(waitInTesting(LAST_RECORD));
+    await expect(firstReply).resolves.toEqual(LAST_RECORD);
+    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({});
+
+    // The first app comes back for the next capture: its process is stopped, its socket not closed.
+    await firstApp.waitsForACapture(waitInTesting(null));
+
+    // The second capture launches the app again. Until the launched app waits, there is no app yet,
+    // as on the first try: the first app's wait is no wait of the launched one.
+    await aMoment();
+    const launchedAt = Date.now();
+    const question = {
+      action: 'captureStory',
+      sceneId: SCENE,
+      settings: SETTINGS,
+      launchedAt,
+    };
+    await expect(replyOrParked(driver.ask(question), driver)).resolves.toEqual({ kind: 'no-app' });
+
+    // The launched app waits, then the first app's wait lands late, the retry of a wait that failed.
+    const secondApp = await connectAnApp(running);
+    await secondApp.waitsForACapture(waitInTesting(null));
+    await firstApp.waitsForACapture(waitInTesting(null));
+    const secondReply = driver.ask(question);
+    await expect(secondApp.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+
+    // The first app says its last answer again: it is no answer to the capture the second walks.
+    await firstApp.waitsForACapture(waitInTesting(LAST_RECORD));
+    await expect(firstApp.nextCaptureInstruction()).resolves.toEqual({});
+    await secondApp.waitsForACapture(waitInTesting(NEW_RECORD));
+    await expect(secondReply).resolves.toEqual(NEW_RECORD);
+
+    // One launch per capture, and the second app was never told to reload.
+    expect(hellos).toBe(2);
+  });
+
+  it('a start failure of an app from before the launch is no crash of the launched app', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const earlierApp = await connectAnApp(running);
+    await earlierApp.startFails(START_ERROR);
+
+    await aMoment();
+    const question = { action: 'captureStory', sceneId: SCENE, launchedAt: Date.now() };
+    await expect(driver.ask(question)).resolves.toEqual({ kind: 'no-app' });
+
+    const launchedApp = await connectAnApp(running);
+    await launchedApp.waitsForACapture(waitInTesting(null));
+    void driver.ask(question);
+    await expect(launchedApp.nextCaptureInstruction()).resolves.toEqual({ sceneId: SCENE });
+  });
+
+  it('CONTROL: a capture that names no launch is paired with whichever app waits, as before', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(waitInTesting(null));
+
+    await aMoment();
+    void driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+  });
+});
+
 describe('a capture of an app whose JavaScript died as it started', () => {
   const START_ERROR = { name: 'TypeError', message: 'undefined is not a function' };
 
@@ -751,5 +921,134 @@ describe("the app's log lines land in the feed for the next reader", () => {
     expect(lines).toHaveLength(1000);
     expect(lines[0]).toBe('line 2');
     expect(lines[999]).toBe('line 1001');
+  });
+});
+
+describe('a scene capture whose app starts over after taking its instruction', () => {
+  const SCENE = 'inbox--full';
+  const inMode = (mode: string) => ({ mode, stories: null, scenes: [SCENE], answer: null });
+  const launch = { action: 'captureStory', sceneId: SCENE, settings: SETTINGS, launchedAt: 1 };
+
+  /** What a driver that gave up reads off the feed: the lines, and the restarts counted. */
+  async function readFeed(running: RunningLine) {
+    return (await running.line.ask({ action: 'readLogLines' })) as {
+      lines: string[];
+      restarts?: number;
+    };
+  }
+  const feedLines = async (running: RunningLine) => (await readFeed(running)).lines;
+
+  it("a capture whose app says hello again after taking the instruction is counted as a restart, with the bundler's own cause when it has one", async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode('default'));
+    void driver.ask(launch);
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      restartIntoTesting: true,
+      storyId: SCENE,
+    });
+
+    // The bundler asked for this restart: the app was not in testing mode.
+    await app.startsItsJavaScript();
+    await app.waitsForACapture(inMode('testing'));
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+
+    // Nobody asked for this one: the app took the scene and started over.
+    await app.startsItsJavaScript();
+    await app.waitsForACapture(inMode('testing'));
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+
+    // The capture is given up: the read of the feed carries what the bundler counted.
+    const { lines, restarts } = await readFeed(running);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toBe(
+      `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 1). Sherlo asked for it, because the app was in default mode, not testing mode.`
+    );
+    expect(lines[1]).toBe(
+      `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 2). Sherlo did not ask for it.`
+    );
+    expect(restarts).toBe(2);
+  });
+
+  it('an app that leaves after taking the instruction is counted once, and a capture without a restart is not blamed on one', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode('testing'));
+    await expect(readFeed(running)).resolves.toEqual({ lines: [] });
+
+    void driver.ask(launch);
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+    app.leaves();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const feed = await readFeed(running);
+    expect(feed.lines).toHaveLength(1);
+    expect(feed.restarts).toBe(1);
+  });
+
+  it('files the bundler sees change while a scene capture waits are written on the feed, by path under the project root', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode('testing'));
+
+    running.line.filesChanged(['src/before.ts']);
+    void driver.ask(launch);
+    await app.nextCaptureInstruction();
+    running.line.filesChanged(['src/inbox/Inbox.scene.tsx']);
+
+    expect(await feedLines(running)).toEqual([
+      expect.stringContaining('src/inbox/Inbox.scene.tsx'),
+    ]);
+  });
+
+  it("each restart cause and Metro's file list are written in the approved words", async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode(''));
+    void driver.ask(launch);
+    await app.nextCaptureInstruction();
+    await app.startsItsJavaScript();
+    await app.waitsForACapture(inMode('testing'));
+
+    running.line.filesChanged(['a.ts', 'b.ts']);
+    running.line.filesChanged(['1.ts', '2.ts', '3.ts', '4.ts', '5.ts', '6.ts', '7.ts']);
+
+    expect(await feedLines(running)).toEqual([
+      `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 1). Sherlo asked for it, because the app was in an unknown mode, not testing mode.`,
+      'Sherlo bundler: Metro saw a.ts, b.ts change while the scene was captured.',
+      'Sherlo bundler: Metro saw 1.ts, 2.ts, 3.ts, 4.ts, 5.ts and 2 more change while the scene was captured.',
+    ]);
+
+    // The app, in testing mode, is told to start over when a story file changed since it loaded.
+    const startedOverBecause = async (changed: boolean | string) => {
+      const second = await startALine({ storyFileChangedSince: () => changed });
+      const secondDriver = await connectADriver(second);
+      const secondApp = await connectAnApp(second);
+      await secondApp.waitsForACapture(inMode('testing'));
+      void secondDriver.ask(launch);
+      await secondApp.nextCaptureInstruction();
+      await secondApp.startsItsJavaScript();
+      await secondApp.waitsForACapture(inMode('testing'));
+      return feedLines(second);
+    };
+    const started = `Sherlo bundler: the app took the capture instruction for ${SCENE} and started over (restart 1). Sherlo asked for it, because`;
+
+    expect(await startedOverBecause('src/inbox/Inbox.stories.tsx')).toEqual([
+      `${started} the story file src/inbox/Inbox.stories.tsx changed.`,
+    ]);
+    expect(await startedOverBecause(true)).toEqual([`${started} a story file changed.`]);
   });
 });

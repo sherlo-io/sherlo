@@ -11,7 +11,8 @@ NS_ASSUME_NONNULL_BEGIN
  * Resolves the promise when the required number of matching screenshots is reached,
  * or when the timeout is exceeded.
  *
- * @param requiredMatches Number of consecutive matching screenshots needed to consider UI stable
+ * @param requiredMatches Number of consecutive matching screenshots needed to consider UI stable,
+ *        the first of them included: 3 ends the loop at the third screenshot that matches
  * @param minScreenshotsCount Minimum number of screenshots to take when checking for stability
  * @param intervalMs Time interval between screenshots in milliseconds
  * @param timeoutMs Maximum time to wait for stability in milliseconds
