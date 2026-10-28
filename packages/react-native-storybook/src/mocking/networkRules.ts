@@ -77,7 +77,14 @@ let unanswered: UnansweredRequest[] = [];
 
 // The requests fetch or XMLHttpRequest let through that native code may tell of again, by method and
 // address: each is listed once, by JavaScript, so the first native tell of one is not listed.
-let expectedNativeEchoes = new Set<string>();
+// Each is forgotten after ECHO_WINDOW_MS, so a tell native code never made (iOS drops one after a
+// second) cannot swallow a later real request to the same address.
+const ECHO_WINDOW_MS = 2000;
+let expectedNativeEchoes = new Map<string, number>();
+
+// True only while fetch hands a request it let through to the real fetch, which runs over
+// XMLHttpRequest and sends it before the call returns: that XMLHttpRequest is fetch's own.
+let fetchIsLettingThrough = false;
 
 // What the GraphQL answer check found in the answers the rules in effect gave (./graphqlAnswerCheck).
 let answerCheckFindings: AnswerFinding[] = [];
@@ -100,7 +107,7 @@ export function setNetworkMocks(
   socketPolicy = policyForSockets;
   recordRefusal = recordTheRefusal;
   unanswered = [];
-  expectedNativeEchoes = new Set();
+  expectedNativeEchoes = new Map();
   answerCheckFindings = [];
   matchedRules = new Set();
 }
@@ -173,7 +180,9 @@ export function answerFor(request: MockedRequest): Verdict {
 
   const verdict = verdictForUnanswered(request);
   // Let through, it reaches native code, which tells JavaScript of it again: that echo is dropped.
-  if (verdict.kind === 'passthrough') expectedNativeEchoes.add(echoKeyOf(request));
+  if (verdict.kind === 'passthrough') {
+    expectedNativeEchoes.set(echoKeyOf(request), Date.now() + ECHO_WINDOW_MS);
+  }
   return verdict;
 }
 
@@ -182,8 +191,30 @@ export function answerFor(request: MockedRequest): Verdict {
  * it is the echo of one fetch or XMLHttpRequest let through and so already listed.
  */
 export function verdictForNativeUnanswered(request: MockedRequest): Verdict | undefined {
-  if (expectedNativeEchoes.delete(echoKeyOf(request))) return undefined;
+  const key = echoKeyOf(request);
+  const expiresAt = expectedNativeEchoes.get(key);
+  expectedNativeEchoes.delete(key);
+  if (expiresAt !== undefined && expiresAt >= Date.now()) return undefined;
   return verdictForUnanswered(request);
+}
+
+/**
+ * Run the real fetch for a request fetch let through. The XMLHttpRequest it sends is not listed
+ * again (`sentByFetch`): React Native's fetch opens and sends it before the call returns, so no
+ * timing is involved.
+ */
+export function letThroughByFetch<T>(callRealFetch: () => T): T {
+  fetchIsLettingThrough = true;
+  try {
+    return callRealFetch();
+  } finally {
+    fetchIsLettingThrough = false;
+  }
+}
+
+/** Whether the XMLHttpRequest being sent now is the one a let-through fetch runs over. */
+export function sentByFetch(): boolean {
+  return fetchIsLettingThrough;
 }
 
 /** Method and address as native code tells them: no fragment, and a bare host ends in a slash. */

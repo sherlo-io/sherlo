@@ -186,6 +186,69 @@ describe('the requests native code met that no rule matches', () => {
     expect(unansweredRequests()).toHaveLength(2);
   });
 
+  it('a fetch no rule matches is listed once, though it runs over XMLHttpRequest', async () => {
+    const sent: string[] = [];
+    class FakeXhr {
+      open(_method: string, url: string): void {
+        sent.push(url);
+      }
+      send(): void {}
+      setRequestHeader(): void {}
+      getResponseHeader(): null {
+        return null;
+      }
+      getAllResponseHeaders(): string {
+        return '';
+      }
+    }
+    const globals = globalThis as unknown as { XMLHttpRequest?: unknown };
+    globals.XMLHttpRequest = FakeXhr;
+    // React Native's fetch: a promise whose executor opens and sends a global XMLHttpRequest.
+    globalThis.fetch = ((url: string) =>
+      new Promise<Response>((resolve) => {
+        const xhr = new (globals.XMLHttpRequest as new () => FakeXhr)();
+        xhr.open('GET', url);
+        xhr.send();
+        resolve(new Response('ok'));
+      })) as unknown as typeof fetch;
+
+    try {
+      activateNetworkMocks(networkMocksOf([mockRequest.passthrough()]), () => {});
+      await fetch('https://api.example/a');
+
+      expect(unansweredRequests()).toEqual([{ method: 'GET', url: 'https://api.example/a' }]);
+
+      // A request the app makes over XMLHttpRequest itself is still listed, once.
+      const plain = new (globals.XMLHttpRequest as new () => FakeXhr)();
+      plain.open('GET', 'https://api.example/b');
+      plain.send();
+
+      expect(unansweredRequests()).toEqual([
+        { method: 'GET', url: 'https://api.example/a' },
+        { method: 'GET', url: 'https://api.example/b' },
+      ]);
+      expect(sent).toEqual(['https://api.example/a', 'https://api.example/b']);
+    } finally {
+      delete globals.XMLHttpRequest;
+    }
+  });
+
+  it('the echo of a request let through is forgotten once its window has passed', async () => {
+    vi.useFakeTimers();
+    try {
+      globalThis.fetch = vi.fn(async () => new Response('ok')) as unknown as typeof fetch;
+      activateNetworkMocks(networkMocksOf([mockRequest.passthrough()]), () => {});
+
+      await fetch('https://api.example');
+      vi.advanceTimersByTime(5000);
+      nativeMeets({ method: 'GET', url: 'https://api.example/' });
+
+      expect(unansweredRequests()).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('an event of another name is not heard as a native request', () => {
     activate(mockRequest({ url: 'https://api.example/a' }, { body: 'a' }));
 

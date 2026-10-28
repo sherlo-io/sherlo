@@ -1,4 +1,11 @@
-import { answerFor, bodyOf, delay, MockedRequest, statusOf } from './networkRules';
+import {
+  answerFor,
+  bodyOf,
+  delay,
+  letThroughByFetch,
+  MockedRequest,
+  statusOf,
+} from './networkRules';
 import { requestStarted } from './requestsInFlight';
 
 /**
@@ -18,7 +25,9 @@ export function mockedFetchOf(realFetch: typeof fetch): typeof fetch {
     try {
       const verdict = answerFor(request);
 
-      if (verdict.kind === 'passthrough') return await realFetch(input, init);
+      if (verdict.kind === 'passthrough') {
+        return await letThroughByFetch(() => realFetch(input, init));
+      }
       if (verdict.kind === 'refusal') throw verdict.refusal;
       if (verdict.kind === 'held') return await heldUntilAborted(init?.signal);
 
