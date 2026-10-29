@@ -12,6 +12,7 @@
  * refuse it in their own words.
  */
 import type { Platform } from '@sherlo/api-types';
+import { DEVICES_OPTION } from '../../constants';
 import getPlatformsToTest from '../../helpers/getPlatformsToTest';
 import getNormalizedConfig from '../../helpers/getValidatedCommandParams/getNormalizedConfig';
 import getNormalizedOptions from '../../helpers/getValidatedCommandParams/getNormalizedOptions';
@@ -38,7 +39,11 @@ export function endsAsPlatformNotInConfig(passedOptions: Options<THIS_COMMAND>):
 
   emit({
     kind: 'platform-row',
-    row: { platform: askedPlatform, appBuild: 'skipped-not-in-config' },
+    row: {
+      platform: askedPlatform,
+      appBuild: 'skipped-not-in-config',
+      ...(options[DEVICES_OPTION] !== undefined && { devicesFromOption: true }),
+    },
   });
   return true;
 }

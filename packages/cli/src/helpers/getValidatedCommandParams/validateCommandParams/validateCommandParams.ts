@@ -5,7 +5,7 @@ import {
   InvalidatedConfig,
 } from '../../../types';
 import validateConfigProperties from './validateConfigProperties';
-import validateDevices from './validateDevices';
+import validateDevices, { DevicesSource } from './validateDevices';
 
 /**
  * The checks after the credential: the config's properties and the devices. The credential comes
@@ -15,11 +15,12 @@ import validateDevices from './validateDevices';
  */
 function validateCommandParams<C extends Command>(
   commandParams: InvalidatedCommandParams<C>,
-  config: InvalidatedConfig
+  config: InvalidatedConfig,
+  devicesFrom: DevicesSource
 ): asserts commandParams is CommandParams<C> {
   validateConfigProperties(config);
 
-  validateDevices(commandParams);
+  validateDevices(commandParams, devicesFrom);
 }
 
 export default validateCommandParams;

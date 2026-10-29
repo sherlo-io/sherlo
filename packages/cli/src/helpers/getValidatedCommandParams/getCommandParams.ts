@@ -22,6 +22,9 @@ function getCommandParams<
     ...options,
     android: options.android ? path.resolve(projectRoot, options.android) /* 1 */ : undefined,
     ios: options.ios ? path.resolve(projectRoot, options.ios) /* 1 */ : undefined,
+    // THE DEVICES ARE THE CONFIG'S: `--devices` was laid over the config when it was read
+    // (getNormalizedConfig) and filled with the defaults there, so the raw flag never wins here.
+    devices: (config as { devices?: unknown[] }).devices,
     ...onlyThePlatformAsked(options, config),
     // THE CONFIG'S WHOLE DEVICE LIST: `devices` above is cut to the job's own platform, while the
     // test's row names every device of the test, whichever job started it.

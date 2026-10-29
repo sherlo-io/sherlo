@@ -164,6 +164,10 @@ export const VERBOSE_OPTION = 'verbose';
 /** `sherlo fingerprint`: the file to write the fingerprint document to. */
 export const WRITE_OPTION = 'write';
 export const INCLUDE_OPTION = 'include';
+/** `sherlo test`: the stories this run leaves out, in place of the config's `exclude`. */
+export const EXCLUDE_OPTION = 'exclude';
+/** `sherlo test`: the devices this run tests on, as the config's `devices` JSON, in place of the config's. */
+export const DEVICES_OPTION = 'devices';
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';
 /** `sherlo open --story <id>` - which story to put on screen. */
