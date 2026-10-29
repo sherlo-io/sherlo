@@ -1,0 +1,15 @@
+[31m✖[39m  [1mkindred--chat-with-match[22m never reached - no view chat.header showed[2m · 1 refused[22m
+[31m✖[39m  [1mkindred--chat-empty[22m never reached - no view chat.input.message showed[2m · 1 refused[22m
+[33m◦[39m  4 more scenes may fail the same way: the app thinks it is offline
+     mockRequest({ url: 'https://clients3.google.com/generate_204' }, { status: 204 })
+[2m   Paste it once where the scenes share their mocks, then capture again.[22m
+[32m✔[39m  [1mkindred--profile-own[22m captured[2m · launched in 1.4s · ready in 2.1s · settled in <SETTLED>[22m
+[32m✔[39m  [1mkindred--discover-tab[22m captured[2m · launched in 1.5s · ready in 2.6s · settled in <SETTLED>[22m
+[33m◦[39m  [1mkindred--settings[22m never settled - still changing: SyncSpinner[2m · ready in 2.0s[22m
+[32m✔[39m  [1mkindred--sign-in[22m captured[2m · launched in 1.3s · ready in 1.8s · settled in <SETTLED>[22m
+
+6 scenes: 3 captured, 1 never settled, 2 never reached, 0 failed
+[2m   a picture (<id>.png, not for a scene that never came up) and a record (<id>.json) of each are in ./scenes-out[22m
+
+
+[exit 1]

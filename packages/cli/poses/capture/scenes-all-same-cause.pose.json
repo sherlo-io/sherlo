@@ -1,0 +1,64 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--all-scenes", "./scenes-out"],
+  "capture": {
+    "scenes": [
+      "kindred--chat-with-match",
+      "kindred--chat-empty",
+      "kindred--profile-own",
+      "kindred--discover-tab",
+      "kindred--settings",
+      "kindred--sign-in"
+    ],
+    "everyScene": [
+      {
+        "sceneId": "kindred--chat-with-match",
+        "ending": "never-reached",
+        "ready": "chat.header",
+        "unanswered": [{ "method": "GET", "url": "https://clients3.google.com/generate_204" }]
+      },
+      {
+        "sceneId": "kindred--chat-empty",
+        "ending": "never-reached",
+        "ready": "chat.input.message",
+        "unanswered": [{ "method": "GET", "url": "https://clients3.google.com/generate_204" }]
+      },
+      {
+        "sceneId": "kindred--profile-own",
+        "ending": "captured",
+        "bootMs": 1400,
+        "reachedMs": 2100,
+        "settledMs": 600
+      },
+      {
+        "sceneId": "kindred--discover-tab",
+        "ending": "captured",
+        "bootMs": 1500,
+        "reachedMs": 2600,
+        "settledMs": 700
+      },
+      {
+        "sceneId": "kindred--settings",
+        "ending": "never-settled",
+        "bootMs": 1500,
+        "reachedMs": 2000,
+        "changing": ["SyncSpinner"]
+      },
+      {
+        "sceneId": "kindred--sign-in",
+        "ending": "captured",
+        "bootMs": 1300,
+        "reachedMs": 1800,
+        "settledMs": 500
+      }
+    ]
+  }
+}

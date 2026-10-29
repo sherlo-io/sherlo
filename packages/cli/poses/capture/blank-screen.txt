@@ -1,0 +1,12 @@
+[31m✖[39m  [1mkindred--chat-empty[22m never got ready - no view chat.input.message showed, and the app stayed on AppStack › Chat
+
+  The screen drew no views.
+  Check next:
+     - a module fake that did not apply leaves the real module running, and a screen built on it can draw nothing
+     - an error the app logged while it drew (the lines below, when there are any)
+
+  See what the app logged:  npx sherlo capture --scene kindred--chat-empty --logs
+[2mPicture saved to ./chat-empty.png[22m
+
+
+[exit 1]

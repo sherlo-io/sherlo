@@ -1,0 +1,17 @@
+[31m✖[39m  [1mkindred--discover-tab[22m never got ready - no view discover.feed showed, and the app stayed on AppStack › Discover
+
+
+[33m◦[39m  12 requests had no mock, to 4 addresses (asks to one address counted together):
+        4  POST https://api.segment.io/v1/batch from @segment/analytics-react-native
+        3  POST https://api2.amplitude.com/2/httpapi from @amplitude/analytics-react-native
+        3  GET https://api.adapty.io/api/v1/sdk/in-apps/purchase-containers/ from react-native-adapty
+        2  POST https://ingest.sentry.io/api/1/envelope/ from @sentry/react-native (by its host)
+
+  4 hosts of SDKs the app starts (@segment/analytics-react-native, Amplitude, Adapty, @sentry/react-native) were refused. Fake the services the app starts:
+     mockRequest({ url: 'https://api.segment.io/*' }, { body: {} })
+     mockRequest({ url: 'https://api2.amplitude.com/*' }, { body: {} })
+     mockRequest({ url: 'https://api.adapty.io/*' }, { body: {} })
+     mockRequest({ url: 'https://ingest.sentry.io/*' }, { body: {} })
+
+
+[exit 1]

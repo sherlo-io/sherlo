@@ -1,0 +1,30 @@
+[32m✔[39m  [1mkindred--profile-own[22m captured, the way a test run records it
+[2m   booted fresh in 1.7s[22m
+[2m   reached AppStack › Profile in 2.4s[22m
+[2m   settled in <SETTLED> over 3 frames · testing mode[22m
+
+   [93m<[39m[95mProfile[39m[93m>[39m
+     [93m<[39m[36mView[39m[93m>[39m [36m(<SIZE>)[39m
+       [93m<[39m[36mText[39m[93m>[39m
+         Your profile
+       [93m</[39m[36mText[39m[93m>[39m
+     [93m</[39m[36mView[39m[93m>[39m
+   [93m</[39m[95mProfile[39m[93m>[39m
+
+[2m   2 views · --json prints the record[22m
+
+[33m◦[39m  5 fields were read of a partial object that the scene does not name:
+     A scene read "isAnonymous" of a partial object, and the scene does not name it. Add it to the partial.
+     A scene read "ageRange" of a partial object, and the scene does not name it. Add it to the partial.
+     A scene read "verifiedAt" of a partial object, and the scene does not name it. Add it to the partial.
+     A scene read "photoCount" of a partial object, and the scene does not name it. Add it to the partial.
+     A scene read "lastActiveAt" of a partial object, and the scene does not name it. Add it to the partial.
+  Paste the fields into the partial and fill in each value:
+     isAnonymous: /* fill in */,
+     ageRange: /* fill in */,
+     verifiedAt: /* fill in */,
+     photoCount: /* fill in */,
+     lastActiveAt: /* fill in */,
+
+
+[exit 0]

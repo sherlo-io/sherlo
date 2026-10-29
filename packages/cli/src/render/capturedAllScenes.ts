@@ -32,6 +32,15 @@ export type SceneRunLine = {
   ready?: string;
   /** How many requests no mock answered, each named in the scene's record. */
   refused: number;
+  /** How long the fresh boot took, for a scene that came up. */
+  launchMs?: number;
+  /** How long the stabilization took to settle, for a scene that held still. */
+  settledMs?: number;
+  /**
+   * This scene failed for the cause the one before it did: the scenes still to run may fail the same
+   * way. Said once per run, with the fake that answers the cause when there is one.
+   */
+  sameCause?: { remaining: number; cause: string; fake?: string };
 };
 
 /** The count of each outcome over a run, and where the pictures and records went. */
@@ -59,10 +68,20 @@ export function renderSceneRunLine(line: SceneRunLine): string[] {
     'never-reached': `never reached${line.ready ? ` - no view ${line.ready} showed` : ''}`,
     failed: `failed (${line.ending})`,
   };
+  const launch = line.launchMs === undefined ? '' : ` · launched in ${seconds(line.launchMs)}`;
   const ready = line.readyMs === undefined ? '' : ` · ready in ${seconds(line.readyMs)}`;
+  const settled = line.settledMs === undefined ? '' : ` · settled in ${seconds(line.settledMs)}`;
   const refused = line.refused > 0 ? ` · ${line.refused} refused` : '';
+  const { sameCause } = line;
   return [
-    `${markOf(outcome)}  ${chalk.bold(line.sceneId)} ${words[outcome]}${chalk.dim(`${ready}${refused}`)}`,
+    `${markOf(outcome)}  ${chalk.bold(line.sceneId)} ${words[outcome]}${chalk.dim(`${launch}${ready}${settled}${refused}`)}`,
+    ...(sameCause
+      ? [
+          `${chalk.yellow('◦')}  ${sameCause.remaining} more ${sameCause.remaining === 1 ? 'scene' : 'scenes'} may fail the same way: ${sameCause.cause}`,
+          ...(sameCause.fake ? [`     ${sameCause.fake}`] : []),
+          chalk.dim('   Paste it once where the scenes share their mocks, then capture again.'),
+        ]
+      : []),
   ];
 }
 

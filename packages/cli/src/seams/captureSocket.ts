@@ -12,7 +12,8 @@
  * asks; a capture is a conversation - settings one way, a whole view tree the other - and the two
  * roads fail differently.
  */
-import type { CapturedView } from '../render/capturedStory';
+import type { BundleBuildFailure, CapturedView } from '../render/capturedStory';
+import type { SceneLeft } from '../render/capturedScene';
 import { readAppError, type AppError } from './appError';
 import { drainAppLog } from './appLog';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
@@ -485,16 +486,21 @@ export type PosedCapture =
       scenes: string[];
       threwAtBoot: { name: string; message: string; file: string; line: number };
     }
-  /** A scene run: the app booted, and the scene's ready view never showed. */
+  /** A scene run: the bundler could not build the app's code, so the app never started. */
   | {
+      scenes: string[];
+      bundleFailure: BundleBuildFailure;
+    }
+  /** A scene run: the app booted, and the scene's ready view never showed. */
+  | ({
       scenes: string[];
       /** The testID of the view the scene waits for. */
       ready: string;
       /** The route the app was on when the wait ran out, outermost screen first. */
       stayedOn: string[];
       /** The requests the scene made that no mock answered, a discover capture's result. */
-      unanswered?: UnansweredRequest[];
-    }
+      unanswered?: PosedRefused[];
+    } & PosedSceneNews)
   /** A scene run: a play step found no view with its testID. */
   | {
       scenes: string[];
@@ -512,7 +518,7 @@ export type PosedCapture =
         | { swipe: string; direction: 'left' | 'right' | 'up' | 'down'; limitMs: number };
     }
   /** A scene run that came back with its record. */
-  | {
+  | ({
       scenes: string[];
       /** The route the app's navigation reached, read from the app, outermost screen first. */
       route: string[];
@@ -526,14 +532,45 @@ export type PosedCapture =
       /** The views still changing when the stabilization gave up. Absent prints no names. */
       changing?: string[];
       /** The requests the scene made that no mock answered, a discover capture's result. */
-      unanswered?: UnansweredRequest[];
+      unanswered?: PosedRefused[];
       tree: PosedView;
-    }
+    } & PosedSceneNews)
   /** A run of every scene of the app: what each scene's own run came back with, in the order the scenes run. */
   | {
       scenes: string[];
       everyScene: PosedSceneRun[];
     };
+
+/**
+ * A refused request as a pose states it. `times` says it was made that many times, as an SDK
+ * retrying its own host does; absent is once. The record lists each, so the pose need not.
+ */
+export type PosedRefused = {
+  method: string;
+  url: string;
+  library?: string;
+  operation?: string;
+  times?: number;
+};
+
+/**
+ * What the app found beyond the ending of a scene that stopped or was captured: the screen it
+ * stopped on, why the capture gave up, the module fakes that did not apply, the shape a fake got
+ * wrong, the requests let through, the last run's ending and the phone settings not written.
+ */
+export type PosedSceneNews = Pick<
+  SceneLeft,
+  | 'threw'
+  | 'screen'
+  | 'endedEarly'
+  | 'mockNotApplied'
+  | 'crashCause'
+  | 'letThrough'
+  | 'lastRun'
+  | 'phoneNotApplied'
+  | 'answerFindings'
+  | 'loggedErrors'
+>;
 
 /**
  * One scene's run inside a run of every scene. Only the ending is required; a scene that came up
@@ -542,6 +579,10 @@ export type PosedCapture =
 export type PosedSceneRun = {
   sceneId: string;
   ending: 'captured' | 'never-settled' | 'never-reached' | 'crashed-at-boot';
+  /** How long the fresh boot took, for a scene that came up. */
+  bootMs?: number;
+  /** How long the stabilization took to settle, for a scene that held still. */
+  settledMs?: number;
   /** How long the ready view took to show, from the fresh boot. */
   reachedMs?: number;
   /** The views still changing when the stabilization gave up. */
@@ -549,7 +590,7 @@ export type PosedSceneRun = {
   /** The testID of the view a scene that never got ready waits for. */
   ready?: string;
   /** The requests the scene made that no mock answered. */
-  unanswered?: UnansweredRequest[];
+  unanswered?: PosedRefused[];
 };
 
 /**
@@ -670,9 +711,19 @@ export function posedCaptureSocket(
       if ('threwAtBoot' in posed) {
         return { kind: 'crashed-at-boot', sceneId, error: posed.threwAtBoot };
       }
+      if ('bundleFailure' in posed) {
+        return { kind: 'bundle-does-not-build', sceneId, failure: posed.bundleFailure };
+      }
       if ('stayedOn' in posed) {
         const { ready, stayedOn, unanswered } = posed;
-        return { kind: 'never-reached', sceneId, ready, stayedOn, unanswered };
+        return {
+          kind: 'never-reached',
+          sceneId,
+          ready,
+          stayedOn,
+          unanswered: refusedEach(unanswered),
+          ...newsOf(posed),
+        };
       }
       if ('targetMissing' in posed) {
         const { limitMs, ...missing } = posed.targetMissing;
@@ -692,7 +743,8 @@ export function posedCaptureSocket(
           seconds: STABILIZATION_SETTINGS.timeoutMs / 1000,
           reached: { route: posed.route, ms: posed.reachedMs },
           ...(posed.changing && { changing: posed.changing }),
-          ...(posed.unanswered && { unanswered: posed.unanswered }),
+          ...(posed.unanswered && { unanswered: refusedEach(posed.unanswered) }),
+          ...newsOf(posed),
           tree: withChildren(posed.tree),
         };
       }
@@ -703,7 +755,8 @@ export function posedCaptureSocket(
         reached: { route: posed.route, ms: posed.reachedMs },
         play: posed.play,
         settled: posed.settled,
-        ...(posed.unanswered && { unanswered: posed.unanswered }),
+        ...(posed.unanswered && { unanswered: refusedEach(posed.unanswered) }),
+        ...newsOf(posed),
         tree: withChildren(posed.tree),
       };
     },
@@ -714,7 +767,7 @@ export function posedCaptureSocket(
 function posedSceneRun(runs: PosedSceneRun[], sceneId: string): SceneCaptureResult {
   const run = runs.find((one) => one.sceneId === sceneId);
   if (!run) return { kind: 'no-such-scene', sceneId, known: runs.map((one) => one.sceneId) };
-  const unanswered = run.unanswered && { unanswered: run.unanswered };
+  const unanswered = run.unanswered && { unanswered: refusedEach(run.unanswered) };
   const reached = { route: ['Home'], ms: run.reachedMs ?? 0 };
   const tree = withChildren({ primitive: 'View' });
   switch (run.ending) {
@@ -722,10 +775,10 @@ function posedSceneRun(runs: PosedSceneRun[], sceneId: string): SceneCaptureResu
       return {
         kind: 'scene',
         sceneId,
-        bootMs: 0,
+        bootMs: run.bootMs ?? 0,
         reached,
         play: [],
-        settled: { ms: 0, frames: 1 },
+        settled: { ms: run.settledMs ?? 0, frames: 1 },
         ...unanswered,
         tree,
       };
@@ -759,6 +812,35 @@ function posedSceneRun(runs: PosedSceneRun[], sceneId: string): SceneCaptureResu
         },
       };
   }
+}
+
+/** The refused requests a pose states, each repeated as many times as it says it was made. */
+function refusedEach(posed: PosedRefused[] | undefined): UnansweredRequest[] | undefined {
+  return posed?.flatMap(({ times = 1, ...request }) =>
+    Array.from({ length: times }, () => ({ ...request }))
+  );
+}
+
+/** The fields of a pose that tell the scene's news, kept when the pose states them. */
+const NEWS_KEYS = [
+  'threw',
+  'screen',
+  'endedEarly',
+  'mockNotApplied',
+  'crashCause',
+  'letThrough',
+  'lastRun',
+  'phoneNotApplied',
+  'answerFindings',
+  'loggedErrors',
+] as const;
+
+function newsOf(posed: PosedSceneNews): PosedSceneNews {
+  const news: PosedSceneNews = {};
+  for (const key of NEWS_KEYS) {
+    if (posed[key] !== undefined) Object.assign(news, { [key]: posed[key] });
+  }
+  return news;
 }
 
 /** A posed view states only what it has; the screen needs every node to have its lists. */

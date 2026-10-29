@@ -11,6 +11,7 @@
 import type { SceneEnding, SceneLeft, PlayStep, PlayMissing } from '../render/capturedScene';
 import { drainAppLog, keepStrings, readAppLog } from './appLog';
 import { readAppError } from './appError';
+import { readBundleFailure } from './bundleFailure';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { deviceState, isTarget } from './deviceState';
@@ -292,6 +293,13 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
 
   if (answer?.kind === 'no-such-story') {
     return { kind: 'no-such-scene', sceneId, known: keepStrings(answer.known) };
+  }
+
+  // The bundler could not build the code the launched app asked for: no app will come, so this ends
+  // the capture at once instead of waiting out the app's hello.
+  if (answer?.kind === 'bundle-does-not-build') {
+    const failure = readBundleFailure(answer.failure);
+    if (failure) return { kind: 'bundle-does-not-build', sceneId, failure };
   }
 
   // The core sends "crashed" for a scene only from the catch around its capture, after the app booted.

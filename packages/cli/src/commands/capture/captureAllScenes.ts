@@ -14,7 +14,9 @@ import getCwd from '../../helpers/getCwd';
 import { emit } from '../../helpers/transcriptSink';
 import { captureSocket } from '../../seams/captureSocket';
 import { outcomeOf } from '../../render/capturedAllScenes';
-import type { AllScenesSummary, SceneOutcome } from '../../render/capturedAllScenes';
+import type { AllScenesSummary, SceneOutcome, SceneRunLine } from '../../render/capturedAllScenes';
+import { explainRefusals } from '../../render/refusalExplanation';
+import type { RefusalCause } from '../../render/refusalExplanation';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import { captureOnCleanDevice, isPictured } from './capture';
 
@@ -29,7 +31,11 @@ export async function captureAllScenes(folder: string, port: number): Promise<vo
     'never-reached': 0,
     failed: 0,
   };
-  for (const sceneId of await captureSocket().listScenes()) {
+  const sceneIds = await captureSocket().listScenes();
+  // The cause the scene before failed for, and whether the run has already warned of it.
+  let lastCause: RefusalCause | undefined;
+  let warned = false;
+  for (const [index, sceneId] of sceneIds.entries()) {
     const { answer, notApplied, picture } = await captureOnCleanDevice({
       sceneId,
       port,
@@ -43,7 +49,15 @@ export async function captureAllScenes(folder: string, port: number): Promise<vo
     fs.writeFileSync(path.join(where, `${sceneId}.json`), `${JSON.stringify(record, null, 2)}\n`);
 
     counts[outcomeOf(answer.kind)] += 1;
-    emit({ kind: 'scene-run-line', line: lineOf(sceneId, answer) });
+    const cause = causeOf(answer);
+    const remaining = sceneIds.length - index - 1;
+    const sameCause: SceneRunLine['sameCause'] =
+      cause && cause.id === lastCause?.id && !warned && remaining > 0
+        ? { remaining, cause: cause.short, ...(cause.fakes[0] && { fake: cause.fakes[0] }) }
+        : undefined;
+    warned ||= sameCause !== undefined;
+    lastCause = cause;
+    emit({ kind: 'scene-run-line', line: { ...lineOf(sceneId, answer), sameCause } });
   }
 
   const summary: AllScenesSummary = {
@@ -59,9 +73,17 @@ export async function captureAllScenes(folder: string, port: number): Promise<vo
   }
 }
 
+/** The first cause the refused requests of a scene that never got ready point to, when they point to any. */
+function causeOf(answer: SceneCaptureResult): RefusalCause | undefined {
+  if (answer.kind !== 'never-reached') return undefined;
+  return explainRefusals(answer.unanswered)?.causes[0];
+}
+
 /** What the progress line says of one scene, read from the app's answer. */
 function lineOf(sceneId: string, answer: SceneCaptureResult) {
   const said = answer as {
+    bootMs?: number;
+    settled?: { ms?: number };
     reached?: { ms?: number };
     changing?: string[];
     ready?: string;
@@ -70,6 +92,8 @@ function lineOf(sceneId: string, answer: SceneCaptureResult) {
   return {
     sceneId,
     ending: answer.kind,
+    ...(said.bootMs && { launchMs: said.bootMs }),
+    ...(said.settled?.ms && { settledMs: said.settled.ms }),
     ...(said.reached?.ms !== undefined && { readyMs: said.reached.ms }),
     ...(said.changing && { changing: said.changing }),
     ...(said.ready !== undefined && { ready: said.ready }),

@@ -163,9 +163,17 @@ function refuseAllScenesWithOthers(passedOptions: CaptureOptions): void {
   }
 }
 
-/** An ending that has a screen to save: a scene that held still, or one that got ready and never stopped moving. */
+/**
+ * An ending that has a screen to save: a scene that held still, one that got ready and never
+ * stopped moving, or one that never got ready and whose screen the app read (the picture shows
+ * where it stopped).
+ */
 export function isPictured(answer: SceneCaptureResult): boolean {
-  return answer.kind === 'scene' || answer.kind === 'never-settled';
+  return (
+    answer.kind === 'scene' ||
+    answer.kind === 'never-settled' ||
+    (answer.kind === 'never-reached' && answer.screen !== undefined)
+  );
 }
 
 /**

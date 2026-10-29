@@ -1,0 +1,18 @@
+[31m✖[39m  The bundler cannot build the app's code, so no app can start
+
+  [1msrc/screens/Chat/Chat.scenes.tsx:11:23[22m
+  Unable to resolve "scenes/mocks/flags" from "src/screens/Chat/Chat.scenes.tsx"
+
+[2m       9 | import { Chat } from './Chat';[22m
+[2m      10 | import { chatScene } from 'scenes/helpers';[22m
+[2m    > 11 | import { flags } from 'scenes/mocks/flags';[22m
+[2m         |                       ^[22m
+[2m      12 |[22m
+
+  tsconfig.json resolves [1mscenes/mocks/flags[22m (baseUrl "src"), so the type check passes. Metro does not read tsconfig.json.
+  Teach Metro the same path (resolver.extraNodeModules in metro.config.js, or a Babel alias plugin) or import it relative.
+
+[2mFix the file, then capture again. Metro printed the same error where it runs.[22m
+
+
+[exit 1]

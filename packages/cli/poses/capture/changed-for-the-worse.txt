@@ -1,0 +1,15 @@
+[31m✖[39m  [1mkindred--chat-with-match[22m never got ready - no view chat.input.message showed, and the app stayed on ChatStack › ChatList
+
+Since the last run of this scene:
+  ended    was captured, now never got ready
+  route    was ChatStack › Chat, now ChatStack › ChatList
+  refused  was 0, now 3
+[2m   Run git diff to see what changed since.[22m
+
+[33m◦[39m  3 requests had no mock:
+     GET https://api.kindred.example/v1/chats/8412 from axios
+     GET https://api.kindred.example/v1/chats/8412/messages from axios
+     POST https://api.kindred.example/v1/chats/8412/read from axios
+
+
+[exit 1]

@@ -1,0 +1,10 @@
+[31m✖[39m  [1mkindred--profile-own[22m never got ready - no view profile.header showed, and the app stayed on AppStack › Profile
+
+  TypeError: Invalid attempt to destructure non-iterable instance
+[2m    at src/hooks/useIdentity.ts:325[22m
+
+  A fake gave [1maccount.profiles.0.ageRange[22m as an object, and the app reads it as a list.
+  Fix: give account.profiles.0.ageRange as a list in the scene's mock.
+
+
+[exit 1]

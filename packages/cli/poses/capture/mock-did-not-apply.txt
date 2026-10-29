@@ -1,0 +1,12 @@
+[31m✖[39m  [1mkindred--chat-with-match[22m never got ready - no view chat.header showed, and the app stayed on AppStack › Chat
+
+  The screen said: "Loading messages"
+[2m   6 views drawn[22m
+
+[33m◦[39m  1 module fake declared, did not apply:
+     components/chat/client  [2mthe bundler had not seen the module when it started: restart it[22m
+[2m   The app ran the real module instead. Restart the bundler, then capture again.[22m
+[2mPicture saved to ./chat-with-match.png[22m
+
+
+[exit 1]

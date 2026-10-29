@@ -1,0 +1,20 @@
+[33m◦[39m  The scene asks for tracking: granted, and Sherlo could not set it on the phone: the app is not installed there yet
+[2m   Install the app on the phone (run it once from your IDE), then capture again so the setting is in place.[22m
+
+[32m✔[39m  [1mkindred--discover-tab[22m captured, the way a test run records it
+[2m   booted fresh in 1.6s[22m
+[2m   reached AppStack › Discover in 2.5s[22m
+[2m   settled in <SETTLED> over 3 frames · testing mode[22m
+
+   [93m<[39m[95mDiscover[39m[93m>[39m
+     [93m<[39m[36mView[39m[93m>[39m [36m(<SIZE>)[39m
+       [93m<[39m[36mText[39m[93m>[39m
+         Discover
+       [93m</[39m[36mText[39m[93m>[39m
+     [93m</[39m[36mView[39m[93m>[39m
+   [93m</[39m[95mDiscover[39m[93m>[39m
+
+[2m   2 views · --json prints the record[22m
+
+
+[exit 0]
