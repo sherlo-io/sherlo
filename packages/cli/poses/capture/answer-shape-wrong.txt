@@ -1,0 +1,13 @@
+[31m✖[39m  [1mkindred--profile-own[22m never got ready - no view profile.photos showed, and the app stayed on AppStack › Profile
+
+  The screen said: "Your profile"
+[2m   4 views drawn[22m
+
+Mock answers the app could not use:
+  AccountHome at profile.photos.0: the mock answer has no __typename (expected Picture)
+  Add the missing __typename to that object in the mock answer:
+     __typename: 'Picture',
+[2mPicture saved to ./profile-own.png[22m
+
+
+[exit 1]

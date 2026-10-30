@@ -288,6 +288,7 @@ describe('a scene capture can save the screen it captured', () => {
       },
     });
     const uninstallSocket = installCaptureSocket({
+      listScenes: async () => [],
       captureStory: async () => {
         throw new Error('a scene capture asked about a story');
       },
@@ -701,6 +702,7 @@ async function captureOneStory(
 ): Promise<{ screen: string; exitCode: number | undefined; asked: unknown }> {
   let asked: unknown;
   const socket: CaptureSocket = {
+    listScenes: async () => [],
     captureStory: async (params) => {
       asked = { storyId: params.storyId, settings: params.settings };
       return answer;

@@ -72,6 +72,7 @@ import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
 import { renderOpenedScene } from './openedScene';
 import { renderCapturedScene } from './capturedScene';
+import { renderAllScenesSummary, renderSceneRunLine } from './capturedAllScenes';
 import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
 import { renderTeamList } from './teamList';
@@ -483,6 +484,18 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return {
         stream: 'stdout',
         prints: renderCapturedScene(segment.state, segment.picture).map((line) => [line]),
+      };
+
+    case 'scene-run-line':
+      return {
+        stream: 'stdout',
+        prints: renderSceneRunLine(segment.line).map((line) => [line]),
+      };
+
+    case 'all-scenes-summary':
+      return {
+        stream: 'stdout',
+        prints: renderAllScenesSummary(segment.summary).map((line) => [line]),
       };
 
     case 'coverage':

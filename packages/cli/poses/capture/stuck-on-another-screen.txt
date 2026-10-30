@@ -1,0 +1,12 @@
+[31m✖[39m  [1mkindred--discover-tab[22m never got ready - no view discover.feed showed, and the app stayed on AppStack › Consent
+
+  The screen said: "Before you continue", "Kindred uses your data to find matches", "Accept all", "Manage choices"
+[2m   9 views drawn[22m
+
+  Sherlo stopped after 4.0s: the app was still on a consent screen that nothing in the scene answers.
+  Tap through it in the scene's play:
+     play: [{ tap: { label: "Accept all" } }]
+[2mPicture saved to ./discover-tab.png[22m
+
+
+[exit 1]

@@ -1678,6 +1678,86 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a captured scene: green tick, bold id, dim ready time and refused count',
+    segment: {
+      kind: 'scene-run-line',
+      line: { sceneId: 'feed--home', ending: 'scene', readyMs: 2300, refused: 1 },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mfeed--home${ESC}[22m captured${ESC}[2m · ready in 2.3s · 1 refused${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a scene that never settled: yellow circle, the views still changing named',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'feed--live-ticker',
+        ending: 'never-settled',
+        readyMs: 2100,
+        changing: ['TickerValue', 'LoadingSpinner'],
+        refused: 0,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[33m◦${ESC}[39m  ${ESC}[1mfeed--live-ticker${ESC}[22m never settled - still changing: TickerValue, LoadingSpinner${ESC}[2m · ready in 2.1s${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a scene that never got ready: red cross, the view it waited for, no time',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'profile--own-profile',
+        ending: 'never-reached',
+        ready: 'profile.header',
+        refused: 0,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  ${ESC}[1mprofile--own-profile${ESC}[22m never reached - no view profile.header showed`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'all-scenes-summary',
+    what: '`sherlo capture --all-scenes` closing lines - a blank line, the counts, the dim line saying where the files are, a blank line',
+    segment: {
+      kind: 'all-scenes-summary',
+      summary: {
+        folder: './scenes-out',
+        captured: 1,
+        neverSettled: 1,
+        neverReached: 1,
+        failed: 1,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      ['4 scenes: 1 captured, 1 never settled, 1 never reached, 1 failed'],
+      [
+        `${ESC}[2m   a picture (<id>.png, not for a scene that never came up) and a record (<id>.json) of each are in ./scenes-out${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
     kind: 'project-created',
     what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
     segment: {

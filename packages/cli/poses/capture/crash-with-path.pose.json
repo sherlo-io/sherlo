@@ -1,0 +1,28 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--profile-own"],
+  "capture": {
+    "scenes": ["kindred--profile-own", "kindred--chat-empty"],
+    "ready": "profile.header",
+    "stayedOn": ["AppStack", "Profile"],
+    "threw": {
+      "name": "TypeError",
+      "message": "Invalid attempt to destructure non-iterable instance",
+      "file": "src/hooks/useIdentity.ts",
+      "line": 325
+    },
+    "crashCause": {
+      "dataPath": "account.profiles.0.ageRange",
+      "gave": "object",
+      "appExpects": "list"
+    }
+  }
+}

@@ -181,7 +181,7 @@ describe('a discover capture lists what the scene needs', () => {
     expect(printed).toContain('Feed: not checked, the request sent no query text');
   });
 
-  it('a capture that is not a discover capture prints none of the discover lines', () => {
+  it('a capture that is not a discover capture prints no rule list and no early-ready note, but does print the mock answers the app could not use', () => {
     const printed = neverReachedPlain({
       unanswered: [{ method: 'GET', url: '/a', operation: 'X' }],
       readyTooEarly: { atStep: 1, of: 3 },
@@ -191,7 +191,7 @@ describe('a discover capture lists what the scene needs', () => {
     expect(printed).toContain('1 request had no mock:');
     expect(printed).not.toContain('mockRequest');
     expect(printed).not.toContain('ready view showed');
-    expect(printed).not.toContain('Mock answers');
+    expect(printed).toContain('Mock answers the app could not use:');
   });
 
   it('a discover capture prints no module list, and its json record still keeps stillReal', () => {

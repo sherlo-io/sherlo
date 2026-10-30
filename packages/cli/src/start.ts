@@ -63,6 +63,8 @@ import {
   OPEN_COMMAND,
   CAPTURE_COMMAND,
   COVERAGE_COMMAND,
+  ALL_SCENES_FLAG,
+  ALL_SCENES_OPTION,
   JSON_OPTION,
   LOGS_OPTION,
   PNG_OPTION,
@@ -336,6 +338,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${PNG_OPTION} <path>`,
     'Save the screen as Sherlo captured it to this path (a PNG file)',
   ],
+  [ALL_SCENES_OPTION]: [
+    `--${ALL_SCENES_FLAG} <folder>`,
+    'Capture every scene, saving each one as <id>.png and <id>.json in this folder',
+  ],
   [PROPS_OPTION]: [
     `--${PROPS_OPTION}`,
     'Also read the story files and list the prop values no story file sets',
@@ -415,6 +421,7 @@ function addCaptureCommand(program: Command) {
       SCENE_OPTION,
       DISCOVER_OPTION,
       PNG_OPTION,
+      ALL_SCENES_OPTION,
       PORT_OPTION,
       JSON_OPTION,
       LOGS_OPTION,

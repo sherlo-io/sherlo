@@ -1,0 +1,15 @@
+[31m✖[39m  [1mkindred--chat-with-match[22m never got ready - no view chat.header showed, and the app stayed on AppStack › NoInternet
+
+  The screen said: "No internet connection", "Check your connection and try again", "Retry"
+[2m   7 views drawn[22m
+
+[33m◦[39m  701 requests had no mock, to 2 addresses (asks to one address counted together):
+      700  GET https://api.adapty.io/api/v1/sdk/in-apps/purchase-containers/ from react-native-adapty
+        1  GET https://clients3.google.com/generate_204
+
+  The app thinks it is offline: it asked an online check (the address a network-status library such as NetInfo asks) and got no answer. Answer the check:
+     mockRequest({ url: 'https://clients3.google.com/generate_204' }, { status: 204 })
+[2mPicture saved to ./chat-with-match.png[22m
+
+
+[exit 1]

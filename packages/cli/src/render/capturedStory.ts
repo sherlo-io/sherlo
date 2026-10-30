@@ -34,6 +34,23 @@ export type CapturedView = {
   children: CapturedView[];
 };
 
+/** Why the app's code did not build, as the bundler reported it. */
+export type BundleBuildFailure = {
+  kind: 'unresolved-import' | 'syntax' | 'other';
+  /** The bundler's own words: what went wrong, without its code frame. */
+  message: string;
+  /** The file the bundler names, relative to the project root when it lies under it. */
+  file?: string;
+  line?: number;
+  column?: number;
+  /** The few source lines around the failure, as the bundler's code frame shows them. */
+  frame?: string[];
+  /** For an unresolved import: the path as the import writes it. */
+  importPath?: string;
+  /** For an unresolved import the type check resolves: how (`baseUrl "src"`, `paths "@app/*"`). */
+  knownToTheTypeCheck?: string;
+};
+
 /** How a run of `sherlo capture` ended, as the screen needs it. */
 export type CapturedStory =
   | { kind: 'no-bundler'; port: number }
@@ -242,14 +259,16 @@ export function stillRealLines(stillReal: string[] | undefined): string[] {
 
 /** The requests no mock answered, each a method and an address. */
 export function unansweredLines(
-  unanswered: { method: string; url: string }[] | undefined
+  unanswered: { method: string; url: string; library?: string }[] | undefined
 ): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
     '',
     `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock:`,
-    ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
+    ...unanswered.map(
+      ({ method, url, library }) => `     ${method} ${url}${library ? ` from ${library}` : ''}`
+    ),
   ];
 }
 
@@ -383,6 +402,39 @@ export function seconds(ms: number): string {
 /** The dim line that says how long the capture took to settle, for a story and for a scene alike. */
 export function settledLine(ms: number, frames: number): string {
   return chalk.dim(`   settled in ${seconds(ms)} over ${frames} frames · testing mode`);
+}
+
+/**
+ * The app's code did not build: the file, line and message the bundler gave, its code frame, and -
+ * for an import the type check resolves and the bundler does not - why the two disagree, with the
+ * fix. Shared by a story and a scene capture.
+ */
+export function bundleFailureLines(failure: BundleBuildFailure): string[] {
+  const place = failure.file
+    ? [failure.file, failure.line, failure.line !== undefined ? failure.column : undefined]
+        .filter((part) => part !== undefined)
+        .join(':')
+    : undefined;
+
+  return [
+    `${chalk.red('✖')}  The bundler cannot build the app's code, so no app can start`,
+    '',
+    ...(place ? [`  ${chalk.bold(place)}`] : []),
+    `  ${failure.message}`,
+    ...(failure.frame && failure.frame.length > 0
+      ? ['', ...failure.frame.map((line) => chalk.dim(`    ${line}`))]
+      : []),
+    '',
+    ...(failure.knownToTheTypeCheck && failure.importPath
+      ? [
+          `  tsconfig.json resolves ${chalk.bold(failure.importPath)} (${failure.knownToTheTypeCheck}), so the type check passes. Metro does not read tsconfig.json.`,
+          '  Teach Metro the same path (resolver.extraNodeModules in metro.config.js, or a Babel alias plugin) or import it relative.',
+          '',
+        ]
+      : []),
+    chalk.dim('Fix the file, then capture again. Metro printed the same error where it runs.'),
+    '',
+  ];
 }
 
 /** The same handful-and-a-count `sherlo open` offers, for the same reason. */

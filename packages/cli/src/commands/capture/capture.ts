@@ -11,6 +11,7 @@
  * still came back with a record - that is the developer's news, not the tool's failure.
  */
 import {
+  ALL_SCENES_OPTION,
   DEFAULT_BUNDLER_PORT,
   JSON_OPTION,
   LOGS_OPTION,
@@ -19,6 +20,7 @@ import {
   PORT_OPTION,
   SCENE_OPTION,
   STORY_OPTION,
+  allScenesAloneRefusal,
   discoverRefusal,
   pngWithoutSceneRefusal,
   sceneWithStoryRefusal,
@@ -42,6 +44,7 @@ import {
 import type { SceneDevice } from '../../seams/deviceState';
 import type { CaptureResult } from '../../seams/captureSocket';
 import type { SceneCaptureResult } from '../../seams/liveScene';
+import { captureAllScenes } from './captureAllScenes';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene, ScenePicture } from '../../render/capturedScene';
 
@@ -53,12 +56,18 @@ export type CaptureOptions = {
   [JSON_OPTION]?: boolean;
   [LOGS_OPTION]?: boolean;
   [PNG_OPTION]?: string;
+  [ALL_SCENES_OPTION]?: string;
 };
 
 async function capture(passedOptions: CaptureOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
   const sceneId = passedOptions[SCENE_OPTION];
+  const allScenesFolder = passedOptions[ALL_SCENES_OPTION];
 
+  if (allScenesFolder) {
+    refuseAllScenesWithOthers(passedOptions);
+    return captureAllScenes(allScenesFolder, readPort(passedOptions[PORT_OPTION]));
+  }
   if (sceneId && storyId) {
     throwError({ message: sceneWithStoryRefusal('capture') });
   }
@@ -116,42 +125,16 @@ export default capture;
 async function captureScene(sceneId: string, passedOptions: CaptureOptions): Promise<void> {
   const port = readPort(passedOptions[PORT_OPTION]);
 
-  // The scene runs on a clean device, and every ending - a throw included - puts it back.
-  const target = await deviceState().sceneTarget();
-  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
-  const installed = !isTarget(target) || (await appIsInstalled(target));
-  // The scene's own phone setup, read from its file before the device is touched.
-  const field = isTarget(target) && installed ? sceneDeviceField(sceneId) : undefined;
-  const restore =
-    isTarget(target) && installed
-      ? await prepareCleanDevice(target.device, target.app, field).catch(endOnNotDebuggable)
-      : undefined;
-  const pngPath = passedOptions[PNG_OPTION];
   const discover = passedOptions[DISCOVER_OPTION] === true;
-  let answer: SceneCaptureResult;
-  let notApplied: string[] = [];
-  let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
-  try {
-    if (isTarget(target) && installed) notApplied = await applySceneDevice(target, field);
-    answer = installed
-      ? await captureSocket().captureScene({
-          sceneId,
-          port,
-          settings: STABILIZATION_SETTINGS,
-          target,
-          discover,
-        })
-      : { kind: 'no-app', why: 'not-installed' };
-    // The screen as the app left it: the clean device's put-back below would show the home screen.
-    if (picture && answer.kind === 'scene' && isTarget(target)) {
-      picture = await savePicture(target.device, picture.path);
-    }
-  } finally {
-    await restore?.();
-  }
+  const { answer, notApplied, picture } = await captureOnCleanDevice({
+    sceneId,
+    port,
+    pngPath: passedOptions[PNG_OPTION],
+    discover,
+  });
 
   if (passedOptions[JSON_OPTION]) {
-    const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
+    const saved = picture && !picture.error && isPictured(answer) ? { png: picture.path } : {};
     const unapplied = notApplied.length > 0 ? { deviceNotApplied: notApplied } : {};
     const listed = discover ? { discover: true } : {};
     const record = { ...answer, ...saved, ...unapplied, ...listed };
@@ -166,6 +149,75 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   // A discover capture holds requests, so the scene often never gets ready: that is its list, not a failure.
   const gotTheList = discover && answer.kind === 'never-reached';
   if (answer.kind !== 'scene' && !gotTheList) process.exit(EXIT_BLOCK);
+}
+
+/** `sherlo capture --all-scenes <folder>` stands alone: it takes no single scene, story, picture path or discover capture. */
+function refuseAllScenesWithOthers(passedOptions: CaptureOptions): void {
+  if (
+    passedOptions[SCENE_OPTION] ||
+    passedOptions[STORY_OPTION] ||
+    passedOptions[PNG_OPTION] ||
+    passedOptions[DISCOVER_OPTION]
+  ) {
+    throwError({ message: allScenesAloneRefusal() });
+  }
+}
+
+/**
+ * An ending that has a screen to save: a scene that held still, one that got ready and never
+ * stopped moving, or one that never got ready and whose screen the app read (the picture shows
+ * where it stopped).
+ */
+export function isPictured(answer: SceneCaptureResult): boolean {
+  return (
+    answer.kind === 'scene' ||
+    answer.kind === 'never-settled' ||
+    (answer.kind === 'never-reached' && answer.screen !== undefined)
+  );
+}
+
+/**
+ * One scene on a clean device: the phone set as the scene's file says, a fresh launch, the scene
+ * read, its picture saved when asked (before the put-back would show the home screen), and every
+ * ending - a throw included - puts the device back.
+ */
+export async function captureOnCleanDevice(run: {
+  sceneId: string;
+  port: number;
+  pngPath?: string;
+  discover?: boolean;
+}): Promise<{ answer: SceneCaptureResult; notApplied: string[]; picture?: ScenePicture }> {
+  const { sceneId, port, pngPath, discover = false } = run;
+  const target = await deviceState().sceneTarget();
+  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
+  const installed = !isTarget(target) || (await appIsInstalled(target));
+  // The scene's own phone setup, read from its file before the device is touched.
+  const field = isTarget(target) && installed ? sceneDeviceField(sceneId) : undefined;
+  const restore =
+    isTarget(target) && installed
+      ? await prepareCleanDevice(target.device, target.app, field).catch(endOnNotDebuggable)
+      : undefined;
+  let answer: SceneCaptureResult;
+  let notApplied: string[] = [];
+  let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
+  try {
+    if (isTarget(target) && installed) notApplied = await applySceneDevice(target, field);
+    answer = installed
+      ? await captureSocket().captureScene({
+          sceneId,
+          port,
+          settings: STABILIZATION_SETTINGS,
+          target,
+          discover,
+        })
+      : { kind: 'no-app', why: 'not-installed' };
+    if (picture && isPictured(answer) && isTarget(target)) {
+      picture = await savePicture(target.device, picture.path);
+    }
+  } finally {
+    await restore?.();
+  }
+  return { answer, notApplied, picture };
 }
 
 /** The device the scene's file declares; a field that is not a plain literal ends the command, naming the file. */

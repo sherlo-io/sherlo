@@ -1,0 +1,26 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--profile-own", "--png", "./profile-own.png"],
+  "capture": {
+    "scenes": ["kindred--profile-own", "kindred--chat-empty"],
+    "ready": "profile.photos",
+    "stayedOn": ["AppStack", "Profile"],
+    "screen": { "words": ["Your profile"], "views": 4 },
+    "answerFindings": [
+      {
+        "kind": "typename-missing",
+        "operation": "AccountHome",
+        "path": "profile.photos.0",
+        "expected": "Picture"
+      }
+    ]
+  }
+}

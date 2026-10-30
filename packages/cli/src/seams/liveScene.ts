@@ -11,8 +11,8 @@
 import type { SceneEnding, SceneLeft, PlayStep, PlayMissing } from '../render/capturedScene';
 import { drainAppLog, keepStrings, readAppLog } from './appLog';
 import { readAppError } from './appError';
-import { askTheBundlerLine } from './bundlerLine';
-import type { STABILIZATION_SETTINGS } from './bundlerLine';
+import { readBundleFailure } from './bundleFailure';
+import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { deviceState, isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
@@ -295,6 +295,13 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
     return { kind: 'no-such-scene', sceneId, known: keepStrings(answer.known) };
   }
 
+  // The bundler could not build the code the launched app asked for: no app will come, so this ends
+  // the capture at once instead of waiting out the app's hello.
+  if (answer?.kind === 'bundle-does-not-build') {
+    const failure = readBundleFailure(answer.failure);
+    if (failure) return { kind: 'bundle-does-not-build', sceneId, failure };
+  }
+
   // The core sends "crashed" for a scene only from the catch around its capture, after the app booted.
   if (answer?.kind === 'crashed') {
     const error = readAppError(answer.error);
@@ -334,13 +341,29 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
   if (answer?.kind === 'scene') {
     const reached = answer.reached as { route?: unknown; ms?: unknown } | undefined;
     const settled = answer.settled as { ms?: unknown; frames?: unknown } | string | undefined;
-    // A scene that never settled did not get ready: it ends in the signed "never got ready" words.
     if (typeof settled !== 'object' || typeof settled?.ms !== 'number') {
+      // A scene that names the view it waited for never got ready: it ends in the signed "never got ready" words.
+      if (typeof answer.ready === 'string') {
+        return {
+          kind: 'never-reached',
+          sceneId,
+          ready: answer.ready,
+          stayedOn: keepStrings(reached?.route),
+          ...keptLeft(answer),
+        };
+      }
+      // A scene whose screen never held still got ready and was read: it keeps its tree, and says so.
+      const changing = keepStrings(answer.changing);
       return {
-        kind: 'never-reached',
+        kind: 'never-settled',
         sceneId,
-        ready: typeof answer.ready === 'string' ? answer.ready : '',
-        stayedOn: keepStrings(reached?.route),
+        seconds: STABILIZATION_SETTINGS.timeoutMs / 1000,
+        reached: {
+          route: keepStrings(reached?.route),
+          ms: typeof reached?.ms === 'number' ? reached.ms : 0,
+        },
+        ...(changing.length > 0 && { changing }),
+        tree: readCapturedView(answer.tree),
         ...keptLeft(answer),
       };
     }
