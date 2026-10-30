@@ -218,12 +218,12 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
 export function renderBundleHoldsNoStories(): { message: string } {
   return {
     message:
-      "The app's bundle has no stories, so there's nothing to test.\n" +
-      'Storybook loads only the files matched by "stories" in .rnstorybook/main.ts.\n' +
-      'Check that your story files match it.\n' +
+      "The app's bundle has no stories, so there's nothing to test\n" +
+      '\n' +
+      'Check that your story files match "stories" in .rnstorybook/main.ts.\n' +
       'If an environment variable turns Storybook on, set it for the build in sherlo.config.json:\n' +
       '  "build": { "env": { "STORYBOOK_ENABLED": "true" } }\n' +
-      'More on writing stories:\n' +
+      'How to write stories:\n' +
       `  ${WRITING_STORIES_GUIDE}`,
   };
 }

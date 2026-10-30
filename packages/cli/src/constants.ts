@@ -52,6 +52,8 @@ export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';
 /** The how-to for writing stories, shipped in the SDK, so its path holds wherever the app is. */
 export const WRITING_STORIES_GUIDE = `node_modules/${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}/guides/writing-stories.md`;
+/** Both ways of letting Sherlo open Storybook, per kind of app, shipped in the SDK beside the stories guide. */
+export const STORYBOOK_SETUP_GUIDE = `node_modules/${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}/guides/storybook-setup.md`;
 
 export const MIN_REACT_NATIVE_VERSION = '0.81.0';
 /** The oldest published 8.x: 8.0.0 was never published (npm view, 2026-10-29). */

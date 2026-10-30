@@ -91,7 +91,7 @@ async function installSherlo(): Promise<void> {
       below:
         (getFailedCommandOutput(error) ?? '') +
         '\n\n' +
-        chalk.reset('Fix the error above, or install it yourself:\n') +
+        chalk.reset('Fix the error, or install the package yourself:\n') +
         chalk.cyan(`  ${commandToRun}\n`) +
         '\n' +
         chalk.reset('Then run setup again:\n') +
