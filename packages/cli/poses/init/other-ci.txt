@@ -22,11 +22,9 @@ Setting up Sherlo...
 [32m✔[39m No GitHub workflow     the code is on GitLab
 
 
-[1m👉 Next step[22m
-[2m════════════[22m
+[1m🚀 First visual test[22m
+[2m═════════════════════[22m
 
-[1mRun your first visual test[22m
-   [36mnpx sherlo test[39m
-   The first run builds your app, which can take a while.
+Building your app so Sherlo can test it. This can take a while.
 
 [exit 0]

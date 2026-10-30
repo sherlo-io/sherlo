@@ -79,13 +79,24 @@ export function renderNextSteps({
   storybook,
   storybookVersion,
   isExpo,
+  reader,
 }: {
   storybook: 'installed' | 'default-setup' | 'old-setup';
   /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
   storybookVersion: string | undefined;
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
+  reader: FeedbackReader;
 }): string[] {
+  // NOTHING LEFT BUT THE TEST, FOR A PERSON: setup starts it, so nobody leaves it for later. The
+  // line stays on the screen through the build, for whoever comes back to the terminal mid-way.
+  if (storybook === 'default-setup' && reader === 'person') {
+    return [
+      ...renderSectionTitle('🚀 First visual test', 21),
+      'Building your app so Sherlo can test it. This can take a while.',
+    ];
+  }
+
   // EVERY LINE OF BOTH CHOICES IS ON THE SCREEN: the code to add, the file it
   // goes in, and what to remove - no docs link, which an agent rarely opens.
   const code = (line: string): string => chalk.cyan(line);
@@ -162,13 +173,16 @@ export function renderNextSteps({
     ...storybookSteps[storybook],
     {
       title: 'Run your first visual test',
-      // THE WAIT IS SAID BEFORE IT STARTS, AS A NUMBER: a build outlasts an agent's usual command
-      // time limit, and an agent that knows how long it takes runs it in the background instead
-      // of killing it as a hang.
+      // THE WAIT IS FOR AGENTS ONLY: a build outlasts an agent's command time limit, so it is told
+      // to run it in the background. A person told it takes long may leave it for later, so a
+      // person reads the command alone. No number: the time depends on the app and the machine.
       content: [
         code('npx sherlo test'),
-        // NO NUMBER: the time depends on the app and the machine, so the line only says it is long.
-        'The first run builds your app, which can take a while.',
+        ...(reader === 'agent'
+          ? [
+              'AI agents: the first run builds the app and can outlast your command timeout, so run it in the background.',
+            ]
+          : []),
       ],
     },
   ];

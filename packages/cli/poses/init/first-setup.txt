@@ -47,6 +47,5 @@ Opening your browser to log in to Sherlo...
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m
-   The first run builds your app, which can take a while.
 
 [exit 0]

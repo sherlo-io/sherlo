@@ -67,8 +67,11 @@ async function init(options: Options<THIS_COMMAND>) {
         storybook: storybookState,
         storybookVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ?? undefined,
         isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
+        reader,
       })
     );
+    // BUILD DEBT (init-for-agents): on the default setup in a person's terminal, run `sherlo test`
+    // here, under the line renderNextSteps printed, and only when the app has stories of its own.
     printLines(renderFeedbackLine({ reader }));
 
     await trackProgress({ event: '7_testing', sessionId, hasFinished: true });
