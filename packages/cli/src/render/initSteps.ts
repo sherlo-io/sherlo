@@ -145,9 +145,11 @@ export function renderNextSteps({
           `  ${code('// Button.stories.tsx')}`,
           `  ${code("import { Button } from './Button';")}`,
           `  ${code('export default { component: Button };')}`,
-          `  ${code("export const Default = { args: { title: 'Buy' } };")}`,
-          `  ${code("export const Disabled = { args: { title: 'Buy', disabled: true } };")}`,
-          'Point "stories" in .rnstorybook/main.ts at them.',
+          // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
+          `  ${code("export const Default = { args: { title: 'Default' } };")}`,
+          `  ${code("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
+          // A FOLDER, NOT A PATTERN: Storybook finds every story file under it.
+          `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ['../src'].`,
           'Delete the examples in .rnstorybook/stories.',
           'How to write stories:',
           `  ${code(WRITING_STORIES_GUIDE)}`,
