@@ -13,13 +13,14 @@
  * Pure, like everything under ./: state in, the `message` and `below` that `throwError` prints.
  */
 import chalk from 'chalk';
+import { renderCode } from './initLines';
 import type { FeedbackReader } from './initSteps';
 
 export type InitRefusal = { message: string; below: string };
 
 const INIT_COMMAND = 'npx sherlo init';
 
-/** A command or code, indented and in the command colour. */
+/** A command, indented and in the command colour; code to add goes through `renderCode`. */
 const code = (line: string): string => chalk.cyan(`  ${line}`);
 
 /** Plain words: `throwError` prints only the first line red, and these reset any colour above. */
@@ -164,11 +165,11 @@ export function renderStorybookTooOld({
 export function renderMetroConfigUnreadable({ path }: { path: string }): InitRefusal {
   return refusal(`Setup can't edit ${path}`, [
     words("Wrap its export in Sherlo's withStorybook. With require:"),
-    code("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');"),
-    code('module.exports = withStorybook(config);'),
+    `  ${renderCode("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');")}`,
+    `  ${renderCode('module.exports = withStorybook(config);')}`,
     words('Or with import:'),
-    code("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';"),
-    code('export default withStorybook(config);'),
+    `  ${renderCode("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';")}`,
+    `  ${renderCode('export default withStorybook(config);')}`,
     words("If Storybook's own withStorybook is there, swap it for Sherlo's."),
     ...rerun(),
   ]);

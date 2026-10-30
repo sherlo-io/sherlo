@@ -10,7 +10,7 @@
  */
 import chalk from 'chalk';
 import { STORYBOOK_SETUP_GUIDE, WRITING_STORIES_GUIDE } from '../constants';
-import { renderSectionTitle } from './initLines';
+import { renderCode, renderSectionTitle } from './initLines';
 
 /** How wide the step names are padded, so every step's detail starts in the same column. */
 const STEP_NAME_WIDTH = 22;
@@ -99,16 +99,15 @@ export function renderNextSteps({
 
   // EVERY LINE OF BOTH CHOICES IS ON THE SCREEN: the code to add, the file it
   // goes in, and what to remove - no docs link, which an agent rarely opens.
-  const code = (line: string): string => chalk.cyan(line);
   const registerRoot = isExpo
     ? [
-        code("import { registerRootComponent } from 'expo';"),
-        code('registerRootComponent(StorybookUIRoot);'),
+        renderCode("import { registerRootComponent } from 'expo';"),
+        renderCode('registerRootComponent(StorybookUIRoot);'),
       ]
     : [
-        code("import { AppRegistry } from 'react-native';"),
-        code("import { name as appName } from '../app.json';"),
-        code('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
+        renderCode("import { AppRegistry } from 'react-native';"),
+        renderCode("import { name as appName } from '../app.json';"),
+        renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
       ];
   const upgradeFirst = hasDefaultSetup(storybookVersion)
     ? []
@@ -122,9 +121,9 @@ export function renderNextSteps({
   ];
   const keepSetupChoice = [
     'b) Or in-app integration: keep your setup, and add this at the top of your root component:',
-    `     ${code("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
-    `     ${code("import Storybook from './.rnstorybook';")}`,
-    `     ${code('if (isStorybookMode) return <Storybook />;')}`,
+    `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
+    `     ${renderCode("import Storybook from './.rnstorybook';")}`,
+    `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
   ];
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
@@ -145,14 +144,14 @@ export function renderNextSteps({
           'You can start with a few components or screens, one story per state:',
           // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
           // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
-          `  ${code('// Button.stories.tsx')}`,
-          `  ${code("import { Button } from './Button';")}`,
-          `  ${code('export default { component: Button };')}`,
+          `  ${renderCode('// Button.stories.tsx')}`,
+          `  ${renderCode("import { Button } from './Button';")}`,
+          `  ${renderCode('export default { component: Button };')}`,
           // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
-          `  ${code("export const Default = { args: { title: 'Default' } };")}`,
-          `  ${code("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
+          `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
+          `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
           'How to write stories:',
-          `  ${code(WRITING_STORIES_GUIDE)}`,
+          `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
         ],
       },
     ],
@@ -165,7 +164,7 @@ export function renderNextSteps({
           ...defaultSetupChoice,
           ...keepSetupChoice,
           'Both in detail, for your kind of app:',
-          `  ${code(STORYBOOK_SETUP_GUIDE)}`,
+          `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
         ],
       },
     ],
@@ -179,7 +178,7 @@ export function renderNextSteps({
       // to run it in the background. A person told it takes long may leave it for later, so a
       // person reads the command alone. No number: the time depends on the app and the machine.
       content: [
-        code('npx sherlo test'),
+        chalk.cyan('npx sherlo test'),
         ...(reader === 'agent'
           ? [
               'AI agents: the first run builds the app and can outlast your command timeout, so run it in the background.',

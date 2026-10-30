@@ -244,7 +244,11 @@ export type PosedWorkstation = {
    * read the project as the Storybook step left it. Left out for a project that already has Storybook,
    * where setup never runs it; stated for one that does not, it is refused.
    */
-  storybook?: { wrote: PosedFiles };
+  storybook?: {
+    wrote: PosedFiles;
+    /** What the installer printed when it failed, on each stream: stated, it writes nothing. */
+    failed?: { stdout: string; stderr: string };
+  };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
    * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
@@ -335,6 +339,11 @@ export function posedWorkstation(
             'in `"storybook": {"wrote": {...}}` in the workstation of the pose'
         );
         return;
+      }
+
+      // A failed installer ends the way addPackage's failed install does.
+      if (posed.storybook.failed) {
+        throw Object.assign(new Error('the Storybook installer failed'), posed.storybook.failed);
       }
 
       for (const [relativePath, content] of Object.entries(posed.storybook.wrote)) {

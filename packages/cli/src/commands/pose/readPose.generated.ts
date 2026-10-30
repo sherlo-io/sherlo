@@ -1175,7 +1175,16 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
       const object7 = asObject(object1.storybook, where6, problems);
       if (object7) {
         readPosedFiles(object7.wrote, at(where6, 'wrote'), problems);
-        reportUnknownFields(object7, ['wrote'], where6, problems);
+        if ('failed' in object7) {
+          const where8 = at(where6, 'failed');
+          const object9 = asObject(object7.failed, where8, problems);
+          if (object9) {
+            expectString(object9.stdout, at(where8, 'stdout'), problems);
+            expectString(object9.stderr, at(where8, 'stderr'), problems);
+            reportUnknownFields(object9, ['stdout', 'stderr'], where8, problems);
+          }
+        }
+        reportUnknownFields(object7, ['wrote', 'failed'], where6, problems);
       }
     }
     if ('pods' in object1) {
@@ -1611,7 +1620,18 @@ function readApiError(value: unknown, path: string, problems: string[]): void {
     if ('errorName' in object1) {
       expectLiteral(object1.errorName, 'TeamNotFoundError', at(path, 'errorName'), problems);
     }
-    reportUnknownFields(object1, ['error', 'errorName'], path, problems);
+    if ('cause' in object1) {
+      const where2 = at(path, 'cause');
+      const object3 = asObject(object1.cause, where2, problems);
+      if (object3) {
+        expectString(object3.code, at(where2, 'code'), problems);
+        if ('hostname' in object3) {
+          expectString(object3.hostname, at(where2, 'hostname'), problems);
+        }
+        reportUnknownFields(object3, ['code', 'hostname'], where2, problems);
+      }
+    }
+    reportUnknownFields(object1, ['error', 'errorName', 'cause'], path, problems);
   }
 }
 

@@ -1,0 +1,46 @@
+
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+             [93m8[39m[93m8[39m[93m8[39m                       [93m8[39m[93m8[39m[93m8[39m          
+    [93m.[39m[93md[39m[93m8[39m[93m8[39m[93m8[39m[93m8[39m[93mb[39m  [93m8[39m[93m8[39m[93m8[39m [93m8[39m[93mb[39m[93m.[39m   [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m[97m8[39m [97m8[39m[97m8[39m[97m8[39m  [97m.[39m[97md[39m[97m8[39m[97m8[39m[97mb[39m[97m.[39m  
+    [97m8[39m[97m8[39m[97mK[39m      [97m8[39m[97m8[39m[97m8[39m [97m"[39m[97m8[39m[97m8[39m[97mb[39m [97md[39m[97m8[39m[97mP[39m  [97mY[39m[97m8[39m[97mb[39m [97m8[39m[97m8[39m[97m8[39m[97m"[39m    [97m8[39m[97m8[39m[97m8[39m [97md[39m[97m8[39m[97m8[39m[97m"[39m[97m"[39m[97m8[39m[97m8[39m[97mb[39m 
+    [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mb[39m[96m.[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m 
+         [96mX[39m[96m8[39m[96m8[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96mb[39m[96m.[39m     [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m [96mY[39m[96m8[39m[96m8[39m[96m.[39m[96m.[39m[96m8[39m[96m8[39m[96mP[39m 
+    [96m'[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m[96mP[39m[96m'[39m [96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96m8[39m[96m8[39m  [96m8[39m[96m8[39m[96m8[39m     [96m8[39m[96m8[39m[96m8[39m  [96m"[39m[96mY[39m[96m8[39m[96m8[39m[96mP[39m[96m"[39m
+
+[2m[3mMake sure your mobile app looks perfect on every device[23m[22m
+
+Setting up Sherlo...
+
+[32m✔[39m Checked the project    React Native 0.81, Storybook 10.6
+[32m✔[39m Logged in              anna@example.com
+[32m✔[39m Using team             Anna's team
+[32m✔[39m Created project        acme-shop
+[32m✔[39m Created config         sherlo.config.json, one device: Pixel 7 Pro
+[32m✔[39m Installed Sherlo       @sherlo/react-native-storybook 3.0.0-alpha.0
+[32m✔[39m Updated Metro config   metro.config.js
+[32m✔[39m Added GitHub workflow  .github/workflows/sherlo.yml
+
+
+[1m👉 Next steps[22m
+[2m═════════════[22m
+
+[1m1. Let Sherlo open Storybook[22m
+   Storybook starts from your app's code, so Sherlo can't open it alone.
+   a) Entry-point swapping (recommended, Storybook's default since 10.4)
+      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+        [36mimport[39m { AppRegistry } [36mfrom[39m [35m'react-native'[39m;
+        [36mimport[39m { name [36mas[39m appName } [36mfrom[39m [35m'../app.json'[39m;
+        AppRegistry.[32mregisterComponent[39m(appName, () => StorybookUIRoot);
+      Then remove your app's code that renders Storybook, and its import.
+   b) Or in-app integration: keep your setup, and add this at the top of your root component:
+        [36mimport[39m { isStorybookMode } [36mfrom[39m [35m'@sherlo/react-native-storybook'[39m;
+        [36mimport[39m Storybook [36mfrom[39m [35m'./.rnstorybook'[39m;
+        [36mif[39m (isStorybookMode) [36mreturn[39m <[35mStorybook[39m />;
+   Both in detail, for your kind of app:
+     [36mnode_modules/@sherlo/react-native-storybook/guides/storybook-setup.md[39m
+
+[1m2. Run your first visual test[22m
+   [36mnpx sherlo test[39m
+
+[exit 0]

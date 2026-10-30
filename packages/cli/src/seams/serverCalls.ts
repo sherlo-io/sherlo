@@ -400,6 +400,8 @@ export type ApiError = {
   error: string;
   /** The client's own error kind, where a command answers it apart: a team the person is not in. */
   errorName?: 'TeamNotFoundError';
+  /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
+  cause?: { code: string; hostname?: string };
 };
 
 /**
@@ -835,7 +837,7 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       if (answer.errorName === 'TeamNotFoundError') {
         throw new TeamNotFoundError(String(answer.error));
       }
-      throw new Error(String(answer.error));
+      throw Object.assign(new Error(String(answer.error)), { cause: answer.cause });
     }
 
     return next.answer;

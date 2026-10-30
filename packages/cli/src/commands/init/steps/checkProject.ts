@@ -53,6 +53,8 @@ async function checkProject(): Promise<CheckedProject> {
         addReactNativeCommand: await packageManagerCommand('add', [
           `${REACT_NATIVE_PACKAGE_NAME}@${MIN_REACT_NATIVE_VERSION}`,
         ]),
+        // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
+        reader: process.stdout.isTTY ? 'person' : 'agent',
       })
     );
   }

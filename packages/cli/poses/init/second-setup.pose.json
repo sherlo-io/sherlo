@@ -19,15 +19,30 @@
     },
     "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
     "metro.config.js": "const { getDefaultConfig } = require('expo/metro-config');\nconst withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');\n\nconst config = getDefaultConfig(__dirname);\n\nmodule.exports = withStorybook(config);\n",
-    "sherlo.config.json": { "project": "k7m2p9qx/1", "devices": [{ "id": "pixel.7.pro", "osVersion": "13" }] },
+    "sherlo.config.json": {
+      "project": "k7m2p9qx/1",
+      "devices": [{ "id": "pixel.7.pro", "osVersion": "13" }]
+    },
     ".github/workflows/sherlo.yml": "name: Sherlo\n",
-    "node_modules/react-native/package.json": { "name": "react-native", "version": "0.81.5", "main": "index.js" },
+    "node_modules/react-native/package.json": {
+      "name": "react-native",
+      "version": "0.81.5",
+      "main": "index.js"
+    },
     "node_modules/react-native/index.js": "",
     "node_modules/expo/package.json": { "name": "expo", "version": "54.0.0", "main": "index.js" },
     "node_modules/expo/index.js": "",
-    "node_modules/@storybook/react-native/package.json": { "name": "@storybook/react-native", "version": "10.6.0", "main": "index.js" },
+    "node_modules/@storybook/react-native/package.json": {
+      "name": "@storybook/react-native",
+      "version": "10.6.0",
+      "main": "index.js"
+    },
     "node_modules/@storybook/react-native/index.js": "",
-    "node_modules/@sherlo/react-native-storybook/package.json": { "name": "@sherlo/react-native-storybook", "version": "2.0.2", "main": "index.js" },
+    "node_modules/@sherlo/react-native-storybook/package.json": {
+      "name": "@sherlo/react-native-storybook",
+      "version": "2.0.2",
+      "main": "index.js"
+    },
     "node_modules/@sherlo/react-native-storybook/index.js": ""
   },
   "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
@@ -39,8 +54,16 @@
   },
   "bundles": {},
   "api": [
-    { "call": "trackCliInit", "with": { "event": "0_init" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "1_requirements" }, "answer": { "sessionId": "init-session-1" } },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "0_init" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "1_requirements" },
+      "answer": { "sessionId": "init-session-1" }
+    },
     {
       "call": "listProjects",
       "with": { "teamId": "k7m2p9qx" },
@@ -49,14 +72,33 @@
         "projects": [{ "index": 1, "name": "Acme Shop", "buildCount": 0, "mainBranch": null }]
       }
     },
-    { "call": "trackCliInit", "with": { "event": "5_config" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "2_dependencies" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "3_metro_config" }, "answer": { "sessionId": "init-session-1" } },
-    { "call": "trackCliInit", "with": { "event": "7_testing" }, "answer": { "sessionId": "init-session-1" } }
+    {
+      "call": "trackCliInit",
+      "with": { "event": "5_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "2_dependencies" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "3_metro_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "7_testing" },
+      "answer": { "sessionId": "init-session-1" }
+    }
   ],
   "masks": {},
   "logins": {
-    "https://api.sherlo.io/graphql": { "email": "anna@example.com", "token": "sht_poselogintoken00000000000000000" }
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
   },
   "workstation": { "install": { "package": "@sherlo/react-native-storybook@2.0.2" } }
 }

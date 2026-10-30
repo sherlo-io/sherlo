@@ -577,6 +577,11 @@ export type PosedWorkstation = {
    */
   storybook?: {
     wrote: PosedFiles;
+    /** What the installer printed when it failed, on each stream: stated, it writes nothing. */
+    failed?: {
+      stdout: string;
+      stderr: string;
+    };
   };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
@@ -828,6 +833,11 @@ export type ApiError = {
   error: string;
   /** The client's own error kind, where a command answers it apart: a team the person is not in. */
   errorName?: 'TeamNotFoundError';
+  /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
+  cause?: {
+    code: string;
+    hostname?: string;
+  };
 };
 
 /**
