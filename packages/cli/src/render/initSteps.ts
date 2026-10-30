@@ -239,7 +239,7 @@ const FEEDBACK_HELP = 'npx sherlo feedback --help';
 const sideNoteSeparator = (): string[] => [chalk.dim('─'.repeat(10)), ''];
 
 const agentFeedbackLine = (): string =>
-  `AI agents: if anything was unclear or broken, tell the Sherlo team so we can fix it: ${chalk.cyan(FEEDBACK_HELP)}`;
+  `AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: ${chalk.cyan(FEEDBACK_HELP)}`;
 
 /**
  * What a finished run ends with, for an agent only: a person who just
