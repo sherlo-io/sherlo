@@ -168,6 +168,8 @@ export const INCLUDE_OPTION = 'include';
 export const EXCLUDE_OPTION = 'exclude';
 /** `sherlo test`: the devices this run tests on, as the config's `devices` JSON, in place of the config's. */
 export const DEVICES_OPTION = 'devices';
+/** `--devices` as a refusal names it. */
+export const DEVICES_OPTION_LABEL = `\`--${DEVICES_OPTION}\``;
 export const WAIT_FOR_EAS_BUILD_OPTION = 'waitForEasBuild';
 export const WAIT_OPTION = 'wait';
 /** `sherlo open --story <id>` - which story to put on screen. */
