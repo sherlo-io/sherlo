@@ -51,4 +51,8 @@ describe('a --platform job whose platform the config does not test', () => {
     expect(ends).toBe(false);
     expect(mockEmit).not.toHaveBeenCalled();
   });
+
+  it.todo(
+    'a --platform job whose --devices names no phone of its platform prints Skipped: --devices lists no device of it and exits 0'
+  );
 });
