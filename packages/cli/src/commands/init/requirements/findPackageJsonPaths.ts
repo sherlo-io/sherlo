@@ -1,8 +1,9 @@
 import { findUp } from 'find-up';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
-import { dirname, join } from 'path';
-import { getCwd, getErrorWithCustomMessage, throwError } from '../../../helpers';
+import { dirname, join, relative } from 'path';
+import { getCwd, throwError } from '../../../helpers';
+import { renderInvalidJson } from '../../../render/initFixes';
 
 async function findPackageJsonPaths(): Promise<{
   current: string | null;
@@ -40,10 +41,13 @@ async function isMonorepoRoot(packageJsonPath: string): Promise<boolean> {
   try {
     packageJson = JSON.parse(await readFile(packageJsonPath, 'utf-8'));
   } catch (error) {
-    throwError({
-      type: 'unexpected',
-      error: getErrorWithCustomMessage(error, `Invalid ${packageJsonPath}`),
-    });
+    // The person's own file is at fault, not Sherlo: the parser's line and column, never a bug report.
+    throwError(
+      renderInvalidJson({
+        path: relative(getCwd(), packageJsonPath) || packageJsonPath,
+        reason: (error as Error).message,
+      })
+    );
   }
 
   // Check for workspaces in package.json (npm/yarn/bun)

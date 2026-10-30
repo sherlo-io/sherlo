@@ -5,6 +5,7 @@
  * words.
  */
 import { throwError } from '../../../helpers';
+import { renderServiceUnreachable } from '../../../render/initFixes';
 import { CreateProjectAuthError } from '../../projectCreate/createProjectRequest';
 import { ListProjectsAuthError } from '../../projectList/listProjectsRequest';
 import { refuseRejectedLogin } from '../../shared';
@@ -19,6 +20,18 @@ function refuseFailedServiceCall(error: Error): never {
     error instanceof CreateProjectAuthError;
 
   if (serviceRefusedTheLogin) refuseRejectedLogin();
+
+  // A call that never reached the service carries the network's own code (ENOTFOUND, ECONNREFUSED)
+  // on its cause: the fix is the connection, said with that code, not a bug report.
+  const { cause } = error as { cause?: { code?: string; hostname?: string } };
+  if (cause?.code) {
+    throwError({
+      ...renderServiceUnreachable({
+        cause: [cause.code, cause.hostname].filter(Boolean).join(' '),
+      }),
+      errorToReport: error,
+    });
+  }
 
   throwError({ message: error.message, errorToReport: error });
 }

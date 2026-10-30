@@ -210,22 +210,28 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
 }
 
 /**
- * The refusal of a `--platform` that is neither `android` nor `ios` - a typo in a CI matrix, or
- * `--platform both`. It names the two values and says what leaving the flag out does, so the job is
- * fixed in one edit.
- */
-/**
- * A bundle whose module map counts no stories: Storybook was switched off by a variable the
- * build never saw, and a run that photographed nothing would read green.
+ * A bundle whose module map counts no stories, and a run that photographed nothing would read
+ * green. Both causes are named with their fix on the screen, never a docs link:
+ * story files Storybook's `stories` globs do not reach, or Storybook switched off by a variable
+ * the build never saw.
  */
 export function renderBundleHoldsNoStories(): { message: string } {
   return {
     message:
       "Can't test: the bundle holds no stories.\n" +
-      'If a variable switches Storybook on in your app, set it in sherlo.config.json "build.env".',
+      'Storybook bundles only the files its "stories" list in .rnstorybook/main.ts matches,\n' +
+      'such as "../src/**/*.stories.?(ts|tsx|js|jsx)". Check your story files match it.\n' +
+      'If a variable switches Storybook on in your app, set it for the build in sherlo.config.json,\n' +
+      'under its own name - for example:\n' +
+      '  "build": { "env": { "STORYBOOK_ENABLED": "true" } }',
   };
 }
 
+/**
+ * The refusal of a `--platform` that is neither `android` nor `ios` - a typo in a CI matrix, or
+ * `--platform both`. It names the two values and says what leaving the flag out does, so the job is
+ * fixed in one edit.
+ */
 export function renderPlatformUnknown(givenPlatform: string): { message: string; below: string } {
   return {
     message: `\`--platform\` takes \`android\` or \`ios\`, not \`${givenPlatform}\`.`,

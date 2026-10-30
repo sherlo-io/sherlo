@@ -36,9 +36,14 @@ Opening your browser to log in to Sherlo...
    Sherlo tests what your stories show, so write them for your app's components
    and delete Storybook's examples in .rnstorybook/stories.
    Storybook loads only the folders listed in .rnstorybook/main.ts, so add yours there.
-   Guide: [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
+   A story file sits beside its component, one export per state Sherlo should photograph:
+     [36m// Button.stories.tsx[39m
+     [36mexport default { component: Button };[39m
+     [36mexport const Primary = { args: { title: 'Buy' } };[39m
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m
+   The first test builds your app, so it can take a while - longer than an agent
+   command's usual time limit, so an AI agent can run it in the background and wait.
 
 [exit 0]

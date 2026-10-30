@@ -18,7 +18,7 @@ vi.mock('@sentry/node', () => ({
 vi.mock('../validateProjectContext', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../validateHasReactNative', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../validateHasStorybook', () => ({ default: vi.fn(async () => {}) }));
-vi.mock('../validateHasWithStorybookInMetroConfig', () => ({ default: vi.fn(async () => {}) }));
+vi.mock('../refuseUnreadableMetroConfig', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../validateCorePackagesVersions', () => ({ default: vi.fn(() => {}) }));
 vi.mock('../getPackageVersion', () => ({ default: vi.fn() }));
 vi.mock('../../helpers/trackProgress', () => ({

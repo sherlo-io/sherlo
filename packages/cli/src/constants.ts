@@ -52,7 +52,8 @@ export const SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME = '@sherlo/react-native-
 export const STORYBOOK_REACT_NATIVE_PACKAGE_NAME = '@storybook/react-native';
 
 export const MIN_REACT_NATIVE_VERSION = '0.81.0';
-export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.0.0';
+/** The oldest published 8.x: 8.0.0 was never published (npm view, 2026-10-29). */
+export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.3.5';
 
 /* COMMANDS */
 

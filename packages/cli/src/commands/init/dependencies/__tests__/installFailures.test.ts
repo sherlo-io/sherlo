@@ -13,7 +13,12 @@ vi.mock('../../../../helpers/getCwd', () => ({ default: () => projectRoot.path }
 vi.mock('../../../../helpers/reporting', () => ({ default: { captureException: vi.fn() } }));
 vi.mock('../../../../helpers/spinner', () => ({
   default: () => {
-    const spinner = { start: () => spinner, fail: () => spinner, succeed: () => spinner };
+    const spinner = {
+      start: () => spinner,
+      stop: () => spinner,
+      fail: () => spinner,
+      succeed: () => spinner,
+    };
     return spinner;
   },
 }));
@@ -89,7 +94,7 @@ describe('a failed install', () => {
 
     const message = await messageOfRefusal(installSherlo);
 
-    expect(message).toContain('Failed to install Sherlo automatically');
+    expect(message).toContain('could not install @sherlo/react-native-storybook');
     expect(message).toContain('line 40');
     expect(message).toContain(`line ${40 - LAST_LINES_SHOWN + 1}`);
     expect(message).not.toContain(`line ${40 - LAST_LINES_SHOWN}\n`);

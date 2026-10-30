@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { APP_DOMAIN, FULL_INIT_COMMAND, TEAM_OPTION } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
+import { renderNoAccessToProject } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
 import type { SavedLogin } from '../../../seams/savedLogins';
@@ -22,6 +23,7 @@ import readConfig from '../config/readConfig';
 import { printLines } from '../helpers';
 import { asConfigProject, type ProjectAddress } from '../project/projectAddress';
 import refuseFailedServiceCall from '../project/refuseFailedServiceCall';
+import { TeamNotFoundError } from '../../projectList/listProjectsRequest';
 
 /** The project setup settled, as the config holds it, and its page in the web app. */
 export type SettledProject = { projectId: string; projectPageUrl: string };
@@ -32,10 +34,10 @@ async function teamAndProject(
 ): Promise<SettledProject> {
   // `--project` is how the web app's setup line connects init to a project made there; it wins over
   // a config's, which it then replaces. Either is looked up, never made again.
-  const existingProject =
-    (projectFlag ? parseProject(projectFlag) : undefined) ?? (await readProjectFromConfig());
+  const flagProject = projectFlag ? parseProject(projectFlag) : undefined;
+  const existingProject = flagProject ?? (await readProjectFromConfig());
   if (existingProject) {
-    await showProjectInConfig(existingProject, person);
+    await showProjectInConfig(existingProject, person, flagProject ? 'flag' : 'config');
     return settled(existingProject);
   }
 
@@ -52,23 +54,29 @@ export default teamAndProject;
 /** The team and project a config already names, by name - refused when this person cannot reach them. */
 async function showProjectInConfig(
   project: ProjectAddress,
-  { token: personalToken }: SavedLogin
+  { token: personalToken }: SavedLogin,
+  namedIn: 'config' | 'flag'
 ): Promise<void> {
-  const { team, projects } = await serverCalls()
+  // A team the person is not in and a project its team does not hold are one answer: no access.
+  const teamProjects = await serverCalls()
     .listProjects({ teamId: project.teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error));
+    .catch((error: Error) =>
+      error instanceof TeamNotFoundError ? null : refuseFailedServiceCall(error)
+    );
 
-  const projectInTeam = projects.find(({ index }) => index === project.projectIndex);
-  if (!projectInTeam) {
+  const projectInTeam = teamProjects?.projects.find(({ index }) => index === project.projectIndex);
+  if (!teamProjects || !projectInTeam) {
+    // The account is named: a person signed in with another account fixes it by signing out.
+    const { email } = await serverCalls()
+      .whoAmI({ personalToken })
+      .catch((error: Error) => refuseFailedServiceCall(error));
+
     printLines(renderFailedStepLine('Finding the project failed'));
-    throwError({
-      message: `You have no access to the project ${asConfigProject(project)}`,
-      below:
-        '\n' +
-        chalk.reset('Ask a member of its team to invite you, then re-run setup:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
-    });
+    return throwError(
+      renderNoAccessToProject({ project: asConfigProject(project), email, namedIn })
+    );
   }
+  const { team } = teamProjects;
 
   printLines([
     renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name }),

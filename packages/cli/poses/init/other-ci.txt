@@ -27,5 +27,7 @@ Setting up Sherlo...
 
 [1mRun your first visual test[22m
    [36mnpx sherlo test[39m
+   The first test builds your app, so it can take a while - longer than an agent
+   command's usual time limit, so an AI agent can run it in the background and wait.
 
 [exit 0]

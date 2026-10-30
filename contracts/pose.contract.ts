@@ -826,6 +826,8 @@ export type PosedLogins = Record<
 /** The error the server sends, as the tool's client surfaces it. */
 export type ApiError = {
   error: string;
+  /** The client's own error kind, where a command answers it apart: a team the person is not in. */
+  errorName?: 'TeamNotFoundError';
 };
 
 /**

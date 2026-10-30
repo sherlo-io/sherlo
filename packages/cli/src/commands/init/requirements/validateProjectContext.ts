@@ -1,18 +1,18 @@
-import { throwError } from '../../../helpers';
+import { getCwd, throwError } from '../../../helpers';
+import { renderMonorepoRoot, renderNotInAnApp } from '../../../render/initFixes';
 import findPackageJsonPaths from './findPackageJsonPaths';
-
-const ERROR_NOT_RN_PROJECT = 'Init command must be run inside a React Native project';
-const ERROR_MONOREPO_ROOT = `${ERROR_NOT_RN_PROJECT}, not in monorepo root`;
 
 async function validateProjectContext(): Promise<void> {
   const { current, monorepoRoot } = await findPackageJsonPaths();
 
   if (!current) {
-    throwError({ message: ERROR_NOT_RN_PROJECT });
+    throwError(renderNotInAnApp({ folder: getCwd() }));
   }
 
   if (current === monorepoRoot) {
-    throwError({ message: ERROR_MONOREPO_ROOT });
+    // BUILD DEBT: the workspaces that list react-native, read from the root's `workspaces` or
+    // pnpm-workspace.yaml, so the refusal names the folder to go to.
+    throwError(renderMonorepoRoot({ appFolders: [] }));
   }
 }
 

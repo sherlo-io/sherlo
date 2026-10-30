@@ -26,12 +26,22 @@ Setting up Sherlo...
 [2m═════════════[22m
 
 [1m1. Give Sherlo access to Storybook - pick one:[22m
-   a) Switch to Storybook's default setup (recommended):
-      [36mhttps://sherlo.io/docs/setup#storybook-access[39m
-   b) Or keep your setup and follow our guide for it:
-      [36mhttps://sherlo.io/docs/setup?storybook=integrated#storybook-access[39m
+   a) Switch to Storybook's default setup (recommended) - your app stays as it is:
+      In .rnstorybook/index.ts, register Storybook as the root, under the line that makes
+      StorybookUIRoot:
+        [36mimport { registerRootComponent } from 'expo';[39m
+        [36mregisterRootComponent(StorybookUIRoot);[39m
+      Then remove the code that renders Storybook from your app, with its import of
+      .rnstorybook: importing it would now start Storybook in place of your app.
+   b) Or keep your setup: render Storybook when Sherlo tests the app. At the top of your
+      root component:
+        [36mimport { isStorybookMode } from '@sherlo/react-native-storybook';[39m
+        [36mimport Storybook from './.rnstorybook';[39m
+        [36mif (isStorybookMode) return <Storybook />;[39m
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m
+   The first test builds your app, so it can take a while - longer than an agent
+   command's usual time limit, so an AI agent can run it in the background and wait.
 
 [exit 0]

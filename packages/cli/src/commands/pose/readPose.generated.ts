@@ -1608,7 +1608,10 @@ function readApiError(value: unknown, path: string, problems: string[]): void {
   const object1 = asObject(value, path, problems);
   if (object1) {
     expectString(object1.error, at(path, 'error'), problems);
-    reportUnknownFields(object1, ['error'], path, problems);
+    if ('errorName' in object1) {
+      expectLiteral(object1.errorName, 'TeamNotFoundError', at(path, 'errorName'), problems);
+    }
+    reportUnknownFields(object1, ['error', 'errorName'], path, problems);
   }
 }
 

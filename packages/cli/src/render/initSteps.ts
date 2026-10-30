@@ -61,33 +61,64 @@ export function renderFailedStepLine(name: string): string[] {
  *     with no change to the app - no Storybook step at all.
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
  *     first: move to the default setup (upgrading Storybook first when it predates it), or keep the
- *     old setup and follow Sherlo's guide for it.
+ *     old setup and render Storybook in Sherlo's testing mode - each with its code on the screen.
  *
- * The person reads "the default setup" and "the old setup", the same names everywhere. The docs have
- * no default-setup tab, so the default setup links the Storybook access section plainly; the old
- * setup keeps its `?storybook=integrated` tab.
+ * The person reads "the default setup" and "the old setup", the same names everywhere.
  *
  * NO CI HERE: setup has one goal, the first visual test. Pull request tests are offered after that
  * test succeeds - by `sherlo test`'s own output and the project page - and to anyone whose machine
  * cannot build, by `sherlo test`'s build-failure line.
  */
 /**
- * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and the one
- * detail needed to do it, then links the docs. Most agents ask before opening a link, or run with no
- * network, and Vercel's evals found docs in front of an agent beat docs behind a link - so the
- * detail is in the output; the rest of the topic stays in the docs, where it is kept up to date.
+ * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and every detail needed to do it,
+ * with no docs link. Most agents ask before opening a link, or run with no network, and Vercel's
+ * evals found docs in front of an agent beat docs behind a link - so the whole how is in the output.
  */
 export function renderNextSteps({
   storybook,
   storybookVersion,
+  isExpo,
 }: {
   storybook: 'installed' | 'default-setup' | 'old-setup';
   /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
   storybookVersion: string | undefined;
+  /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
+  isExpo: boolean;
 }): string[] {
-  const defaultSetupChoice = hasDefaultSetup(storybookVersion)
-    ? "a) Switch to Storybook's default setup (recommended):"
-    : `a) Upgrade Storybook to ${DEFAULT_SETUP_SINCE} or newer and switch to its default setup (recommended):`;
+  // EVERY LINE OF BOTH CHOICES IS ON THE SCREEN: the code to add, the file it
+  // goes in, and what to remove - no docs link, which an agent rarely opens.
+  const code = (line: string): string => chalk.cyan(line);
+  const registerRoot = isExpo
+    ? [
+        code("import { registerRootComponent } from 'expo';"),
+        code('registerRootComponent(StorybookUIRoot);'),
+      ]
+    : [
+        code("import { AppRegistry } from 'react-native';"),
+        code("import { name as appName } from '../app.json';"),
+        code('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
+      ];
+  const upgradeFirst = hasDefaultSetup(storybookVersion)
+    ? []
+    : [
+        `   First upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer, the first with it.`,
+      ];
+  const defaultSetupChoice = [
+    "a) Switch to Storybook's default setup (recommended) - your app stays as it is:",
+    ...upgradeFirst,
+    '   In .rnstorybook/index.ts, register Storybook as the root, under the line that makes',
+    '   StorybookUIRoot:',
+    ...registerRoot.map((line) => `     ${line}`),
+    '   Then remove the code that renders Storybook from your app, with its import of',
+    '   .rnstorybook: importing it would now start Storybook in place of your app.',
+  ];
+  const keepSetupChoice = [
+    'b) Or keep your setup: render Storybook when Sherlo tests the app. At the top of your',
+    '   root component:',
+    `     ${code("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
+    `     ${code("import Storybook from './.rnstorybook';")}`,
+    `     ${code('if (isStorybookMode) return <Storybook />;')}`,
+  ];
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
@@ -95,20 +126,21 @@ export function renderNextSteps({
     installed: [
       {
         title: 'Replace the example stories',
-        // A FEW SIMPLE COMPONENTS FIRST, AND WHERE STORYBOOK LOOKS: an agent told to write "your
-        // components' stories" writes them where Storybook never loads them. The how is Sherlo's own
-        // guide, inside the SDK package setup installs, so any agent reads it with no network and no
-        // restart. The SDK package does not ship the guide yet.
+        // WHERE STORYBOOK LOOKS: an agent told to write "your components' stories" writes them where
+        // Storybook never loads them.
         content: [
-          // "A few to start", never "simple ones": a person must not read that Sherlo only copes
-          // with trivial components. Which ones to begin with is the guide's.
-          // WHY FIRST, THEN WHAT, THEN WHERE THE REST IS: a person reads why it
-          // matters - their real UI gets tested - and an agent gets each action it must take. The
-          // folder is named as Storybook's examples, so nobody takes it for where stories belong.
+          // WHY FIRST, THEN WHAT, THEN HOW: a person reads why it matters - their real UI gets
+          // tested - and an agent gets each action it must take. The folder is named as Storybook's
+          // examples, so nobody takes it for where stories belong.
           "Sherlo tests what your stories show, so write them for your app's components",
           "and delete Storybook's examples in .rnstorybook/stories.",
           'Storybook loads only the folders listed in .rnstorybook/main.ts, so add yours there.',
-          `Guide: ${chalk.cyan(STORIES_GUIDE_PATH)}`,
+          // THE HOW IS ON THE SCREEN, NOT IN A FILE: one story file is three lines, so it is shown
+          // whole.
+          'A story file sits beside its component, one export per state Sherlo should photograph:',
+          `  ${chalk.cyan('// Button.stories.tsx')}`,
+          `  ${chalk.cyan('export default { component: Button };')}`,
+          `  ${chalk.cyan("export const Primary = { args: { title: 'Buy' } };")}`,
         ],
       },
     ],
@@ -116,19 +148,23 @@ export function renderNextSteps({
     'old-setup': [
       {
         title: 'Give Sherlo access to Storybook - pick one:',
-        content: [
-          defaultSetupChoice,
-          `   ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`,
-          'b) Or keep your setup and follow our guide for it:',
-          `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=integrated#storybook-access')}`,
-        ],
+        content: [...defaultSetupChoice, ...keepSetupChoice],
       },
     ],
   };
 
   const steps = [
     ...storybookSteps[storybook],
-    { title: 'Run your first visual test', content: [chalk.cyan('npx sherlo test')] },
+    {
+      title: 'Run your first visual test',
+      // THE WAIT IS SAID BEFORE IT STARTS: a build outlasts an agent's usual command time limit,
+      // and an agent that kills it reads a hang. Said as what is possible, like the feedback line.
+      content: [
+        chalk.cyan('npx sherlo test'),
+        'The first test builds your app, so it can take a while - longer than an agent',
+        "command's usual time limit, so an AI agent can run it in the background and wait.",
+      ],
+    },
   ];
 
   // ONE STEP IS NOT A LIST: it gets a singular title and no number. Content lines start in one
@@ -151,9 +187,6 @@ export function renderNextSteps({
     ...stepLines.slice(0, -1),
   ];
 }
-
-/** Sherlo's guide to writing stories, inside the SDK package setup installs. */
-const STORIES_GUIDE_PATH = 'node_modules/@sherlo/react-native-storybook/guides/writing-stories.md';
 
 /** The first `@storybook/react-native` with the default setup, whose own entry starts the app. */
 const DEFAULT_SETUP_SINCE = '10.4';

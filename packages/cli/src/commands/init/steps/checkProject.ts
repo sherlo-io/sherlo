@@ -12,15 +12,20 @@ import {
   REACT_NATIVE_PACKAGE_NAME,
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
 } from '../../../constants';
+import { isPackageVersionCompatible, throwError } from '../../../helpers';
+import {
+  renderPackagesNotInstalled,
+  renderReactNativeTooOld,
+  renderStorybookTooOld,
+} from '../../../render/initFixes';
 import { renderStepLine } from '../../../render/initSteps';
-import { printLines } from '../helpers';
+import { packageManagerCommand, printLines } from '../helpers';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import getPackageVersion from '../requirements/getPackageVersion';
 import hasDependency from '../requirements/hasDependency';
 import validateHasReactNative from '../requirements/validateHasReactNative';
-import validateHasWithStorybookInMetroConfig from '../requirements/validateHasWithStorybookInMetroConfig';
+import refuseUnreadableMetroConfig from '../requirements/refuseUnreadableMetroConfig';
 import validateProjectContext from '../requirements/validateProjectContext';
-import validatePackageRequirement from '../requirements/validateCorePackagesVersions/validatePackageRequirement';
 
 export type CheckedProject = {
   /** Whether the project already has Storybook for React Native among its dependencies. */
@@ -31,28 +36,56 @@ async function checkProject(): Promise<CheckedProject> {
   await validateProjectContext();
   await validateHasReactNative();
 
-  const { version: reactNativeVersion } = validatePackageRequirement({
-    packageName: REACT_NATIVE_PACKAGE_NAME,
-    minVersion: MIN_REACT_NATIVE_VERSION,
-  });
+  const expoVersion = getPackageVersion(EXPO_PACKAGE_NAME);
+
+  const reactNativeVersion = await installedVersion(REACT_NATIVE_PACKAGE_NAME);
+  if (
+    !isPackageVersionCompatible({
+      version: reactNativeVersion,
+      minVersion: MIN_REACT_NATIVE_VERSION,
+    })
+  ) {
+    throwError(
+      renderReactNativeTooOld({
+        current: reactNativeVersion,
+        min: MIN_REACT_NATIVE_VERSION,
+        isExpo: !!expoVersion,
+        addReactNativeCommand: await packageManagerCommand('add', [
+          `${REACT_NATIVE_PACKAGE_NAME}@${MIN_REACT_NATIVE_VERSION}`,
+        ]),
+      })
+    );
+  }
 
   const { current, monorepoRoot } = await findPackageJsonPaths();
   const hasStorybook =
     (await hasDependency(current, STORYBOOK_REACT_NATIVE_PACKAGE_NAME)) ||
     (await hasDependency(monorepoRoot, STORYBOOK_REACT_NATIVE_PACKAGE_NAME));
 
-  // A project that has Storybook must have it wired into Metro, checked HERE rather than at the
-  // Metro step: a refusal after the login would leave a project made and the SDK installed for an
-  // app setup could not finish. A project without Storybook gets the wiring from its installer.
+  // A Metro config setup could not wire is refused HERE rather than at the Metro step: a refusal
+  // after the login would leave a project made and the SDK installed for an app setup could not
+  // finish. A project without Storybook gets its config from Storybook's installer.
   if (hasStorybook) {
-    validatePackageRequirement({
-      packageName: STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
-      minVersion: MIN_STORYBOOK_REACT_NATIVE_VERSION,
-    });
-    await validateHasWithStorybookInMetroConfig();
+    const installedStorybook = await installedVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME);
+    if (
+      !isPackageVersionCompatible({
+        version: installedStorybook,
+        minVersion: MIN_STORYBOOK_REACT_NATIVE_VERSION,
+      })
+    ) {
+      throwError(
+        renderStorybookTooOld({
+          current: installedStorybook,
+          min: MIN_STORYBOOK_REACT_NATIVE_VERSION,
+          installCommand: await packageManagerCommand('add', [
+            `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME}@latest`,
+          ]),
+        })
+      );
+    }
+    await refuseUnreadableMetroConfig();
   }
 
-  const expoVersion = getPackageVersion(EXPO_PACKAGE_NAME);
   // Storybook the project already has shows here, with the versions it was checked at - never as an
   // install line, which would read as if setup had installed or changed it.
   const storybookVersion = hasStorybook
@@ -79,6 +112,22 @@ async function checkProject(): Promise<CheckedProject> {
 export default checkProject;
 
 /* ========================================================================== */
+
+/**
+ * The version node_modules holds. A package package.json lists but node_modules lacks means the
+ * dependencies were never installed, and the refusal gives the install command.
+ */
+async function installedVersion(packageName: string): Promise<string> {
+  const version = getPackageVersion(packageName);
+  if (version) return version;
+
+  return throwError(
+    renderPackagesNotInstalled({
+      packageName,
+      installCommand: await packageManagerCommand('install'),
+    })
+  );
+}
 
 /** `54.0.0` -> `54`. */
 function majorOf(version: string): string {

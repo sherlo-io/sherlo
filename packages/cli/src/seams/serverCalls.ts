@@ -29,7 +29,9 @@ import authTokenFor from '../helpers/authTokenFor';
 import liveGitHubTrade from './liveGitHubTrade';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
-import listProjectsRequest from '../commands/projectList/listProjectsRequest';
+import listProjectsRequest, {
+  TeamNotFoundError,
+} from '../commands/projectList/listProjectsRequest';
 import listTeamsRequest from '../commands/teamList/listTeamsRequest';
 import type { ProjectCreated } from '../render/projectCreated';
 import type { ProjectList } from '../render/projectList';
@@ -394,7 +396,11 @@ export function installServerCalls(next: ServerCalls): () => void {
 /* ========================================================================== */
 
 /** The error the server sends, as the tool's client surfaces it. */
-export type ApiError = { error: string };
+export type ApiError = {
+  error: string;
+  /** The client's own error kind, where a command answers it apart: a team the person is not in. */
+  errorName?: 'TeamNotFoundError';
+};
 
 /**
  * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
@@ -824,6 +830,11 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     // refusal - its wording, its exit code - is what the screen shows.
     const answer = next.answer as Record<string, unknown> | null;
     if (answer !== null && typeof answer === 'object' && 'error' in answer) {
+      // A team the person is not in is its own kind, as the real client raises it, so setup can
+      // answer it as no access rather than with the service's words.
+      if (answer.errorName === 'TeamNotFoundError') {
+        throw new TeamNotFoundError(String(answer.error));
+      }
       throw new Error(String(answer.error));
     }
 

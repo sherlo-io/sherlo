@@ -21,7 +21,7 @@ import getPackageVersion from './getPackageVersion';
 import validateCorePackagesVersions from './validateCorePackagesVersions';
 import validateHasReactNative from './validateHasReactNative';
 import validateHasStorybook from './validateHasStorybook';
-import validateHasWithStorybookInMetroConfig from './validateHasWithStorybookInMetroConfig';
+import refuseUnreadableMetroConfig from './refuseUnreadableMetroConfig';
 import validateProjectContext from './validateProjectContext';
 
 async function requirements({ token, sessionId }: { token?: string; sessionId: string | null }) {
@@ -67,7 +67,7 @@ async function validateRequirements(token?: string): Promise<void> {
 
     await validateHasStorybook();
 
-    await validateHasWithStorybookInMetroConfig();
+    await refuseUnreadableMetroConfig();
 
     validateCorePackagesVersions();
 
