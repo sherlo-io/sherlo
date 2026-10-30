@@ -36,10 +36,10 @@ Opening your browser to log in to Sherlo...
 [2m➤ YN0000: └ Completed in 0s 512ms[22m
 [2m➤ YN0000: · Failed with errors in 0s 518ms[22m
 
-[0mFix the error above, or install it yourself:[0m
+[0mFix the error, or install it yourself:[0m
 [0m[0m[36m  yarn add @sherlo/react-native-storybook[39m
 [36m[39m
-[0mThen re-run setup. It picks up where it stopped:[0m
+[0mThen run setup again:[0m
 [0m[0m[36m  npx sherlo init[39m
 
 [2m──────────[22m

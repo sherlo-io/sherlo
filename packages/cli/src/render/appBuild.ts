@@ -219,10 +219,8 @@ export function renderBundleHoldsNoStories(): { message: string } {
   return {
     message:
       "Can't test: the bundle holds no stories.\n" +
-      'Storybook bundles only the files its "stories" list in .rnstorybook/main.ts matches,\n' +
-      'such as "../src/**/*.stories.?(ts|tsx|js|jsx)". Check your story files match it.\n' +
-      'If a variable switches Storybook on in your app, set it for the build in sherlo.config.json,\n' +
-      'under its own name - for example:\n' +
+      'Check your story files match "stories" in .rnstorybook/main.ts.\n' +
+      'If a variable turns Storybook on, set it in sherlo.config.json, for example:\n' +
       '  "build": { "env": { "STORYBOOK_ENABLED": "true" } }',
   };
 }
