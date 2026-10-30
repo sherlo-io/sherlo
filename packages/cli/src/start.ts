@@ -32,10 +32,12 @@ import {
   CONFIG_OPTION,
   DEFAULT_CONFIG_FILENAME,
   DEFAULT_PROJECT_ROOT,
+  DEVICES_OPTION,
   DIAGNOSTICS_OPTION,
   BUNDLE_DIR_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
+  EXCLUDE_OPTION,
   FINGERPRINT_COMMAND,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
@@ -250,6 +252,15 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [INCLUDE_OPTION]: [
     `--${INCLUDE_OPTION} <stories>`,
     'List of story names to include in the test (e.g. "My Story","Another Story")',
+  ],
+  [EXCLUDE_OPTION]: [
+    `--${EXCLUDE_OPTION} <stories>`,
+    "List of story names to leave out of the test, in place of the config's exclude",
+  ],
+  [DEVICES_OPTION]: [
+    `--${DEVICES_OPTION} <json>`,
+    "Devices to test on, as the config's devices JSON, in place of the config's " +
+      `(e.g. '[{"id":"pixel.7","osVersion":"13"}]')`,
   ],
   [LAYER_OPTION]: [
     `--${LAYER_OPTION} <layer>`,
@@ -801,9 +812,15 @@ function setReportingContext(command: string, options: any) {
 
 /**
  * Options that work but are not listed in `--help`: the local build cache is kept quietly, for
- * Sherlo's own end-to-end tests and the rebuild a failed run would otherwise cost.
+ * Sherlo's own end-to-end tests and the rebuild a failed run would otherwise cost. `--exclude` and
+ * `--devices` stay out of it too: the config is the documented way to set a run's scope, and the
+ * flags are for a run that changes it once.
  */
-const OPTIONS_HIDDEN_FROM_HELP = new Set<keyof typeof OPTION_DEFINITION>([BUILD_CACHE_OPTION]);
+const OPTIONS_HIDDEN_FROM_HELP = new Set<keyof typeof OPTION_DEFINITION>([
+  BUILD_CACHE_OPTION,
+  EXCLUDE_OPTION,
+  DEVICES_OPTION,
+]);
 
 function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_DEFINITION)[]) {
   optionKeys.forEach((optionKey) => {
@@ -817,5 +834,13 @@ function addOptionsToCommand(command: Command, optionKeys: (keyof typeof OPTION_
 }
 
 function getTestCommonOptions() {
-  return [MESSAGE_OPTION, GIT_BRANCH_OPTION, INCLUDE_OPTION, CONFIG_OPTION, PROJECT_ROOT_OPTION];
+  return [
+    MESSAGE_OPTION,
+    GIT_BRANCH_OPTION,
+    INCLUDE_OPTION,
+    EXCLUDE_OPTION,
+    DEVICES_OPTION,
+    CONFIG_OPTION,
+    PROJECT_ROOT_OPTION,
+  ];
 }

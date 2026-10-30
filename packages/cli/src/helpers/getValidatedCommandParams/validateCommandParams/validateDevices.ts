@@ -1,36 +1,42 @@
 import { DeviceTheme, Platform } from '@sherlo/api-types';
 import { DEVICE_OS_FONT_SCALE, DEVICES, getPlatformFromDeviceId } from '@sherlo/shared';
-import { DOCS_LINK, PLATFORM_LABEL } from '../../../constants';
+import { DEVICES_OPTION_LABEL, DOCS_LINK, PLATFORM_LABEL } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import logWarning from '../../logWarning';
 import throwError from '../../throwError';
 
-function validateDevices(config: InvalidatedConfig): void {
+/**
+ * Where the devices came from, as a refusal names it: the config file, or `--devices`, which stands
+ * in for the config's devices for one run and is checked in the same words.
+ */
+export type DevicesSource = 'config' | typeof DEVICES_OPTION_LABEL;
+
+function validateDevices(config: InvalidatedConfig, where: DevicesSource = 'config'): void {
   const { devices } = config;
 
   if (devices === undefined) {
-    throwError(getError({ type: 'missingDevices' }));
+    throwError(getError(where, { type: 'missingDevices' }));
   }
 
   if (!Array.isArray(devices) || devices.length === 0) {
-    throwError(getError({ type: 'invalidDevices' }));
+    throwError(getError(where, { type: 'invalidDevices' }));
   }
 
   for (let i = 0; i < devices.length; i++) {
     const { id, locale, osVersion, theme, fontScale, ...unsupportedProperties } = devices[i] ?? {};
 
     if (!id || typeof id !== 'string' || !osVersion || typeof osVersion !== 'string') {
-      throwError(getError({ type: 'requiredDeviceProps' }));
+      throwError(getError(where, { type: 'requiredDeviceProps' }));
     }
 
     const sherloDevice = DEVICES[id];
 
     if (!sherloDevice) {
-      throwError(getError({ type: 'unknownDeviceId', id }));
+      throwError(getError(where, { type: 'unknownDeviceId', id }));
     }
 
     if (!sherloDevice.osVersions.some(({ version }) => version === osVersion)) {
-      throwError(getError({ type: 'unsupportedOsVersion', id, osVersion }));
+      throwError(getError(where, { type: 'unsupportedOsVersion', id, osVersion }));
     }
 
     if (!locale) {
@@ -48,7 +54,7 @@ function validateDevices(config: InvalidatedConfig): void {
     // $ - end of the string
 
     if (!localeRegex.test(locale)) {
-      throwError(getError({ type: 'invalidlocale', locale }));
+      throwError(getError(where, { type: 'invalidlocale', locale }));
     }
 
     if (!theme) {
@@ -60,7 +66,7 @@ function validateDevices(config: InvalidatedConfig): void {
 
     const deviceThemes: [DeviceTheme, DeviceTheme] = ['light', 'dark'];
     if (!deviceThemes.includes(theme)) {
-      throwError(getError({ type: 'invalidtheme', theme }));
+      throwError(getError(where, { type: 'invalidtheme', theme }));
     }
 
     if (!fontScale) {
@@ -82,7 +88,7 @@ function validateDevices(config: InvalidatedConfig): void {
 
     if (!deviceFontScaleLevels.includes(fontScale)) {
       throwError(
-        getError({
+        getError(where, {
           type: 'invalidfontScale',
           fontScale,
           platform,
@@ -93,7 +99,7 @@ function validateDevices(config: InvalidatedConfig): void {
 
     Object.keys(unsupportedProperties).forEach((property) => {
       logWarning({
-        message: `Unsupported device property \`${property}\` in config (supported: \`id\`, \`osVersion\`, \`locale\`, \`theme\`, \`fontScale\`)`,
+        message: `Unsupported device property \`${property}\` in ${where} (supported: \`id\`, \`osVersion\`, \`locale\`, \`theme\`, \`fontScale\`)`,
         learnMoreLink: DOCS_LINK.configDevices,
       });
 
@@ -121,7 +127,7 @@ type DeviceError =
       deviceFontScaleLevels: string[];
     };
 
-function getError(error: DeviceError) {
+function getError(where: DevicesSource, error: DeviceError) {
   switch (error.type) {
     case 'missingDevices':
       return {
@@ -130,40 +136,42 @@ function getError(error: DeviceError) {
       };
     case 'invalidDevices':
       return {
-        message: 'Config property `devices` must be a non-empty array',
+        message:
+          where === 'config'
+            ? 'Config property `devices` must be a non-empty array'
+            : `${where} must be a non-empty array`,
         learnMoreLink: DOCS_LINK.configDevices,
       };
     case 'requiredDeviceProps':
       return {
-        message:
-          'Each device in config must have required properties: `id` and `osVersion` as strings',
+        message: `Each device in ${where} must have required properties: \`id\` and \`osVersion\` as strings`,
         learnMoreLink: DOCS_LINK.configDevices,
       };
     case 'unknownDeviceId':
       return {
-        message: `Unknown device ID in config: "${error.id}"`,
+        message: `Unknown device ID in ${where}: "${error.id}"`,
         learnMoreLink: DOCS_LINK.devices,
       };
     case 'unsupportedOsVersion':
       return {
-        message: `Unsupported OS version "${error.osVersion}" for device "${error.id}" in config`,
+        message: `Unsupported OS version "${error.osVersion}" for device "${error.id}" in ${where}`,
         learnMoreLink: DOCS_LINK.devices,
       };
     case 'invalidlocale':
       return {
-        message: `Invalid device locale "${error.locale}" in config. Expected format: xx_XX (example: en_US)`,
+        message: `Invalid device locale "${error.locale}" in ${where}. Expected format: xx_XX (example: en_US)`,
         learnMoreLink: DOCS_LINK.configDevices,
       };
     case 'invalidtheme':
       return {
-        message: `Invalid device theme "${error.theme}" in config. Expected: "light" or "dark"`,
+        message: `Invalid device theme "${error.theme}" in ${where}. Expected: "light" or "dark"`,
         learnMoreLink: DOCS_LINK.configDevices,
       };
     case 'invalidfontScale':
       return {
         message: `Invalid font scale level "${error.fontScale}" for ${
           PLATFORM_LABEL[error.platform]
-        } device in config. Available levels: ${error.deviceFontScaleLevels
+        } device in ${where}. Available levels: ${error.deviceFontScaleLevels
           .map((level) => `"${level}"`)
           .join(', ')}`,
         learnMoreLink: DOCS_LINK.configDevices,
