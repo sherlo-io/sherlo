@@ -36,8 +36,9 @@ Opening your browser to log in to Sherlo...
    Right now Sherlo would test Storybook's examples, not your app.
    You can start with a few components or screens, one story per state:
      [36m// Button.stories.tsx[39m
+     [36mimport { Button } from './Button';[39m
      [36mexport default { component: Button };[39m
-     [36mexport const Primary = { args: { title: 'Buy' } };[39m
+     [36mexport const Disabled = { args: { title: 'Buy', disabled: true } };[39m
    Point "stories" in .rnstorybook/main.ts at them.
    Delete the examples in .rnstorybook/stories.
    Providers, steady screenshots and more:

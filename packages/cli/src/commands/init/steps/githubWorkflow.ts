@@ -1,10 +1,10 @@
 /**
  * STEP 8 - THE GITHUB WORKFLOW, so every pull request and every push to main is tested.
  *
- * Written when the repository is on GitHub, or has no remote yet (most new apps end up there, and
- * the file then works on the first push). Skipped when the remote is somewhere else, or when the
- * project already runs another CI: a second CI the team never asked for
- * would only fail for want of a secret. A workflow already in place is left as it is.
+ * WHERE THE CODE LIVES DECIDES, NOT WHICH CI RUNS: on GitHub, or with no remote yet (most new apps
+ * end up there), it is written even beside another CI, as it ends green until GitHub is connected
+ * and the web app's Connect GitHub needs it. On another host GitHub never runs it, so it is
+ * skipped. A workflow already in place is left as it is.
  */
 import fs from 'fs';
 import path from 'path';
@@ -19,21 +19,14 @@ const WORKFLOW_PATH = GITHUB_WORKFLOW_PATH;
 const STEP_NAME = 'Added GitHub workflow';
 
 /**
- * The file each CI other than GitHub Actions keeps in the repository. One of them present means
- * the team already runs that CI. BUILD DEBT (init-for-agents): look in the repository's root too,
- * not only in the app's folder, for an app inside a monorepo.
+ * The CI files that only run on their own host, so with no remote yet they say where the code
+ * will live. BUILD DEBT (init-for-agents): look in the repository's root too, not only in the
+ * app's folder, for an app inside a monorepo.
  */
-const OTHER_CI_FILES: Array<{ file: string; ci: string }> = [
-  { file: '.gitlab-ci.yml', ci: 'GitLab CI' },
-  { file: 'bitbucket-pipelines.yml', ci: 'Bitbucket Pipelines' },
-  { file: '.circleci/config.yml', ci: 'CircleCI' },
-  { file: 'bitrise.yml', ci: 'Bitrise' },
-  { file: 'codemagic.yaml', ci: 'Codemagic' },
-  { file: 'azure-pipelines.yml', ci: 'Azure Pipelines' },
-  { file: 'Jenkinsfile', ci: 'Jenkins' },
-  { file: '.travis.yml', ci: 'Travis CI' },
-  { file: '.buildkite/pipeline.yml', ci: 'Buildkite' },
-  { file: '.eas/workflows', ci: 'EAS Workflows' },
+const HOST_CI_FILES: Array<{ file: string; host: string }> = [
+  { file: '.gitlab-ci.yml', host: 'GitLab' },
+  { file: 'bitbucket-pipelines.yml', host: 'Bitbucket' },
+  { file: 'azure-pipelines.yml', host: 'Azure DevOps' },
 ];
 
 /** The hosts a remote names often enough to say by name; any other is "another host". */
@@ -44,15 +37,15 @@ const REMOTE_HOSTS: Array<{ domain: string; host: string }> = [
 ];
 
 /**
- * A SKIPPED WORKFLOW SAYS WHY, in one step line: a person sees why the CI
- * step names their own CI, and an agent learns the project has a CI and adds no workflow itself.
+ * A SKIPPED WORKFLOW SAYS WHY, in one step line: a person sees why no workflow came, and an agent
+ * learns the code is not on GitHub and adds no workflow itself.
  */
-function printWhyNoWorkflow(detail: string): void {
+function printWhyNoWorkflow(host: string): void {
   printLines([
     renderStepLine({
       outcome: 'done',
-      name: 'Found CI',
-      detail: `${detail}, so no GitHub workflow added`,
+      name: 'No GitHub workflow',
+      detail: `the code is on ${host}`,
     }),
   ]);
 }
@@ -63,16 +56,19 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
 
   const remote = await surroundings().readGitRemote(projectRoot);
   if (remote && !remote.includes('github.com')) {
-    const host = REMOTE_HOSTS.find(({ domain }) => remote.includes(domain))?.host ?? 'another host';
-    printWhyNoWorkflow(`the repository is on ${host}`);
+    printWhyNoWorkflow(
+      REMOTE_HOSTS.find(({ domain }) => remote.includes(domain))?.host ?? 'another host'
+    );
     return { hasWorkflow: false };
   }
 
   const workflowFile = path.join(projectRoot, WORKFLOW_PATH);
-  // Sherlo's own workflow from an earlier run counts before another CI does: setup put it there.
-  const otherCi = OTHER_CI_FILES.find(({ file }) => fs.existsSync(path.join(projectRoot, file)));
-  if (otherCi && !fs.existsSync(workflowFile)) {
-    printWhyNoWorkflow(otherCi.ci);
+  // Sherlo's own workflow from an earlier run counts before a host's CI file does: setup put it there.
+  const hostCi = remote
+    ? undefined
+    : HOST_CI_FILES.find(({ file }) => fs.existsSync(path.join(projectRoot, file)));
+  if (hostCi && !fs.existsSync(workflowFile)) {
+    printWhyNoWorkflow(hostCi.host);
     return { hasWorkflow: false };
   }
 

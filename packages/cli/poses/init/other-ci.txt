@@ -19,7 +19,7 @@ Setting up Sherlo...
 [32m✔[39m Created config         sherlo.config.json, one device: Pixel 7 Pro
 [32m✔[39m Installed Sherlo       @sherlo/react-native-storybook 3.0.0-alpha.0
 [32m✔[39m Updated Metro config   metro.config.js
-[32m✔[39m Found CI               CircleCI, so no GitHub workflow added
+[32m✔[39m No GitHub workflow     the code is on GitLab
 
 
 [1m👉 Next step[22m

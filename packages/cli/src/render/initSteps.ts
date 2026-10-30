@@ -129,11 +129,13 @@ export function renderNextSteps({
           // a few components are enough to begin, so the step never reads as a big job.
           "Right now Sherlo would test Storybook's examples, not your app.",
           'You can start with a few components or screens, one story per state:',
-          // ONE STORY FILE IS THREE LINES, so it is on the screen whole; the rest of the how -
+          // ONE STORY FILE IS FOUR LINES, so it is on the screen whole; the rest of the how -
           // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
           `  ${code('// Button.stories.tsx')}`,
+          `  ${code("import { Button } from './Button';")}`,
           `  ${code('export default { component: Button };')}`,
-          `  ${code("export const Primary = { args: { title: 'Buy' } };")}`,
+          `  ${code("export const Default = { args: { title: 'Buy' } };")}`,
+          `  ${code("export const Disabled = { args: { title: 'Buy', disabled: true } };")}`,
           'Point "stories" in .rnstorybook/main.ts at them.',
           'Delete the examples in .rnstorybook/stories.',
           'Providers, steady screenshots and more:',
