@@ -94,7 +94,7 @@ describe('a failed install', () => {
 
     const message = await messageOfRefusal(installSherlo);
 
-    expect(message).toContain('could not install @sherlo/react-native-storybook');
+    expect(message).toContain("couldn't install @sherlo/react-native-storybook");
     expect(message).toContain('line 40');
     expect(message).toContain(`line ${40 - LAST_LINES_SHOWN + 1}`);
     expect(message).not.toContain(`line ${40 - LAST_LINES_SHOWN}\n`);

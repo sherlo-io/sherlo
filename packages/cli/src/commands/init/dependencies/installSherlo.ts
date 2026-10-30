@@ -87,11 +87,11 @@ async function installSherlo(): Promise<void> {
     // BUILD DEBT (init-for-agents): the tool's marked error lines and the full log file, by the rule
     // the plan settled, in place of the last lines of each stream.
     throwError({
-      message: `${packageManager} could not install ${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}`,
+      message: `${packageManager} couldn't install ${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}`,
       below:
         (getFailedCommandOutput(error) ?? '') +
         '\n\n' +
-        chalk.reset('Fix the error, or install it yourself:\n') +
+        chalk.reset('Fix the error above, or install it yourself:\n') +
         chalk.cyan(`  ${commandToRun}\n`) +
         '\n' +
         chalk.reset('Then run setup again:\n') +

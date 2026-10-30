@@ -61,7 +61,7 @@ module.exports = withSherloStorybook(defaultConfig, { enabled: true });`)
 
   it('refuses a config exported as a function, naming the file setup cannot edit', async () => {
     await expect(check(`module.exports = async () => ({ resolver: {} });`)).rejects.toThrow(
-      'Setup cannot edit metro.config.js'
+      "Setup can't edit metro.config.js"
     );
   });
 });

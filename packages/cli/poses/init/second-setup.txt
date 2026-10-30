@@ -25,19 +25,19 @@ Setting up Sherlo...
 [1m👉 Next steps[22m
 [2m═════════════[22m
 
-[1m1. Give Sherlo access to Storybook - pick one:[22m
-   a) Switch to Storybook's default setup (recommended):
+[1m1. Let Sherlo open Storybook - pick one[22m
+   a) Move to Storybook's default setup (recommended)
       In .rnstorybook/index.ts, below StorybookUIRoot, add:
         [36mimport { registerRootComponent } from 'expo';[39m
         [36mregisterRootComponent(StorybookUIRoot);[39m
-      Then remove your app's code that renders Storybook, with its import.
-   b) Or keep your setup. At the top of your root component:
+      Then delete your app's code that renders Storybook, and its import.
+   b) Or keep your setup, and add this at the top of your root component:
         [36mimport { isStorybookMode } from '@sherlo/react-native-storybook';[39m
         [36mimport Storybook from './.rnstorybook';[39m
         [36mif (isStorybookMode) return <Storybook />;[39m
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m
-   The first run builds your app: over 10 minutes.
+   The first run builds the app and usually takes 10 minutes or more.
 
 [exit 0]

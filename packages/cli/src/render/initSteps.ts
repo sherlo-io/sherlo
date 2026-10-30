@@ -9,6 +9,7 @@
  * Pure, like everything under ./: state in, print-call arguments out.
  */
 import chalk from 'chalk';
+import { WRITING_STORIES_GUIDE } from '../constants';
 import { renderSectionTitle } from './initLines';
 
 /** How wide the step names are padded, so every step's detail starts in the same column. */
@@ -100,16 +101,16 @@ export function renderNextSteps({
       ];
   const upgradeFirst = hasDefaultSetup(storybookVersion)
     ? []
-    : [`   Upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer first.`];
+    : [`   First, upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer.`];
   const defaultSetupChoice = [
-    "a) Switch to Storybook's default setup (recommended):",
+    "a) Move to Storybook's default setup (recommended)",
     ...upgradeFirst,
     '   In .rnstorybook/index.ts, below StorybookUIRoot, add:',
     ...registerRoot.map((line) => `     ${line}`),
-    "   Then remove your app's code that renders Storybook, with its import.",
+    "   Then delete your app's code that renders Storybook, and its import.",
   ];
   const keepSetupChoice = [
-    'b) Or keep your setup. At the top of your root component:',
+    'b) Or keep your setup, and add this at the top of your root component:',
     `     ${code("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
     `     ${code("import Storybook from './.rnstorybook';")}`,
     `     ${code('if (isStorybookMode) return <Storybook />;')}`,
@@ -124,22 +125,23 @@ export function renderNextSteps({
         // WHERE STORYBOOK LOOKS: an agent told to write "your components' stories" writes them where
         // Storybook never loads them.
         content: [
-          // EACH ACTION, THEN HOW: write, list the folders, delete the examples - the shortest
-          // lines that still name every file.
-          'Write stories for your components, add their folders to .rnstorybook/main.ts,',
-          'and delete .rnstorybook/stories. One export per state to test:',
-          // THE HOW IS ON THE SCREEN, NOT IN A FILE: one story file is three lines, so it is shown
-          // whole.
-          `  ${chalk.cyan('// Button.stories.tsx')}`,
-          `  ${chalk.cyan('export default { component: Button };')}`,
-          `  ${chalk.cyan("export const Primary = { args: { title: 'Buy' } };")}`,
+          'Storybook loads only the files matched by "stories" in .rnstorybook/main.ts.',
+          'Add a glob for your own stories, then delete .rnstorybook/stories and its glob.',
+          'Sherlo screenshots each export, so write one per state:',
+          // ONE STORY FILE IS THREE LINES, so it is on the screen whole; the rest of the how -
+          // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
+          `  ${code('// Button.stories.tsx')}`,
+          `  ${code('export default { component: Button };')}`,
+          `  ${code("export const Primary = { args: { title: 'Buy' } };")}`,
+          'More on writing stories:',
+          `  ${code(WRITING_STORIES_GUIDE)}`,
         ],
       },
     ],
     'default-setup': [],
     'old-setup': [
       {
-        title: 'Give Sherlo access to Storybook - pick one:',
+        title: 'Let Sherlo open Storybook - pick one',
         content: [...defaultSetupChoice, ...keepSetupChoice],
       },
     ],
@@ -152,7 +154,10 @@ export function renderNextSteps({
       // THE WAIT IS SAID BEFORE IT STARTS, AS A NUMBER: a build outlasts an agent's usual command
       // time limit, and an agent that knows how long it takes runs it in the background instead
       // of killing it as a hang.
-      content: [chalk.cyan('npx sherlo test'), 'The first run builds your app: over 10 minutes.'],
+      content: [
+        code('npx sherlo test'),
+        'The first run builds the app and usually takes 10 minutes or more.',
+      ],
     },
   ];
 
@@ -208,7 +213,7 @@ const FEEDBACK_HELP = 'npx sherlo feedback --help';
 const sideNoteSeparator = (): string[] => [chalk.dim('─'.repeat(10)), ''];
 
 const agentFeedbackLine = (): string =>
-  `AI agents: report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
+  `AI agents can tell the Sherlo team what was unclear or broken: ${chalk.cyan(FEEDBACK_HELP)}`;
 
 /**
  * What a finished run ends with, for an agent only: a person who just
@@ -240,7 +245,7 @@ export function renderStuckBlock({
   // setup. Said as what is possible, not as an order, for the reason above.
   const agentLines =
     reader === 'agent'
-      ? ['AI agents: most errors here need no person - only a choice between options does.', '']
+      ? ['AI agents: most fixes here need no person. Only the ones that offer a choice do.', '']
       : [];
   // THE FEEDBACK COMMAND IS FOR AGENTS ONLY: a person is offered Discord and
   // email, under the help block's usual "Need help?".

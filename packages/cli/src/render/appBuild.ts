@@ -15,7 +15,7 @@
  */
 import chalk from 'chalk';
 import type { Platform } from '@sherlo/api-types';
-import { DOCS_LINK, PLATFORM_LABEL } from '../constants';
+import { DOCS_LINK, PLATFORM_LABEL, WRITING_STORIES_GUIDE } from '../constants';
 import { renderSectionTitle } from './initLines';
 import {
   projectPageUrl,
@@ -218,10 +218,13 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
 export function renderBundleHoldsNoStories(): { message: string } {
   return {
     message:
-      "Can't test: the bundle holds no stories.\n" +
-      'Check your story files match "stories" in .rnstorybook/main.ts.\n' +
-      'If a variable turns Storybook on, set it in sherlo.config.json, for example:\n' +
-      '  "build": { "env": { "STORYBOOK_ENABLED": "true" } }',
+      "The app's bundle has no stories, so there's nothing to test.\n" +
+      'Storybook loads only the files matched by "stories" in .rnstorybook/main.ts.\n' +
+      'Check that your story files match it.\n' +
+      'If an environment variable turns Storybook on, set it for the build in sherlo.config.json:\n' +
+      '  "build": { "env": { "STORYBOOK_ENABLED": "true" } }\n' +
+      'More on writing stories:\n' +
+      `  ${WRITING_STORIES_GUIDE}`,
   };
 }
 

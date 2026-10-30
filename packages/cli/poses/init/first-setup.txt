@@ -33,14 +33,17 @@ Opening your browser to log in to Sherlo...
 [2m═════════════[22m
 
 [1m1. Replace the example stories[22m
-   Write stories for your components, add their folders to .rnstorybook/main.ts,
-   and delete .rnstorybook/stories. One export per state to test:
+   Storybook loads only the files matched by "stories" in .rnstorybook/main.ts.
+   Add a glob for your own stories, then delete .rnstorybook/stories and its glob.
+   Sherlo screenshots each export, so write one per state:
      [36m// Button.stories.tsx[39m
      [36mexport default { component: Button };[39m
      [36mexport const Primary = { args: { title: 'Buy' } };[39m
+   More on writing stories:
+     [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
 
 [1m2. Run your first visual test[22m
    [36mnpx sherlo test[39m
-   The first run builds your app: over 10 minutes.
+   The first run builds the app and usually takes 10 minutes or more.
 
 [exit 0]

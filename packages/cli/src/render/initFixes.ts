@@ -65,12 +65,12 @@ export function renderMonorepoRoot({ appFolders }: { appFolders: string[] }): In
           ]
         : goToTheApp();
 
-  return refusal("This is a monorepo's root", goTo);
+  return refusal('This folder is a monorepo root', goTo);
 }
 
 /** package.json does not list react-native. */
 export function renderNoReactNative(): InitRefusal {
-  return refusal('package.json does not list react-native', goToTheApp());
+  return refusal("package.json doesn't list react-native", goToTheApp());
 }
 
 /**
@@ -84,8 +84,8 @@ export function renderPackagesNotInstalled({
   packageName: string;
   installCommand: string;
 }): InitRefusal {
-  return refusal(`${packageName} is not installed`, [
-    words('Install dependencies:'),
+  return refusal(`${packageName} isn't installed`, [
+    words('Install your dependencies:'),
     code(installCommand),
     ...rerun(),
   ]);
@@ -108,7 +108,7 @@ export function renderReactNativeTooOld({
   addReactNativeCommand: string;
 }): InitRefusal {
   return refusal(`React Native ${current} is too old: Sherlo needs ${min} or newer`, [
-    words('Upgrading changes the whole app, so ask first.'),
+    words('Upgrading changes the whole app, so check with your team first.'),
     ...(isExpo
       ? [
           words('Upgrade Expo:'),
@@ -116,7 +116,9 @@ export function renderReactNativeTooOld({
           code('npx expo install --fix'),
         ]
       : [
-          words("Make the native changes React Native's Upgrade Helper lists, then:"),
+          words(
+            "Make the native changes React Native's Upgrade Helper lists for your versions, then run:"
+          ),
           code(addReactNativeCommand),
         ]),
     ...rerun(),
@@ -141,7 +143,7 @@ export function renderStorybookTooOld({
     words('a) Upgrade every @storybook/* package to the same version (recommended):'),
     code(installCommand),
     words('b) Or remove every @storybook/* package and the .storybook or .rnstorybook'),
-    words('   folder: setup installs the newest.'),
+    words('   folder, and setup will install the newest Storybook.'),
     ...rerun(),
   ]);
 }
@@ -151,14 +153,14 @@ export function renderStorybookTooOld({
  * lines are shown whole, for a CommonJS and an ES module config.
  */
 export function renderMetroConfigUnreadable({ path }: { path: string }): InitRefusal {
-  return refusal(`Setup cannot edit ${path}`, [
+  return refusal(`Setup can't edit ${path}`, [
     words("Wrap its export in Sherlo's withStorybook:"),
     code("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');"),
     code('module.exports = withStorybook(config);'),
     words('In an ES module:'),
     code("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';"),
     code('export default withStorybook(config);'),
-    words("Sherlo's replaces Storybook's own withStorybook: never use both."),
+    words("Sherlo's withStorybook replaces Storybook's own, so use only Sherlo's."),
     ...rerun(),
   ]);
 }
@@ -179,15 +181,17 @@ export function renderNoAccessToProject({
   namedIn: 'config' | 'flag';
 }): InitRefusal {
   return refusal(`${email} has no access to project ${project}`, [
-    words('a) Ask the team for an invitation link (web app, Users, "Copy invitation link"),'),
-    words(`   open it as ${email}, then:`),
+    words('a) Ask the team for an invitation link (web app, Users, "Copy invitation link").'),
+    words(`   Open it signed in as ${email}, then run:`),
     code(INIT_COMMAND),
-    words('b) Wrong account? Sign out and run setup again:'),
+    words('b) Wrong account? Log out and run setup again:'),
     code('npx sherlo logout'),
     code(INIT_COMMAND),
     ...(namedIn === 'config'
       ? [
-          words('c) Or make your own project: delete "project" from sherlo.config.json, then:'),
+          words(
+            'c) Or start a project of your own: delete "project" from sherlo.config.json, then run:'
+          ),
           code(INIT_COMMAND),
         ]
       : []),
@@ -206,9 +210,9 @@ export function renderStorybookInstallFailed({
   /** Undefined when the installer printed nothing. */
   failedOutput: string | undefined;
 }): InitRefusal {
-  return refusal('Storybook could not be installed', [
+  return refusal("Storybook couldn't be installed", [
     ...(failedOutput ? [failedOutput, ''] : []),
-    words('Fix the error. To see all of it, run:'),
+    words('Fix the error above. To see the whole output, run:'),
     code(command),
     ...rerun(),
   ]);
@@ -216,14 +220,20 @@ export function renderStorybookInstallFailed({
 
 /** A JSON file setup reads is not valid JSON; `reason` is the parser's own "line 12 column 3". */
 export function renderInvalidJson({ path, reason }: { path: string; reason: string }): InitRefusal {
-  return refusal(`${path} is not valid JSON`, [words(reason), ...rerun()]);
+  // "Then" cannot follow a bare reason line, so this one refusal says the fix and the rerun at once.
+  return refusal(`${path} isn't valid JSON`, [
+    words(reason),
+    '',
+    words('Fix the file, then run setup again:'),
+    code(INIT_COMMAND),
+  ]);
 }
 
 /** Sherlo's servers could not be reached; `cause` is the network's own code and host. */
 export function renderServiceUnreachable({ cause }: { cause: string }): InitRefusal {
-  return refusal('Setup could not reach Sherlo', [
+  return refusal("Setup couldn't reach Sherlo", [
     words(cause),
-    words('Check this computer can open https://api.sherlo.io.'),
+    words('Check that this computer can open https://api.sherlo.io.'),
     ...rerun(),
   ]);
 }
