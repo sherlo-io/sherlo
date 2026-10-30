@@ -1,0 +1,8 @@
+{
+  "id": "i-20261030-0742-bqjw",
+  "issue": "i-20261030-0742-bqjw",
+  "medium": "command",
+  "engine": "node and gradle on the sherlo checkout (ANDROID_HOME set)",
+  "reporterSaw": { "words": "A sherlo helper that changes the SDK's Android Java cannot compile it or run its Java unit tests, because no department verb reaches gradle." },
+  "check": "cmd=$(node -p \"require('./package.json').scripts['test:android-sdk'] || ''\"); test -n \"$cmd\" || { echo 'no test:android-sdk script in the root package.json'; exit 1; }; sh -c \"$cmd\""
+}
