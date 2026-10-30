@@ -35,6 +35,7 @@
     "lint:types": "tsc --noEmit",
     "typecheck": "tsc --noEmit -p packages/cli && tsc --noEmit -p packages/react-native-storybook && tsc --noEmit -p contracts",
     "test:related": "./scripts/test-related.sh",
+    "test:android-sdk": "cd packages/react-native-storybook/android/jvm-tests && ./gradlew testDebugUnitTest --console=plain",
     "test:all-units": "yarn --cwd packages/cli test && yarn --cwd packages/react-native-storybook test",
     "test:guards": "cd packages/cli && ../../scripts/require-test-exec-optin.sh src/__tests__/doors-are-seams.test.ts src/commands/pose/__tests__/one-road.test.ts src/render/__tests__/renderLayerPurity.test.ts src/commands/shared/__tests__/loginOnlyCredential.test.ts src/seams/__tests__/bundlerLine.build.test.ts && npx vitest run src/__tests__/doors-are-seams.test.ts src/commands/pose/__tests__/one-road.test.ts src/render/__tests__/renderLayerPurity.test.ts src/commands/shared/__tests__/loginOnlyCredential.test.ts src/seams/__tests__/bundlerLine.build.test.ts && cd ../react-native-storybook && ../../scripts/require-test-exec-optin.sh src/__tests__/storybookReads.test.ts src/__tests__/nativeLinking.test.ts && npx vitest run src/__tests__/storybookReads.test.ts src/__tests__/nativeLinking.test.ts",
     "reset": "./scripts/reset.sh",
