@@ -15,10 +15,10 @@ Setting up Sherlo...
 [31mERROR: Setup can't edit metro.config.js[39m
 
 [0mWrap its export in Sherlo's withStorybook. With require:[0m
-  [36mconst[39m withStorybook = [32mrequire[39m([35m'@sherlo/react-native-storybook/metro/withStorybook'[39m);
+  [36mconst[39m withStorybook = [32mrequire[39m([32m'@sherlo/react-native-storybook/metro/withStorybook'[39m);
   module.exports = [32mwithStorybook[39m(config);
 [0mOr with import:[0m
-  [36mimport[39m withStorybook [36mfrom[39m [35m'@sherlo/react-native-storybook/metro/withStorybook'[39m;
+  [36mimport[39m withStorybook [36mfrom[39m [32m'@sherlo/react-native-storybook/metro/withStorybook'[39m;
   [36mexport[39m [36mdefault[39m [32mwithStorybook[39m(config);
 [0mIf Storybook's own withStorybook is there, swap it for Sherlo's.[0m
 

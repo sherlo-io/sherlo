@@ -21,14 +21,14 @@ async function checkGivenProject({
 }): Promise<void> {
   const { teams } = await serverCalls()
     .listTeams({ personalToken: login.token })
-    .catch(refuseFailedServiceCall);
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Finding the project failed'));
 
   const isInTheTeam = teams.some((team) => team.id === givenProject.teamId);
   if (!isInTheTeam) refuseUnreachableProject(projectAsGiven);
 
   const { projects } = await serverCalls()
     .listProjects({ teamId: givenProject.teamId, personalToken: login.token })
-    .catch(refuseFailedServiceCall);
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Finding the project failed'));
 
   const projectExists = projects.some((project) => project.index === givenProject.projectIndex);
   if (!projectExists) refuseUnreachableProject(projectAsGiven);

@@ -6,13 +6,16 @@
  */
 import { throwError } from '../../../helpers';
 import { renderServiceUnreachable } from '../../../render/initFixes';
+import { renderFailedStepLine } from '../../../render/initSteps';
+import { printLines } from '../helpers';
 import { CreateProjectAuthError } from '../../projectCreate/createProjectRequest';
 import { ListProjectsAuthError } from '../../projectList/listProjectsRequest';
 import { refuseRejectedLogin } from '../../shared';
 import { CreateTeamAuthError } from '../../teamCreate/createTeamRequest';
 import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
 
-function refuseFailedServiceCall(error: Error): never {
+/** `failedStep` names the step that stopped, e.g. "Choosing a team failed". */
+function refuseFailedServiceCall(error: Error, failedStep: string): never {
   const serviceRefusedTheLogin =
     error instanceof ListTeamsAuthError ||
     error instanceof ListProjectsAuthError ||
@@ -25,6 +28,8 @@ function refuseFailedServiceCall(error: Error): never {
   // on its cause: the fix is the connection, said with that code, not a bug report.
   const { cause } = error as { cause?: { code?: string; hostname?: string } };
   if (cause?.code) {
+    // LIKE EVERY STOP, the step that stopped is marked red above the error.
+    printLines(renderFailedStepLine(failedStep));
     throwError({
       ...renderServiceUnreachable({
         cause: [cause.code, cause.hostname].filter(Boolean).join(' '),

@@ -61,7 +61,9 @@ async function showProjectInConfig(
   const teamProjects = await serverCalls()
     .listProjects({ teamId: project.teamId, personalToken })
     .catch((error: Error) =>
-      error instanceof TeamNotFoundError ? null : refuseFailedServiceCall(error)
+      error instanceof TeamNotFoundError
+        ? null
+        : refuseFailedServiceCall(error, 'Finding the project failed')
     );
 
   const projectInTeam = teamProjects?.projects.find(({ index }) => index === project.projectIndex);
@@ -69,7 +71,7 @@ async function showProjectInConfig(
     // The account is named: a person signed in with another account fixes it by signing out.
     const { email } = await serverCalls()
       .whoAmI({ personalToken })
-      .catch((error: Error) => refuseFailedServiceCall(error));
+      .catch((error: Error) => refuseFailedServiceCall(error, 'Finding the project failed'));
 
     printLines(renderFailedStepLine('Finding the project failed'));
     return throwError(
@@ -95,7 +97,7 @@ async function chooseTeam(
 ): Promise<string> {
   const { teams } = await serverCalls()
     .listTeams({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error));
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Choosing a team failed'));
 
   const namedTeam = teamFlag ? teams.find(({ id }) => id === teamFlag) : undefined;
   const onlyTeam = teams.length === 1 ? teams[0] : undefined;
@@ -123,11 +125,11 @@ async function chooseTeam(
 
   const { name } = await serverCalls()
     .whoAmI({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error));
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Creating a team failed'));
 
   const newTeam = await serverCalls()
     .createTeam({ name: teamNameFor(name), personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error));
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Creating a team failed'));
 
   printLines([renderStepLine({ outcome: 'done', name: 'Created team', detail: newTeam.name })]);
   return newTeam.id;
@@ -140,7 +142,7 @@ async function createProject(
 ): Promise<ProjectAddress> {
   const newProject = await serverCalls()
     .createProject({ name: appName(), teamId, personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error));
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Creating the project failed'));
 
   const project = { teamId, projectIndex: newProject.index };
 

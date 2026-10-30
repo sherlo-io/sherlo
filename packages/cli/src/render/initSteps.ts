@@ -140,7 +140,7 @@ export function renderNextSteps({
           "Right now Sherlo would test Storybook's examples, not your app.",
           // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
           // outside it drop out, so they need no deleting.
-          `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ['../src'].`,
+          `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
           'You can start with a few components or screens, one story per state:',
           // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
           // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.

@@ -40,27 +40,42 @@ export function renderCheckLine({
 }
 
 /**
- * One line of code, coloured as the old setup coloured its snippet: keywords cyan, strings and JSX
- * components magenta, called functions green, comments dim, the rest in the terminal's own colour.
- * A command to run is not code: it stays plain cyan.
+ * One line of code, coloured the way an editor colours it, so little of it stays white: keywords
+ * cyan, strings green, true, false and numbers magenta, object keys blue, called functions green,
+ * components and other capitalised names yellow, comments dim; brackets and the rest in the
+ * terminal's own colour. A command to run is not code: it stays plain cyan.
  */
 export function renderCode(line: string): string {
   return line.replace(
     CODE_TOKEN,
-    (token, comment?: string, text?: string, component?: string, keyword?: string) => {
+    (
+      token,
+      comment?: string,
+      text?: string,
+      keyword?: string,
+      literal?: string,
+      key?: string,
+      call?: string
+    ) => {
       if (comment !== undefined) return chalk.dim(token);
-      if (text !== undefined || component !== undefined) return chalk.magenta(token);
+      if (text !== undefined) return chalk.green(token);
       if (keyword !== undefined) return chalk.cyan(token);
-      return chalk.green(token);
+      if (literal !== undefined) return chalk.magenta(token);
+      if (key !== undefined) return chalk.blue(token);
+      if (call !== undefined) return chalk.green(token);
+      return chalk.yellow(token);
     }
   );
 }
 
 /* ========================================================================== */
 
-/** In order: a comment, a string, a JSX component, a keyword, a called function's name. */
+/**
+ * In order: a comment, a string, a keyword, true/false/null or a number, an object key, a called
+ * function's name, a capitalised name.
+ */
 const CODE_TOKEN =
-  /(\/\/.*$)|('[^']*')|(?<=<)([A-Z]\w*)|\b(import|from|export|default|const|if|return|as)\b|\b[A-Za-z_]\w*(?=\()/g;
+  /(\/\/.*$)|('[^']*')|\b(import|from|export|default|const|if|return|as|function)\b|\b(true|false|null|\d+)\b|\b([A-Za-z_]\w*)(?=\s*:)|\b([A-Za-z_]\w*)(?=\()|\b[A-Z]\w*/g;
 
 const CHECK_LINE_LOOK = {
   success: { color: 'green', icon: '✔' },
