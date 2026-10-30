@@ -38,10 +38,11 @@ Opening your browser to log in to Sherlo...
      [36m// Button.stories.tsx[39m
      [36mimport { Button } from './Button';[39m
      [36mexport default { component: Button };[39m
+     [36mexport const Default = { args: { title: 'Buy' } };[39m
      [36mexport const Disabled = { args: { title: 'Buy', disabled: true } };[39m
    Point "stories" in .rnstorybook/main.ts at them.
    Delete the examples in .rnstorybook/stories.
-   Providers, steady screenshots and more:
+   How to write stories:
      [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
 
 [1m2. Run your first visual test[22m
