@@ -139,6 +139,9 @@ export function renderNextSteps({
           // WHY FIRST, THEN A SMALL START: the examples must go because Sherlo would test them, and
           // a few components are enough to begin, so the step never reads as a big job.
           "Right now Sherlo would test Storybook's examples, not your app.",
+          // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
+          // outside it drop out, so they need no deleting.
+          `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ['../src'].`,
           'You can start with a few components or screens, one story per state:',
           // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
           // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
@@ -148,9 +151,6 @@ export function renderNextSteps({
           // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
           `  ${code("export const Default = { args: { title: 'Default' } };")}`,
           `  ${code("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
-          // A FOLDER, NOT A PATTERN: Storybook finds every story file under it.
-          `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ['../src'].`,
-          'Delete the examples in .rnstorybook/stories.',
           'How to write stories:',
           `  ${code(WRITING_STORIES_GUIDE)}`,
         ],
