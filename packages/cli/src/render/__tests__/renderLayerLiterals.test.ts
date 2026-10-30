@@ -196,7 +196,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Used your JavaScript   🤖 Android bundle.android.js, from --bundle-dir`,
+        `${ESC}[32m✔${ESC}[39m Used your JavaScript   ${ESC}[2m🤖 Android bundle.android.js, from --bundle-dir${ESC}[22m`,
       ],
     ],
   },
@@ -227,7 +227,9 @@ const PINS: Pin[] = [
       assetCount: 6,
     },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Saved the JavaScript   🤖 Android, to /tmp/out`]],
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m Saved the JavaScript   ${ESC}[2m🤖 Android, to /tmp/out${ESC}[22m`],
+    ],
   },
   {
     kind: 'platform-bundle-failed',
@@ -568,7 +570,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Built the iOS app      in 42s ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Built the iOS app      ${ESC}[2min 42s (log: .sherlo/build-ios.log)${ESC}[22m`,
       ],
     ],
   },

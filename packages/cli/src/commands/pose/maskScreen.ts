@@ -304,11 +304,12 @@ function foldTimeAgo(screen: string): string {
  * How long an app build or a waited test took - a platform's row's `Built in 1m 28s` and
  * `Build failed after 42s`, `sherlo build`'s `Built the Android app      in 1m 28s`, and the
  * `Finished in 3m 5s` under a test's row. Only after those words, so a duration a scenario declares
- * elsewhere (a wait's timeout) is never folded.
+ * elsewhere (a wait's timeout) is never folded. `sherlo build`'s `in` may follow the dim that opens
+ * its step's detail.
  */
 function foldBuildDuration(screen: string): string {
   return screen.replace(
-    /\b(Built the (?:Android|iOS) app +in|Built in|Finished in|failed after) (?:\d+m )?\d+s\b/g,
+    /\b(Built the (?:Android|iOS) app +(?:\u001b\[2m)?in|Built in|Finished in|failed after) (?:\d+m )?\d+s\b/g,
     '$1 <DURATION>'
   );
 }

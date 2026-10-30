@@ -12,11 +12,11 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the project    Expo 54, React Native 0.81
-[32m✔[39m Logged in              anna@example.com
-[32m✔[39m Using team             Anna's team
-[32m✔[39m Created project        Acme Shop
-[32m✔[39m Created config         sherlo.config.json, one device: Pixel 7 Pro
+[32m✔[39m Checked the project    [2mExpo 54, React Native 0.81[22m
+[32m✔[39m Logged in              [2manna@example.com[22m
+[32m✔[39m Using team             [2mAnna's team[22m
+[32m✔[39m Created project        [2mAcme Shop[22m
+[32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
 [31m✖[39m Installing Storybook failed
 
 [31mERROR: Storybook couldn't be installed[39m

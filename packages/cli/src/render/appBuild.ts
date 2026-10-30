@@ -120,7 +120,7 @@ export function renderAppBuildDone({
 }): string {
   return renderTestStep({
     name: builtTheApp(platform),
-    detail: `in ${formatBuildDuration(seconds)} ${chalk.dim(`(log: ${logPath})`)}`,
+    detail: `in ${formatBuildDuration(seconds)} (log: ${logPath})`,
   });
 }
 

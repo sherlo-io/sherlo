@@ -41,9 +41,9 @@ export function renderCheckLine({
 
 /**
  * One line of code, coloured the way an editor colours it, so little of it stays white: keywords
- * cyan, strings green, true, false and numbers magenta, object keys blue, called functions green,
- * components and other capitalised names yellow, comments dim; brackets and the rest in the
- * terminal's own colour. A command to run is not code: it stays plain cyan.
+ * magenta, strings green, true, false, numbers and object keys blue, called functions green,
+ * components and other capitalised names yellow, comments, brackets and punctuation dim; the rest
+ * in the terminal's own colour. A command to run is not code: it stays plain cyan.
  */
 export function renderCode(line: string): string {
   return line.replace(
@@ -59,11 +59,14 @@ export function renderCode(line: string): string {
     ) => {
       if (comment !== undefined) return chalk.dim(token);
       if (text !== undefined) return chalk.green(token);
-      if (keyword !== undefined) return chalk.cyan(token);
-      if (literal !== undefined) return chalk.magenta(token);
+      // NOT CYAN: cyan is a command to run, and code is never mistaken for one.
+      if (keyword !== undefined) return chalk.magenta(token);
+      if (literal !== undefined) return chalk.blue(token);
       if (key !== undefined) return chalk.blue(token);
       if (call !== undefined) return chalk.green(token);
-      return chalk.yellow(token);
+      if (/^[A-Z]/.test(token)) return chalk.yellow(token);
+      // BRACKETS AND PUNCTUATION ARE DIMMED, so the words between them stand out.
+      return chalk.dim(token);
     }
   );
 }
@@ -72,10 +75,10 @@ export function renderCode(line: string): string {
 
 /**
  * In order: a comment, a string, a keyword, true/false/null or a number, an object key, a called
- * function's name, a capitalised name.
+ * function's name, a capitalised name, a run of brackets and punctuation.
  */
 const CODE_TOKEN =
-  /(\/\/.*$)|('[^']*')|\b(import|from|export|default|const|if|return|as|function)\b|\b(true|false|null|\d+)\b|\b([A-Za-z_]\w*)(?=\s*:)|\b([A-Za-z_]\w*)(?=\()|\b[A-Z]\w*/g;
+  /(\/\/.*$)|('[^']*')|\b(import|from|export|default|const|if|return|as|function)\b|\b(true|false|null|\d+)\b|\b([A-Za-z_]\w*)(?=\s*:)|\b([A-Za-z_]\w*)(?=\()|\b[A-Z]\w*|[[\]{}();,=<>/.:]+/g;
 
 const CHECK_LINE_LOOK = {
   success: { color: 'green', icon: '✔' },

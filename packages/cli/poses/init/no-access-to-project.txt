@@ -12,8 +12,8 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the project    Expo 54, React Native 0.81, Storybook 10.6
-[32m✔[39m Logged in              piotr@example.com
+[32m✔[39m Checked the project    [2mExpo 54, React Native 0.81, Storybook 10.6[22m
+[32m✔[39m Logged in              [2mpiotr@example.com[22m
 [31m✖[39m Finding the project failed
 
 [31mERROR: piotr@example.com has no access to project k7m2p9qx/1[39m

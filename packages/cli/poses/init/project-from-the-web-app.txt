@@ -12,14 +12,14 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the project    Expo 54, React Native 0.81, Storybook 10.6
-[32m✔[39m Logged in              anna@example.com
-[32m✔[39m Using team             Storefront
-[32m✔[39m Using project          Acme Shop
-[32m✔[39m Created config         sherlo.config.json, one device: Pixel 7 Pro
-[32m✔[39m Installed Sherlo       @sherlo/react-native-storybook 3.0.0-alpha.0
-[32m✔[39m Updated Metro config   metro.config.js
-[32m✔[39m Added GitHub workflow  .github/workflows/sherlo.yml
+[32m✔[39m Checked the project    [2mExpo 54, React Native 0.81, Storybook 10.6[22m
+[32m✔[39m Logged in              [2manna@example.com[22m
+[32m✔[39m Using team             [2mStorefront[22m
+[32m✔[39m Using project          [2mAcme Shop[22m
+[32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
+[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook 3.0.0-alpha.0[22m
+[32m✔[39m Updated Metro config   [2mmetro.config.js[22m
+[32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m
 
 
 [1m👉 Next steps[22m
@@ -29,13 +29,13 @@ Setting up Sherlo...
    Storybook starts from your app's code, so Sherlo can't open it alone.
    a) Entry-point swapping (recommended, Storybook's default since 10.4)
       In .rnstorybook/index.ts, below StorybookUIRoot, add:
-        [36mimport[39m { registerRootComponent } [36mfrom[39m [32m'expo'[39m;
-        [32mregisterRootComponent[39m([33mStorybookUIRoot[39m);
+        [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
+        [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
       Then remove your app's code that renders Storybook, and its import.
    b) Or in-app integration: keep your setup, and add this at the top of your root component:
-        [36mimport[39m { isStorybookMode } [36mfrom[39m [32m'@sherlo/react-native-storybook'[39m;
-        [36mimport[39m [33mStorybook[39m [36mfrom[39m [32m'./.rnstorybook'[39m;
-        [36mif[39m (isStorybookMode) [36mreturn[39m <[33mStorybook[39m />;
+        [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
+        [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
+        [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
    Both in detail, for your kind of app:
      [36mnode_modules/@sherlo/react-native-storybook/guides/storybook-setup.md[39m
 

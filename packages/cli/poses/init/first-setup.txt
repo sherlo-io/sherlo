@@ -12,21 +12,21 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the project    Expo 54, React Native 0.81
+[32m✔[39m Checked the project    [2mExpo 54, React Native 0.81[22m
 
 Opening your browser to log in to Sherlo...
 [2mIf it doesn't open, use this link on any device:[22m
 
   [36m<LOGIN_LINK>[39m
 
-[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G[32m✔[39m Logged in              anna@example.com
-[32m✔[39m Created team           Anna's team
-[32m✔[39m Created project        Acme Shop
-[32m✔[39m Created config         sherlo.config.json, one device: Pixel 7 Pro
-[32m✔[39m Installed Storybook    @storybook/react-native 10.6.2
-[32m✔[39m Installed Sherlo       @sherlo/react-native-storybook 3.0.0-alpha.0
-[32m✔[39m Updated Metro config   metro.config.js
-[32m✔[39m Added GitHub workflow  .github/workflows/sherlo.yml
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G[32m✔[39m Logged in              [2manna@example.com[22m
+[32m✔[39m Created team           [2mAnna's team[22m
+[32m✔[39m Created project        [2mAcme Shop[22m
+[32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
+[32m✔[39m Installed Storybook    [2m@storybook/react-native 10.6.2[22m
+[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook 3.0.0-alpha.0[22m
+[32m✔[39m Updated Metro config   [2mmetro.config.js[22m
+[32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m
 
 
 [1m👉 Next steps[22m
@@ -34,13 +34,13 @@ Opening your browser to log in to Sherlo...
 
 [1m1. Replace the example stories[22m
    Right now Sherlo would test Storybook's examples, not your app.
-   Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [[32m'../src'[39m].
+   Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [2m[[22m[32m'../src'[39m[2m][22m.
    You can start with a few components or screens, one story per state:
      [2m// Button.stories.tsx[22m
-     [36mimport[39m { [33mButton[39m } [36mfrom[39m [32m'./Button'[39m;
-     [36mexport[39m [36mdefault[39m { [34mcomponent[39m: [33mButton[39m };
-     [36mexport[39m [36mconst[39m [33mDefault[39m = { [34margs[39m: { [34mtitle[39m: [32m'Default'[39m } };
-     [36mexport[39m [36mconst[39m [33mDisabled[39m = { [34margs[39m: { [34mtitle[39m: [32m'Disabled'[39m, [34mdisabled[39m: [35mtrue[39m } };
+     [35mimport[39m [2m{[22m [33mButton[39m [2m}[22m [35mfrom[39m [32m'./Button'[39m[2m;[22m
+     [35mexport[39m [35mdefault[39m [2m{[22m [34mcomponent[39m[2m:[22m [33mButton[39m [2m};[22m
+     [35mexport[39m [35mconst[39m [33mDefault[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Default'[39m [2m}[22m [2m};[22m
+     [35mexport[39m [35mconst[39m [33mDisabled[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Disabled'[39m[2m,[22m [34mdisabled[39m[2m:[22m [34mtrue[39m [2m}[22m [2m};[22m
    How to write stories:
      [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
 

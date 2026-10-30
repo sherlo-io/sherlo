@@ -12,8 +12,8 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the project    Expo 54, React Native 0.81, Storybook 10.6
-[32m✔[39m Logged in              anna@example.com
+[32m✔[39m Checked the project    [2mExpo 54, React Native 0.81, Storybook 10.6[22m
+[32m✔[39m Logged in              [2manna@example.com[22m
 [31m✖[39m Choosing a team failed
 
 [31mERROR: Setup couldn't reach Sherlo[39m

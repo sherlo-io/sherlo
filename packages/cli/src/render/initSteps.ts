@@ -42,7 +42,10 @@ export function renderStepLine({
 }): string {
   // A step with nothing to add but that it was already done reads `(already done)` alone.
   const alreadyDoneMark = outcome === 'already' ? chalk.dim('(already done)') : '';
-  const shownDetail = [detail, alreadyDoneMark].filter((part) => part !== '').join(' ');
+  // THE DETAIL IS SECONDARY, so it is dimmed and the step names read first.
+  const shownDetail = [detail === '' ? '' : chalk.dim(detail), alreadyDoneMark]
+    .filter((part) => part !== '')
+    .join(' ');
 
   return `${chalk.green('✔')} ${name.padEnd(STEP_NAME_WIDTH)} ${shownDetail}`;
 }
