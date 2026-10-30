@@ -1,0 +1,26 @@
+{
+  "id": "i-20261030-0742-bqjw",
+  "issue": "i-20261030-0742-bqjw",
+  "medium": "command",
+  "engine": "node and gradle on the sherlo checkout (ANDROID_HOME set)",
+  "mac": "michal-2",
+  "parentCommit": "7dcdd71885163cbb3ceeba7929ba0d7a79ae4221",
+  "fixCommit": "3d08b8be4f5a55b00883e2773d8a2fab6d6f5a1d",
+  "fixTree": "ac109c18fc9ad5645c3b12d7b83548b7ae6e6a31",
+  "red": {
+    "exitCode": 1,
+    "output": "no test:android-sdk script in the root package.json",
+    "pictures": [],
+    "seconds": 0.03
+  },
+  "green": {
+    "exitCode": 0,
+    "output": "Starting a Gradle Daemon (subsequent builds will be faster)\n> Task :preBuild UP-TO-DATE\n> Task :preDebugBuild UP-TO-DATE\n> Task :generateDebugResValues FROM-CACHE\n> Task :generateDebugResources FROM-CACHE\n> Task :packageDebugResources FROM-CACHE\n> Task :parseDebugLocalResources FROM-CACHE\n> Task :generateDebugRFile FROM-CACHE\n> Task :javaPreCompileDebug FROM-CACHE\n> Task :compileDebugJavaWithJavac FROM-CACHE\n> Task :preDebugUnitTestBuild UP-TO-DATE\n> Task :javaPreCompileDebugUnitTest FROM-CACHE\n> Task :compileDebugLibraryResources FROM-CACHE\n> Task :generateDebugUnitTestResValues FROM-CACHE\n> Task :writeDebugAarMetadata\n> Task :bundleLibRuntimeToJarDebug\n> Task :bundleLibCompileToJarDebug\n> Task :mapDebugUnitTestSourceSetPaths\n> Task :generateDebugUnitTestResources FROM-CACHE\n> Task :checkDebugUnitTestAarMetadata\n> Task :mergeDebugUnitTestResources FROM-CACHE\n> Task :extractDeepLinksDebug FROM-CACHE\n> Task :processDebugManifest FROM-CACHE\n> Task :processDebugUnitTestManifest\n> Task :processDebugUnitTestResources FROM-CACHE\n> Task :compileDebugUnitTestJavaWithJavac FROM-CACHE\n> Task :mergeDebugShaders\n> Task :compileDebugShaders NO-SOURCE\n> Task :generateDebugAssets UP-TO-DATE\n> Task :mergeDebugAssets\n> Task :generateDebugUnitTestAssets UP-TO-DATE\n> Task :packageDebugAssets\n> Task :mergeDebugUnitTestAssets\n> Task :packageDebugUnitTestForUnitTest\n> Task :processDebugJavaRes NO-SOURCE\n> Task :processDebugUnitTestJavaRes NO-SOURCE\n> Task :generateDebugUnitTestConfig\n> Task :testDebugUnitTest FROM-CACHE\n\nBUILD SUCCESSFUL in 7s\n29 actionable tasks: 12 executed, 17 from cache",
+    "pictures": [],
+    "seconds": 7.91
+  },
+  "verdict": {
+    "matched": true,
+    "line": "Matches the report: \"no department verb reaches gradle\" — the check found no test:android-sdk script in the root package.json, so nothing from the root can compile or run the Android SDK's Java tests."
+  }
+}
