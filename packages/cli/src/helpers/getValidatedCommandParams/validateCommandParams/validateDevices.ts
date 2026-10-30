@@ -1,6 +1,6 @@
 import { DeviceTheme, Platform } from '@sherlo/api-types';
 import { DEVICE_OS_FONT_SCALE, DEVICES, getPlatformFromDeviceId } from '@sherlo/shared';
-import { DEVICES_OPTION, DOCS_LINK, PLATFORM_LABEL } from '../../../constants';
+import { DEVICES_OPTION_LABEL, DOCS_LINK, PLATFORM_LABEL } from '../../../constants';
 import { InvalidatedConfig } from '../../../types';
 import logWarning from '../../logWarning';
 import throwError from '../../throwError';
@@ -9,7 +9,7 @@ import throwError from '../../throwError';
  * Where the devices came from, as a refusal names it: the config file, or `--devices`, which stands
  * in for the config's devices for one run and is checked in the same words.
  */
-export type DevicesSource = 'config' | `\`--${typeof DEVICES_OPTION}\``;
+export type DevicesSource = 'config' | typeof DEVICES_OPTION_LABEL;
 
 function validateDevices(config: InvalidatedConfig, where: DevicesSource = 'config'): void {
   const { devices } = config;

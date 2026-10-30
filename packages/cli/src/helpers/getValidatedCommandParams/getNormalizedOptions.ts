@@ -1,5 +1,6 @@
 import {
   DEVICES_OPTION,
+  DEVICES_OPTION_LABEL,
   DIAGNOSTICS_OPTION,
   DOCS_LINK,
   EXCLUDE_OPTION,
@@ -52,7 +53,7 @@ function parseDevicesJson(value: string): InvalidatedConfig['devices'] {
   } catch {
     throwError({
       message:
-        `\`--${DEVICES_OPTION}\` must be the config's devices as JSON, ` +
+        `${DEVICES_OPTION_LABEL} must be the config's devices as JSON, ` +
         `such as '[{"id":"pixel.7","osVersion":"13"}]'`,
       learnMoreLink: DOCS_LINK.configDevices,
     });

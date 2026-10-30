@@ -22,11 +22,10 @@ function getCommandParams<
     ...options,
     android: options.android ? path.resolve(projectRoot, options.android) /* 1 */ : undefined,
     ios: options.ios ? path.resolve(projectRoot, options.ios) /* 1 */ : undefined,
-    // THE DEVICES ARE THE CONFIG'S: `--devices` was laid over the config when it was read
-    // (getNormalizedConfig) and filled with the defaults there, so the raw flag never wins here.
-    devices: (config as { devices?: unknown[] }).devices,
-    ...onlyThePlatformAsked(options, config),
-    // THE CONFIG'S WHOLE DEVICE LIST: `devices` above is cut to the job's own platform, while the
+    // THE DEVICES THIS JOB TESTS: the config's (`--devices` already stands in for them, defaults
+    // included - getNormalizedConfig), never the raw option spread above.
+    ...theDevicesThisJobTests(options, config),
+    // THE CONFIG'S WHOLE DEVICE LIST: `devices` is cut to the job's own platform, while the
     // test's row names every device of the test, whichever job started it.
     testDevices: (config as { devices?: unknown[] }).devices,
     // THE CONFIG'S `build` BLOCK, under the name every reader of it uses (readBuildSettings).
@@ -47,10 +46,10 @@ function refuseUnknownPlatform(options: object): void {
  * devices of the other platform are left out of this run. The platform nobody asked for still
  * belongs to the test - the other job brings it.
  */
-function onlyThePlatformAsked(options: object, config: object): { devices?: unknown[] } {
+function theDevicesThisJobTests(options: object, config: object): { devices?: unknown[] } {
   const platform = (options as { platform?: string }).platform;
-  const devices = (config as { devices?: unknown }).devices;
-  if (!platform || !Array.isArray(devices)) return {};
+  const devices = (config as { devices?: unknown[] }).devices;
+  if (!platform || !Array.isArray(devices)) return { devices };
 
   return {
     devices: devices.filter(
