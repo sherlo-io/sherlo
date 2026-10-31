@@ -178,13 +178,14 @@ export function renderNextSteps({
     {
       title: 'Run your first visual test',
       // THE WAIT IS FOR AGENTS ONLY: a build outlasts an agent's command time limit, so it is told
-      // to run it in the background. A person told it takes long may leave it for later, so a
-      // person reads the command alone. No number: the time depends on the app and the machine.
+      // not to let it time out - the goal, not a way, as agents differ in what they can do. A person
+      // told it takes long may leave it for later, so a person reads the command alone. No number:
+      // the time depends on the app and the machine.
       content: [
         chalk.cyan('npx sherlo test'),
         ...(reader === 'agent'
           ? [
-              'AI agents: the first run builds the app and can outlast your command timeout, so run it in the background.',
+              "AI agents: the first run builds the app and can take a long time, so don't let it time out.",
             ]
           : []),
       ],
