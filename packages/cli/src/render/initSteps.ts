@@ -153,7 +153,8 @@ export function renderNextSteps({
           // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
           `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
           `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
-          'How to write stories:',
+          // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
+          'Before you write stories, read:',
           `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
         ],
       },

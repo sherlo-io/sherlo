@@ -41,7 +41,7 @@ Opening your browser to log in to Sherlo...
      [35mexport[39m [35mdefault[39m [2m{[22m [34mcomponent[39m[2m:[22m [33mButton[39m [2m};[22m
      [35mexport[39m [35mconst[39m [33mDefault[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Default'[39m [2m}[22m [2m};[22m
      [35mexport[39m [35mconst[39m [33mDisabled[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Disabled'[39m[2m,[22m [34mdisabled[39m[2m:[22m [34mtrue[39m [2m}[22m [2m};[22m
-   How to write stories:
+   Before you write stories, read:
      [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
 
 [1m2. Run your first visual test[22m
