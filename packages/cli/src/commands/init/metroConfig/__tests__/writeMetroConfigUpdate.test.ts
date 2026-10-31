@@ -154,7 +154,7 @@ module.exports = withStorybook(getDefaultConfig(__dirname));`;
     expect(mtimeAfter).toBe(mtimeBefore);
   });
 
-  it('returns applied:false when module.exports is not a call expression', async () => {
+  it("points Storybook's require at Sherlo's whatever shape the export has", async () => {
     const nonCanonical = `const withStorybook = require('@storybook/react-native/metro/withStorybook');
 const config = withStorybook(getDefaultConfig(__dirname));
 module.exports = config;`;
@@ -162,8 +162,36 @@ module.exports = config;`;
     const filePath = await writeFixture('metro.config.js', nonCanonical);
     const result = await writeMetroConfigUpdate({ path: filePath, content: nonCanonical });
 
+    expect(result.applied).toBe(true);
+    const output = await fs.promises.readFile(filePath, 'utf-8');
+    expect(output).toContain(`require('@sherlo/react-native-storybook/metro/withStorybook')`);
+    expect(output).toContain('module.exports = config;');
+  });
+
+  it('leaves a config exported as a function untouched', async () => {
+    const asFunction = `module.exports = async () => ({ resolver: {} });`;
+
+    const filePath = await writeFixture('metro.config.js', asFunction);
+    const result = await writeMetroConfigUpdate({ path: filePath, content: asFunction });
+
     expect(result.applied).toBe(false);
-    expect(await fs.promises.readFile(filePath, 'utf-8')).toBe(nonCanonical);
+    expect(await fs.promises.readFile(filePath, 'utf-8')).toBe(asFunction);
+  });
+
+  it("wraps an ES module config's default export and imports Sherlo's withStorybook", async () => {
+    const esModule = `import { getDefaultConfig } from 'expo/metro-config';
+const config = getDefaultConfig(__dirname);
+export default config;`;
+
+    const filePath = await writeFixture('metro.config.mjs', esModule);
+    const result = await writeMetroConfigUpdate({ path: filePath, content: esModule });
+
+    expect(result.applied).toBe(true);
+    const output = await fs.promises.readFile(filePath, 'utf-8');
+    expect(output).toContain(
+      `import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook'`
+    );
+    expect(output).toContain('export default withStorybook(config)');
   });
 
   it('uses double quotes when file predominantly uses double quotes', async () => {
@@ -205,15 +233,31 @@ module.exports = sb(getDefaultConfig(__dirname));`;
     expect(output).toContain('module.exports = sb(getDefaultConfig(__dirname))');
   });
 
-  it("returns applied:false, writing nothing, when the export is a call but Storybook's withStorybook is never required", async () => {
+  it("wraps the exported config in Sherlo's withStorybook when the config has none", async () => {
     const noStorybookRequire = `const x = require('./x');
 module.exports = x.y(getDefaultConfig(__dirname));`;
 
     const filePath = await writeFixture('metro.config.js', noStorybookRequire);
     const result = await writeMetroConfigUpdate({ path: filePath, content: noStorybookRequire });
 
+    expect(result.applied).toBe(true);
+    const output = await fs.promises.readFile(filePath, 'utf-8');
+    // The printer may wrap the long require over lines; it still comes after the file's own.
+    const sherloRequireAt = output.search(
+      /const withStorybook = require\(\s*'@sherlo\/react-native-storybook\/metro\/withStorybook'\s*\)/
+    );
+    expect(sherloRequireAt).toBeGreaterThan(output.indexOf("require('./x')"));
+    expect(output).toContain('module.exports = withStorybook(x.y(getDefaultConfig(__dirname)))');
+  });
+
+  it("leaves a withStorybook from the developer's own file untouched", async () => {
+    const ownWithStorybook = `const withStorybook = require('./tools/withStorybook');
+module.exports = withStorybook(getDefaultConfig(__dirname));`;
+
+    const filePath = await writeFixture('metro.config.js', ownWithStorybook);
+    const result = await writeMetroConfigUpdate({ path: filePath, content: ownWithStorybook });
+
     expect(result.applied).toBe(false);
-    expect(await fs.promises.readFile(filePath, 'utf-8')).toBe(noStorybookRequire);
   });
 
   it('keeps another plugin that wraps withStorybook', async () => {

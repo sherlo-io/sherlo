@@ -54,6 +54,14 @@ export class ListProjectsAuthError extends Error {
   }
 }
 
+/** The team is not among the token owner's teams: they are not in it, or the id is wrong. */
+export class TeamNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TeamNotFoundError';
+  }
+}
+
 /**
  * The effects this request is made of, injected so a contract test can assert
  * the exact payload without a network. The default is the real thing. Also
@@ -100,7 +108,7 @@ async function listProjectsRequest(
   const team = teams.find((candidate) => candidate.id === teamId);
 
   if (!team) {
-    throw new Error(
+    throw new TeamNotFoundError(
       `Team \`${teamId}\` was not found among the teams this token's owner belongs to. ` +
         'Check the id, or list your teams with `npx sherlo team list`.'
     );

@@ -196,7 +196,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Used your JavaScript   🤖 Android bundle.android.js, from --bundle-dir`,
+        `${ESC}[32m✔${ESC}[39m Used your JavaScript   ${ESC}[2m🤖 Android bundle.android.js, from --bundle-dir${ESC}[22m`,
       ],
     ],
   },
@@ -227,7 +227,9 @@ const PINS: Pin[] = [
       assetCount: 6,
     },
     stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m Saved the JavaScript   🤖 Android, to /tmp/out`]],
+    prints: [
+      [`${ESC}[32m✔${ESC}[39m Saved the JavaScript   ${ESC}[2m🤖 Android, to /tmp/out${ESC}[22m`],
+    ],
   },
   {
     kind: 'platform-bundle-failed',
@@ -568,7 +570,7 @@ const PINS: Pin[] = [
     stream: 'stdout',
     prints: [
       [
-        `${ESC}[32m✔${ESC}[39m Built the iOS app      in 42s ${ESC}[2m(log: .sherlo/build-ios.log)${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Built the iOS app      ${ESC}[2min 42s (log: .sherlo/build-ios.log)${ESC}[22m`,
       ],
     ],
   },
@@ -1679,13 +1681,13 @@ const PINS: Pin[] = [
 
   {
     kind: 'project-created',
-    what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
+    what: 'everything `sherlo project create` prints - no token comes with a new project, so it names the project page where a CI token is made',
     segment: {
       kind: 'project-created',
       project: {
         name: 'Design System',
         index: 12,
-        projectToken: 'pppppppppppppppppppppppppppppppp team1234 12',
+        projectPageUrl: 'https://app.sherlo.io/project?t=team1234&p=12',
       },
     },
     stream: 'stdout',
@@ -1695,11 +1697,10 @@ const PINS: Pin[] = [
       ['projectIndex=12'],
       ['projectName=Design System'],
       [''],
-      [`${ESC}[33mProject token - shown once. Store it now; it cannot be shown again.${ESC}[39m`],
-      [''],
-      ['  pppppppppppppppppppppppppppppppp team1234 12'],
-      [''],
-      [`${ESC}[2mAdd it to your CI as the SHERLO_TOKEN secret.${ESC}[22m`],
+      [
+        `For pull request tests, connect GitHub on the project's page, or make a CI token there for CI not on GitHub:`,
+      ],
+      [`  ${ESC}[36mhttps://app.sherlo.io/project?t=team1234&p=12${ESC}[39m`],
       [''],
     ],
   },
@@ -1721,15 +1722,12 @@ const PINS: Pin[] = [
   },
   {
     kind: 'login-waiting',
-    what: 'the wait off a terminal - a plain line that stays, and tells an agent it may wait in the background',
+    what: 'the wait off a terminal - one plain line that stays',
     segment: { kind: 'login-waiting' },
     stream: 'stdout',
     prints: [
       [
         `${ESC}[33m⏳${ESC}[39m Waiting for you to click Authorize... ${ESC}[2m(Ctrl+C to stop)${ESC}[22m`,
-      ],
-      [
-        `${ESC}[2mAn agent may run this in the background while the person clicks. Running it again waits on the same link.${ESC}[22m`,
       ],
     ],
   },

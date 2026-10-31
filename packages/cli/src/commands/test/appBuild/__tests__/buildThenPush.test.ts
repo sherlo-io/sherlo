@@ -282,8 +282,10 @@ describe('sherlo test builds what the gate refused, then pushes', () => {
 
     expect(refusals).toEqual([]);
     expect(exitCode).toBe(1);
-    expect(stripAnsi(screen)).toContain("ERROR: Can't test: the bundle holds no stories.");
-    expect(screen).toContain('"build.env"');
+    expect(stripAnsi(screen)).toContain(
+      "ERROR: The app's bundle has no stories, so there's nothing to test"
+    );
+    expect(screen).toContain('"build": { "env"');
     expect(binaryPuts).toEqual([]);
     expect(operationsSent()).not.toContain('getStagedUploadUrls');
     expect(operationsSent()).not.toContain('openBuild');

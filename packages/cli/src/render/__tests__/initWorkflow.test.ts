@@ -60,9 +60,17 @@ describe('the workflow sherlo init writes', () => {
     expect(workflow).toMatch(/with:\n\s+platform: \$\{\{ matrix\.platform \}\}/);
   });
 
-  it("puts SHERLO_TOKEN in the job's env and keeps the step that fails when the secret is missing", () => {
-    expect(workflow).toMatch(/env:\n\s+SHERLO_TOKEN: \$\{\{ secrets\.SHERLO_TOKEN \}\}/);
-    expect(workflow).toContain('::error::Add a SHERLO_TOKEN secret');
+  it('signs in through GitHub with no secret, and asks for a notice rather than a failure until GitHub is connected', () => {
+    expect(workflow).toMatch(/permissions:\n\s+contents: read\n\s+id-token: write\n/);
+    expect(workflow).toMatch(/env:\n(\s+#.*\n)?\s+SHERLO_UNTIL_CONNECTED: notice\n/);
+    expect(workflow).not.toContain('SHERLO_TOKEN');
+    expect(workflow).not.toContain('secrets.');
+    expect(workflow).toContain('Connect GitHub');
+  });
+
+  it('sets up Node 22 with the package manager cache setup-node knows, and none for bun', () => {
+    expect(workflow).toMatch(/node-version: 22\n\s+cache: yarn\n/);
+    expect(renderSherloWorkflow({ packageManager: 'bun' })).toMatch(/node-version: 22\n\n/);
   });
 
   it("installs with the project's package manager", () => {

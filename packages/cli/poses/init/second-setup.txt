@@ -10,104 +10,40 @@
 
 [2m[3mMake sure your mobile app looks perfect on every device[23m[22m
 
-Initializing Sherlo in your project...
+Setting up Sherlo...
+
+[32m✔[39m Checked the app        [2mExpo 54, React Native 0.81, Storybook 10.6[22m
+[32m✔[39m Logged in              [2manna@example.com[22m
+[32m✔[39m Using team             [2mAnna's team[22m
+[32m✔[39m Using project          [2mAcme Shop[22m
+[32m✔[39m Created config         [2msherlo.config.json[22m [2m(already done)[22m
+[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook 3.0.0-alpha.0[22m
+[32m✔[39m Updated Metro config   [2mmetro.config.js[22m [2m(already done)[22m
+[32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m [2m(already done)[22m
 
 
-[1m✅ Requirements[22m
-[2m═══════════════[22m
+[1m👉 Next steps[22m
+[2m═════════════[22m
 
-[32m✔[39m React Native
-[32m✔[39m Storybook
+[1m1. Let Sherlo open Storybook[22m
+   Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:
 
+   [1ma) Entry-point swapping (Storybook's default, recommended)[22m
+      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+        [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
+        [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
+      Then remove your app's code that renders Storybook, and its import.
 
-[1m🎯 Project[22m
-[2m══════════[22m
+   [1mb) In-app integration[22m
+      At the top of your root component, add:
+        [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
+        [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
+        [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
 
-Checking who is setting up and which project this app belongs to.
+   Before you change your setup, read:
+     [36mnode_modules/@sherlo/react-native-storybook/guides/storybook-setup.md[39m
 
-[32m✔[39m Using the project from your token: [1m<TEAM>/4[22m
-  The token is not written to sherlo.config.json.
-  Add it to your CI as the SHERLO_TOKEN secret.
-
-
-[1m💾 Dependencies[22m
-[2m═══════════════[22m
-
-✔ Installed Sherlo
-
-
-[1m🧩 Metro Config[22m
-[2m═══════════════[22m
-
-[32m✔[39m Already updated: <PROJECT_ROOT>/metro.config.js
-
-
-[1m🔑 Storybook Access[22m
-[2m═══════════════════[22m
-
-To enable Sherlo to access Storybook, choose one:
-
-
-[1mOption 1: Standalone Storybook[22m
-
-  Provide a build that [4mopens straight into Storybook[24m
-
-  [34m[2m╭─[22m[39m[34m Root component [39m[34m[2m────────────────────────╮[22m[39m
-  [34m[2m│[22m[39m [36mimport[39m Storybook [36mfrom[39m [35m"./.rnstorybook"[39m; [34m[2m│[22m[39m
-  [34m[2m│[22m[39m                                         [34m[2m│[22m[39m
-  [34m[2m│[22m[39m [36mexport default function[39m [32mApp[39m() {         [34m[2m│[22m[39m
-  [34m[2m│[22m[39m   [36mreturn[39m <[35mStorybook[39m />;                 [34m[2m│[22m[39m
-  [34m[2m│[22m[39m }                                       [34m[2m│[22m[39m
-  [34m[2m╰─────────────────────────────────────────╯[22m[39m
-
-
-[1mOption 2: Integrated Storybook[22m
-
-  Update your Root component [3m(could be App.jsx or app/_layout.jsx)[23m:
-
-  [34m[2m╭─[22m[39m[34m Root component [39m[34m[2m──────────────────────────────────────────────────╮[22m[39m
-  [34m[2m│[22m[39m [36mimport[39m { isStorybookMode } [36mfrom[39m [35m"@sherlo/react-native-storybook"[39m; [34m[2m│[22m[39m
-  [34m[2m│[22m[39m [36mimport[39m Storybook [36mfrom[39m [35m"./.rnstorybook"[39m;                           [34m[2m│[22m[39m
-  [34m[2m│[22m[39m                                                                   [34m[2m│[22m[39m
-  [34m[2m│[22m[39m [36mexport default function[39m [32mApp[39m() {                                   [34m[2m│[22m[39m
-  [34m[2m│[22m[39m   [36mif[39m (isStorybookMode) {                                          [34m[2m│[22m[39m
-  [34m[2m│[22m[39m     [36mreturn[39m <[35mStorybook[39m />;                                         [34m[2m│[22m[39m
-  [34m[2m│[22m[39m   }                                                               [34m[2m│[22m[39m
-  [34m[2m│[22m[39m                                                                   [34m[2m│[22m[39m
-  [34m[2m│[22m[39m   [36mreturn[39m <[35mYourApp[39m />;                                             [34m[2m│[22m[39m
-  [34m[2m│[22m[39m }                                                                 [34m[2m│[22m[39m
-  [34m[2m╰───────────────────────────────────────────────────────────────────╯[22m[39m
-
-[33mWARNING: Provide Storybook access by choosing one of the options above[39m
-[2m↳ Learn more: [4mhttps://sherlo.io/docs/setup#storybook-access[24m[22m
-
-[1m👉 Ready to move on? Press Enter...[22m[2K[1A[2K[G[G
-
-[1m📋 Config[22m
-[2m═════════[22m
-
-[32m✔[39m Already created: sherlo.config.json
-[32m✔[39m Added project [1m<TEAM>/4[22m to sherlo.config.json
-
-
-[1m📦 Builds[22m
-[2m═════════[22m
-
-[33m╭─[39m[33m Before building [39m[33m────────────────────────────╮[39m
-[33m│[39m Make sure you have provided [1mStorybook Access[22m [33m│[39m
-[33m╰──────────────────────────────────────────────╯[39m
-
-`npx sherlo test` builds your app with Gradle (Android) and Xcode (iOS) on the first run, and again only when native code or build settings change.
-
-
-[1m🧪 Testing[22m
-[2m══════════[22m
-
-To test your app, run:
-  [36mnpx sherlo test[39m
-
-[34mINFO: The first run builds your app and stores the app build. After that, `npx sherlo test` reuses it while only JavaScript changes.[39m
-[2m↳ Learn more: [4mhttps://sherlo.io/docs/testing[24m[22m
-
+[1m2. Run your first visual test[22m
+   [36mnpx sherlo test[39m
 
 [exit 0]

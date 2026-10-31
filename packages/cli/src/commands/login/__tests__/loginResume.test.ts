@@ -142,13 +142,12 @@ describe('npx sherlo login, as it waits and resumes', () => {
 
     const elsewhere = await runLogin({ api: [start(), PENDING, APPROVED], terminal: false });
 
-    // Off a terminal nothing is drawn: the plain line stays, and tells an agent it may wait in
-    // the background.
+    // Off a terminal nothing is drawn: the plain line stays, with no separate note under it.
     expect(elsewhere.terminalWrites).toBe('');
     const lines = plainLines(elsewhere.printed);
     const waiting = lines.indexOf('⏳ Waiting for you to click Authorize... (Ctrl+C to stop)');
     expect(waiting).toBeGreaterThanOrEqual(0);
-    expect(lines[waiting + 1]).toContain('in the background');
+    expect(plain(elsewhere.printed)).not.toContain('in the background');
     expect(plain(elsewhere.printed)).toContain(`Logged in as ${EMAIL}`);
   });
 });
