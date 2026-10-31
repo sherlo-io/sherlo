@@ -12,7 +12,7 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the project    [2mExpo 54, React Native 0.81[22m
+[32m✔[39m Checked the app        [2mExpo 54, React Native 0.81[22m
 
 Opening your browser to log in to Sherlo...
 [2mIf it doesn't open, use this link on any device:[22m

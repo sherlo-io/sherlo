@@ -12,7 +12,7 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the project    [2mExpo 54, React Native 0.81, Storybook 9.1[22m
+[32m✔[39m Checked the app        [2mExpo 54, React Native 0.81, Storybook 9.1[22m
 [32m✔[39m Logged in              [2manna@example.com[22m
 [32m✔[39m Using team             [2mAnna's team[22m
 [32m✔[39m Created project        [2mAcme Shop[22m

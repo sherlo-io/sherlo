@@ -97,7 +97,8 @@ async function checkProject(): Promise<CheckedProject> {
   printLines([
     renderStepLine({
       outcome: 'done',
-      name: 'Checked the project',
+      // "THE APP", NOT "THE PROJECT": project is the Sherlo project the later steps create or use.
+      name: 'Checked the app',
       detail: [
         expoVersion ? `Expo ${majorOf(expoVersion)}` : null,
         `React Native ${minorOf(reactNativeVersion)}`,
