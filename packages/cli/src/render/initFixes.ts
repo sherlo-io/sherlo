@@ -151,7 +151,9 @@ export function renderReactNativeTooOld({
  *
  * NO UPGRADE COMMAND: one `add` moves one package, and "latest" on each does not land them on one
  * version (from 7.6.20 it gave 10.7.0 for the React Native ones and 10.6.5 for @storybook/react), so
- * the goal is named and the way left to the reader.
+ * the goal is named, with Storybook for React Native's own migration guide: it upgrades by hand, one
+ * major version at a time, each with steps of its own (new native packages for 8, the folder rename
+ * for 9), as the React Native refusal names React Native's Upgrade Helper.
  */
 export function renderStorybookTooOld({
   current,
@@ -162,6 +164,8 @@ export function renderStorybookTooOld({
 }): InitRefusal {
   return refusal(`Storybook ${current} is too old: Sherlo needs ${min} or newer`, [
     words('Upgrade Storybook, with every @storybook/* package on the same version.'),
+    words("Follow Storybook for React Native's migration guide, one version at a time:"),
+    code('https://github.com/storybookjs/react-native/blob/next/MIGRATION.md'),
     ...rerun(),
   ]);
 }
