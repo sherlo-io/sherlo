@@ -18,7 +18,7 @@ import {
   renderReactNativeTooOld,
   renderStorybookTooOld,
 } from '../../../render/initFixes';
-import { renderStepLine } from '../../../render/initSteps';
+import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { packageManagerCommand, printLines } from '../helpers';
 import findPackageJsonPaths from '../requirements/findPackageJsonPaths';
 import getPackageVersion from '../requirements/getPackageVersion';
@@ -32,7 +32,21 @@ export type CheckedProject = {
   hasStorybook: boolean;
 };
 
+/** A refusal here names its step with a red cross first, like every other stop of setup. */
 async function checkProject(): Promise<CheckedProject> {
+  try {
+    return await checkTheApp();
+  } catch (error) {
+    printLines(renderFailedStepLine('Checking the app failed'));
+    throw error;
+  }
+}
+
+export default checkProject;
+
+/* ========================================================================== */
+
+async function checkTheApp(): Promise<CheckedProject> {
   await validateProjectContext();
   await validateHasReactNative();
 
@@ -79,9 +93,6 @@ async function checkProject(): Promise<CheckedProject> {
         renderStorybookTooOld({
           current: installedStorybook,
           min: MIN_STORYBOOK_REACT_NATIVE_VERSION,
-          installCommand: await packageManagerCommand('add', [
-            `${STORYBOOK_REACT_NATIVE_PACKAGE_NAME}@latest`,
-          ]),
         })
       );
     }
@@ -111,10 +122,6 @@ async function checkProject(): Promise<CheckedProject> {
 
   return { hasStorybook };
 }
-
-export default checkProject;
-
-/* ========================================================================== */
 
 /**
  * The version node_modules holds. A package package.json lists but node_modules lacks means the

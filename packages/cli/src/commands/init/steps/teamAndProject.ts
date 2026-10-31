@@ -112,13 +112,13 @@ async function chooseTeam(
     printLines(renderFailedStepLine('Choosing a team failed'));
     throwError({
       message: teamFlag
-        ? `You are not in a team with the id ${teamFlag}`
-        : `You are in ${teams.length} teams, so setup cannot choose one for you`,
+        ? `You're not in a team with the id ${teamFlag}`
+        : `You're in ${teams.length} teams, so setup can't choose one for you`,
       below:
         '\n' +
         teams.map(({ id, name }) => `  ${name.padEnd(24)} ${chalk.dim(id)}`).join('\n') +
         '\n\n' +
-        chalk.reset('Re-run setup with the team to use:\n') +
+        chalk.reset('Run setup again with the team to use:\n') +
         chalk.cyan(`  ${FULL_INIT_COMMAND} --${TEAM_OPTION} <id>`),
     });
   }

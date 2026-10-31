@@ -26,7 +26,8 @@ Opening your browser to log in to Sherlo...
 [32m✔[39m Installed Storybook    [2m@storybook/react-native 10.6.0[22m
 [31m✖[39m Installing Sherlo failed
 
-[31mERROR: yarn couldn't install @sherlo/react-native-storybook[39m
+[31mERROR: Sherlo couldn't be installed[39m
+
 [2m➤ YN0000: · Yarn 4.3.1[22m
 [2m➤ YN0000: ┌ Resolution step[22m
 [2m➤ YN0035: │ @sherlo/react-native-storybook@<VERSION> Package not found[22m
@@ -36,11 +37,11 @@ Opening your browser to log in to Sherlo...
 [2m➤ YN0000: └ Completed in 0s 512ms[22m
 [2m➤ YN0000: · Failed with errors in 0s 518ms[22m
 
-[0mFix the error, or install the package yourself:[0m
-[0m[0m[36m  yarn add @sherlo/react-native-storybook[39m
-[36m[39m
+[0mFix the error, or install Sherlo yourself:[0m
+[36m  yarn add @sherlo/react-native-storybook[39m
+
 [0mThen run setup again:[0m
-[0m[0m[36m  npx sherlo init[39m
+[36m  npx sherlo init[39m
 
 [2m──────────[22m
 

@@ -12,6 +12,8 @@
 
 Setting up Sherlo...
 
+[31m✖[39m Checking the app failed
+
 [31mERROR: This folder is a monorepo root[39m
 
 [0mGo to the app's folder and run setup again:[0m

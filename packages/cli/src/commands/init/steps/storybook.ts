@@ -11,7 +11,7 @@
 import { detect, resolveCommand } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
-import { renderStorybookInstallFailed } from '../../../render/initFixes';
+import { renderInstallFailed } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
 import getFailedCommandOutput from '../dependencies/getFailedCommandOutput';
@@ -53,7 +53,11 @@ async function storybook({
     printLines(renderFailedStepLine('Installing Storybook failed'));
 
     throwError({
-      ...renderStorybookInstallFailed({ command, failedOutput: getFailedCommandOutput(error) }),
+      ...renderInstallFailed({
+        installing: 'Storybook',
+        command,
+        failedOutput: getFailedCommandOutput(error),
+      }),
       errorToReport: error as Error,
     });
   }

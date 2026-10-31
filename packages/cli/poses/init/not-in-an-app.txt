@@ -12,6 +12,8 @@
 
 Setting up Sherlo...
 
+[31m✖[39m Checking the app failed
+
 [31mERROR: No package.json in <PROJECT_ROOT>[39m
 
 [0mGo to your app's folder and run setup again:[0m

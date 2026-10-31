@@ -167,7 +167,8 @@ export function renderNextSteps({
           "Storybook starts from your app's code, so Sherlo can't open it alone.",
           ...defaultSetupChoice,
           ...keepSetupChoice,
-          'Both in detail, for your kind of app:',
+          // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: the reader opens it when the choice is hard.
+          'Not sure which to pick? Read:',
           `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
         ],
       },

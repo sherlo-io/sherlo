@@ -1,8 +1,7 @@
-import chalk from 'chalk';
 import { readFile } from 'fs/promises';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
-import { FULL_INIT_COMMAND, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
+import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 import {
   getCwd,
   getErrorWithCustomMessage,
@@ -10,6 +9,7 @@ import {
   throwError,
 } from '../../../helpers';
 import { version as cliVersion } from '../../../../package.json';
+import { renderInstallFailed } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
 import { printLines } from '../helpers';
@@ -87,15 +87,11 @@ async function installSherlo(): Promise<void> {
     // BUILD DEBT (init-for-agents): the tool's marked error lines and the full log file, by the rule
     // the plan settled, in place of the last lines of each stream.
     throwError({
-      message: `${packageManager} couldn't install ${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}`,
-      below:
-        (getFailedCommandOutput(error) ?? '') +
-        '\n\n' +
-        chalk.reset('Fix the error, or install the package yourself:\n') +
-        chalk.cyan(`  ${commandToRun}\n`) +
-        '\n' +
-        chalk.reset('Then run setup again:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
+      ...renderInstallFailed({
+        installing: 'Sherlo',
+        command: commandToRun,
+        failedOutput: getFailedCommandOutput(error),
+      }),
       errorToReport: error,
     });
   }

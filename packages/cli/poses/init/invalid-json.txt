@@ -12,6 +12,8 @@
 
 Setting up Sherlo...
 
+[31m✖[39m Checking the app failed
+
 [31mERROR: package.json isn't valid JSON[39m
 
 [0mExpected double-quoted property name in JSON at position 122 (line 7 column 3)[0m

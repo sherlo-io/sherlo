@@ -37,7 +37,7 @@ Setting up Sherlo...
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
         [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
-   Both in detail, for your kind of app:
+   Not sure which to pick? Read:
      [36mnode_modules/@sherlo/react-native-storybook/guides/storybook-setup.md[39m
 
 [1m2. Run your first visual test[22m

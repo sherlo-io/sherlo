@@ -12,6 +12,8 @@
 
 Setting up Sherlo...
 
+[31m✖[39m Checking the app failed
+
 [31mERROR: react-native isn't installed[39m
 
 [0mInstall your dependencies, then run setup again:[0m

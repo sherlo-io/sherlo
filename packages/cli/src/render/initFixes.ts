@@ -140,21 +140,21 @@ export function renderReactNativeTooOld({
 /**
  * Storybook is older than Sherlo supports: the one way out is upgrading it. Removing it for setup
  * to install afresh is not offered, as it could delete the app's stories.
+ *
+ * NO UPGRADE COMMAND: one `add` moves one package, and "latest" on each does not land them on one
+ * version (from 7.6.20 it gave 10.7.0 for the React Native ones and 10.6.5 for @storybook/react), so
+ * the goal is named and the way left to the reader.
  */
 export function renderStorybookTooOld({
   current,
   min,
-  installCommand,
 }: {
   current: string;
   min: string;
-  /** The project's package manager adding the newest Storybook, e.g. `yarn add @storybook/react-native@latest`. */
-  installCommand: string;
 }): InitRefusal {
   return refusal(`Storybook ${current} is too old: Sherlo needs ${min} or newer`, [
-    words('Upgrade every @storybook/* package to the same version, then run setup again:'),
-    code(installCommand),
-    code(INIT_COMMAND),
+    words('Upgrade Storybook, with every @storybook/* package on the same version.'),
+    ...rerun(),
   ]);
 }
 
@@ -202,20 +202,24 @@ export function renderNoAccessToProject({
 }
 
 /**
- * `create-storybook` failed. `failedOutput` is the installer's own last lines, as the SDK install's
- * refusal shows them; the command is shown so it can be run alone.
+ * An install setup ran failed - Storybook's installer or the package manager adding Sherlo - in one
+ * shape for both. `failedOutput` is the tool's own last lines; the command is shown so it can be run
+ * alone, which also shows its whole output.
  */
-export function renderStorybookInstallFailed({
+export function renderInstallFailed({
+  installing,
   command,
   failedOutput,
 }: {
+  /** What the step installs, as its step line names it. */
+  installing: 'Storybook' | 'Sherlo';
   command: string;
-  /** Undefined when the installer printed nothing. */
+  /** Undefined when the tool printed nothing. */
   failedOutput: string | undefined;
 }): InitRefusal {
-  return refusal("Storybook couldn't be installed", [
+  return refusal(`${installing} couldn't be installed`, [
     ...(failedOutput ? [failedOutput, ''] : []),
-    words('Fix the error. To see the whole output, run:'),
+    words(`Fix the error, or install ${installing} yourself:`),
     code(command),
     ...rerun(),
   ]);

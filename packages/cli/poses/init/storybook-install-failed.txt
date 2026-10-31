@@ -27,7 +27,7 @@ Setting up Sherlo...
 [2m➤ YN0000: └ Completed in 30s 104ms[22m
 [2m➤ YN0000: · Failed with errors in 30s 110ms[22m
 
-[0mFix the error. To see the whole output, run:[0m
+[0mFix the error, or install Storybook yourself:[0m
 [36m  npx create-storybook@latest --yes --type react_native --no-dev --disable-telemetry[39m
 
 [0mThen run setup again:[0m

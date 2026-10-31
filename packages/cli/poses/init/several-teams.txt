@@ -16,12 +16,12 @@ Setting up Sherlo...
 [32m✔[39m Logged in              [2manna@example.com[22m
 [31m✖[39m Choosing a team failed
 
-[31mERROR: You are in 2 teams, so setup cannot choose one for you[39m
+[31mERROR: You're in 2 teams, so setup can't choose one for you[39m
 
   Anna's team              [2mk7m2p9qx[22m
   Storefront               [2mtm000001[22m
 
-[0mRe-run setup with the team to use:[0m
+[0mRun setup again with the team to use:[0m
 [0m[0m[36m  npx sherlo init --team <id>[39m
 
 [2m──────────[22m
