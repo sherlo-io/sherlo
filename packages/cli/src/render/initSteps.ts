@@ -179,8 +179,9 @@ export function renderNextSteps({
           '',
           ...keepSetupChoice,
           '',
-          // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: the reader opens it when the choice is hard.
-          'Not sure which to pick? Read:',
+          // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: whichever option is picked, the providers
+          // that wrapped Storybook in the app must move first, so the guide is read before any change.
+          'Before you change your setup, read:',
           `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
         ],
       },
