@@ -26,16 +26,20 @@ Setting up Sherlo...
 [2m═════════════[22m
 
 [1m1. Let Sherlo open Storybook[22m
-   Storybook starts from your app's code, so Sherlo can't open it alone.
-   a) Entry-point swapping (recommended, Storybook's default since 10.4)
+   Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:
+
+   [1ma) Entry-point swapping (Storybook's default, recommended)[22m
       In .rnstorybook/index.ts, below StorybookUIRoot, add:
         [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
         [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
       Then remove your app's code that renders Storybook, and its import.
-   b) Or in-app integration: keep your setup, and add this at the top of your root component:
+
+   [1mb) In-app integration[22m
+      At the top of your root component, add:
         [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
         [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
         [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+
    Not sure which to pick? Read:
      [36mnode_modules/@sherlo/react-native-storybook/guides/storybook-setup.md[39m
 

@@ -26,6 +26,12 @@ const code = (line: string): string => chalk.cyan(`  ${line}`);
 /** Plain words: `throwError` prints only the first line red, and these reset any colour above. */
 const words = (line: string): string => chalk.reset(line);
 
+/**
+ * The name of one way out when a refusal offers two: bold and alone on its line, a blank line
+ * between the two, so the eye finds a) and b) before reading either - as the next steps do.
+ */
+const choiceName = (name: string): string => chalk.bold(name);
+
 /** The closing lines of a refusal whose fix is words, not commands: what to run once it is fixed. */
 function rerun(): string[] {
   return ['', words('Then run setup again:'), code(INIT_COMMAND)];
@@ -120,6 +126,7 @@ export function renderReactNativeTooOld({
   return refusal(`React Native ${current} is too old: Sherlo needs ${min} or newer`, [
     words('Upgrading changes the whole app.'),
     ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK.")] : []),
+    '',
     ...(isExpo
       ? [
           words('Upgrade Expo, then run setup again:'),
@@ -130,6 +137,7 @@ export function renderReactNativeTooOld({
       : [
           words("Make the native changes React Native's Upgrade Helper lists for your versions:"),
           code('https://react-native-community.github.io/upgrade-helper'),
+          '',
           words('Then upgrade the package and run setup again:'),
           code(addReactNativeCommand),
           code(INIT_COMMAND),
@@ -164,12 +172,16 @@ export function renderStorybookTooOld({
  */
 export function renderMetroConfigUnreadable({ path }: { path: string }): InitRefusal {
   return refusal(`Setup can't edit ${path}`, [
-    words("Wrap its export in Sherlo's withStorybook. With require:"),
-    `  ${renderCode("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');")}`,
-    `  ${renderCode('module.exports = withStorybook(config);')}`,
-    words('Or with import:'),
-    `  ${renderCode("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';")}`,
-    `  ${renderCode('export default withStorybook(config);')}`,
+    words("Wrap its export in Sherlo's withStorybook, the way your file loads modules:"),
+    '',
+    choiceName('a) With require'),
+    `   ${renderCode("const withStorybook = require('@sherlo/react-native-storybook/metro/withStorybook');")}`,
+    `   ${renderCode('module.exports = withStorybook(config);')}`,
+    '',
+    choiceName('b) With import'),
+    `   ${renderCode("import withStorybook from '@sherlo/react-native-storybook/metro/withStorybook';")}`,
+    `   ${renderCode('export default withStorybook(config);')}`,
+    '',
     words("If Storybook's own withStorybook is there, swap it for Sherlo's."),
     ...rerun(),
   ]);
@@ -193,9 +205,12 @@ export function renderNoAccessToProject({
   namedIn: 'config' | 'flag';
 }): InitRefusal {
   return refusal(`${email} has no access to project ${project}`, [
-    words('a) Ask your team for an invitation link (web app, Users, "Copy invitation link"),'),
-    words(`   and open it signed in as ${email}`),
-    words('b) Wrong account? Log out:'),
+    choiceName('a) Ask your team for access'),
+    words('   They copy an invitation link in the web app (Users, "Copy invitation link").'),
+    words(`   Open it signed in as ${email}.`),
+    '',
+    choiceName('b) Use another account'),
+    words('   Log out, and log in with it when setup asks:'),
     code('   npx sherlo logout'),
     ...rerun(),
   ]);

@@ -16,12 +16,16 @@ Setting up Sherlo...
 
 [31mERROR: Setup can't edit metro.config.js[39m
 
-[0mWrap its export in Sherlo's withStorybook. With require:[0m
-  [35mconst[39m withStorybook [2m=[22m [32mrequire[39m[2m([22m[32m'@sherlo/react-native-storybook/metro/withStorybook'[39m[2m);[22m
-  module[2m.[22mexports [2m=[22m [32mwithStorybook[39m[2m([22mconfig[2m);[22m
-[0mOr with import:[0m
-  [35mimport[39m withStorybook [35mfrom[39m [32m'@sherlo/react-native-storybook/metro/withStorybook'[39m[2m;[22m
-  [35mexport[39m [35mdefault[39m [32mwithStorybook[39m[2m([22mconfig[2m);[22m
+[0mWrap its export in Sherlo's withStorybook, the way your file loads modules:[0m
+
+[1ma) With require[22m
+   [35mconst[39m withStorybook [2m=[22m [32mrequire[39m[2m([22m[32m'@sherlo/react-native-storybook/metro/withStorybook'[39m[2m);[22m
+   module[2m.[22mexports [2m=[22m [32mwithStorybook[39m[2m([22mconfig[2m);[22m
+
+[1mb) With import[22m
+   [35mimport[39m withStorybook [35mfrom[39m [32m'@sherlo/react-native-storybook/metro/withStorybook'[39m[2m;[22m
+   [35mexport[39m [35mdefault[39m [32mwithStorybook[39m[2m([22mconfig[2m);[22m
+
 [0mIf Storybook's own withStorybook is there, swap it for Sherlo's.[0m
 
 [0mThen run setup again:[0m

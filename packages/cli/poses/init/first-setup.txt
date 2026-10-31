@@ -35,12 +35,14 @@ Opening your browser to log in to Sherlo...
 [1m1. Replace the example stories[22m
    Right now Sherlo would test Storybook's examples, not your app.
    Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [2m[[22m[32m'../src'[39m[2m][22m.
+
    You can start with a few components or screens, one story per state:
      [2m// Button.stories.tsx[22m
      [35mimport[39m [2m{[22m [33mButton[39m [2m}[22m [35mfrom[39m [32m'./Button'[39m[2m;[22m
      [35mexport[39m [35mdefault[39m [2m{[22m [34mcomponent[39m[2m:[22m [33mButton[39m [2m};[22m
      [35mexport[39m [35mconst[39m [33mDefault[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Default'[39m [2m}[22m [2m};[22m
      [35mexport[39m [35mconst[39m [33mDisabled[39m [2m=[22m [2m{[22m [34margs[39m[2m:[22m [2m{[22m [34mtitle[39m[2m:[22m [32m'Disabled'[39m[2m,[22m [34mdisabled[39m[2m:[22m [34mtrue[39m [2m}[22m [2m};[22m
+
    Before you write stories, read:
      [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
 

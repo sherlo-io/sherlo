@@ -18,9 +18,12 @@ Setting up Sherlo...
 
 [31mERROR: piotr@example.com has no access to project k7m2p9qx/1[39m
 
-[0ma) Ask your team for an invitation link (web app, Users, "Copy invitation link"),[0m
-[0m   and open it signed in as piotr@example.com[0m
-[0mb) Wrong account? Log out:[0m
+[1ma) Ask your team for access[22m
+[0m   They copy an invitation link in the web app (Users, "Copy invitation link").[0m
+[0m   Open it signed in as piotr@example.com.[0m
+
+[1mb) Use another account[22m
+[0m   Log out, and log in with it when setup asks:[0m
 [36m     npx sherlo logout[39m
 
 [0mThen run setup again:[0m

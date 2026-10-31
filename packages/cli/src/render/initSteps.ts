@@ -115,15 +115,20 @@ export function renderNextSteps({
   const upgradeFirst = hasDefaultSetup(storybookVersion)
     ? []
     : [`   First, upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer.`];
+  // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
+  // the eye finds a) and b) before reading either.
   const defaultSetupChoice = [
-    `a) Entry-point swapping (recommended, Storybook's default since ${DEFAULT_SETUP_SINCE})`,
+    // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up; the version needed is the
+    // upgrade line's to say, shown only to an older Storybook.
+    chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
     ...upgradeFirst,
     '   In .rnstorybook/index.ts, below StorybookUIRoot, add:',
     ...registerRoot.map((line) => `     ${line}`),
     "   Then remove your app's code that renders Storybook, and its import.",
   ];
   const keepSetupChoice = [
-    'b) Or in-app integration: keep your setup, and add this at the top of your root component:',
+    chalk.bold('b) In-app integration'),
+    '   At the top of your root component, add:',
     `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
     `     ${renderCode("import Storybook from './.rnstorybook';")}`,
     `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
@@ -144,6 +149,9 @@ export function renderNextSteps({
           // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
           // outside it drop out, so they need no deleting.
           `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
+          // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
+          // found without reading the others.
+          '',
           'You can start with a few components or screens, one story per state:',
           // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
           // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
@@ -153,6 +161,7 @@ export function renderNextSteps({
           // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
           `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
           `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
+          '',
           // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
           'Before you write stories, read:',
           `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
@@ -164,9 +173,12 @@ export function renderNextSteps({
       {
         title: 'Let Sherlo open Storybook',
         content: [
-          "Storybook starts from your app's code, so Sherlo can't open it alone.",
+          "Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:",
+          '',
           ...defaultSetupChoice,
+          '',
           ...keepSetupChoice,
+          '',
           // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: the reader opens it when the choice is hard.
           'Not sure which to pick? Read:',
           `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
