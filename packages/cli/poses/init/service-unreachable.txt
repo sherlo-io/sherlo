@@ -20,7 +20,9 @@ Setting up Sherlo...
 
 [0mENOTFOUND api.sherlo.io[0m
 
-[0mCheck that this computer can open https://api.sherlo.io, then run setup again:[0m
+[0mCheck your internet connection, and that no VPN, proxy or firewall blocks api.sherlo.io.[0m
+
+[0mThen run setup again:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

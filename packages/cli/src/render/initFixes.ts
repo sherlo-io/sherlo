@@ -254,12 +254,19 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
   ]);
 }
 
-/** Sherlo's servers could not be reached; `cause` is the network's own code and host. */
+/**
+ * Sherlo's servers could not be reached; `cause` is the network's own code and host.
+ *
+ * WHAT TO CHECK, NOT AN ADDRESS TO OPEN: the API answers a browser with an error page even when it
+ * is up, so opening it tells nobody whether it works.
+ */
 export function renderServiceUnreachable({ cause }: { cause: string }): InitRefusal {
   return refusal("Setup couldn't reach Sherlo", [
     words(cause),
     '',
-    words('Check that this computer can open https://api.sherlo.io, then run setup again:'),
-    code(INIT_COMMAND),
+    words(
+      'Check your internet connection, and that no VPN, proxy or firewall blocks api.sherlo.io.'
+    ),
+    ...rerun(),
   ]);
 }
