@@ -272,8 +272,10 @@ export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): stri
 }
 
 /**
- * What a failed run ends with, in place of the tool's usual help footer: one block, so feedback
- * and help read as one place to turn.
+ * What a failed run ends with, in place of the tool's usual help footer.
+ *
+ * FEEDBACK IS NOT HELP: the agent's feedback line stands on its own under "Need help?", as it
+ * stands on its own after a finished run, rather than as one more place to turn.
  */
 export function renderStuckBlock({
   reader,
@@ -304,8 +306,8 @@ export function renderStuckBlock({
     ...agentLines,
     ...sideNoteSeparator(),
     'Need help?',
-    ...(showsFeedbackLine ? [`➜ ${agentFeedbackLine()}`] : []),
     `➜ Discord: ${chalk.cyan(discordUrl)}`,
     `➜ Email: ${chalk.cyan(contactEmail)}`,
+    ...(showsFeedbackLine ? ['', agentFeedbackLine()] : []),
   ];
 }
