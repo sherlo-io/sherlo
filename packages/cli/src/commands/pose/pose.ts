@@ -53,6 +53,7 @@ import { installDeviceState, posedDeviceState } from '../../seams/deviceState';
 import { formatRefusals } from './poseProblems';
 import { installCoverageScan, posedCoverageScan } from '../../seams/coverageScan';
 import { installBrowser, posedBrowser } from '../../seams/browser';
+import { installLocalServer, posedLocalServer } from '../../seams/localServer';
 import { installSavedLogins, posedSavedLogins } from '../../seams/savedLogins';
 import type { CommandPose } from '../../seams/commandPose';
 import { readPoseDocument } from './readPose';
@@ -145,9 +146,11 @@ export async function runPose(
   const socket = posedCaptureSocket(commandPose.capture);
   const scan = posedCoverageScan(commandPose.coverage);
   const loginBrowser = posedBrowser(commandPose.browser);
+  const pageServer = posedLocalServer(commandPose.localServer);
 
   const uninstall = [
     installBrowser(loginBrowser),
+    installLocalServer(pageServer),
     installSavedLogins(posedSavedLogins(commandPose.logins)),
     installProjectFiles(files),
     installSurroundings(world),
@@ -209,6 +212,7 @@ export async function runPose(
       ...socket.refusals(),
       ...scan.refusals(),
       ...loginBrowser.refusals(),
+      ...pageServer.refusals(),
     ],
     unusedCalls: api.unusedCalls(),
     chunks,

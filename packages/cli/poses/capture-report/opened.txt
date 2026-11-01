@@ -1,0 +1,6 @@
+Your captures: [36mhttp://127.0.0.1:4321[39m
+1 captured, 1 not captured, 0 changed
+[2mPress Ctrl+C to stop.[22m
+
+
+[exit 0]

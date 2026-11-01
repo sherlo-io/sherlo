@@ -116,6 +116,8 @@ export const MASK_COMMAND = 'mask';
 export const OPEN_COMMAND = 'open';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
 export const CAPTURE_COMMAND = 'capture';
+/** `sherlo capture-report` - open the review page over the captures kept on this computer. */
+export const CAPTURE_REPORT_COMMAND = 'capture-report';
 /** `sherlo coverage` - list the components no story draws. Hidden from `--help`. */
 export const COVERAGE_COMMAND = 'coverage';
 export const FULL_INIT_COMMAND = 'npx sherlo init';

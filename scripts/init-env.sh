@@ -15,6 +15,7 @@
 #     would silently re-create the exact gap this branch exists to close.
 set -euo pipefail
 STAGE="${CLIENT_STAGE:-dev}"
+API="https://8gbu9wv7jd.execute-api.eu-central-1.amazonaws.com/dev/get-package-endpoint"
 PKGS=("sherlo-sdk-client" "sherlo-api-types" "sherlo-common-client" "sherlo-shared")
 NAMES=("@sherlo/sdk-client" "@sherlo/api-types" "@sherlo/common-client" "@sherlo/shared")
 SHERLO_API_REPO="sherlo-io/sherlo-api"
@@ -70,7 +71,6 @@ if [ -n "${LIBS_REF:-}" ]; then
     touch "$dir/yarn.lock"
   done
 else
-  API="https://8gbu9wv7jd.execute-api.eu-central-1.amazonaws.com/dev/get-package-endpoint"
   if [ -z "${PACKAGE_TOKEN:-}" ] && [ -f .env ]; then source .env; fi
   if [ -z "${PACKAGE_TOKEN:-}" ]; then echo "Error: PACKAGE_TOKEN not set" >&2; exit 1; fi
 
@@ -81,6 +81,24 @@ else
     tar -xzf "sherlo-lib/${PKGS[$i]}.tgz" -C "$dir" --strip-components=1
     touch "$dir/yarn.lock"
   done
+fi
+
+# The review page the CLI serves locally: a static build (no .map files) the frontend publishes
+# as sherlo-local-page.tgz beside the libraries, files at the tarball root. Fetched from the S3
+# canon in BOTH modes above (a source-built libs run has no other source for it) when
+# PACKAGE_TOKEN is set. It is optional: a missing token or a tarball not published yet skips
+# it with a note, so the install never breaks; packages/cli's build copies it in when present.
+if [ -n "${PACKAGE_TOKEN:-}" ]; then
+  if page_url=$(curl -sf "$API?token=$PACKAGE_TOKEN&objectKey=$STAGE/sherlo-local-page.tgz") \
+    && curl -sfL -o sherlo-lib/sherlo-local-page.tgz "$page_url"; then
+    mkdir -p sherlo-lib/extracted/local-page
+    tar -xzf sherlo-lib/sherlo-local-page.tgz -C sherlo-lib/extracted/local-page
+  else
+    rm -f sherlo-lib/sherlo-local-page.tgz
+    echo "Note: sherlo-local-page.tgz is not available for stage $STAGE - continuing without the local page" >&2
+  fi
+else
+  echo "Note: PACKAGE_TOKEN is not set - continuing without the local page" >&2
 fi
 
 yarn install

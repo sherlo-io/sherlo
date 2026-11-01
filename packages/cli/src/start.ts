@@ -13,6 +13,7 @@ import {
   teamCreate,
   teamList,
   capture,
+  captureReport,
   coverage,
   open,
   test,
@@ -44,9 +45,7 @@ import {
   INIT_COMMAND,
   IOS_OPTION,
   LAYER_OPTION,
-  MASK_COMMAND,
   MESSAGE_OPTION,
-  POSE_COMMAND,
   PROFILE_OPTION,
   PROJECT_COMMAND,
   PROJECT_CREATE_SUBCOMMAND,
@@ -64,6 +63,7 @@ import {
   VIEW_COMMAND,
   OPEN_COMMAND,
   CAPTURE_COMMAND,
+  CAPTURE_REPORT_COMMAND,
   COVERAGE_COMMAND,
   JSON_OPTION,
   LOGS_OPTION,
@@ -80,6 +80,7 @@ import {
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
 } from './constants';
+import { addDevtoolsCommands } from './devtoolsCommands';
 import { printTheLogoInATerminal } from './commands/shared/terminal';
 import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
@@ -124,8 +125,8 @@ async function start() {
     addOpenCommand(program);
     addCaptureCommand(program);
     addCoverageCommand(program);
-    addPoseCommand(program);
-    addMaskCommand(program);
+    addCaptureReportCommand(program);
+    addDevtoolsCommands(program);
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
@@ -189,6 +190,11 @@ const COMMAND_DESCRIPTION = {
     `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
     `  includes Sherlo's log from the app; \`--${LOGS_OPTION}\` prints that log on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
+  [CAPTURE_REPORT_COMMAND]:
+    'Open the review page over the captures kept on this computer, and keep it up to date.\n' +
+    '  Serves the page from your machine: no login, no network, nothing leaves it.\n' +
+    `  \`--${JSON_OPTION}\` prints the same facts once as data for a program to read, and\n` +
+    '  opens nothing.',
   [COVERAGE_COMMAND]:
     'List the components no story draws, the most imported first.\n' +
     '  Reads your source files: no bundler, no phone, no login. A component only a story\n' +
@@ -213,19 +219,6 @@ const COMMAND_DESCRIPTION = {
     'List every team you belong to: id, name and project count.\n' +
     `  Authorized by your login (\`npx sherlo ${LOGIN_COMMAND}\`).\n` +
     `  Takes no \`--${TEAM_OPTION}\`: it answers for every team you belong to.`,
-  [POSE_COMMAND]:
-    'Run ONE command against a declared world and print the whole screen it would put\n' +
-    '  on a terminal, with the exit code the real run would have had. The world - the\n' +
-    "  project folder, the settings, git, the bundler's answer and the server's - is a\n" +
-    '  JSON document (contracts/pose.contract.ts); pass `-` to read it from stdin.\n' +
-    '  With `--no-terminal`: print what an agent or a CI log receives instead, every\n' +
-    '  byte kept. Touches no network and no project. Hidden unless SHERLO_DEVTOOLS=1.',
-  [MASK_COMMAND]:
-    'Read a screen on stdin and print it with every value only a machine knows folded\n' +
-    '  to its placeholder - a token, a build address, a size, a duration, a commit, a\n' +
-    '  fingerprint, the progress lines a wait printed. The SAME folding `npx sherlo pose`\n' +
-    "  applies to a screen it printed itself, so a live run's screen and a posed one\n" +
-    '  can be compared. Hidden unless SHERLO_DEVTOOLS=1.',
   [FINGERPRINT_COMMAND]:
     'Print the fingerprints `test` computes for this project, one line per layer\n' +
     '  (native, dependencies, js, base). Runs entirely locally: no token, no upload.\n' +
@@ -434,6 +427,18 @@ function addCaptureCommand(program: Command) {
       LOGS_OPTION,
     ],
     action: capture,
+    withTimeout: false,
+  });
+}
+
+// Reads only the captures kept in the project folder (../seams/localCaptures) and serves them to
+// the person's own browser; `withTimeout: false` because it runs until the person stops it.
+function addCaptureReportCommand(program: Command) {
+  addCommand({
+    program,
+    command: CAPTURE_REPORT_COMMAND,
+    options: [JSON_OPTION],
+    action: captureReport,
     withTimeout: false,
   });
 }
@@ -717,55 +722,6 @@ function addTeamCommand(program: Command) {
 
     await teamList();
   });
-}
-
-/**
- * `sherlo pose <pose.json|->` - run one command against a declared world and print the whole
- * screen it put on a terminal (see ./commands/pose/pose). HIDDEN UNLESS `SHERLO_DEVTOOLS=1`, the same gate `--diagnostics` sits behind: this is a tool
- * for the people who work on the tool, and a user who runs `sherlo --help` has no use for a verb
- * that takes a JSON document describing a run they are not making.
- *
- * The command is loaded only when it runs (it reaches back into THIS module, so a static import
- * would be a load-time cycle).
- */
-function addPoseCommand(program: Command) {
-  if (process.env.SHERLO_DEVTOOLS !== '1') return;
-
-  program
-    .command(`${POSE_COMMAND} <pose>`)
-    .description(COMMAND_DESCRIPTION[POSE_COMMAND])
-    .option('--no-terminal', 'Print what an agent or a CI log receives, with no terminal attached')
-    .option('--play <castFile>', 'Run with every wait at 2 seconds and write the cast to this file')
-    .action(async (documentPath: string, actionOptions: { terminal: boolean; play?: string }) => {
-      const { pose } = await import('./commands/pose/pose');
-
-      await pose(documentPath, actionOptions);
-    });
-}
-
-/**
- * `sherlo mask` - fold a screen this tool did not print itself (see ./commands/pose/maskScreen).
- *
- * HIDDEN BEHIND THE SAME GATE AS `sherlo pose`, and for the same reason: it is a tool for the
- * people who work on the tool. The test repository pipes a real run's screen through it and
- * compares the result against a posed screen, which only works while both go through one masker.
- *
- * The two flags are the two paths a run knew that nobody else can: a live run has its own project
- * folder and its own resolved config file, and neither can be guessed from the screen.
- */
-function addMaskCommand(program: Command) {
-  if (process.env.SHERLO_DEVTOOLS !== '1') return;
-
-  program
-    .command(MASK_COMMAND)
-    .description(COMMAND_DESCRIPTION[MASK_COMMAND])
-    .option('--project-root <dir>', 'The project folder the run read')
-    .option('--config-path <file>', 'The config file path the run resolved')
-    .action(async (actionOptions: { projectRoot?: string; configPath?: string }) => {
-      const { mask } = await import('./commands/pose/maskScreen');
-
-      mask(actionOptions);
-    });
 }
 
 function addCommand({
