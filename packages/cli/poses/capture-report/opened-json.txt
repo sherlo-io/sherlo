@@ -1,0 +1,93 @@
+{
+  "captures": [
+    {
+      "id": "profile--own-profile",
+      "kind": "scene",
+      "device": {
+        "model": "Unknown device",
+        "platform": "ios",
+        "osVersion": "",
+        "screenWidth": 0,
+        "screenHeight": 0,
+        "screenSizeInInches": 0
+      },
+      "picture": "",
+      "changed": false,
+      "capturing": false,
+      "record": {
+        "fakes": [],
+        "sceneId": "profile--own-profile",
+        "start": {
+          "params": [],
+          "route": "",
+          "storedData": []
+        },
+        "ending": {
+          "kind": "never-reached",
+          "stayedOn": "SignIn"
+        },
+        "play": [],
+        "ready": {
+          "ok": false,
+          "reached": "SignIn",
+          "rule": "Profile"
+        },
+        "timings": {
+          "totalMs": 0
+        }
+      }
+    },
+    {
+      "id": "chat--conversation",
+      "kind": "scene",
+      "device": {
+        "model": "Pixel 9",
+        "platform": "android",
+        "osVersion": "15",
+        "screenWidth": 360,
+        "screenHeight": 800,
+        "screenSizeInInches": 0
+      },
+      "picture": "<PROJECT_ROOT>/.sherlo/captures/2026-11-01T09-30-00.000Z_chat--conversation/screen.png",
+      "changed": false,
+      "capturing": false,
+      "record": {
+        "fakes": [],
+        "sceneId": "chat--conversation",
+        "start": {
+          "params": [],
+          "route": "ChatStack › Chat",
+          "storedData": []
+        },
+        "ending": {
+          "kind": "captured"
+        },
+        "play": [
+          {
+            "ok": true,
+            "step": "Tap Connections"
+          }
+        ],
+        "ready": {
+          "ok": true,
+          "reached": "ChatStack › Chat",
+          "rule": ""
+        },
+        "timings": {
+          "totalMs": 4800,
+          "toReadyMs": 2400,
+          "toStillMs": 600
+        }
+      }
+    }
+  ],
+  "summary": {
+    "capturedCount": 1,
+    "notCapturedCount": 1,
+    "changedCount": 0,
+    "isLive": false,
+    "lastCaptureAt": "09:31"
+  }
+}
+
+[exit 0]

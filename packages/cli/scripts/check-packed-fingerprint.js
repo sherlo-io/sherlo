@@ -49,10 +49,16 @@ function main() {
   try {
     const tarball = path.join(
       scratchRoot,
-      execFileSync('npm', ['pack', '--silent', '--pack-destination', scratchRoot], {
-        cwd: CLI_ROOT,
-        encoding: 'utf8',
-      }).trim()
+      // Without the pack script: this checks the fingerprint, and the review page that script
+      // wants may not be fetched on the machine that runs it.
+      execFileSync(
+        'npm',
+        ['pack', '--silent', '--ignore-scripts', '--pack-destination', scratchRoot],
+        {
+          cwd: CLI_ROOT,
+          encoding: 'utf8',
+        }
+      ).trim()
     );
 
     const stagedProject = installManagedExpoFixture(scratchRoot, tarball, 'staged');

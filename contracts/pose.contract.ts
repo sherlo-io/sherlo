@@ -166,6 +166,12 @@ export type CommandPose = {
    */
   browser?: PosedBrowser;
   /**
+   * The port the review page's server answered on, for `sherlo capture-report`, the one command
+   * that serves a page. Refused for any other; a `capture-report` with no `localServer` is refused
+   * at run time. Nothing listens on a posed run. `--json` serves nothing and states none.
+   */
+  localServer?: PosedLocalServer;
+  /**
    * The logins saved on the machine before the run, by the service address each was made against
    * (the run talks to **SHERLO_API_URL** when `env` sets it). Absent is a machine nobody has
    * logged in on. A posed run reads and writes no saved-login file: what the command saves or
@@ -774,6 +780,12 @@ export type PosedBrowser = {
    * a session over SSH: the tool still prints the link, and says the browser did not open.
    */
   opened: boolean;
+};
+
+/** What the server did when the report was opened, as a pose states it. */
+export type PosedLocalServer = {
+  /** The port the server answered on; the address the command prints is `http://127.0.0.1:<port>`. */
+  port: number;
 };
 
 /**

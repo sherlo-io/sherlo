@@ -1,12 +1,131 @@
 /** THE CAPTURE REPORT - what the local review page and `--json` read, built from the kept captures. */
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { KeptCapture } from '../../../seams/localCaptures';
+import { buildReport } from '../buildReport';
+
+const sceneRecord = {
+  kind: 'scene',
+  bootMs: 100,
+  reached: { route: ['Inbox', 'Full'], ms: 200 },
+  settled: { ms: 300 },
+  play: [{ tap: 'send' }],
+  tree: { size: { width: 390, height: 844 } },
+};
+
+const neverReached = { kind: 'never-reached', stayedOn: ['Home'], ready: 'Inbox' };
+
+function kept(over: Partial<KeptCapture> & { record?: unknown }): KeptCapture {
+  return {
+    folder: '/p/.sherlo/captures/x',
+    at: '2026-11-01T09:30:00.000Z',
+    id: 'Inbox/Full',
+    record: sceneRecord,
+    screenPath: '/p/.sherlo/captures/x/screen.png',
+    device: { deviceId: 'iphone.15.pro', os: 'iOS 17' },
+    ...over,
+  };
+}
+
+const build = (
+  captures: KeptCapture[],
+  over: { capturingIds?: string[]; samePicture?: (a: string, b: string) => boolean } = {}
+) =>
+  buildReport({
+    captures,
+    capturingIds: over.capturingIds ?? [],
+    samePicture: over.samePicture ?? (() => true),
+    isLive: false,
+    timeZone: 'UTC',
+    pictureOf: (capture) => `pictures/${capture.screenPath}`,
+  });
+
+describe('the clock time of the newest capture', () => {
+  it("falls back to this computer's clock when TZ is empty or not a zone name", () => {
+    for (const timeZone of ['', 'CET-1']) {
+      const report = buildReport({
+        captures: [kept({})],
+        capturingIds: [],
+        samePicture: () => true,
+        isLive: false,
+        timeZone,
+        pictureOf: () => '',
+      });
+
+      expect(report.summary.lastCaptureAt).toMatch(/^\d\d:\d\d$/);
+    }
+  });
+});
 
 describe('the capture report', () => {
-  it('the latest capture of each screen on each device is the one shown', () => {});
+  it('the latest capture of each screen on each device is the one shown', () => {
+    const report = build([
+      kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T09:00:00.000Z' }),
+      kept({ folder: 'b', screenPath: 'b.png', at: '2026-11-01T10:00:00.000Z' }),
+      kept({
+        folder: 'c',
+        screenPath: 'c.png',
+        device: { local: true, model: 'Pixel 9', os: 'Android 15' },
+      }),
+    ]);
 
-  it('a screen whose picture differs from its previous local capture is marked changed', () => {});
+    expect(report.captures.map((capture) => capture.picture).sort()).toEqual([
+      'pictures/b.png',
+      'pictures/c.png',
+    ]);
+  });
 
-  it('failed captures come before captured ones', () => {});
+  it('a screen whose picture differs from its previous local capture is marked changed', () => {
+    const first = kept({ screenPath: 'one.png', at: '2026-11-01T09:00:00.000Z' });
+    const second = kept({ screenPath: 'two.png', at: '2026-11-01T10:00:00.000Z' });
 
-  it('the plain data holds every fact the page shows', () => {});
+    expect(build([first, second], { samePicture: () => false }).captures[0].changed).toBe(true);
+    expect(build([first, second], { samePicture: () => true }).captures[0].changed).toBe(false);
+    expect(build([second]).captures[0].changed).toBe(false);
+  });
+
+  it('failed captures come before captured ones', () => {
+    const report = build(
+      [
+        kept({ id: 'A', record: sceneRecord }),
+        kept({ id: 'B', record: neverReached, screenPath: undefined }),
+      ],
+      { capturingIds: ['A'] }
+    );
+
+    expect(report.captures.map((capture) => capture.id)).toEqual(['B', 'A']);
+    expect(report.summary).toMatchObject({ capturedCount: 1, notCapturedCount: 1 });
+  });
+
+  it('the plain data holds every fact the page shows', () => {
+    const report = build([kept({ id: 'Inbox/Full' })], { capturingIds: ['Inbox/Full'] });
+
+    expect(report).toEqual({
+      summary: {
+        capturedCount: 1,
+        notCapturedCount: 0,
+        changedCount: 0,
+        isLive: false,
+        lastCaptureAt: '09:30',
+      },
+      captures: [
+        {
+          id: 'Inbox/Full',
+          kind: 'scene',
+          device: { sherloDeviceId: 'iphone.15.pro' },
+          picture: 'pictures//p/.sherlo/captures/x/screen.png',
+          changed: false,
+          capturing: true,
+          record: {
+            sceneId: 'Inbox/Full',
+            ending: { kind: 'captured' },
+            fakes: [],
+            play: [{ ok: true, step: 'Tap send' }],
+            ready: { ok: true, reached: 'Inbox › Full', rule: '' },
+            start: { params: [], route: 'Inbox › Full', storedData: [] },
+            timings: { totalMs: 600, toReadyMs: 200, toStillMs: 300 },
+          },
+        },
+      ],
+    });
+  });
 });
