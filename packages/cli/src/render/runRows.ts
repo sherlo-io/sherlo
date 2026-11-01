@@ -56,8 +56,13 @@ export type PlatformRow =
         | 'arrived-from-other-job'
         | 'building-on-eas'
         | 'built-on-eas'
-        | 'still-building-on-eas'
-        | 'skipped-not-in-config';
+        | 'still-building-on-eas';
+    }
+  | {
+      platform: Platform;
+      appBuild: 'skipped-not-in-config';
+      /** Set when `--devices` named this run's devices in place of the config's. */
+      devicesFromOption?: boolean;
     };
 
 /** The platforms' rows a test's row stands under, as the run recorded them. */
@@ -146,7 +151,9 @@ export function renderPlatformRow(row: PlatformRow): string[] {
       return [
         renderRow(
           label,
-          `Skipped: sherlo.config.json lists no ${PLATFORM_LABEL[row.platform]} device`
+          `Skipped: ${row.devicesFromOption ? '--devices' : 'sherlo.config.json'} lists no ${
+            PLATFORM_LABEL[row.platform]
+          } device`
         ),
       ];
   }
