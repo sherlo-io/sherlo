@@ -71,6 +71,7 @@ import {
   PROPS_OPTION,
   STORY_OPTION,
   SCENE_OPTION,
+  ALL_SCENES_OPTION,
   DISCOVER_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
@@ -330,6 +331,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${SCENE_OPTION} <id>`,
     'The scene to boot the app fresh on, by its id (e.g. chat--conversation) - instead of --story',
   ],
+  [ALL_SCENES_OPTION]: ['--all-scenes', 'Capture every scene the app declares, each one kept'],
   [DISCOVER_OPTION]: [
     `--${DISCOVER_OPTION}`,
     'List the requests the scene makes that no mock answers, as rules to paste into the scene file. Writes no picture. Needs --scene.',
@@ -424,6 +426,7 @@ function addCaptureCommand(program: Command) {
     options: [
       STORY_OPTION,
       SCENE_OPTION,
+      ALL_SCENES_OPTION,
       DISCOVER_OPTION,
       PNG_OPTION,
       PORT_OPTION,

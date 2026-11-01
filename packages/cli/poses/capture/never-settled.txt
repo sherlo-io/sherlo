@@ -37,5 +37,7 @@
 
 [2m   3 views · --json prints the record[22m
 
+[2mKept in .sherlo/captures as animations--spinner[22m
+
 
 [exit 0]
