@@ -1,0 +1,17 @@
+{
+  "pose": 1,
+  "argv": ["test", "--devices", "[{\"id\":\"pixel.70\",\"osVersion\":\"13\"}]"],
+  "files": {
+    "sherlo.config.json": {
+      "devices": [
+        { "id": "iphone.15.pro", "osVersion": "17" },
+        { "id": "pixel.7.pro", "osVersion": "13" }
+      ]
+    }
+  },
+  "env": { "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017" },
+  "git": { "branch": "main", "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c", "dirty": false },
+  "bundles": {},
+  "api": [],
+  "masks": {}
+}

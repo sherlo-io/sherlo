@@ -1,3 +1,4 @@
+import { DEVICES_OPTION, DEVICES_OPTION_LABEL } from '../../constants';
 import { Command, CommandParams, Options, PushCredential } from '../../types';
 import getCommandParams from './getCommandParams';
 import getNormalizedConfig from './getNormalizedConfig';
@@ -28,7 +29,11 @@ async function getValidatedCommandParams<C extends Command>({
 
   const commandParams = { ...getCommandParams(options, config), credential };
 
-  validateCommandParams(commandParams, config);
+  validateCommandParams(
+    commandParams,
+    config,
+    options[DEVICES_OPTION] !== undefined ? DEVICES_OPTION_LABEL : 'config'
+  );
 
   return commandParams;
 }
