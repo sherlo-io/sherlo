@@ -3,11 +3,13 @@ import { PartialDeep } from 'type-fest';
 import {
   ANDROID_OPTION,
   CONFIG_OPTION,
+  DEVICES_OPTION,
   DIAGNOSTICS_OPTION,
   BUNDLE_DIR_OPTION,
   EMIT_BUNDLE_DIR_OPTION,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   EAS_BUILD_SCRIPT_NAME_OPTION,
+  EXCLUDE_OPTION,
   GIT_BRANCH_OPTION,
   INCLUDE_OPTION,
   INIT_COMMAND,
@@ -84,6 +86,9 @@ type CommonOptions<M extends OptionsMode, F extends OptionsFormat> = {
   [MESSAGE_OPTION]?: string;
   [GIT_BRANCH_OPTION]?: string;
   [INCLUDE_OPTION]?: F extends 'raw' ? string : string[];
+  [EXCLUDE_OPTION]?: F extends 'raw' ? string : string[];
+  /** The config's `devices` JSON as typed; parsed, but checked only where the config's devices are. */
+  [DEVICES_OPTION]?: F extends 'raw' ? string : InvalidatedConfig['devices'];
   [DIAGNOSTICS_OPTION]?: F extends 'raw' ? string : string[];
   [WAIT_OPTION]?: boolean;
   [WAIT_TIMEOUT_OPTION]?: F extends 'raw' ? string : string;
