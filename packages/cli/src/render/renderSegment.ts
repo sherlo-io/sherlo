@@ -74,6 +74,7 @@ import { renderOpenedScene } from './openedScene';
 import { renderCapturedScene } from './capturedScene';
 import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
+import { renderEachScene, renderKeptCapture, renderNoScenesToCapture } from './keptCapture';
 import { renderTeamList } from './teamList';
 import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
 import {
@@ -490,6 +491,18 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         stream: 'stdout',
         prints: renderCoverage(segment.screen).map((line) => [line]),
       };
+
+    case 'kept-capture':
+      return { stream: 'stdout', prints: renderKeptCapture(segment.id).map((line) => [line]) };
+
+    case 'captured-each-scene':
+      return {
+        stream: 'stdout',
+        prints: renderEachScene(segment.sceneId, segment.ending).map((line) => [line]),
+      };
+
+    case 'no-scenes-to-capture':
+      return { stream: 'stdout', prints: renderNoScenesToCapture().map((line) => [line]) };
 
     case 'captured-log':
       return {

@@ -1678,6 +1678,38 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'kept-capture',
+    what: 'the dim line under a capture saying which story or scene was kept, with no time in it',
+    segment: { kind: 'kept-capture', id: 'chat--menu-open' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mKept in .sherlo/captures as chat--menu-open${ESC}[22m`], ['']],
+  },
+
+  {
+    kind: 'captured-each-scene',
+    what: 'the one line `sherlo capture --all-scenes` prints for a scene that came back with its record',
+    segment: { kind: 'captured-each-scene', sceneId: 'chat--menu-open', ending: 'scene' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--menu-open${ESC}[22m captured`]],
+  },
+
+  {
+    kind: 'captured-each-scene',
+    what: 'the one line `sherlo capture --all-scenes` prints for a scene that did not come back, naming how it ended',
+    segment: { kind: 'captured-each-scene', sceneId: 'chat--inbox', ending: 'never-reached' },
+    stream: 'stdout',
+    prints: [[`${ESC}[31m✖${ESC}[39m  ${ESC}[1mchat--inbox${ESC}[22m not captured: never-reached`]],
+  },
+
+  {
+    kind: 'no-scenes-to-capture',
+    what: 'the one line `sherlo capture --all-scenes` prints when the app declares no scene, so nothing captured is never silent',
+    segment: { kind: 'no-scenes-to-capture' },
+    stream: 'stdout',
+    prints: [[`${ESC}[33mNo scenes found in this app, so nothing was captured.${ESC}[39m`]],
+  },
+
+  {
     kind: 'project-created',
     what: 'everything `sherlo project create` prints - and the shape that keeps the project token OFF a key=value line, because those lines exist for CI to scrape and a secret must not be put on that journey',
     segment: {

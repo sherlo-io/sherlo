@@ -4,5 +4,7 @@
 
   tap chat-header-menu found no view with that testID within 5s.
 
+[2mKept in .sherlo/captures as chat--menu-open[22m
+
 
 [exit 1]

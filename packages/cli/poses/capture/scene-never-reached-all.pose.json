@@ -1,0 +1,19 @@
+{
+  "pose": 1,
+  "files": {
+    "chat.scenes.tsx": "export default scenes({ scenes: { Conversation: {}, Inbox: {} } });\n"
+  },
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--all-scenes"],
+  "capture": {
+    "scenes": ["chat--conversation", "chat--inbox"],
+    "ready": "chat.input.message",
+    "stayedOn": ["AuthStack", "SignIn"]
+  }
+}

@@ -186,5 +186,7 @@
 
 [2m   16 views · --json prints the record[22m
 
+[2mKept in .sherlo/captures as chat--conversation[22m
+
 
 [exit 0]
