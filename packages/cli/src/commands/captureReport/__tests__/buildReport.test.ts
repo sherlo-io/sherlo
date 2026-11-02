@@ -96,6 +96,26 @@ describe('the capture report', () => {
     expect(report.summary).toMatchObject({ capturedCount: 1, notCapturedCount: 1 });
   });
 
+  it('a capture with no known device claims no system', () => {
+    const [capture] = build([kept({ device: undefined })]).captures;
+
+    expect(capture.device).toEqual({
+      model: 'Unknown device',
+      osVersion: '',
+      screenWidth: 390,
+      screenHeight: 844,
+      screenSizeInInches: 0,
+    });
+  });
+
+  it('a never-reached capture gives the time it waited', () => {
+    const waited = build([kept({ record: { ...neverReached, waitedMs: 4200 } })]).captures[0];
+    const unknown = build([kept({ record: neverReached })]).captures[0];
+
+    expect(waited.record.timings).toEqual({ totalMs: 4200 });
+    expect(unknown.record.timings).toEqual({});
+  });
+
   it('the plain data holds every fact the page shows', () => {
     const report = build([kept({ id: 'Inbox/Full' })], { capturingIds: ['Inbox/Full'] });
 

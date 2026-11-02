@@ -71,7 +71,8 @@ export type CaptureDevice = { sherloDeviceId: string } | LocalSimulator;
 export type LocalSimulator = {
   model: string;
   osVersion: string;
-  platform: 'ios' | 'android';
+  /** Left out when the device could not be read: no system is claimed for a phone nobody read. */
+  platform?: 'ios' | 'android';
   screenHeight: number;
   screenSizeInInches: number;
   screenWidth: number;
@@ -90,7 +91,7 @@ export type SceneDetailsRecord = {
     storedData: { key: string; value: string }[];
     member?: string;
   };
-  timings: { totalMs: number; toReadyMs?: number; toStillMs?: number };
+  timings: { totalMs?: number; toReadyMs?: number; toStillMs?: number };
 };
 
 type Ending =
@@ -205,7 +206,8 @@ function captureDevice(
   const system = device?.os ?? '';
   return {
     model: device && 'local' in device ? device.model : 'Unknown device',
-    platform: system.startsWith('Android') ? 'android' : 'ios',
+    ...(system.startsWith('Android') && { platform: 'android' as const }),
+    ...(system.startsWith('iOS') && { platform: 'ios' as const }),
     osVersion: system.replace(/^\S+\s*/, ''),
     screenWidth: screen?.width ?? 0,
     screenHeight: screen?.height ?? 0,
@@ -227,7 +229,7 @@ const SEPARATOR = ' › ';
 
 /** What a kept record says about the screen, or nothing when the app never showed one. */
 function reading(capture: KeptCapture): Reading | undefined {
-  const said = capture.record as (SceneEnding | CaptureResult) | null;
+  const said = capture.record as ((SceneEnding & { waitedMs?: number }) | CaptureResult) | null;
   const sceneId = capture.id;
   const empty = { fakes: [], sceneId, start: { params: [], route: '', storedData: [] } };
 
@@ -260,7 +262,8 @@ function reading(capture: KeptCapture): Reading | undefined {
           ending: { kind: 'never-reached', stayedOn },
           play: [],
           ready: { ok: false, reached: stayedOn, rule: said.ready },
-          timings: { totalMs: 0 },
+          // The time the capture waited before it gave up, as the command timed it; a record without it names none.
+          timings: typeof said.waitedMs === 'number' ? { totalMs: said.waitedMs } : {},
         },
       };
     }
@@ -277,7 +280,7 @@ function reading(capture: KeptCapture): Reading | undefined {
           ],
           ready: { ok: false, reached: route, rule: '' },
           start: { ...empty.start, route },
-          timings: { totalMs: 0 },
+          timings: {},
         },
       };
     }
@@ -314,8 +317,7 @@ function reading(capture: KeptCapture): Reading | undefined {
           play: [],
           ready: { ok: ending.kind === 'captured', reached: '', rule: '' },
           timings: {
-            totalMs: settledMs ?? 0,
-            ...(settledMs !== undefined && { toStillMs: settledMs }),
+            ...(settledMs !== undefined && { totalMs: settledMs, toStillMs: settledMs }),
           },
         },
       };
@@ -338,7 +340,7 @@ function failed(
       ending,
       play: [],
       ready: { ok: false, reached: '', rule: '' },
-      timings: { totalMs: 0 },
+      timings: {},
     },
   };
 }
