@@ -178,6 +178,25 @@ describe('the capture report', () => {
     expect(unknown.record.timings).toEqual({});
   });
 
+  it("a capture's timings reach the report as whole milliseconds", () => {
+    const record = {
+      ...sceneRecord,
+      bootMs: 100.25,
+      reached: { route: ['Inbox', 'Full'], ms: 200.4507499999963 },
+      settled: { ms: 300.6525420000035 },
+    };
+    const { timings } = build([kept({ record })]).captures[0].record;
+
+    expect(timings).toEqual({ totalMs: 601, toReadyMs: 200, toStillMs: 301 });
+  });
+
+  it("a never-reached capture's wait reaches the report as whole milliseconds", () => {
+    const record = { ...neverReached, waitedMs: 4200.893376 };
+    const waited = build([kept({ record })]).captures[0];
+
+    expect(waited.record.timings).toEqual({ totalMs: 4201 });
+  });
+
   it('the plain data holds every fact the page shows', () => {
     const report = build([kept({ id: 'Inbox/Full' })], { capturingIds: ['Inbox/Full'] });
 

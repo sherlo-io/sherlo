@@ -157,7 +157,10 @@ export function buildReport({
         !samePicture(earlier.screenPath, capture.screenPath)
       ),
       capturing: capturingIds.includes(capture.id),
-      record: reported!.record,
+      record: {
+        ...reported!.record,
+        timings: wholeMilliseconds(reported!.record.timings),
+      },
     };
   });
 
@@ -232,6 +235,13 @@ type Reading = {
 };
 
 const SEPARATOR = ' › ';
+
+/** The phone's clock gives fractions of a millisecond; the report keeps whole ones. */
+function wholeMilliseconds(timings: SceneDetailsRecord['timings']): SceneDetailsRecord['timings'] {
+  return Object.fromEntries(
+    Object.entries(timings).map(([name, ms]) => [name, Math.round(ms)])
+  ) as SceneDetailsRecord['timings'];
+}
 
 /** What a kept record says about the screen, or nothing when the app never showed one. */
 function reading(capture: KeptCapture): Reading | undefined {
