@@ -1,6 +1,12 @@
 /** THE CAPTURE REPORT - what the local review page and `--json` read, built from the kept captures. */
-import { describe, expect, it } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { describe, expect, it, vi } from 'vitest';
+import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
+import { keepCapture, newCapture, readKeptCaptures } from '../../../seams/localCaptures';
 import type { KeptCapture } from '../../../seams/localCaptures';
+import { readLocalDevice } from '../../../seams/localDevice';
 import { buildReport } from '../buildReport';
 
 const sceneRecord = {
@@ -106,6 +112,39 @@ describe('the capture report', () => {
       screenHeight: 844,
       screenSizeInInches: 0,
     });
+  });
+
+  it('a capture on a simulator Sherlo does not have keeps its name through to the page', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'named-capture-'));
+    const avdFolder = path.join(root, 'avd', 'tester-ephemeral-1762050000.avd');
+    fs.mkdirSync(avdFolder, { recursive: true });
+    fs.writeFileSync(
+      path.join(avdFolder, 'config.ini'),
+      'hw.device.name=pixel_xl\r\nimage.sysdir.1=system-images/android-31/default/arm64-v8a/\r\n'
+    );
+    vi.stubEnv('ANDROID_AVD_HOME', path.join(root, 'avd'));
+    // The emulator console answers with the name, then OK, each line ended by CR LF.
+    const undo = installDeviceState({
+      ...posedDeviceState(),
+      run: async (_tool, args) =>
+        args.includes('path') ? avdFolder + '\r\nOK\r\n' : 'tester-ephemeral-1762050000\r\nOK\r\n',
+    });
+    try {
+      const device = await readLocalDevice({ platform: 'android', serial: 'emulator-5600' });
+      keepCapture(newCapture(root, 'Inbox/Full'), { record: sceneRecord, device });
+
+      const report = build(readKeptCaptures(root));
+
+      expect(report.captures[0].device).toMatchObject({
+        model: 'pixel_xl',
+        platform: 'android',
+        osVersion: '12',
+      });
+    } finally {
+      undo();
+      vi.unstubAllEnvs();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('a never-reached capture gives the time it waited', () => {
