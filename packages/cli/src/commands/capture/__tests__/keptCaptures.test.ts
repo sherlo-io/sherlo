@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import capture from '../capture';
-import { ALL_SCENES_OPTION, SCENE_OPTION } from '../../../constants';
+import { ALL_SCENES_OPTION, DISCOVER_OPTION, SCENE_OPTION } from '../../../constants';
 import { captureTranscript } from '../../../helpers/transcriptSink';
 import { installCaptureSocket } from '../../../seams/captureSocket';
 import { installDeviceState } from '../../../seams/deviceState';
@@ -72,6 +72,7 @@ describe('kept captures', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     uninstall.reverse().forEach((undo) => undo());
     fs.rmSync(project, { recursive: true, force: true });
   });
@@ -121,9 +122,70 @@ describe('kept captures', () => {
 
     const [kept] = readKeptCaptures(project);
     expect(kept.record).toMatchObject({ kind: 'never-reached', stayedOn: ['Home'] });
-    // Today's record carries no picture of where the app ended up, so none is kept.
-    expect(kept.screenPath).toBeUndefined();
     expect(stdout).toContain('Kept in .sherlo/captures as chat--open');
+  });
+
+  it('a scene that never reached its screen keeps a picture of where the app ended up', async () => {
+    const { stdout } = await captureWith([NEVER_READY], { [SCENE_OPTION]: 'chat--open' });
+
+    const [kept] = readKeptCaptures(project);
+    expect(kept.screenPath && fs.readFileSync(kept.screenPath, 'utf8')).toBe('picture');
+    // The time it waited is kept beside the record, and the printed ending is as it was.
+    expect(kept.record).toMatchObject({ kind: 'never-reached', waitedMs: expect.any(Number) });
+    expect(stdout).not.toContain('waitedMs');
+  });
+
+  it('a capture of a scene with no device named keeps the device it ran on', async () => {
+    // An emulator whose AVD lives under the Android user home, where the default folder has none.
+    const userHome = path.join(project, 'android-user-home');
+    fs.mkdirSync(path.join(userHome, 'avd', 'Pixel_XL_API_31.avd'), { recursive: true });
+    fs.writeFileSync(
+      path.join(userHome, 'avd', 'Pixel_XL_API_31.avd', 'config.ini'),
+      'hw.device.name=pixel_xl\nimage.sysdir.1=system-images/android-31/google_apis/arm64-v8a/\n'
+    );
+    vi.stubEnv('ANDROID_USER_HOME', userHome);
+    vi.stubEnv('ANDROID_AVD_HOME', '');
+    uninstall.push(
+      installDeviceState({
+        sceneTarget: async () => ({
+          device: { platform: 'android', serial: 'emulator-5554' },
+          app: { id: 'com.example.app' },
+        }),
+        simulatorFolder: () => project,
+        makeSaveFolder: () => fs.mkdtempSync(path.join(project, 'save-')),
+        run: async (_tool, args, options) => {
+          const line = args.join(' ');
+          if (options?.stdoutTo) fs.writeFileSync(options.stdoutTo, 'picture');
+          if (line.includes('emu avd name')) return 'Pixel_XL_API_31\nOK\n';
+          if (line.includes('emu avd path')) throw new Error('unknown command');
+          if (line.includes('pm path')) return 'package:/data/app/base.apk\n';
+          return '';
+        },
+      })
+    );
+
+    await captureWith([A_SCENE], { [SCENE_OPTION]: 'chat--open' });
+
+    const [kept] = readKeptCaptures(project);
+    expect(kept.device).toEqual({ local: true, model: 'pixel_xl', os: 'Android 12' });
+  });
+
+  it('a scene that crashed at boot keeps no picture', async () => {
+    const crashed = {
+      kind: 'crashed-at-boot',
+      sceneId: 'chat--open',
+      error: { name: 'Error', message: 'boom', file: 'a.ts', line: 1 },
+    } as unknown as SceneCaptureResult;
+
+    await captureWith([crashed], { [SCENE_OPTION]: 'chat--open' });
+
+    expect(readKeptCaptures(project)[0].screenPath).toBeUndefined();
+  });
+
+  it('a discover capture keeps no picture', async () => {
+    await captureWith([NEVER_READY], { [SCENE_OPTION]: 'chat--open', [DISCOVER_OPTION]: true });
+
+    expect(readKeptCaptures(project)[0].screenPath).toBeUndefined();
   });
 
   it('capturing every scene keeps one capture per scene', async () => {

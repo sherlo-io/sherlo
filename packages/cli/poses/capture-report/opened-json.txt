@@ -5,7 +5,6 @@
       "kind": "scene",
       "device": {
         "model": "Unknown device",
-        "platform": "ios",
         "osVersion": "",
         "screenWidth": 0,
         "screenHeight": 0,
@@ -32,9 +31,7 @@
           "reached": "SignIn",
           "rule": "Profile"
         },
-        "timings": {
-          "totalMs": 0
-        }
+        "timings": {}
       }
     },
     {

@@ -2,7 +2,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installDeviceState, posedDeviceState } from '../deviceState';
 import { readLocalDevice } from '../localDevice';
 
@@ -74,6 +74,35 @@ describe('the local device', () => {
       });
     } finally {
       fs.rmSync(avdHome, { recursive: true, force: true });
+    }
+  });
+
+  it('an emulator is read from the folder it names, and one with no config.ini stays unread', async () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'avd-own-'));
+    fs.writeFileSync(
+      path.join(folder, 'config.ini'),
+      'hw.device.name=pixel_xl\nimage.sysdir.1=system-images/android-31/default/arm64-v8a/\n'
+    );
+    vi.stubEnv('ANDROID_AVD_HOME', path.join(folder, 'nowhere'));
+    try {
+      undo = installDeviceState({
+        ...posedDeviceState(),
+        run: async (_tool, args) =>
+          args.includes('path') ? `${folder}\nOK\n` : 'Pixel_XL_API_31\nOK\n',
+      });
+      expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })).toEqual({
+        local: true,
+        model: 'pixel_xl',
+        os: 'Android 12',
+      });
+
+      fs.rmSync(path.join(folder, 'config.ini'));
+      expect(
+        await readLocalDevice({ platform: 'android', serial: 'emulator-5554' })
+      ).toBeUndefined();
+    } finally {
+      vi.unstubAllEnvs();
+      fs.rmSync(folder, { recursive: true, force: true });
     }
   });
 });

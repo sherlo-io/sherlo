@@ -193,6 +193,7 @@ async function runScene(sceneId: string, passedOptions: CaptureOptions) {
   let answer: SceneCaptureResult;
   let notApplied: string[] = [];
   let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
+  const startedAt = Date.now();
   try {
     if (isTarget(target) && installed) notApplied = await applySceneDevice(target, field);
     answer = installed
@@ -208,8 +209,11 @@ async function runScene(sceneId: string, passedOptions: CaptureOptions) {
     if (picture && answer.kind === 'scene' && isTarget(target)) {
       picture = await savePicture(target.device, picture.path);
     }
-    // The kept picture is only of a scene that was captured: the record has none of where a failed one ended up.
-    if (keptFolder && answer.kind === 'scene' && isTarget(target)) {
+    // The kept picture is of the screen the app ended on: a scene never reached keeps where it stayed.
+    // A discover capture takes no picture: it holds requests, so its scene often never gets ready by design.
+    const endedOnAScreen =
+      answer.kind === 'scene' || (answer.kind === 'never-reached' && !discover);
+    if (keptFolder && endedOnAScreen && isTarget(target)) {
       await savePicture(target.device, keptFolder.screenPath);
     }
   } finally {
@@ -220,7 +224,13 @@ async function runScene(sceneId: string, passedOptions: CaptureOptions) {
   const listed = discover ? { discover: true } : {};
   const record = { ...answer, ...saved, ...unapplied, ...listed };
   // An app that was never on the device ran on nothing, so no device is named for it.
-  const kept = await keepTheCapture(keptFolder, record, installed ? target : undefined);
+  // The time a scene waited before giving up is kept beside its record, not printed: `--json` stays as it is.
+  const waited = answer.kind === 'never-reached' ? { waitedMs: Date.now() - startedAt } : {};
+  const kept = await keepTheCapture(
+    keptFolder,
+    { ...record, ...waited },
+    installed ? target : undefined
+  );
   return { answer, record, picture, port, discover, kept };
 }
 

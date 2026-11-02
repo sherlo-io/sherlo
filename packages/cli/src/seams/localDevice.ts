@@ -7,7 +7,8 @@
  *
  *     iOS      `simctl list devices` gives the booted device's type and runtime, `simctl list
  *              devicetypes` gives the type's name.
- *     Android  the AVD's `config.ini` gives `hw.device.name` and, in `image.sysdir.1`, the API level.
+ *     Android  the AVD's `config.ini` gives `hw.device.name` and, in `image.sysdir.1`, the API level;
+ *              the folder is the one `adb emu avd path` names, else the SDK's usual AVD homes.
  */
 import fs from 'fs';
 import os from 'os';
@@ -40,7 +41,7 @@ const ANDROID_VERSION_OF_API: Record<number, string> = {
   36: '16',
 };
 
-/** The device the capture ran on, or undefined when the machine cannot say (a real phone, no Xcode). */
+/** The device the capture ran on, or undefined when the machine cannot say (a real phone, no Xcode, no AVD folder). */
 export async function readLocalDevice(device: SceneDevice): Promise<LocalDevice | undefined> {
   try {
     const found =
@@ -101,12 +102,36 @@ async function simulatorModel(udid: string): Promise<ModelAndVersion | undefined
   return undefined;
 }
 
+/** The first line the emulator console prints; the second is `OK`. */
+function firstLine(said: string): string {
+  return /^[^\r\n]+/.exec(said)?.[0].trim() ?? '';
+}
+
+/** The folders an AVD named `avdName` may live in: where the emulator says, else the places the SDK keeps AVDs. */
+async function avdFolders(serial: string, avdName: string): Promise<string[]> {
+  const homes = [
+    process.env.ANDROID_AVD_HOME,
+    process.env.ANDROID_USER_HOME && path.join(process.env.ANDROID_USER_HOME, 'avd'),
+    process.env.ANDROID_SDK_HOME && path.join(process.env.ANDROID_SDK_HOME, '.android', 'avd'),
+    path.join(os.homedir(), '.android', 'avd'),
+  ];
+  const own = await deviceState()
+    .run('adb', ['-s', serial, 'emu', 'avd', 'path'])
+    .then(firstLine)
+    .catch(() => '');
+  return [own, ...homes.map((home) => home && path.join(home, `${avdName}.avd`))].filter(
+    Boolean
+  ) as string[];
+}
+
+/** The emulator's model and system, read from its AVD's config.ini; undefined when that file cannot be found. */
 async function emulatorModel(serial: string): Promise<ModelAndVersion | undefined> {
-  const said = await deviceState().run('adb', ['-s', serial, 'emu', 'avd', 'name']);
-  // The first line is the AVD's name; the second is `OK`.
-  const avdName = /^[^\r\n]+/.exec(said)?.[0].trim() ?? '';
-  const avdHome = process.env.ANDROID_AVD_HOME ?? path.join(os.homedir(), '.android', 'avd');
-  const config = fs.readFileSync(path.join(avdHome, `${avdName}.avd`, 'config.ini'), 'utf8');
+  const avdName = firstLine(await deviceState().run('adb', ['-s', serial, 'emu', 'avd', 'name']));
+  const folder = (await avdFolders(serial, avdName)).find((candidate) =>
+    fs.existsSync(path.join(candidate, 'config.ini'))
+  );
+  if (!folder) return undefined;
+  const config = fs.readFileSync(path.join(folder, 'config.ini'), 'utf8');
   const model = /^hw\.device\.name\s*=\s*(.+)$/m.exec(config)?.[1].trim();
   const api = Number(/^image\.sysdir\.1\s*=.*android-(\d+)/m.exec(config)?.[1]);
   const version = ANDROID_VERSION_OF_API[api];
