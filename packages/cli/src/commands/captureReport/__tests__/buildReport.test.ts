@@ -80,6 +80,29 @@ describe('the capture report', () => {
     ]);
   });
 
+  it('a scene that was not captured never wears changed', () => {
+    const failed = kept({ folder: 'b', screenPath: 'b.png', record: neverReached });
+    const report = build([kept({ folder: 'a', screenPath: 'a.png' }), failed], {
+      samePicture: () => false,
+    });
+
+    expect(report.captures[0].changed).toBe(false);
+    expect(report.summary.changedCount).toBe(0);
+  });
+
+  it('a failed scene captured again with a new picture wears changed', () => {
+    const report = build(
+      [
+        kept({ folder: 'a', screenPath: 'a.png', record: neverReached }),
+        kept({ folder: 'b', screenPath: 'b.png', at: '2026-11-01T10:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(true);
+    expect(report.summary.changedCount).toBe(1);
+  });
+
   it('a screen whose picture differs from its previous local capture is marked changed', () => {
     const first = kept({ screenPath: 'one.png', at: '2026-11-01T09:00:00.000Z' });
     const second = kept({ screenPath: 'two.png', at: '2026-11-01T10:00:00.000Z' });

@@ -8,7 +8,9 @@
  *     iOS      `simctl list devices` gives the booted device's type and runtime, `simctl list
  *              devicetypes` gives the type's name.
  *     Android  the AVD's `config.ini` gives `hw.device.name` and, in `image.sysdir.1`, the API level;
- *              the folder is the one `adb emu avd path` names, else the SDK's usual AVD homes.
+ *              the folder is the one `adb emu avd path` names, else the SDK's usual AVD homes. The
+ *              name is what `adb emu avd name` prints; when the console answers nothing (empty, exit
+ *              0), the phone's own `ro.boot.qemu.avd_name`, then `ro.kernel.qemu.avd_name`, gives it.
  */
 import fs from 'fs';
 import os from 'os';
@@ -107,7 +109,15 @@ function firstLine(said: string): string {
   return /^[^\r\n]+/.exec(said)?.[0].trim() ?? '';
 }
 
-/** The folders an AVD named `avdName` may live in: where the emulator says, else the places the SDK keeps AVDs. */
+/** What `adb -s <serial> <args>` prints on its first line; empty when adb fails or says nothing. */
+function adbSays(serial: string, args: string[]): Promise<string> {
+  return deviceState()
+    .run('adb', ['-s', serial, ...args])
+    .then(firstLine)
+    .catch(() => '');
+}
+
+/** The folders an AVD may live in: where the emulator says, else (when its name is known) the places the SDK keeps AVDs. */
 async function avdFolders(serial: string, avdName: string): Promise<string[]> {
   const homes = [
     process.env.ANDROID_AVD_HOME,
@@ -115,18 +125,25 @@ async function avdFolders(serial: string, avdName: string): Promise<string[]> {
     process.env.ANDROID_SDK_HOME && path.join(process.env.ANDROID_SDK_HOME, '.android', 'avd'),
     path.join(os.homedir(), '.android', 'avd'),
   ];
-  const own = await deviceState()
-    .run('adb', ['-s', serial, 'emu', 'avd', 'path'])
-    .then(firstLine)
-    .catch(() => '');
-  return [own, ...homes.map((home) => home && path.join(home, `${avdName}.avd`))].filter(
-    Boolean
-  ) as string[];
+  const own = await adbSays(serial, ['emu', 'avd', 'path']);
+  const named = avdName ? homes.map((home) => home && path.join(home, `${avdName}.avd`)) : [];
+  return [own, ...named].filter(Boolean) as string[];
+}
+
+/** The AVD's name: the console's answer, else the first of the phone's own properties that is not empty. */
+async function avdNameOf(serial: string): Promise<string> {
+  const fromConsole = await adbSays(serial, ['emu', 'avd', 'name']);
+  if (fromConsole) return fromConsole;
+  for (const property of ['ro.boot.qemu.avd_name', 'ro.kernel.qemu.avd_name']) {
+    const fromPhone = await adbSays(serial, ['shell', 'getprop', property]);
+    if (fromPhone) return fromPhone;
+  }
+  return '';
 }
 
 /** The emulator's model and system, read from its AVD's config.ini; undefined when that file cannot be found. */
 async function emulatorModel(serial: string): Promise<ModelAndVersion | undefined> {
-  const avdName = firstLine(await deviceState().run('adb', ['-s', serial, 'emu', 'avd', 'name']));
+  const avdName = await avdNameOf(serial);
   const folder = (await avdFolders(serial, avdName)).find((candidate) =>
     fs.existsSync(path.join(candidate, 'config.ini'))
   );
