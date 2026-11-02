@@ -117,6 +117,11 @@ export type ReportInput = {
   timeZone?: string;
 };
 
+/** Whether the scene's own ending is "captured" (a finished picture, not a failure's). */
+function endedCaptured(record: SceneDetailsRecord): boolean {
+  return record.ending.kind === 'captured';
+}
+
 /** The report: the latest capture of each screen on each device, the failed ones first. */
 export function buildReport({
   captures,
@@ -146,6 +151,7 @@ export function buildReport({
       device: captureDevice(capture.device, reported?.screen),
       picture: capture.screenPath ? pictureOf(capture) : '',
       changed: Boolean(
+        endedCaptured(reported!.record) &&
         earlier?.screenPath &&
         capture.screenPath &&
         !samePicture(earlier.screenPath, capture.screenPath)
@@ -155,7 +161,7 @@ export function buildReport({
     };
   });
 
-  const captured = (shownCapture: Capture) => shownCapture.record.ending.kind === 'captured';
+  const captured = (shownCapture: Capture) => endedCaptured(shownCapture.record);
   shown.sort(
     (a, b) =>
       Number(captured(a)) - Number(captured(b)) ||

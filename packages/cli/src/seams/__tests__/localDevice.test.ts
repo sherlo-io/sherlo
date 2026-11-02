@@ -105,4 +105,71 @@ describe('the local device', () => {
       fs.rmSync(folder, { recursive: true, force: true });
     }
   });
+
+  it("an emulator whose console answers nothing is named by the phone's own property", async () => {
+    const avdHome = fs.mkdtempSync(path.join(os.tmpdir(), 'avd-home-'));
+    vi.stubEnv('ANDROID_AVD_HOME', avdHome);
+    fs.mkdirSync(path.join(avdHome, 'Pixel_7_API_33.avd'));
+    fs.writeFileSync(
+      path.join(avdHome, 'Pixel_7_API_33.avd', 'config.ini'),
+      'hw.device.name=pixel_7\nimage.sysdir.1=system-images/android-33/google_apis/arm64-v8a/\n'
+    );
+    undo = installDeviceState({
+      ...posedDeviceState(),
+      run: async (_tool, args) =>
+        args.includes('ro.kernel.qemu.avd_name') ? 'Pixel_7_API_33\n' : '',
+    });
+    try {
+      expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5584' })).toEqual({
+        deviceId: expect.stringContaining('pixel'),
+        os: 'Android 13',
+      });
+    } finally {
+      vi.unstubAllEnvs();
+      fs.rmSync(avdHome, { recursive: true, force: true });
+    }
+  });
+
+  it('an emulator with no name is still read from the folder its console path names', async () => {
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'avd-own-'));
+    fs.writeFileSync(
+      path.join(folder, 'config.ini'),
+      'hw.device.name=pixel_xl\nimage.sysdir.1=system-images/android-31/default/arm64-v8a/\n'
+    );
+    undo = installDeviceState({
+      ...posedDeviceState(),
+      run: async (_tool, args) => (args.includes('path') ? `${folder}\nOK\n` : ''),
+    });
+    try {
+      expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5584' })).toEqual({
+        local: true,
+        model: 'pixel_xl',
+        os: 'Android 12',
+      });
+    } finally {
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it('the boot property is asked before the kernel property', async () => {
+    const asked: string[] = [];
+    undo = installDeviceState({
+      ...posedDeviceState(),
+      run: async (_tool, args) => {
+        asked.push(args.slice(2).join(' '));
+        return args.includes('ro.boot.qemu.avd_name') ? 'Some_AVD\n' : '';
+      },
+    });
+
+    await readLocalDevice({ platform: 'android', serial: 'emulator-5584' });
+
+    expect(asked).toContain('shell getprop ro.boot.qemu.avd_name');
+    expect(asked).not.toContain('shell getprop ro.kernel.qemu.avd_name');
+  });
+
+  it('an emulator that gives no name by either road stays unnamed', async () => {
+    undo = installDeviceState({ ...posedDeviceState(), run: async () => '' });
+
+    expect(await readLocalDevice({ platform: 'android', serial: 'emulator-5584' })).toBeUndefined();
+  });
 });
