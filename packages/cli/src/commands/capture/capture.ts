@@ -42,7 +42,7 @@ import {
   saveScreenPicture,
 } from '../../seams/deviceState';
 import type { NoTarget, SceneDevice, SceneTarget } from '../../seams/deviceState';
-import { keepCapture, newCapture } from '../../seams/localCaptures';
+import { dropCapture, guardCapture, keepCapture, newCapture } from '../../seams/localCaptures';
 import type { NewCapture } from '../../seams/localCaptures';
 import { readLocalDevice } from '../../seams/localDevice';
 import type { CaptureResult } from '../../seams/captureSocket';
@@ -94,16 +94,18 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
   const port = readPort(passedOptions[PORT_OPTION]);
 
   const keptFolder = openCapture(storyId);
-  const target = keptFolder ? await deviceState().sceneTarget() : undefined;
-  const answer = await captureSocket().captureStory({
-    storyId,
-    port,
-    settings: STABILIZATION_SETTINGS,
+  const { answer, kept } = await guardCapture(keptFolder, async () => {
+    const target = keptFolder ? await deviceState().sceneTarget() : undefined;
+    const answer = await captureSocket().captureStory({
+      storyId,
+      port,
+      settings: STABILIZATION_SETTINGS,
+    });
+    if (keptFolder && target && isTarget(target) && answer.kind === 'captured') {
+      await savePicture(target.device, keptFolder.screenPath);
+    }
+    return { answer, kept: await keepTheCapture(keptFolder, answer, target) };
   });
-  if (keptFolder && target && isTarget(target) && answer.kind === 'captured') {
-    await savePicture(target.device, keptFolder.screenPath);
-  }
-  const kept = await keepTheCapture(keptFolder, answer, target);
 
   if (passedOptions[JSON_OPTION]) {
     // The record already carries the app's own log lines (see ../../seams/captureSocket) - `--json`
@@ -154,16 +156,21 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
  */
 async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
   const sceneIds = sceneIdsOfApp(getCwd());
-  if (sceneIds.length === 0) {
+  const asJson = passedOptions[JSON_OPTION] === true;
+  if (sceneIds.length === 0 && !asJson) {
     emit({ kind: 'no-scenes-to-capture' });
     return;
   }
   let failed = false;
+  const scenes: { sceneId: string; record: unknown }[] = [];
   for (const sceneId of sceneIds) {
-    const { answer, discover } = await runScene(sceneId, passedOptions);
-    emit({ kind: 'captured-each-scene', sceneId, ending: answer.kind });
+    const { answer, record, discover } = await runScene(sceneId, passedOptions);
+    if (asJson) scenes.push({ sceneId, record });
+    else emit({ kind: 'captured-each-scene', sceneId, ending: answer.kind });
     failed = failed || sceneFailed(answer, discover);
   }
+  // One document for the whole run; each scene's record is what `--scene <id> --json` prints.
+  if (asJson) process.stdout.write(`${JSON.stringify({ scenes }, null, 2)}\n`);
   if (failed) process.exit(EXIT_BLOCK);
 }
 
@@ -174,9 +181,17 @@ function sceneFailed(answer: SceneCaptureResult, discover: boolean): boolean {
 }
 
 /** Put one scene through the clean device and keep what came of it; the screen is the caller's. */
-async function runScene(sceneId: string, passedOptions: CaptureOptions) {
-  const port = readPort(passedOptions[PORT_OPTION]);
+function runScene(sceneId: string, passedOptions: CaptureOptions) {
   const keptFolder = openCapture(sceneId);
+  return guardCapture(keptFolder, () => runOpenScene(sceneId, passedOptions, keptFolder));
+}
+
+async function runOpenScene(
+  sceneId: string,
+  passedOptions: CaptureOptions,
+  keptFolder: NewCapture | undefined
+) {
+  const port = readPort(passedOptions[PORT_OPTION]);
 
   // The scene runs on a clean device, and every ending - a throw included - puts it back.
   const target = await deviceState().sceneTarget();
@@ -255,6 +270,8 @@ async function keepTheCapture(
     keepCapture(keptFolder, { record, device });
     return true;
   } catch {
+    // A capture that could not be kept leaves no half-made folder (and no marker) behind.
+    dropCapture(keptFolder);
     return false;
   }
 }

@@ -194,7 +194,11 @@ describe('kept captures', () => {
       'export default scenes({ scenes: { Open: {}, Menu: {} } });\n'
     );
 
-    const { stdout } = await captureWith([A_SCENE, NEVER_READY], { [ALL_SCENES_OPTION]: true });
+    // Each answer names the scene it was asked about, as the app's own does.
+    const menuNeverReached = { ...NEVER_READY, sceneId: 'chat--menu' };
+    const { stdout } = await captureWith([A_SCENE, menuNeverReached], {
+      [ALL_SCENES_OPTION]: true,
+    });
 
     expect(
       readKeptCaptures(project)

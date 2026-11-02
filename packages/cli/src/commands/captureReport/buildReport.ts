@@ -4,8 +4,8 @@
  * Pure: the kept captures, the ids being captured now and a way to compare two pictures go in, the
  * report comes out. The page polls it from ./data/report.json; an agent reads it with `--json`.
  *
- * THE CONTRACT, copied from the frontend's apps/local-report/src/report.types.ts (change it there
- * and here together):
+ * THE CONTRACT with the review page, which reads exactly this shape (a change to either side is a
+ * change to both):
  *
  *   THE DATA FILE: ./data/report.json, beside the page. The CLI writes exactly this shape and the
  *   page polls it every second.
@@ -25,7 +25,7 @@
  *     picture     string                 the picture's path, relative to the page: "data/pictures/Inbox-Full.png"
  *     changed     boolean                looks different from the previous local run
  *     capturing   boolean                being captured again right now
- *     record      SceneDetailsRecord     the scene details panel's record (SceneDetails.types.ts)
+ *     record      SceneDetailsRecord     the scene details panel's record
  *
  *   CaptureDevice, one of
  *     { sherloDeviceId }                                            a Sherlo device ("iphone.15.pro"): drawn in its frame
@@ -34,7 +34,7 @@
  *
  * THE SCENE RECORD IS TODAY'S SHAPE. `record` is made of the fields the kept record.json carries
  * now; what it does not carry is left empty (no fakes, no start params, no stored data, no signed-in
- * member, no matched view) and the screen size in inches is 0. The final record shape comes later.
+ * member, no matched view) and the screen size in inches is 0. The panel shows those fields empty until a capture records them.
  *
  * A capture that never reached the app (no bundler, no app, no such scene, an app that kept
  * starting over) has no screen to show, so it is left out; the previous capture of that screen
@@ -78,7 +78,7 @@ export type LocalSimulator = {
   screenWidth: number;
 };
 
-/** The frontend's SceneDetailsRecord (SceneDetails.types.ts), the part of it the page reads. */
+/** The scene details panel's record, the part of it the review page reads. */
 export type SceneDetailsRecord = {
   ending: Ending;
   fakes: { answered: string[]; background: string[]; name: string; refused: string[] }[];
