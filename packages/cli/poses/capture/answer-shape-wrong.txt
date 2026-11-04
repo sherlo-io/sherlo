@@ -9,5 +9,7 @@ Mock answers the app could not use:
      __typename: 'Picture',
 [2mPicture saved to ./profile-own.png[22m
 
+[2mKept in .sherlo/captures as kindred--profile-own[22m
+
 
 [exit 1]

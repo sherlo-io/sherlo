@@ -49,3 +49,5 @@ export const EXIT_BLOCK = 1;
 export const EXIT_ERROR = 2;
 export const EXIT_TIMEOUT = 3;
 export const EXIT_SIGINT = 130;
+/** 128 + SIGTERM(15): the process was told to terminate. */
+export const EXIT_SIGTERM = 143;

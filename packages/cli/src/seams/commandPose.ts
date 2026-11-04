@@ -19,6 +19,7 @@ import type { PosedBundle } from './bundler';
 import type { PosedCapture } from './captureSocket';
 import type { PosedCoverage } from './coverageScan';
 import type { PosedLetterbox } from './letterbox';
+import type { PosedLocalServer } from './localServer';
 import type { PosedPush } from './nativeBuild';
 import type { PosedFiles } from './projectFiles';
 import type { PosedLogins } from './savedLogins';
@@ -153,6 +154,12 @@ export type CommandPose = {
    * for any other. Nothing opens on a posed run; a login with no `browser` is refused at run time.
    */
   browser?: PosedBrowser;
+  /**
+   * The port the review page's server answered on, for `sherlo capture-report`, the one command
+   * that serves a page. Refused for any other; a `capture-report` with no `localServer` is
+   * refused at run time. Nothing listens on a posed run. `--json` serves nothing and states none.
+   */
+  localServer?: PosedLocalServer;
   /**
    * The logins saved on the machine before the run, by the service address each was made against
    * (the run talks to **SHERLO_API_URL** when `env` sets it). Absent is a machine nobody has logged

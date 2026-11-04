@@ -6,5 +6,7 @@
   A fake gave [1maccount.profiles.0.ageRange[22m as an object, and the app reads it as a list.
   Fix: give account.profiles.0.ageRange as a list in the scene's mock.
 
+[2mKept in .sherlo/captures as kindred--profile-own[22m
+
 
 [exit 1]

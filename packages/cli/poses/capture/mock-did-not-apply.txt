@@ -8,5 +8,7 @@
 [2m   The app ran the real module instead. Restart the bundler, then capture again.[22m
 [2mPicture saved to ./chat-with-match.png[22m
 
+[2mKept in .sherlo/captures as kindred--chat-with-match[22m
+
 
 [exit 1]

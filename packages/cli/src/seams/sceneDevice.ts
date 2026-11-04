@@ -74,9 +74,9 @@ export type SavedSceneDevice = {
   androidLocation?: { latitude: number; longitude: number };
 };
 
-/** Every scene id the project's scene files make. */
-export function sceneIdsOf(root: string): string[] {
-  return Object.keys(sceneFiles().scenesOfProject(root));
+/** Every scene id the app declares, in the order its files declare them. */
+export function sceneIdsOfApp(root: string): string[] {
+  return sceneFiles().readSceneIds(root);
 }
 
 /** The scene's device as its file declares it, or undefined when the file declares none. */

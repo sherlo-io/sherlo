@@ -1,0 +1,3 @@
+[33mNo scenes found in this app, so nothing was captured.[39m
+
+[exit 0]

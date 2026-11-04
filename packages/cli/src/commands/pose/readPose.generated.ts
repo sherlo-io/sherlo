@@ -94,6 +94,9 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
     if ('browser' in object1) {
       readPosedBrowser(object1.browser, at(path, 'browser'), problems);
     }
+    if ('localServer' in object1) {
+      readPosedLocalServer(object1.localServer, at(path, 'localServer'), problems);
+    }
     if ('logins' in object1) {
       readPosedLogins(object1.logins, at(path, 'logins'), problems);
     }
@@ -116,6 +119,7 @@ function readCommandPose(value: unknown, path: string, problems: string[]): void
         'capture',
         'coverage',
         'browser',
+        'localServer',
         'logins',
       ],
       path,
@@ -1930,6 +1934,15 @@ function readPosedBrowser(value: unknown, path: string, problems: string[]): voi
   if (object1) {
     expectBoolean(object1.opened, at(path, 'opened'), problems);
     reportUnknownFields(object1, ['opened'], path, problems);
+  }
+}
+
+/** The shape of a `PosedLocalServer`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedLocalServer(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectNumber(object1.port, at(path, 'port'), problems);
+    reportUnknownFields(object1, ['port'], path, problems);
   }
 }
 

@@ -391,14 +391,20 @@ export type TranscriptSegment =
   | { kind: 'opened-scene'; state: OpenedScene }
   /** The whole screen output of `sherlo capture --scene`. See ./capturedScene. */
   | { kind: 'captured-scene'; state: CapturedScene; picture?: ScenePicture }
-  /** One scene's progress line of `sherlo capture --all-scenes`. See ./capturedAllScenes. */
+  /** SMS proposal over LRR's approved line - shown at the prototype sign-off, emitted only with the owner's yes. See ./capturedAllScenes. */
   | { kind: 'scene-run-line'; line: SceneRunLine }
-  /** The closing summary of `sherlo capture --all-scenes`. See ./capturedAllScenes. */
+  /** SMS proposal over LRR's approved line - shown at the prototype sign-off, emitted only with the owner's yes. See ./capturedAllScenes. */
   | { kind: 'all-scenes-summary'; summary: AllScenesSummary }
   /** The whole screen output of `sherlo coverage`. See ./coverage. */
   | { kind: 'coverage'; screen: CoverageScreen }
   /** `sherlo capture --logs` - Sherlo's log from the app, printed after the story. See ./capturedLog. */
   | { kind: 'captured-log'; logs: string[] }
+  /** `sherlo capture` - where the capture was kept. See ./keptCapture. */
+  | { kind: 'kept-capture'; id: string }
+  /** `sherlo capture --all-scenes` - one line for a scene, with how its capture ended. See ./keptCapture. */
+  | { kind: 'captured-each-scene'; sceneId: string; ending: string }
+  /** `sherlo capture --all-scenes` on an app that declares no scene - one plain line. See ./keptCapture. */
+  | { kind: 'no-scenes-to-capture' }
   /* ---------------------------------------------------------------------- *
    * LOGGING IN - what `sherlo login` and `sherlo logout` print when they    *
    * end well. See ./login. No segment here carries a token.                 *

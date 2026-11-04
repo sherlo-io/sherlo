@@ -1,0 +1,4 @@
+[32m✔[39m  [1mchat--conversation[22m captured
+[32m✔[39m  [1mchat--inbox[22m captured
+
+[exit 0]

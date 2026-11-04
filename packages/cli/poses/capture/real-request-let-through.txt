@@ -20,5 +20,7 @@
      mockRequest({ method: 'GET', url: 'https://api.kindred.example/v1/discover/feed' }, { body: /* fill in */ })
      mockRequest({ method: 'GET', url: 'https://api.kindred.example/v1/discover/feed?page=2' }, { body: /* fill in */ })
 
+[2mKept in .sherlo/captures as kindred--discover-tab[22m
+
 
 [exit 0]

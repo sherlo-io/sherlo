@@ -30,5 +30,7 @@
      GET https://api.example.com/graphql?query=feed from @apollo/client
      POST https://analytics.example.com/collect from an analytics SDK
 
+[2mKept in .sherlo/captures as feed--home[22m
+
 
 [exit 0]

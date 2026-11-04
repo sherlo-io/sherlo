@@ -8,5 +8,7 @@
      play: [{ tap: { label: "Accept all" } }]
 [2mPicture saved to ./discover-tab.png[22m
 
+[2mKept in .sherlo/captures as kindred--discover-tab[22m
+
 
 [exit 1]

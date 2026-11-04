@@ -20,7 +20,6 @@ import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { captureLiveScene, type SceneCaptureParams, type SceneCaptureResult } from './liveScene';
 import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
-import { sceneIdsOf } from './sceneDevice';
 
 /** What the app answered about the story the command asked it to capture. */
 export type CaptureResult =
@@ -148,8 +147,6 @@ export type CaptureSocket = {
   }): Promise<CaptureResult>;
   /** Boot the app fresh on one scene, run its play, stabilize with the same settings, and read it. */
   captureScene(params: SceneCaptureParams): Promise<SceneCaptureResult>;
-  /** Every scene id the app's scene files make, in the order a run of every scene takes them. */
-  listScenes(): Promise<string[]>;
 };
 
 /**
@@ -189,8 +186,6 @@ export const liveCaptureSocket: CaptureSocket = {
   },
 
   captureScene: captureLiveScene,
-
-  listScenes: async () => sceneIdsOf(process.cwd()),
 };
 
 let installed: CaptureSocket = liveCaptureSocket;
@@ -628,9 +623,6 @@ export function posedCaptureSocket(
 
   return {
     refusals: () => refusals,
-
-    listScenes: async () =>
-      posed && typeof posed === 'object' && 'scenes' in posed ? posed.scenes : [],
 
     captureStory: async ({ storyId }) => {
       if (!posed) {

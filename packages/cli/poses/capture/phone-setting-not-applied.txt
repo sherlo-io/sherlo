@@ -16,5 +16,7 @@
 
 [2m   2 views · --json prints the record[22m
 
+[2mKept in .sherlo/captures as kindred--discover-tab[22m
+
 
 [exit 0]

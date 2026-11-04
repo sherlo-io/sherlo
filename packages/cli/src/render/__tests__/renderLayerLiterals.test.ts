@@ -1678,6 +1678,7 @@ const PINS: Pin[] = [
   },
 
   {
+    // SMS proposal over LRR's approved line - shown at the prototype sign-off, emitted only with the owner's yes
     kind: 'scene-run-line',
     what: '`sherlo capture --all-scenes` - a captured scene: green tick, bold id, dim ready time and refused count',
     segment: {
@@ -1739,7 +1740,7 @@ const PINS: Pin[] = [
     segment: {
       kind: 'all-scenes-summary',
       summary: {
-        folder: './scenes-out',
+        folder: '.sherlo/captures',
         captured: 1,
         neverSettled: 1,
         neverReached: 1,
@@ -1751,10 +1752,42 @@ const PINS: Pin[] = [
       [''],
       ['4 scenes: 1 captured, 1 never settled, 1 never reached, 1 failed'],
       [
-        `${ESC}[2m   a picture (<id>.png, not for a scene that never came up) and a record (<id>.json) of each are in ./scenes-out${ESC}[22m`,
+        `${ESC}[2m   a picture (not for a scene that never came up) and a record of each are kept in .sherlo/captures${ESC}[22m`,
       ],
       [''],
     ],
+  },
+
+  {
+    kind: 'kept-capture',
+    what: 'the dim line under a capture saying which story or scene was kept, with no time in it',
+    segment: { kind: 'kept-capture', id: 'chat--menu-open' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mKept in .sherlo/captures as chat--menu-open${ESC}[22m`], ['']],
+  },
+
+  {
+    kind: 'captured-each-scene',
+    what: 'the one line `sherlo capture --all-scenes` prints for a scene that came back with its record',
+    segment: { kind: 'captured-each-scene', sceneId: 'chat--menu-open', ending: 'scene' },
+    stream: 'stdout',
+    prints: [[`${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--menu-open${ESC}[22m captured`]],
+  },
+
+  {
+    kind: 'captured-each-scene',
+    what: 'the one line `sherlo capture --all-scenes` prints for a scene that did not come back, naming how it ended',
+    segment: { kind: 'captured-each-scene', sceneId: 'chat--inbox', ending: 'never-reached' },
+    stream: 'stdout',
+    prints: [[`${ESC}[31m✖${ESC}[39m  ${ESC}[1mchat--inbox${ESC}[22m not captured: never-reached`]],
+  },
+
+  {
+    kind: 'no-scenes-to-capture',
+    what: 'the one line `sherlo capture --all-scenes` prints when the app declares no scene, so nothing captured is never silent',
+    segment: { kind: 'no-scenes-to-capture' },
+    stream: 'stdout',
+    prints: [[`${ESC}[33mNo scenes found in this app, so nothing was captured.${ESC}[39m`]],
   },
 
   {

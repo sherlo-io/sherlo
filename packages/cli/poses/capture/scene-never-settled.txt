@@ -27,5 +27,7 @@
 
 [2m   3 views · --json prints the record[22m
 
+[2mKept in .sherlo/captures as feed--live-ticker[22m
+
 
 [exit 1]

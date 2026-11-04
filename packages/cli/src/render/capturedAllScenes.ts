@@ -1,5 +1,6 @@
 /**
- * WHAT `sherlo capture --all-scenes <folder>` PRINTS.
+ * WHAT `sherlo capture --all-scenes` COULD PRINT, as a proposal: not emitted by the command, which
+ * prints LRR's approved lines (./keptCapture) until the owner says yes to these.
  *
  * Pure, like everything under ./: state in, lines out. One progress line per scene, printed as the
  * scene finishes, then one closing summary. The picture and the record of every scene go to the
@@ -93,7 +94,7 @@ export function renderAllScenesSummary(summary: AllScenesSummary): string[] {
     '',
     `${total} ${total === 1 ? 'scene' : 'scenes'}: ${captured} captured, ${neverSettled} never settled, ${neverReached} never reached, ${failed} failed`,
     chalk.dim(
-      `   a picture (<id>.png, not for a scene that never came up) and a record (<id>.json) of each are in ${folder}`
+      `   a picture (not for a scene that never came up) and a record of each are kept in ${folder}`
     ),
     '',
   ];

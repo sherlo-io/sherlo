@@ -185,7 +185,6 @@ describe('a local capture leaves the device clean', () => {
     uninstall();
     uninstall = installDeviceState(recordingDevice(ANDROID));
     const socket: CaptureSocket = {
-      listScenes: async () => [],
       captureStory: async () => {
         throw new Error('a scene capture asked about a story');
       },
@@ -274,7 +273,6 @@ describe('a local capture leaves the device clean', () => {
     });
     let reachedTheApp = false;
     const uninstallSocket = installCaptureSocket({
-      listScenes: async () => [],
       captureStory: async () => ({ kind: 'no-app' }),
       captureScene: async () => {
         reachedTheApp = true;
@@ -319,7 +317,6 @@ describe('a local capture leaves the device clean', () => {
       });
       let reachedTheApp = false;
       const uninstallSocket = installCaptureSocket({
-        listScenes: async () => [],
         captureStory: async () => ({ kind: 'no-app' }),
         captureScene: async () => {
           reachedTheApp = true;

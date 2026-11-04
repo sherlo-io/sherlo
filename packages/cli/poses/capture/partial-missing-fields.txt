@@ -26,5 +26,7 @@
      photoCount: /* fill in */,
      lastActiveAt: /* fill in */,
 
+[2mKept in .sherlo/captures as kindred--profile-own[22m
+
 
 [exit 0]
