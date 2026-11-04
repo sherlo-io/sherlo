@@ -116,6 +116,8 @@ export const MASK_COMMAND = 'mask';
 export const OPEN_COMMAND = 'open';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
 export const CAPTURE_COMMAND = 'capture';
+/** `sherlo capture-report` - open the review page over the captures kept on this computer. */
+export const CAPTURE_REPORT_COMMAND = 'capture-report';
 /** `sherlo coverage` - list the components no story draws. Hidden from `--help`. */
 export const COVERAGE_COMMAND = 'coverage';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
@@ -179,6 +181,12 @@ export const STORY_OPTION = 'story';
  * Storybook's id style gives it (`chat--conversation`). Booted fresh each time, with no Storybook.
  */
 export const SCENE_OPTION = 'scene';
+/** `sherlo capture --all-scenes` - capture every scene the app declares, one after another. */
+export const ALL_SCENES_OPTION = 'allScenes';
+/** The refusal when `--all-scenes` is given with a story, a scene, a picture path or `--discover`. */
+export function allScenesRefusal(): string {
+  return `\`npx sherlo capture --all-scenes\` takes none of \`--${STORY_OPTION}\`, \`--${SCENE_OPTION}\`, \`--${PNG_OPTION}\` or \`--${DISCOVER_OPTION}\`.`;
+}
 /**
  * `sherlo capture --scene <id> --discover` - hold every request the scene makes that no mock
  * answers, and list them as the rules that would answer them instead of capturing a picture.

@@ -5,5 +5,7 @@
   chat-list--inbox
   chat-list--empty
 
+[2mKept in .sherlo/captures as chat--typo[22m
+
 
 [exit 1]

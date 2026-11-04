@@ -126,6 +126,24 @@ runs:
           scripts/set-package-env.sh scripts/build.sh scripts/prepare-packages.sh
         OPTIONAL_LIBS_INPUTS: .yarnrc .yarnrc.yml
 
+    # The review page init-env.sh fetches is published on its own, so a page published later must
+    # miss the cached sherlo-lib. Its identity is the tarball's ETag, read with a one-byte ranged
+    # GET (the address is signed for GET, so a HEAD would be refused); `none` is a page not
+    # published yet, or a token that cannot read it.
+    - name: Resolve the local page
+      if: steps.libs.outputs.ref != ''
+      id: local_page
+      shell: bash
+      env:
+        PACKAGE_TOKEN: ${{ inputs.package-token }}
+      run: |
+        page_etag=none
+        if page_url=$(curl -sf "https://8gbu9wv7jd.execute-api.eu-central-1.amazonaws.com/dev/get-package-endpoint?token=$PACKAGE_TOKEN&objectKey=dev/sherlo-local-page.tgz"); then
+          page_etag=$(curl -s -r 0-0 -D - -o /dev/null "$page_url" | tr -d '\r"' | awk 'tolower($1) == "etag:" { print $2 }')
+        fi
+        echo "The local page is: ${page_etag:-none}"
+        echo "etag=$(printf '%s' "${page_etag:-none}" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
     # Both caches carry the libs' inputs in their key, never yarn.lock alone: the libs are
     # built from a moving head that yarn.lock knows nothing about, and node_modules links to
     # them. Both also carry this repository's own scripts/init-env.sh, which builds them. A PR
@@ -138,7 +156,7 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: sherlo-lib
-        key: sherlo-lib-${{ steps.libs_commit.outputs.key }}-${{ hashFiles('scripts/init-env.sh') }}
+        key: sherlo-lib-${{ steps.libs_commit.outputs.key }}-${{ hashFiles('scripts/init-env.sh') }}-${{ steps.local_page.outputs.etag }}
 
     - name: Cache node_modules
       if: steps.libs.outputs.ref != ''

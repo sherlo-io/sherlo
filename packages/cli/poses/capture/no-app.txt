@@ -2,5 +2,7 @@
 
 [2mOpen the app on a device or simulator, then try again.[22m
 
+[2mKept in .sherlo/captures as foundation-typography--scales[22m
+
 
 [exit 1]

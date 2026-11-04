@@ -281,5 +281,7 @@
 
 [2m   25 views · --json prints the record[22m
 
+[2mKept in .sherlo/captures as chat--menu-open[22m
+
 
 [exit 0]

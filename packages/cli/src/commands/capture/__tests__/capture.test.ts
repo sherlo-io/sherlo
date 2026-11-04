@@ -23,6 +23,7 @@ import { installDeviceState, posedDeviceState } from '../../../seams/deviceState
 import { installProjectFiles } from '../../../seams/projectFiles';
 import type { CapturedView } from '../../../render/capturedStory';
 import {
+  ALL_SCENES_OPTION,
   DISCOVER_OPTION,
   JSON_OPTION,
   LOGS_OPTION,
@@ -165,6 +166,22 @@ const ENDINGS: Ending[] = [
     exits: EXIT_BLOCK,
   },
 ];
+
+/** Every capture is kept in a project folder, so none of these cases may keep one in the working folder. */
+let keptIn: string;
+let uninstallKeptIn: () => void;
+let uninstallNoDevice: () => void;
+beforeEach(() => {
+  keptIn = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-kept-in-'));
+  uninstallKeptIn = installProjectFiles({ root: () => keptIn });
+  // A story capture looks for a phone to keep a picture from; these cases have none unless they install one.
+  uninstallNoDevice = installDeviceState(posedDeviceState());
+});
+afterEach(() => {
+  uninstallNoDevice();
+  uninstallKeptIn();
+  fs.rmSync(keptIn, { recursive: true, force: true });
+});
 
 describe("the settings a capture sends are the runner's stabilization values", () => {
   it("sends the runner's stabilization values to the app", async () => {
@@ -569,14 +586,19 @@ describe('a scene capture can save the screen it captured', () => {
 });
 
 describe('only a scene is given a clean device', () => {
-  it("a story capture never touches the developer's device", async () => {
-    // A story is captured in the app already running; wiping its data would be a loss for nothing.
-    let askedForADevice = false;
+  // A story capture now also keeps the picture and the device (see keptCaptures.test.ts), so it looks at
+  // the device; what it still never does is clean it - wiping the app's data would be a loss for nothing.
+  it("a story capture only looks at the developer's device and never cleans it", async () => {
+    const ran: string[] = [];
     const uninstall = installDeviceState({
       ...posedDeviceState(),
-      sceneTarget: async () => {
-        askedForADevice = true;
-        return { cause: 'no-phone', found: [] };
+      sceneTarget: async () => ({
+        device: { platform: 'ios', udid: 'SIM-1' },
+        app: { id: 'com.example.app' },
+      }),
+      run: async (tool, args) => {
+        ran.push(`${tool} ${args.join(' ')}`);
+        return '{}';
       },
     });
 
@@ -586,7 +608,8 @@ describe('only a scene is given a clean device', () => {
       uninstall();
     }
 
-    expect(askedForADevice).toBe(false);
+    expect(ran.length).toBeGreaterThan(0);
+    expect(ran.every((line) => /screenshot|simctl list/.test(line))).toBe(true);
   });
 });
 
@@ -969,5 +992,89 @@ describe("the style block follows the inspector's property order and shorthands"
     expect(screen).toContain('style={{\n       padding: 8,\n       borderRadius: 4\n     }}');
     expect(screen).not.toContain('paddingTop');
     expect(screen).not.toContain('borderTopLeftRadius');
+  });
+});
+
+describe('a capture leaves no mark behind and prints plain data on request', () => {
+  const capturingMarks = () => {
+    const captures = path.join(keptIn, '.sherlo', 'captures');
+    if (!fs.existsSync(captures)) return [];
+    return fs
+      .readdirSync(captures)
+      .filter((name) => fs.existsSync(path.join(captures, name, 'capturing')));
+  };
+
+  it('a capture that throws leaves no capturing mark', async () => {
+    const uninstall = installCaptureSocket({
+      captureStory: async () => {
+        throw new Error('the socket broke');
+      },
+      captureScene: async () => {
+        throw new Error('a story capture asked about a scene');
+      },
+    });
+    try {
+      await expect(capture({ [STORY_OPTION]: STORY })).rejects.toThrow('the socket broke');
+    } finally {
+      uninstall();
+    }
+    expect(capturingMarks()).toEqual([]);
+  });
+
+  it('a scene capture that throws leaves no capturing mark and no folder', async () => {
+    const uninstall = installCaptureSocket({
+      captureStory: async () => {
+        throw new Error('a scene capture asked about a story');
+      },
+      captureScene: async () => {
+        throw new Error('the scene socket broke');
+      },
+    });
+    try {
+      await expect(capture({ [SCENE_OPTION]: 'chat--open' })).rejects.toThrow(
+        'the scene socket broke'
+      );
+    } finally {
+      uninstall();
+    }
+    const captures = path.join(keptIn, '.sherlo', 'captures');
+    expect(fs.readdirSync(captures)).toEqual([]);
+  });
+
+  it('capturing every scene with --json prints one document', async () => {
+    fs.writeFileSync(
+      path.join(keptIn, 'chat.scenes.tsx'),
+      'export default scenes({ scenes: { Open: {}, Closed: {} } });\n'
+    );
+    const uninstall = installCaptureSocket({
+      captureStory: async () => {
+        throw new Error('a scene capture asked about a story');
+      },
+      captureScene: async ({ sceneId }) => ({
+        kind: 'scene',
+        sceneId,
+        bootMs: 900,
+        reached: { route: ['Chat'], ms: 300 },
+        play: [],
+        settled: SETTLED,
+        tree: ONE_VIEW,
+      }),
+    });
+    const written: string[] = [];
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+      written.push(String(text));
+      return true;
+    }) as never);
+    try {
+      await capture({ [ALL_SCENES_OPTION]: true, [JSON_OPTION]: true });
+    } finally {
+      write.mockRestore();
+      uninstall();
+    }
+    const { scenes } = JSON.parse(written.join(''));
+    expect(scenes).toHaveLength(2);
+    for (const scene of scenes) {
+      expect(scene.record).toMatchObject({ kind: 'scene', sceneId: scene.sceneId });
+    }
   });
 });
