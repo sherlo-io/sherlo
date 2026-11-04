@@ -75,7 +75,7 @@ import { renderCapturedScene } from './capturedScene';
 import { renderAllScenesSummary, renderSceneRunLine } from './capturedAllScenes';
 import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
-import { renderEachScene, renderKeptCapture, renderNoScenesToCapture } from './keptCapture';
+import { renderKeptCapture, renderNoScenesToCapture } from './keptCapture';
 import { renderTeamList } from './teamList';
 import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
 import {
@@ -487,14 +487,12 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: renderCapturedScene(segment.state, segment.picture).map((line) => [line]),
       };
 
-    // SMS proposal over LRR's approved line - shown at the prototype sign-off, emitted only with the owner's yes
     case 'scene-run-line':
       return {
         stream: 'stdout',
         prints: renderSceneRunLine(segment.line).map((line) => [line]),
       };
 
-    // SMS proposal over LRR's approved line - shown at the prototype sign-off, emitted only with the owner's yes
     case 'all-scenes-summary':
       return {
         stream: 'stdout',
@@ -509,12 +507,6 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     case 'kept-capture':
       return { stream: 'stdout', prints: renderKeptCapture(segment.id).map((line) => [line]) };
-
-    case 'captured-each-scene':
-      return {
-        stream: 'stdout',
-        prints: renderEachScene(segment.sceneId, segment.ending).map((line) => [line]),
-      };
 
     case 'no-scenes-to-capture':
       return { stream: 'stdout', prints: renderNoScenesToCapture().map((line) => [line]) };

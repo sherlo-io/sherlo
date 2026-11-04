@@ -1678,7 +1678,6 @@ const PINS: Pin[] = [
   },
 
   {
-    // SMS proposal over LRR's approved line - shown at the prototype sign-off, emitted only with the owner's yes
     kind: 'scene-run-line',
     what: '`sherlo capture --all-scenes` - a captured scene: green tick, bold id, dim ready time and refused count',
     segment: {
@@ -1735,6 +1734,67 @@ const PINS: Pin[] = [
   },
 
   {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a scene failing for the cause the one before it did: its line, then the warning said once, the fake that answers it and where to paste it',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'kindred--chat-empty',
+        ending: 'never-reached',
+        ready: 'chat.input.message',
+        refused: 1,
+        sameCause: {
+          remaining: 3,
+          cause: 'the app thinks it is offline',
+          fake: 'rule: GET generate_204',
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  ${ESC}[1mkindred--chat-empty${ESC}[22m never reached - no view chat.input.message showed${ESC}[2m · 1 refused${ESC}[22m`,
+      ],
+      [`${ESC}[33m◦${ESC}[39m  3 more scenes may fail the same way: the app thinks it is offline`],
+      ['     rule: GET generate_204'],
+      [
+        `${ESC}[2m   Paste it once where the scenes share their mocks, then capture again.${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes --stop-on-repeat` - the same cause again: the run stops there and says how many scenes were not run',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'kindred--chat-empty',
+        ending: 'never-reached',
+        ready: 'chat.input.message',
+        refused: 1,
+        sameCause: {
+          remaining: 1,
+          cause: 'the app thinks it is offline',
+          fake: 'rule: GET generate_204',
+          stopped: true,
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  ${ESC}[1mkindred--chat-empty${ESC}[22m never reached - no view chat.input.message showed${ESC}[2m · 1 refused${ESC}[22m`,
+      ],
+      [`${ESC}[33m◦${ESC}[39m  1 more scene not run, same cause: the app thinks it is offline`],
+      ['     rule: GET generate_204'],
+      [
+        `${ESC}[2m   Paste it once where the scenes share their mocks, then capture again.${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
     kind: 'all-scenes-summary',
     what: '`sherlo capture --all-scenes` closing lines - a blank line, the counts, the dim line saying where the files are, a blank line',
     segment: {
@@ -1764,22 +1824,6 @@ const PINS: Pin[] = [
     segment: { kind: 'kept-capture', id: 'chat--menu-open' },
     stream: 'stdout',
     prints: [[`${ESC}[2mKept in .sherlo/captures as chat--menu-open${ESC}[22m`], ['']],
-  },
-
-  {
-    kind: 'captured-each-scene',
-    what: 'the one line `sherlo capture --all-scenes` prints for a scene that came back with its record',
-    segment: { kind: 'captured-each-scene', sceneId: 'chat--menu-open', ending: 'scene' },
-    stream: 'stdout',
-    prints: [[`${ESC}[32m✔${ESC}[39m  ${ESC}[1mchat--menu-open${ESC}[22m captured`]],
-  },
-
-  {
-    kind: 'captured-each-scene',
-    what: 'the one line `sherlo capture --all-scenes` prints for a scene that did not come back, naming how it ended',
-    segment: { kind: 'captured-each-scene', sceneId: 'chat--inbox', ending: 'never-reached' },
-    stream: 'stdout',
-    prints: [[`${ESC}[31m✖${ESC}[39m  ${ESC}[1mchat--inbox${ESC}[22m not captured: never-reached`]],
   },
 
   {

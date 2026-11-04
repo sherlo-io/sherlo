@@ -1,0 +1,50 @@
+{
+  "pose": 1,
+  "files": {
+    "feed.scenes.tsx": "export default scenes({ scenes: { Home: {}, LiveTicker: {} } });\n",
+    "profile.scenes.tsx": "export default scenes({ scenes: { OwnProfile: {} } });\n",
+    "settings.scenes.tsx": "export default scenes({ scenes: { Account: {} } });\n"
+  },
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--all-scenes"],
+  "capture": {
+    "scenes": ["feed--home", "feed--live-ticker", "profile--own-profile", "settings--account"],
+    "everyScene": [
+      {
+        "sceneId": "feed--home",
+        "ending": "captured",
+        "bootMs": 1500,
+        "reachedMs": 2300,
+        "settledMs": 600,
+        "unanswered": [
+          {
+            "method": "POST",
+            "url": "https://api.example.com/graphql",
+            "library": "@apollo/client"
+          }
+        ]
+      },
+      {
+        "sceneId": "feed--live-ticker",
+        "ending": "never-settled",
+        "reachedMs": 2100,
+        "changing": ["TickerValue", "LoadingSpinner"]
+      },
+      {
+        "sceneId": "profile--own-profile",
+        "ending": "never-reached",
+        "ready": "profile.header"
+      },
+      {
+        "sceneId": "settings--account",
+        "ending": "crashed-at-boot"
+      }
+    ]
+  }
+}

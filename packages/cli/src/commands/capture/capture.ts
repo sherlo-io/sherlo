@@ -19,11 +19,13 @@ import {
   PNG_OPTION,
   PORT_OPTION,
   SCENE_OPTION,
+  STOP_ON_REPEAT_OPTION,
   STORY_OPTION,
   allScenesRefusal,
   discoverRefusal,
   pngWithoutSceneRefusal,
   sceneWithStoryRefusal,
+  stopOnRepeatRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
 import getCwd from '../../helpers/getCwd';
@@ -42,18 +44,29 @@ import {
   saveScreenPicture,
 } from '../../seams/deviceState';
 import type { NoTarget, SceneDevice, SceneTarget } from '../../seams/deviceState';
-import { dropCapture, guardCapture, keepCapture, newCapture } from '../../seams/localCaptures';
+import {
+  CAPTURES_FOLDER,
+  dropCapture,
+  guardCapture,
+  keepCapture,
+  newCapture,
+} from '../../seams/localCaptures';
 import type { NewCapture } from '../../seams/localCaptures';
 import { readLocalDevice } from '../../seams/localDevice';
 import type { CaptureResult } from '../../seams/captureSocket';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene, ScenePicture } from '../../render/capturedScene';
+import { outcomeOf } from '../../render/capturedAllScenes';
+import type { SceneOutcome, SceneRunLine } from '../../render/capturedAllScenes';
+import { explainRefusals } from '../../render/refusalExplanation';
+import type { RefusalCause } from '../../render/refusalExplanation';
 
 export type CaptureOptions = {
   [STORY_OPTION]?: string;
   [SCENE_OPTION]?: string;
   [ALL_SCENES_OPTION]?: boolean;
+  [STOP_ON_REPEAT_OPTION]?: boolean;
   [DISCOVER_OPTION]?: boolean;
   [PORT_OPTION]?: string;
   [JSON_OPTION]?: boolean;
@@ -70,6 +83,9 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
       throwError({ message: allScenesRefusal() });
     }
     return captureEveryScene(passedOptions);
+  }
+  if (passedOptions[STOP_ON_REPEAT_OPTION]) {
+    throwError({ message: stopOnRepeatRefusal() });
   }
   if (sceneId && storyId) {
     throwError({ message: sceneWithStoryRefusal('capture') });
@@ -152,7 +168,10 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
 
 /**
  * `sherlo capture --all-scenes` - every scene the app declares, one after another, each kept the
- * same way and each told in one line. The scenes are read where `--scene` finds one.
+ * same way. The scenes are read where `--scene` finds one. Each prints one line as it finishes
+ * (../../render/capturedAllScenes); a scene failing for the cause the one before it did warns
+ * once and the run carries on - or stops, with `--stop-on-repeat` - and a closing summary counts
+ * the endings and says where the captures are.
  */
 async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
   const sceneIds = sceneIdsOfApp(getCwd());
@@ -163,15 +182,82 @@ async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
   }
   let failed = false;
   const scenes: { sceneId: string; record: unknown }[] = [];
-  for (const sceneId of sceneIds) {
+  const counts: Record<SceneOutcome, number> = {
+    captured: 0,
+    'never-settled': 0,
+    'never-reached': 0,
+    failed: 0,
+  };
+  // The cause the scene before failed for, and whether the run has already warned of it.
+  let lastCause: RefusalCause | undefined;
+  let warned = false;
+  for (const [index, sceneId] of sceneIds.entries()) {
     const { answer, record, discover } = await runScene(sceneId, passedOptions);
-    if (asJson) scenes.push({ sceneId, record });
-    else emit({ kind: 'captured-each-scene', sceneId, ending: answer.kind });
     failed = failed || sceneFailed(answer, discover);
+    counts[outcomeOf(answer.kind)] += 1;
+    const cause = causeOfNeverReached(answer);
+    const remaining = sceneIds.length - index - 1;
+    const repeated = cause !== undefined && cause.id === lastCause?.id && remaining > 0;
+    const stopping = repeated && passedOptions[STOP_ON_REPEAT_OPTION] === true;
+    const sameCause: SceneRunLine['sameCause'] =
+      repeated && (stopping || !warned)
+        ? {
+            remaining,
+            cause: cause.short,
+            ...(cause.fakes[0] && { fake: cause.fakes[0] }),
+            ...(stopping && { stopped: true as const }),
+          }
+        : undefined;
+    warned ||= sameCause !== undefined;
+    lastCause = cause;
+    if (asJson) scenes.push({ sceneId, record });
+    else emit({ kind: 'scene-run-line', line: { ...sceneRunLine(sceneId, answer), sameCause } });
+    if (stopping) break;
   }
-  // One document for the whole run; each scene's record is what `--scene <id> --json` prints.
-  if (asJson) process.stdout.write(`${JSON.stringify({ scenes }, null, 2)}\n`);
+  if (asJson) {
+    // One document for the whole run; each scene's record is what `--scene <id> --json` prints.
+    process.stdout.write(`${JSON.stringify({ scenes }, null, 2)}\n`);
+  } else {
+    emit({
+      kind: 'all-scenes-summary',
+      summary: {
+        folder: CAPTURES_FOLDER,
+        captured: counts.captured,
+        neverSettled: counts['never-settled'],
+        neverReached: counts['never-reached'],
+        failed: counts.failed,
+      },
+    });
+  }
   if (failed) process.exit(EXIT_BLOCK);
+}
+
+/** The first cause the refused requests of a scene that never got ready point to, when they point to any. */
+function causeOfNeverReached(answer: SceneCaptureResult): RefusalCause | undefined {
+  if (answer.kind !== 'never-reached') return undefined;
+  return explainRefusals(answer.unanswered)?.causes[0];
+}
+
+/** What the line of one scene says, read from the app's answer. */
+function sceneRunLine(sceneId: string, answer: SceneCaptureResult): SceneRunLine {
+  const said = answer as {
+    bootMs?: number;
+    settled?: { ms?: number };
+    reached?: { ms?: number };
+    changing?: string[];
+    ready?: string;
+    unanswered?: unknown[];
+  };
+  return {
+    sceneId,
+    ending: answer.kind,
+    ...(said.bootMs && { launchMs: said.bootMs }),
+    ...(said.settled?.ms && { settledMs: said.settled.ms }),
+    ...(said.reached?.ms !== undefined && { readyMs: said.reached.ms }),
+    ...(said.changing && { changing: said.changing }),
+    ...(said.ready !== undefined && { ready: said.ready }),
+    refused: said.unanswered?.length ?? 0,
+  };
 }
 
 /** Whether a scene ending leaves the command with the block code; a discover capture's list is not a failure. */

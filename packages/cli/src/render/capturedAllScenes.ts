@@ -1,10 +1,9 @@
 /**
- * WHAT `sherlo capture --all-scenes` COULD PRINT, as a proposal: not emitted by the command, which
- * prints LRR's approved lines (./keptCapture) until the owner says yes to these.
+ * WHAT `sherlo capture --all-scenes` PRINTS, one line per scene and a closing summary.
  *
  * Pure, like everything under ./: state in, lines out. One progress line per scene, printed as the
- * scene finishes, then one closing summary. The picture and the record of every scene go to the
- * folder, never to the screen: the screen says only how each scene ended and where to look.
+ * scene finishes, then one closing summary. The picture and the record of every scene are kept in
+ * .sherlo/captures (./keptCapture), never on the screen: the screen says only how each scene ended.
  */
 import chalk from 'chalk';
 import { seconds } from './capturedStory';
@@ -39,12 +38,13 @@ export type SceneRunLine = {
   settledMs?: number;
   /**
    * This scene failed for the cause the one before it did: the scenes still to run may fail the same
-   * way. Said once per run, with the fake that answers the cause when there is one.
+   * way. Said once per run, with the fake that answers the cause when there is one; `stopped` says
+   * the run stopped there (`--stop-on-repeat`) and the scenes still to run were not run.
    */
-  sameCause?: { remaining: number; cause: string; fake?: string };
+  sameCause?: { remaining: number; cause: string; fake?: string; stopped?: true };
 };
 
-/** The count of each outcome over a run, and where the pictures and records went. */
+/** The count of each outcome over the scenes a run ran, and where the pictures and records went. */
 export type AllScenesSummary = {
   folder: string;
   captured: number;
@@ -78,7 +78,7 @@ export function renderSceneRunLine(line: SceneRunLine): string[] {
     `${markOf(outcome)}  ${chalk.bold(line.sceneId)} ${words[outcome]}${chalk.dim(`${launch}${ready}${settled}${refused}`)}`,
     ...(sameCause
       ? [
-          `${chalk.yellow('◦')}  ${sameCause.remaining} more ${sameCause.remaining === 1 ? 'scene' : 'scenes'} may fail the same way: ${sameCause.cause}`,
+          `${chalk.yellow('◦')}  ${sameCause.remaining} more ${sameCause.remaining === 1 ? 'scene' : 'scenes'} ${sameCause.stopped ? 'not run, same cause' : 'may fail the same way'}: ${sameCause.cause}`,
           ...(sameCause.fake ? [`     ${sameCause.fake}`] : []),
           chalk.dim('   Paste it once where the scenes share their mocks, then capture again.'),
         ]
