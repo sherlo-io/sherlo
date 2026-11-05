@@ -124,6 +124,23 @@ describe('the connection', () => {
     );
   });
 
+  it('a refusal sent before the line is open is queued and delivered, not dropped', async () => {
+    await servedByABundler();
+    const { startTheLine, send } = await import('../connection/appLine');
+
+    send({ action: 'log', line: 'refused: GET https://launch.example/a' });
+    expect(actionsSent()).toEqual([]);
+
+    startTheLine();
+
+    // The hello opens the line; what waited goes out after it.
+    expect(actionsSent()[0]).toBe('hello');
+    expect(__getSentMessages()).toContainEqual({
+      action: 'log',
+      line: 'refused: GET https://launch.example/a',
+    });
+  });
+
   it('outside testing mode the app sends no story report and no error over the connection', async () => {
     for (const mode of ['default', 'storybook']) {
       vi.resetModules();

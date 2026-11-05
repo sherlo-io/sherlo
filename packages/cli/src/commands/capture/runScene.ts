@@ -24,6 +24,8 @@ import type { NoTarget, SceneDevice, SceneTarget } from '../../seams/deviceState
 import { dropCapture, guardCapture, keepCapture, newCapture } from '../../seams/localCaptures';
 import type { NewCapture } from '../../seams/localCaptures';
 import { readLocalDevice } from '../../seams/localDevice';
+import { nameSendersByCode } from '../../seams/senderByCode';
+import { symbolicateStacks } from '../../seams/symbolicateStack';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { ScenePicture } from '../../render/capturedScene';
 import type { CaptureOptions } from './captureOptions';
@@ -68,6 +70,11 @@ async function runOpenScene(
           discover,
         })
       : { kind: 'no-app', why: 'not-installed' };
+    // Each refusal's stack is read through the bundler; a request still named by no package is
+    // named by the project's dependency whose code holds its host.
+    if (answer.kind === 'scene' || answer.kind === 'never-reached') {
+      answer = nameSendersByCode(await symbolicateStacks(answer, port), getCwd());
+    }
     // The screen as the app left it: the clean device's put-back below would show the home screen.
     if (picture && answer.kind === 'scene' && isTarget(target)) {
       picture = await savePicture(target.device, picture.path);

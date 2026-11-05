@@ -2762,12 +2762,39 @@ function readUnansweredRequest(value: unknown, path: string, problems: string[])
     if ('bodyExcerpt' in object1) {
       expectString(object1.bodyExcerpt, at(path, 'bodyExcerpt'), problems);
     }
+    if ('scope' in object1) {
+      expectOneOf(object1.scope, ['background', 'screen'], at(path, 'scope'), problems);
+    }
+    if ('rule' in object1) {
+      expectOneOf(object1.rule, ['fake-refused', 'no-fake-matched'], at(path, 'rule'), problems);
+    }
+    if ('fakeAt' in object1) {
+      expectString(object1.fakeAt, at(path, 'fakeAt'), problems);
+    }
+    if ('stack' in object1) {
+      expectString(object1.stack, at(path, 'stack'), problems);
+    }
     if ('library' in object1) {
       expectString(object1.library, at(path, 'library'), problems);
     }
+    if ('codeNames' in object1) {
+      expectString(object1.codeNames, at(path, 'codeNames'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['method', 'url', 'contentType', 'operation', 'bodyExcerpt', 'library'],
+      [
+        'method',
+        'url',
+        'contentType',
+        'operation',
+        'bodyExcerpt',
+        'scope',
+        'rule',
+        'fakeAt',
+        'stack',
+        'library',
+        'codeNames',
+      ],
       path,
       problems
     );

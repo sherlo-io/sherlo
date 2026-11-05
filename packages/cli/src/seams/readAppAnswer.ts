@@ -3,20 +3,18 @@
  * scene road (liveScene) use to take a list of strings or a list of unanswered requests off the
  * wire. They live apart so the two roads can share them without importing each other.
  */
+import type { RefusedRequest } from '../../../react-native-storybook/src/mocking/refusedRequest';
 import { keepStrings } from './appLog';
 
 /**
  * A request that no mock answered; the app lists it whether the story refused it or let it through.
  * The details are what a discover capture sends (masked, never a whole body); a story record keeps none.
  */
-export type UnansweredRequest = {
-  method: string;
-  url: string;
-  contentType?: string;
-  operation?: string;
-  bodyExcerpt?: string;
+export type UnansweredRequest = RefusedRequest & {
   /** The npm package whose code made the request, when the app's call stack names one. */
   library?: string;
+  /** Set on the Mac, never by the app: the package under node_modules whose code holds the host (see ./senderByCode). */
+  codeNames?: string;
 };
 
 /** What the SDK finds wrong in a faked GraphQL answer, as the app lists it. */
@@ -78,7 +76,16 @@ export function readUnanswered(value: unknown, details = false): UnansweredReque
     const { method, url, ...more } = (entry ?? {}) as Record<string, unknown>;
     if (typeof method !== 'string' || typeof url !== 'string') continue;
     const kept = details
-      ? keepStringFields(more, ['contentType', 'operation', 'bodyExcerpt', 'library'])
+      ? keepStringFields(more, [
+          'contentType',
+          'operation',
+          'bodyExcerpt',
+          'library',
+          'scope',
+          'rule',
+          'fakeAt',
+          'stack',
+        ])
       : {};
     read.push({ method, url, ...kept });
   }

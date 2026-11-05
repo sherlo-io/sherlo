@@ -40,6 +40,11 @@ const nativeModule = TurboModule ?? NativeModules.SherloModule ?? null;
 
 let hasStarted = false;
 
+/** How many messages wait for the line to start: a refusal made at launch must not be lost. */
+const MAX_WAITING = 500;
+/** The messages sent before the line started, in order; they go out right after the hello. */
+let waitingForTheLine: string[] = [];
+
 /**
  * One line in the phone's log about the bundler's line, so a capture that finds no app can be told
  * from the log: it holds the address, an action name or a wait's length, never a message body.
@@ -54,10 +59,15 @@ export function logTheLine(what: string): void {
   if (SherloModule.getMode() === 'testing') send({ action: 'log', line });
 }
 
-/** Send one message over the connection. */
+/**
+ * Send one message over the connection. Before the line has started (the hello is not out yet) it
+ * waits, and goes out after the hello, so a request refused as the app launches still arrives.
+ */
 export function send(message: MessageFromTheAppToTheLine): void {
   if (typeof nativeModule?.sendMessage !== 'function') return;
-  nativeModule.sendMessage(JSON.stringify(message));
+  const json = JSON.stringify(message);
+  if (hasStarted) nativeModule.sendMessage(json);
+  else if (waitingForTheLine.length < MAX_WAITING) waitingForTheLine.push(json);
 }
 
 /** Hear every message the connection brings from now on; the answer stops hearing them. */
@@ -126,6 +136,8 @@ export function startTheLine(): void {
     jsVersion: JS_MODULE_VERSION,
   });
   logTheLine('sent its hello');
+  for (const waiting of waitingForTheLine) nativeModule?.sendMessage?.(waiting);
+  waitingForTheLine = [];
 
   const origin = bundlerOrigin();
   if (origin === null) return;
@@ -140,4 +152,5 @@ export function startTheLine(): void {
 
 export function __resetForTests(): void {
   hasStarted = false;
+  waitingForTheLine = [];
 }

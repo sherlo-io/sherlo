@@ -73,6 +73,62 @@ describe('requests refused by the hundred', () => {
     expect(cause?.short).toBe('the services the app starts were refused');
   });
 
+  it("an offline check, the app's own API and three or more vendor hosts each get their own explanation", () => {
+    const rule = 'no-fake-matched' as const;
+    const vendorHosts = ['api.segment.io', 'api2.amplitude.com', 'api.adapty.io'];
+    const explained = explainRefusals([
+      { ...OFFLINE_CHECK, rule, scope: 'background' },
+      {
+        method: 'POST',
+        url: 'https://app.example/graphql',
+        operation: 'Me',
+        rule,
+        scope: 'screen',
+        stack: 'at fetch (node_modules/@apollo/client/link/http.js:1:1)',
+      },
+      ...vendorHosts.map((host) => ({ method: 'POST', url: `https://${host}/x`, rule })),
+    ]);
+
+    const byId = Object.fromEntries((explained?.causes ?? []).map((cause) => [cause.id, cause]));
+    expect(Object.keys(byId)).toEqual([
+      'thinks-offline',
+      'own-api-refused',
+      'vendor-sdks-starting',
+    ]);
+    // Each cause says who sent what it explains, and the rule that blocked it.
+    expect(byId['own-api-refused'].senders).toEqual(['@apollo/client']);
+    expect(byId['own-api-refused'].rules).toEqual(['no fake matched it']);
+    expect(byId['vendor-sdks-starting'].senders).toEqual([
+      '@segment/analytics-react-native (by its host)',
+      '@amplitude/analytics-react-native (by its host)',
+      'react-native-adapty (by its host)',
+    ]);
+    expect(byId['thinks-offline'].rules).toEqual(['no fake matched it']);
+    const printed = refusalLines(
+      Array.from({ length: 10 }, () => ({ method: 'GET', url: 'https://app.example/a', rule }))
+    )?.join('\n');
+    expect(printed).toContain('rule: no fake matched it');
+  });
+
+  it('a request a fake of yours refused says where that fake was declared', () => {
+    const socket = {
+      method: 'WS',
+      url: 'wss://live.app.example/feed',
+      rule: 'fake-refused' as const,
+    };
+    const placed = explainRefusals([
+      { ...socket, fakeAt: 'at stories (/app/src/Feed.stories.tsx:12:5)' },
+    ]);
+    const unplaced = explainRefusals([{ ...socket, fakeAt: 'unknown' }]);
+
+    expect(placed?.causes[0].rules).toEqual([
+      'a fake of yours refused it (declared at /app/src/Feed.stories.tsx:12)',
+    ]);
+    expect(unplaced?.causes[0].rules).toEqual([
+      'a fake of yours refused it (declared somewhere unknown)',
+    ]);
+  });
+
   it('lists a few refused requests one by one, as ever', () => {
     expect(refusalLines([OFFLINE_CHECK])).toBeUndefined();
   });

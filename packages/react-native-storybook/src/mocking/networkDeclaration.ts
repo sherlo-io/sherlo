@@ -56,10 +56,14 @@ export interface SocketMatcher {
  */
 export type SocketAnswer = 'pending' | 'refuse';
 
-/** One socket matcher and the answer it gives. */
+/**
+ * One socket matcher and the answer it gives. `declaredAt` is the call-stack line of the
+ * `mockRequest.socket` call, so a refusal by this fake can say where the fake is.
+ */
 export interface SocketRule {
   matcher: SocketMatcher;
   answer: SocketAnswer;
+  declaredAt?: string;
 }
 
 /**
@@ -117,10 +121,11 @@ mockRequest.passthrough = (): NetworkMockDeclaration => ({ kind: 'network', pass
  * In a story with any network mock, every WebSocket is held by Sherlo: one no socket rule matches
  * is refused and listed as `WS <url>`, whatever `passthrough` says.
  */
-mockRequest.socket = (matcher: SocketMatcher, answer: SocketAnswer): NetworkMockDeclaration => ({
-  kind: 'network',
-  socket: { matcher, answer },
-});
+mockRequest.socket = (matcher: SocketMatcher, answer: SocketAnswer): NetworkMockDeclaration => {
+  // Line 0 is "Error", line 1 this function: line 2 is whoever declared the fake.
+  const declaredAt = (new Error().stack ?? '').split('\n')[2]?.trim();
+  return { kind: 'network', socket: { matcher, answer, ...(declaredAt && { declaredAt }) } };
+};
 
 /** The network mocks among `mocks`, in the order declared: when two match, the last one answers. */
 export function networkMocksOf(mocks: StoryMocks): NetworkMocks {

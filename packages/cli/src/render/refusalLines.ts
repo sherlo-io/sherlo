@@ -4,6 +4,7 @@
  * Pure: the record's refused requests in, the lines out.
  */
 import chalk from 'chalk';
+import { senderWords } from '../seams/requestSender';
 import { explainRefusals } from './refusalExplanation';
 import type { AddressCount } from './refusalExplanation';
 
@@ -13,9 +14,7 @@ const MANY_REQUESTS = 10;
 const TOP_ADDRESSES = 5;
 
 function addressLine({ address, methods, times, sender }: AddressCount): string {
-  const from = sender
-    ? ` from ${sender.library}${sender.how === 'host' ? ' (by its host)' : ''}`
-    : '';
+  const from = sender ? ` from ${senderWords(sender)}` : '';
   return `     ${String(times).padStart(4)}  ${methods.join('/')} ${address}${from}`;
 }
 
@@ -40,9 +39,17 @@ export function refusalLines(refused: Parameters<typeof explainRefusals>[0]): st
           `     ${String(restTimes).padStart(4)}  more, to ${rest.length} other ${rest.length === 1 ? 'address' : 'addresses'}`,
         ]
       : []),
-    ...causes.flatMap(({ words, fakes, moreFakes }) => [
+    ...causes.flatMap(({ words, fakes, moreFakes, senders, rules }) => [
       '',
       `  ${words}`,
+      ...(senders.length + rules.length > 0
+        ? [
+            `     ${[
+              ...(senders.length > 0 ? [`sent by ${senders.join(', ')}`] : []),
+              ...(rules.length > 0 ? [`rule: ${rules.join(', ')}`] : []),
+            ].join('; ')}`,
+          ]
+        : []),
       ...fakes.map((fake) => `     ${fake}`),
       ...(moreFakes > 0 ? [`     ... and ${moreFakes} more like these`] : []),
     ]),
