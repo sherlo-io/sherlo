@@ -6,19 +6,17 @@
  */
 import { fieldsStillWaitingForFocus } from './focusedField';
 import { reachedRoute } from './reachedScreen';
+import type { SceneNeverSettled } from './sealedCore/seam';
 import { lookAtViews, viewsThatChanged } from './visibleViews';
 
 const POLL_MS = 100;
 /** How long the two looks that name the changing views are apart. */
 const BETWEEN_LOOKS_MS = 300;
 
-/** What the screen still did when its settle gave up: where the app stood, what moved, what wanted focus. */
-export type NeverSettledRecord = { route: string[]; changing: string[]; unfocused: string[] };
-
-const neverSettledByScene = new Map<string, NeverSettledRecord>();
+const neverSettledByScene = new Map<string, SceneNeverSettled>();
 
 /** What the scene's last settle recorded, or nothing when it settled. */
-export function neverSettledOf(sceneId: string): NeverSettledRecord | undefined {
+export function neverSettledOf(sceneId: string): SceneNeverSettled | undefined {
   return neverSettledByScene.get(sceneId);
 }
 

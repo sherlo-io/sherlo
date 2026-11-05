@@ -21,6 +21,7 @@ import { nameOf } from '../visibleViews';
 import { reachedRoute } from '../reachedScreen';
 import { loggedErrors } from '../loggedErrors';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
+import { neverSettledOf } from '../neverSettled';
 import { monotonicNow } from '../settleClock';
 import type { PlayStep } from '../scenes';
 import { awaitReady, readyRuleOf, readyShowsNow, sceneOf } from '../storyReady';
@@ -43,6 +44,7 @@ type SceneCalls = Pick<
   | 'loggedErrors'
   | 'rulesInstalledProof'
   | 'threwOf'
+  | 'neverSettledOf'
   | 'causeOfCrash'
   | 'isBundlerAssetUrl'
 >;
@@ -65,6 +67,7 @@ export function sceneCallsForTheCore(): SceneCalls {
     loggedErrors,
     rulesInstalledProof,
     threwOf,
+    neverSettledOf,
     causeOfCrash,
     isBundlerAssetUrl,
   };
