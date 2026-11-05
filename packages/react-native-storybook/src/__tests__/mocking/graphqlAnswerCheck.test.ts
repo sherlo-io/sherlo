@@ -188,6 +188,8 @@ describe('a faked GraphQL answer is checked against its query', () => {
     expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([
       { kind: 'field-missing', operation: 'PairOfBooks', path: 'second.by', expected: 'author' },
       { kind: 'field-missing', operation: 'PairOfBooks', path: 'second.id', expected: 'id' },
+      // The answer used the field name where the query asked for the alias: an extra key too.
+      { kind: 'field-extra', operation: 'PairOfBooks', path: 'second.author' },
     ]);
   });
 
@@ -233,6 +235,80 @@ describe('a faked GraphQL answer is checked against its query', () => {
     expect(graphqlAnswerFindings(URL, post(query), nested)).toEqual([
       { kind: 'typename-missing', operation: 'Q', path: 'items.0' },
     ]);
+  });
+
+  it('an answer with a field the query did not ask for is refused naming its path', () => {
+    const query =
+      'query Shelf { shelf { __typename id mine: owner { name } ...Card } } fragment Card on Shelf { title }';
+    const answer = {
+      data: {
+        shelf: { __typename: 'Shelf', id: 's1', mine: { name: 'A', age: 3 }, title: 't', extra: 1 },
+      },
+    };
+
+    expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([
+      { kind: 'field-extra', operation: 'Shelf', path: 'shelf.mine.age' },
+      { kind: 'field-extra', operation: 'Shelf', path: 'shelf.extra' },
+    ]);
+    // A field of the root the query did not ask for is one too, and a batch is checked item by item.
+    expect(
+      graphqlAnswerFindings(URL, `[${post(query)}]`, [{ data: { shelf: null, other: 1 } }])
+    ).toEqual([{ kind: 'field-extra', operation: 'Shelf', path: 'other' }]);
+  });
+
+  it('an answer missing a non-null field the query asked for is refused naming its path', () => {
+    const query = 'query Shelf { shelf { id owner { name } } }';
+
+    expect(graphqlAnswerFindings(URL, post(query), { data: { shelf: { owner: {} } } })).toEqual([
+      { kind: 'field-missing', operation: 'Shelf', path: 'shelf.id', expected: 'id' },
+      { kind: 'field-missing', operation: 'Shelf', path: 'shelf.owner.name', expected: 'name' },
+    ]);
+    // A field answered with null is not a missing one.
+    expect(
+      graphqlAnswerFindings(URL, post(query), { data: { shelf: { id: null, owner: null } } })
+    ).toEqual([]);
+  });
+
+  it('an answer whose field has the wrong type is refused naming its path and both types', () => {
+    const query = 'query Shelf { shelf { id books { title } } }';
+    const answer = { data: { shelf: { id: 's1', books: 'none' } } };
+
+    expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([
+      {
+        kind: 'field-wrong-type',
+        operation: 'Shelf',
+        path: 'shelf.books',
+        expected: 'an object or a list, the answer has a string',
+      },
+    ]);
+    expect(graphqlAnswerFindings(URL, post(query), { data: { shelf: 3 } })[0]).toEqual({
+      kind: 'field-wrong-type',
+      operation: 'Shelf',
+      path: 'shelf',
+      expected: 'an object or a list, the answer has a number',
+    });
+  });
+
+  it('a list item that is not an object where the query selects fields is a wrong type', () => {
+    const query = 'query Shelf { shelf { pets { name } } }';
+    const answer = { data: { shelf: { pets: ['a', { name: 'b' }] } } };
+
+    expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([
+      {
+        kind: 'field-wrong-type',
+        operation: 'Shelf',
+        path: 'shelf.pets.0',
+        expected: 'an object, the answer has a string',
+      },
+    ]);
+  });
+
+  it('an object answer for a field with no selection is accepted as a scalar', () => {
+    // With no schema such a field may be a custom JSON scalar, whose value is an object or a list.
+    const query = 'query Shelf { shelf { id settings tags } }';
+    const answer = { data: { shelf: { id: 's1', settings: { dark: true }, tags: ['a', 'b'] } } };
+
+    expect(graphqlAnswerFindings(URL, post(query), answer)).toEqual([]);
   });
 
   it('a request with no query text is skipped and noted as such', () => {

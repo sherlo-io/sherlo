@@ -21,7 +21,13 @@ export type UnansweredRequest = {
 
 /** What the SDK finds wrong in a faked GraphQL answer, as the app lists it. */
 export type AnswerFinding = {
-  kind: 'field-missing' | 'typename-missing' | 'typename-matches-no-fragment' | 'no-query-text';
+  kind:
+    | 'field-missing'
+    | 'typename-missing'
+    | 'typename-matches-no-fragment'
+    | 'no-query-text'
+    | 'field-extra'
+    | 'field-wrong-type';
   operation?: string;
   path?: string;
   expected?: string;
@@ -32,6 +38,8 @@ const FINDING_KINDS: AnswerFinding['kind'][] = [
   'typename-missing',
   'typename-matches-no-fragment',
   'no-query-text',
+  'field-extra',
+  'field-wrong-type',
 ];
 
 /** What a never-reached scene's record points to as its likely cause. */

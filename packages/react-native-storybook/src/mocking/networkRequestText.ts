@@ -44,19 +44,9 @@ export function bodyExcerptOf(
   return undefined;
 }
 
-/**
- * The GraphQL operation a request names: its name, or else "persisted" and the start of its hash.
- * The record and the answer check read the address too (a GET); a rule matches on the body alone.
- */
-export function graphqlOperationOf(url: string, body: string | undefined): string | undefined {
-  const fromBody = jsonObjectOf(body);
-  const fromUrl = url.includes('?') ? queryParamsOf(url) : {};
-
-  const name = operationNameOf(body) || fromUrl.operationName;
-  if (name) return name;
-
-  const hash = persistedQueryHashOf(fromBody?.extensions ?? jsonObjectOf(fromUrl.extensions));
-  return hash === undefined ? undefined : `persisted ${hash.slice(0, 12)}`;
+/** What the address of a request carries after its question mark; nothing when it has none. */
+export function addressParamsOf(url: string): Record<string, string> {
+  return url.includes('?') ? queryParamsOf(url) : {};
 }
 
 /** The hash a persisted GraphQL query is sent by, read from a request's `extensions`. */
