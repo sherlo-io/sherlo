@@ -10,9 +10,15 @@ import SherloModule from './SherloModule';
 import type { NativeTapAnswer } from './SherloModule';
 import { currentAppFiber } from './componentNames';
 import type { WalkedFiber } from './sealedCore/seam';
-import type { SwipeStep } from './scenes';
-import { coverOf, nativeTagOf } from './tapReach';
-import type { Frame } from './tapReach';
+import type { SwipeStep, TapTarget } from './scenes';
+import {
+  coverOf,
+  findInWindows,
+  missingFromWindows,
+  nativeTagOf,
+  windowsLookedIn,
+} from './tapReach';
+import type { Frame, WindowViews } from './tapReach';
 import { nameOf } from './visibleViews';
 import type { Found } from './visibleViews';
 
@@ -22,21 +28,87 @@ const SWIPE_MS = 300;
 const SWIPE_REACH = 0.9;
 
 /**
- * Why the native touch never reached `fiber`, or undefined when it did: this iOS lacks the private
- * calls the touch is made of, or another view covers the target.
+ * Why the native touch touched nothing, whatever the target: this iOS lacks the private calls the
+ * touch is made of, or it fell on a window itself and no view in any window took it.
  */
-export function unreachedReason(
-  fiber: WalkedFiber,
+function touchedNothingReason(
   touched: NativeTapAnswer,
   verb: 'tap' | 'long-press' | 'swipe'
 ): string | undefined {
   if (touched.missing.length > 0) {
     return `Sherlo cannot ${verb} on iOS ${Platform.Version} yet. Update Sherlo, or report it to Sherlo if the newest Sherlo still says this`;
   }
+  if (touched.hitTag < 0 && touched.windows?.includes(touched.hitClass)) {
+    return `no view took the ${verb} at that point. ${windowsLookedIn(touched.windows)}`;
+  }
+  return undefined;
+}
+
+/**
+ * Tap the view a pop-up's window shows under the label a step names, which React never drew (an
+ * alert's button): the native touch at its middle, held `holdMs`. Undefined once tapped; else why
+ * no window shows it, naming the windows looked in (empty when the phone names none). Throws as a
+ * tap does when the touch touched nothing.
+ */
+export async function tapInPopup(
+  target: TapTarget,
+  holdMs: number,
+  verb: 'tap' | 'long-press'
+): Promise<string | undefined> {
+  const label = target.label ?? target.text;
+  if (label === undefined) return '';
+  const windows = await SherloModule.getWindowViews();
+  const place = windowToTouch(windows, label);
+  if (!place) {
+    const names = windows.map((window) => window.name);
+    return names.length > 0 ? missingFromWindows(label, names) : '';
+  }
+  // Only the window that shows the label is touched, so a window above it never takes the touch.
+  const touched = await SherloModule.tapInWindow(place.x, place.y, holdMs, place.windowIndex);
+  const nothing = touched && touchedNothingReason(touched, verb);
+  if (nothing) throw new Error(nothing);
+  return undefined;
+}
+
+/**
+ * Why the native touch never reached `fiber`, or undefined when it did: it touched nothing, or
+ * another view covers the target.
+ */
+export function unreachedReason(
+  fiber: WalkedFiber,
+  touched: NativeTapAnswer,
+  verb: 'tap' | 'long-press' | 'swipe'
+): string | undefined {
+  const nothing = touchedNothingReason(touched, verb);
+  if (nothing) return nothing;
   const cover = coverOf(currentAppFiber(), nativeTagOf(fiber), touched);
   if (!cover) return undefined;
   const covering = cover.testID !== undefined ? nameOf({ testID: cover.testID }) : cover.className;
   return `the target is covered by ${covering}, so the ${verb} never reached it. Wait for the cover to close, or close it with a tap step before this one`;
+}
+
+/**
+ * Where a tap on the view labeled `label` lands, and the window it is sent to: the middle of the
+ * view in the topmost of `windows` (topmost first) that shows one, so a pop-up's button is touched
+ * in the pop-up's window and never in the app's window under it. Undefined when no window shows it.
+ */
+export function windowToTouch(
+  windows: WindowViews[],
+  label: string
+): { window: string; windowIndex: number; x: number; y: number } | undefined {
+  const found = findInWindows(windows, label);
+  if (!found) return undefined;
+  const { frame } = found;
+  // The place in the list, not the name: two windows can be of one class.
+  const windowIndex = windows.findIndex((window) =>
+    window.views.some((view) => view.label === label)
+  );
+  return {
+    window: found.window,
+    windowIndex,
+    x: frame.x + frame.width / 2,
+    y: frame.y + frame.height / 2,
+  };
 }
 
 /**

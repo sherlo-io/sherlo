@@ -2,6 +2,7 @@ import { NativeModules } from 'react-native';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData, ViewVisibility } from './types/types';
 import type { Config, LastState } from './sealedCore/seam';
+import type { WindowViews } from './tapReach';
 import TurboModule, { Spec } from './specs/NativeSherloModule';
 
 interface SherloConstants {
@@ -41,6 +42,8 @@ export type NativeTapAnswer = {
   hitTag: number;
   hitClass: string;
   missing: string[];
+  /** The windows the touch looked through, topmost first; absent from a build before they were named. */
+  windows?: string[];
 };
 
 type SherloModule = {
@@ -50,6 +53,16 @@ type SherloModule = {
    * when the native module has no touch (no module, or a native build from before it).
    */
   tap: (x: number, y: number, holdMs: number) => Promise<NativeTapAnswer | null>;
+  /**
+   * Touch (x, y) in only the window at `windowIndex` of getWindowViews' list, so a window above it
+   * takes no touch. Null when the native module has no such touch (Android, which lists no window).
+   */
+  tapInWindow: (
+    x: number,
+    y: number,
+    holdMs: number,
+    windowIndex: number
+  ) => Promise<NativeTapAnswer | null>;
   /**
    * Drag a finger from (fromX, fromY) to (toX, toY), in points, over durationMs, then lift it. It
    * answers as the tap does, for the view the finger went down on. Null when the native module
@@ -77,6 +90,8 @@ type SherloModule = {
     data?: Record<string, string | null>
   ) => void;
   getInspectorData: () => Promise<InspectorData>;
+  /** The labeled views of every window shown, topmost first; empty on Android (../specs). */
+  getWindowViews: () => Promise<WindowViews[]>;
   /** Whether each view named by testID is drawn, from the native view tree (../specs). */
   getViewVisibility: (testIDs: string[]) => Promise<ViewVisibility>;
   openStorybook: () => void;
@@ -161,12 +176,20 @@ function createSherloModule(): SherloModule {
     isTurboModule: !!TurboModule,
     tap: async (x: number, y: number, holdMs: number) =>
       typeof module.tap === 'function' ? module.tap(x, y, holdMs) : null,
+    tapInWindow: async (x, y, holdMs, windowIndex) =>
+      typeof module.tapInWindow === 'function'
+        ? module.tapInWindow(x, y, holdMs, windowIndex)
+        : null,
     swipe: async (fromX, fromY, toX, toY, durationMs) =>
       typeof module.swipe === 'function' ? module.swipe(fromX, fromY, toX, toY, durationMs) : null,
     getInspectorData: async () => {
       const inspectorDataString = await module.getInspectorData();
       return JSON.parse(inspectorDataString) as InspectorData;
     },
+    getWindowViews: async () =>
+      typeof module.getWindowViews === 'function'
+        ? (JSON.parse(await module.getWindowViews()) as WindowViews[])
+        : [],
     getViewVisibility: async (testIDs: string[]) => {
       return JSON.parse(await module.getViewVisibility(JSON.stringify(testIDs))) as ViewVisibility;
     },
@@ -273,7 +296,9 @@ function createDummySherloModule(): SherloModule {
   return {
     isTurboModule: false,
     tap: async () => null,
+    tapInWindow: async () => null,
     swipe: async () => null,
+    getWindowViews: async () => [],
     getViewVisibility: async (testIDs: string[]) =>
       Object.fromEntries(testIDs.map((testID) => [testID, 'absent' as const])),
     getInspectorData: async () => ({

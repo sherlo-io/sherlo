@@ -26,7 +26,7 @@
 import { Linking } from 'react-native';
 import { logTheLine } from './connection/appLine';
 import SherloModule from './SherloModule';
-import { swipeView, unreachedReason } from './nativeTouch';
+import { swipeView, tapInPopup, unreachedReason } from './nativeTouch';
 import type { WalkedFiber } from './sealedCore/seam';
 import type { OpenStep, PlayStep, TapTarget } from './scenes';
 import { nativeTagOf, publicInstanceOf, touchEvent, UNDER_BARS_REASON } from './tapReach';
@@ -110,13 +110,13 @@ export async function playSteps(
     logTheLine(`scene ${sceneId} step ${index + 1} of ${steps.length} started`);
     try {
       if ('tap' in step) {
-        await tapView(
-          await waitForTarget(targetOf(step.tap)),
+        await tapTarget(
+          targetOf(step.tap),
           `scene ${sceneId} step ${index + 1} of ${steps.length}`
         );
       } else if ('longPress' in step) {
-        await tapView(
-          await waitForTarget(targetOf(step.longPress)),
+        await tapTarget(
+          targetOf(step.longPress),
           `scene ${sceneId} step ${index + 1} of ${steps.length}`,
           LONG_PRESS_HOLD_MS,
           'long-press'
@@ -221,6 +221,33 @@ async function waitForTarget(target: TapTarget): Promise<Found> {
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     waitedMs += POLL_MS;
   }
+}
+
+/**
+ * Tap the target: a view React draws as `tapView` does; when none shows within the limit, a label
+ * or text a pop-up's window shows (an alert's button), tapped there. Throws what was missing,
+ * naming the windows looked in, when no window shows it either.
+ */
+async function tapTarget(
+  target: TapTarget,
+  stage: string,
+  holdMs = PRESS_HOLD_MS,
+  verb: 'tap' | 'long-press' = 'tap'
+): Promise<void> {
+  let found: Found;
+  try {
+    found = await waitForTarget(target);
+  } catch (error) {
+    // A pop-up's view is found by its label alone: a testID or an index names a React view.
+    const namesReactView = target.testID !== undefined || target.index !== undefined;
+    if (!(error instanceof NoVisibleView) || namesReactView) throw error;
+    const missing = await tapInPopup(target, holdMs, verb);
+    if (missing === undefined) {
+      return logTheLine(`${stage} ${verb} by native touch in a pop-up window`);
+    }
+    throw missing ? new NoVisibleView(`${error.message}. ${missing}`) : error;
+  }
+  await tapView(found, stage, holdMs, verb);
 }
 
 /** The testIDs of the views on screen now: unique, in screen order, the first `limit` and the count of the rest. */

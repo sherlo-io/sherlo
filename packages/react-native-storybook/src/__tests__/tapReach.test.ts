@@ -1,7 +1,13 @@
 // tapReach reads where a finger can land: the safe-area insets the nearest provider above a view
 // gives, where a view's middle lies against the window and the bars those insets name, and what
 // took a native touch meant for a view.
-import { coverOf, reachOf, safeAreaInsetsAbove } from '../tapReach';
+import {
+  coverOf,
+  findInWindows,
+  missingFromWindows,
+  reachOf,
+  safeAreaInsetsAbove,
+} from '../tapReach';
 import type { WalkedFiber } from '../sealedCore/seam';
 
 import { SafeAreaInsetsContext as insetsContext } from 'react-native-safe-area-context';
@@ -100,5 +106,26 @@ describe('what a native touch hit', () => {
       className: 'RCTViewComponentView',
     });
     expect(coverOf(root, 12, touch(-1))).toEqual({ className: 'RCTViewComponentView' });
+  });
+});
+
+describe('a target in a window above the app', () => {
+  const frame = { x: 10, y: 20, width: 100, height: 40 };
+  const alert = {
+    name: '_UIAlertControllerShimPresenterWindow',
+    views: [{ label: 'Allow', frame }],
+  };
+  const app = { name: 'UIWindow', views: [{ label: 'Home', frame }] };
+
+  it('a target inside an iOS alert or action sheet is found by its label', () => {
+    expect(findInWindows([alert, app], 'Allow')).toEqual({ window: alert.name, frame });
+    expect(findInWindows([alert, app], 'Home')).toEqual({ window: app.name, frame });
+  });
+
+  it('a target missing from every window names the windows looked in', () => {
+    expect(findInWindows([alert, app], 'Delete')).toBeUndefined();
+    expect(missingFromWindows('Delete', [alert.name, app.name])).toBe(
+      'no view labeled "Delete" is on screen. Windows looked in, topmost first: _UIAlertControllerShimPresenterWindow, UIWindow'
+    );
   });
 });

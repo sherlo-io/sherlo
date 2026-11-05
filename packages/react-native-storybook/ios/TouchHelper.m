@@ -161,24 +161,47 @@ static BOOL ReachedReact(UITouch *touch) {
     return NO;
 }
 
+/** The class names of `windows`, in their order: what an answer names as the windows looked in. */
+static NSArray<NSString *> *WindowNames(NSArray<UIWindow *> *windows) {
+    NSMutableArray<NSString *> *names = [NSMutableArray array];
+    for (UIWindow *window in windows) [names addObject:NSStringFromClass(window.class)];
+    return names;
+}
+
 /**
- * The view a finger at `point` goes down on, or nil once `resolve` was answered with why nothing is
- * touched: this iOS lacks a private call the touch needs, or the window takes no touch there.
+ * Whether `window` lets a touch at `hit` through to the window under it: it took none (nil), or the
+ * hit is the window itself, or its root view when that is a clear sheet that draws nothing and
+ * recognizes no gesture (an overlay window, such as a toast's).
  */
-static UIView *TouchableHit(UIWindow *window, CGPoint point, RCTPromiseResolveBlock resolve) {
+static BOOL PassesTouch(UIWindow *window, UIView *hit) {
+    if (!hit || hit == window) return YES;
+    UIView *root = window.rootViewController.view;
+    if (hit != root) return NO;
+    BOOL clear = !root.backgroundColor || CGColorGetAlpha(root.backgroundColor.CGColor) < 0.01;
+    return clear && root.gestureRecognizers.count == 0;
+}
+
+/**
+ * The view a finger at `point` goes down on, found in `windows` topmost first (an alert or action
+ * sheet is a window above the app's), or nil once `resolve` was answered with why nothing is
+ * touched: this iOS lacks a private call the touch needs, or no window takes a touch there.
+ */
+static UIView *TouchableHit(NSArray<UIWindow *> *windows, CGPoint point, RCTPromiseResolveBlock resolve) {
     NSArray<NSString *> *missing = MissingCalls();
     if (missing.count > 0) {
         NSLog(@"[SherloModule:TouchHelper] This iOS lacks %@", [missing componentsJoinedByString:@", "]);
         resolve(@{ @"reachedReact" : @NO, @"hitTag" : @(-1), @"hitClass" : @"", @"missing" : missing });
         return nil;
     }
-    UIView *hit = [window hitTest:point withEvent:nil];
-    if (!hit) {
-        // A window that takes no touch: what a finger there would press is the window itself.
-        resolve(@{ @"reachedReact" : @NO, @"hitTag" : @(-1),
-                   @"hitClass" : NSStringFromClass(window.class), @"missing" : @[] });
+    for (UIWindow *window in windows) {
+        UIView *hit = [window hitTest:point withEvent:nil];
+        if (!PassesTouch(window, hit)) return hit;
     }
-    return hit;
+    // No window takes a touch there: what a finger would press is the app's window itself.
+    resolve(@{ @"reachedReact" : @NO, @"hitTag" : @(-1),
+               @"hitClass" : NSStringFromClass(windows.lastObject.class), @"missing" : @[],
+               @"windows" : WindowNames(windows) });
+    return nil;
 }
 
 /** A finger put down on `hit` at `point`, sent in its Began phase. */
@@ -209,13 +232,13 @@ static const double kMovesPerSecond = 60;
 
 @implementation TouchHelper
 
-+ (void)tapInWindow:(UIWindow *)window
-                 at:(CGPoint)point
-             holdMs:(double)holdMs
-            resolve:(RCTPromiseResolveBlock)resolve {
-    UIView *hit = TouchableHit(window, point, resolve);
++ (void)tapInWindows:(NSArray<UIWindow *> *)windows
+                  at:(CGPoint)point
+              holdMs:(double)holdMs
+             resolve:(RCTPromiseResolveBlock)resolve {
+    UIView *hit = TouchableHit(windows, point, resolve);
     if (!hit) return;
-    UITouch *touch = TouchDown(window, hit, point);
+    UITouch *touch = TouchDown(hit.window, hit, point);
     BOOL reachedReact = ReachedReact(touch);
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(holdMs * NSEC_PER_MSEC)),
@@ -226,14 +249,14 @@ static const double kMovesPerSecond = 60;
     });
 }
 
-+ (void)swipeInWindow:(UIWindow *)window
-                 from:(CGPoint)from
-                   to:(CGPoint)to
-           durationMs:(double)durationMs
-              resolve:(RCTPromiseResolveBlock)resolve {
-    UIView *hit = TouchableHit(window, from, resolve);
++ (void)swipeInWindows:(NSArray<UIWindow *> *)windows
+                  from:(CGPoint)from
+                    to:(CGPoint)to
+            durationMs:(double)durationMs
+               resolve:(RCTPromiseResolveBlock)resolve {
+    UIView *hit = TouchableHit(windows, from, resolve);
     if (!hit) return;
-    UITouch *touch = TouchDown(window, hit, from);
+    UITouch *touch = TouchDown(hit.window, hit, from);
     BOOL reachedReact = ReachedReact(touch);
     NSInteger moves = MAX(1, (NSInteger)lround(durationMs / 1000.0 * kMovesPerSecond));
     int64_t moveNs = (int64_t)(durationMs / moves * NSEC_PER_MSEC);
