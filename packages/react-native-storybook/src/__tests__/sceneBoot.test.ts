@@ -57,21 +57,27 @@ const SWITCHED_ON_FLAG = '__sherloLaunchedSceneSwitchedOn';
 // The app's stand-in for its module `src/api`, and the scene file that mocks it, written as the
 // bundler's transform hands it over: the import as written rides as the third argument. Its import
 // never settles, so only a mock installed with no import waited for can be in effect.
-async function appWithAScene(): Promise<{ api: { whoAmI: () => string } }> {
+async function appWithAScene(
+  extraGiven: unknown[] = []
+): Promise<{ api: { whoAmI: () => string }; other: { whoAmI: () => string } }> {
   const { default: createMockable } = await import('../mocking/createMockable');
   const { mock } = await import('../mocking/mockDeclaration');
   const api = createMockable('src/api', { whoAmI: () => 'real' });
+  const other = createMockable('src/other', { whoAmI: () => 'real' });
   const declare = mock as (...args: unknown[]) => unknown;
   launch.loadFile.mockReturnValue({
     default: {
       scenes: {
         Conversation: {
-          mocks: [declare(() => new Promise(() => {}), { whoAmI: () => 'mocked' }, '../api')],
+          given: [
+            declare(() => new Promise(() => {}), { whoAmI: () => 'mocked' }, '../api'),
+            ...extraGiven,
+          ],
         },
       },
     },
   });
-  return { api };
+  return { api, other };
 }
 
 beforeEach(() => {
@@ -98,6 +104,23 @@ describe('the early-boot module switches the launched scene on', () => {
 
     expect(launch.loadFile).toHaveBeenCalledTimes(1);
     expect(api.whoAmI()).toBe('mocked');
+  });
+
+  it('a scene boots with only the fakes and start states its given list names', async () => {
+    const { startState } = await import('../mocking/startState');
+    const { clearMocks } = await import('../mocking/registry');
+    const client = { token: null as string | null };
+    const { api, other } = await appWithAScene([startState(client, { token: 'ada' })]);
+    await import('../sceneBoot');
+
+    // The listed fake is on, an unlisted one is still real, and the start state is in effect.
+    expect(api.whoAmI()).toBe('mocked');
+    expect(other.whoAmI()).toBe('real');
+    expect(client.token).toBe('ada');
+
+    // The start state is part of the scene's activation: clearing the mocks puts it back.
+    clearMocks();
+    expect(client.token).toBeNull();
   });
 
   it('outside testing mode the early-boot module requires no scene file and mocks nothing', async () => {

@@ -6,10 +6,10 @@ import {
   StoryMocks,
 } from './mockDeclaration';
 
-// A SCENE FILE USES THE SAME RULE WITH ONE LEVEL LESS: the file's mocks sit under the scene's own
-// (as `global` and `story`), so a scene's mocks are its file's plus its own, and for a module both
-// name the scene's fake merges over the file's part by part (activateSceneMocks, in
-// getStorybook/storyMockActivation). The file's are shared defaults, as a project's are for a story.
+// A SCENE'S `given` LIST USES THE SAME RULE WITH THE LIST'S ORDER AS THE LEVELS: the fakes of its
+// preconditions merge one after the other (activateSceneMocks, in getStorybook/storyMockActivation),
+// and for a module two of them name, the later fake merges over the earlier part by part. The fakes
+// a shared precondition brings are defaults the scene may leave alone, as a project's are for a story.
 //
 // Precedence: story > meta > global. For any module, the fakes of the levels that name it merge
 // part by part, recursively for nested objects: the most specific level that names a part wins

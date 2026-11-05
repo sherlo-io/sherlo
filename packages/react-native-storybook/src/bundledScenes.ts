@@ -1,7 +1,10 @@
+import type { SharedMark } from './preconditions';
+import type { ScenePhone } from './sceneDeviceTypes';
+
 /**
  * EVERY SCENE THE BUNDLE HOLDS, by its id (`chat--conversation`): the file that declares it, from
  * the project root as the bundler's scan names it (`./src/chat.scenes.tsx`), the scene's name in
- * that file, and a function that requires the file.
+ * that file, its phone settings and member, and a function that requires the file.
  *
  * This module is empty on purpose. Sherlo's bundler config answers the SDK's imports of it with
  * the project's own list, written while the bundler starts and again each time a scene file
@@ -17,6 +20,10 @@ export type BundledScene = {
   title: string;
   /** The scene's name in words (`Menu Open`). */
   name: string;
+  /** The scene's phone settings and member, worked out from its `given` list while bundling. */
+  device: ScenePhone;
+  /** Which entries of its `given` list a shared file built, worked out while bundling. */
+  shared?: SharedMark;
   loadFile: () => unknown;
 };
 

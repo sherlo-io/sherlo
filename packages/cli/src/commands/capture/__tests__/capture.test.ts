@@ -442,10 +442,10 @@ describe('a scene capture can save the screen it captured', () => {
     expect(JSON.parse(failed)).not.toHaveProperty('png');
   });
 
-  /** A project folder with one scene file, `chat.scenes.tsx`, whose scene `Open` declares `device`. */
+  /** A project folder with one scene file, `chat.scenes.tsx`, whose scene `Open` is given `device`. */
   function projectWithScene(device: string): string {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-scene-device-'));
-    const field = device ? `device: ${device},` : '';
+    const field = device ? `given: [{ device: ${device} }],` : '';
     fs.writeFileSync(
       path.join(root, 'chat.scenes.tsx'),
       `export default scenes({ scenes: { Open: { ${field} } } });\n`

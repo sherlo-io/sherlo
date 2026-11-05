@@ -106,6 +106,10 @@ export function mockRandom(seed: number): ModuleMockDeclaration {
 
 export type { StartState } from './mocking/startState';
 
+// Plain functions that import only types, so they cost a build without Sherlo nothing.
+export { freshInstall, given, signedOut } from './preconditions';
+export type { Given, Precondition, PreconditionParts } from './preconditions';
+
 // Nothing starts in a build without Sherlo: the precondition is shaped like one and never read.
 export function startState<T extends object>(
   _target: T,
