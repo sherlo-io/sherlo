@@ -895,6 +895,16 @@ describe('a step that cannot be played', () => {
     expect(pressed).toEqual(['Connections']);
   });
 
+  it('a step whose target is missing ends the scene naming the step and the route it was on', async () => {
+    scene.play = [{ tap: 'Connections' }, { tap: 'connectionListItem' }];
+
+    const error = await played().catch((thrown) => thrown);
+
+    expect(error.step).toBe('step 2 of 2 (tap testID "connectionListItem")');
+    expect(error.route).toEqual(reachedRoute());
+    expect(error.route.length).toBeGreaterThan(0);
+  });
+
   it('a tap whose test id is on no view gives up after 5 seconds and reports the limit it waited', async () => {
     scene.play = [{ tap: 'inbox-menu-button' }];
     let outcome: unknown;
