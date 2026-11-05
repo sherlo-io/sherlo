@@ -5,7 +5,26 @@
 vi.mock('../SherloModule', () => ({ default: { getInspectorData: vi.fn() } }));
 
 import type { WalkedFiber } from '../sealedCore/seam';
-import { isTarget } from '../visibleViews';
+import { isTarget, viewsThatChanged } from '../visibleViews';
+import type { ViewLook } from '../visibleViews';
+
+describe('two looks at the screen', () => {
+  it('the views that changed between two looks are named by their component and test id', () => {
+    const frame = { x: 0, y: 10, width: 100, height: 20 };
+    const first: ViewLook[] = [
+      { key: 'tag 1', component: 'Bubble', testID: 'msg-3', text: 'typing.', frame },
+      { key: 'tag 2', component: 'Header', text: 'Chat', frame },
+      { key: 'tag 3', component: 'Avatar', text: '', frame },
+    ];
+    const second: ViewLook[] = [
+      { ...first[0], text: 'typing..' },
+      { ...first[1], frame: { ...frame, y: 10.4 } },
+      { ...first[2], frame: { ...frame, height: 40 } },
+    ];
+    expect(viewsThatChanged(first, second)).toEqual(['Bubble "msg-3"', 'Avatar']);
+    expect(viewsThatChanged(first, first)).toEqual([]);
+  });
+});
 
 function textView(text: string): WalkedFiber {
   return {
