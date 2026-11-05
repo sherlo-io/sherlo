@@ -287,6 +287,28 @@ describe('a request the story names', () => {
   });
 });
 
+describe('two fakes match one request', () => {
+  it("the scene's request fake answers over the shared setup's fake for the same request", async () => {
+    await activateStory({
+      project: [mockRequest({ url: `${BASE}/orders` }, { body: 'the shared setup orders' })],
+      story: [mockRequest({ url: `${BASE}/orders` }, { body: 'the scene orders' })],
+    });
+
+    await expect(get(`${BASE}/orders`)).resolves.toBe('the scene orders');
+  });
+
+  it('of two matching fakes in one list the later one answers', async () => {
+    await activateStory({
+      story: [
+        mockRequest({ url: `${BASE}/orders` }, { body: 'the earlier orders' }),
+        mockRequest({ url: `${BASE}/*` }, { body: 'the later orders' }),
+      ],
+    });
+
+    await expect(get(`${BASE}/orders`)).resolves.toBe('the later orders');
+  });
+});
+
 describe('a request no rule names', () => {
   it('a request no rule matches throws and the story records it', async () => {
     await activateStory({
@@ -564,6 +586,15 @@ describe('a socket rule is matched like a request rule', () => {
       kind: 'answer',
       answer: 'refuse',
     });
+  });
+
+  it("the scene's socket fake answers over the shared setup's fake for the same address", async () => {
+    await activateStory({
+      project: [mockRequest.socket({ url: WS }, 'pending')],
+      story: [mockRequest.socket({ url: WS }, 'refuse')],
+    });
+
+    expect(socketVerdictFor(WS)).toEqual({ kind: 'answer', answer: 'refuse' });
   });
 
   it('a socket no rule matches is listed as WS, and a request rule never answers it', async () => {
