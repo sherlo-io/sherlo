@@ -61,7 +61,8 @@ const KNOWN_HOSTS: KnownHost[] = [
 /** An address a NetInfo-style reachability check asks: it answers 204 and says nothing else. */
 const ONLINE_CHECK_PATH = /\/generate_204$/;
 
-function hostOf(url: string): string | undefined {
+/** The lower-case host of an address; nothing when it has none. */
+export function hostOf(url: string): string | undefined {
   return /^[a-z][a-z0-9+.-]*:\/\/([^/?#:]+)/i.exec(url)?.[1]?.toLowerCase();
 }
 
@@ -86,18 +87,50 @@ export function vendorOf(url: string): string | undefined {
 /** Records made before the SDK skipped compiler helpers name one of these; it made no request. */
 const COMPILER_HELPERS = new Set(['@babel/runtime', 'tslib', '@swc/helpers', 'core-js']);
 
-/** Whether the library came off the call stack (sure) or off the host table (a guess). */
-export type Sender = { library: string; how: 'stack' | 'host' };
+/**
+ * Whether the library came off the call stack (sure), off a package whose code holds the host
+ * (see ./senderByCode; a guess), or off the host table (a guess).
+ */
+export type Sender = { library: string; how: 'stack' | 'code' | 'host' };
+
+/** A sender in words: the package, and how it was found when that was a guess. */
+export function senderWords({ library, how }: Sender): string {
+  if (how === 'code') return `${library} (its code names the host)`;
+  return how === 'host' ? `${library} (by its host)` : library;
+}
+
+/** Packages whose frames sit between any request and its sender: Sherlo's wrappers and React Native's own fetch. */
+const PLUMBING = /^(@sherlo\/|react-native$|whatwg-fetch$|promise$|abort-controller$)/;
+
+/** Whether a package only carries requests (a compiler helper, Sherlo's wrappers, React Native's fetch): it sends none of its own. */
+export function isRequestPlumbing(name: string): boolean {
+  return COMPILER_HELPERS.has(name) || PLUMBING.test(name);
+}
+
+/** The first package on a call stack that is neither a compiler helper nor request plumbing. */
+function packageOnStack(stack: string): string | undefined {
+  for (const [, name] of stack.matchAll(/node_modules\/((?:@[^/\s:]+\/)?[^/\s:]+)\//g)) {
+    if (!isRequestPlumbing(name)) return name;
+  }
+  return undefined;
+}
 
 /**
- * The package a request came from: the one the call stack named, else the one the host table
- * names for a known SDK host. Nothing when neither knows.
+ * The package a request came from: the one its call stack names (or the record already names), else
+ * the one whose code holds its host (found on the Mac), else the one the host table names for a
+ * known SDK host. Nothing when none knows.
  */
-export function senderOf(request: { url: string; library?: string }): Sender | undefined {
-  const { library: named } = request;
+export function senderOf(request: {
+  url: string;
+  library?: string;
+  stack?: string;
+  codeNames?: string;
+}): Sender | undefined {
+  const named = request.library ?? (request.stack ? packageOnStack(request.stack) : undefined);
   if (named !== undefined && !COMPILER_HELPERS.has(named)) {
     return { library: named, how: 'stack' };
   }
+  if (request.codeNames !== undefined) return { library: request.codeNames, how: 'code' };
   const library = knownHostOf(request.url)?.library;
   return library === undefined ? undefined : { library, how: 'host' };
 }

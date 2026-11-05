@@ -272,7 +272,14 @@ describe('the requests native code met that no rule matches', () => {
     });
 
     expect(unansweredRequests()).toEqual([
-      { method: 'GET', url: 'https://pictures.example/cat.png', contentType: 'image/png' },
+      {
+        method: 'GET',
+        url: 'https://pictures.example/cat.png',
+        contentType: 'image/png',
+        // Native code met it: no JavaScript stack to keep.
+        scope: 'background',
+        rule: 'no-fake-matched',
+      },
     ]);
     expect(refusals).toHaveLength(1);
     expect(refusals[0]).toBeInstanceOf(UnmockedRequestError);

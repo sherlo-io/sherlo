@@ -1385,8 +1385,17 @@ export type UnansweredRequest = {
   contentType?: string;
   operation?: string;
   bodyExcerpt?: string;
+  scope?: 'background' | 'screen';
+  rule?: 'fake-refused' | 'no-fake-matched';
+  fakeAt?: string;
+  stack?: string;
   /** The npm package whose code made the request, when the app's call stack names one. */
   library?: string;
+  /**
+   * Set on the Mac, never by the app: the package under node_modules whose code holds the host
+   * (see ./senderByCode).
+   */
+  codeNames?: string;
 };
 
 /**

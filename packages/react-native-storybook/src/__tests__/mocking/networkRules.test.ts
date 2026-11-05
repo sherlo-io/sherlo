@@ -32,6 +32,8 @@ import { startStorybookHolding } from './storybookHolding';
 
 const BASE = 'https://mocking.sherlo.invalid';
 const STORY_ID = 'mocking-network--default';
+// What a refused request also carries: made before the app rendered, no fake matched it.
+const refused = { scope: 'background', rule: 'no-fake-matched', stack: expect.any(String) };
 
 // ---------------------------------------------------------------------------
 // The runtime a story runs in: a real fetch, and an XMLHttpRequest that records
@@ -368,7 +370,7 @@ describe('a request no rule names', () => {
     expect(refusal.message).toBe(
       `no mock rule matches GET ${url}. Add a rule for it, or let it through.`
     );
-    expect(unansweredRequests()).toEqual([{ method: 'GET', url, operation: 'Me' }]);
+    expect(unansweredRequests()).toEqual([{ method: 'GET', url, operation: 'Me', ...refused }]);
   });
 
   it('a request made through XMLHttpRequest keeps the content type it set', async () => {
@@ -385,6 +387,7 @@ describe('a request no rule names', () => {
         url: `${BASE}/orders`,
         contentType: 'application/json',
         bodyExcerpt: '{"id":7}',
+        ...refused,
       },
     ]);
   });
@@ -601,6 +604,6 @@ describe('a socket rule is matched like a request rule', () => {
     await activateStory({ story: [mockRequest({ url: WS }, { body: 'x' })] });
 
     expect(socketVerdictFor(WS).kind).toBe('refusal');
-    expect(unansweredRequests()).toEqual([{ method: 'WS', url: WS }]);
+    expect(unansweredRequests()).toEqual([{ method: 'WS', url: WS, ...refused }]);
   });
 });
