@@ -10,7 +10,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import type { BundleBuildFailure } from '../render/capturedStory';
+import type { BundleBuildFailure } from '../render/bundleBuildFailure';
 import { projectFiles } from './projectFiles';
 
 const SOURCE_ENDINGS = [

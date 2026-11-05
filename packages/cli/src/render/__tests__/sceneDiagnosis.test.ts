@@ -6,10 +6,11 @@
  */
 import chalk from 'chalk';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { renderSceneRunLine } from '../capturedAllScenes';
+import { renderSceneRunLine } from '../sceneRunLine';
 import { renderCapturedScene } from '../capturedScene';
 import type { CapturedScene } from '../capturedScene';
-import { explainRefusals, refusalLines } from '../refusalExplanation';
+import { explainRefusals } from '../refusalExplanation';
+import { refusalLines } from '../refusalLines';
 
 beforeAll(() => {
   (chalk as unknown as { level: number }).level = 0;
@@ -80,8 +81,11 @@ describe('requests refused by the hundred', () => {
 describe('a scene that stopped on another screen', () => {
   it('says what the screen said and, for a consent screen, the play step that taps through it', () => {
     const printed = neverReached({
-      screen: { words: ['Before you continue', 'Accept all'], views: 9 },
-      endedEarly: { afterMs: 4000, stuckOn: 'consent', button: 'Accept all' },
+      stop: {
+        kind: 'covered',
+        screen: { words: ['Before you continue', 'Accept all'], views: 9 },
+        early: { afterMs: 4000, stuckOn: 'consent', button: 'Accept all' },
+      },
     });
 
     expect(printed).toContain('The screen said: "Before you continue", "Accept all"');
@@ -91,20 +95,22 @@ describe('a scene that stopped on another screen', () => {
   });
 
   it('says the logged-in user is missing when the screen is a sign-in', () => {
-    const printed = neverReached({ endedEarly: { afterMs: 4000, stuckOn: 'sign-in' } });
+    const printed = neverReached({
+      stop: { kind: 'covered', early: { afterMs: 4000, stuckOn: 'sign-in' } },
+    });
 
     expect(printed).toContain('Nothing faked who is logged in');
   });
 
   it('keeps the stock sign-in hint only when nothing else explains the stop', () => {
     expect(neverReached({})).toContain('Nothing faked who is logged in');
-    expect(neverReached({ screen: { words: ['Hi'], views: 1 } })).not.toContain(
-      'Nothing faked who is logged in'
-    );
+    expect(
+      neverReached({ stop: { kind: 'on-another-screen', screen: { words: ['Hi'], views: 1 } } })
+    ).not.toContain('Nothing faked who is logged in');
   });
 
   it('says a blank screen drew no views and points at the logs', () => {
-    const printed = neverReached({ screen: { words: [], views: 0 } });
+    const printed = neverReached({ stop: { kind: 'blank', screen: { words: [], views: 0 } } });
 
     expect(printed).toContain('The screen drew no views.');
     expect(printed).toContain('sherlo capture --scene kindred--chat --logs');
@@ -119,7 +125,7 @@ describe('a scene that stopped on another screen', () => {
         sceneId: 'a',
         ready: 'r',
         stayedOn: ['Home'],
-        screen: { words: [], views: 0 },
+        stop: { kind: 'blank', screen: { words: [], views: 0 } },
       },
       picture
     ).join('\n');

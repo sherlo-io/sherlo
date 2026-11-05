@@ -13,11 +13,10 @@
  * Byte-identity holds because a transcript is exactly the concatenation of its
  * segments, in order.
  *
- * A SEGMENT CARRIES DATA, NEVER TEXT. Every literal, every emoji, every chalk
- * call and every blank line lives in ./renderSegment - which is why a producer
- * cannot render a sentence the CLI would not have printed: the only thing it can
- * supply is the state, and the same renderer turns that state into bytes for the
- * real run and for the expectation.
+ * A SEGMENT CARRIES DATA, NEVER TEXT. Every literal, emoji, chalk call and blank
+ * line lives in ./renderSegment - so a producer cannot render a sentence the CLI
+ * would not have printed: it supplies only the state, and the same renderer turns
+ * that state into bytes for the real run and for the expectation.
  *
  * BLANK LINES ARE CONTENT. Several of these segments begin or end with a blank
  * line, and a committed fixture compares byte-for-byte - so a `.filter(Boolean)`
@@ -34,7 +33,8 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { OpenedScene } from './openedScene';
 import type { CapturedScene, ScenePicture } from './capturedScene';
-import type { AllScenesSummary, SceneRunLine } from './capturedAllScenes';
+import type { AllScenesSummary } from './capturedAllScenes';
+import type { SceneRunLine } from './sceneRunLine';
 import type { CoverageScreen } from './coverage';
 import type { TeamList } from './teamList';
 import type { AppFailedToStart, VerdictScreen } from './verdictCloser';
