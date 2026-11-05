@@ -1,2 +1,2 @@
 export { default } from './capture';
-export type { CaptureOptions } from './capture';
+export type { CaptureOptions } from './captureOptions';

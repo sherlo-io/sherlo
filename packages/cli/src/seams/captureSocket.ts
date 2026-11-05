@@ -12,13 +12,14 @@
  * asks; a capture is a conversation - settings one way, a whole view tree the other - and the two
  * roads fail differently.
  */
-import type { BundleBuildFailure, CapturedView } from '../render/capturedStory';
-import type { SceneLeft } from '../render/capturedScene';
+import type { BundleBuildFailure } from '../render/bundleBuildFailure';
+import type { CapturedView } from '../render/capturedStory';
 import { readAppError, type AppError } from './appError';
 import { drainAppLog } from './appLog';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import { captureLiveScene, type SceneCaptureParams, type SceneCaptureResult } from './liveScene';
+import { newsOf, stopNewsOf, type PosedSceneNews, type PosedStopNews } from './posedSceneNews';
 import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
 
 /** What the app answered about the story the command asked it to capture. */
@@ -495,7 +496,8 @@ export type PosedCapture =
       stayedOn: string[];
       /** The requests the scene made that no mock answered, a discover capture's result. */
       unanswered?: PosedRefused[];
-    } & PosedSceneNews)
+    } & PosedSceneNews &
+      PosedStopNews)
   /** A scene run: a play step found no view with its testID. */
   | {
       scenes: string[];
@@ -547,25 +549,6 @@ export type PosedRefused = {
   operation?: string;
   times?: number;
 };
-
-/**
- * What the app found beyond the ending of a scene that stopped or was captured: the screen it
- * stopped on, why the capture gave up, the module fakes that did not apply, the shape a fake got
- * wrong, the requests let through, the last run's ending and the phone settings not written.
- */
-export type PosedSceneNews = Pick<
-  SceneLeft,
-  | 'threw'
-  | 'screen'
-  | 'endedEarly'
-  | 'mockNotApplied'
-  | 'crashCause'
-  | 'letThrough'
-  | 'lastRun'
-  | 'phoneNotApplied'
-  | 'answerFindings'
-  | 'loggedErrors'
->;
 
 /**
  * One scene's run inside a run of every scene. Only the ending is required; a scene that came up
@@ -715,6 +698,7 @@ export function posedCaptureSocket(
           stayedOn,
           unanswered: refusedEach(unanswered),
           ...newsOf(posed),
+          ...stopNewsOf(posed),
         };
       }
       if ('targetMissing' in posed) {
@@ -811,28 +795,6 @@ function refusedEach(posed: PosedRefused[] | undefined): UnansweredRequest[] | u
   return posed?.flatMap(({ times = 1, ...request }) =>
     Array.from({ length: times }, () => ({ ...request }))
   );
-}
-
-/** The fields of a pose that tell the scene's news, kept when the pose states them. */
-const NEWS_KEYS = [
-  'threw',
-  'screen',
-  'endedEarly',
-  'mockNotApplied',
-  'crashCause',
-  'letThrough',
-  'lastRun',
-  'phoneNotApplied',
-  'answerFindings',
-  'loggedErrors',
-] as const;
-
-function newsOf(posed: PosedSceneNews): PosedSceneNews {
-  const news: PosedSceneNews = {};
-  for (const key of NEWS_KEYS) {
-    if (posed[key] !== undefined) Object.assign(news, { [key]: posed[key] });
-  }
-  return news;
 }
 
 /** A posed view states only what it has; the screen needs every node to have its lists. */

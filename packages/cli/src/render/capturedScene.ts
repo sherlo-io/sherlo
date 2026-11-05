@@ -12,35 +12,21 @@
  * the story screen's own. The tree is the story screen's tree: one drawing of a view, not two.
  */
 import chalk from 'chalk';
+import { bundleBuildFailureLines } from './bundleBuildFailure';
+import type { BundleBuildFailure } from './bundleBuildFailure';
 import {
   NOTHING_BEFORE_DEATH,
-  bundleFailureLines,
   errorLine,
-  stillRealLines,
   treeLines,
   renderCapturedStory,
   seconds,
   settledLine,
-  unansweredLines,
 } from './capturedStory';
-import type { BundleBuildFailure, CapturedView } from './capturedStory';
-import { ruleOf } from './mockRuleLine';
-import { refusalLines } from './refusalExplanation';
-import {
-  answerFindingLines,
-  blankScreenLines,
-  endedEarlyLines,
-  explainsTheStop,
-  findingLine,
-  letThroughLines,
-  loggedErrorLines,
-  mockNotAppliedLines,
-  partialFieldLines,
-  phoneNotAppliedLines,
-  screenLines,
-  sinceLastRunLines,
-  threwLines,
-} from './sceneDiagnosis';
+import type { CapturedView } from './capturedStory';
+import { leftLines } from './sceneLeftLines';
+import { phoneNotAppliedLines } from './phoneNotAppliedLines';
+import { neverReachedLines } from './sceneDiagnosis';
+import type { SceneStop } from './sceneStop';
 import type { AnswerFinding, LikelyCause, UnansweredRequest } from '../seams/readAppAnswer';
 
 /** What the app threw, ran as real code and left unanswered, as the story's record keeps them; each only when there is any. */
@@ -55,10 +41,6 @@ export type SceneLeft = {
   answerFindings?: AnswerFinding[];
   /** The distinct errors the app logged during the scene, counted and capped, as the app listed them. */
   loggedErrors?: { messages: { message: string; times: number }[]; moreLeftOut: number };
-  /** The words on the app's screen when the capture stopped, and how many views it drew. */
-  screen?: { words: string[]; views: number };
-  /** The capture gave up `afterMs` in, because the app was still on a consent or sign-in screen. */
-  endedEarly?: { afterMs: number; stuckOn: 'consent' | 'sign-in'; button?: string };
   /** The module fakes the scene declared and the app never used. */
   mockNotApplied?: { module: string; why?: 'bundler-had-not-seen-it' }[];
   /** The shape a fake gave a field, against the shape the app reads it as. */
@@ -120,6 +102,8 @@ export type SceneEnding =
       seen?: { testIDs: string[]; more: number };
       /** What the record points to as the likely cause. */
       likelyCause?: LikelyCause;
+      /** Where the app stopped, when its screen was read: covered, blank or on another screen. */
+      stop?: SceneStop;
     } & SceneLeft)
   /** A play step found no view with its testID within its limit; `route` is where the app stood. */
   | ({
@@ -189,7 +173,7 @@ export function renderCapturedScene(state: CapturedScene, picture?: ScenePicture
  * its screen read (the picture shows where it stopped), the save's error, or that no scene was captured.
  */
 function pictureLines(state: CapturedScene, picture: ScenePicture): string[] {
-  const stoppedWithScreen = state.kind === 'never-reached' && state.screen !== undefined;
+  const stoppedWithScreen = state.kind === 'never-reached' && state.stop?.screen !== undefined;
   if (state.kind !== 'scene' && state.kind !== 'never-settled' && !stoppedWithScreen) {
     return [chalk.dim('No picture saved: the scene was not captured')];
   }
@@ -209,7 +193,7 @@ function sceneLines(state: CapturedScene): string[] {
       return noSuchSceneLines(state.sceneId, state.known);
 
     case 'bundle-does-not-build':
-      return bundleFailureLines(state.failure);
+      return bundleBuildFailureLines(state.failure);
 
     case 'crashed-at-boot': {
       const { name, message, file, line } = state.error;
@@ -238,21 +222,7 @@ function sceneLines(state: CapturedScene): string[] {
           state.ready
         } showed, and the app stayed on ${route(state.stayedOn)}`,
         '',
-        ...sinceLastRunLines(state.lastRun, {
-          ending: 'never-reached',
-          route: state.stayedOn,
-          refused: state.unanswered?.length ?? 0,
-        }),
-        ...screenLines(state.screen),
-        ...(state.endedEarly ? ['', ...endedEarlyLines(state.endedEarly)] : []),
-        ...threwLines(state.threw, state.crashCause),
-        ...(explainsTheStop(state)
-          ? []
-          : [
-              '  Nothing faked who is logged in, so the app sent itself to sign-in. ' +
-                "Add a logged-in user to the scene's mocks.",
-            ]),
-        ...blankScreenLines(state.sceneId, state),
+        ...neverReachedLines(state),
         ...(state.discover && state.likelyCause ? likelyCauseLines(state.likelyCause) : []),
         ...leftLines(state),
         '',
@@ -311,65 +281,6 @@ function sceneLines(state: CapturedScene): string[] {
         '',
       ];
   }
-}
-
-/** The requests no mock answered, and the modules that ran real beside an error or an unanswered request; nothing when there are none. */
-function leftLines(left: SceneLeft & { discover?: true }): string[] {
-  const { stillReal, unanswered, loggedErrors } = left;
-  const hasCause = Boolean(left.threw) || (unanswered ?? []).length > 0;
-  const modulesNamed = (left.mockNotApplied ?? []).length > 0;
-  return [
-    ...(left.discover || !hasCause || modulesNamed ? [] : stillRealLines(stillReal)),
-    ...(left.discover
-      ? discoverLines(left)
-      : (refusalLines(unanswered) ?? unansweredLines(unanswered))),
-    ...mockNotAppliedLines(left.mockNotApplied),
-    ...letThroughLines(left.letThrough),
-    ...(left.discover ? [] : answerFindingLines(left.answerFindings)),
-    ...partialFieldLines(loggedErrors),
-    ...loggedErrorLines(loggedErrors),
-  ];
-}
-
-/**
- * A discover capture's result: each request no mock answered as the rule that would answer it, once
- * and in the order the app asked, then the early ready view and the findings about mock answers.
- */
-function discoverLines({ unanswered, readyTooEarly, answerFindings }: SceneLeft): string[] {
-  const rules = new Map<string, UnansweredRequest>();
-  for (const request of unanswered ?? []) {
-    const rule = ruleOf(request);
-    if (!rules.has(rule)) rules.set(rule, request);
-  }
-  return [
-    ...(rules.size === 0
-      ? ['', 'No request went without a mock.']
-      : [
-          '',
-          `${chalk.yellow('◦')}  ${rules.size} ${rules.size === 1 ? 'request' : 'requests'} had no mock. Paste ${rules.size === 1 ? 'this rule' : 'these rules'} into the scene file:`,
-          ...[...rules].map(([rule, request]) => `     ${rule}${requestNote(request)}`),
-          '',
-          '  Paste the rules, fill in each body, then capture again without --discover.',
-        ]),
-    ...(readyTooEarly
-      ? [
-          '',
-          `  The ready view showed after step ${readyTooEarly.atStep} of ${readyTooEarly.of}, before the last step of the play ran.`,
-        ]
-      : []),
-    ...(answerFindings && answerFindings.length > 0
-      ? ['', 'Mock answers the app could not use:', ...answerFindings.map(findingLine)]
-      : []),
-  ];
-}
-
-/** What the app knows of a request's body, after the rule: its content type and masked excerpt, on one line. */
-function requestNote({ contentType, bodyExcerpt }: UnansweredRequest): string {
-  const parts = [
-    ...(contentType ? [contentType] : []),
-    ...(bodyExcerpt ? [`body ${bodyExcerpt.replace(/\s+/g, ' ')}`] : []),
-  ];
-  return parts.length > 0 ? chalk.dim(`  // ${parts.join(', ')}`) : '';
 }
 
 /** Why a scene that never got ready likely did not, in the words the record's causes map to. */

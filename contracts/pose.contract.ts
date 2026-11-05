@@ -728,71 +728,6 @@ export type PosedCapture =
     }
   | {
       scenes: string[];
-      /** The testID of the view the scene waits for. */
-      ready: string;
-      /** The route the app was on when the wait ran out, outermost screen first. */
-      stayedOn: string[];
-      /** The requests the scene made that no mock answered, a discover capture's result. */
-      unanswered?: PosedRefused[];
-      /** What the app threw; `file` and `line` are where, when the app's stack said. */
-      threw?: {
-        name: string;
-        message: string;
-        file?: string;
-        line?: number;
-      };
-      /** What the SDK found wrong in the faked GraphQL answers of the scene. */
-      answerFindings?: AnswerFinding[];
-      /**
-       * The distinct errors the app logged during the scene, counted and capped, as the app listed
-       * them.
-       */
-      loggedErrors?: {
-        messages: Array<{
-          message: string;
-          times: number;
-        }>;
-        moreLeftOut: number;
-      };
-      /** The words on the app's screen when the capture stopped, and how many views it drew. */
-      screen?: {
-        words: string[];
-        views: number;
-      };
-      /** The capture gave up `afterMs` in, because the app was still on a consent or sign-in screen. */
-      endedEarly?: {
-        afterMs: number;
-        stuckOn: 'consent' | 'sign-in';
-        button?: string;
-      };
-      /** The module fakes the scene declared and the app never used. */
-      mockNotApplied?: Array<{
-        module: string;
-        why?: 'bundler-had-not-seen-it';
-      }>;
-      /** The shape a fake gave a field, against the shape the app reads it as. */
-      crashCause?: {
-        dataPath: string;
-        gave: string;
-        appExpects: string;
-      };
-      /** The requests a rule of the scene let reach the real network. */
-      letThrough?: UnansweredRequest[];
-      /** How the last run of the same scene ended, to say what changed. */
-      lastRun?: {
-        ending: 'captured' | 'never-reached' | 'never-settled';
-        route: string[];
-        refused: number;
-      };
-      /** The phone settings the scene asked for and Sherlo could not write. */
-      phoneNotApplied?: Array<{
-        setting: string;
-        wanted: string;
-        why: 'app-not-installed' | 'phone-refused';
-      }>;
-    }
-  | {
-      scenes: string[];
       /** The route the app's navigation reached, read from the app, outermost screen first. */
       route: string[];
       /** How long the fresh boot took, and how long from there until the ready view showed. */
@@ -832,6 +767,73 @@ export type PosedCapture =
         }>;
         moreLeftOut: number;
       };
+      /** The module fakes the scene declared and the app never used. */
+      mockNotApplied?: Array<{
+        module: string;
+        why?: 'bundler-had-not-seen-it';
+      }>;
+      /** The requests a rule of the scene let reach the real network. */
+      letThrough?: UnansweredRequest[];
+      /** The phone settings the scene asked for and Sherlo could not write. */
+      phoneNotApplied?: Array<{
+        setting: string;
+        wanted: string;
+        why: 'app-not-installed' | 'phone-refused';
+      }>;
+    }
+  | {
+      scenes: string[];
+      /** The testID of the view the scene waits for. */
+      ready: string;
+      /** The route the app was on when the wait ran out, outermost screen first. */
+      stayedOn: string[];
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: PosedRefused[];
+      /** What the app threw; `file` and `line` are where, when the app's stack said. */
+      threw?: {
+        name: string;
+        message: string;
+        file?: string;
+        line?: number;
+      };
+      /** What the SDK found wrong in the faked GraphQL answers of the scene. */
+      answerFindings?: AnswerFinding[];
+      /**
+       * The distinct errors the app logged during the scene, counted and capped, as the app listed
+       * them.
+       */
+      loggedErrors?: {
+        messages: Array<{
+          message: string;
+          times: number;
+        }>;
+        moreLeftOut: number;
+      };
+      /** The module fakes the scene declared and the app never used. */
+      mockNotApplied?: Array<{
+        module: string;
+        why?: 'bundler-had-not-seen-it';
+      }>;
+      /** The requests a rule of the scene let reach the real network. */
+      letThrough?: UnansweredRequest[];
+      /** The phone settings the scene asked for and Sherlo could not write. */
+      phoneNotApplied?: Array<{
+        setting: string;
+        wanted: string;
+        why: 'app-not-installed' | 'phone-refused';
+      }>;
+      /** The shape a fake gave a field, against the shape the app reads it as. */
+      crashCause?: {
+        dataPath: string;
+        gave: string;
+        appExpects: string;
+      };
+      /** How the last run of the same scene ended, to say what changed. */
+      lastRun?: {
+        ending: 'captured' | 'never-reached' | 'never-settled';
+        route: string[];
+        refused: number;
+      };
       /** The words on the app's screen when the capture stopped, and how many views it drew. */
       screen?: {
         words: string[];
@@ -843,31 +845,6 @@ export type PosedCapture =
         stuckOn: 'consent' | 'sign-in';
         button?: string;
       };
-      /** The module fakes the scene declared and the app never used. */
-      mockNotApplied?: Array<{
-        module: string;
-        why?: 'bundler-had-not-seen-it';
-      }>;
-      /** The shape a fake gave a field, against the shape the app reads it as. */
-      crashCause?: {
-        dataPath: string;
-        gave: string;
-        appExpects: string;
-      };
-      /** The requests a rule of the scene let reach the real network. */
-      letThrough?: UnansweredRequest[];
-      /** How the last run of the same scene ended, to say what changed. */
-      lastRun?: {
-        ending: 'captured' | 'never-reached' | 'never-settled';
-        route: string[];
-        refused: number;
-      };
-      /** The phone settings the scene asked for and Sherlo could not write. */
-      phoneNotApplied?: Array<{
-        setting: string;
-        wanted: string;
-        why: 'app-not-installed' | 'phone-refused';
-      }>;
     };
 
 /**
