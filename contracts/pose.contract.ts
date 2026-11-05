@@ -775,11 +775,7 @@ export type PosedCapture =
       /** The requests a rule of the scene let reach the real network. */
       letThrough?: UnansweredRequest[];
       /** The phone settings the scene asked for and Sherlo could not write. */
-      phoneNotApplied?: Array<{
-        setting: string;
-        wanted: string;
-        why: 'app-not-installed' | 'phone-refused';
-      }>;
+      phoneNotApplied?: PhoneNotApplied[];
     }
   | {
       scenes: string[];
@@ -817,11 +813,7 @@ export type PosedCapture =
       /** The requests a rule of the scene let reach the real network. */
       letThrough?: UnansweredRequest[];
       /** The phone settings the scene asked for and Sherlo could not write. */
-      phoneNotApplied?: Array<{
-        setting: string;
-        wanted: string;
-        why: 'app-not-installed' | 'phone-refused';
-      }>;
+      phoneNotApplied?: PhoneNotApplied[];
       /** The shape a fake gave a field, against the shape the app reads it as. */
       crashCause?: {
         dataPath: string;
@@ -1485,6 +1477,13 @@ export type AnswerFinding = {
   operation?: string;
   path?: string;
   expected?: string;
+};
+
+/** A setting the phone could not take, with why: the shape the capture screen lists. */
+export type PhoneNotApplied = {
+  setting: string;
+  wanted: string;
+  why: 'app-not-installed' | 'phone-refused';
 };
 
 /**
