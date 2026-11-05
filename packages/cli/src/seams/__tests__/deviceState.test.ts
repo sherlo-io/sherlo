@@ -7,6 +7,7 @@
  * restore make are real copies.
  */
 import fs from 'fs';
+import net from 'net';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -54,8 +55,11 @@ let simulator: string;
 let saveFolders: string[];
 let calls: Call[];
 let uninstall: () => void;
+/** What the emulator answers when asked for its global proxy: `null` when it has none. */
+let earlierProxy = 'null';
 
 beforeEach(() => {
+  earlierProxy = 'null';
   scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'device-state-test-'));
   container = path.join(scratch, 'container');
   simulator = path.join(scratch, 'simulator');
@@ -222,6 +226,81 @@ describe('a local capture leaves the device clean', () => {
     );
     expect(calls.find((call) => call.stdin !== undefined)?.stdin).toBe('the app data as I left it');
     expect(fs.existsSync(saveFolders[0])).toBe(false);
+  });
+
+  /** The port the refusing proxy listens on, as the emulator was told of it. */
+  function proxyPortSet(): number {
+    const put = commands().find((line) =>
+      line.includes('settings put global http_proxy 10.0.2.2:')
+    );
+    return Number(put?.split(':').at(-1));
+  }
+
+  /** Whether anything listens on `port` of this machine. */
+  function listensOn(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = net.connect(port, '127.0.0.1');
+      socket.on('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.on('error', () => resolve(false));
+    });
+  }
+
+  it("the Android emulator's proxy is set before a scene and put back after the run, even when it fails", async () => {
+    uninstall();
+    uninstall = installDeviceState(recordingDevice(ANDROID));
+    const uninstallSocket = installCaptureSocket({
+      captureStory: async () => {
+        throw new Error('a scene capture asked about a story');
+      },
+      captureScene: async () => {
+        // The scene runs while the emulator sends everything through the proxy.
+        expect(await listensOn(proxyPortSet())).toBe(true);
+        throw new Error('the app went away');
+      },
+    });
+
+    try {
+      await expect(capture({ [SCENE_OPTION]: 'inbox--full' })).rejects.toThrow('the app went away');
+    } finally {
+      uninstallSocket();
+    }
+
+    // The emulator had no proxy, so it is cleared again: the setting put to none, then deleted.
+    const ran = commands();
+    const none = ran.indexOf('adb -s emulator-5554 shell settings put global http_proxy :0');
+    expect(none).toBeGreaterThan(ran.findIndex((line) => line.includes('http_proxy 10.0.2.2:')));
+    expect(ran[none + 1]).toBe('adb -s emulator-5554 shell settings delete global http_proxy');
+    expect(await listensOn(proxyPortSet())).toBe(false);
+  });
+
+  it('an iOS simulator is given no proxy, and an emulator that had one gets it back', async () => {
+    const restoreIos = await prepareCleanDevice(IOS.device, IOS.app, undefined, 8081);
+    await restoreIos();
+    expect(commands().some((line) => line.includes('http_proxy'))).toBe(false);
+
+    uninstall();
+    uninstall = installDeviceState(recordingDevice(ANDROID));
+    earlierProxy = 'corporate.example:3128';
+    calls = [];
+    const restoreAndroid = await prepareCleanDevice(ANDROID.device, ANDROID.app, undefined, 8081);
+    await restoreAndroid();
+
+    expect(commands()).toContain(
+      'adb -s emulator-5554 shell settings put global http_proxy corporate.example:3128'
+    );
+  });
+
+  it('a run that names no bundler port sets no proxy, as open does', async () => {
+    uninstall();
+    uninstall = installDeviceState(recordingDevice(ANDROID));
+
+    const restore = await prepareCleanDevice(ANDROID.device, ANDROID.app);
+    await restore();
+
+    expect(commands().some((line) => line.includes('http_proxy'))).toBe(false);
   });
 
   it('an interrupt puts everything back', async () => {
@@ -620,6 +699,7 @@ function answerOf(line: string, stdoutTo: string | undefined): string {
   if (line.includes('tar -cf -') && stdoutTo) {
     fs.writeFileSync(stdoutTo, 'the app data as I left it');
   }
+  if (line.includes('settings get global http_proxy')) return `${earlierProxy}\n`;
   if (line.includes('settings get global window_animation_scale')) return '1.0\n';
   if (line.includes('settings get global transition_animation_scale')) return '0.5\n';
   if (line.includes('settings get global animator_duration_scale')) return 'null\n';

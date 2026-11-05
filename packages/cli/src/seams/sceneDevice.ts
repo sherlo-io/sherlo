@@ -366,7 +366,7 @@ export async function restoreSceneDevice(
   return failures;
 }
 
-function isEmulator(serial: string): boolean {
+export function isEmulator(serial: string): boolean {
   return serial.startsWith('emulator-');
 }
 

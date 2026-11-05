@@ -1378,7 +1378,7 @@ export type UnansweredRequest = {
   operation?: string;
   bodyExcerpt?: string;
   scope?: 'background' | 'screen';
-  rule?: 'fake-refused' | 'no-fake-matched';
+  rule?: 'emulator-proxy' | 'fake-refused' | 'native-android' | 'native-ios' | 'no-fake-matched';
   fakeAt?: string;
   stack?: string;
   /** The npm package whose code made the request, when the app's call stack names one. */

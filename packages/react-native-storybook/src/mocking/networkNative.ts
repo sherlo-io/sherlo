@@ -3,6 +3,7 @@ import utf8 from 'utf8';
 import type { NetworkRule } from './networkDeclaration';
 import { NativeEventEmitter } from 'react-native';
 import { bodyOf, statusOf, urlPrefixOf, verdictForNativeUnanswered } from './networkRules';
+import { NATIVE_BLOCK_RULES } from './refusedRequest';
 import { bundlerOrigin } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
 import NativeSherloModule from '../specs/NativeSherloModule';
@@ -35,10 +36,15 @@ import NativeSherloModule from '../specs/NativeSherloModule';
  * Rules that name a GraphQL operation, and every rule's delayMs, stay in JavaScript: native code
  * reads no request body and answers at once.
  *
- * Native answers do not reach everything yet. On iOS they miss background sessions and sessions
- * made from any other configuration. On Android they miss a client factory the app sets itself, a
- * client a library builds outside Glide, and HttpURLConnection. Those requests go to the real
- * network.
+ * A request native code refused itself is told with `rule` - 'native-ios' or 'native-android' - and
+ * is then refused and listed with that rule whatever its story lets through. On iOS a download a
+ * background session starts is refused at its start.
+ *
+ * Native answers do not reach everything. On iOS they miss sessions made from any other
+ * configuration. On Android they miss a client factory the app sets itself, a client a library
+ * builds outside Glide, and HttpURLConnection; an emulator's proxy (the Mac sets it,
+ * packages/cli/src/seams/refusingProxy) refuses what those send. The iOS simulator has no proxy,
+ * so what those send there reaches the real network.
  */
 
 /** One rule as native code reads it. */
@@ -94,13 +100,16 @@ export function listenForNativeUnanswered(): () => void {
   const subscription = new NativeEventEmitter(NativeSherloModule).addListener(
     UNANSWERED_EVENT,
     (requestJson: string) => {
-      const { method, url, contentType } = JSON.parse(requestJson) as Record<string, unknown>;
+      const { method, url, contentType, rule } = JSON.parse(requestJson) as Record<string, unknown>;
       if (typeof method !== 'string' || typeof url !== 'string') return;
-      verdictForNativeUnanswered({
-        method: method.toUpperCase(),
-        url,
-        ...(typeof contentType === 'string' && { contentType }),
-      });
+      verdictForNativeUnanswered(
+        {
+          method: method.toUpperCase(),
+          url,
+          ...(typeof contentType === 'string' && { contentType }),
+        },
+        NATIVE_BLOCK_RULES.find((one) => one === rule)
+      );
     }
   );
   return () => subscription.remove();

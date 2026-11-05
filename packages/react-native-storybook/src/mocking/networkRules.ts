@@ -12,7 +12,7 @@ import { graphqlOperationOf } from './graphqlQueryText';
 import { graphqlAnswerFindings } from './graphqlAnswerCheck';
 import type { AnswerFinding, UnansweredRequest } from '../sealedCore/seam';
 import { providerFirstRenderedAt } from '../appMetadata';
-import type { RefusedRequest } from './refusedRequest';
+import type { NativeBlockRule, RefusedRequest } from './refusedRequest';
 
 /**
  * THE RULES IN EFFECT, AND WHAT THEY SAY ABOUT ONE REQUEST.
@@ -205,7 +205,12 @@ export function answerFor(request: MockedRequest): Verdict {
  * A request native code met that no rule matches, recorded as `verdictForUnanswered` does - unless
  * it is the echo of one fetch or XMLHttpRequest let through and so already listed.
  */
-export function verdictForNativeUnanswered(request: MockedRequest): Verdict | undefined {
+export function verdictForNativeUnanswered(
+  request: MockedRequest,
+  blockedBy?: NativeBlockRule
+): Verdict | undefined {
+  // Native code that blocked it itself says so: it is refused and listed whatever the story lets through.
+  if (blockedBy) return verdictForUnanswered(request, true, blockedBy);
   const key = echoKeyOf(request);
   const expiresAt = expectedNativeEchoes.get(key);
   expectedNativeEchoes.delete(key);
@@ -243,12 +248,16 @@ function echoKeyOf({ method, url }: MockedRequest): string {
  * rules in effect say - a refusal told to whoever keeps the story's record. fetch and XMLHttpRequest
  * reach it through `answerFor`; a request native code met and decided itself is recorded by it too.
  */
-export function verdictForUnanswered(request: MockedRequest, fromNative = false): Verdict {
-  const unmatched = unmatchedRequestVerdict();
+export function verdictForUnanswered(
+  request: MockedRequest,
+  fromNative = false,
+  blockedBy?: NativeBlockRule
+): Verdict {
+  const unmatched = blockedBy ? 'refusal' : unmatchedRequestVerdict();
   // A request native code met has no JavaScript stack to keep.
   unanswered.push({
     ...recordOf(request),
-    ...(unmatched === 'refusal' && refusalMarks('no-fake-matched', !fromNative)),
+    ...(unmatched === 'refusal' && refusalMarks(blockedBy ?? 'no-fake-matched', !fromNative)),
   });
   if (unmatched !== 'refusal') return { kind: unmatched };
 
