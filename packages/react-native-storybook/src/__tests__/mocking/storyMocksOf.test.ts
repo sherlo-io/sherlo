@@ -2,14 +2,35 @@
  * ONE STORY'S MOCKS, found through Storybook's own index with no sealed core (../../mocking/
  * storyMocksOf): the cases a person's Storybook meets that the activation tests do not.
  */
+const { mockGetMode } = vi.hoisted(() => ({ mockGetMode: vi.fn() }));
+
+vi.mock('../../SherloModule', () => ({
+  default: { getMode: mockGetMode, getConfigOrDefault: () => ({}) },
+}));
+
+vi.mock('../../helpers/RunnerBridge', () => ({
+  default: { log: vi.fn(), send: vi.fn() },
+}));
+
 import { storyMockLevelsOf } from '../../mocking/storyMocksOf';
+import { unreachedMocksOf } from '../../mocking/activateStoryMocks';
+import { createLazyMockable } from '../../mocking/createMockable';
+import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
+import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import {
   __resetStorybookFactsForTests,
   recordWhatStartWasHanded,
 } from '../../getStorybook/storybookFacts';
 import { startStorybookHolding } from './storybookHolding';
 
+beforeEach(() => {
+  mockGetMode.mockReturnValue('testing');
+});
+
 afterEach(() => {
+  clearMocks();
+  delete (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports;
+  __resetShimmedKeysForTests();
   __resetStorybookFactsForTests();
 });
 
@@ -130,5 +151,38 @@ describe('storyMockLevelsOf finds the selected story through Storybook’s index
       project: { 'pkg/config': { flag: 'project' } },
       own: { 'pkg/story': { value: 'story' } },
     });
+  });
+});
+
+describe('the layer that declared a fake', () => {
+  it('a fake declared in shared setup and overridden by the scene is not listed as unused', () => {
+    (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports = {
+      storyFiles: { './src/Chat.stories.tsx': [] },
+      mockedModules: ['pkg/chat', 'pkg/analytics'],
+    };
+    const chat = createLazyMockable('pkg/chat', () => ({ label: 'real' }));
+    createLazyMockable('pkg/analytics', () => ({ track: () => 'real' }));
+    startStorybookHolding(
+      [
+        {
+          importPath: './src/Chat.stories.tsx',
+          title: 'Chat',
+          fileExports: {
+            default: { title: 'Chat' },
+            Default: { parameters: { sherlo: { mocks: { 'pkg/chat': { label: 'scene' } } } } },
+          },
+          stories: [{ id: 'chat--default', name: 'Default' }],
+        },
+      ],
+      { 'pkg/chat': { label: 'shared' }, 'pkg/analytics': { track: () => 'shared' } }
+    );
+
+    activateMocksForStory('chat--default');
+    expect(chat.label).toBe('scene');
+    markStorySettled();
+
+    expect(unreachedMocksOf('chat--default')).toEqual([
+      { module: 'pkg/analytics', layer: 'shared setup' },
+    ]);
   });
 });

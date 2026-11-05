@@ -1,4 +1,5 @@
-import { mergeStoryMocks } from '../../mocking/mergeMocks';
+import { forgetLackedFields, lackedFieldsRead, mergeStoryMocks } from '../../mocking/mergeMocks';
+import { overlay } from '../../mocking/overlay';
 import { MockDeclaration, resolveDeclarations } from '../../mocking/mockDeclaration';
 
 describe('mergeStoryMocks - per-module-key precedence (CP-01..CP-05, CP-07)', () => {
@@ -151,5 +152,50 @@ describe('mergeStoryMocks - per-module-key precedence (CP-01..CP-05, CP-07)', ()
 
   it('defaults every level to an empty set, returning {} when nothing is declared', () => {
     expect(mergeStoryMocks()).toEqual({});
+  });
+});
+
+describe('a partial fake with nothing real beneath it', () => {
+  beforeEach(() => {
+    forgetLackedFields();
+  });
+
+  it('a partial fake reports every field the screen read that it lacks, not only the first', () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const profile = overlay({ name: 'Ada' }, () => undefined, true) as Record<string, unknown>;
+
+    // The screen reads five fields; the fake names one. JSON and promise probes are not reads.
+    const read = [
+      profile.name,
+      profile.isAnonymous,
+      profile.ageRange,
+      profile.isAnonymous,
+      profile.verifiedAt,
+      profile.toString,
+      (profile as { toJSON?: unknown }).toJSON,
+      (profile as { then?: unknown }).then,
+      profile[Symbol.toPrimitive as unknown as string],
+      profile.photoCount,
+    ];
+
+    expect(read[0]).toBe('Ada');
+    expect(lackedFieldsRead()).toEqual(['isAnonymous', 'ageRange', 'verifiedAt', 'photoCount']);
+    expect(logged.mock.calls.map(([message]) => message)).toEqual(
+      ['isAnonymous', 'ageRange', 'verifiedAt', 'photoCount'].map(
+        (field) =>
+          `A scene read "${field}" of a partial object, and the scene does not name it. Add it to the partial.`
+      )
+    );
+    logged.mockRestore();
+  });
+
+  it('a fake with a real part beneath it reads through and reports nothing', () => {
+    const chat = overlay({ name: 'Ada' }, () => ({ name: 'real', age: 30 }), true) as Record<
+      string,
+      unknown
+    >;
+
+    expect([chat.name, chat.age]).toEqual(['Ada', 30]);
+    expect(lackedFieldsRead()).toEqual([]);
   });
 });

@@ -277,6 +277,80 @@ export default scenes({ scenes: { Spread: { given: [...rest()] } } });`;
     );
   });
 
+  it('two scenes with one name are refused, naming both files', () => {
+    const root = mkProject();
+    writeFile(root, 'src/Chat.scenes.tsx', CHAT_SCENES);
+    writeFile(
+      root,
+      'src/more/Chat.scenes.tsx',
+      `export default scenes({ scenes: { Conversation: {} } });`
+    );
+
+    let refusal = '';
+    try {
+      sceneFiles.scenesOfProject(root);
+    } catch (error) {
+      refusal = (error as Error).message;
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(refusal).toContain('chat--conversation');
+    expect(refusal).toContain(path.join('src', 'Chat.scenes.tsx'));
+    expect(refusal).toContain(path.join('src', 'more', 'Chat.scenes.tsx'));
+  });
+
+  it('a scene with a missing or wrong input is refused, naming the scene and the input', () => {
+    const refusalOf = (scene: string): string => {
+      try {
+        sceneFiles.sceneIdsOfSource(
+          'chat.scenes.tsx',
+          `export default scenes({ scenes: { ${scene} } });`
+        );
+        return '';
+      } catch (error) {
+        return (error as Error).message;
+      }
+    };
+
+    expect(refusalOf('Empty: { play: [{ tap: 5 }] }')).toMatch(/chat\.scenes\.tsx.*Empty.*tap/);
+    expect(refusalOf("Wrong: { play: [{ type: { testID: 'a' } }] }")).toMatch(/Wrong.*text/);
+    expect(refusalOf("Lost: { play: [{ drag: 'a' }] }")).toMatch(/Lost.*drag/);
+    expect(refusalOf('Late: { ready: 7 }')).toMatch(/Late.*ready/);
+    expect(refusalOf("Odd: { play: 'a' }")).toMatch(/Odd.*play/);
+    expect(refusalOf("Plain: 'a'")).toMatch(/Plain/);
+    expect(refusalOf("Fine: { play: [{ tap: 'a' }, { ready: 'b' }], ready: 'c' }")).toBe('');
+  });
+
+  it('a shared precondition held in a scene-file const or helper is marked as shared', () => {
+    const root = mkProject();
+    writeFile(root, 'src/shared.ts', 'export const inbox = () => ({ mocks: [] });');
+    writeFile(
+      root,
+      'src/Chat.scenes.tsx',
+      `import { scenes, signedOut } from '@sherlo/react-native-storybook';
+import { inbox } from './shared';
+const held = inbox();
+const list = [inbox(), signedOut()];
+const helper = () => inbox();
+function block() { const own = signedOut(); return [own, helper()]; }
+export default scenes({
+  scenes: {
+    Held: { given: [held, signedOut()] },
+    Listed: { given: [list] },
+    Called: { given: [helper(), { mocks: [] }] },
+    Blocked: { given: [block()] },
+  },
+});`
+    );
+    const found = sceneFiles.scenesOfProject(root);
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(found['chat--held'].shared).toEqual([true, false]);
+    expect(found['chat--listed'].shared).toEqual([[true, false]]);
+    expect(found['chat--called'].shared).toEqual([true, false]);
+    expect(found['chat--blocked'].shared).toEqual([[false, true]]);
+  });
+
   it('a scene file added after the bundler started is in the scene list of the next bundle', () => {
     const root = mkProject();
     writeFile(root, 'index.js', 'module.exports = 1;');

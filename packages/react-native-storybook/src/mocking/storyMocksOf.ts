@@ -48,6 +48,14 @@ export function storyMockLevelsOf(storyId: string): { project: StoryMocks; own?:
   return { project, own };
 }
 
+/** The layer a fake comes from: a scene's own `given` entry, or one a shared file built. */
+export type MockLayer = 'shared setup' | 'scene';
+
+/** The layer that declared the fake of `moduleKey`: the scene when it or its file names it. */
+export function layerOfMock(moduleKey: string, declaredByScene: ReadonlySet<string>): MockLayer {
+  return declaredByScene.has(moduleKey) ? 'scene' : 'shared setup';
+}
+
 /* ========================================================================== */
 
 /**

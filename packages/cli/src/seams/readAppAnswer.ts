@@ -4,6 +4,9 @@
  * wire. They live apart so the two roads can share them without importing each other.
  */
 import type { RefusedRequest } from '../../../react-native-storybook/src/mocking/refusedRequest';
+import { UNUSED_FAKE_LINE } from '../../../react-native-storybook/src/mocking/unusedFakeLine';
+import type { SceneLeft } from '../render/capturedScene';
+import { readAppError } from './appError';
 import { keepStrings } from './appLog';
 
 /**
@@ -119,6 +122,60 @@ export function readAnswerFindings(value: unknown): AnswerFinding[] | undefined 
 export function readReadyTooEarly(value: unknown): { atStep: number; of: number } | undefined {
   const { atStep, of } = (value ?? {}) as { atStep?: unknown; of?: unknown };
   return typeof atStep === 'number' && typeof of === 'number' ? { atStep, of } : undefined;
+}
+
+/**
+ * The declared module fakes the app never used, as the record names them; a malformed entry is
+ * dropped, and nothing when none is left.
+ */
+export function readMockNotApplied(value: unknown): SceneLeft['mockNotApplied'] {
+  if (!Array.isArray(value)) return undefined;
+  const read: NonNullable<SceneLeft['mockNotApplied']> = [];
+  for (const entry of value) {
+    const { module, why } = (entry ?? {}) as { module?: unknown; why?: unknown };
+    if (typeof module !== 'string') continue;
+    read.push(why === 'bundler-had-not-seen-it' ? { module, why } : { module });
+  }
+  return read.length > 0 ? read : undefined;
+}
+
+/**
+ * The logged errors without the lines that say a fake was never used (the app logs those at the end
+ * of a scene), and the fakes those lines name. The errors keep their order; nothing is left when no
+ * message remains.
+ */
+function takeUnusedFakes(logged: ErrorsTheAppLogged | undefined): {
+  loggedErrors?: ErrorsTheAppLogged;
+  unused: { module: string }[];
+} {
+  if (!logged) return { unused: [] };
+  const unused = logged.messages.flatMap(({ message }) => {
+    const module = UNUSED_FAKE_LINE.exec(message)?.[1];
+    return module ? [{ module }] : [];
+  });
+  const messages = logged.messages.filter(({ message }) => !UNUSED_FAKE_LINE.test(message));
+  return { unused, ...(messages.length > 0 && { loggedErrors: { ...logged, messages } }) };
+}
+
+/** What the scene threw, ran as real code and left unanswered, as the story's record reads them. */
+export function keptLeft(answer: Record<string, unknown>): SceneLeft {
+  const threw = readAppError(answer.threw);
+  const stillReal = readStrings(answer.stillReal);
+  const unanswered = readUnanswered(answer.unanswered, true);
+  const { loggedErrors, unused } = takeUnusedFakes(readLoggedErrors(answer.loggedErrors));
+  const notApplied = [...(readMockNotApplied(answer.mockNotApplied) ?? []), ...unused];
+  const mockNotApplied = notApplied.length > 0 ? notApplied : undefined;
+  const readyTooEarly = readReadyTooEarly(answer.readyTooEarly);
+  const answerFindings = readAnswerFindings(answer.answerFindings);
+  return {
+    ...(threw && { threw: { name: threw.name, message: threw.message } }),
+    ...(stillReal && { stillReal }),
+    ...(unanswered && { unanswered }),
+    ...(readyTooEarly && { readyTooEarly }),
+    ...(answerFindings && { answerFindings }),
+    ...(loggedErrors && { loggedErrors }),
+    ...(mockNotApplied && { mockNotApplied }),
+  };
 }
 
 /** The likely causes of a scene that never got ready; nothing when the app named none. */

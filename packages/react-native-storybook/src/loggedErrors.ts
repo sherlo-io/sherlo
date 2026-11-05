@@ -3,11 +3,15 @@
  * console.error call, so an error the app caught and only logged still shows beside the scene it
  * broke. Distinct messages, first seen first, with how many times each was logged; the core reads
  * them through the host's loggedErrors call (./sealedCore/sceneCalls) into the scene's record.
+ * The diagnostic lines a scene logs about its own fakes (./mocking/unusedFakeLine) are kept apart:
+ * they count against no cap and are never counted as errors left out, and all of them are delivered.
  *
  * Only the first argument's text is ever kept, never an object, a request body or any other app
  * data. The wrap calls through, so the app's own logging is unchanged. Scenes only: a story's
  * testing mode silences console.error itself (./getStorybook/components/TestingMode).
  */
+
+import { isDiagnosticLine } from './mocking/unusedFakeLine';
 
 const MOST_MESSAGES = 5;
 const MOST_CHARACTERS = 200;
@@ -64,8 +68,10 @@ export function loggedErrors(): {
   moreLeftOut: number;
 } {
   const all = [...timesOf].map(([message, times]) => ({ message, times }));
+  const diagnostics = all.filter(({ message }) => isDiagnosticLine(message));
+  const errors = all.filter(({ message }) => !isDiagnosticLine(message));
   return {
-    messages: all.slice(0, MOST_MESSAGES),
-    moreLeftOut: Math.max(0, all.length - MOST_MESSAGES),
+    messages: [...errors.slice(0, MOST_MESSAGES), ...diagnostics],
+    moreLeftOut: Math.max(0, errors.length - MOST_MESSAGES),
   };
 }

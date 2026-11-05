@@ -355,7 +355,11 @@ function phoneSettingsOfGiven(givenNode, filePath, source, where) {
 // Which entries of a scene's own `given` list a file other than the scene file built: true for a
 // call of a function, or a name, imported from a relative file; a list for a nested list; false for
 // the rest. The runtime marks those entries' parts as shared (src/preconditions.ts partsOf).
-function sharedMarkOf(node, record) {
+// A name the scene file holds in a constant, or a function of the scene file it calls, is marked by
+// what it holds or returns, so a shared precondition kept in the scene file still reads as shared.
+function sharedMarkOf(node, record, depth) {
+  depth = depth || 0;
+  if (depth > DEPTH_LIMIT) return false;
   node = mockScan.unwrapExpression(node);
   if (node.type === 'ArrayExpression') {
     return node.elements.map(function (element) {
@@ -363,14 +367,48 @@ function sharedMarkOf(node, record) {
       if (element.type === 'SpreadElement') {
         refuse('a spread in the given list cannot be followed; list the preconditions one by one');
       }
-      return sharedMarkOf(element, record);
+      return sharedMarkOf(element, record, depth + 1);
     });
   }
   var head = node.type === 'CallExpression' ? mockScan.unwrapExpression(node.callee) : node;
   while (head.type === 'MemberExpression') head = mockScan.unwrapExpression(head.object);
   if (head.type !== 'Identifier') return false;
   var binding = record.bindings[head.name];
-  return Boolean(binding && binding.from && fileOfImport(record.filePath, binding.from));
+  if (!binding) return false;
+  if (binding.from) return Boolean(fileOfImport(record.filePath, binding.from));
+
+  var held = mockScan.unwrapExpression(binding.init);
+  if (isFunctionNode(held)) {
+    var isCallOfIt = node.type === 'CallExpression' && mockScan.unwrapExpression(node.callee) === head;
+    return isCallOfIt ? sharedMarkOfResult(held, record, depth + 1) : false;
+  }
+  return node === head ? sharedMarkOf(held, record, depth + 1) : false;
+}
+
+// The mark of what a function of the scene file returns: the expression of an arrow, or the first
+// `return` of a block after its constants, which the function's own names resolve through.
+function sharedMarkOfResult(functionNode, record, depth) {
+  var bindings = Object.assign({}, record.bindings);
+  functionNode.params.forEach(function (param) {
+    var target = param.type === 'AssignmentPattern' ? param.left : param;
+    if (target.type === 'Identifier') delete bindings[target.name];
+  });
+  var inside = { filePath: record.filePath, bindings: bindings };
+  var body = functionNode.body;
+  if (body.type !== 'BlockStatement') return sharedMarkOf(body, inside, depth + 1);
+  for (var i = 0; i < body.body.length; i++) {
+    var statement = body.body[i];
+    if (statement.type === 'ReturnStatement') {
+      return statement.argument ? sharedMarkOf(statement.argument, inside, depth + 1) : false;
+    }
+    if (statement.type !== 'VariableDeclaration') return false;
+    statement.declarations.forEach(function (declarator) {
+      if (declarator.id.type === 'Identifier' && declarator.init) {
+        bindings[declarator.id.name] = { init: declarator.init };
+      }
+    });
+  }
+  return false;
 }
 
 /**
