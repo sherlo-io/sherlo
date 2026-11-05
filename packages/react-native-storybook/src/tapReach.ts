@@ -102,6 +102,34 @@ export function coverOf(
   return typeof testID === 'string' ? { testID, className } : { className };
 }
 
+/**
+ * One window of the phone and the labeled views it shows, in points. An alert or an action sheet
+ * lives in a window of its own above the app's.
+ */
+export type WindowViews = { name: string; views: { label: string; frame: Frame }[] };
+
+/** The view labeled `label` in the topmost of `windows` (given topmost first) that shows one. */
+export function findInWindows(
+  windows: WindowViews[],
+  label: string
+): { window: string; frame: Frame } | undefined {
+  for (const window of windows) {
+    const view = window.views.find((candidate) => candidate.label === label);
+    if (view) return { window: window.name, frame: view.frame };
+  }
+  return undefined;
+}
+
+/** The windows a search went through, named so a missing target says where it was not. */
+export function windowsLookedIn(windowNames: string[]): string {
+  return `Windows looked in, topmost first: ${windowNames.join(', ')}`;
+}
+
+/** The reason a view labeled `label` was not found, naming the windows (topmost first) searched. */
+export function missingFromWindows(label: string, windowNames: string[]): string {
+  return `no view labeled "${label}" is on screen. ${windowsLookedIn(windowNames)}`;
+}
+
 /** What handlers are handed as the view: the new renderer's public instance, or the old view. */
 export function publicInstanceOf(fiber: WalkedFiber): unknown {
   return fiber.stateNode?.canonical?.publicInstance ?? fiber.stateNode;

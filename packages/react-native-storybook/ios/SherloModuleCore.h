@@ -127,6 +127,12 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
 - (void)getInspectorData:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 
 /**
+ * Resolves, as JSON, the labeled views of every window shown, topmost first:
+ * `[{name, views: [{label, frame: {x, y, width, height}}]}]`, frames in points.
+ */
+- (void)getWindowViews:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
+
+/**
  * Whether each view named by testID (a JSON list) is drawn, from the native view tree: resolves a
  * JSON object of visible, invisible, absent or unreached by testID
  * @param testIDsJson JSON list of testIDs
@@ -202,7 +208,8 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
                     reject:(RCTPromiseRejectBlock)reject;
 
 /**
- * Touches the app window (InspectorHelper +appWindow) at (x, y), in points, for holdMs, as a finger
+ * Touches the topmost shown window that takes a touch at (x, y) (InspectorHelper +visibleWindows;
+ * an alert or action sheet is above the app's), in points, for holdMs, as a finger
  * does (TouchHelper), and resolves what the touch reached once it ended. Rejects only when the app
  * has no window.
  */
@@ -213,7 +220,19 @@ extern NSString * const SHERLO_MESSAGE_EVENT;
      reject:(RCTPromiseRejectBlock)reject;
 
 /**
- * Drags a finger across the app window (InspectorHelper +appWindow) from (fromX, fromY) to
+ * Touches (x, y) in only the window at `windowIndex` of the windows getWindowViews lists (topmost
+ * first), for holdMs, so a window above it that covers the point takes the touch and no other.
+ * Resolves what the touch reached, as `tap`. Rejects when no window is at that index.
+ */
+- (void)tapInWindow:(double)x
+                  y:(double)y
+             holdMs:(double)holdMs
+        windowIndex:(double)windowIndex
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject;
+
+/**
+ * Drags a finger across the topmost window that takes a touch at (fromX, fromY) (as the tap) to
  * (toX, toY), in points, over durationMs (TouchHelper), and resolves, once the finger lifted, what
  * it went down on, as the tap does. Rejects only when the app has no window.
  */

@@ -4,6 +4,13 @@ import { TurboModuleRegistry } from 'react-native';
 export interface Spec extends TurboModule {
   getInspectorData: () => Promise<string>;
   /**
+   * The labeled views of every window shown, topmost first, as JSON: `[{ name, views: [{ label,
+   * frame: { x, y, width, height } }] }]`, frames in points. An iOS alert or action sheet is a
+   * window above the app's. Android answers `[]`: its dialogs are reached through the app's
+   * rendered views (a native build from before this lacks the method).
+   */
+  getWindowViews: () => Promise<string>;
+  /**
    * Whether each view the JSON list of testIDs names is drawn, read from the native view tree:
    * resolves a JSON object, `{ [testID]: 'visible' | 'invisible' | 'absent' | 'unreached' }`
    * (the states are named in src/types/types ViewVisibility).
@@ -101,6 +108,16 @@ export interface Spec extends TurboModule {
     x: number,
     y: number,
     holdMs: number
+  ) => Promise<{ reachedReact: boolean; hitTag: number; hitClass: string; missing: string[] }>;
+  /**
+   * Touch (x, y) in only the window at `windowIndex` of getWindowViews' list (iOS; a pop-up's tap),
+   * so a window above it that covers the point takes no touch. Answers as `tap`.
+   */
+  tapInWindow: (
+    x: number,
+    y: number,
+    holdMs: number,
+    windowIndex: number
   ) => Promise<{ reachedReact: boolean; hitTag: number; hitClass: string; missing: string[] }>;
   /**
    * Put a finger down at (fromX, fromY) in the same window, move it to (toX, toY) at a finger's

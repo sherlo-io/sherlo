@@ -189,6 +189,16 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     /**
+     * The labeled views of every window shown, as JSON: always empty on Android.
+     *
+     * @param promise Promise to resolve with the JSON list
+     */
+    @ReactMethod
+    public void getWindowViews(Promise promise) {
+        moduleCore.getWindowViews(promise);
+    }
+
+    /**
      * Touches the screen at (x, y), in points, for holdMs, as a finger does: a scene's tap.
      *
      * @param promise Promise to resolve with whether React took the touch, the hit view's tag and class

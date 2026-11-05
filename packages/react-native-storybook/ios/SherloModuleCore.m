@@ -526,6 +526,33 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
 }
 
 /**
+ * The labeled views of every window shown, topmost first, as JSON (InspectorHelper
+ * +labeledViewsByWindow), read on the main queue.
+ */
+- (void)getWindowViews:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSMutableArray<NSDictionary *> *byWindow = [NSMutableArray array];
+        for (NSDictionary *window in [InspectorHelper labeledViewsByWindow]) {
+            NSMutableArray<NSDictionary *> *views = [NSMutableArray array];
+            for (NSDictionary *view in window[@"views"]) {
+                [views addObject:@{ @"label" : view[@"label"],
+                                    @"frame" : @{ @"x" : view[@"x"], @"y" : view[@"y"],
+                                                  @"width" : view[@"width"],
+                                                  @"height" : view[@"height"] } }];
+            }
+            [byWindow addObject:@{ @"name" : window[@"name"], @"views" : views }];
+        }
+        NSError *error = nil;
+        NSData *json = [NSJSONSerialization dataWithJSONObject:byWindow options:0 error:&error];
+        if (!json) {
+            reject(@"window_views_failed", error.localizedDescription, error);
+            return;
+        }
+        resolve([[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding]);
+    });
+}
+
+/**
  * Whether each view named by testID is drawn, from the native view tree.
  *
  * @param testIDsJson JSON list of testIDs
@@ -696,13 +723,33 @@ static UIScrollView *lockedScrollView = nil;
     resolve:(RCTPromiseResolveBlock)resolve
      reject:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // The window the inspector measures frames in, so a tap never mixes windows.
-        UIWindow *window = [InspectorHelper appWindow];
-        if (!window) {
+        // Every shown window, topmost first: an alert or action sheet is a window above the app's.
+        NSArray<UIWindow *> *windows = [InspectorHelper visibleWindows];
+        if (windows.count == 0) {
             reject(@"no_window", @"The app has no window to tap", nil);
             return;
         }
-        [TouchHelper tapInWindow:window at:CGPointMake(x, y) holdMs:holdMs resolve:resolve];
+        [TouchHelper tapInWindows:windows at:CGPointMake(x, y) holdMs:holdMs resolve:resolve];
+    });
+}
+
+- (void)tapInWindow:(double)x
+                  y:(double)y
+             holdMs:(double)holdMs
+        windowIndex:(double)windowIndex
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // The same list, in the same order, as getWindowViews: the index names one window in it.
+        NSArray<UIWindow *> *windows = [InspectorHelper visibleWindows];
+        if (windowIndex < 0 || windowIndex >= windows.count) {
+            reject(@"no_window", @"The window to tap is no longer shown", nil);
+            return;
+        }
+        [TouchHelper tapInWindows:@[ windows[(NSUInteger)windowIndex] ]
+                               at:CGPointMake(x, y)
+                           holdMs:holdMs
+                          resolve:resolve];
     });
 }
 
@@ -714,17 +761,17 @@ static UIScrollView *lockedScrollView = nil;
       resolve:(RCTPromiseResolveBlock)resolve
        reject:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // The window the inspector measures frames in, as the tap's.
-        UIWindow *window = [InspectorHelper appWindow];
-        if (!window) {
+        // Every shown window, topmost first, as the tap's.
+        NSArray<UIWindow *> *windows = [InspectorHelper visibleWindows];
+        if (windows.count == 0) {
             reject(@"no_window", @"the app has no window open, so there was nothing to swipe. Open the app on a screen and swipe again.", nil);
             return;
         }
-        [TouchHelper swipeInWindow:window
-                              from:CGPointMake(fromX, fromY)
-                                to:CGPointMake(toX, toY)
-                        durationMs:durationMs
-                           resolve:resolve];
+        [TouchHelper swipeInWindows:windows
+                               from:CGPointMake(fromX, fromY)
+                                 to:CGPointMake(toX, toY)
+                         durationMs:durationMs
+                            resolve:resolve];
     });
 }
 
