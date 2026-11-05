@@ -27,6 +27,7 @@ import type {
   BaseFingerprintPreimage,
   BaseFingerprints,
 } from '../../../helpers/fingerprint/baseFingerprint';
+import type { GitInfo } from '../../../helpers/getGitInfo';
 import type { SplitJob } from '../../../helpers/uploadOrReuseBuildsAndRunTests';
 import type { WhyANewAppBuild } from '../../../render/appBuild';
 import type { Options, PushCredential } from '../../../types';
@@ -53,7 +54,10 @@ export async function buildThenPush({
   storedBuildIndexOf,
   fingerprints,
   credential,
+  gitInfo,
 }: {
+  /** The git read the gate's ask already made, handed on so no road reads git twice. */
+  gitInfo?: GitInfo;
   passedOptions: Options<THIS_COMMAND> & BuildFlags;
   /** The credential the run already resolved, so this road does not resolve (and trade) it again. */
   credential: PushCredential;
@@ -89,6 +93,7 @@ export async function buildThenPush({
       // The fingerprint the gate was asked with travels to Expo's machine in the hand-over file:
       // prebuild and the build write into the project there, so one taken there is no base.
       fingerprints,
+      gitInfo,
     });
   }
 
@@ -146,6 +151,7 @@ export async function buildThenPush({
     platformRows,
     appBuilds: appBuildAccountsOf(toBuild, madeBy),
     runIdFlag: passedOptions.runId,
+    gitInfo,
   });
 }
 

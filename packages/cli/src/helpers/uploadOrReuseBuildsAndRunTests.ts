@@ -104,7 +104,10 @@ async function uploadOrReuseBuildsAndRunTests({
   platformRows,
   appBuilds = {},
   runIdFlag,
+  gitInfo: gitInfoAlreadyRead,
 }: {
+  /** The git read the push already made (the staged gate's ask), so git is read once. */
+  gitInfo?: GitInfo;
   commandParams: CommandParams;
   /** The app builds this push uploads, per platform: the ones this run just built. */
   appBuildPaths: Partial<Record<Platform, string>>;
@@ -151,7 +154,8 @@ async function uploadOrReuseBuildsAndRunTests({
         projectIndex,
         teamId,
       }),
-    resolveGitInfo: () =>
+    resolveGitInfo: async () =>
+      gitInfoAlreadyRead ??
       getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch }),
     openBuild: ({ pushFacts, ...input }) =>
       splitJob
@@ -344,11 +348,8 @@ async function uploadOrReuseBuildsAndRunTests({
     const uploaded = freshBundles[platform];
     if (!platformConfig || !uploaded) continue;
 
-    applyBundleToPlatformConfig({
-      platformConfig,
-      keys: uploaded.keys,
-      bundleSizeMb: uploaded.bundleSizeMb,
-    });
+    const { keys, bundleSizeMb, bundleHash } = uploaded;
+    applyBundleToPlatformConfig({ platformConfig, keys, bundleSizeMb, bundleHash });
   }
 
   reporting.addBreadcrumb({

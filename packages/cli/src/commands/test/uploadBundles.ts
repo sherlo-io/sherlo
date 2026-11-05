@@ -142,6 +142,7 @@ type PlatformBundleConfig = {
   jsBundleS3Key?: string;
   bundleSizeMb?: number;
   assetsS3Key?: string;
+  bundleHash?: string;
 } & PlatformConfigWithManifest;
 
 /**
@@ -163,13 +164,19 @@ export function applyBundleToPlatformConfig({
   platformConfig,
   keys,
   bundleSizeMb,
+  bundleHash,
 }: {
   platformConfig: PlatformBundleConfig;
   keys: StagedUploadKeys;
   bundleSizeMb: number;
+  /** The bundle's hash, which the service compares with the branch's last test (same code, no run). */
+  bundleHash?: string;
 }): void {
   platformConfig.jsBundleS3Key = keys.jsBundleS3Key;
   platformConfig.bundleSizeMb = bundleSizeMb;
+  if (bundleHash) {
+    platformConfig.bundleHash = bundleHash;
+  }
   if (keys.assetsS3Key) {
     platformConfig.assetsS3Key = keys.assetsS3Key;
   }

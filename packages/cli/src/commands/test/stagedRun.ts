@@ -20,30 +20,31 @@
  * config carries the ASYNC_UPLOAD_S3_KEY_PLACEHOLDER for `s3Key` (mirrored
  * server-side) alongside the real jsBundleS3Key / assetsS3Key.
  */
-import { GateMetadata, GateMetadataByPlatform, Platform } from '@sherlo/api-types';
+import { GateMetadataByPlatform, Platform } from '@sherlo/api-types';
 import { ASYNC_UPLOAD_S3_KEY_PLACEHOLDER } from '@sherlo/shared';
 import chalk from 'chalk';
 import { Options } from '../../types';
 import {
+  getAppBuildUrl,
   getBuildRunConfig,
   getGitInfo,
   getPlatformsToTest,
   getValidatedCommandParams,
-  handleClientError,
   reporting,
   throwError,
 } from '../../helpers';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { baseFingerprintsOf } from '../../helpers/fingerprint/baseFingerprintsOf';
+import type { GitInfo } from '../../helpers/getGitInfo';
+import { readHoldingSegments } from '../../helpers/transcriptSink';
 import { phoneSidesOf } from '../../helpers/phoneSidesOf';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
-import { parseStagedGateRefusal, type StagedGateRefusal } from './stagedGateRefusal';
+import { checkGate, type GateAnswers } from './askTheStagedGate';
+import { parseStagedGateRefusal } from './stagedGateRefusal';
 import { buildThenPush, splitRunKeyOf } from './appBuild/buildThenPush';
 import {
   type BuildFlags,
-  type BuildSettings,
-  buildSettingsDigest,
   buildSettingsDigestsOf,
   readBuildSettings,
 } from './appBuild/buildSettings';
@@ -59,7 +60,6 @@ import { emitBundleDir } from './emitBundleDir';
 import { resolveBaseFingerprintForSuppliedBundle } from './recordedBaseFingerprint';
 import { resolveSuppliedBundles } from './suppliedBundle';
 import { collectModuleManifests } from './readModuleManifest';
-import { serverCalls } from '../../seams/serverCalls';
 import { printPlatformRowInALog } from './platformRows';
 import { openAndEndTheTest } from './startTheTest';
 
@@ -148,11 +148,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   const { token, projectIndex, teamId } = commandParams.credential;
 
   /** A platform the gate refused needs a new app build, and the tool builds it itself. */
-  const buildTheRefusedPlatforms = ({
-    refusals,
-    storedBuildIndexOf,
-  }: GateAnswers): Promise<{ url: string }> =>
+  const buildTheRefusedPlatforms = (
+    { refusals, storedBuildIndexOf }: Pick<GateAnswers, 'refusals' | 'storedBuildIndexOf'>,
+    /** The git read the gate's ask made, when it made one: handed on so git is read once. */
+    gitInfo?: GitInfo
+  ): Promise<{ url: string }> =>
     buildThenPush({
+      gitInfo,
       passedOptions,
       credential: commandParams.credential,
       platformsToTest,
@@ -226,6 +228,23 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   // 8. Re-ask the gate with the REAL bundle-derived identity. Step 6 could only
   //    compare fingerprints; only a built bundle carries the engine class, bundle format,
   //    asset inventory and SDK protocol version the gate diffs. A refusal here is just better informed.
+  //    It also names each bundle and the branch: the service alone decides whether the branch's last
+  //    test already ran this very code. The branch is read once here; step 11 sends the same object.
+  //
+  //    The run config is built here too, for its devices: the service compares them with the last
+  //    test's. ONE JOB OF A SPLIT CI RUN joins the run its CI run shares instead of opening one
+  //    (./appBuild), and its config names every device of the test: the platform the other job
+  //    brings carries the async-upload placeholder, so the run waits for it.
+  //    What the read says about git (a refused history fetch) is held, and printed where the
+  //    transcript puts it: after the platform rows, or before the line that ends the run.
+  const { result: gitInfo, release: printGitNotes } = await readHoldingSegments(() =>
+    getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch })
+  );
+  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
+  const buildRunConfig = getBuildRunConfig({
+    commandParams,
+    ...(joinKey ? { wholeTest: true } : {}),
+  });
   const identityAnswers = await checkGate({
     token,
     platformsToTest,
@@ -234,12 +253,39 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     // Unreachable fallback (buildBundles fills every tested platform or exits): the marker says
     // "I know nothing about this bundle's identity" - never a fabricated dimension.
     gateMetadata: (platform) => gateMetadata[platform] ?? PROBE_GATE_METADATA,
+    sameCode: {
+      gitBranch: gitInfo.branchName,
+      bundleHashOf: (platform) => bundles[platform]?.bundleHash,
+      devicesOf: (platform) => buildRunConfig[platform]?.devices,
+    },
     projectIndex,
     teamId,
   });
 
   if (identityAnswers.refusals.length > 0) {
-    return buildTheRefusedPlatforms(identityAnswers);
+    printGitNotes();
+    return buildTheRefusedPlatforms(identityAnswers, gitInfo);
+  }
+
+  //    Every tested platform points at the same earlier test: this push is that test's code, so
+  //    nothing is uploaded and no run starts. The line is content's (cli-same-code-words).
+  const sameCodeBuildIndexes = platformsToTest.map(
+    (platform) => identityAnswers.sameCodeBuildIndexOf[platform]
+  );
+  const sameCodeBuildIndex = sameCodeBuildIndexes[0];
+  //    A split CI job sees only its own platform, so it never ends here: the other job's platform
+  //    may have changed, and that job would wait for this one's build.
+  if (
+    !joinKey &&
+    sameCodeBuildIndex !== undefined &&
+    sameCodeBuildIndexes.every((index) => index === sameCodeBuildIndex)
+  ) {
+    const url = getAppBuildUrl({ buildIndex: sameCodeBuildIndex, projectIndex, teamId });
+    printGitNotes();
+    console.log(
+      `Nothing changed since the last test on this branch, so no new test started. See that test: ${url}`
+    );
+    return { url };
   }
 
   //    Both checks said every platform takes its stored app build: each platform's row says which
@@ -251,6 +297,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       testIndex: identityAnswers.storedBuildIndexOf[platform],
     })
   );
+  printGitNotes();
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
   //    (getStagedUploadUrls - NOT getBuildUploadUrls) and collect its S3 keys, with the phone side
@@ -273,25 +320,12 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     return { url: '' }; // unreachable - satisfies control flow when exit is stubbed
   }
 
-  // 10. Capture git info - IDENTICAL to the standard road (same helper, same override).
-  const gitInfo = await getGitInfo(commandParams.projectRoot, {
-    branchOverride: commandParams.gitBranch,
-  });
+  // 10. Git info was captured before step 8 - IDENTICAL to the standard road (same helper, same override).
 
-  // 11. Build the run config and put each platform's bundle on it. This road
+  // 11. Put each platform's bundle on the run config built before step 8. This road
   //     uploaded no binary, so `s3Key` carries the async-upload placeholder: the
   //     server mirrors it back and the runner splices the bundle into the
   //     registered base instead.
-  //
-  //     ONE JOB OF A SPLIT CI RUN joins the run its CI run shares instead of opening one
-  //     (./appBuild), and its config names every device of the test: the platform the other job
-  //     brings carries the async-upload placeholder, so the run waits for it.
-  const joinKey = splitRunKeyOf(passedOptions as BuildFlags);
-  const buildRunConfig = getBuildRunConfig({
-    commandParams,
-    ...(joinKey ? { wholeTest: true } : {}),
-  });
-
   for (const platform of platformsToTest) {
     const platformConfig = buildRunConfig[platform];
     const keys = stagedKeys[platform];
@@ -303,6 +337,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       platformConfig,
       keys,
       bundleSizeMb: bundleResult.bundleSizeMb,
+      bundleHash: bundleResult.bundleHash,
     });
   }
 
@@ -344,89 +379,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     refusedAtOpen: (error) => {
       const refusal = parseStagedGateRefusal(error);
       return refusal
-        ? buildTheRefusedPlatforms({
-            refusals: [refusal],
-            storedBuildIndexOf: identityAnswers.storedBuildIndexOf,
-          })
+        ? buildTheRefusedPlatforms(
+            { refusals: [refusal], storedBuildIndexOf: identityAnswers.storedBuildIndexOf },
+            gitInfo
+          )
         : undefined;
     },
   });
 }
 
 export default stagedRun;
-
-/* ========================================================================== */
-
-/**
- * Ask the staged gate about every platform and return the ones that answered
- * anything other than "fast". checkStagedGate is per platform, and a single
- * non-fast platform takes the whole run off the fast path.
- *
- * `gateMetadata` is a per-platform lookup rather than a value because the two
- * callers know DIFFERENT things: the pre-bundle probe knows only that it knows
- * nothing ({@link PROBE_GATE_METADATA}), while the post-bundle check carries the
- * real bundle-derived identity.
- */
-async function checkGate({
-  token,
-  platformsToTest,
-  baseFingerprints,
-  buildSettings,
-  gateMetadata,
-  projectIndex,
-  teamId,
-}: {
-  /** The token the push spends - the seam builds its own sdk client from it (../../seams/serverCalls). */
-  token: string;
-  platformsToTest: Platform[];
-  /** Each platform's own base fingerprint, which its stored app build is looked up by. */
-  baseFingerprints: Partial<Record<Platform, string>>;
-  /** The build settings, whose digest a stored app build is looked up by beside its fingerprint. */
-  buildSettings: BuildSettings;
-  gateMetadata: (platform: Platform) => GateMetadataInput;
-  projectIndex: number;
-  teamId: string;
-}): Promise<GateAnswers> {
-  reporting.addBreadcrumb({
-    category: 'api',
-    message: 'Calling checkStagedGate API',
-    data: { teamId, projectIndex, platforms: platformsToTest },
-    level: 'info',
-  });
-
-  const refusals: StagedGateRefusal[] = [];
-  const storedBuildIndexOf: GateAnswers['storedBuildIndexOf'] = {};
-
-  try {
-    for (const platform of platformsToTest) {
-      // Through the server seam, so a posed run answers the gate from its pose (the tester's
-      // staged storyline) and never reaches the network.
-      const { outcome, diff, storedBase, storedBuildIndex } = await serverCalls().checkStagedGate({
-        token,
-        baseFingerprint: baseFingerprints[platform] ?? '',
-        buildSettingsDigest: buildSettingsDigest(buildSettings, platform),
-        gateMetadata: gateMetadata(platform) as GateMetadata,
-        platform,
-        projectIndex,
-        teamId,
-      });
-
-      if (storedBuildIndex !== undefined) storedBuildIndexOf[platform] = storedBuildIndex;
-      if (outcome !== 'fast') {
-        refusals.push({ outcome, platform, diff, ...(storedBase ? { storedBase } : {}) });
-      }
-    }
-  } catch (error) {
-    handleClientError(error, token); // always throws (bad token, network, ...)
-    throw error; // unreachable - satisfies control flow / typing
-  }
-
-  return { refusals, storedBuildIndexOf };
-}
-
-/** What the gate answered for every platform: the ones it refused, and the test each stored app build came from. */
-type GateAnswers = {
-  refusals: StagedGateRefusal[];
-  /** Per platform, the test its stored app build was built in - absent where nothing is stored. */
-  storedBuildIndexOf: Partial<Record<Platform, number>>;
-};

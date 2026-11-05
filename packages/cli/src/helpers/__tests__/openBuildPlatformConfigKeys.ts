@@ -22,6 +22,7 @@ export const BUILD_RUN_CONFIG_PLATFORM_INPUT_KEYS = new Set([
   'bundleSizeMb',
   'manifestS3Key',
   'phoneSideS3Key',
+  'bundleHash',
 ]);
 
 /** The keys on a platform config the api would reject. */
