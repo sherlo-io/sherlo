@@ -3,6 +3,7 @@ import { rulesInEffect, unmatchedRules } from './networkRules';
 import { MockSet, ModuleExports } from './types';
 import SherloModule from '../SherloModule';
 import { restoreClock } from './clock';
+import { forgetLackedFields } from './mergeMocks';
 import { restoreRandom } from './random';
 
 /**
@@ -101,6 +102,7 @@ function activateMocks(mocks: MockSet, lookups: MockLookups = newMockLookups(und
   if (!isMockingModeActive()) return;
 
   endActivation();
+  forgetLackedFields();
   activeActivation = { mocks, resolved: new Map(), overrides: new Map(), undo: [], lookups };
 }
 

@@ -20,6 +20,7 @@ import {
 import { nameOf } from '../visibleViews';
 import { reachedRoute } from '../reachedScreen';
 import { loggedErrors } from '../loggedErrors';
+import { logUnusedFakes } from '../mocking/activateStoryMocks';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
 import { neverSettledOf } from '../neverSettled';
 import { monotonicNow } from '../settleClock';
@@ -64,7 +65,10 @@ export function sceneCallsForTheCore(): SceneCalls {
     reachedRoute,
     monotonicNow,
     rulesNeverMatched,
-    loggedErrors,
+    loggedErrors: () => {
+      logUnusedFakes();
+      return loggedErrors();
+    },
     rulesInstalledProof,
     threwOf,
     neverSettledOf,

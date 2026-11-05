@@ -1,4 +1,5 @@
 import { isPlainObject } from './mergeDefinitions';
+import { partialFake } from './mergeMocks';
 import { recordUndo } from './registry';
 import { staysReal } from './stillReal';
 import { ModuleExports } from './types';
@@ -66,6 +67,7 @@ export function overlay(fake: unknown, real: () => unknown, realIsInHand: boolea
 
   const realNow = realIsInHand ? real() : undefined;
   if (realIsInHand) {
+    if (isPlainObject(fake) && !isObjectOrFunction(realNow)) return partialFake(fake);
     if (!isObjectOrFunction(realNow) || realNow === fake) return fake;
     if (typeof fake === 'function' && !carriesStatics(realNow)) return fake;
   }

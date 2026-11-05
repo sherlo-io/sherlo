@@ -8,7 +8,7 @@
  * does either. The record comes back down the same line a story's does, and Sherlo's own log
  * lines from the app are drained from the line's feed after it.
  */
-import type { SceneEnding, SceneLeft, PlayStep, PlayMissing } from '../render/capturedScene';
+import type { SceneEnding, PlayStep, PlayMissing } from '../render/capturedScene';
 import { drainAppLog, keepStrings, readAppLog } from './appLog';
 import { readAppError } from './appError';
 import { readBundleFailure } from './bundleFailure';
@@ -23,14 +23,7 @@ import {
   iosDevelopmentLauncherLink,
   prepareAndroidDevMenuForCapture,
 } from './developmentLauncher';
-import {
-  readAnswerFindings,
-  readLikelyCause,
-  readLoggedErrors,
-  readReadyTooEarly,
-  readStrings,
-  readUnanswered,
-} from './readAppAnswer';
+import { keptLeft, readLikelyCause } from './readAppAnswer';
 
 /** How long the app has to boot, play the scene and settle before the command gives up on it. */
 const SCENE_PATIENCE_MS = 120_000;
@@ -267,24 +260,6 @@ function keptSeen(said: unknown): { seen?: { testIDs: string[]; more: number } }
   if (!Array.isArray(seen?.testIDs)) return {};
   const more = typeof seen.more === 'number' ? seen.more : 0;
   return { seen: { testIDs: keepStrings(seen.testIDs), more } };
-}
-
-/** What the scene threw, ran as real code and left unanswered, as the story's record reads them. */
-function keptLeft(answer: Record<string, unknown>): SceneLeft {
-  const threw = readAppError(answer.threw);
-  const stillReal = readStrings(answer.stillReal);
-  const unanswered = readUnanswered(answer.unanswered, true);
-  const loggedErrors = readLoggedErrors(answer.loggedErrors);
-  const readyTooEarly = readReadyTooEarly(answer.readyTooEarly);
-  const answerFindings = readAnswerFindings(answer.answerFindings);
-  return {
-    ...(threw && { threw: { name: threw.name, message: threw.message } }),
-    ...(stillReal && { stillReal }),
-    ...(unanswered && { unanswered }),
-    ...(readyTooEarly && { readyTooEarly }),
-    ...(answerFindings && { answerFindings }),
-    ...(loggedErrors && { loggedErrors }),
-  };
 }
 
 /** What the line said about the scene it was asked for, as one named ending. */

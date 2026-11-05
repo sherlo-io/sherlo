@@ -32,6 +32,9 @@ export function sceneIdsOfSource(fileName: string, source: string): string[];
  * the file imports from beside it be followed.
  */
 export function sceneDevicesOf(fileName: string, source: string): Record<string, ScenePhone>;
-/** Every scene in the project by its id; a scene two files declare keeps the first file's. */
+/**
+ * Every scene in the project by its id. Two scenes with one id are refused, naming both files, and
+ * so is a scene with a missing or wrong input, naming the scene and the input.
+ */
 export function scenesOfProject(projectRoot: string): Record<string, ProjectScene>;
 export function readSceneIds(projectRoot: string): string[];

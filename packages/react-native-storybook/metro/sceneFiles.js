@@ -14,6 +14,7 @@ var fs = require('fs');
 var path = require('path');
 
 var givenReader = require('./givenReader');
+var refuseWrongInputs = require('./sceneInputs').refuseWrongInputs;
 var mockScan = require('./mockScan');
 var sourceFiles = require('./sourceFiles');
 var toRelativePath = require('./projectPaths').toRelativePath;
@@ -117,6 +118,7 @@ function eachSceneOf(fileName, source, visit) {
         var name = sceneProp.type === 'ObjectProperty' ? keyName(sceneProp) : null;
         if (!name) return;
         refuseOldKeys(fileName, sceneProp.value, 'scene ' + name);
+        refuseWrongInputs(path.basename(fileName), name, sceneProp.value);
         visit(name, sceneProp.value, definition);
       });
     });
@@ -216,10 +218,11 @@ function readSceneIds(projectRoot) {
 }
 
 // Every scene in the project by its id: its name, its file (symlinks followed) and its phone
-// settings, member included. A scene whose id two files declare keeps the first file's; an
-// unreadable file declares none.
+// settings, member included. A scene whose id two scenes declare is refused, naming both files;
+// an unreadable file declares none.
 function scenesOfProject(projectRoot) {
   var scenes = {};
+  var realRoot = fs.realpathSync(projectRoot);
   findSceneFiles(projectRoot).forEach(function (file) {
     var source;
     try {
@@ -230,17 +233,31 @@ function scenesOfProject(projectRoot) {
     var realFile = fs.realpathSync(file);
     var givens = givenOfScenes(realFile, source);
     scenesOfSource(path.basename(file), source).forEach(function (scene) {
-      if (!scenes[scene.id]) {
-        scenes[scene.id] = {
-          key: scene.key,
-          title: scene.title,
-          name: scene.name,
-          file: realFile,
-          device: givens[scene.key].device,
-          shared: givens[scene.key].shared,
-          reads: givens[scene.key].files,
-        };
+      var first = scenes[scene.id];
+      if (first) {
+        throw new Error(
+          'Two scenes have the id ' +
+            scene.id +
+            ': ' +
+            first.key +
+            ' in ' +
+            toRelativePath(first.file, realRoot) +
+            ' and ' +
+            scene.key +
+            ' in ' +
+            toRelativePath(realFile, realRoot) +
+            '. Give one of them another name.'
+        );
       }
+      scenes[scene.id] = {
+        key: scene.key,
+        title: scene.title,
+        name: scene.name,
+        file: realFile,
+        device: givens[scene.key].device,
+        shared: givens[scene.key].shared,
+        reads: givens[scene.key].files,
+      };
     });
   });
   return scenes;
