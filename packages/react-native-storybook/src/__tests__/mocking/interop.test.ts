@@ -18,7 +18,8 @@ describe('createMockable - ESM/CJS interop (VT-14..16)', () => {
     activateMocks({ 'pkg/default-object': { default: { mocked: true } } });
 
     expect(mockable.__esModule).toBe(true);
-    expect(mockable.default).toEqual({ mocked: true });
+    // The fake names `mocked`; the real default's other parts stay real.
+    expect(mockable.default).toEqual({ real: true, mocked: true });
   });
 
   it('VT-15: mirrors __esModule and default for a default-function module', () => {
@@ -51,7 +52,7 @@ describe('createMockable - ESM/CJS interop (VT-14..16)', () => {
       },
     });
 
-    expect(mockable.default).toEqual({ mocked: true });
+    expect(mockable.default).toEqual({ real: true, mocked: true });
     expect(mockable.namedHelper()).toBe('real-named');
     expect(mockable.__esModule).toBe(true);
   });

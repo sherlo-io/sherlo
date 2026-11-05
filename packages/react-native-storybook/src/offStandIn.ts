@@ -15,6 +15,7 @@
 import { Alert } from 'react-native';
 
 import type { ModuleMockDeclaration } from './mocking/mockDeclaration';
+import type { DeepPartial } from './mocking/types';
 import type {
   NetworkMockDeclaration,
   RequestAnswer,
@@ -51,13 +52,18 @@ export function openStorybook(): void {
 
 export function mock<M>(
   _importModule: () => Promise<M>,
-  definition: Partial<M> | ((original: M) => Partial<M>)
+  definition: DeepPartial<M> | ((real: M) => DeepPartial<M>)
 ): ModuleMockDeclaration {
   return {
     kind: 'module',
     moduleKey: () => Promise.resolve(undefined),
     definition: definition as ModuleMockDeclaration['definition'],
   };
+}
+
+// No fake runs in a build without Sherlo, so there is no real part to reach.
+export function original(_self: unknown, _key: PropertyKey): unknown {
+  return undefined;
 }
 
 export function mockRequest<Body = unknown>(

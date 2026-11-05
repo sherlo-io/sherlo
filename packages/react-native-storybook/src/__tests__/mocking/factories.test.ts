@@ -56,7 +56,8 @@ describe('createMockable - factory mocks (FA-01..05)', () => {
       }),
     });
 
-    expect(mockable.default).toEqual({ mocked: true });
+    // The fake names `mocked`; the real default's other parts stay real.
+    expect(mockable.default).toEqual({ real: true, mocked: true });
     expect(mockable.API_URL).toBe('http://localhost:3000');
     expect(mockable.client.query()).toBe('real-client-query');
   });

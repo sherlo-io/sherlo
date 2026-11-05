@@ -1,3 +1,4 @@
+import { mergeMockSets } from './mergeDefinitions';
 import {
   declarationsOf,
   isModuleDeclaration,
@@ -7,19 +8,19 @@ import {
 
 // A SCENE FILE USES THE SAME RULE WITH ONE LEVEL LESS: the file's mocks sit under the scene's own
 // (as `global` and `story`), so a scene's mocks are its file's plus its own, and for a module both
-// name the scene's definition replaces the file's whole (activateSceneMocks, in
+// name the scene's fake merges over the file's part by part (activateSceneMocks, in
 // getStorybook/storyMockActivation). The file's are shared defaults, as a project's are for a story.
 //
-// Precedence: story > meta > global. For any module, the most specific level that names it
-// wins outright - its whole definition replaces what an outer level declared for that module.
-// Modules an inner level leaves untouched still come through from whichever outer level
-// declared them.
+// Precedence: story > meta > global. For any module, the fakes of the levels that name it merge
+// part by part, recursively for nested objects: the most specific level that names a part wins
+// that part, and a part it leaves out still comes from an outer level. A factory, or a part that
+// is a function or a class, is the more specific one whole. Modules an inner level leaves
+// untouched still come through from whichever outer level declared them.
 //
-// The object form spells its modules out as keys, so spreading global, then meta, then story
-// onto one object IS the precedence rule: each pass overwrites only the keys it declares.
-// Declarations name their modules by import, so their names are known only once those imports
-// resolve; concatenating the levels in the same order carries the same rule to resolution,
-// where the later declaration for a module overwrites the earlier one (see
+// The object form spells its modules out as keys, so merging global, then meta, then story onto
+// one object IS the precedence rule. Declarations name their modules by import, so their names are
+// known only once those imports resolve; concatenating the levels in the same order carries the
+// same rule to resolution, where a later declaration for a module merges over the earlier one (see
 // resolveDeclarations).
 //
 // NETWORK RULES CARRY THE SAME PRECEDENCE THE OTHER WAY ROUND. A request is answered by the
@@ -33,7 +34,7 @@ export function mergeStoryMocks(
   story: StoryMocks = {}
 ): StoryMocks {
   if (!Array.isArray(global) && !Array.isArray(meta) && !Array.isArray(story)) {
-    return { ...global, ...meta, ...story };
+    return mergeMockSets(global, meta, story);
   }
 
   const projectLevel = declarationsOf(global);

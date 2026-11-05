@@ -69,6 +69,22 @@ describe('mocks resolve in a scene file', () => {
     expect(b.label).toBe('file');
   });
 
+  it("a scene's fake laid over the file's fake of one module keeps the file's other parts at boot", () => {
+    bundlerStartedHaving(['a']);
+    const a = createMockable('a', { client: { get: () => 'real get', list: () => 'real list' } });
+
+    activateSceneMocks(
+      SCENE_ID,
+      { a: { client: { list: () => 'file list' }, label: 'file' } },
+      [declareImporting('../a', { client: { get: () => 'scene get' } })],
+      SCENE_FILE
+    );
+
+    expect(a.client.get()).toBe('scene get');
+    expect(a.client.list()).toBe('file list');
+    expect(a.label).toBe('file');
+  });
+
   it('a shared mock a scene never imports is no failure in a scene file', () => {
     bundlerStartedHaving(['shared', 'own']);
     createMockable('shared', { label: 'real' });

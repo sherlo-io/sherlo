@@ -11,6 +11,7 @@
  */
 import { storyMockLevelsOf } from '../mocking/storyMocksOf';
 import { mergeStoryMocks } from '../mocking/mergeMocks';
+import { mergeDefinitions, mergeMockSets } from '../mocking/mergeDefinitions';
 import {
   declarationsOf,
   isModuleDeclaration,
@@ -100,7 +101,7 @@ export function activateSceneMocks(
     const ownKnown = knownAtBundlerStart(own, sceneFilePath);
     installMocksOfStory(
       sceneId,
-      { ...fileKnown, ...ownKnown },
+      mergeMockSets(fileKnown, ownKnown),
       Object.keys(ownKnown),
       sceneFilePath
     );
@@ -132,7 +133,7 @@ function moduleMocksKnownAtBundlerStart(
       (specifierAsWritten === undefined
         ? undefined
         : standInKeyAtBundlerStart(specifierAsWritten, filePath));
-    if (key) mocks[key] = definition;
+    if (key) mocks[key] = key in mocks ? mergeDefinitions(mocks[key], definition) : definition;
   });
   return mocks;
 }
@@ -176,7 +177,12 @@ function installMergedMocks(
     resolveDeclarations(declarationsOf(own)),
   ]).then(([projectMocks, ownMocks]) => {
     if (install !== latestInstall) return latestInstalled ?? undefined;
-    installMocksOfStory(storyId, { ...projectMocks, ...ownMocks }, Object.keys(ownMocks), filePath);
+    installMocksOfStory(
+      storyId,
+      mergeMockSets(projectMocks, ownMocks),
+      Object.keys(ownMocks),
+      filePath
+    );
   });
   return latestInstalled;
 }
