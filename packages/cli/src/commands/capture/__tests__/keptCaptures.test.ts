@@ -206,6 +206,6 @@ describe('kept captures', () => {
         .sort()
     ).toEqual(['chat--menu', 'chat--open']);
     expect(stdout).toContain('chat--open captured');
-    expect(stdout).toContain('chat--menu not captured: never-reached');
+    expect(stdout).toContain('chat--menu never reached');
   });
 });

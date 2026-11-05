@@ -412,6 +412,122 @@ describe('gitInfo parity with the standard road', () => {
 
     logSpy.mockRestore();
   });
+
+  it("a gate answer with a same-code test index uploads nothing, opens no build and prints that test's link", async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [], sameCodeBuildIndex: 5 });
+    mockGetAppBuildUrl.mockReturnValue('http://app/build/5');
+
+    const result = await stagedRun(mockOptions());
+
+    expect(mockUploadStagedArtifacts).not.toHaveBeenCalled();
+    expect(mockGetStagedUploadUrls).not.toHaveBeenCalled();
+    expect(mockOpenBuild).not.toHaveBeenCalled();
+    expect(mockGetAppBuildUrl).toHaveBeenCalledWith(expect.objectContaining({ buildIndex: 5 }));
+    expect(result).toEqual({ url: 'http://app/build/5' });
+    const out = logSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+    expect(out).toContain(
+      'Nothing changed since the last test on this branch, so no new test started. See that test: http://app/build/5'
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it('platforms that answer different same-code tests, or one that answers none, push as today', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockGetPlatformsToTest.mockReturnValue(['ios', 'android'] as any);
+    mockGetBuildRunConfig.mockReturnValue({
+      ios: { devices: [], s3Key: 'unset' },
+      android: { devices: [], s3Key: 'unset' },
+    } as any);
+    mockGetStagedUploadUrls.mockResolvedValue({
+      stagedPresignedUploadUrls: {
+        ios: { jsBundle: { s3Key: 'js-ios', url: 'u' } },
+        android: { jsBundle: { s3Key: 'js-android', url: 'u' } },
+      },
+    });
+
+    // The first two asks are the probe, the next two the identity ask, one per platform.
+    mockCheckStagedGate
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [] })
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [] })
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [], sameCodeBuildIndex: 5 })
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [], sameCodeBuildIndex: 6 });
+    await stagedRun(mockOptions());
+    expect(mockOpenBuild).toHaveBeenCalledTimes(1);
+
+    mockOpenBuild.mockClear();
+    mockCheckStagedGate
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [] })
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [] })
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [], sameCodeBuildIndex: 5 })
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [] });
+    await stagedRun(mockOptions());
+    expect(mockOpenBuild).toHaveBeenCalledTimes(1);
+
+    logSpy.mockRestore();
+  });
+
+  it('a gate that refuses the bundle hands the one git read to the build road, which reads git no more', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockBuildThenPush.mockResolvedValue({ url: 'http://built' });
+    mockCheckStagedGate
+      .mockResolvedValueOnce({ outcome: 'fast', diff: [] })
+      .mockResolvedValueOnce({ outcome: 'not-stageable', diff: [] });
+
+    await stagedRun(mockOptions());
+
+    expect(mockGetGitInfo).toHaveBeenCalledTimes(1);
+    expect(mockBuildThenPush).toHaveBeenCalledWith(
+      expect.objectContaining({ gitInfo: await mockGetGitInfo.mock.results[0].value })
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it('a gate answer with no same-code test index pushes as today', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await stagedRun(mockOptions());
+
+    expect(mockOpenBuild).toHaveBeenCalledTimes(1);
+    const lastGateRequest = mockCheckStagedGate.mock.calls.at(-1)?.[0];
+    expect(lastGateRequest).toMatchObject({ bundleHash: 'abc123', gitBranch: 'my-branch' });
+    // The gate ask carries the same devices the build config will, so a changed list is never
+    // pointed at the old test.
+    expect(lastGateRequest.devices).toBe(mockGetBuildRunConfig.mock.results[0].value.ios.devices);
+    expect(mockOpenBuild.mock.calls[0][0].buildRunConfig.ios.bundleHash).toBe('abc123');
+    const out = logSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+    expect(out).not.toContain('Nothing changed since the last test');
+
+    logSpy.mockRestore();
+  });
+
+  it('a split job that answers same-code still joins the run: the other job may have changed', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [], sameCodeBuildIndex: 5 });
+    mockJoinTheRun.mockResolvedValue({ build: { index: 7 }, waitingFor: [] });
+
+    await stagedRun({ platform: 'ios', runId: 'one-ci-run' });
+
+    expect(mockJoinTheRun).toHaveBeenCalledTimes(1);
+    const out = logSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+    expect(out).not.toContain('Nothing changed since the last test');
+
+    logSpy.mockRestore();
+  });
+
+  it("a split job's join carries the platform's bundle hash", async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockJoinTheRun.mockResolvedValue({ build: { index: 7 }, waitingFor: [] });
+
+    await stagedRun({ platform: 'ios', runId: 'one-ci-run' });
+
+    const joined = mockJoinTheRun.mock.calls[0][0];
+    expect(joined.request.buildRunConfig.ios?.bundleHash).toBe('abc123');
+
+    logSpy.mockRestore();
+  });
 });
 
 // ---------------------------------------------------------------------------

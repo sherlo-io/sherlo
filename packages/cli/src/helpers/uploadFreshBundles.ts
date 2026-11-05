@@ -45,6 +45,7 @@ import type { GateMetadataInput } from './fingerprint';
 export type UploadedFreshBundle = {
   keys: StagedUploadKeys;
   bundleSizeMb: number;
+  bundleHash: string;
   moduleManifest?: BundleResult['moduleManifest'];
   /**
    * The gate facts derived from this bundle, the staged road's way - set only for a platform that
@@ -174,6 +175,7 @@ export async function uploadFreshBundles({
     uploaded[platform] = {
       keys: platformKeys,
       bundleSizeMb: bundleResult.bundleSizeMb,
+      bundleHash: bundleResult.bundleHash,
       moduleManifest: bundleResult.moduleManifest,
       ...(storedBuildGateMetadata ? { storedBuildGateMetadata } : {}),
     };

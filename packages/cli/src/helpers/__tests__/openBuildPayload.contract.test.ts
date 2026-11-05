@@ -148,10 +148,12 @@ const FRESH_BUNDLES = {
   android: {
     keys: { jsBundleS3Key: 'android-js-key', assetsS3Key: 'android-assets-key' },
     bundleSizeMb: 4.29,
+    bundleHash: 'android-hash',
   },
   ios: {
     keys: { jsBundleS3Key: 'ios-js-key', manifestS3Key: 'ios-manifest-key' },
     bundleSizeMb: 5.1,
+    bundleHash: 'ios-hash',
   },
 };
 
@@ -454,6 +456,7 @@ describe('the fresh bundle on the platform config', () => {
       s3Key: 'android-s3-key',
       jsBundleS3Key: 'android-js-key',
       bundleSizeMb: 4.29,
+      bundleHash: 'android-hash',
       assetsS3Key: 'android-assets-key',
     });
     expect(ios).toEqual({
@@ -461,6 +464,7 @@ describe('the fresh bundle on the platform config', () => {
       s3Key: 'ios-s3-key',
       jsBundleS3Key: 'ios-js-key',
       bundleSizeMb: 5.1,
+      bundleHash: 'ios-hash',
       manifestS3Key: 'ios-manifest-key',
     });
   });
@@ -479,6 +483,12 @@ describe('the fresh bundle on the platform config', () => {
 
   it("the open build payload's platform keys include the optional phone side key", () => {
     const platformConfig = { jsBundleS3Key: 'js-key', phoneSideS3Key: 'phone-side-key' };
+
+    expect(keysTheApiRejects(platformConfig)).toEqual([]);
+  });
+
+  it("the open build payload's platform keys include the optional bundle hash", () => {
+    const platformConfig = { jsBundleS3Key: 'js-key', bundleHash: 'a-hash' };
 
     expect(keysTheApiRejects(platformConfig)).toEqual([]);
   });
