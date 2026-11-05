@@ -142,6 +142,24 @@ describe('uploadFreshBundles - built', () => {
     });
   });
 
+  it('hands the phone sides it is given to the staged upload step', async () => {
+    const phoneSides: any = { ios: { version: 1, platform: 'ios' } };
+
+    await uploadFreshBundles({
+      projectRoot: '/proj',
+      buildSettings: BUILD_SETTINGS,
+      platforms: ['ios'],
+      platformsOnStoredBuild: [],
+      baseFingerprints: { ios: 'base-fp-ios' },
+      projectIndex: 7,
+      teamId: 'team1234',
+      phoneSides,
+      effects: EFFECTS,
+    });
+
+    expect(mocks.uploadBundles).toHaveBeenCalledWith(expect.objectContaining({ phoneSides }));
+  });
+
   it('lets an upload failure end the run (nothing is fail-soft here)', async () => {
     mocks.uploadBundles.mockRejectedValue(new Error('Staged upload slot missing for ios.'));
 

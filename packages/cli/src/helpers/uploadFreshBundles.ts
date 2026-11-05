@@ -23,6 +23,7 @@
 import { Platform } from '@sherlo/api-types';
 import { buildBundles, type BundlingEffects } from '../commands/test/bundleAndPreview';
 import { bundler } from '../seams/bundler';
+import type { PhoneSide } from '../seams/phoneSide';
 import type { BundleResult } from '../commands/test/buildBundle';
 import { resolveSuppliedBundles } from '../commands/test/suppliedBundle';
 import {
@@ -95,6 +96,7 @@ export async function uploadFreshBundles({
   baseFingerprints,
   projectIndex,
   teamId,
+  phoneSides,
   effects,
 }: {
   projectRoot: string;
@@ -110,6 +112,8 @@ export async function uploadFreshBundles({
   baseFingerprints: Partial<Record<Platform, string>>;
   projectIndex: number;
   teamId: string;
+  /** Per platform, the phone side to upload beside its bundle (./phoneSidesOf). */
+  phoneSides?: Partial<Record<Platform, PhoneSide>>;
   effects: FreshBundleEffects;
 }): Promise<Partial<Record<Platform, UploadedFreshBundle>>> {
   let bundles: Partial<Record<Platform, BundleResult>>;
@@ -152,6 +156,7 @@ export async function uploadFreshBundles({
     bundles,
     projectIndex,
     teamId,
+    phoneSides,
     effects: effects.upload,
   });
 

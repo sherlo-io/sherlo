@@ -434,6 +434,8 @@ describe('the fresh bundle on the platform config', () => {
       baseFingerprints: { android: 'base-fp-android', ios: 'base-fp-ios' },
       projectIndex: 7,
       teamId: 'team1234',
+      // The fake project has no SDK package to take a core file from, so the push goes with none.
+      phoneSides: {},
       // Asserted ON PURPOSE: the effects bundle is the seam an expectation
       // producer swaps to run this exact step offline. Identity is the assertion.
       effects: mocks.freshBundleEffects,
@@ -473,6 +475,12 @@ describe('the fresh bundle on the platform config', () => {
     // CLI must never send it (the api rejects the whole openBuild if it does).
     expect(android).not.toHaveProperty('baseReference');
     expect(ios).not.toHaveProperty('baseReference');
+  });
+
+  it("the open build payload's platform keys include the optional phone side key", () => {
+    const platformConfig = { jsBundleS3Key: 'js-key', phoneSideS3Key: 'phone-side-key' };
+
+    expect(keysTheApiRejects(platformConfig)).toEqual([]);
   });
 
   it('only registers and bundles the platforms the caller handed a binary for', async () => {
