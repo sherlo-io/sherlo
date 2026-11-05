@@ -104,6 +104,16 @@ export function mockRandom(seed: number): ModuleMockDeclaration {
   };
 }
 
+export type { StartState } from './mocking/startState';
+
+// Nothing starts in a build without Sherlo: the precondition is shaped like one and never read.
+export function startState<T extends object>(
+  _target: T,
+  _fields: DeepPartial<T>
+): import('./mocking/startState').StartState {
+  return { activate: () => undefined };
+}
+
 export class UnmockedRequestError extends Error {
   constructor(message: string) {
     super(message);
