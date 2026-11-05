@@ -155,11 +155,14 @@ export async function androidPermissionStates(
   return states;
 }
 
-/** Grant or deny the app's notifications on a simulator (`simctl privacy` has no such service). */
+/**
+ * Grant, deny or `unset` (ask again) the app's notifications on a simulator (`simctl privacy` has
+ * no such service).
+ */
 export async function setIosNotifications(
   udid: string,
   app: SceneApp,
-  granted: boolean
+  granted: boolean | 'unset'
 ): Promise<void> {
   await deviceState().run('applesimutils', [
     '--byId',
@@ -167,20 +170,26 @@ export async function setIosNotifications(
     '--bundle',
     app.id,
     '--setPermissions',
-    `notifications=${granted ? 'YES' : 'NO'}`,
+    `notifications=${granted === 'unset' ? 'unset' : granted ? 'YES' : 'NO'}`,
   ]);
 }
 
-/** Wipe the app's data, grant notifications, and still the animations - only after the save. */
+/**
+ * Wipe the app's data, grant notifications, and still the animations - only after the save.
+ * `keepIosData` leaves an iOS app's own data where it is, for a signed-out scene that wipes only
+ * the stored logins (./sceneDevice). Android keeps no logins apart from the app's data, so the
+ * data is wiped there whatever the scene is.
+ */
 export async function cleanTheDevice(
   device: SceneDevice,
   app: SceneApp,
-  saved: SavedDevice
+  saved: SavedDevice,
+  keepIosData = false
 ): Promise<void> {
   const { run } = deviceState();
 
   if (device.platform === 'ios' && saved.platform === 'ios') {
-    emptyTheContainer(saved.container, saved.parts);
+    if (!keepIosData) emptyTheContainer(saved.container, saved.parts);
     await setIosNotifications(device.udid, app, true);
     await run('xcrun', [
       'simctl',

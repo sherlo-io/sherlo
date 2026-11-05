@@ -301,6 +301,8 @@ describe('a scene capture can save the screen it captured', () => {
           throw new Error('screenshot failed');
         }
         if (line.includes('pm path')) return 'package:/data/app/base.apk\n';
+        // The app's Info.plist, declaring nothing.
+        if (tool === 'plutil') return '{}';
         return line.includes('get_app_container') ? `${folder}\n` : '';
       },
     });
@@ -454,7 +456,11 @@ describe('a scene capture can save the screen it captured', () => {
   }
 
   /** Capture the scene with `--json`: the record it printed and the device calls around it. */
-  async function jsonOfScene(root: string, target: SceneTarget) {
+  async function jsonOfScene(
+    root: string,
+    target: SceneTarget,
+    answer: SceneCaptureResult = A_SCENE
+  ) {
     const written: string[] = [];
     const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
       written.push(String(text));
@@ -462,7 +468,7 @@ describe('a scene capture can save the screen it captured', () => {
     }) as never);
     try {
       const { events } = await captureOneScene(
-        A_SCENE,
+        answer,
         { [JSON_OPTION]: true },
         { target, projectRoot: root }
       );
@@ -480,7 +486,7 @@ describe('a scene capture can save the screen it captured', () => {
       /privacy|simctl location|pm grant|pm revoke|geo fix/.test(line)
     );
     expect(changes).toEqual([]);
-    expect(record).not.toHaveProperty('deviceNotApplied');
+    expect(record).not.toHaveProperty('phoneNotApplied');
   });
 
   it("capture reads the scene's device from the scene file before launching", async () => {
@@ -504,7 +510,7 @@ describe('a scene capture can save the screen it captured', () => {
 
     const changes = events.filter((line) => /pm revoke|geo fix|dumpsys location/.test(line));
     expect(changes).toEqual([]);
-    expect(record).not.toHaveProperty('deviceNotApplied');
+    expect(record).not.toHaveProperty('phoneNotApplied');
   });
 
   it('a location the phone cannot take is listed in the json record as not applied', async () => {
@@ -515,8 +521,24 @@ describe('a scene capture can save the screen it captured', () => {
     const root = projectWithScene('{ location: { latitude: 52.5, longitude: 13.4 } }');
     const { events, record } = await jsonOfScene(root, aRealPhone);
 
-    expect(record.deviceNotApplied).toEqual(['location']);
+    expect(record.phoneNotApplied).toEqual([
+      { setting: 'location', wanted: '52.5,13.4', why: 'phone-refused' },
+    ]);
     expect(events.filter((line) => line.includes('geo fix'))).toEqual([]);
+  });
+
+  it('a crashed-mid-capture ending keeps the settings the phone did not take', async () => {
+    const aRealPhone: SceneTarget = {
+      device: { platform: 'android', serial: 'R58M123ABC' },
+      app: { id: 'com.example.app' },
+    };
+    const crashed: SceneCaptureResult = { kind: 'crashed-mid-capture', sceneId: 'chat--open' };
+    const root = projectWithScene('{ location: { latitude: 52.5, longitude: 13.4 } }');
+    const { record } = await jsonOfScene(root, aRealPhone, crashed);
+
+    expect(record.phoneNotApplied).toEqual([
+      { setting: 'location', wanted: '52.5,13.4', why: 'phone-refused' },
+    ]);
   });
 
   const NEVER_READY: SceneCaptureResult = {

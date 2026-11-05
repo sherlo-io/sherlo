@@ -9,7 +9,8 @@ import { throwError } from '../../helpers';
 import getCwd from '../../helpers/getCwd';
 import { readPort } from '../../helpers/readPort';
 import { applySceneDevice, deviceOfScene } from '../../seams/sceneDevice';
-import type { SceneDeviceField } from '../../seams/sceneDevice';
+import type { PhoneNotApplied, SceneDeviceField } from '../../seams/sceneDevice';
+import { declaredPermissions } from '../../seams/declaredPermissions';
 import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
 import { captureSocket } from '../../seams/captureSocket';
 import {
@@ -30,6 +31,31 @@ import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { ScenePicture } from '../../render/capturedScene';
 import type { CaptureOptions } from './captureOptions';
 
+/**
+ * Which endings carry what the scene left behind (render/capturedScene SceneLeft), read off the type:
+ * the compiler refuses this table the day an ending gains or loses SceneLeft.
+ */
+const ENDING_CARRIES_SCENE_LEFT: {
+  [Kind in SceneCaptureResult['kind']]: 'phoneNotApplied' extends keyof Extract<
+    SceneCaptureResult,
+    { kind: Kind }
+  >
+    ? true
+    : false;
+} = {
+  'no-bundler': false,
+  'no-app': false,
+  'no-such-scene': false,
+  'bundle-does-not-build': false,
+  'crashed-at-boot': false,
+  'crashed-mid-capture': true,
+  'never-reached': true,
+  'play-target-missing': true,
+  'never-settled': true,
+  'restarted-mid-capture': false,
+  scene: true,
+};
+
 /** Put one scene through the clean device and keep what came of it; the screen is the caller's. */
 export function runScene(sceneId: string, passedOptions: CaptureOptions) {
   const keptFolder = openCapture(sceneId);
@@ -47,20 +73,24 @@ async function runOpenScene(
   const target = await deviceState().sceneTarget();
   // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
   const installed = !isTarget(target) || (await appIsInstalled(target));
-  // The scene's own phone setup, read from its file before the device is touched.
-  const field = isTarget(target) && installed ? sceneDeviceField(sceneId) : undefined;
+  // The scene's own phone setup, read from its file, and every permission the app declares: all
+  // answered before the device is touched (a permission the scene does not list is granted).
+  const phone =
+    isTarget(target) && installed
+      ? { ...sceneDeviceField(sceneId), declared: await declaredPermissions(target) }
+      : undefined;
   const restore =
     isTarget(target) && installed
-      ? await prepareCleanDevice(target.device, target.app, field).catch(endOnNotDebuggable)
+      ? await prepareCleanDevice(target.device, target.app, phone).catch(endOnNotDebuggable)
       : undefined;
   const pngPath = passedOptions[PNG_OPTION];
   const discover = passedOptions[DISCOVER_OPTION] === true;
   let answer: SceneCaptureResult;
-  let notApplied: string[] = [];
+  let notApplied: PhoneNotApplied[] = [];
   let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
   const startedAt = Date.now();
   try {
-    if (isTarget(target) && installed) notApplied = await applySceneDevice(target, field);
+    if (isTarget(target) && installed) notApplied = await applySceneDevice(target, phone);
     answer = installed
       ? await captureSocket().captureScene({
           sceneId,
@@ -90,9 +120,12 @@ async function runOpenScene(
     await restore?.();
   }
   const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
-  const unapplied = notApplied.length > 0 ? { deviceNotApplied: notApplied } : {};
   const listed = discover ? { discover: true } : {};
-  const record = { ...answer, ...saved, ...unapplied, ...listed };
+  // What the phone could not take is listed beside the other things the scene left (render/phoneNotAppliedLines).
+  if (notApplied.length > 0 && ENDING_CARRIES_SCENE_LEFT[answer.kind]) {
+    answer = { ...answer, phoneNotApplied: notApplied } as SceneCaptureResult;
+  }
+  const record = { ...answer, ...saved, ...listed };
   // An app that was never on the device ran on nothing, so no device is named for it.
   // The time a scene waited before giving up is kept beside its record, not printed: `--json` stays as it is.
   const waited = answer.kind === 'never-reached' ? { waitedMs: Date.now() - startedAt } : {};
