@@ -125,3 +125,70 @@ async function framesDrawnNatively(): Promise<
   }
   return { frames, window: inPoints(data.viewHierarchy) };
 }
+
+/** One view as a look reads it: what names it, and what a picture of it would show. */
+export type ViewLook = {
+  /** Joins the same view in two looks: its native tag, else its place in render order. */
+  key: string;
+  /** The innermost app component that renders it, else the host type. */
+  component: string;
+  testID?: string;
+  text: string;
+  frame?: Frame;
+};
+
+/** The innermost component above the fiber that has a name of its own, else the view's own type. */
+function componentOf(fiber: WalkedFiber): string {
+  for (let node: WalkedFiber | null | undefined = fiber.return; node; node = node.return) {
+    const type = node.type;
+    const name =
+      typeof type === 'function'
+        ? (type.displayName ?? type.name)
+        : (type?.type?.name ?? type?.render?.name);
+    if (name) return name;
+  }
+  return String(fiber.type);
+}
+
+/** Every host view of the app on screen now, read without waiting. Empty before the app renders. */
+export async function lookAtViews(): Promise<ViewLook[]> {
+  const root = currentAppFiber();
+  const views = root ? hostViewsMatching(root, () => true) : [];
+  const drawn = await framesDrawnNatively();
+  return views.map((fiber, place) => {
+    const tag = nativeTagOf(fiber);
+    const testID = fiber.memoizedProps?.testID;
+    return {
+      key: tag === undefined ? `place ${place}` : `tag ${tag}`,
+      component: componentOf(fiber),
+      ...(typeof testID === 'string' ? { testID } : {}),
+      text: fiber.type === 'RCTText' ? textOf(fiber) : '',
+      frame: tag === undefined ? undefined : drawn?.frames.get(tag),
+    };
+  });
+}
+
+/** A frame as a picture shows it: whole points, so a sub-pixel float is no change. */
+function boxOf(frame: Frame | undefined): string {
+  return frame
+    ? [frame.x, frame.y, frame.width, frame.height].map(Math.round).join(',')
+    : 'unknown';
+}
+
+/**
+ * The views that differ between two looks (a different text, place or size, or a view that came or
+ * went), each named by its component and, when it has one, its test id: Bubble "msg-3". Once each.
+ */
+export function viewsThatChanged(before: ViewLook[], after: ViewLook[]): string[] {
+  const earlier = new Map(before.map((look) => [look.key, look]));
+  const later = new Map(after.map((look) => [look.key, look]));
+  const names = new Set<string>();
+  for (const key of new Set([...earlier.keys(), ...later.keys()])) {
+    const was = earlier.get(key);
+    const now = later.get(key);
+    if (was && now && was.text === now.text && boxOf(was.frame) === boxOf(now.frame)) continue;
+    const look = (now ?? was)!;
+    names.add(look.testID ? `${look.component} "${look.testID}"` : look.component);
+  }
+  return [...names];
+}
