@@ -107,7 +107,8 @@ describe('requests refused by the hundred', () => {
     const printed = refusalLines(
       Array.from({ length: 10 }, () => ({ method: 'GET', url: 'https://app.example/a', rule }))
     )?.join('\n');
-    expect(printed).toContain('rule: no fake matched it');
+    // The printed lines leave the rule out, as the signed pictures do.
+    expect(printed).not.toContain('rule: no fake matched it');
   });
 
   it('a request a fake of yours refused says where that fake was declared', () => {

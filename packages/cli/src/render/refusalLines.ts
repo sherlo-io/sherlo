@@ -39,17 +39,9 @@ export function refusalLines(refused: Parameters<typeof explainRefusals>[0]): st
           `     ${String(restTimes).padStart(4)}  more, to ${rest.length} other ${rest.length === 1 ? 'address' : 'addresses'}`,
         ]
       : []),
-    ...causes.flatMap(({ words, fakes, moreFakes, senders, rules }) => [
+    ...causes.flatMap(({ words, fakes, moreFakes }) => [
       '',
       `  ${words}`,
-      ...(senders.length + rules.length > 0
-        ? [
-            `     ${[
-              ...(senders.length > 0 ? [`sent by ${senders.join(', ')}`] : []),
-              ...(rules.length > 0 ? [`rule: ${rules.join(', ')}`] : []),
-            ].join('; ')}`,
-          ]
-        : []),
       ...fakes.map((fake) => `     ${fake}`),
       ...(moreFakes > 0 ? [`     ... and ${moreFakes} more like these`] : []),
     ]),
