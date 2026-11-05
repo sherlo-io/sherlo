@@ -288,6 +288,57 @@ describe('the requests native code met that no rule matches', () => {
     );
   });
 
+  it('a request from a native session the JavaScript layer never saw is refused and reported with the native layer as its rule', () => {
+    const refusals: Error[] = [];
+    // A story that lets requests through: a native refusal still is one, as scenes take no let-through.
+    activateNetworkMocks(networkMocksOf([mockRequest.passthrough()]), (refusal) =>
+      refusals.push(refusal)
+    );
+
+    nativeMeets({ method: 'GET', url: 'https://analytics.example/ping', rule: 'native-ios' });
+    nativeMeets({ method: 'POST', url: 'https://crash.example/report', rule: 'native-android' });
+
+    expect(unansweredRequests()).toEqual([
+      {
+        method: 'GET',
+        url: 'https://analytics.example/ping',
+        scope: 'background',
+        rule: 'native-ios',
+      },
+      {
+        method: 'POST',
+        url: 'https://crash.example/report',
+        scope: 'background',
+        rule: 'native-android',
+      },
+    ]);
+    expect(refusals).toHaveLength(2);
+    expect(refusals[0]).toBeInstanceOf(UnmockedRequestError);
+  });
+
+  it('a background download is refused at its start and reported', () => {
+    const refusals: Error[] = [];
+    activateNetworkMocks(
+      networkMocksOf([mockRequest({ url: 'https://api.example/a' }, { body: 'a' })]),
+      (refusal) => refusals.push(refusal)
+    );
+
+    nativeMeets({ method: 'GET', url: 'https://cdn.example/big.zip', rule: 'native-ios' });
+
+    expect(unansweredRequests()).toMatchObject([
+      { method: 'GET', url: 'https://cdn.example/big.zip', rule: 'native-ios' },
+    ]);
+    expect(refusals).toHaveLength(1);
+  });
+
+  it('a rule name native code makes up is not trusted as a rule', () => {
+    activate(mockRequest({ url: 'https://api.example/a' }, { body: 'a' }));
+
+    nativeMeets({ method: 'GET', url: 'https://x.example/', rule: 'something-else' });
+
+    expect(unansweredRequests()).toMatchObject([{ rule: 'no-fake-matched' }]);
+  });
+
   it('a native request in a story that lets requests through is listed and refuses nothing', () => {
     const refusals: Error[] = [];
     activateNetworkMocks(networkMocksOf([mockRequest.passthrough()]), (refusal) =>

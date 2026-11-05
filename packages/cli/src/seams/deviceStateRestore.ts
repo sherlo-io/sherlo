@@ -11,9 +11,9 @@ import path from 'path';
 import { deviceState } from './deviceState';
 import type { SceneApp, SceneDevice } from './deviceState';
 import {
-  ANIMATION_SCALES,
   BULLETIN_BOARD,
   POST_NOTIFICATIONS,
+  PROXY_SETTING,
   emptyTheAndroidData,
   emptyTheContainer,
   reverseMappings,
@@ -113,12 +113,17 @@ async function restoreAndroid(
     });
   });
 
-  for (const scale of ANIMATION_SCALES) {
-    const was = saved.scales[scale];
-    await step(scale, async () => {
-      await (was === null
-        ? adb('shell', 'settings', 'delete', 'global', scale)
-        : adb('shell', 'settings', 'put', 'global', scale, was));
+  const globals: [string, string | null][] = Object.entries(saved.scales);
+  if (saved.proxy !== undefined) globals.push([PROXY_SETTING, saved.proxy]);
+  for (const [name, was] of globals) {
+    await step(name, async () => {
+      if (was !== null) {
+        await adb('shell', 'settings', 'put', 'global', name, was);
+        return;
+      }
+      // The running proxy is only dropped by `:0`; deleting the setting alone leaves it in force.
+      if (name === PROXY_SETTING) await adb('shell', 'settings', 'put', 'global', name, ':0');
+      await adb('shell', 'settings', 'delete', 'global', name);
     });
   }
 

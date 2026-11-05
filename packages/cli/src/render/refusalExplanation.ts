@@ -21,8 +21,10 @@ type Refused = UnansweredRequest;
 
 /** The rule that blocked a request, in the words of the explanation; a fake that refused says where it was declared. */
 function ruleWords({ rule, fakeAt }: Refused): string[] {
-  if (rule === 'no-fake-matched') return ['no fake matched it'];
-  if (rule !== 'fake-refused') return [];
+  if (rule === undefined) return [];
+  // A request blocked below the JavaScript layer (a native rule, or the emulator's proxy) was one
+  // no fake matched, as it was before native code named its rule: it keeps the same words.
+  if (rule !== 'fake-refused') return ['no fake matched it'];
   const place = fakeAt === undefined || fakeAt === 'unknown' ? undefined : placeOf(fakeAt);
   return [`a fake of yours refused it (declared ${place ? `at ${place}` : 'somewhere unknown'})`];
 }

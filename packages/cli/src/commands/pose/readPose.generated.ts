@@ -2742,7 +2742,12 @@ function readUnansweredRequest(value: unknown, path: string, problems: string[])
       expectOneOf(object1.scope, ['background', 'screen'], at(path, 'scope'), problems);
     }
     if ('rule' in object1) {
-      expectOneOf(object1.rule, ['fake-refused', 'no-fake-matched'], at(path, 'rule'), problems);
+      expectOneOf(
+        object1.rule,
+        ['emulator-proxy', 'fake-refused', 'native-android', 'native-ios', 'no-fake-matched'],
+        at(path, 'rule'),
+        problems
+      );
     }
     if ('fakeAt' in object1) {
       expectString(object1.fakeAt, at(path, 'fakeAt'), problems);

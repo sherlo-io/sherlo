@@ -67,8 +67,12 @@ static SherloAnswerRule *SherloRuleFor(SherloAnswersInEffect *answers, NSURLRequ
 
 static void (^unansweredReceiver)(NSString *) = nil;
 
-/** Tell JavaScript of a request no rule matches: method, address and content type, nothing else. */
-static void SherloTellUnanswered(NSURLRequest *request) {
+/**
+ * Tell JavaScript of a request no rule matches: method, address and content type, nothing else.
+ * A request native code refused itself also says so, with `rule` (@"native-ios"); one let through
+ * or held says none.
+ */
+static void SherloTellUnanswered(NSURLRequest *request, NSString *rule) {
   void (^receiver)(NSString *);
   @synchronized (answersLock) { receiver = unansweredReceiver; }
   if (!receiver) return;
@@ -79,6 +83,7 @@ static void SherloTellUnanswered(NSURLRequest *request) {
   }];
   NSString *contentType = [request valueForHTTPHeaderField:@"Content-Type"];
   if (contentType) told[@"contentType"] = contentType;
+  if (rule) told[@"rule"] = rule;
   NSData *json = [NSJSONSerialization dataWithJSONObject:told options:0 error:nil];
   if (json) receiver([[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding]);
 }
@@ -100,7 +105,7 @@ static void SherloTellUnansweredOnce(NSURLRequest *request) {
     if (recentlyTold[key]) return;
     recentlyTold[key] = now;
   }
-  SherloTellUnanswered(request);
+  SherloTellUnanswered(request, nil);
 }
 
 /**
@@ -141,9 +146,10 @@ static BOOL SherloTakesRequest(NSURLRequest *request) {
     [self answerWith:rule];
     return;
   }
-  SherloTellUnanswered(self.request);
+  BOOL held = [answers.unmatched isEqualToString:@"held"];
+  SherloTellUnanswered(self.request, held ? nil : @"native-ios");
   // A held request is never answered, as fetch's is not in a discover launch.
-  if ([answers.unmatched isEqualToString:@"held"]) return;
+  if (held) return;
 
   // Refused, as fetch refuses it - or the rules changed since the request was taken, and it can
   // no longer reach the network from here.
@@ -202,6 +208,59 @@ static NSURLSessionConfiguration *SherloEphemeralConfiguration(id self, SEL _cmd
   return configuration;
 }
 
+// A background session takes no custom protocol and runs outside the app, so a download or file
+// upload it starts is refused at its start instead: the task is cancelled before it is resumed, and JavaScript told.
+// The original of each method replaced, by the method it was found on.
+static NSMutableDictionary<NSValue *, NSValue *> *originalTaskMethods = nil;
+
+static void SherloRefuseBackgroundDownload(NSURLSession *session, NSURLSessionTask *task, NSURLRequest *request) {
+  SherloAnswersInEffect *answers = SherloCurrentAnswers();
+  NSString *scheme = request.URL.scheme.lowercaseString;
+  BOOL web = [scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"];
+  if (!answers || !task || !web || session.configuration.identifier == nil) return;
+  if (SherloIsBundlerUrl(request.URL, answers.bundlerOrigin)) return;
+  SherloTellUnanswered(request, @"native-ios");
+  [task cancel];
+}
+
+static IMP SherloOriginalTaskMethod(id self, SEL _cmd) {
+  Method method = class_getInstanceMethod(object_getClass(self), _cmd);
+  return (IMP)[originalTaskMethods[[NSValue valueWithPointer:method]] pointerValue];
+}
+
+static NSURLSessionDownloadTask *SherloDownloadTaskWithRequest(NSURLSession *self, SEL _cmd, NSURLRequest *request) {
+  NSURLSessionDownloadTask *task = ((NSURLSessionDownloadTask * (*)(id, SEL, NSURLRequest *))SherloOriginalTaskMethod(self, _cmd))(self, _cmd, request);
+  SherloRefuseBackgroundDownload(self, task, request);
+  return task;
+}
+
+static NSURLSessionDownloadTask *SherloDownloadTaskWithURL(NSURLSession *self, SEL _cmd, NSURL *url) {
+  NSURLSessionDownloadTask *task = ((NSURLSessionDownloadTask * (*)(id, SEL, NSURL *))SherloOriginalTaskMethod(self, _cmd))(self, _cmd, url);
+  SherloRefuseBackgroundDownload(self, task, [NSURLRequest requestWithURL:url]);
+  return task;
+}
+
+static NSURLSessionUploadTask *SherloUploadTaskWithRequestFromFile(NSURLSession *self, SEL _cmd, NSURLRequest *request, NSURL *file) {
+  NSURLSessionUploadTask *task = ((NSURLSessionUploadTask * (*)(id, SEL, NSURLRequest *, NSURL *))SherloOriginalTaskMethod(self, _cmd))(self, _cmd, request, file);
+  SherloRefuseBackgroundDownload(self, task, request);
+  return task;
+}
+
+// Resumed data names no request of its own: the task made from it knows the address it was started for.
+static NSURLSessionDownloadTask *SherloDownloadTaskWithResumeData(NSURLSession *self, SEL _cmd, NSData *data) {
+  NSURLSessionDownloadTask *task = ((NSURLSessionDownloadTask * (*)(id, SEL, NSData *))SherloOriginalTaskMethod(self, _cmd))(self, _cmd, data);
+  SherloRefuseBackgroundDownload(self, task, task.originalRequest ?: task.currentRequest);
+  return task;
+}
+
+/** Replace `selector` on `cls` (or the class it is inherited from), once per method. */
+static void SherloReplaceTaskMethod(Class cls, SEL selector, IMP replacement) {
+  Method method = cls ? class_getInstanceMethod(cls, selector) : NULL;
+  NSValue *key = [NSValue valueWithPointer:method];
+  if (!method || originalTaskMethods[key]) return;
+  originalTaskMethods[key] = [NSValue valueWithPointer:(void *)method_setImplementation(method, replacement)];
+}
+
 static SherloConfigurationGetter SherloReplaceClassMethod(Class cls, SEL selector, IMP replacement) {
   Method method = class_getClassMethod(cls, selector);
   return method ? (SherloConfigurationGetter)method_setImplementation(method, replacement) : NULL;
@@ -244,10 +303,19 @@ static void SherloInstallAnswering(void) {
     // NSURLConnection and +[NSURLSession sharedSession].
     [NSURLProtocol registerClass:[SherloAnswerProtocol class]];
     // Every session a library makes from the default or ephemeral configuration. A background
-    // configuration takes no custom protocol, so a background download is never answered here.
+    // configuration takes no custom protocol, so a background download is refused at its start.
     Class configurationClass = [NSURLSessionConfiguration class];
     originalDefaultConfiguration = SherloReplaceClassMethod(configurationClass, @selector(defaultSessionConfiguration), (IMP)SherloDefaultConfiguration);
     originalEphemeralConfiguration = SherloReplaceClassMethod(configurationClass, @selector(ephemeralSessionConfiguration), (IMP)SherloEphemeralConfiguration);
+    // The download tasks of the session class and of the background session class.
+    originalTaskMethods = [NSMutableDictionary dictionary];
+    Class sessionClasses[] = {[NSURLSession class], NSClassFromString(@"__NSURLBackgroundSession")};
+    for (int index = 0; index < 2; index++) {
+      SherloReplaceTaskMethod(sessionClasses[index], @selector(downloadTaskWithRequest:), (IMP)SherloDownloadTaskWithRequest);
+      SherloReplaceTaskMethod(sessionClasses[index], @selector(downloadTaskWithURL:), (IMP)SherloDownloadTaskWithURL);
+      SherloReplaceTaskMethod(sessionClasses[index], @selector(uploadTaskWithRequest:fromFile:), (IMP)SherloUploadTaskWithRequestFromFile);
+      SherloReplaceTaskMethod(sessionClasses[index], @selector(downloadTaskWithResumeData:), (IMP)SherloDownloadTaskWithResumeData);
+    }
   });
 }
 

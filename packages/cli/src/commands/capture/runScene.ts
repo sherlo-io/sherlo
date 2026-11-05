@@ -25,6 +25,7 @@ import type { NoTarget, SceneDevice, SceneTarget } from '../../seams/deviceState
 import { dropCapture, guardCapture, keepCapture, newCapture } from '../../seams/localCaptures';
 import type { NewCapture } from '../../seams/localCaptures';
 import { readLocalDevice } from '../../seams/localDevice';
+import { refusedByTheProxy } from '../../seams/refusingProxy';
 import { nameSendersByCode } from '../../seams/senderByCode';
 import { symbolicateStacks } from '../../seams/symbolicateStack';
 import type { SceneCaptureResult } from '../../seams/liveScene';
@@ -81,7 +82,7 @@ async function runOpenScene(
       : undefined;
   const restore =
     isTarget(target) && installed
-      ? await prepareCleanDevice(target.device, target.app, phone).catch(endOnNotDebuggable)
+      ? await prepareCleanDevice(target.device, target.app, phone, port).catch(endOnNotDebuggable)
       : undefined;
   const pngPath = passedOptions[PNG_OPTION];
   const discover = passedOptions[DISCOVER_OPTION] === true;
@@ -100,6 +101,11 @@ async function runOpenScene(
           discover,
         })
       : { kind: 'no-app', why: 'not-installed' };
+    // What an emulator's proxy refused is listed with what the app itself refused.
+    const refusedByProxy = refusedByTheProxy();
+    if ((answer.kind === 'scene' || answer.kind === 'never-reached') && refusedByProxy.length > 0) {
+      answer = { ...answer, unanswered: [...(answer.unanswered ?? []), ...refusedByProxy] };
+    }
     // Each refusal's stack is read through the bundler; a request still named by no package is
     // named by the project's dependency whose code holds its host.
     if (answer.kind === 'scene' || answer.kind === 'never-reached') {

@@ -27,6 +27,9 @@ export const ANIMATION_SCALES = [
   'animator_duration_scale',
 ] as const;
 
+/** The Android global setting that names the proxy every request goes through. */
+export const PROXY_SETTING = 'http_proxy';
+
 /** Where a simulator keeps every app's notification settings, under its own data folder. */
 export const BULLETIN_BOARD = 'Library/BulletinBoard/VersionedSectionInfo.plist';
 
@@ -52,6 +55,11 @@ export type SavedDevice =
       /** The app's data folder, as a tar at this path. */
       dataTar: string;
       scales: Record<(typeof ANIMATION_SCALES)[number], string | null>;
+      /**
+       * The global proxy the phone had (null: none), saved only when the run sets its own (an
+       * emulator behind ./refusingProxy); undefined when the run leaves the proxy alone.
+       */
+      proxy?: string | null;
       /** `not-asked`: the app does not ask for notifications on this Android, so nothing is changed. */
       notifications: 'granted' | 'not-granted' | 'not-asked';
       /**
@@ -65,7 +73,8 @@ export type SavedDevice =
 export async function saveDeviceState(
   device: SceneDevice,
   app: SceneApp,
-  folder: string
+  folder: string,
+  setsProxy = false
 ): Promise<SavedDevice> {
   const { run, simulatorFolder } = deviceState();
   await stopTheApp(device, app);
@@ -102,11 +111,16 @@ export async function saveDeviceState(
     { stdoutTo: dataTar }
   );
 
+  // `null` and, for the proxy, `:0` are how Android says a setting is not there.
+  const readGlobal = async (name: string): Promise<string | null> => {
+    const value = (await adb('shell', 'settings', 'get', 'global', name)).trim();
+    return value === 'null' || value === '' || (name === PROXY_SETTING && value === ':0')
+      ? null
+      : value;
+  };
   const scales = {} as Record<(typeof ANIMATION_SCALES)[number], string | null>;
-  for (const scale of ANIMATION_SCALES) {
-    const value = (await adb('shell', 'settings', 'get', 'global', scale)).trim();
-    scales[scale] = value === 'null' || value === '' ? null : value;
-  }
+  for (const scale of ANIMATION_SCALES) scales[scale] = await readGlobal(scale);
+  const proxy = setsProxy ? await readGlobal(PROXY_SETTING) : undefined;
 
   const granted = (await androidPermissionStates(device.serial, app))[POST_NOTIFICATIONS];
   const notifications =
@@ -117,6 +131,7 @@ export async function saveDeviceState(
     folder,
     dataTar,
     scales,
+    ...(proxy !== undefined && { proxy }),
     notifications,
     reversed: await reverseMappings(adb),
   };
@@ -184,7 +199,9 @@ export async function cleanTheDevice(
   device: SceneDevice,
   app: SceneApp,
   saved: SavedDevice,
-  keepIosData = false
+  keepIosData = false,
+  /** Where the emulator's global proxy is to point (10.0.2.2 is this computer to it). */
+  proxyPort?: number
 ): Promise<void> {
   const { run } = deviceState();
 
@@ -213,6 +230,9 @@ export async function cleanTheDevice(
     }
     for (const scale of ANIMATION_SCALES) {
       await adb('shell', 'settings', 'put', 'global', scale, '0');
+    }
+    if (saved.proxy !== undefined && proxyPort !== undefined) {
+      await adb('shell', 'settings', 'put', 'global', PROXY_SETTING, `10.0.2.2:${proxyPort}`);
     }
   }
 }
