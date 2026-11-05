@@ -167,8 +167,21 @@ describe('a discover capture lists what the scene needs', () => {
         { kind: 'typename-missing', operation: 'Me', path: 'me' },
         { kind: 'typename-matches-no-fragment', operation: 'Me', path: 'me', expected: 'User' },
         { kind: 'no-query-text', operation: 'Feed' },
+        { kind: 'field-extra', operation: 'Me', path: 'me.age' },
+        {
+          kind: 'field-wrong-type',
+          operation: 'Me',
+          path: 'me.pets',
+          expected: 'an object or a list, the answer has a string',
+        },
       ],
     });
+    expect(printed).toContain(
+      'Me at me.age: the mock answer has a field the query did not ask for'
+    );
+    expect(printed).toContain(
+      'Me at me.pets: the mock answer has the wrong type (expected an object or a list, the answer has a string)'
+    );
 
     expect(printed).toContain(
       'The ready view showed after step 1 of 3, before the last step of the play ran.'

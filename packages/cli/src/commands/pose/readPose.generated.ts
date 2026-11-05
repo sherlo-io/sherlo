@@ -2966,7 +2966,14 @@ function readAnswerFinding(value: unknown, path: string, problems: string[]): vo
   if (object1) {
     expectOneOf(
       object1.kind,
-      ['field-missing', 'typename-missing', 'typename-matches-no-fragment', 'no-query-text'],
+      [
+        'field-missing',
+        'typename-missing',
+        'typename-matches-no-fragment',
+        'no-query-text',
+        'field-extra',
+        'field-wrong-type',
+      ],
       at(path, 'kind'),
       problems
     );

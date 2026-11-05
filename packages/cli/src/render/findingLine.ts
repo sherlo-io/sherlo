@@ -16,6 +16,10 @@ export function findingLine({ kind, operation, path, expected }: AnswerFinding):
       return `  ${where}: the mock answer has no __typename${want}`;
     case 'typename-matches-no-fragment':
       return `  ${where}: its __typename matches no fragment of the query${want}`;
+    case 'field-extra':
+      return `  ${where}: the mock answer has a field the query did not ask for`;
+    case 'field-wrong-type':
+      return `  ${where}: the mock answer has the wrong type${want}`;
     case 'no-query-text':
       return `  ${operation ?? 'a request'}: not checked, the request sent no query text`;
   }

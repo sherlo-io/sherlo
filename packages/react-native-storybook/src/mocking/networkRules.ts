@@ -7,7 +7,8 @@ import {
   SocketAnswer,
   SocketRule,
 } from './networkDeclaration';
-import { bodyExcerptOf, graphqlOperationOf, operationNameOf } from './networkRequestText';
+import { bodyExcerptOf, operationNameOf } from './networkRequestText';
+import { graphqlOperationOf } from './graphqlQueryText';
 import { graphqlAnswerFindings } from './graphqlAnswerCheck';
 import type { AnswerFinding, UnansweredRequest } from '../sealedCore/seam';
 

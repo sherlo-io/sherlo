@@ -1,12 +1,6 @@
 import type { AnswerFinding } from '../sealedCore/seam';
-import {
-  graphqlOperationOf,
-  jsonObjectOf,
-  operationNameOf,
-  persistedQueryHashOf,
-  queryParamsOf,
-} from './networkRequestText';
-import { graphqlDocumentOf } from './graphqlQueryText';
+import { addressParamsOf, jsonObjectOf, persistedQueryHashOf } from './networkRequestText';
+import { graphqlDocumentOf, graphqlOperationOf, requestItemsOf } from './graphqlQueryText';
 import type { GraphqlField, GraphqlNamedFragment, GraphqlSelection } from './graphqlQueryText';
 
 /**
@@ -51,28 +45,45 @@ export function graphqlAnswerFindings(
   body: string | undefined,
   answerBody: unknown
 ): AnswerFinding[] {
-  const fromBody = jsonObjectOf(body);
-  const fromUrl = url.includes('?') ? queryParamsOf(url) : {};
-  const query = fromBody?.query ?? fromUrl.query;
+  const items = requestItemsOf(body);
+  const answer =
+    typeof answerBody === 'string' ? (jsonObjectOf(answerBody) as unknown) : answerBody;
+  // A batch is answered by a list, item by item; a GET carries its query in the address alone.
+  const isBatch = Array.isArray(jsonObjectOf(body));
+  const answers = isBatch ? (Array.isArray(answer) ? (answer as unknown[]) : []) : [answer];
+
+  return (items.length > 0 ? items : [undefined])
+    .flatMap((item, index) => findingsOfItem(url, item, answers[index]))
+    .slice(0, MOST_FINDINGS_PER_ANSWER);
+}
+
+/** What one request item's answer lacks: the item is a whole body, or one of a batch. */
+function findingsOfItem(
+  url: string,
+  item: Record<string, unknown> | undefined,
+  answer: unknown
+): AnswerFinding[] {
+  const fromUrl = addressParamsOf(url);
+  const query = item?.query ?? fromUrl.query;
+  // The one reading of the operation, asked of this item alone.
+  const operation = graphqlOperationOf(url, item === undefined ? undefined : JSON.stringify(item));
 
   if (typeof query !== 'string' || query.trim() === '') {
-    const extensions = fromBody?.extensions ?? jsonObjectOf(fromUrl.extensions);
+    const extensions = item?.extensions ?? jsonObjectOf(fromUrl.extensions);
     if (persistedQueryHashOf(extensions) === undefined) return [];
-    return [finding('no-query-text', graphqlOperationOf(url, body))];
+    return [finding('no-query-text', operation)];
   }
 
   const document = graphqlDocumentOf(query);
-  const data = dataOf(answerBody);
+  const data = dataOf(answer);
   if (document === undefined || data === undefined) return [];
 
-  const namedInRequest = operationNameOf(body) || fromUrl.operationName || undefined;
   const chosen =
-    document.operations.find((candidate) => candidate.name === namedInRequest) ??
-    document.operations[0];
+    document.operations.find((candidate) => candidate.name === operation) ?? document.operations[0];
   if (chosen === undefined) return [];
 
   const walk: Walk = {
-    operation: namedInRequest ?? chosen.name ?? graphqlOperationOf(url, body),
+    operation,
     fragments: document.fragments,
     answeredTypes: typenamesIn(data),
     findings: [],
@@ -81,9 +92,7 @@ export function graphqlAnswerFindings(
   return walk.findings;
 }
 
-function dataOf(answerBody: unknown): Record<string, unknown> | undefined {
-  const answer =
-    typeof answerBody === 'string' ? jsonObjectOf(answerBody) : (answerBody as object | undefined);
+function dataOf(answer: unknown): Record<string, unknown> | undefined {
   const data = (answer as { data?: unknown } | null | undefined)?.data;
   return typeof data === 'object' && data !== null && !Array.isArray(data)
     ? (data as Record<string, unknown>)
@@ -123,7 +132,13 @@ function walkNode(
     node.forEach((item, index) => walkNode(item, selections, [...path, String(index)], walk));
     return;
   }
-  if (typeof node !== 'object' || node === null) return;
+  if (node === null || node === undefined) return;
+  if (typeof node !== 'object') {
+    // Reached only as an item of a list: the query selects fields inside it, so it must be an object.
+    const expected = `an object, the answer has a ${typeof node}`;
+    record(walk, finding('field-wrong-type', walk.operation, path, expected));
+    return;
+  }
 
   const answered = node as Record<string, unknown>;
   const typename = typeof answered.__typename === 'string' ? answered.__typename : undefined;
@@ -159,9 +174,27 @@ function walkNode(
       }
       return;
     }
-    if (field.selections !== undefined && value !== null) {
-      walkNode(value, field.selections, [...path, field.key], walk);
+    if (value === null) return;
+    // With no schema a field with no selection may be a custom JSON scalar: any value answers it.
+    if (field.selections === undefined) return;
+    if (typeof value !== 'object') {
+      // The query selects inside this field, so only an object or a list can answer it.
+      const expected = `an object or a list, the answer has a ${typeof value}`;
+      record(walk, finding('field-wrong-type', walk.operation, [...path, field.key], expected));
+      return;
     }
+    walkNode(value, field.selections, [...path, field.key], walk);
+  });
+
+  // What the answer holds that no selection of the query reaches, whatever the node's type.
+  const asked = new Set(
+    fieldsThatApply(selections, typename, walk.fragments, new Set(), false, true).map(
+      ({ key }) => key
+    )
+  );
+  Object.keys(answered).forEach((key) => {
+    if (key === '__typename' || answered[key] === undefined || asked.has(key)) return;
+    record(walk, finding('field-extra', walk.operation, [...path, key]));
   });
 }
 
