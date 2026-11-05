@@ -122,7 +122,7 @@ export function setNetworkMocks(
 export function socketVerdictFor(url: string): SocketVerdict {
   if (socketPolicy === 'untouched') return { kind: 'real' };
 
-  const rule = mocksInEffect.sockets.find(
+  const rule = mocksInEffect.sockets.findLast(
     (candidate) => candidate.matcher.url === undefined || urlMatches(candidate.matcher.url, url)
   );
   if (rule) {
@@ -169,7 +169,8 @@ export function unmatchedRules(): string[] {
 
 /** What the rules in effect say about `request` - and, when they refuse it, who is told. */
 export function answerFor(request: MockedRequest): Verdict {
-  const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
+  // The last rule that matches answers, so a later fake wins over an earlier one.
+  const rule = mocksInEffect.rules.findLast((candidate) => matches(candidate, request));
   if (rule) {
     matchedRules.add(rule);
     // A request the app polls is answered again and again: each finding is kept once.

@@ -71,9 +71,10 @@ describe('the rules handed to native code', () => {
       unmatched: 'refusal',
       bundlerOrigin: 'http://localhost:8082',
       rules: [
-        { method: 'POST', url: { kind: 'exact', value: 'https://api.example/save' }, status: 201 },
-        { url: { kind: 'prefix', value: 'https://pictures.example/' }, status: 200 },
+        // Handed last declared first: native code takes the first match, JavaScript the last.
         { url: { kind: 'regex', value: '\\/photos\\/\\d+$', ignoreCase: true } },
+        { url: { kind: 'prefix', value: 'https://pictures.example/' }, status: 200 },
+        { method: 'POST', url: { kind: 'exact', value: 'https://api.example/save' }, status: 201 },
       ],
     });
     expect(handedToNative().rules).toHaveLength(3);
@@ -89,7 +90,7 @@ describe('the rules handed to native code', () => {
       mockRequest({ url: 'https://api.example/user' }, { body: { name: 'Ada' } })
     );
 
-    const [picture, text, json] = handedToNative().rules;
+    const [json, text, picture] = handedToNative().rules;
     expect(picture).toEqual({
       url: { kind: 'exact', value: 'https://pictures.example/cat.png' },
       status: 200,

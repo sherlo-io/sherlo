@@ -64,7 +64,10 @@ export function handRulesToNative(
   const mode = SherloModule.getMode();
   if (mode !== 'testing' && mode !== 'storybook') return;
 
-  const nativeRules = rules
+  // Native code answers with the first rule that matches, JavaScript with the last: handed last
+  // first, both pick the same rule.
+  const nativeRules = [...rules]
+    .reverse()
     .filter((rule) => rule.matcher.operationName === undefined)
     .map(nativeRuleOf);
   const handed = { unmatched, bundlerOrigin: bundlerOrigin(), rules: nativeRules };

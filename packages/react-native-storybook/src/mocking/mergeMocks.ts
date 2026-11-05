@@ -23,9 +23,9 @@ import {
 // same rule to resolution, where a later declaration for a module merges over the earlier one (see
 // resolveDeclarations).
 //
-// NETWORK RULES CARRY THE SAME PRECEDENCE THE OTHER WAY ROUND. A request is answered by the
-// FIRST rule that matches it, so the levels are concatenated story first: the story's rules are
-// asked before its file's, and its file's before the project's. A rule an outer level declared
+// NETWORK RULES CARRY THE SAME PRECEDENCE. A request is answered by the LAST rule that matches
+// it, so the levels are concatenated project first: the story's rules come last and win over its
+// file's, and its file's over the project's. A rule an outer level declared
 // for the same matcher is still there, and still answers every request the inner levels left
 // alone - which is what "added to" means for a level that declares rules of its own.
 export function mergeStoryMocks(
@@ -42,7 +42,7 @@ export function mergeStoryMocks(
   const storyLevel = declarationsOf(story);
 
   const moduleMocks = projectLevel.concat(fileLevel, storyLevel).filter(isModuleDeclaration);
-  const networkRules = storyLevel.concat(fileLevel, projectLevel).filter(isNetworkDeclaration);
+  const networkRules = projectLevel.concat(fileLevel, storyLevel).filter(isNetworkDeclaration);
 
   return [...moduleMocks, ...networkRules];
 }

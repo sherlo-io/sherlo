@@ -73,14 +73,14 @@ export type NetworkMockDeclaration =
 
 /** Every network mock one story declared, as the wrappers read them. */
 export interface NetworkMocks {
-  /** Asked in order: the first rule that matches a request answers it. */
+  /** Asked from the last to the first: the last rule that matches a request answers it. */
   rules: NetworkRule[];
   /**
    * Whether a request no rule matches reaches the real network instead of being refused. It is
    * about fetch and XMLHttpRequest only: a WebSocket no socket rule matches is always refused.
    */
   passthrough: boolean;
-  /** Asked in order: the first socket rule that matches a WebSocket's address answers it. */
+  /** Asked from the last to the first: the last socket rule that matches a WebSocket's address answers it. */
   sockets: SocketRule[];
 }
 
@@ -122,7 +122,7 @@ mockRequest.socket = (matcher: SocketMatcher, answer: SocketAnswer): NetworkMock
   socket: { matcher, answer },
 });
 
-/** The network mocks among `mocks`, in the order they are to be asked. */
+/** The network mocks among `mocks`, in the order declared: when two match, the last one answers. */
 export function networkMocksOf(mocks: StoryMocks): NetworkMocks {
   if (!Array.isArray(mocks)) return NO_NETWORK_MOCKS;
 
