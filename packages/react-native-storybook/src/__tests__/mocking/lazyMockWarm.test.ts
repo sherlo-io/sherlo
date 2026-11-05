@@ -167,7 +167,7 @@ describe('a lazy mock bundle of a scene', () => {
       './store/chat.datasource'
     );
 
-    activateSceneMocks(SCENE_ID, undefined, [storeMock], SCENE_FILE);
+    activateSceneMocks(SCENE_ID, [{ mocks: [storeMock] }], SCENE_FILE);
     const playing = playSteps(SCENE_ID).catch((error: Error) => error.message);
     await vi.advanceTimersByTimeAsync(15_000);
 

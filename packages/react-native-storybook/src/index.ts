@@ -26,6 +26,8 @@ export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
 export { startState } from './mocking/startState';
 export type { StartState } from './mocking/startState';
+export { freshInstall, given, signedOut } from './preconditions';
+export type { Given, Precondition, PreconditionParts } from './preconditions';
 export { awaitReady } from './storyReady';
 export type { ReadyOutcome } from './storyReady';
 export type {
@@ -34,6 +36,7 @@ export type {
   PlayStep,
   ReadyStep,
   SceneDevice,
+  SceneMember,
   ScenePermission,
   TapStep,
   TapTarget,

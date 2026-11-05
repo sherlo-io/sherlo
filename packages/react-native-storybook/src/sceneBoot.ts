@@ -13,7 +13,8 @@
  *
  * The scene comes from the launch: in testing mode, the story the launch was handed is the
  * scene's id. Its file is required here, the one app file required before the entry: a scene
- * file names its mocks by import, and an import runs nothing until it is asked.
+ * file names its mocks by import, and an import runs nothing until it is asked. Only what the
+ * scene's `given` list names goes on: its fakes and its start states, in list order.
  *
  * A capture launch of an app with its own Storybook also installs, here and before the app's entry,
  * the wrapper provider that wraps the app's root in the scene's view (./storyOfTheApp); an entry
@@ -43,6 +44,7 @@ import { initialWindowMetrics } from 'react-native-safe-area-context';
 import { collectAppMetadata } from './appMetadata';
 import { isDrivenByRunner, walkTheStoryForTheRunner } from './runnerWalk';
 import { installTheWrapperThatWrapsWhenSherlosStorybookIsAbsent } from './storyOfTheApp';
+import { partsOf } from './preconditions';
 import type { SceneFile } from './scenes';
 
 // Set once a copy of this module has run: an app that holds two copies of the SDK switches the
@@ -114,7 +116,8 @@ function switchOnTheLaunchedScene(): void {
 
   setDiscover(discoverOfTheTestingLaunch());
   const file = (scene.loadFile() as { default?: SceneFile } | undefined)?.default;
-  activateSceneMocks(sceneId, file?.mocks, file?.scenes[scene.sceneName]?.mocks, scene.filePath);
+  const given = file?.scenes[scene.sceneName]?.given ?? [];
+  activateSceneMocks(sceneId, partsOf(given, 'scene file', scene.shared), scene.filePath);
   logTheLine(`scene ${sceneId} mocks applied`);
 }
 

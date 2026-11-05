@@ -141,7 +141,7 @@ describe('a scene says when it is ready', () => {
       mockedModules: ['own'],
     };
     createMockable('own', { label: 'real' });
-    activateSceneMocks(SCENE_ID, {}, { own: { label: 'scene' } }, SCENE_FILE);
+    activateSceneMocks(SCENE_ID, [{ mocks: { own: { label: 'scene' } } }], SCENE_FILE);
 
     // The app imports its mocked modules as it renders, after the first look at the scene.
     scene.ready = { testID: 'chat.list', timeoutMs: 1_000, requestsIdle: false };

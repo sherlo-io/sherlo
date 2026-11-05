@@ -30,6 +30,8 @@ import { startStillRealStory } from '../mocking/stillReal';
 import { storyAboutToRender } from '../storyReady';
 import { namesAsWrittenOf, standInKeyAtBundlerStart } from '../mocking/declaredImports';
 import { MockSet } from '../mocking/types';
+import type { StartState } from '../mocking/startState';
+import type { PreconditionParts } from '../preconditions';
 import { recordStoryError } from './storyErrorRegistry';
 import { readStorybookFacts } from './storybookFacts';
 
@@ -48,6 +50,8 @@ let latestInstalled: Promise<void> | null = null;
 
 // The scene this launch switched on at boot (../sceneBoot), whose mocks stay on for the launch.
 let sceneOnSinceBoot: string | undefined;
+// The start states the scene's `given` list names, in list order.
+let startStatesOfScene: StartState[] = [];
 
 /**
  * Install `storyId`'s merged mocks, and say when they ARE installed: null when that has already
@@ -75,41 +79,44 @@ function installedMocksOf(storyId: string): Promise<void> | null {
 
   const { project, own = {} } = storyMockLevelsOf(storyId);
   const storyFilePath = readStorybookFacts()?.storyIndex[storyId]?.importPath;
-  return installMergedMocks(storyId, project, own, storyFilePath);
+  return installMergedMocks(storyId, mergeStoryMocks(project, own), own, storyFilePath);
 }
 
 /**
- * Install the launched scene's mocks - its file's, and its own over them - at boot, before the app's
- * first module runs (../sceneBoot). Every module mock whose stand-in the bundler's scan named when
- * it started is in effect when this returns: no import is waited for, as a module that reads a
- * mocked module as it loads runs straight after. The declarations are then resolved as a story's
- * are, which names an import that reached no stand-in in the scene's failure.
+ * Install the launched scene's preconditions - its `given` list, flattened (../preconditions) - at
+ * boot, before the app's first module runs (../sceneBoot): the fakes and request fakes, merged in
+ * list order with a later one winning, and then the start states, in list order, inside the same
+ * activation so clearing the mocks undoes them. Every module mock whose stand-in the bundler's scan
+ * named when it started is in effect when this returns: no import is waited for, as a module that
+ * reads a mocked module as it loads runs straight after. The declarations are then resolved as a
+ * story's are, which names an import that reached no stand-in in the scene's failure.
  */
 export function activateSceneMocks(
   sceneId: string,
-  fileMocks: StoryMocks | undefined,
-  sceneMocks: StoryMocks | undefined,
+  parts: PreconditionParts[],
   sceneFilePath: string
 ): void {
   sceneOnSinceBoot = sceneId;
-  const file = fileMocks ?? {};
-  const own = sceneMocks ?? {};
-  if (Array.isArray(file) || Array.isArray(own)) {
-    // Each level on its own, the scene's over the file's: the file's mocks are shared defaults, so
-    // only the scene's own can fail it for reaching nothing.
-    const fileKnown = knownAtBundlerStart(file, sceneFilePath);
-    const ownKnown = knownAtBundlerStart(own, sceneFilePath);
-    installMocksOfStory(
-      sceneId,
-      mergeMockSets(fileKnown, ownKnown),
-      Object.keys(ownKnown),
-      sceneFilePath
-    );
+  startStatesOfScene = parts.flatMap((part) => part.startStates ?? []);
+  const withMocks = parts.filter((part) => part.mocks !== undefined);
+  // The scene file's own entries are what the scene must reach: a shared precondition's fakes are
+  // defaults, which a scene may leave alone.
+  const ownMocks = foldMocks(withMocks.filter((part) => part.origin !== 'shared'));
+  const mocks = foldMocks(withMocks);
+  if (Array.isArray(mocks) || Array.isArray(ownMocks)) {
+    const known = withMocks.map((part) => knownAtBundlerStart(part.mocks ?? {}, sceneFilePath));
+    const ownKnown = knownAtBundlerStart(ownMocks, sceneFilePath);
+    installMocksOfStory(sceneId, mergeMockSets(...known), Object.keys(ownKnown), sceneFilePath);
   }
   // Each lazily imported mock is a split bundle of its own, and its landing loads the module it
   // mocks. The scene's first step waits for them all (../playSteps, ../storyReady), so none lands
   // while a step opens a screen.
-  storyAboutToRender(sceneId, installMergedMocks(sceneId, file, own, sceneFilePath));
+  storyAboutToRender(sceneId, installMergedMocks(sceneId, mocks, ownMocks, sceneFilePath));
+}
+
+// The mocks of `parts` in list order, a later part winning over an earlier one.
+function foldMocks(parts: PreconditionParts[]): StoryMocks {
+  return parts.reduce<StoryMocks>((merged, part) => mergeStoryMocks(merged, part.mocks), {});
 }
 
 // The mocks of one level whose module's name is known with no import waited for: an object names
@@ -138,11 +145,12 @@ function moduleMocksKnownAtBundlerStart(
   return mocks;
 }
 
-// Installs the mocks of `storyId` - `project`'s, and `own` over them - as activateMocksForStory
-// says, each mocked module named as `filePath` wrote it.
+// Installs `mocks`, the merged set of `storyId`, as activateMocksForStory says, each mocked module
+// named as `filePath` wrote it. `own` is the part of them the story itself declares, which is
+// failed for reaching nothing.
 function installMergedMocks(
   storyId: string,
-  project: StoryMocks,
+  mocks: StoryMocks,
   own: StoryMocks,
   filePath: string | undefined
 ): Promise<void> | null {
@@ -151,7 +159,6 @@ function installMergedMocks(
   // it lists neither.
   startStillRealStory();
 
-  const mocks = mergeStoryMocks(project, own);
   const install = (latestInstall += 1);
 
   // Network rules are plain values the story wrote, so they are in effect at once - no import to
@@ -170,19 +177,27 @@ function installMergedMocks(
   // installed: its caller - Sherlo's decorator, say - renders the story when it settles, and a
   // story rendered before then reads the real module. On a dev server each attempt's import
   // fetches its own lazy bundle, so the newer attempt's can arrive after the first attempt's.
-  // The two parts resolve apart, so the names the story's own part declares are known; the
-  // story's own declaration of a module wins over the project's, as the merge has it.
+  // The own part resolves apart too, so the names the story itself declares are known; a later
+  // declaration of a module wins over an earlier one, as the merge has it.
+  // A lazy declaration's import is a fetch, so each declaration is asked its module once, though
+  // both the whole set and the own part read it.
+  const askedOnce = new Map<MockDeclaration, Promise<string | undefined>>();
+  const importingOnce = (declaration: MockDeclaration): MockDeclaration => {
+    if (!isModuleDeclaration(declaration)) return declaration;
+    return {
+      ...declaration,
+      moduleKey: () => {
+        if (!askedOnce.has(declaration)) askedOnce.set(declaration, declaration.moduleKey());
+        return askedOnce.get(declaration) as Promise<string | undefined>;
+      },
+    };
+  };
   latestInstalled = Promise.all([
-    resolveDeclarations(declarationsOf(project)),
-    resolveDeclarations(declarationsOf(own)),
-  ]).then(([projectMocks, ownMocks]) => {
+    resolveDeclarations(declarationsOf(mocks).map(importingOnce)),
+    resolveDeclarations(declarationsOf(own).map(importingOnce)),
+  ]).then(([resolved, ownResolved]) => {
     if (install !== latestInstall) return latestInstalled ?? undefined;
-    installMocksOfStory(
-      storyId,
-      mergeMockSets(projectMocks, ownMocks),
-      Object.keys(ownMocks),
-      filePath
-    );
+    installMocksOfStory(storyId, resolved, Object.keys(ownResolved), filePath);
   });
   return latestInstalled;
 }
@@ -203,6 +218,9 @@ function installMocksOfStory(
     lookups.namesAsWritten.set(key, name)
   );
   activateStoryMocks(mocks, lookups);
+  // Inside the activation just made, so the mocks' clearing puts back what these write; and again
+  // with each install of the scene, since each one ends the activation before it.
+  if (storyId === sceneOnSinceBoot) startStatesOfScene.forEach((state) => state.activate());
 }
 
 /**
