@@ -1,5 +1,6 @@
 import { BaseSourceList, Platform } from '@sherlo/api-types';
 import logWarning from './logWarning';
+import { phoneSidesOf } from './phoneSidesOf';
 import { PLATFORM_LABEL, TEST_COMMAND } from '../constants';
 import { CommandParams } from '../types';
 import {
@@ -312,11 +313,10 @@ async function uploadOrReuseBuildsAndRunTests({
     platformsOnStoredBuild,
     bundleDir: commandParams.bundleDir,
     buildSettings: readBuildSettings(commandParams),
-    // Every bundled platform's own base, a stored one's too: a supplied bundle is checked
-    // against the base of the platform it is for.
     baseFingerprints: bundledBaseFingerprints,
     projectIndex,
     teamId,
+    phoneSides: phoneSidesOf(commandParams.projectRoot, platformsToBundle, fingerprints),
     effects: io.freshBundle,
   });
   const platformsWithBundles = Object.keys(freshBundles) as Platform[];

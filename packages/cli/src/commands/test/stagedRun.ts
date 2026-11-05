@@ -35,6 +35,7 @@ import {
 } from '../../helpers';
 import { computeBaseFingerprint, type GateMetadataInput } from '../../helpers/fingerprint';
 import { baseFingerprintsOf } from '../../helpers/fingerprint/baseFingerprintsOf';
+import { phoneSidesOf } from '../../helpers/phoneSidesOf';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
 import { parseStagedGateRefusal, type StagedGateRefusal } from './stagedGateRefusal';
@@ -223,17 +224,15 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   }
 
   // 8. Re-ask the gate with the REAL bundle-derived identity. Step 6 could only
-  //    compare fingerprints; only a built bundle carries the engine class,
-  //    bundle format, asset inventory and SDK protocol version the gate diffs.
-  //    A refusal here is the same routing answer, just better informed.
+  //    compare fingerprints; only a built bundle carries the engine class, bundle format,
+  //    asset inventory and SDK protocol version the gate diffs. A refusal here is just better informed.
   const identityAnswers = await checkGate({
     token,
     platformsToTest,
     baseFingerprints,
     buildSettings: readBuildSettings(commandParams),
-    // Unreachable fallback: buildBundles fills every tested platform or exits.
-    // If it ever were empty, the marker is the honest thing to send - "I know
-    // nothing about this bundle's identity" - never a fabricated dimension.
+    // Unreachable fallback (buildBundles fills every tested platform or exits): the marker says
+    // "I know nothing about this bundle's identity" - never a fabricated dimension.
     gateMetadata: (platform) => gateMetadata[platform] ?? PROBE_GATE_METADATA,
     projectIndex,
     teamId,
@@ -254,8 +253,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   );
 
   // 9. Upload the bundle (+ assets) for each platform to staged slots
-  //    (getStagedUploadUrls - NOT getBuildUploadUrls) and collect its S3 keys.
-  //    The SAME upload step the standard road runs; see ./uploadBundles.
+  //    (getStagedUploadUrls - NOT getBuildUploadUrls) and collect its S3 keys, with the phone side
+  //    when it can be built. The SAME upload step the standard road runs; see ./uploadBundles.
   let stagedKeys: Partial<Record<Platform, StagedUploadKeys>>;
   try {
     stagedKeys = await uploadBundles({
@@ -263,6 +262,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       bundles,
       projectIndex,
       teamId,
+      phoneSides: phoneSidesOf(commandParams.projectRoot, platformsToTest, fingerprints),
       effects: realBundleUploadEffects(token),
     });
   } catch (error) {

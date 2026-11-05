@@ -96,6 +96,13 @@ vi.mock('../uploadStagedArtifacts', () => ({
   default: vi.fn(),
 }));
 
+// What the project's files and SDK would give is phoneSidesOf's own test; here only that the
+// staged road carries what it builds to the upload.
+const { PHONE_SIDES } = vi.hoisted(() => ({
+  PHONE_SIDES: { ios: { version: 1, platform: 'ios' } },
+}));
+vi.mock('../../../helpers/phoneSidesOf', () => ({ phoneSidesOf: () => PHONE_SIDES }));
+
 // The build road and the joined run are other files' tests: here only WHAT reaches them matters.
 // A job with a `--platform` joins the run its `--run-id` names; any other job joins none.
 vi.mock('../appBuild/buildThenPush', () => ({
@@ -377,6 +384,19 @@ describe('gitInfo parity with the standard road', () => {
 
     const openBuildArg = mockOpenBuild.mock.calls[0][0];
     expect(openBuildArg.buildRunConfig.ios.manifestS3Key).toBe('manifest-s3-key');
+
+    logSpy.mockRestore();
+  });
+
+  it('the staged road uploads each platform with the phone side built for it', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockUploadStagedArtifacts.mockResolvedValue({ jsBundleS3Key: 'js-s3-key' });
+
+    await stagedRun(mockOptions());
+
+    expect(mockUploadStagedArtifacts).toHaveBeenCalledWith(
+      expect.objectContaining({ platform: 'ios', phoneSide: PHONE_SIDES.ios })
+    );
 
     logSpy.mockRestore();
   });

@@ -34,32 +34,35 @@ export function toBaseSemver(version: string): string | undefined {
   return BASE_SEMVER_PATTERN.exec(version)?.[1];
 }
 
-export function readBundledSdkProtocolVersion(projectRoot: string): string | undefined {
+/** The installed SDK's package.json, found from its entry file; undefined when it is not installed. */
+export function findSdkPackageJsonPath(projectRoot: string): string | undefined {
   try {
     const packagePath = require.resolve(SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME, {
       paths: [projectRoot],
     });
 
     let currentDir = dirname(packagePath);
-    let packageJsonPath: string | undefined;
     for (;;) {
       const candidate = join(currentDir, 'package.json');
-      if (existsSync(candidate)) {
-        packageJsonPath = candidate;
-        break;
-      }
+      if (existsSync(candidate)) return candidate;
 
       const parentDir = dirname(currentDir);
-      if (parentDir === currentDir) {
-        break;
-      }
+      if (parentDir === currentDir) return undefined;
       currentDir = parentDir;
     }
+  } catch {
+    // Not installed, or not resolvable: callers treat it as "no SDK to read".
+    return undefined;
+  }
+}
 
-    if (!packageJsonPath) {
-      return undefined;
-    }
+export function readBundledSdkProtocolVersion(projectRoot: string): string | undefined {
+  const packageJsonPath = findSdkPackageJsonPath(projectRoot);
+  if (!packageJsonPath) {
+    return undefined;
+  }
 
+  try {
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
     return typeof packageJson.version === 'string' ? toBaseSemver(packageJson.version) : undefined;
   } catch {
