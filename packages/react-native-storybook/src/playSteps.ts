@@ -26,6 +26,7 @@
 import { Linking } from 'react-native';
 import { logTheLine } from './connection/appLine';
 import SherloModule from './SherloModule';
+import { reachedRoute } from './reachedScreen';
 import { swipeView, tapInPopup, unreachedReason } from './nativeTouch';
 import type { WalkedFiber } from './sealedCore/seam';
 import type { OpenStep, PlayStep, TapTarget } from './scenes';
@@ -59,7 +60,9 @@ export class SherloStepError extends Error {
     reason: string,
     readonly played: string[],
     /** True when the step was a tap whose view never showed within its limit. */
-    readonly viewNeverShowed = false
+    readonly viewNeverShowed = false,
+    /** The route the app was on when the step failed, outermost first; empty when it cannot say. */
+    readonly route: string[] = []
   ) {
     super(`Scene ${sceneId} could not play ${step}: ${reason}`);
     this.name = 'SherloStepError';
@@ -93,7 +96,8 @@ export async function playSteps(
       `step ${index + 1} of ${steps.length} (${describe(steps[index])})`,
       reason,
       played,
-      viewNeverShowed
+      viewNeverShowed,
+      reachedRoute()
     );
 
   // A link the app routes nowhere changes nothing and gives no signal: only a ready view after it

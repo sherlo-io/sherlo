@@ -5,6 +5,7 @@
  */
 import SherloModule from './SherloModule';
 import { currentAppFiber } from './componentNames';
+import { isOnFocusedRoute } from './reachedScreen';
 import type { InspectorDataNode, WalkedFiber } from './sealedCore/seam';
 import type { TapTarget } from './scenes';
 import { hostViewsMatching, nativeTagOf, reachOf, safeAreaInsetsAbove } from './tapReach';
@@ -25,7 +26,7 @@ export type Found = {
  */
 export async function visibleViews(matching: (fiber: WalkedFiber) => boolean): Promise<Found[]> {
   const root = currentAppFiber();
-  const matches = root ? hostViewsMatching(root, matching) : [];
+  const matches = root ? hostViewsMatching(root, matching).filter(isOnFocusedRoute) : [];
   if (matches.length === 0) return [];
 
   const drawn = await framesDrawnNatively();

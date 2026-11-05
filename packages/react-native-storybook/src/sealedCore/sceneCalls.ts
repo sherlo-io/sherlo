@@ -129,6 +129,9 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
           return { played };
         }
       }
+      const onRoute =
+        error.route.length > 0 ? error.route.join(' > ') : 'a route it could not read';
+      logTheLine(`scene ${sceneId} ${error.step} found no view, on ${onRoute}`);
       return {
         played,
         missing: missedStep(steps[playedCount]),
