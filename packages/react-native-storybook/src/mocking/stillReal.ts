@@ -59,6 +59,14 @@ export function stillRealModulesWithExports(): StillRealModule[] {
 }
 
 /**
+ * Whether a fake leaves `key` of the part it fakes to the real part: it stays real unless the fake
+ * names it. The one place that answers it, for the overlay (./overlay) at every depth.
+ */
+export function staysReal(fake: object, key: PropertyKey): boolean {
+  return !Object.prototype.hasOwnProperty.call(fake, key);
+}
+
+/**
  * The paths of the modules the current story ran as real code, from the project root with no
  * leading './' - and never a module the story mocks.
  */

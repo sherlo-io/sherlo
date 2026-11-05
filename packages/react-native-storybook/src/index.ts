@@ -9,6 +9,7 @@ export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
 export { mock } from './mocking/mockDeclaration';
 export type { MockDeclaration } from './mocking/mockDeclaration';
+export { original } from './mocking/overlay';
 export { mockRequest } from './mocking/networkDeclaration';
 export type {
   HttpMethod,
