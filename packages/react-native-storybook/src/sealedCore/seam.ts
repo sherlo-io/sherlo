@@ -124,6 +124,11 @@ export type SealedCoreHost = {
    * request, or a mock that did not apply. Undefined when nothing did.
    */
   threwOf?: (id: string) => StoryThrew | undefined;
+  /**
+   * Why the scene `sceneId` did not settle, read after its stabilization gave up: the route, the
+   * views still changing and the fields still waiting for focus. Undefined when it settled.
+   */
+  neverSettledOf?: (sceneId: string) => SceneNeverSettled | undefined;
   /** Why the app crashed on `id`; a plain saying when no error was left. Never throws. */
   causeOfCrash?: (id: string) => StoryError;
   /** Whether `url` is an asset the bundler itself serves: a file of the app, no network image. */
@@ -1000,7 +1005,27 @@ export type CapturedScene =
       limitMs: number;
     })
   /** The scene's walk itself failed: the app stops and says why. */
-  | { kind: 'crashed'; sceneId: string; error?: StoryThrew };
+  | { kind: 'crashed'; sceneId: string; error?: StoryThrew }
+  /**
+   * The ready rule matched, but the screen did not settle within the limit, or a field meant to be
+   * focused never took focus. The picture is the one the stabilization took at the limit.
+   */
+  | (SceneFacts &
+      SceneNeverSettled & {
+        kind: 'never-settled';
+        bootMs: number;
+        picture: 'taken-at-the-limit';
+      });
+
+/** What the screen still did when its settle gave up. */
+export type SceneNeverSettled = {
+  /** The route the app was on. */
+  route: string[];
+  /** The views that changed between two looks, each named by component and test id. */
+  changing: string[];
+  /** The auto-focused text fields that never held focus, each by test id or placeholder. */
+  unfocused: string[];
+};
 
 /** What every scene ending that got past the walk says beside its own facts. */
 type SceneFacts = {

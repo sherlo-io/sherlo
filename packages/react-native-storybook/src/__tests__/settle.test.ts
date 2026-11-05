@@ -42,7 +42,7 @@ vi.mock('../visibleViews', async (importActual) => ({
 }));
 
 import { monotonicNow } from '../settleClock';
-import { neverSettledOf } from '../neverSettled';
+import { sceneCallsForTheCore } from '../sealedCore/sceneCalls';
 import { installClock, restoreClock } from '../mocking/clock';
 import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
 
@@ -216,7 +216,7 @@ describe('a scene settles faster and honestly', () => {
       const settling = stabilizeOnceReady(native).stabilize(3, 3, 500, 5_000, false, 0, true);
       await vi.runAllTimersAsync();
       expect(await settling).toBe(false);
-      expect(neverSettledOf('chat--typing')).toEqual({
+      expect(sceneCallsForTheCore().neverSettledOf?.('chat--typing')).toEqual({
         route: [],
         changing: ['Bubble "msg-3"'],
         unfocused: [],

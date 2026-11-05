@@ -205,6 +205,7 @@ describe('loading the sealed core', () => {
         'mergeStoryMocks',
         'monotonicNow',
         'native',
+        'neverSettledOf',
         'playSteps',
         'providerFirstRenderedAt',
         'reachedRoute',
