@@ -24,6 +24,8 @@ export type {
 export { UnmockedRequestError } from './mocking/networkRules';
 export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
+export { startState } from './mocking/startState';
+export type { StartState } from './mocking/startState';
 export { awaitReady } from './storyReady';
 export type { ReadyOutcome } from './storyReady';
 export type {
