@@ -209,6 +209,17 @@ public class SherloModule extends ReactContextBaseJavaModule {
     }
 
     /**
+     * Touches (x, y) in only the window at windowIndex of getWindowViews' list. Android's
+     * getWindowViews answers [], so there is one window: this taps as tap does and ignores windowIndex.
+     *
+     * @param promise Promise to resolve as tap does
+     */
+    @ReactMethod
+    public void tapInWindow(double x, double y, double holdMs, double windowIndex, Promise promise) {
+        moduleCore.tap(getCurrentActivity(), x, y, holdMs, promise);
+    }
+
+    /**
      * Drags a finger from (fromX, fromY) to (toX, toY), in points, over durationMs: a scene's swipe.
      *
      * @param promise Promise to resolve with whether React took the touch, the hit view's tag and class

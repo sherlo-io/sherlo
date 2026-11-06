@@ -172,6 +172,34 @@ describe('the native modules and their spec', () => {
     ).toEqual([]);
   });
 
+  it('every method in the native module spec is overridden by the new-architecture Android module', () => {
+    const javaDir = path.join(
+      ANDROID_DIR,
+      'src',
+      '%',
+      'java/io/sherlo/storybookreactnative/SherloModule.java'
+    );
+    const newarch = fs.readFileSync(javaDir.replace('%', 'newarch'), 'utf8');
+    const oldarch = fs.readFileSync(javaDir.replace('%', 'oldarch'), 'utf8');
+    const declaredWith = (annotation: string, name: string) =>
+      new RegExp(
+        `${annotation}(?:\\([^)]*\\))?\\s+(?:@\\w+\\s+)*public\\s+[\\w<>\\[\\], ]+?\\s+${name}\\s*\\(`
+      );
+    // The old architecture serves the spec's constants through the base class's getConstants.
+    const constantsInTheBaseClass = ['getSherloConstants'];
+    const specNames = specMethodNames();
+
+    expect(specNames.length).toBeGreaterThan(0);
+    expect(specNames.filter((name) => !declaredWith('@Override', name).test(newarch))).toEqual([]);
+    expect(
+      specNames.filter(
+        (name) =>
+          !constantsInTheBaseClass.includes(name) &&
+          !declaredWith('@ReactMethod', name).test(oldarch)
+      )
+    ).toEqual([]);
+  });
+
   it('no native module offers a file method', () => {
     const sources = [
       ...filesUnder(path.join(SDK_ROOT, 'android', 'src')),
