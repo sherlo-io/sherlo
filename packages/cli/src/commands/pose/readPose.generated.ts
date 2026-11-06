@@ -3215,9 +3215,18 @@ function readAppError(value: unknown, path: string, problems: string[]): void {
     if ('topFrames' in object1) {
       expectStringArray(object1.topFrames, at(path, 'topFrames'), problems);
     }
+    if ('file' in object1) {
+      expectString(object1.file, at(path, 'file'), problems);
+    }
+    if ('line' in object1) {
+      expectNumber(object1.line, at(path, 'line'), problems);
+    }
+    if ('dataPath' in object1) {
+      expectString(object1.dataPath, at(path, 'dataPath'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['name', 'message', 'componentStack', 'topFrames'],
+      ['name', 'message', 'componentStack', 'topFrames', 'file', 'line', 'dataPath'],
       path,
       problems
     );

@@ -9,6 +9,7 @@ var mockShims = require('./mockShims');
 var writeMockSpecifierTransformer =
   require('./mockSpecifierTransformer').writeMockSpecifierTransformer;
 var sherloLine = require('./sherloLine');
+var watchBuildErrors = require('./bundleBuildFailure').watchBuildErrors;
 var storyTitleReader = require('./storyTitleReader');
 var stillReal = require('./stillReal');
 var stableStringify = require('./stableStringify');
@@ -734,6 +735,7 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
   var mountedOn = null;
   var line = null;
   var followedWatcher = null;
+  var latestFailure = null;
 
   /**
    * Tells the line of each file Metro's file watcher reports changed (named under the project
@@ -780,6 +782,7 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
         console.warn('@sherlo/react-native-storybook: ' + message);
       },
     });
+    if (latestFailure !== null) line.bundleDoesNotBuild(latestFailure);
   }
 
   function middleware(request, response, next) {
@@ -795,7 +798,24 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
     response.end(body);
   }
 
-  return { middleware: middleware, followMetro: followMetro };
+  /**
+   * Metro's reporter, wrapped so the line hears how each build ended (./bundleBuildFailure). The
+   * latest failure is kept for a line that is not mounted yet, and told to it the moment it is.
+   */
+  function watchReporter(reporter) {
+    return watchBuildErrors(reporter, projectRoot, {
+      failed: function (failure) {
+        latestFailure = failure;
+        if (line !== null) line.bundleDoesNotBuild(failure);
+      },
+      built: function () {
+        latestFailure = null;
+        if (line !== null) line.bundleBuilt();
+      },
+    });
+  }
+
+  return { middleware: middleware, followMetro: followMetro, watchReporter: watchReporter };
 }
 
 /** `ws`'s WebSocketServer, as the project's Metro loads it. ws 7 calls it `Server`. */
@@ -995,7 +1015,10 @@ function applySherloTransforms(result, opts) {
     serializer.customSerializer = sherloCustomSerializer;
   }
 
-  return Object.assign({}, baseResult, {
+  // Metro's reporter, when the config has one, goes on as it was, and the line hears each build's end.
+  var watchedReporter = bundlerLine.watchReporter(baseResult.reporter);
+
+  return Object.assign({}, baseResult, watchedReporter ? { reporter: watchedReporter } : {}, {
     // unstable_allowRequireContext: sb8/sb9 withStorybook(enabled:false) omits this flag, but
     // storybook.requires.ts still uses require.context(). Without this, Metro 0.81.x embeds a
     // throwing stub for r.context, crashing the app before any Sherlo error handling fires.

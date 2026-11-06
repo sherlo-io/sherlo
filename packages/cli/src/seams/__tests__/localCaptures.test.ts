@@ -8,6 +8,7 @@ import {
   guardCapture,
   keepCapture,
   newCapture,
+  pictureKeptFor,
   readCapturingIds,
   readKeptCaptures,
   samePicture,
@@ -206,5 +207,36 @@ describe('a scene set against its last kept run', () => {
     });
 
     expect(change).toBeUndefined();
+  });
+});
+
+describe('the picture a capture keeps', () => {
+  const keepWithPicture = (minute: number) => {
+    const capture = newCapture(root, 'Inbox', new Date(Date.UTC(2026, 10, 1, 9, minute)));
+    fs.writeFileSync(capture.screenPath, 'png');
+    keepCapture(capture, { record: { kind: 'scene', sceneId: 'Inbox' } });
+    return capture.screenPath;
+  };
+
+  it('a scene that ended without a capture saves no picture and keeps its last captured one', () => {
+    const lastCaptured = keepWithPicture(1);
+
+    expect(pictureKeptFor(root, 'Inbox', { kind: 'never-settled' })).toEqual({
+      saves: false,
+      ending: 'not-captured',
+      lastPicture: lastCaptured,
+    });
+    expect(pictureKeptFor(root, 'Inbox', { kind: 'scene' })).toEqual({
+      saves: true,
+      ending: 'captured',
+    });
+  });
+
+  it('a scene that ended on the red error screen is flagged as threw and its frame is not saved as a good picture', () => {
+    const lastCaptured = keepWithPicture(1);
+
+    expect(
+      pictureKeptFor(root, 'Inbox', { kind: 'scene', threw: { name: 'TypeError', message: 'm' } })
+    ).toEqual({ saves: false, ending: 'threw', lastPicture: lastCaptured });
   });
 });

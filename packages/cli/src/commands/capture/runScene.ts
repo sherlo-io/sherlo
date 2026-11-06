@@ -4,6 +4,7 @@
  * The screen is the caller's: this runs the clean device, asks the app through the capture socket,
  * saves the pictures and keeps the record, and hands the answer back for the caller to print.
  */
+import path from 'path';
 import { DISCOVER_OPTION, PNG_OPTION, PORT_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
 import getCwd from '../../helpers/getCwd';
@@ -29,10 +30,12 @@ import {
   keepCapture,
   lastRunOf,
   newCapture,
+  pictureKeptFor,
   sceneCameUp,
 } from '../../seams/localCaptures';
 import type { NewCapture } from '../../seams/localCaptures';
 import { readLocalDevice } from '../../seams/localDevice';
+import { nameWhereItCrashed } from '../../seams/appError';
 import { refusedByTheProxy } from '../../seams/refusingProxy';
 import { nameSendersByCode } from '../../seams/senderByCode';
 import { symbolicateStacks } from '../../seams/symbolicateStack';
@@ -98,6 +101,7 @@ async function runOpenScene(
   const discover = passedOptions[DISCOVER_OPTION] === true;
   let answer: SceneCaptureResult;
   let notApplied: PhoneNotApplied[] = [];
+  let keptPicture: ReturnType<typeof pictureKeptFor> | undefined;
   let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
   const startedAt = Date.now();
   try {
@@ -127,14 +131,20 @@ async function runOpenScene(
     if (picture && sceneCameUp(answer) && isTarget(target)) {
       picture = await savePicture(target.device, picture.path);
     }
-    // The kept picture is of the screen the app ended on: a scene never reached keeps where it stayed.
-    // A discover capture takes no picture: it holds requests, so its scene often never gets ready by design.
-    const endedOnAScreen =
-      sceneCameUp(answer) ||
-      answer.kind === 'never-settled' ||
-      (answer.kind === 'never-reached' && !discover);
-    if (keptFolder && endedOnAScreen && isTarget(target)) {
+    // The kept picture is saved only for a scene that was captured: a scene that never got ready,
+    // never settled, or ended on the red error screen keeps no picture of its own, and the last
+    // captured one stays where it is.
+    keptPicture = pictureKeptFor(getCwd(), sceneId, answer);
+    if (keptFolder && keptPicture.saves && isTarget(target)) {
       await savePicture(target.device, keptFolder.screenPath);
+    }
+    if (answer.kind === 'crashed-mid-capture' && answer.error) {
+      answer = { ...answer, error: await nameWhereItCrashed(answer.error, port, getCwd()) };
+    }
+    // What the scene threw is placed the same way: its file, line and the data it was reading.
+    if ('threw' in answer && answer.threw) {
+      const threw = await nameWhereItCrashed(answer.threw, port, getCwd());
+      answer = { ...answer, threw } as SceneCaptureResult;
     }
   } finally {
     await restore?.();
@@ -157,9 +167,21 @@ async function runOpenScene(
   // An app that was never on the device ran on nothing, so no device is named for it.
   // The time a scene waited before giving up is kept beside its record, not printed: `--json` stays as it is.
   const waited = answer.kind === 'never-reached' ? { waitedMs: Date.now() - startedAt } : {};
+  // Likewise kept, not printed: no picture was saved, and where the scene's last captured one is.
+  const noPicture =
+    keptPicture && !keptPicture.saves
+      ? {
+          noPicture: {
+            ending: keptPicture.ending,
+            ...(keptPicture.lastPicture && {
+              lastPicture: path.relative(getCwd(), keptPicture.lastPicture),
+            }),
+          },
+        }
+      : {};
   const kept = await keepTheCapture(
     keptFolder,
-    { ...record, ...waited },
+    { ...record, ...waited, ...noPicture },
     installed ? target : undefined
   );
   return { answer, record, picture, port, discover, kept };
