@@ -117,7 +117,7 @@ export type ReportInput = {
   /** The CLI keeps running and will rewrite the report. */
   isLive: boolean;
   /** How the picture of a capture is named in the report. */
-  pictureOf: (capture: KeptCapture) => string;
+  pictureOf: (capture: KeptCapture, kind: 'screen' | 'ended') => string;
   /** The time zone the clock time is told in; absent, this computer's own. */
   timeZone?: string;
 };
@@ -161,9 +161,14 @@ export function buildReport({
       id: capture.id,
       kind: reported?.kind ?? 'scene',
       device: captureDevice(capture.device, reported?.screen),
-      picture: capture.screenPath ? pictureOf(capture) : '',
+      // A stopped scene has no picture of its own: the page shows the frame the app ended on instead.
+      picture: capture.screenPath
+        ? pictureOf(capture, 'screen')
+        : capture.endedPath
+          ? pictureOf(capture, 'ended')
+          : '',
       changed,
-      ...(changed && earlier && { previousPicture: pictureOf(earlier) }),
+      ...(changed && earlier && { previousPicture: pictureOf(earlier, 'screen') }),
       capturing: capturingIds.includes(capture.id),
       record: {
         ...reported!.record,

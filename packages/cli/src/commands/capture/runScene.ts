@@ -145,6 +145,12 @@ async function runOpenScene(
     if (keptFolder && keptPicture.saves && isTarget(target)) {
       await savePicture(target.device, keptFolder.screenPath, scroll);
     }
+    // A scene that stopped keeps the frame the app ended on beside its record, under its own name:
+    // the report shows it, and it is never a capture or what a later capture is compared with. A
+    // discover run is kept like any other, so it keeps the frame too.
+    if (keptFolder && !keptPicture.saves && isTarget(target) && installed) {
+      await savePicture(target.device, keptFolder.endedPath);
+    }
     if (answer.kind === 'crashed-mid-capture' && answer.error) {
       answer = { ...answer, error: await nameWhereItCrashed(answer.error, port, getCwd()) };
     }

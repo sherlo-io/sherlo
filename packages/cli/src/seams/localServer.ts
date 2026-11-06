@@ -20,11 +20,15 @@
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
+import { ENDED_ON_FILE, SCREEN_FILE } from './localCaptures';
 
 /** What a server shows: the page, the report it polls and the folder the pictures are kept in. */
 export type Site = {
   pageFolder: string;
-  /** `.sherlo/captures/`: `/data/pictures/<folder>.png` is `<folder>/screen.png` in it. */
+  /**
+   * `.sherlo/captures/`: `/data/pictures/<folder>.png` is `<folder>/screen.png` in it, and
+   * `/data/pictures/<folder>.ended.png` is `<folder>/ended-on.png`, the frame a stopped scene ended on.
+   */
   capturesFolder: string;
   /** The report as it is now; read again on every request. */
   report: () => unknown;
@@ -50,7 +54,7 @@ const CONTENT_TYPES: Record<string, string> = {
   '.woff2': 'font/woff2',
 };
 
-const PICTURE_ROUTE = /^\/data\/pictures\/([\w.-]+)\.png$/;
+const PICTURE_ROUTE = /^\/data\/pictures\/([\w.-]+?)(\.ended)?\.png$/;
 
 /** The shipped answer. The page sits beside the bundle (`dist/local-page`). */
 export const liveLocalServer: LocalServer = {
@@ -106,7 +110,7 @@ function answer(site: Site, request: http.IncomingMessage, response: http.Server
   if (picture) {
     sendFile(
       response,
-      path.join(site.capturesFolder, picture[1], 'screen.png'),
+      path.join(site.capturesFolder, picture[1], picture[2] ? ENDED_ON_FILE : SCREEN_FILE),
       site.capturesFolder
     );
     return;

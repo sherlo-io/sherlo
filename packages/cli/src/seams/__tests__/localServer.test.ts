@@ -19,6 +19,7 @@ beforeEach(() => {
   fs.writeFileSync(path.join(folder, 'secret.txt'), 'outside');
   fs.mkdirSync(path.join(folder, 'captures', 'one'), { recursive: true });
   fs.writeFileSync(path.join(folder, 'captures', 'one', 'screen.png'), 'png-bytes');
+  fs.writeFileSync(path.join(folder, 'captures', 'one', 'ended-on.png'), 'ended-bytes');
 });
 
 afterEach(async () => {
@@ -46,6 +47,12 @@ describe('the local server', () => {
     const base = running!.address;
     expect(await (await fetch(`${base}/data/report.json`)).json()).toEqual({ captures: [] });
     expect(await (await fetch(`${base}/data/pictures/one.png`)).text()).toBe('png-bytes');
+  });
+
+  it('serves the frame a stopped scene ended on beside its picture', async () => {
+    await get('/');
+    const base = running!.address;
+    expect(await (await fetch(`${base}/data/pictures/one.ended.png`)).text()).toBe('ended-bytes');
   });
 
   it('answers 404 for a path that leaves the page folder or is not there', async () => {

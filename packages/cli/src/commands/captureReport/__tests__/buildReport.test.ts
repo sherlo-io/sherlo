@@ -42,7 +42,8 @@ const build = (
     samePicture: over.samePicture ?? (() => true),
     isLive: false,
     timeZone: 'UTC',
-    pictureOf: (capture) => `pictures/${capture.screenPath}`,
+    pictureOf: (capture, kind) =>
+      kind === 'ended' ? `ended/${capture.endedPath}` : `pictures/${capture.screenPath}`,
   });
 
 describe('the clock time of the newest capture', () => {
@@ -159,6 +160,45 @@ describe('the capture report', () => {
 
     expect(report.captures[0].changed).toBe(true);
     expect(report.captures[0].previousPicture).toBe('pictures/a.png');
+  });
+
+  it("a stopped scene's report shows where the app ended up and compares nothing with it", () => {
+    const report = build(
+      [
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({
+          folder: 'b',
+          screenPath: undefined,
+          endedPath: 'b-ended.png',
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].picture).toBe('ended/b-ended.png');
+    expect(report.captures[0].changed).toBe(false);
+    expect(report.captures[0]).not.toHaveProperty('previousPicture');
+  });
+
+  it('a captured run after a stopped one is never compared with the frame the stopped one ended on', () => {
+    const report = build(
+      [
+        kept({
+          folder: 'a',
+          screenPath: undefined,
+          endedPath: 'a-ended.png',
+          // A scene that threw on the red error screen: its record is a scene's, its frame only shown.
+          at: '2026-11-01T08:00:00.000Z',
+        }),
+        kept({ folder: 'b', screenPath: 'b.png', at: '2026-11-01T09:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(false);
+    expect(report.captures[0]).not.toHaveProperty('previousPicture');
   });
 
   it('a changed capture carries the picture of the capture before it', () => {
