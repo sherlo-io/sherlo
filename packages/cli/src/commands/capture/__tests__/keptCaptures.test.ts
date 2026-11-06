@@ -125,14 +125,19 @@ describe('kept captures', () => {
     expect(stdout).toContain('Kept in .sherlo/captures as chat--open');
   });
 
-  it('a scene that never reached its screen keeps a picture of where the app ended up', async () => {
+  it('a scene that never reached its screen keeps no picture and says so in its record, not on the screen', async () => {
     const { stdout } = await captureWith([NEVER_READY], { [SCENE_OPTION]: 'chat--open' });
 
     const [kept] = readKeptCaptures(project);
-    expect(kept.screenPath && fs.readFileSync(kept.screenPath, 'utf8')).toBe('picture');
-    // The time it waited is kept beside the record, and the printed ending is as it was.
-    expect(kept.record).toMatchObject({ kind: 'never-reached', waitedMs: expect.any(Number) });
+    expect(kept.screenPath).toBeUndefined();
+    // The time it waited and the missing picture are kept beside the record; the printed ending is as it was.
+    expect(kept.record).toMatchObject({
+      kind: 'never-reached',
+      waitedMs: expect.any(Number),
+      noPicture: { ending: 'not-captured' },
+    });
     expect(stdout).not.toContain('waitedMs');
+    expect(stdout).not.toContain('No picture');
   });
 
   it('a capture of a scene with no device named keeps the device it ran on', async () => {

@@ -220,6 +220,29 @@ export function sceneCameUp<Answer extends { kind?: string }>(
   return answer?.kind === 'scene' || answer?.kind === 'incomplete';
 }
 
+/** How an ending stands with the picture: captured, ended on the red error screen, or not captured at all. */
+export type PictureEnding = 'captured' | 'threw' | 'not-captured';
+
+/**
+ * Whether a capture's frame is saved as the scene's picture, and what stands in its place when it
+ * is not. Only a scene that came up and threw nothing is captured; a scene that ended on the red
+ * error screen is flagged threw, and every other ending is not-captured. Neither saves its frame:
+ * the scene keeps the picture of its last captured run, whose path comes back as lastPicture.
+ */
+export function pictureKeptFor(
+  root: string,
+  id: string,
+  ending: { kind?: string; threw?: unknown }
+): { saves: boolean; ending: PictureEnding; lastPicture?: string } {
+  const threw = (ending as { threw?: unknown }).threw;
+  const how: PictureEnding = !sceneCameUp(ending) ? 'not-captured' : threw ? 'threw' : 'captured';
+  if (how === 'captured') return { saves: true, ending: how };
+  const lastPicture = readKeptCaptures(root)
+    .filter((kept) => kept.id === id && kept.screenPath)
+    .pop()?.screenPath;
+  return { saves: false, ending: how, ...(lastPicture && { lastPicture }) };
+}
+
 /** How a kept record or a fresh answer ended; nothing for one that is not a scene's, or ended another way. */
 export function lastRunOf(record: unknown): LastRun | undefined {
   const kept = record as {

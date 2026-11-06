@@ -126,7 +126,14 @@ function attach(httpServer, WebSocketServer, settings) {
   // The server's own sockets close with it; the line's close the same way.
   httpServer.on('close', close);
 
-  return { ask: line.ask, onApp: line.onApp, filesChanged: line.filesChanged, close: close };
+  return {
+    ask: line.ask,
+    onApp: line.onApp,
+    filesChanged: line.filesChanged,
+    bundleDoesNotBuild: line.bundleDoesNotBuild,
+    bundleBuilt: line.bundleBuilt,
+    close: close,
+  };
 }
 
 /** A title the way Storybook turns it into the first part of a story id. */
@@ -311,6 +318,8 @@ function createLine(settings) {
     onApp: onApp,
     ask: ask,
     filesChanged: captureRelay.filesChanged,
+    bundleDoesNotBuild: captureRelay.bundleDoesNotBuild,
+    bundleBuilt: captureRelay.bundleBuilt,
   };
 }
 
@@ -647,6 +656,30 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
   /** Each app on the line whose JavaScript died as it started, with what it threw, latest last. */
   var startFailures = [];
 
+  /** What the bundler last reported it could not build, until a build goes through; null when none. */
+  var bundleFailure = null;
+
+  /** The answer for a capture while the bundle does not build: the scene or story asked, and why. */
+  function doesNotBuildReply(waiting) {
+    return waiting.sceneId !== undefined
+      ? { kind: 'bundle-does-not-build', sceneId: waiting.sceneId, failure: bundleFailure }
+      : { kind: 'bundle-does-not-build', storyId: waiting.storyId, failure: bundleFailure };
+  }
+
+  /** The bundler: this code does not build. The driver waiting for an app that cannot come is answered now. */
+  function bundleDoesNotBuild(failure) {
+    bundleFailure = failure;
+    if (driverWaiting === null) return;
+    var told = driverWaiting;
+    driverWaiting = null;
+    told.reply(doesNotBuildReply(told));
+  }
+
+  /** The bundler: a build went through, so the code that did not build is no more. */
+  function bundleBuilt() {
+    bundleFailure = null;
+  }
+
   /**
    * The latest capture that said when it launched its app, kept after its driver is gone: a driver
    * that gave up reads the log feed, and the restarts this capture counted ride in that reading.
@@ -947,6 +980,12 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     };
     var launchKey = launchKeyOf(question);
 
+    // The bundler could not build the code: no app will come, so the driver is told so at once.
+    if (bundleFailure !== null) {
+      reply(doesNotBuildReply(waiting));
+      return function () {};
+    }
+
     waiting.instructed = [];
     waiting.launchKey = launchKey;
     // The same capture asked again, as a launched app is until it says hello, keeps its count.
@@ -1016,6 +1055,8 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     appLeft: appLeft,
     captureStory: captureStory,
     filesChanged: filesChanged,
+    bundleDoesNotBuild: bundleDoesNotBuild,
+    bundleBuilt: bundleBuilt,
     restartsOfTheLatestCapture: restartsOfTheLatestCapture,
   };
 }

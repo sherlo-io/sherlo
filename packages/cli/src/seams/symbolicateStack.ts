@@ -25,7 +25,8 @@ function bundleFrameOf(line: string): Frame | undefined {
   };
 }
 
-async function symbolicated(stack: string, port: number): Promise<string> {
+/** `stack` with each frame that names the bundle mapped to the file it came from, through the bundler on `port`. */
+export async function symbolicated(stack: string, port: number): Promise<string> {
   const lines = stack.split('\n');
   const frames = lines.flatMap((line) => bundleFrameOf(line) ?? []);
   if (frames.length === 0) return stack;

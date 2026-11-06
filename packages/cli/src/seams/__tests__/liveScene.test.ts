@@ -328,7 +328,8 @@ describe('a scene is captured and opened live', () => {
     expect(crashed).toEqual({
       kind: 'crashed-mid-capture',
       sceneId: SCENE,
-      error: { name: 'TypeError', message: 'boom' },
+      // The stack's top frames now travel with the error, so the CLI can name the source line.
+      error: { name: 'TypeError', message: 'boom', topFrames: ['at start (/app/index.js:12:3)'] },
       threw: { name: 'TypeError', message: 'boom' },
       stillReal: ['src/api.ts'],
       unanswered: [{ method: 'GET', url: 'https://x.test/a' }],

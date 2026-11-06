@@ -154,9 +154,26 @@ export type CaptureStoryQuestion =
  */
 export type OldCodeReply = { kind: 'old-code'; appStamp: string | null };
 
+/** What the bundler said was wrong with the build; the CLI reads it field by field (cli seams/bundleFailure). */
+export type BundleBuildFailureSaid = {
+  kind: 'unresolved-import' | 'syntax' | 'other';
+  message: string;
+  /** Relative to the project root when the file lies under it. */
+  file?: string;
+  line?: number;
+  column?: number;
+  frame?: string[];
+  /** For an unresolved import: the path as the import writes it. */
+  importPath?: string;
+};
+
 export type CaptureStoryReply =
   | CapturedAnswer
   | { kind: 'no-app' }
+  | ({ kind: 'bundle-does-not-build'; failure: BundleBuildFailureSaid } & (
+      | { sceneId: string }
+      | { storyId: string }
+    ))
   | {
       kind: 'no-such-story';
       known: string[];
@@ -242,6 +259,13 @@ export type SherloLine = {
    * a scene capture waits, one line on the log feed names them.
    */
   filesChanged: (paths: string[]) => void;
+  /**
+   * The bundler could not build the app's code. A capture waiting, and each asked after, is
+   * answered `bundle-does-not-build` with this failure until a build goes through.
+   */
+  bundleDoesNotBuild: (failure: BundleBuildFailureSaid) => void;
+  /** A build went through: captures are handed to the app again. */
+  bundleBuilt: () => void;
   /** Close every socket on the line. */
   close: () => void;
 };

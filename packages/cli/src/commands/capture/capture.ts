@@ -181,6 +181,14 @@ async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
     const { stopping } = after;
     if (asJson) scenes.push({ sceneId, record });
     else emit({ kind: 'scene-run-line', line: after.line });
+    // Code that does not build fails every scene the same way: it is said once, before the rest run.
+    if (answer.kind === 'bundle-does-not-build' && !asJson) {
+      emit({
+        kind: 'captured-scene',
+        state: capturedSceneEnding(answer, readPort(passedOptions[PORT_OPTION])),
+      });
+      break;
+    }
     if (stopping) break;
   }
   if (asJson) {

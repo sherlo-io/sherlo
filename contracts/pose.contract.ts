@@ -1604,6 +1604,11 @@ export type AppError = {
   componentStack?: string;
   /** The first few frames of the error's own stack, one line each. */
   topFrames?: string[];
+  /** The source file and line the crash came from, read through the bundle's source map. */
+  file?: string;
+  line?: number;
+  /** The data the app was reading when it hit undefined, as the error's message names it. */
+  dataPath?: string;
 };
 
 /** One source of a stored app build's list. */

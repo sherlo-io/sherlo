@@ -249,7 +249,13 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
     return {
       kind: 'crashed-mid-capture',
       sceneId,
-      ...(error && { error: { name: error.name, message: error.message } }),
+      ...(error && {
+        error: {
+          name: error.name,
+          message: error.message,
+          ...(error.topFrames && { topFrames: error.topFrames }),
+        },
+      }),
       ...keptLeft(answer),
     };
   }
