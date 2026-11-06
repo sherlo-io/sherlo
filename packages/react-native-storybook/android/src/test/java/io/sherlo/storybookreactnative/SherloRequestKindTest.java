@@ -62,6 +62,13 @@ public class SherloRequestKindTest {
     }
 
     @Test
+    public void reactDevToolsOnLoopbackIsTheAppsOwnTrafficAndAnotherPortIsNot() {
+        List<SherloRequestKind.Matching> none = Collections.emptyList();
+        assertEquals(SherloRequestKind.Kind.NOT_COVERED, kindOf(none, "http://127.0.0.1:8097/"));
+        assertEquals(SherloRequestKind.Kind.UNANSWERED, kindOf(none, "http://127.0.0.1:8098/"));
+    }
+
+    @Test
     public void theBundlerAndNonHttpAddressesAreNotCoveredSoNeverTold() {
         List<SherloRequestKind.Matching> none = Collections.emptyList();
         assertEquals(SherloRequestKind.Kind.NOT_COVERED, kindOf(none, "http://127.0.0.1:8082/index.bundle"));

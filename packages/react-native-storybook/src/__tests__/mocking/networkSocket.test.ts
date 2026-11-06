@@ -250,18 +250,21 @@ describe('WebSockets in a story with network mocks', () => {
     expect(readStoryError(STORY_ID)).toBeUndefined();
   });
 
-  it("React DevTools' standalone socket on 8097 is refused", async () => {
+  it("a socket to the app's own React DevTools port is never held or listed", async () => {
     vi.useFakeTimers();
     NativeModules.SourceCode = { scriptURL: 'http://localhost:50524/index.bundle?platform=ios' };
     await activateStory(OTHER_API);
 
-    const socket = openSocket(DEVTOOLS);
-    const events = eventsOf(socket);
+    const devTools = eventsOf(openSocket(DEVTOOLS));
+    const otherPort = eventsOf(openSocket('ws://localhost:8098'));
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(WebSocketModule.connected).toEqual([]);
-    expect(events).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
-    expect(unansweredRequests()).toEqual([{ method: 'WS', url: DEVTOOLS, ...refused }]);
+    expect(WebSocketModule.connected).toEqual([DEVTOOLS]);
+    expect(devTools).toEqual([]);
+    expect(otherPort).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
+    expect(unansweredRequests()).toEqual([
+      { method: 'WS', url: 'ws://localhost:8098', ...refused },
+    ]);
   });
 
   it('a class the app derived from WebSocket once the SDK was in is held too', async () => {

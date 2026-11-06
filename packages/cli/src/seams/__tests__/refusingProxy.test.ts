@@ -63,6 +63,22 @@ describe('the proxy that refuses what an emulator sends', () => {
     ]);
   });
 
+  it("the app's own React DevTools connection passes the emulator proxy unlisted, and any other port is still refused", async () => {
+    const devTools = http.createServer((_request, response) => response.end('devtools'));
+    await new Promise<void>((resolve) => devTools.listen(8097, '127.0.0.1', resolve));
+    try {
+      const passed = await viaProxy('http://127.0.0.1:8097/');
+      expect(passed).toEqual({ status: 200, body: 'devtools' });
+      expect(proxy.refused()).toEqual([]);
+
+      const other = await viaProxy('http://127.0.0.1:8098/');
+      expect(other.status).toBe(403);
+      expect(proxy.refused().map((request) => request.url)).toEqual(['http://127.0.0.1:8098/']);
+    } finally {
+      await new Promise((resolve) => devTools.close(resolve));
+    }
+  });
+
   it('a secure connection asked for through the proxy is refused and its host reported', async () => {
     const answer = await new Promise<string>((resolve, reject) => {
       const socket = net.connect(proxy.port, '127.0.0.1', () => {
