@@ -543,13 +543,34 @@ export default scenes({ scenes: { ${names} } });`;
     const listPath = path.join(root, 'node_modules', '.cache', 'sherlo', 'bundled-scenes.js');
     const inboxViewPath = path.join(root, 'src', 'InboxView.tsx');
     const profileViewPath = path.join(root, 'src', 'ProfileView.tsx');
+    // A scene file imports only its mocks; the app entry reaches the screens.
+    const mocksPath = path.join(root, 'src', 'app.mocks.ts');
+    graph.dependencies.set(mocksPath, fakeModule('MOCKS_CODE', new Map()));
     graph.dependencies.set(
       inboxPath,
-      fakeModule('INBOX_SCENES_CODE', new Map([['view', edge(inboxViewPath)]]))
+      fakeModule('INBOX_SCENES_CODE', new Map([['mocks', edge(mocksPath)]]))
     );
     graph.dependencies.set(
       profilePath,
-      fakeModule('PROFILE_SCENES_CODE', new Map([['view', edge(profileViewPath)]]))
+      fakeModule('PROFILE_SCENES_CODE', new Map([['mocks', edge(mocksPath)]]))
+    );
+    const appPath = path.join(root, 'src', 'App.tsx');
+    const themePath = path.join(root, 'src', 'ThemeProvider.tsx');
+    graph.dependencies.set(
+      appPath,
+      fakeModule(
+        'APP_CODE',
+        new Map([
+          ['inbox', edge(inboxViewPath)],
+          ['profile', edge(profileViewPath)],
+          ['theme', edge(themePath)],
+        ])
+      )
+    );
+    graph.dependencies.set(themePath, fakeModule('THEME_CODE', new Map()));
+    graph.dependencies.set(
+      path.join(root, 'index.js'),
+      fakeModule('APP_ENTRY_CODE', new Map([['app', edge(appPath)]]))
     );
     // The entry, the preview and a scene's view each reach the SDK, which reaches the list.
     const sdkPath = path.join(root, 'sdk', 'index.ts');
@@ -592,7 +613,7 @@ export default scenes({ scenes: { ${names} } });`;
     return manifest;
   }
 
-  it("an edit to a scene file, or to a file only a scene imports, reaches that scene's file in the manifest", () => {
+  it("each scene file's closure holds its own screen view, and the story's closure holds no scene file", () => {
     const manifest = emitManifestWithScenes();
 
     expect(manifest.storyClosures[INBOX_SCENES]).toContain('./src/InboxView.tsx');
@@ -602,6 +623,18 @@ export default scenes({ scenes: { ${names} } });`;
     expect(manifest.storyCounts[PROFILE_SCENES]).toBe(1);
     expect(manifest.storyTitles[INBOX_SCENES]).toBeUndefined();
     expect(manifest.storyClosures['./src/Button.stories.tsx']).not.toContain(INBOX_SCENES);
+  });
+
+  it("a scene's closure holds the app it boots, even code no scene file imports", () => {
+    const manifest = emitManifestWithScenes();
+
+    [INBOX_SCENES, PROFILE_SCENES].forEach((sceneFile) => {
+      expect(manifest.storyClosures[sceneFile]).toContain('./src/ThemeProvider.tsx');
+      expect(manifest.storyClosures[sceneFile]).toContain('./src/InboxView.tsx');
+      expect(manifest.storyClosures[sceneFile]).toContain('./src/ProfileView.tsx');
+    });
+    expect(manifest.storyClosures[BUTTON]).not.toContain('./src/ThemeProvider.tsx');
+    expect(manifest.storyClosures[BUTTON]).not.toContain('./src/InboxView.tsx');
   });
 
   it('the generated scene list makes no scene file reach every other scene', () => {
@@ -617,7 +650,6 @@ export default scenes({ scenes: { ${names} } });`;
         file === PROFILE_SCENES ? INBOX_SCENES : PROFILE_SCENES
       );
     });
-    expect(manifest.storyClosures[INBOX_SCENES]).not.toContain('./src/ProfileView.tsx');
     expect(manifest.storyClosures[PROFILE_SCENES]).not.toContain(INBOX_SCENES);
     expect(manifest.storyClosures['./src/Button.stories.tsx']).not.toContain(PROFILE_SCENES);
   });

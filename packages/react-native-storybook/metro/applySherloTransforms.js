@@ -492,8 +492,9 @@ function describeGeneratedFiles(graph, projectRoot) {
  * @param {object} graph      Metro ReadOnlyGraph passed to the customSerializer
  * @param {string} projectRoot absolute project root
  * @param {string} cacheDir   absolute cache directory (node_modules/.cache/sherlo)
+ * @param {string} [entryPoint] the bundle's entry point: a scene boots the whole app from it
  */
-function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
+function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
   try {
     if (!graph || typeof graph !== 'object' || !(graph.dependencies instanceof Map)) {
       return;
@@ -562,6 +563,24 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       );
     });
 
+    // A scene boots the whole app and reaches its screen by taps or a link, so the app entry's
+    // closure joins every scene file's closure (a story renders its own component, not the app).
+    // The walk stops where the entry walk above stops.
+    /** @type {Record<string, boolean>} */
+    var appRelPaths = {};
+    if (typeof entryPoint === 'string' && entryPoint) {
+      var appEntryAbsPath = path.resolve(projectRoot, entryPoint);
+      var appEntryRel = toRelativePath(appEntryAbsPath, projectRoot);
+      if (appEntryRel && graph.dependencies.has(appEntryAbsPath)) {
+        appRelPaths[appEntryRel] = true;
+        collectForwardClosure(graph, appEntryAbsPath, projectRoot, notPartOfEntryClosure).forEach(
+          function (rel) {
+            appRelPaths[rel] = true;
+          }
+        );
+      }
+    }
+
     /** @type {Record<string, string[]>} */
     var storyClosures = {};
     /**
@@ -576,8 +595,9 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
 
-    // A story's closure, or a scene file's: its forward closure plus the global paths.
-    function closureOf(fileAbsPath) {
+    // A story's closure, or a scene file's: its forward closure plus the global paths, and for a
+    // scene file the app's closure too.
+    function closureOf(fileAbsPath, appPaths) {
       var closureSet = {};
       collectForwardClosure(graph, fileAbsPath, projectRoot, sceneListAndSceneFiles).forEach(
         function (rel) {
@@ -587,6 +607,9 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       Object.keys(globalRelPaths).forEach(function (rel) {
         closureSet[rel] = true;
       });
+      Object.keys(appPaths || {}).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
       return Object.keys(closureSet).sort();
     }
 
@@ -594,7 +617,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     // as unknown. It is keyed by the path the scene list writes as its filePath.
     sceneAbsPaths.forEach(function (sceneAbsPath) {
       var sceneRel = toRelativePath(sceneAbsPath, projectRoot);
-      storyClosures[sceneRel] = closureOf(sceneAbsPath);
+      storyClosures[sceneRel] = closureOf(sceneAbsPath, appRelPaths);
       if (fs.existsSync(sceneAbsPath)) {
         var sceneIds = sceneIdsOfSource(
           path.basename(sceneAbsPath),
@@ -1023,7 +1046,7 @@ function applySherloTransforms(result, opts) {
         // Emit the manifest as a pure side-effect; never affects bundle output.
         if (moduleManifestEnabled) {
           var serializerProjectRoot = (options && options.projectRoot) || projectRoot;
-          emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+          emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir, entryPoint);
         }
         mockShims.warnUnreachedMocks(mockSetup);
         // Delegate to the original serializer and return its output unchanged.
