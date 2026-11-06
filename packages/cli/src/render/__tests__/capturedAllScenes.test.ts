@@ -28,26 +28,25 @@ describe('the line a scene prints in a run of every scene', () => {
     expect(line).toMatchObject({ launchMs: 2000, settledMs: 900, readyMs: 1500, refused: 0 });
   });
 
-  it('warns once when the third scene in a row never got ready for the same cause', () => {
+  it('warns once when the second scene in a row never got ready for the same cause', () => {
     const first = lineAfterScene('a', NEVER_REACHED, CAUSE, 3, false, START);
     const second = lineAfterScene('b', NEVER_REACHED, CAUSE, 2, false, first.streak);
     const third = lineAfterScene('c', NEVER_REACHED, CAUSE, 1, false, second.streak);
-    const fourth = lineAfterScene('d', NEVER_REACHED, CAUSE, 0, false, third.streak);
 
     expect(first.line.sameCause).toBeUndefined();
-    expect(second.line.sameCause).toBeUndefined();
-    expect(third.line.sameCause).toMatchObject({ remaining: 1 });
-    expect(fourth.line.sameCause).toBeUndefined();
+    expect(second.line.sameCause).toMatchObject({ remaining: 2 });
+    expect(third.line.sameCause).toBeUndefined();
   });
 
   it('stops the run at a repeated cause only when asked to', () => {
     const first = lineAfterScene('a', NEVER_REACHED, CAUSE, 3, true, START);
     const second = lineAfterScene('b', NEVER_REACHED, CAUSE, 2, true, first.streak);
-    const third = lineAfterScene('c', NEVER_REACHED, CAUSE, 1, true, second.streak);
+    const notAsked = lineAfterScene('b', NEVER_REACHED, CAUSE, 2, false, first.streak);
 
-    expect(second.stopping).toBe(false);
-    expect(third.stopping).toBe(true);
-    expect(third.line.sameCause).toMatchObject({ stopped: true });
+    expect(first.stopping).toBe(false);
+    expect(second.stopping).toBe(true);
+    expect(second.line.sameCause).toMatchObject({ stopped: true });
+    expect(notAsked.stopping).toBe(false);
   });
 
   it('prints the paste hint only when the shared cause brings a fake to paste', () => {

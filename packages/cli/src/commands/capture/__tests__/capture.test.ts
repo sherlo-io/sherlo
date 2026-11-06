@@ -1172,7 +1172,7 @@ describe('a run of every scene', () => {
     stayedOn: ['Chat'],
   });
 
-  it('capture --all-scenes warns once after 3 scenes in a row end with one cause and carries on', async () => {
+  it('capture --all-scenes warns once after 2 scenes in a row end with one cause and carries on', async () => {
     const { screen, exitCode } = await captureEveryScene(FIVE_SCENES, STUCK_ON_CHAT);
 
     expect(screen.match(/may fail the same way/g)).toHaveLength(1);
@@ -1184,13 +1184,13 @@ describe('a run of every scene', () => {
     expect(exitCode).toBe(EXIT_BLOCK);
   });
 
-  it('capture --all-scenes --stop-on-repeat stops after 3 scenes in a row end with one cause', async () => {
+  it('capture --all-scenes --stop-on-repeat stops after 2 scenes in a row end with one cause', async () => {
     const { screen, exitCode } = await captureEveryScene(FIVE_SCENES, STUCK_ON_CHAT, {
       [STOP_ON_REPEAT_OPTION]: true,
     });
 
-    expect(screen).toContain('2 more scenes not run, same cause: ready view never showed on Chat');
-    expect(screen).toContain('3 scenes: 0 captured, 0 never settled, 3 never reached, 0 failed');
+    expect(screen).toContain('3 more scenes not run, same cause: ready view never showed on Chat');
+    expect(screen).toContain('2 scenes: 0 captured, 0 never settled, 2 never reached, 0 failed');
     expect(exitCode).toBe(EXIT_BLOCK);
   });
 

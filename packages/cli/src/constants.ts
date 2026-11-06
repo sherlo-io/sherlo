@@ -187,7 +187,7 @@ export const ALL_SCENES_OPTION = 'allScenes';
 export function allScenesRefusal(): string {
   return `\`npx sherlo capture --all-scenes\` takes none of \`--${STORY_OPTION}\`, \`--${SCENE_OPTION}\`, \`--${PNG_OPTION}\` or \`--${DISCOVER_OPTION}\`.`;
 }
-/** `sherlo capture --all-scenes --stop-on-repeat` - stop when 3 scenes in a row end for one cause, instead of warning once and carrying on. */
+/** `sherlo capture --all-scenes --stop-on-repeat` - stop when 2 scenes in a row end for one cause, instead of warning once and carrying on. */
 export const STOP_ON_REPEAT_OPTION = 'stopOnRepeat';
 /** The refusal when `--stop-on-repeat` is given without `--all-scenes`. */
 export function stopOnRepeatRefusal(): string {
