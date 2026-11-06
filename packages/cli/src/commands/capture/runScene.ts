@@ -38,6 +38,7 @@ import type { NewCapture } from '../../seams/localCaptures';
 import { readLocalDevice } from '../../seams/localDevice';
 import { nameWhereItCrashed } from '../../seams/appError';
 import { refusedByTheProxy } from '../../seams/refusingProxy';
+import { hostOf } from '../../seams/requestSender';
 import { nameSendersByCode } from '../../seams/senderByCode';
 import { symbolicateStacks } from '../../seams/symbolicateStack';
 import { incompleteIfRefused } from '../../seams/liveScene';
@@ -123,7 +124,13 @@ async function runOpenScene(
     // The picture of the whole scroll is saved below; the record keeps only whether it is the first screen alone.
     ({ scroll, ...answer } = answer);
     // What an emulator's proxy refused is listed with what the app itself refused.
-    const refusedByProxy = refusedByTheProxy();
+    // A tunnel to a host the app already named is that same request seen twice, so it is left out.
+    const hostsTheAppNamed = new Set(
+      (('unanswered' in answer && answer.unanswered) || []).map((request) => hostOf(request.url))
+    );
+    const refusedByProxy = refusedByTheProxy().filter(
+      (request) => request.method !== 'CONNECT' || !hostsTheAppNamed.has(hostOf(request.url))
+    );
     if ((sceneCameUp(answer) || answer.kind === 'never-reached') && refusedByProxy.length > 0) {
       answer = { ...answer, unanswered: [...(answer.unanswered ?? []), ...refusedByProxy] };
     }

@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { posedCaptureSocket } from '../captureSocket';
 import type { STABILIZATION_SETTINGS } from '../bundlerLine';
+import { stillRealLines } from '../../render/capturedStory';
 
 const settings = {} as typeof STABILIZATION_SETTINGS;
 const target = { kind: 'no-target' } as never;
@@ -39,6 +40,25 @@ describe('a posed scene run with unanswered requests', () => {
     const answer = await socket.captureScene({ sceneId: 'chat', port: 8081, settings, target });
 
     expect(answer).toMatchObject({ kind: 'never-reached', unanswered });
+  });
+
+  it('a scene never reached carries the modules that ran as real code, which its record prints as the Not mocked block', async () => {
+    const socket = posedCaptureSocket({
+      scenes: ['chat'],
+      ready: 'inbox',
+      stayedOn: ['Home'],
+      stillReal: ['src/theme.ts', 'src/format.ts'],
+      unanswered,
+    });
+
+    const answer = await socket.captureScene({ sceneId: 'chat', port: 8081, settings, target });
+    const lines = stillRealLines((answer as { stillReal?: string[] }).stillReal).join('\n');
+
+    expect(answer).toMatchObject({
+      kind: 'never-reached',
+      stillReal: ['src/theme.ts', 'src/format.ts'],
+    });
+    expect(lines).toContain("Not mocked - 2 of the app's own modules ran as real code:");
   });
 
   it('a reached scene with none states none', async () => {

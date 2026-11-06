@@ -503,6 +503,8 @@ export type PosedCapture =
       ready: string;
       /** The route the app was on when the wait ran out, outermost screen first. */
       stayedOn: string[];
+      /** The app's own modules the scene reached that no mock replaced. Absent prints no list. */
+      stillReal?: string[];
       /** The requests the scene made that no mock answered, a discover capture's result. */
       unanswered?: PosedRefused[];
     } & PosedSceneNews &
@@ -699,12 +701,13 @@ export function posedCaptureSocket(
         return { kind: 'bundle-does-not-build', sceneId, failure: posed.bundleFailure };
       }
       if ('stayedOn' in posed) {
-        const { ready, stayedOn, unanswered } = posed;
+        const { ready, stayedOn, stillReal, unanswered } = posed;
         return {
           kind: 'never-reached',
           sceneId,
           ready,
           stayedOn,
+          ...(stillReal && { stillReal }),
           unanswered: refusedEach(unanswered),
           ...newsOf(posed),
           ...stopNewsOf(posed),
