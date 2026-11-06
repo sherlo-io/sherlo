@@ -70,8 +70,8 @@ final class SherloAnsweringInterceptor implements Interceptor {
         SherloRequestAnswers.Unmatched unmatched = SherloRequestAnswers.unmatched();
         if (unmatched != SherloRequestAnswers.Unmatched.PASSTHROUGH) {
             // A refusal says which layer made it; a held request is refused by nobody.
-            String rule = unmatched == SherloRequestAnswers.Unmatched.REFUSAL ? SherloRequestAnswers.NATIVE_RULE : null;
-            SherloRequestAnswers.tellUnanswered(method, url, request.header("Content-Type"), rule);
+            String refusingRule = unmatched == SherloRequestAnswers.Unmatched.REFUSAL ? SherloRequestAnswers.NATIVE_RULE : null;
+            SherloRequestAnswers.tellUnanswered(method, url, request.header("Content-Type"), refusingRule);
         }
         switch (unmatched) {
             case HELD:

@@ -40,6 +40,7 @@ vi.mock('../SherloModule', () => ({
 vi.mock('../connection/appLine', () => ({
   send: vi.fn(),
   sendAndAwaitAnswer: vi.fn(),
+  onMessage: vi.fn(() => () => undefined),
   logTheLine: (what: string) =>
     console.log(`@sherlo/react-native-storybook: the bundler line ${what}`),
 }));
