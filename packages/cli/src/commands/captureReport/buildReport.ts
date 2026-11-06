@@ -26,6 +26,7 @@
  *     changed     boolean                looks different from the previous local run
  *     capturing   boolean                being captured again right now
  *     record      SceneDetailsRecord     the scene details panel's record
+ *     previousPicture string?            the picture of the capture before it, named as picture is; present only when changed
  *
  *   CaptureDevice, one of
  *     { sherloDeviceId }                                            a Sherlo device ("iphone.15.pro"): drawn in its frame
@@ -66,6 +67,8 @@ export type Capture = {
   kind: 'scene' | 'story';
   picture: string;
   record: SceneDetailsRecord;
+  /** The picture of the capture before this one; present only when this one is marked changed. */
+  previousPicture?: string;
 };
 
 export type CaptureDevice = { sherloDeviceId: string } | LocalSimulator;
@@ -147,17 +150,19 @@ export function buildReport({
   const shown = [...latest].map(([key, capture]): Capture => {
     const earlier = previous.get(key);
     const reported = reading(capture);
+    const changed = Boolean(
+      endedCaptured(reported!.record) &&
+      earlier?.screenPath &&
+      capture.screenPath &&
+      !samePicture(earlier.screenPath, capture.screenPath)
+    );
     return {
       id: capture.id,
       kind: reported?.kind ?? 'scene',
       device: captureDevice(capture.device, reported?.screen),
       picture: capture.screenPath ? pictureOf(capture) : '',
-      changed: Boolean(
-        endedCaptured(reported!.record) &&
-        earlier?.screenPath &&
-        capture.screenPath &&
-        !samePicture(earlier.screenPath, capture.screenPath)
-      ),
+      changed,
+      ...(changed && earlier && { previousPicture: pictureOf(earlier) }),
       capturing: capturingIds.includes(capture.id),
       record: {
         ...reported!.record,

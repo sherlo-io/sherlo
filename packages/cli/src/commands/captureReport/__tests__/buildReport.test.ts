@@ -103,6 +103,20 @@ describe('the capture report', () => {
     expect(report.summary.changedCount).toBe(1);
   });
 
+  it('a changed capture carries the picture of the capture before it', () => {
+    const first = kept({ screenPath: 'one.png', at: '2026-11-01T09:00:00.000Z' });
+    const second = kept({ screenPath: 'two.png', at: '2026-11-01T10:00:00.000Z' });
+
+    const changed = build([first, second], { samePicture: () => false }).captures[0];
+    expect(changed.picture).toBe('pictures/two.png');
+    expect(changed.previousPicture).toBe('pictures/one.png');
+
+    expect(build([first, second], { samePicture: () => true }).captures[0]).not.toHaveProperty(
+      'previousPicture'
+    );
+    expect(build([second]).captures[0]).not.toHaveProperty('previousPicture');
+  });
+
   it('a screen whose picture differs from its previous local capture is marked changed', () => {
     const first = kept({ screenPath: 'one.png', at: '2026-11-01T09:00:00.000Z' });
     const second = kept({ screenPath: 'two.png', at: '2026-11-01T10:00:00.000Z' });
