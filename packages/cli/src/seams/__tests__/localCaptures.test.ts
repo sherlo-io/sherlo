@@ -4,6 +4,7 @@ import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  changeSinceLastKeptRun,
   guardCapture,
   keepCapture,
   newCapture,
@@ -154,5 +155,56 @@ describe('comparing pictures', () => {
     expect(samePicture(one, two)).toBe(true);
     expect(samePicture(one, three)).toBe(false);
     expect(samePicture(one, path.join(root, 'missing.png'))).toBe(false);
+  });
+});
+
+describe('a scene set against its last kept run', () => {
+  const keep = (record: object, minute: number) =>
+    keepCapture(newCapture(root, 'Inbox', new Date(Date.UTC(2026, 10, 1, 9, minute))), {
+      record: { sceneId: 'Inbox', ...record },
+      device: undefined,
+    });
+
+  it('a scene that got less far than its last kept run says what changed in one line', () => {
+    keep({ kind: 'scene', reached: { route: ['Inbox'] } }, 1);
+
+    const { lastRun, change } = changeSinceLastKeptRun(root, 'Inbox', {
+      ending: 'never-reached',
+      route: ['Login'],
+      refused: 0,
+    });
+
+    expect(lastRun).toEqual({ ending: 'captured', route: ['Inbox'], refused: 0 });
+    expect(change).toBe(
+      'Inbox got less far than its last kept run: was captured on Inbox, now never got ready on Login'
+    );
+  });
+
+  it('a kept incomplete scene is the last run the comparison reads, counted as captured with its refusals', () => {
+    keep({ kind: 'incomplete', reached: { route: ['Inbox'] }, unanswered: [{}, {}] }, 3);
+
+    const { lastRun, change } = changeSinceLastKeptRun(root, 'Inbox', {
+      ending: 'never-reached',
+      route: ['Login'],
+      refused: 0,
+    });
+
+    expect(lastRun).toEqual({ ending: 'captured', route: ['Inbox'], refused: 2 });
+    expect(change).toContain('was captured on Inbox');
+  });
+
+  it('a scene that got as far, or has no kept run, says nothing changed', () => {
+    expect(
+      changeSinceLastKeptRun(root, 'Inbox', { ending: 'captured', route: [], refused: 0 })
+    ).toEqual({});
+    keep({ kind: 'never-reached', stayedOn: ['Login'] }, 2);
+
+    const { change } = changeSinceLastKeptRun(root, 'Inbox', {
+      ending: 'captured',
+      route: ['Inbox'],
+      refused: 0,
+    });
+
+    expect(change).toBeUndefined();
   });
 });

@@ -328,7 +328,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
   [ALL_SCENES_OPTION]: ['--all-scenes', 'Capture every scene the app declares, each one kept'],
   [STOP_ON_REPEAT_OPTION]: [
     '--stop-on-repeat',
-    'Stop at the first scene that fails for the cause the one before it did, instead of warning once and carrying on. Needs --all-scenes.',
+    'Stop when 3 scenes in a row end for one cause, instead of warning once and carrying on. Needs --all-scenes.',
   ],
   [DISCOVER_OPTION]: [
     `--${DISCOVER_OPTION}`,

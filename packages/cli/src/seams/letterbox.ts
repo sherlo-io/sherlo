@@ -16,6 +16,7 @@ import type { SceneEnding } from '../render/capturedScene';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import type { NoTarget, SceneTarget } from './deviceState';
 import { captureLiveScene } from './liveScene';
+import { sceneCameUp } from './localCaptures';
 
 /**
  * What a story threw while rendering, as the app recorded it and the letterbox passed it on. The
@@ -113,7 +114,7 @@ export const liveLetterbox: Letterbox = {
       target,
     });
     if (answer.kind === 'no-such-scene') return { kind: 'no-such-scene', known: answer.known };
-    if (answer.kind === 'scene') {
+    if (sceneCameUp(answer)) {
       return { kind: 'scene-opened', sceneId: answer.sceneId, route: answer.reached.route };
     }
     return answer;

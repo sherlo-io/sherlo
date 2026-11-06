@@ -34,7 +34,7 @@ import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
 import { captureSocket } from '../../seams/captureSocket';
 import { deviceState, isTarget } from '../../seams/deviceState';
-import { CAPTURES_FOLDER, guardCapture } from '../../seams/localCaptures';
+import { CAPTURES_FOLDER, guardCapture, sceneCameUp } from '../../seams/localCaptures';
 import { readPort } from '../../helpers/readPort';
 import { keepTheCapture, openCapture, runScene, savePicture } from './runScene';
 import type { CaptureResult } from '../../seams/captureSocket';
@@ -43,7 +43,8 @@ import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene } from '../../render/capturedScene';
 import { lineAfterScene } from '../../render/lineAfterScene';
-import type { RunMemory } from '../../render/lineAfterScene';
+import { sceneCauseOf } from '../../seams/sceneCause';
+import type { CauseStreak } from '../../seams/sceneCause';
 import { outcomeOf } from '../../render/sceneOutcome';
 import type { SceneOutcome } from '../../render/sceneOutcome';
 
@@ -154,7 +155,7 @@ async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
     return;
   }
   let failed = false;
-  let memory: RunMemory = { warned: false };
+  let streak: CauseStreak = { count: 0, warned: false };
   const scenes: { sceneId: string; record: unknown }[] = [];
   const counts: Record<SceneOutcome, number> = {
     captured: 0,
@@ -167,17 +168,20 @@ async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
     failed = failed || sceneFailed(answer, discover);
     counts[outcomeOf(answer.kind)] += 1;
     const remaining = sceneIds.length - index - 1;
+    const stopOnRepeat = passedOptions[STOP_ON_REPEAT_OPTION] === true;
     const after = lineAfterScene(
       sceneId,
       answer,
+      sceneCauseOf(answer),
       remaining,
-      passedOptions[STOP_ON_REPEAT_OPTION] === true,
-      memory
+      stopOnRepeat,
+      streak
     );
-    memory = after.memory;
+    streak = after.streak;
+    const { stopping } = after;
     if (asJson) scenes.push({ sceneId, record });
     else emit({ kind: 'scene-run-line', line: after.line });
-    if (after.stopping) break;
+    if (stopping) break;
   }
   if (asJson) {
     // One document for the whole run; each scene's record is what `--scene <id> --json` prints.
@@ -210,7 +214,10 @@ export function capturedSceneEnding(
   discover = false
 ): CapturedScene {
   if (answer.kind === 'no-bundler' || answer.kind === 'no-app') return { kind: answer.kind, port };
-  return discover ? { ...answer, discover: true } : answer;
+  // The screen has no ending of its own for a scene that kept its picture and had a request refused:
+  // it shows the scene, with the refused requests it lists.
+  const shown = sceneCameUp(answer) ? { ...answer, kind: 'scene' as const } : answer;
+  return discover ? { ...shown, discover: true } : shown;
 }
 
 /** What the screen shows for what the app answered. */

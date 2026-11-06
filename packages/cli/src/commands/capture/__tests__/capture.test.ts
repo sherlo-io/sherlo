@@ -29,6 +29,7 @@ import {
   LOGS_OPTION,
   PNG_OPTION,
   SCENE_OPTION,
+  STOP_ON_REPEAT_OPTION,
   STORY_OPTION,
 } from '../../../constants';
 import type { SceneTarget } from '../../../seams/deviceState';
@@ -36,6 +37,14 @@ import type { SceneCaptureResult } from '../../../seams/liveScene';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+
+/** What the emulator's proxy has refused during the scene now running; a case fills it. */
+const proxyRefusals = vi.hoisted(() => ({ now: [] as unknown[] }));
+
+vi.mock('../../../seams/refusingProxy', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../seams/refusingProxy')>()),
+  refusedByTheProxy: () => proxyRefusals.now,
+}));
 
 const STORY = 'components-button--primary';
 
@@ -579,6 +588,25 @@ describe('a scene capture can save the screen it captured', () => {
     expect(events.filter((line) => /screenshot|screencap/.test(line))).toEqual([]);
   });
 
+  it('a scene whose only refused request came through the emulator proxy ends as incomplete and the run exits 1', async () => {
+    proxyRefusals.now = [
+      {
+        method: 'GET',
+        url: 'https://api.example.com/chat',
+        rule: 'emulator-proxy',
+        scope: 'background',
+      },
+    ];
+    try {
+      const { exitedWith, screen } = await captureOneScene(A_SCENE, { [JSON_OPTION]: false });
+
+      expect(exitedWith).toBe(EXIT_BLOCK);
+      expect(screen).toContain('api.example.com');
+    } finally {
+      proxyRefusals.now = [];
+    }
+  });
+
   it('a scene that never got ready without discover still leaves with the block code', async () => {
     const { exitedWith } = await captureOneScene(NEVER_READY, {});
 
@@ -1098,5 +1126,92 @@ describe('a capture leaves no mark behind and prints plain data on request', () 
     for (const scene of scenes) {
       expect(scene.record).toMatchObject({ kind: 'scene', sceneId: scene.sceneId });
     }
+  });
+});
+
+describe('a run of every scene', () => {
+  const FIVE_SCENES = 'export default scenes({ scenes: { A: {}, B: {}, C: {}, D: {}, E: {} } });\n';
+
+  /** Capture every scene, each answered by `answerFor`; the screen it drew and the code it left with. */
+  async function captureEveryScene(
+    sceneFile: string,
+    answerFor: (sceneId: string) => SceneCaptureResult,
+    options: Record<string, boolean> = {}
+  ) {
+    fs.writeFileSync(path.join(keptIn, 'chat.scenes.tsx'), sceneFile);
+    const uninstall = installCaptureSocket({
+      captureStory: async () => {
+        throw new Error('a scene capture asked about a story');
+      },
+      captureScene: async ({ sceneId }) => answerFor(sceneId),
+    });
+    let exitCode: number | undefined;
+    const exit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      exitCode = code;
+      throw new LeftTheProcess(`process.exit(${code})`);
+    }) as never);
+    try {
+      const { stdout } = await captureTranscript(async () => {
+        try {
+          await capture({ [ALL_SCENES_OPTION]: true, ...options });
+        } catch (error) {
+          if (!(error instanceof LeftTheProcess)) throw error;
+        }
+      });
+      return { screen: stdout, exitCode };
+    } finally {
+      exit.mockRestore();
+      uninstall();
+    }
+  }
+
+  const STUCK_ON_CHAT = (sceneId: string): SceneCaptureResult => ({
+    kind: 'never-reached',
+    sceneId,
+    ready: 'chat-ready',
+    stayedOn: ['Chat'],
+  });
+
+  it('capture --all-scenes warns once after 3 scenes in a row end with one cause and carries on', async () => {
+    const { screen, exitCode } = await captureEveryScene(FIVE_SCENES, STUCK_ON_CHAT);
+
+    expect(screen.match(/may fail the same way/g)).toHaveLength(1);
+    expect(screen).toContain('ready view never showed on Chat');
+    for (const sceneId of ['chat--a', 'chat--b', 'chat--c', 'chat--d', 'chat--e']) {
+      expect(screen).toContain(sceneId);
+    }
+    expect(screen).toContain('5 scenes: 0 captured, 0 never settled, 5 never reached, 0 failed');
+    expect(exitCode).toBe(EXIT_BLOCK);
+  });
+
+  it('capture --all-scenes --stop-on-repeat stops after 3 scenes in a row end with one cause', async () => {
+    const { screen, exitCode } = await captureEveryScene(FIVE_SCENES, STUCK_ON_CHAT, {
+      [STOP_ON_REPEAT_OPTION]: true,
+    });
+
+    expect(screen).toContain('2 more scenes not run, same cause: ready view never showed on Chat');
+    expect(screen).toContain('3 scenes: 0 captured, 0 never settled, 3 never reached, 0 failed');
+    expect(exitCode).toBe(EXIT_BLOCK);
+  });
+
+  it('each captured line shows launch, ready and settle times and the summary counts each ending', async () => {
+    const { screen } = await captureEveryScene(
+      'export default scenes({ scenes: { Open: {}, Stuck: {} } });\n',
+      (sceneId) =>
+        sceneId === 'chat--open'
+          ? {
+              kind: 'scene',
+              sceneId,
+              bootMs: 900,
+              reached: { route: ['Chat'], ms: 300 },
+              play: [],
+              settled: SETTLED,
+              tree: ONE_VIEW,
+            }
+          : STUCK_ON_CHAT(sceneId)
+    );
+
+    expect(screen).toContain('launched in 0.9s · ready in 0.3s · settled in 1.4s');
+    expect(screen).toContain('2 scenes: 1 captured, 0 never settled, 1 never reached, 0 failed');
   });
 });

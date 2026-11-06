@@ -57,8 +57,15 @@ export function renderSceneRunLine(line: SceneRunLine): string[] {
     ...(sameCause
       ? [
           `${chalk.yellow('◦')}  ${sameCause.remaining} more ${sameCause.remaining === 1 ? 'scene' : 'scenes'} ${sameCause.stopped ? 'not run, same cause' : 'may fail the same way'}: ${sameCause.cause}`,
-          ...(sameCause.fake ? [`     ${sameCause.fake}`] : []),
-          chalk.dim('   Paste it once where the scenes share their mocks, then capture again.'),
+          // The fake is what the hint tells to paste: a cause with none has nothing to paste.
+          ...(sameCause.fake
+            ? [
+                `     ${sameCause.fake}`,
+                chalk.dim(
+                  '   Paste it once where the scenes share their mocks, then capture again.'
+                ),
+              ]
+            : []),
         ]
       : []),
   ];

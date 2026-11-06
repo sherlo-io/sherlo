@@ -14,16 +14,12 @@ import { readAppError } from './appError';
 import { readBundleFailure } from './bundleFailure';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
-import { deviceState, isTarget } from './deviceState';
+import { isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
-import {
-  androidDevelopmentLauncherLink,
-  pointAndroidAppAtBundler,
-  pointIosAppAtBundler,
-  iosDevelopmentLauncherLink,
-  prepareAndroidDevMenuForCapture,
-} from './developmentLauncher';
+import { launchFresh } from './launchScene';
 import { keptLeft, readLikelyCause } from './readAppAnswer';
+import { endingOfStillScreen, STILL_LIMIT, waitForStillScreen } from './stillScreen';
+import type { StillLimit } from './stillScreen';
 
 /** How long the app has to boot, play the scene and settle before the command gives up on it. */
 const SCENE_PATIENCE_MS = 120_000;
@@ -55,9 +51,19 @@ export type NoApp = {
 };
 
 /** What the app answered about the scene the command asked it to boot fresh on and capture. */
-export type SceneCaptureResult = ({ kind: 'no-bundler' } | NoApp | SceneEnding) & {
+export type SceneCaptureResult = (
+  | { kind: 'no-bundler' }
+  | NoApp
+  | SceneEnding
+  | IncompleteScene
+) & {
   /** Sherlo's own log lines from the app since it booted, drained from the bundler's feed after the answer. */
   logs?: string[];
+};
+
+/** A scene that came up and kept its picture, and had a request refused: it is not a complete one. */
+export type IncompleteScene = Omit<Extract<SceneEnding, { kind: 'scene' }>, 'kind'> & {
+  kind: 'incomplete';
 };
 
 /** What a scene capture is asked: where, on what, and whether it only lists the requests no mock answers. */
@@ -69,37 +75,72 @@ export type SceneCaptureParams = {
   target: SceneTarget | NoTarget;
   /** Hold the requests no rule names and list them (`-sherloDiscover YES`, `--ez sherloDiscover true`). */
   discover?: boolean;
+  /** How long the screen may sit still before the scene ends without the app's answer. */
+  onStill?: StillLimit;
 };
 
 /**
  * Launch the app fresh on `sceneId`, wait for it to play the scene, and answer with its record.
- * Every way of not getting one is a named ending, never a thrown error.
+ * Every way of not getting one is a named ending, never a thrown error. A screen that sits still
+ * for the `onStill` limit ends the scene before the app's own patience runs out.
  */
 export async function captureLiveScene(params: SceneCaptureParams): Promise<SceneCaptureResult> {
-  const { sceneId, port, settings, target, discover } = params;
+  const { sceneId, port, settings, target, discover, onStill = STILL_LIMIT } = params;
   if (!isTarget(target)) return { kind: 'no-app', why: target.cause, found: target.found };
 
   const launchedAt = await launchFresh(target, sceneId, port, discover);
 
   const helloDeadline = launchedAt + APP_HELLO_PATIENCE_MS;
+  // The first line the app logs is the first sign its JavaScript runs: until then the screen is the
+  // bundler's loading screen, not the scene. Each read empties the feed, so the lines are kept here.
+  const lines: string[] = [];
+  const hasLoggedYet = async () => {
+    if (lines.length === 0) lines.push(...(await drainAppLog(port)));
+    return lines.length > 0;
+  };
   for (;;) {
-    const answer = await askTheBundlerLine({
+    const stopWatching = new AbortController();
+    const asked = askTheBundlerLine({
       port,
       // Asked as a scene, so the line hands the app a scene to walk, never a story; and of the app
       // launched now, never one an earlier capture left on the line.
       question: { action: 'captureStory', sceneId, settings, launchedAt },
       patienceMs: SCENE_PATIENCE_MS,
+      giveUp: stopWatching.signal,
     });
+    const stillScreen = waitForStillScreen(
+      target.device,
+      onStill,
+      stopWatching.signal,
+      hasLoggedYet
+    );
+    const first = await Promise.race([
+      asked.then((answer) => ({ answer })),
+      // A phone that gives no look says nothing: the app's answer is what is waited for.
+      stillScreen.then((still) => (still ? { still } : new Promise<never>(() => {}))),
+    ]);
+    stopWatching.abort();
+    if ('still' in first) {
+      const logs = [...lines, ...(await drainAppLog(port))];
+      const ending = endingOfStillScreen(sceneId, first.still);
+      return logs.length > 0 ? { ...ending, logs } : ending;
+    }
+    const { answer } = first;
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
     if (answer.kind === 'not-in-sherlos-words') {
       // The feed is read on its own question: it often still answers when the capture's did not.
-      return withStageLines({ kind: 'no-app', why: 'line-broke', detail: answer.detail }, port);
+      return withStageLines(
+        { kind: 'no-app', why: 'line-broke', detail: answer.detail },
+        port,
+        lines
+      );
     }
     if (answer.kind === 'gave-up-waiting') {
       // The line counts each time the app took the instruction and started over: no picture came
       // because the app kept starting over, which is not the same as no app.
-      const { logs, restarts } = await readAppLog(port);
+      const { logs: lastLines, restarts } = await readAppLog(port);
+      const logs = [...lines, ...lastLines];
       const ending: NoApp | SceneEnding =
         restarts > 0
           ? { kind: 'restarted-mid-capture', sceneId, restarts }
@@ -107,7 +148,9 @@ export async function captureLiveScene(params: SceneCaptureParams): Promise<Scen
       return logs.length > 0 ? { ...ending, logs } : ending;
     }
 
-    const ending = readSceneAnswer(answer.reply, sceneId);
+    const read = readSceneAnswer(answer.reply, sceneId);
+    // A discover capture holds the requests it lists, so none of them is a refusal that spoils it.
+    const ending = discover ? read : incompleteIfRefused(read);
     // The relay says no app has come yet until the launched one says hello: ask again.
     if (ending.kind === 'no-app' && Date.now() < helloDeadline) {
       await new Promise((resolve) => setTimeout(resolve, HELLO_RETRY_MS));
@@ -115,10 +158,10 @@ export async function captureLiveScene(params: SceneCaptureParams): Promise<Scen
     }
 
     if (ending.kind === 'no-app') {
-      return withStageLines({ kind: 'no-app', why: 'never-said-hello' }, port);
+      return withStageLines({ kind: 'no-app', why: 'never-said-hello' }, port, lines);
     }
 
-    const logs = await drainAppLog(port);
+    const logs = [...lines, ...(await drainAppLog(port))];
     return logs.length > 0 ? { ...ending, logs } : ending;
   }
 }
@@ -127,129 +170,21 @@ export async function captureLiveScene(params: SceneCaptureParams): Promise<Scen
  * A no-app ending with the lines the app logged before it went quiet, so the last stage it reached
  * can be read. They ride in the --json reply only: the terminal words for no app stay as signed.
  */
-async function withStageLines(ending: NoApp, port: number): Promise<NoApp & { logs?: string[] }> {
-  const logs = await drainAppLog(port);
+async function withStageLines(
+  ending: NoApp,
+  port: number,
+  linesBefore: string[]
+): Promise<NoApp & { logs?: string[] }> {
+  const logs = [...linesBefore, ...(await drainAppLog(port))];
   return logs.length > 0 ? { ...ending, logs } : ending;
 }
 
-/**
- * Empty the log feed of what an earlier scene left. Called once the old app is stopped and before
- * the new one starts, so no line is of the new launch; the feed keeps no time, so `launchedAt`
- * cannot do this for it. A line of the old app still in flight on the socket when it was stopped
- * is the one thing this cannot rule out.
- */
-async function dropStaleLines(port: number): Promise<void> {
-  await drainAppLog(port);
-}
-
-/**
- * Stop the app if it runs, then start it with the scene's id in the launch. Answers when the start
- * was asked, after the stop: the bundler runs on this machine, so the line reads the same clock.
- */
-async function launchFresh(
-  target: SceneTarget,
-  sceneId: string,
-  port: number,
-  discover = false
-): Promise<number> {
-  const { device, app } = target;
-  const run = deviceState().run;
-
-  if (device.platform === 'ios') {
-    await run('xcrun', ['simctl', 'terminate', device.udid, app.id]).catch(() => '');
-    const link = await iosDevelopmentLauncherLink(run, device.udid, app.id, port);
-    if (link) {
-      // Mirrors sherlo-runner's ios launchApp.ts: the sheet's record is a user default of the app.
-      // The menu stays closed at launch too (the clean device wipes that setting), and its floating
-      // Tools button is off so it never covers the scene; the shake gesture and key commands still
-      // open the menu.
-      for (const [key, value] of [
-        ['EXDevMenuIsOnboardingFinished', 'YES'],
-        ['EXDevMenuShowsAtLaunch', 'NO'],
-        ['EXDevMenuShowFloatingActionButton', 'NO'],
-      ]) {
-        await run('xcrun', [
-          'simctl',
-          'spawn',
-          device.udid,
-          'defaults',
-          'write',
-          app.id,
-          key,
-          '-bool',
-          value,
-        ]);
-      }
-    } else {
-      await pointIosAppAtBundler(run, device.udid, app.id, port);
-    }
-    // expo-dev-launcher reads `--initialUrl <url>` from the process arguments at launch and opens
-    // that link first (EXDevLauncherController `initialUrlFromProcessInfo`), so one launch carries
-    // both the bundle's link and the scene's id. A simulator reaches the bundler on localhost.
-    await dropStaleLines(port);
-    const launchedAt = Date.now();
-    await run('xcrun', [
-      'simctl',
-      'launch',
-      device.udid,
-      app.id,
-      ...(link ? ['--initialUrl', link] : []),
-      '-sherloCapture',
-      sceneId,
-      ...(discover ? ['-sherloDiscover', 'YES'] : []),
-    ]);
-    return launchedAt;
-  }
-
-  const adb = (...args: string[]) => run('adb', ['-s', device.serial, 'shell', ...args]);
-
-  // An app names its own launcher activity, so ask the phone which one it is.
-  const resolved = await adb(
-    'cmd',
-    'package',
-    'resolve-activity',
-    '--brief',
-    '-a',
-    'android.intent.action.MAIN',
-    '-c',
-    'android.intent.category.LAUNCHER',
-    app.id
-  );
-  const component = resolved
-    .split('\n')
-    .map((line) => line.trim())
-    .reverse()
-    .find((line) => /^\S+\/\S+$/.test(line));
-  if (!component) throw new Error(resolved.trim());
-
-  await adb('am', 'force-stop', app.id).catch(() => '');
-  const link = await androidDevelopmentLauncherLink(adb, app.id, port);
-  if (link) {
-    await prepareAndroidDevMenuForCapture(adb, app.id);
-  } else {
-    await pointAndroidAppAtBundler(adb, app.id, port);
-  }
-  // A clean phone has no last bundle for Expo's development launcher to reopen (the data is wiped
-  // before each scene), and a plain app asks localhost: either way the phone's port must reach the bundler.
-  await run('adb', ['-s', device.serial, 'reverse', `tcp:${port}`, `tcp:${port}`]);
-  await dropStaleLines(port);
-  const launchedAt = Date.now();
-  const started = await adb(
-    'am',
-    'start',
-    '-n',
-    component,
-    ...(link
-      ? ['-a', 'android.intent.action.VIEW', '-d', `'${link}'`]
-      : ['-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHER']),
-    '--es',
-    'sherloCapture',
-    sceneId,
-    ...(discover ? ['--ez', 'sherloDiscover', 'true'] : [])
-  );
-  // `adb shell am start` exits 0 even when the phone refuses, so its words are read here.
-  if (/^Error:/m.test(started)) throw new Error(started.trim());
-  return launchedAt;
+/** A scene that came up with a request refused by a rule ends as incomplete, keeping all it has. */
+export function incompleteIfRefused<Ending extends SceneCaptureResult | { kind: 'no-app' }>(
+  ending: Ending
+): Ending | IncompleteScene {
+  const refused = ending.kind === 'scene' && ending.unanswered?.some(({ rule }) => rule);
+  return refused ? { ...ending, kind: 'incomplete' } : ending;
 }
 
 /* ========================================================================== */
@@ -309,6 +244,23 @@ export function readSceneAnswer(said: unknown, sceneId: string): SceneEnding | {
       done: playSteps(answer.done),
       missing: playMissing(answer.missing as PlayStepAnswer | undefined) ?? { tap: '' },
       limitMs: typeof answer.limitMs === 'number' ? answer.limitMs : 0,
+      ...keptLeft(answer),
+    };
+  }
+
+  // The SDK's own word for a screen that was ready and kept moving: the picture is the one taken at
+  // the limit, the views still changing and the fields still waiting for focus are named.
+  if (answer?.kind === 'never-settled') {
+    const changing = keepStrings(answer.changing);
+    const unfocused = keepStrings(answer.unfocused);
+    return {
+      kind: 'never-settled',
+      sceneId,
+      seconds: STABILIZATION_SETTINGS.timeoutMs / 1000,
+      reached: { route: keepStrings(answer.route), ms: 0 },
+      ...(changing.length > 0 && { changing }),
+      ...(unfocused.length > 0 && { unfocused }),
+      tree: readCapturedView(answer.tree),
       ...keptLeft(answer),
     };
   }
