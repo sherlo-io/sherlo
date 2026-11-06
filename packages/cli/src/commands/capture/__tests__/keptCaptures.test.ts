@@ -35,8 +35,10 @@ const NEVER_READY: SceneCaptureResult = {
 describe('kept captures', () => {
   let project: string;
   let uninstall: Array<() => void>;
+  let appIsOnDevice: boolean;
 
   beforeEach(() => {
+    appIsOnDevice = true;
     project = fs.mkdtempSync(path.join(os.tmpdir(), 'kept-captures-'));
     uninstall = [installProjectFiles({ root: () => project })];
     uninstall.push(
@@ -50,7 +52,10 @@ describe('kept captures', () => {
         run: async (tool, args) => {
           const line = `${tool} ${args.join(' ')}`;
           if (line.includes('screenshot')) fs.writeFileSync(args[args.length - 1], 'picture');
-          if (line.includes('get_app_container')) return `${project}\n`;
+          if (line.includes('get_app_container')) {
+            if (!appIsOnDevice) throw new Error('No such file or directory');
+            return `${project}\n`;
+          }
           if (line.includes('list devicetypes')) {
             return JSON.stringify({
               devicetypes: [{ identifier: 'type-1', name: 'iPhone 15 Pro' }],
@@ -138,6 +143,38 @@ describe('kept captures', () => {
     });
     expect(stdout).not.toContain('waitedMs');
     expect(stdout).not.toContain('No picture');
+  });
+
+  it('a scene that never reached its screen keeps the frame the app ended on, never as its picture', async () => {
+    await captureWith([NEVER_READY], { [SCENE_OPTION]: 'chat--open' });
+
+    const [kept] = readKeptCaptures(project);
+    expect(kept.screenPath).toBeUndefined();
+    expect(kept.endedPath && fs.readFileSync(kept.endedPath, 'utf8')).toBe('picture');
+  });
+
+  it('a scene whose app is not installed keeps no frame, the home screen is not where the app ended up', async () => {
+    appIsOnDevice = false;
+
+    await captureWith([NEVER_READY], { [SCENE_OPTION]: 'chat--open' });
+
+    const [kept] = readKeptCaptures(project);
+    expect(kept.screenPath).toBeUndefined();
+    expect(kept.endedPath).toBeUndefined();
+  });
+
+  it('a scene that threw on the red error screen keeps its frame to show, flagged threw, never as its picture', async () => {
+    const threw = {
+      ...A_SCENE,
+      threw: { name: 'TypeError', message: 'boom', file: 'a.ts', line: 1 },
+    } as unknown as SceneCaptureResult;
+
+    await captureWith([threw], { [SCENE_OPTION]: 'chat--open' });
+
+    const [kept] = readKeptCaptures(project);
+    expect(kept.screenPath).toBeUndefined();
+    expect(kept.endedPath && fs.readFileSync(kept.endedPath, 'utf8')).toBe('picture');
+    expect(kept.record).toMatchObject({ noPicture: { ending: 'threw' } });
   });
 
   it('a capture of a scene with no device named keeps the device it ran on', async () => {

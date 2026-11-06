@@ -232,6 +232,18 @@ describe('the picture a capture keeps', () => {
     });
   });
 
+  it('a scene that stopped on another screen keeps the frame it ended on to show, never as its picture', () => {
+    const lastCaptured = keepWithPicture(1);
+    const stopped = newCapture(root, 'Inbox', new Date(Date.UTC(2026, 10, 1, 9, 2)));
+    fs.writeFileSync(stopped.endedPath, 'frame');
+    keepCapture(stopped, { record: { kind: 'never-reached', sceneId: 'Inbox' } });
+
+    const [, later] = readKeptCaptures(root);
+    expect(later.endedPath).toBe(stopped.endedPath);
+    expect(later).not.toHaveProperty('screenPath');
+    expect(pictureKeptFor(root, 'Inbox', { kind: 'never-reached' }).lastPicture).toBe(lastCaptured);
+  });
+
   it('a scene that ended on the red error screen is flagged as threw and its frame is not saved as a good picture', () => {
     const lastCaptured = keepWithPicture(1);
 

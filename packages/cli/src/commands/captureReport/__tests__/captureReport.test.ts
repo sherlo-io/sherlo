@@ -106,6 +106,31 @@ describe('sherlo capture-report', () => {
     expect(live.captures[0].picture).toBe(`data/pictures/${CAPTURE_FOLDER}.png`);
   });
 
+  it('names the frame a stopped scene ended on by its folder, beside the pictures', async () => {
+    const stopped = '2026-11-01T09-45-00.000Z_chat--stopped';
+    const folder = path.join(project, '.sherlo', 'captures', stopped);
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(path.join(folder, 'ended-on.png'), 'frame');
+    fs.writeFileSync(
+      path.join(folder, 'record.json'),
+      JSON.stringify({
+        kind: 'never-reached',
+        sceneId: 'chat--stopped',
+        stayedOn: ['Home'],
+        ready: 'x',
+      })
+    );
+    const server = serverWithPage('/page');
+    undo.push(installLocalServer(server), installBrowser({ open: async () => true }));
+
+    await captureReport({});
+
+    const live = server.sites[0].report() as { captures: { id: string; picture: string }[] };
+    expect(live.captures.find((shown) => shown.id === 'chat--stopped')?.picture).toBe(
+      `data/pictures/${stopped}.ended.png`
+    );
+  });
+
   it('says so when the browser did not come up, with the address still on the screen', async () => {
     undo.push(
       installLocalServer(serverWithPage('/page')),

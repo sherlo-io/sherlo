@@ -34,7 +34,10 @@ export type CaptureReportOptions = {
 async function captureReport(passedOptions: CaptureReportOptions): Promise<void> {
   const root = getCwd();
 
-  const reportNow = (isLive: boolean, pictureOf: (folder: string, screenPath: string) => string) =>
+  const reportNow = (
+    isLive: boolean,
+    pictureOf: (folder: string, file: string, kind: 'screen' | 'ended') => string
+  ) =>
     buildReport({
       captures: readKeptCaptures(root),
       capturingIds: readCapturingIds(root),
@@ -42,11 +45,16 @@ async function captureReport(passedOptions: CaptureReportOptions): Promise<void>
       isLive,
       // `TZ` is what a person sets to read the time in another zone; a posed run states it.
       timeZone: process.env.TZ,
-      pictureOf: (capture) => pictureOf(capture.folder, capture.screenPath ?? ''),
+      pictureOf: (capture, kind) =>
+        pictureOf(
+          capture.folder,
+          (kind === 'ended' ? capture.endedPath : capture.screenPath) ?? '',
+          kind
+        ),
     });
 
   if (passedOptions[JSON_OPTION]) {
-    const report = reportNow(false, (_folder, screenPath) => screenPath);
+    const report = reportNow(false, (_folder, file) => file);
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
     return;
   }
@@ -56,7 +64,11 @@ async function captureReport(passedOptions: CaptureReportOptions): Promise<void>
 
   // The page asks for a picture by its folder's name: `data/pictures/<folder>.png`.
   const pageReport = () =>
-    reportNow(true, (folder) => `data/pictures/${path.basename(folder)}.png`);
+    reportNow(
+      true,
+      (folder, _file, kind) =>
+        `data/pictures/${path.basename(folder)}${kind === 'ended' ? '.ended' : ''}.png`
+    );
   const server = await localServer().serve({
     pageFolder,
     capturesFolder: path.join(root, CAPTURES_FOLDER),

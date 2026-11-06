@@ -3,6 +3,7 @@
  *
  *     .sherlo/captures/<ISO time>_<id>/record.json   the record `--json` prints, as it is
  *                                      screen.png    the picture, when there is one
+ *                                      ended-on.png  the frame a stopped scene ended on, never a picture of it
  *                                      device.json   the device the capture ran on, when it is known
  *                                      capturing     a marker while the capture runs; it holds the id
  *
@@ -19,13 +20,14 @@ import type { LocalDevice } from './localDevice';
 
 export const CAPTURES_FOLDER = path.join('.sherlo', 'captures');
 const RECORD_FILE = 'record.json';
-const SCREEN_FILE = 'screen.png';
+export const SCREEN_FILE = 'screen.png';
+export const ENDED_ON_FILE = 'ended-on.png';
 const DEVICE_FILE = 'device.json';
 const CAPTURING_FILE = 'capturing';
 const STALE_MARKER_MS = 15 * 60 * 1000;
 
 /** One capture's folder, made and waiting to be filled. */
-export type NewCapture = { folder: string; screenPath: string };
+export type NewCapture = { folder: string; screenPath: string; endedPath: string };
 
 /** One kept capture, read back. */
 export type KeptCapture = {
@@ -37,6 +39,8 @@ export type KeptCapture = {
   record: unknown;
   /** The picture's path, when the capture kept one. */
   screenPath?: string;
+  /** The frame a scene that stopped ended on, when one was kept: shown, never compared. */
+  endedPath?: string;
   device?: LocalDevice;
 };
 
@@ -50,7 +54,11 @@ export function newCapture(root: string, id: string, now = new Date()): NewCaptu
   const folder = path.join(root, CAPTURES_FOLDER, `${time}_${id.replace(/[^\w.-]/g, '-')}`);
   fs.mkdirSync(folder, { recursive: true });
   fs.writeFileSync(path.join(folder, CAPTURING_FILE), id);
-  return { folder, screenPath: path.join(folder, SCREEN_FILE) };
+  return {
+    folder,
+    screenPath: path.join(folder, SCREEN_FILE),
+    endedPath: path.join(folder, ENDED_ON_FILE),
+  };
 }
 
 /**
@@ -160,6 +168,7 @@ export function readKeptCaptures(root: string): KeptCapture[] {
       const time = name.split('_')[0];
       const read = (file: string) => JSON.parse(fs.readFileSync(path.join(folder, file), 'utf8'));
       const screenPath = path.join(folder, SCREEN_FILE);
+      const endedPath = path.join(folder, ENDED_ON_FILE);
       try {
         const record = read(RECORD_FILE);
         return [
@@ -170,6 +179,7 @@ export function readKeptCaptures(root: string): KeptCapture[] {
             id: idOfRecord(record) ?? idOfFolder(name),
             record,
             ...(fs.existsSync(screenPath) && { screenPath }),
+            ...(fs.existsSync(endedPath) && { endedPath }),
             ...(fs.existsSync(path.join(folder, DEVICE_FILE)) && {
               device: read(DEVICE_FILE) as LocalDevice,
             }),

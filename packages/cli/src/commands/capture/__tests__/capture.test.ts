@@ -20,6 +20,7 @@ import { STABILIZATION_SETTINGS } from '../../../seams/bundlerLine';
 import { installCaptureSocket } from '../../../seams/captureSocket';
 import type { CaptureResult, CaptureSocket } from '../../../seams/captureSocket';
 import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
+import { readKeptCaptures } from '../../../seams/localCaptures';
 import { installProjectFiles } from '../../../seams/projectFiles';
 import type { CapturedView } from '../../../render/capturedStory';
 import {
@@ -338,7 +339,12 @@ describe('a scene capture can save the screen it captured', () => {
           if (!(error instanceof LeftTheProcess)) throw error;
         }
       });
-      return { screen: stdout, events, exitedWith };
+      return {
+        screen: stdout,
+        events,
+        exitedWith,
+        kept: readKeptCaptures(projectRoot ?? folder),
+      };
     } finally {
       exit.mockRestore();
       uninstallFiles();
@@ -367,12 +373,17 @@ describe('a scene capture can save the screen it captured', () => {
   });
 
   it('a scene that was not captured saves no picture and says so', async () => {
-    const { screen, events } = await captureOneScene(
+    const { screen, events, kept } = await captureOneScene(
       { kind: 'no-such-scene', sceneId: 'chat--open', known: [] },
       { [PNG_OPTION]: CHAT_PNG }
     );
 
-    expect(events.join('\n')).not.toContain('screenshot');
+    // The only frame taken is the one the app ended on, kept beside the record and never as the picture.
+    const screenshots = events.filter((line) => line.includes('screenshot'));
+    expect(screenshots).toHaveLength(1);
+    expect(screenshots[0]).toContain('ended-on.png');
+    expect(kept[0].screenPath).toBeUndefined();
+    expect(kept[0].endedPath).toBeDefined();
     expect(screen).toContain('No picture saved: the scene was not captured');
   });
 
@@ -579,13 +590,18 @@ describe('a scene capture can save the screen it captured', () => {
   });
 
   it('a discover capture whose scene never got ready leaves with zero and takes no picture', async () => {
-    const { screen, exitedWith, events } = await captureOneScene(NEVER_READY, {
+    const { screen, exitedWith, events, kept } = await captureOneScene(NEVER_READY, {
       [DISCOVER_OPTION]: true,
     });
 
     expect(exitedWith).toBeUndefined();
     expect(screen).toContain("mockRequest({ method: 'POST', operationName: 'Chat' }");
-    expect(events.filter((line) => /screenshot|screencap/.test(line))).toEqual([]);
+    // No picture of the scene: the only frame taken is the one the app ended on, kept beside the record.
+    const screenshots = events.filter((line) => /screenshot|screencap/.test(line));
+    expect(screenshots).toHaveLength(1);
+    expect(screenshots[0]).toContain('ended-on.png');
+    expect(kept[0].screenPath).toBeUndefined();
+    expect(kept[0].endedPath).toBeDefined();
   });
 
   it('a scene whose only refused request came through the emulator proxy ends as incomplete and the run exits 1', async () => {
