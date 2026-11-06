@@ -623,6 +623,35 @@ describe('a scene capture can save the screen it captured', () => {
     }
   });
 
+  it('a tunnel to a host the app already refused is not listed again', async () => {
+    proxyRefusals.now = [
+      {
+        method: 'CONNECT',
+        url: 'https://api.example.test',
+        rule: 'emulator-proxy',
+        scope: 'background',
+      },
+      {
+        method: 'CONNECT',
+        url: 'https://other.example.test',
+        rule: 'emulator-proxy',
+        scope: 'background',
+      },
+    ];
+    try {
+      const { screen } = await captureOneScene(
+        { ...A_SCENE, unanswered: [{ method: 'GET', url: 'https://api.example.test/me' }] },
+        { [JSON_OPTION]: false }
+      );
+
+      expect(screen).toContain('2 requests had no mock');
+      expect(screen).toContain('other.example.test');
+      expect(screen).not.toContain('CONNECT https://api.example.test');
+    } finally {
+      proxyRefusals.now = [];
+    }
+  });
+
   it('a scene that never got ready without discover still leaves with the block code', async () => {
     const { exitedWith } = await captureOneScene(NEVER_READY, {});
 
