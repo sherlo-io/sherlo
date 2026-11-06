@@ -304,6 +304,70 @@ describe('the launch-time entry', () => {
     expect(launchEntrySource('app-and-storybook', true)).not.toContain(CODE_STAMP_GLOBAL);
   });
 
+  it("a release bundle's entry carries no bundler stamp and is the same on every bundler start", () => {
+    const root = createStorybookProject(DEFAULT_SETUP_STORYBOOK_ENTRY);
+
+    // A release bundle asks for its entry with `dev` false.
+    function releaseEntryServed(resolveRequest: ResolveRequest): string {
+      const entry = resolveRequest(
+        {
+          originModulePath: bundleEntryRequester(root),
+          resolveRequest: resolveRelativeFile,
+          dev: false,
+        } as Parameters<ResolveRequest>[0],
+        './index',
+        'ios'
+      );
+      return fs.readFileSync(entry.filePath as string, 'utf8');
+    }
+
+    const first = releaseEntryServed(wrapConfig(root).resolver.resolveRequest);
+    expect(first).not.toContain(CODE_STAMP_GLOBAL);
+
+    // A bundler started again makes a new stamp; the release entry does not change.
+    const metroFolder = SDK_METRO_FOLDER + path.sep;
+    const loadedBefore = Object.entries(require.cache).filter(([file]) =>
+      file.startsWith(metroFolder)
+    );
+    for (const [file] of loadedBefore) delete require.cache[file];
+    const leaveBundlingProcess = enterBundlingProcess({}, []);
+    try {
+      expect(require('../../metro/sherloLine').BUNDLER_STAMP).not.toBe(BUNDLER_STAMP);
+      const freshWithStorybook = require('../../metro/withStorybook');
+      const second = releaseEntryServed(
+        freshWithStorybook({ projectRoot: root, resolver: {}, serializer: {}, server: {} }, {})
+          .resolver.resolveRequest
+      );
+      expect(second).toBe(first);
+    } finally {
+      leaveBundlingProcess();
+      // Put the modules the other tests hold back in the cache.
+      for (const [file] of Object.entries(require.cache)) {
+        if (file.startsWith(metroFolder)) delete require.cache[file];
+      }
+      for (const [file, loaded] of loadedBefore) require.cache[file] = loaded;
+    }
+  });
+
+  it("the release launch entry's own side requests resolve", () => {
+    const root = createStorybookProject(DEFAULT_SETUP_STORYBOOK_ENTRY);
+    const { resolveRequest } = wrapConfig(root).resolver;
+    const releaseEntryFile = path.join(sherloCacheFolder(root), 'launch-entry-release.js');
+    const ask = (moduleName: string) =>
+      resolveRequest(
+        {
+          originModulePath: releaseEntryFile,
+          resolveRequest: resolveRelativeFile,
+          dev: false,
+        } as Parameters<ResolveRequest>[0],
+        moduleName,
+        'ios'
+      );
+
+    expect(ask(STORYBOOK_SIDE_REQUEST).filePath).toBe(path.join(root, '.rnstorybook/index.js'));
+    expect(ask(APP_SIDE_REQUEST).filePath).toContain('app-entry-original');
+  });
+
   it("a web bundle keeps the app's entry", () => {
     const root = defaultSetupRoot;
 

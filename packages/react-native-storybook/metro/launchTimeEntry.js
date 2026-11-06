@@ -188,6 +188,9 @@ function namesTheAppEntry(context, moduleName, platform, realAppEntry) {
  * - The bundle's own request for its entry, which Storybook's wrapper answers with the Storybook
  *   entry file, is answered with the launch entry Sherlo writes into its cache folder. A web
  *   bundle gets the app's own entry instead.
+ * - In a release bundle (`dev` false) that request is answered with a second launch entry that
+ *   carries no bundler stamp, so the same code makes the same bundle on every bundler start. A
+ *   development bundle keeps the stamp.
  * - The launch entry's two side requests are answered with the Storybook entry file and the app's
  *   entry.
  * - Any other module that imports the app's entry gets the app's entry, which Storybook's wrapper
@@ -227,6 +230,13 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
     launchEntrySource(sherloBuild, storybookEntry !== null, BUNDLER_STAMP),
     'utf8'
   );
+  // A release bundle's entry carries no stamp, so two bundles of the same code are the same.
+  var releaseLaunchEntryPath = path.join(cacheDir, 'launch-entry-release.js');
+  fs.writeFileSync(
+    releaseLaunchEntryPath,
+    launchEntrySource(sherloBuild, storybookEntry !== null),
+    'utf8'
+  );
 
   var resolveAsTheConfigDoes = resolveThroughConfig(config);
 
@@ -239,7 +249,8 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
     var importer = context.originModulePath;
 
     // In a release bundle the app entry holds the launch entry too: the transformer served it.
-    var isALaunchEntry = importer === launchEntryPath || importer === appEntry;
+    var isALaunchEntry =
+      importer === launchEntryPath || importer === releaseLaunchEntryPath || importer === appEntry;
     if (isALaunchEntry && moduleName === STORYBOOK_SIDE_REQUEST && storybookEntry !== null) {
       return { type: 'sourceFile', filePath: storybookEntry };
     }
@@ -254,7 +265,10 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
       var isEitherEntry = resolvesToFile(resolution, appEntry) || isTheStorybookEntry(resolution);
       if (!isEitherEntry) return resolution;
       if (platform === 'web') return { type: 'sourceFile', filePath: appEntry };
-      return { type: 'sourceFile', filePath: launchEntryPath };
+      return {
+        type: 'sourceFile',
+        filePath: context.dev === false ? releaseLaunchEntryPath : launchEntryPath,
+      };
     }
 
     if (!isTheStorybookEntry(resolution)) return resolution;
