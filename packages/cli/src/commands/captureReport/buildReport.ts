@@ -23,10 +23,10 @@
  *     kind        "scene" | "story"
  *     device      CaptureDevice
  *     picture     string                 the picture's path, relative to the page: "data/pictures/Inbox-Full.png"
- *     changed     boolean                looks different from the previous local run
+ *     changed     boolean                looks different from the last earlier capture that ended captured and kept a picture
  *     capturing   boolean                being captured again right now
  *     record      SceneDetailsRecord     the scene details panel's record
- *     previousPicture string?            the picture of the capture before it, named as picture is; present only when changed
+ *     previousPicture string?            the picture of that earlier capture, named as picture is; present only when changed
  *
  *   CaptureDevice, one of
  *     { sherloDeviceId }                                            a Sherlo device ("iphone.15.pro"): drawn in its frame
@@ -138,17 +138,18 @@ export function buildReport({
 }: ReportInput): Report {
   const seen = captures.filter((capture) => reading(capture) !== undefined);
   const latest = new Map<string, KeptCapture>();
-  const previous = new Map<string, KeptCapture>();
   // Oldest first: a later capture of the same screen on the same device takes the place of the one before it.
-  for (const capture of seen) {
-    const key = `${capture.id}\n${deviceKey(capture.device)}`;
-    const before = latest.get(key);
-    if (before) previous.set(key, before);
-    latest.set(key, capture);
-  }
+  for (const capture of seen) latest.set(sceneKey(capture), capture);
 
   const shown = [...latest].map(([key, capture]): Capture => {
-    const earlier = previous.get(key);
+    // The picture to compare with: the latest earlier capture of this scene that ended captured and kept its picture.
+    const earlier = seen
+      .slice(0, seen.lastIndexOf(capture))
+      .reverse()
+      .find(
+        (before) =>
+          sceneKey(before) === key && before.screenPath && endedCaptured(reading(before)!.record)
+      );
     const reported = reading(capture);
     const changed = Boolean(
       endedCaptured(reported!.record) &&
@@ -207,6 +208,11 @@ function clockTime(iso: string, timeZone: string | undefined): string {
     // `TZ` may be empty or a POSIX rule such as `CET-1`, which are not zone names: use this computer's own.
     return time(undefined);
   }
+}
+
+/** One scene on one device: the key its captures are told apart by. */
+function sceneKey(capture: KeptCapture): string {
+  return `${capture.id}\n${deviceKey(capture.device)}`;
 }
 
 function deviceKey(device: LocalDevice | undefined): string {

@@ -93,14 +93,72 @@ describe('the capture report', () => {
   it('a failed scene captured again with a new picture wears changed', () => {
     const report = build(
       [
-        kept({ folder: 'a', screenPath: 'a.png', record: neverReached }),
-        kept({ folder: 'b', screenPath: 'b.png', at: '2026-11-01T10:00:00.000Z' }),
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({
+          folder: 'b',
+          screenPath: 'b.png',
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
       ],
       { samePicture: () => false }
     );
 
     expect(report.captures[0].changed).toBe(true);
+    expect(report.captures[0].previousPicture).toBe('pictures/a.png');
     expect(report.summary.changedCount).toBe(1);
+  });
+
+  it('a capture after a captured one that kept no picture is compared with the last picture', () => {
+    const report = build(
+      [
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({ folder: 'b', screenPath: undefined, at: '2026-11-01T09:00:00.000Z' }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(true);
+    expect(report.captures[0].previousPicture).toBe('pictures/a.png');
+  });
+
+  it('a capture after only a failed one that kept a picture is new, not changed', () => {
+    const report = build(
+      [
+        kept({
+          folder: 'b',
+          screenPath: 'b.png',
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(false);
+    expect(report.captures[0]).not.toHaveProperty('previousPicture');
+  });
+
+  it('a capture after one that saved no picture is compared with the last picture, and shows Changed', () => {
+    const report = build(
+      [
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({
+          folder: 'b',
+          screenPath: undefined,
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(true);
+    expect(report.captures[0].previousPicture).toBe('pictures/a.png');
   });
 
   it('a changed capture carries the picture of the capture before it', () => {
