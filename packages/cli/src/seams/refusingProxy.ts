@@ -2,7 +2,8 @@
  * THE REFUSING PROXY - what stops an Android emulator's native clients (analytics, crash and image
  * libraries that bypass fetch and XMLHttpRequest) from reaching the real network during a scene.
  *
- * It listens on this computer's loopback and refuses every request but the bundler's: the emulator
+ * It listens on this computer's loopback and refuses every request but the app's own development
+ * traffic (the bundler's, and React DevTools' port): the emulator
  * is told to use it as its global proxy ({@link ./deviceState}), and 10.0.2.2 is this computer to
  * the emulator. Each request it refuses is listed with its address and the rule `emulator-proxy`,
  * the same record the app's own refusals are (the SDK's `RefusedRequest`).
@@ -16,6 +17,7 @@
  */
 import http from 'http';
 import net from 'net';
+import { isReactDevToolsAddress } from '../../../react-native-storybook/src/developmentTraffic';
 import type { RefusedRequest } from '../../../react-native-storybook/src/mocking/refusedRequest';
 
 export type RefusingProxy = {
@@ -53,14 +55,16 @@ export async function startRefusingProxy(bundlerPort: number): Promise<RefusingP
       return undefined;
     }
   };
-  const isBundler = (address: URL | undefined): address is URL =>
+  // The app's own development traffic: the bundler's port, or React DevTools' (developmentTraffic.ts).
+  const isOwnTraffic = (address: URL | undefined): address is URL =>
     address !== undefined &&
     THIS_COMPUTER.includes(address.hostname) &&
-    Number(address.port) === bundlerPort;
+    (Number(address.port) === bundlerPort ||
+      isReactDevToolsAddress(address.hostname, Number(address.port)));
 
   const server = http.createServer((request, response) => {
     const address = addressOf(request.url);
-    if (!isBundler(address)) {
+    if (!isOwnTraffic(address)) {
       refuse(request.method ?? 'GET', request.url ?? '');
       response.writeHead(403, { 'content-type': 'text/plain' });
       response.end('Sherlo refused this request: no real request leaves the phone during a scene.');
@@ -69,7 +73,7 @@ export async function startRefusingProxy(bundlerPort: number): Promise<RefusingP
     const forwarded = http.request(
       {
         host: '127.0.0.1',
-        port: bundlerPort,
+        port: Number(address.port),
         path: address.pathname + address.search,
         method: request.method,
         headers: request.headers,
@@ -96,12 +100,12 @@ export async function startRefusingProxy(bundlerPort: number): Promise<RefusingP
   // The bundler's live sockets (hot reload) arrive as upgrades: tunnel them to the bundler.
   server.on('upgrade', (request, socket, head) => {
     const address = addressOf(request.url);
-    if (!isBundler(address)) {
+    if (!isOwnTraffic(address)) {
       refuse(request.method ?? 'GET', request.url ?? '');
       socket.end('HTTP/1.1 403 Forbidden\r\n\r\n');
       return;
     }
-    const upstream = net.connect(bundlerPort, '127.0.0.1', () => {
+    const upstream = net.connect(Number(address.port), '127.0.0.1', () => {
       const headers = request.rawHeaders.reduce(
         (lines, word, index) =>
           index % 2 === 0 ? [...lines, word] : [...lines.slice(0, -1), `${lines.at(-1)}: ${word}`],

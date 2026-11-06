@@ -28,6 +28,9 @@ final class SherloRequestKind {
         UNANSWERED
     }
 
+    /** The port a debug React Native app opens its React DevTools connection on. */
+    private static final int REACT_DEVTOOLS_PORT = 8097;
+
     private SherloRequestKind() {}
 
     static Kind of(List<? extends Matching> rules, Uri bundlerOrigin, String method, String url) {
@@ -58,8 +61,13 @@ final class SherloRequestKind {
         return rulesHanded && kind == Kind.UNANSWERED && unmatchedLetThrough;
     }
 
-    /** The bundler's own address: its host and port, or its port on another spelling of this machine. */
+    /**
+     * The app's own development traffic: the bundler's own address (its host and port, or its port
+     * on another spelling of this machine), or React DevTools' port on this machine.
+     */
     private static boolean isBundlerUrl(Uri url, Uri bundler) {
+        if (url.getHost() != null && url.getPort() == REACT_DEVTOOLS_PORT
+                && LOOPBACK_HOSTS.contains(url.getHost().toLowerCase(Locale.ROOT))) return true;
         if (bundler == null || url.getHost() == null || bundler.getHost() == null) return false;
         if (url.getPort() != bundler.getPort()) return false;
         String host = url.getHost().toLowerCase(Locale.ROOT);
