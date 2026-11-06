@@ -83,6 +83,7 @@ function emitManifest(
   moduleHashes: Record<string, string>;
   storyClosures: Record<string, string[]>;
   storyTitles: Record<string, string>;
+  storyCounts: Record<string, number>;
   sceneIds: string[];
 } {
   const result = applySherloTransforms(
@@ -501,5 +502,123 @@ describe('module manifest - which loader entry a story belongs to', () => {
     // Metro writes `<directory>?ctx=<hash>`; a path without that marker is not a
     // context module, so there is no directory to match on.
     expect(storyTitleReader.findLoaderEntry(entries, null)).toBeNull();
+  });
+});
+
+/**
+ * A scene file is reached through the generated scene list, which the Storybook entry reaches
+ * through the SDK, never through Storybook's require.context. The manifest gives it a closure
+ * all the same, so an edit that reaches a scene is a change the service can see.
+ */
+describe('module manifest - scene files', () => {
+  const ENV_FLAG = 'SHERLO_MODULE_MANIFEST';
+
+  beforeEach(() => {
+    process.env[ENV_FLAG] = '1';
+  });
+  afterEach(() => {
+    delete process.env[ENV_FLAG];
+  });
+
+  const BUTTON = './src/Button.stories.tsx';
+  const INBOX_SCENES = './src/Inbox.scenes.tsx';
+  const PROFILE_SCENES = './src/Profile.scenes.tsx';
+
+  function emitManifestWithScenes() {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-scene-files-'));
+    const graph = buildStorybookGraph(root, ['src/Button.stories.tsx']);
+    fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+    const sceneSource = (names: string) =>
+      `import { scenes } from '@sherlo/react-native-storybook/scenes';
+export default scenes({ scenes: { ${names} } });`;
+    fs.writeFileSync(
+      path.join(root, 'src', 'Inbox.scenes.tsx'),
+      sceneSource('Full: {}, Empty: {}')
+    );
+    fs.writeFileSync(path.join(root, 'src', 'Profile.scenes.tsx'), sceneSource('Main: {}'));
+
+    const edge = (absolutePath: string) => ({ absolutePath, data: { data: {} } });
+    const inboxPath = path.join(root, 'src', 'Inbox.scenes.tsx');
+    const profilePath = path.join(root, 'src', 'Profile.scenes.tsx');
+    const listPath = path.join(root, 'node_modules', '.cache', 'sherlo', 'bundled-scenes.js');
+    const inboxViewPath = path.join(root, 'src', 'InboxView.tsx');
+    const profileViewPath = path.join(root, 'src', 'ProfileView.tsx');
+    graph.dependencies.set(
+      inboxPath,
+      fakeModule('INBOX_SCENES_CODE', new Map([['view', edge(inboxViewPath)]]))
+    );
+    graph.dependencies.set(
+      profilePath,
+      fakeModule('PROFILE_SCENES_CODE', new Map([['view', edge(profileViewPath)]]))
+    );
+    // The entry, the preview and a scene's view each reach the SDK, which reaches the list.
+    const sdkPath = path.join(root, 'sdk', 'index.ts');
+    const previewPath = path.join(root, '.rnstorybook', 'preview.tsx');
+    graph.dependencies.set(sdkPath, fakeModule('SDK_CODE', new Map([['list', edge(listPath)]])));
+    graph.dependencies.set(
+      previewPath,
+      fakeModule('PREVIEW_CODE', new Map([['sdk', edge(sdkPath)]]))
+    );
+    graph.dependencies
+      .get(path.join(root, '.rnstorybook', 'storybook.requires.ts'))
+      ?.dependencies.set('preview', edge(previewPath));
+    graph.dependencies.set(
+      inboxViewPath,
+      fakeModule('INBOX_VIEW_CODE', new Map([['sdk', edge(sdkPath)]]))
+    );
+    graph.dependencies.set(profileViewPath, fakeModule('PROFILE_VIEW_CODE', new Map()));
+    graph.dependencies.set(
+      listPath,
+      fakeModule(
+        'LIST_CODE',
+        new Map([
+          ['inbox', edge(inboxPath)],
+          ['profile', edge(profilePath)],
+        ])
+      )
+    );
+    graph.dependencies.set(
+      path.join(root, '.rnstorybook', 'index.tsx'),
+      fakeModule(
+        'ENTRY_CODE',
+        new Map([
+          ['requires', edge(path.join(root, '.rnstorybook', 'storybook.requires.ts'))],
+          ['sdk', edge(sdkPath)],
+        ])
+      )
+    );
+    const manifest = emitManifest(root, graph);
+    fs.rmSync(root, { recursive: true, force: true });
+    return manifest;
+  }
+
+  it("an edit to a scene file, or to a file only a scene imports, reaches that scene's file in the manifest", () => {
+    const manifest = emitManifestWithScenes();
+
+    expect(manifest.storyClosures[INBOX_SCENES]).toContain('./src/InboxView.tsx');
+    expect(manifest.storyClosures[PROFILE_SCENES]).toContain('./src/ProfileView.tsx');
+    expect(manifest.storyClosures[INBOX_SCENES]).toContain('./.rnstorybook/index.tsx');
+    expect(manifest.storyCounts[INBOX_SCENES]).toBe(2);
+    expect(manifest.storyCounts[PROFILE_SCENES]).toBe(1);
+    expect(manifest.storyTitles[INBOX_SCENES]).toBeUndefined();
+    expect(manifest.storyClosures['./src/Button.stories.tsx']).not.toContain(INBOX_SCENES);
+  });
+
+  it('the generated scene list makes no scene file reach every other scene', () => {
+    const manifest = emitManifestWithScenes();
+
+    const LIST = './node_modules/.cache/sherlo/bundled-scenes.js';
+    Object.values(manifest.storyClosures).forEach((closure) => {
+      expect(closure).not.toContain(LIST);
+      expect(closure).toContain('./sdk/index.ts');
+    });
+    [BUTTON, INBOX_SCENES, PROFILE_SCENES].forEach((file) => {
+      expect(manifest.storyClosures[file]).not.toContain(
+        file === PROFILE_SCENES ? INBOX_SCENES : PROFILE_SCENES
+      );
+    });
+    expect(manifest.storyClosures[INBOX_SCENES]).not.toContain('./src/ProfileView.tsx');
+    expect(manifest.storyClosures[PROFILE_SCENES]).not.toContain(INBOX_SCENES);
+    expect(manifest.storyClosures['./src/Button.stories.tsx']).not.toContain(PROFILE_SCENES);
   });
 });

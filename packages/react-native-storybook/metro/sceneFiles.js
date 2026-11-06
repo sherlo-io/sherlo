@@ -401,11 +401,16 @@ function writeSceneList(projectRoot, cacheDir, scenes) {
     entries.join('') +
     '};\n';
 
-  var modulePath = path.join(cacheDir, 'bundled-scenes.js');
+  var modulePath = bundledScenesModulePath(cacheDir);
   if (readFileOrNull(modulePath) === source) return modulePath;
   fs.mkdirSync(cacheDir, { recursive: true });
   fs.writeFileSync(modulePath, source, 'utf8');
   return modulePath;
+}
+
+// Where the list of scenes sits in `cacheDir`.
+function bundledScenesModulePath(cacheDir) {
+  return path.join(cacheDir, 'bundled-scenes.js');
 }
 
 function readFileOrNull(file) {
@@ -427,4 +432,5 @@ module.exports = {
   scenesOfProject: scenesOfProject,
   readSceneIds: readSceneIds,
   writeBundledScenesModule: writeBundledScenesModule,
+  bundledScenesModulePath: bundledScenesModulePath,
 };

@@ -19,6 +19,9 @@ var pathsOfChange = require('./sceneFiles').pathsOfChange;
 var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
+var isSceneFile = require('./sourceFiles').isSceneFile;
+var sceneIdsOfSource = require('./sceneFiles').sceneIdsOfSource;
+var bundledScenesModulePath = require('./sceneFiles').bundledScenesModulePath;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
 var resolveConfigDir = require('./ensureStorybookRequires').resolveConfigDir;
 var projectRootOf = require('./projectPaths').projectRootOf;
@@ -225,6 +228,24 @@ function collectStories(graph) {
     });
   });
   return stories;
+}
+
+/**
+ * Absolute paths of every scene file in the bundle. A scene file is no require.context target: the
+ * generated scene list (sceneFiles.js writeBundledScenesModule) requires it, so collectStories
+ * never finds it. Files in node_modules are no scene of the project.
+ *
+ * @returns {string[]} unique scene file absolute paths.
+ */
+function collectSceneAbsPaths(graph, projectRoot) {
+  var sceneAbsPaths = [];
+  graph.dependencies.forEach(function (_module, absPath) {
+    var rel = toRelativePath(absPath, projectRoot);
+    if (rel && isSceneFile(absPath) && rel.indexOf('node_modules/') === -1) {
+      sceneAbsPaths.push(absPath);
+    }
+  });
+  return sceneAbsPaths;
 }
 
 /**
@@ -499,19 +520,31 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     // around the story, the story never imports it.
     /** @type {Record<string, boolean>} */
     var globalRelPaths = {};
+    // The generated scene list and every scene file: the SDK reaches the list and the list
+    // requires every scene file, so no walk goes into them, or one scene's edit (or a scene
+    // added) would reach every story and every other scene.
+    var sceneAbsPaths = collectSceneAbsPaths(graph, projectRoot);
+    /** @type {Record<string, boolean>} */
+    var sceneListAndSceneFiles = {};
+    sceneListAndSceneFiles[bundledScenesModulePath(cacheDir)] = true;
+    sceneAbsPaths.forEach(function (sceneAbsPath) {
+      sceneListAndSceneFiles[sceneAbsPath] = true;
+    });
     collectPreviewAbsPaths(graph).forEach(function (previewAbsPath) {
       var previewRel = toRelativePath(previewAbsPath, projectRoot);
       if (previewRel) globalRelPaths[previewRel] = true;
-      collectForwardClosure(graph, previewAbsPath, projectRoot).forEach(function (rel) {
-        globalRelPaths[rel] = true;
-      });
+      collectForwardClosure(graph, previewAbsPath, projectRoot, sceneListAndSceneFiles).forEach(
+        function (rel) {
+          globalRelPaths[rel] = true;
+        }
+      );
     });
 
     // The Storybook entry file joins the same way, with one trap: it imports the
     // requires file, which reaches every story. Its walk stops at the requires
     // file and at every story file.
     /** @type {Record<string, boolean>} */
-    var notPartOfEntryClosure = {};
+    var notPartOfEntryClosure = Object.assign({}, sceneListAndSceneFiles);
     collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
       notPartOfEntryClosure[requiresAbsPath] = true;
     });
@@ -543,17 +576,38 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
 
-    stories.forEach(function (story) {
-      var storyRel = toRelativePath(story.absPath, projectRoot);
-      if (!storyRel) return;
+    // A story's closure, or a scene file's: its forward closure plus the global paths.
+    function closureOf(fileAbsPath) {
       var closureSet = {};
-      collectForwardClosure(graph, story.absPath, projectRoot).forEach(function (rel) {
-        closureSet[rel] = true;
-      });
+      collectForwardClosure(graph, fileAbsPath, projectRoot, sceneListAndSceneFiles).forEach(
+        function (rel) {
+          closureSet[rel] = true;
+        }
+      );
       Object.keys(globalRelPaths).forEach(function (rel) {
         closureSet[rel] = true;
       });
-      storyClosures[storyRel] = Object.keys(closureSet).sort();
+      return Object.keys(closureSet).sort();
+    }
+
+    // A scene file has a closure and a count of its scenes, and no title: an absent title is read
+    // as unknown. It is keyed by the path the scene list writes as its filePath.
+    sceneAbsPaths.forEach(function (sceneAbsPath) {
+      var sceneRel = toRelativePath(sceneAbsPath, projectRoot);
+      storyClosures[sceneRel] = closureOf(sceneAbsPath);
+      if (fs.existsSync(sceneAbsPath)) {
+        var sceneIds = sceneIdsOfSource(
+          path.basename(sceneAbsPath),
+          fs.readFileSync(sceneAbsPath, 'utf8')
+        );
+        storyCounts[sceneRel] = sceneIds.length;
+      }
+    });
+
+    stories.forEach(function (story) {
+      var storyRel = toRelativePath(story.absPath, projectRoot);
+      if (!storyRel) return;
+      storyClosures[storyRel] = closureOf(story.absPath);
 
       var storySource = fs.existsSync(story.absPath)
         ? fs.readFileSync(story.absPath, 'utf8')
