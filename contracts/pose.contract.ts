@@ -1214,6 +1214,11 @@ export type StartedRun = {
     /** How many stories a partial capture takes. Ignored on a full capture. */
     capturedStories: number;
     /**
+     * How many scenes a partial capture takes, a changed scene file counting as its scenes.
+     * Ignored on a full capture.
+     */
+    capturedScenes?: number;
+    /**
      * How many stories the bundle holds; absent when no module map could count them. The service's
      * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as
      * absent.

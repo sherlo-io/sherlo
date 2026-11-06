@@ -86,6 +86,8 @@ export type PlatformCapture = {
   full: boolean;
   /** How many stories a partial capture takes. Ignored on a full capture. */
   capturedStories: number;
+  /** How many scenes a partial capture takes, a changed scene file counting as its scenes. Ignored on a full capture. */
+  capturedScenes?: number;
   /**
    * How many stories the bundle holds; absent when no module map could count them. The service's
    * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as absent.
@@ -173,6 +175,7 @@ function reasonEveryStoryIsCaptured(capture: PlatformCapture[]): string | undefi
 function describeCapturedStories({
   full,
   capturedStories,
+  capturedScenes = 0,
   storiesInBundle,
   scenesInBundle,
 }: PlatformCapture): string {
@@ -188,6 +191,12 @@ function describeCapturedStories({
   if (full) {
     if (storiesInBundle == null) return 'all stories';
     return storiesInBundle === 1 ? '1 story' : `all ${countStories(storiesInBundle)}`;
+  }
+
+  // A partial capture of an app of scenes says its scenes in the words a full capture uses.
+  if (holds === 'scenes') return `${capturedScenes} of ${countScenes(scenes)}`;
+  if (holds === 'stories and scenes') {
+    return `${capturedStories} of ${countStories(stories)} and ${capturedScenes} of ${countScenes(scenes)}`;
   }
 
   return storiesInBundle != null

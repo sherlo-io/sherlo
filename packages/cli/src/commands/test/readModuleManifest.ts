@@ -243,13 +243,28 @@ export function countStoriesIn(manifest: ValidatedModuleManifest, files: string[
 }
 
 /**
+ * How many scenes these files hold: a scene file's count is its entry in the module map's
+ * `storyCounts`, which the serializer fills with the scenes the file holds; a story file holds none.
+ */
+export function countScenesIn(manifest: ValidatedModuleManifest, files: string[]): number {
+  const counts = manifest.parsed.storyCounts;
+  return files
+    .filter(isSceneFileOfTheSdk)
+    .reduce((total, file) => total + (counts?.[file] ?? 0), 0);
+}
+
+/**
  * A scene file is a key of the module map too, and is no story: it is told by the SDK's own rule,
  * a plain script that loads only when asked.
  */
-function isStoryFile(file: string): boolean {
+function isSceneFileOfTheSdk(file: string): boolean {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { isSceneFile } = require('../../../../react-native-storybook/metro/sourceFiles');
-  return !isSceneFile(file);
+  return isSceneFile(file);
+}
+
+function isStoryFile(file: string): boolean {
+  return !isSceneFileOfTheSdk(file);
 }
 
 /**
