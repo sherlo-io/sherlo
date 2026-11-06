@@ -59,6 +59,7 @@ export function sceneCallsForTheCore(): SceneCalls {
         file: scene.filePath,
         title: scene.title,
         name: scene.name,
+        device: scene.device,
       })),
     playSteps: playTheSteps,
     awaitReady: waitForReady,

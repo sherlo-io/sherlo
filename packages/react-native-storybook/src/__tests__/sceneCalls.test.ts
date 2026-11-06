@@ -36,6 +36,7 @@ vi.mock('../bundledScenes', () => ({
       sceneName: 'Conversation',
       title: 'Chat',
       name: 'Conversation',
+      device: { permissions: { camera: 'denied' }, member: 'fresh-install' },
     },
   },
 }));
@@ -67,8 +68,14 @@ beforeEach(async () => {
 
 describe('the scene calls of the host', () => {
   it('lists every scene of the bundle with its id, its file, its title and its name', () => {
-    expect(calls.scenes()).toEqual([
+    expect(calls.scenes()).toMatchObject([
       { id: SCENE_ID, file: './src/chat.scenes.tsx', title: 'Chat', name: 'Conversation' },
+    ]);
+  });
+
+  it("the scene list handed to the core carries each scene's phone settings", () => {
+    expect(calls.scenes().map((scene) => scene.device)).toEqual([
+      { permissions: { camera: 'denied' }, member: 'fresh-install' },
     ]);
   });
 

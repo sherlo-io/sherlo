@@ -59,10 +59,10 @@ export type SealedCoreHost = {
   storybookFacts: () => StorybookFacts | null;
   /**
    * The scenes the app holds, in the order the app declares them, each with its id, its scene
-   * file, its component title and its scene name (already words, "Sign In" and "Menu Open");
-   * none when the app has none.
+   * file, its component title and its scene name (already words, "Sign In" and "Menu Open"), and
+   * the phone settings the scene asks for when it asks for any; none when the app has none.
    */
-  scenes(): { id: string; file: string; title: string; name: string }[];
+  scenes(): { id: string; file: string; title: string; name: string; device?: ScenePhone }[];
   /** Storybook's channel, or null when nothing usable is reachable. */
   storybookChannel: () => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
@@ -585,6 +585,32 @@ export type StoryId = `${string}--${string}`;
 
 export type SnapshotMode = 'deviceHeight' | 'fullHeight';
 
+/** A phone permission a scene can grant or deny; the set the runner can set on both platforms. */
+export type ScenePermission =
+  | 'camera'
+  | 'microphone'
+  | 'photos'
+  | 'contacts'
+  | 'location'
+  | 'notifications'
+  | 'calendar';
+
+/**
+ * The phone-settings part of a precondition: which permissions are granted or denied, and where the
+ * phone is. The phone is set before the app starts, so Sherlo works these out while it bundles
+ * (metro/givenReader.js) from plain values and the team's own functions that return them.
+ */
+export type SceneDevice = {
+  permissions?: Partial<Record<ScenePermission, 'granted' | 'denied'>>;
+  location?: { latitude: number; longitude: number };
+};
+
+/** Who the app starts for when no one is signed in: signed out, or on a fresh install. */
+export type SceneMember = 'signed-out' | 'fresh-install';
+
+/** What Sherlo reads of a scene's phone before it launches: its settings and its member. */
+export type ScenePhone = SceneDevice & { member?: SceneMember };
+
 export type Snapshot = {
   // sherlo exclusive parameters
   viewId: string; // components-avatar--basic-deviceHeight
@@ -600,6 +626,8 @@ export type Snapshot = {
   importPath?: string;
   /** True for a scene of the app (its id in storyId, its scene file in importPath), absent for a story. */
   scene?: true;
+  /** The phone settings a scene asks for; absent for a story and for a scene that asks for none. */
+  device?: ScenePhone;
 
   // storybook parameters
   componentId: string; // components-avatar
