@@ -22,7 +22,7 @@ type SceneAnswer = {
 /**
  * The line of the scene that just finished and what the run remembers after it. `cause` is the key
  * the scene did not get ready for (seams/sceneCause), and the run's one memory of it is `streak`:
- * a scene that fails for the cause of the two before it, with scenes still to run, warns once; with
+ * a scene that fails for the cause of the one before it, with scenes still to run, warns once; with
  * `stopOnRepeat` the warning says the run stops there, and `stopping` is true. A refusal names the
  * cause in its own words and brings the fake that answers it.
  */

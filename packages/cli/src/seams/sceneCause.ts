@@ -1,6 +1,6 @@
 /**
  * WHY A SCENE DID NOT GET READY, as one key two scenes can be compared by: a run of every scene
- * warns when three in a row end with the same key. Pure, like the readers beside it.
+ * warns when two in a row end with the same key. Pure, like the readers beside it.
  *
  * The key is the first of these the record has: what covered the app, the first line of the error
  * the app threw, the play step that found no view, and last the route the ready view never showed
@@ -57,7 +57,7 @@ function stepName(step: PlayMissing): string {
 }
 
 /** How many scenes in a row ending with one cause make a run warn, or stop with `--stop-on-repeat`. */
-export const REPEAT_LIMIT = 3;
+export const REPEAT_LIMIT = 2;
 
 /** What a run of every scene remembers of the causes so far: the last one, how long it has run, whether it warned. */
 export type CauseStreak = { cause?: string; count: number; warned: boolean };
