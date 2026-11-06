@@ -22,12 +22,21 @@ import {
   saveScreenPicture,
 } from '../../seams/deviceState';
 import type { NoTarget, SceneDevice, SceneTarget } from '../../seams/deviceState';
-import { dropCapture, guardCapture, keepCapture, newCapture } from '../../seams/localCaptures';
+import {
+  changeSinceLastKeptRun,
+  dropCapture,
+  guardCapture,
+  keepCapture,
+  lastRunOf,
+  newCapture,
+  sceneCameUp,
+} from '../../seams/localCaptures';
 import type { NewCapture } from '../../seams/localCaptures';
 import { readLocalDevice } from '../../seams/localDevice';
 import { refusedByTheProxy } from '../../seams/refusingProxy';
 import { nameSendersByCode } from '../../seams/senderByCode';
 import { symbolicateStacks } from '../../seams/symbolicateStack';
+import { incompleteIfRefused } from '../../seams/liveScene';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { ScenePicture } from '../../render/capturedScene';
 import type { CaptureOptions } from './captureOptions';
@@ -55,6 +64,7 @@ const ENDING_CARRIES_SCENE_LEFT: {
   'never-settled': true,
   'restarted-mid-capture': false,
   scene: true,
+  incomplete: true,
 };
 
 /** Put one scene through the clean device and keep what came of it; the screen is the caller's. */
@@ -103,35 +113,47 @@ async function runOpenScene(
       : { kind: 'no-app', why: 'not-installed' };
     // What an emulator's proxy refused is listed with what the app itself refused.
     const refusedByProxy = refusedByTheProxy();
-    if ((answer.kind === 'scene' || answer.kind === 'never-reached') && refusedByProxy.length > 0) {
+    if ((sceneCameUp(answer) || answer.kind === 'never-reached') && refusedByProxy.length > 0) {
       answer = { ...answer, unanswered: [...(answer.unanswered ?? []), ...refusedByProxy] };
     }
+    // A scene is incomplete once every refusal is merged, the proxy's included.
+    if (!discover) answer = incompleteIfRefused(answer);
     // Each refusal's stack is read through the bundler; a request still named by no package is
     // named by the project's dependency whose code holds its host.
-    if (answer.kind === 'scene' || answer.kind === 'never-reached') {
+    if (sceneCameUp(answer) || answer.kind === 'never-reached') {
       answer = nameSendersByCode(await symbolicateStacks(answer, port), getCwd());
     }
     // The screen as the app left it: the clean device's put-back below would show the home screen.
-    if (picture && answer.kind === 'scene' && isTarget(target)) {
+    if (picture && sceneCameUp(answer) && isTarget(target)) {
       picture = await savePicture(target.device, picture.path);
     }
     // The kept picture is of the screen the app ended on: a scene never reached keeps where it stayed.
     // A discover capture takes no picture: it holds requests, so its scene often never gets ready by design.
     const endedOnAScreen =
-      answer.kind === 'scene' || (answer.kind === 'never-reached' && !discover);
+      sceneCameUp(answer) ||
+      answer.kind === 'never-settled' ||
+      (answer.kind === 'never-reached' && !discover);
     if (keptFolder && endedOnAScreen && isTarget(target)) {
       await savePicture(target.device, keptFolder.screenPath);
     }
   } finally {
     await restore?.();
   }
-  const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
+  const saved = picture && !picture.error && sceneCameUp(answer) ? { png: picture.path } : {};
   const listed = discover ? { discover: true } : {};
   // What the phone could not take is listed beside the other things the scene left (render/phoneNotAppliedLines).
   if (notApplied.length > 0 && ENDING_CARRIES_SCENE_LEFT[answer.kind]) {
     answer = { ...answer, phoneNotApplied: notApplied } as SceneCaptureResult;
   }
-  const record = { ...answer, ...saved, ...listed };
+  // How the scene ended last time it was kept, against now: the one line goes beside the record.
+  const sinceLast = changeSinceLastKept(answer, sceneId);
+  if (sinceLast.lastRun) answer = { ...answer, lastRun: sinceLast.lastRun } as SceneCaptureResult;
+  const record = {
+    ...answer,
+    ...saved,
+    ...listed,
+    ...(sinceLast.change && { changeSinceLastRun: sinceLast.change }),
+  };
   // An app that was never on the device ran on nothing, so no device is named for it.
   // The time a scene waited before giving up is kept beside its record, not printed: `--json` stays as it is.
   const waited = answer.kind === 'never-reached' ? { waitedMs: Date.now() - startedAt } : {};
@@ -141,6 +163,12 @@ async function runOpenScene(
     installed ? target : undefined
   );
   return { answer, record, picture, port, discover, kept };
+}
+
+/** The last kept run of the scene set against this answer; nothing for an ending the comparison does not cover. */
+function changeSinceLastKept(answer: SceneCaptureResult, sceneId: string) {
+  const now = lastRunOf(answer);
+  return now ? changeSinceLastKeptRun(getCwd(), sceneId, now) : {};
 }
 
 /** The folder one capture is kept in; a folder that cannot be made keeps nothing and changes no ending. */

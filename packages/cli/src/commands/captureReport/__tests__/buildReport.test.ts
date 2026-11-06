@@ -170,6 +170,14 @@ describe('the capture report', () => {
     }
   });
 
+  it('a kept incomplete scene is listed with its picture, as a scene that came up', () => {
+    const [listed] = build([kept({ record: { ...sceneRecord, kind: 'incomplete' } })]).captures;
+
+    expect(listed.picture).toBe('pictures//p/.sherlo/captures/x/screen.png');
+    expect(listed.kind).toBe('scene');
+    expect(listed.record.ready).toEqual({ ok: true, reached: 'Inbox › Full', rule: '' });
+  });
+
   it('a never-reached capture gives the time it waited', () => {
     const waited = build([kept({ record: { ...neverReached, waitedMs: 4200 } })]).captures[0];
     const unknown = build([kept({ record: neverReached })]).captures[0];

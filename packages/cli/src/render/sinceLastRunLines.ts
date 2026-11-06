@@ -7,7 +7,7 @@ import chalk from 'chalk';
 import type { SceneLeft } from './capturedScene';
 
 /** How the three endings a last run can have are told. */
-const ENDING_WORDS = {
+export const ENDING_WORDS = {
   captured: 'captured',
   'never-settled': 'never settled',
   'never-reached': 'never got ready',

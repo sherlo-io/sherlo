@@ -62,21 +62,24 @@ export type BundlerLineAnswer<AskedQuestion extends Question> =
 
 /**
  * Ask the line on the bundler at `port` one question, and wait up to `patienceMs` for its reply.
- * Every way of not getting a reply is one of the answers above, never a thrown error.
+ * Every way of not getting a reply is one of the answers above, never a thrown error. An asker
+ * that no longer wants the reply aborts `giveUp`, and the ask ends as having given up waiting.
  */
 export async function askTheBundlerLine<AskedQuestion extends Question>({
   port,
   question,
   patienceMs,
+  giveUp,
 }: {
   port: number;
   question: AskedQuestion;
   patienceMs: number;
+  giveUp?: AbortSignal;
 }): Promise<BundlerLineAnswer<AskedQuestion>> {
   const lineWoken = await wakeTheLine(port, patienceMs);
   if (lineWoken.kind !== 'awake') return lineWoken;
 
-  return askOverTheWebSocket({ port, question, patienceMs });
+  return askOverTheWebSocket({ port, question, patienceMs, giveUp });
 }
 
 /**
@@ -130,16 +133,19 @@ function askOverTheWebSocket<AskedQuestion extends Question>({
   port,
   question,
   patienceMs,
+  giveUp,
 }: {
   port: number;
   question: AskedQuestion;
   patienceMs: number;
+  giveUp?: AbortSignal;
 }): Promise<BundlerLineAnswer<AskedQuestion>> {
   return new Promise((resolve) => {
     const socket = new WebSocket(`ws://localhost:${port}${LINE_PATH}`);
     const askId = 'the-one-question';
 
     const patience = setTimeout(() => finish({ kind: 'gave-up-waiting' }), patienceMs);
+    giveUp?.addEventListener('abort', () => finish({ kind: 'gave-up-waiting' }), { once: true });
 
     /** The first ending wins; later ones (the socket closing after we closed it) change nothing. */
     function finish(answer: BundlerLineAnswer<AskedQuestion>): void {

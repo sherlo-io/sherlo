@@ -43,6 +43,8 @@
 import type { PlayStep } from '../../render/capturedScene';
 import type { SceneEnding } from '../../render/capturedScene';
 import type { CaptureResult } from '../../seams/captureSocket';
+import type { IncompleteScene } from '../../seams/liveScene';
+import { sceneCameUp } from '../../seams/localCaptures';
 import type { KeptCapture } from '../../seams/localCaptures';
 import type { LocalDevice } from '../../seams/localDevice';
 
@@ -245,30 +247,33 @@ function wholeMilliseconds(timings: SceneDetailsRecord['timings']): SceneDetails
 
 /** What a kept record says about the screen, or nothing when the app never showed one. */
 function reading(capture: KeptCapture): Reading | undefined {
-  const said = capture.record as ((SceneEnding & { waitedMs?: number }) | CaptureResult) | null;
+  const said = capture.record as
+    | ((SceneEnding & { waitedMs?: number }) | IncompleteScene | CaptureResult)
+    | null;
   const sceneId = capture.id;
   const empty = { fakes: [], sceneId, start: { params: [], route: '', storedData: [] } };
 
-  switch (said?.kind) {
-    case 'scene': {
-      const route = said.reached.route.join(SEPARATOR);
-      return {
-        kind: 'scene',
-        screen: said.tree.size,
-        record: {
-          ...empty,
-          ending: { kind: 'captured' },
-          play: said.play.map((step) => ({ ok: true, step: stepText(step) })),
-          ready: { ok: true, reached: route, rule: '' },
-          start: { ...empty.start, route },
-          timings: {
-            totalMs: said.bootMs + said.reached.ms + said.settled.ms,
-            toReadyMs: said.reached.ms,
-            toStillMs: said.settled.ms,
-          },
+  if (sceneCameUp(said)) {
+    const route = said.reached.route.join(SEPARATOR);
+    return {
+      kind: 'scene',
+      screen: said.tree.size,
+      record: {
+        ...empty,
+        ending: { kind: 'captured' },
+        play: said.play.map((step) => ({ ok: true, step: stepText(step) })),
+        ready: { ok: true, reached: route, rule: '' },
+        start: { ...empty.start, route },
+        timings: {
+          totalMs: said.bootMs + said.reached.ms + said.settled.ms,
+          toReadyMs: said.reached.ms,
+          toStillMs: said.settled.ms,
         },
-      };
-    }
+      },
+    };
+  }
+
+  switch (said?.kind) {
     case 'never-reached': {
       const stayedOn = said.stayedOn.join(SEPARATOR);
       return {

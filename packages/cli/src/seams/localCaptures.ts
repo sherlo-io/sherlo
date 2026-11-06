@@ -13,6 +13,8 @@
 import fs from 'fs';
 import path from 'path';
 import { EXIT_SIGINT, EXIT_SIGTERM } from '../helpers/exitCodes';
+import type { SceneLeft } from '../render/capturedScene';
+import { ENDING_WORDS } from '../render/sinceLastRunLines';
 import type { LocalDevice } from './localDevice';
 
 export const CAPTURES_FOLDER = path.join('.sherlo', 'captures');
@@ -179,4 +181,60 @@ export function readKeptCaptures(root: string): KeptCapture[] {
         return [];
       }
     });
+}
+
+type LastRun = NonNullable<SceneLeft['lastRun']>;
+
+/** The endings a scene can be compared by, from the one that got least far to the one that got furthest. */
+const FURTHEST_LAST: LastRun['ending'][] = ['never-reached', 'never-settled', 'captured'];
+
+/**
+ * How the scene ended the last time it was kept, set against how it ended now. `lastRun` is that
+ * earlier ending; `change` is one line saying so when the scene got less far than it did, and
+ * nothing when it got as far or further, or has no kept run to compare with.
+ */
+export function changeSinceLastKeptRun(
+  root: string,
+  sceneId: string,
+  now: LastRun
+): { lastRun?: LastRun; change?: string } {
+  const last = readKeptCaptures(root)
+    .filter((kept) => kept.id === sceneId)
+    .map((kept) => lastRunOf(kept.record))
+    .filter((run): run is LastRun => run !== undefined)
+    .pop();
+  if (!last) return {};
+  const gotLessFar = FURTHEST_LAST.indexOf(now.ending) < FURTHEST_LAST.indexOf(last.ending);
+  return {
+    lastRun: last,
+    ...(gotLessFar && {
+      change: `${sceneId} got less far than its last kept run: was ${ENDING_WORDS[last.ending]} on ${last.route.join(' › ')}, now ${ENDING_WORDS[now.ending]} on ${now.route.join(' › ')}`,
+    }),
+  };
+}
+
+/** Whether an ending is a scene that came up and kept its picture, whether or not a request was refused. */
+export function sceneCameUp<Answer extends { kind?: string }>(
+  answer: Answer | null | undefined
+): answer is Extract<Answer, { kind: 'scene' | 'incomplete' }> {
+  return answer?.kind === 'scene' || answer?.kind === 'incomplete';
+}
+
+/** How a kept record or a fresh answer ended; nothing for one that is not a scene's, or ended another way. */
+export function lastRunOf(record: unknown): LastRun | undefined {
+  const kept = record as {
+    kind?: string;
+    reached?: { route?: string[] };
+    stayedOn?: string[];
+    unanswered?: unknown[];
+  } | null;
+  const ending = sceneCameUp(kept) ? 'captured' : kept?.kind;
+  if (ending !== 'captured' && ending !== 'never-settled' && ending !== 'never-reached') {
+    return undefined;
+  }
+  return {
+    ending,
+    route: kept?.reached?.route ?? kept?.stayedOn ?? [],
+    refused: kept?.unanswered?.length ?? 0,
+  };
 }
