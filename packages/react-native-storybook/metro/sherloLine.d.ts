@@ -55,18 +55,49 @@ export type CaptureInstructionMessage = { action: 'captureInstruction' } & Captu
  */
 export type StartFailedMessage = { action: 'start-failed' } & StoryThrew;
 
+/** What a driver asks the app about its scene's scroll, over the line (src/localScroll.ts answers). */
+export type ScrollAsk =
+  | { action: 'is-scrollable' }
+  | {
+      action: 'scroll-to';
+      /** The position asked, counted in steps. */
+      index: number;
+      /** The size of one step, in pixels. */
+      offset: number;
+      /** The last position the scene may be moved to. */
+      maxIndex: number;
+    };
+
+/** A ScrollAsk as the app hears it: the line gives it a name, and the answer says it back. */
+export type ScrollAskMessage = ScrollAsk & { askId: string };
+
+/** What the app answers a ScrollAskMessage: the native module's own answer, under the ask's name. */
+export type ScrollAnswerMessage = {
+  action: 'scroll-answer';
+  askId: string;
+  scrollable?: boolean;
+  scrollViewFrame?: { x: number; y: number; width: number; height: number };
+  reachedBottom?: boolean;
+  appliedIndex?: number;
+  appliedOffsetPx?: number;
+  viewportPx?: number;
+  contentPx?: number;
+};
+
 /** Every message an app sends the line: the seam's, its waits on the bundler's relays, and its start error. */
 export type MessageFromTheAppToTheLine =
   | MessageFromTheApp
   | WaitForStoryMessage
   | WaitForACaptureMessage
-  | StartFailedMessage;
+  | StartFailedMessage
+  | ScrollAnswerMessage;
 
 /** Every message the line sends an app: the seam's, and the bundler's relays' answers. */
 export type MessageFromTheLineToTheApp =
   | MessageToTheApp
   | LetterboxAnswerMessage
-  | CaptureInstructionMessage;
+  | CaptureInstructionMessage
+  | ScrollAskMessage;
 
 /* ---- A driver's questions, and their replies ------------------------------------------------- */
 
@@ -162,11 +193,19 @@ export type ReadLogLinesReply = {
   restarts?: number;
 };
 
+/** Put this ask to the newest app on the line, and say what it answered. */
+export type AskTheAppQuestion = { action: 'askTheApp'; ask: ScrollAsk };
+
+export type AskTheAppReply =
+  | { kind: 'no-app' }
+  | { kind: 'answered'; answer: Omit<ScrollAnswerMessage, 'action' | 'askId'> };
+
 export type Question =
   | OpenStoryQuestion
   | WhatIsOnScreenQuestion
   | CaptureStoryQuestion
-  | ReadLogLinesQuestion;
+  | ReadLogLinesQuestion
+  | AskTheAppQuestion;
 
 export type ReplyTo<AskedQuestion extends Question> = AskedQuestion extends OpenStoryQuestion
   ? OpenStoryReply
@@ -174,7 +213,9 @@ export type ReplyTo<AskedQuestion extends Question> = AskedQuestion extends Open
     ? WhatIsOnScreenReply
     : AskedQuestion extends CaptureStoryQuestion
       ? CaptureStoryReply
-      : ReadLogLinesReply;
+      : AskedQuestion extends AskTheAppQuestion
+        ? AskTheAppReply
+        : ReadLogLinesReply;
 
 /**
  * A question asked over a driver's own socket. `askId` is the driver's own name for it, said back
@@ -191,7 +232,8 @@ export type ReplyMessage = {
     | WhatIsOnScreenReply
     | CaptureStoryReply
     | OldCodeReply
-    | ReadLogLinesReply;
+    | ReadLogLinesReply
+    | AskTheAppReply;
 };
 
 /* ---- The line ------------------------------------------------------------------------------- */

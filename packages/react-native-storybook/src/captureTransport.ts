@@ -17,6 +17,7 @@ import { codeStampOfThisApp } from './appMetadata';
 import bundledScenes from './bundledScenes';
 import { logTheLine, sendAndAwaitAnswer } from './connection/appLine';
 import { readStorybookChannel } from './getStorybook/storybookReads';
+import { startLocalScroll, stopLocalScroll } from './localScroll';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import type { CaptureTransport, StorybookChannel } from './sealedCore/seam';
 
@@ -53,6 +54,7 @@ export function startCaptureTransport({
   if (!road) return false;
 
   core.startCaptureTransport({ channel, capture: road });
+  startLocalScroll();
   return true;
 }
 
@@ -76,6 +78,7 @@ export function startCaptureOfTheLaunch(): void {
 /** Stop waiting. The wait already sent is left to be answered, and its answer dropped. */
 export function stopCaptureTransport(): void {
   getSealedCore()?.stopCaptureTransport();
+  stopLocalScroll();
 }
 
 /**

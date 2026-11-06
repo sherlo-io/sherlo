@@ -2,7 +2,9 @@
  * THE LIVE HALF OF A SCENE - what `sherlo capture --scene` and `sherlo open --scene` do against a
  * bundler with the Sherlo line on it, and a device that only records what it was told to run.
  */
+import * as fs from 'fs';
 import * as http from 'http';
+import { PNG } from 'pngjs';
 import WebSocket, { WebSocketServer } from 'ws';
 import {
   attach,
@@ -1325,6 +1327,61 @@ describe('a scene that does not get ready ends by what the screen shows', () => 
 
       expect(ending).toMatchObject({ kind: 'incomplete', unanswered: [refused] });
       expect(ending).toHaveProperty('tree');
+    } finally {
+      uninstall();
+    }
+  });
+});
+
+describe('a scene that scrolls is saved as its whole scroll', () => {
+  it("the scene's saved picture is the joined whole scroll", async () => {
+    // A page 150 rows tall on a screen of 100 rows; each row is its own colour.
+    const screenAt = (top: number) => {
+      const png = new PNG({ width: 2, height: 100 });
+      for (let y = 0; y < 100; y++) {
+        for (let x = 0; x < 2; x++) {
+          png.data[(y * 2 + x) * 4] = top + y;
+          png.data[(y * 2 + x) * 4 + 3] = 255;
+        }
+      }
+      return PNG.sync.write(png);
+    };
+    let top = 0;
+    const bundler = await pretendBundler((question) => {
+      if (question.action === 'readLogLines') return { lines: [] };
+      if (question.action !== 'askTheApp') return SCENE_RECORD;
+      const { ask } = question as unknown as {
+        ask: { action: string; index: number; offset: number };
+      };
+      if (ask.action === 'is-scrollable') {
+        return { kind: 'answered', answer: { scrollable: true } };
+      }
+      top = Math.min(ask.index * ask.offset, 50);
+      return { kind: 'answered', answer: { reachedBottom: top === 50, appliedOffsetPx: top } };
+    });
+    const uninstall = installDeviceState({
+      ...posedDeviceState(),
+      run: async (_tool, args) => {
+        if (args.includes('screenshot')) fs.writeFileSync(args[args.length - 1], screenAt(top));
+        return '';
+      },
+    });
+
+    try {
+      const ending = await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+        wholeScroll: true,
+      });
+
+      const joined = ending.kind === 'scene' ? ending.scroll?.picture : undefined;
+      const picture = joined && PNG.sync.read(joined);
+      expect(picture?.height).toBe(150);
+      expect(picture && Array.from({ length: 150 }, (_, y) => picture.data[y * 2 * 4])).toEqual(
+        Array.from({ length: 150 }, (_, y) => y)
+      );
     } finally {
       uninstall();
     }
