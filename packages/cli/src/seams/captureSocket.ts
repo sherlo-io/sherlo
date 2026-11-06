@@ -18,14 +18,19 @@ import { readAppError, type AppError } from './appError';
 import { drainAppLog } from './appLog';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
-import { captureLiveScene, type SceneCaptureParams, type SceneCaptureResult } from './liveScene';
+import {
+  captureLiveScene,
+  OLD_CODE_DETAIL,
+  type SceneCaptureParams,
+  type SceneCaptureResult,
+} from './liveScene';
 import { newsOf, stopNewsOf, type PosedSceneNews, type PosedStopNews } from './posedSceneNews';
 import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
 
 /** What the app answered about the story the command asked it to capture. */
 export type CaptureResult =
   | { kind: 'no-bundler' }
-  | { kind: 'no-app' }
+  | { kind: 'no-app'; why?: 'old-code'; detail?: string }
   | {
       kind: 'no-such-story';
       known: string[];
@@ -168,6 +173,10 @@ export const liveCaptureSocket: CaptureSocket = {
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
     if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
+    // A story is not captured from old code either: said as a scene says it.
+    if (answer.kind === 'old-code') {
+      return { kind: 'no-app', why: 'old-code', detail: OLD_CODE_DETAIL };
+    }
 
     if (answer.kind === 'gave-up-waiting') {
       // The app was handed the story and then stopped answering - a fatal error, a native crash,

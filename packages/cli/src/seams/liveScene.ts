@@ -31,6 +31,16 @@ const APP_HELLO_PATIENCE_MS = 60_000;
 const HELLO_RETRY_MS = 1000;
 
 /**
+ * What a scene on an app running old code is told: the reason, and the step that loads the code the
+ * bundler serves now (the app is launched fresh on iOS and Android alike, so it is the bundler it
+ * needs to be pointed at).
+ */
+export const OLD_CODE_DETAIL =
+  'The app runs the code built into it, not the code your bundler serves now, so a picture of it ' +
+  'would show old screens. Load the current code: open the app from the bundler (press r in the ' +
+  "bundler's terminal, or shake the phone and choose Reload), then capture again.";
+
+/**
  * A capture that found no app, and why: the phone had no target, the app was not on it, the line
  * broke (`detail` is the line's own account), nothing answered in time, or the launched app never
  * said hello.
@@ -44,7 +54,8 @@ export type NoApp = {
     | 'not-installed'
     | 'line-broke'
     | 'gave-up-waiting'
-    | 'never-said-hello';
+    | 'never-said-hello'
+    | 'old-code';
   detail?: string;
   /** For the causes of no target: every running phone, with its app id and whether it has the app. */
   found?: PhoneFound[];
@@ -128,6 +139,14 @@ export async function captureLiveScene(params: SceneCaptureParams): Promise<Scen
     const { answer } = first;
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
+    if (answer.kind === 'old-code') {
+      // The app was refused before it walked the scene, so no picture was taken of it.
+      return withStageLines(
+        { kind: 'no-app', why: 'old-code', detail: OLD_CODE_DETAIL },
+        port,
+        lines
+      );
+    }
     if (answer.kind === 'not-in-sherlos-words') {
       // The feed is read on its own question: it often still answers when the capture's did not.
       return withStageLines(

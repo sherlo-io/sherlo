@@ -17,6 +17,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   __resetProviderFirstRenderedAtForTests,
+  codeStampOfThisApp,
   collectAppMetadata,
   providerFirstRenderedAt,
   rememberAppMetadataCollector,
@@ -39,6 +40,20 @@ const OTHER_VIEWS: Metadata = {
 afterEach(() => {
   rememberAppMetadataCollector(undefined);
   __resetProviderFirstRenderedAtForTests();
+});
+
+describe('the app says which code it runs', () => {
+  it('the app reports the stamp of the code it runs, and none for code built into it', () => {
+    const globals = globalThis as { __SHERLO_CODE_STAMP__?: unknown };
+    try {
+      expect(codeStampOfThisApp()).toBeUndefined();
+
+      globals.__SHERLO_CODE_STAMP__ = 'a1b2c3d4';
+      expect(codeStampOfThisApp()).toBe('a1b2c3d4');
+    } finally {
+      delete globals.__SHERLO_CODE_STAMP__;
+    }
+  });
 });
 
 describe('the app publishes its own views where a capture can read them', () => {

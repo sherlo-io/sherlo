@@ -57,6 +57,10 @@ export type BundlerLineAnswer<AskedQuestion extends Question> =
   | { kind: 'not-in-sherlos-words'; detail: string }
   /** Nothing answered before the tool stopped listening. */
   | { kind: 'gave-up-waiting' }
+  /** The app's stamp is not the running bundler's, or it has none: it runs code built into it, or
+   * served by an earlier bundler, and no picture of it is of the code being served now. `appStamp`
+   * is what the app said, none when it said none. */
+  | { kind: 'old-code'; appStamp: string | null }
   /** The line answered, and here is what it said. */
   | { kind: 'said'; reply: ReplyTo<AskedQuestion> };
 
@@ -161,7 +165,13 @@ function askOverTheWebSocket<AskedQuestion extends Question>({
 
     socket.on('message', (data) => {
       const reply = readReply(data.toString(), askId);
-      if (reply) finish({ kind: 'said', reply: reply as ReplyTo<AskedQuestion> });
+      if (!reply) return;
+      // The line compares the app's stamp with its own, which only it knows, and says the result.
+      if ('appStamp' in reply && reply.kind === 'old-code') {
+        finish({ kind: 'old-code', appStamp: reply.appStamp });
+        return;
+      }
+      finish({ kind: 'said', reply: reply as ReplyTo<AskedQuestion> });
     });
 
     socket.on('error', (error) =>

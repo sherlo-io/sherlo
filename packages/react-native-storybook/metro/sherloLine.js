@@ -50,6 +50,14 @@ var LINE_PATH = '/sherlo/line';
 var PROTOCOL_VERSION = 1;
 
 /**
+ * An id made once, as the bundler starts. The code this bundler serves carries it
+ * (./launchTimeEntry), the app says it on each wait for a capture, and a capture is refused to an
+ * app whose id is another or none: that app runs code built into it, or served by an earlier
+ * bundler, and its picture would show screens nobody is looking at.
+ */
+var BUNDLER_STAMP = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+
+/**
  * How long an app's wait is held before it is answered with nothing and the app asks again. Long
  * enough that the app is not asking constantly, short enough that an app that went quiet costs one
  * hold rather than for ever.
@@ -244,7 +252,9 @@ function createLine(settings) {
     if (question.action === 'whatIsOnScreen') reply(letterbox.whatIsOnScreen());
     if (question.action === 'readLogLines') {
       var restarts = captureRelay.restartsOfTheLatestCapture();
-      reply(restarts > 0 ? { lines: logFeed.drain(), restarts: restarts } : { lines: logFeed.drain() });
+      reply(
+        restarts > 0 ? { lines: logFeed.drain(), restarts: restarts } : { lines: logFeed.drain() }
+      );
     }
     return function nothingToWithdraw() {};
   }
@@ -680,7 +690,9 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     }
     var changed = storyFileChangedSince(app.javaScriptStartedAt());
     if (!changed) return null;
-    return typeof changed === 'string' ? 'the story file ' + changed + ' changed' : 'a story file changed';
+    return typeof changed === 'string'
+      ? 'the story file ' + changed + ' changed'
+      : 'a story file changed';
   }
 
   /** The instruction this app took is forgotten: it answered, so it did not start over. */
@@ -750,6 +762,8 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
       // The story files that threw as the app loaded them, kept as the app said them.
       brokenFiles: Array.isArray(said.brokenFiles) ? said.brokenFiles : [],
       mode: typeof said.mode === 'string' ? said.mode : '',
+      // The stamp of the code the app runs; null from code built into it, which carries none.
+      codeStamp: typeof said.codeStamp === 'string' ? said.codeStamp : null,
     };
     var answer = said.answer == null ? null : said.answer;
     // An app that waits again with no answer, after taking the instruction, started over.
@@ -845,6 +859,7 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
    *   checked. The refusal names the scenes the bundle holds, the way a story's names the stories.
    */
   function refusalOf(waiting, app, facts) {
+    if (facts.codeStamp !== BUNDLER_STAMP) return { kind: 'old-code', appStamp: facts.codeStamp };
     if (waiting.sceneId === undefined) {
       var lacksTheStory = facts.stories !== null && facts.stories.indexOf(waiting.storyId) === -1;
       return lacksTheStory ? noSuchStory(facts.stories, facts.brokenFiles, waiting.storyId) : null;
@@ -1036,4 +1051,5 @@ module.exports = {
   idPartOfTitle: idPartOfTitle,
   LINE_PATH: LINE_PATH,
   PROTOCOL_VERSION: PROTOCOL_VERSION,
+  BUNDLER_STAMP: BUNDLER_STAMP,
 };

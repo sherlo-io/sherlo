@@ -16,7 +16,7 @@ import * as path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SherloLine } from '../../metro/sherloLine';
 
-const { attach, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
+const { attach, BUNDLER_STAMP, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
 const ws = require('ws');
 const WebSocketServer = ws.WebSocketServer || ws.Server;
 
@@ -113,7 +113,9 @@ async function connectAnApp(running: RunningLine) {
 
   return {
     waitsForAStory: (saying: Message) => say({ action: 'waitForStory', ...saying }),
-    waitsForACapture: (saying: Message) => say({ action: 'waitForACapture', ...saying }),
+    // An app of the code this bundler serves says its stamp; a test of old code overrides it.
+    waitsForACapture: (saying: Message) =>
+      say({ action: 'waitForACapture', codeStamp: BUNDLER_STAMP, ...saying }),
     logs: (line: string) => say({ action: 'log', line }),
     /** The JavaScript starts again on this same connection, as it does after a reload. */
     startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),

@@ -15,10 +15,12 @@ import WebSocket, { WebSocketServer } from 'ws';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   attach,
+  BUNDLER_STAMP,
   LINE_PATH,
   PROTOCOL_VERSION,
 } from '../../../../react-native-storybook/metro/sherloLine';
 import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
+import { renderCapturedStory, type CapturedStory } from '../../render/capturedStory';
 import { STABILIZATION_SETTINGS } from '../bundlerLine';
 import { liveCaptureSocket } from '../captureSocket';
 
@@ -138,7 +140,9 @@ function appReports(
   saying: { mode: string; stories: string[]; answer: unknown }
 ): Promise<unknown> {
   const instruction = relay.app.nextInstruction();
-  relay.app.socket.send(JSON.stringify({ action: 'waitForACapture', ...saying }));
+  // An app of the code this bundler serves says its stamp.
+  const codeStamp = BUNDLER_STAMP;
+  relay.app.socket.send(JSON.stringify({ action: 'waitForACapture', codeStamp, ...saying }));
   return instruction;
 }
 
@@ -266,6 +270,31 @@ describe("the app's answer, read into this seam's own endings", () => {
         settings: STABILIZATION_SETTINGS,
       })
     ).toEqual({ kind: 'no-app' });
+  });
+
+  it('a story on an app running old code is refused with how to load the current code', async () => {
+    const r = await relay();
+    // The app runs the code built into it: its wait carries no stamp.
+    r.app.socket.send(
+      JSON.stringify({
+        action: 'waitForACapture',
+        mode: 'testing',
+        stories: [STORY_A],
+        answer: null,
+      })
+    );
+    await letTheRequestLand();
+
+    const answer = await liveCaptureSocket.captureStory({
+      storyId: STORY_A,
+      port: r.port,
+      settings: STABILIZATION_SETTINGS,
+    });
+
+    expect(answer).toMatchObject({ kind: 'no-app', why: 'old-code' });
+    const screen = renderCapturedStory({ ...answer, port: r.port } as CapturedStory).join('\n');
+    expect(screen).toContain('choose Reload');
+    expect(screen).not.toContain('no Sherlo app is attached');
   });
 
   it('the stories the app really has come back when it does not have the one asked for', async () => {
