@@ -13,6 +13,7 @@
  * `sherlo capture` finds no app waiting.
  */
 import { isDrivenByRunner } from './runnerWalk';
+import { codeStampOfThisApp } from './appMetadata';
 import bundledScenes from './bundledScenes';
 import { logTheLine, sendAndAwaitAnswer } from './connection/appLine';
 import { readStorybookChannel } from './getStorybook/storybookReads';
@@ -91,7 +92,12 @@ export function bundlerCapture(): CaptureTransport | null {
   return {
     waitForACapture: (saying) =>
       sendAndAwaitAnswer(
-        { action: 'waitForACapture', scenes: Object.keys(bundledScenes), ...saying },
+        {
+          action: 'waitForACapture',
+          scenes: Object.keys(bundledScenes),
+          codeStamp: codeStampOfThisApp(),
+          ...saying,
+        },
         'captureInstruction',
         ANSWER_TIMEOUT_MS
       ),

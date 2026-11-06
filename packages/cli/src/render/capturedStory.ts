@@ -14,6 +14,7 @@
 import chalk from 'chalk';
 import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
 import { moreLines } from './moreLines';
+import { noAppLines, type NoAppEnding } from './noAppLines';
 
 /** One view in the tree, as the screen needs it. */
 export type CapturedView = {
@@ -35,7 +36,7 @@ export type CapturedView = {
 /** How a run of `sherlo capture` ended, as the screen needs it. */
 export type CapturedStory =
   | { kind: 'no-bundler'; port: number }
-  | { kind: 'no-app'; port: number }
+  | NoAppEnding
   | {
       kind: 'no-such-story';
       storyId: string;
@@ -103,14 +104,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       ];
 
     case 'no-app':
-      return [
-        `${chalk.red('✖')}  A bundler is running on port ${chalk.bold(
-          String(state.port)
-        )}, and no Sherlo app is attached to it`,
-        '',
-        chalk.dim('Open the app on a device or simulator, then try again.'),
-        '',
-      ];
+      return noAppLines(state);
 
     case 'no-such-story':
       if (state.brokenFiles && state.brokenFiles.length > 0) {

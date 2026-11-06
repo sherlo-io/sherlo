@@ -6,6 +6,7 @@ import * as http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import {
   attach,
+  BUNDLER_STAMP,
   LINE_PATH,
   PROTOCOL_VERSION,
 } from '../../../../react-native-storybook/metro/sherloLine';
@@ -189,7 +190,15 @@ async function appOnTheLine(
 
 /** An app's wait for a capture, in `mode`, with the scene in its bundle. */
 function waitForACapture(mode: string, answer: unknown) {
-  return { action: 'waitForACapture', mode, stories: [SCENE], scenes: [SCENE], answer };
+  return {
+    action: 'waitForACapture',
+    mode,
+    stories: [SCENE],
+    scenes: [SCENE],
+    answer,
+    // The code the bundler serves now, as the launch entry stamps it.
+    codeStamp: BUNDLER_STAMP,
+  };
 }
 
 /** Long enough for what an app sent to land on the line. */
@@ -648,6 +657,41 @@ describe('a scene is captured and opened live', () => {
       }
     } finally {
       uninstall();
+    }
+  });
+
+  it('a scene on an app running old code ends before any picture, saying how to load the current code', async () => {
+    const line = await realLine();
+    const told: Instruction[] = [];
+    const apps: Awaited<ReturnType<typeof appOnTheLine>>[] = [];
+
+    // The launched app runs the code built into it: its wait carries no stamp.
+    const uninstall = launchingDevice(async () => {
+      const app = await appOnTheLine(line.port, (instruction) => told.push(instruction));
+      apps.push(app);
+      app.say({ ...waitForACapture('testing', null), codeStamp: undefined });
+      await landed();
+    });
+    try {
+      const ending = await captureLiveScene({
+        sceneId: SCENE,
+        port: line.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+      expect(ending).toMatchObject({ kind: 'no-app', why: 'old-code' });
+      expect((ending as { detail?: string }).detail).toContain('Reload');
+      // What the terminal shows is the reason and the reload step, not "no app is attached".
+      const screen = renderCapturedScene(capturedSceneEnding(ending, line.port)).join('\n');
+      expect(screen).toContain('runs the code built into it');
+      expect(screen).toContain('choose Reload');
+      expect(screen).not.toContain('no Sherlo app is attached');
+      // The app was let go with an empty instruction, never handed the scene to walk.
+      expect(told).toEqual([{}]);
+    } finally {
+      uninstall();
+      apps.forEach((app) => app.leave());
+      line.close();
     }
   });
 

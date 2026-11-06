@@ -95,13 +95,14 @@ export const liveLetterbox: Letterbox = {
     });
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
-    if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
     if (answer.kind === 'gave-up-waiting') {
       // Nobody answered in time. On a `--wait` the story was posted before the silence began and
       // the app may still be loading it, which is the same ending as the bundler's own wait
       // running out; without one there is nothing to say the address was ever reached.
       return wait ? { kind: 'handed-over', storyId, rendered: 'timed-out' } : { kind: 'no-app' };
     }
+    // Not Sherlo's words. (The line never answers `old-code` here: opening a story sends no stamp.)
+    if (answer.kind !== 'said') return { kind: 'no-app' };
 
     return readOpenStoryAnswer(answer.reply, storyId);
   },

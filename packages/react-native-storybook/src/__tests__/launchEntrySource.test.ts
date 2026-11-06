@@ -49,7 +49,7 @@ const {
   APP_SIDE_REQUEST,
   STORYBOOK_SIDE_REQUEST,
 } = require('../../metro/launchTimeEntry');
-const { attach, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
+const { attach, BUNDLER_STAMP, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
 const ws = require('ws');
 
 // The bundle holds the scene these captures ask for, as Sherlo's bundler writes its list.
@@ -334,6 +334,9 @@ describe('the generated launch entry', () => {
     };
     const settings = { requiredMatches: 3, minScreenshotsCount: 6, intervalMs: 500 };
     const line = await aBundlersLineWithTheAppOnIt();
+    // The app's code is the code this bundler serves: its launch entry set the stamp.
+    const globals = globalThis as Record<string, unknown>;
+    globals.__SHERLO_CODE_STAMP__ = BUNDLER_STAMP;
 
     try {
       // The core waits on the line; with no Storybook it cannot list stories.
@@ -353,6 +356,7 @@ describe('the generated launch entry', () => {
       await line.carryTheAppsLatestMessage();
       await expect(reply).resolves.toEqual(recorded);
     } finally {
+      delete globals.__SHERLO_CODE_STAMP__;
       line.close();
     }
   });

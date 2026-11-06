@@ -23,6 +23,7 @@ import {
   settledLine,
 } from './capturedStory';
 import type { CapturedView } from './capturedStory';
+import type { NoAppEnding } from './noAppLines';
 import { leftLines } from './sceneLeftLines';
 import { phoneNotAppliedLines } from './phoneNotAppliedLines';
 import { neverReachedLines } from './sceneDiagnosis';
@@ -142,11 +143,7 @@ export type SceneEnding =
     } & SceneLeft);
 
 /** How a run of `sherlo capture --scene` ended, as the screen needs it. */
-export type CapturedScene = (
-  | { kind: 'no-bundler'; port: number }
-  | { kind: 'no-app'; port: number }
-  | SceneEnding
-) & {
+export type CapturedScene = ({ kind: 'no-bundler'; port: number } | NoAppEnding | SceneEnding) & {
   /** The scene was a discover capture: its unanswered requests are the result, listed as rules. */
   discover?: true;
 };

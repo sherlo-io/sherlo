@@ -21,6 +21,9 @@ export declare const LINE_PATH: '/sherlo/line';
 /** The version of the message set the line speaks; the seam's SHERLO_PROTOCOL_VERSION is equal. */
 export declare const PROTOCOL_VERSION: number;
 
+/** An id made once as the bundler starts; the code it serves carries it. */
+export declare const BUNDLER_STAMP: string;
+
 /* ---- What the app says to the bundler's relays, and what they answer ------------------------- */
 
 /** `sherlo open`'s road: the app's BundlerLetterbox wait, over the line. */
@@ -35,9 +38,12 @@ export type LetterboxAnswerMessage = { action: 'letterboxAnswer' } & LetterboxAn
  * `sherlo capture`'s road: the app's CaptureTransport wait, over the line, with the ids of the
  * scenes the app's bundle holds (src/captureTransport.ts). An SDK that does not say them sends none.
  */
-export type WaitForACaptureMessage = { action: 'waitForACapture'; scenes?: string[] } & Parameters<
-  CaptureTransport['waitForACapture']
->[0];
+export type WaitForACaptureMessage = {
+  action: 'waitForACapture';
+  scenes?: string[];
+  /** The stamp of the code the app runs; none from code built into it. */
+  codeStamp?: string;
+} & Parameters<CaptureTransport['waitForACapture']>[0];
 
 /** The capture relay's answer to a WaitForACaptureMessage. */
 export type CaptureInstructionMessage = { action: 'captureInstruction' } & CaptureInstruction;
@@ -110,6 +116,13 @@ export type CaptureStoryQuestion =
       launchedAt?: number;
     };
 
+/**
+ * The line's refusal of a capture for an app whose code is not the code this bundler serves: it runs
+ * code built into it, or code served by an earlier bundler. `appStamp` is what the app said, null
+ * when it said none. A driver's tool lifts it into its own answer (cli/src/seams/bundlerLine.ts).
+ */
+export type OldCodeReply = { kind: 'old-code'; appStamp: string | null };
+
 export type CaptureStoryReply =
   | CapturedAnswer
   | { kind: 'no-app' }
@@ -156,7 +169,12 @@ export type QuestionMessage = Question & { askId?: string };
 export type ReplyMessage = {
   action: 'reply';
   askId?: string;
-  reply: OpenStoryReply | WhatIsOnScreenReply | CaptureStoryReply | ReadLogLinesReply;
+  reply:
+    | OpenStoryReply
+    | WhatIsOnScreenReply
+    | CaptureStoryReply
+    | OldCodeReply
+    | ReadLogLinesReply;
 };
 
 /* ---- The line ------------------------------------------------------------------------------- */

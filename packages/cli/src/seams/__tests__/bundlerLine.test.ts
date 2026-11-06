@@ -5,8 +5,14 @@
 import http from 'http';
 import type { AddressInfo } from 'net';
 import { afterEach, describe, expect, it } from 'vitest';
-import { WebSocketServer } from 'ws';
-import { LINE_PATH, PROTOCOL_VERSION } from '../../../../react-native-storybook/metro/sherloLine';
+import WebSocket, { WebSocketServer } from 'ws';
+import {
+  attach,
+  BUNDLER_STAMP,
+  LINE_PATH,
+  PROTOCOL_VERSION,
+} from '../../../../react-native-storybook/metro/sherloLine';
+import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
 import { askTheBundlerLine } from '../bundlerLine';
 
 let server: http.Server | undefined;
@@ -59,5 +65,50 @@ describe('asking the bundler line', () => {
 
     expect(first).toEqual({ kind: 'said', reply: { kind: 'no-app' } });
     expect(second).toEqual({ kind: 'said', reply: { kind: 'no-app' } });
+  });
+
+  it("an app whose stamp is not the running bundler's is answered as running old code", async () => {
+    const bundler = http.createServer((_request, response) => {
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ protocolVersion: PROTOCOL_VERSION }));
+    });
+    server = bundler;
+    attach(bundler, WebSocketServer as unknown as WebSocketServerClass);
+    await new Promise<void>((resolve) => bundler.listen(0, resolve));
+    const port = (bundler.address() as AddressInfo).port;
+
+    // An app of an earlier bundler: it says hello, then waits for a capture with another stamp.
+    const app = new WebSocket(`ws://localhost:${port}${LINE_PATH}`);
+    await new Promise((opened) => app.once('open', opened));
+    app.send(
+      JSON.stringify({
+        action: 'hello',
+        protocolVersion: PROTOCOL_VERSION,
+        nativeVersion: 'test',
+        jsVersion: null,
+      })
+    );
+    app.send(
+      JSON.stringify({
+        action: 'waitForACapture',
+        mode: 'testing',
+        stories: null,
+        answer: null,
+        codeStamp: 'an-earlier-bundler',
+      })
+    );
+    await new Promise((landed) => setTimeout(landed, 50));
+    try {
+      const answer = await askTheBundlerLine({
+        port,
+        question: { action: 'captureStory', sceneId: 'chat--conversation' },
+        patienceMs: 3000,
+      });
+
+      expect(BUNDLER_STAMP).not.toBe('an-earlier-bundler');
+      expect(answer).toEqual({ kind: 'old-code', appStamp: 'an-earlier-bundler' });
+    } finally {
+      app.terminate();
+    }
   });
 });

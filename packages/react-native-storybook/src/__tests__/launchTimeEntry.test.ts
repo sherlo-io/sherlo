@@ -22,7 +22,10 @@ const {
   findAppEntry,
   APP_SIDE_REQUEST,
   STORYBOOK_SIDE_REQUEST,
+  CODE_STAMP_GLOBAL,
+  launchEntrySource,
 } = require('../../metro/launchTimeEntry');
+const { BUNDLER_STAMP } = require('../../metro/sherloLine');
 const { sherloCacheFolder } = require('../../metro/projectPaths');
 
 type WrapperCall = { wrapper: 'older' | 'newer'; options: Record<string, unknown> };
@@ -281,6 +284,24 @@ describe('the launch-time entry', () => {
       "src/App.js imports the Storybook entry file. On Storybook's default setup, Sherlo loads " +
         'Storybook itself, so remove that import.'
     );
+  });
+
+  it('the served code carries the stamp of the bundler that served it', () => {
+    const root = defaultSetupRoot;
+    const served = fs.readFileSync(launchEntryFile(root), 'utf8');
+
+    // The launch entry sets the global the app reads its stamp from, before anything else runs.
+    const sandbox: Record<string, unknown> = {};
+    vm.runInNewContext(
+      served
+        .split("require('@sherlo/react-native-storybook');")[0]
+        .replace('globalThis', 'sandbox'),
+      { sandbox }
+    );
+    expect(sandbox[CODE_STAMP_GLOBAL]).toBe(BUNDLER_STAMP);
+
+    // Code built into an app is made with no stamp.
+    expect(launchEntrySource('app-and-storybook', true)).not.toContain(CODE_STAMP_GLOBAL);
   });
 
   it("a web bundle keeps the app's entry", () => {

@@ -190,7 +190,12 @@ describe('the early-boot module starts the test session of an app with scenes an
 });
 
 describe('a launch on a scene the bundle does not hold', () => {
-  const { attach, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
+  const {
+    attach,
+    BUNDLER_STAMP,
+    LINE_PATH,
+    PROTOCOL_VERSION,
+  } = require('../../metro/sherloLine.js');
   const ws = require('ws');
   const toClose: Array<() => void> = [];
 
@@ -236,6 +241,9 @@ describe('a launch on a scene the bundle does not hold', () => {
     await appWithAScene();
     await import('../sceneBoot');
     const { bundlerCapture } = await import('../captureTransport');
+    // The app's code is the code this bundler serves: its launch entry set the stamp.
+    (globalThis as Record<string, unknown>).__SHERLO_CODE_STAMP__ = BUNDLER_STAMP;
+    toClose.push(() => delete (globalThis as Record<string, unknown>).__SHERLO_CODE_STAMP__);
     void bundlerCapture()?.waitForACapture({ mode: 'testing', stories: null, answer: null });
 
     const bundler = await theBundlersLine();
