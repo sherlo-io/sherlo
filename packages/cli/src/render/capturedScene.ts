@@ -27,6 +27,7 @@ import type { NoAppEnding } from './noAppLines';
 import { leftLines } from './sceneLeftLines';
 import { phoneNotAppliedLines } from './phoneNotAppliedLines';
 import { neverReachedLines } from './sceneDiagnosis';
+import { threwLines } from './threwLines';
 import type { SceneStop } from './sceneStop';
 import type { AnswerFinding, LikelyCause, UnansweredRequest } from '../seams/readAppAnswer';
 
@@ -91,7 +92,16 @@ export type SceneEnding =
   | ({
       kind: 'crashed-mid-capture';
       sceneId: string;
-      error?: { name: string; message: string };
+      error?: {
+        name: string;
+        message: string;
+        /** Where the crash came from in the app's source, and the data it was reading. */
+        file?: string;
+        line?: number;
+        dataPath?: string;
+        /** The stack's top frames, as the app sent them, until they are read through the bundler. */
+        topFrames?: string[];
+      };
     } & SceneLeft)
   /** The app booted, and the scene's ready view never showed; `stayedOn` is the route the app was on. */
   | ({
@@ -208,7 +218,7 @@ function sceneLines(state: CapturedScene): string[] {
           state.sceneId
         )} failed after it booted - the capture stopped before it finished`,
         '',
-        ...(state.error ? [errorLine(state.error)] : [chalk.dim(NOTHING_BEFORE_DEATH)]),
+        ...(state.error ? threwLines(state.error, undefined) : [chalk.dim(NOTHING_BEFORE_DEATH)]),
         ...leftLines(state),
         '',
       ];

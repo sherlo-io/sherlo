@@ -880,6 +880,57 @@ describe('a capture of an app whose JavaScript died as it started', () => {
   });
 });
 
+describe('a bundle the bundler cannot build', () => {
+  const SCENE = 'Inbox';
+  const FAILURE = {
+    kind: 'syntax',
+    message: 'Unexpected token',
+    file: 'src/Inbox.tsx',
+    line: 12,
+    column: 3,
+  };
+
+  it('the bundler sends a does-not-build answer to the waiting CLI instead of closing the line', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    await app.waitsForACapture({ mode: 'testing', stories: null, scenes: [SCENE], answer: null });
+    const reply = driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+
+    running.line.bundleDoesNotBuild(FAILURE);
+
+    await expect(reply).resolves.toEqual({
+      kind: 'bundle-does-not-build',
+      sceneId: SCENE,
+      failure: FAILURE,
+    });
+  });
+
+  it('a capture asked while the bundle does not build is answered at once, with no app waiting', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    running.line.bundleDoesNotBuild(FAILURE);
+
+    await expect(
+      driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS })
+    ).resolves.toEqual({ kind: 'bundle-does-not-build', sceneId: SCENE, failure: FAILURE });
+  });
+
+  it('CONTROL: a bundle that built again is no longer answered as failing', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    running.line.bundleDoesNotBuild(FAILURE);
+    running.line.bundleBuilt();
+    await app.waitsForACapture({ mode: 'testing', stories: null, scenes: [SCENE], answer: null });
+
+    driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+
+    await expect(app.nextCaptureInstruction()).resolves.toMatchObject({ sceneId: SCENE });
+  });
+});
+
 describe("the app's log lines land in the feed for the next reader", () => {
   it('hands a reader every line posted so far, oldest first', async () => {
     const running = await startALine();
