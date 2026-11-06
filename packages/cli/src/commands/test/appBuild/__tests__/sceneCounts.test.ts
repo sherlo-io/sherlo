@@ -21,15 +21,23 @@ import { renderVerdictPassed } from '../../../../render/verdictCloser';
 import {
   countBundleScenes,
   countBundleStories,
+  countStoriesIn,
+  titledStoryFilesIn,
   validateModuleManifestBuffer,
 } from '../../readModuleManifest';
 import { pushFactsOf } from '../pushFacts';
 
-/** A module map as the serializer writes it, holding the given scenes and no stories. */
-function moduleMapHolding(sceneIds: string[]) {
+/**
+ * A module map as the serializer writes it, holding the given scenes and story files: a scene
+ * file is a key of `storyClosures` beside them.
+ */
+function moduleMapHolding(sceneIds: string[], storyFiles: string[] = []) {
+  const storyClosures = Object.fromEntries(
+    [...storyFiles, './src/Inbox.scenes.tsx'].map((file) => [file, []])
+  );
   const manifest = validateModuleManifestBuffer(
     Buffer.from(
-      JSON.stringify({ version: 1, header: {}, moduleHashes: {}, storyClosures: {}, sceneIds })
+      JSON.stringify({ version: 1, header: {}, moduleHashes: {}, storyClosures, sceneIds })
     )
   );
   return manifest!;
@@ -58,6 +66,35 @@ describe('a push counts scenes beside stories', () => {
       env: {},
     });
     expect(facts.platforms.android).toEqual({ storiesInBundle: 0, scenesInBundle: 2 });
+  });
+
+  it('a module map of two story files and one scene file counts 2 stories, never 3', () => {
+    const moduleMap = moduleMapHolding(
+      ['inbox--full'],
+      ['./src/Button.stories.tsx', './src/Card.stories.tsx']
+    );
+
+    expect(countBundleStories(moduleMap)).toBe(2);
+    expect(countBundleScenes(moduleMap)).toBe(1);
+  });
+
+  it('a partial capture holding one changed scene file counts 0 stories and lists no story row', () => {
+    const moduleMap = validateModuleManifestBuffer(
+      Buffer.from(
+        JSON.stringify({
+          version: 1,
+          header: {},
+          moduleHashes: {},
+          storyClosures: { './src/Home.scenes.tsx': [] },
+          storyCounts: { './src/Home.scenes.tsx': 3 },
+          sceneIds: ['home--a', 'home--b', 'home--c'],
+        })
+      )
+    )!;
+
+    expect(countStoriesIn(moduleMap, ['src/Home.scenes.tsx'])).toBe(0);
+    expect(titledStoryFilesIn(moduleMap)).toEqual([]);
+    expect(countBundleScenes(moduleMap)).toBe(3);
   });
 
   it('an app of scenes only is a valid push', async () => {

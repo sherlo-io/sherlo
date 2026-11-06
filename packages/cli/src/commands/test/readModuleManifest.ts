@@ -239,7 +239,17 @@ export function countBundleScenes(manifest: ValidatedModuleManifest): number {
  */
 export function countStoriesIn(manifest: ValidatedModuleManifest, files: string[]): number {
   const counts = manifest.parsed.storyCounts;
-  return files.reduce((total, file) => total + (counts?.[file] ?? 1), 0);
+  return files.filter(isStoryFile).reduce((total, file) => total + (counts?.[file] ?? 1), 0);
+}
+
+/**
+ * A scene file is a key of the module map too, and is no story: it is told by the SDK's own rule,
+ * a plain script that loads only when asked.
+ */
+function isStoryFile(file: string): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isSceneFile } = require('../../../../react-native-storybook/metro/sourceFiles');
+  return !isSceneFile(file);
 }
 
 /**
@@ -251,16 +261,16 @@ export function titledStoryFilesIn(
 ): Array<{ storyFile: string; title?: string; stories?: number }> {
   const { storyTitles = {}, storyCounts = {} } = manifest.parsed;
   const storyFiles = new Set([...Object.keys(storyTitles), ...Object.keys(storyCounts)]);
-  return [...storyFiles].map((storyFile) => ({
+  return [...storyFiles].filter(isStoryFile).map((storyFile) => ({
     storyFile,
     ...(storyTitles[storyFile] !== undefined ? { title: storyTitles[storyFile] } : {}),
     ...(storyCounts[storyFile] !== undefined ? { stories: storyCounts[storyFile] } : {}),
   }));
 }
 
-/** Every story file the bundle holds. */
+/** Every story file the bundle holds: a scene file is no story. */
 export function bundleStoryFiles(manifest: ValidatedModuleManifest): string[] {
-  return Object.keys(manifest.parsed.storyClosures).map(bareStoryPath);
+  return Object.keys(manifest.parsed.storyClosures).filter(isStoryFile).map(bareStoryPath);
 }
 
 export default readValidatedModuleManifest;
