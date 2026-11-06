@@ -261,6 +261,15 @@ describe('what a scene left behind', () => {
     expect(printed).toContain('Fix: give account.profiles.0.ageRange as a list');
   });
 
+  it('a scene that went to sign-in says nothing faked who is logged in, even when it has a last run', () => {
+    const printed = neverReached({
+      lastRun: { ending: 'captured', route: ['ChatStack', 'ChatList'], refused: 0 },
+    });
+
+    expect(printed).toContain('Since the last run of this scene:');
+    expect(printed).toContain('Nothing faked who is logged in');
+  });
+
   it('says what changed since the last run, only the rows that changed', () => {
     const printed = neverReached({
       stayedOn: ['ChatStack', 'ChatList'],

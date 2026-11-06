@@ -14,7 +14,6 @@ export function explainsTheStop(left: SceneLeft & { stop?: SceneStop }): boolean
     left.mockNotApplied?.length ||
     left.unanswered?.length ||
     left.loggedErrors?.messages.length ||
-    left.answerFindings?.length ||
-    left.lastRun
+    left.answerFindings?.length
   );
 }

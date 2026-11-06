@@ -38,7 +38,7 @@ describe('the stop the record carries for a scene that never got ready', () => {
   it('guesses sign-in only when nothing else in the record explains the stop', () => {
     expect(explainsTheStop({})).toBe(false);
     expect(explainsTheStop({ stop: { kind: 'blank', screen: EMPTY_SCREEN } })).toBe(true);
-    expect(explainsTheStop({ lastRun: { ending: 'captured', route: [], refused: 0 } })).toBe(true);
+    expect(explainsTheStop({ lastRun: { ending: 'captured', route: [], refused: 0 } })).toBe(false);
   });
 
   it('prints the blank-screen next step for a blank stop, and for a covered one that drew nothing', () => {
