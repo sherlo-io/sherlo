@@ -2432,6 +2432,9 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           expectOneOf(object13.platform, ['android', 'ios'], at(where12, 'platform'), problems);
           expectBoolean(object13.full, at(where12, 'full'), problems);
           expectNumber(object13.capturedStories, at(where12, 'capturedStories'), problems);
+          if ('capturedScenes' in object13) {
+            expectNumber(object13.capturedScenes, at(where12, 'capturedScenes'), problems);
+          }
           if ('storiesInBundle' in object13) {
             expectNumber(object13.storiesInBundle, at(where12, 'storiesInBundle'), problems);
           }
@@ -2485,6 +2488,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
               'platform',
               'full',
               'capturedStories',
+              'capturedScenes',
               'storiesInBundle',
               'scenesInBundle',
               'reason',

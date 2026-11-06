@@ -612,26 +612,20 @@ function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
  * PRINTING half of the finished branch for a build the server marked
  * `showsOnlyBranchChanges` - the sparse-build redesign's CLI half, and the
  * ONLY new closing path in this file. The DECIDING half lives inline in
- * {@link decideTerminalState}, which calls {@link decideSparseBuildVerdict}
- * directly for just its exit code; this function re-derives the same verdict
- * to emit its words, called only once {@link decideTerminalState} has already
- * confirmed the build terminal.
+ * {@link decideTerminalState}, which calls {@link decideSparseBuildVerdict} for
+ * just its exit code; this function re-derives the same verdict to emit its
+ * words, once {@link decideTerminalState} has confirmed the build terminal.
  *
- * It emits the same frame every closer in this loop has always sat inside (one
- * blank line above, one below), and inside it either the sparse verdict's
+ * It emits the frame every closer sits inside (a blank line above and below), and inside it either the sparse verdict's
  * segments or - when the build is one the SERVER closed without a device run -
  * that build's existing compact closer, carrying the server's own prose. The
  * bypass keeps precedence deliberately: it is a MORE specific green than
- * `noChanges`, it already ships, and a project that opted into sparse builds
- * must not lose the one sentence the CLI has that explains why nothing ran.
- * Its exit code is `EXIT_GREEN` on both paths, so precedence changes the words
- * and never the verdict.
+ * `noChanges`, and a project that opted into sparse builds must not lose the one
+ * sentence that explains why nothing ran. Its exit code is `EXIT_GREEN` on both
+ * paths, so precedence changes the words and never the verdict.
  *
- * A `null` verdict here (the counts race the ungated branch also guards
- * against) is unreachable in practice - the caller only ever reaches this
- * function after {@link decideTerminalState} decided the SAME build terminal
- * off the SAME check - and is treated as "print nothing" rather than assumed
- * impossible, because a false closer is the one answer that must never be
+ * A `null` verdict (the counts race) is unreachable here, as {@link decideTerminalState} decided
+ * the SAME build terminal off the SAME check; it prints nothing, as a false closer must never be
  * reachable by accident.
  */
 function printSparseCloser(
@@ -652,15 +646,21 @@ function printSparseCloser(
 
   printTestFinished(howItRan);
   emit({ kind: 'blank-line' });
+  const holds = readBuildScreenKind(build);
   for (const segment of verdict.segments) {
-    emit(namingTheTest(segment, howItRan.testIndex));
+    emit(namingTheTest(segment, howItRan.testIndex, holds));
   }
   emit({ kind: 'blank-line' });
 }
 
-/** The sparse verdict's "nothing was recorded" section names the test it is about. */
-function namingTheTest(segment: TranscriptSegment, testIndex: number): TranscriptSegment {
-  return segment.kind === 'verdict-nothing-recorded' ? { ...segment, testIndex } : segment;
+/** The sparse verdict's sections name the test they are about and the screens the build holds. */
+function namingTheTest(
+  segment: TranscriptSegment,
+  testIndex: number,
+  holds: ScreenKind
+): TranscriptSegment {
+  if (segment.kind === 'verdict-nothing-recorded') return { ...segment, testIndex };
+  return segment.kind === 'verdict-review-required' ? { ...segment, holds } : segment;
 }
 
 /**
