@@ -2590,9 +2590,109 @@ function readStagedGateAnswer(value: unknown, path: string, problems: string[]):
     if ('storedBuildIndex' in object1) {
       expectNumber(object1.storedBuildIndex, at(path, 'storedBuildIndex'), problems);
     }
+    if ('sameCodeBuildIndex' in object1) {
+      expectNumber(object1.sameCodeBuildIndex, at(path, 'sameCodeBuildIndex'), problems);
+    }
+    if ('buildReason' in object1) {
+      expectOneOf(
+        object1.buildReason,
+        ['nothing-stored', 'native-changed'],
+        at(path, 'buildReason'),
+        problems
+      );
+    }
+    if ('refusalReasons' in object1) {
+      const where6 = at(path, 'refusalReasons');
+      const list7 = asArray(object1.refusalReasons, where6, problems);
+      if (list7) {
+        list7.forEach((entry8, index9) => {
+          const oneOf10 = entry8;
+          const where11 = atIndex(where6, index9);
+          if (isPlainObject(oneOf10)) {
+            if (oneOf10.kind === 'identity-diff') {
+              const object12 = asObject(oneOf10, where11, problems);
+              if (object12) {
+                expectOneOf(
+                  object12.dimension,
+                  [
+                    'engineClass',
+                    'assetInventory',
+                    'expoUpdatesEnabled',
+                    'sdkProtocolVersion',
+                    'buildMetadata',
+                    'bundleFormat',
+                  ],
+                  at(where11, 'dimension'),
+                  problems
+                );
+                expectOneOf(
+                  object12.incomingDerivation,
+                  ['binary', 'none', 'source'],
+                  at(where11, 'incomingDerivation'),
+                  problems
+                );
+                expectLiteral(object12.kind, 'identity-diff', at(where11, 'kind'), problems);
+                expectOneOf(
+                  object12.storedDerivation,
+                  ['binary', 'none', 'source'],
+                  at(where11, 'storedDerivation'),
+                  problems
+                );
+                reportUnknownFields(
+                  object12,
+                  ['dimension', 'incomingDerivation', 'kind', 'storedDerivation'],
+                  where11,
+                  problems
+                );
+              }
+            } else if (oneOf10.kind === 'compatibility') {
+              const object13 = asObject(oneOf10, where11, problems);
+              if (object13) {
+                expectLiteral(
+                  object13.code,
+                  'sdk-protocol-incompatible',
+                  at(where11, 'code'),
+                  problems
+                );
+                expectLiteral(object13.kind, 'compatibility', at(where11, 'kind'), problems);
+                reportUnknownFields(object13, ['code', 'kind'], where11, problems);
+              }
+            } else if (oneOf10.kind === 'base-file-missing') {
+              const object14 = asObject(oneOf10, where11, problems);
+              if (object14) {
+                expectLiteral(object14.kind, 'base-file-missing', at(where11, 'kind'), problems);
+                reportUnknownFields(object14, ['kind'], where11, problems);
+              }
+            } else {
+              reportUnknownName(
+                oneOf10.kind,
+                ['identity-diff', 'compatibility', 'base-file-missing'],
+                at(where11, 'kind'),
+                problems
+              );
+            }
+          } else {
+            reportWrongShape(
+              oneOf10,
+              "`{ dimension: 'engineClass' | 'assetInventory' | 'expoUpdatesEnabled' | 'sdkProtocolVersion' | 'buildMetadata' | 'bundleFormat'; incomingDerivation: 'binary' | 'none' | 'source'; kind: 'identity-diff'; storedDerivation: 'binary' | 'none' | 'source' }`, `{ code: 'sdk-protocol-incompatible'; kind: 'compatibility' }` or `{ kind: 'base-file-missing' }`",
+              where11,
+              problems
+            );
+          }
+        });
+      }
+    }
     reportUnknownFields(
       object1,
-      ['outcome', 'diff', 'storedBase', 'storedBuildIndex'],
+      [
+        'outcome',
+        'diff',
+        'storedBase',
+        'storedBuildIndex',
+        'sameCodeBuildIndex',
+        'buildReason',
+        'refusalReasons',
+      ],
       path,
       problems
     );
