@@ -18,6 +18,8 @@ import { isTarget } from './deviceState';
 import type { NoTarget, PhoneFound, SceneTarget } from './deviceState';
 import { launchFresh } from './launchScene';
 import { keptLeft, readLikelyCause } from './readAppAnswer';
+import { wholeScrollOfTheScene } from './scrollParts';
+import type { WholeScroll } from './scrollParts';
 import { endingOfStillScreen, STILL_LIMIT, waitForStillScreen } from './stillScreen';
 import type { StillLimit } from './stillScreen';
 
@@ -70,6 +72,8 @@ export type SceneCaptureResult = (
 ) & {
   /** Sherlo's own log lines from the app since it booted, drained from the bundler's feed after the answer. */
   logs?: string[];
+  /** The scene's picture when it was asked for whole: the joined scroll, or the first screen and why. */
+  scroll?: WholeScroll;
 };
 
 /** A scene that came up and kept its picture, and had a request refused: it is not a complete one. */
@@ -88,6 +92,8 @@ export type SceneCaptureParams = {
   discover?: boolean;
   /** How long the screen may sit still before the scene ends without the app's answer. */
   onStill?: StillLimit;
+  /** Shoot the scene whole, as one tall picture of its scroll, once it came up (`scroll` on the answer). */
+  wholeScroll?: boolean;
 };
 
 /**
@@ -96,7 +102,7 @@ export type SceneCaptureParams = {
  * for the `onStill` limit ends the scene before the app's own patience runs out.
  */
 export async function captureLiveScene(params: SceneCaptureParams): Promise<SceneCaptureResult> {
-  const { sceneId, port, settings, target, discover, onStill = STILL_LIMIT } = params;
+  const { sceneId, port, settings, target, discover, wholeScroll, onStill = STILL_LIMIT } = params;
   if (!isTarget(target)) return { kind: 'no-app', why: target.cause, found: target.found };
 
   const launchedAt = await launchFresh(target, sceneId, port, discover);
@@ -180,8 +186,14 @@ export async function captureLiveScene(params: SceneCaptureParams): Promise<Scen
       return withStageLines({ kind: 'no-app', why: 'never-said-hello' }, port, lines);
     }
 
+    // The scene is still on screen: its picture is the whole scroll, taken before the logs are drained.
+    const scroll =
+      wholeScroll && (ending.kind === 'scene' || ending.kind === 'incomplete')
+        ? await wholeScrollOfTheScene(target.device, port)
+        : undefined;
     const logs = [...lines, ...(await drainAppLog(port))];
-    return logs.length > 0 ? { ...ending, logs } : ending;
+    const shot = scroll ? { ...ending, scroll } : ending;
+    return logs.length > 0 ? { ...shot, logs } : shot;
   }
 }
 

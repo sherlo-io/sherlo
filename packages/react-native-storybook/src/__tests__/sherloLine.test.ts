@@ -117,6 +117,10 @@ async function connectAnApp(running: RunningLine) {
     waitsForACapture: (saying: Message) =>
       say({ action: 'waitForACapture', codeStamp: BUNDLER_STAMP, ...saying }),
     logs: (line: string) => say({ action: 'log', line }),
+    /** Any other message of the app's, once the line has heard it. */
+    says: say,
+    /** The next message of `action` the line sends this app. */
+    nextMessage: (action: string) => app.next((m) => m.action === action),
     /** The JavaScript starts again on this same connection, as it does after a reload. */
     startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),
     /** The app's socket closes. */
@@ -1052,5 +1056,30 @@ describe('a scene capture whose app starts over after taking its instruction', (
       `${started} the story file src/inbox/Inbox.stories.tsx changed.`,
     ]);
     expect(await startedOverBecause(true)).toEqual([`${started} a story file changed.`]);
+  });
+});
+
+describe('a driver asks the newest app about its scroll', () => {
+  it('the ask goes to the newest app under a name, and the driver is told what the app answered', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    // The line has the app once its hello is heard: a log line comes after it.
+    await app.logs('hello');
+
+    const reply = driver.ask({ action: 'askTheApp', ask: { action: 'is-scrollable' } });
+    const asked = await app.nextMessage('is-scrollable');
+    await app.says({ action: 'scroll-answer', askId: asked.askId, scrollable: true });
+
+    await expect(reply).resolves.toEqual({ kind: 'answered', answer: { scrollable: true } });
+  });
+
+  it('the ask finds no app when none has said hello', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+
+    await expect(
+      driver.ask({ action: 'askTheApp', ask: { action: 'is-scrollable' } })
+    ).resolves.toEqual({ kind: 'no-app' });
   });
 });

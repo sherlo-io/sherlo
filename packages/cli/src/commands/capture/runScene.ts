@@ -4,6 +4,7 @@
  * The screen is the caller's: this runs the clean device, asks the app through the capture socket,
  * saves the pictures and keeps the record, and hands the answer back for the caller to print.
  */
+import * as fs from 'fs';
 import { DISCOVER_OPTION, PNG_OPTION, PORT_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
 import getCwd from '../../helpers/getCwd';
@@ -38,6 +39,7 @@ import { nameSendersByCode } from '../../seams/senderByCode';
 import { symbolicateStacks } from '../../seams/symbolicateStack';
 import { incompleteIfRefused } from '../../seams/liveScene';
 import type { SceneCaptureResult } from '../../seams/liveScene';
+import type { WholeScroll } from '../../seams/scrollParts';
 import type { ScenePicture } from '../../render/capturedScene';
 import type { CaptureOptions } from './captureOptions';
 
@@ -99,6 +101,7 @@ async function runOpenScene(
   let answer: SceneCaptureResult;
   let notApplied: PhoneNotApplied[] = [];
   let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
+  let scroll: WholeScroll | undefined;
   const startedAt = Date.now();
   try {
     if (isTarget(target) && installed) notApplied = await applySceneDevice(target, phone);
@@ -109,8 +112,12 @@ async function runOpenScene(
           settings: STABILIZATION_SETTINGS,
           target,
           discover,
+          // A discover capture takes no picture, so it has no scroll to shoot.
+          wholeScroll: !discover,
         })
       : { kind: 'no-app', why: 'not-installed' };
+    // The picture of the whole scroll is saved below; the record keeps only whether it is the first screen alone.
+    ({ scroll, ...answer } = answer);
     // What an emulator's proxy refused is listed with what the app itself refused.
     const refusedByProxy = refusedByTheProxy();
     if ((sceneCameUp(answer) || answer.kind === 'never-reached') && refusedByProxy.length > 0) {
@@ -125,7 +132,7 @@ async function runOpenScene(
     }
     // The screen as the app left it: the clean device's put-back below would show the home screen.
     if (picture && sceneCameUp(answer) && isTarget(target)) {
-      picture = await savePicture(target.device, picture.path);
+      picture = await savePicture(target.device, picture.path, scroll);
     }
     // The kept picture is of the screen the app ended on: a scene never reached keeps where it stayed.
     // A discover capture takes no picture: it holds requests, so its scene often never gets ready by design.
@@ -134,13 +141,17 @@ async function runOpenScene(
       answer.kind === 'never-settled' ||
       (answer.kind === 'never-reached' && !discover);
     if (keptFolder && endedOnAScreen && isTarget(target)) {
-      await savePicture(target.device, keptFolder.screenPath);
+      await savePicture(target.device, keptFolder.screenPath, scroll);
     }
   } finally {
     await restore?.();
   }
   const saved = picture && !picture.error && sceneCameUp(answer) ? { png: picture.path } : {};
   const listed = discover ? { discover: true } : {};
+  // A picture that is the first screen alone says so, and why.
+  const firstScreenOnly = scroll?.firstScreenOnly
+    ? { firstScreenOnly: scroll.firstScreenOnly }
+    : {};
   // What the phone could not take is listed beside the other things the scene left (render/phoneNotAppliedLines).
   if (notApplied.length > 0 && ENDING_CARRIES_SCENE_LEFT[answer.kind]) {
     answer = { ...answer, phoneNotApplied: notApplied } as SceneCaptureResult;
@@ -152,6 +163,7 @@ async function runOpenScene(
     ...answer,
     ...saved,
     ...listed,
+    ...firstScreenOnly,
     ...(sinceLast.change && { changeSinceLastRun: sinceLast.change }),
   };
   // An app that was never on the device ran on nothing, so no device is named for it.
@@ -207,10 +219,18 @@ function sceneDeviceField(sceneId: string): SceneDeviceField | undefined {
   }
 }
 
-/** Save the device's screen to `path`; a failed save is the picture's own error and changes no ending. */
-export async function savePicture(device: SceneDevice, path: string): Promise<ScenePicture> {
+/**
+ * Save the scene's picture to `path`: the whole scroll when the scene was shot whole, else the
+ * device's screen as it stands. A failed save is the picture's own error and changes no ending.
+ */
+export async function savePicture(
+  device: SceneDevice,
+  path: string,
+  whole?: WholeScroll
+): Promise<ScenePicture> {
   try {
-    await saveScreenPicture(device, path);
+    if (whole) fs.writeFileSync(path, whole.picture);
+    else await saveScreenPicture(device, path);
     return { path };
   } catch (error) {
     return { path, error: error instanceof Error ? error.message : String(error) };

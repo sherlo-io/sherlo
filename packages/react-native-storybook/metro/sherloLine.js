@@ -80,7 +80,10 @@ var REFUSED_HELLO_CLOSE_CODE = 4001;
 var SOCKET_IS_OPEN = 1;
 
 /** The actions of a driver's questions. Every other action on a socket is the app's. */
-var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogLines'];
+var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogLines', 'askTheApp'];
+
+/** How long the app has to answer one question about its scroll before the line calls it absent. */
+var APP_ANSWER_MS = 10000;
 
 /**
  * Mount the line on `httpServer`: take every WebSocket upgrade for LINE_PATH, and hand every other
@@ -173,6 +176,10 @@ function createLine(settings) {
   /** Everyone who wants to hear of each app that says hello. */
   var appListeners = [];
 
+  /** The app that said hello last and has not left: the one a scroll question goes to. */
+  var newestApp = null;
+  var askedTheApp = 0;
+
   function onApp(listener) {
     appListeners.push(listener);
   }
@@ -207,6 +214,7 @@ function createLine(settings) {
         }
         app = appOnTheLine(webSocket, message);
         listenToTheApp(app);
+        newestApp = app;
         appListeners.forEach(function (listener) {
           listener(app);
         });
@@ -235,6 +243,7 @@ function createLine(settings) {
       if (message.action === 'log' && typeof message.line === 'string') logFeed.add(message.line);
     });
     app.onClose(function () {
+      if (newestApp === app) newestApp = null;
       letterbox.appLeft(app);
       captureRelay.appLeft(app);
     });
@@ -247,6 +256,7 @@ function createLine(settings) {
   function pose(question, reply) {
     if (question.action === 'openStory') return letterbox.openStory(question, reply);
     if (question.action === 'captureStory') return captureRelay.captureStory(question, reply);
+    if (question.action === 'askTheApp') return askTheNewestApp(question, reply);
 
     // The other two are answered at once, and leave nothing waiting.
     if (question.action === 'whatIsOnScreen') reply(letterbox.whatIsOnScreen());
@@ -257,6 +267,36 @@ function createLine(settings) {
       );
     }
     return function nothingToWithdraw() {};
+  }
+
+  /**
+   * A driver asks the newest app whether its scene scrolls (`is-scrollable`) or to move it to a
+   * position (`scroll-to`): the app is sent the ask under a name, and the driver is told what the
+   * app said under that name, or that no app answered in time.
+   */
+  function askTheNewestApp(question, reply) {
+    var app = newestApp;
+    if (app === null) {
+      reply({ kind: 'no-app' });
+      return function nothingToWithdraw() {};
+    }
+    askedTheApp += 1;
+    var askId = 'app-ask-' + askedTheApp;
+    var giveUp = setTimeout(function () {
+      reply({ kind: 'no-app' });
+    }, APP_ANSWER_MS);
+    app.onMessage(function (heard) {
+      if (heard.action !== 'scroll-answer' || heard.askId !== askId) return;
+      clearTimeout(giveUp);
+      var answer = Object.assign({}, heard);
+      delete answer.action;
+      delete answer.askId;
+      reply({ kind: 'answered', answer: answer });
+    });
+    app.send(Object.assign({}, question.ask, { askId: askId }));
+    return function withdraw() {
+      clearTimeout(giveUp);
+    };
   }
 
   /** A driver in the same process: ask, and get the reply a driver's socket would. */

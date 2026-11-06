@@ -3775,6 +3775,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/pngjs@npm:^6.0.5":
+  version: 6.0.5
+  resolution: "@types/pngjs@npm:6.0.5"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10/132fce25817d47a784ed48aa678332521b0f7e6edbaa76f3fa4e9ca1228078788ae712f99ad4d1a324d9ba0b14829958677eabf3ebef1fb6e120816f433f0cd8
+  languageName: node
+  linkType: hard
+
 "@types/prompts@npm:^2.4.9":
   version: 2.4.9
   resolution: "@types/prompts@npm:2.4.9"
@@ -9836,6 +9845,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"pngjs@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "pngjs@npm:7.0.0"
+  checksum: 10/e843ebbb0df092ee0f3a3e7dbd91ff87a239a4e4c4198fff202916bfb33b67622f4b83b3c29f3ccae94fcb97180c289df06068624554f61686fe6b9a4811f7db
+  languageName: node
+  linkType: hard
+
 "polished@npm:^4.3.1":
   version: 4.3.1
   resolution: "polished@npm:4.3.1"
@@ -10752,6 +10768,7 @@ __metadata:
     "@types/gradient-string": "npm:^1.1.2"
     "@types/node": "npm:^16.11.7"
     "@types/node-fetch": "npm:^2.6.4"
+    "@types/pngjs": "npm:^6.0.5"
     "@types/prompts": "npm:^2.4.9"
     "@types/tar": "npm:^6.1.5"
     "@types/ws": "npm:^8.5.14"
@@ -10770,6 +10787,7 @@ __metadata:
     node-fetch: "npm:^2.6.11"
     ora: "npm:^8.2.0"
     package-manager-detector: "npm:^0.2.9"
+    pngjs: "npm:^7.0.0"
     type-fest: "npm:^4.20.1"
     typescript: "npm:7.0.2"
     typescript-5: "npm:typescript@5.9.3"
