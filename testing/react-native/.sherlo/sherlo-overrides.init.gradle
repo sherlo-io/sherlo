@@ -1,0 +1,36 @@
+abstract class SherloSwitchOffExpoUpdates extends DefaultTask {
+    @InputFile
+    abstract RegularFileProperty getMergedManifest()
+
+    @OutputFile
+    abstract RegularFileProperty getUpdatedManifest()
+
+    @TaskAction
+    void switchOff() {
+        String manifest = getMergedManifest().get().asFile.text
+        def updatesEnabledTag = ~/<meta-data\b[^>]*android:name="expo\.modules\.updates\.ENABLED"[^>]*>/
+        String updated = manifest.replaceAll(updatesEnabledTag) { String tag ->
+            tag.replaceAll(/android:value="[^"]*"/, 'android:value="false"')
+        }
+        getUpdatedManifest().get().asFile.text = updated
+    }
+}
+
+allprojects { project ->
+    project.pluginManager.withPlugin('com.android.application') {
+        def androidComponents = project.extensions.getByName('androidComponents')
+        androidComponents.finalizeDsl({ android ->
+            def debugSigning = android.signingConfigs.getByName('debug')
+            android.buildTypes.configureEach { buildType -> buildType.signingConfig = debugSigning }
+        } as Action)
+        def mergedManifestArtifact = androidComponents.class.classLoader
+            .loadClass('com.android.build.api.artifact.SingleArtifact$MERGED_MANIFEST')
+            .getField('INSTANCE').get(null)
+        androidComponents.onVariants(androidComponents.selector().all(), { variant ->
+            def switchOff = project.tasks.register("sherloSwitchOffExpoUpdates" + variant.name.capitalize(), SherloSwitchOffExpoUpdates)
+            variant.artifacts.use(switchOff)
+                .wiredWithFiles({ task -> task.mergedManifest }, { task -> task.updatedManifest })
+                .toTransform(mergedManifestArtifact)
+        } as Action)
+    }
+}
