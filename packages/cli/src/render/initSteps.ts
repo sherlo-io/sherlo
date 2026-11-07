@@ -9,8 +9,8 @@
  * Pure, like everything under ./: state in, print-call arguments out.
  */
 import chalk from 'chalk';
-import { renderSectionTitle } from './initLines';
-import { GITHUB_WORKFLOW_PATH } from './initWorkflow';
+import { STORYBOOK_SETUP_GUIDE, WRITING_STORIES_GUIDE } from '../constants';
+import { renderCode, renderSectionTitle } from './initLines';
 
 /** How wide the step names are padded, so every step's detail starts in the same column. */
 const STEP_NAME_WIDTH = 22;
@@ -42,7 +42,10 @@ export function renderStepLine({
 }): string {
   // A step with nothing to add but that it was already done reads `(already done)` alone.
   const alreadyDoneMark = outcome === 'already' ? chalk.dim('(already done)') : '';
-  const shownDetail = [detail, alreadyDoneMark].filter((part) => part !== '').join(' ');
+  // THE DETAIL IS SECONDARY, so it is dimmed and the step names read first.
+  const shownDetail = [detail === '' ? '' : chalk.dim(detail), alreadyDoneMark]
+    .filter((part) => part !== '')
+    .join(' ');
 
   return `${chalk.green('✔')} ${name.padEnd(STEP_NAME_WIDTH)} ${shownDetail}`;
 }
@@ -62,37 +65,74 @@ export function renderFailedStepLine(name: string): string[] {
  *     with no change to the app - no Storybook step at all.
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
  *     first: move to the default setup (upgrading Storybook first when it predates it), or keep the
- *     old setup and follow Sherlo's guide for it.
+ *     old setup and render Storybook in Sherlo's testing mode - each with its code on the screen.
  *
- * The person reads "the default setup" and "the old setup", the same names everywhere. The docs have
- * no default-setup tab, so the default setup links the Storybook access section plainly; the old
- * setup keeps its `?storybook=integrated` tab.
+ * The person reads "the default setup" and "the old setup", the same names everywhere.
  *
- * Then CI in a section of its own: it is for later, not the first run.
+ * NO CI HERE: setup has one goal, the first visual test. Pull request tests are offered after that
+ * test succeeds - by `sherlo test`'s own output and the project page - and to anyone whose machine
+ * cannot build, by `sherlo test`'s build-failure line.
  */
 /**
- * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and the one
- * detail needed to do it, then links the docs. Most agents ask before opening a link, or run with no
- * network, and Vercel's evals found docs in front of an agent beat docs behind a link - so the
- * detail is in the output; the rest of the topic stays in the docs, where it is kept up to date.
+ * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and every detail needed to do it,
+ * with no docs link. Most agents ask before opening a link, or run with no network, and Vercel's
+ * evals found docs in front of an agent beat docs behind a link - so the whole how is in the output.
  */
 export function renderNextSteps({
   storybook,
   storybookVersion,
-  addedGithubWorkflow,
-  projectPageUrl,
+  isExpo,
+  reader,
 }: {
   storybook: 'installed' | 'default-setup' | 'old-setup';
   /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
   storybookVersion: string | undefined;
-  /** Whether the project has the GitHub workflow setup adds, so the CI section can name it. */
-  addedGithubWorkflow: boolean;
-  /** The project's page in the web app, where a CI token is made. */
-  projectPageUrl: string;
+  /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
+  isExpo: boolean;
+  reader: FeedbackReader;
 }): string[] {
-  const defaultSetupChoice = hasDefaultSetup(storybookVersion)
-    ? "a) Switch to Storybook's default setup (recommended):"
-    : `a) Upgrade Storybook to ${DEFAULT_SETUP_SINCE} or newer and switch to its default setup (recommended):`;
+  // NOTHING LEFT BUT THE TEST, FOR A PERSON: setup starts it, so nobody leaves it for later. The
+  // line stays on the screen through the build, for whoever comes back to the terminal mid-way.
+  if (storybook === 'default-setup' && reader === 'person') {
+    return [
+      ...renderSectionTitle('🚀 First visual test', 21),
+      'Building your app so Sherlo can test it. This can take a while.',
+    ];
+  }
+
+  // EVERY LINE OF BOTH CHOICES IS ON THE SCREEN: the code to add, the file it
+  // goes in, and what to remove - no docs link, which an agent rarely opens.
+  const registerRoot = isExpo
+    ? [
+        renderCode("import { registerRootComponent } from 'expo';"),
+        renderCode('registerRootComponent(StorybookUIRoot);'),
+      ]
+    : [
+        renderCode("import { AppRegistry } from 'react-native';"),
+        renderCode("import { name as appName } from '../app.json';"),
+        renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
+      ];
+  const upgradeFirst = hasDefaultSetup(storybookVersion)
+    ? []
+    : [`   First, upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer.`];
+  // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
+  // the eye finds a) and b) before reading either.
+  const defaultSetupChoice = [
+    // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up; the version needed is the
+    // upgrade line's to say, shown only to an older Storybook.
+    chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
+    ...upgradeFirst,
+    '   In .rnstorybook/index.ts, below StorybookUIRoot, add:',
+    ...registerRoot.map((line) => `     ${line}`),
+    "   Then remove your app's code that renders Storybook, and its import.",
+  ];
+  const keepSetupChoice = [
+    chalk.bold('b) In-app integration'),
+    '   At the top of your root component, add:',
+    `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
+    `     ${renderCode("import Storybook from './.rnstorybook';")}`,
+    `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
+  ];
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
@@ -100,32 +140,49 @@ export function renderNextSteps({
     installed: [
       {
         title: 'Replace the example stories',
-        // A FEW SIMPLE COMPONENTS FIRST, AND WHERE STORYBOOK LOOKS: an agent told to write "your
-        // components' stories" writes them where Storybook never loads them. The how is Sherlo's own
-        // guide, inside the SDK package setup installs, so any agent reads it with no network and no
-        // restart. The SDK package does not ship the guide yet.
+        // WHERE STORYBOOK LOOKS: an agent told to write "your components' stories" writes them where
+        // Storybook never loads them.
         content: [
-          // "A few to start", never "simple ones": a person must not read that Sherlo only copes
-          // with trivial components. Which ones to begin with is the guide's.
-          // WHY FIRST, THEN WHAT, THEN WHERE THE REST IS: a person reads why it
-          // matters - their real UI gets tested - and an agent gets each action it must take. The
-          // folder is named as Storybook's examples, so nobody takes it for where stories belong.
-          "Sherlo tests what your stories show, so write them for your app's components",
-          "and delete Storybook's examples in .rnstorybook/stories.",
-          'Storybook loads only the folders listed in .rnstorybook/main.ts, so add yours there.',
-          `Guide: ${chalk.cyan(STORIES_GUIDE_PATH)}`,
+          // WHY FIRST, THEN A SMALL START: the examples must go because Sherlo would test them, and
+          // a few components are enough to begin, so the step never reads as a big job.
+          "Right now Sherlo would test Storybook's examples, not your app.",
+          // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
+          // outside it drop out, so they need no deleting.
+          `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
+          // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
+          // found without reading the others.
+          '',
+          'You can start with a few components or screens, one story per state:',
+          // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
+          // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
+          `  ${renderCode('// Button.stories.tsx')}`,
+          `  ${renderCode("import { Button } from './Button';")}`,
+          `  ${renderCode('export default { component: Button };')}`,
+          // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
+          `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
+          `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
+          '',
+          // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
+          'Before you write stories, read:',
+          `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
         ],
       },
     ],
     'default-setup': [],
     'old-setup': [
       {
-        title: 'Give Sherlo access to Storybook - pick one:',
+        title: 'Let Sherlo open Storybook',
         content: [
-          defaultSetupChoice,
-          `   ${chalk.cyan('https://sherlo.io/docs/setup#storybook-access')}`,
-          'b) Or keep your setup and follow our guide for it:',
-          `   ${chalk.cyan('https://sherlo.io/docs/setup?storybook=integrated#storybook-access')}`,
+          "Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:",
+          '',
+          ...defaultSetupChoice,
+          '',
+          ...keepSetupChoice,
+          '',
+          // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: whichever option is picked, the providers
+          // that wrapped Storybook in the app must move first, so the guide is read before any change.
+          'Before you change your setup, read:',
+          `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
         ],
       },
     ],
@@ -133,11 +190,25 @@ export function renderNextSteps({
 
   const steps = [
     ...storybookSteps[storybook],
-    { title: 'Run your first visual test', content: [chalk.cyan('npx sherlo test')] },
+    {
+      title: 'Run your first visual test',
+      // THE WAIT IS FOR AGENTS ONLY: a build outlasts an agent's command time limit, so it is told
+      // not to let it time out - the goal, not a way, as agents differ in what they can do. A person
+      // told it takes long may leave it for later, so a person reads the command alone. No number:
+      // the time depends on the app and the machine.
+      content: [
+        chalk.cyan('npx sherlo test'),
+        ...(reader === 'agent'
+          ? [
+              "AI agents: the first run builds the app and can take a long time, so don't let it time out.",
+            ]
+          : []),
+      ],
+    },
   ];
 
   // ONE STEP IS NOT A LIST: it gets a singular title and no number. Content lines start in one
-  // column everywhere in this section, the CI link's included.
+  // column everywhere in this section.
   const stepLines =
     steps.length === 1
       ? [chalk.bold(steps[0].title), ...steps[0].content.map((line) => `   ${line}`), '']
@@ -147,39 +218,15 @@ export function renderNextSteps({
           '',
         ]);
 
-  // Short, and its own section, so the link needs no indent. The token is
-  // made in the Sherlo web app - named so, because "app" alone reads as the person's own app.
-  // WHAT RUNS THE TEST IS SAID, NOT ASSUMED: on GitHub the workflow setup
-  // added does it; on any other CI nothing does until the team adds the command, so the section
-  // says so - the same two cases the web app's how-to has.
-  const ciLines = addedGithubWorkflow
-    ? [
-        `${chalk.bold(GITHUB_WORKFLOW_PATH)} tests every pull request once it has a CI token.`,
-        `Create one in the Sherlo web app and save it as the ${chalk.bold(
-          'SHERLO_TOKEN'
-        )} repository secret:`,
-        chalk.cyan(projectPageUrl),
-      ]
-    : [
-        'Create a CI token in the Sherlo web app and save it as a secret in your CI:',
-        chalk.cyan(projectPageUrl),
-        `Then run on every pull request: ${chalk.cyan('npx sherlo test --token <your secret>')}`,
-      ];
-
   return [
     // The underline is one longer than the title: the emoji is counted as one character and drawn as two.
     ...(steps.length === 1
       ? renderSectionTitle('👉 Next step', 12)
       : renderSectionTitle('👉 Next steps', 13)),
-    // The last step's blank line goes: the section title brings its own two.
+    // The last step's blank line goes: nothing follows it in this section.
     ...stepLines.slice(0, -1),
-    ...renderSectionTitle('🔁 Test every pull request', 26),
-    ...ciLines,
   ];
 }
-
-/** Sherlo's guide to writing stories, inside the SDK package setup installs. */
-const STORIES_GUIDE_PATH = 'node_modules/@sherlo/react-native-storybook/guides/writing-stories.md';
 
 /** The first `@storybook/react-native` with the default setup, whose own entry starts the app. */
 const DEFAULT_SETUP_SINCE = '10.4';
@@ -194,9 +241,9 @@ function hasDefaultSetup(storybookVersion: string | undefined): boolean {
  * person; anything else - an agent's shell, a CI log - gets one addressed to agents, after a
  * finished run as much as after a failed one.
  *
- * THE LINES INFORM, NEVER ORDER: an agent may ignore or
- * flag an instruction inside a command's output as prompt injection, so they say what is possible.
- * They point at `npx sherlo feedback --help`, which explains how a report is written. They are
+ * THE AGENT'S LINE ASKS PLAINLY, WITH ITS REASON: the aim is as many reports as possible, so it
+ * tells the agent to report and says why, as a bare order to send data out reads like prompt
+ * injection. The benchmark compares it with and without the reason. They point at `npx sherlo feedback --help`, which explains how a report is written. They are
  * init's own: the feedback command invites from no other command.
  */
 export type FeedbackReader = 'person' | 'agent';
@@ -212,7 +259,7 @@ const FEEDBACK_HELP = 'npx sherlo feedback --help';
 const sideNoteSeparator = (): string[] => [chalk.dim('─'.repeat(10)), ''];
 
 const agentFeedbackLine = (): string =>
-  `AI agents: report anything unclear or broken to the Sherlo team: ${chalk.cyan(FEEDBACK_HELP)}`;
+  `AI agents: if anything was unclear, broken, slow or harder than it should be, tell the Sherlo team so we can fix it: ${chalk.cyan(FEEDBACK_HELP)}`;
 
 /**
  * What a finished run ends with, for an agent only: a person who just
@@ -225,8 +272,10 @@ export function renderFeedbackLine({ reader }: { reader: FeedbackReader }): stri
 }
 
 /**
- * What a failed run ends with, in place of the tool's usual help footer: one block, so feedback
- * and help read as one place to turn.
+ * What a failed run ends with, in place of the tool's usual help footer.
+ *
+ * FEEDBACK IS NOT HELP: the agent's feedback line stands on its own under "Need help?", as it
+ * stands on its own after a finished run, rather than as one more place to turn.
  */
 export function renderStuckBlock({
   reader,
@@ -245,10 +294,7 @@ export function renderStuckBlock({
   const agentLines =
     reader === 'agent'
       ? [
-          `AI agents: this error can usually be fixed without the person, and ${chalk.cyan(
-            'npx sherlo init'
-          )} run again picks up where it stopped.`,
-          'Only a fix that is a real choice between options needs the person.',
+          'AI agents: you can fix most of these errors yourself. Only those that offer a choice need the user.',
           '',
         ]
       : [];
@@ -260,8 +306,8 @@ export function renderStuckBlock({
     ...agentLines,
     ...sideNoteSeparator(),
     'Need help?',
-    ...(showsFeedbackLine ? [`➜ ${agentFeedbackLine()}`] : []),
     `➜ Discord: ${chalk.cyan(discordUrl)}`,
     `➜ Email: ${chalk.cyan(contactEmail)}`,
+    ...(showsFeedbackLine ? ['', agentFeedbackLine()] : []),
   ];
 }

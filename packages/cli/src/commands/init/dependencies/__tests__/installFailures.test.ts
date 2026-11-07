@@ -13,7 +13,12 @@ vi.mock('../../../../helpers/getCwd', () => ({ default: () => projectRoot.path }
 vi.mock('../../../../helpers/reporting', () => ({ default: { captureException: vi.fn() } }));
 vi.mock('../../../../helpers/spinner', () => ({
   default: () => {
-    const spinner = { start: () => spinner, fail: () => spinner, succeed: () => spinner };
+    const spinner = {
+      start: () => spinner,
+      stop: () => spinner,
+      fail: () => spinner,
+      succeed: () => spinner,
+    };
     return spinner;
   },
 }));
@@ -89,12 +94,12 @@ describe('a failed install', () => {
 
     const message = await messageOfRefusal(installSherlo);
 
-    expect(message).toContain('Failed to install Sherlo automatically');
+    expect(message).toContain("Sherlo couldn't be installed");
     expect(message).toContain('line 40');
     expect(message).toContain(`line ${40 - LAST_LINES_SHOWN + 1}`);
     expect(message).not.toContain(`line ${40 - LAST_LINES_SHOWN}\n`);
     expect(message.indexOf('line 40')).toBeGreaterThan(
-      message.indexOf('Failed to install Sherlo automatically')
+      message.indexOf("Sherlo couldn't be installed")
     );
   });
 });

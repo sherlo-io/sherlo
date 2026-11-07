@@ -15,7 +15,7 @@
  */
 import chalk from 'chalk';
 import type { Platform } from '@sherlo/api-types';
-import { DOCS_LINK, PLATFORM_LABEL } from '../constants';
+import { DOCS_LINK, PLATFORM_LABEL, WRITING_STORIES_GUIDE } from '../constants';
 import { renderSectionTitle } from './initLines';
 import {
   projectPageUrl,
@@ -120,7 +120,7 @@ export function renderAppBuildDone({
 }): string {
   return renderTestStep({
     name: builtTheApp(platform),
-    detail: `in ${formatBuildDuration(seconds)} ${chalk.dim(`(log: ${logPath})`)}`,
+    detail: `in ${formatBuildDuration(seconds)} (log: ${logPath})`,
   });
 }
 
@@ -210,22 +210,29 @@ export function renderBinaryPathFlagGone(): { message: string; below: string } {
 }
 
 /**
- * The refusal of a `--platform` that is neither `android` nor `ios` - a typo in a CI matrix, or
- * `--platform both`. It names the two values and says what leaving the flag out does, so the job is
- * fixed in one edit.
- */
-/**
- * A bundle whose module map counts no stories: Storybook was switched off by a variable the
- * build never saw, and a run that photographed nothing would read green.
+ * A bundle whose module map counts no stories, and a run that photographed nothing would read
+ * green. Both causes are named with their fix on the screen, never a docs link:
+ * story files Storybook's `stories` globs do not reach, or Storybook switched off by a variable
+ * the build never saw.
  */
 export function renderBundleHoldsNoStories(): { message: string } {
   return {
     message:
-      "Can't test: the bundle holds no stories.\n" +
-      'If a variable switches Storybook on in your app, set it in sherlo.config.json "build.env".',
+      "The app's bundle has no stories, so there's nothing to test\n" +
+      '\n' +
+      'Check that your story files match "stories" in .rnstorybook/main.ts.\n' +
+      'If an environment variable turns Storybook on, set it for the build in sherlo.config.json:\n' +
+      '  "build": { "env": { "STORYBOOK_ENABLED": "true" } }\n' +
+      'How to write stories:\n' +
+      `  ${WRITING_STORIES_GUIDE}`,
   };
 }
 
+/**
+ * The refusal of a `--platform` that is neither `android` nor `ios` - a typo in a CI matrix, or
+ * `--platform both`. It names the two values and says what leaving the flag out does, so the job is
+ * fixed in one edit.
+ */
 export function renderPlatformUnknown(givenPlatform: string): { message: string; below: string } {
   return {
     message: `\`--platform\` takes \`android\` or \`ios\`, not \`${givenPlatform}\`.`,
