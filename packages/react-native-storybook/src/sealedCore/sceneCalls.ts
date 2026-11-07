@@ -20,7 +20,9 @@ import {
 import { nameOf } from '../visibleViews';
 import { reachedRoute } from '../reachedScreen';
 import { loggedErrors } from '../loggedErrors';
+import { logUnusedFakes } from '../mocking/activateStoryMocks';
 import { rulesInstalledProof, rulesNeverMatched } from '../mocking/registry';
+import { neverSettledOf } from '../neverSettled';
 import { monotonicNow } from '../settleClock';
 import type { PlayStep } from '../scenes';
 import { awaitReady, readyRuleOf, readyShowsNow, sceneOf } from '../storyReady';
@@ -43,6 +45,7 @@ type SceneCalls = Pick<
   | 'loggedErrors'
   | 'rulesInstalledProof'
   | 'threwOf'
+  | 'neverSettledOf'
   | 'causeOfCrash'
   | 'isBundlerAssetUrl'
 >;
@@ -56,15 +59,20 @@ export function sceneCallsForTheCore(): SceneCalls {
         file: scene.filePath,
         title: scene.title,
         name: scene.name,
+        device: scene.device,
       })),
     playSteps: playTheSteps,
     awaitReady: waitForReady,
     reachedRoute,
     monotonicNow,
     rulesNeverMatched,
-    loggedErrors,
+    loggedErrors: () => {
+      logUnusedFakes();
+      return loggedErrors();
+    },
     rulesInstalledProof,
     threwOf,
+    neverSettledOf,
     causeOfCrash,
     isBundlerAssetUrl,
   };
@@ -126,6 +134,9 @@ async function playTheSteps(sceneId: string): Promise<ScenePlayOutcome> {
           return { played };
         }
       }
+      const onRoute =
+        error.route.length > 0 ? error.route.join(' > ') : 'a route it could not read';
+      logTheLine(`scene ${sceneId} ${error.step} found no view, on ${onRoute}`);
       return {
         played,
         missing: missedStep(steps[playedCount]),

@@ -56,10 +56,14 @@ export interface SocketMatcher {
  */
 export type SocketAnswer = 'pending' | 'refuse';
 
-/** One socket matcher and the answer it gives. */
+/**
+ * One socket matcher and the answer it gives. `declaredAt` is the call-stack line of the
+ * `mockRequest.socket` call, so a refusal by this fake can say where the fake is.
+ */
 export interface SocketRule {
   matcher: SocketMatcher;
   answer: SocketAnswer;
+  declaredAt?: string;
 }
 
 /**
@@ -73,14 +77,14 @@ export type NetworkMockDeclaration =
 
 /** Every network mock one story declared, as the wrappers read them. */
 export interface NetworkMocks {
-  /** Asked in order: the first rule that matches a request answers it. */
+  /** Asked from the last to the first: the last rule that matches a request answers it. */
   rules: NetworkRule[];
   /**
    * Whether a request no rule matches reaches the real network instead of being refused. It is
    * about fetch and XMLHttpRequest only: a WebSocket no socket rule matches is always refused.
    */
   passthrough: boolean;
-  /** Asked in order: the first socket rule that matches a WebSocket's address answers it. */
+  /** Asked from the last to the first: the last socket rule that matches a WebSocket's address answers it. */
   sockets: SocketRule[];
 }
 
@@ -117,12 +121,13 @@ mockRequest.passthrough = (): NetworkMockDeclaration => ({ kind: 'network', pass
  * In a story with any network mock, every WebSocket is held by Sherlo: one no socket rule matches
  * is refused and listed as `WS <url>`, whatever `passthrough` says.
  */
-mockRequest.socket = (matcher: SocketMatcher, answer: SocketAnswer): NetworkMockDeclaration => ({
-  kind: 'network',
-  socket: { matcher, answer },
-});
+mockRequest.socket = (matcher: SocketMatcher, answer: SocketAnswer): NetworkMockDeclaration => {
+  // Line 0 is "Error", line 1 this function: line 2 is whoever declared the fake.
+  const declaredAt = (new Error().stack ?? '').split('\n')[2]?.trim();
+  return { kind: 'network', socket: { matcher, answer, ...(declaredAt && { declaredAt }) } };
+};
 
-/** The network mocks among `mocks`, in the order they are to be asked. */
+/** The network mocks among `mocks`, in the order declared: when two match, the last one answers. */
 export function networkMocksOf(mocks: StoryMocks): NetworkMocks {
   if (!Array.isArray(mocks)) return NO_NETWORK_MOCKS;
 

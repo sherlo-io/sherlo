@@ -7,9 +7,12 @@ import {
   SocketAnswer,
   SocketRule,
 } from './networkDeclaration';
-import { bodyExcerptOf, graphqlOperationOf, operationNameOf } from './networkRequestText';
+import { bodyExcerptOf, operationNameOf } from './networkRequestText';
+import { graphqlOperationOf } from './graphqlQueryText';
 import { graphqlAnswerFindings } from './graphqlAnswerCheck';
 import type { AnswerFinding, UnansweredRequest } from '../sealedCore/seam';
+import { providerFirstRenderedAt } from '../appMetadata';
+import type { NativeBlockRule, RefusedRequest } from './refusedRequest';
 
 /**
  * THE RULES IN EFFECT, AND WHAT THEY SAY ABOUT ONE REQUEST.
@@ -73,7 +76,7 @@ let discover = false;
 
 // Every request no rule answered since the rules in effect were put in, in the order made. The
 // story's error keeps only the last refusal; this keeps them all, and the ones let through too.
-let unanswered: UnansweredRequest[] = [];
+let unanswered: RefusedRequest[] = [];
 
 // The requests fetch or XMLHttpRequest let through that native code may tell of again, by method and
 // address: each is listed once, by JavaScript, so the first native tell of one is not listed.
@@ -121,16 +124,27 @@ export function setNetworkMocks(
 export function socketVerdictFor(url: string): SocketVerdict {
   if (socketPolicy === 'untouched') return { kind: 'real' };
 
-  const rule = mocksInEffect.sockets.find(
+  const rule = mocksInEffect.sockets.findLast(
     (candidate) => candidate.matcher.url === undefined || urlMatches(candidate.matcher.url, url)
   );
   if (rule) {
     matchedRules.add(rule);
+    if (rule.answer === 'refuse') {
+      unanswered.push({
+        method: 'WS',
+        url,
+        ...refusalMarks('fake-refused'),
+        fakeAt: rule.declaredAt ?? 'unknown',
+      });
+    }
     return { kind: 'answer', answer: rule.answer };
   }
 
-  unanswered.push({ method: 'WS', url });
-  if (socketPolicy === 'listed') return { kind: 'real' };
+  if (socketPolicy === 'listed') {
+    unanswered.push({ method: 'WS', url });
+    return { kind: 'real' };
+  }
+  unanswered.push({ method: 'WS', url, ...refusalMarks('no-fake-matched') });
 
   const refusal = new UnmockedRequestError(`no mock rule matches WS ${url}. Add a rule for it.`);
   recordRefusal(refusal);
@@ -138,7 +152,7 @@ export function socketVerdictFor(url: string): SocketVerdict {
 }
 
 /** Every request no rule answered under the rules in effect, in the order made. */
-export function unansweredRequests(): UnansweredRequest[] {
+export function unansweredRequests(): RefusedRequest[] {
   return unanswered.map((request) => ({ ...request }));
 }
 
@@ -168,7 +182,8 @@ export function unmatchedRules(): string[] {
 
 /** What the rules in effect say about `request` - and, when they refuse it, who is told. */
 export function answerFor(request: MockedRequest): Verdict {
-  const rule = mocksInEffect.rules.find((candidate) => matches(candidate, request));
+  // The last rule that matches answers, so a later fake wins over an earlier one.
+  const rule = mocksInEffect.rules.findLast((candidate) => matches(candidate, request));
   if (rule) {
     matchedRules.add(rule);
     // A request the app polls is answered again and again: each finding is kept once.
@@ -190,12 +205,17 @@ export function answerFor(request: MockedRequest): Verdict {
  * A request native code met that no rule matches, recorded as `verdictForUnanswered` does - unless
  * it is the echo of one fetch or XMLHttpRequest let through and so already listed.
  */
-export function verdictForNativeUnanswered(request: MockedRequest): Verdict | undefined {
+export function verdictForNativeUnanswered(
+  request: MockedRequest,
+  blockedBy?: NativeBlockRule
+): Verdict | undefined {
+  // Native code that blocked it itself says so: it is refused and listed whatever the story lets through.
+  if (blockedBy) return verdictForUnanswered(request, true, blockedBy);
   const key = echoKeyOf(request);
   const expiresAt = expectedNativeEchoes.get(key);
   expectedNativeEchoes.delete(key);
   if (expiresAt !== undefined && expiresAt >= Date.now()) return undefined;
-  return verdictForUnanswered(request);
+  return verdictForUnanswered(request, true);
 }
 
 /**
@@ -228,9 +248,17 @@ function echoKeyOf({ method, url }: MockedRequest): string {
  * rules in effect say - a refusal told to whoever keeps the story's record. fetch and XMLHttpRequest
  * reach it through `answerFor`; a request native code met and decided itself is recorded by it too.
  */
-export function verdictForUnanswered(request: MockedRequest): Verdict {
-  unanswered.push(recordOf(request));
-  const unmatched = unmatchedRequestVerdict();
+export function verdictForUnanswered(
+  request: MockedRequest,
+  fromNative = false,
+  blockedBy?: NativeBlockRule
+): Verdict {
+  const unmatched = blockedBy ? 'refusal' : unmatchedRequestVerdict();
+  // A request native code met has no JavaScript stack to keep.
+  unanswered.push({
+    ...recordOf(request),
+    ...(unmatched === 'refusal' && refusalMarks(blockedBy ?? 'no-fake-matched', !fromNative)),
+  });
   if (unmatched !== 'refusal') return { kind: unmatched };
 
   const refusal = new UnmockedRequestError(
@@ -302,6 +330,24 @@ function requestWords(method: string, url: string, operationName: string | undef
 
 function sameFinding(kept: AnswerFinding, found: AnswerFinding): boolean {
   return kept.kind === found.kind && kept.operation === found.operation && kept.path === found.path;
+}
+
+/** How many lines of the call stack a refusal keeps. */
+const STACK_LINES = 20;
+
+/** What a refusal says beyond its address: whose it is, which rule refused it, and where from. */
+function refusalMarks(
+  rule: NonNullable<RefusedRequest['rule']>,
+  withStack = true
+): Pick<RefusedRequest, 'scope' | 'rule' | 'stack'> {
+  const stack = withStack
+    ? (new Error().stack ?? '').split('\n').slice(1, STACK_LINES).join('\n')
+    : '';
+  return {
+    scope: providerFirstRenderedAt() === undefined ? 'background' : 'screen',
+    rule,
+    ...(stack !== '' && { stack }),
+  };
 }
 
 /** The request as the record keeps it: the fields it has, and no field it lacks. */

@@ -23,9 +23,10 @@
  *     kind        "scene" | "story"
  *     device      CaptureDevice
  *     picture     string                 the picture's path, relative to the page: "data/pictures/Inbox-Full.png"
- *     changed     boolean                looks different from the previous local run
+ *     changed     boolean                looks different from the last earlier capture that ended captured and kept a picture
  *     capturing   boolean                being captured again right now
  *     record      SceneDetailsRecord     the scene details panel's record
+ *     previousPicture string?            the picture of that earlier capture, named as picture is; present only when changed
  *
  *   CaptureDevice, one of
  *     { sherloDeviceId }                                            a Sherlo device ("iphone.15.pro"): drawn in its frame
@@ -43,6 +44,8 @@
 import type { PlayStep } from '../../render/capturedScene';
 import type { SceneEnding } from '../../render/capturedScene';
 import type { CaptureResult } from '../../seams/captureSocket';
+import type { IncompleteScene } from '../../seams/liveScene';
+import { sceneCameUp } from '../../seams/localCaptures';
 import type { KeptCapture } from '../../seams/localCaptures';
 import type { LocalDevice } from '../../seams/localDevice';
 
@@ -64,6 +67,8 @@ export type Capture = {
   kind: 'scene' | 'story';
   picture: string;
   record: SceneDetailsRecord;
+  /** The picture of the capture before this one; present only when this one is marked changed. */
+  previousPicture?: string;
 };
 
 export type CaptureDevice = { sherloDeviceId: string } | LocalSimulator;
@@ -112,7 +117,7 @@ export type ReportInput = {
   /** The CLI keeps running and will rewrite the report. */
   isLive: boolean;
   /** How the picture of a capture is named in the report. */
-  pictureOf: (capture: KeptCapture) => string;
+  pictureOf: (capture: KeptCapture, kind: 'screen' | 'ended') => string;
   /** The time zone the clock time is told in; absent, this computer's own. */
   timeZone?: string;
 };
@@ -133,29 +138,37 @@ export function buildReport({
 }: ReportInput): Report {
   const seen = captures.filter((capture) => reading(capture) !== undefined);
   const latest = new Map<string, KeptCapture>();
-  const previous = new Map<string, KeptCapture>();
   // Oldest first: a later capture of the same screen on the same device takes the place of the one before it.
-  for (const capture of seen) {
-    const key = `${capture.id}\n${deviceKey(capture.device)}`;
-    const before = latest.get(key);
-    if (before) previous.set(key, before);
-    latest.set(key, capture);
-  }
+  for (const capture of seen) latest.set(sceneKey(capture), capture);
 
   const shown = [...latest].map(([key, capture]): Capture => {
-    const earlier = previous.get(key);
+    // The picture to compare with: the latest earlier capture of this scene that ended captured and kept its picture.
+    const earlier = seen
+      .slice(0, seen.lastIndexOf(capture))
+      .reverse()
+      .find(
+        (before) =>
+          sceneKey(before) === key && before.screenPath && endedCaptured(reading(before)!.record)
+      );
     const reported = reading(capture);
+    const changed = Boolean(
+      endedCaptured(reported!.record) &&
+      earlier?.screenPath &&
+      capture.screenPath &&
+      !samePicture(earlier.screenPath, capture.screenPath)
+    );
     return {
       id: capture.id,
       kind: reported?.kind ?? 'scene',
       device: captureDevice(capture.device, reported?.screen),
-      picture: capture.screenPath ? pictureOf(capture) : '',
-      changed: Boolean(
-        endedCaptured(reported!.record) &&
-        earlier?.screenPath &&
-        capture.screenPath &&
-        !samePicture(earlier.screenPath, capture.screenPath)
-      ),
+      // A stopped scene has no picture of its own: the page shows the frame the app ended on instead.
+      picture: capture.screenPath
+        ? pictureOf(capture, 'screen')
+        : capture.endedPath
+          ? pictureOf(capture, 'ended')
+          : '',
+      changed,
+      ...(changed && earlier && { previousPicture: pictureOf(earlier, 'screen') }),
       capturing: capturingIds.includes(capture.id),
       record: {
         ...reported!.record,
@@ -202,6 +215,11 @@ function clockTime(iso: string, timeZone: string | undefined): string {
   }
 }
 
+/** One scene on one device: the key its captures are told apart by. */
+function sceneKey(capture: KeptCapture): string {
+  return `${capture.id}\n${deviceKey(capture.device)}`;
+}
+
 function deviceKey(device: LocalDevice | undefined): string {
   return JSON.stringify(device ?? null);
 }
@@ -245,30 +263,33 @@ function wholeMilliseconds(timings: SceneDetailsRecord['timings']): SceneDetails
 
 /** What a kept record says about the screen, or nothing when the app never showed one. */
 function reading(capture: KeptCapture): Reading | undefined {
-  const said = capture.record as ((SceneEnding & { waitedMs?: number }) | CaptureResult) | null;
+  const said = capture.record as
+    | ((SceneEnding & { waitedMs?: number }) | IncompleteScene | CaptureResult)
+    | null;
   const sceneId = capture.id;
   const empty = { fakes: [], sceneId, start: { params: [], route: '', storedData: [] } };
 
-  switch (said?.kind) {
-    case 'scene': {
-      const route = said.reached.route.join(SEPARATOR);
-      return {
-        kind: 'scene',
-        screen: said.tree.size,
-        record: {
-          ...empty,
-          ending: { kind: 'captured' },
-          play: said.play.map((step) => ({ ok: true, step: stepText(step) })),
-          ready: { ok: true, reached: route, rule: '' },
-          start: { ...empty.start, route },
-          timings: {
-            totalMs: said.bootMs + said.reached.ms + said.settled.ms,
-            toReadyMs: said.reached.ms,
-            toStillMs: said.settled.ms,
-          },
+  if (sceneCameUp(said)) {
+    const route = said.reached.route.join(SEPARATOR);
+    return {
+      kind: 'scene',
+      screen: said.tree.size,
+      record: {
+        ...empty,
+        ending: { kind: 'captured' },
+        play: said.play.map((step) => ({ ok: true, step: stepText(step) })),
+        ready: { ok: true, reached: route, rule: '' },
+        start: { ...empty.start, route },
+        timings: {
+          totalMs: said.bootMs + said.reached.ms + said.settled.ms,
+          toReadyMs: said.reached.ms,
+          toStillMs: said.settled.ms,
         },
-      };
-    }
+      },
+    };
+  }
+
+  switch (said?.kind) {
     case 'never-reached': {
       const stayedOn = said.stayedOn.join(SEPARATOR);
       return {

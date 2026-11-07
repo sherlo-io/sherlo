@@ -21,6 +21,9 @@ export declare const LINE_PATH: '/sherlo/line';
 /** The version of the message set the line speaks; the seam's SHERLO_PROTOCOL_VERSION is equal. */
 export declare const PROTOCOL_VERSION: number;
 
+/** An id made once as the bundler starts; the code it serves carries it. */
+export declare const BUNDLER_STAMP: string;
+
 /* ---- What the app says to the bundler's relays, and what they answer ------------------------- */
 
 /** `sherlo open`'s road: the app's BundlerLetterbox wait, over the line. */
@@ -35,9 +38,12 @@ export type LetterboxAnswerMessage = { action: 'letterboxAnswer' } & LetterboxAn
  * `sherlo capture`'s road: the app's CaptureTransport wait, over the line, with the ids of the
  * scenes the app's bundle holds (src/captureTransport.ts). An SDK that does not say them sends none.
  */
-export type WaitForACaptureMessage = { action: 'waitForACapture'; scenes?: string[] } & Parameters<
-  CaptureTransport['waitForACapture']
->[0];
+export type WaitForACaptureMessage = {
+  action: 'waitForACapture';
+  scenes?: string[];
+  /** The stamp of the code the app runs; none from code built into it. */
+  codeStamp?: string;
+} & Parameters<CaptureTransport['waitForACapture']>[0];
 
 /** The capture relay's answer to a WaitForACaptureMessage. */
 export type CaptureInstructionMessage = { action: 'captureInstruction' } & CaptureInstruction;
@@ -49,18 +55,49 @@ export type CaptureInstructionMessage = { action: 'captureInstruction' } & Captu
  */
 export type StartFailedMessage = { action: 'start-failed' } & StoryThrew;
 
+/** What a driver asks the app about its scene's scroll, over the line (src/localScroll.ts answers). */
+export type ScrollAsk =
+  | { action: 'is-scrollable' }
+  | {
+      action: 'scroll-to';
+      /** The position asked, counted in steps. */
+      index: number;
+      /** The size of one step, in pixels. */
+      offset: number;
+      /** The last position the scene may be moved to. */
+      maxIndex: number;
+    };
+
+/** A ScrollAsk as the app hears it: the line gives it a name, and the answer says it back. */
+export type ScrollAskMessage = ScrollAsk & { askId: string };
+
+/** What the app answers a ScrollAskMessage: the native module's own answer, under the ask's name. */
+export type ScrollAnswerMessage = {
+  action: 'scroll-answer';
+  askId: string;
+  scrollable?: boolean;
+  scrollViewFrame?: { x: number; y: number; width: number; height: number };
+  reachedBottom?: boolean;
+  appliedIndex?: number;
+  appliedOffsetPx?: number;
+  viewportPx?: number;
+  contentPx?: number;
+};
+
 /** Every message an app sends the line: the seam's, its waits on the bundler's relays, and its start error. */
 export type MessageFromTheAppToTheLine =
   | MessageFromTheApp
   | WaitForStoryMessage
   | WaitForACaptureMessage
-  | StartFailedMessage;
+  | StartFailedMessage
+  | ScrollAnswerMessage;
 
 /** Every message the line sends an app: the seam's, and the bundler's relays' answers. */
 export type MessageFromTheLineToTheApp =
   | MessageToTheApp
   | LetterboxAnswerMessage
-  | CaptureInstructionMessage;
+  | CaptureInstructionMessage
+  | ScrollAskMessage;
 
 /* ---- A driver's questions, and their replies ------------------------------------------------- */
 
@@ -110,9 +147,33 @@ export type CaptureStoryQuestion =
       launchedAt?: number;
     };
 
+/**
+ * The line's refusal of a capture for an app whose code is not the code this bundler serves: it runs
+ * code built into it, or code served by an earlier bundler. `appStamp` is what the app said, null
+ * when it said none. A driver's tool lifts it into its own answer (cli/src/seams/bundlerLine.ts).
+ */
+export type OldCodeReply = { kind: 'old-code'; appStamp: string | null };
+
+/** What the bundler said was wrong with the build; the CLI reads it field by field (cli seams/bundleFailure). */
+export type BundleBuildFailureSaid = {
+  kind: 'unresolved-import' | 'syntax' | 'other';
+  message: string;
+  /** Relative to the project root when the file lies under it. */
+  file?: string;
+  line?: number;
+  column?: number;
+  frame?: string[];
+  /** For an unresolved import: the path as the import writes it. */
+  importPath?: string;
+};
+
 export type CaptureStoryReply =
   | CapturedAnswer
   | { kind: 'no-app' }
+  | ({ kind: 'bundle-does-not-build'; failure: BundleBuildFailureSaid } & (
+      | { sceneId: string }
+      | { storyId: string }
+    ))
   | {
       kind: 'no-such-story';
       known: string[];
@@ -132,11 +193,19 @@ export type ReadLogLinesReply = {
   restarts?: number;
 };
 
+/** Put this ask to the newest app on the line, and say what it answered. */
+export type AskTheAppQuestion = { action: 'askTheApp'; ask: ScrollAsk };
+
+export type AskTheAppReply =
+  | { kind: 'no-app' }
+  | { kind: 'answered'; answer: Omit<ScrollAnswerMessage, 'action' | 'askId'> };
+
 export type Question =
   | OpenStoryQuestion
   | WhatIsOnScreenQuestion
   | CaptureStoryQuestion
-  | ReadLogLinesQuestion;
+  | ReadLogLinesQuestion
+  | AskTheAppQuestion;
 
 export type ReplyTo<AskedQuestion extends Question> = AskedQuestion extends OpenStoryQuestion
   ? OpenStoryReply
@@ -144,7 +213,9 @@ export type ReplyTo<AskedQuestion extends Question> = AskedQuestion extends Open
     ? WhatIsOnScreenReply
     : AskedQuestion extends CaptureStoryQuestion
       ? CaptureStoryReply
-      : ReadLogLinesReply;
+      : AskedQuestion extends AskTheAppQuestion
+        ? AskTheAppReply
+        : ReadLogLinesReply;
 
 /**
  * A question asked over a driver's own socket. `askId` is the driver's own name for it, said back
@@ -156,7 +227,13 @@ export type QuestionMessage = Question & { askId?: string };
 export type ReplyMessage = {
   action: 'reply';
   askId?: string;
-  reply: OpenStoryReply | WhatIsOnScreenReply | CaptureStoryReply | ReadLogLinesReply;
+  reply:
+    | OpenStoryReply
+    | WhatIsOnScreenReply
+    | CaptureStoryReply
+    | OldCodeReply
+    | ReadLogLinesReply
+    | AskTheAppReply;
 };
 
 /* ---- The line ------------------------------------------------------------------------------- */
@@ -182,6 +259,13 @@ export type SherloLine = {
    * a scene capture waits, one line on the log feed names them.
    */
   filesChanged: (paths: string[]) => void;
+  /**
+   * The bundler could not build the app's code. A capture waiting, and each asked after, is
+   * answered `bundle-does-not-build` with this failure until a build goes through.
+   */
+  bundleDoesNotBuild: (failure: BundleBuildFailureSaid) => void;
+  /** A build went through: captures are handed to the app again. */
+  bundleBuilt: () => void;
   /** Close every socket on the line. */
   close: () => void;
 };

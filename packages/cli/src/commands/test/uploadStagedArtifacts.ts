@@ -22,6 +22,7 @@ import logWarning from '../../helpers/logWarning';
 import reporting from '../../helpers/reporting';
 import throwError from '../../helpers/throwError';
 import { nativeBuild } from '../../seams/nativeBuild';
+import type { PhoneSide } from '../../seams/phoneSide';
 import type { BundleResult } from './buildBundle';
 
 const MAX_RETRIES = 3;
@@ -31,6 +32,8 @@ export type StagedUploadKeys = {
   assetsS3Key?: string;
   /** S3 key of the uploaded module manifest (SHERLO-1894). Absent unless a manifest was uploaded. */
   manifestS3Key?: string;
+  /** S3 key of the uploaded phone side. Absent unless the file was uploaded. */
+  phoneSideS3Key?: string;
 };
 
 /**
@@ -44,16 +47,20 @@ export type StagedUploadKeys = {
  */
 export type StagedUploadUrlsWithManifest = StagedPlatformUploadUrls & {
   manifest?: StagedPresignedUploadUrl;
+  /** Same bail-open rule as the manifest: an older service offers no phone side slot. */
+  phoneSide?: StagedPresignedUploadUrl;
 };
 
 async function uploadStagedArtifacts({
   platform,
   bundleResult,
   urls,
+  phoneSide,
 }: {
   platform: Platform;
   bundleResult: BundleResult;
   urls: StagedUploadUrlsWithManifest;
+  phoneSide?: PhoneSide;
 }): Promise<StagedUploadKeys> {
   // 1. Upload the JS bundle verbatim.
   const bundleBuffer = fs.readFileSync(bundleResult.bundlePath);
@@ -115,6 +122,28 @@ async function uploadStagedArtifacts({
       logWarning({
         message:
           `Failed to upload the ${PLATFORM_LABEL[platform]} module manifest ` +
+          `(${error instanceof Error ? error.message : String(error)}); ` +
+          'continuing without it.',
+      });
+    }
+  }
+
+  // 4. Upload the phone side - only when one was made AND the service offered a phoneSide
+  //    slot. BAIL-OPEN exactly like the manifest: no slot is skipped silently, a failed upload
+  //    is warned and swallowed, and the push goes on.
+  if (phoneSide && urls.phoneSide) {
+    try {
+      await putBuffer({
+        platform,
+        label: 'phone side',
+        uploadUrl: urls.phoneSide.url,
+        buffer: Buffer.from(JSON.stringify(phoneSide), 'utf8'),
+      });
+      keys.phoneSideS3Key = urls.phoneSide.s3Key;
+    } catch (error) {
+      logWarning({
+        message:
+          `Failed to upload the ${PLATFORM_LABEL[platform]} phone side ` +
           `(${error instanceof Error ? error.message : String(error)}); ` +
           'continuing without it.',
       });

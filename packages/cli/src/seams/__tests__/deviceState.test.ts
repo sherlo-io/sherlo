@@ -7,6 +7,7 @@
  * restore make are real copies.
  */
 import fs from 'fs';
+import net from 'net';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,7 +19,6 @@ import { installCaptureSocket } from '../captureSocket';
 import type { CaptureSocket } from '../captureSocket';
 import { installLetterbox } from '../letterbox';
 import type { Letterbox } from '../letterbox';
-import { installProjectFiles } from '../projectFiles';
 import {
   installDeviceState,
   liveDeviceState,
@@ -26,11 +26,11 @@ import {
   saveScreenPicture,
 } from '../deviceState';
 import type { DeviceState, DeviceTool, SceneTarget } from '../deviceState';
-import { SERIAL_LOOKUP_LIMIT_MS } from '../deviceStateAndroids';
 import { saveDeviceState } from '../deviceStateSave';
 import { restoreDeviceState } from '../deviceStateRestore';
 import { appIdOf } from '../deviceStateAppId';
 import { applySceneDevice } from '../sceneDevice';
+import type { PhoneToSet } from '../sceneDevice';
 
 const IOS: SceneTarget = {
   device: { platform: 'ios', udid: 'SIM-1' },
@@ -55,8 +55,11 @@ let simulator: string;
 let saveFolders: string[];
 let calls: Call[];
 let uninstall: () => void;
+/** What the emulator answers when asked for its global proxy: `null` when it has none. */
+let earlierProxy = 'null';
 
 beforeEach(() => {
+  earlierProxy = 'null';
   scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'device-state-test-'));
   container = path.join(scratch, 'container');
   simulator = path.join(scratch, 'simulator');
@@ -161,14 +164,18 @@ describe('a local capture leaves the device clean', () => {
     });
     const field = { location: { latitude: 52.5, longitude: 13.4 } };
 
-    expect(await applySceneDevice(ANDROID, field)).toEqual(['location']);
+    expect(await applySceneDevice(ANDROID, field)).toEqual([
+      { setting: 'location', wanted: '52.5,13.4', why: 'phone-refused' },
+    ]);
     expect(commands().filter((line) => line.includes('geo fix'))).toEqual([]);
   });
 
   it('a permission the app does not declare is not applied, and the capture goes on', async () => {
     const field = { permissions: { calendar: 'granted' }, location: undefined } as const;
 
-    expect(await applySceneDevice(ANDROID, field)).toEqual(['calendar']);
+    expect(await applySceneDevice(ANDROID, field)).toEqual([
+      { setting: 'calendar', wanted: 'granted', why: 'phone-refused' },
+    ]);
     expect(commands().filter((line) => line.includes('pm grant'))).toEqual([]);
   });
 
@@ -219,6 +226,81 @@ describe('a local capture leaves the device clean', () => {
     );
     expect(calls.find((call) => call.stdin !== undefined)?.stdin).toBe('the app data as I left it');
     expect(fs.existsSync(saveFolders[0])).toBe(false);
+  });
+
+  /** The port the refusing proxy listens on, as the emulator was told of it. */
+  function proxyPortSet(): number {
+    const put = commands().find((line) =>
+      line.includes('settings put global http_proxy 10.0.2.2:')
+    );
+    return Number(put?.split(':').at(-1));
+  }
+
+  /** Whether anything listens on `port` of this machine. */
+  function listensOn(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = net.connect(port, '127.0.0.1');
+      socket.on('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.on('error', () => resolve(false));
+    });
+  }
+
+  it("the Android emulator's proxy is set before a scene and put back after the run, even when it fails", async () => {
+    uninstall();
+    uninstall = installDeviceState(recordingDevice(ANDROID));
+    const uninstallSocket = installCaptureSocket({
+      captureStory: async () => {
+        throw new Error('a scene capture asked about a story');
+      },
+      captureScene: async () => {
+        // The scene runs while the emulator sends everything through the proxy.
+        expect(await listensOn(proxyPortSet())).toBe(true);
+        throw new Error('the app went away');
+      },
+    });
+
+    try {
+      await expect(capture({ [SCENE_OPTION]: 'inbox--full' })).rejects.toThrow('the app went away');
+    } finally {
+      uninstallSocket();
+    }
+
+    // The emulator had no proxy, so it is cleared again: the setting put to none, then deleted.
+    const ran = commands();
+    const none = ran.indexOf('adb -s emulator-5554 shell settings put global http_proxy :0');
+    expect(none).toBeGreaterThan(ran.findIndex((line) => line.includes('http_proxy 10.0.2.2:')));
+    expect(ran[none + 1]).toBe('adb -s emulator-5554 shell settings delete global http_proxy');
+    expect(await listensOn(proxyPortSet())).toBe(false);
+  });
+
+  it('an iOS simulator is given no proxy, and an emulator that had one gets it back', async () => {
+    const restoreIos = await prepareCleanDevice(IOS.device, IOS.app, undefined, 8081);
+    await restoreIos();
+    expect(commands().some((line) => line.includes('http_proxy'))).toBe(false);
+
+    uninstall();
+    uninstall = installDeviceState(recordingDevice(ANDROID));
+    earlierProxy = 'corporate.example:3128';
+    calls = [];
+    const restoreAndroid = await prepareCleanDevice(ANDROID.device, ANDROID.app, undefined, 8081);
+    await restoreAndroid();
+
+    expect(commands()).toContain(
+      'adb -s emulator-5554 shell settings put global http_proxy corporate.example:3128'
+    );
+  });
+
+  it('a run that names no bundler port sets no proxy, as open does', async () => {
+    uninstall();
+    uninstall = installDeviceState(recordingDevice(ANDROID));
+
+    const restore = await prepareCleanDevice(ANDROID.device, ANDROID.app);
+    await restore();
+
+    expect(commands().some((line) => line.includes('http_proxy'))).toBe(false);
   });
 
   it('an interrupt puts everything back', async () => {
@@ -442,163 +524,145 @@ describe('a screen picture that cannot be saved is a failed save', () => {
   });
 });
 
-describe('a capture finds the phone that has the app', () => {
-  const SIMULATORS = JSON.stringify({ devices: { ios: [{ udid: 'SIM-1', state: 'Booted' }] } });
-  const ADB_DEVICES = 'List of devices attached\nemulator-5554\tdevice\n';
-  const restores: Array<() => void> = [];
+describe("a scene's phone is set before the app starts", () => {
+  const DECLARED = { permissions: ['camera', 'photos', 'contacts'], tracking: true } as const;
+  const KEYCHAIN = 'Library/Keychains/keychain-2.db';
 
-  /** A Mac with a booted simulator and a connected emulator; the app is on the phones named. */
-  function twoPhones(appIsOn: Array<'ios' | 'android'>, project: Record<string, unknown>): void {
-    fs.writeFileSync(path.join(scratch, 'app.json'), JSON.stringify(project));
-    restores.push(installProjectFiles({ root: () => scratch }));
-    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
-    Object.defineProperty(process, 'platform', { value: 'darwin' });
-    restores.push(() => Object.defineProperty(process, 'platform', platform!));
-    const lists = vi.spyOn(liveDeviceState, 'run').mockImplementation(async (tool) => {
-      return tool === 'xcrun' ? SIMULATORS : ADB_DEVICES;
-    });
-    restores.push(() => lists.mockRestore());
-    restores.push(
-      installDeviceState({
-        ...recordingDevice(undefined),
-        run: async (tool) => {
-          if (tool === 'xcrun' && !appIsOn.includes('ios')) throw new Error('not installed');
-          return tool === 'adb' && appIsOn.includes('android') ? 'package:/data/app/base.apk' : '';
-        },
-      })
-    );
+  /** Stand up the clean device and set the phone for one scene; answers what was not applied and the restore. */
+  async function setPhone(target: SceneTarget, phone: PhoneToSet) {
+    const restore = await prepareCleanDevice(target.device, target.app, phone);
+    return { restore, notApplied: await applySceneDevice(target, phone) };
   }
 
-  afterEach(() => {
-    while (restores.length) restores.pop()!();
-  });
+  it('every declared permission is granted before the scene unless the scene denies it or asks for its dialog', async () => {
+    const phone: PhoneToSet = {
+      declared: { permissions: [...DECLARED.permissions], tracking: false },
+      permissions: { camera: 'denied' },
+    };
+    const { restore } = await setPhone(IOS, phone);
+    expect(commands()).toContain('xcrun simctl privacy SIM-1 revoke camera com.example.app');
+    expect(commands()).toContain('xcrun simctl privacy SIM-1 grant photos com.example.app');
+    expect(commands()).toContain('xcrun simctl privacy SIM-1 grant contacts com.example.app');
+    await restore();
 
-  const BOTH_IDS = {
-    expo: { ios: { bundleIdentifier: 'com.a.ios' }, android: { package: 'com.a.and' } },
-  };
+    calls = [];
+    const fresh = await setPhone(IOS, { ...phone, member: 'fresh-install' });
+    expect(commands()).toContain('xcrun simctl privacy SIM-1 revoke camera com.example.app');
+    expect(commands()).toContain('xcrun simctl privacy SIM-1 reset photos com.example.app');
+    expect(commands()).toContain('xcrun simctl spawn SIM-1 launchctl stop com.apple.SpringBoard');
+    expect(commands().filter((line) => line.includes('grant'))).toEqual([]);
+    await fresh.restore();
 
-  it('with a simulator and an emulator running, the capture picks the phone that has the app', async () => {
-    twoPhones(['android'], BOTH_IDS);
-    expect(await liveDeviceState.sceneTarget()).toEqual({
-      device: { platform: 'android', serial: 'emulator-5554' },
-      app: { id: 'com.a.and' },
+    calls = [];
+    const android = await setPhone(ANDROID, {
+      declared: { permissions: ['camera', 'notifications'], tracking: false },
+      permissions: { notifications: 'denied' },
     });
-
-    restores
-      .splice(0)
-      .reverse()
-      .forEach((restore) => restore());
-    twoPhones(['ios'], BOTH_IDS);
-    expect(await liveDeviceState.sceneTarget()).toEqual({
-      device: { platform: 'ios', udid: 'SIM-1' },
-      app: { id: 'com.a.ios' },
-    });
-  });
-
-  it('several phones with the app, or none, name every phone found', async () => {
-    twoPhones(['ios', 'android'], BOTH_IDS);
-    const found = [
-      { platform: 'ios', udid: 'SIM-1', appId: 'com.a.ios', hasApp: true },
-      { platform: 'android', serial: 'emulator-5554', appId: 'com.a.and', hasApp: true },
-    ];
-    expect(await liveDeviceState.sceneTarget()).toEqual({ cause: 'several-phones', found });
-
-    restores
-      .splice(0)
-      .reverse()
-      .forEach((restore) => restore());
-    twoPhones([], BOTH_IDS);
-    expect(await liveDeviceState.sceneTarget()).toEqual({
-      cause: 'several-phones',
-      found: found.map((phone) => ({ ...phone, hasApp: false })),
-    });
-  });
-
-  /** An Android-only machine whose adb lists the given entries; each answers getprop as scripted. */
-  function androidsListed(entries: Record<string, string | null>): void {
-    fs.writeFileSync(
-      path.join(scratch, 'app.json'),
-      JSON.stringify({ expo: { android: { package: 'com.a.and' } } })
+    expect(commands()).toContain(
+      'adb -s emulator-5554 shell pm grant com.example.app android.permission.CAMERA'
     );
-    restores.push(installProjectFiles({ root: () => scratch }));
-    const platform = Object.getOwnPropertyDescriptor(process, 'platform');
-    Object.defineProperty(process, 'platform', { value: 'linux' });
-    restores.push(() => Object.defineProperty(process, 'platform', platform!));
-    const lists = vi.spyOn(liveDeviceState, 'run').mockImplementation(async (_tool, args) => {
-      if (args[0] === 'devices') {
-        const rows = Object.keys(entries).map((entry) => `${entry}\tdevice\n`);
-        return 'List of devices attached\n' + rows.join('');
-      }
-      const own = entries[args[1]];
-      if (own === null) throw new Error('no answer');
-      if (own === 'HANG') return new Promise<string>(() => undefined);
-      return own + '\n';
-    });
-    restores.push(() => lists.mockRestore());
-    restores.push(
-      installDeviceState({ ...recordingDevice(undefined), run: async () => 'package:/x' })
+    expect(commands()).toContain(
+      'adb -s emulator-5554 shell pm revoke com.example.app android.permission.POST_NOTIFICATIONS'
     );
-  }
-
-  const MDNS = 'adb-EMU123._adb-tls-connect._tcp';
-
-  it('one Android phone that adb lists twice counts as one phone', async () => {
-    androidsListed({ 'emulator-5554': 'EMU123', [MDNS]: 'EMU123' });
-    expect(await liveDeviceState.sceneTarget()).toEqual({
-      device: { platform: 'android', serial: 'emulator-5554' },
-      app: { id: 'com.a.and' },
-    });
+    await android.restore();
   });
 
-  it('two emulators that answer alike stay two phones, and one that does not answer is kept', async () => {
-    androidsListed({ 'emulator-5554': 'EMU', 'emulator-5556': 'EMU', R5CT: null });
-    expect(await liveDeviceState.sceneTarget()).toMatchObject({
-      cause: 'several-phones',
-      found: [{ serial: 'emulator-5554' }, { serial: 'emulator-5556' }, { serial: 'R5CT' }],
+  it("the iOS tracking permission is written to the phone's privacy store before the app starts", async () => {
+    const { restore, notApplied } = await setPhone(IOS, {
+      declared: { permissions: [], tracking: true },
     });
+    writeFiles(simulator, { 'Library/TCC/TCC.db': 'tracking row written' });
+
+    const write = calls.find((call) => call.tool === 'sqlite3');
+    expect(notApplied).toEqual([]);
+    expect(write?.args[0]).toBe(path.join(simulator, 'Library/TCC/TCC.db'));
+    expect(write?.args[1]).toContain("'kTCCServiceUserTracking', 'com.example.app'");
+    expect(commands().at(-1)).toBe('xcrun simctl spawn SIM-1 launchctl stop com.apple.tccd');
+    await restore();
+    expect(readFiles(simulator)['Library/TCC/TCC.db']).toBe('camera as I left it');
   });
 
-  it('a phone that never answers its serial lookup is kept, and the capture still finds it', async () => {
-    vi.useFakeTimers();
-    restores.push(() => vi.useRealTimers());
-    androidsListed({ 'emulator-5554': 'HANG' });
-    const found = liveDeviceState.sceneTarget();
-    await vi.advanceTimersByTimeAsync(SERIAL_LOOKUP_LIMIT_MS);
-    expect(await found).toEqual({
-      device: { platform: 'android', serial: 'emulator-5554' },
-      app: { id: 'com.a.and' },
+  it("a fresh-install scene starts with the app's data and stored logins wiped", async () => {
+    const ios = await setPhone(IOS, {
+      member: 'fresh-install',
+      declared: { ...DECLARED, permissions: [] },
     });
+    expect(readFiles(container)).toEqual({});
+    expect(commands()).toContain('xcrun simctl privacy SIM-1 reset all com.example.app');
+    const wipe = calls.find((call) => call.tool === 'sqlite3');
+    expect(wipe?.args[0]).toBe(path.join(simulator, KEYCHAIN));
+    expect(wipe?.args[1]).toContain("DELETE FROM genp WHERE agrp = 'com.example.app'");
+    writeFiles(simulator, { [KEYCHAIN]: 'wiped by the scene' });
+    await ios.restore();
+    expect(readFiles(container)).toEqual(THE_DEVELOPERS_DATA);
+    expect(readFiles(simulator)[KEYCHAIN]).toBe('my logins');
+
+    calls = [];
+    const android = await setPhone(ANDROID, { member: 'fresh-install' });
+    expect(commands()).toContain('adb -s emulator-5554 shell pm clear com.example.app');
+    await android.restore();
   });
 
-  it('an ANDROID_SERIAL that names no running phone is no phone even with a simulator booted', async () => {
-    twoPhones(['ios'], BOTH_IDS);
-    vi.stubEnv('ANDROID_SERIAL', 'emulator-9999');
-    restores.push(() => vi.unstubAllEnvs());
-    expect(await liveDeviceState.sceneTarget()).toEqual({ cause: 'no-phone', found: [] });
+  it("a signed-out scene starts with the app's stored logins wiped and its other data kept", async () => {
+    const { restore } = await setPhone(IOS, { member: 'signed-out' });
+
+    expect(readFiles(container)).toEqual(THE_DEVELOPERS_DATA);
+    expect(commands().filter((line) => line.includes('reset all'))).toEqual([]);
+    const wipe = calls.find((call) => call.tool === 'sqlite3');
+    expect(wipe?.args[0]).toBe(path.join(simulator, KEYCHAIN));
+    expect(wipe?.args[1]).toContain("DELETE FROM genp WHERE agrp = 'com.example.app'");
+    await restore();
   });
 
-  it('ANDROID_SERIAL picks the phone the capture runs on', async () => {
-    androidsListed({ 'emulator-5554': 'EMU1', 'emulator-5556': 'EMU2' });
-    vi.stubEnv('ANDROID_SERIAL', 'emulator-5556');
-    restores.push(() => vi.unstubAllEnvs());
-    expect(await liveDeviceState.sceneTarget()).toEqual({
-      device: { platform: 'android', serial: 'emulator-5556' },
-      app: { id: 'com.a.and' },
+  it('a declared permission the phone refuses to grant is listed with why', async () => {
+    uninstall();
+    uninstall = installDeviceState({
+      ...recordingDevice(undefined),
+      run: async (tool, args) => {
+        if (args.includes('grant') && args.includes('photos')) throw new Error('refused');
+        return answerOf(`${tool} ${args.join(' ')}`, undefined);
+      },
     });
 
-    vi.stubEnv('ANDROID_SERIAL', 'emulator-9999');
-    expect(await liveDeviceState.sceneTarget()).toEqual({ cause: 'no-phone', found: [] });
+    const { restore, notApplied } = await setPhone(IOS, {
+      declared: { permissions: ['camera', 'photos'], tracking: false },
+    });
+
+    expect(notApplied).toEqual([{ setting: 'photos', wanted: 'granted', why: 'phone-refused' }]);
+    await restore();
   });
 
-  it('a project with no app id for any running phone is named no app id', async () => {
-    twoPhones(['ios', 'android'], {});
-    expect(await liveDeviceState.sceneTarget()).toEqual({
-      cause: 'no-app-id',
-      found: [
-        { platform: 'ios', udid: 'SIM-1', hasApp: false },
-        { platform: 'android', serial: 'emulator-5554', hasApp: false },
-      ],
+  it('an app whose declared permissions cannot be read is listed with why', async () => {
+    const { restore, notApplied } = await setPhone(IOS, {
+      declared: { permissions: [], tracking: false, unreadable: true },
     });
+
+    expect(notApplied).toEqual([
+      { setting: 'permissions', wanted: 'every permission the app declares', why: 'phone-refused' },
+    ]);
+    await restore();
+  });
+
+  it('a setting the phone cannot apply comes back with why', async () => {
+    uninstall();
+    uninstall = installDeviceState({
+      ...recordingDevice(undefined),
+      run: async (tool, args) => {
+        if (tool === 'sqlite3') throw new Error('database is locked');
+        return answerOf(`${tool} ${args.join(' ')}`, undefined);
+      },
+    });
+
+    const { restore, notApplied } = await setPhone(IOS, {
+      member: 'signed-out',
+      declared: { permissions: [], tracking: true },
+    });
+
+    expect(notApplied).toEqual([
+      { setting: 'member', wanted: 'signed-out', why: 'phone-refused' },
+      { setting: 'tracking', wanted: 'granted', why: 'phone-refused' },
+    ]);
+    await restore();
   });
 });
 
@@ -635,6 +699,7 @@ function answerOf(line: string, stdoutTo: string | undefined): string {
   if (line.includes('tar -cf -') && stdoutTo) {
     fs.writeFileSync(stdoutTo, 'the app data as I left it');
   }
+  if (line.includes('settings get global http_proxy')) return `${earlierProxy}\n`;
   if (line.includes('settings get global window_animation_scale')) return '1.0\n';
   if (line.includes('settings get global transition_animation_scale')) return '0.5\n';
   if (line.includes('settings get global animator_duration_scale')) return 'null\n';

@@ -34,9 +34,17 @@ vi.mock('../helpers/RunnerBridge', () => ({
   default: { log: vi.fn(), send: vi.fn() },
 }));
 
+// The two looks a never-settled screen is read by: the second differs in one bubble's text.
+const looks = vi.hoisted(() => ({ reads: [] as unknown[][] }));
+vi.mock('../visibleViews', async (importActual) => ({
+  ...(await importActual<typeof import('../visibleViews')>()),
+  lookAtViews: async () => looks.reads.shift() ?? [],
+}));
+
 import { monotonicNow } from '../settleClock';
+import { sceneCallsForTheCore } from '../sealedCore/sceneCalls';
 import { installClock, restoreClock } from '../mocking/clock';
-import { stabilizeOnceReady } from '../storyReady';
+import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -195,6 +203,26 @@ describe('a scene settles faster and honestly', () => {
         'utf8'
       );
       expect(androidModule, arch).toMatch(/public void holdAnimationsStill\(Promise promise\)/);
+    }
+  });
+
+  it('a ready screen still changing at the limit answers never settled with the changing views', async () => {
+    vi.useFakeTimers();
+    try {
+      storyAboutToRender('chat--typing');
+      const bubble = { key: 'tag 7', component: 'Bubble', testID: 'msg-3', frame: undefined };
+      looks.reads = [[{ ...bubble, text: 'typing.' }], [{ ...bubble, text: 'typing..' }]];
+      const native = { stabilize: vi.fn(async () => false) };
+      const settling = stabilizeOnceReady(native).stabilize(3, 3, 500, 5_000, false, 0, true);
+      await vi.runAllTimersAsync();
+      expect(await settling).toBe(false);
+      expect(sceneCallsForTheCore().neverSettledOf?.('chat--typing')).toEqual({
+        route: [],
+        changing: ['Bubble "msg-3"'],
+        unfocused: [],
+      });
+    } finally {
+      vi.useRealTimers();
     }
   });
 });

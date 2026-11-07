@@ -6,6 +6,8 @@ import {
   MockLookups,
   wasBuiltBeforeMock,
 } from './registry';
+import { layerOfMock, MockLayer } from './storyMocksOf';
+import { unusedFakeLine } from './unusedFakeLine';
 import { privateCopiesHandedByBundler } from './stillReal';
 import { MockSet } from './types';
 import { CLOCK_MOCK_KEY, ClockDefinition, installClock, restoreClock } from './clock';
@@ -37,6 +39,13 @@ export function activateStoryMocks(mocks: MockSet, lookups?: MockLookups): void 
   activateMocks(applyClockAndRandom(mocks), lookups);
 }
 
+// A mock no read reached fails nothing until the screen was judged (MockLookups' `settled`): an
+// app first imports its mocked modules as it renders, after the core's first read of this. A real
+// import that threw, and a module the bundler never saw, fail from the first read. Outside
+// testing mode no stillness check runs, so it is judged at each read.
+const screenWasJudged = (lookups: MockLookups): boolean =>
+  lookups.settled || SherloModule.getMode() !== 'testing';
+
 /**
  * Why `storyId`'s mocks did not take effect, or undefined when they did - or when they are not the
  * mocks in effect. Read with the story's own errors (../getStorybook/storyErrorRegistry), so the
@@ -53,11 +62,7 @@ export function mockFailureOf(storyId: string): StoryError | undefined {
   if (!active || active.lookups.storyId !== storyId) return undefined;
 
   const { mocks, lookups } = active;
-  // A mock no read reached fails nothing until the screen was judged (MockLookups' `settled`): an
-  // app first imports its mocked modules as it renders, after the core's first read of this. A real
-  // import that threw, and a module the bundler never saw, fail from the first read. Outside
-  // testing mode no stillness check runs, so it is judged at each read.
-  const judgeUnreached = lookups.settled || SherloModule.getMode() !== 'testing';
+  const judgeUnreached = screenWasJudged(lookups);
   const sentences = Object.keys(mocks).flatMap((key) => {
     const name = lookups.namesAsWritten.get(key) ?? key;
     const thrown = lookups.realImportThrew.get(key);
@@ -93,6 +98,38 @@ export function mockFailureOf(storyId: string): StoryError | undefined {
     stack: '',
     componentStack: '',
   };
+}
+
+/**
+ * The fakes of `storyId` that no read reached once the screen was judged, each with the layer that
+ * declared it - so a run names the shared setup or the scene that left it unused. Empty before the
+ * judgment, and for a module the bundler never saw (mockFailureOf says that one).
+ */
+export function unreachedMocksOf(storyId: string): { module: string; layer: MockLayer }[] {
+  const active = activeMockLookups();
+  if (!active || active.lookups.storyId !== storyId) return [];
+
+  const { mocks, lookups } = active;
+  if (!screenWasJudged(lookups)) return [];
+
+  return Object.keys(mocks)
+    .filter((key) => bundlerSawModule(key) && !lookups.reached.has(key))
+    .map((key) => ({
+      module: lookups.namesAsWritten.get(key) ?? key,
+      layer: layerOfMock(key, lookups.declaredByStory),
+    }));
+}
+
+/**
+ * Logs one line (./unusedFakeLine) for each fake of the story on screen that no read reached, at the
+ * end of a scene: the logged errors carry it to the Mac, which puts it in the scene's record.
+ */
+export function logUnusedFakes(): void {
+  const storyId = activeMockLookups()?.lookups.storyId;
+  if (!storyId) return;
+  for (const { module, layer } of unreachedMocksOf(storyId)) {
+    console.error(unusedFakeLine(module, layer));
+  }
 }
 
 export default activateStoryMocks;

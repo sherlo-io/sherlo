@@ -31,6 +31,8 @@ public final class SherloRequestAnswers {
     private static final String TAG = "SherloRequestAnswers";
     /** The event raised for each request native code met that no rule matches. */
     private static final String UNANSWERED_REQUEST_EVENT = "SherloUnansweredRequest";
+    /** The rule a request native code refused is told with. */
+    static final String NATIVE_RULE = "native-android";
 
     /** What a request no rule matches gets. */
     enum Unmatched { PASSTHROUGH, HELD, REFUSAL }
@@ -147,12 +149,21 @@ public final class SherloRequestAnswers {
      * (src/mocking/networkNative records it). Nothing is told before rules were handed over.
      */
     static void tellUnanswered(String method, String url, String contentType) {
+        tellUnanswered(method, url, contentType, null);
+    }
+
+    /**
+     * The same, naming the rule that blocked the request when native code refused it itself: the
+     * JavaScript layer then refuses and lists it with that rule, whatever its story lets through.
+     */
+    static void tellUnanswered(String method, String url, String contentType, String rule) {
         if (!rulesHanded || url == null) return;
         ReactApplicationContext reactContext = SherloModuleCore.currentReactContext();
         if (reactContext == null || !reactContext.hasActiveReactInstance()) return;
         try {
             JSONObject told = new JSONObject().put("method", method).put("url", url);
             if (contentType != null) told.put("contentType", contentType);
+            if (rule != null) told.put("rule", rule);
             reactContext.emitDeviceEvent(UNANSWERED_REQUEST_EVENT, told.toString());
         } catch (Throwable failed) {
             Log.w(TAG, "Failed to tell JavaScript of an unanswered request", failed);

@@ -6,6 +6,8 @@
  * A URL protocol is registered globally and put first in every session configuration made from
  * `defaultSessionConfiguration` or `ephemeralSessionConfiguration`, so a request a native library
  * makes itself (a picture downloaded to a file, an image view's own loader) meets the rules too.
+ * A background session takes no custom protocol: a download task it makes is cancelled at its
+ * start and told with the rule `native-ios`. A request refused here is told with that rule too.
  * With no rules in effect and requests let through, it takes no request. A release app outside a
  * test run installs none of it until JavaScript hands rules over (never, in default mode).
  */
@@ -15,7 +17,7 @@
 + (BOOL)setRulesJson:(NSString *)rulesJson;
 
 /**
- * Who is told, as JSON `{method, url, contentType?}` and never a body or headers, of each request
+ * Who is told, as JSON `{method, url, contentType?, rule?}` and never a body or headers, of each request
  * native code meets that no rule in effect matches (SherloModule raises it to JavaScript as a
  * `SherloUnansweredRequest` event). Nothing is told before rules were handed over.
  */

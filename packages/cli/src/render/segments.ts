@@ -13,11 +13,10 @@
  * Byte-identity holds because a transcript is exactly the concatenation of its
  * segments, in order.
  *
- * A SEGMENT CARRIES DATA, NEVER TEXT. Every literal, every emoji, every chalk
- * call and every blank line lives in ./renderSegment - which is why a producer
- * cannot render a sentence the CLI would not have printed: the only thing it can
- * supply is the state, and the same renderer turns that state into bytes for the
- * real run and for the expectation.
+ * A SEGMENT CARRIES DATA, NEVER TEXT. Every literal, emoji, chalk call and blank
+ * line lives in ./renderSegment - so a producer cannot render a sentence the CLI
+ * would not have printed: it supplies only the state, and the same renderer turns
+ * that state into bytes for the real run and for the expectation.
  *
  * BLANK LINES ARE CONTENT. Several of these segments begin or end with a blank
  * line, and a committed fixture compares byte-for-byte - so a `.filter(Boolean)`
@@ -34,6 +33,8 @@ import type { OpenedStory } from './openedStory';
 import type { CapturedStory } from './capturedStory';
 import type { OpenedScene } from './openedScene';
 import type { CapturedScene, ScenePicture } from './capturedScene';
+import type { AllScenesSummary } from './capturedAllScenes';
+import type { SceneRunLine } from './sceneRunLine';
 import type { CoverageScreen } from './coverage';
 import type { TeamList } from './teamList';
 import type { AppFailedToStart, VerdictScreen } from './verdictCloser';
@@ -390,14 +391,16 @@ export type TranscriptSegment =
   | { kind: 'opened-scene'; state: OpenedScene }
   /** The whole screen output of `sherlo capture --scene`. See ./capturedScene. */
   | { kind: 'captured-scene'; state: CapturedScene; picture?: ScenePicture }
+  /** `sherlo capture --all-scenes` - one line for a scene, with how its capture ended and its times. See ./capturedAllScenes. */
+  | { kind: 'scene-run-line'; line: SceneRunLine }
+  /** `sherlo capture --all-scenes` - the closing counts of the run and where the captures are kept. See ./capturedAllScenes. */
+  | { kind: 'all-scenes-summary'; summary: AllScenesSummary }
   /** The whole screen output of `sherlo coverage`. See ./coverage. */
   | { kind: 'coverage'; screen: CoverageScreen }
   /** `sherlo capture --logs` - Sherlo's log from the app, printed after the story. See ./capturedLog. */
   | { kind: 'captured-log'; logs: string[] }
   /** `sherlo capture` - where the capture was kept. See ./keptCapture. */
   | { kind: 'kept-capture'; id: string }
-  /** `sherlo capture --all-scenes` - one line for a scene, with how its capture ended. See ./keptCapture. */
-  | { kind: 'captured-each-scene'; sceneId: string; ending: string }
   /** `sherlo capture --all-scenes` on an app that declares no scene - one plain line. See ./keptCapture. */
   | { kind: 'no-scenes-to-capture' }
   /* ---------------------------------------------------------------------- *

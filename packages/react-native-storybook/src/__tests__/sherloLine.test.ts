@@ -16,7 +16,7 @@ import * as path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SherloLine } from '../../metro/sherloLine';
 
-const { attach, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
+const { attach, BUNDLER_STAMP, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
 const ws = require('ws');
 const WebSocketServer = ws.WebSocketServer || ws.Server;
 
@@ -113,8 +113,14 @@ async function connectAnApp(running: RunningLine) {
 
   return {
     waitsForAStory: (saying: Message) => say({ action: 'waitForStory', ...saying }),
-    waitsForACapture: (saying: Message) => say({ action: 'waitForACapture', ...saying }),
+    // An app of the code this bundler serves says its stamp; a test of old code overrides it.
+    waitsForACapture: (saying: Message) =>
+      say({ action: 'waitForACapture', codeStamp: BUNDLER_STAMP, ...saying }),
     logs: (line: string) => say({ action: 'log', line }),
+    /** Any other message of the app's, once the line has heard it. */
+    says: say,
+    /** The next message of `action` the line sends this app. */
+    nextMessage: (action: string) => app.next((m) => m.action === action),
     /** The JavaScript starts again on this same connection, as it does after a reload. */
     startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),
     /** The app's socket closes. */
@@ -878,6 +884,57 @@ describe('a capture of an app whose JavaScript died as it started', () => {
   });
 });
 
+describe('a bundle the bundler cannot build', () => {
+  const SCENE = 'Inbox';
+  const FAILURE = {
+    kind: 'syntax',
+    message: 'Unexpected token',
+    file: 'src/Inbox.tsx',
+    line: 12,
+    column: 3,
+  };
+
+  it('the bundler sends a does-not-build answer to the waiting CLI instead of closing the line', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    await app.waitsForACapture({ mode: 'testing', stories: null, scenes: [SCENE], answer: null });
+    const reply = driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+
+    running.line.bundleDoesNotBuild(FAILURE);
+
+    await expect(reply).resolves.toEqual({
+      kind: 'bundle-does-not-build',
+      sceneId: SCENE,
+      failure: FAILURE,
+    });
+  });
+
+  it('a capture asked while the bundle does not build is answered at once, with no app waiting', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    running.line.bundleDoesNotBuild(FAILURE);
+
+    await expect(
+      driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS })
+    ).resolves.toEqual({ kind: 'bundle-does-not-build', sceneId: SCENE, failure: FAILURE });
+  });
+
+  it('CONTROL: a bundle that built again is no longer answered as failing', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    running.line.bundleDoesNotBuild(FAILURE);
+    running.line.bundleBuilt();
+    await app.waitsForACapture({ mode: 'testing', stories: null, scenes: [SCENE], answer: null });
+
+    driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+
+    await expect(app.nextCaptureInstruction()).resolves.toMatchObject({ sceneId: SCENE });
+  });
+});
+
 describe("the app's log lines land in the feed for the next reader", () => {
   it('hands a reader every line posted so far, oldest first', async () => {
     const running = await startALine();
@@ -1050,5 +1107,30 @@ describe('a scene capture whose app starts over after taking its instruction', (
       `${started} the story file src/inbox/Inbox.stories.tsx changed.`,
     ]);
     expect(await startedOverBecause(true)).toEqual([`${started} a story file changed.`]);
+  });
+});
+
+describe('a driver asks the newest app about its scroll', () => {
+  it('the ask goes to the newest app under a name, and the driver is told what the app answered', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    // The line has the app once its hello is heard: a log line comes after it.
+    await app.logs('hello');
+
+    const reply = driver.ask({ action: 'askTheApp', ask: { action: 'is-scrollable' } });
+    const asked = await app.nextMessage('is-scrollable');
+    await app.says({ action: 'scroll-answer', askId: asked.askId, scrollable: true });
+
+    await expect(reply).resolves.toEqual({ kind: 'answered', answer: { scrollable: true } });
+  });
+
+  it('the ask finds no app when none has said hello', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+
+    await expect(
+      driver.ask({ action: 'askTheApp', ask: { action: 'is-scrollable' } })
+    ).resolves.toEqual({ kind: 'no-app' });
   });
 });

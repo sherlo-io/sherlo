@@ -1,0 +1,35 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--chat-with-match"],
+  "capture": {
+    "scenes": ["kindred--chat-with-match", "kindred--chat-empty"],
+    "ready": "chat.input.message",
+    "stayedOn": ["ChatStack", "ChatList"],
+    "lastRun": {
+      "ending": "captured",
+      "route": ["ChatStack", "Chat"],
+      "refused": 0
+    },
+    "unanswered": [
+      { "method": "GET", "url": "https://api.kindred.example/v1/chats/8412", "library": "axios" },
+      {
+        "method": "GET",
+        "url": "https://api.kindred.example/v1/chats/8412/messages",
+        "library": "axios"
+      },
+      {
+        "method": "POST",
+        "url": "https://api.kindred.example/v1/chats/8412/read",
+        "library": "axios"
+      }
+    ]
+  }
+}

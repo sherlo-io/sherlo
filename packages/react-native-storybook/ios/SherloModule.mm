@@ -183,6 +183,15 @@ static void SherloEarlyInit(void) {
 }
 
 /**
+ * The labeled views of every window shown, topmost first, as JSON.
+ */
+- (void)getWindowViews:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject
+{
+  [core getWindowViews:resolve reject:reject];
+}
+
+/**
  * Whether each view named by testID is drawn, from the native view tree.
  */
 - (void)getViewVisibility:(NSString *)testIDsJson
@@ -244,6 +253,19 @@ static void SherloEarlyInit(void) {
      reject:(RCTPromiseRejectBlock)reject
 {
   [core tap:x y:y holdMs:holdMs resolve:resolve reject:reject];
+}
+
+/**
+ * Touches (x, y) in only the window at windowIndex of getWindowViews' list: a pop-up's tap.
+ */
+- (void)tapInWindow:(double)x
+                  y:(double)y
+             holdMs:(double)holdMs
+        windowIndex:(double)windowIndex
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  [core tapInWindow:x y:y holdMs:holdMs windowIndex:windowIndex resolve:resolve reject:reject];
 }
 
 /**
@@ -395,6 +417,14 @@ RCT_EXPORT_METHOD(getInspectorData:(RCTPromiseResolveBlock)resolve
 }
 
 /**
+ * The labeled views of every window shown, topmost first, as JSON.
+ */
+RCT_EXPORT_METHOD(getWindowViews:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core getWindowViews:resolve reject:reject];
+}
+
+/**
  * Whether each view named by testID is drawn, from the native view tree.
  */
 RCT_EXPORT_METHOD(getViewVisibility:(NSString *)testIDsJson
@@ -450,6 +480,18 @@ RCT_EXPORT_METHOD(tap:(double)x
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {
   [core tap:x y:y holdMs:holdMs resolve:resolve reject:reject];
+}
+
+/**
+ * Touches (x, y) in only the window at windowIndex of getWindowViews' list: a pop-up's tap.
+ */
+RCT_EXPORT_METHOD(tapInWindow:(double)x
+                  y:(double)y
+                  holdMs:(double)holdMs
+                  windowIndex:(double)windowIndex
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
+  [core tapInWindow:x y:y holdMs:holdMs windowIndex:windowIndex resolve:resolve reject:reject];
 }
 
 /**

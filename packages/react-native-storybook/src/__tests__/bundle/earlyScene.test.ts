@@ -61,9 +61,13 @@ function createOldSetupAppWithAScene(): string {
     'src/chat.scenes.js',
     "const { scenes, mock, mockRequest } = require('@sherlo/react-native-storybook');\n" +
       'exports.default = scenes({\n' +
-      "  mocks: [mockRequest('wss://chat.example/live', 'pending')],\n" +
       '  scenes: {\n' +
-      "    Conversation: { mocks: [mock(() => import('mocked-lib'), { greeting: () => 'mocked' })] },\n" +
+      '    Conversation: {\n' +
+      '      given: [\n' +
+      "        mockRequest('wss://chat.example/live', 'pending'),\n" +
+      "        mock(() => import('mocked-lib'), { greeting: () => 'mocked' }),\n" +
+      '      ],\n' +
+      '    },\n' +
       '  },\n' +
       '});\n'
   );
@@ -103,6 +107,7 @@ function createOldSetupAppWithAScene(): string {
   sdk('dist/sceneBoot.js', transpiledSdkFile('sceneBoot.ts'));
   sdk('dist/bundledScenes.js', transpiledSdkFile('bundledScenes.ts'));
   sdk('dist/settleClock.js', transpiledSdkFile('settleClock.ts'));
+  sdk('dist/preconditions.js', transpiledSdkFile('preconditions.ts'));
   // The SDK's entry imports the early-boot module, as the real one does, so it is in the graph.
   sdk(
     'dist/index.js',
@@ -168,10 +173,10 @@ function createOldSetupAppWithAScene(): string {
   );
   sdk(
     'dist/getStorybook/storyMockActivation.js',
-    'exports.activateSceneMocks = function (sceneId, fileMocks, sceneMocks) {\n' +
+    'exports.activateSceneMocks = function (sceneId, parts) {\n' +
       '  globalThis.switchedOnScene = sceneId;\n' +
       '  globalThis.activeMocks = {};\n' +
-      '  [].concat(fileMocks || [], sceneMocks || []).forEach(function (declared) {\n' +
+      '  [].concat.apply([], parts.map(function (part) { return part.mocks || []; })).forEach(function (declared) {\n' +
       "    if (declared.kind === 'module') {\n" +
       '      globalThis.activeMocks[declared.specifierAsWritten] = declared.definition;\n' +
       '    }\n' +

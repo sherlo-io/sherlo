@@ -18,8 +18,10 @@
  * the process. A restore that fails leaves the save folder where it is and names it, so the
  * developer can put the rest back by hand.
  *
- * THE KEYCHAIN IS NEVER TOUCHED. It is the developer's own logins, it lives outside the app's
- * container, and no tool here is asked to reset it. Cloud devices reset it; this machine is not one.
+ * THE KEYCHAIN IS TOUCHED ONLY FOR A SCENE THAT NAMES A MEMBER. It is the developer's own logins and
+ * lives outside the app's container, so a scene that is signed out or on a fresh install has the
+ * app's items wiped (./sceneDevice) - saved first and put back with the rest; any other scene, and
+ * `open`, never reach it.
  */
 import { spawn } from 'child_process';
 import fs from 'fs';
@@ -31,8 +33,10 @@ import { cleanTheDevice, saveDeviceState } from './deviceStateSave';
 import { restoreDeviceState } from './deviceStateRestore';
 import { connectedAndroids } from './deviceStateAndroids';
 import { appIdOf } from './deviceStateAppId';
-import { restoreSceneDevice, saveSceneDevice } from './sceneDevice';
-import type { SavedSceneDevice, SceneDeviceField } from './sceneDevice';
+import { startRefusingProxy } from './refusingProxy';
+import type { RefusingProxy } from './refusingProxy';
+import { isEmulator, restoreSceneDevice, saveSceneDevice } from './sceneDevice';
+import type { PhoneToSet, SavedSceneDevice } from './sceneDevice';
 
 /** The device a scene runs on: a simulator by its UDID, or an emulator or phone by its adb serial. */
 export type SceneDevice =
@@ -66,7 +70,7 @@ export function isTarget(answer: SceneTarget | NoTarget): answer is SceneTarget 
 }
 
 /** The only programs this seam runs. */
-export type DeviceTool = 'xcrun' | 'adb' | 'applesimutils';
+export type DeviceTool = 'xcrun' | 'adb' | 'applesimutils' | 'plutil' | 'sqlite3';
 
 export type DeviceState = {
   /** The one device and app a local scene runs on, or the cause of there being none. */
@@ -111,20 +115,26 @@ export function endOnNotDebuggable(error: unknown): never {
  *
  * Call the restore on every ending; calling it twice restores once. Until it runs, an interrupt
  * restores and ends the process with the signal's own exit code.
+ *
+ * With `bundlerPort`, an Android emulator also has its global proxy set to one that refuses every
+ * request but the bundler's (./refusingProxy), and put back with the rest. A simulator needs none.
  */
 export async function prepareCleanDevice(
   device: SceneDevice,
   app: SceneApp,
-  sceneField?: SceneDeviceField
+  phone?: PhoneToSet,
+  bundlerPort?: number
 ): Promise<() => Promise<void>> {
   const folder = deviceState().makeSaveFolder(app);
 
+  const setsProxy =
+    bundlerPort !== undefined && device.platform === 'android' && isEmulator(device.serial);
   let saved: Awaited<ReturnType<typeof saveDeviceState>>;
   let sceneSaved: SavedSceneDevice | undefined;
   try {
-    saved = await saveDeviceState(device, app, folder);
+    saved = await saveDeviceState(device, app, folder, setsProxy);
     // What the scene's own phone setup will change is read now, before anything is changed.
-    if (sceneField) sceneSaved = await saveSceneDevice(device, app, sceneField, folder);
+    if (phone) sceneSaved = await saveSceneDevice(device, app, phone, folder);
   } catch (error) {
     // Nothing on the device has changed yet, so the half-made save is worth nothing.
     fs.rmSync(folder, { recursive: true, force: true });
@@ -139,6 +149,7 @@ export async function prepareCleanDevice(
   }
 
   let restoring: Promise<void> | undefined;
+  let proxy: RefusingProxy | undefined;
   const restore = (): Promise<void> => {
     restoring ??= putBack();
     return restoring;
@@ -146,6 +157,7 @@ export async function prepareCleanDevice(
   const putBack = async (): Promise<void> => {
     releaseTheHold();
     const failures = await restoreDeviceState(device, app, saved);
+    await proxy?.stop().catch((error) => failures.push(`the proxy: ${String(error)}`));
     if (sceneSaved) {
       failures.push(...(await restoreSceneDevice(device, app, sceneSaved, folder)));
     }
@@ -178,7 +190,8 @@ export async function prepareCleanDevice(
   process.on('SIGTERM', onTerminate);
 
   try {
-    await cleanTheDevice(device, app, saved);
+    if (setsProxy && bundlerPort !== undefined) proxy = await startRefusingProxy(bundlerPort);
+    await cleanTheDevice(device, app, saved, phone?.member === 'signed-out', proxy?.port);
   } catch (error) {
     await restore();
     throw error;

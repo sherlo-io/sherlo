@@ -33,6 +33,7 @@ import getLocalBinariesInfo, {
   type LocalBinariesInfo,
 } from '../helpers/getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo';
 import { REAL_BINARY_UPLOAD_EFFECTS } from '../helpers/uploadOrPrintBinaryReuse/uploadBuild';
+import type { PhoneSide } from './phoneSide';
 import uploadStagedArtifacts, {
   type StagedUploadKeys,
 } from '../commands/test/uploadStagedArtifacts';
@@ -73,6 +74,7 @@ export type NativeBuild = {
     platform: Platform;
     bundleResult: BundleResult;
     urls: StagedPlatformUploadUrls;
+    phoneSide?: PhoneSide;
   }): Promise<StagedUploadKeys>;
 };
 
@@ -241,12 +243,13 @@ export function posedNativeBuild(push: PosedPush | undefined): PosedNativeBuild 
 
     // The keys the run would have mirrored onto the build config, from the posed slots; no byte
     // goes anywhere.
-    uploadStagedArtifacts: async ({ bundleResult, urls }) => ({
+    uploadStagedArtifacts: async ({ bundleResult, urls, phoneSide }) => ({
       jsBundleS3Key: urls.jsBundle.s3Key,
       ...(bundleResult.assetsDest ? { assetsS3Key: urls.assets.s3Key } : {}),
       ...(bundleResult.moduleManifest && urls.manifest
         ? { manifestS3Key: urls.manifest.s3Key }
         : {}),
+      ...(phoneSide && urls.phoneSide ? { phoneSideS3Key: urls.phoneSide.s3Key } : {}),
     }),
   };
 }

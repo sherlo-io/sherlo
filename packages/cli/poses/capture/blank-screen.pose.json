@@ -1,0 +1,18 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--chat-empty", "--png", "./chat-empty.png"],
+  "capture": {
+    "scenes": ["kindred--chat-empty", "kindred--discover-tab"],
+    "ready": "chat.input.message",
+    "stayedOn": ["AppStack", "Chat"],
+    "screen": { "words": [], "views": 0 }
+  }
+}

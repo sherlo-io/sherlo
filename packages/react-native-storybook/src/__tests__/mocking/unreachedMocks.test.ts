@@ -15,7 +15,9 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 import { createLazyMockable } from '../../mocking/createMockable';
 import { mock } from '../../mocking/mockDeclaration';
 import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
-import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
+import { logUnusedFakes, unreachedMocksOf } from '../../mocking/activateStoryMocks';
+import { unusedFakeLine } from '../../mocking/unusedFakeLine';
+import { activateMocksForStory, activateSceneMocks } from '../../getStorybook/storyMockActivation';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
 import { clearStoryError, readStoryError } from '../../getStorybook/storyErrorRegistry';
 import { startStorybookHolding } from './storybookHolding';
@@ -317,5 +319,53 @@ describe('why a mock that reached nothing says it did', () => {
       message:
         "the mock of pkg/analytics did not apply: amp-lib has its own copy of it in its node_modules, and a mock reaches only the app's copy",
     });
+  });
+});
+
+describe('the fakes a scene never reached are listed by the layer that declared them', () => {
+  it('a fake the scene never reached is listed under shared setup or the scene, whichever declared it', () => {
+    bundlerStartedHaving(['pkg/read', 'pkg/shared-idle', 'pkg/scene-idle']);
+    const read = inlineRequiredShim('pkg/read', () => ({ label: 'real' }));
+    inlineRequiredShim('pkg/shared-idle', () => ({ label: 'real' }));
+    inlineRequiredShim('pkg/scene-idle', () => ({ label: 'real' }));
+
+    activateSceneMocks(
+      'chat--conversation',
+      [
+        {
+          mocks: { 'pkg/read': { label: 'shared' }, 'pkg/shared-idle': { label: 'shared' } },
+          origin: 'shared',
+        },
+        {
+          mocks: { 'pkg/scene-idle': { label: 'scene' } },
+          origin: 'scene file',
+        },
+      ],
+      STORY_FILE
+    );
+    expect(read().label).toBe('shared');
+    markStorySettled();
+
+    expect(unreachedMocksOf('chat--conversation')).toEqual([
+      { module: 'pkg/shared-idle', layer: 'shared setup' },
+      { module: 'pkg/scene-idle', layer: 'scene' },
+    ]);
+  });
+
+  it('the end of a scene logs one line for each fake it never reached', () => {
+    bundlerStartedHaving(['pkg/idle']);
+    inlineRequiredShim('pkg/idle', () => ({ label: 'real' }));
+    activateSceneMocks(
+      'chat--conversation',
+      [{ mocks: { 'pkg/idle': { label: 'shared' } }, origin: 'shared' }],
+      STORY_FILE
+    );
+    markStorySettled();
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    logUnusedFakes();
+
+    expect(logged.mock.calls).toEqual([[unusedFakeLine('pkg/idle', 'shared setup')]]);
+    logged.mockRestore();
   });
 });

@@ -1,4 +1,8 @@
-[31m✖[39m  [1mchat--conversation[22m not captured: never-reached
-[31m✖[39m  [1mchat--inbox[22m not captured: never-reached
+[31m✖[39m  [1mchat--conversation[22m never reached - no view chat.input.message showed
+[31m✖[39m  [1mchat--inbox[22m never reached - no view chat.input.message showed
+
+2 scenes: 0 captured, 0 never settled, 2 never reached, 0 failed
+[2m   a picture (not for a scene that never came up) and a record of each are kept in .sherlo/captures[22m
+
 
 [exit 1]

@@ -90,7 +90,10 @@ function findFiles(projectRoot, isWanted) {
   function walk(dir) {
     var entries;
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      // Sorted, so the order never depends on the file system.
+      entries = fs.readdirSync(dir, { withFileTypes: true }).sort(function (a, b) {
+        return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+      });
     } catch (_) {
       return;
     }

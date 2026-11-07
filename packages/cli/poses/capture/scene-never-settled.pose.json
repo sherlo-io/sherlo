@@ -1,0 +1,41 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "feed--live-ticker"],
+  "capture": {
+    "scenes": ["feed--live-ticker", "feed--empty", "profile--own-profile"],
+    "route": ["FeedStack", "Feed"],
+    "bootMs": 1700,
+    "reachedMs": 2100,
+    "play": [],
+    "settled": "timed-out",
+    "changing": ["TickerValue", "LoadingSpinner"],
+    "tree": {
+      "primitive": "View",
+      "components": ["Feed"],
+      "size": { "width": 360, "height": 800 },
+      "style": { "flex": 1, "backgroundColor": "#fff" },
+      "children": [
+        {
+          "primitive": "Text",
+          "components": ["TickerValue"],
+          "size": { "width": 200, "height": 40 },
+          "style": { "fontSize": 32, "fontWeight": "700" },
+          "text": "1,204"
+        },
+        {
+          "primitive": "View",
+          "components": ["LoadingSpinner"],
+          "size": { "width": 24, "height": 24 }
+        }
+      ]
+    }
+  }
+}

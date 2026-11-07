@@ -8,7 +8,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import { PoseRefusal, readPose, readPoseDocument } from '../readPose';
-import { posedServerCalls } from '../../../seams/serverCalls';
+import {
+  posedServerCalls,
+  type CheckStagedGateAnswer,
+  type StagedGateAnswer,
+  type StoredAppBuildFacts,
+} from '../../../seams/serverCalls';
 
 /** A pose with nothing wrong with it - the thing every case below breaks in exactly one way. */
 function validPose(): Record<string, unknown> {
@@ -525,5 +530,33 @@ describe("a posed call's platforms are matched against the call as a set", () =>
     expect(api.refusals()[0].problem).toContain('`platforms`');
     expect(api.refusals()[0].problem).toContain('"ios"');
     expect(api.refusals()[0].problem).toContain('"android"');
+  });
+});
+
+describe('the staged-gate answer a pose scripts', () => {
+  it('a pose may script a staged-gate answer that names the test the same code ran in', () => {
+    const pose = {
+      ...validPose(),
+      api: [
+        {
+          call: 'checkStagedGate',
+          with: { platform: 'android', baseFingerprint: 'b4c9e2f7' },
+          answer: { outcome: 'fast', diff: [], sameCodeBuildIndex: 4 },
+        },
+      ],
+    };
+
+    expect(() => readPose(pose)).not.toThrow();
+  });
+
+  it('the staged-gate answer a pose scripts names every field the service answer has', () => {
+    // The service answer is the sdk client's own return for checkStagedGate - the type
+    // askTheStagedGate reads its answer from. The seam type adds only the stored-build facts.
+    type SeamFields = keyof StagedGateAnswer;
+    type ServiceFields = keyof CheckStagedGateAnswer | keyof StoredAppBuildFacts;
+    const seamLeavesOut: [Exclude<ServiceFields, SeamFields>] extends [never] ? true : never = true;
+    const serviceLacks: [Exclude<SeamFields, ServiceFields>] extends [never] ? true : never = true;
+
+    expect([seamLeavesOut, serviceLacks]).toEqual([true, true]);
   });
 });

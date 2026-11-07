@@ -1,0 +1,30 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--chat-with-match", "--png", "./chat-with-match.png"],
+  "capture": {
+    "scenes": ["kindred--chat-with-match", "kindred--chat-empty", "kindred--profile-own"],
+    "ready": "chat.header",
+    "stayedOn": ["AppStack", "NoInternet"],
+    "screen": {
+      "words": ["No internet connection", "Check your connection and try again", "Retry"],
+      "views": 7
+    },
+    "unanswered": [
+      { "method": "GET", "url": "https://clients3.google.com/generate_204" },
+      {
+        "method": "GET",
+        "url": "https://api.adapty.io/api/v1/sdk/in-apps/purchase-containers/",
+        "library": "react-native-adapty",
+        "times": 700
+      }
+    ]
+  }
+}

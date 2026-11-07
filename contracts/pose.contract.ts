@@ -678,12 +678,21 @@ export type PosedCapture =
     }
   | {
       scenes: string[];
-      /** The testID of the view the scene waits for. */
-      ready: string;
-      /** The route the app was on when the wait ran out, outermost screen first. */
-      stayedOn: string[];
-      /** The requests the scene made that no mock answered, a discover capture's result. */
-      unanswered?: UnansweredRequest[];
+      bundleFailure: {
+        kind: 'other' | 'syntax' | 'unresolved-import';
+        /** The bundler's own words: what went wrong, without its code frame. */
+        message: string;
+        /** The file the bundler names, relative to the project root when it lies under it. */
+        file?: string;
+        line?: number;
+        column?: number;
+        /** The few source lines around the failure, as the bundler's code frame shows them. */
+        frame?: string[];
+        /** For an unresolved import: the path as the import writes it. */
+        importPath?: string;
+        /** For an unresolved import the type check resolves: how (`baseUrl "src"`, `paths "@app/*"`). */
+        knownToTheTypeCheck?: string;
+      };
     }
   | {
       scenes: string[];
@@ -715,6 +724,10 @@ export type PosedCapture =
     }
   | {
       scenes: string[];
+      everyScene: PosedSceneRun[];
+    }
+  | {
+      scenes: string[];
       /** The route the app's navigation reached, read from the app, outermost screen first. */
       route: string[];
       /** How long the fresh boot took, and how long from there until the ready view showed. */
@@ -722,13 +735,110 @@ export type PosedCapture =
       reachedMs: number;
       /** The scene's play steps, all done. */
       play: PosedPlayStep[];
-      settled: {
-        ms: number;
-        frames: number;
-      };
+      /** How the stabilization ended: settled after so long over so many frames, or gave up. */
+      settled:
+        | 'timed-out'
+        | {
+            ms: number;
+            frames: number;
+          };
+      /** The views still changing when the stabilization gave up. Absent prints no names. */
+      changing?: string[];
       /** The requests the scene made that no mock answered, a discover capture's result. */
-      unanswered?: UnansweredRequest[];
+      unanswered?: PosedRefused[];
       tree: PosedView;
+      /** What the app threw; `file` and `line` are where, when the app's stack said. */
+      threw?: {
+        name: string;
+        message: string;
+        file?: string;
+        line?: number;
+      };
+      /** What the SDK found wrong in the faked GraphQL answers of the scene. */
+      answerFindings?: AnswerFinding[];
+      /**
+       * The distinct errors the app logged during the scene, counted and capped, as the app listed
+       * them.
+       */
+      loggedErrors?: {
+        messages: Array<{
+          message: string;
+          times: number;
+        }>;
+        moreLeftOut: number;
+      };
+      /** The module fakes the scene declared and the app never used. */
+      mockNotApplied?: Array<{
+        module: string;
+        why?: 'bundler-had-not-seen-it';
+      }>;
+      /** The requests a rule of the scene let reach the real network. */
+      letThrough?: UnansweredRequest[];
+      /** The phone settings the scene asked for and Sherlo could not write. */
+      phoneNotApplied?: PhoneNotApplied[];
+    }
+  | {
+      scenes: string[];
+      /** The testID of the view the scene waits for. */
+      ready: string;
+      /** The route the app was on when the wait ran out, outermost screen first. */
+      stayedOn: string[];
+      /** The app's own modules the scene reached that no mock replaced. Absent prints no list. */
+      stillReal?: string[];
+      /** The requests the scene made that no mock answered, a discover capture's result. */
+      unanswered?: PosedRefused[];
+      /** What the app threw; `file` and `line` are where, when the app's stack said. */
+      threw?: {
+        name: string;
+        message: string;
+        file?: string;
+        line?: number;
+      };
+      /** What the SDK found wrong in the faked GraphQL answers of the scene. */
+      answerFindings?: AnswerFinding[];
+      /**
+       * The distinct errors the app logged during the scene, counted and capped, as the app listed
+       * them.
+       */
+      loggedErrors?: {
+        messages: Array<{
+          message: string;
+          times: number;
+        }>;
+        moreLeftOut: number;
+      };
+      /** The module fakes the scene declared and the app never used. */
+      mockNotApplied?: Array<{
+        module: string;
+        why?: 'bundler-had-not-seen-it';
+      }>;
+      /** The requests a rule of the scene let reach the real network. */
+      letThrough?: UnansweredRequest[];
+      /** The phone settings the scene asked for and Sherlo could not write. */
+      phoneNotApplied?: PhoneNotApplied[];
+      /** The shape a fake gave a field, against the shape the app reads it as. */
+      crashCause?: {
+        dataPath: string;
+        gave: string;
+        appExpects: string;
+      };
+      /** How the last run of the same scene ended, to say what changed. */
+      lastRun?: {
+        ending: 'captured' | 'never-reached' | 'never-settled';
+        route: string[];
+        refused: number;
+      };
+      /** The words on the app's screen when the capture stopped, and how many views it drew. */
+      screen?: {
+        words: string[];
+        views: number;
+      };
+      /** The capture gave up `afterMs` in, because the app was still on a consent or sign-in screen. */
+      endedEarly?: {
+        afterMs: number;
+        stuckOn: 'consent' | 'sign-in';
+        button?: string;
+      };
     };
 
 /**
@@ -1106,6 +1216,11 @@ export type StartedRun = {
     /** How many stories a partial capture takes. Ignored on a full capture. */
     capturedStories: number;
     /**
+     * How many scenes a partial capture takes, a changed scene file counting as its scenes.
+     * Ignored on a full capture.
+     */
+    capturedScenes?: number;
+    /**
      * How many stories the bundle holds; absent when no module map could count them. The service's
      * startedRun answers an absent field with null, as GraphQL does, so a reader takes null as
      * absent.
@@ -1184,6 +1299,41 @@ export type StagedGateAnswer = {
    * changed since Test 12" - whatever the outcome. Absent when nothing is stored.
    */
   storedBuildIndex?: number;
+  /**
+   * The branch's last test that ran this very code - the push then says so and starts no new run.
+   * Absent when the branch has no such test, and when the question named no bundle.
+   */
+  sameCodeBuildIndex?: number;
+  /**
+   * Why a refused platform needs a new app build - the service's own words, absent on a fast
+   * answer.
+   */
+  buildReason?: 'nothing-stored' | 'native-changed';
+  /**
+   * The structured detail of a refusal, in the service's own shape - absent unless the gate
+   * refused.
+   */
+  refusalReasons?: Array<
+    | {
+        dimension:
+          | 'engineClass'
+          | 'assetInventory'
+          | 'expoUpdatesEnabled'
+          | 'sdkProtocolVersion'
+          | 'buildMetadata'
+          | 'bundleFormat';
+        incomingDerivation: 'binary' | 'none' | 'source';
+        kind: 'identity-diff';
+        storedDerivation: 'binary' | 'none' | 'source';
+      }
+    | {
+        code: 'sdk-protocol-incompatible';
+        kind: 'compatibility';
+      }
+    | {
+        kind: 'base-file-missing';
+      }
+  >;
 };
 
 /**
@@ -1269,6 +1419,17 @@ export type UnansweredRequest = {
   contentType?: string;
   operation?: string;
   bodyExcerpt?: string;
+  scope?: 'background' | 'screen';
+  rule?: 'emulator-proxy' | 'fake-refused' | 'native-android' | 'native-ios' | 'no-fake-matched';
+  fakeAt?: string;
+  stack?: string;
+  /** The npm package whose code made the request, when the app's call stack names one. */
+  library?: string;
+  /**
+   * Set on the Mac, never by the app: the package under node_modules whose code holds the host
+   * (see ./senderByCode).
+   */
+  codeNames?: string;
 };
 
 /**
@@ -1312,6 +1473,60 @@ export type PosedPlayStep =
   | {
       open: string;
     };
+
+/**
+ * One scene's run inside a run of every scene. Only the ending is required; a scene that came up
+ * states how long it took, and the views it left still changing when it never settled.
+ */
+export type PosedSceneRun = {
+  sceneId: string;
+  ending: 'captured' | 'never-settled' | 'never-reached' | 'crashed-at-boot';
+  /** How long the fresh boot took, for a scene that came up. */
+  bootMs?: number;
+  /** How long the stabilization took to settle, for a scene that held still. */
+  settledMs?: number;
+  /** How long the ready view took to show, from the fresh boot. */
+  reachedMs?: number;
+  /** The views still changing when the stabilization gave up. */
+  changing?: string[];
+  /** The testID of the view a scene that never got ready waits for. */
+  ready?: string;
+  /** The requests the scene made that no mock answered. */
+  unanswered?: PosedRefused[];
+};
+
+/**
+ * A refused request as a pose states it. `times` says it was made that many times, as an SDK
+ * retrying its own host does; absent is once. The record lists each, so the pose need not.
+ */
+export type PosedRefused = {
+  method: string;
+  url: string;
+  library?: string;
+  operation?: string;
+  times?: number;
+};
+
+/** What the SDK finds wrong in a faked GraphQL answer, as the app lists it. */
+export type AnswerFinding = {
+  kind:
+    | 'field-missing'
+    | 'typename-missing'
+    | 'typename-matches-no-fragment'
+    | 'no-query-text'
+    | 'field-extra'
+    | 'field-wrong-type';
+  operation?: string;
+  path?: string;
+  expected?: string;
+};
+
+/** A setting the phone could not take, with why: the shape the capture screen lists. */
+export type PhoneNotApplied = {
+  setting: string;
+  wanted: string;
+  why: 'app-not-installed' | 'phone-refused';
+};
 
 /**
  * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
@@ -1431,6 +1646,11 @@ export type AppError = {
   componentStack?: string;
   /** The first few frames of the error's own stack, one line each. */
   topFrames?: string[];
+  /** The source file and line the crash came from, read through the bundle's source map. */
+  file?: string;
+  line?: number;
+  /** The data the app was reading when it hit undefined, as the error's message names it. */
+  dataPath?: string;
 };
 
 /** One source of a stored app build's list. */

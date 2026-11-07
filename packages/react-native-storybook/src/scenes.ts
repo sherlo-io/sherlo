@@ -1,6 +1,5 @@
-import type { StoryMocks } from './mocking/mockDeclaration';
+import type { Given } from './preconditions';
 import type { ReadyRule } from './types/types';
-import type { SceneDevice } from './sceneDeviceTypes';
 
 /**
  * The view a tap names: by `testID` (with an `index` among the visible matches, topmost first), by
@@ -36,14 +35,17 @@ export type ReadyStep = { ready: string | ReadyRule };
 
 export type PlayStep = TapStep | LongPressStep | TypeStep | SwipeStep | OpenStep | ReadyStep;
 
-export type { SceneDevice, ScenePermission } from './sceneDeviceTypes';
+export type { SceneDevice, SceneMember, ScenePermission, ScenePhone } from './sceneDeviceTypes';
+export type { Given, Precondition, PreconditionParts } from './preconditions';
 
 /** One variant of one screen. */
 export type Scene = {
-  /** This scene's phone setup; it merges over the file's, per permission, and the scene's wins. */
-  device?: SceneDevice;
-  /** This scene's own mocks; they merge over the file's, and the scene's win. */
-  mocks?: StoryMocks;
+  /**
+   * What the scene starts from, in order, a later entry winning over an earlier one:
+   * `given: [signedIn(member), withInbox(threads), mock(...)]`. Each entry is a precondition, a
+   * plain function result the team writes once and imports; no scene file has setup of its own.
+   */
+  given?: Given;
   /** Taps and links that take the app from its first screen to this one. */
   play?: PlayStep[];
   /**
@@ -56,10 +58,6 @@ export type Scene = {
 
 /** What a scene file hands to `scenes()`. */
 export type SceneFile = {
-  /** The phone setup every scene of the file shares. */
-  device?: SceneDevice;
-  /** Mocks every scene of the file shares. */
-  mocks?: StoryMocks;
   /** The file's scenes by name; a name gives the scene its id, `chat--conversation`. */
   scenes: Record<string, Scene>;
 };

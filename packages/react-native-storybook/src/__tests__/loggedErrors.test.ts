@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { partialReadLine, unusedFakeLine } from '../mocking/unusedFakeLine';
 
 const original = console.error;
 
@@ -35,6 +36,26 @@ describe('the errors the app logs during a scene', () => {
     });
     // The app's own logging is unchanged: every call still reaches what was there before.
     expect(sink).toHaveBeenCalledTimes(9);
+  });
+
+  it('the lines about a scene’s fakes are all delivered and never push out or count as app errors', async () => {
+    const { loggedErrors } = await installedKeeper();
+    const lines = [
+      ...['a', 'b', 'c', 'd', 'e', 'f'].map(partialReadLine),
+      unusedFakeLine('pkg/analytics', 'shared setup'),
+    ];
+
+    for (const line of lines.slice(0, 6)) console.error(line);
+    console.error('Network request failed');
+    console.error(lines[6]);
+
+    expect(loggedErrors()).toEqual({
+      messages: [
+        { message: 'Network request failed', times: 1 },
+        ...lines.map((message) => ({ message, times: 1 })),
+      ],
+      moreLeftOut: 0,
+    });
   });
 
   it('only the first argument is kept: an Error by name and message, a string as it is, anything else left out', async () => {

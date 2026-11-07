@@ -16,7 +16,13 @@ export function clearStoryError(id: string): void {
 // refused request, or a mock that did not apply.
 export function threwOf(id: string): StoryThrew | undefined {
   const error = readStoryError(id);
-  return error && { name: error.name, message: error.message };
+  if (!error) return undefined;
+  const firstFrame = error.stack.split('\n').find((line) => /^\s*at /.test(line));
+  return {
+    name: error.name,
+    message: error.message,
+    ...(firstFrame ? { topFrames: [firstFrame.trim()] } : {}),
+  };
 }
 // Why the app crashed on `id`: the error recorded, else a plain saying that none was left. A
 // crashed record never goes out without a cause.

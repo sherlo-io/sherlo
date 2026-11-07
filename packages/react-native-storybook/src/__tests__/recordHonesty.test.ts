@@ -112,6 +112,7 @@ describe('the capture record says what happened', () => {
       name: 'UnmockedRequestError',
       message:
         'no mock rule matches GET https://a.invalid/x. Add a rule for it, or let it through.',
+      topFrames: ['at somewhere'],
     });
   });
 

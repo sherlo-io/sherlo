@@ -23,6 +23,7 @@
 import { Platform } from '@sherlo/api-types';
 import { buildBundles, type BundlingEffects } from '../commands/test/bundleAndPreview';
 import { bundler } from '../seams/bundler';
+import type { PhoneSide } from '../seams/phoneSide';
 import type { BundleResult } from '../commands/test/buildBundle';
 import { resolveSuppliedBundles } from '../commands/test/suppliedBundle';
 import {
@@ -44,6 +45,7 @@ import type { GateMetadataInput } from './fingerprint';
 export type UploadedFreshBundle = {
   keys: StagedUploadKeys;
   bundleSizeMb: number;
+  bundleHash: string;
   moduleManifest?: BundleResult['moduleManifest'];
   /**
    * The gate facts derived from this bundle, the staged road's way - set only for a platform that
@@ -95,6 +97,7 @@ export async function uploadFreshBundles({
   baseFingerprints,
   projectIndex,
   teamId,
+  phoneSides,
   effects,
 }: {
   projectRoot: string;
@@ -110,6 +113,8 @@ export async function uploadFreshBundles({
   baseFingerprints: Partial<Record<Platform, string>>;
   projectIndex: number;
   teamId: string;
+  /** Per platform, the phone side to upload beside its bundle (./phoneSidesOf). */
+  phoneSides?: Partial<Record<Platform, PhoneSide>>;
   effects: FreshBundleEffects;
 }): Promise<Partial<Record<Platform, UploadedFreshBundle>>> {
   let bundles: Partial<Record<Platform, BundleResult>>;
@@ -152,6 +157,7 @@ export async function uploadFreshBundles({
     bundles,
     projectIndex,
     teamId,
+    phoneSides,
     effects: effects.upload,
   });
 
@@ -169,6 +175,7 @@ export async function uploadFreshBundles({
     uploaded[platform] = {
       keys: platformKeys,
       bundleSizeMb: bundleResult.bundleSizeMb,
+      bundleHash: bundleResult.bundleHash,
       moduleManifest: bundleResult.moduleManifest,
       ...(storedBuildGateMetadata ? { storedBuildGateMetadata } : {}),
     };

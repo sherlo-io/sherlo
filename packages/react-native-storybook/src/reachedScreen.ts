@@ -11,10 +11,46 @@
 import { currentAppFiber } from './componentNames';
 import type { WalkedFiber } from './sealedCore/seam';
 
-type RouteState = { index?: number; routes?: { name?: string; state?: RouteState }[] };
+type RouteParams = { screen?: unknown; params?: RouteParams };
+type RouteState = {
+  type?: string;
+  index?: number;
+  routes?: { name?: string; key?: string; state?: RouteState; params?: RouteParams }[];
+};
+type FocusedRoute = { name: string; key?: string };
 
 /** The focused route in each nested navigator, outermost first; empty when it cannot be read. */
 export function reachedRoute(): string[] {
+  return focusedRoutes().map((route) => route.name);
+}
+
+/**
+ * Whether a view belongs to the focused screen: not drawn under a stack screen the app has moved
+ * on from, nor in a tab it left, both of which React Navigation keeps mounted. A view outside
+ * every screen (an overlay of the app's root), or an app whose route cannot be read, is not judged.
+ */
+export function isOnFocusedRoute(view: WalkedFiber): boolean {
+  const focused = focusedRoutes();
+  if (focused.length === 0) return true;
+  for (let up = view.return; up; up = up.return) {
+    const value = up.memoizedProps?.value;
+    if (isRoute(value)) return focused.some((route) => route.key === value.key);
+  }
+  return true;
+}
+
+/** A screen's route object as React Navigation hands it down: its key is its name and a unique id. */
+function isRoute(value: unknown): value is { name: string; key: string } {
+  const route = value as { name?: unknown; key?: unknown } | null;
+  return (
+    !!route &&
+    typeof route.name === 'string' &&
+    typeof route.key === 'string' &&
+    route.key.startsWith(route.name + '-')
+  );
+}
+
+function focusedRoutes(): FocusedRoute[] {
   const root = currentAppFiber();
   const getRootState = root && findGetRootState(root);
   if (!getRootState) return [];
@@ -39,13 +75,34 @@ function findGetRootState(root: WalkedFiber): (() => RouteState | undefined) | u
   return undefined;
 }
 
-function focusedPath(state: RouteState | undefined): string[] {
-  const names: string[] = [];
+function focusedPath(state: RouteState | undefined): FocusedRoute[] {
+  const names: FocusedRoute[] = [];
   for (let current = state; current?.routes;) {
-    const route = current.routes[current.index ?? current.routes.length - 1];
+    const route = current.routes[current.index ?? defaultFocus(current)];
     if (!route?.name) break;
-    names.push(route.name);
-    current = route.state;
+    names.push({ name: route.name, key: route.key });
+    if (route.state) {
+      current = route.state;
+    } else {
+      // A navigator the route opens but has not mounted yet (a deep link behind a modal): its
+      // screen waits in the route's params, and is the screen the app is on.
+      names.push(...pendingScreens(route.params).map((name) => ({ name })));
+      break;
+    }
+  }
+  return names;
+}
+
+/** Where a navigator whose state names no index is focused: tabs and drawers on the first, a stack on the last. */
+function defaultFocus(state: RouteState): number {
+  return state.type === 'tab' || state.type === 'drawer' ? 0 : (state.routes?.length ?? 1) - 1;
+}
+
+/** The screens a route's params open inside a navigator not yet mounted, outermost first. */
+function pendingScreens(params: RouteParams | undefined): string[] {
+  const names: string[] = [];
+  for (let current = params; typeof current?.screen === 'string'; current = current.params) {
+    names.push(current.screen);
   }
   return names;
 }

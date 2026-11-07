@@ -567,7 +567,10 @@ function storyFilesUnder(folder) {
   var found = [];
   var children;
   try {
-    children = fs.readdirSync(folder, { withFileTypes: true });
+    // Sorted, so the order never depends on the file system.
+    children = fs.readdirSync(folder, { withFileTypes: true }).sort(function (a, b) {
+      return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+    });
   } catch (_) {
     // A folder the loader names but the disk does not have holds no story files.
     return found;

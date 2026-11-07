@@ -32,6 +32,8 @@ import { startStorybookHolding } from './storybookHolding';
 
 const BASE = 'https://mocking.sherlo.invalid';
 const STORY_ID = 'mocking-network--default';
+// What a refused request also carries: made before the app rendered, no fake matched it.
+const refused = { scope: 'background', rule: 'no-fake-matched', stack: expect.any(String) };
 
 // ---------------------------------------------------------------------------
 // The runtime a story runs in: a real fetch, and an XMLHttpRequest that records
@@ -287,6 +289,28 @@ describe('a request the story names', () => {
   });
 });
 
+describe('two fakes match one request', () => {
+  it("the scene's request fake answers over the shared setup's fake for the same request", async () => {
+    await activateStory({
+      project: [mockRequest({ url: `${BASE}/orders` }, { body: 'the shared setup orders' })],
+      story: [mockRequest({ url: `${BASE}/orders` }, { body: 'the scene orders' })],
+    });
+
+    await expect(get(`${BASE}/orders`)).resolves.toBe('the scene orders');
+  });
+
+  it('of two matching fakes in one list the later one answers', async () => {
+    await activateStory({
+      story: [
+        mockRequest({ url: `${BASE}/orders` }, { body: 'the earlier orders' }),
+        mockRequest({ url: `${BASE}/*` }, { body: 'the later orders' }),
+      ],
+    });
+
+    await expect(get(`${BASE}/orders`)).resolves.toBe('the later orders');
+  });
+});
+
 describe('a request no rule names', () => {
   it('a request no rule matches throws and the story records it', async () => {
     await activateStory({
@@ -346,7 +370,7 @@ describe('a request no rule names', () => {
     expect(refusal.message).toBe(
       `no mock rule matches GET ${url}. Add a rule for it, or let it through.`
     );
-    expect(unansweredRequests()).toEqual([{ method: 'GET', url, operation: 'Me' }]);
+    expect(unansweredRequests()).toEqual([{ method: 'GET', url, operation: 'Me', ...refused }]);
   });
 
   it('a request made through XMLHttpRequest keeps the content type it set', async () => {
@@ -363,6 +387,7 @@ describe('a request no rule names', () => {
         url: `${BASE}/orders`,
         contentType: 'application/json',
         bodyExcerpt: '{"id":7}',
+        ...refused,
       },
     ]);
   });
@@ -566,10 +591,19 @@ describe('a socket rule is matched like a request rule', () => {
     });
   });
 
+  it("the scene's socket fake answers over the shared setup's fake for the same address", async () => {
+    await activateStory({
+      project: [mockRequest.socket({ url: WS }, 'pending')],
+      story: [mockRequest.socket({ url: WS }, 'refuse')],
+    });
+
+    expect(socketVerdictFor(WS)).toEqual({ kind: 'answer', answer: 'refuse' });
+  });
+
   it('a socket no rule matches is listed as WS, and a request rule never answers it', async () => {
     await activateStory({ story: [mockRequest({ url: WS }, { body: 'x' })] });
 
     expect(socketVerdictFor(WS).kind).toBe('refusal');
-    expect(unansweredRequests()).toEqual([{ method: 'WS', url: WS }]);
+    expect(unansweredRequests()).toEqual([{ method: 'WS', url: WS, ...refused }]);
   });
 });

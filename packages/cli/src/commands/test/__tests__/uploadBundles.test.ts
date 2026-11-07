@@ -95,6 +95,28 @@ describe('uploadBundles asks for one slot per tested platform and uploads each b
     });
   });
 
+  it('hands each platform its own phone side to the upload, and none to a platform without one', async () => {
+    const requestUploadSlots = vi.fn().mockResolvedValue({
+      stagedPresignedUploadUrls: { android: ANDROID_URLS, ios: IOS_URLS },
+    });
+    const uploadBundle = vi.fn(async () => ({ jsBundleS3Key: 'js-key' }));
+    const iosPhoneSide: any = { version: 1, platform: 'ios' };
+
+    await uploadBundles({
+      platformsToTest: ['android', 'ios'],
+      bundles: { android: bundleResult(1.5), ios: bundleResult(2.5) },
+      projectIndex: 7,
+      teamId: 'team1234',
+      phoneSides: { ios: iosPhoneSide },
+      effects: { requestUploadSlots, uploadBundle },
+    });
+
+    const handedOn = (platform: string) =>
+      (uploadBundle.mock.calls as any[][]).find(([call]) => call.platform === platform)![0];
+    expect(handedOn('ios').phoneSide).toBe(iosPhoneSide);
+    expect(handedOn('android').phoneSide).toBeUndefined();
+  });
+
   it('throws StagedSlotMissingError, uploading nothing for it, when a platform got no slot', async () => {
     const requestUploadSlots = vi.fn().mockResolvedValue({
       stagedPresignedUploadUrls: { android: ANDROID_URLS },
@@ -162,6 +184,19 @@ describe('applyBundleToPlatformConfig writes the bundle fields the runner reads 
     });
   });
 
+  it('the platform config carries the phone side key beside the bundle key', () => {
+    const platformConfig: Record<string, unknown> = { devices: [], s3Key: 'binary-key' };
+
+    applyBundleToPlatformConfig({
+      platformConfig,
+      keys: { jsBundleS3Key: 'js-key', phoneSideS3Key: 'phone-side-key' },
+      bundleSizeMb: 1,
+    });
+
+    expect(platformConfig.jsBundleS3Key).toBe('js-key');
+    expect(platformConfig.phoneSideS3Key).toBe('phone-side-key');
+  });
+
   it('sends nothing extra for artifacts that were not uploaded', () => {
     const platformConfig: Record<string, unknown> = { devices: [], s3Key: 'binary-key' };
 
@@ -173,6 +208,7 @@ describe('applyBundleToPlatformConfig writes the bundle fields the runner reads 
 
     expect('assetsS3Key' in platformConfig).toBe(false);
     expect('manifestS3Key' in platformConfig).toBe(false);
+    expect('phoneSideS3Key' in platformConfig).toBe(false);
     // The binary the bundle is spliced into stays whatever the road said.
     expect(platformConfig.s3Key).toBe('binary-key');
   });

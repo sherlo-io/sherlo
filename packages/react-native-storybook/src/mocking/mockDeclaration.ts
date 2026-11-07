@@ -1,5 +1,6 @@
 import type { NetworkMockDeclaration } from './networkDeclaration';
-import { MockDefinition, MockSet, MOCKED_MODULE_KEY } from './types';
+import { mergeDefinitions } from './mergeDefinitions';
+import { DeepPartial, MockDefinition, MockSet, MOCKED_MODULE_KEY } from './types';
 
 /**
  * One module mock a story hands over: the module it stands in for, and what to serve for it.
@@ -97,20 +98,21 @@ export function specifierInUnshimmedName(key: string): string | undefined {
  * Declare a mock for the module `importModule` imports.
  *
  * `M` is inferred from the import expression, so `definition` is checked against the module's
- * own exports: an export name the module does not have, or an export of the wrong shape, is an
- * error in the editor before anything runs. The definition is either the exports to serve, or
- * a factory that receives the real module and returns them.
+ * own exports, at any depth: a part the module does not have, or a part of the wrong shape, is an
+ * error in the editor before anything runs. The definition names only the parts it changes; every
+ * other part stays the real one. It is either those parts, or a factory that receives the real
+ * module and returns them.
  *
  *   mocks: [mock(() => import('./whoAmI'), { whoAmI: () => 'Ada Lovelace' })]
  */
 export function mock<M>(
   importModule: () => Promise<M>,
-  definition: Partial<M> | ((original: M) => Partial<M>)
+  definition: DeepPartial<M> | ((original: M) => DeepPartial<M>)
 ): ModuleMockDeclaration;
 // The third argument is never written by a story: the bundler's transform of story files adds it.
 export function mock<M>(
   importModule: () => Promise<M>,
-  definition: Partial<M> | ((original: M) => Partial<M>),
+  definition: DeepPartial<M> | ((original: M) => DeepPartial<M>),
   specifierAsWritten?: string
 ): ModuleMockDeclaration {
   return {
@@ -145,9 +147,9 @@ function readKeyOfFailedImport(error: unknown): string {
 /**
  * The key -> definition set that activation installs, resolved from `declarations`.
  *
- * Declarations are assigned in the order they were merged (global, then meta, then story), so
- * for a module two levels both name, the later - more specific - declaration wins, exactly as
- * the object form's per-key precedence does.
+ * Declarations are taken in the order they were merged (global, then meta, then story), so for a
+ * module two levels both name, the fakes merge part by part and the later - more specific - one
+ * wins each part, exactly as the object form does.
  */
 export async function resolveDeclarations(declarations: MockDeclaration[]): Promise<MockSet> {
   // Network rules are not modules and name none; they are read straight off the same list by
@@ -163,7 +165,11 @@ export async function resolveDeclarations(declarations: MockDeclaration[]): Prom
   const mocks: MockSet = {};
   keys.forEach((key, index) => {
     const declaration = moduleDeclarations[index];
-    mocks[key ?? unshimmedImportName(declaration)] = declaration.definition;
+    const name = key ?? unshimmedImportName(declaration);
+    mocks[name] =
+      name in mocks
+        ? mergeDefinitions(mocks[name], declaration.definition)
+        : declaration.definition;
   });
   return mocks;
 }

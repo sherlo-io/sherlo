@@ -29,7 +29,13 @@ export type UnansweredRequest = {
 
 /** What the SDK finds wrong in a faked GraphQL answer. */
 export type AnswerFinding = {
-  kind: 'field-missing' | 'typename-missing' | 'typename-matches-no-fragment' | 'no-query-text';
+  kind:
+    | 'field-missing'
+    | 'typename-missing'
+    | 'typename-matches-no-fragment'
+    | 'no-query-text'
+    | 'field-extra'
+    | 'field-wrong-type';
   operation?: string;
   path?: string;
   expected?: string;
@@ -53,10 +59,10 @@ export type SealedCoreHost = {
   storybookFacts: () => StorybookFacts | null;
   /**
    * The scenes the app holds, in the order the app declares them, each with its id, its scene
-   * file, its component title and its scene name (already words, "Sign In" and "Menu Open");
-   * none when the app has none.
+   * file, its component title and its scene name (already words, "Sign In" and "Menu Open"), and
+   * the phone settings the scene asks for when it asks for any; none when the app has none.
    */
-  scenes(): { id: string; file: string; title: string; name: string }[];
+  scenes(): { id: string; file: string; title: string; name: string; device?: ScenePhone }[];
   /** Storybook's channel, or null when nothing usable is reachable. */
   storybookChannel: () => StorybookChannel | null;
   /** Turn on one story's mocks; a promise while some are still installing, else null. */
@@ -124,6 +130,11 @@ export type SealedCoreHost = {
    * request, or a mock that did not apply. Undefined when nothing did.
    */
   threwOf?: (id: string) => StoryThrew | undefined;
+  /**
+   * Why the scene `sceneId` did not settle, read after its stabilization gave up: the route, the
+   * views still changing and the fields still waiting for focus. Undefined when it settled.
+   */
+  neverSettledOf?: (sceneId: string) => SceneNeverSettled | undefined;
   /** Why the app crashed on `id`; a plain saying when no error was left. Never throws. */
   causeOfCrash?: (id: string) => StoryError;
   /** Whether `url` is an asset the bundler itself serves: a file of the app, no network image. */
@@ -574,6 +585,32 @@ export type StoryId = `${string}--${string}`;
 
 export type SnapshotMode = 'deviceHeight' | 'fullHeight';
 
+/** A phone permission a scene can grant or deny; the set the runner can set on both platforms. */
+export type ScenePermission =
+  | 'camera'
+  | 'microphone'
+  | 'photos'
+  | 'contacts'
+  | 'location'
+  | 'notifications'
+  | 'calendar';
+
+/**
+ * The phone-settings part of a precondition: which permissions are granted or denied, and where the
+ * phone is. The phone is set before the app starts, so Sherlo works these out while it bundles
+ * (metro/givenReader.js) from plain values and the team's own functions that return them.
+ */
+export type SceneDevice = {
+  permissions?: Partial<Record<ScenePermission, 'granted' | 'denied'>>;
+  location?: { latitude: number; longitude: number };
+};
+
+/** Who the app starts for when no one is signed in: signed out, or on a fresh install. */
+export type SceneMember = 'signed-out' | 'fresh-install';
+
+/** What Sherlo reads of a scene's phone before it launches: its settings and its member. */
+export type ScenePhone = SceneDevice & { member?: SceneMember };
+
 export type Snapshot = {
   // sherlo exclusive parameters
   viewId: string; // components-avatar--basic-deviceHeight
@@ -589,6 +626,8 @@ export type Snapshot = {
   importPath?: string;
   /** True for a scene of the app (its id in storyId, its scene file in importPath), absent for a story. */
   scene?: true;
+  /** The phone settings a scene asks for; absent for a story and for a scene that asks for none. */
+  device?: ScenePhone;
 
   // storybook parameters
   componentId: string; // components-avatar
@@ -1000,7 +1039,27 @@ export type CapturedScene =
       limitMs: number;
     })
   /** The scene's walk itself failed: the app stops and says why. */
-  | { kind: 'crashed'; sceneId: string; error?: StoryThrew };
+  | { kind: 'crashed'; sceneId: string; error?: StoryThrew }
+  /**
+   * The ready rule matched, but the screen did not settle within the limit, or a field meant to be
+   * focused never took focus. The picture is the one the stabilization took at the limit.
+   */
+  | (SceneFacts &
+      SceneNeverSettled & {
+        kind: 'never-settled';
+        bootMs: number;
+        picture: 'taken-at-the-limit';
+      });
+
+/** What the screen still did when its settle gave up. */
+export type SceneNeverSettled = {
+  /** The route the app was on. */
+  route: string[];
+  /** The views that changed between two looks, each named by component and test id. */
+  changing: string[];
+  /** The auto-focused text fields that never held focus, each by test id or placeholder. */
+  unfocused: string[];
+};
 
 /** What every scene ending that got past the walk says beside its own facts. */
 type SceneFacts = {

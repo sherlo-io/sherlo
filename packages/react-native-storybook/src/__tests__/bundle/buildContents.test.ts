@@ -10,7 +10,8 @@
 //
 // The fixture's root imports isStorybookMode from the SDK and the Storybook config folder, as the
 // docs' Root component does. Its node_modules hold a copy of the SDK package (its real
-// package.json, and the real stand-in transpiled from src/offStandIn.ts) and a small stand-in for
+// package.json, and the real stand-in and the preconditions file it exports from, transpiled from src/offStandIn.ts
+// and src/preconditions.ts) and a small stand-in for
 // Storybook's runtime package: the real one needs native peers no test installs, and the runtime
 // package is not what decides - the Storybook wrapper read while the config loads is.
 
@@ -42,6 +43,12 @@ const CONNECTION_PATH = '/sherlo/line';
 // The source of the stand-in a build without Sherlo gets in place of the SDK.
 function standInSource(): string {
   return fs.readFileSync(path.join(PACKAGE_ROOT, 'src', 'offStandIn.ts'), 'utf8');
+}
+
+// The source of the preconditions file the stand-in exports from. It imports only types, so it
+// holds no connection code.
+function preconditionsSource(): string {
+  return fs.readFileSync(path.join(PACKAGE_ROOT, 'src', 'preconditions.ts'), 'utf8');
 }
 
 // The fixture project on disk, and its root directory.
@@ -82,6 +89,10 @@ function createOldSetupApp(): string {
   write(
     `${SDK_FOLDER_IN_FIXTURE}/dist/offStandIn.js`,
     transformSync(standInSource(), { loader: 'ts', format: 'cjs', target: 'es2018' }).code
+  );
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/preconditions.js`,
+    transformSync(preconditionsSource(), { loader: 'ts', format: 'cjs', target: 'es2018' }).code
   );
   // The full SDK's entry, and the files Sherlo's Storybook wrapper reaches, as small stand-ins:
   // what matters is that they are SDK modules a bundle with Sherlo in it holds. The entry reaches
@@ -208,7 +219,10 @@ describe('what a release bundle carries', () => {
     for (const road of OFF_ROADS) {
       const { bundledModules } = bundleOfOffRoad.get(road.name)!;
       expect(bundledModules.length, road.name).toBeGreaterThan(0);
-      expect(sdkModulesIn(bundledModules), road.name).toEqual(['offStandIn.js']);
+      expect(sdkModulesIn(bundledModules), road.name).toEqual([
+        'offStandIn.js',
+        'preconditions.js',
+      ]);
       expect(storybookModulesIn(bundledModules), road.name).toEqual([]);
       const sherloCacheModules = bundledModules.filter((modulePath) =>
         modulePath.startsWith(sherloCacheFolder(root))

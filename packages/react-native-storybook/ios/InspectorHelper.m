@@ -227,6 +227,47 @@ static BOOL sherloViewIsDrawn(UIView *view) {
     return nil;
 }
 
++ (NSArray<UIWindow *> *)visibleWindows {
+    NSMutableArray<UIWindow *> *windows = [NSMutableArray array];
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
+            for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+                if (!window.hidden && window.alpha > 0.01) [windows addObject:window];
+            }
+        }
+    }
+    // Higher level first; among equal levels the window added last (shown last) comes first.
+    NSArray<UIWindow *> *reversed = [[windows reverseObjectEnumerator] allObjects];
+    return [reversed sortedArrayWithOptions:NSSortStable
+                            usingComparator:^NSComparisonResult(UIWindow *a, UIWindow *b) {
+        if (a.windowLevel == b.windowLevel) return NSOrderedSame;
+        return a.windowLevel > b.windowLevel ? NSOrderedAscending : NSOrderedDescending;
+    }];
+}
+
++ (NSArray<NSDictionary *> *)labeledViewsByWindow {
+    NSMutableArray<NSDictionary *> *byWindow = [NSMutableArray array];
+    for (UIWindow *window in [self visibleWindows]) {
+        NSMutableArray<NSDictionary *> *labeled = [NSMutableArray array];
+        NSMutableArray<UIView *> *pending = [NSMutableArray arrayWithObject:window];
+        while (pending.count > 0) {
+            UIView *view = pending.lastObject;
+            [pending removeLastObject];
+            if (!sherloViewIsDrawn(view)) continue;
+            if (view.accessibilityLabel.length > 0) {
+                CGRect frame = [view convertRect:view.bounds toView:nil];
+                [labeled addObject:@{ @"label" : view.accessibilityLabel,
+                                      @"x" : @(frame.origin.x), @"y" : @(frame.origin.y),
+                                      @"width" : @(frame.size.width), @"height" : @(frame.size.height) }];
+            }
+            [pending addObjectsFromArray:view.subviews];
+        }
+        [byWindow addObject:@{ @"name" : NSStringFromClass(window.class), @"views" : labeled }];
+    }
+    return byWindow;
+}
+
 /**
  * The app's window and its root view, or nil with `error` set when the app has neither.
  */

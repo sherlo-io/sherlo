@@ -31,6 +31,8 @@ import { requestsInFlight } from './mocking/requestsInFlight';
 import { readStoryError, recordStoryError } from './getStorybook/storyErrorRegistry';
 import { markStorySettled } from './mocking/registry';
 import type { NativeCalls } from './sealedCore/seam';
+import { watchForFatalError } from './fatalErrorWatch';
+import { forgetNeverSettled, keepNeverSettled, waitForFocusedField } from './neverSettled';
 import { playSteps } from './playSteps';
 import { reachedRoute } from './reachedScreen';
 import { isDrawn } from './visibleViews';
@@ -74,6 +76,7 @@ let sceneToReady:
  */
 export function storyAboutToRender(sceneId: string, installed: Promise<void> | null = null): void {
   sceneToReady = { sceneId, proven: false, installed, stepsBegan: false };
+  forgetNeverSettled(sceneId);
 }
 
 /**
@@ -156,9 +159,20 @@ export function stabilizeOnceReady<
         if (ended !== 'errored' && ended.outcome === 'timed-out') throw new Error(ended.line);
         scene.proven = true;
       }
+      // A field meant to be focused is focused inside the same limit as the settle: the settle
+      // gets what the focus wait left of it.
+      const { unfocused, waitedMs } = scene
+        ? await waitForFocusedField(settings[3])
+        : { unfocused: [], waitedMs: 0 };
+      const restOfLimit = [...settings] as typeof settings;
+      restOfLimit[3] = Math.max(settings[3] - waitedMs, 0);
       await SherloModule.holdAnimationsStill();
       try {
-        return await native.stabilize(...settings);
+        const settled = (await native.stabilize(...restOfLimit)) && unfocused.length === 0;
+        if (scene && !settled && !readStoryError(scene.sceneId)) {
+          await keepNeverSettled(scene.sceneId, unfocused);
+        }
+        return settled;
       } finally {
         // The screen is judged: every read the scene's render makes is in (./mocking/activateStoryMocks).
         markStorySettled();
@@ -207,6 +221,8 @@ async function waitUntilReady(
   const labels = listOf(rule.label);
   const timeoutMs = rule.timeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const watchRequests = rule.requestsIdle !== false;
+  // A fatal error while the scene waits (React Native's red screen) is the scene's error.
+  if (sceneId && !justLooking) watchForFatalError(sceneId);
 
   let waitedMs = 0;
   // The wait starts as busy: a request the screen sends a moment from now still counts.

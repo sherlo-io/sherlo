@@ -3,11 +3,11 @@ import {
   MOCKED_MODULE_ERROR_NAME,
   recordRealImportThrew,
   recordRealRead,
-  recordUndo,
   registerShimmedKey,
   resolveMockExports,
 } from './registry';
 import { recordThrownByStandIn } from './mockDeclaration';
+import { hasOwn, isObjectOrFunction, overlay, writeUndoably } from './overlay';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 
 // A Proxy must keep every non-configurable own key of its target in its ownKeys answer and report
@@ -31,20 +31,6 @@ function reportDescriptor(
   return wanted && { ...wanted, configurable: true };
 }
 
-// Writes to a real object made while a story is active are undone when its mocks end; with no
-// story active the write stays, as it would without the shim.
-function writeUndoably(object: ModuleExports, prop: PropertyKey, write: () => boolean): boolean {
-  const before = Reflect.getOwnPropertyDescriptor(object, prop);
-  const done = write();
-  if (done) {
-    recordUndo(() => {
-      if (before) Reflect.defineProperty(object, prop, before);
-      else Reflect.deleteProperty(object, prop);
-    });
-  }
-  return done;
-}
-
 // A fixed property cannot be promised: the stand-in holds nothing, so it is refused by name.
 function refuseFixedProperty(key: string, prop: PropertyKey, descriptor: PropertyDescriptor): void {
   if (descriptor.configurable === false) {
@@ -53,12 +39,6 @@ function refuseFixedProperty(key: string, prop: PropertyKey, descriptor: Propert
     );
   }
 }
-
-const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
-  Object.prototype.hasOwnProperty.call(obj, prop);
-
-const isObjectOrFunction = (value: unknown): value is ModuleExports =>
-  (typeof value === 'object' && value !== null) || typeof value === 'function';
 
 // Bundlers read a module's default export ONCE, when the importing module first runs, and keep it
 // (a default import compiles to a cached default read). That happens before any mock is
@@ -80,7 +60,7 @@ function createForwardingDefault(key: string, realModule: ModuleExports): Module
   const activeDefault = (): ModuleExports => {
     const mock = resolveMockExports(key, realModule);
     return mock && hasOwn(mock, 'default') && isObjectOrFunction(mock.default)
-      ? (mock.default as ModuleExports)
+      ? (overlay(mock.default, () => realDefault, true) as ModuleExports)
       : realDefault;
   };
 
@@ -270,7 +250,7 @@ function buildMockable<T extends ModuleExports>(
       const byInterop = prop === 'then' || prop === '__esModule';
       if (!byInterop) recordRealRead(key);
       const mock = mockOf();
-      if (mock && hasOwn(mock, prop)) return mock[prop];
+      if (mock && hasOwn(mock, prop)) return overlay(mock[prop], () => real()[prop], !!eagerReal);
       return (byInterop ? realForInterop() : real())[prop];
     },
 

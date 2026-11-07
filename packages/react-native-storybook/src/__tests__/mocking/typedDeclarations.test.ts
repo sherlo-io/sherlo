@@ -50,6 +50,7 @@ const MOCK_MODULE = path.resolve(__dirname, '../../mocking/mockDeclaration');
 const MOCKED_MODULE_SOURCE = `
   export const whoAmI = (): string => 'real';
   export default { label: 'real' };
+  export const api = { users: { get: (id: string): string => id, list: (): string[] => [] } };
 `;
 
 /**
@@ -166,7 +167,20 @@ describe('a mock is declared by its import expression', () => {
     // An export the module does not have, and an export of the wrong shape, are both refused.
     expect(typeErrorsIn(storyDeclaring(`{ whoAmIi: () => 'Ada Lovelace' }`))).toContain('whoAmIi');
     expect(typeErrorsIn(storyDeclaring(`{ whoAmI: 42 }`))).toContain(
-      "Type 'number' is not assignable to type '() => string'"
+      "Type 'number' is not assignable to type '(() => string)"
+    );
+  });
+
+  it('a fake that names a part the library does not have fails the type check', () => {
+    // A fake of one nested method names only that method.
+    expect(typeErrorsIn(storyDeclaring(`{ api: { users: { get: (id) => id + '!' } } }`))).toBe('');
+
+    // A part the library lacks, at any depth, and a part of the wrong type, are both refused.
+    expect(typeErrorsIn(storyDeclaring(`{ api: { users: { remove: () => 1 } } }`))).toContain(
+      'remove'
+    );
+    expect(typeErrorsIn(storyDeclaring(`{ api: { users: { get: 42 } } }`))).toContain(
+      "Type 'number' is not assignable"
     );
   });
 

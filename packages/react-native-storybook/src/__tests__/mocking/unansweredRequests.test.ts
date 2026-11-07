@@ -17,7 +17,12 @@ vi.mock('../../helpers/RunnerBridge', () => ({
 import { activateMocksForStory } from '../../getStorybook/storyMockActivation';
 import { clearStoryError, readStoryError } from '../../getStorybook/storyErrorRegistry';
 import { mockRequest } from '../../mocking/networkDeclaration';
-import { unansweredRequests } from '../../mocking/networkRules';
+import { socketVerdictFor, unansweredRequests } from '../../mocking/networkRules';
+import type { RefusedRequest } from '../../mocking/refusedRequest';
+import {
+  __resetProviderFirstRenderedAtForTests,
+  rememberAppMetadataCollector,
+} from '../../appMetadata';
 import { clearMocks } from '../../mocking/registry';
 import type { StoryMocks } from '../../mocking/mockDeclaration';
 import { __resetStorybookFactsForTests } from '../../getStorybook/storybookFacts';
@@ -51,6 +56,8 @@ afterEach(() => {
   clearStoryError(STORY_ID);
   globals.fetch = realFetch;
   __resetStorybookFactsForTests();
+  __resetProviderFirstRenderedAtForTests();
+  rememberAppMetadataCollector(undefined);
   vi.clearAllMocks();
 });
 
@@ -72,7 +79,70 @@ async function activateStory(story: StoryMocks): Promise<void> {
   await activateMocksForStory(STORY_ID);
 }
 
+// What a refusal made before the app first rendered also carries.
+const refusedAtLaunch = {
+  scope: 'background',
+  rule: 'no-fake-matched',
+  stack: expect.any(String),
+};
+
 describe('the requests no rule answered', () => {
+  it("a refused request made while the scene's screen loads is marked as the screen's own", async () => {
+    await activateStory([mockRequest({ url: `${BASE}/known` }, { body: 'known' })]);
+    rememberAppMetadataCollector(() => undefined);
+
+    await fetch(`${BASE}/profile`).catch(() => {});
+
+    expect(unansweredRequests()).toEqual([
+      { method: 'GET', url: `${BASE}/profile`, ...refusedAtLaunch, scope: 'screen' },
+    ]);
+  });
+
+  it('a refused request from a library started at app launch is marked background', async () => {
+    await activateStory([mockRequest({ url: `${BASE}/known` }, { body: 'known' })]);
+
+    // Before the app's first render: a service the app starts at launch asks for its host.
+    await fetch('https://sdk.vendor.invalid/config').catch(() => {});
+
+    expect(unansweredRequests()[0]).toMatchObject({ scope: 'background' });
+    expect(unansweredRequests()[0].stack).toContain('networkFetch');
+  });
+
+  it('a refusal keeps no more than twenty lines of the call stack', async () => {
+    await activateStory([mockRequest({ url: `${BASE}/known` }, { body: 'known' })]);
+    const deep = async (depth: number): Promise<void> => {
+      if (depth > 0) return deep(depth - 1);
+      await fetch(`${BASE}/orders`).catch(() => {});
+    };
+    const limit = Error.stackTraceLimit;
+    Error.stackTraceLimit = 80;
+
+    await deep(40);
+    Error.stackTraceLimit = limit;
+
+    expect((unansweredRequests()[0].stack ?? '').split('\n').length).toBeLessThanOrEqual(20);
+  });
+
+  it('each refusal names the rule that blocked it: no fake matched, or a fake that refuses', async () => {
+    await activateStory([
+      mockRequest({ url: `${BASE}/known` }, { body: 'known' }),
+      mockRequest.socket({ url: 'wss://live.example.invalid/*' }, 'refuse'),
+    ]);
+
+    await fetch(`${BASE}/orders`).catch(() => {});
+    socketVerdictFor('wss://live.example.invalid/feed');
+
+    const [unmatched, refusedByFake]: RefusedRequest[] = unansweredRequests();
+    expect(unmatched.rule).toBe('no-fake-matched');
+    expect(refusedByFake).toMatchObject({
+      method: 'WS',
+      url: 'wss://live.example.invalid/feed',
+      rule: 'fake-refused',
+    });
+    // The fake's own line, so the Mac can say where it was declared.
+    expect(refusedByFake.fakeAt).toContain('unansweredRequests.test');
+  });
+
   it('every request no rule answered is listed with its method and address, in the order made', async () => {
     await activateStory([
       mockRequest({ url: `${BASE}/profile` }, { body: 'the profile' }),
@@ -89,9 +159,9 @@ describe('the requests no rule answered', () => {
       `no mock rule matches GET ${BASE}/orders. Add a rule for it, or let it through.`
     );
     expect(unansweredRequests()).toEqual([
-      { method: 'GET', url: `${BASE}/orders` },
-      { method: 'POST', url: `${BASE}/graphql` },
-      { method: 'GET', url: `${BASE}/orders` },
+      { method: 'GET', url: `${BASE}/orders`, ...refusedAtLaunch },
+      { method: 'POST', url: `${BASE}/graphql`, ...refusedAtLaunch },
+      { method: 'GET', url: `${BASE}/orders`, ...refusedAtLaunch },
     ]);
   });
 
@@ -114,6 +184,7 @@ describe('the requests no rule answered', () => {
         url: `${BASE}/graphql`,
         contentType: 'application/json',
         operation: 'Orders',
+        ...refusedAtLaunch,
         bodyExcerpt:
           '{"operationName":"Orders","query":"{ o }","variables":{"first":5,"e":"<text>"}}',
       },
@@ -129,7 +200,7 @@ describe('the requests no rule answered', () => {
     await fetch(url).catch(() => {});
 
     expect(unansweredRequests()).toEqual([
-      { method: 'GET', url, operation: 'persisted abcdef012345' },
+      { method: 'GET', url, operation: 'persisted abcdef012345', ...refusedAtLaunch },
     ]);
   });
 

@@ -201,7 +201,7 @@ export const signedInFakes = [mock(() => import('expo-localization'), { locale: 
       'src/Chat.scenes.tsx',
       `import { scenes } from '@sherlo/react-native-storybook/scenes';
 import { signedInFakes } from './signedInFakes';
-export default scenes({ mocks: signedInFakes, scenes: { Conversation: {} } });`
+export default scenes({ scenes: { Conversation: { given: signedInFakes } } });`
     );
     writeFile(root, 'src/unrelated.ts', 'export default 1;');
     const declared = mockScan.scanProjectForMocks(root);

@@ -1,0 +1,51 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--profile-own"],
+  "capture": {
+    "scenes": ["kindred--profile-own", "kindred--chat-empty"],
+    "route": ["AppStack", "Profile"],
+    "bootMs": 1700,
+    "reachedMs": 2400,
+    "play": [],
+    "settled": { "ms": 600, "frames": 3 },
+    "loggedErrors": {
+      "messages": [
+        {
+          "message": "A scene read \"isAnonymous\" of a partial object, and the scene does not name it. Add it to the partial.",
+          "times": 3
+        },
+        {
+          "message": "A scene read \"ageRange\" of a partial object, and the scene does not name it. Add it to the partial.",
+          "times": 1
+        },
+        {
+          "message": "A scene read \"verifiedAt\" of a partial object, and the scene does not name it. Add it to the partial.",
+          "times": 1
+        },
+        {
+          "message": "A scene read \"photoCount\" of a partial object, and the scene does not name it. Add it to the partial.",
+          "times": 2
+        },
+        {
+          "message": "A scene read \"lastActiveAt\" of a partial object, and the scene does not name it. Add it to the partial.",
+          "times": 1
+        }
+      ],
+      "moreLeftOut": 0
+    },
+    "tree": {
+      "primitive": "View",
+      "components": ["Profile"],
+      "size": { "width": 360, "height": 800 },
+      "children": [{ "primitive": "Text", "text": "Your profile" }]
+    }
+  }
+}

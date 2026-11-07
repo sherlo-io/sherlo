@@ -42,7 +42,8 @@ const build = (
     samePicture: over.samePicture ?? (() => true),
     isLive: false,
     timeZone: 'UTC',
-    pictureOf: (capture) => `pictures/${capture.screenPath}`,
+    pictureOf: (capture, kind) =>
+      kind === 'ended' ? `ended/${capture.endedPath}` : `pictures/${capture.screenPath}`,
   });
 
 describe('the clock time of the newest capture', () => {
@@ -93,14 +94,125 @@ describe('the capture report', () => {
   it('a failed scene captured again with a new picture wears changed', () => {
     const report = build(
       [
-        kept({ folder: 'a', screenPath: 'a.png', record: neverReached }),
-        kept({ folder: 'b', screenPath: 'b.png', at: '2026-11-01T10:00:00.000Z' }),
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({
+          folder: 'b',
+          screenPath: 'b.png',
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
       ],
       { samePicture: () => false }
     );
 
     expect(report.captures[0].changed).toBe(true);
+    expect(report.captures[0].previousPicture).toBe('pictures/a.png');
     expect(report.summary.changedCount).toBe(1);
+  });
+
+  it('a capture after a captured one that kept no picture is compared with the last picture', () => {
+    const report = build(
+      [
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({ folder: 'b', screenPath: undefined, at: '2026-11-01T09:00:00.000Z' }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(true);
+    expect(report.captures[0].previousPicture).toBe('pictures/a.png');
+  });
+
+  it('a capture after only a failed one that kept a picture is new, not changed', () => {
+    const report = build(
+      [
+        kept({
+          folder: 'b',
+          screenPath: 'b.png',
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(false);
+    expect(report.captures[0]).not.toHaveProperty('previousPicture');
+  });
+
+  it('a capture after one that saved no picture is compared with the last picture, and shows Changed', () => {
+    const report = build(
+      [
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({
+          folder: 'b',
+          screenPath: undefined,
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+        kept({ folder: 'c', screenPath: 'c.png', at: '2026-11-01T10:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(true);
+    expect(report.captures[0].previousPicture).toBe('pictures/a.png');
+  });
+
+  it("a stopped scene's report shows where the app ended up and compares nothing with it", () => {
+    const report = build(
+      [
+        kept({ folder: 'a', screenPath: 'a.png', at: '2026-11-01T08:00:00.000Z' }),
+        kept({
+          folder: 'b',
+          screenPath: undefined,
+          endedPath: 'b-ended.png',
+          record: neverReached,
+          at: '2026-11-01T09:00:00.000Z',
+        }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].picture).toBe('ended/b-ended.png');
+    expect(report.captures[0].changed).toBe(false);
+    expect(report.captures[0]).not.toHaveProperty('previousPicture');
+  });
+
+  it('a captured run after a stopped one is never compared with the frame the stopped one ended on', () => {
+    const report = build(
+      [
+        kept({
+          folder: 'a',
+          screenPath: undefined,
+          endedPath: 'a-ended.png',
+          // A scene that threw on the red error screen: its record is a scene's, its frame only shown.
+          at: '2026-11-01T08:00:00.000Z',
+        }),
+        kept({ folder: 'b', screenPath: 'b.png', at: '2026-11-01T09:00:00.000Z' }),
+      ],
+      { samePicture: () => false }
+    );
+
+    expect(report.captures[0].changed).toBe(false);
+    expect(report.captures[0]).not.toHaveProperty('previousPicture');
+  });
+
+  it('a changed capture carries the picture of the capture before it', () => {
+    const first = kept({ screenPath: 'one.png', at: '2026-11-01T09:00:00.000Z' });
+    const second = kept({ screenPath: 'two.png', at: '2026-11-01T10:00:00.000Z' });
+
+    const changed = build([first, second], { samePicture: () => false }).captures[0];
+    expect(changed.picture).toBe('pictures/two.png');
+    expect(changed.previousPicture).toBe('pictures/one.png');
+
+    expect(build([first, second], { samePicture: () => true }).captures[0]).not.toHaveProperty(
+      'previousPicture'
+    );
+    expect(build([second]).captures[0]).not.toHaveProperty('previousPicture');
   });
 
   it('a screen whose picture differs from its previous local capture is marked changed', () => {
@@ -168,6 +280,14 @@ describe('the capture report', () => {
       vi.unstubAllEnvs();
       fs.rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it('a kept incomplete scene is listed with its picture, as a scene that came up', () => {
+    const [listed] = build([kept({ record: { ...sceneRecord, kind: 'incomplete' } })]).captures;
+
+    expect(listed.picture).toBe('pictures//p/.sherlo/captures/x/screen.png');
+    expect(listed.kind).toBe('scene');
+    expect(listed.record.ready).toEqual({ ok: true, reached: 'Inbox › Full', rule: '' });
   });
 
   it('a never-reached capture gives the time it waited', () => {

@@ -6,7 +6,11 @@ vi.mock('../bundlerOrigin', () => ({ bundlerOrigin: () => launch.bundler }));
 vi.mock('../mocking', () => ({ clearMocks }));
 vi.mock('../sealedCore/loadSealedCore', () => ({ getSealedCore: () => launch.core }));
 
-import { isDrivenByRunner, walkTheStoryForTheRunner } from '../runnerWalk';
+const walk = vi.hoisted(() => ({ route: [] as string[], now: 0 }));
+vi.mock('../reachedScreen', () => ({ reachedRoute: () => walk.route }));
+vi.mock('../settleClock', () => ({ monotonicNow: () => walk.now }));
+
+import { isDrivenByRunner, routeChangesSoFar, walkTheStoryForTheRunner } from '../runnerWalk';
 
 const STORY = { insets: { top: 1, bottom: 2 }, collectMetadata: () => undefined };
 
@@ -45,6 +49,32 @@ it('the mocks are cleared when the core throws', async () => {
 
   await expect(walkTheStoryForTheRunner(STORY)).rejects.toThrow('the core failed');
   expect(clearMocks).toHaveBeenCalledTimes(1);
+});
+
+it('every route change during a scene is recorded in order', async () => {
+  vi.useFakeTimers();
+  walk.route = ['Home'];
+  walk.now = 10;
+  launch.core = {
+    testStory: async () => {
+      walk.route = ['ChatStack', 'Chat'];
+      walk.now = 250;
+      await vi.advanceTimersByTimeAsync(150);
+      await vi.advanceTimersByTimeAsync(150);
+      walk.route = ['Modal'];
+      walk.now = 700;
+      await vi.advanceTimersByTimeAsync(150);
+    },
+  };
+
+  await walkTheStoryForTheRunner(STORY);
+  vi.useRealTimers();
+
+  expect(routeChangesSoFar()).toEqual([
+    { route: ['Home'], atMs: 10 },
+    { route: ['ChatStack', 'Chat'], atMs: 250 },
+    { route: ['Modal'], atMs: 700 },
+  ]);
 });
 
 it('with no core the mocks are still cleared', async () => {
