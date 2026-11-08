@@ -10,23 +10,24 @@
 //   type link it. A store build sets nothing, so it carries none of Sherlo's native code.
 //
 // The app's Podfile decides which iOS configurations are debug, whatever they are called: the ones
-// it maps to :debug, plus Debug when the Xcode project has it and the Podfile does not map it to
-// :release. A name is never guessed from its wording. CocoaPods refuses a whitelisted name the app
+// it maps to :debug, plus Debug when the app target has it and the Podfile does not map it to
+// :release. Only the app target's configurations count, never a test target's or an extension's.
+// A name is never guessed from its wording. CocoaPods refuses a whitelisted name the app target
 // does not have, and it reads an EMPTY list as "no limit" and links the pod into every
 // configuration (cocoapods-core target_definition.rb:1133), so this file never answers an empty
 // list: an app with no debug configuration gets no iOS platform at all.
 
-// A published package holds the parser in dist-metro/ (its metro/ folder is not published); a
+// A published package holds the scripts in dist-metro/ (its metro/ folder is not published); a
 // checkout of this repository has only metro/.
-function loadSherloBuildParser() {
+function loadMetroScript(name) {
   try {
-    return require('./dist-metro/sherloBuild');
+    return require('./dist-metro/' + name);
   } catch (distMetroMissing) {
-    return require('./metro/sherloBuild');
+    return require('./metro/' + name);
   }
 }
 
-const sherloBuild = loadSherloBuildParser().readSherloBuild(process.env);
+const sherloBuild = loadMetroScript('sherloBuild').readSherloBuild(process.env);
 const isNativeCodeInEveryBuild = sherloBuild === 'storybook' || sherloBuild === 'app-and-storybook';
 
 // Android's generated package list is one file shared by every build type, while `buildTypes` only
@@ -72,40 +73,47 @@ function findPodfile() {
   }
 }
 
-// The configuration names the Podfile maps, from every `'Name' => :debug` pair (the `project` and
-// older `xcodeproj` calls), comment lines left out.
-function readPodfileMappings(podfile) {
-  const mappings = new Map();
-  const code = fs
+// The Podfile's code, comment lines left out.
+function readPodfileCode(podfile) {
+  return fs
     .readFileSync(podfile, 'utf8')
     .split('\n')
     .filter((line) => !line.trim().startsWith('#'))
     .join('\n');
-  for (const match of code.matchAll(/(['"])([^'"]+)\1\s*=>\s*:(debug|release)\b/g)) {
+}
+
+// The configuration names the Podfile maps, from every `'Name' => :debug` pair (the `project` and
+// older `xcodeproj` calls).
+function readPodfileMappings(podfileCode) {
+  const mappings = new Map();
+  for (const match of podfileCode.matchAll(/(['"])([^'"]+)\1\s*=>\s*:(debug|release)\b/g)) {
     mappings.set(match[2], match[3]);
   }
   return mappings;
 }
 
-// The names of the XCBuildConfiguration entries of every Xcode project beside the Podfile.
-function readXcodeConfigurationNames(podfile) {
-  const iosFolder = path.dirname(podfile);
-  const names = [];
-  for (const entry of fs.readdirSync(iosFolder)) {
-    if (!entry.endsWith('.xcodeproj')) continue;
-    const pbxproj = fs.readFileSync(path.join(iosFolder, entry, 'project.pbxproj'), 'utf8');
-    const section = (pbxproj.split('Begin XCBuildConfiguration section')[1] || '').split(
-      'End XCBuildConfiguration section'
-    )[0];
-    for (const match of section.matchAll(/^\s*name = (?:"([^"]+)"|([^;\s]+));/gm)) {
-      names.push(match[1] || match[2]);
-    }
-  }
-  return names;
+// The configurations of the app target, the one CocoaPods checks a whitelist against: the
+// application target named like a Podfile target, or every application target when the Podfile
+// names none of them. A test target's or an extension's configurations never count.
+function readAppTargetConfigurations(podfile, podfileCode) {
+  const podfileTargets = [...podfileCode.matchAll(/^\s*target\s+(['"])([^'"]+)\1/gm)].map(
+    (match) => match[2]
+  );
+  const xcodeProject = loadMetroScript('xcodeProject');
+  const appTargets = xcodeProject
+    .readXcodeProjects(path.dirname(podfile))
+    .flatMap((project) => project.targets)
+    .filter((target) => target.productType === xcodeProject.APPLICATION_PRODUCT_TYPE);
+  const namedInPodfile = appTargets.filter((target) => podfileTargets.includes(target.name));
+  return (namedInPodfile.length > 0 ? namedInPodfile : appTargets).flatMap(
+    (target) => target.configurations
+  );
 }
 
 // - no Podfile found, or it cannot be read: `Debug`, as before this file read the app.
-// - at least one debug configuration: exactly those.
+// - at least one debug configuration: exactly those. When the app target is found, a name the
+//   Podfile maps to debug and the app target lacks is left out; CocoaPods compares names without
+//   regard to case.
 // - none: `null`, so iOS does not link the module. The CLI answers null for a platform whose user
 //   config is null (@react-native-community/cli-config-apple build/config/index.js:89-91), and
 //   cli-config's schema allows it (build/schema.js:70-76).
@@ -113,17 +121,22 @@ function iosAnswer() {
   try {
     const podfile = findPodfile();
     if (!podfile) return { configurations: ['Debug'] };
-    const mappings = readPodfileMappings(podfile);
+    const podfileCode = readPodfileCode(podfile);
+    const mappings = readPodfileMappings(podfileCode);
+    const appConfigurations = readAppTargetConfigurations(podfile, podfileCode);
+    const appSpellingOf = (name) =>
+      appConfigurations.find((candidate) => candidate.toLowerCase() === name.toLowerCase());
     const debugConfigurations = [...mappings]
-      .filter(([, kind]) => kind === 'debug')
+      .filter(
+        ([name, kind]) =>
+          kind === 'debug' && (appConfigurations.length === 0 || appSpellingOf(name))
+      )
       .map(([name]) => name);
-    const hasDebug = readXcodeConfigurationNames(podfile).some(
-      (name) => name.toLowerCase() === 'debug'
-    );
+    const appDebug = appSpellingOf('Debug');
     const debugMappedToRelease = [...mappings].some(
       ([name, kind]) => name.toLowerCase() === 'debug' && kind === 'release'
     );
-    if (hasDebug && !debugMappedToRelease) debugConfigurations.push('Debug');
+    if (appDebug && !debugMappedToRelease) debugConfigurations.push(appDebug);
     const unique = [...new Set(debugConfigurations)];
     return unique.length === 0 ? null : { configurations: unique };
   } catch (appUnreadable) {

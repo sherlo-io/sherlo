@@ -35,7 +35,11 @@ import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
-import { iosBuildConfiguration } from './iosConfiguration';
+import {
+  type IosAppTarget,
+  iosBuildConfiguration,
+  readIosAppTargetFromFiles,
+} from './iosConfiguration';
 import type { NativeFolderFile } from './serverCalls';
 
 /** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
@@ -72,16 +76,6 @@ export type CompiledApp =
 
 type CompileParams = Parameters<AppBuilder['compile']>[0];
 
-/** The iOS application target as the workspace states it. */
-export type IosAppTarget = {
-  /** The schemes that build an application product, not a test bundle. */
-  appSchemes: string[];
-  /** The application target's configurations, in the project's spelling. */
-  configurations: string[];
-  /** The configuration the app scheme archives with. */
-  archiveConfiguration: string;
-};
-
 /** Every act a build performs on the machine, and every question it asks of it. */
 export type AppBuilder = {
   /** The operating system the tool runs on. */
@@ -100,9 +94,9 @@ export type AppBuilder = {
   /**
    * What the iOS workspace says about its APPLICATION target (never a test target's): the schemes
    * that build an app, the app target's configurations in the project's spelling, and the
-   * configuration the app scheme archives with. Null when it was not read.
+   * configuration the scheme given (else the only app scheme) archives with. Null when it was not read.
    */
-  readIosAppTarget(projectRoot: string): Promise<IosAppTarget | null>;
+  readIosAppTarget(projectRoot: string, scheme?: string): Promise<IosAppTarget | null>;
   /**
    * The Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. Empty
    * for an app with no flavors.
@@ -786,8 +780,9 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         : [];
       return schemes.filter((scheme) => !podSchemes.includes(scheme));
     },
-    // Null is an app target that was not read: the build then keeps the scheme's own configuration.
-    readIosAppTarget: async () => null,
+    // Read from the shared schemes and the project files; null keeps the scheme's own configuration.
+    readIosAppTarget: async (projectRoot, scheme) =>
+      readIosAppTargetFromFiles(path.join(projectRoot, 'ios'), scheme),
     // No flavors found: the build takes the Android task from the config or the default.
     listAndroidFlavorTasks: async () => [],
     findCachedBuild: async ({ cacheKey, cacheDir }) => {

@@ -125,6 +125,28 @@ describe('sherlo test builds the app on this machine', () => {
     );
   });
 
+  it('refuses a build.ios.configuration the app target lacks, listing the ones it has, before Xcode starts', async () => {
+    const appTarget = {
+      appSchemes: ['Storefront'],
+      configurations: ['DEV.DEBUG', 'DEV.RELEASE'],
+      archiveConfiguration: 'DEV.RELEASE',
+    };
+    const builder = fakeBuilder({ readIosAppTarget: async () => appTarget });
+
+    await expect(
+      build({ toBuild: IOS, settings: { ios: { configuration: 'Release' } } })
+    ).rejects.toThrow(
+      `Can't pick an iOS configuration: the app has no "Release". It has DEV.DEBUG, DEV.RELEASE.`
+    );
+    expect(builder.compile).not.toHaveBeenCalled();
+
+    // The name is matched without regard to case, and Xcode gets the app's own spelling.
+    await build({ toBuild: IOS, settings: { ios: { configuration: 'dev.release' } } });
+    expect(builder.compile).toHaveBeenCalledWith(
+      expect.objectContaining({ ios: { scheme: 'Storefront', configuration: 'DEV.RELEASE' } })
+    );
+  });
+
   it('refuses Android when no Java is found, naming JDK 17 and JAVA_HOME', async () => {
     fakeBuilder({ javaVersion: async () => null });
 
