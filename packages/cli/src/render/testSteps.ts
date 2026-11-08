@@ -14,7 +14,8 @@
 import chalk from 'chalk';
 import { DEVICES } from '@sherlo/shared';
 import type { Platform } from '@sherlo/api-types';
-import { APP_DOMAIN, CONTACT_EMAIL, DISCORD_URL, PLATFORM_LABEL } from '../constants';
+import { CONTACT_EMAIL, DISCORD_URL, PLATFORM_LABEL } from '../constants';
+import getAppDomain from '../helpers/getAppDomain';
 import type { Config } from '../types';
 import { renderSectionTitle } from './initLines';
 import { renderFailedStepLine, renderStepLine, renderStuckBlock } from './initSteps';
@@ -217,7 +218,7 @@ export type SherloProject = { teamId: string; projectIndex: number };
 
 /** The project's page in the web app, where its CI token is made. */
 export function projectPageUrl(project: SherloProject): string {
-  return `${APP_DOMAIN}/project?t=${project.teamId}&p=${project.projectIndex}`;
+  return `${getAppDomain()}/project?t=${project.teamId}&p=${project.projectIndex}`;
 }
 
 /**

@@ -1,8 +1,8 @@
-import { APP_DOMAIN } from '../constants';
 import refuseRejectedLogin from '../commands/shared/refuseRejectedLogin';
 import { printLink } from '../helpers';
 import { savedLogins } from '../seams/savedLogins';
 import { getEndpointUrl } from './buildStatusRequest';
+import getAppDomain from './getAppDomain';
 import throwError from './throwError';
 
 /**
@@ -20,7 +20,7 @@ function handleClientError(error: any, token?: string): never {
         'Invalid token\n\n' +
         'Please:\n' +
         '- Make sure you copied it correctly, or\n' +
-        `- Generate a new one at ${printLink(APP_DOMAIN)}\n`,
+        `- Generate a new one at ${printLink(getAppDomain())}\n`,
     });
   }
 
