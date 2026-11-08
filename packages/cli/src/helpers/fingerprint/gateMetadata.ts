@@ -14,6 +14,7 @@ import accessFileInArchive, {
   detectTarVersion,
 } from '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInArchive';
 import accessFileInDirectory from '../getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInDirectory';
+import readBuiltAppSherloJson, { IOS_TAR_BUNDLE_PREFIX } from '../readBuiltAppSherloJson';
 import runShellCommand from '../runShellCommand';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
 import { toBaseSemver } from '../../commands/test/readBundledSdkProtocolVersion';
@@ -106,9 +107,6 @@ const AXML_TYPE_INT_BOOLEAN = 18;
 
 // AXML sentinel for "no string index"
 const AXML_NO_INDEX = 0xffffffff;
-
-// iOS tar prefix
-const IOS_TAR_BUNDLE_PREFIX = '*.app/';
 
 // RN version threshold at which Hermes became the default engine
 const RN_HERMES_DEFAULT_VERSION = '0.70.0';
@@ -1053,34 +1051,8 @@ export async function getBuildMetadata({
   let sdkProtocolVersion: string | undefined;
 
   // Try to read sherlo.json for SDK protocol version (promoted from buildMetadata.sdkVersion).
-  const sherloPath = 'assets/sherlo.json';
-
   try {
-    let sherloContent: string | undefined;
-
-    if (fileName.endsWith('.app')) {
-      sherloContent = (await accessFileInDirectory({
-        operation: 'read',
-        file: sherloPath,
-        directory: binaryPath,
-      })) as string | undefined;
-    } else if (fileName.endsWith('.apk')) {
-      sherloContent = (await accessFileInArchive({
-        operation: 'read',
-        file: sherloPath,
-        archive: binaryPath,
-        type: 'unzip',
-        projectRoot,
-      })) as string | undefined;
-    } else {
-      sherloContent = (await accessFileInArchive({
-        operation: 'read',
-        file: IOS_TAR_BUNDLE_PREFIX + sherloPath,
-        archive: binaryPath,
-        type: 'tar',
-        projectRoot,
-      })) as string | undefined;
-    }
+    const sherloContent = await readBuiltAppSherloJson({ binaryPath, fileName, projectRoot });
 
     if (sherloContent) {
       const parsed = JSON.parse(sherloContent);
