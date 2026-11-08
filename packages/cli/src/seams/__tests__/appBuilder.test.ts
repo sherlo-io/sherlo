@@ -91,6 +91,43 @@ afterEach(() => {
   fs.rmSync(projectRoot, { recursive: true, force: true });
 });
 
+describe('app builder, Android flavors', () => {
+  const taskList = [
+    'assembleRelease - Assembles all Release builds.',
+    'assembleDevRelease - Assembles main outputs for all DevRelease variants.',
+    'assembleProdRelease - Assembles main outputs for all ProdRelease variants.',
+  ].join('\n');
+  const answeringTaskList: RunProcess = async (call) => {
+    calls.push(call);
+    fs.appendFileSync(call.logPath, taskList);
+    return 0;
+  };
+
+  it("lists the app's flavor release tasks from Gradle's task list", async () => {
+    fs.mkdirSync(path.join(projectRoot, 'android/app'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, 'android/app/build.gradle'),
+      'productFlavors { dev {} }'
+    );
+
+    const tasks = await makeLiveAppBuilder(answeringTaskList).listAndroidFlavorTasks(projectRoot);
+
+    expect(tasks).toEqual([':app:assembleDevRelease', ':app:assembleProdRelease']);
+    expect(calls[0].args).toEqual([':app:tasks', '--all']);
+    expect(calls[0].cwd).toBe(path.join(projectRoot, 'android'));
+  });
+
+  it("asks Gradle for no task list when the app's build file names no product flavors", async () => {
+    fs.mkdirSync(path.join(projectRoot, 'android/app'), { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, 'android/app/build.gradle'), 'android { }');
+
+    expect(await makeLiveAppBuilder(answeringTaskList).listAndroidFlavorTasks(projectRoot)).toEqual(
+      []
+    );
+    expect(calls).toEqual([]);
+  });
+});
+
 describe('app builder, Android', () => {
   it('builds Android with :app:assembleRelease for arm64-v8a only', async () => {
     await compileAndroid(liveBuilder());

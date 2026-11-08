@@ -412,8 +412,9 @@ async function refuseFlavorsWithoutATask(
   settings: BuildSettings,
   project: SherloProject | undefined
 ): Promise<void> {
+  if (settings.android?.task) return;
   const tasks = await appBuilder().listAndroidFlavorTasks(projectRoot);
-  if (tasks.length > 1 && !settings.android?.task) {
+  if (tasks.length > 1) {
     refuseToBuildHere(renderAndroidFlavorsNeedATask({ tasks }), project);
   }
 }

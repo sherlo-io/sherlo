@@ -125,6 +125,22 @@ describe('sherlo test builds the app on this machine', () => {
     );
   });
 
+  it('refuses an Android app with product flavors and no build.android.task, listing the flavor tasks, before Gradle starts', async () => {
+    const tasks = [':app:assembleDevRelease', ':app:assembleProdRelease'];
+    const builder = fakeBuilder({ listAndroidFlavorTasks: vi.fn(async () => tasks) });
+
+    await expect(build({ toBuild: ANDROID })).rejects.toThrow(
+      /Set build\.android\.task[\s\S]*:app:assembleDevRelease\n\s*:app:assembleProdRelease/
+    );
+    expect(builder.compile).not.toHaveBeenCalled();
+    expect(builder.listAndroidFlavorTasks).toHaveBeenCalledTimes(1);
+
+    await expect(
+      build({ toBuild: ANDROID, settings: { android: { task: tasks[0] } } })
+    ).resolves.toBeDefined();
+    expect(builder.listAndroidFlavorTasks).toHaveBeenCalledTimes(1);
+  });
+
   it('refuses a build.ios.configuration the app target lacks, listing the ones it has, before Xcode starts', async () => {
     const appTarget = {
       appSchemes: ['Storefront'],

@@ -180,8 +180,8 @@ export function renderIosBuildPicked({
 
 /**
  * The refusal for a build.ios.configuration the app lacks, before Xcode starts. Same style as the
- * two-schemes refusal (commands/test/appBuild/buildApps `iosSchemeOf`): what is wrong, what the app
- * has, the config line to write.
+ * two-schemes refusal (buildApps, after `pickIosScheme` in seams/iosScheme): what is wrong, what
+ * the app has, the config line to write.
  */
 export function renderUnknownIosConfiguration({
   configuration,
