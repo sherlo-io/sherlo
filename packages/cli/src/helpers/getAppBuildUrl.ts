@@ -1,5 +1,5 @@
 import { getUrlParams } from '@sherlo/shared';
-import { APP_DOMAIN } from '../constants';
+import getAppDomain from './getAppDomain';
 
 function getAppBuildUrl({
   buildIndex,
@@ -10,7 +10,7 @@ function getAppBuildUrl({
   projectIndex: number;
   teamId: string;
 }): string {
-  return `${APP_DOMAIN}/build?${getUrlParams({
+  return `${getAppDomain()}/build?${getUrlParams({
     teamId,
     projectIndex,
     buildIndex,
