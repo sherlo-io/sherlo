@@ -67,7 +67,7 @@ export type Workstation = {
     projectRoot: string;
     /**
      * Whether the command runs with SHERLO_BUILD unset, which links Sherlo into
-     * the app target's debug-mapped configurations only. The live answer is not built yet.
+     * the app target's debug-mapped configurations only.
      */
     sherloBuildUnset?: boolean;
   }): Promise<void>;
@@ -109,15 +109,15 @@ export const liveWorkstation: Workstation = {
   // names a locale through either variable is passed as it is.
   installPods: async ({ command, projectRoot, sherloBuildUnset }) => {
     const environmentNamesALocale = Boolean(process.env.LANG || process.env.LC_ALL);
-    // Unsetting SHERLO_BUILD for the install is not built yet.
-    if (sherloBuildUnset && process.env.SHERLO_BUILD !== undefined) {
-      throw new Error('Not built yet: installing pods with SHERLO_BUILD set');
-    }
-
+    // The command's environment is merged over the ambient one, so an undefined value is what
+    // takes SHERLO_BUILD out of it.
     await runShellCommand({
       command,
       projectRoot,
-      env: environmentNamesALocale ? process.env : { LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' },
+      env: {
+        ...(environmentNamesALocale ? process.env : { LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' }),
+        ...(sherloBuildUnset ? { SHERLO_BUILD: undefined } : {}),
+      },
     });
   },
 
