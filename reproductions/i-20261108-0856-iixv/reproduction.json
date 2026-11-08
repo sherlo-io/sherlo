@@ -1,0 +1,8 @@
+{
+  "id": "i-20261108-0856-iixv",
+  "issue": "i-20261108-0856-iixv",
+  "medium": "command",
+  "engine": "node, vitest on the sherlo checkout (packages/cli)",
+  "reporterSaw": { "words": "'a bare push with no wait opens the test, prints its address and exits 0 with no status read' made about 1001 unscripted getBuildStatus calls and failed under the save's load." },
+  "check": "cp reproductions/i-20261108-0856-iixv/unscripted-status-reads.test.ts packages/cli/src/commands/pose/__tests__/zz-repro-status-reads.test.ts && (cd packages/cli && ALLOW_LOCAL_TEST_EXEC=1 yarn test src/commands/pose/__tests__/zz-repro-status-reads.test.ts); code=$?; rm -f packages/cli/src/commands/pose/__tests__/zz-repro-status-reads.test.ts; exit $code"
+}

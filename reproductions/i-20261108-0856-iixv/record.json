@@ -1,0 +1,26 @@
+{
+  "id": "i-20261108-0856-iixv",
+  "issue": "i-20261108-0856-iixv",
+  "medium": "command",
+  "engine": "node, vitest on the sherlo checkout (packages/cli)",
+  "mac": "michal-2",
+  "parentCommit": "8d68f88b06813159b2b10d6aba8a259d8d63d07e",
+  "fixCommit": "0caec983384228f21c82ea9fe778a4e91b9ff180",
+  "fixTree": "bf7e67c505bc173bc9ef5d3d98b60759c601df81",
+  "red": {
+    "exitCode": 1,
+    "output": "(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.4 /private/var/folders/5d/rr4hqbw90xlfpczmq0c1kr8m0000gn/T/brain-reproduce-i-20261108-0856-iixv-3mwEfr/parent/packages/cli\n\n ❯ src/commands/pose/__tests__/zz-repro-status-reads.test.ts (1 test | 1 failed) 555ms\n   ❯ reproduction: a posed wait the pose stops answering burns hundreds of refused reads (1)\n     × ends after at most 150 unscripted status reads, not about 1001 540ms\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  src/commands/pose/__tests__/zz-repro-status-reads.test.ts > reproduction: a posed wait the pose stops answering burns hundreds of refused reads > ends after at most 150 unscripted status reads, not about 1001\nAssertionError: expected 1001 to be less than or equal to 150\n ❯ src/commands/pose/__tests__/zz-repro-status-reads.test.ts:21:29\n     19|     const unscriptedReads = refusals.filter(({ call }) => call === 'ge…\n     20|     expect(unscriptedReads).toBeGreaterThan(0);\n     21|     expect(unscriptedReads).toBeLessThanOrEqual(150);\n       |                             ^\n     22|   });\n     23| });\n\n⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯\n\n\n Test Files  1 failed (1)\n      Tests  1 failed (1)\n   Start at  10:01:49\n   Duration  2.00s (transform 44%, tests 29%, import 27%)",
+    "pictures": [],
+    "seconds": 3.16
+  },
+  "green": {
+    "exitCode": 0,
+    "output": "(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.4 /private/var/folders/5d/rr4hqbw90xlfpczmq0c1kr8m0000gn/T/brain-reproduce-i-20261108-0856-iixv-3mwEfr/fix/packages/cli\n\n ✓ src/commands/pose/__tests__/zz-repro-status-reads.test.ts (1 test) 529ms\n   ✓ reproduction: a posed wait the pose stops answering burns hundreds of refused reads (1)\n     ✓ ends after at most 150 unscripted status reads, not about 1001 514ms\n\n Test Files  1 passed (1)\n      Tests  1 passed (1)\n   Start at  10:01:56\n   Duration  1.91s (transform 46%, tests 29%, import 25%)",
+    "pictures": [],
+    "seconds": 3.02
+  },
+  "verdict": {
+    "matched": true,
+    "line": "Matches the report: \"made about 1001 unscripted getBuildStatus calls\" — the test failed with \"expected 1001 to be less than or equal to 150\" unscripted status reads."
+  }
+}
