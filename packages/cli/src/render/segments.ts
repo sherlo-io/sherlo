@@ -23,6 +23,7 @@
  * anywhere downstream of a renderer is a product bug, not a tidy-up.
  */
 import { Platform } from '@sherlo/api-types';
+import type { IosConfigurationSource } from './appBuild';
 import type { BundleFormat } from '../commands/test/buildBundle';
 import type { Config } from '../types';
 import type { ViewJson, ViewStory } from './buildView';
@@ -199,7 +200,7 @@ export type TranscriptSegment =
       scheme: string;
       passedOverSchemes: string[];
       configuration: string;
-      configurationFrom: 'config' | 'release' | 'archive';
+      configurationFrom: IosConfigurationSource;
     }
   /**
    * `sherlo build` built an app: `✔ Built the Android app      in 1m 28s (log: ...)`. The duration
