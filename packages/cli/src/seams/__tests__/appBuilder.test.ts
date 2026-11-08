@@ -4,12 +4,21 @@ import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildEnvironment,
+  installAppBuilder,
   makeLiveAppBuilder,
   posedAppBuilder,
   type AppBuilder,
   type RunProcess,
 } from '../appBuilder';
+import { APPLICATION_PRODUCT_TYPE } from '../../../../react-native-storybook/metro/xcodeProject';
+import {
+  pbxprojWith,
+  UNIT_TEST_PRODUCT_TYPE,
+} from '../../../../react-native-storybook/src/__tests__/xcodeProjectFixture';
+import { buildApps } from '../../commands/test/appBuild/buildApps';
+import { captureTranscript, emit } from '../../helpers/transcriptSink';
 import { GRADLE_INIT_SCRIPT } from '../gradleInitScript';
+import { schemeXmlWith } from './xcodeSchemeFixture';
 
 type ProcessCall = Parameters<RunProcess>[0];
 
@@ -400,6 +409,31 @@ describe('app builder, iOS', () => {
     });
   }
 
+  /**
+   * The project file and the App scheme: an application target App with these configurations, a
+   * test target AppTests with Debug and Release, and the scheme building both and archiving with
+   * `archiveConfiguration`.
+   */
+  function writeAppProject(configurations: string[], archiveConfiguration: string) {
+    const project = path.join(projectRoot, 'ios/App.xcodeproj');
+    fs.mkdirSync(path.join(project, 'xcshareddata/xcschemes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(project, 'project.pbxproj'),
+      pbxprojWith([
+        { name: 'App', productType: APPLICATION_PRODUCT_TYPE, configurations },
+        {
+          name: 'AppTests',
+          productType: UNIT_TEST_PRODUCT_TYPE,
+          configurations: ['Debug', 'Release'],
+        },
+      ])
+    );
+    fs.writeFileSync(
+      path.join(project, 'xcshareddata/xcschemes/App.xcscheme'),
+      schemeXmlWith([0, 1], archiveConfiguration)
+    );
+  }
+
   function callsOf(command: string): ProcessCall[] {
     return calls.filter((call) => call.command === command);
   }
@@ -434,20 +468,7 @@ describe('app builder, iOS', () => {
   });
 
   it("builds iOS in the scheme's archive configuration when the project has no Release and no configuration is set", async () => {
-    const project = path.join(projectRoot, 'ios/App.xcodeproj');
-    fs.mkdirSync(path.join(project, 'xcshareddata/xcschemes'), { recursive: true });
-    const configuration = (name: string) =>
-      `isa = XCBuildConfiguration;\n\t\t\tbuildSettings = {\n\t\t\t};\n\t\t\tname = ${name};\n\t\t};\n`;
-    fs.writeFileSync(
-      path.join(project, 'project.pbxproj'),
-      configuration('dev.debug') + configuration('dev.release')
-    );
-    fs.writeFileSync(
-      path.join(project, 'xcshareddata/xcschemes/App.xcscheme'),
-      '<Scheme><LaunchAction buildConfiguration = "dev.debug"></LaunchAction>' +
-        '<ArchiveAction buildConfiguration = "dev.release" revealArchiveInOrganizer = "YES">' +
-        '</ArchiveAction></Scheme>'
-    );
+    writeAppProject(['dev.debug', 'dev.release'], 'dev.release');
     await compileIos({ ios: { scheme: 'App' } });
     expect(xcodebuildBuildCall().args).toEqual(
       expect.arrayContaining(['-configuration', 'dev.release'])
@@ -460,13 +481,54 @@ describe('app builder, iOS', () => {
       expect.arrayContaining(['-configuration', 'prod.debug'])
     );
 
-    // A project with a Release builds Release, whatever the scheme archives with.
+    // An app target with a Release builds Release, whatever the scheme archives with.
     calls.length = 0;
-    fs.appendFileSync(path.join(project, 'project.pbxproj'), configuration('Release'));
+    writeAppProject(['dev.debug', 'dev.release', 'Release'], 'dev.release');
     await compileIos({ ios: { scheme: 'App' } });
     expect(xcodebuildBuildCall().args).toEqual(
       expect.arrayContaining(['-configuration', 'Release'])
     );
+  });
+
+  it('prints the scheme and configuration before the iOS compile', async () => {
+    writeAppProject(['dev.debug', 'dev.release'], 'dev.release');
+    // The fake xcodebuild says on the transcript when it builds, so the order can be read off it.
+    const marksTheBuild: RunProcess = async (call) => {
+      if (call.command === 'xcodebuild' && call.args.includes('build')) {
+        emit({ kind: 'notice', level: 'info', message: 'XCODEBUILD BUILDS' });
+      }
+      return iosRunProcess(call);
+    };
+    const uninstall = installAppBuilder({
+      ...makeLiveAppBuilder(marksTheBuild),
+      hostSystem: () => 'macos',
+      hasTool: async () => true,
+      listIosSchemes: async () => ['App', 'AppTests'],
+    });
+    try {
+      const { stdout } = await captureTranscript(async () => {
+        await buildApps({
+          projectRoot,
+          toBuild: [{ platform: 'ios' }],
+          settings: {},
+          cacheDirFlag: cacheDir,
+          fingerprints: { android: { hash: 'a'.repeat(64) }, ios: { hash: 'f'.repeat(64) } },
+          command: 'build',
+          storedPlatformRows: [],
+        });
+      });
+      const picked = stdout.indexOf('Building iOS with scheme "App", configuration "dev.release".');
+      expect(picked).toBeGreaterThan(-1);
+      expect(picked).toBeLessThan(stdout.indexOf('XCODEBUILD BUILDS'));
+      expect(stdout).toContain(
+        'Picked scheme "App", the only one that builds an app. Skipped: AppTests.'
+      );
+      expect(xcodebuildBuildCall().args).toEqual(
+        expect.arrayContaining(['-scheme', 'App', '-configuration', 'dev.release'])
+      );
+    } finally {
+      uninstall();
+    }
   });
 
   it("builds iOS with Xcode's compilation cache on in Xcode's own folder, and no dSYM", async () => {

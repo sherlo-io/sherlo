@@ -330,6 +330,17 @@ describe('what the published package carries', () => {
     }
   });
 
+  it('the published Xcode project reader loads with plain Node from the package root, where the linking config finds it', (context) => {
+    if (!hasThePacks) context.skip();
+    const { unpackedPackageDir, packedFiles } = theNpmPack();
+
+    expect(packedFiles).toContain('dist-metro/xcodeProject.js');
+    const { readNativeTargets } = require(
+      path.join(unpackedPackageDir, 'dist-metro', 'xcodeProject.js')
+    );
+    expect(readNativeTargets('')).toEqual([]);
+  });
+
   it('the published build setting parser loads with plain Node from the package root', (context) => {
     if (!hasThePacks) context.skip();
     const { unpackedPackageDir, packedFiles } = theNpmPack();
