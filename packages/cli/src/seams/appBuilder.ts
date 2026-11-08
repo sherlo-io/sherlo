@@ -87,6 +87,17 @@ export type AppBuilder = {
   javaVersion(): Promise<number | null>;
   /** The schemes the iOS workspace lists, apart from the CocoaPods ones. */
   listIosSchemes(projectRoot: string): Promise<string[]>;
+  /**
+   * what the iOS workspace says about its APPLICATION target (never a test
+   * target's): the schemes that build an app, the app target's configurations in the project's
+   * spelling, and the configuration the app scheme archives with. Null when it was not read.
+   */
+  readIosAppTarget(projectRoot: string): Promise<IosAppTarget | null>;
+  /**
+   * the Gradle task of each product flavor's release build, e.g.
+   * `:app:assembleDevRelease`. Empty for an app with no flavors.
+   */
+  listAndroidFlavorTasks(projectRoot: string): Promise<string[]>;
   /** The app build the cache holds under a key, or null. */
   findCachedBuild(params: {
     platform: Platform;
@@ -765,6 +776,11 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         : [];
       return schemes.filter((scheme) => !podSchemes.includes(scheme));
     },
+    // Reading the application target from the project is not built yet. Null means "not read", and the
+    // build keeps its old behaviour.
+    readIosAppTarget: async () => null,
+    // Reading the flavors from Gradle is not built yet.
+    listAndroidFlavorTasks: async () => [],
     findCachedBuild: async ({ cacheKey, cacheDir }) => {
       const buildFolder = path.join(cacheDir, cacheKey);
       if (!fs.existsSync(buildFolder)) return null;
@@ -893,6 +909,16 @@ export function installAppBuilder(next: AppBuilder): () => void {
 /* The posed builder                                                          */
 /* ========================================================================== */
 
+/** the iOS application target as the workspace states it. */
+export type IosAppTarget = {
+  /** The schemes that build an application product, not a test bundle. */
+  appSchemes: string[];
+  /** The application target's configurations, in the project's spelling. */
+  configurations: string[];
+  /** The configuration the app scheme archives with. */
+  archiveConfiguration: string;
+};
+
 /** What building on the machine came to, as a pose states it. */
 export type PosedAppBuild = {
   /** The operating system the run was on. */
@@ -903,6 +929,14 @@ export type PosedAppBuild = {
   java: number | null;
   /** The schemes the iOS workspace lists, for a project that builds iOS. */
   iosSchemes?: string[];
+  /** the schemes among `iosSchemes` that build an application product (a test target's does not). */
+  iosAppSchemes?: string[];
+  /** the application target's configurations, in the project's spelling (`DEV.DEBUG`, `PROD.RELEASE`). */
+  iosAppConfigurations?: string[];
+  /** the configuration the app scheme archives with. */
+  iosArchiveConfiguration?: string;
+  /** the Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. */
+  androidFlavorTasks?: string[];
   /** What each platform's build came to, per platform (`android`, `ios`). */
   platforms: Record<string, PosedPlatformBuild>;
   /**
@@ -1005,6 +1039,19 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
       }
       return schemes;
     },
+
+    readIosAppTarget: async () => {
+      const { iosAppSchemes, iosAppConfigurations, iosArchiveConfiguration } =
+        stated('readIosAppTarget');
+      if (!iosAppSchemes || !iosAppConfigurations || !iosArchiveConfiguration) return null;
+      return {
+        appSchemes: iosAppSchemes,
+        configurations: iosAppConfigurations,
+        archiveConfiguration: iosArchiveConfiguration,
+      };
+    },
+
+    listAndroidFlavorTasks: async () => stated('listAndroidFlavorTasks').androidFlavorTasks ?? [],
 
     findCachedBuild: async ({ platform }) => {
       const build = platformOf('findCachedBuild', platform);

@@ -534,6 +534,17 @@ export type PosedAppBuild = {
   java: number | null;
   /** The schemes the iOS workspace lists, for a project that builds iOS. */
   iosSchemes?: string[];
+  /** the schemes among `iosSchemes` that build an application product (a test target's does not). */
+  iosAppSchemes?: string[];
+  /**
+   * the application target's configurations, in the project's spelling (`DEV.DEBUG`,
+   * `PROD.RELEASE`).
+   */
+  iosAppConfigurations?: string[];
+  /** the configuration the app scheme archives with. */
+  iosArchiveConfiguration?: string;
+  /** the Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. */
+  androidFlavorTasks?: string[];
   /** What each platform's build came to, per platform (`android`, `ios`). */
   platforms: Record<string, PosedPlatformBuild>;
   /**
@@ -560,6 +571,15 @@ export type PosedWorkstation = {
    * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile.
    */
   pods?: 'installed';
+  /**
+   * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
+   * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
+   * SHERLO_BUILD. Stated, the command must have run so; a mismatch is a refusal of the pose.
+   */
+  podInstall?: {
+    through: 'bundler';
+    sherloBuild: 'unset';
+  };
   /**
    * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`

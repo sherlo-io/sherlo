@@ -24,6 +24,8 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
     hasTool: vi.fn(async () => true),
     javaVersion: vi.fn(async () => 17),
     listIosSchemes: vi.fn(async () => ['Storefront']),
+    readIosAppTarget: vi.fn(async () => null),
+    listAndroidFlavorTasks: vi.fn(async () => []),
     findCachedBuild: vi.fn(
       async (_: Parameters<AppBuilder['findCachedBuild']>[0]): Promise<string | null> => null
     ),

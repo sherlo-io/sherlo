@@ -191,6 +191,17 @@ export type TranscriptSegment =
   /** `Building the Android app with Gradle...` - a step in progress, shown while the compile runs. */
   | { kind: 'app-build-compiling'; platform: Platform }
   /**
+   * What an iOS build picked, said once before the compile: the scheme (and the ones passed over)
+   * and the configuration with where it came from (./appBuild `renderIosBuildPicked`).
+   */
+  | {
+      kind: 'app-build-picked-ios';
+      scheme: string;
+      passedOverSchemes: string[];
+      configuration: string;
+      configurationFrom: 'config' | 'release' | 'archive';
+    }
+  /**
    * `sherlo build` built an app: `✔ Built the Android app      in 1m 28s (log: ...)`. The duration
    * arrives in whole seconds, measured by logic: the renderer reads no clock. (`sherlo test` says it
    * in the platform's row.)

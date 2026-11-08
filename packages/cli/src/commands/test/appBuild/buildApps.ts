@@ -31,7 +31,9 @@ import { dependsOnExpo } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import {
   type AppBuildCommand,
+  renderAndroidFlavorsNeedATask,
   renderRunOnCi,
+  renderUnknownIosConfiguration,
   type WhyANewAppBuild,
 } from '../../../render/appBuild';
 import type { PlatformRow } from '../../../render/runRows';
@@ -173,6 +175,23 @@ export async function buildApps({
     // The build log is the first thing written into the project's `.sherlo/` folder.
     makeProjectSherloFolder(projectRoot);
 
+    // Null when the app target was not read.
+    const iosConfiguration =
+      iosScheme !== undefined
+        ? await iosConfigurationOf(projectRoot, settings, project)
+        : undefined;
+    if (iosScheme !== undefined && iosConfiguration) {
+      emit({
+        kind: 'app-build-picked-ios',
+        scheme: iosScheme,
+        passedOverSchemes: (await builder.listIosSchemes(projectRoot)).filter(
+          (scheme) => scheme !== iosScheme
+        ),
+        configuration: iosConfiguration.configuration,
+        configurationFrom: iosConfiguration.from,
+      });
+    }
+
     const compiled = await whileShowing({ kind: 'app-build-compiling', platform }, () =>
       builder.compile({
         platform,
@@ -185,7 +204,10 @@ export async function buildApps({
           : {}),
         ...(iosScheme !== undefined
           ? {
-              ios: { scheme: iosScheme, configuration: platformSettings.configuration },
+              ios: {
+                scheme: iosScheme,
+                configuration: iosConfiguration?.configuration ?? platformSettings.configuration,
+              },
             }
           : {}),
         ...(ownCommand ? { custom: ownCommand } : {}),
@@ -303,6 +325,8 @@ async function refuseWhatThisMachineCannotBuild({
       // scheme is asked for then, when there is a folder to list.
       if (!needsGeneratedNativeFolder(projectRoot, 'ios')) {
         await iosSchemeOf(projectRoot, settings, project);
+        // a configuration the app lacks is refused here, before Xcode.
+        await iosConfigurationOf(projectRoot, settings, project);
       }
     }
 
@@ -326,6 +350,13 @@ async function refuseWhatThisMachineCannotBuild({
           "Can't build Android: no Android SDK was found.\n" +
             'Set ANDROID_HOME, or add sdk.dir to android/local.properties.'
         );
+      }
+
+      // an app with product flavors and no build.android.task is refused
+      // here, before Gradle, printing the task line to copy per flavor.
+      const flavorTasks = await builder.listAndroidFlavorTasks(projectRoot);
+      if (flavorTasks.length > 1 && !settings.android?.task) {
+        refuse(renderAndroidFlavorsNeedATask({ tasks: flavorTasks }));
       }
     }
   }
@@ -352,6 +383,11 @@ async function iosSchemeOf(
   const schemes = await appBuilder().listIosSchemes(projectRoot);
   if (schemes.length === 1) return schemes[0];
 
+  // with one app scheme among others that build something else (a test
+  // bundle), the app scheme is picked; two app schemes still refuse.
+  const appTarget = await appBuilder().readIosAppTarget(projectRoot);
+  if (appTarget && appTarget.appSchemes.length === 1) return appTarget.appSchemes[0];
+
   return refuseToBuildHere(
     `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
       `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${
@@ -359,6 +395,38 @@ async function iosSchemeOf(
       }" } }`,
     project
   );
+}
+
+/**
+ * the configuration an iOS build uses, read from the APP target: the config's
+ * (refused when the app lacks it), the app's Release in the project's spelling, else the one the
+ * scheme archives with. Null when the app target was not read.
+ */
+async function iosConfigurationOf(
+  projectRoot: string,
+  settings: BuildSettings,
+  project: SherloProject | undefined
+): Promise<{ configuration: string; from: 'config' | 'release' | 'archive' } | null> {
+  const target = await appBuilder().readIosAppTarget(projectRoot);
+  if (!target) return null;
+
+  const named = settings.ios?.configuration;
+  if (named) {
+    if (!target.configurations.includes(named)) {
+      return refuseToBuildHere(
+        renderUnknownIosConfiguration({
+          configuration: named,
+          configurations: target.configurations,
+        }),
+        project
+      );
+    }
+    return { configuration: named, from: 'config' };
+  }
+
+  const release = target.configurations.find((name) => name.toLowerCase() === 'release');
+  if (release) return { configuration: release, from: 'release' };
+  return { configuration: target.archiveConfiguration, from: 'archive' };
 }
 
 /** `A and B`, `A, B and C`. */
