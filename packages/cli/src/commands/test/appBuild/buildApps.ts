@@ -34,6 +34,7 @@ import {
   renderAndroidFlavorsNeedATask,
   renderRunOnCi,
   renderUnknownIosConfiguration,
+  type IosConfigurationSource,
   type WhyANewAppBuild,
 } from '../../../render/appBuild';
 import type { PlatformRow } from '../../../render/runRows';
@@ -165,30 +166,22 @@ export async function buildApps({
       platformSettings.command && platformSettings.output
         ? { command: platformSettings.command, output: platformSettings.output }
         : undefined;
-    // Asked before the compile is shown: a workspace with several schemes is refused, not
-    // compiled. The project's own command needs no scheme of Sherlo's.
-    const iosScheme =
-      platform === 'ios' && !ownCommand
-        ? await iosSchemeOf(projectRoot, settings, project)
-        : undefined;
+    // Picked before the compile is shown: a workspace with several schemes, or an app without the
+    // configuration named, is refused, not compiled. The project's own command needs no pick of
+    // Sherlo's.
+    const iosPick =
+      platform === 'ios' && !ownCommand ? await pickIosBuild(projectRoot, settings, project) : null;
 
     // The build log is the first thing written into the project's `.sherlo/` folder.
     makeProjectSherloFolder(projectRoot);
 
-    // Null when the app target was not read.
-    const iosConfiguration =
-      iosScheme !== undefined
-        ? await iosConfigurationOf(projectRoot, settings, project)
-        : undefined;
-    if (iosScheme !== undefined && iosConfiguration) {
+    if (iosPick?.configuration) {
       emit({
         kind: 'app-build-picked-ios',
-        scheme: iosScheme,
-        passedOverSchemes: (await builder.listIosSchemes(projectRoot)).filter(
-          (scheme) => scheme !== iosScheme
-        ),
-        configuration: iosConfiguration.configuration,
-        configurationFrom: iosConfiguration.from,
+        scheme: iosPick.scheme,
+        passedOverSchemes: iosPick.passedOverSchemes,
+        configuration: iosPick.configuration.name,
+        configurationFrom: iosPick.configuration.from,
       });
     }
 
@@ -202,11 +195,11 @@ export async function buildApps({
         ...(platform === 'android'
           ? { androidTask: platformSettings.task ?? DEFAULT_ANDROID_TASK }
           : {}),
-        ...(iosScheme !== undefined
+        ...(iosPick
           ? {
               ios: {
-                scheme: iosScheme,
-                configuration: iosConfiguration?.configuration ?? platformSettings.configuration,
+                scheme: iosPick.scheme,
+                configuration: iosPick.configuration?.name ?? platformSettings.configuration,
               },
             }
           : {}),
@@ -324,9 +317,7 @@ async function refuseWhatThisMachineCannotBuild({
       // An Expo app's ios folder is made by `expo prebuild`, just before the build, so its one
       // scheme is asked for then, when there is a folder to list.
       if (!needsGeneratedNativeFolder(projectRoot, 'ios')) {
-        await iosSchemeOf(projectRoot, settings, project);
-        // a configuration the app lacks is refused here, before Xcode.
-        await iosConfigurationOf(projectRoot, settings, project);
+        await pickIosBuild(projectRoot, settings, project);
       }
     }
 
@@ -352,12 +343,7 @@ async function refuseWhatThisMachineCannotBuild({
         );
       }
 
-      // an app with product flavors and no build.android.task is refused
-      // here, before Gradle, printing the task line to copy per flavor.
-      const flavorTasks = await builder.listAndroidFlavorTasks(projectRoot);
-      if (flavorTasks.length > 1 && !settings.android?.task) {
-        refuse(renderAndroidFlavorsNeedATask({ tasks: flavorTasks }));
-      }
+      await refuseFlavorsWithoutATask(projectRoot, settings, project);
     }
   }
 }
@@ -383,8 +369,8 @@ async function iosSchemeOf(
   const schemes = await appBuilder().listIosSchemes(projectRoot);
   if (schemes.length === 1) return schemes[0];
 
-  // with one app scheme among others that build something else (a test
-  // bundle), the app scheme is picked; two app schemes still refuse.
+  // One app scheme among others that build something else (a test bundle) is the one picked; two
+  // app schemes still refuse.
   const appTarget = await appBuilder().readIosAppTarget(projectRoot);
   if (appTarget && appTarget.appSchemes.length === 1) return appTarget.appSchemes[0];
 
@@ -397,16 +383,48 @@ async function iosSchemeOf(
   );
 }
 
+/** What an iOS build uses: the scheme, the ones passed over, and the configuration (null when the app target was not read). */
+type IosBuildPick = {
+  scheme: string;
+  passedOverSchemes: string[];
+  configuration: { name: string; from: IosConfigurationSource } | null;
+};
+
+/** The step before an iOS build starts: pick the scheme and the configuration, or refuse. */
+async function pickIosBuild(
+  projectRoot: string,
+  settings: BuildSettings,
+  project: SherloProject | undefined
+): Promise<IosBuildPick> {
+  const scheme = await iosSchemeOf(projectRoot, settings, project);
+  const configuration = await iosConfigurationOf(projectRoot, settings, project);
+  // The schemes passed over are said only with the configuration, so they are listed only then.
+  const schemes = configuration ? await appBuilder().listIosSchemes(projectRoot) : [];
+  return { scheme, passedOverSchemes: schemes.filter((name) => name !== scheme), configuration };
+}
+
+/** An app with product flavors and no build.android.task is refused before Gradle, with the task line to copy per flavor. */
+async function refuseFlavorsWithoutATask(
+  projectRoot: string,
+  settings: BuildSettings,
+  project: SherloProject | undefined
+): Promise<void> {
+  const tasks = await appBuilder().listAndroidFlavorTasks(projectRoot);
+  if (tasks.length > 1 && !settings.android?.task) {
+    refuseToBuildHere(renderAndroidFlavorsNeedATask({ tasks }), project);
+  }
+}
+
 /**
- * the configuration an iOS build uses, read from the APP target: the config's
- * (refused when the app lacks it), the app's Release in the project's spelling, else the one the
- * scheme archives with. Null when the app target was not read.
+ * The configuration an iOS build uses, read from the APP target: the config's (refused when the app
+ * lacks it), the app's Release in the project's spelling, else the one the scheme archives with.
+ * Null when the app target was not read.
  */
 async function iosConfigurationOf(
   projectRoot: string,
   settings: BuildSettings,
   project: SherloProject | undefined
-): Promise<{ configuration: string; from: 'config' | 'release' | 'archive' } | null> {
+): Promise<IosBuildPick['configuration']> {
   const target = await appBuilder().readIosAppTarget(projectRoot);
   if (!target) return null;
 
@@ -421,12 +439,12 @@ async function iosConfigurationOf(
         project
       );
     }
-    return { configuration: named, from: 'config' };
+    return { name: named, from: 'config' };
   }
 
   const release = target.configurations.find((name) => name.toLowerCase() === 'release');
-  if (release) return { configuration: release, from: 'release' };
-  return { configuration: target.archiveConfiguration, from: 'archive' };
+  if (release) return { name: release, from: 'release' };
+  return { name: target.archiveConfiguration, from: 'archive' };
 }
 
 /** `A and B`, `A, B and C`. */

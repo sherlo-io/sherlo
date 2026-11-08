@@ -139,6 +139,9 @@ export function renderAppBuildNextStep(): string[] {
   ];
 }
 
+/** Where an iOS build's configuration came from: the config file, the app's own Release, or the scheme's archive configuration. */
+export type IosConfigurationSource = 'config' | 'release' | 'archive';
+
 /**
  * What an iOS build picked, said once before the compile starts: the scheme (and the ones passed
  * over, when the workspace lists several) and the configuration (and why this one, when the config
@@ -154,7 +157,7 @@ export function renderIosBuildPicked({
   scheme: string;
   passedOverSchemes: string[];
   configuration: string;
-  configurationFrom: 'config' | 'release' | 'archive';
+  configurationFrom: IosConfigurationSource;
 }): string[] {
   return [
     `Building iOS with scheme "${scheme}", configuration "${configuration}".`,

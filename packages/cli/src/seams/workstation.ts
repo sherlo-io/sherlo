@@ -229,10 +229,13 @@ export type PosedWorkstation = {
   pods?: 'installed';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
-   * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without SHERLO_BUILD.
-   * Stated, the command must have run so; a mismatch is a refusal of the pose.
+   * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
+   * SHERLO_BUILD. Stated, the command must have run so; a mismatch is a refusal of the pose.
    */
-  podInstall?: { through: 'bundler'; sherloBuild: 'unset' };
+  podInstall?: {
+    through: 'bundler';
+    sherloBuild: 'unset';
+  };
   /**
    * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`

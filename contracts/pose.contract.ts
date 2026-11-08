@@ -534,16 +534,18 @@ export type PosedAppBuild = {
   java: number | null;
   /** The schemes the iOS workspace lists, for a project that builds iOS. */
   iosSchemes?: string[];
-  /** the schemes among `iosSchemes` that build an application product (a test target's does not). */
-  iosAppSchemes?: string[];
   /**
-   * the application target's configurations, in the project's spelling (`DEV.DEBUG`,
-   * `PROD.RELEASE`).
+   * The iOS app target, as the workspace states it. Stated all three or none: none is an app
+   * target that was not read.
+   *
+   * The schemes among `iosSchemes` that build an application product (a test target's does not).
    */
+  iosAppSchemes?: string[];
+  /** The app target's configurations, in the project's spelling (`DEV.DEBUG`, `PROD.RELEASE`). */
   iosAppConfigurations?: string[];
-  /** the configuration the app scheme archives with. */
+  /** The configuration the app scheme archives with. */
   iosArchiveConfiguration?: string;
-  /** the Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. */
+  /** The Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. */
   androidFlavorTasks?: string[];
   /** What each platform's build came to, per platform (`android`, `ios`). */
   platforms: Record<string, PosedPlatformBuild>;
