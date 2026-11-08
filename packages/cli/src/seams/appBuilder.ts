@@ -34,6 +34,7 @@ import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
+import { gradleWrapperIn, listAndroidFlavorTasks } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
 import {
   type IosAppTarget,
@@ -506,7 +507,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     const exitCode = await withGradleProgressOnCI(
       logPath,
       runProcess({
-        command: path.join(androidFolder, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'),
+        command: gradleWrapperIn(androidFolder),
         args: ['-I', initScriptPath, androidTask, ...gradleFlags()],
         cwd: androidFolder,
         env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
@@ -783,8 +784,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     // Read from the shared schemes and the project files; null keeps the scheme's own configuration.
     readIosAppTarget: async (projectRoot, scheme) =>
       readIosAppTargetFromFiles(path.join(projectRoot, 'ios'), scheme),
-    // No flavors found: the build takes the Android task from the config or the default.
-    listAndroidFlavorTasks: async () => [],
+    listAndroidFlavorTasks: (projectRoot) => listAndroidFlavorTasks(projectRoot, askProgram),
     findCachedBuild: async ({ cacheKey, cacheDir }) => {
       const buildFolder = path.join(cacheDir, cacheKey);
       if (!fs.existsSync(buildFolder)) return null;
