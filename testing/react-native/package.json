@@ -35,7 +35,7 @@
     "react-native-localize": "^3.4.1",
     "react-native-reanimated": "3.17.5",
     "react-native-safe-area-context": "^5.3.0",
-    "react-native-svg": "^15.11.2",
+    "react-native-svg": "15.11.2",
     "react-native-turbo-image": "^1.22.5",
     "tamagui": "^1.126.12"
   },

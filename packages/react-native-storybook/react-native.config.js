@@ -87,18 +87,31 @@ function readPodfileMappings(podfile) {
   return mappings;
 }
 
-// The names of the XCBuildConfiguration entries of every Xcode project beside the Podfile.
+// The configuration names CocoaPods checks a whitelist against (cocoapods target_inspector.rb:103-128):
+// the own configuration list of the native target named like each `target 'Name'` of the Podfile,
+// in every Xcode project beside the Podfile. Other targets (a test target with plain Debug and
+// Release) and the project-level list are not read.
 function readXcodeConfigurationNames(podfile) {
   const iosFolder = path.dirname(podfile);
+  const podfileTargets = [
+    ...fs.readFileSync(podfile, 'utf8').matchAll(/^\s*target\s+(['"])([^'"]+)\1/gm),
+  ].map((match) => match[2]);
   const names = [];
   for (const entry of fs.readdirSync(iosFolder)) {
     if (!entry.endsWith('.xcodeproj')) continue;
     const pbxproj = fs.readFileSync(path.join(iosFolder, entry, 'project.pbxproj'), 'utf8');
-    const section = (pbxproj.split('Begin XCBuildConfiguration section')[1] || '').split(
-      'End XCBuildConfiguration section'
-    )[0];
-    for (const match of section.matchAll(/^\s*name = (?:"([^"]+)"|([^;\s]+));/gm)) {
-      names.push(match[1] || match[2]);
+    const nameOf = new Map();
+    for (const match of pbxproj.matchAll(/^\t\t(\w{24}) \/\* [^*]*\*\/ = \{\n\t\t\tisa = XCBuildConfiguration;[\s\S]*?\n\t\t\tname = (?:"([^"]+)"|([^;\s]+));/gm)) {
+      nameOf.set(match[1], match[2] || match[3]);
+    }
+    for (const target of pbxproj.matchAll(/^\t\t\w{24} \/\* [^*]*\*\/ = \{\n\t\t\tisa = PBXNativeTarget;\n\t\t\tbuildConfigurationList = (\w{24})[\s\S]*?\n\t\t\tname = (?:"([^"]+)"|([^;\s]+));/gm)) {
+      if (!podfileTargets.includes(target[2] || target[3])) continue;
+      const list = pbxproj.match(
+        new RegExp(`\\t\\t${target[1]} /\\*[^*]*\\*/ = \\{\\n\\t\\t\\tisa = XCConfigurationList;\\n\\t\\t\\tbuildConfigurations = \\(([\\s\\S]*?)\\);`)
+      );
+      for (const id of (list && list[1].match(/\w{24}/g)) || []) {
+        if (nameOf.has(id)) names.push(nameOf.get(id));
+      }
     }
   }
   return names;
