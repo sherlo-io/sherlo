@@ -1,4 +1,4 @@
-const LIVE_WEB_APP = 'https://app.sherlo.io';
+export const LIVE_WEB_APP = 'https://app.sherlo.io';
 const DEV_WEB_APP = 'https://dev.app.sherlo.io';
 
 /**

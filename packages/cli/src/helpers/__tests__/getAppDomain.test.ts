@@ -1,7 +1,8 @@
 // Tests for getAppDomain (task omf-cli-build-links-env).
 // The test names are the contract; never rename one.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import getAppDomain from '../getAppDomain';
+import { posedSurroundings } from '../../seams/surroundings';
+import getAppDomain, { LIVE_WEB_APP } from '../getAppDomain';
 
 describe('the web app address a build link names', () => {
   const savedEnv = {
@@ -45,5 +46,21 @@ describe('the web app address a build link names', () => {
     process.env.SHERLO_API_URL = 'https://api.example.test/graphql';
 
     expect(getAppDomain(undefined, undefined, 'dev')).toBe('https://app.example.test');
+  });
+
+  it("the CLI's tests render the live web app whatever stage the client was built for", () => {
+    // Route 1: the environment the test run itself starts with.
+    delete process.env.SHERLO_API_URL;
+    if (savedEnv.SHERLO_APP_URL === undefined) delete process.env.SHERLO_APP_URL;
+    else process.env.SHERLO_APP_URL = savedEnv.SHERLO_APP_URL;
+    expect(getAppDomain(undefined, undefined, 'dev')).toBe(LIVE_WEB_APP);
+
+    // Route 2: the environment a posed run installs in place of the whole one.
+    const undo = posedSurroundings({ env: {}, git: 'none' }).installSettings();
+    try {
+      expect(getAppDomain(undefined, undefined, 'dev')).toBe(LIVE_WEB_APP);
+    } finally {
+      undo();
+    }
   });
 });
