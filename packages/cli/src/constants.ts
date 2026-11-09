@@ -1,6 +1,5 @@
 import { Platform } from '@sherlo/api-types';
 
-export const APP_DOMAIN = 'https://app.sherlo.io';
 const DOCS_BASE_URL = 'https://sherlo.io/docs';
 
 export const CONTACT_EMAIL = 'contact@sherlo.io';

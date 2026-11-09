@@ -1,5 +1,6 @@
-import { APP_DOMAIN, TOKEN_OPTION } from '../constants';
+import { TOKEN_OPTION } from '../constants';
 import { LOGIN_COMMAND } from '../commands/login/constants';
+import getAppDomain from './getAppDomain';
 import isPersonalToken from './isPersonalToken';
 import throwError from './throwError';
 
@@ -32,7 +33,7 @@ function refuseIfPersonalToken(token: string): void {
       '  A personal token (`sht_...`) names a PERSON. It carries no team and no\n' +
       '  project, so nothing here can tell which project you meant. A project token\n' +
       "  names exactly one project - copy it from that project's settings at\n" +
-      `  ${APP_DOMAIN}.\n` +
+      `  ${getAppDomain()}.\n` +
       '\n' +
       `  Or run \`npx sherlo ${LOGIN_COMMAND}\` once, and no token is needed.`,
   });

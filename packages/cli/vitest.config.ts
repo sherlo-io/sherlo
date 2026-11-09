@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { LIVE_WEB_APP } from './src/helpers/getAppDomain';
 
 // A machine that runs several jobs side by side sets BRAIN_SLOT_CPUS to this run's share of its
 // cores, so the run does not take them all. Unset (a plain local run, or CI), vitest's own default.
@@ -28,6 +29,9 @@ export default defineConfig({
     // No test may touch this machine's keychain: a test that reaches the live saved logins keeps
     // them in the file, under the temporary folder it points XDG_CONFIG_HOME at. The keychain's
     // own cases hand the store a fake keychain instead.
-    env: { SHERLO_SAVED_LOGIN_STORE: 'file' },
+    //
+    // SHERLO_APP_URL fixes the web app every rendered link names to the live one, so a test
+    // reads the same on every machine, whichever stage the API client was built for.
+    env: { SHERLO_SAVED_LOGIN_STORE: 'file', SHERLO_APP_URL: LIVE_WEB_APP },
   },
 });

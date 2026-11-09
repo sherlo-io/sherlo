@@ -1,12 +1,12 @@
 import chalk from 'chalk';
 import {
-  APP_DOMAIN,
   EXPO_PACKAGE_NAME,
   FULL_INIT_COMMAND,
   REACT_NATIVE_PACKAGE_NAME,
   STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
   TOKEN_OPTION,
 } from '../../../constants';
+import getAppDomain from '../../../helpers/getAppDomain';
 import {
   isValidToken,
   printLink,
@@ -81,7 +81,7 @@ async function validateRequirements(token?: string): Promise<void> {
           `Invalid \`--${TOKEN_OPTION}\` value\n` +
           '\n' +
           chalk.reset('Make sure you copied it correctly or generate a new one at ') +
-          printLink(APP_DOMAIN),
+          printLink(getAppDomain()),
         below: '\n' + chalk.reset('Then re-run:\n') + chalk.cyan(`  ${FULL_INIT_COMMAND}`),
       });
     }
