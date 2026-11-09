@@ -192,10 +192,13 @@ jobs:
       # stamped AFTER the version commit above so it never lands in git, and the loaders are restored
       # right after the publish. Only the public half lives in this repository's settings. The job's
       # first step stops a release with no key set, and SHERLO_RELEASE_BUILD makes the pack refuse a
-      # test key anyway.
+      # test key anyway. Every publish of this workflow, an alpha too, runs against cores signed
+      # with the live key, so every one is stamped; only a publish for a test or epic stage keeps
+      # the test key.
       - name: Stamp Sherlo's public key into the native loaders
         run: node packages/react-native-storybook/scripts/sealedCoreKey.js stamp
         env:
+          SHERLO_PUBLIC_RELEASE: 'true'
           SHERLO_CORE_PUBLIC_KEY: ${{ vars.SHERLO_CORE_PUBLIC_KEY }}
 
       # A version npm already has, from an earlier press whose later steps failed, is not published

@@ -26,6 +26,7 @@ import {
 import {
   LOADERS,
   refuseTestPublicKey,
+  stampForRelease,
   stampPublicKey,
   TEST_KEY_NAME,
 } from '../../scripts/sealedCoreKey.js';
@@ -482,6 +483,58 @@ describe('what the published package carries', () => {
     for (const { file } of Object.values(LOADERS)) {
       expect(fs.readFileSync(file, 'utf8')).toContain(TEST_KEY_NAME);
     }
+  });
+
+  describe('which publish is stamped with the live key', () => {
+    const livePublicKey = crypto
+      .generateKeyPairSync('rsa', { modulusLength: 2048 })
+      .publicKey.export({ type: 'spki', format: 'pem' }) as string;
+    const withLoaders = (run: (loaders: typeof LOADERS) => void) => {
+      const loaders = copyLoadersToTemporaryFolder();
+      try {
+        run(loaders);
+      } finally {
+        fs.rmSync(path.dirname(loaders.ios.file), { recursive: true, force: true });
+      }
+    };
+
+    it('a test-stage package keeps the test key', () => {
+      withLoaders((loaders) => {
+        const env = { SHERLO_CORE_PUBLIC_KEY: livePublicKey, SHERLO_PUBLIC_RELEASE: 'false' };
+        expect(stampForRelease(env, loaders)).toBe(false);
+        expect(() => refuseTestPublicKey(loaders)).toThrow(/still holds the test key/);
+        for (const { file } of Object.values(loaders)) {
+          expect(fs.readFileSync(file, 'utf8')).toContain(TEST_KEY_NAME);
+        }
+      });
+    });
+
+    it('a public release is stamped with the live key', () => {
+      withLoaders((loaders) => {
+        const env = { SHERLO_CORE_PUBLIC_KEY: livePublicKey, SHERLO_PUBLIC_RELEASE: 'true' };
+        expect(stampForRelease(env, loaders)).toBe(true);
+        expect(() => refuseTestPublicKey(loaders)).not.toThrow();
+      });
+    });
+
+    it('stamping refuses a missing live key', () => {
+      withLoaders((loaders) => {
+        expect(() => stampForRelease({ SHERLO_PUBLIC_RELEASE: 'true' }, loaders)).toThrow(
+          /SHERLO_CORE_PUBLIC_KEY is not set/
+        );
+      });
+    });
+
+    it('an alpha release is stamped with the live key like a public one', () => {
+      const steps = namedStepsOf('release-sherlo-packages.yml');
+      const stampStep = steps.find(
+        (step) => step.name === "Stamp Sherlo's public key into the native loaders"
+      );
+      expect(stampStep!.body).toContain("SHERLO_PUBLIC_RELEASE: 'true'");
+      expect(stampStep!.body).not.toContain('IS_ALPHA');
+      const keyCheck = steps.find((step) => step.name === "Check Sherlo's public key is set");
+      expect(keyCheck!.body).not.toContain('IS_ALPHA');
+    });
   });
 
   it("the podspec keeps the compiled core's header private", () => {

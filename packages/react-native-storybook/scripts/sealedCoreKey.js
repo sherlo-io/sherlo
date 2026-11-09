@@ -7,7 +7,8 @@
  * while the test key is still there. Only the public half is ever in this repository or a workflow.
  *
  * - `node scripts/sealedCoreKey.js stamp` writes the key in the SHERLO_CORE_PUBLIC_KEY environment
- *   variable (a PEM, or the base64 of its DER) into both loaders. It edits the working tree only:
+ *   variable (a PEM, or the base64 of its DER) into both loaders, only when SHERLO_PUBLIC_RELEASE
+ *   is "true"; any other publish keeps the test key. It edits the working tree only:
  *   a release stamps right before it publishes and restores the loaders after, so the repository
  *   keeps the test key.
  * - packSealedCore.js calls refuseTestPublicKey() when SHERLO_RELEASE_BUILD is "true".
@@ -19,6 +20,7 @@ const path = require('node:path');
 const SDK_ROOT = path.join(__dirname, '..');
 const TEST_KEY_NAME = 'SHERLO_CORE_TEST_PUBLIC_KEY';
 const RELEASE_KEY_NAME = 'SHERLO_CORE_PUBLIC_KEY';
+const PUBLIC_RELEASE_NAME = 'SHERLO_PUBLIC_RELEASE';
 
 // iOS reads the key as PKCS#1 RSAPublicKey DER, Android as X.509 SubjectPublicKeyInfo DER.
 const LOADERS = {
@@ -40,7 +42,7 @@ function refuseTestPublicKey(loaders = LOADERS) {
 
   if (loadersWithTestKey.length > 0) {
     throw new Error(
-      'A release must carry Sherlo\'s public key, but ' +
+      "A release must carry Sherlo's public key, but " +
         loadersWithTestKey.join(' and ') +
         ' still holds the test key. Run "node scripts/sealedCoreKey.js stamp" with ' +
         RELEASE_KEY_NAME +
@@ -63,7 +65,9 @@ function stampPublicKey(publicKeyText, loaders = LOADERS) {
 
     const declaration = new RegExp(TEST_KEY_NAME + '(\\s*=\\s*@?")[^"]*"');
     if (!declaration.test(source)) {
-      throw new Error(path.relative(SDK_ROOT, file) + ' declares no ' + TEST_KEY_NAME + ' to replace');
+      throw new Error(
+        path.relative(SDK_ROOT, file) + ' declares no ' + TEST_KEY_NAME + ' to replace'
+      );
     }
     const testKeyComment = /^([ \t]*)\/\/ THE TEST PUBLIC KEY:[^\n]*\n(?:[ \t]*\/\/[^\n]*\n)*/m;
     const stamped = source
@@ -74,19 +78,50 @@ function stampPublicKey(publicKeyText, loaders = LOADERS) {
   }
 }
 
-module.exports = { refuseTestPublicKey, stampPublicKey, LOADERS, TEST_KEY_NAME, RELEASE_KEY_NAME };
+/**
+ * Stamps Sherlo's public key for a public release only. Any other publish (an alpha, a test or
+ * epic stage) keeps the test key, so cores signed with the test key load in it. Returns whether
+ * the loaders were stamped; throws when a public release has no key to stamp.
+ */
+function stampForRelease(env = process.env, loaders = LOADERS) {
+  if (env[PUBLIC_RELEASE_NAME] !== 'true') return false;
+  if (!env[RELEASE_KEY_NAME]) {
+    throw new Error(
+      RELEASE_KEY_NAME + ' is not set: it comes from the repository variable of the same name.'
+    );
+  }
+  stampPublicKey(env[RELEASE_KEY_NAME], loaders);
+  return true;
+}
+
+module.exports = {
+  refuseTestPublicKey,
+  stampPublicKey,
+  stampForRelease,
+  LOADERS,
+  PUBLIC_RELEASE_NAME,
+  TEST_KEY_NAME,
+  RELEASE_KEY_NAME,
+};
 
 if (require.main === module) {
   if (process.argv[2] !== 'stamp') {
-    console.error('usage: ' + RELEASE_KEY_NAME + '=<public key> node scripts/sealedCoreKey.js stamp');
-    process.exit(1);
-  }
-  if (!process.env[RELEASE_KEY_NAME]) {
     console.error(
-      RELEASE_KEY_NAME + ' is not set: it comes from the repository variable of the same name.'
+      'usage: ' + RELEASE_KEY_NAME + '=<public key> node scripts/sealedCoreKey.js stamp'
     );
     process.exit(1);
   }
-  stampPublicKey(process.env[RELEASE_KEY_NAME]);
-  console.log('stamped Sherlo\'s public key into both loaders');
+  try {
+    const stamped = stampForRelease();
+    console.log(
+      stamped
+        ? "stamped Sherlo's public key into both loaders"
+        : 'not a public release (' +
+            PUBLIC_RELEASE_NAME +
+            ' is not "true"): the loaders keep the test key'
+    );
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
 }
