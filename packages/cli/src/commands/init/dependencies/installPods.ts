@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import chalk from 'chalk';
 import { FULL_INIT_COMMAND } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
@@ -8,7 +10,9 @@ import getFailedCommandOutput from './getFailedCommandOutput';
 async function installPods(): Promise<void> {
   const spinner = createSpinner('Installing Pods').start();
 
-  const command = `cd ${IOS_DIR} && pod install`;
+  // a Gemfile that names cocoapods means the pods install through Bundler.
+  const throughBundler = aGemfileNamesCocoapods(getCwd());
+  const command = `cd ${IOS_DIR} && ${throughBundler ? 'bundle exec ' : ''}pod install`;
 
   try {
     // Through the workstation seam, like the package install, so a posed run answers it from its
@@ -16,6 +20,7 @@ async function installPods(): Promise<void> {
     await workstation().installPods({
       command,
       projectRoot: getCwd(),
+      sherloBuildUnset: true,
     });
   } catch (error) {
     spinner.fail();
@@ -36,7 +41,14 @@ async function installPods(): Promise<void> {
     });
   }
 
-  spinner.succeed('Installed Pods');
+  spinner.succeed(throughBundler ? 'Installed Pods (bundle exec pod install)' : 'Installed Pods');
+}
+
+/** whether the project's Gemfile, at its root or in ios/, names cocoapods. */
+function aGemfileNamesCocoapods(projectRoot: string): boolean {
+  return [path.join(projectRoot, 'Gemfile'), path.join(projectRoot, IOS_DIR, 'Gemfile')].some(
+    (gemfile) => fs.existsSync(gemfile) && /cocoapods/.test(fs.readFileSync(gemfile, 'utf8'))
+  );
 }
 
 export default installPods;

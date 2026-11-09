@@ -139,6 +139,75 @@ export function renderAppBuildNextStep(): string[] {
   ];
 }
 
+/** Where an iOS build's configuration came from: the config file, the app's own Release, or the scheme's archive configuration. */
+export type IosConfigurationSource = 'config' | 'release' | 'archive';
+
+/**
+ * What an iOS build picked, said once before the compile starts: the scheme (and the ones passed
+ * over, when the workspace lists several) and the configuration (and why this one, when the config
+ * named none). `configurationFrom` is where the configuration came from: the config file (no extra
+ * line), the app's own Release, or the scheme's archive configuration when the app has no Release.
+ */
+export function renderIosBuildPicked({
+  scheme,
+  passedOverSchemes,
+  configuration,
+  configurationFrom,
+}: {
+  scheme: string;
+  passedOverSchemes: string[];
+  configuration: string;
+  configurationFrom: IosConfigurationSource;
+}): string[] {
+  return [
+    `Building iOS with scheme "${scheme}", configuration "${configuration}".`,
+    ...(passedOverSchemes.length > 0
+      ? [
+          chalk.dim(
+            `Picked scheme "${scheme}", the only one that builds an app. Skipped: ${passedOverSchemes.join(', ')}.`
+          ),
+        ]
+      : []),
+    ...(configurationFrom === 'archive'
+      ? [
+          chalk.dim(
+            `No Release configuration, so using "${configuration}", the one the scheme archives with. To change it, set build.ios.configuration in sherlo.config.json.`
+          ),
+        ]
+      : []),
+  ];
+}
+
+/**
+ * The refusal for a build.ios.configuration the app lacks, before Xcode starts. Same style as the
+ * two-schemes refusal (buildApps, after `pickIosScheme` in seams/iosScheme): what is wrong, what
+ * the app has, the config line to write.
+ */
+export function renderUnknownIosConfiguration({
+  configuration,
+  configurations,
+}: {
+  configuration: string;
+  configurations: string[];
+}): string {
+  return [
+    `Can't pick an iOS configuration: the app has no "${configuration}". It has ${configurations.join(', ')}.`,
+    `Set build.ios.configuration in sherlo.config.json to one of them.`,
+  ].join('\n');
+}
+
+/**
+ * The refusal for an Android app with product flavors and no build.android.task, before Gradle
+ * starts: the task line to copy, one per flavor.
+ */
+export function renderAndroidFlavorsNeedATask({ tasks }: { tasks: string[] }): string {
+  return [
+    `Can't pick an Android flavor: the app has several, so Sherlo can't tell which to build.`,
+    `Set build.android.task in sherlo.config.json to one of these:`,
+    ...tasks.map((task) => `   ${task}`),
+  ].join('\n');
+}
+
 /**
  * `sherlo build`'s failed build, in init's failed-step shape: the build tool's last lines quoted,
  * where the whole log is, what to do - and the help block, because the run ends here.

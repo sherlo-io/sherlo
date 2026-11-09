@@ -557,6 +557,27 @@ const PINS: Pin[] = [
     prints: [['🍎 iOS      Building the app with Xcode...']],
   },
   {
+    kind: 'app-build-picked-ios',
+    what: 'the iOS pick said once before the compile - scheme and configuration, the skipped schemes and the archive fallback in dim',
+    segment: {
+      kind: 'app-build-picked-ios',
+      scheme: 'Storefront',
+      passedOverSchemes: ['StorefrontTests'],
+      configuration: 'Staging',
+      configurationFrom: 'archive',
+    },
+    stream: 'stdout',
+    prints: [
+      ['Building iOS with scheme "Storefront", configuration "Staging".'],
+      [
+        `${ESC}[2mPicked scheme "Storefront", the only one that builds an app. Skipped: StorefrontTests.${ESC}[22m`,
+      ],
+      [
+        `${ESC}[2mNo Release configuration, so using "Staging", the one the scheme archives with. To change it, set build.ios.configuration in sherlo.config.json.${ESC}[22m`,
+      ],
+    ],
+  },
+  {
     kind: 'app-build-done',
     what: '`sherlo build` says how long it took and where the log is - its next step says where the app build is kept',
     segment: {

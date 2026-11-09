@@ -24,6 +24,8 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
     hasTool: vi.fn(async () => true),
     javaVersion: vi.fn(async () => 17),
     listIosSchemes: vi.fn(async () => ['Storefront']),
+    readIosAppTarget: vi.fn(async () => null),
+    listAndroidFlavorTasks: vi.fn(async () => []),
     findCachedBuild: vi.fn(
       async (_: Parameters<AppBuilder['findCachedBuild']>[0]): Promise<string | null> => null
     ),
@@ -120,6 +122,44 @@ describe('sherlo test builds the app on this machine', () => {
 
     await expect(build({ toBuild: IOS })).rejects.toThrow(
       /the workspace has Storefront and StorefrontStaging\.\nName one in sherlo\.config\.json: "build": \{ "ios": \{ "scheme": "Storefront" \} \}/
+    );
+  });
+
+  it('refuses an Android app with product flavors and no build.android.task, listing the flavor tasks, before Gradle starts', async () => {
+    const tasks = [':app:assembleDevRelease', ':app:assembleProdRelease'];
+    const builder = fakeBuilder({ listAndroidFlavorTasks: vi.fn(async () => tasks) });
+
+    await expect(build({ toBuild: ANDROID })).rejects.toThrow(
+      /Set build\.android\.task[\s\S]*:app:assembleDevRelease\n\s*:app:assembleProdRelease/
+    );
+    expect(builder.compile).not.toHaveBeenCalled();
+    expect(builder.listAndroidFlavorTasks).toHaveBeenCalledTimes(1);
+
+    await expect(
+      build({ toBuild: ANDROID, settings: { android: { task: tasks[0] } } })
+    ).resolves.toBeDefined();
+    expect(builder.listAndroidFlavorTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a build.ios.configuration the app target lacks, listing the ones it has, before Xcode starts', async () => {
+    const appTarget = {
+      appSchemes: ['Storefront'],
+      configurations: ['DEV.DEBUG', 'DEV.RELEASE'],
+      archiveConfiguration: 'DEV.RELEASE',
+    };
+    const builder = fakeBuilder({ readIosAppTarget: async () => appTarget });
+
+    await expect(
+      build({ toBuild: IOS, settings: { ios: { configuration: 'Release' } } })
+    ).rejects.toThrow(
+      `Can't pick an iOS configuration: the app has no "Release". It has DEV.DEBUG, DEV.RELEASE.`
+    );
+    expect(builder.compile).not.toHaveBeenCalled();
+
+    // The name is matched without regard to case, and Xcode gets the app's own spelling.
+    await build({ toBuild: IOS, settings: { ios: { configuration: 'dev.release' } } });
+    expect(builder.compile).toHaveBeenCalledWith(
+      expect.objectContaining({ ios: { scheme: 'Storefront', configuration: 'DEV.RELEASE' } })
     );
   });
 

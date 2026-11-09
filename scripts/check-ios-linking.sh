@@ -35,11 +35,22 @@ restore() {
 }
 trap restore EXIT
 
-# The testing app installs the SDK from a packed tarball, which holds the linking config of the
-# commit it was packed at. The check is about this commit's config, so lay it over the installed
-# copy before pod install runs it.
-cp "$REPO_ROOT/packages/react-native-storybook/react-native.config.js" \
-  "$REPO_ROOT/testing/react-native/node_modules/@sherlo/react-native-storybook/react-native.config.js"
+# The testing app installs the SDK from a packed tarball, which holds the linking config and the
+# metro scripts it requires (dist-metro/) of the commit it was packed at, an older one than this.
+# The check is about this commit's config, so lay it and its scripts over the installed copy before
+# pod install runs it. Without the new scripts the old copy lacks dist-metro/xcodeProject.js, the
+# config cannot read the app's configurations, and it falls back to Debug alone.
+SDK_SOURCE="$REPO_ROOT/packages/react-native-storybook"
+SDK_INSTALLED="$REPO_ROOT/testing/react-native/node_modules/@sherlo/react-native-storybook"
+cp "$SDK_SOURCE/react-native.config.js" "$SDK_INSTALLED/react-native.config.js"
+mkdir -p "$SDK_INSTALLED/dist-metro"
+for script in sherloBuild xcodeProject; do
+  if [ -f "$SDK_SOURCE/dist-metro/$script.js" ]; then
+    cp "$SDK_SOURCE/dist-metro/$script.js" "$SDK_INSTALLED/dist-metro/$script.js"
+  else
+    cp "$SDK_SOURCE/metro/$script.js" "$SDK_INSTALLED/dist-metro/$script.js"
+  fi
+done
 
 assert_linked() {
   local configuration="$1" expected="$2"

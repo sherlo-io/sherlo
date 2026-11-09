@@ -31,7 +31,10 @@ import { dependsOnExpo } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import {
   type AppBuildCommand,
+  renderAndroidFlavorsNeedATask,
   renderRunOnCi,
+  renderUnknownIosConfiguration,
+  type IosConfigurationSource,
   type WhyANewAppBuild,
 } from '../../../render/appBuild';
 import type { PlatformRow } from '../../../render/runRows';
@@ -39,6 +42,8 @@ import type { SherloProject } from '../../../render/testSteps';
 import { whileShowing } from '../../shared/terminal';
 import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { appBuilder } from '../../../seams/appBuilder';
+import { pickIosConfiguration } from '../../../seams/iosConfiguration';
+import { pickIosScheme } from '../../../seams/iosScheme';
 import {
   type BuildSettings,
   DEFAULT_ANDROID_TASK,
@@ -163,15 +168,24 @@ export async function buildApps({
       platformSettings.command && platformSettings.output
         ? { command: platformSettings.command, output: platformSettings.output }
         : undefined;
-    // Asked before the compile is shown: a workspace with several schemes is refused, not
-    // compiled. The project's own command needs no scheme of Sherlo's.
-    const iosScheme =
-      platform === 'ios' && !ownCommand
-        ? await iosSchemeOf(projectRoot, settings, project)
-        : undefined;
+    // Picked before the compile is shown: a workspace with several schemes, or an app without the
+    // configuration named, is refused, not compiled. The project's own command needs no pick of
+    // Sherlo's.
+    const iosPick =
+      platform === 'ios' && !ownCommand ? await pickIosBuild(projectRoot, settings, project) : null;
 
     // The build log is the first thing written into the project's `.sherlo/` folder.
     makeProjectSherloFolder(projectRoot);
+
+    if (iosPick?.configuration) {
+      emit({
+        kind: 'app-build-picked-ios',
+        scheme: iosPick.scheme,
+        passedOverSchemes: iosPick.passedOverSchemes,
+        configuration: iosPick.configuration.name,
+        configurationFrom: iosPick.configuration.from,
+      });
+    }
 
     const compiled = await whileShowing({ kind: 'app-build-compiling', platform }, () =>
       builder.compile({
@@ -183,9 +197,12 @@ export async function buildApps({
         ...(platform === 'android'
           ? { androidTask: platformSettings.task ?? DEFAULT_ANDROID_TASK }
           : {}),
-        ...(iosScheme !== undefined
+        ...(iosPick
           ? {
-              ios: { scheme: iosScheme, configuration: platformSettings.configuration },
+              ios: {
+                scheme: iosPick.scheme,
+                configuration: iosPick.configuration?.name ?? platformSettings.configuration,
+              },
             }
           : {}),
         ...(ownCommand ? { custom: ownCommand } : {}),
@@ -302,7 +319,7 @@ async function refuseWhatThisMachineCannotBuild({
       // An Expo app's ios folder is made by `expo prebuild`, just before the build, so its one
       // scheme is asked for then, when there is a folder to list.
       if (!needsGeneratedNativeFolder(projectRoot, 'ios')) {
-        await iosSchemeOf(projectRoot, settings, project);
+        await pickIosBuild(projectRoot, settings, project);
       }
     }
 
@@ -327,6 +344,8 @@ async function refuseWhatThisMachineCannotBuild({
             'Set ANDROID_HOME, or add sdk.dir to android/local.properties.'
         );
       }
+
+      await refuseFlavorsWithoutATask(projectRoot, settings, project);
     }
   }
 }
@@ -340,25 +359,64 @@ function refuseToBuildHere(message: string, project: SherloProject | undefined):
   return throwError({ message, below: renderRunOnCi(project) });
 }
 
-/** The scheme an iOS build uses: the config's, the workspace's only one, or a refusal naming them. */
-async function iosSchemeOf(
+/**
+ * The step before an iOS build starts: the scheme (../../../seams/iosScheme) and the app target's
+ * configuration (../../../seams/iosConfiguration), or a refusal naming what to set. The
+ * configuration is null when the app target was not read.
+ */
+async function pickIosBuild(
   projectRoot: string,
   settings: BuildSettings,
   project: SherloProject | undefined
-): Promise<string> {
+): Promise<{
+  scheme: string;
+  passedOverSchemes: string[];
+  configuration: { name: string; from: IosConfigurationSource } | null;
+}> {
   const named = settings.ios?.scheme;
-  if (named) return named;
-
-  const schemes = await appBuilder().listIosSchemes(projectRoot);
-  if (schemes.length === 1) return schemes[0];
-
-  return refuseToBuildHere(
-    `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
-      `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${
-        schemes[0] ?? 'MyApp'
-      }" } }`,
-    project
+  const schemes = named ? [] : await appBuilder().listIosSchemes(projectRoot);
+  const target = await appBuilder().readIosAppTarget(
+    projectRoot,
+    named ?? (schemes.length === 1 ? schemes[0] : undefined)
   );
+  const pick = pickIosScheme({ named, schemes, appSchemes: target?.appSchemes ?? [] });
+  if (!pick) {
+    return refuseToBuildHere(
+      `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
+        `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${
+          schemes[0] ?? 'MyApp'
+        }" } }`,
+      project
+    );
+  }
+  if (!target) return { scheme: pick.scheme, passedOverSchemes: [], configuration: null };
+
+  // Null only for a configuration the config names and the app target lacks.
+  const namedConfiguration = settings.ios?.configuration ?? '';
+  const configuration = pickIosConfiguration(target, namedConfiguration);
+  if (!configuration) {
+    return refuseToBuildHere(
+      renderUnknownIosConfiguration({
+        configuration: namedConfiguration,
+        configurations: target.configurations,
+      }),
+      project
+    );
+  }
+  return { scheme: pick.scheme, passedOverSchemes: pick.skippedSchemes, configuration };
+}
+
+/** An app with product flavors and no build.android.task is refused before Gradle, with the task line to copy per flavor. */
+async function refuseFlavorsWithoutATask(
+  projectRoot: string,
+  settings: BuildSettings,
+  project: SherloProject | undefined
+): Promise<void> {
+  if (settings.android?.task) return;
+  const tasks = await appBuilder().listAndroidFlavorTasks(projectRoot);
+  if (tasks.length > 1) {
+    refuseToBuildHere(renderAndroidFlavorsNeedATask({ tasks }), project);
+  }
 }
 
 /** `A and B`, `A, B and C`. */

@@ -29,6 +29,8 @@ function installFakeMachine() {
     hasTool: vi.fn(async () => true),
     javaVersion: vi.fn(async () => 17),
     listIosSchemes: vi.fn(async () => ['Storefront']),
+    readIosAppTarget: vi.fn(async () => null),
+    listAndroidFlavorTasks: vi.fn(async () => []),
     findCachedBuild: vi.fn(async (): Promise<string | null> => null),
     keepInCache: vi.fn(async () => undefined),
     generateNativeFolder: vi.fn(async () => undefined),
