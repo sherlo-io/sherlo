@@ -39,6 +39,7 @@ import {
   renderAppBuildFailed,
   renderAppBuildNextStep,
   renderEasHostedVariables,
+  renderIosBuildPicked,
 } from './appBuild';
 import {
   renderBranchingOff,
@@ -296,6 +297,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     case 'app-build-done':
       return { stream: 'stdout', prints: [[renderAppBuildDone(segment)]] };
+
+    case 'app-build-picked-ios':
+      return { stream: 'stdout', prints: renderIosBuildPicked(segment).map((line) => [line]) };
 
     case 'app-build-failed':
       return { stream: 'stdout', prints: renderAppBuildFailed(segment).map((line) => [line]) };

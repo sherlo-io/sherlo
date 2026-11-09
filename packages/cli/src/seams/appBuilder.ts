@@ -34,8 +34,13 @@ import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
+import { gradleWrapperIn, listAndroidFlavorTasks } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
-import { iosBuildConfiguration } from './iosConfiguration';
+import {
+  type IosAppTarget,
+  iosBuildConfiguration,
+  readIosAppTargetFromFiles,
+} from './iosConfiguration';
 import type { NativeFolderFile } from './serverCalls';
 
 /** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
@@ -87,6 +92,17 @@ export type AppBuilder = {
   javaVersion(): Promise<number | null>;
   /** The schemes the iOS workspace lists, apart from the CocoaPods ones. */
   listIosSchemes(projectRoot: string): Promise<string[]>;
+  /**
+   * What the iOS workspace says about its APPLICATION target (never a test target's): the schemes
+   * that build an app, the app target's configurations in the project's spelling, and the
+   * configuration the scheme given (else the only app scheme) archives with. Null when it was not read.
+   */
+  readIosAppTarget(projectRoot: string, scheme?: string): Promise<IosAppTarget | null>;
+  /**
+   * The Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. Empty
+   * for an app with no flavors.
+   */
+  listAndroidFlavorTasks(projectRoot: string): Promise<string[]>;
   /** The app build the cache holds under a key, or null. */
   findCachedBuild(params: {
     platform: Platform;
@@ -491,7 +507,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     const exitCode = await withGradleProgressOnCI(
       logPath,
       runProcess({
-        command: path.join(androidFolder, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'),
+        command: gradleWrapperIn(androidFolder),
         args: ['-I', initScriptPath, androidTask, ...gradleFlags()],
         cwd: androidFolder,
         env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
@@ -765,6 +781,10 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         : [];
       return schemes.filter((scheme) => !podSchemes.includes(scheme));
     },
+    // Read from the shared schemes and the project files; null keeps the scheme's own configuration.
+    readIosAppTarget: async (projectRoot, scheme) =>
+      readIosAppTargetFromFiles(path.join(projectRoot, 'ios'), scheme),
+    listAndroidFlavorTasks: (projectRoot) => listAndroidFlavorTasks(projectRoot, askProgram),
     findCachedBuild: async ({ cacheKey, cacheDir }) => {
       const buildFolder = path.join(cacheDir, cacheKey);
       if (!fs.existsSync(buildFolder)) return null;
@@ -903,6 +923,19 @@ export type PosedAppBuild = {
   java: number | null;
   /** The schemes the iOS workspace lists, for a project that builds iOS. */
   iosSchemes?: string[];
+  /**
+   * The iOS app target, as the workspace states it. Stated all three or none: none is an app
+   * target that was not read.
+   *
+   * The schemes among `iosSchemes` that build an application product (a test target's does not).
+   */
+  iosAppSchemes?: string[];
+  /** The app target's configurations, in the project's spelling (`DEV.DEBUG`, `PROD.RELEASE`). */
+  iosAppConfigurations?: string[];
+  /** The configuration the app scheme archives with. */
+  iosArchiveConfiguration?: string;
+  /** The Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. */
+  androidFlavorTasks?: string[];
   /** What each platform's build came to, per platform (`android`, `ios`). */
   platforms: Record<string, PosedPlatformBuild>;
   /**
@@ -1005,6 +1038,19 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
       }
       return schemes;
     },
+
+    readIosAppTarget: async () => {
+      const { iosAppSchemes, iosAppConfigurations, iosArchiveConfiguration } =
+        stated('readIosAppTarget');
+      if (!iosAppSchemes || !iosAppConfigurations || !iosArchiveConfiguration) return null;
+      return {
+        appSchemes: iosAppSchemes,
+        configurations: iosAppConfigurations,
+        archiveConfiguration: iosArchiveConfiguration,
+      };
+    },
+
+    listAndroidFlavorTasks: async () => stated('listAndroidFlavorTasks').androidFlavorTasks ?? [],
 
     findCachedBuild: async ({ platform }) => {
       const build = platformOf('findCachedBuild', platform);

@@ -1087,6 +1087,18 @@ function readPosedAppBuild(value: unknown, path: string, problems: string[]): vo
     if ('iosSchemes' in object1) {
       expectStringArray(object1.iosSchemes, at(path, 'iosSchemes'), problems);
     }
+    if ('iosAppSchemes' in object1) {
+      expectStringArray(object1.iosAppSchemes, at(path, 'iosAppSchemes'), problems);
+    }
+    if ('iosAppConfigurations' in object1) {
+      expectStringArray(object1.iosAppConfigurations, at(path, 'iosAppConfigurations'), problems);
+    }
+    if ('iosArchiveConfiguration' in object1) {
+      expectString(object1.iosArchiveConfiguration, at(path, 'iosArchiveConfiguration'), problems);
+    }
+    if ('androidFlavorTasks' in object1) {
+      expectStringArray(object1.androidFlavorTasks, at(path, 'androidFlavorTasks'), problems);
+    }
     const where8 = at(path, 'platforms');
     const map9 = asObject(object1.platforms, where8, problems);
     if (map9) {
@@ -1105,7 +1117,18 @@ function readPosedAppBuild(value: unknown, path: string, problems: string[]): vo
     }
     reportUnknownFields(
       object1,
-      ['host', 'tools', 'java', 'iosSchemes', 'platforms', 'nativeFolderFiles'],
+      [
+        'host',
+        'tools',
+        'java',
+        'iosSchemes',
+        'iosAppSchemes',
+        'iosAppConfigurations',
+        'iosArchiveConfiguration',
+        'androidFlavorTasks',
+        'platforms',
+        'nativeFolderFiles',
+      ],
       path,
       problems
     );
@@ -1125,8 +1148,17 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
     if ('pods' in object1) {
       expectLiteral(object1.pods, 'installed', at(path, 'pods'), problems);
     }
+    if ('podInstall' in object1) {
+      const where4 = at(path, 'podInstall');
+      const object5 = asObject(object1.podInstall, where4, problems);
+      if (object5) {
+        expectLiteral(object5.through, 'bundler', at(where4, 'through'), problems);
+        expectLiteral(object5.sherloBuild, 'unset', at(where4, 'sherloBuild'), problems);
+        reportUnknownFields(object5, ['through', 'sherloBuild'], where4, problems);
+      }
+    }
     expectOneOf(object1.enter, ['pressed', 'closed', 'nobody'], at(path, 'enter'), problems);
-    reportUnknownFields(object1, ['install', 'pods', 'enter'], path, problems);
+    reportUnknownFields(object1, ['install', 'pods', 'podInstall', 'enter'], path, problems);
   }
 }
 

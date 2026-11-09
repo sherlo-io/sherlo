@@ -296,6 +296,7 @@ const LIVE_HALF_SET: { file: string; seam: string }[] = [
   { file: 'commands/test/uploadStagedArtifacts.ts', seam: 'nativeBuild' },
   { file: 'helpers/fingerprint/baseFingerprint.ts', seam: 'nativeBuild' },
   { file: 'helpers/fingerprint/gateMetadata.ts', seam: 'nativeBuild' },
+  { file: 'helpers/readBuiltAppSherloJson.ts', seam: 'nativeBuild' },
   {
     file: 'helpers/getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInArchive.ts',
     seam: 'nativeBuild',

@@ -6,12 +6,11 @@ import { PLATFORMS, PLATFORM_LABEL } from '../../../../constants';
 import { getErrorWithCustomMessage } from '../../../../helpers';
 import { BinaryInfo, BuildType } from '../../../../types';
 import throwError from '../../../throwError';
+import readBuiltAppSherloJson, { IOS_TAR_BUNDLE_PREFIX } from '../../../readBuiltAppSherloJson';
 import runShellCommand from '../../../runShellCommand';
 import accessFileInArchive, { listApkLibEntries } from './accessFileInArchive';
 import accessFileInDirectory from './accessFileInDirectory';
 
-const SHERLO_JSON_FILENAME = 'sherlo.json';
-const SHERLO_JSON_PATH = `assets/${SHERLO_JSON_FILENAME}`;
 const PREVIEW_BUILD_JS_BUNDLE_PATH = {
   android: 'assets/index.android.bundle',
   ios: 'main.jsbundle',
@@ -29,8 +28,6 @@ const EXPO_DEV_CLIENT_IOS_MARKER = 'EXDevLauncher.bundle';
 // Android: DevLauncherActivity registered in debug AndroidManifest.xml (reliable across SDK 48-55+)
 const EXPO_DEV_CLIENT_ANDROID_MANIFEST_ACTIVITY =
   'expo.modules.devlauncher.launcher.DevLauncherActivity';
-
-const IOS_TAR_BUNDLE_PREFIX = '*.app/';
 
 export type LocalBinariesInfo = { android?: LocalBinaryInfo; ios?: LocalBinaryInfo };
 export type LocalBinaryInfo = Pick<
@@ -64,7 +61,6 @@ async function getLocalBinariesInfo({
       result[platform] = await getLocalBinaryInfoForPlatform({
         platform,
         platformPath: paths[platform],
-        sherloFilePath: SHERLO_JSON_PATH,
         previewBundlePath: PREVIEW_BUILD_JS_BUNDLE_PATH[platform],
         projectRoot,
       });
@@ -81,13 +77,11 @@ export default getLocalBinariesInfo;
 async function getLocalBinaryInfoForPlatform({
   platform,
   platformPath,
-  sherloFilePath,
   previewBundlePath,
   projectRoot,
 }: {
   platform: Platform;
   platformPath: string;
-  sherloFilePath: string;
   previewBundlePath: string;
   projectRoot: string;
 }): Promise<LocalBinaryInfo> {
@@ -108,11 +102,7 @@ async function getLocalBinaryInfoForPlatform({
       });
 
     readSherloFile = () =>
-      accessFileInDirectory({
-        operation: 'read',
-        file: sherloFilePath,
-        directory: platformPath,
-      });
+      readBuiltAppSherloJson({ binaryPath: platformPath, fileName, projectRoot });
 
     checkHasExpoDevClient = () =>
       accessFileInDirectory({
@@ -156,13 +146,7 @@ async function getLocalBinaryInfoForPlatform({
       });
 
     readSherloFile = () =>
-      accessFileInArchive({
-        operation: 'read',
-        file: resolveInArchive(sherloFilePath),
-        archive: platformPath,
-        type: archiveType,
-        projectRoot,
-      });
+      readBuiltAppSherloJson({ binaryPath: platformPath, fileName, projectRoot });
 
     checkHasExpoDevClient =
       platform === 'android'
@@ -215,7 +199,7 @@ async function getLocalBinaryInfoForPlatform({
         type: 'unexpected',
         error: getErrorWithCustomMessage(
           error,
-          `Invalid ${SHERLO_JSON_PATH} in ${PLATFORM_LABEL[platform]} build`
+          `Invalid assets/sherlo.json in ${PLATFORM_LABEL[platform]} build`
         ),
       });
     }
