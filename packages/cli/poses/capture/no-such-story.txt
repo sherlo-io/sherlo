@@ -7,7 +7,7 @@
   controls-button--disabled
 [2m  ... and 2 more[22m
 
-[2mKept in .sherlo/captures as foundation-typography--scale[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as foundation-typography--scale[22m
 
 
 [exit 1]

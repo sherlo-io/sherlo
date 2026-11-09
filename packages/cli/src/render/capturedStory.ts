@@ -100,6 +100,9 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         `${chalk.red('✖')}  No bundler on port ${chalk.bold(String(state.port))}`,
         '',
         chalk.dim(START_THE_APP),
+        chalk.dim(
+          `Capture looked on port ${state.port}. If your bundler runs on another port, run again with --port <port>.`
+        ),
         '',
       ];
 

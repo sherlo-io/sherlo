@@ -14,6 +14,11 @@ async function installPods(): Promise<void> {
   const throughBundler = aGemfileNamesCocoapods(getCwd());
   const command = `cd ${IOS_DIR} && ${throughBundler ? 'bundle exec ' : ''}pod install`;
 
+  if (workstation().podsAreCurrent()) {
+    spinner.succeed('Pods are current, install skipped');
+    return;
+  }
+
   try {
     // Through the workstation seam, like the package install, so a posed run answers it from its
     // `workstation` and never starts a real `pod install`.

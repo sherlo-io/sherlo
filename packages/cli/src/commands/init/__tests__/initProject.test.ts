@@ -332,6 +332,8 @@ async function runProjectStep(world: {
     installPods: async () => {
       throw new Error('the project step installs nothing');
     },
+    podsAreCurrent: () => false,
+    scenesFlag: () => undefined,
     somebodyIsAtTheKeyboard: () => true,
     readEnterPress: async () => undefined,
     chooseOne: async ({ question, choices }) => {

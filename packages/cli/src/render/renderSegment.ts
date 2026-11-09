@@ -78,6 +78,7 @@ import { renderSceneRunLine } from './sceneRunLine';
 import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
 import { renderKeptCapture, renderNoScenesToCapture } from './keptCapture';
+import { renderNoPictureList, renderRunFailure } from './waitDetail';
 import { renderTeamList } from './teamList';
 import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
 import {
@@ -501,7 +502,13 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return onStdout(renderCoverage(segment.screen));
 
     case 'kept-capture':
-      return onStdout(renderKeptCapture(segment.id));
+      return onStdout(renderKeptCapture(segment.id, segment.picture));
+
+    case 'no-picture-list':
+      return onStdout(renderNoPictureList(segment.entries));
+
+    case 'run-failure':
+      return onStdout(renderRunFailure(segment.failure));
 
     case 'no-scenes-to-capture':
       return onStdout(renderNoScenesToCapture());

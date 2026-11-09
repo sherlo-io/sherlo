@@ -247,7 +247,7 @@ function sceneLines(state: CapturedScene): string[] {
         '',
         ...treeLines(state.tree),
         ...(state.threw ? ['', errorLine(state.threw)] : []),
-        ...leftLines(state),
+        ...leftLines({ ...state, pasteRules: true }),
         '',
       ];
 

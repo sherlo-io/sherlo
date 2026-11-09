@@ -1,0 +1,15 @@
+[32mTest 8[39m · finished
+[32m✔[39m Finished Test 8
+
+
+[1m✅ All stories passed[22m
+[2m═════════════════════[22m
+
+[33m! 2 screens ended with no picture[39m
+   Story Profile - Video header on iPhone 15 (iOS 17): the app did not answer in time
+   Scene Feed - Home on iPhone 15 (iOS 17): never settled
+
+🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
+
+
+[exit 0]

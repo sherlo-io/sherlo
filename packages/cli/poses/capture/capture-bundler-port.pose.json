@@ -1,0 +1,15 @@
+{
+  "pose": 1,
+  "files": {
+    "package.json": "{\n  \"name\": \"acme-app\",\n  \"scripts\": {\n    \"start\": \"expo start --port 8089\"\n  }\n}\n"
+  },
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--story", "foundation-typography--scales"],
+  "capture": "no-bundler"
+}

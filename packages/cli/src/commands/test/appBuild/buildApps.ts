@@ -255,6 +255,7 @@ export async function buildApps({
           ...(compiled.podFilesChanged.length > 0 && !nativeFolderIsGenerated
             ? { podFilesChanged: compiled.podFilesChanged }
             : {}),
+          ...(compiled.podInstallSkipped ? { podInstallSkipped: true as const } : {}),
         })
       );
     } else {

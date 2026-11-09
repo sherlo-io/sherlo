@@ -3,8 +3,10 @@
  * like everything under ./: state in, lines out.
  */
 import chalk from 'chalk';
+import type { UnansweredRequest } from '../seams/readAppAnswer';
 import { seconds } from './capturedStory';
 import { outcomeOf, type SceneOutcome } from './sceneOutcome';
+import { movingPartHint, pasteableRuleLines } from './sceneLeftLines';
 
 /** One scene's progress line: what the scene's own record says, nothing about the machine. */
 export type SceneRunLine = {
@@ -19,6 +21,8 @@ export type SceneRunLine = {
   ready?: string;
   /** How many requests no mock answered, each named in the scene's record. */
   refused: number;
+  /** The refused requests themselves, listed as rules under a scene that never settled. */
+  refusedRequests?: UnansweredRequest[];
   /** How long the fresh boot took, for a scene that came up. */
   launchMs?: number;
   /** How long the stabilization took to settle, for a scene that held still. */
@@ -54,6 +58,9 @@ export function renderSceneRunLine(line: SceneRunLine): string[] {
   const { sameCause } = line;
   return [
     `${markOf(outcome)}  ${chalk.bold(line.sceneId)} ${words[outcome]}${chalk.dim(`${launch}${ready}${settled}${refused}`)}`,
+    ...(outcome === 'never-settled'
+      ? [...pasteableRuleLines(line.refusedRequests), ...movingPartHint(line.changing), '']
+      : []),
     ...(sameCause
       ? [
           `${chalk.yellow('◦')}  ${sameCause.remaining} more ${sameCause.remaining === 1 ? 'scene' : 'scenes'} ${sameCause.stopped ? 'not run, same cause' : 'may fail the same way'}: ${sameCause.cause}`,

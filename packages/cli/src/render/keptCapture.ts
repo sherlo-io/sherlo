@@ -8,7 +8,15 @@
 import chalk from 'chalk';
 
 /** The line saying where the capture was kept. */
-export function renderKeptCapture(id: string): string[] {
+export function renderKeptCapture(id: string, picture?: false): string[] {
+  if (picture === false) {
+    return [
+      chalk.dim(
+        `No picture was saved. Only the record of the attempt is in .sherlo/captures as ${id}`
+      ),
+      '',
+    ];
+  }
   return [chalk.dim(`Kept in .sherlo/captures as ${id}`), ''];
 }
 

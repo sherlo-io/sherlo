@@ -72,6 +72,18 @@ export type Workstation = {
     sherloBuildUnset?: boolean;
   }): Promise<void>;
 
+  /**
+   * Whether the project's installed pods already match its Podfile.lock, so `pod install` would
+   * change nothing and is skipped.
+   */
+  podsAreCurrent(): boolean;
+
+  /**
+   * What the service answers for the team of the project init just chose: whether scenes are on
+   * for it. Undefined when nothing answers, which is the same as off.
+   */
+  scenesFlag(): 'on' | 'off' | undefined;
+
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
@@ -120,6 +132,10 @@ export const liveWorkstation: Workstation = {
       },
     });
   },
+
+  podsAreCurrent: () => false,
+
+  scenesFlag: () => undefined,
 
   /**
    * Is there a human at the keyboard who could actually press Enter?
@@ -224,9 +240,12 @@ export type PosedWorkstation = {
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
    * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
-   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile.
+   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile. `"current"` says
+   * the installed pods already match the lockfile, so setup skips `pod install` and never asks it.
    */
-  pods?: 'installed';
+  pods?: 'installed' | 'current';
+  /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
+  scenes?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
    * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
@@ -325,6 +344,10 @@ export function posedWorkstation(
         );
       }
     },
+
+    podsAreCurrent: () => posed?.pods === 'current',
+
+    scenesFlag: () => posed?.scenes,
 
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard

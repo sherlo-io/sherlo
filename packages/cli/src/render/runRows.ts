@@ -47,6 +47,8 @@ export type PlatformRow =
       why?: WhyANewAppBuild;
       /** An iOS build's files that pod install changed and git does not track, relative to the project root. */
       podFilesChanged?: string[];
+      /** The iOS build skipped pod install: the installed pods already matched Podfile.lock. */
+      podInstallSkipped?: true;
     }
   | { platform: Platform; appBuild: 'reused-from-test'; testIndex?: number }
   | {
@@ -119,6 +121,11 @@ export function renderPlatformRow(row: PlatformRow): string[] {
           mark
         ),
         ...underTheRow(changeLines),
+        ...underTheRow(
+          row.podInstallSkipped
+            ? ['Pods are current (Pods/Manifest.lock matches Podfile.lock): pod install skipped']
+            : []
+        ),
         ...underTheRow(podFilesWarning(row.podFilesChanged ?? [])),
       ];
     }

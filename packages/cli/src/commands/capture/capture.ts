@@ -110,7 +110,13 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
     if (passedOptions[LOGS_OPTION] && (answer.kind === 'captured' || answer.kind === 'crashed')) {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
-    if (kept) emit({ kind: 'kept-capture', id: storyId });
+    if (kept) {
+      emit({
+        kind: 'kept-capture',
+        id: storyId,
+        ...(answer.kind !== 'captured' && { picture: false as const }),
+      });
+    }
   }
 
   if (answer.kind !== 'captured') process.exit(EXIT_BLOCK);

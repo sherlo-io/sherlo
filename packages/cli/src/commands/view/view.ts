@@ -42,6 +42,7 @@ import {
   waitForBuildResult,
 } from '../../helpers';
 import { JSON_OPTION } from '../../constants';
+import type { BuildStatusAnswer } from '../../seams/serverCalls';
 import { AuthError } from '../../helpers/buildStatusRequest';
 import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
@@ -155,6 +156,16 @@ async function view(
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
     });
+
+    // Under the verdict: the screens that ended with no picture, or why the run failed. The wait
+    // loop prints the verdict and keeps no read of its own to hand back, so the test is read once
+    // more, now that it has ended. A read that fails adds nothing.
+    const ended = await readBuildStatus({ token, buildIndex, projectIndex, teamId }).catch(
+      () => null
+    );
+    const { noPicture, runFailure } = (ended ?? {}) as BuildStatusAnswer;
+    if (noPicture && noPicture.length > 0) emit({ kind: 'no-picture-list', entries: noPicture });
+    if (runFailure) emit({ kind: 'run-failure', failure: runFailure });
 
     // The link prints once, last - under the verdict, or in the next step when the waiting stopped
     // first - exactly as `sherlo test --wait` ends (../test/closeTheRun).

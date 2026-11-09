@@ -27,6 +27,9 @@
 
 [2m   3 views · --json prints the record[22m
 
+  TickerValue, LoadingSpinner kept moving. A playing video or animation never lets a screen rest.
+  Fake the module that draws it in the mocks of the scene, and a still frame stands in.
+
 [2mKept in .sherlo/captures as feed--live-ticker[22m
 
 

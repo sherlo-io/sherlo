@@ -43,6 +43,7 @@ import type { FeedbackKind, LastCommand } from './feedback';
 import type { FeedbackContext } from '../seams/serverCalls';
 import type { IntroducedCommand, PlatformCapture, SherloProject, ScreenKind } from './testSteps';
 import type { PlatformRow, RowsAbove, TestWaitsFor } from './runRows';
+import type { NoPicture, RunFailure } from './waitDetail';
 // capturedLog is the print side of `sherlo capture --logs`, kept apart from ./capturedStory - see
 // ./capturedLog's own header for why.
 
@@ -412,7 +413,11 @@ export type TranscriptSegment =
   /** `sherlo capture --logs` - Sherlo's log from the app, printed after the story. See ./capturedLog. */
   | { kind: 'captured-log'; logs: string[] }
   /** `sherlo capture` - where the capture was kept. See ./keptCapture. */
-  | { kind: 'kept-capture'; id: string }
+  | { kind: 'kept-capture'; id: string; picture?: false }
+  /** `sherlo view --wait` - the stories and scenes that ended with no picture, each with its reason. See ./waitDetail. */
+  | { kind: 'no-picture-list'; entries: NoPicture[] }
+  /** `sherlo view --wait` - a failed run's stage, device, cause and reference. See ./waitDetail. */
+  | { kind: 'run-failure'; failure: RunFailure }
   /** `sherlo capture --all-scenes` on an app that declares no scene - one plain line. See ./keptCapture. */
   | { kind: 'no-scenes-to-capture' }
   /* ---------------------------------------------------------------------- *

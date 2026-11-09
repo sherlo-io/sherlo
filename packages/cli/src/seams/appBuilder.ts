@@ -66,6 +66,8 @@ export type CompiledApp =
        * to commit it - the builder only answers.
        */
       podFilesChanged: string[];
+      /** True when `pod install` was skipped because the installed pods already match Podfile.lock. */
+      podInstallSkipped?: true;
     }
   | {
       ok: false;
@@ -965,6 +967,8 @@ export type PosedPlatformBuild =
       seconds: number;
       /** An iOS build's files that pod install changed and git does not track; none when absent. */
       podFilesChanged?: string[];
+      /** True when pod install was skipped because the installed pods matched Podfile.lock. */
+      podInstallSkipped?: true;
     }
   | {
       /** The compile failed. */
@@ -1072,6 +1076,7 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
           sizeMb: build.sizeMb,
           seconds: build.seconds,
           podFilesChanged: build.podFilesChanged ?? [],
+          ...(build.podInstallSkipped ? { podInstallSkipped: true as const } : {}),
         };
       }
       if ('failed' in build) {

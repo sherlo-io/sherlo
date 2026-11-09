@@ -570,9 +570,12 @@ export type PosedWorkstation = {
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
    * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
-   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile.
+   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile. `"current"` says
+   * the installed pods already match the lockfile, so setup skips `pod install` and never asks it.
    */
-  pods?: 'installed';
+  pods?: 'installed' | 'current';
+  /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
+  scenes?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
    * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
@@ -1101,6 +1104,27 @@ export type BuildStatusAnswer = {
     inherited: string[];
     ancestorBuildIndex: number | null;
   };
+  /**
+   * Every story and scene the finished run ended with no picture for, each with the service's
+   * reason.
+   */
+  noPicture?: Array<{
+    kind: 'story' | 'scene';
+    name: string;
+    device: string;
+    reason: string;
+  }>;
+  /**
+   * Why the run failed: the stage, the device, the cause, a reference to quote, and whether the
+   * service retried.
+   */
+  runFailure?: {
+    stage: string;
+    device: string;
+    cause: string;
+    reference: string;
+    retried: boolean;
+  };
 };
 
 /** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */
@@ -1409,6 +1433,8 @@ export type PosedPlatformBuild =
       seconds: number;
       /** An iOS build's files that pod install changed and git does not track; none when absent. */
       podFilesChanged?: string[];
+      /** True when pod install was skipped because the installed pods matched Podfile.lock. */
+      podInstallSkipped?: true;
     }
   | {
       /** The compile failed. */
