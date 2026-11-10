@@ -44,12 +44,8 @@ import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { appBuilder } from '../../../seams/appBuilder';
 import { pickIosConfiguration } from '../../../seams/iosConfiguration';
 import { pickIosScheme } from '../../../seams/iosScheme';
-import {
-  type BuildSettings,
-  DEFAULT_ANDROID_TASK,
-  buildLogPath,
-  buildSettingsDigest,
-} from './buildSettings';
+import { cacheKeyOf, keepUnderInstalledTreeKey } from './appBuildCacheKeys';
+import { type BuildSettings, DEFAULT_ANDROID_TASK, buildLogPath } from './buildSettings';
 import { localBuildCacheFolder, makeProjectSherloFolder } from './cacheFolder';
 
 /** The Java a React Native Gradle build needs at the least. */
@@ -57,9 +53,6 @@ const MINIMUM_JAVA = 17;
 
 /** The exit code of a run whose app build failed - the wait contract's "build/system error". */
 const EXIT_BUILD_FAILED = 2;
-
-/** How many hex characters of the build settings digest a cache key carries. */
-const SETTINGS_DIGEST_IN_KEY = 12;
 
 /**
  * A platform to build, and why - with what changed since the stored app build when the gate
@@ -240,6 +233,18 @@ export async function buildApps({
     }
 
     await builder.keepInCache({ platform, cacheKey, cacheDir, path: compiled.path });
+    // Also under the key of the tree pod install left, for the next run on it.
+    if (compiled.podInstallChangedFiles && !nativeFolderIsGenerated) {
+      await keepUnderInstalledTreeKey({
+        platform,
+        settings,
+        projectRoot,
+        command,
+        cacheDir,
+        appPath: compiled.path,
+        firstKey: cacheKey,
+      });
+    }
 
     // `sherlo test` says it in the platform's row above the test's (../platformRows);
     // `sherlo build` ends here, so it says it now.
@@ -434,24 +439,4 @@ function needsGeneratedNativeFolder(projectRoot: string, platform: Platform): bo
   if (fs.existsSync(path.join(projectRoot, platform))) return false;
 
   return dependsOnExpo(projectRoot);
-}
-
-/**
- * The key the local build cache files an app build under, and the name of its folder there: what
- * makes two builds the same build - `<platform>-<base fingerprint>-<12 hex of the settings digest>`.
- * The base fingerprint names the native code, and the build settings are hashed beside it
- * (./buildSettings `buildSettingsDigest`) because the fingerprint never sees them - a changed
- * `build.env` must not reuse an app built without it.
- */
-export function cacheKeyOf({
-  baseFingerprint,
-  platform,
-  settings,
-}: {
-  baseFingerprint: string;
-  platform: Platform;
-  settings: BuildSettings;
-}): string {
-  const settingsDigest = buildSettingsDigest(settings, platform).slice(0, SETTINGS_DIGEST_IN_KEY);
-  return `${platform}-${baseFingerprint}-${settingsDigest}`;
 }
