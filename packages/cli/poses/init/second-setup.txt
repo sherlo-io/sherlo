@@ -33,7 +33,7 @@ Checking who is setting up and which project this app belongs to.
 [1m💾 Dependencies[22m
 [2m═══════════════[22m
 
-✔ Installed Sherlo
+✔ Sherlo is already installed
 
 
 [1m🧩 Metro Config[22m

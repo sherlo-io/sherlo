@@ -44,6 +44,8 @@
  */
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
+import { runningAgent } from '../commands/feedback/runningAgent';
+import { packageNameOfSpecifier } from '../commands/test/lockfilePackages';
 import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
 import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
@@ -147,9 +149,11 @@ export const liveWorkstation: Workstation = {
    * automation runs the CLI under a pseudo-terminal (`docker run -t`, `script(1)`, expect) where
    * stdin IS a tty and nobody is watching, and its EOF arrives as the byte `readEnterPress` reads
    * as CTRL+D, a deliberate cancel - so setup would fail with "Setup cancelled". `CI` is the
-   * standard opt-out for exactly this (GitHub Actions, GitLab, CircleCI, Travis, Buildkite).
+   * standard opt-out for exactly this (GitHub Actions, GitLab, CircleCI, Travis, Buildkite). A
+   * coding agent's shell is a tty too with nobody to press Enter, so an agent its harness's
+   * environment names (`runningAgent`) is nobody at the keyboard either.
    */
-  somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
+  somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI && !runningAgent(),
 
   readEnterPress: (showPrompt) => {
     process.stdin.setRawMode(true);
@@ -309,7 +313,7 @@ export function posedWorkstation(
       }
 
       const installedPackage = posed.install.package;
-      if (packageNameOf(installedPackage) !== packageNameOf(packageSpec)) {
+      if (packageNameOfSpecifier(installedPackage) !== packageNameOfSpecifier(packageSpec)) {
         refuse(
           'addPackage',
           `the pose answers the install with \`${installedPackage}\`, and the command asked the ` +
@@ -387,14 +391,4 @@ export function posedWorkstation(
       throw refuse('askYesOrNo', `the pose cannot answer the question "${question}"`);
     },
   };
-}
-
-/* ========================================================================== */
-
-/** The package a spec names, without its version: `@sherlo/x@2.0.2` -> `@sherlo/x`. */
-function packageNameOf(packageSpec: string): string {
-  const versionSeparator = packageSpec.lastIndexOf('@');
-
-  // Index 0 is the scope's own `@`, so a spec with no version is the whole string.
-  return versionSeparator > 0 ? packageSpec.slice(0, versionSeparator) : packageSpec;
 }
