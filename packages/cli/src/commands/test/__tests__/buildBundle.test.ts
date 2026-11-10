@@ -922,3 +922,34 @@ describe('buildBundleForPlatform - module-manifest cross-platform isolation', ()
     expect(androidResult.moduleManifest).toBeDefined();
   });
 });
+
+describe('buildBundleForPlatform - bundler failure', () => {
+  it('a long bundler failure keeps its last lines, where the cause is', async () => {
+    setupBundleBuild(plainJsBundle());
+    const noise = 'warning: noisy line\n'.repeat(500);
+    mockExecSync.mockImplementation((() => {
+      throw Object.assign(new Error('bundler exited'), {
+        stderr: Buffer.from(noise + 'error: Unable to resolve module "missing-dep"'),
+      });
+    }) as any);
+
+    await expect(
+      buildBundleForPlatform({ projectRoot: tempDir, platform: 'ios' as Platform })
+    ).rejects.toThrow('Unable to resolve module "missing-dep"');
+  });
+
+  it('a bundle failure names the entry file by its full path', async () => {
+    const commands: string[] = [];
+    setupBundleBuild(plainJsBundle());
+    mockExecSync.mockImplementation(((cmd: string) => {
+      commands.push(cmd);
+      throw Object.assign(new Error('bundler exited'), { stderr: Buffer.from('boom') });
+    }) as any);
+
+    await expect(
+      buildBundleForPlatform({ projectRoot: tempDir, platform: 'ios' as Platform })
+    ).rejects.toThrow('failed for ios');
+
+    expect(commands[0]).toContain('--entry-file ' + path.join(tempDir, 'index.js'));
+  });
+});
