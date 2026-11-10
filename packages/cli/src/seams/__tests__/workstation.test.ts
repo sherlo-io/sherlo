@@ -10,6 +10,7 @@
  * reached the dependencies step.
  */
 import { EventEmitter } from 'node:events';
+import { defaultAgents } from 'agent-cli-detector';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ansiEscapes from 'ansi-escapes';
 import waitForEnterPress from '../../commands/init/helpers/waitForEnterPress';
@@ -151,6 +152,40 @@ describe('the posed workstation', () => {
     });
 
     expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'installPods' })]);
+  });
+});
+
+describe('the live keyboard', () => {
+  // A terminal, with no CI set and no agent's marker: the machine running this test may itself be
+  // inside an agent or a CI job, so both start from a bare environment.
+  const inAPersonsTerminal = () => {
+    for (const agent of defaultAgents) {
+      for (const signal of agent.env ?? []) vi.stubEnv(signal.name, undefined);
+      for (const sessionVariable of agent.sessionEnv ?? []) vi.stubEnv(sessionVariable, undefined);
+    }
+    vi.stubEnv('CI', undefined);
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+  };
+
+  const ambientIsTTY = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    if (ambientIsTTY) Object.defineProperty(process.stdin, 'isTTY', ambientIsTTY);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+  });
+
+  it('a terminal driven by a coding agent counts as nobody at the keyboard', () => {
+    inAPersonsTerminal();
+    vi.stubEnv('CLAUDECODE', '1');
+
+    expect(liveWorkstation.somebodyIsAtTheKeyboard()).toBe(false);
+  });
+
+  it("a person's terminal with no agent marker still counts as somebody at the keyboard", () => {
+    inAPersonsTerminal();
+
+    expect(liveWorkstation.somebodyIsAtTheKeyboard()).toBe(true);
   });
 });
 

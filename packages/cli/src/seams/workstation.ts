@@ -44,6 +44,7 @@
  */
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
+import { runningAgent } from '../commands/feedback/runningAgent';
 import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
 import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
@@ -140,19 +141,15 @@ export const liveWorkstation: Workstation = {
   /**
    * Is there a human at the keyboard who could actually press Enter?
    *
-   * TWO CONDITIONS, AND THE SECOND ONE IS NOT REDUNDANT. `isTTY` alone answers "is stdin a
-   * terminal", which is NOT the same question - plenty of automation runs the CLI under a
-   * pseudo-terminal: `docker run -t`, `script(1)`, expect, and any tool that records terminal
-   * output. Under one of those, stdin IS a tty and yet nobody is watching. Worse, such a stdin
-   * usually reaches EOF immediately, and a pty signals EOF by delivering the end-of-transmission
-   * byte (4) - which `readEnterPress` below reads as CTRL+D and treats as a deliberate cancel. So
-   * `sherlo init` in a pty-allocating pipeline did not merely hang: it printed the prompt and then
-   * failed the setup with "Setup cancelled", leaving no sherlo.config.json behind.
-   *
-   * `CI` is the standard opt-out every mature CLI honours for exactly this, and it is set by
-   * GitHub Actions, GitLab, CircleCI, Travis and Buildkite alike.
+   * `isTTY` alone answers "is stdin a terminal", which is NOT the same question. Automation runs
+   * the CLI under a pseudo-terminal (`docker run -t`, `script(1)`, expect), where stdin IS a tty,
+   * nobody watches, and EOF arrives as byte 4, which `readEnterPress` reads as CTRL+D: the setup
+   * printed the prompt, then failed with "Setup cancelled". `CI` is the standard opt-out for that,
+   * set by GitHub Actions, GitLab, CircleCI, Travis and Buildkite alike. A coding agent's shell is
+   * a tty too, and nothing in it presses Enter: an agent once sat 36 minutes on the prompt. So an
+   * agent known by its harness's environment (`runningAgent`) is nobody at the keyboard either.
    */
-  somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
+  somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI && !runningAgent(),
 
   readEnterPress: (showPrompt) => {
     process.stdin.setRawMode(true);
