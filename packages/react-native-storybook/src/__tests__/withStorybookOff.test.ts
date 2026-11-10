@@ -132,6 +132,34 @@ describe('the bundler wrapper in a release bundle without Sherlo', () => {
     expect(typeof config.server.enhanceMiddleware).toBe('function');
   });
 
+  it('with scenes off the slot the main entry imports resolves to an empty module', () => {
+    // A project with the SDK laid in and no scene file: scenes are off.
+    const sdk = 'node_modules/@sherlo/react-native-storybook';
+    const write = fixtureFileWriter(projectRoot);
+    write(sdk + '/package.json', '{ "name": "@sherlo/react-native-storybook" }');
+    for (const file of ['sceneBoot', 'sceneBootSlot', 'bundledScenes']) {
+      write(sdk + '/dist/' + file + '.js', '');
+    }
+    const slot = path.join(projectRoot, sdk, 'dist/sceneBootSlot.js');
+
+    const config = wrapOnRoad({ env: {}, argv: ['start'] });
+    const resolution = config.resolver.resolveRequest(
+      {
+        originModulePath: path.join(projectRoot, sdk, 'dist/index.js'),
+        resolveRequest: () => ({ type: 'sourceFile', filePath: slot }),
+      },
+      './sceneBootSlot',
+      'ios'
+    );
+
+    expect(resolution).toEqual({ type: 'sourceFile', filePath: slot });
+    // The real slot holds no import, so nothing but the slot itself reaches a bundle with scenes off.
+    const realSlot = fs.readFileSync(path.join(__dirname, '../sceneBootSlot.ts'), 'utf8');
+    const code = realSlot.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(code).not.toMatch(/\bimport\b|\brequire\b/);
+    expect(config.serializer.getModulesRunBeforeMainModule).toBeUndefined();
+  });
+
   it('an unknown SHERLO_BUILD value stops the wrapper before anything is written', () => {
     expect(() => wrapOnRoad({ env: { SHERLO_BUILD: 'on' }, argv: [] })).toThrow(
       'Unknown SHERLO_BUILD value "on". Use storybook, app-and-storybook or off, or leave it unset.'

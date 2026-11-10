@@ -4,6 +4,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { enterBundlingProcess } from './bundlingProcess';
+
 // applySherloTransforms is the core logic extracted from the old createSherloStorybook factory.
 // We test it directly so we don't need to mock @storybook/react-native peer dep.
 const applySherloTransforms = require('../../metro/applySherloTransforms');
@@ -293,6 +295,50 @@ describe('generated storybook-wrapper.js - content', () => {
       wrapperContent.indexOf(endMarker, startNotFnIdx) + endMarker.length
     );
     expect(branchText).not.toContain('@sherlo/react-native-storybook/dist/SherloModule.js');
+  });
+});
+
+describe('the scene boot slot the SDK entry imports', () => {
+  it('with scenes on the slot resolves to the scene boot', () => {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-boot-slot-')));
+    const write = (relativePath: string, content: string) => {
+      fs.mkdirSync(path.dirname(path.join(root, relativePath)), { recursive: true });
+      fs.writeFileSync(path.join(root, relativePath), content);
+    };
+    const sdk = 'node_modules/@sherlo/react-native-storybook';
+    write('index.js', 'module.exports = 1;');
+    write(
+      'src/Chat.scenes.tsx',
+      "import { scenes } from '@sherlo/react-native-storybook/scenes';\n" +
+        'export default scenes({ scenes: { Conversation: {} } });'
+    );
+    write(sdk + '/package.json', '{ "name": "@sherlo/react-native-storybook" }');
+    for (const file of ['sceneBoot', 'sceneBootSlot', 'bundledScenes']) {
+      write(sdk + '/dist/' + file + '.js', '');
+    }
+
+    const leaveBundlingProcess = enterBundlingProcess({}, ['start']);
+    let config: any;
+    try {
+      config = require('../../metro/withStorybook')({ projectRoot: root, resolver: {} }, {});
+    } finally {
+      leaveBundlingProcess();
+    }
+    const slot = path.join(root, sdk, 'dist/sceneBootSlot.js');
+    const resolution = config.resolver.resolveRequest(
+      {
+        originModulePath: path.join(root, sdk, 'dist/index.js'),
+        resolveRequest: () => ({ type: 'sourceFile', filePath: slot }),
+      },
+      './sceneBootSlot',
+      'ios'
+    );
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(resolution).toEqual({
+      type: 'sourceFile',
+      filePath: path.join(root, sdk, 'dist/sceneBoot.js'),
+    });
   });
 });
 
