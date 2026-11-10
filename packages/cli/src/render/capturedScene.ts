@@ -175,13 +175,23 @@ export function renderCapturedScene(state: CapturedScene, picture?: ScenePicture
   return [...lines.slice(0, -1), ...pictureLines(state, picture), ''];
 }
 
+/** Whether `--png` has a picture to show for the scene: captured, or stopped with its screen read. */
+function sceneIsPictured(state: CapturedScene): boolean {
+  const stoppedWithScreen = state.kind === 'never-reached' && state.stop?.screen !== undefined;
+  return state.kind === 'scene' || state.kind === 'never-settled' || stoppedWithScreen;
+}
+
+/** Whether the screen says "Picture saved to" for this scene: its `--png` picture was written. */
+export function pngPictureWritten(state: CapturedScene, picture?: ScenePicture): boolean {
+  return picture !== undefined && !picture.error && sceneIsPictured(state);
+}
+
 /**
  * What `--png` came to: the saved path under a captured scene, or under a scene that stopped with
  * its screen read (the picture shows where it stopped), the save's error, or that no scene was captured.
  */
 function pictureLines(state: CapturedScene, picture: ScenePicture): string[] {
-  const stoppedWithScreen = state.kind === 'never-reached' && state.stop?.screen !== undefined;
-  if (state.kind !== 'scene' && state.kind !== 'never-settled' && !stoppedWithScreen) {
+  if (!sceneIsPictured(state)) {
     return [chalk.dim('No picture saved: the scene was not captured')];
   }
 

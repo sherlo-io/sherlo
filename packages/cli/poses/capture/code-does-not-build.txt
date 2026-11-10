@@ -14,7 +14,7 @@
 
 [2mFix the file, then capture again. Metro printed the same error where it runs.[22m
 
-[2mKept in .sherlo/captures as kindred--chat-with-match[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as kindred--chat-with-match[22m
 
 
 [exit 1]
