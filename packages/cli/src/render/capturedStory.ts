@@ -14,6 +14,7 @@
  */
 import chalk from 'chalk';
 import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
+import { closestStoryIds } from './closestIds';
 import { moreLines } from './moreLines';
 import { noAppLines, type NoAppEnding } from './noAppLines';
 
@@ -130,7 +131,7 @@ export function renderCapturedStory(state: CapturedStory, showTree = false): str
       return [
         `${chalk.red('✖')}  No story ${chalk.bold(state.storyId)} in this app`,
         '',
-        ...suggestions(state.known),
+        ...suggestions(state.storyId, state.known),
         '',
       ];
 
@@ -382,16 +383,16 @@ export function settledLine(ms: number, frames: number): string {
   return chalk.dim(`   settled in ${seconds(ms)} over ${frames} frames · testing mode`);
 }
 
-/** The same handful-and-a-count `sherlo open` offers, for the same reason. */
-function suggestions(known: string[]): string[] {
+/** A handful of the app's ids nearest to the asked one, a count of the rest, and where to see all. */
+function suggestions(asked: string, known: string[]): string[] {
   if (known.length === 0) return [chalk.dim('This app lists no stories at all.')];
 
-  const shown = known.slice(0, 4);
-  const rest = known.length - shown.length;
+  const shown = closestStoryIds(asked, known).slice(0, 4);
 
   return [
     chalk.dim('This app has:'),
     ...shown.map((storyId) => `  ${storyId}`),
-    ...moreLines(rest),
+    ...moreLines(known.length - shown.length),
+    chalk.dim('Every id: npx sherlo capture --list'),
   ];
 }

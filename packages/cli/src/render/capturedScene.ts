@@ -23,6 +23,7 @@ import {
   settledLine,
 } from './capturedStory';
 import type { CapturedView } from './capturedStory';
+import { editDistance } from './closestIds';
 import type { NoAppEnding } from './noAppLines';
 import { discoverLeftLines, neverSettledLeftLines, refusalLeftLines } from './sceneLeftLines';
 import { phoneNotAppliedLines } from './phoneNotAppliedLines';
@@ -375,24 +376,4 @@ function closestScenes(typed: string, known: string[]): string[] {
     chalk.dim(`Closest of this app's ${known.length} scenes:`),
     ...nearest.map((id) => `  ${id}`),
   ];
-}
-
-/** How many single-character edits turn one string into the other. */
-function editDistance(a: string, b: string): number {
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-
-  for (let row = 1; row <= a.length; row += 1) {
-    const current = [row];
-    for (let column = 1; column <= b.length; column += 1) {
-      const swap = a[row - 1] === b[column - 1] ? 0 : 1;
-      current[column] = Math.min(
-        previous[column] + 1,
-        current[column - 1] + 1,
-        previous[column - 1] + swap
-      );
-    }
-    previous = current;
-  }
-
-  return previous[b.length];
 }

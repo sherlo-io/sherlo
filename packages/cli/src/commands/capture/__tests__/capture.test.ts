@@ -18,7 +18,8 @@ import { EXIT_BLOCK } from '../../../helpers/exitCodes';
 import { captureTranscript } from '../../../helpers/transcriptSink';
 import { STABILIZATION_SETTINGS } from '../../../seams/bundlerLine';
 import { installCaptureSocket } from '../../../seams/captureSocket';
-import type { CaptureResult, CaptureSocket } from '../../../seams/captureSocket';
+import type { CaptureResult } from '../../../seams/captureSocket';
+import type { StoryListResult } from '../../../seams/storyList';
 import { installDeviceState, posedDeviceState } from '../../../seams/deviceState';
 import { readKeptCaptures } from '../../../seams/localCaptures';
 import { installProjectFiles } from '../../../seams/projectFiles';
@@ -27,6 +28,7 @@ import {
   ALL_SCENES_OPTION,
   DISCOVER_OPTION,
   JSON_OPTION,
+  LIST_OPTION,
   LOGS_OPTION,
   PNG_OPTION,
   SCENE_OPTION,
@@ -910,7 +912,7 @@ async function captureOneStory(
   > = {}
 ): Promise<{ screen: string; exitCode: number | undefined; asked: unknown }> {
   let asked: unknown;
-  const socket: CaptureSocket = {
+  const socket: Parameters<typeof installCaptureSocket>[0] = {
     captureStory: async (params) => {
       asked = { storyId: params.storyId, settings: params.settings };
       return answer;
@@ -1268,6 +1270,89 @@ describe('a capture leaves no mark behind and prints plain data on request', () 
     for (const scene of scenes) {
       expect(scene.record).toMatchObject({ kind: 'scene', sceneId: scene.sceneId });
     }
+  });
+});
+
+describe('the story ids of the app', () => {
+  const IDS = ['components-card--primary', STORY];
+
+  /** `capture --list` against an app that answers `listed`; what it printed, and whether any picture was asked for. */
+  async function listWith(listed: StoryListResult, options: { json?: boolean } = {}) {
+    let pictureAsked = false;
+    const uninstall = installCaptureSocket({
+      captureStory: async () => {
+        pictureAsked = true;
+        throw new Error('a list asked for a picture');
+      },
+      captureScene: async () => {
+        pictureAsked = true;
+        throw new Error('a list asked for a scene');
+      },
+      listStories: async () => listed,
+    });
+    const written: string[] = [];
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+      written.push(String(text));
+      return true;
+    }) as never);
+    try {
+      await capture({ [LIST_OPTION]: true, ...(options.json && { [JSON_OPTION]: true }) });
+    } finally {
+      write.mockRestore();
+      uninstall();
+    }
+    return { printed: written.join(''), pictureAsked };
+  }
+
+  it('capture --list prints every story id of the app, one per line, and takes no picture', async () => {
+    const { printed, pictureAsked } = await listWith({ kind: 'listed', ids: IDS });
+    expect(printed).toBe(`${IDS.join('\n')}\n`);
+    expect(pictureAsked).toBe(false);
+  });
+
+  it('capture --list --json prints the ids as an array', async () => {
+    const { printed } = await listWith({ kind: 'listed', ids: IDS }, { json: true });
+    expect(JSON.parse(printed)).toEqual(IDS);
+  });
+
+  it('capture --list with no app ends as a capture with no app does', async () => {
+    const exit = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new LeftTheProcess(`process.exit(${code})`);
+    }) as never);
+    try {
+      const { stdout } = await captureTranscript(async () => {
+        await expect(listWith({ kind: 'no-app' })).rejects.toThrow(`process.exit(${EXIT_BLOCK})`);
+      });
+      expect(stdout).toContain('Sherlo');
+    } finally {
+      exit.mockRestore();
+    }
+  });
+
+  it('a capture of an unknown story id lists the closest ids first', async () => {
+    const known = [
+      'alpha--one',
+      'components-card--primary',
+      'components-button--secondary',
+      'components-button--primaryy',
+      'beta--two',
+      'gamma--three',
+      'components-button--primary-large',
+    ];
+    const { screen } = await captureOneStory({ kind: 'no-such-story', known });
+    const listed = screen
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => known.includes(line));
+
+    expect(listed).toEqual([
+      'components-button--primary-large',
+      'components-button--primaryy',
+      'components-card--primary',
+      'components-button--secondary',
+    ]);
+    expect(screen).toContain('... and 3 more');
+    expect(screen).toContain('npx sherlo capture --list');
   });
 });
 

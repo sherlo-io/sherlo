@@ -345,6 +345,23 @@ describe('the Sherlo line', () => {
   });
 });
 
+describe('listing the stories of the app', () => {
+  it('the line answers a list question with the story ids the app last said', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+
+    // No app has ever waited: the answer a capture gives.
+    await expect(driver.ask({ action: 'listStories' })).resolves.toEqual({ kind: 'no-app' });
+
+    const app = await connectAnApp(running);
+    await app.waitsForAStory(appSays([STORY, OTHER_STORY], true));
+    await expect(driver.ask({ action: 'listStories' })).resolves.toEqual({
+      kind: 'listed',
+      stories: [STORY, OTHER_STORY],
+    });
+  });
+});
+
 describe('opening a story on an app that cannot list its stories', () => {
   it('an app that cannot list its stories leaves the story check to the story browser', async () => {
     const running = await startALine();

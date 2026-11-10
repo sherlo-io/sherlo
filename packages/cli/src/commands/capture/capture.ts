@@ -13,6 +13,7 @@
 import {
   ALL_SCENES_OPTION,
   JSON_OPTION,
+  LIST_OPTION,
   LOGS_OPTION,
   DISCOVER_OPTION,
   PNG_OPTION,
@@ -23,6 +24,7 @@ import {
   TREE_OPTION,
   allScenesRefusal,
   discoverRefusal,
+  listRefusal,
   pngWithoutSceneRefusal,
   sceneWithStoryRefusal,
   stopOnRepeatRefusal,
@@ -61,6 +63,12 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
   const sceneId = passedOptions[SCENE_OPTION];
 
+  if (passedOptions[LIST_OPTION]) {
+    if (sceneId || storyId || passedOptions[ALL_SCENES_OPTION]) {
+      throwError({ message: listRefusal() });
+    }
+    return listStories(passedOptions);
+  }
   if (passedOptions[ALL_SCENES_OPTION]) {
     if (sceneId || storyId || passedOptions[PNG_OPTION] || passedOptions[DISCOVER_OPTION]) {
       throwError({ message: allScenesRefusal() });
@@ -133,6 +141,33 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
 }
 
 export default capture;
+
+/* ========================================================================== */
+
+/**
+ * `sherlo capture --list` - the story ids of the running app, one per line (`--json`: an array).
+ * Nothing is restarted and no picture is taken. With no bundler, or no app, it ends as a capture does.
+ */
+async function listStories(passedOptions: CaptureOptions): Promise<void> {
+  const port = readPort(passedOptions[PORT_OPTION]);
+  const answer = await captureSocket().listStories({ port });
+
+  if (answer.kind === 'listed') {
+    process.stdout.write(
+      passedOptions[JSON_OPTION]
+        ? `${JSON.stringify(answer.ids, null, 2)}\n`
+        : answer.ids.map((id) => `${id}\n`).join('')
+    );
+    return;
+  }
+
+  if (passedOptions[JSON_OPTION]) {
+    process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
+  } else {
+    emit({ kind: 'captured-story', state: endingFor(answer, { storyId: '', port }) });
+  }
+  process.exit(EXIT_BLOCK);
+}
 
 /* ========================================================================== */
 

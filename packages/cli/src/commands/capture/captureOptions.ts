@@ -5,6 +5,7 @@ import {
   ALL_SCENES_OPTION,
   DISCOVER_OPTION,
   JSON_OPTION,
+  LIST_OPTION,
   LOGS_OPTION,
   PNG_OPTION,
   PORT_OPTION,
@@ -17,6 +18,7 @@ import { captureSceneOptions } from '../../helpers/sceneOptions';
 
 export type CaptureOptions = {
   [STORY_OPTION]?: string;
+  [LIST_OPTION]?: boolean;
   [SCENE_OPTION]?: string;
   [ALL_SCENES_OPTION]?: boolean;
   [STOP_ON_REPEAT_OPTION]?: boolean;
@@ -32,6 +34,7 @@ export type CaptureOptions = {
 export function captureCommandOptions(): string[] {
   return [
     STORY_OPTION,
+    LIST_OPTION,
     ...captureSceneOptions(),
     PORT_OPTION,
     JSON_OPTION,
