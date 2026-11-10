@@ -254,8 +254,8 @@ export async function buildApps({
     if (keptKey) {
       await builder.keepInCache({ platform, cacheKey: keptKey, cacheDir, path: compiled.path });
     }
-    // Also under the key of the tree pod install left, for the next run on it.
-    if (keptKey && compiled.podInstallChangedFiles && !nativeFolderIsGenerated) {
+    // Also under the key of the tree the build left (pod install, own command), for the next run.
+    if (keptKey && (compiled.podInstallChangedFiles || ownCommand) && !nativeFolderIsGenerated) {
       await keepUnderInstalledTreeKey({
         platform,
         settings,
