@@ -34,7 +34,12 @@ import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
 import { captureSocket } from '../../seams/captureSocket';
 import { deviceState, isTarget } from '../../seams/deviceState';
-import { CAPTURES_FOLDER, guardCapture, sceneCameUp } from '../../seams/localCaptures';
+import {
+  CAPTURES_FOLDER,
+  guardCapture,
+  pictureKeptFor,
+  sceneCameUp,
+} from '../../seams/localCaptures';
 import { readPort } from '../../helpers/readPort';
 import { keepTheCapture, openCapture, runScene, savePicture } from './runScene';
 import type { CaptureResult } from '../../seams/captureSocket';
@@ -140,7 +145,15 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
-    if (kept) emit({ kind: 'kept-capture', id: sceneId });
+    if (kept) {
+      // The same condition runScene keeps a picture by: only a scene that came up and threw nothing.
+      const pictureSaved = pictureKeptFor(getCwd(), sceneId, answer).saves;
+      emit({
+        kind: 'kept-capture',
+        id: sceneId,
+        ...(!pictureSaved && { picture: false as const }),
+      });
+    }
   }
 
   if (sceneFailed(answer, discover)) process.exit(EXIT_BLOCK);
