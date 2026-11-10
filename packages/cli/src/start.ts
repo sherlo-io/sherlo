@@ -88,8 +88,8 @@ import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, withCommandTimeout } from './helpers';
 import { LOCAL_COMMAND_OPTION_DEFINITION, SUGGEST_DESCRIPTION } from './helpers/localCommandHelp';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
+import { captureCommandOptions } from './commands/capture';
 import {
-  captureSceneOptions,
   decideScenesBeforeCommands,
   openSceneOptions,
   SCENE_OPTION_DEFINITION,
@@ -399,7 +399,7 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [STORY_OPTION, ...captureSceneOptions(), PORT_OPTION, JSON_OPTION, LOGS_OPTION],
+    options: captureCommandOptions(),
     action: capture,
     withTimeout: false,
   });

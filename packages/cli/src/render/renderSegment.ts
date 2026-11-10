@@ -483,14 +483,14 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'captured-story':
       return {
         stream: 'stdout',
-        prints: renderCapturedStory(segment.state).map((line) => [line]),
+        prints: renderCapturedStory(segment.state, segment.showTree).map((line) => [line]),
       };
 
     case 'opened-scene':
       return onStdout(renderOpenedScene(segment.state));
 
     case 'captured-scene':
-      return onStdout(renderCapturedScene(segment.state, segment.picture));
+      return onStdout(renderCapturedScene(segment.state, segment.picture, segment.showTree));
 
     case 'scene-run-line':
       return onStdout(renderSceneRunLine(segment.line));

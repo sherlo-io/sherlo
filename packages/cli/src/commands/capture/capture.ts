@@ -20,6 +20,7 @@ import {
   SCENE_OPTION,
   STOP_ON_REPEAT_OPTION,
   STORY_OPTION,
+  TREE_OPTION,
   allScenesRefusal,
   discoverRefusal,
   pngWithoutSceneRefusal,
@@ -110,7 +111,8 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
     // is a program's own door, so it gets them whether or not `--logs` was also passed.
     process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
   } else {
-    emit({ kind: 'captured-story', state: endingFor(answer, { storyId, port }) });
+    const state = endingFor(answer, { storyId, port });
+    emit({ kind: 'captured-story', state, showTree: passedOptions[TREE_OPTION] });
 
     // The one door that puts the app's own log on a terminal: opt-in, and never woven into the
     // fixed screen above (see ../../render/capturedLog). 'no-bundler' / 'no-app' / 'no-such-story'
@@ -145,7 +147,7 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
     process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
   } else {
     const state = capturedSceneEnding(answer, port, discover);
-    emit({ kind: 'captured-scene', state, picture });
+    emit({ kind: 'captured-scene', state, picture, showTree: passedOptions[TREE_OPTION] });
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }

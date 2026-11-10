@@ -26,7 +26,7 @@ import type { CapturedView } from './capturedStory';
 import type { NoAppEnding } from './noAppLines';
 import { discoverLeftLines, neverSettledLeftLines, refusalLeftLines } from './sceneLeftLines';
 import { phoneNotAppliedLines } from './phoneNotAppliedLines';
-import { neverReachedLines } from './sceneDiagnosis';
+import { likelyCauseLines, neverReachedLines } from './sceneDiagnosis';
 import { threwLines } from './threwLines';
 import type { SceneStop } from './sceneStop';
 import type { AnswerFinding, LikelyCause, UnansweredRequest } from '../seams/readAppAnswer';
@@ -162,13 +162,17 @@ export type CapturedScene = ({ kind: 'no-bundler'; port: number } | NoAppEnding 
 export type ScenePicture = { path: string; error?: string };
 
 /**
- * Every line `sherlo capture --scene` prints, in order. With `--png`, the last line before the
- * closing blank says whether the picture was saved: one place that all endings reach.
+ * Every line `sherlo capture --scene` prints, in order, the view tree last and only with `--tree`.
+ * With `--png`, the line before the closing blank says whether the picture was saved.
  */
-export function renderCapturedScene(state: CapturedScene, picture?: ScenePicture): string[] {
+export function renderCapturedScene(
+  state: CapturedScene,
+  picture?: ScenePicture,
+  showTree = false
+): string[] {
   const lines = [
     ...phoneNotAppliedLines('phoneNotApplied' in state ? state : {}),
-    ...sceneLines(state),
+    ...sceneLines(state, showTree),
   ];
   if (!picture) return lines;
 
@@ -200,7 +204,7 @@ function pictureLines(state: CapturedScene, picture: ScenePicture): string[] {
     : [chalk.dim(`Picture saved to ${picture.path}`)];
 }
 
-function sceneLines(state: CapturedScene): string[] {
+function sceneLines(state: CapturedScene, showTree: boolean): string[] {
   switch (state.kind) {
     case 'no-bundler':
     case 'no-app':
@@ -254,10 +258,10 @@ function sceneLines(state: CapturedScene): string[] {
         ...(state.changing && state.changing.length > 0
           ? [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
           : []),
-        '',
-        ...treeLines(state.tree),
         ...(state.threw ? ['', errorLine(state.threw)] : []),
         ...leftOfScene(state, neverSettledLeftLines),
+        '',
+        ...treeLines(state.tree, showTree),
         '',
       ];
 
@@ -291,10 +295,10 @@ function sceneLines(state: CapturedScene): string[] {
         ...state.play.map((step) => chalk.dim(`   played ${playStep(step)}`)),
         chalk.dim(`   reached ${route(state.reached.route)} in ${seconds(state.reached.ms)}`),
         settledLine(state.settled.ms, state.settled.frames),
-        '',
-        ...treeLines(state.tree),
         ...(state.threw ? ['', errorLine(state.threw)] : []),
         ...leftOfScene(state),
+        '',
+        ...treeLines(state.tree, showTree),
         '',
       ];
   }
@@ -309,14 +313,6 @@ function leftOfScene<State extends SceneLeft & { discover?: true }>(
   endingPicture: (state: State) => string[] = refusalLeftLines
 ): string[] {
   return state.discover ? discoverLeftLines(state) : endingPicture(state);
-}
-
-/** Why a scene that never got ready likely did not, in the words the record's causes map to. */
-function likelyCauseLines(causes: LikelyCause): string[] {
-  const words = causes.map((cause) =>
-    cause === 'unanswered-requests' ? 'requests with no mock' : 'errors the app logged'
-  );
-  return [`  Likely cause: ${words.join(' and ')}.`];
 }
 
 /* ========================================================================== */

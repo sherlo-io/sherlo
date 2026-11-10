@@ -37,7 +37,7 @@ describe('a scene whose app crashed after it booted', () => {
     );
     expect(lines).not.toContain('never booted');
     expect(lines).toContain('TypeError: boom');
-    expect(lines).toContain('src/api.ts');
+    expect(lines).toContain("1 of the app's own modules ran as real code");
     expect(lines).toContain('GET https://x.test/a');
   });
 
@@ -98,14 +98,16 @@ describe('a scene that never got ready', () => {
     expect(printed).not.toContain('src/a.ts');
   });
 
-  it('a scene that threw lists the modules that ran as real code', () => {
+  it('a scene that threw counts the modules that ran as real code and says where the list is kept', () => {
     const printed = neverReached({
       threw: { name: 'TypeError', message: 'boom' },
       stillReal: ['src/a.ts', 'src/b.ts'],
     });
 
-    expect(printed).toContain("2 of the app's own modules ran as real code");
-    expect(printed).toContain('src/a.ts');
+    expect(printed).toContain(
+      "2 of the app's own modules ran as real code. The full list is in the capture's record in .sherlo/captures."
+    );
+    expect(printed).not.toContain('src/a.ts');
   });
 
   it('a scene that never got ready and did not throw prints the logged-in hint as before', () => {
@@ -216,8 +218,8 @@ describe('a discover capture lists what the scene needs', () => {
     expect(printed).not.toContain('src/a.ts');
     expect(printed).not.toContain('src/b.ts');
     expect(printed).not.toContain('ran as real code');
-    expect(plain).toContain('src/a.ts');
-    expect(plain).toContain('src/b.ts');
+    // Without --discover the same scene counts them, and the record keeps the list.
+    expect(plain).toContain("2 of the app's own modules ran as real code");
     expect(stillReal).toEqual(['src/a.ts', 'src/b.ts']);
   });
 

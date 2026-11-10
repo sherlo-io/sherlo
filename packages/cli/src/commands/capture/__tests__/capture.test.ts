@@ -32,6 +32,7 @@ import {
   SCENE_OPTION,
   STOP_ON_REPEAT_OPTION,
   STORY_OPTION,
+  TREE_OPTION,
 } from '../../../constants';
 import type { SceneTarget } from '../../../seams/deviceState';
 import type { SceneCaptureResult } from '../../../seams/liveScene';
@@ -115,7 +116,7 @@ const ENDINGS: Ending[] = [
     prints: [
       'captured, the way a test run records it',
       'settled in 1.4s over 6 frames',
-      '<Button>',
+      '1 views · --tree prints the view tree',
     ],
     // An app older than the two facts says nothing about them, and the screen says no more.
     silent: ['screenfuls', 'loaded over the network'],
@@ -686,6 +687,58 @@ describe('a scene capture can save the screen it captured', () => {
     expect(exitedWith).toBe(EXIT_BLOCK);
   });
 
+  it('a failed capture prints the requests no mock answered before anything else it read', async () => {
+    const stillReal = Array.from({ length: 278 }, (_, index) => `src/routes/route${index}.tsx`);
+    const wide: CapturedView = {
+      primitive: 'View',
+      components: ['App'],
+      children: Array.from({ length: 449 }, () => ({ ...ONE_VIEW })),
+    };
+    // A scene that never settled is a failed capture: its screen never stopped changing.
+    const answer: SceneCaptureResult = {
+      kind: 'never-settled',
+      sceneId: 'chat--open',
+      seconds: 20,
+      reached: { route: ['Chat'], ms: 300 },
+      stillReal,
+      unanswered: [{ method: 'GET', url: 'https://api.example.com/me' }],
+      tree: wide,
+    };
+    const { screen, exitedWith, kept } = await captureOneScene(answer, {});
+
+    expect(exitedWith).toBe(EXIT_BLOCK);
+    const lines = screen.split('\n');
+    const headline = lines.findIndex((line) => line.includes('never stopped changing'));
+    const request = lines.findIndex((line) => line.includes('api.example.com/me'));
+    const modules = lines.findIndex((line) => line.includes("278 of the app's own modules"));
+    const views = lines.findIndex((line) => line.includes('450 views'));
+    // Only the headline's own timing lines stand between it and the missing answer.
+    expect(lines.slice(headline + 1, request).every((line) => !/[<>]|modules/.test(line))).toBe(
+      true
+    );
+    expect(modules).toBeGreaterThan(request);
+    expect(views).toBeGreaterThan(modules);
+    expect(screen).toContain(
+      "Not mocked - 278 of the app's own modules ran as real code. The full list is in the capture's record in .sherlo/captures."
+    );
+    expect(screen).not.toContain('src/routes/route0.tsx');
+    // The kept record still holds every module and the whole tree.
+    expect(kept[0].record).toMatchObject({ stillReal, tree: wide });
+  });
+
+  it('a capture prints its view tree only when asked for it', async () => {
+    const plain = await captureOneScene(A_SCENE, {});
+    const withTree = await captureOneScene(A_SCENE, { [TREE_OPTION]: true });
+
+    expect(plain.screen).not.toContain('<Button>');
+    expect(plain.screen).toContain(
+      '   1 views · --tree prints the view tree · --json prints the record'
+    );
+    expect(withTree.screen).toContain('<Button>');
+    expect(withTree.screen).toContain('   1 views · --json prints the record');
+    expect(withTree.screen).not.toContain('--tree prints');
+  });
+
   it("a scene's json record carries the early ready view, likely cause, answer findings and each unanswered request's details unchanged", async () => {
     const written: string[] = [];
     const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
@@ -752,23 +805,32 @@ describe('what a capture says went wrong or stayed real reaches the screen', () 
     expect(screen).not.toContain('views · --json prints the record');
   });
 
-  it('a captured story prints the modules that ran as real code, then the requests no mock answered', async () => {
-    const { screen } = await captureOneStory({
-      kind: 'captured',
-      storyId: STORY,
-      settled: SETTLED,
-      stillReal: ['src/theme.ts', 'src/format.ts'],
-      unanswered: [{ method: 'GET', url: 'https://api.example.com/me' }],
-      tree: ONE_VIEW,
-    });
+  it('a captured story prints the requests no mock answered, then how many modules ran as real code, then its screenfuls and network images', async () => {
+    const { screen } = await captureOneStory(
+      {
+        kind: 'captured',
+        storyId: STORY,
+        settled: SETTLED,
+        parts: 3,
+        hasNetworkImage: true,
+        stillReal: ['src/theme.ts', 'src/format.ts'],
+        unanswered: [{ method: 'GET', url: 'https://api.example.com/me' }],
+        tree: ONE_VIEW,
+      },
+      { [TREE_OPTION]: true }
+    );
 
-    const modules = screen.indexOf("2 of the app's own modules ran as real code:");
     const requests = screen.indexOf('1 request had no mock');
-    expect(modules).toBeGreaterThan(-1);
-    expect(requests).toBeGreaterThan(modules);
-    expect(screen).toContain('src/format.ts');
+    const modules = screen.indexOf("2 of the app's own modules ran as real code.");
+    expect(requests).toBeGreaterThan(-1);
+    expect(modules).toBeGreaterThan(requests);
+    expect(screen).not.toContain('src/format.ts');
     expect(screen).toContain('GET https://api.example.com/me');
-    expect(screen.indexOf('<Button>')).toBeGreaterThan(requests);
+    const screenfuls = screen.indexOf('captured in 3 screenfuls');
+    expect(screenfuls).toBeGreaterThan(modules);
+    expect(screen.indexOf('has images loaded over the network')).toBeGreaterThan(screenfuls);
+    expect(screen).toContain('ran as real code. The full list');
+    expect(screen.indexOf('<Button>')).toBeGreaterThan(screenfuls);
   });
 });
 
@@ -843,7 +905,9 @@ describe("the app's own log lines never reach the drawn screen unasked, and `--l
  */
 async function captureOneStory(
   answer: CaptureResult,
-  extraOptions: Partial<Record<typeof JSON_OPTION | typeof LOGS_OPTION, boolean>> = {}
+  extraOptions: Partial<
+    Record<typeof JSON_OPTION | typeof LOGS_OPTION | typeof TREE_OPTION, boolean>
+  > = {}
 ): Promise<{ screen: string; exitCode: number | undefined; asked: unknown }> {
   let asked: unknown;
   const socket: CaptureSocket = {
@@ -881,6 +945,11 @@ async function captureOneStory(
   }
 }
 
+/** The story captured with `--tree`, so its screen draws the view tree the cases below read. */
+function captureWithTree(answer: CaptureResult) {
+  return captureOneStory(answer, { [TREE_OPTION]: true });
+}
+
 /* ========================================================================== */
 /*
  * THE SCREEN IS THE RECORD DRAWN THE WAY THE INSPECTOR DRAWS IT.
@@ -900,7 +969,7 @@ describe("the screen draws every view of the record, the way the build page's in
         children: [],
       })),
     };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -916,7 +985,7 @@ describe("the screen draws every view of the record, the way the build page's in
 
   it('opens a tag over several lines when the view has a style or a prop, and on one line when it has neither', async () => {
     const bare: CapturedView = { primitive: 'View', components: [], children: [] };
-    const { screen: oneLine } = await captureOneStory({
+    const { screen: oneLine } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -932,7 +1001,7 @@ describe("the screen draws every view of the record, the way the build page's in
       props: { testID: 'button', disabled: true },
       children: [],
     };
-    const { screen: multiLine } = await captureOneStory({
+    const { screen: multiLine } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -948,7 +1017,7 @@ describe("the screen draws every view of the record, the way the build page's in
       size: { width: 100, height: 40 },
       children: [],
     };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -965,7 +1034,7 @@ describe("the screen draws every view of the record, the way the build page's in
       style: { backgroundColor: '#f00' },
       children: [],
     };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -979,7 +1048,7 @@ describe("the screen draws every view of the record, the way the build page's in
 describe('the words a text view draws print between its tags', () => {
   it('puts the words on their own line between the opening and the closing tag', async () => {
     const tree: CapturedView = { primitive: 'Text', components: [], text: 'Hello', children: [] };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -996,7 +1065,7 @@ describe('the words a text view draws print between its tags', () => {
       props: { placeholder: 'Email' },
       children: [],
     };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -1010,7 +1079,7 @@ describe('the words a text view draws print between its tags', () => {
 describe("the app's components print as tags around the view they render", () => {
   it("wraps the view in one tag per component, outermost first, in the components' own colour", async () => {
     const tree: CapturedView = { primitive: 'View', components: ['Outer', 'Inner'], children: [] };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -1022,7 +1091,7 @@ describe("the app's components print as tags around the view they render", () =>
 
   it('prints no component tag for a view the app did not name', async () => {
     const tree: CapturedView = { primitive: 'View', components: [], children: [] };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -1077,7 +1146,7 @@ describe("the style block follows the inspector's property order and shorthands"
       style: { shadowOpacity: 0.5, fontSize: 12, width: 100, position: 'absolute' },
       children: [],
     };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,
@@ -1105,7 +1174,7 @@ describe("the style block follows the inspector's property order and shorthands"
       },
       children: [],
     };
-    const { screen } = await captureOneStory({
+    const { screen } = await captureWithTree({
       kind: 'captured',
       storyId: STORY,
       settled: SETTLED,

@@ -1,0 +1,6 @@
+Your captures: [36mhttp://127.0.0.1:4321[39m
+1 captured, 1 not captured, 0 changed
+[2mNo terminal is attached, so this stops once the page has opened, or after a minute.[22m
+
+
+[exit 0]

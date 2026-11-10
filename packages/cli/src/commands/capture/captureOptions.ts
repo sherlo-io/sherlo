@@ -11,7 +11,9 @@ import {
   SCENE_OPTION,
   STOP_ON_REPEAT_OPTION,
   STORY_OPTION,
+  TREE_OPTION,
 } from '../../constants';
+import { captureSceneOptions } from '../../helpers/sceneOptions';
 
 export type CaptureOptions = {
   [STORY_OPTION]?: string;
@@ -23,4 +25,17 @@ export type CaptureOptions = {
   [JSON_OPTION]?: boolean;
   [LOGS_OPTION]?: boolean;
   [PNG_OPTION]?: string;
+  [TREE_OPTION]?: boolean;
 };
+
+/** The flags `sherlo capture --help` lists, in order: the scene ones only for a team with scenes on. */
+export function captureCommandOptions(): string[] {
+  return [
+    STORY_OPTION,
+    ...captureSceneOptions(),
+    PORT_OPTION,
+    JSON_OPTION,
+    LOGS_OPTION,
+    TREE_OPTION,
+  ];
+}
