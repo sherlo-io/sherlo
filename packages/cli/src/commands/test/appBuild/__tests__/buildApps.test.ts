@@ -60,10 +60,14 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
 
 let uninstallBuilder: () => void = () => undefined;
 let uninstallNativeBuild: () => void = () => undefined;
+let uninstallNoFingerprint: () => void = () => undefined;
 let projectRoot: string;
 
 beforeEach(() => {
   projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-build-apps-'));
+  // A build can fingerprint the tree it left; unless a test answers that, it finds no fingerprint.
+  const computeFingerprint = async () => ({ android: { hash: null }, ios: { hash: null } });
+  uninstallNoFingerprint = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
   vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
     throw new Error(`process.exit(${code})`);
   });
@@ -73,6 +77,7 @@ afterEach(() => {
   uninstallBuilder();
   uninstallNativeBuild();
   uninstallNativeBuild = () => undefined;
+  uninstallNoFingerprint();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   fs.rmSync(projectRoot, { recursive: true, force: true });
@@ -311,6 +316,55 @@ describe('sherlo test builds the app on this machine', () => {
 
     expect(computeFingerprint).not.toHaveBeenCalled();
     expect(builder.keepInCache).toHaveBeenCalledTimes(1);
+  });
+
+  // The first run's fingerprint was taken before its build; the retry's is taken over the tree the
+  // build left (a rewritten Podfile.lock), so the build must be kept under that one too. The
+  // project's own command says nothing of what it rewrote, so its tree is always asked again.
+  it('a push that failed after its build, run again on the unchanged tree, takes the app build from the cache', async () => {
+    const afterTheBuild = 'c'.repeat(64);
+    const roads: [string, BuildSettings, { podInstallChangedFiles?: true }][] = [
+      ["Sherlo's build, whose pod install changed files", {}, { podInstallChangedFiles: true }],
+      [
+        "the project's own command",
+        { ios: { command: 'fastlane sherlo', output: 'App.tar.gz' } },
+        {},
+      ],
+    ];
+    for (const [road, settings, install] of roads) {
+      const cache = new Map<string, string>();
+      const builder = fakeBuilder({
+        findCachedBuild: async ({ cacheKey }) => cache.get(cacheKey) ?? null,
+        keepInCache: async ({ cacheKey, path: appPath }) => void cache.set(cacheKey, appPath),
+        compile: async () => ({
+          ok: true as const,
+          path: '/built/ios',
+          sizeMb: '53.90',
+          seconds: 88,
+          podFilesChanged: [],
+          ...install,
+        }),
+      });
+      const computeFingerprint = vi.fn(async () => ({
+        android: { hash: null },
+        ios: { hash: afterTheBuild },
+      }));
+      uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+      // The push fails after this, so nothing of it reaches Sherlo; the retry asks the cache again.
+      await build({ toBuild: IOS, settings });
+      const retry = await build({
+        toBuild: IOS,
+        settings,
+        fingerprints: { android: { hash: null }, ios: { hash: afterTheBuild } },
+      });
+
+      expect(retry.madeBy, road).toEqual({ ios: 'build-cache' });
+      expect(retry.appBuildPaths, road).toEqual({ ios: '/built/ios' });
+      expect(builder.compile, road).toHaveBeenCalledTimes(1);
+      uninstallBuilder();
+      uninstallNativeBuild();
+    }
   });
 
   // Two trees with no fingerprint would share one key, so the cache could serve the other's app.
