@@ -11,7 +11,9 @@ import type { Platform } from '@sherlo/api-types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { captureTranscript } from '../../../../helpers/transcriptSink';
 import { type AppBuilder, installAppBuilder } from '../../../../seams/appBuilder';
-import { buildApps, cacheKeyOf, type PlatformToBuild } from '../buildApps';
+import { installNativeBuild, type NativeBuild } from '../../../../seams/nativeBuild';
+import { cacheKeyOf } from '../appBuildCacheKeys';
+import { buildApps, type PlatformToBuild } from '../buildApps';
 import { type BuildSettings, buildSettingsDigest } from '../buildSettings';
 import { localBuildCacheFolder, makeProjectSherloFolder } from '../cacheFolder';
 
@@ -53,6 +55,7 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
 }
 
 let uninstallBuilder: () => void = () => undefined;
+let uninstallNativeBuild: () => void = () => undefined;
 let projectRoot: string;
 
 beforeEach(() => {
@@ -64,6 +67,8 @@ beforeEach(() => {
 
 afterEach(() => {
   uninstallBuilder();
+  uninstallNativeBuild();
+  uninstallNativeBuild = () => undefined;
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   fs.rmSync(projectRoot, { recursive: true, force: true });
@@ -224,6 +229,50 @@ describe('sherlo test builds the app on this machine', () => {
     expect(builder.compile).not.toHaveBeenCalled();
     expect(builder.generateNativeFolder).not.toHaveBeenCalled();
     expect(builder.keepInCache).not.toHaveBeenCalled();
+  });
+
+  it('also keeps the app build under the fingerprint taken after pod install when the install changed files', async () => {
+    const afterInstall = 'b'.repeat(64);
+    const builder = fakeBuilder({
+      compile: async () => ({
+        ok: true as const,
+        path: '/built/ios',
+        sizeMb: '53.90',
+        seconds: 88,
+        podFilesChanged: [],
+        podInstallChangedFiles: true,
+      }),
+    });
+    const computeFingerprint = vi.fn(async () => ({
+      android: { hash: null },
+      ios: { hash: afterInstall },
+    }));
+    uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+    await build({ toBuild: IOS });
+
+    const keyAfter = (baseFingerprint: string) =>
+      cacheKeyOf({ baseFingerprint, platform: 'ios', settings: {} });
+    expect(computeFingerprint).toHaveBeenCalledWith(projectRoot, 'test');
+    const kept = (
+      builder.keepInCache.mock.calls as unknown as [{ cacheKey: string; path: string }][]
+    ).map(([call]) => call);
+    expect(kept.map((call) => call.cacheKey)).toEqual([
+      keyAfter(FINGERPRINT),
+      keyAfter(afterInstall),
+    ]);
+    expect(kept.map((call) => call.path)).toEqual(['/built/ios', '/built/ios']);
+  });
+
+  it('computes no second fingerprint when pod install changed nothing', async () => {
+    const builder = fakeBuilder();
+    const computeFingerprint = vi.fn();
+    uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+    await build({ toBuild: IOS });
+
+    expect(computeFingerprint).not.toHaveBeenCalled();
+    expect(builder.keepInCache).toHaveBeenCalledTimes(1);
   });
 
   it('a changed build setting misses the local build cache', () => {
@@ -555,10 +604,4 @@ describe('sherlo test builds the app on this machine', () => {
     expect(ownCommand).toMatchObject({ env, easProfile: 'sherlo' });
     expect(sherlosOwn).toMatchObject({ env, easProfile: 'sherlo' });
   });
-
-  it.todo(
-    'also keeps the app build under the fingerprint taken after pod install when the install changed files'
-  );
-
-  it.todo('computes no second fingerprint when pod install changed nothing');
 });

@@ -927,9 +927,88 @@ describe('computeBaseFingerprint', () => {
     }
   });
 
-  it.todo('a Podfile.lock that differs only in its COCOAPODS line gives the same base fingerprint');
+  /** A short real Podfile.lock, as CocoaPods writes it, with the pieces a test changes. */
+  const podfileLock = ({ cocoapods, checksum }: { cocoapods: string; checksum: string }) =>
+    [
+      'PODS:',
+      '  - boost (1.84.0)',
+      '  - hermes-engine (0.77.2)',
+      '',
+      'DEPENDENCIES:',
+      '  - boost (from `../node_modules/react-native/third-party-podspecs/boost.podspec`)',
+      '  - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)',
+      '',
+      'EXTERNAL SOURCES:',
+      '  boost:',
+      '    :podspec: "../node_modules/react-native/third-party-podspecs/boost.podspec"',
+      '',
+      'SPEC CHECKSUMS:',
+      '  boost: 1dca942403ecfc5bfc6ff1ccc3e3b3e94dd1b4c0',
+      `  hermes-engine: ${checksum}`,
+      '',
+      'PODFILE CHECKSUM: 5b2b8ad0d3b0b4f3f3d1a7c2c7a63f0b8e4b8f9a',
+      '',
+      `COCOAPODS: ${cocoapods}`,
+      '',
+    ].join('\n');
 
-  it.todo('a Podfile.lock whose SPEC CHECKSUMS changed gives another base fingerprint');
+  /** What the file transform handed to @expo/fingerprint hashes for ios/Podfile.lock. */
+  const hashedPodfileLock = async (dir: string): Promise<string> => {
+    mockCreateFingerprintAsync.mockClear();
+    await computeBaseFingerprint(dir);
+    const { fileHookTransform } = mockCreateFingerprintAsync.mock.calls[0][1];
+    const source = { type: 'file', filePath: 'ios/Podfile.lock' };
+    const text = fs.readFileSync(path.join(dir, 'ios/Podfile.lock'), 'utf8');
+    fileHookTransform(source, text, false, 'utf8');
+    return fileHookTransform(source, null, true, 'utf8');
+  };
+
+  /** A bare project (it commits ios/) with a Gemfile.lock and the given Podfile.lock. */
+  const bareProjectWith = (dir: string, lock: string) => {
+    writeFile(dir, 'package.json', JSON.stringify({ name: 'bare-app' }));
+    writeFile(dir, 'ios/Podfile', "platform :ios, '15.1'\n");
+    writeFile(dir, 'ios/Podfile.lock', lock);
+    writeFile(dir, 'Gemfile.lock', 'GEM\n  specs:\n    cocoapods (1.15.2)\n');
+  };
+
+  it('a Podfile.lock that differs only in its COCOAPODS line gives the same base fingerprint', async () => {
+    const dir = makeTempDir();
+    try {
+      bareProjectWith(dir, podfileLock({ cocoapods: '1.15.2', checksum: 'aaaa' }));
+      const before = await computeBaseFingerprint(dir);
+      const layer1Before = await hashedPodfileLock(dir);
+
+      writeFile(dir, 'ios/Podfile.lock', podfileLock({ cocoapods: '1.17.0', checksum: 'aaaa' }));
+      const after = await computeBaseFingerprint(dir);
+      const layer1After = await hashedPodfileLock(dir);
+
+      // Layer 2 hashes the lock less that line, and so does Layer 1's file transform.
+      expect(after.ios.hash).toBe(before.ios.hash);
+      expect(layer1After).toBe(layer1Before);
+      expect(layer1After).not.toContain('COCOAPODS');
+      expect(layer1After).toContain('PODFILE CHECKSUM');
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  it('a Podfile.lock whose SPEC CHECKSUMS changed gives another base fingerprint', async () => {
+    const dir = makeTempDir();
+    try {
+      bareProjectWith(dir, podfileLock({ cocoapods: '1.15.2', checksum: 'aaaa' }));
+      const before = await computeBaseFingerprint(dir);
+      const layer1Before = await hashedPodfileLock(dir);
+
+      writeFile(dir, 'ios/Podfile.lock', podfileLock({ cocoapods: '1.15.2', checksum: 'bbbb' }));
+      const after = await computeBaseFingerprint(dir);
+      const layer1After = await hashedPodfileLock(dir);
+
+      expect(after.ios.hash).not.toBe(before.ios.hash);
+      expect(layer1After).not.toBe(layer1Before);
+    } finally {
+      cleanup(dir);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
