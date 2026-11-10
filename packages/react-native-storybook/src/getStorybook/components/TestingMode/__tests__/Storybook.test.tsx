@@ -38,11 +38,13 @@ const { useRefMock, resetReactHookInstance, startReactRender } = vi.hoisted(() =
   };
 });
 
-const { mockGetStorybookComponent, mockGetLastState, mockSend } = vi.hoisted(() => ({
-  mockGetStorybookComponent: vi.fn(() => () => null),
-  mockGetLastState: vi.fn(),
-  mockSend: vi.fn(),
-}));
+const { mockGetStorybookComponent, mockGetLastState, mockSend, mockReadStorybookFacts } =
+  vi.hoisted(() => ({
+    mockGetStorybookComponent: vi.fn(() => () => null),
+    mockGetLastState: vi.fn(),
+    mockSend: vi.fn(),
+    mockReadStorybookFacts: vi.fn(),
+  }));
 
 vi.mock('react', () => ({ useRef: useRefMock, default: { useRef: useRefMock } }));
 vi.mock('react/jsx-dev-runtime', () => ({ jsxDEV: () => null, Fragment: Symbol('Fragment') }));
@@ -60,6 +62,7 @@ vi.mock('../../../../helpers', () => ({ RunnerBridge: { log: vi.fn() } }));
 vi.mock('../../../../SherloModule', () => ({
   default: { getLastState: mockGetLastState, notifyGetStorybookCalled: vi.fn() },
 }));
+vi.mock('../../../storybookFacts', () => ({ readStorybookFacts: mockReadStorybookFacts }));
 vi.mock('../../../../connection/appLine', () => ({ send: mockSend }));
 
 import Storybook from '../Storybook';
@@ -74,6 +77,33 @@ beforeEach(() => {
   vi.clearAllMocks();
   resetReactHookInstance();
   mockGetLastState.mockReturnValue(undefined);
+  mockReadStorybookFacts.mockReturnValue(null);
+});
+
+describe('Storybook.tsx with an empty story index', () => {
+  it('when the story index is empty the Storybook component is not built and nothing throws', () => {
+    mockReadStorybookFacts.mockReturnValue({ storyIndex: {} });
+    startReactRender();
+
+    expect(() => Storybook({ view: VIEW, uiSettings: UI_SETTINGS })).not.toThrow();
+    expect(mockGetStorybookComponent).not.toHaveBeenCalled();
+  });
+
+  it('when the story index has stories the Storybook component renders as before', () => {
+    mockReadStorybookFacts.mockReturnValue({ storyIndex: { 'a--b': {} } });
+    startReactRender();
+    Storybook({ view: VIEW, uiSettings: UI_SETTINGS });
+
+    expect(mockGetStorybookComponent).toHaveBeenCalledTimes(1);
+  });
+
+  it('when no facts were read yet the Storybook component renders as before', () => {
+    mockReadStorybookFacts.mockReturnValue(null);
+    startReactRender();
+    Storybook({ view: VIEW, uiSettings: UI_SETTINGS });
+
+    expect(mockGetStorybookComponent).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('Storybook.tsx builds one StorybookComponent per boot', () => {
