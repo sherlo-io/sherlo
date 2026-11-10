@@ -68,19 +68,43 @@ function answerThePlainGet(request: http.IncomingMessage, response: http.ServerR
   response.end(JSON.stringify({ protocolVersion: PROTOCOL_VERSION }));
 }
 
-/** Close a server the way a bundler going away does: every socket and request cut. */
-function closeServer(server: http.Server): Promise<void> {
-  return new Promise<void>((closed) => {
+/** How long the line holds a tool that asks while no app has waited: short, so no-app comes at once. */
+const APP_HOLD_MS = 300;
+
+/** How long a relay may take to close before the test says which relay hung, not the hook. */
+const CLOSE_LIMIT_MS = 3000;
+
+/**
+ * Close a server the way a bundler going away does: every socket and request cut. An upgraded
+ * socket is no longer the HTTP server's, so the line's own clients are cut one by one first.
+ */
+function closeServer(server: http.Server, line: WebSocketServer): Promise<void> {
+  const closing = new Promise<void>((closed) => {
+    line.clients.forEach((client) => client.terminate());
     (server as { closeAllConnections?: () => void }).closeAllConnections?.();
     server.close(() => closed());
   });
+  const tooLate = new Promise<void>((_, hung) => {
+    setTimeout(
+      () => hung(new Error('the capture relay did not close in ' + CLOSE_LIMIT_MS + ' ms')),
+      CLOSE_LIMIT_MS
+    ).unref();
+  });
+  return Promise.race([closing, tooLate]);
 }
 
 /** A bundler with the SDK's line on it, and an app that said hello on the line. */
 async function startRelay(): Promise<RunningRelay> {
   const server = http.createServer(answerThePlainGet);
   // `ws` types its classes more strictly than the line's own narrow view of the one it uses.
-  attach(server, WebSocketServer as unknown as WebSocketServerClass);
+  let line!: WebSocketServer;
+  class RememberedLine extends WebSocketServer {
+    constructor(...args: ConstructorParameters<typeof WebSocketServer>) {
+      super(...args);
+      line = this;
+    }
+  }
+  attach(server, RememberedLine as unknown as WebSocketServerClass, { appHoldMs: APP_HOLD_MS });
   await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
   const port = (server.address() as AddressInfo).port;
 
@@ -91,7 +115,7 @@ async function startRelay(): Promise<RunningRelay> {
     app,
     close: () => {
       app.socket.terminate();
-      return closeServer(server);
+      return closeServer(server, line);
     },
   };
 }
@@ -811,8 +835,7 @@ describe("the app's own log lines, drained from its live feed once the answer is
       expect(answer).toMatchObject({ kind: 'captured', storyId: STORY_A });
       expect(answer).not.toHaveProperty('logs');
     } finally {
-      sockets.clients.forEach((socket) => socket.terminate());
-      await closeServer(server);
+      await closeServer(server, sockets);
     }
   });
 });
