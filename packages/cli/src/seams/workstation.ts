@@ -45,6 +45,7 @@
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
 import { runningAgent } from '../commands/feedback/runningAgent';
+import { packageNameOfSpecifier } from '../commands/test/lockfilePackages';
 import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
 import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
@@ -83,6 +84,9 @@ export type Workstation = {
   scenesFlag(): 'on' | 'off' | undefined;
   /** Ask the service about that team and keep the answer for `scenesFlag()`; a pose asks nothing. */
   askScenesFlag(configProject: unknown): Promise<void>;
+
+  /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
+  readGit(params: { command: string; projectRoot: string }): Promise<string>;
 
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
@@ -138,16 +142,16 @@ export const liveWorkstation: Workstation = {
   scenesFlag: rememberedScenesFlag,
   askScenesFlag: decideScenesForProject,
 
+  readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
+
   /**
-   * Is there a human at the keyboard who could actually press Enter?
-   *
-   * `isTTY` alone answers "is stdin a terminal", which is NOT the same question. Automation runs
-   * the CLI under a pseudo-terminal (`docker run -t`, `script(1)`, expect), where stdin IS a tty,
-   * nobody watches, and EOF arrives as byte 4, which `readEnterPress` reads as CTRL+D: the setup
-   * printed the prompt, then failed with "Setup cancelled". `CI` is the standard opt-out for that,
-   * set by GitHub Actions, GitLab, CircleCI, Travis and Buildkite alike. A coding agent's shell is
-   * a tty too, and nothing in it presses Enter: an agent once sat 36 minutes on the prompt. So an
-   * agent known by its harness's environment (`runningAgent`) is nobody at the keyboard either.
+   * Is there a human at the keyboard who could actually press Enter? `isTTY` alone is not enough:
+   * automation runs the CLI under a pseudo-terminal (`docker run -t`, `script(1)`, expect) where
+   * stdin IS a tty and nobody is watching, and its EOF arrives as the byte `readEnterPress` reads
+   * as CTRL+D, a deliberate cancel - so setup would fail with "Setup cancelled". `CI` is the
+   * standard opt-out for exactly this (GitHub Actions, GitLab, CircleCI, Travis, Buildkite). A
+   * coding agent's shell is a tty too with nobody to press Enter, so an agent its harness's
+   * environment names (`runningAgent`) is nobody at the keyboard either.
    */
   somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI && !runningAgent(),
 
@@ -309,7 +313,7 @@ export function posedWorkstation(
       }
 
       const installedPackage = posed.install.package;
-      if (packageNameOf(installedPackage) !== packageNameOf(packageSpec)) {
+      if (packageNameOfSpecifier(installedPackage) !== packageNameOfSpecifier(packageSpec)) {
         refuse(
           'addPackage',
           `the pose answers the install with \`${installedPackage}\`, and the command asked the ` +
@@ -346,6 +350,9 @@ export function posedWorkstation(
 
     scenesFlag: () => posed?.scenes,
     askScenesFlag: async () => {},
+
+    // A pose states no git history: a read of it fails as in a folder that is not a git folder.
+    readGit: () => Promise.reject(new Error('the pose holds no git history')),
 
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard
@@ -384,14 +391,4 @@ export function posedWorkstation(
       throw refuse('askYesOrNo', `the pose cannot answer the question "${question}"`);
     },
   };
-}
-
-/* ========================================================================== */
-
-/** The package a spec names, without its version: `@sherlo/x@2.0.2` -> `@sherlo/x`. */
-function packageNameOf(packageSpec: string): string {
-  const versionSeparator = packageSpec.lastIndexOf('@');
-
-  // Index 0 is the scope's own `@`, so a spec with no version is the whole string.
-  return versionSeparator > 0 ? packageSpec.slice(0, versionSeparator) : packageSpec;
 }

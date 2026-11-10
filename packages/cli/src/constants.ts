@@ -115,8 +115,16 @@ export const MASK_COMMAND = 'mask';
 export const OPEN_COMMAND = 'open';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
 export const CAPTURE_COMMAND = 'capture';
-/** `sherlo capture-report` - open the review page over the captures kept on this computer. */
-export const CAPTURE_REPORT_COMMAND = 'capture-report';
+/** `sherlo preview` - open the review page over the captures kept on this computer. */
+export const PREVIEW_COMMAND = 'preview';
+/** `sherlo suggest` - rank what to test next, from code and git. */
+export const SUGGEST_COMMAND = 'suggest';
+/** `sherlo suggest --dir <path>` - the app folder to read, instead of the one you stand in. */
+export const DIR_OPTION = 'dir';
+/** `sherlo suggest --all` - list every item, not the top 10. */
+export const ALL_OPTION = 'all';
+/** `sherlo suggest --facts <file>` - what to know to write the test of one screen or component. */
+export const FACTS_OPTION = 'facts';
 /** `sherlo coverage` - list the components no story draws. Hidden from `--help`. */
 export const COVERAGE_COMMAND = 'coverage';
 export const FULL_INIT_COMMAND = 'npx sherlo init';

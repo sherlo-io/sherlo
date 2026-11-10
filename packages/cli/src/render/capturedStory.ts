@@ -59,13 +59,14 @@ export type CapturedStory =
       unanswered?: { method: string; url: string }[];
       tree: CapturedView;
     }
-  /** The screen never stopped changing before the stabilization gave up; a cloud run would hit the same limit. */
+  /** The screen never stopped changing before the stabilization gave up; a cloud run would hit the same limit. It keeps the requests no mock answered, as `captured` does. */
   | {
       kind: 'never-settled';
       storyId: string;
       seconds: number;
       /** The views still changing when it gave up, each as the tag the tree draws it by. */
       changing?: string[];
+      unanswered?: { method: string; url: string }[];
       tree: CapturedView;
     }
   /** The story threw while rendering; the error is the story's own, word for word. */
@@ -162,6 +163,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         ...(state.changing && state.changing.length > 0
           ? [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
           : []),
+        ...unansweredLines(state.unanswered),
         '',
         ...treeLines(state.tree),
         '',

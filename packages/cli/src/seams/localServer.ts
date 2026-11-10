@@ -1,5 +1,5 @@
 /**
- * THE LOCAL SERVER SEAM - the small web server `sherlo capture-report` shows the review page from.
+ * THE LOCAL SERVER SEAM - the small web server `sherlo preview` shows the review page from.
  *
  *     live   - a server on this computer's own address (127.0.0.1), on a free port.
  *     posed  - the pose's `localServer`: the port it answers on. Nothing listens.

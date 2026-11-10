@@ -18,16 +18,16 @@ import { isExcludedStory, isStoryFile } from './storyPropValues';
 /** One source file of the app: its path from the project folder, and its text. */
 export type SourceFile = { path: string; text: string };
 
-const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
-const NOT_APP_CODE = /\.(test|spec)\.[jt]sx?$|\.d\.ts$/;
+export const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+export const NOT_APP_CODE = /\.(test|spec)\.[jt]sx?$|\.d\.ts$/;
 
 /** Where one exported name lives: the file that declares it and the name it has there. */
-type Export = { file: string; name: string };
+export type Export = { file: string; name: string };
 
 /** What a file exports: whether it is a component, and the name the list shows for it. */
 type OwnExport = { isComponent: boolean; label: string };
 
-type ParsedFile = {
+export type ParsedFile = {
   path: string;
   ast: babel.Program;
   /** Exported name -> what this file declares itself under that name. */
@@ -35,7 +35,7 @@ type ParsedFile = {
   /** `export { a as b } from 's'` and `export * from 's'` (name `*`): outer name -> [source, inner name]. */
   reExports: { outer: string; source: string; inner: string }[];
   /** Each import declaration: where it points and which exported names it takes (`*` for all). */
-  imports: { source: string; names: string[] }[];
+  imports: { source: string; names: string[]; locals: string[] }[];
 };
 
 /** The gaps the most files import first; the same count in name order, so a run repeats itself. */
@@ -76,31 +76,7 @@ export function componentGaps(params: {
     }
   }
 
-  // What each import takes, followed through barrels only.
-  function imported(file: ParsedFile): Export[] {
-    return file.imports.flatMap(({ source, names }) => {
-      const target = resolve(file.path, source);
-      return target ? names.flatMap((name) => exported(target, name, new Set())) : [];
-    });
-  }
-
-  function exported(file: string, name: string, seen: Set<string>): Export[] {
-    const visit = `${file}#${name}`;
-    const found = parsed.get(file);
-    if (!found || seen.has(visit)) return [];
-    seen.add(visit);
-
-    const own = name === '*' ? [...found.own.keys()] : found.own.has(name) ? [name] : [];
-    const direct = own.map((ownName) => ({ file, name: ownName }));
-    const through = found.reExports
-      .filter((reExport) => reExport.outer === '*' || name === '*' || reExport.outer === name)
-      .flatMap((reExport) => {
-        const target = resolve(file, reExport.source);
-        const inner = reExport.outer === '*' ? name : reExport.inner;
-        return target ? exported(target, inner, seen) : [];
-      });
-    return [...direct, ...through];
-  }
+  const { imported } = makeExports(parsed, resolve);
 
   const storyKept = new Set<string>();
   const storyExcluded = new Set<string>();
@@ -138,7 +114,7 @@ function key({ file, name }: Export): string {
 /* Reading one file                                                           */
 /* ========================================================================== */
 
-function parseFile(file: SourceFile): ParsedFile | undefined {
+export function parseFile(file: SourceFile): ParsedFile | undefined {
   let program: babel.Program;
   try {
     program = parse(file.text, {
@@ -173,7 +149,11 @@ function parseFile(file: SourceFile): ParsedFile | undefined {
 
   for (const statement of program.body) {
     if (statement.type === 'ImportDeclaration') {
-      imports.push({ source: statement.source.value, names: importedNames(statement) });
+      imports.push({
+        source: statement.source.value,
+        names: importedNames(statement),
+        locals: statement.specifiers.map((specifier) => specifier.local.name),
+      });
     } else if (statement.type === 'ExportAllDeclaration') {
       reExports.push({ outer: '*', source: statement.source.value, inner: '*' });
     } else if (statement.type === 'ExportNamedDeclaration') {
@@ -240,7 +220,7 @@ function returnsJsx(value: babel.Node, local: Map<string, boolean>): boolean {
   return false;
 }
 
-function hasJsx(node: unknown): boolean {
+export function hasJsx(node: unknown): boolean {
   if (Array.isArray(node)) return node.some(hasJsx);
   if (typeof node !== 'object' || node === null) return false;
   const { type } = node as { type?: string };
@@ -255,7 +235,7 @@ function hasJsx(node: unknown): boolean {
 /* ========================================================================== */
 
 /** `(fromFile, source) -> the app file the import points at`, from relative paths, baseUrl and paths. */
-function makeResolver(files: Set<string>, tsconfig?: string) {
+export function makeResolver(files: Set<string>, tsconfig?: string) {
   const options = tsconfig ? compilerOptions(tsconfig) : {};
   const baseUrl = typeof options.baseUrl === 'string' ? options.baseUrl : undefined;
   const aliases = Object.entries((options.paths as Record<string, string[]>) ?? {});
@@ -323,4 +303,37 @@ function toValue(node: babel.Node): unknown {
   if (node.type === 'ArrayExpression') return node.elements.map((e) => (e ? toValue(e) : null));
   if (node.type === 'StringLiteral' || node.type === 'BooleanLiteral') return node.value;
   return undefined;
+}
+
+/** What each import takes, followed through barrels only; exported is one name of one file. */
+export function makeExports(
+  parsed: Map<string, ParsedFile>,
+  resolve: (from: string, source: string) => string | undefined
+) {
+  function imported(file: ParsedFile): Export[] {
+    return file.imports.flatMap(({ source, names }) => {
+      const target = resolve(file.path, source);
+      return target ? names.flatMap((name) => exported(target, name, new Set())) : [];
+    });
+  }
+
+  function exported(file: string, name: string, seen: Set<string>): Export[] {
+    const visit = `${file}#${name}`;
+    const found = parsed.get(file);
+    if (!found || seen.has(visit)) return [];
+    seen.add(visit);
+
+    const own = name === '*' ? [...found.own.keys()] : found.own.has(name) ? [name] : [];
+    const direct = own.map((ownName) => ({ file, name: ownName }));
+    const through = found.reExports
+      .filter((reExport) => reExport.outer === '*' || name === '*' || reExport.outer === name)
+      .flatMap((reExport) => {
+        const target = resolve(file, reExport.source);
+        const inner = reExport.outer === '*' ? name : reExport.inner;
+        return target ? exported(target, inner, seen) : [];
+      });
+    return [...direct, ...through];
+  }
+
+  return { imported, exported };
 }

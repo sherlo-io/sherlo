@@ -329,12 +329,9 @@ async function runProjectStep(world: {
     return answers.shift() as Value;
   };
   const person: Workstation = {
-    addPackage: async () => {
-      throw new Error('the project step installs nothing');
-    },
-    installPods: async () => {
-      throw new Error('the project step installs nothing');
-    },
+    addPackage: () => Promise.reject(new Error('the project step installs nothing')),
+    installPods: () => Promise.reject(new Error('the project step installs nothing')),
+    readGit: () => Promise.reject(new Error('the project step reads no git')),
     podsAreCurrent: () => false,
     scenesFlag: () => undefined,
     askScenesFlag: async () => {},
