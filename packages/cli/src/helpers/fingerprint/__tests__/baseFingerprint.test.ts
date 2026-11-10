@@ -926,6 +926,10 @@ describe('computeBaseFingerprint', () => {
       cleanup(dir);
     }
   });
+
+  it.todo('a Podfile.lock that differs only in its COCOAPODS line gives the same base fingerprint');
+
+  it.todo('a Podfile.lock whose SPEC CHECKSUMS changed gives another base fingerprint');
 });
 
 // ---------------------------------------------------------------------------

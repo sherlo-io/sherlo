@@ -667,6 +667,8 @@ describe('app builder, iOS', () => {
       lastLines: ['** BUILD FAILED **'],
     });
   });
+
+  it.todo('does not warn when pod install changed only the COCOAPODS line of Podfile.lock');
 });
 
 describe('app builder, EAS', () => {

@@ -555,4 +555,10 @@ describe('sherlo test builds the app on this machine', () => {
     expect(ownCommand).toMatchObject({ env, easProfile: 'sherlo' });
     expect(sherlosOwn).toMatchObject({ env, easProfile: 'sherlo' });
   });
+
+  it.todo(
+    'also keeps the app build under the fingerprint taken after pod install when the install changed files'
+  );
+
+  it.todo('computes no second fingerprint when pod install changed nothing');
 });
