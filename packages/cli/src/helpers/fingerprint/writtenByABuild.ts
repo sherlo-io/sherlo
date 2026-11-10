@@ -17,9 +17,17 @@
  * every one. The library adds this list to its own defaults, which already leave out `ios/Pods`,
  * `ios/build`, `ios/.xcode.env.local`, `android/build`, `.gradle` and `.cxx`.
  */
+/**
+ * Folders a build writes wherever they sit. The fingerprint ignores them by glob below, and
+ * ./digestDirectory skips them by name, so a folder added here is covered in both.
+ */
+export const BUILD_WRITTEN_FOLDER_NAMES = ['.swiftpm', '.kotlin'];
+
 export const WRITTEN_BY_A_BUILD = [
-  // Swift Package Manager and Xcode build folders, in any package
-  '**/.swiftpm/**/*',
+  // Swift Package Manager's folder and Kotlin 2's Gradle plugin folder (its daemon sessions and
+  // error logs sit beside the Gradle project)
+  ...BUILD_WRITTEN_FOLDER_NAMES.map((name) => `**/${name}/**/*`),
+  // Xcode build folders, in any package
   '**/node_modules/**/.build/**/*',
   '**/node_modules/**/.DerivedData/**/*',
   // expo-modules-jsi's pod builds its xcframework and module map inside the package
@@ -29,8 +37,6 @@ export const WRITTEN_BY_A_BUILD = [
   '**/node_modules/expo-updates/ios/EXUpdates/BSPatch/bspatch.c',
   // Node addons are compiled for the installing machine
   '**/node_modules/**/*.node',
-  // Kotlin 2's Gradle plugin keeps its daemon sessions and error logs beside the Gradle project
-  '**/android/.kotlin/**/*',
   // Xcode's per-user schemes and scheme list, written under the user's name on the machine that
   // opened or built the project; the library already leaves out the workspace's own xcuserdata
   '**/ios/*.xcodeproj/xcuserdata/**/*',

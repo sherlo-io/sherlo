@@ -351,6 +351,53 @@ describe('computeBaseFingerprint', () => {
     }
   });
 
+  describe('the Sherlo package in layer 2', () => {
+    const SHERLO = '@sherlo/react-native-storybook';
+
+    /** A bare app with the Sherlo package installed at `version`, its native files as given. */
+    async function sherloEntryOf(version: string, iosSource: string): Promise<string | undefined> {
+      const dir = makeTempDir();
+      mockRunShellCommand.mockImplementation(async ({ command }: { command: string }) => {
+        if (command !== 'npx react-native config') throw new Error('no');
+        return JSON.stringify({
+          dependencies: {
+            [SHERLO]: {
+              name: SHERLO,
+              root: path.join(dir, 'node_modules', SHERLO),
+              platforms: { android: { sourceDir: 'android' }, ios: { podspecPath: 'x' } },
+            },
+          },
+        });
+      });
+      try {
+        writeFile(dir, 'package.json', JSON.stringify({ name: 'bare-app' }));
+        writeFile(dir, 'android/app/build.gradle', 'android {}');
+        writeFile(dir, `node_modules/${SHERLO}/package.json`, JSON.stringify({ version }));
+        writeFile(dir, `node_modules/${SHERLO}/ios/Sherlo.m`, iosSource);
+        writeFile(dir, `node_modules/${SHERLO}/src/index.js`, `// ${version}`);
+        const result = await computeBaseFingerprint(dir);
+        return result.ios.preimage?.autolinkedModules[0];
+      } finally {
+        cleanup(dir);
+      }
+    }
+
+    it('a new Sherlo package version with the same native files keeps the fingerprint', async () => {
+      const before = await sherloEntryOf('1.0.0', 'native code');
+      const after = await sherloEntryOf('1.1.0', 'native code');
+
+      expect(before).toMatch(/^@sherlo\/react-native-storybook@[0-9a-f]{16}$/);
+      expect(after).toBe(before);
+    });
+
+    it("a change in Sherlo's native files changes the fingerprint", async () => {
+      const before = await sherloEntryOf('1.0.0', 'native code');
+      const after = await sherloEntryOf('1.0.0', 'other native code');
+
+      expect(after).not.toBe(before);
+    });
+  });
+
   it('counts a native folder git does not track as generated, so an Expo project stays managed after prebuild', async () => {
     await answerGitForReal();
     const managed = makeTempDir();
