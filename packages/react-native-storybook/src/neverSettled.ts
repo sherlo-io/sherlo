@@ -5,6 +5,8 @@
  * is the one taken at the limit). Time here is counted in polls, as in ./storyReady.
  */
 import { fieldsStillWaitingForFocus } from './focusedField';
+import { readStoryError } from './getStorybook/storyErrorRegistry';
+import RunnerBridge from './helpers/RunnerBridge';
 import { reachedRoute } from './reachedScreen';
 import type { SceneNeverSettled } from './sealedCore/seam';
 import { lookAtViews, viewsThatChanged } from './visibleViews';
@@ -48,4 +50,43 @@ export async function keepNeverSettled(sceneId: string, unfocused: string[]): Pr
   await new Promise((resolve) => setTimeout(resolve, BETWEEN_LOOKS_MS));
   const changing = viewsThatChanged(before, await lookAtViews());
   neverSettledByScene.set(sceneId, { route: reachedRoute(), changing, unfocused });
+}
+
+/** The scene's settle ran out of time: its route is kept with no views named, as none were looked at. */
+export function keepNeverSettledUnlooked(sceneId: string): void {
+  neverSettledByScene.set(sceneId, { route: reachedRoute(), changing: [], unfocused: [] });
+}
+
+/**
+ * The longest a scene's whole stillness check may take, on a real timer (never the mocked clock).
+ * Above ready (30 s) and settle (20 s), below the 45 s the runner waits for a snapshot request.
+ */
+const SCENE_STILLNESS_CAP_MS = 35_000;
+
+/**
+ * `settling`, unless it outlasts SCENE_STILLNESS_CAP_MS: then false, as a settle that ran out of
+ * time answers. The scene is kept as never settled with its route and no views named, as none were
+ * looked at (the read that hung may be among them). A late end of `settling` changes nothing.
+ */
+export function cappedAtTheSceneLimit(
+  sceneId: string,
+  settling: Promise<boolean>
+): Promise<boolean> {
+  return new Promise<boolean>((resolve, reject) => {
+    const cap = setTimeout(() => {
+      if (!readStoryError(sceneId)) keepNeverSettledUnlooked(sceneId);
+      RunnerBridge.log('scene stillness check capped', { storyId: sceneId });
+      resolve(false);
+    }, SCENE_STILLNESS_CAP_MS);
+    settling.then(
+      (settled) => {
+        clearTimeout(cap);
+        resolve(settled);
+      },
+      (error) => {
+        clearTimeout(cap);
+        reject(error);
+      }
+    );
+  });
 }

@@ -32,7 +32,12 @@ import { readStoryError, recordStoryError } from './getStorybook/storyErrorRegis
 import { markStorySettled } from './mocking/registry';
 import type { NativeCalls } from './sealedCore/seam';
 import { watchForFatalError } from './fatalErrorWatch';
-import { forgetNeverSettled, keepNeverSettled, waitForFocusedField } from './neverSettled';
+import {
+  forgetNeverSettled,
+  keepNeverSettled,
+  cappedAtTheSceneLimit,
+  waitForFocusedField,
+} from './neverSettled';
 import { playSteps } from './playSteps';
 import { reachedRoute } from './reachedScreen';
 import { isDrawn } from './visibleViews';
@@ -142,43 +147,51 @@ export function stabilizeOnceReady<
 >(native: Native): Native {
   return {
     ...native,
-    stabilize: async (...settings: Parameters<NativeCalls['stabilize']>) => {
-      // The scene's mocks are in before anything judges its screen (a scene whose mocks were still
-      // installing was photographed with its steps skipped).
-      await mocksInstalled();
-      const scene = sceneToReady;
-      // A test run's core knows no steps: play them here, once, before the screen is judged. A
-      // missed step throws its own line (a capture's core has played them already).
-      if (scene && !scene.stepsBegan && (sceneOf(scene.sceneId)?.play?.length ?? 0) > 0) {
-        await playSteps(scene.sceneId);
-      }
-      const rule = scene && !scene.proven ? readyRuleOf(scene.sceneId) : undefined;
-      if (scene && rule) {
-        const ended = await waitUntilReady(scene.sceneId, rule, native.getViewVisibility);
-        // An error ends the wait and the stillness check runs, so the scene reports its own error.
-        if (ended !== 'errored' && ended.outcome === 'timed-out') throw new Error(ended.line);
-        scene.proven = true;
-      }
-      // A field meant to be focused is focused inside the same limit as the settle: the settle
-      // gets what the focus wait left of it.
-      const { unfocused, waitedMs } = scene
-        ? await waitForFocusedField(settings[3])
-        : { unfocused: [], waitedMs: 0 };
-      const restOfLimit = [...settings] as typeof settings;
-      restOfLimit[3] = Math.max(settings[3] - waitedMs, 0);
-      await SherloModule.holdAnimationsStill();
-      try {
-        const settled = (await native.stabilize(...restOfLimit)) && unfocused.length === 0;
-        if (scene && !settled && !readStoryError(scene.sceneId)) {
-          await keepNeverSettled(scene.sceneId, unfocused);
-        }
-        return settled;
-      } finally {
-        // The screen is judged: every read the scene's render makes is in (./mocking/activateStoryMocks).
-        markStorySettled();
-      }
+    stabilize: (...settings: Parameters<NativeCalls['stabilize']>) => {
+      const sceneId = sceneToReady?.sceneId;
+      const settling = settleOnceReady(native, settings);
+      return sceneId && sceneOf(sceneId) ? cappedAtTheSceneLimit(sceneId, settling) : settling;
     },
   };
+}
+
+async function settleOnceReady<
+  Native extends Pick<NativeCalls, 'stabilize'> & { getViewVisibility?: ReadVisibility },
+>(native: Native, settings: Parameters<NativeCalls['stabilize']>): Promise<boolean> {
+  // The scene's mocks are in before anything judges its screen (a scene whose mocks were still
+  // installing was photographed with its steps skipped).
+  await mocksInstalled();
+  const scene = sceneToReady;
+  // A test run's core knows no steps: play them here, once, before the screen is judged. A
+  // missed step throws its own line (a capture's core has played them already).
+  if (scene && !scene.stepsBegan && (sceneOf(scene.sceneId)?.play?.length ?? 0) > 0) {
+    await playSteps(scene.sceneId);
+  }
+  const rule = scene && !scene.proven ? readyRuleOf(scene.sceneId) : undefined;
+  if (scene && rule) {
+    const ended = await waitUntilReady(scene.sceneId, rule, native.getViewVisibility);
+    // An error ends the wait and the stillness check runs, so the scene reports its own error.
+    if (ended !== 'errored' && ended.outcome === 'timed-out') throw new Error(ended.line);
+    scene.proven = true;
+  }
+  // A field meant to be focused is focused inside the same limit as the settle: the settle
+  // gets what the focus wait left of it.
+  const { unfocused, waitedMs } = scene
+    ? await waitForFocusedField(settings[3])
+    : { unfocused: [], waitedMs: 0 };
+  const restOfLimit = [...settings] as typeof settings;
+  restOfLimit[3] = Math.max(settings[3] - waitedMs, 0);
+  await SherloModule.holdAnimationsStill();
+  try {
+    const settled = (await native.stabilize(...restOfLimit)) && unfocused.length === 0;
+    if (scene && !settled && !readStoryError(scene.sceneId)) {
+      await keepNeverSettled(scene.sceneId, unfocused);
+    }
+    return settled;
+  } finally {
+    // The screen is judged: every read the scene's render makes is in (./mocking/activateStoryMocks).
+    markStorySettled();
+  }
 }
 
 /* ========================================================================== */
