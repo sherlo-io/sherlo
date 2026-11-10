@@ -94,8 +94,7 @@ export async function openAndEndTheTest({
   } catch (error) {
     const refused = refusedAtOpen?.(error);
     if (refused) return refused;
-    handleClientError(error, token); // always throws
-    throw error; // unreachable - satisfies control flow / typing
+    return await handleClientError(error, token); // always throws
   }
 
   const buildIndex = openBuildReturn.build.index;

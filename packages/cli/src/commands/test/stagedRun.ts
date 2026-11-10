@@ -151,10 +151,13 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
   const buildTheRefusedPlatforms = (
     { refusals, storedBuildIndexOf }: Pick<GateAnswers, 'refusals' | 'storedBuildIndexOf'>,
     /** The git read the gate's ask made, when it made one: handed on so git is read once. */
-    gitInfo?: GitInfo
+    gitInfo?: GitInfo,
+    /** True when no gate question has been asked, so the build road proves login and project first. */
+    proveLoginFirst?: boolean
   ): Promise<{ url: string }> =>
     buildThenPush({
       gitInfo,
+      proveLoginFirst,
       passedOptions,
       credential: commandParams.credential,
       platformsToTest,
@@ -170,14 +173,18 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     (platform) => baseFingerprints[platform] === undefined
   );
   if (aPlatformHasNoFingerprint) {
-    return buildTheRefusedPlatforms({
-      refusals: platformsToTest.map((platform) => ({
-        outcome: 'not-stageable',
-        platform,
-        diff: [],
-      })),
-      storedBuildIndexOf: {},
-    });
+    return buildTheRefusedPlatforms(
+      {
+        refusals: platformsToTest.map((platform) => ({
+          outcome: 'not-stageable',
+          platform,
+          diff: [],
+        })),
+        storedBuildIndexOf: {},
+      },
+      undefined,
+      true
+    );
   }
 
   // 6. THE ROUTING GATE, before anything is built (SHERLO-1692). The fingerprint
