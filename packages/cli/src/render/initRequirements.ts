@@ -15,10 +15,20 @@ export function renderRequirementsTitle(): string[] {
   ];
 }
 
-/** The two things the checks found. */
-export function renderRequirementsMet(): string[] {
+/** What the checks found: React Native always, Storybook when the app has it. */
+export function renderRequirementsMet(appHasStorybook: boolean): string[] {
   return [
     renderCheckLine({ type: 'success', message: 'React Native' }),
-    renderCheckLine({ type: 'success', message: 'Storybook' }),
+    ...(appHasStorybook ? [renderCheckLine({ type: 'success', message: 'Storybook' })] : []),
+  ];
+}
+
+/** The line for an app with no Storybook, when scenes are on: setup goes on without it. */
+export function renderScenesNeedNoStorybook(): string[] {
+  return [
+    renderCheckLine({
+      type: 'success',
+      message: 'No Storybook found - scenes need none, so setup skips the Storybook steps',
+    }),
   ];
 }

@@ -31,6 +31,9 @@ export function rememberedScenesFlag(): 'on' | 'off' | undefined {
 export async function decideScenesForProject(configProject: unknown): Promise<void> {
   try {
     const login = savedLogins().read(getEndpointUrl());
+    // A `--token` run with no saved login lands here and reads off: no service call answers the
+    // flag for a project token (only `listTeams` does, and it takes a personal token). So such a
+    // run is refused for an app with no Storybook, even when the team has scenes on.
     if (!login) {
       answered = false;
       return;
