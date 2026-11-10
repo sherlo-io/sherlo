@@ -363,6 +363,34 @@ describe('a scene is captured and opened live', () => {
     });
   });
 
+  it('a never-settled scene answer keeps every unanswered request and every changing component', () => {
+    // What the app answers for the capture-scene-never-settled pose, in both of its shapes.
+    const changing = ['IntroVideo', 'LoadingSpinner'];
+    const unanswered = [
+      {
+        method: 'POST',
+        url: 'https://api.example.com/graphql',
+        library: '@apollo/client',
+        operation: 'FeedHome',
+        rule: 'no-fake-matched',
+      },
+      { method: 'GET', url: 'https://cdn.example.com/intro.mp4', rule: 'no-fake-matched' },
+    ];
+    const told = { sceneId: SCENE, changing, unanswered };
+    const answers = [
+      { kind: 'never-settled', ...told, bootMs: 900, route: ['Feed'], unfocused: [] },
+      { ...SCENE_RECORD, ...told, settled: 'timed-out' },
+    ];
+
+    for (const answer of answers) {
+      expect(readSceneAnswer(answer, SCENE)).toMatchObject({
+        kind: 'never-settled',
+        changing,
+        unanswered,
+      });
+    }
+  });
+
   it("a captured scene's answer keeps the phone's density and font scale", () => {
     const ending = readSceneAnswer({ ...SCENE_RECORD, density: 2.625, fontScale: 1.3 }, SCENE);
 
