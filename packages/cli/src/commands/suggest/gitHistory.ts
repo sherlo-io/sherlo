@@ -8,7 +8,7 @@
  *
  * Fix commits count only when at least FIX_SHARE of the repo's commit subjects are `fix:` ones:
  * a repo that does not write them that way would be ranked on a handful of lucky matches. A
- * shallow clone has one commit to read, so it is ranked on the code alone and says so.
+ * shallow clone is read as far as it goes, and says its history may be cut.
  */
 import { workstation } from '../../seams/workstation';
 import type { FileHistory } from './suggestItems';
@@ -24,14 +24,15 @@ export async function gitHistory(
 ): Promise<{ history: Map<string, FileHistory>; shallow: boolean }> {
   const history = new Map<string, FileHistory>();
   let output: string;
+  let shallow: boolean;
   try {
-    const shallow = (
-      await workstation().readGit({
-        command: 'git rev-parse --is-shallow-repository',
-        projectRoot,
-      })
-    ).trim();
-    if (shallow === 'true') return { history, shallow: true };
+    shallow =
+      (
+        await workstation().readGit({
+          command: 'git rev-parse --is-shallow-repository',
+          projectRoot,
+        })
+      ).trim() === 'true';
   } catch {
     return { history, shallow: false };
   }
@@ -44,7 +45,7 @@ export async function gitHistory(
     });
   } catch {
     // Not a git folder, or no commits: the plan ranks on the code alone.
-    return { history, shallow: false };
+    return { history, shallow };
   }
 
   type Commit = {
@@ -100,5 +101,5 @@ export async function gitHistory(
       history.set(file, entry);
     }
   }
-  return { history, shallow: false };
+  return { history, shallow };
 }

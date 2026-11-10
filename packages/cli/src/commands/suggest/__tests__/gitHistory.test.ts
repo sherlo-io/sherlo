@@ -18,15 +18,6 @@ function installGit(answers: Record<string, string>) {
 }
 
 describe('reading the git history of a project', () => {
-  it('says shallow, and reads no log, in a shallow clone', async () => {
-    installGit({ 'git rev-parse': 'true\n' });
-
-    const { history, shallow } = await gitHistory('/project');
-
-    expect(shallow).toBe(true);
-    expect(history.size).toBe(0);
-  });
-
   it('counts changes and reverts from the log', async () => {
     installGit({
       'git rev-parse': 'false\n',
@@ -59,6 +50,24 @@ describe('reading the git history of a project', () => {
 });
 
 describe('the git history suggest reads', () => {
-  it.todo("a shallow clone's history is read as far as it goes");
-  it.todo('a clone with no history at all still says it found none');
+  it("a shallow clone's history is read as far as it goes", async () => {
+    installGit({
+      'git rev-parse': 'true\n',
+      'git log': ['@@1000000\tadd a', '10\t0\ta.ts', ''].join('\n'),
+    });
+
+    const { history, shallow } = await gitHistory('/project');
+
+    expect(shallow).toBe(true);
+    expect(history.get('a.ts')).toEqual({ changes: 1, rework: 0, reverts: 0, fixes: 0 });
+  });
+
+  it('a clone with no history at all still says it found none', async () => {
+    installGit({ 'git rev-parse': 'true\n', 'git log': '' });
+
+    const { history, shallow } = await gitHistory('/project');
+
+    expect(shallow).toBe(true);
+    expect(history.size).toBe(0);
+  });
 });
