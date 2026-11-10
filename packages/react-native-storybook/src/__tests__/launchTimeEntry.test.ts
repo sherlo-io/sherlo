@@ -445,6 +445,25 @@ describe('the launch-time entry', () => {
     expect(ask(APP_SIDE_REQUEST).filePath).toContain('app-entry-original');
   });
 
+  it("in a release bundle the app's entry imported from the Storybook entry is the copy, not the launch entry served in its place", () => {
+    const root = defaultSetupRoot;
+    const storybookEntryFile = path.join(root, '.rnstorybook/index.js');
+    const ask = (dev: boolean, platform: string) =>
+      defaultSetupResolve(
+        {
+          originModulePath: storybookEntryFile,
+          resolveRequest: resolveRelativeFile,
+          dev,
+        } as Parameters<ResolveRequest>[0],
+        '../index',
+        platform
+      );
+
+    expect(ask(false, 'ios').filePath).toContain('app-entry-original');
+    expect(ask(true, 'ios').filePath).toBe(path.join(root, 'index.js'));
+    expect(ask(false, 'web').filePath).toBe(path.join(root, 'index.js'));
+  });
+
   it("a web bundle keeps the app's entry", () => {
     const root = defaultSetupRoot;
 

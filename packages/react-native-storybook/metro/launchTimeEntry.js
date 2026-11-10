@@ -262,9 +262,13 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
     if (isALaunchEntry && moduleName === STORYBOOK_SIDE_REQUEST && storybookEntry !== null) {
       return { type: 'sourceFile', filePath: storybookEntry };
     }
+    // The app's own code: in a release bundle the copy, since the app entry's file holds the
+    // launch entry there; else the app entry.
+    function theAppsOwnEntry(inReleaseBundle) {
+      return { type: 'sourceFile', filePath: inReleaseBundle ? appEntryCopy : appEntry };
+    }
     if (isALaunchEntry && moduleName === APP_SIDE_REQUEST) {
-      var isReleaseBundle = importer === appEntry || context.dev === false;
-      return { type: 'sourceFile', filePath: isReleaseBundle ? appEntryCopy : appEntry };
+      return theAppsOwnEntry(importer === appEntry || context.dev === false);
     }
 
     var resolution = resolveAsTheConfigDoes(context, moduleName, platform);
@@ -279,10 +283,13 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
       };
     }
 
+    // In a release bundle the app entry's file holds the launch entry, so any other import of it
+    // (the Storybook entry's require of '../index') gets the app's own code, the copy; the launch
+    // entry would lead back to the Storybook entry and the app would never start.
     if (!isTheStorybookEntry(resolution)) return resolution;
 
     if (namesTheAppEntry(context, moduleName, platform, appEntry)) {
-      return { type: 'sourceFile', filePath: appEntry };
+      return theAppsOwnEntry(context.dev === false && platform !== 'web');
     }
     throw new Error(storybookEntryImportedMessage(path.relative(projectRoot, importer)));
   }
