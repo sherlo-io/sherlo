@@ -159,6 +159,18 @@ const ENDINGS: Ending[] = [
     ],
   },
   {
+    ending: 'never settled, with no tree read before the limit',
+    answer: {
+      kind: 'captured',
+      storyId: STORY,
+      settled: 'timed-out',
+      tree: { primitive: '', components: [], children: [] },
+    },
+    prints: ['never stopped changing within 20s'],
+    // A tree never read is no view: drawn, it was an empty tag and a count of one.
+    silent: ['< />', '1 views'],
+  },
+  {
     ending: 'captured and threw',
     answer: {
       kind: 'captured',
