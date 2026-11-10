@@ -138,12 +138,18 @@ function recordingDevice(answers: Record<string, string> = {}): {
   return { ran, uninstall };
 }
 
-/** A device whose launch of the app runs `launch`, as the app's start on a real phone does. */
+/**
+ * A device whose launch of the app runs `launch`, as the app's start on a real phone does, and
+ * which reads back the bundler location the launch saved for the app, as a real simulator does.
+ */
 function launchingDevice(launch: () => Promise<void>): () => void {
+  let savedLocation = '';
   return installDeviceState({
     ...posedDeviceState(),
     run: async (tool, args) => {
       if (tool === 'xcrun' && args[1] === 'launch') await launch();
+      if (args.includes('RCT_jsLocation') && args.includes('write')) savedLocation = args.at(-1)!;
+      if (args.includes('RCT_jsLocation') && args.includes('read')) return savedLocation;
       return '';
     },
   });

@@ -88,6 +88,22 @@ const ENDINGS: Ending[] = [
     exits: EXIT_BLOCK,
   },
   {
+    ending: 'no app, as the app asks its bundler on another port and runs the code built into it',
+    answer: {
+      kind: 'no-app',
+      why: 'old-code',
+      detail: 'The app runs the code built into it',
+      appAsks: { platform: 'ios', port: 8089, udid: 'UDID-1', appId: 'com.example.chat' },
+    },
+    prints: [
+      ', and no Sherlo app is attached to it',
+      'The app asks for its bundler on port 8089, not 8081',
+      'xcrun simctl spawn UDID-1 defaults write com.example.chat RCT_jsLocation localhost:8081',
+    ],
+    silent: ['The app runs the code built into it', 'Open the app on a device or simulator'],
+    exits: EXIT_BLOCK,
+  },
+  {
     ending: 'no such story',
     answer: { kind: 'no-such-story', known: ['foundation-typography--scales'] },
     prints: ['in this app', 'This app has:', '  foundation-typography--scales'],
