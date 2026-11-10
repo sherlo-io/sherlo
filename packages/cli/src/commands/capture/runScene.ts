@@ -43,6 +43,7 @@ import { nameSendersByCode } from '../../seams/senderByCode';
 import { symbolicateStacks } from '../../seams/symbolicateStack';
 import { incompleteIfRefused } from '../../seams/liveScene';
 import type { SceneCaptureResult } from '../../seams/liveScene';
+import { relaunchWithNoScene } from '../../seams/launchScene';
 import type { WholeScroll } from '../../seams/scrollParts';
 import type { ScenePicture } from '../../render/capturedScene';
 import type { CaptureOptions } from './captureOptions';
@@ -168,6 +169,8 @@ async function runOpenScene(
     }
   } finally {
     await restore?.();
+    // The put-back closed the app: it starts again on the bundler, so a story capture reaches it.
+    if (restore && isTarget(target)) await relaunchWithNoScene(target, port);
   }
   const saved = picture && !picture.error && sceneCameUp(answer) ? { png: picture.path } : {};
   const listed = discover ? { discover: true } : {};

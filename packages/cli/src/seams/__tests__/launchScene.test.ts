@@ -1,7 +1,7 @@
 /** LAUNCHING THE APP ON A SCENE (../launchScene) - what the phone is told to start the app with. */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installDeviceState, posedDeviceState } from '../deviceState';
-import { launchFresh } from '../launchScene';
+import { launchFresh, relaunchWithNoScene } from '../launchScene';
 
 describe('launching the app fresh on a scene', () => {
   let uninstall = () => {};
@@ -66,5 +66,75 @@ describe('launching the app fresh on a scene', () => {
         8081
       )
     ).rejects.toThrow('No activity found');
+  });
+
+  it('after a scene capture the app is relaunched with no scene named, so a reload starts in testing mode', async () => {
+    const ios = phoneRecording({
+      get_app_container: '/apps/Chat.app\n',
+      plutil: '"CFBundleURLSchemes" => [ 0 => "exp+chat" ]',
+    });
+    await relaunchWithNoScene(
+      { device: { platform: 'ios', udid: 'SIM-1' }, app: { id: 'com.example.app' } },
+      8082
+    );
+    // The put-back already closed the app; the development launcher's menu is kept off the screen.
+    expect(ios.filter((line) => line.includes('terminate'))).toEqual([]);
+    expect(ios.filter((line) => line.includes('defaults write'))).toEqual([
+      'xcrun simctl spawn SIM-1 defaults write com.example.app EXDevMenuIsOnboardingFinished -bool YES',
+      'xcrun simctl spawn SIM-1 defaults write com.example.app EXDevMenuShowsAtLaunch -bool NO',
+      'xcrun simctl spawn SIM-1 defaults write com.example.app EXDevMenuShowFloatingActionButton -bool NO',
+    ]);
+    expect(ios.at(-1)).toBe(
+      'xcrun simctl launch SIM-1 com.example.app --initialUrl ' +
+        'exp+chat://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8082'
+    );
+
+    const android = phoneRecording({
+      'resolve-activity': 'priority=0\ncom.example.app/.MainActivity\n',
+    });
+    await relaunchWithNoScene(
+      { device: { platform: 'android', serial: 'emulator-5554' }, app: { id: 'com.example.app' } },
+      8081
+    );
+    expect(android.filter((line) => /force-stop|run-as|reverse/.test(line))).toEqual([]);
+    expect(android.at(-1)).toBe(
+      'adb -s emulator-5554 shell am start -n com.example.app/.MainActivity ' +
+        '-a android.intent.action.MAIN -c android.intent.category.LAUNCHER'
+    );
+
+    const launcher = phoneRecording({
+      'resolve-activity': 'priority=0\ncom.example.app/.MainActivity\n',
+      dumpsys: 'expo.modules.devlauncher.launcher.DevLauncherActivity\n  exp+chat\n',
+    });
+    await relaunchWithNoScene(
+      { device: { platform: 'android', serial: 'emulator-5554' }, app: { id: 'com.example.app' } },
+      8081
+    );
+    expect(launcher.filter((line) => line.includes('run-as'))).toHaveLength(1);
+    expect(launcher.at(-1)).toContain('-a android.intent.action.VIEW -d');
+    expect(launcher.at(-1)).not.toContain('sherloCapture');
+  });
+
+  it('a phone that refuses the relaunch leaves the scene capture as it ended, and says to start the app by hand', async () => {
+    phoneRecording({ 'resolve-activity': 'No activity found' });
+    const told = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+
+    try {
+      await expect(
+        relaunchWithNoScene(
+          {
+            device: { platform: 'android', serial: 'emulator-5554' },
+            app: { id: 'com.example.app' },
+          },
+          8081
+        )
+      ).resolves.toBeUndefined();
+      expect(told).toHaveBeenCalledWith(
+        'Sherlo could not start the app again after the scene (No activity found). ' +
+          'Start it by hand before you capture a story.\n'
+      );
+    } finally {
+      told.mockRestore();
+    }
   });
 });
