@@ -16,6 +16,7 @@ import {
   PNG_OPTION,
   SCENE_OPTION,
   STOP_ON_REPEAT_OPTION,
+  SUGGEST_COMMAND,
 } from '../constants';
 import { projectFiles } from '../seams/projectFiles';
 import { workstation } from '../seams/workstation';
@@ -38,21 +39,27 @@ export const SCENE_OPTION_DEFINITION: Record<string, [string, string]> = {
   ],
 };
 
+/** Whether scenes are on for this run: off only when the service answered "no" for the team. */
+export function scenesOn(): boolean {
+  return workstation().scenesFlag() !== 'off';
+}
+
 /** The scene options `open` takes: none for a team with scenes off. */
 export function openSceneOptions(): string[] {
-  return workstation().scenesFlag() === 'off' ? [] : [SCENE_OPTION];
+  return scenesOn() ? [SCENE_OPTION] : [];
 }
 
 /** The scene options `capture` takes (`--png` only goes with a scene): none with scenes off. */
 export function captureSceneOptions(): string[] {
-  return workstation().scenesFlag() === 'off'
+  return !scenesOn()
     ? []
     : [SCENE_OPTION, ALL_SCENES_OPTION, STOP_ON_REPEAT_OPTION, DISCOVER_OPTION, PNG_OPTION];
 }
 
 /** Ask for the team of the project the config in the working folder names, if a command needs it. */
 export async function decideScenesBeforeCommands(args: string[]): Promise<void> {
-  if (!args.some((arg) => arg === OPEN_COMMAND || arg === CAPTURE_COMMAND)) return;
+  const asking = [OPEN_COMMAND, CAPTURE_COMMAND, SUGGEST_COMMAND];
+  if (!args.some((arg) => asking.includes(arg))) return;
 
   const configProject = readProjectJson(projectFiles().root(), DEFAULT_CONFIG_FILENAME)?.project;
   await workstation().askScenesFlag(configProject);

@@ -130,12 +130,12 @@ function commandScansTheApp(argv: string[]): boolean {
 
 /** `sherlo login` opens the browser, and so does `sherlo init` when it runs the login itself. */
 function commandOpensTheBrowser(argv: string[]): boolean {
-  return argv[0] === 'login' || argv[0] === 'init' || argv[0] === 'capture-report';
+  return argv[0] === 'login' || argv[0] === 'init' || argv[0] === 'preview';
 }
 
-/** `sherlo capture-report` is the only command that serves a page. */
+/** `sherlo preview` is the only command that serves a page. */
 function commandServesAPage(argv: string[]): boolean {
-  return argv[0] === 'capture-report';
+  return argv[0] === 'preview';
 }
 
 /**
@@ -143,7 +143,7 @@ function commandServesAPage(argv: string[]): boolean {
  * it. The five that send no credential at all never read one.
  */
 function commandReadsSavedLogins(argv: string[]): boolean {
-  return !['open', 'capture', 'capture-report', 'coverage', 'fingerprint', 'show-error'].includes(
+  return !['open', 'capture', 'preview', 'coverage', 'fingerprint', 'show-error'].includes(
     argv[0] ?? ''
   );
 }

@@ -13,9 +13,10 @@ import {
   teamCreate,
   teamList,
   capture,
-  captureReport,
   coverage,
   open,
+  preview,
+  suggest,
   test,
   view,
 } from './commands';
@@ -63,16 +64,18 @@ import {
   VIEW_COMMAND,
   OPEN_COMMAND,
   CAPTURE_COMMAND,
-  CAPTURE_REPORT_COMMAND,
+  PREVIEW_COMMAND,
+  SUGGEST_COMMAND,
+  ALL_OPTION,
+  DIR_OPTION,
+  FACTS_OPTION,
   COVERAGE_COMMAND,
   JSON_OPTION,
   LOGS_OPTION,
-  PNG_OPTION,
   PROPS_OPTION,
   STORY_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
-  DEFAULT_BUNDLER_PORT,
   WAIT_OPTION,
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
@@ -83,6 +86,7 @@ import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, withCommandTimeout } from './helpers';
+import { LOCAL_COMMAND_OPTION_DEFINITION, SUGGEST_DESCRIPTION } from './helpers/localCommandHelp';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import {
   captureSceneOptions,
@@ -130,7 +134,8 @@ async function start() {
     addOpenCommand(program);
     addCaptureCommand(program);
     addCoverageCommand(program);
-    addCaptureReportCommand(program);
+    addSuggestCommand(program);
+    addPreviewCommand(program);
     addDevtoolsCommands(program);
 
     if (process.argv.length === 2) {
@@ -195,11 +200,12 @@ const COMMAND_DESCRIPTION = {
     `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
     `  includes Sherlo's log from the app; \`--${LOGS_OPTION}\` prints that log on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
-  [CAPTURE_REPORT_COMMAND]:
+  [PREVIEW_COMMAND]:
     'Open the review page over the captures kept on this computer, and keep it up to date.\n' +
     '  Serves the page from your machine: no login, no network, nothing leaves it.\n' +
     `  \`--${JSON_OPTION}\` prints the same facts once as data for a program to read, and\n` +
     '  opens nothing.',
+  [SUGGEST_COMMAND]: SUGGEST_DESCRIPTION,
   [COVERAGE_COMMAND]:
     'List the components no story draws, the most imported first.\n' +
     '  Reads your source files: no bundler, no phone, no login. A component only a story\n' +
@@ -326,27 +332,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     'The story to put on screen, by the id Storybook gives it (e.g. foundation-typography--scales)',
   ],
   ...SCENE_OPTION_DEFINITION,
-  [PORT_OPTION]: [
-    `--${PORT_OPTION} <port>`,
-    `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
-  ],
-  [JSON_OPTION]: [`--${JSON_OPTION}`, 'Print the whole record as JSON instead of a screen'],
-  [LOGS_OPTION]: [
-    `--${LOGS_OPTION}`,
-    "Print Sherlo's latest log lines from the app not shown before (at most 1000)",
-  ],
-  [PNG_OPTION]: [
-    `--${PNG_OPTION} <path>`,
-    'Save the screen as Sherlo captured it to this path (a PNG file)',
-  ],
-  [PROPS_OPTION]: [
-    `--${PROPS_OPTION}`,
-    'Also read the story files and list the prop values no story file sets',
-  ],
-  [TIMEOUT_OPTION]: [
-    `--${TIMEOUT_OPTION} <seconds>`,
-    `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
-  ],
+  ...LOCAL_COMMAND_OPTION_DEFINITION,
   /*
    * ONE ENTRY FOR ONE FLAG. `--wait` is the same word on `test`, `view` and `open`, so it is one
    * key here whatever each command does with it - the table is keyed by the flag a person types.
@@ -421,13 +407,24 @@ function addCaptureCommand(program: Command) {
 
 // Reads only the captures kept in the project folder (../seams/localCaptures) and serves them to
 // the person's own browser; `withTimeout: false` because it runs until the person stops it.
-function addCaptureReportCommand(program: Command) {
+function addPreviewCommand(program: Command) {
   addCommand({
     program,
-    command: CAPTURE_REPORT_COMMAND,
+    command: PREVIEW_COMMAND,
     options: [JSON_OPTION],
-    action: captureReport,
+    action: preview,
     withTimeout: false,
+  });
+}
+
+// Ranks what to test next from the app's source files and its git history (../seams/coverageScan
+// reads the files).
+function addSuggestCommand(program: Command) {
+  addCommand({
+    program,
+    command: SUGGEST_COMMAND,
+    options: [DIR_OPTION, ALL_OPTION, FACTS_OPTION, JSON_OPTION],
+    action: suggest,
   });
 }
 

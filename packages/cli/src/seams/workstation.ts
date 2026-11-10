@@ -83,6 +83,9 @@ export type Workstation = {
   /** Ask the service about that team and keep the answer for `scenesFlag()`; a pose asks nothing. */
   askScenesFlag(configProject: unknown): Promise<void>;
 
+  /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
+  readGit(params: { command: string; projectRoot: string }): Promise<string>;
+
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
 
@@ -137,20 +140,14 @@ export const liveWorkstation: Workstation = {
   scenesFlag: rememberedScenesFlag,
   askScenesFlag: decideScenesForProject,
 
+  readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
+
   /**
-   * Is there a human at the keyboard who could actually press Enter?
-   *
-   * TWO CONDITIONS, AND THE SECOND ONE IS NOT REDUNDANT. `isTTY` alone answers "is stdin a
-   * terminal", which is NOT the same question - plenty of automation runs the CLI under a
-   * pseudo-terminal: `docker run -t`, `script(1)`, expect, and any tool that records terminal
-   * output. Under one of those, stdin IS a tty and yet nobody is watching. Worse, such a stdin
-   * usually reaches EOF immediately, and a pty signals EOF by delivering the end-of-transmission
-   * byte (4) - which `readEnterPress` below reads as CTRL+D and treats as a deliberate cancel. So
-   * `sherlo init` in a pty-allocating pipeline did not merely hang: it printed the prompt and then
-   * failed the setup with "Setup cancelled", leaving no sherlo.config.json behind.
-   *
-   * `CI` is the standard opt-out every mature CLI honours for exactly this, and it is set by
-   * GitHub Actions, GitLab, CircleCI, Travis and Buildkite alike.
+   * Is there a human at the keyboard who could actually press Enter? `isTTY` alone is not enough:
+   * automation runs the CLI under a pseudo-terminal (`docker run -t`, `script(1)`, expect) where
+   * stdin IS a tty and nobody is watching, and its EOF arrives as the byte `readEnterPress` reads
+   * as CTRL+D, a deliberate cancel - so setup would fail with "Setup cancelled". `CI` is the
+   * standard opt-out for exactly this (GitHub Actions, GitLab, CircleCI, Travis, Buildkite).
    */
   somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
 
@@ -349,6 +346,9 @@ export function posedWorkstation(
 
     scenesFlag: () => posed?.scenes,
     askScenesFlag: async () => {},
+
+    // A pose states no git history: a read of it fails as in a folder that is not a git folder.
+    readGit: () => Promise.reject(new Error('the pose holds no git history')),
 
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard
