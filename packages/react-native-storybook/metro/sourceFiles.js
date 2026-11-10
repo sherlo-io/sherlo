@@ -20,16 +20,28 @@ var SOURCE_EXTENSIONS_JAVASCRIPT_FIRST = SOURCE_EXTENSIONS.filter(isJavaScriptEx
 );
 
 /**
+ * The extensions an order names, each with its dot: a bundler's own list (Metro's
+ * `resolver.sourceExts`, written without dots) is taken as it is.
+ */
+function extensionsInOrder(order) {
+  if (Array.isArray(order)) {
+    return order.map(function (extension) {
+      return '.' + extension;
+    });
+  }
+  return order === 'javascript-first' ? SOURCE_EXTENSIONS_JAVASCRIPT_FIRST : SOURCE_EXTENSIONS;
+}
+
+/**
  * `basePath` with each source extension added, in the order asked for.
  *
  * @param {string} basePath - a path without an extension, such as `/project/index`
- * @param {'typescript-first'|'javascript-first'} order
+ * @param {'typescript-first'|'javascript-first'|string[]} order - one of the two named orders, or
+ *   a bundler's own list of extensions without dots (Metro's `resolver.sourceExts`)
  * @returns {string[]}
  */
 function sourceFileCandidates(basePath, order) {
-  var extensions =
-    order === 'javascript-first' ? SOURCE_EXTENSIONS_JAVASCRIPT_FIRST : SOURCE_EXTENSIONS;
-  return extensions.map(function (extension) {
+  return extensionsInOrder(order).map(function (extension) {
     return basePath + extension;
   });
 }
@@ -43,7 +55,7 @@ function isExistingFile(filePath) {
  * The first of `basePath` with a source extension that is a file on disk, in the order asked for.
  *
  * @param {string} basePath - a path without an extension, such as `/project/index`
- * @param {'typescript-first'|'javascript-first'} order
+ * @param {'typescript-first'|'javascript-first'|string[]} order - as sourceFileCandidates takes it
  * @returns {string|null} the path as found, or null when there is none
  */
 function firstExistingSourceFile(basePath, order) {

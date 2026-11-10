@@ -10,6 +10,7 @@ var whatThisBuildCarries = require('./sherloBuild').whatThisBuildCarries;
 var detectStorybookSetup = require('./detectStorybookSetup').detectStorybookSetup;
 var findStorybookEntry = require('./detectStorybookSetup').findStorybookEntry;
 var applyLaunchTimeEntry = require('./launchTimeEntry').applyLaunchTimeEntry;
+var applyCodeStampPolyfill = require('./launchTimeEntry').applyCodeStampPolyfill;
 var writeBundledScenesModule = require('./sceneFiles').writeBundledScenesModule;
 var keepSceneListCurrent = require('./sceneFiles').keepSceneListCurrent;
 var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
@@ -153,7 +154,7 @@ function withStorybookOnTheDefaultSetup(config, opts, storybookEntry, sherloBuil
   // Must run before Storybook's wrapper returns a config to Metro: see ensureStorybookRequires.js.
   ensureStorybookRequires(projectRoot, storybookOptions);
   var withStorybookOn = loadNewerStorybookWrapper(projectRoot)(config, storybookOptions);
-  var withSherlo = applySherloTransforms(withStorybookOn, storybookOptions);
+  var withSherlo = applySherloTransforms(withStorybookOn, storybookOptions, config);
   return withSceneBoot(applyLaunchTimeEntry(withSherlo, storybookEntry, sherloBuild));
 }
 
@@ -312,7 +313,8 @@ function withStorybook(config, opts) {
   // requires file already exists.
   ensureStorybookRequires(projectRoot, storybookOptions);
   var result = loadOldSetupStorybookWrapper()(config, storybookOptions);
-  return withSceneBoot(applySherloTransforms(result, storybookOptions));
+  var withSherlo = applySherloTransforms(result, storybookOptions, config);
+  return withSceneBoot(isReleaseBundle() ? withSherlo : applyCodeStampPolyfill(withSherlo));
 }
 
 function isPromise(value) {
