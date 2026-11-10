@@ -890,6 +890,24 @@ describe('computeBaseFingerprint', () => {
     }
   });
 
+  // An answer of a shape this code does not read fails after the library returned, past Layer 1.
+  it('a fingerprint that fails gives a reason, not an error', async () => {
+    mockCreateFingerprintAsync.mockResolvedValue({ hash: 'fp-layer1-abc123', sources: [null] });
+    const dir = makeTempDir();
+    try {
+      writeFile(dir, 'package.json', JSON.stringify({ name: 'test' }));
+
+      const result = await computeBaseFingerprint(dir);
+
+      for (const platform of ['android', 'ios'] as const) {
+        expect(result[platform].hash).toBeNull();
+        expect(result[platform].debugMessage).toMatch(/^the fingerprint failed: .*null/);
+      }
+    } finally {
+      cleanup(dir);
+    }
+  });
+
   // The fileHookTransform correctly strips version lines.
   it('fileHookTransform strips version lines from plist files', async () => {
     // Import the transform factory to test in isolation.

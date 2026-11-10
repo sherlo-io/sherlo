@@ -138,9 +138,16 @@ async function uploadOrReuseBuildsAndRunTests({
 
   const command = TEST_COMMAND;
 
+  // Built just now from this tree but not fingerprinted: no base to splice against, so it renders
+  // the JS bundle built into it, which is this tree's own.
+  const builtWithoutFingerprint = platformsNamedIn(appBuildPaths).filter(
+    (p) => !fingerprints[p].hash && ['compiled', 'command'].includes(appBuilds[p]?.madeBy ?? '')
+  );
+  const whyNoFingerprint = (p: Platform) =>
+    fingerprints[p].debugMessage ?? 'fingerprint computation failed';
   /** Every platform this push renders a fresh bundle for: the built ones, then the stored ones. */
   const platformsToBundle: Platform[] = [
-    ...platformsNamedIn(appBuildPaths),
+    ...platformsNamedIn(appBuildPaths).filter((p) => !builtWithoutFingerprint.includes(p)),
     ...platformsOnStoredBuild,
   ];
 
@@ -201,16 +208,11 @@ async function uploadOrReuseBuildsAndRunTests({
   // ------------------------------------------------------------------
   const nativeFingerprint = fingerprints.android.nativeFingerprint;
 
-  // The platforms this push uploads an app build for. Each is registered as the
-  // native base below and rendered with a fresh bundle.
-  const uploadedPlatforms: Platform[] = [];
-  if (binariesInfo.android && appBuildPaths.android) uploadedPlatforms.push('android');
-  if (binariesInfo.ios && appBuildPaths.ios) uploadedPlatforms.push('ios');
-
-  /** A platform whose base fingerprint could not be computed - the run cannot name its base. */
-  const platformWithoutFingerprint = uploadedPlatforms.find(
-    (platform) => !fingerprints[platform].hash
-  );
+  // The platforms this push uploads an app build for and renders with a fresh bundle: each is
+  // registered as the native base below.
+  const uploadedPlatforms = platformsToBundle.filter((p) => binariesInfo[p] && appBuildPaths[p]);
+  /** A bundled platform with no base fingerprint: the run cannot name its base. */
+  const platformWithoutFingerprint = platformsToBundle.find((p) => !fingerprints[p].hash);
   /**
    * Every bundled platform's own base, a stored one's too: an uploaded platform's app build is
    * registered under its base, and a stored platform's is found by it.
@@ -264,11 +266,12 @@ async function uploadOrReuseBuildsAndRunTests({
         notSpliceableReasons[platform] = 'base registration failed';
       }
     }
-  } else {
+  }
+  if (builtWithoutFingerprint.length > 0) {
     logWarning({
-      message: `Staged uploads unavailable - ${
-        fingerprints[platformWithoutFingerprint].debugMessage ?? 'fingerprint computation failed'
-      }`,
+      message:
+        `Fingerprint skipped - ${whyNoFingerprint(builtWithoutFingerprint[0])}. The app ` +
+        'this run built is tested with its own JS bundle, and it is not kept in the build cache.',
     });
   }
 
@@ -284,23 +287,18 @@ async function uploadOrReuseBuildsAndRunTests({
     ...(splitJob ? { wholeTest: true } : {}),
   });
 
-  // THE RUN RENDERS A FRESHLY BUILT BUNDLE, OR IT DOES NOT RUN.
+  // A BUNDLED PLATFORM RENDERS ITS FRESHLY BUILT BUNDLE, OR THE RUN DOES NOT START.
   //
-  // The runner splices the bundle into the binary at the platform-default
-  // bundle path, so a binary that does not load a plain-JS bundle from that
-  // path cannot render it, and without a base fingerprint there is no base to
-  // name the splice against. Either way the binary's own embedded bundle would
-  // render instead - a run this command never performs - so the run is
-  // refused, naming every reason at once.
+  // The runner splices the bundle into the binary at the platform-default bundle path, so a binary
+  // that does not load a plain-JS bundle from that path cannot render it, and an app build this run
+  // did not just build, with no base fingerprint, has no base to name the splice against. Either
+  // way the binary's own, possibly stale, embedded bundle would render, so the run is refused,
+  // naming every reason at once.
   const reasons = uploadedPlatforms
     .filter((platform) => notSpliceableReasons[platform])
     .map((platform) => `${PLATFORM_LABEL[platform]}: ${notSpliceableReasons[platform]}`);
   if (platformWithoutFingerprint !== undefined) {
-    reasons.push(
-      `base fingerprint: ${
-        fingerprints[platformWithoutFingerprint].debugMessage ?? 'fingerprint computation failed'
-      }`
-    );
+    reasons.push(`base fingerprint: ${whyNoFingerprint(platformWithoutFingerprint)}`);
   }
   if (reasons.length > 0) {
     throwError({
@@ -315,18 +313,20 @@ async function uploadOrReuseBuildsAndRunTests({
 
   // The bundles first, then the app builds: a bundle the run refuses (one that holds no stories)
   // stops it before anything is uploaded.
-  const freshBundles = await uploadFreshBundles({
-    projectRoot: commandParams.projectRoot,
-    platforms: platformsToBundle,
-    platformsOnStoredBuild,
-    bundleDir: commandParams.bundleDir,
-    buildSettings: readBuildSettings(commandParams),
-    baseFingerprints: bundledBaseFingerprints,
-    projectIndex,
-    teamId,
-    phoneSides: phoneSidesOf(commandParams.projectRoot, platformsToBundle, fingerprints),
-    effects: io.freshBundle,
-  });
+  const freshBundles = platformsToBundle.length
+    ? await uploadFreshBundles({
+        projectRoot: commandParams.projectRoot,
+        platforms: platformsToBundle,
+        platformsOnStoredBuild,
+        bundleDir: commandParams.bundleDir,
+        buildSettings: readBuildSettings(commandParams),
+        baseFingerprints: bundledBaseFingerprints,
+        projectIndex,
+        teamId,
+        phoneSides: phoneSidesOf(commandParams.projectRoot, platformsToBundle, fingerprints),
+        effects: io.freshBundle,
+      })
+    : {};
   const platformsWithBundles = Object.keys(freshBundles) as Platform[];
 
   // A stored platform's gate facts come from its fresh bundle: the service checks that bundle fits
@@ -390,7 +390,7 @@ async function uploadOrReuseBuildsAndRunTests({
     // platform leaves the other's stored app build in use; each bundled platform's gate metadata,
     // an uploaded one's read from its binary and a stored one's from its fresh bundle; and the
     // source list of the uploaded platforms only, the ones that register a base.
-    ...(platformWithoutFingerprint === undefined
+    ...(platformsToBundle.length
       ? {
           baseFingerprints: bundledBaseFingerprints,
           buildSettingsDigests: buildSettingsDigestsOf(
