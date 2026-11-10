@@ -121,11 +121,7 @@ export function renderPlatformRow(row: PlatformRow): string[] {
           mark
         ),
         ...underTheRow(changeLines),
-        ...underTheRow(
-          row.podInstallSkipped
-            ? ['Pods are current (Pods/Manifest.lock matches Podfile.lock): pod install skipped']
-            : []
-        ),
+        ...underTheRow(podsAreCurrentNote(row.podInstallSkipped)),
         ...underTheRow(podFilesWarning(row.podFilesChanged ?? [])),
       ];
     }
@@ -323,6 +319,13 @@ function whatTheTestWaitsFor(waitingFor: TestWaitsFor): string {
 /** `🍎 iOS      ✔ Reused from Test 3` */
 function renderRow(label: string, words: string, mark: string = chalk.green('✔')): string {
   return `${label.padEnd(LABEL_WIDTH)}${mark} ${words}`;
+}
+
+/** The note under an iOS row whose build skipped pod install; nothing when it ran. */
+function podsAreCurrentNote(podInstallSkipped: true | undefined): string[] {
+  return podInstallSkipped
+    ? ['Pods are current (Pods/Manifest.lock matches Podfile.lock): pod install skipped']
+    : [];
 }
 
 /** Lines under a row, starting where its words start. */

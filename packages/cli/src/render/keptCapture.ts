@@ -9,15 +9,11 @@ import chalk from 'chalk';
 
 /** The line saying where the capture was kept. */
 export function renderKeptCapture(id: string, picture?: false): string[] {
-  if (picture === false) {
-    return [
-      chalk.dim(
-        `No picture was saved. Only the record of the attempt is in .sherlo/captures as ${id}`
-      ),
-      '',
-    ];
-  }
-  return [chalk.dim(`Kept in .sherlo/captures as ${id}`), ''];
+  const saved =
+    picture === false
+      ? `No picture was saved. Only the record of the attempt is in .sherlo/captures as ${id}`
+      : `Kept in .sherlo/captures as ${id}`;
+  return [chalk.dim(saved), ''];
 }
 
 /** The one line `sherlo capture --all-scenes` prints when the app declares no scene, so silence never reads as success. */
