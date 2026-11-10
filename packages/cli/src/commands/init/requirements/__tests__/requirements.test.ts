@@ -4,7 +4,11 @@ import { reporting } from '../../../../helpers';
 import { BLANKED } from '../../../../helpers/blankSecrets';
 import throwError from '../../../../helpers/throwError';
 import getPackageVersion from '../getPackageVersion';
-import requirements from '../requirements';
+import trackProgress from '../../helpers/trackProgress';
+import hasStorybook from '../hasStorybook';
+import requirements, { settleNoStorybook } from '../requirements';
+
+let scenesFlag: 'on' | 'off' | undefined;
 
 vi.mock('@sentry/node', () => ({
   init: vi.fn(),
@@ -17,7 +21,13 @@ vi.mock('@sentry/node', () => ({
 }));
 vi.mock('../validateProjectContext', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../validateHasReactNative', () => ({ default: vi.fn(async () => {}) }));
-vi.mock('../validateHasStorybook', () => ({ default: vi.fn(async () => {}) }));
+vi.mock('../hasStorybook', async (importActual) => ({
+  ...(await importActual<typeof import('../hasStorybook')>()),
+  default: vi.fn(async () => true),
+}));
+vi.mock('../../../../seams/workstation', () => ({
+  workstation: () => ({ scenesFlag: () => scenesFlag, askScenesFlag: async () => {} }),
+}));
 vi.mock('../validateHasWithStorybookInMetroConfig', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../validateCorePackagesVersions', () => ({ default: vi.fn(() => {}) }));
 vi.mock('../getPackageVersion', () => ({ default: vi.fn() }));
@@ -31,6 +41,7 @@ const PROJECT_KEY = `${'b'.repeat(32)}q7w5z1cd8`;
 describe('the checks setup runs before it changes anything', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(trackProgress).mockClear();
   });
 
   it('a rejected project key is reported without the key', () => {
@@ -50,6 +61,35 @@ describe('the checks setup runs before it changes anything', () => {
     expect(sent.stack).toContain(BLANKED);
     expect(sent.cause.message).toBe(`Upstream said no to ${BLANKED}`);
     expect(sent.cause.stack).not.toContain(PROJECT_KEY);
+  });
+
+  it('with scenes on, an app with no Storybook passes requirements and is told scenes need no Storybook', async () => {
+    scenesFlag = 'on';
+    vi.mocked(hasStorybook).mockResolvedValueOnce(false);
+    const printed = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(requirements({ sessionId: null })).resolves.toEqual({ appHasStorybook: false });
+    await settleNoStorybook({ teamId: 'k3j9x2ab', sessionId: null });
+
+    expect(printed.mock.calls.flat().join('\n')).toContain('scenes need none');
+    expect(vi.mocked(trackProgress).mock.calls.map(([call]) => call.params)).toEqual([
+      expect.not.objectContaining({ status: 'failed' }),
+    ]);
+  });
+
+  it('with scenes off, an app with no Storybook is refused as today', async () => {
+    scenesFlag = 'off';
+    vi.mocked(hasStorybook).mockResolvedValueOnce(false);
+    vi.spyOn(reporting, 'captureException').mockImplementation(() => {});
+
+    await expect(requirements({ sessionId: null })).resolves.toEqual({ appHasStorybook: false });
+    await expect(settleNoStorybook({ teamId: 'k3j9x2ab', sessionId: null })).rejects.toThrow(
+      'Set up Storybook before initializing Sherlo'
+    );
+
+    expect(vi.mocked(trackProgress).mock.calls.map(([call]) => call.params)).toEqual([
+      expect.objectContaining({ status: 'failed' }),
+    ]);
   });
 
   it('refuses a mistyped token without sending the token to the crash reporter', async () => {

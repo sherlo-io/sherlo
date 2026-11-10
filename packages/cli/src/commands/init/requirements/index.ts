@@ -1,1 +1,1 @@
-export { default } from './requirements';
+export { default, settleNoStorybook } from './requirements';
