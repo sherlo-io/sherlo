@@ -219,10 +219,7 @@ describe('what a release bundle carries', () => {
     for (const road of OFF_ROADS) {
       const { bundledModules } = bundleOfOffRoad.get(road.name)!;
       expect(bundledModules.length, road.name).toBeGreaterThan(0);
-      expect(sdkModulesIn(bundledModules), road.name).toEqual([
-        'offStandIn.js',
-        'preconditions.js',
-      ]);
+      expect(sdkModulesIn(bundledModules), road.name).toEqual(['offStandIn.js']);
       expect(storybookModulesIn(bundledModules), road.name).toEqual([]);
       const sherloCacheModules = bundledModules.filter((modulePath) =>
         modulePath.startsWith(sherloCacheFolder(root))

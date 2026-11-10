@@ -213,7 +213,9 @@ function sdkFileOfProject(projectRoot, relativePath) {
  * - Metro runs the SDK's early-boot module before the bundle's main module, after the modules the
  *   config already runs there: React Native's own start-up installs the globals (fetch,
  *   XMLHttpRequest, WebSocket) the network mocks wrap, so it must run first. Metro runs a listed
- *   module only when it is in the bundle; the SDK's entry imports it.
+ *   module only when it is in the bundle; the SDK's entry imports an empty slot
+ *   (src/sceneBootSlot.ts), which is answered with the early-boot module here, so a bundle with
+ *   scenes off holds no scene code.
  * - The SDK's import of its empty list of scenes (src/bundledScenes.ts) is answered with the
  *   project's own list, written now (sceneFiles.js, writeBundledScenesModule).
  *
@@ -226,6 +228,7 @@ function withSceneBoot(config, installWithNoScene) {
   var projectRoot = projectRootOf(config);
   var sceneBootModule = sdkFileOfProject(projectRoot, 'dist/sceneBoot.js');
   var emptySceneList = sdkFileOfProject(projectRoot, 'dist/bundledScenes.js');
+  var emptySceneBootSlot = sdkFileOfProject(projectRoot, 'dist/sceneBootSlot.js');
   if (!sceneBootModule || !emptySceneList) return config;
   var cacheDir = sherloCacheFolder(projectRoot);
   var sceneList = writeBundledScenesModule(projectRoot, cacheDir, installWithNoScene);
@@ -234,12 +237,18 @@ function withSceneBoot(config, installWithNoScene) {
   var resolveAsTheConfigDoes = applySherloTransforms.resolveThroughConfig(config);
   function resolveRequest(context, moduleName, platform) {
     var resolution = resolveAsTheConfigDoes(context, moduleName, platform);
-    var isTheEmptySceneList =
-      !!resolution &&
-      resolution.type === 'sourceFile' &&
-      path.basename(resolution.filePath) === path.basename(emptySceneList) &&
-      resolvesToFile(resolution, emptySceneList);
-    return isTheEmptySceneList ? { type: 'sourceFile', filePath: sceneList } : resolution;
+    function isTheFile(emptyFile) {
+      return (
+        !!emptyFile &&
+        !!resolution &&
+        resolution.type === 'sourceFile' &&
+        path.basename(resolution.filePath) === path.basename(emptyFile) &&
+        resolvesToFile(resolution, emptyFile)
+      );
+    }
+    if (isTheFile(emptySceneList)) return { type: 'sourceFile', filePath: sceneList };
+    if (isTheFile(emptySceneBootSlot)) return { type: 'sourceFile', filePath: sceneBootModule };
+    return resolution;
   }
 
   var serializer = config.serializer || {};
