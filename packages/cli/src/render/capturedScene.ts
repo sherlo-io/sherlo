@@ -24,7 +24,7 @@ import {
 } from './capturedStory';
 import type { CapturedView } from './capturedStory';
 import type { NoAppEnding } from './noAppLines';
-import { leftLines } from './sceneLeftLines';
+import { discoverLeftLines, neverSettledLeftLines, refusalLeftLines } from './sceneLeftLines';
 import { phoneNotAppliedLines } from './phoneNotAppliedLines';
 import { neverReachedLines } from './sceneDiagnosis';
 import { threwLines } from './threwLines';
@@ -219,7 +219,7 @@ function sceneLines(state: CapturedScene): string[] {
         )} failed after it booted - the capture stopped before it finished`,
         '',
         ...(state.error ? threwLines(state.error, undefined) : [chalk.dim(NOTHING_BEFORE_DEATH)]),
-        ...leftLines(state),
+        ...leftOfScene(state),
         '',
       ];
 
@@ -231,7 +231,7 @@ function sceneLines(state: CapturedScene): string[] {
         '',
         ...neverReachedLines(state),
         ...(state.discover && state.likelyCause ? likelyCauseLines(state.likelyCause) : []),
-        ...leftLines(state),
+        ...leftOfScene(state),
         '',
       ];
 
@@ -247,7 +247,7 @@ function sceneLines(state: CapturedScene): string[] {
         '',
         ...treeLines(state.tree),
         ...(state.threw ? ['', errorLine(state.threw)] : []),
-        ...leftLines({ ...state, pasteRules: true }),
+        ...leftOfScene(state, neverSettledLeftLines),
         '',
       ];
 
@@ -260,7 +260,7 @@ function sceneLines(state: CapturedScene): string[] {
         '',
         `  ${missedStep(state.missing)} within ${state.limitMs / 1000}s.`,
         ...(state.threw ? ['', errorLine(state.threw)] : []),
-        ...leftLines(state),
+        ...leftOfScene(state),
         '',
       ];
 
@@ -284,10 +284,21 @@ function sceneLines(state: CapturedScene): string[] {
         '',
         ...treeLines(state.tree),
         ...(state.threw ? ['', errorLine(state.threw)] : []),
-        ...leftLines(state),
+        ...leftOfScene(state),
         '',
       ];
   }
+}
+
+/**
+ * What the scene left behind, in the picture its capture's kind draws: a discover capture's list
+ * of rules (whatever its ending), else the ending's own picture, the refusal unless it says otherwise.
+ */
+function leftOfScene<State extends SceneLeft & { discover?: true }>(
+  state: State,
+  endingPicture: (state: State) => string[] = refusalLeftLines
+): string[] {
+  return state.discover ? discoverLeftLines(state) : endingPicture(state);
 }
 
 /** Why a scene that never got ready likely did not, in the words the record's causes map to. */

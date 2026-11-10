@@ -3,38 +3,42 @@
  * picture, each with its reason, and for a failed run the stage, the device and the cause.
  */
 import chalk from 'chalk';
+import type { BuildStatusAnswer } from '../seams/serverCalls';
 
-/** One story or scene a finished run ended with no picture for. `reason` is the service's sentence ("never settled"). */
-export type NoPicture = { kind: 'story' | 'scene'; name: string; device: string; reason: string };
+/** What the wire says of the screens a finished run ended with no picture for; the pose contract pins its shape, so it is named from there, not copied. */
+export type NoPicture = NonNullable<BuildStatusAnswer['noPicture']>[number];
 
-/** Why a run failed, as the service would name it: the stage, the device, the cause, a reference to quote, and whether it retried. */
-export type RunFailure = {
-  stage: string;
-  device: string;
-  cause: string;
-  reference: string;
-  retried: boolean;
-};
+/** What the wire says of a failed run; named from the wire for the same reason. */
+export type RunFailure = NonNullable<BuildStatusAnswer['runFailure']>;
 
-/** Every story and scene with no picture, so a green count never hides one. */
+/** Every story and scene with no picture (pose view-run-result), so a green count never hides one. */
 export function renderNoPictureList(entries: NoPicture[]): string[] {
-  const count = entries.length;
-  return [
-    chalk.yellow(`! ${count} ${count === 1 ? 'screen ended' : 'screens ended'} with no picture`),
-    ...entries.map(
-      (entry) =>
-        `   ${entry.kind === 'scene' ? 'Scene' : 'Story'} ${entry.name} on ${entry.device}: ${entry.reason}`
-    ),
-    '',
-  ];
+  return [noPictureCountLine(entries.length), ...entries.map(noPictureEntryLine), ''];
 }
 
-/** What a failed run adds under its closer, in place of the bare error code. */
+/** What a failed run adds under its closer, in place of the bare error code (pose view-run-failed). */
 export function renderRunFailure(failure: RunFailure): string[] {
-  return [
-    `It failed at the ${failure.stage} stage on ${failure.device}: ${failure.cause}`,
-    failure.retried ? 'Sherlo retried it and it failed again.' : 'Sherlo did not retry it.',
-    `If you write to us, quote ${chalk.cyan(failure.reference)}`,
-    '',
-  ];
+  return [failedAtLine(failure), retriedLine(failure), quoteLine(failure), ''];
+}
+
+function noPictureCountLine(count: number): string {
+  return chalk.yellow(
+    `! ${count} ${count === 1 ? 'screen ended' : 'screens ended'} with no picture`
+  );
+}
+
+function noPictureEntryLine({ kind, name, device, reason }: NoPicture): string {
+  return `   ${kind === 'scene' ? 'Scene' : 'Story'} ${name} on ${device}: ${reason}`;
+}
+
+function failedAtLine({ stage, device, cause }: RunFailure): string {
+  return `It failed at the ${stage} stage on ${device}: ${cause}`;
+}
+
+function retriedLine({ retried }: RunFailure): string {
+  return retried ? 'Sherlo retried it and it failed again.' : 'Sherlo did not retry it.';
+}
+
+function quoteLine({ reference }: RunFailure): string {
+  return `If you write to us, quote ${chalk.cyan(reference)}`;
 }

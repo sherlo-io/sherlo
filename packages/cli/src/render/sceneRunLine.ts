@@ -6,7 +6,7 @@ import chalk from 'chalk';
 import type { UnansweredRequest } from '../seams/readAppAnswer';
 import { seconds } from './capturedStory';
 import { outcomeOf, type SceneOutcome } from './sceneOutcome';
-import { movingPartHint, pasteableRuleLines } from './sceneLeftLines';
+import { neverSettledLines } from './sceneLeftLines';
 
 /** One scene's progress line: what the scene's own record says, nothing about the machine. */
 export type SceneRunLine = {
@@ -59,7 +59,7 @@ export function renderSceneRunLine(line: SceneRunLine): string[] {
   return [
     `${markOf(outcome)}  ${chalk.bold(line.sceneId)} ${words[outcome]}${chalk.dim(`${launch}${ready}${settled}${refused}`)}`,
     ...(outcome === 'never-settled'
-      ? [...pasteableRuleLines(line.refusedRequests), ...movingPartHint(line.changing), '']
+      ? [...neverSettledLines(line.refusedRequests, line.changing), '']
       : []),
     ...(sameCause
       ? [

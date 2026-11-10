@@ -10,14 +10,14 @@ import getFailedCommandOutput from './getFailedCommandOutput';
 async function installPods(): Promise<void> {
   const spinner = createSpinner('Installing Pods').start();
 
-  // a Gemfile that names cocoapods means the pods install through Bundler.
-  const throughBundler = aGemfileNamesCocoapods(getCwd());
-  const command = `cd ${IOS_DIR} && ${throughBundler ? 'bundle exec ' : ''}pod install`;
-
   if (workstation().podsAreCurrent()) {
     spinner.succeed('Pods are current, install skipped');
     return;
   }
+
+  // a Gemfile that names cocoapods means the pods install through Bundler.
+  const throughBundler = aGemfileNamesCocoapods(getCwd());
+  const command = `cd ${IOS_DIR} && ${throughBundler ? 'bundle exec ' : ''}pod install`;
 
   try {
     // Through the workstation seam, like the package install, so a posed run answers it from its

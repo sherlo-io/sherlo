@@ -19,26 +19,51 @@ import { partialFieldLines } from './partialFieldLines';
 import type { SceneLeft } from './capturedScene';
 import type { UnansweredRequest } from '../seams/readAppAnswer';
 
-/** The requests no mock answered, and the modules that ran real beside an error or an unanswered request; nothing when there are none. */
-export function leftLines(
-  left: SceneLeft & { discover?: true; pasteRules?: true; changing?: string[] }
-): string[] {
-  const { stillReal, unanswered, loggedErrors } = left;
-  const hasCause = Boolean(left.threw) || (unanswered ?? []).length > 0;
-  const modulesNamed = (left.mockNotApplied ?? []).length > 0;
+/** A discover capture's picture: its unanswered requests are the result, so no refusal and no findings of their own. */
+export function discoverLeftLines(left: SceneLeft): string[] {
   return [
-    ...(left.discover || !hasCause || modulesNamed ? [] : stillRealLines(stillReal)),
-    ...(left.discover
-      ? discoverLines(left)
-      : left.pasteRules
-        ? [...pasteableRuleLines(unanswered), ...movingPartHint(left.changing)]
-        : (refusalLines(unanswered) ?? unansweredLines(unanswered))),
+    ...discoverLines(left),
     ...mockNotAppliedLines(left.mockNotApplied),
     ...letThroughLines(left.letThrough),
-    ...(left.discover ? [] : answerFindingLines(left.answerFindings)),
-    ...partialFieldLines(loggedErrors),
-    ...loggedErrorLines(loggedErrors),
+    ...loggedErrorsLines(left),
   ];
+}
+
+/** The ordinary picture: the refusal of the requests no mock answered. */
+export function refusalLeftLines(left: SceneLeft): string[] {
+  return aroundTheRequests(left, refusalLines(left.unanswered) ?? unansweredLines(left.unanswered));
+}
+
+/** The picture under a scene that never settled: the rules to paste, then what kept the screen moving. */
+export function neverSettledLeftLines(left: SceneLeft & { changing?: string[] }): string[] {
+  return aroundTheRequests(left, neverSettledLines(left.unanswered, left.changing));
+}
+
+/** What a scene that never settled leaves for its requests: the rules to paste, then what kept the screen moving. */
+export function neverSettledLines(
+  unanswered: SceneLeft['unanswered'],
+  changing: string[] | undefined
+): string[] {
+  return [...pasteableRuleLines(unanswered), ...movingPartHint(changing)];
+}
+
+/** Every line a scene leaves except a discover capture's: the modules that ran real, the requests, the findings and the logged errors. */
+function aroundTheRequests(left: SceneLeft, requests: string[]): string[] {
+  const hasCause = Boolean(left.threw) || (left.unanswered ?? []).length > 0;
+  const modulesNamed = (left.mockNotApplied ?? []).length > 0;
+  return [
+    ...(!hasCause || modulesNamed ? [] : stillRealLines(left.stillReal)),
+    ...requests,
+    ...mockNotAppliedLines(left.mockNotApplied),
+    ...letThroughLines(left.letThrough),
+    ...answerFindingLines(left.answerFindings),
+    ...loggedErrorsLines(left),
+  ];
+}
+
+/** The partial fields and the errors the app logged. */
+function loggedErrorsLines({ loggedErrors }: SceneLeft): string[] {
+  return [...partialFieldLines(loggedErrors), ...loggedErrorLines(loggedErrors)];
 }
 
 /**
@@ -46,7 +71,7 @@ export function leftLines(
  * asked, never as a count: the lines under a scene that never settled, whose answers may be what
  * keeps its screen changing. Nothing when no request went without a mock.
  */
-export function pasteableRuleLines(unanswered: SceneLeft['unanswered']): string[] {
+function pasteableRuleLines(unanswered: SceneLeft['unanswered']): string[] {
   const rules = ruleMap(unanswered);
   if (rules.size === 0) return [];
   return [
@@ -57,7 +82,7 @@ export function pasteableRuleLines(unanswered: SceneLeft['unanswered']): string[
 }
 
 /** What kept the screen moving, and the way to still it; nothing when the app named no part. */
-export function movingPartHint(changing: string[] | undefined): string[] {
+function movingPartHint(changing: string[] | undefined): string[] {
   if (!changing || changing.length === 0) return [];
   return [
     '',
