@@ -18,6 +18,7 @@ import {
 import { buildApps } from '../../commands/test/appBuild/buildApps';
 import { captureTranscript, emit } from '../../helpers/transcriptSink';
 import { GRADLE_INIT_SCRIPT } from '../gradleInitScript';
+import { installNativeBuild, type NativeBuild } from '../nativeBuild';
 import { schemeXmlWith } from './xcodeSchemeFixture';
 
 type ProcessCall = Parameters<RunProcess>[0];
@@ -542,6 +543,10 @@ describe('app builder, iOS', () => {
       hasTool: async () => true,
       listIosSchemes: async () => ['App', 'AppTests'],
     });
+    // The install writes a Podfile.lock, so the run fingerprints the tree again: a fast answer.
+    const uninstallNativeBuild = installNativeBuild({
+      computeFingerprint: async () => ({ android: { hash: null }, ios: { hash: 'e'.repeat(64) } }),
+    } as unknown as NativeBuild);
     try {
       const { stdout } = await captureTranscript(async () => {
         await buildApps({
@@ -565,6 +570,7 @@ describe('app builder, iOS', () => {
       );
     } finally {
       uninstall();
+      uninstallNativeBuild();
     }
   });
 
@@ -666,6 +672,32 @@ describe('app builder, iOS', () => {
       ok: false,
       lastLines: ['** BUILD FAILED **'],
     });
+  });
+
+  it('does not warn when pod install changed only the COCOAPODS line of Podfile.lock', async () => {
+    const builder = makeLiveAppBuilder(iosRunProcess);
+    const compile = () =>
+      builder.compile({
+        platform: 'ios',
+        projectRoot,
+        env: {},
+        logPath: '.sherlo/build-ios.log',
+        ios: { scheme: 'App', configuration: 'Release' },
+      });
+    podfileLockAfterInstall = 'PODS:\n  - React (0.77.2)\n\nCOCOAPODS: 1.15.2\n';
+    expect(await compile()).toMatchObject({ ok: true, podFilesChanged: ['ios/Podfile.lock'] });
+
+    // Another CocoaPods rewrote the lock: the file changed, and the app's inputs did not.
+    podfileLockAfterInstall = 'PODS:\n  - React (0.77.2)\n\nCOCOAPODS: 1.17.0\n';
+    expect(await compile()).toMatchObject({
+      ok: true,
+      podFilesChanged: [],
+      podInstallChangedFiles: true,
+    });
+
+    // A changed pod is still named.
+    podfileLockAfterInstall = 'PODS:\n  - React (0.77.3)\n\nCOCOAPODS: 1.17.0\n';
+    expect(await compile()).toMatchObject({ ok: true, podFilesChanged: ['ios/Podfile.lock'] });
   });
 });
 

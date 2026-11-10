@@ -36,6 +36,7 @@ import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
 import { gradleWrapperIn, listAndroidFlavorTasks } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
+import { filesTheInstallChanged, readPodTouchedFiles } from './podTouchedFiles';
 import {
   type IosAppTarget,
   iosBuildConfiguration,
@@ -66,6 +67,8 @@ export type CompiledApp =
        * to commit it - the builder only answers.
        */
       podFilesChanged: string[];
+      /** Whether `pod install` changed any file at all, git-held or not; absent when it did not run. */
+      podInstallChangedFiles?: boolean;
     }
   | {
       ok: false;
@@ -359,23 +362,6 @@ function appPathFromBuildSettings(settingsPath: string): string | undefined {
   return app && path.join(app.buildSettings.TARGET_BUILD_DIR, app.buildSettings.WRAPPER_NAME);
 }
 
-/** The files `pod install` writes, by path from the project root, with the bytes each holds. */
-function readPodTouchedFiles(projectRoot: string): Map<string, Buffer> {
-  const iosFolder = path.join(projectRoot, 'ios');
-  const files = ['ios/Podfile.lock'];
-  if (fs.existsSync(iosFolder)) {
-    for (const name of fs.readdirSync(iosFolder)) {
-      if (name.endsWith('.xcodeproj')) files.push(`ios/${name}/project.pbxproj`);
-    }
-  }
-  const contents = new Map<string, Buffer>();
-  for (const file of files) {
-    const filePath = path.join(projectRoot, file);
-    if (fs.existsSync(filePath)) contents.set(file, fs.readFileSync(filePath));
-  }
-  return contents;
-}
-
 /** Where starting one platform's EAS build writes everything `eas build` says. */
 function easStartLogPath(platform: Platform): string {
   return `.sherlo/eas-build-${platform}.log`;
@@ -553,13 +539,16 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     return isTracked && (await git(['diff', '--quiet', 'HEAD', '--', file])) === 0;
   }
 
-  /** `pod install` before the build, and the files it changed that git does not hold. */
+  /**
+   * `pod install` before the build: the files it changed that git does not hold (a Podfile.lock
+   * that differs only in its COCOAPODS line is no change), and whether it changed any file at all.
+   */
   async function installPods(params: {
     projectRoot: string;
     iosFolder: string;
     env: NodeJS.ProcessEnv;
     logPath: string;
-  }): Promise<string[] | 'failed'> {
+  }): Promise<{ notHeld: string[]; changedAny: boolean } | 'failed'> {
     const { projectRoot, iosFolder, env, logPath } = params;
     const filesBefore = readPodTouchedFiles(projectRoot);
     const usesBundler = [projectRoot, iosFolder].some((folder) =>
@@ -576,15 +565,15 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     });
     if (exitCode !== 0) return 'failed';
 
-    const filesAfter = readPodTouchedFiles(projectRoot);
-    const changedFiles = [...filesAfter.keys()].filter(
-      (file) => !filesAfter.get(file)!.equals(filesBefore.get(file) ?? Buffer.alloc(0))
-    );
+    const { changed, changedInTheApp } = filesTheInstallChanged({
+      before: filesBefore,
+      after: readPodTouchedFiles(projectRoot),
+    });
     const notHeld: string[] = [];
-    for (const file of changedFiles) {
+    for (const file of changedInTheApp) {
       if (!(await gitHoldsFileAsItIs(projectRoot, file, logPath))) notHeld.push(file);
     }
-    return notHeld;
+    return { notHeld, changedAny: changed.length > 0 };
   }
 
   async function compileIos(params: CompileParams): Promise<CompiledApp> {
@@ -601,8 +590,8 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
 
     const iosFolder = path.join(projectRoot, 'ios');
     const buildEnv = buildEnvironment({ projectRoot, easProfile, buildEnv: env });
-    const podFilesChanged = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
-    if (podFilesChanged === 'failed') return failed();
+    const install = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
+    if (install === 'failed') return failed();
 
     // No -derivedDataPath: Xcode keeps its derived data, and the compilation cache, in its own folder.
     const xcodebuildArguments = [
@@ -660,7 +649,8 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       path: appPath,
       sizeMb: appBuildSizeMb(appPath),
       seconds: secondsSince(),
-      podFilesChanged,
+      podFilesChanged: install.notHeld,
+      podInstallChangedFiles: install.changedAny,
     };
   }
 

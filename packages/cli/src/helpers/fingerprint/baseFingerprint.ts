@@ -649,7 +649,7 @@ async function nativeFoldersTheProjectCommits(projectRoot: string): Promise<stri
  * File paths (relative to project root) whose content is version-bearing.
  * The transform only intercepts these; everything else passes through unchanged.
  */
-const VERSION_FILE_PATTERNS = [/\.plist$/i, /build\.gradle(\.kts)?$/i];
+const VERSION_FILE_PATTERNS = [/\.plist$/i, /build\.gradle(\.kts)?$/i, /Podfile\.lock$/];
 
 function isVersionFile(filePath: string): boolean {
   return VERSION_FILE_PATTERNS.some((re) => re.test(filePath));
@@ -716,44 +716,42 @@ function createVersionStrippingTransform(): FileHookTransformFunction {
  *
  * - *.plist:  CFBundleVersion, MARKETING_VERSION
  * - build.gradle / build.gradle.kts: versionName, versionCode
+ * - Podfile.lock: the `COCOAPODS:` line
  *
  * Exported for direct unit testing of AC2 version-suppression behaviour.
  */
 export function stripVersionLines(filePath: string, content: string): string {
   if (/\.plist$/i.test(filePath)) {
-    const lines = content.split('\n');
     const result: string[] = [];
     let skipNext = false;
-
-    for (const line of lines) {
-      if (skipNext) {
-        skipNext = false;
-        continue;
-      }
-      const trimmed = line.trim();
-      if (trimmed.includes('CFBundleVersion') || trimmed.includes('MARKETING_VERSION')) {
-        // This line is a version key - skip it AND the following value line.
-        skipNext = true;
-        continue;
-      }
-      result.push(line);
+    for (const line of content.split('\n')) {
+      const isVersionKey = line.includes('CFBundleVersion') || line.includes('MARKETING_VERSION');
+      // A version key is skipped AND the value line after it.
+      if (!skipNext && !isVersionKey) result.push(line);
+      skipNext = !skipNext && isVersionKey;
     }
-
     return result.join('\n');
   }
 
   if (/build\.gradle(\.kts)?$/i.test(filePath)) {
+    // versionName "…" / versionCode … at the start of a logical line.
     return content
       .split('\n')
-      .filter((line) => {
-        const trimmed = line.trim();
-        // Match versionName "…" / versionCode … at the start of a logical line.
-        return !/^\s*(versionName|versionCode)\s+/i.test(trimmed);
-      })
+      .filter((line) => !/^\s*(versionName|versionCode)\s+/i.test(line))
       .join('\n');
   }
 
+  if (/Podfile\.lock$/.test(filePath)) return stripCocoapodsLine(content);
+
   return content;
+}
+
+/**
+ * A Podfile.lock's text less its `COCOAPODS: <version>` line, which names the CocoaPods that wrote
+ * the lock and moves with the machine's install, not the app. Every other line stays hashed.
+ */
+export function stripCocoapodsLine(lockText: string): string {
+  return lockText.replace(/^COCOAPODS:.*\r?\n?/m, '');
 }
 
 // ---------------------------------------------------------------------------
@@ -787,7 +785,8 @@ async function hashLockfiles(projectRoot: string, platform: Platform): Promise<L
     const lockPath = path.join(projectRoot, lockfile);
     try {
       const content = await fs.promises.readFile(lockPath, 'utf8');
-      const digest = crypto.createHash('sha256').update(content).digest('hex');
+      const hashed = lockfile === 'ios/Podfile.lock' ? stripCocoapodsLine(content) : content;
+      const digest = crypto.createHash('sha256').update(hashed).digest('hex');
       results.push({ file: lockfile, digest });
     } catch {
       // Lockfile absent - skip.
