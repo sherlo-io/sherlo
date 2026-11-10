@@ -62,7 +62,7 @@
       "call": "checkStagedGate",
       "with": {
         "platform": "ios",
-        "baseFingerprint": "5efa3e640e5ad6584c1c26d1828e40aa128c34c7c0ac753e9773ecbe776ceb90"
+        "baseFingerprint": "c374da347923a435730e01c96e19a5d0649d37c3d74d0764a4969e4693724e13"
       },
       "answer": {
         "outcome": "full-build-needed",
