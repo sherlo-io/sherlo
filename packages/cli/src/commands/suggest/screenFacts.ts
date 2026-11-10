@@ -1,8 +1,8 @@
 /**
  * WHAT TO KNOW BEFORE WRITING THE TEST OF ONE SCREEN OR COMPONENT - pure, from the same graph the
  * ranking reads (./suggestItems): the real screen behind a thin route file, what it draws, the data
- * modules it reaches, the link params it reads, the conditions that change what it draws and the
- * test ids it sets.
+ * modules it reaches, the server queries it runs (through its own hooks too), the link params it
+ * reads, the conditions that change what it draws and the test ids it sets.
  */
 import path from 'path';
 import type { SourceFile } from '../coverage/componentGaps';
@@ -15,6 +15,8 @@ export type ScreenFacts = {
   routeFile?: string;
   draws: string[];
   data: string[];
+  /** The names of the GraphQL operations it runs, each once, in the order found. */
+  queries: string[];
   linkParams: string[];
   states: string[];
   testIDs: string[];
@@ -54,6 +56,12 @@ const DATA_FILE =
   /(^|\/)(api|apis|store|stores|atoms?|slices?|queries|query|client|storage|secure\w*|database|db|services?|repositor(y|ies)|models?)(\/|\.|$)/i;
 const LINK_PARAM_HOOKS = new Set(['useLocalSearchParams', 'useGlobalSearchParams']);
 const SKIPPED_KEYS = new Set(['loc', 'extra', 'leadingComments', 'trailingComments']);
+const GRAPHQL_TAGS = new Set(['gql', 'graphql']);
+const OPERATION = /\b(?:query|mutation|subscription)\s+([A-Za-z_]\w*)/g;
+/** A name GraphQL codegen gives an operation's hook or document: `useFeedQuery`, `FeedDocument`. */
+const GENERATED_OPERATION =
+  /^(?:use([A-Z]\w*?)(?:LazyQuery|SuspenseQuery|Query|Mutation|Subscription)|([A-Z]\w*?)(?:Document|Query))$/;
+const HOOK_NAME = /^use[A-Z]/;
 
 function walk(node: any, visit: (node: any) => void): void {
   if (Array.isArray(node)) {
@@ -214,10 +222,81 @@ export function screenFacts(params: {
     data: [...data].map(([module, names]) =>
       names.size > 0 ? `${module} (${[...names].join(', ')})` : module
     ),
+    queries: queriesOf(graph, scope),
     linkParams: [...linkParams],
     states: [...states].slice(0, 8),
     testIDs: [...testIDs],
   };
+}
+
+/**
+ * The operations the files of a screen run, following their own non-component imports (their hooks)
+ * to a depth of 3. A file imported whole is read for every GraphQL template in it; one imported only
+ * for named values is read for the templates those names hold; a generated hook or document names its
+ * operation where it is imported, and its file, which holds every operation of the app, is never read.
+ */
+function queriesOf(graph: ReturnType<typeof screenGraph>, scope: Set<string>): string[] {
+  const { parsed, resolve, components } = graph;
+  const queries = new Set<string>();
+  const readWhole = new Set(scope);
+  let reach: { file: string; only?: Set<string> }[] = [...scope].map((file) => ({ file }));
+  for (let depth = 0; reach.length > 0; depth += 1) {
+    const next: typeof reach = [];
+    for (const { file, only } of reach) {
+      const unit = parsed.get(file);
+      if (!unit) continue;
+      operationsIn(unit.ast.body, only).forEach((name) => queries.add(name));
+      if (only) continue;
+      for (const item of unit.imports) {
+        if (dataLibraryOf(item.source)) continue;
+        const generated = item.names.flatMap((name) => {
+          const match = GENERATED_OPERATION.exec(name);
+          return match ? [match[1] ?? match[2]] : [];
+        });
+        generated.forEach((name) => queries.add(name));
+        const target = resolve(file, item.source);
+        if (!target || generated.length > 0 || components.has(target) || depth >= 3) continue;
+        const whole = item.names.some(
+          (name) => name === 'default' || name === '*' || HOOK_NAME.test(name)
+        );
+        if (!whole) next.push({ file: target, only: new Set(item.names) });
+        else if (!readWhole.has(target)) {
+          readWhole.add(target);
+          next.push({ file: target });
+        }
+      }
+    }
+    reach = next;
+  }
+  return [...queries];
+}
+
+/** The operation names in the `gql`/`graphql` templates of a file, or of only the named values in it. */
+function operationsIn(body: unknown, only?: Set<string>): string[] {
+  const names: string[] = [];
+  const readTemplates = (node: unknown) =>
+    walk(node, (inner) => {
+      const argument = inner.type === 'CallExpression' ? inner.arguments[0] : undefined;
+      const template =
+        inner.type === 'TaggedTemplateExpression' && GRAPHQL_TAGS.has(inner.tag?.name)
+          ? inner.quasi
+          : GRAPHQL_TAGS.has(inner.callee?.name) && argument?.type === 'TemplateLiteral'
+            ? argument
+            : undefined;
+      const text = template
+        ? template.quasis.map((quasi: any) => quasi.value.cooked ?? quasi.value.raw).join(' ')
+        : GRAPHQL_TAGS.has(inner.callee?.name) && argument?.type === 'StringLiteral'
+          ? argument.value
+          : '';
+      for (const match of text.matchAll(OPERATION)) names.push(match[1]);
+    });
+  if (!only) readTemplates(body);
+  else {
+    walk(body, (node) => {
+      if (node.type === 'VariableDeclarator' && only.has(node.id?.name)) readTemplates(node.init);
+    });
+  }
+  return names;
 }
 
 function dataLibraryOf(source: string): boolean {
@@ -245,6 +324,7 @@ export function factsLines(facts: ScreenFacts): string[] {
     }`,
     `draws       ${list(facts.draws, 'no other component of the app')}`,
     `data        ${list(facts.data, 'none found')}`,
+    ...(facts.queries.length > 0 ? [`queries     ${facts.queries.join(', ')}`] : []),
     `link param  ${list(facts.linkParams, 'none')}`,
     `states      ${facts.states.length > 0 ? facts.states.join(' | ') : 'none found'}`,
     `test ids    ${
