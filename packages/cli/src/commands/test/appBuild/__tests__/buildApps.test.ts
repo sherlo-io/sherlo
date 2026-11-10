@@ -12,6 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { captureTranscript } from '../../../../helpers/transcriptSink';
 import { type AppBuilder, installAppBuilder } from '../../../../seams/appBuilder';
 import { installNativeBuild, type NativeBuild } from '../../../../seams/nativeBuild';
+import type { BaseFingerprints } from '../../../../helpers/fingerprint';
+import uploadOrReuseBuildsAndRunTests, {
+  type PushEffects,
+} from '../../../../helpers/uploadOrReuseBuildsAndRunTests';
 import { cacheKeyOf } from '../appBuildCacheKeys';
 import { buildApps, type PlatformToBuild } from '../buildApps';
 import { type BuildSettings, buildSettingsDigest } from '../buildSettings';
@@ -80,18 +84,20 @@ function build({
   command = 'test',
   cacheDirFlag,
   parallelBuildsFlag,
+  fingerprints = { android: { hash: FINGERPRINT }, ios: { hash: FINGERPRINT } },
 }: {
   toBuild: PlatformToBuild[];
   settings?: BuildSettings;
   command?: 'test' | 'build';
   cacheDirFlag?: string;
   parallelBuildsFlag?: boolean;
+  fingerprints?: BaseFingerprints;
 }) {
   return buildApps({
     projectRoot,
     toBuild,
     settings,
-    fingerprints: { android: { hash: FINGERPRINT }, ios: { hash: FINGERPRINT } },
+    fingerprints,
     command,
     storedPlatformRows: [],
     ...(cacheDirFlag ? { cacheDirFlag } : {}),
@@ -102,6 +108,12 @@ function build({
 const ANDROID: PlatformToBuild[] = [{ platform: 'android' }];
 const IOS: PlatformToBuild[] = [{ platform: 'ios' }];
 const BOTH: PlatformToBuild[] = [{ platform: 'android' }, { platform: 'ios' }];
+
+/** What the fingerprint answers when it cannot be computed on either platform. */
+const NO_FINGERPRINT: BaseFingerprints = {
+  android: { hash: null, debugMessage: '@expo/fingerprint returned an empty hash' },
+  ios: { hash: null, debugMessage: '@expo/fingerprint returned an empty hash' },
+};
 
 describe('sherlo test builds the app on this machine', () => {
   it('refuses iOS on a machine that is not a Mac, naming --platform android here and --platform ios on a Mac', async () => {
@@ -299,6 +311,92 @@ describe('sherlo test builds the app on this machine', () => {
 
     expect(computeFingerprint).not.toHaveBeenCalled();
     expect(builder.keepInCache).toHaveBeenCalledTimes(1);
+  });
+
+  // Two trees with no fingerprint would share one key, so the cache could serve the other's app.
+  it('with no fingerprint the app is built fresh, and the build cache is neither read nor kept', async () => {
+    const builder = fakeBuilder({
+      findCachedBuild: async () => '/cache/build-cache/another-tree/app-release.apk',
+      compile: async ({ platform }: { platform: Platform }) => ({
+        ok: true as const,
+        path: `/built/${platform}`,
+        sizeMb: '53.90',
+        seconds: 88,
+        podFilesChanged: [],
+        podInstallChangedFiles: true,
+      }),
+    });
+    const computeFingerprint = vi.fn();
+    uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+    const { appBuildPaths, madeBy } = await build({ toBuild: BOTH, fingerprints: NO_FINGERPRINT });
+
+    expect(appBuildPaths).toEqual({ android: '/built/android', ios: '/built/ios' });
+    expect(madeBy).toEqual({ android: 'compiled', ios: 'compiled' });
+    expect(builder.findCachedBuild).not.toHaveBeenCalled();
+    expect(builder.keepInCache).not.toHaveBeenCalled();
+    expect(computeFingerprint).not.toHaveBeenCalled();
+  });
+
+  // No bundle can be spliced without a base to name, and the app was just built from this tree, so
+  // the JS bundle inside it is the project's own: the push goes on with it, saying why.
+  it("with no fingerprint the push runs on the app's embedded bundle and warns the fingerprint was skipped", async () => {
+    fakeBuilder();
+    const { appBuildPaths, platformRows, madeBy } = await build({
+      toBuild: BOTH,
+      fingerprints: NO_FINGERPRINT,
+    });
+    const binary = (platform: Platform) => ({
+      hash: `${platform}-hash`,
+      fileName: `${platform}-app`,
+      s3Key: `${platform}-s3-key`,
+      buildType: 'preview' as const,
+    });
+    const openBuild = vi.fn(async (_: Record<string, unknown>) => ({ build: { index: 5 } }));
+    const extractGateMetadataFor = vi.fn();
+    const effects = {
+      resolveBinaries: async () => ({
+        binariesInfo: { android: binary('android'), ios: binary('ios'), sdkVersion: '2.0.0' },
+        nextBuildIndex: 5,
+      }),
+      resolveGitInfo: async () => ({ branchName: 'main', commitHash: 'abc', commitName: 'feat' }),
+      openBuild,
+      binaryUpload: { readBinary: vi.fn(), putBinary: vi.fn() },
+      baseRegistration: { extractGateMetadataFor },
+      // Never reached: a push with nothing to splice bundles nothing.
+      freshBundle: {},
+    } as unknown as PushEffects;
+    const credential = { kind: 'projectToken', token: 't', projectIndex: 7, teamId: 'team1234' };
+
+    const { stdout } = await captureTranscript(async () => {
+      await uploadOrReuseBuildsAndRunTests({
+        commandParams: {
+          projectRoot,
+          credential,
+          devices: [{ id: 'pixel.7' }, { id: 'iphone.15' }],
+        } as never,
+        appBuildPaths,
+        fingerprints: NO_FINGERPRINT,
+        platformRows,
+        appBuilds: {
+          android: { madeBy: madeBy.android!, why: { reason: 'nothing-stored' } },
+          ios: { madeBy: madeBy.ios!, why: { reason: 'nothing-stored' } },
+        },
+        effects,
+      });
+    });
+
+    const opened = openBuild.mock.calls[0][0] as Record<string, any>;
+    expect(opened.buildRunConfig.android).toEqual(
+      expect.objectContaining({ s3Key: 'android-s3-key' })
+    );
+    expect(opened.buildRunConfig.android).not.toHaveProperty('jsBundleS3Key');
+    expect(opened.buildRunConfig.ios).not.toHaveProperty('jsBundleS3Key');
+    expect(opened).not.toHaveProperty('baseFingerprints');
+    expect(extractGateMetadataFor).not.toHaveBeenCalled();
+    const warning = 'Fingerprint skipped - @expo/fingerprint returned an empty hash.';
+    expect(stdout.split(warning)).toHaveLength(2);
+    expect(stdout).not.toContain('Staged uploads unavailable');
   });
 
   it('a changed build setting misses the local build cache', () => {

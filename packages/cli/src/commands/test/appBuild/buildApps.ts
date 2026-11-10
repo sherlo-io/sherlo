@@ -11,7 +11,7 @@
  *   2. PER PLATFORM, ONE AFTER THE OTHER (unless `build.parallel` or `--parallel-builds` asks for both at once - two compilers at once fight
  *      for the same cores and memory):
  *        - the local build cache (./cacheFolder), keyed by the platform, the base fingerprint and
- *          the build settings - a hit compiles nothing;
+ *          the build settings - a hit compiles nothing, and no fingerprint skips it;
  *        - `expo prebuild` for an Expo app whose native folder is not there, taken away again after;
  *        - the compile, with everything the build tool says written to `.sherlo/build-<p>.log`;
  *        - a failure prints the log's last lines and ends the run with exit 2, nothing uploaded.
@@ -79,7 +79,7 @@ export async function buildApps({
   projectRoot: string;
   toBuild: PlatformToBuild[];
   settings: BuildSettings;
-  /** Each platform's base fingerprint: its app build is kept in the cache under its own. */
+  /** Each platform's base fingerprint: its app build is kept in the cache under its own, if any. */
   fingerprints: BaseFingerprints;
   /** `--build-cache <dir>`, when the command line names one. */
   cacheDirFlag?: string;
@@ -137,19 +137,17 @@ export async function buildApps({
       iosPick?.configuration && !nativeFolderIsGenerated
         ? podsLinkSherloInto(path.join(projectRoot, 'ios'), iosPick.configuration.name)
         : undefined;
+    // No fingerprint, no key: two trees would share one, so the cache is neither read nor kept.
+    const baseFingerprint = fingerprints[platform].hash;
     const cacheKeyOfThePods = () =>
-      cacheKeyOf({
-        baseFingerprint: fingerprints[platform].hash ?? '',
-        platform,
-        settings,
-        linksSherlo: podsLinkSherlo(),
-      });
+      baseFingerprint &&
+      cacheKeyOf({ baseFingerprint, platform, settings, linksSherlo: podsLinkSherlo() });
     const cacheKey = cacheKeyOfThePods();
 
     // A cached build made while the pods lacked Sherlo has no native module: nothing is reused until
     // the pods link it, and the build that follows is kept under the key of the linked pods.
     const cached =
-      podsLinkSherlo() === false
+      !cacheKey || podsLinkSherlo() === false
         ? null
         : await builder.findCachedBuild({ platform, cacheKey, cacheDir });
     if (cached) {
@@ -253,9 +251,11 @@ export async function buildApps({
 
     // Under the key of the pods the build left: pod install linked Sherlo into the configuration.
     const keptKey = cacheKeyOfThePods();
-    await builder.keepInCache({ platform, cacheKey: keptKey, cacheDir, path: compiled.path });
+    if (keptKey) {
+      await builder.keepInCache({ platform, cacheKey: keptKey, cacheDir, path: compiled.path });
+    }
     // Also under the key of the tree pod install left, for the next run on it.
-    if (compiled.podInstallChangedFiles && !nativeFolderIsGenerated) {
+    if (keptKey && compiled.podInstallChangedFiles && !nativeFolderIsGenerated) {
       await keepUnderInstalledTreeKey({
         platform,
         settings,

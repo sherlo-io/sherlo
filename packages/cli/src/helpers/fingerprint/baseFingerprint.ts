@@ -234,20 +234,19 @@ export async function computeBaseFingerprint(
 
   // ------------------------------------------------------------------
   // Layer 1 - @expo/fingerprint over each platform alone, with version
-  //           suppression.
+  //           suppression. Every layer runs inside the one fail-soft try: a
+  //           missing library, or an answer of a shape this code cannot read,
+  //           gives every platform the reason instead of crashing the push.
   // ------------------------------------------------------------------
-  let layer1: Record<Platform, Fingerprint>;
-
   try {
-    // Lazy, fail-soft load: a missing/broken @expo/fingerprint install rejects
-    // here and is caught below, degrading to hash:null instead of crashing.
+    // Lazy load: a missing/broken @expo/fingerprint install rejects here.
     const expoFingerprint = await loadExpoFingerprint();
 
     // Layer 1 (SHERLO-1746): swap in the deterministic env around the library
     // calls so the `ExpoConfigLoader.js` subprocess @expo/fingerprint spawns
     // internally cannot inherit the per-command ambient env. Layer 2 handles its
     // own env via `runShellCommand` (`envMode: 'replace'`) and is NOT wrapped.
-    layer1 = await withDeterministicEnv(async () => ({
+    const layer1: Record<Platform, Fingerprint> = await withDeterministicEnv(async () => ({
       android: await createPlatformFingerprint({
         expoFingerprint,
         projectRoot: resolvedProjectRoot,
@@ -261,52 +260,50 @@ export async function computeBaseFingerprint(
         platform: 'ios',
       }),
     }));
+
+    if (PLATFORMS.some((platform) => !layer1[platform].hash)) {
+      return unavailableOnEveryPlatform('@expo/fingerprint returned an empty hash');
+    }
+
+    const nativeFingerprint = nativeFingerprintOf({
+      android: layer1.android.hash,
+      ios: layer1.ios.hash,
+    });
+
+    // ------------------------------------------------------------------
+    // Layer 2 - augmented native sources.
+    // ------------------------------------------------------------------
+    const autolinkedModulesOf = await getAutolinkedModules(resolvedProjectRoot, workflow);
+
+    const fingerprints = {} as BaseFingerprints;
+    for (const platform of PLATFORMS) {
+      const lockfiles = await hashLockfiles(resolvedProjectRoot, platform);
+      const autolinkedModules = autolinkedModulesOf[platform];
+
+      fingerprints[platform] = {
+        hash: combineLayers({
+          layer1Hash: layer1[platform].hash,
+          lockfiles,
+          autolinkedModules,
+          workflow,
+        }),
+        nativeFingerprint,
+        preimage: {
+          workflow,
+          nativeSources: sourceDigestsOf(layer1[platform]),
+          lockfiles,
+          autolinkedModules,
+          nativeFolderFiles: nativeFolderFilesOf(layer1[platform]),
+        },
+      };
+    }
+
+    return fingerprints;
   } catch (err) {
-    // @expo/fingerprint may not be installed, or the project may have no
-    // native dirs.  Fail-soft - return null and let the caller proceed.
     return unavailableOnEveryPlatform(
-      `@expo/fingerprint unavailable or failed: ${err instanceof Error ? err.message : String(err)}`
+      `the fingerprint failed: ${err instanceof Error ? err.message : String(err)}`
     );
   }
-
-  if (PLATFORMS.some((platform) => !layer1[platform].hash)) {
-    return unavailableOnEveryPlatform('@expo/fingerprint returned an empty hash');
-  }
-
-  const nativeFingerprint = nativeFingerprintOf({
-    android: layer1.android.hash,
-    ios: layer1.ios.hash,
-  });
-
-  // ------------------------------------------------------------------
-  // Layer 2 - augmented native sources.
-  // ------------------------------------------------------------------
-  const autolinkedModulesOf = await getAutolinkedModules(resolvedProjectRoot, workflow);
-
-  const fingerprints = {} as BaseFingerprints;
-  for (const platform of PLATFORMS) {
-    const lockfiles = await hashLockfiles(resolvedProjectRoot, platform);
-    const autolinkedModules = autolinkedModulesOf[platform];
-
-    fingerprints[platform] = {
-      hash: combineLayers({
-        layer1Hash: layer1[platform].hash,
-        lockfiles,
-        autolinkedModules,
-        workflow,
-      }),
-      nativeFingerprint,
-      preimage: {
-        workflow,
-        nativeSources: sourceDigestsOf(layer1[platform]),
-        lockfiles,
-        autolinkedModules,
-        nativeFolderFiles: nativeFolderFilesOf(layer1[platform]),
-      },
-    };
-  }
-
-  return fingerprints;
 }
 
 /**
