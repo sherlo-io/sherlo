@@ -1,48 +1,22 @@
 import { readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { getCwd, throwError } from '../../../helpers';
-
-const PACKAGE_JSON = 'package.json';
+import { throwError } from '../../../helpers';
+import { findInstalledPackageJsonPath } from './findPackageJsonPaths';
 
 function getPackageVersion(packageName: string): string | null {
-  let packagePath;
-  let packageJson;
+  const packageJsonPath = findInstalledPackageJsonPath(packageName);
+
+  if (!packageJsonPath) return null;
 
   try {
-    packagePath = require.resolve(packageName, { paths: [getCwd()] });
-  } catch (error) {
-    if (error.code === 'MODULE_NOT_FOUND') {
-      return null;
-    }
-
-    throwError({ type: 'unexpected', error });
-  }
-
-  let currentDir = dirname(packagePath);
-  while (!currentDir.endsWith('node_modules') && currentDir !== '/') {
-    try {
-      const currentPackageJsonPath = join(currentDir, PACKAGE_JSON);
-      const currentPackageJson = JSON.parse(readFileSync(currentPackageJsonPath, 'utf8'));
-
-      if (currentPackageJson.name === packageName) {
-        packageJson = currentPackageJson;
-        break;
-      }
-    } catch {}
-
-    currentDir = dirname(currentDir);
-  }
-
-  if (!packageJson) {
-    throwError({
+    return JSON.parse(readFileSync(packageJsonPath, 'utf8')).version;
+  } catch {
+    return throwError({
       type: 'unexpected',
       error: new Error(
-        `Package ${packageName} was found at ${packagePath} but its ${PACKAGE_JSON} is invalid or inaccessible`
+        `Package ${packageName} was found at ${packageJsonPath} but its package.json is invalid or inaccessible`
       ),
     });
   }
-
-  return packageJson.version;
 }
 
 export default getPackageVersion;
