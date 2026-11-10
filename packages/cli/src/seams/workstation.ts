@@ -18,10 +18,8 @@
  * is only whether there is somebody to ask and what they did. A pose that could put a byte on the
  * screen would be supplying words, and a pose may never supply a word.
  *
- * WHAT IS NOT HERE. The progress init reports as it goes is a call to the backend like any other,
- * so it rides ../seams/serverCalls and is scripted in the pose's `api` as `trackCliInit`. And
- * WHICH package manager the project uses is not an act at all - it is read out of the project's
- * own `package.json` and lockfiles, which a pose already lays out in `files`.
+ * WHAT IS NOT HERE. The progress init reports rides ../seams/serverCalls (the pose's `api`
+ * `trackCliInit`). WHICH package manager the project uses is no act: it is read from its files.
  *
  * ------------------------------------------------------------------------
  * WHY AN UNANSWERED INSTALL IS RECORDED AND NOT THROWN.
@@ -48,6 +46,7 @@ import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
 import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
+import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
 export type Workstation = {
@@ -79,11 +78,10 @@ export type Workstation = {
    */
   podsAreCurrent(iosFolder: string): boolean;
 
-  /**
-   * What the service answers for the team of the project init just chose: whether scenes are on
-   * for it. Undefined when nothing answers, which is the same as off.
-   */
+  /** What the service said about the team of the chosen project; undefined, which is off, if unasked. */
   scenesFlag(): 'on' | 'off' | undefined;
+  /** Ask the service about that team and keep the answer for `scenesFlag()`; a pose asks nothing. */
+  askScenesFlag(configProject: unknown): Promise<void>;
 
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
@@ -136,7 +134,8 @@ export const liveWorkstation: Workstation = {
 
   podsAreCurrent: (iosFolder) => installedPodsAreCurrent(iosFolder),
 
-  scenesFlag: () => undefined,
+  scenesFlag: rememberedScenesFlag,
+  askScenesFlag: decideScenesForProject,
 
   /**
    * Is there a human at the keyboard who could actually press Enter?
@@ -349,6 +348,7 @@ export function posedWorkstation(
     podsAreCurrent: () => posed?.pods === 'current',
 
     scenesFlag: () => posed?.scenes,
+    askScenesFlag: async () => {},
 
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard
