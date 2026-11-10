@@ -31,6 +31,7 @@
   "bin": "./cli.js",
   "files": [
     "dist",
+    "skill",
     "sdk-compatibility.json",
     "cli.js"
   ],
