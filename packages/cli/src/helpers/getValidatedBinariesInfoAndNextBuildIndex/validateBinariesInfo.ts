@@ -7,17 +7,21 @@ import {
   SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME,
   TEST_EAS_CLOUD_BUILD_COMMAND,
 } from '../../constants';
+import { SHERLO_BUILD_FOR_PUSH } from '../../commands/test/constants';
 import { BinariesInfo, Command } from '../../types';
 import throwError from '../throwError';
 
 function validateBinariesInfo({
   binariesInfo,
   command,
+  iosConfiguration,
 }: {
   binariesInfo: BinariesInfo;
   command: Command;
+  /** The configuration `sherlo test` compiled the iOS app with; unknown for a build it did not make. */
+  iosConfiguration?: string;
 }) {
-  validateHasSherlo(binariesInfo);
+  validateHasSherlo(binariesInfo, iosConfiguration);
 
   validateBuildType({ binariesInfo, command });
 
@@ -28,7 +32,7 @@ export default validateBinariesInfo;
 
 /* ========================================================================== */
 
-function validateHasSherlo({ android, ios }: BinariesInfo) {
+function validateHasSherlo({ android, ios }: BinariesInfo, iosConfiguration?: string) {
   const isAndroidMissingSherlo = android && !android.sdkVersion;
   const isIosMissingSherlo = ios && !ios.sdkVersion;
 
@@ -41,6 +45,7 @@ function validateHasSherlo({ android, ios }: BinariesInfo) {
           ios: isIosMissingSherlo,
         }),
         hasIosSteps: isIosMissingSherlo,
+        iosConfiguration: isIosMissingSherlo ? iosConfiguration : undefined,
       })
     );
   }
@@ -92,7 +97,12 @@ function validateAndroidAbiRequirements({ android }: BinariesInfo) {
 }
 
 type BinaryError =
-  | { type: 'missing_sherlo'; platformLabels: string[]; hasIosSteps?: boolean }
+  | {
+      type: 'missing_sherlo';
+      platformLabels: string[];
+      hasIosSteps?: boolean;
+      iosConfiguration?: string;
+    }
   | { type: 'dev_build'; platformLabels: string[]; command: Command }
   | { type: 'missing_arm64_abi_expo'; detectedAbis: string; fileName: string }
   | { type: 'missing_arm64_abi_bare_rn'; detectedAbis: string; fileName: string };
@@ -105,6 +115,15 @@ function getError(error: BinaryError) {
           `Invalid ${error.platformLabels.join(' and ')} ${
             error.platformLabels.length > 1 ? 'builds' : 'build'
           }; Sherlo Native Module is missing\n\n` +
+          (error.hasIosSteps
+            ? (error.iosConfiguration
+                ? `The iOS app was built with the "${error.iosConfiguration}" configuration. `
+                : '') +
+              'Sherlo is linked only into the debug configurations unless `pod install` runs ' +
+              `with SHERLO_BUILD=${SHERLO_BUILD_FOR_PUSH}: run ` +
+              `\`SHERLO_BUILD=${SHERLO_BUILD_FOR_PUSH} pod install\` in the \`ios\` folder ` +
+              '(`bundle exec pod install` if the project uses Bundler), then build again.\n\n'
+            : '') +
           'Please verify:\n' +
           `1. \`${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}\` is installed\n` +
           '2. Package is not excluded in `react-native.config.js`\n' +

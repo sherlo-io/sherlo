@@ -376,6 +376,50 @@ describe('sherlo test builds the app on this machine', () => {
     expect(stdout).toContain('Reused from the local build cache');
   });
 
+  describe('an iOS build and the native module', () => {
+    const appTarget = {
+      appSchemes: ['Storefront'],
+      configurations: ['Debug', 'Release'],
+      archiveConfiguration: 'Release',
+    };
+
+    function writePodsLinking(configuration: string, content: string) {
+      const folder = path.join(projectRoot, 'ios/Pods/Target Support Files/Pods-Storefront');
+      fs.mkdirSync(folder, { recursive: true });
+      fs.writeFileSync(path.join(folder, `Pods-Storefront.${configuration}.xcconfig`), content);
+    }
+
+    it('a cached build made without the native module is not reused', async () => {
+      const builder = fakeBuilder({
+        readIosAppTarget: async () => appTarget,
+        findCachedBuild: async () => '/cache/Storefront.app',
+      });
+      // Sherlo is linked into Debug only, so the Release build would lack it.
+      writePodsLinking('debug', 'OTHER_LDFLAGS = -l"sherlo-react-native-storybook"');
+      writePodsLinking('release', 'OTHER_LDFLAGS = -l"other"');
+
+      const { iosConfiguration } = await build({ toBuild: IOS });
+
+      expect(builder.findCachedBuild).not.toHaveBeenCalled();
+      expect(builder.compile).toHaveBeenCalledTimes(1);
+      expect(iosConfiguration).toBe('Release');
+    });
+
+    it('a cached build made with the native module is looked up under a key of its own and reused', async () => {
+      const builder = fakeBuilder({
+        readIosAppTarget: async () => appTarget,
+        findCachedBuild: async () => '/cache/Storefront.app',
+      });
+      writePodsLinking('release', 'OTHER_LDFLAGS = -l"sherlo-react-native-storybook"');
+
+      await build({ toBuild: IOS });
+
+      const [{ cacheKey }] = builder.findCachedBuild.mock.calls[0];
+      expect(cacheKey).toMatch(/-sherlo$/);
+      expect(builder.compile).not.toHaveBeenCalled();
+    });
+  });
+
   it('generates the native folder with expo prebuild only when it is missing in an Expo app', async () => {
     const builder = fakeBuilder();
     fs.writeFileSync(

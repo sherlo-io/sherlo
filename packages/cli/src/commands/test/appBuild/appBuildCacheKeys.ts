@@ -18,19 +18,24 @@ const SETTINGS_DIGEST_IN_KEY = 12;
  * makes two builds the same build - `<platform>-<base fingerprint>-<12 hex of the settings digest>`.
  * The base fingerprint names the native code, and the build settings are hashed beside it
  * (./buildSettings `buildSettingsDigest`) because the fingerprint never sees them - a changed
- * `build.env` must not reuse an app built without it.
+ * `build.env` must not reuse an app built without it. An iOS build whose pods link Sherlo into its
+ * configuration (`linksSherlo`) is kept under a key ending `-sherlo`: the fingerprint never sees
+ * which configurations the pods were installed for, and a build under the plain key may lack
+ * Sherlo's native module.
  */
 export function cacheKeyOf({
   baseFingerprint,
   platform,
   settings,
+  linksSherlo,
 }: {
   baseFingerprint: string;
   platform: Platform;
   settings: BuildSettings;
+  linksSherlo?: boolean;
 }): string {
   const settingsDigest = buildSettingsDigest(settings, platform).slice(0, SETTINGS_DIGEST_IN_KEY);
-  return `${platform}-${baseFingerprint}-${settingsDigest}`;
+  return `${platform}-${baseFingerprint}-${settingsDigest}${linksSherlo ? '-sherlo' : ''}`;
 }
 
 /**
@@ -47,6 +52,7 @@ export async function keepUnderInstalledTreeKey({
   cacheDir,
   appPath,
   firstKey,
+  linksSherlo,
 }: {
   platform: Platform;
   settings: BuildSettings;
@@ -56,12 +62,14 @@ export async function keepUnderInstalledTreeKey({
   appPath: string;
   /** The key the app is already kept under. */
   firstKey: string;
+  /** Whether the pods the build left link Sherlo into its configuration (see `cacheKeyOf`). */
+  linksSherlo?: boolean;
 }): Promise<void> {
   try {
     const fingerprints = await nativeBuild().computeFingerprint(projectRoot, command);
     const baseFingerprint = fingerprints[platform].hash;
     if (!baseFingerprint) return;
-    const cacheKey = cacheKeyOf({ baseFingerprint, platform, settings });
+    const cacheKey = cacheKeyOf({ baseFingerprint, platform, settings, linksSherlo });
     if (cacheKey !== firstKey) {
       await appBuilder().keepInCache({ platform, cacheKey, cacheDir, path: appPath });
     }

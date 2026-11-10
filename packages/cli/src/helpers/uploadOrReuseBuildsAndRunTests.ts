@@ -97,6 +97,7 @@ export type SplitJob = { joinKey: string; platform: Platform };
 async function uploadOrReuseBuildsAndRunTests({
   commandParams,
   appBuildPaths,
+  iosConfiguration,
   fingerprints,
   platformsOnStoredBuild = [],
   splitJob,
@@ -111,6 +112,8 @@ async function uploadOrReuseBuildsAndRunTests({
   commandParams: CommandParams;
   /** The app builds this push uploads, per platform: the ones this run just built. */
   appBuildPaths: Partial<Record<Platform, string>>;
+  /** The configuration this run compiled the iOS app with, named if Sherlo is missing from it. */
+  iosConfiguration?: string;
   /**
    * Each platform's base fingerprint, TAKEN BEFORE ANYTHING WAS BUILT - the one the staged gate was
    * asked with. Never taken again here: a build writes into the project (pods, prebuilt frameworks
@@ -137,7 +140,7 @@ async function uploadOrReuseBuildsAndRunTests({
 
   /** Every platform this push renders a fresh bundle for: the built ones, then the stored ones. */
   const platformsToBundle: Platform[] = [
-    ...platformsWithAppBuilds(appBuildPaths),
+    ...platformsNamedIn(appBuildPaths),
     ...platformsOnStoredBuild,
   ];
 
@@ -151,6 +154,7 @@ async function uploadOrReuseBuildsAndRunTests({
         command,
         commandParams,
         appBuildPaths,
+        iosConfiguration,
         projectIndex,
         teamId,
       }),
@@ -422,7 +426,7 @@ async function uploadOrReuseBuildsAndRunTests({
     printTestStarted({
       openBuildReturn: openedAlone,
       moduleManifests: collectModuleManifests(freshBundles, platformsWithBundles),
-      platformsToTest: platformsInTheRun(buildRunConfig),
+      platformsToTest: platformsNamedIn(buildRunConfig),
       devices: commandParams.devices,
       serverBypassed,
       platformRows,
@@ -446,14 +450,9 @@ export default uploadOrReuseBuildsAndRunTests;
 
 /* ========================================================================== */
 
-/** The platforms the run's config names a device for - every platform the started test runs on. */
-function platformsInTheRun(buildRunConfig: ReturnType<typeof getBuildRunConfig>): Platform[] {
-  return (['android', 'ios'] as const).filter((platform) => buildRunConfig[platform]);
-}
-
-/** The platforms this push uploads an app build for, Android first. */
-function platformsWithAppBuilds(appBuildPaths: Partial<Record<Platform, string>>): Platform[] {
-  return (['android', 'ios'] as const).filter((platform) => appBuildPaths[platform]);
+/** The platforms a record names something for, Android first: the run's devices, or its app builds. */
+function platformsNamedIn(named: Partial<Record<Platform, unknown>>): Platform[] {
+  return (['android', 'ios'] as const).filter((platform) => named[platform]);
 }
 
 /**
