@@ -11,7 +11,7 @@ Since the last run of this scene:
      GET https://api.kindred.example/v1/chats/8412/messages from axios
      POST https://api.kindred.example/v1/chats/8412/read from axios
 
-[2mKept in .sherlo/captures as kindred--chat-with-match[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as kindred--chat-with-match[22m
 
 
 [exit 1]

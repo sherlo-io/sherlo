@@ -13,7 +13,7 @@
      mockRequest({ url: 'https://api.adapty.io/*' }, { body: {} })
      mockRequest({ url: 'https://ingest.sentry.io/*' }, { body: {} })
 
-[2mKept in .sherlo/captures as kindred--discover-tab[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as kindred--discover-tab[22m
 
 
 [exit 1]

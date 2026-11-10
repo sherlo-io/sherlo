@@ -46,6 +46,7 @@ import type { CaptureResult } from '../../seams/captureSocket';
 import type { CaptureOptions } from './captureOptions';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
+import { pngPictureWritten } from '../../render/capturedScene';
 import type { CapturedScene } from '../../render/capturedScene';
 import type { NoAppEnding } from '../../render/noAppLines';
 import { lineAfterScene } from '../../render/lineAfterScene';
@@ -142,13 +143,16 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   if (passedOptions[JSON_OPTION]) {
     process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
   } else {
-    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port, discover), picture });
+    const state = capturedSceneEnding(answer, port, discover);
+    emit({ kind: 'captured-scene', state, picture });
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
     if (kept) {
       // The same condition runScene keeps a picture by: only a scene that came up and threw nothing.
-      const pictureSaved = pictureKeptFor(getCwd(), sceneId, answer).saves;
+      // A scene whose --png picture was written still says where it is kept: the screen already says "Picture saved".
+      const pictureSaved =
+        pictureKeptFor(getCwd(), sceneId, answer).saves || pngPictureWritten(state, picture);
       emit({
         kind: 'kept-capture',
         id: sceneId,
