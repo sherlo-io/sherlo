@@ -95,8 +95,7 @@ export async function checkGate({
       }
     }
   } catch (error) {
-    handleClientError(error, token); // always throws (bad token, network, ...)
-    throw error; // unreachable - satisfies control flow / typing
+    return await handleClientError(error, token); // always throws (bad token, network, ...)
   }
 
   return { refusals, storedBuildIndexOf, sameCodeBuildIndexOf };

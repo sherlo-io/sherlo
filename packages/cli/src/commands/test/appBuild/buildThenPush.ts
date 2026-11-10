@@ -20,7 +20,12 @@
  */
 import path from 'path';
 import type { Platform } from '@sherlo/api-types';
-import { getValidatedCommandParams, uploadOrReuseBuildsAndRunTests } from '../../../helpers';
+import {
+  getValidatedCommandParams,
+  handleClientError,
+  uploadOrReuseBuildsAndRunTests,
+} from '../../../helpers';
+import { serverCalls } from '../../../seams/serverCalls';
 import { emit } from '../../../helpers/transcriptSink';
 import { readProjectJson } from '../../../helpers/projectJson';
 import type {
@@ -55,7 +60,13 @@ export async function buildThenPush({
   fingerprints,
   credential,
   gitInfo,
+  proveLoginFirst,
 }: {
+  /**
+   * No gate question has been asked yet (the project has no fingerprint to ask it with), so
+   * nothing has shown the login and project good: ask one cheap question before the build starts.
+   */
+  proveLoginFirst?: boolean;
   /** The git read the gate's ask already made, handed on so no road reads git twice. */
   gitInfo?: GitInfo;
   passedOptions: Options<THIS_COMMAND> & BuildFlags;
@@ -82,6 +93,8 @@ export async function buildThenPush({
     resolvedCredential: credential,
   });
   const settings = readBuildSettings(commandParams);
+
+  if (proveLoginFirst) await proveLoginAndProject(commandParams.credential, platformsToTest);
 
   // EAS MODE: the refused platforms are built on Expo's servers, and the run waits for them.
   if (settings.tool === 'eas') {
@@ -154,6 +167,29 @@ export async function buildThenPush({
     runIdFlag: passedOptions.runId,
     gitInfo,
   });
+}
+
+/**
+ * The push's first question, asked before a build that can take many minutes: does the service
+ * accept this token for this project? A 401 is then told apart - a good login with a project it
+ * cannot reach is not a login to renew.
+ */
+async function proveLoginAndProject(
+  credential: PushCredential,
+  platforms: Platform[]
+): Promise<void> {
+  // No serverCalls call proves token and project without minting something, and this one only
+  // presigns upload URLs for the hashes it is sent: none here.
+  await serverCalls()
+    .getNextBuildInfo({
+      token: credential.token,
+      binaryHashes: {},
+      platforms,
+      projectIndex: credential.projectIndex,
+      teamId: credential.teamId,
+      binaryReuseMode: 'requireHashMatch',
+    })
+    .catch((error) => handleClientError(error, credential.token));
 }
 
 /** What the push reports about each app build it made or took from the cache: how, and why a new one. */

@@ -13,8 +13,10 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScriptedCall, ServerCalls } from '../../../../seams/serverCalls';
 
 /** What the posed seams were asked, in order. */
-const { sentRequests, builderCalls, binaryPuts, fingerprintsOnTheMachine, gitReads } = vi.hoisted(
-  () => ({
+const { sentRequests, builderCalls, binaryPuts, fingerprintsOnTheMachine, gitReads, refusing } =
+  vi.hoisted(() => ({
+    /** The one operation the posed server refuses with a 401, as the real authorizer does. */
+    refusing: { operation: null as string | null },
     /** How many times the run read git. */
     gitReads: { count: 0 },
     sentRequests: [] as Array<{ operation: string; request: Record<string, any> }>,
@@ -22,8 +24,7 @@ const { sentRequests, builderCalls, binaryPuts, fingerprintsOnTheMachine, gitRea
     binaryPuts: [] as string[],
     /** Each fingerprint the posed machine computed: what a fingerprint taken after the build reads. */
     fingerprintsOnTheMachine: [] as string[],
-  })
-);
+  }));
 
 vi.mock('../../../../seams/serverCalls', async (importActual) => {
   const actual = await importActual<typeof import('../../../../seams/serverCalls')>();
@@ -41,6 +42,9 @@ vi.mock('../../../../seams/serverCalls', async (importActual) => {
           request: Record<string, any>
         ) => {
           sentRequests.push({ operation, request });
+          if (operation === refusing.operation) {
+            return Promise.reject({ networkError: { statusCode: 401 } });
+          }
           return answer(request);
         };
       }
@@ -158,6 +162,7 @@ beforeEach(() => {
   binaryPuts.length = 0;
   fingerprintsOnTheMachine.length = 0;
   gitReads.count = 0;
+  refusing.operation = null;
 });
 
 describe('sherlo test builds what the gate refused, then pushes', () => {
@@ -215,6 +220,25 @@ describe('sherlo test builds what the gate refused, then pushes', () => {
     expect(takenBeforeTheBuild).not.toBe(takenAfterTheBuild);
     expect(fingerprintsOnTheMachine).toEqual([]);
     expect(requestOf('openBuild')!.baseFingerprints).toEqual({ android: takenBeforeTheBuild });
+  });
+
+  // With no fingerprint the gate is never asked, so nothing before the build has shown the token
+  // good: the push asks once, and a 401 ends it before the app is compiled.
+  it('a rejected login stops the push before the app is built', async () => {
+    const pose = testPose('build-android-then-push');
+    // A dependency that is not installed leaves the fingerprint unavailable.
+    delete pose.files['node_modules/expo/package.json'];
+    // The pose's gate call is not asked; its next call, getNextBuildInfo, is the proof call.
+    pose.api = pose.api.slice(1);
+    refusing.operation = 'getNextBuildInfo';
+
+    const { screen, exitCode } = await runPose(pose);
+
+    expect(exitCode).toBe(1);
+    expect(stripAnsi(screen)).toContain('Invalid token');
+    expect(operationsSent()).toEqual(['getNextBuildInfo']);
+    expect(platformsCalled('compile')).toEqual([]);
+    expect(binaryPuts).toEqual([]);
   });
 
   it('a mixed run builds only the refused platform and stages the other onto its stored app build, in one test', async () => {
