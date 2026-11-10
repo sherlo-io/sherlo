@@ -10,10 +10,20 @@ import { getStorybookComponent } from './helpers';
 import { useHideSplashScreen } from './hooks';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import reportStorybookLoaded from '../helpers/reportStorybookLoaded';
-import { readStorybookChannel } from './storybookReads';
+import {
+  clearStorybooksStory,
+  readStorybookChannel,
+  readStorybooksCurrentStory,
+} from './storybookReads';
 import { clearMocks } from '../mocking';
-import { startOpenStoryChannel, stopOpenStoryChannel } from '../openStoryChannel';
-import { startCaptureTransport } from '../captureTransport';
+import {
+  startOpenStoryChannel,
+  stopOpenStoryChannel,
+  whenStorybookShowsAStory,
+} from '../openStoryChannel';
+import { bundlerCapture, startCaptureTransport } from '../captureTransport';
+import type { CaptureTransport, StorybookChannel } from '../sealedCore/seam';
+import type { CaptureInstructionOfTheLine } from '../../metro/sherloLine';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
 
 let isSdkCompatible = true;
@@ -153,12 +163,61 @@ function startWaitingOnTheLetterbox(view: StorybookView, atTheStoryBrowser: bool
 
 function startWaitingForACapture(view: StorybookView): void {
   try {
-    startCaptureTransport({ channel: readStorybookChannel(view).value });
+    const channel = readStorybookChannel(view).value;
+    const road = bundlerCapture();
+    startCaptureTransport({
+      channel,
+      capture: road && channel ? startingEachStoryFresh(road, view, channel) : road,
+    });
   } catch (_e) {
     // Ignored: a device with no reachable bundler beside it. That costs `sherlo capture` its road
     // into this app and costs the app nothing else, so it is not worth crashing the app a
     // developer is working in.
   }
+}
+
+/** How long a fresh start waits for Storybook to draw the story again before the core walks it. */
+const FRESH_START_TIMEOUT_MS = 5000;
+
+/**
+ * The bundler's road, with each story capture starting from a fresh app state: when the line says
+ * this JavaScript was last handed the same story (`startFresh`, ../../metro/sherloLine.js), the
+ * story is drawn again from nothing before the core walks it. Without that, Storybook keeps the
+ * story mounted, and the capture shows whatever the story drew after the last one.
+ */
+function startingEachStoryFresh(
+  road: CaptureTransport,
+  view: StorybookView,
+  channel: StorybookChannel
+): CaptureTransport {
+  return {
+    waitForACapture: async (saying) => {
+      const asked = (await road.waitForACapture(saying)) as CaptureInstructionOfTheLine;
+      if (asked.startFresh && asked.storyId) await drawTheStoryAgain(view, channel, asked.storyId);
+      return asked;
+    },
+  };
+}
+
+/**
+ * Take the story off Storybook's view, and have Storybook draw it again: it mounts from nothing,
+ * and Sherlo's decorator installs the story's mocks again before it does (./sherloAnnotation). It
+ * does nothing when Storybook shows another story, which the core's walk mounts fresh anyway.
+ */
+async function drawTheStoryAgain(
+  view: StorybookView,
+  channel: StorybookChannel,
+  storyId: string
+): Promise<void> {
+  if (readStorybooksCurrentStory(view).value !== storyId) return;
+  if (clearStorybooksStory(view).value !== true) return;
+  // The view must draw no story for one frame, or React would keep the story it hands back.
+  await SherloModule.awaitFrameCommit(FRESH_START_TIMEOUT_MS).catch(() => false);
+
+  await new Promise<void>((resolve) => {
+    whenStorybookShowsAStory({ view, channel, timeoutMs: FRESH_START_TIMEOUT_MS }, resolve);
+    channel.emit('forceRemount', { storyId });
+  });
 }
 
 export function __resetForTests(): void {

@@ -95,10 +95,13 @@ export function startOpenStoryChannel({
   }
 
   if (stopWaitingForStorybooksFirstStory) return;
-  stopWaitingForStorybooksFirstStory = whenStorybookShowsItsFirstStory({ view, channel }, () => {
-    stopWaitingForStorybooksFirstStory = null;
-    startTheCore();
-  });
+  stopWaitingForStorybooksFirstStory = whenStorybookShowsAStory(
+    { view, channel, timeoutMs: STORYBOOKS_FIRST_STORY_TIMEOUT_MS },
+    () => {
+      stopWaitingForStorybooksFirstStory = null;
+      startTheCore();
+    }
+  );
 }
 
 /** Stop waiting. The request already in flight is left to finish and its answer dropped. */
@@ -109,16 +112,20 @@ export function stopOpenStoryChannel(): void {
 }
 
 /**
- * Call `then` once, when Storybook has shown the story it picks for itself on starting, or when
- * STORYBOOKS_FIRST_STORY_TIMEOUT_MS has passed without it saying so. Returns the way to stop
- * waiting.
+ * Call `then` once, when Storybook has shown a story (its own pick on starting, or a story it was
+ * asked to draw again, ./getStorybook), or when `timeoutMs` has passed without it saying so.
+ * Returns the way to stop waiting.
  *
  * Storybook says a story is missing once before it has picked anything, while it is still
  * starting; that one is not its pick. Storybook names what it is looking for (`selectionSpecifier`)
  * before it looks, so a missing story counts only once that name is set.
  */
-function whenStorybookShowsItsFirstStory(
-  { view, channel }: { view: StorybookView; channel: StorybookChannel },
+export function whenStorybookShowsAStory(
+  {
+    view,
+    channel,
+    timeoutMs,
+  }: { view: StorybookView; channel: StorybookChannel; timeoutMs: number },
   then: () => void
 ): () => void {
   const listeners = STORYBOOK_LANDED_EVENTS.map((event) => {
@@ -134,7 +141,7 @@ function whenStorybookShowsItsFirstStory(
   const giveUpWaiting = setTimeout(() => {
     stopWaiting();
     then();
-  }, STORYBOOKS_FIRST_STORY_TIMEOUT_MS);
+  }, timeoutMs);
 
   function stopWaiting(): void {
     clearTimeout(giveUpWaiting);

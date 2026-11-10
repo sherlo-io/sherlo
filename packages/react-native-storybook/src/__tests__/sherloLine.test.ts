@@ -609,6 +609,72 @@ describe('a capture of an app whose story files changed after its code loaded', 
   });
 });
 
+describe('a story capture of JavaScript that already walked the story', () => {
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 30));
+  const CAPTURED = { kind: 'captured', storyId: STORY };
+  const STORIES = [STORY, OTHER_STORY];
+
+  /** An app in testing mode that was handed STORY, answered it, and waits for the next capture. */
+  async function anAppThatWalkedTheStory() {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: null });
+    const firstReply = driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: CAPTURED });
+    await expect(firstReply).resolves.toEqual(CAPTURED);
+    // The line lets the app go after its answer, with nothing to do.
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: null });
+    return { app, driver };
+  }
+
+  it('a story capture asks the app for a fresh start before it opens the story', async () => {
+    const { app, driver } = await anAppThatWalkedTheStory();
+
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+      startFresh: true,
+    });
+  });
+
+  it('CONTROL: another story, or the same one on JavaScript started since, is handed with no fresh start', async () => {
+    const { app, driver } = await anAppThatWalkedTheStory();
+
+    // Storybook mounts a story it switches to from nothing: there is nothing to start fresh.
+    const otherReply = driver.ask({
+      action: 'captureStory',
+      storyId: OTHER_STORY,
+      settings: SETTINGS,
+    });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: OTHER_STORY,
+      settings: SETTINGS,
+    });
+    const otherCaptured = { kind: 'captured', storyId: OTHER_STORY };
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: otherCaptured });
+    await expect(otherReply).resolves.toEqual(otherCaptured);
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+
+    // A reload is a fresh start of its own.
+    await pause();
+    await app.startsItsJavaScript();
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: null });
+    void driver.ask({ action: 'captureStory', storyId: OTHER_STORY, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: OTHER_STORY,
+      settings: SETTINGS,
+    });
+  });
+});
+
 describe('a capture of an app that cannot list its stories', () => {
   it('a capture of an app that cannot list its stories is checked after the restart', async () => {
     const running = await startALine();
