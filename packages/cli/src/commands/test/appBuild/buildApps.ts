@@ -390,7 +390,7 @@ async function pickIosBuild(
     return refuseToBuildHere(
       `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
         `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${
-          schemes[0] ?? 'MyApp'
+          target?.appSchemes.find((name) => schemes.includes(name)) ?? schemes[0] ?? 'MyApp'
         }" } }`,
       project
     );

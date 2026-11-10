@@ -56,3 +56,29 @@ export function flavorReleaseTasksIn(tasksOutput: string): string[] {
   }
   return [...tasks];
 }
+
+/**
+ * The folder the `sdk.dir` line of the project's `android/local.properties` names, or undefined.
+ * The file is in Java's properties format, which escapes `:` and `\` with a backslash, and a
+ * relative folder is read from the `android` folder, as Gradle reads it.
+ */
+export function sdkDirOfLocalProperties(projectRoot: string): string | undefined {
+  const androidFolder = path.join(projectRoot, 'android');
+  const propertiesPath = path.join(androidFolder, 'local.properties');
+  const properties = fs.existsSync(propertiesPath) ? fs.readFileSync(propertiesPath, 'utf8') : '';
+  const sdkDirLine = /^\s*sdk\.dir\s*[=:]\s*(.*?)\s*$/m.exec(properties);
+  if (!sdkDirLine) return undefined;
+  const sdkDir = sdkDirLine[1].replace(/\\(.)/g, '$1');
+  return path.resolve(androidFolder, sdkDir);
+}
+
+/**
+ * The major version `java -version` reports: `"17.0.2"` is 17, `"21"` is 21, and the old
+ * `"1.8.0_292"` is 8. Null when it reports none.
+ */
+export function javaMajorVersionIn(output: string): number | null {
+  const version = /version "(\d+)(?:\.(\d+))?/.exec(output);
+  if (!version) return null;
+  const [, first, second] = version;
+  return Number(first === '1' && second ? second : first);
+}

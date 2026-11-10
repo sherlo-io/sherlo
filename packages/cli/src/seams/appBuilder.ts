@@ -34,9 +34,20 @@ import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
-import { gradleWrapperIn, listAndroidFlavorTasks } from './androidFlavors';
+import {
+  gradleWrapperIn,
+  javaMajorVersionIn,
+  listAndroidFlavorTasks,
+  sdkDirOfLocalProperties,
+} from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
-import { filesTheInstallChanged, readPodTouchedFiles } from './podTouchedFiles';
+import { schemeNamesInProject, schemesInXcodeList } from './iosScheme';
+import {
+  filesTheInstallChanged,
+  podInstallFailureLines,
+  podsAreCurrent,
+  readPodTouchedFiles,
+} from './podTouchedFiles';
 import {
   type IosAppTarget,
   iosBuildConfiguration,
@@ -409,45 +420,6 @@ function isFolder(folderPath: string | undefined): boolean {
   return fs.statSync(folderPath).isDirectory();
 }
 
-/**
- * The folder the `sdk.dir` line of the project's `android/local.properties` names, or undefined.
- * The file is in Java's properties format, which escapes `:` and `\` with a backslash, and a
- * relative folder is read from the `android` folder, as Gradle reads it.
- */
-function sdkDirOfLocalProperties(projectRoot: string): string | undefined {
-  const androidFolder = path.join(projectRoot, 'android');
-  const properties = readTextIfThere(path.join(androidFolder, 'local.properties')) ?? '';
-  const sdkDirLine = /^\s*sdk\.dir\s*[=:]\s*(.*?)\s*$/m.exec(properties);
-  if (!sdkDirLine) return undefined;
-  const sdkDir = sdkDirLine[1].replace(/\\(.)/g, '$1');
-  return path.resolve(androidFolder, sdkDir);
-}
-
-/**
- * The major version `java -version` reports: `"17.0.2"` is 17, `"21"` is 21, and the old
- * `"1.8.0_292"` is 8. Null when it reports none.
- */
-function javaMajorVersionIn(output: string): number | null {
-  const version = /version "(\d+)(?:\.(\d+))?/.exec(output);
-  if (!version) return null;
-  const [, first, second] = version;
-  return Number(first === '1' && second ? second : first);
-}
-
-/**
- * The schemes an `xcodebuild -list -json` answer lists, for a workspace or a project. xcodebuild
- * may print warnings before the JSON, and a destination warning's line opens with a brace of its
- * own (`{ platform:macOS, ... }`), so the JSON starts at a brace that ends its line or opens a key.
- */
-function schemesInXcodeList(output: string): string[] {
-  const jsonStart = output.search(/^\{\s*("|$)/m);
-  if (jsonStart === -1) return [];
-  const list: { workspace?: { schemes?: string[] }; project?: { schemes?: string[] } } = JSON.parse(
-    output.slice(jsonStart, output.lastIndexOf('}') + 1)
-  );
-  return (list.workspace ?? list.project)?.schemes ?? [];
-}
-
 /** The CocoaPods project `pod install` writes into the iOS folder, from that folder. */
 const PODS_PROJECT = 'Pods/Pods.xcodeproj';
 
@@ -550,22 +522,31 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     iosFolder: string;
     env: NodeJS.ProcessEnv;
     logPath: string;
-  }): Promise<{ notHeld: string[]; changedAny: boolean } | 'failed'> {
+  }): Promise<
+    { notHeld: string[]; changedAny: boolean } | { skipped: true } | { failedLines: string[] }
+  > {
     const { projectRoot, iosFolder, env, logPath } = params;
+    if (podsAreCurrent(iosFolder)) return { skipped: true };
     const filesBefore = readPodTouchedFiles(projectRoot);
     const usesBundler = [projectRoot, iosFolder].some((folder) =>
       /cocoapods/i.test(readTextIfThere(path.join(folder, 'Gemfile')) ?? '')
     );
     // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` with no locale.
     const hasLocale = Boolean(env.LANG || env.LC_ALL);
+    const command = usesBundler ? 'bundle exec pod install' : 'pod install';
+    const [program, ...args] = command.split(' ');
     const exitCode = await runProcess({
-      command: usesBundler ? 'bundle' : 'pod',
-      args: usesBundler ? ['exec', 'pod', 'install'] : ['install'],
+      command: program,
+      args,
       cwd: iosFolder,
       env: hasLocale ? env : { ...env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' },
       logPath,
     });
-    if (exitCode !== 0) return 'failed';
+    if (exitCode !== 0) {
+      return {
+        failedLines: podInstallFailureLines({ command, exitCode, logLines: lastLinesOf(logPath) }),
+      };
+    }
 
     const { changed, changedInTheApp } = filesTheInstallChanged({
       before: filesBefore,
@@ -593,7 +574,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     const iosFolder = path.join(projectRoot, 'ios');
     const buildEnv = buildEnvironment({ projectRoot, easProfile, buildEnv: env });
     const install = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
-    if (install === 'failed') return failed();
+    if ('failedLines' in install) return failed(install.failedLines);
 
     // No -derivedDataPath: Xcode keeps its derived data, and the compilation cache, in its own folder.
     const xcodebuildArguments = [
@@ -651,8 +632,9 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       path: appPath,
       sizeMb: appBuildSizeMb(appPath),
       seconds: secondsSince(),
-      podFilesChanged: install.notHeld,
-      podInstallChangedFiles: install.changedAny,
+      ...('skipped' in install
+        ? { podFilesChanged: [], podInstallSkipped: true as const }
+        : { podFilesChanged: install.notHeld, podInstallChangedFiles: install.changedAny }),
     };
   }
 
@@ -767,11 +749,22 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     listIosSchemes: async (projectRoot) => {
       const iosFolder = path.join(projectRoot, 'ios');
       const schemes = await listSchemes(iosFolder, xcodeContainerArguments(iosFolder));
-      // A workspace lists the schemes of the CocoaPods project beside the app's own.
-      const podSchemes = fs.existsSync(path.join(iosFolder, PODS_PROJECT))
-        ? await listSchemes(iosFolder, ['-project', PODS_PROJECT])
-        : [];
-      return schemes.filter((scheme) => !podSchemes.includes(scheme));
+      // A workspace lists the schemes of the CocoaPods project beside the app's own. xcodebuild
+      // refuses that listing on some projects (a Swift package with legacy build locations), and
+      // then the scheme files of the Pods project name them instead.
+      if (!fs.existsSync(path.join(iosFolder, PODS_PROJECT))) return schemes;
+      const podSchemes = await listSchemes(iosFolder, ['-project', PODS_PROJECT]).catch(() =>
+        schemeNamesInProject(path.join(iosFolder, PODS_PROJECT))
+      );
+      if (podSchemes.length > 0) return schemes.filter((scheme) => !podSchemes.includes(scheme));
+      // Not even those could be read: keep the schemes of the app's own projects.
+      const appSchemes = fs
+        .readdirSync(iosFolder)
+        .filter((name) => name.endsWith('.xcodeproj'))
+        .flatMap((name) => schemeNamesInProject(path.join(iosFolder, name)));
+      return appSchemes.length > 0
+        ? schemes.filter((scheme) => appSchemes.includes(scheme))
+        : schemes;
     },
     // Read from the shared schemes and the project files; null keeps the scheme's own configuration.
     readIosAppTarget: async (projectRoot, scheme) =>

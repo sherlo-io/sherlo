@@ -48,3 +48,29 @@ export function filesTheInstallChanged({
   );
   return { changed, changedInTheApp };
 }
+
+/** CocoaPods' own "in sync" test: the installed pods' manifest equals the lockfile, byte for byte. */
+export function podsAreCurrent(iosFolder: string): boolean {
+  const lockfile = path.join(iosFolder, 'Podfile.lock');
+  const manifest = path.join(iosFolder, 'Pods/Manifest.lock');
+  return (
+    fs.existsSync(lockfile) &&
+    fs.existsSync(manifest) &&
+    fs.readFileSync(lockfile).equals(fs.readFileSync(manifest))
+  );
+}
+
+/** What a failed pod step prints: its command and exit code, then the first error line of its log. */
+export function podInstallFailureLines(params: {
+  command: string;
+  exitCode: number;
+  logLines: string[];
+}): string[] {
+  const { command, exitCode, logLines } = params;
+  const lines = logLines.filter((line) => line.trim() !== '');
+  const firstError = lines.find((line) => /error|mismatch|fail|\[!\]/i.test(line)) ?? lines[0];
+  return [
+    `The pod install step failed: \`${command}\` exited with ${exitCode}.`,
+    ...(firstError ? [firstError.trim()] : []),
+  ];
+}
