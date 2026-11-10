@@ -15,7 +15,8 @@
 import type { BundleBuildFailure } from '../render/bundleBuildFailure';
 import type { CapturedView } from '../render/capturedStory';
 import { readAppError, type AppError } from './appError';
-import { drainAppLog } from './appLog';
+import { withPortTheAppAsks, type PortTheAppAsks } from './appBundlerPort';
+import { drainAppLog, keepStrings } from './appLog';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import {
@@ -26,11 +27,17 @@ import {
 } from './liveScene';
 import { newsOf, stopNewsOf, type PosedSceneNews, type PosedStopNews } from './posedSceneNews';
 import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
+import { readWindowReason, type WindowReason } from './windowReason';
 
 /** What the app answered about the story the command asked it to capture. */
 export type CaptureResult =
   | { kind: 'no-bundler' }
-  | { kind: 'no-app'; why?: 'old-code' | 'no-launch-code'; detail?: string }
+  | {
+      kind: 'no-app';
+      why?: 'old-code' | 'no-launch-code';
+      detail?: string;
+      appAsks?: PortTheAppAsks;
+    }
   | {
       kind: 'no-such-story';
       known: string[];
@@ -106,44 +113,6 @@ export type WaitOutcome = {
   ms: number;
 };
 
-/**
- * WHY the app's answer is rooted at the window rather than the story, as it reports it - see the
- * SDK's own WindowReason (packages/react-native-storybook/src/captureTransport.ts).
- */
-export type WindowReason =
-  /** The app never published any reading of its views, of any story, at any point the poll ran. */
-  | {
-      cause: 'nothing-published';
-      /**
-       * How the app's MetadataProvider first rendering relates to when its poll began: positive is
-       * that many ms after, negative is that many ms before, `undefined` is that it never rendered
-       * at all - or rendered once, earlier in the same boot, and was withdrawn before this poll ran.
-       */
-      providerRenderedRelativeToPollMs?: number;
-    }
-  /** A reading WAS published - the app's poll got an answer at some point - but it never named this story. */
-  | {
-      cause: 'story-unnamed';
-      /** Whether the app had published any reading of its views the moment the app's poll began. */
-      publishedAtPollStart: boolean;
-      /**
-       * How the app's MetadataProvider first rendering relates to when its poll began: positive is
-       * that many ms after, negative is that many ms before, `undefined` is that it had not
-       * rendered at all by the time the poll gave up.
-       */
-      providerRenderedRelativeToPollMs?: number;
-      /**
-       * The distinct testIDs the reading held when the app's poll gave up, never this story's own -
-       * see the SDK's own WindowReason.testIdsAtGiveUp. Empty means the reading held no story's
-       * testID at all; one or more means it held a DIFFERENT story's - two different bugs the record
-       * could not otherwise tell apart.
-       */
-      testIdsAtGiveUp: string[];
-    }
-  | { cause: 'story-broken'; source: 'error-registry' }
-  | { cause: 'story-broken'; source: 'fallback-text'; generation: 'live' | 'merged' }
-  | { cause: 'story-not-in-tree' };
-
 /** Everything the tool asks of a running app down this road, and nothing else. */
 export type CaptureSocket = {
   captureStory(params: {
@@ -162,39 +131,45 @@ export type CaptureSocket = {
  */
 const CAPTURE_PATIENCE_MS = 60_000;
 
-/** The shipped answers: a real bundler, with a real app attached to it. */
+/** The shipped answers: a real bundler, with a real app attached to it; no app says the port it asks. */
 export const liveCaptureSocket: CaptureSocket = {
-  captureStory: async ({ storyId, port, settings }) => {
-    const answer = await askTheBundlerLine({
-      port,
-      question: { action: 'captureStory', storyId, settings },
-      patienceMs: CAPTURE_PATIENCE_MS,
-    });
-
-    if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
-    if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
-    // A story is not captured from old code either: said as a scene says it.
-    if (answer.kind === 'old-code') return noAppForItsCode(answer.appStamp);
-
-    if (answer.kind === 'gave-up-waiting') {
-      // The app was handed the story and then stopped answering - a fatal error, a native crash,
-      // or the app being closed. The tree and the settle time are gone with it, but whatever it
-      // logged on the way is not: it was already pushed to the bundler's own feed, live, before
-      // whatever silenced the app had a chance to (see drainAppLog).
-      const logs = await drainAppLog(port);
-      return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
-    }
-
-    const result = readCaptureAnswer(answer.reply, storyId);
-    if (result.kind === 'captured' || result.kind === 'crashed') {
-      const logs = await drainAppLog(port);
-      if (logs.length > 0) result.logs = logs;
-    }
-    return result;
-  },
-
+  captureStory: async (params) => withPortTheAppAsks(await askForTheStory(params), params.port),
   captureScene: captureLiveScene,
 };
+
+/** Ask the app on the bundler's line for one story, and read what it answered. */
+async function askForTheStory({
+  storyId,
+  port,
+  settings,
+}: Parameters<CaptureSocket['captureStory']>[0]): Promise<CaptureResult> {
+  const answer = await askTheBundlerLine({
+    port,
+    question: { action: 'captureStory', storyId, settings },
+    patienceMs: CAPTURE_PATIENCE_MS,
+  });
+
+  if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
+  if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
+  // A story is not captured from old code either: said as a scene says it.
+  if (answer.kind === 'old-code') return noAppForItsCode(answer.appStamp);
+
+  if (answer.kind === 'gave-up-waiting') {
+    // The app was handed the story and then stopped answering - a fatal error, a native crash,
+    // or the app being closed. The tree and the settle time are gone with it, but whatever it
+    // logged on the way is not: it was already pushed to the bundler's own feed, live, before
+    // whatever silenced the app had a chance to (see drainAppLog).
+    const logs = await drainAppLog(port);
+    return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
+  }
+
+  const result = readCaptureAnswer(answer.reply, storyId);
+  if (result.kind === 'captured' || result.kind === 'crashed') {
+    const logs = await drainAppLog(port);
+    if (logs.length > 0) result.logs = logs;
+  }
+  return result;
+}
 
 let installed: CaptureSocket = liveCaptureSocket;
 
@@ -241,8 +216,8 @@ export function readCaptureAnswer(said: unknown, storyId: string): CaptureResult
   if (answer.kind === 'no-app') return { kind: 'no-app' };
 
   if (answer.kind === 'no-such-story') {
-    const known = Array.isArray(answer.known) ? answer.known.filter(isString) : [];
     const brokenFiles = readBrokenFiles(answer.brokenFiles);
+    const known = keepStrings(answer.known);
     return { kind: 'no-such-story', known, ...(brokenFiles && { brokenFiles }) };
   }
 
@@ -352,61 +327,6 @@ function readRoot(
   return { at: root.at, nodeCount: root.nodeCount, ...(reason && { reason }) };
 }
 
-/**
- * WHY a window root was reported, read straight off the wire the way `readRoot`'s own fields are -
- * or nothing when the app said nothing readable about it, which an app older than this field does,
- * and which a story root always does (it is never asked why).
- */
-function readWindowReason(value: unknown): WindowReason | undefined {
-  const reason = value as
-    | {
-        cause?: unknown;
-        source?: unknown;
-        generation?: unknown;
-        publishedAtPollStart?: unknown;
-        providerRenderedRelativeToPollMs?: unknown;
-        testIdsAtGiveUp?: unknown;
-      }
-    | null
-    | undefined;
-
-  if (reason?.cause === 'nothing-published') {
-    return {
-      cause: 'nothing-published',
-      ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
-        providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,
-      }),
-    };
-  }
-  if (reason?.cause === 'story-unnamed') {
-    return {
-      cause: 'story-unnamed',
-      publishedAtPollStart: reason.publishedAtPollStart === true,
-      ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
-        providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,
-      }),
-      testIdsAtGiveUp: Array.isArray(reason.testIdsAtGiveUp)
-        ? reason.testIdsAtGiveUp.filter(isString)
-        : [],
-    };
-  }
-  if (reason?.cause === 'story-not-in-tree') return { cause: 'story-not-in-tree' };
-
-  if (reason?.cause === 'story-broken') {
-    if (reason.source === 'error-registry') {
-      return { cause: 'story-broken', source: 'error-registry' };
-    }
-    if (
-      reason.source === 'fallback-text' &&
-      (reason.generation === 'live' || reason.generation === 'merged')
-    ) {
-      return { cause: 'story-broken', source: 'fallback-text', generation: reason.generation };
-    }
-  }
-
-  return undefined;
-}
-
 /** The files the app said threw as it loaded them, each with its error; a malformed entry is dropped. */
 function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -417,10 +337,6 @@ function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
     if (typeof file === 'string' && error) read.push({ file, error });
   }
   return read.length > 0 ? read : undefined;
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
 }
 
 /* ========================================================================== */

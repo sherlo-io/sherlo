@@ -43,6 +43,7 @@ import {
 import { readPort } from '../../helpers/readPort';
 import { keepTheCapture, openCapture, runScene, savePicture } from './runScene';
 import type { CaptureResult } from '../../seams/captureSocket';
+import type { PortTheAppAsks } from '../../seams/appBundlerPort';
 import type { CaptureOptions } from './captureOptions';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
@@ -242,13 +243,18 @@ function sceneFailed(answer: SceneCaptureResult, discover: boolean): boolean {
 /**
  * What the screen shows for a capture that found no app. An app refused for its code, old or with no
  * launch code, is told what to do about it: the screen shows that detail under `why: 'old-code'`.
- * The other causes have no words of their own here.
+ * The other causes have no words of their own here. The port the app asks rides along whatever the
+ * cause, and the screen puts it first.
  */
-function noAppEnding(answer: { why?: string; detail?: string }, port: number): NoAppEnding {
+function noAppEnding(
+  answer: { why?: string; detail?: string; appAsks?: PortTheAppAsks },
+  port: number
+): NoAppEnding {
   const refusedForItsCode = answer.why === 'old-code' || answer.why === 'no-launch-code';
+  const asks = answer.appAsks && { appAsks: answer.appAsks };
   return refusedForItsCode && answer.detail !== undefined
-    ? { kind: 'no-app', port, why: 'old-code', detail: answer.detail }
-    : { kind: 'no-app', port };
+    ? { kind: 'no-app', port, why: 'old-code', detail: answer.detail, ...asks }
+    : { kind: 'no-app', port, ...asks };
 }
 
 /** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */

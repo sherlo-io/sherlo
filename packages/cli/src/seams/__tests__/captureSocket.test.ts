@@ -12,7 +12,7 @@
 import * as http from 'http';
 import type { AddressInfo } from 'net';
 import WebSocket, { WebSocketServer } from 'ws';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   attach,
   BUNDLER_STAMP,
@@ -23,6 +23,7 @@ import type { WebSocketServerClass } from '../../../../react-native-storybook/me
 import { renderCapturedStory, type CapturedStory } from '../../render/capturedStory';
 import { STABILIZATION_SETTINGS } from '../bundlerLine';
 import { liveCaptureSocket } from '../captureSocket';
+import { installDeviceState, posedDeviceState } from '../deviceState';
 
 const STORY_A = 'components-button--primary';
 const STORY_B = 'components-avatar--basic';
@@ -76,11 +77,14 @@ function closeServer(server: http.Server): Promise<void> {
   });
 }
 
-/** A bundler with the SDK's line on it, and an app that said hello on the line. */
-async function startRelay(): Promise<RunningRelay> {
+/**
+ * A bundler with the SDK's line on it, and an app that said hello on the line. `appHoldMs` is how
+ * long the line waits for an app to ask for a capture before it says there is none.
+ */
+async function startRelay(appHoldMs?: number): Promise<RunningRelay> {
   const server = http.createServer(answerThePlainGet);
   // `ws` types its classes more strictly than the line's own narrow view of the one it uses.
-  attach(server, WebSocketServer as unknown as WebSocketServerClass);
+  attach(server, WebSocketServer as unknown as WebSocketServerClass, { appHoldMs });
   await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
   const port = (server.address() as AddressInfo).port;
 
@@ -237,13 +241,19 @@ describe('the bundler relays the capture between the command and the app, and ho
 
 describe("the app's answer, read into this seam's own endings", () => {
   const running: RunningRelay[] = [];
+  // A capture that finds no app reads the phone: these cases have none unless they install one.
+  let uninstallDevice: () => void = () => {};
+  beforeEach(() => {
+    uninstallDevice = installDeviceState(posedDeviceState());
+  });
 
   afterEach(async () => {
+    uninstallDevice();
     while (running.length) await running.pop()!.close();
   });
 
-  async function relay(): Promise<RunningRelay> {
-    const r = await startRelay();
+  async function relay(appHoldMs?: number): Promise<RunningRelay> {
+    const r = await startRelay(appHoldMs);
     running.push(r);
     return r;
   }
@@ -261,7 +271,8 @@ describe("the app's answer, read into this seam's own endings", () => {
   });
 
   it('a relay no Sherlo app ever reached has no app behind it', async () => {
-    const r = await relay();
+    // The line holds a story for an app to ask; a short hold keeps the wait for none brief.
+    const r = await relay(50);
 
     expect(
       await liveCaptureSocket.captureStory({
@@ -296,6 +307,48 @@ describe("the app's answer, read into this seam's own endings", () => {
     const screen = renderCapturedStory({ ...answer, port: r.port } as CapturedStory).join('\n');
     expect(screen).toContain('choose Reload');
     expect(screen).not.toContain('no Sherlo app is attached');
+  });
+
+  it('a capture that finds no app, on a bundler port the app does not ask, names the port the app asks and the command that points it at the bundler', async () => {
+    const r = await relay();
+    // The app found nothing on the port it asks, so it runs the code built into it: an old stamp.
+    r.app.socket.send(
+      JSON.stringify({
+        action: 'waitForACapture',
+        mode: 'testing',
+        stories: [STORY_A],
+        answer: null,
+        codeStamp: 'the-code-built-into-the-app',
+      })
+    );
+    await letTheRequestLand();
+    // An iOS simulator app with no saved bundler location: it asks 8081, not the relay's port.
+    uninstallDevice();
+    uninstallDevice = installDeviceState({
+      ...posedDeviceState(),
+      sceneTarget: async () => ({
+        device: { platform: 'ios', udid: 'UDID-1' },
+        app: { id: 'com.example.chat' },
+      }),
+      run: async (_tool, args) => {
+        if (args.includes('RCT_jsLocation')) throw new Error('The default pair does not exist');
+        return args.includes('get_app_container') ? '/apps/Chat.app\n' : '';
+      },
+    });
+
+    const answer = await liveCaptureSocket.captureStory({
+      storyId: STORY_A,
+      port: r.port,
+      settings: STABILIZATION_SETTINGS,
+    });
+
+    expect(answer).toMatchObject({ kind: 'no-app', appAsks: { platform: 'ios', port: 8081 } });
+    const screen = renderCapturedStory({ ...answer, port: r.port } as CapturedStory).join('\n');
+    expect(screen).toContain(`The app asks for its bundler on port 8081, not ${r.port}`);
+    expect(screen).toContain(
+      `xcrun simctl spawn UDID-1 defaults write com.example.chat RCT_jsLocation localhost:${r.port}`
+    );
+    expect(screen).not.toContain('choose Reload');
   });
 
   it('the stories the app really has come back when it does not have the one asked for', async () => {
