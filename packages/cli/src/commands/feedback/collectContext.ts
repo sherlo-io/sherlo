@@ -5,13 +5,13 @@
  */
 import os from 'os';
 import { detect } from 'package-manager-detector';
-import { version as cliVersion } from '../../../package.json';
 import getCwd from '../../helpers/getCwd';
 import getTokenParts from '../../helpers/getTokenParts';
 import { readLastCommand } from '../../helpers/lastCommandRecord';
 import isPersonalToken from '../../helpers/isPersonalToken';
 import type { FeedbackContext } from '../../seams/serverCalls';
 import type { InvalidatedConfig } from '../../types';
+import { readCliVersion } from '../test/bundleSidecar';
 import hasConfigFile from '../init/config/hasConfigFile';
 import readConfig from '../init/config/readConfig';
 import getPackageVersion from '../init/requirements/getPackageVersion';
@@ -23,7 +23,8 @@ export async function collectContext(): Promise<FeedbackContext> {
   return {
     agent: runningAgent(),
     lastCommand: readLastCommand(),
-    cliVersion,
+    // Read from the installed package.json at run time: a test pack's suffix is not in the compiled-in one.
+    cliVersion: readCliVersion() ?? 'unknown',
     sdkVersion: installedVersion('@sherlo/react-native-storybook'),
     reactNativeVersion: installedVersion('react-native'),
     expoVersion: installedVersion('expo'),

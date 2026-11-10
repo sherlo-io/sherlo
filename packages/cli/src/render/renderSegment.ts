@@ -108,7 +108,7 @@ import {
 } from './verdictCloser';
 
 /** The sherlo wordmark, rendered per character by `gradient-string`. */
-const INTRO_HEADER = `
+export const INTRO_HEADER = `
              888                       888          
              888                       888          
              888                       888          
@@ -119,7 +119,7 @@ const INTRO_HEADER = `
     '88888P' 888  888  "Y8888  888     888  "Y88P"
 `;
 
-const INTRO_TAGLINE = 'Make sure your mobile app looks perfect on every device';
+export const INTRO_TAGLINE = 'Make sure your mobile app looks perfect on every device';
 
 /** The stderr warn `getGitInfo` prints when the git read fails and it degrades. */
 const GIT_INFO_UNAVAILABLE = "Couldn't get git info";
