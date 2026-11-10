@@ -201,12 +201,13 @@ export function screenGraph(params: { files: SourceFile[]; tsconfig?: string }) 
   const passesOf = new Map<string, Set<string>>(); // file -> component files it uses as a value
   const importers = new Map<string, Set<string>>(); // component file -> every file importing it
   const storyImports = new Set<string>(); // component files a story file imports
+  const lazyRouted = new Set<string>(); // component files a route map requires lazily
   const add = (map: Map<string, Set<string>>, key: string, value: string) =>
     map.set(key, (map.get(key) ?? new Set()).add(value));
 
   for (const [file, value] of parsed) {
     const own = facts.get(file)!;
-    for (const { source, names, locals } of value.imports) {
+    for (const { source, names, locals, lazy } of value.imports) {
       const target = resolve(file, source);
       if (!target) continue;
       names.forEach((name, index) => {
@@ -214,7 +215,10 @@ export function screenGraph(params: { files: SourceFile[]; tsconfig?: string }) 
           if (!components.has(found.file) || found.file === file) continue;
           add(importers, found.file, file);
           if (isStoryFile(file)) storyImports.add(found.file);
-          else if (own.tags.has(locals[index])) add(rendersOf, file, found.file);
+          else if (lazy) {
+            add(passesOf, file, found.file);
+            lazyRouted.add(found.file);
+          } else if (own.tags.has(locals[index])) add(rendersOf, file, found.file);
           else if (own.values.has(locals[index])) add(passesOf, file, found.file);
         }
       });
@@ -309,6 +313,7 @@ export function screenGraph(params: { files: SourceFile[]; tsconfig?: string }) 
     wrappers,
     entries,
     passed,
+    lazyRouted,
     tested,
     ownersOf,
     closure,
@@ -332,7 +337,7 @@ export function suggestItems(params: {
   const graph = screenGraph(params);
   const { facts, components, wrappers, entries, passed, tested, ownersOf, closure, labelOf } =
     graph;
-  const { realScreenOf } = graph;
+  const { realScreenOf, lazyRouted } = graph;
 
   type Draft = {
     kind: SuggestItem['kind'];
@@ -388,11 +393,12 @@ export function suggestItems(params: {
         reach: 0,
         screen: realScreenOf(file),
         routeName: routeNameOf(file),
-        unsure: routeNameOf(file)
-          ? undefined
-          : passed.has(file)
-            ? 'passed as a value: a screen, or a list part such as a header or a separator?'
-            : 'no file imports it and it is not a route: a lazy screen or home-made navigation?',
+        unsure:
+          routeNameOf(file) || lazyRouted.has(file)
+            ? undefined
+            : passed.has(file)
+              ? 'passed as a value: a screen, or a list part such as a header or a separator?'
+              : 'no file imports it and it is not a route: a lazy screen or home-made navigation?',
       });
     } else if (ownersOf.get(file)?.size !== 1) {
       drafts.push({

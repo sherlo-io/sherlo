@@ -77,7 +77,33 @@ describe('the top of the suggested list', () => {
 });
 
 describe('the items setup suggests', () => {
-  it.todo(
-    'a screen a route map requires lazily, through a re-exporting index file, ranks as a route, not unsure'
-  );
+  it('a screen a route map requires lazily, through a re-exporting index file, ranks as a route, not unsure', () => {
+    const lazyFiles = [
+      { path: 'src/screens/Feed.tsx', text: screen('Feed') },
+      { path: 'src/screens/Inbox.tsx', text: screen('Inbox') },
+      {
+        path: 'src/screens/index.ts',
+        text: "export { default as FeedScreen } from './Feed';\nexport { default as InboxScreen } from './Inbox';\n",
+      },
+      {
+        path: 'src/navigation/routes.ts',
+        text:
+          "export const routes = {\n  Feed: () => require('../screens').FeedScreen,\n" +
+          "  Inbox: { get: () => require('../screens/Inbox').default },\n};\n",
+      },
+    ];
+
+    const { items } = suggestItems({
+      files: lazyFiles,
+      history: new Map(),
+      variants: new Map(),
+      scenes: true,
+    });
+
+    const feed = items.find((one) => one.file === 'src/screens/Feed.tsx');
+    const inbox = items.find((one) => one.file === 'src/screens/Inbox.tsx');
+    expect(feed?.kind).toBe('scene');
+    expect(feed?.unsure).toBeUndefined();
+    expect(inbox?.unsure).toBeUndefined();
+  });
 });

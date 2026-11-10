@@ -99,7 +99,7 @@ async function suggest(passedOptions: SuggestOptions): Promise<void> {
     file: Math.max(0, ...shown.map((item) => item.file.length)),
   };
   const lines = ['', 'Test next', ...shown.map((item, index) => line(index + 1, item, widths)), ''];
-  if (shallow) lines.push('ranked on code only: shallow clone');
+  if (shallow) lines.push('history may be cut: shallow clone');
   lines.push(
     `Skipped ${result.wrappers} ${result.wrappers === 1 ? 'wrapper' : 'wrappers'}. ` +
       `${result.tested} already tested.`
