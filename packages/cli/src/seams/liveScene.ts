@@ -43,6 +43,29 @@ export const OLD_CODE_DETAIL =
   "bundler's terminal, or shake the phone and choose Reload), then capture again.";
 
 /**
+ * What a capture is told when the app's code carries no stamp at all: the bundler never put Sherlo's
+ * launch code in, which no reload mends.
+ */
+export const NO_LAUNCH_CODE_DETAIL =
+  "The app's code has no Sherlo launch code: check that your Metro config is wrapped with " +
+  'withStorybook from @sherlo/react-native-storybook/metro, then restart the bundler and capture ' +
+  'again.';
+
+/**
+ * The ending of a capture the app's line refused for the code it runs: a stamp from another
+ * bundler is old code, no stamp at all is launch code that was never put in.
+ */
+export function noAppForItsCode(appStamp: string | null): {
+  kind: 'no-app';
+  why: 'old-code' | 'no-launch-code';
+  detail: string;
+} {
+  return appStamp === null
+    ? { kind: 'no-app', why: 'no-launch-code', detail: NO_LAUNCH_CODE_DETAIL }
+    : { kind: 'no-app', why: 'old-code', detail: OLD_CODE_DETAIL };
+}
+
+/**
  * A capture that found no app, and why: the phone had no target, the app was not on it, the line
  * broke (`detail` is the line's own account), nothing answered in time, or the launched app never
  * said hello.
@@ -57,7 +80,8 @@ export type NoApp = {
     | 'line-broke'
     | 'gave-up-waiting'
     | 'never-said-hello'
-    | 'old-code';
+    | 'old-code'
+    | 'no-launch-code';
   detail?: string;
   /** For the causes of no target: every running phone, with its app id and whether it has the app. */
   found?: PhoneFound[];
@@ -147,11 +171,7 @@ export async function captureLiveScene(params: SceneCaptureParams): Promise<Scen
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
     if (answer.kind === 'old-code') {
       // The app was refused before it walked the scene, so no picture was taken of it.
-      return withStageLines(
-        { kind: 'no-app', why: 'old-code', detail: OLD_CODE_DETAIL },
-        port,
-        lines
-      );
+      return withStageLines(noAppForItsCode(answer.appStamp), port, lines);
     }
     if (answer.kind === 'not-in-sherlos-words') {
       // The feed is read on its own question: it often still answers when the capture's did not.

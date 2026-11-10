@@ -168,6 +168,44 @@ describe('applySherloTransforms - enabled:false ships minimal polyfill only', ()
   });
 });
 
+describe("applySherloTransforms - the app's own transformer", () => {
+  it("Sherlo's transformer hands every file it does not change to the app's own transformer, so an svg transformer keeps working", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-app-transformer-'));
+    try {
+      // The app's svg transformer, and the one a wrapper before Sherlo's left in its place.
+      const svgTransformer = path.join(tmpDir, 'svg-transformer.js');
+      fs.writeFileSync(
+        svgTransformer,
+        "module.exports = { transform: function (args) { return { by: 'svg', src: args.src }; } };\n"
+      );
+      const otherTransformer = path.join(tmpDir, 'other-transformer.js');
+      fs.writeFileSync(
+        otherTransformer,
+        "module.exports = { transform: function () { return { by: 'other' }; } };\n"
+      );
+      const appConfig = {
+        projectRoot: tmpDir,
+        resolver: {},
+        transformer: { babelTransformerPath: svgTransformer },
+      };
+      const wrapped = {
+        ...appConfig,
+        transformer: { babelTransformerPath: otherTransformer },
+      };
+
+      const result = applySherloTransforms(wrapped, { enabled: true }, appConfig);
+      const sherlosTransformer = require(result.transformer.babelTransformerPath);
+
+      const icon = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+      expect(
+        sherlosTransformer.transform({ filename: 'src/icon.svg', src: icon, options: {} })
+      ).toEqual({ by: 'svg', src: icon });
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // customSerializer wrapper
 // ---------------------------------------------------------------------------

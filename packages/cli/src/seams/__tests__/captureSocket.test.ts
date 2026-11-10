@@ -274,13 +274,14 @@ describe("the app's answer, read into this seam's own endings", () => {
 
   it('a story on an app running old code is refused with how to load the current code', async () => {
     const r = await relay();
-    // The app runs the code built into it: its wait carries no stamp.
+    // The app runs code an earlier bundler served: its wait carries that bundler's stamp.
     r.app.socket.send(
       JSON.stringify({
         action: 'waitForACapture',
         mode: 'testing',
         stories: [STORY_A],
         answer: null,
+        codeStamp: 'an-earlier-bundler',
       })
     );
     await letTheRequestLand();

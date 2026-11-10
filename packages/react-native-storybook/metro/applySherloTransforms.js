@@ -922,9 +922,11 @@ function pathOfRequest(url) {
  *
  * @param {object} result - The Metro config returned by withStorybook()
  * @param {object} [opts] - The same opts passed to withStorybook (e.g. { enabled, configPath })
+ * @param {object} [incoming] - the app's own Metro config, as withStorybook was given it: its
+ *   babelTransformerPath, when it has one, is the transformer every unchanged file is handed to
  * @returns {object} Sherlo-augmented Metro config
  */
-function applySherloTransforms(result, opts) {
+function applySherloTransforms(result, opts, incoming) {
   var projectRoot = projectRootOf(result);
   var cacheDir = sherloCacheFolder(projectRoot);
   var wrapperPath = path.join(cacheDir, 'storybook-wrapper.js');
@@ -1100,10 +1102,16 @@ function applySherloTransforms(result, opts) {
     // storybook.requires.ts still uses require.context(). Without this, Metro 0.81.x embeds a
     // throwing stub for r.context, crashing the app before any Sherlo error handling fires.
     // babelTransformerPath: the project's own transformer, behind one that hands each story file's
-    // mocks the module they import (mockSpecifierTransformer.js).
+    // mocks the module they import (mockSpecifierTransformer.js). The app's own config names that
+    // transformer when it has one, so a wrapper in between that set its own (an svg one lost) does
+    // not drop it.
     transformer: Object.assign({}, baseResult.transformer, {
       unstable_allowRequireContext: true,
-      babelTransformerPath: writeMockSpecifierTransformer(baseResult),
+      babelTransformerPath: writeMockSpecifierTransformer(
+        incoming && incoming.transformer && incoming.transformer.babelTransformerPath
+          ? incoming
+          : baseResult
+      ),
     }),
     resolver: Object.assign({}, baseResult.resolver, {
       resolveRequest: resolveRequest,

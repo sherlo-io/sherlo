@@ -47,6 +47,7 @@ import type { CaptureOptions } from './captureOptions';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
 import type { CapturedScene } from '../../render/capturedScene';
+import type { NoAppEnding } from '../../render/noAppLines';
 import { lineAfterScene } from '../../render/lineAfterScene';
 import { sceneCauseOf } from '../../seams/sceneCause';
 import type { CauseStreak } from '../../seams/sceneCause';
@@ -234,6 +235,18 @@ function sceneFailed(answer: SceneCaptureResult, discover: boolean): boolean {
   return answer.kind !== 'scene' && !(discover && answer.kind === 'never-reached');
 }
 
+/**
+ * What the screen shows for a capture that found no app. An app refused for its code, old or with no
+ * launch code, is told what to do about it: the screen shows that detail under `why: 'old-code'`.
+ * The other causes have no words of their own here.
+ */
+function noAppEnding(answer: { why?: string; detail?: string }, port: number): NoAppEnding {
+  const refusedForItsCode = answer.why === 'old-code' || answer.why === 'no-launch-code';
+  return refusedForItsCode && answer.detail !== undefined
+    ? { kind: 'no-app', port, why: 'old-code', detail: answer.detail }
+    : { kind: 'no-app', port };
+}
+
 /** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */
 export function capturedSceneEnding(
   answer: SceneCaptureResult,
@@ -241,12 +254,7 @@ export function capturedSceneEnding(
   discover = false
 ): CapturedScene {
   if (answer.kind === 'no-bundler') return { kind: answer.kind, port };
-  if (answer.kind === 'no-app') {
-    // An app on old code is told what to do about it; the other causes have no words of their own here.
-    return answer.why === 'old-code'
-      ? { kind: 'no-app', port, why: 'old-code', detail: answer.detail }
-      : { kind: 'no-app', port };
-  }
+  if (answer.kind === 'no-app') return noAppEnding(answer, port);
   // The screen has no ending of its own for a scene that kept its picture and had a request refused:
   // it shows the scene, with the refused requests it lists.
   const shown = sceneCameUp(answer) ? { ...answer, kind: 'scene' as const } : answer;
@@ -262,7 +270,7 @@ export function endingFor(
     case 'no-bundler':
       return { kind: 'no-bundler', port: run.port };
     case 'no-app':
-      return { ...answer, port: run.port };
+      return noAppEnding(answer, run.port);
     case 'no-such-story':
       return {
         kind: 'no-such-story',
