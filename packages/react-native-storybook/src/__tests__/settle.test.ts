@@ -5,7 +5,11 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import React from 'react';
+import { act, create } from 'react-test-renderer';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Before settleClock loads: the clock it takes at load is this one, moved only by the test.
 const appClock = vi.hoisted(() => {
@@ -27,6 +31,9 @@ vi.mock('../SherloModule', () => ({
       nativeAsked.push('hold animations still');
       return true;
     },
+    // A scene's mocks switch on only in testing mode.
+    getMode: () => 'testing',
+    getConfigOrDefault: () => ({}),
   },
 }));
 
@@ -45,6 +52,33 @@ import { monotonicNow } from '../settleClock';
 import { sceneCallsForTheCore } from '../sealedCore/sceneCalls';
 import { installClock, restoreClock } from '../mocking/clock';
 import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
+import { currentAppFiber, rememberStoryOfTheApp } from '../componentNames';
+import { keepNeverSettledUnlooked, neverSettledOf } from '../neverSettled';
+import { hostViewsMatching } from '../tapReach';
+import createMockable from '../mocking/createMockable';
+import { mock } from '../mocking/mockDeclaration';
+import { clearMocks } from '../mocking/registry';
+import { activateSceneMocks } from '../getStorybook/storyMockActivation';
+import type { WalkedFiber } from '../sealedCore/seam';
+
+// The app's tree under its root: one component per entry, each rendering the host view it names.
+function appRenders(...drawn: { component: string; host: string }[]): WalkedFiber {
+  const root: WalkedFiber = { type: 'RCTView', memoizedProps: {}, pendingProps: {} };
+  let last: WalkedFiber | undefined;
+  for (const { component, host } of drawn) {
+    const owner: WalkedFiber = {
+      type: Object.defineProperty(() => null, 'name', { value: component }),
+      memoizedProps: {},
+      pendingProps: {},
+      return: root,
+    };
+    owner.child = { type: host, memoizedProps: {}, pendingProps: {}, return: owner };
+    if (last) last.sibling = owner;
+    else root.child = owner;
+    last = owner;
+  }
+  return root;
+}
 
 // packages/react-native-storybook root: this file is at src/__tests__/.
 const SDK_ROOT = path.resolve(__dirname, '..', '..');
@@ -223,6 +257,98 @@ describe('a scene settles faster and honestly', () => {
       });
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('a scene whose moving view is a native video surface names that view and the module that draws it', async () => {
+    vi.useFakeTimers();
+    try {
+      storyAboutToRender('welcome--intro');
+      // A video's frames change where its view does not: both looks read the same tree.
+      const still = { key: 'tag 9', component: 'VideoView', text: '', frame: undefined };
+      looks.reads = [[still], [still]];
+      rememberStoryOfTheApp(
+        appRenders(
+          // An Expo view's class ends in a number of its build, which the name drops.
+          {
+            component: 'IntroVideo',
+            host: 'ViewManagerAdapter_ExpoVideo_VideoView_7906577109235659898',
+          },
+          { component: 'Teaser', host: 'RCTVideo' },
+          { component: 'Loop', host: 'SomePlayerVideoView' },
+          { component: 'Title', host: 'RCTText' }
+        )
+      );
+      const native = { stabilize: vi.fn(async () => false) };
+      const settling = stabilizeOnceReady(native).stabilize(3, 3, 500, 5_000, false, 0, true);
+      await vi.runAllTimersAsync();
+      expect(await settling).toBe(false);
+      const named = [
+        'ViewManagerAdapter_ExpoVideo_VideoView from expo-video',
+        'RCTVideo from react-native-video',
+        'SomePlayerVideoView',
+      ];
+      expect(neverSettledOf('welcome--intro')?.changing).toEqual(named);
+      // A settle cut off at the scene's limit names them too: they are read from the tree alone.
+      keepNeverSettledUnlooked('welcome--intro');
+      expect(neverSettledOf('welcome--intro')?.changing).toEqual(named);
+    } finally {
+      vi.useRealTimers();
+      rememberStoryOfTheApp(undefined);
+    }
+  });
+
+  it('a scene whose mocks fake the video module settles and is captured', async () => {
+    const sceneFile = './src/welcome.scenes.tsx';
+    // The bundler's scan saw the scene file mock expo-video, so the mock is on with no import awaited.
+    (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports = {
+      storyFiles: { [sceneFile]: [{ specifier: 'expo-video', moduleKey: 'expo-video' }] },
+      mockedModules: ['expo-video'],
+    };
+    let renderer: ReturnType<typeof create> | undefined;
+    try {
+      // expo-video's VideoView as the package ships it: a class with statics, drawing the native
+      // video surface. The bundler hands the app this stand-in in its place.
+      class VideoView extends React.Component {
+        static isPictureInPictureSupported = () => false;
+        render() {
+          return React.createElement('ViewManagerAdapter_ExpoVideo_VideoView_7906577109235659898');
+        }
+      }
+      const expoVideo = createMockable('expo-video', { __esModule: true, VideoView });
+      const declare = mock as (...args: unknown[]) => ReturnType<typeof mock>;
+      // The scene's given, as a scene file writes it: an arrow drawing a plain view stands in.
+      const faked = { VideoView: () => React.createElement('RCTView', { testID: 'intro-video' }) };
+      activateSceneMocks(
+        'welcome--intro',
+        [
+          {
+            mocks: [declare(() => Promise.resolve(expoVideo), faked, 'expo-video')],
+            origin: 'scene file',
+          },
+        ],
+        sceneFile
+      );
+      // The app's first render, with nothing awaited, draws through the stand-in.
+      const IntroVideo = () => React.createElement(expoVideo.VideoView);
+      act(() => {
+        renderer = create(React.createElement(IntroVideo));
+      });
+      rememberStoryOfTheApp((renderer!.root as unknown as { _fiber: WalkedFiber })._fiber);
+      const videoSurfaces = () =>
+        hostViewsMatching(currentAppFiber()!, (fiber) => /video/i.test(String(fiber.type)));
+      expect(videoSurfaces()).toEqual([]);
+      // The native check: a playing video's frames differ in every pair, a still view's never do.
+      const native = { stabilize: vi.fn(async () => videoSurfaces().length === 0) };
+      expect(await stabilizeOnceReady(native).stabilize(3, 3, 500, 5_000, false, 0, true)).toBe(
+        true
+      );
+      expect(neverSettledOf('welcome--intro')).toBeUndefined();
+    } finally {
+      if (renderer) act(() => renderer!.unmount());
+      clearMocks();
+      delete (globalThis as { __sherloDeclaredImports?: unknown }).__sherloDeclaredImports;
+      rememberStoryOfTheApp(undefined);
     }
   });
 });

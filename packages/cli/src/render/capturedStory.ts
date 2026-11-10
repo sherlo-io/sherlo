@@ -250,8 +250,9 @@ export function unansweredLines(
   ];
 }
 
-/** The whole tree, every view, drawn as the inspector draws it, then how many views that was. */
+/** The tree as the inspector draws it, then how many views it holds; nothing for a tree never read. */
 export function treeLines(root: CapturedView): string[] {
+  if (!root.primitive && root.components.length === 0 && root.children.length === 0) return [];
   return [
     ...viewLines(root, 0),
     '',
