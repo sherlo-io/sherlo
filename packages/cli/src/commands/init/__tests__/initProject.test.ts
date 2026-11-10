@@ -218,7 +218,7 @@ describe('setup names the project', () => {
     expect(inNoTeam.project).toBe(`${TEAM_ID}/4`);
   });
 
-  it('setup prints the project token of a project it made once, as the CI token', async () => {
+  it("setup that makes a project prints no token and says to copy it from the project's settings as SHERLO_TOKEN", async () => {
     const newProjectToken = `${'b'.repeat(32)}${TEAM_ID}8`;
 
     const run = await runProjectStep({
@@ -243,16 +243,19 @@ describe('setup names the project', () => {
     );
     expect(run.project).toBe(`${TEAM_ID}/8`);
 
-    const lines = plain(run.printed).split('\n');
-    const tokenLines = lines.filter((line) => line.includes(newProjectToken));
+    const printed = plain(run.printed);
+    expect(printed).not.toContain(newProjectToken);
+    expect(printed).not.toContain('shown once');
+    expect(printed).toContain('Made the project Storefront.');
+    expect(printed).toContain("Copy its token from the project's settings");
+    expect(printed).toContain('Add it to your CI as the SHERLO_TOKEN secret.');
+  });
 
-    // Once, alone on its line, under the shown-once warning, and on no `key=value` line.
-    expect(tokenLines).toEqual([`  ${newProjectToken}`]);
-    const tokenLineIndex = lines.indexOf(`  ${newProjectToken}`);
-    expect(lines[tokenLineIndex - 2]).toBe(
-      'Project token - shown once. Store it now; it cannot be shown again.'
-    );
-    expect(lines[tokenLineIndex + 2]).toBe('Add it to your CI as the SHERLO_TOKEN secret.');
+  it('setup given a token never prints it back', async () => {
+    const run = await runProjectStep({ options: { token: PROJECT_TOKEN }, api: [] });
+
+    expect(run.refusal).toBeUndefined();
+    expect(plain(run.printed)).not.toContain(PROJECT_TOKEN);
   });
 
   it('setup writes the project into the config and never a token', async () => {

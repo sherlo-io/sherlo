@@ -21,7 +21,7 @@ import readConfig from '../config/readConfig';
 import { THIS_COMMAND } from '../constants';
 import { renderCheckLine, renderSectionTitle } from '../../../render/initLines';
 import { printLines } from '../helpers';
-import askWhichProject from './askWhichProject';
+import askWhichProject, { printAddTokenToCi } from './askWhichProject';
 import checkGivenProject from './checkGivenProject';
 import resolveSetupLogin from './resolveSetupLogin';
 import { ProjectAddress, asConfigProject } from './projectAddress';
@@ -47,7 +47,7 @@ async function project({
       }),
     ]);
     console.log('  The token is not written to sherlo.config.json.');
-    console.log('  Add it to your CI as the SHERLO_TOKEN secret.');
+    printAddTokenToCi();
 
     return projectFromToken;
   }
