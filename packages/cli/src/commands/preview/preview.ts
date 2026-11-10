@@ -1,5 +1,5 @@
 /**
- * `sherlo capture-report` - the review page over the captures kept in `.sherlo/captures/`.
+ * `sherlo preview` - the review page over the captures kept in `.sherlo/captures/`.
  *
  * It opens the web app's own review page on this computer and keeps it updating while captures
  * come in. `--json` prints the same facts once, as plain data: no server, no browser, and the
@@ -13,7 +13,7 @@ import { JSON_OPTION } from '../../constants';
 import { throwError } from '../../helpers';
 import getCwd from '../../helpers/getCwd';
 import {
-  renderCaptureReport,
+  renderPreview,
   renderReportBrowserNotOpened,
   renderReportPageMissing,
 } from '../../render/capturedReport';
@@ -27,11 +27,11 @@ import {
 import { localServer } from '../../seams/localServer';
 import { buildReport } from './buildReport';
 
-export type CaptureReportOptions = {
+export type PreviewOptions = {
   [JSON_OPTION]?: boolean;
 };
 
-async function captureReport(passedOptions: CaptureReportOptions): Promise<void> {
+async function preview(passedOptions: PreviewOptions): Promise<void> {
   const root = getCwd();
 
   const reportNow = (
@@ -76,7 +76,7 @@ async function captureReport(passedOptions: CaptureReportOptions): Promise<void>
   });
 
   const { summary } = pageReport();
-  const lines = renderCaptureReport(server.address, {
+  const lines = renderPreview(server.address, {
     captured: summary.capturedCount,
     notCaptured: summary.notCapturedCount,
     changed: summary.changedCount,
@@ -90,4 +90,4 @@ async function captureReport(passedOptions: CaptureReportOptions): Promise<void>
   await server.stopped;
 }
 
-export default captureReport;
+export default preview;

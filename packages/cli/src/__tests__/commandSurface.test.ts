@@ -112,6 +112,14 @@ describe('sherlo --help', () => {
     expect(stdout).toContain('Usage: sherlo build');
   });
 
+  it('the help lists suggest and preview, and no captureReport', async () => {
+    await runCli('--help');
+
+    expect(stdout).toMatch(/^\s+suggest\b/m);
+    expect(stdout).toMatch(/^\s+preview\b/m);
+    expect(stdout).not.toMatch(/capture-?report/i);
+  });
+
   it('keeps build, --build-cache, fingerprint, project and team out of --help', async () => {
     await runCli('--help');
     for (const hiddenCommand of ['build', 'fingerprint', 'project', 'team']) {
@@ -340,5 +348,29 @@ describe('scenes by the team flag', () => {
     for (const option of ['--scene', '--all-scenes', '--stop-on-repeat', '--discover', '--png']) {
       expect(stdout, option).toContain(option);
     }
+  });
+
+  it('with scenes off, suggest proposes no scene rows', async () => {
+    const screens = path.join(folder, 'src', 'screens');
+    fs.mkdirSync(screens, { recursive: true });
+    fs.writeFileSync(
+      path.join(screens, 'Home.tsx'),
+      "import React, { useState } from 'react';\n" +
+        'export default function Home() {\n' +
+        '  const [open, setOpen] = useState(false);\n' +
+        '  return <div onClick={() => setOpen(!open)}>{open ? <p>Home</p> : null}</div>;\n' +
+        '}\n'
+    );
+
+    teamAnswers(true);
+    await runCli('suggest', '--dir', folder, '--json');
+    expect(JSON.parse(stdout).items.map((item: { kind: string }) => item.kind)).toContain('scene');
+
+    forgetScenesFlag();
+    teamAnswers(false);
+    stdout = '';
+    await runCli('suggest', '--dir', folder, '--json');
+    const kinds = JSON.parse(stdout).items.map((item: { kind: string }) => item.kind);
+    expect(kinds).toEqual(['story']);
   });
 });

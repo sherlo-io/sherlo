@@ -5,7 +5,6 @@
  */
 export { default as build } from './build';
 export { default as capture } from './capture';
-export { default as captureReport } from './captureReport';
 export { default as coverage } from './coverage';
 export { default as easBuildOnComplete } from './easBuildOnComplete';
 export { default as feedback } from './feedback';
@@ -15,7 +14,9 @@ export { default as login } from './login';
 export { default as logout } from './logout';
 export { default as open } from './open';
 export { default as projectCreate } from './projectCreate';
+export { default as preview } from './preview';
 export { default as projectList } from './projectList';
+export { default as suggest } from './suggest';
 export { default as teamCreate } from './teamCreate';
 export { default as teamList } from './teamList';
 export { default as test } from './test';
