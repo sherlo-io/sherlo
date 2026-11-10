@@ -63,10 +63,14 @@ function loadOldSetupStorybookWrapper() {
 }
 
 /**
- * Storybook's newer wrapper, loaded from the project, where the default setup's Storybook lives.
+ * Storybook's wrapper, loaded from the project, where the default setup's Storybook lives: the
+ * newer one, else the older one Storybook 9.0 still ships alone.
  */
 function loadNewerStorybookWrapper(projectRoot) {
-  return loadStorybookWrapper(path.join(projectRoot, 'package.json'), [NEWER_STORYBOOK_WRAPPER]);
+  return loadStorybookWrapper(path.join(projectRoot, 'package.json'), [
+    NEWER_STORYBOOK_WRAPPER,
+    OLDER_STORYBOOK_WRAPPER,
+  ]);
 }
 
 /**
@@ -324,3 +328,4 @@ function isPromise(value) {
 module.exports = withStorybook;
 module.exports.default = withStorybook;
 module.exports.withStorybook = withStorybook;
+module.exports.loadNewerStorybookWrapper = loadNewerStorybookWrapper;
