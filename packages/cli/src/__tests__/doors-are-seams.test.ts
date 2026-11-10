@@ -383,6 +383,12 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
     reason:
       "imports only hashNativeFolderFiles, for the live half of the app builder seam itself - a posed run installs the posed app builder, which answers from the pose's nativeFolderFiles and never reaches it",
   },
+  {
+    file: 'seams/podTouchedFiles.ts',
+    of: 'helpers/fingerprint/baseFingerprint.ts',
+    reason:
+      'imports only stripCocoapodsLine, a pure text function that reads no machine, so that the install check and the fingerprint drop the same line',
+  },
 ];
 
 /**
