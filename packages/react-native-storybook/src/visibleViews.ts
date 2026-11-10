@@ -131,37 +131,95 @@ async function framesDrawnNatively(): Promise<
 export type ViewLook = {
   /** Joins the same view in two looks: its native tag, else its place in render order. */
   key: string;
-  /** The innermost app component that renders it, else the host type. */
-  component: string;
+  /** The nearest component of the app that draws it. Absent when no component of the app has a name. */
+  component?: string;
   testID?: string;
   text: string;
   frame?: Frame;
 };
 
-/** The innermost component above the fiber that has a name of its own, else the view's own type. */
-function componentOf(fiber: WalkedFiber): string {
-  for (let node: WalkedFiber | null | undefined = fiber.return; node; node = node.return) {
-    const type = node.type;
-    const name =
-      typeof type === 'function'
-        ? (type.displayName ?? type.name)
-        : (type?.type?.name ?? type?.render?.name);
-    if (name) return name;
+/**
+ * React Native's own components, which draw a host view for whoever renders them and are never the
+ * app: a spinner that keeps turning inside an `ActivityIndicator` belongs to the app's component
+ * that drew the indicator.
+ */
+const REACT_NATIVE_OWN = new Set([
+  'View',
+  'Text',
+  'Image',
+  'ImageBackground',
+  'TextInput',
+  'ScrollView',
+  'FlatList',
+  'SectionList',
+  'VirtualizedList',
+  'VirtualizedSectionList',
+  'CellRenderer',
+  'Pressable',
+  'TouchableOpacity',
+  'TouchableHighlight',
+  'TouchableWithoutFeedback',
+  'TouchableNativeFeedback',
+  'ActivityIndicator',
+  'Switch',
+  'Modal',
+  'SafeAreaView',
+  'KeyboardAvoidingView',
+  'RefreshControl',
+  'StatusBar',
+]);
+
+/** The wrapper Animated puts around a primitive: `Animated(View)`, or an older `AnimatedComponent`. */
+const ANIMATED_WRAPPER = /^Animated(\(.*\)|Component)$/;
+
+/**
+ * The name a component's type carries: a function's own or the one its author gave it, and a memo
+ * or forwardRef wrapper's, else the component it wraps. Nothing for a host view, a context or a
+ * type with no name.
+ */
+function nameOfComponent(type: unknown): string | undefined {
+  if (typeof type === 'function') {
+    const named = type as { displayName?: unknown; name?: unknown };
+    return [named.displayName, named.name].find(isAName);
   }
-  return String(fiber.type);
+  if (typeof type !== 'object' || type === null || !('type' in type || 'render' in type)) {
+    return undefined;
+  }
+  const wrapper = type as { displayName?: unknown; type?: unknown; render?: unknown };
+  if (isAName(wrapper.displayName)) return wrapper.displayName;
+  return nameOfComponent(wrapper.type) ?? nameOfComponent(wrapper.render);
+}
+
+function isAName(name: unknown): name is string {
+  return typeof name === 'string' && name.length > 0;
+}
+
+/**
+ * The nearest component of the app above the fiber: named, and neither React Native's own nor an
+ * Animated wrapper. The walk stops at the fiber the app is rendered from, as what is above it is
+ * Sherlo's. Nothing when no component of the app on the way has a name.
+ */
+function componentOf(fiber: WalkedFiber, appRoot: WalkedFiber): string | undefined {
+  for (let node = fiber.return; node && node !== appRoot; node = node.return) {
+    const name = nameOfComponent(node.type);
+    if (name && !REACT_NATIVE_OWN.has(name) && !ANIMATED_WRAPPER.test(name)) return name;
+  }
+  return undefined;
 }
 
 /** Every host view of the app on screen now, read without waiting. Empty before the app renders. */
 export async function lookAtViews(): Promise<ViewLook[]> {
   const root = currentAppFiber();
-  const views = root ? hostViewsMatching(root, () => true) : [];
+  if (!root) return [];
+  const views = hostViewsMatching(root, () => true);
   const drawn = await framesDrawnNatively();
   return views.map((fiber, place) => {
     const tag = nativeTagOf(fiber);
     const testID = fiber.memoizedProps?.testID;
+    const component = componentOf(fiber, root);
     return {
       key: tag === undefined ? `place ${place}` : `tag ${tag}`,
-      component: componentOf(fiber),
+      ...(component !== undefined && { component }),
       ...(typeof testID === 'string' ? { testID } : {}),
       text: fiber.type === 'RCTText' ? textOf(fiber) : '',
       frame: tag === undefined ? undefined : drawn?.frames.get(tag),
@@ -178,7 +236,9 @@ function boxOf(frame: Frame | undefined): string {
 
 /**
  * The views that differ between two looks (a different text, place or size, or a view that came or
- * went), each named by its component and, when it has one, its test id: Bubble "msg-3". Once each.
+ * went), each named by its component and, when it has one, its test id: Bubble "msg-3". A view no
+ * component of the app draws is named by its test id alone, and left out without one: a bare host
+ * view tells nobody where to look. Once each.
  */
 export function viewsThatChanged(before: ViewLook[], after: ViewLook[]): string[] {
   const earlier = new Map(before.map((look) => [look.key, look]));
@@ -188,8 +248,9 @@ export function viewsThatChanged(before: ViewLook[], after: ViewLook[]): string[
     const was = earlier.get(key);
     const now = later.get(key);
     if (was && now && was.text === now.text && boxOf(was.frame) === boxOf(now.frame)) continue;
-    const look = (now ?? was)!;
-    names.add(look.testID ? `${look.component} "${look.testID}"` : look.component);
+    const { component, testID } = (now ?? was)!;
+    if (component !== undefined) names.add(testID ? `${component} "${testID}"` : component);
+    else if (testID) names.add(nameOf({ testID }));
   }
   return [...names];
 }

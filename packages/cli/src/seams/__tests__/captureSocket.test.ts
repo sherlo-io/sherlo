@@ -20,9 +20,10 @@ import {
   PROTOCOL_VERSION,
 } from '../../../../react-native-storybook/metro/sherloLine';
 import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
+import { endingFor } from '../../commands/capture/capture';
 import { renderCapturedStory, type CapturedStory } from '../../render/capturedStory';
 import { STABILIZATION_SETTINGS } from '../bundlerLine';
-import { liveCaptureSocket } from '../captureSocket';
+import { liveCaptureSocket, type CaptureResult } from '../captureSocket';
 import { installDeviceState, posedDeviceState } from '../deviceState';
 
 const STORY_A = 'components-button--primary';
@@ -190,7 +191,7 @@ async function portWithNothingOnIt(): Promise<number> {
 async function aCapture(
   r: RunningRelay,
   { askedFor, stories, recorded }: { askedFor: string; stories: string[]; recorded: unknown }
-): Promise<unknown> {
+): Promise<CaptureResult> {
   const appWaits = appReports(r, { mode: 'testing', stories, answer: null });
   await letTheRequestLand();
 
@@ -727,6 +728,22 @@ describe("the app's answer, read into this seam's own endings", () => {
     });
 
     expect(answer).toMatchObject({ settled: 'timed-out', changing: ['Image', 'Text'] });
+  });
+
+  it('a story that never settles keeps the requests no mock answered', async () => {
+    const r = await relay();
+    const unanswered = [{ method: 'GET', url: 'https://cdn.example.com/intro.mp4' }];
+
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: { ...ANSWER_A, settled: 'timed-out', changing: ['IntroVideo'], unanswered },
+    });
+
+    expect(answer).toMatchObject({ settled: 'timed-out', unanswered });
+    // The screen lists each one, never a bare count.
+    const screen = renderCapturedStory(endingFor(answer, { storyId: STORY_A, port: r.port }));
+    expect(screen.join('\n')).toContain('GET https://cdn.example.com/intro.mp4');
   });
 
   it("an answer carries the app's own modules that ran as real code and the requests no mock answered", async () => {

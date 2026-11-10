@@ -59,6 +59,8 @@ import createMockable from '../mocking/createMockable';
 import { mock } from '../mocking/mockDeclaration';
 import { clearMocks } from '../mocking/registry';
 import { activateSceneMocks } from '../getStorybook/storyMockActivation';
+import { NO_NETWORK_MOCKS } from '../mocking/networkDeclaration';
+import { answerFor, setNetworkMocks, unansweredRequests } from '../mocking/networkRules';
 import type { WalkedFiber } from '../sealedCore/seam';
 
 // The app's tree under its root: one component per entry, each rendering the host view it names.
@@ -257,6 +259,35 @@ describe('a scene settles faster and honestly', () => {
       });
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('a scene that never settles reports the requests no mock answered beside the views that changed', async () => {
+    vi.useFakeTimers();
+    try {
+      storyAboutToRender('feed--home');
+      setNetworkMocks(NO_NETWORK_MOCKS, () => {});
+      answerFor({ method: 'GET', url: 'https://cdn.example.com/intro.mp4' });
+      const spinner = { key: 'tag 4', component: 'LoadingSpinner', text: '' };
+      looks.reads = [
+        [{ ...spinner, frame: { x: 0, y: 0, width: 20, height: 20 } }],
+        [{ ...spinner, frame: { x: 0, y: 0, width: 24, height: 24 } }],
+      ];
+      const native = { stabilize: vi.fn(async () => false) };
+      const settling = stabilizeOnceReady(native).stabilize(3, 3, 500, 5_000, false, 0, true);
+      await vi.runAllTimersAsync();
+      expect(await settling).toBe(false);
+      // The core puts the requests the host answers beside the never-settled answer, as it does
+      // for a settled scene: both are there when it asks.
+      expect(sceneCallsForTheCore().neverSettledOf?.('feed--home')?.changing).toEqual([
+        'LoadingSpinner',
+      ]);
+      expect(unansweredRequests()).toEqual([
+        expect.objectContaining({ method: 'GET', url: 'https://cdn.example.com/intro.mp4' }),
+      ]);
+    } finally {
+      vi.useRealTimers();
+      setNetworkMocks(NO_NETWORK_MOCKS, () => {});
     }
   });
 

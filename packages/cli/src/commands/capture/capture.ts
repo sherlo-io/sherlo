@@ -309,6 +309,7 @@ export function endingFor(
           storyId: answer.storyId,
           seconds: STABILIZATION_SETTINGS.timeoutMs / 1000,
           ...(answer.changing && { changing: answer.changing }),
+          ...(answer.unanswered && { unanswered: answer.unanswered }),
           tree: answer.tree,
         };
       }
