@@ -35,6 +35,7 @@ import {
   discoverOfTheTestingLaunch,
   idOfTheTestingLaunch,
   sceneOfTheCaptureOfAnAppWithStorybook,
+  sceneOfTheLaunchOfAnAppWithStorybook,
 } from '../captureLaunch';
 
 beforeEach(() => {
@@ -74,6 +75,15 @@ it('a launch with no Storybook facts, a runner driving it, no story id or anothe
   launch.storyId = 'chat--conversation';
   launch.mode = 'default';
   expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+});
+
+it('a runner-driven launch that names a scene of the bundle shows that scene, is no capture, and a story stays a story', () => {
+  launch.bundler = null;
+
+  expect(sceneOfTheLaunchOfAnAppWithStorybook()).toBe('chat--conversation');
+  expect(sceneOfTheCaptureOfAnAppWithStorybook()).toBeUndefined();
+  launch.storyIds = ['chat--conversation'];
+  expect(sceneOfTheLaunchOfAnAppWithStorybook()).toBeUndefined();
 });
 
 it('a runner-driven launch reads the scene id the runner carries for a scene', () => {

@@ -44,8 +44,10 @@ it('the dev-menu Storybook mode and a default launch keep their answers', async 
   expect(await isStorybookModeOfLaunch()).toBe(false);
 });
 
-it('a launch driven by a runner stays Storybook mode though its id is a scene id', async () => {
+it("a launch driven by a runner that names one of the bundle's scenes is not Storybook mode, and its story launch still is", async () => {
   launch.bundler = null;
+  expect(await isStorybookModeOfLaunch()).toBe(false);
 
+  launch.storyId = 'chat--a-story';
   expect(await isStorybookModeOfLaunch()).toBe(true);
 });
