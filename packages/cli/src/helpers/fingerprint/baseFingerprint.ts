@@ -45,6 +45,7 @@ import { readProjectJson } from '../projectJson';
 import reporting from '../reporting';
 import runShellCommand from '../runShellCommand';
 import { buildDeterministicEnv, withDeterministicEnv } from './deterministicEnv';
+import { installedVersionOf } from './installedVersion';
 import { WRITTEN_BY_A_BUILD } from './writtenByABuild';
 
 /**
@@ -805,13 +806,6 @@ async function getAutolinkedModules(
   };
 }
 
-/** The version of an installed package, read from its own package.json. */
-function installedVersionOf(packageFolder: string | null): string {
-  if (!packageFolder) return 'unknown';
-  const version: unknown = readProjectJson(packageFolder, 'package.json')?.version;
-  return typeof version === 'string' ? version : 'unknown';
-}
-
 /**
  * `react-native config` lists every dependency with what it links per platform: a
  * platform it has nothing for is `null` there, so it does not count for that one.
@@ -837,7 +831,7 @@ async function getBareAutolinkedModules(projectRoot: string): Promise<ModulesByP
         .map((dependency) => {
           const packageFolder =
             dependency.root ?? findInstalledPackageFolder(projectRoot, dependency.name);
-          return `${dependency.name}@${installedVersionOf(packageFolder)}`;
+          return `${dependency.name}@${installedVersionOf(dependency.name, packageFolder)}`;
         })
         .sort();
 
@@ -864,7 +858,10 @@ async function getManagedAutolinkedModules(
 
     return modules
       .flatMap((module) => (module.packageName ? [module.packageName] : []))
-      .map((name) => `${name}@${installedVersionOf(findInstalledPackageFolder(projectRoot, name))}`)
+      .map(
+        (name) =>
+          `${name}@${installedVersionOf(name, findInstalledPackageFolder(projectRoot, name))}`
+      )
       .sort();
   } catch {
     // Fall back to expo config approach (older Expo SDKs).
