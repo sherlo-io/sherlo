@@ -121,7 +121,7 @@ export async function buildThenPush({
     }))
   );
 
-  const { appBuildPaths, platformRows, madeBy } = await buildApps({
+  const { appBuildPaths, platformRows, madeBy, iosConfiguration } = await buildApps({
     projectRoot: commandParams.projectRoot,
     toBuild,
     settings,
@@ -143,6 +143,7 @@ export async function buildThenPush({
   return uploadOrReuseBuildsAndRunTests({
     commandParams,
     appBuildPaths: resolvedFrom(commandParams.projectRoot, appBuildPaths),
+    iosConfiguration,
     // The fingerprint the gate was asked with, taken before the build: a build writes into the
     // project, so one taken now would not be the base the next push computes.
     fingerprints,

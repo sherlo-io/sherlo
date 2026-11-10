@@ -46,6 +46,7 @@
  */
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
+import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
@@ -73,10 +74,10 @@ export type Workstation = {
   }): Promise<void>;
 
   /**
-   * Whether the project's installed pods already match its Podfile.lock, so `pod install` would
-   * change nothing and is skipped.
+   * Whether the project's installed pods already match its Podfile.lock and link Sherlo into a
+   * configuration, so `pod install` would change nothing that matters and is skipped.
    */
-  podsAreCurrent(): boolean;
+  podsAreCurrent(iosFolder: string): boolean;
 
   /**
    * What the service answers for the team of the project init just chose: whether scenes are on
@@ -133,7 +134,7 @@ export const liveWorkstation: Workstation = {
     });
   },
 
-  podsAreCurrent: () => false,
+  podsAreCurrent: (iosFolder) => installedPodsAreCurrent(iosFolder),
 
   scenesFlag: () => undefined,
 

@@ -491,6 +491,29 @@ describe('app builder, iOS', () => {
     podfileLockAfterInstall = 'PODS: one';
   });
 
+  it("pod install is skipped only when Sherlo is linked into the build's configuration", async () => {
+    const supportFolder = path.join(projectRoot, 'ios/Pods/Target Support Files/Pods-App');
+    const writeXcconfig = (configuration: string, content: string) =>
+      fs.writeFileSync(path.join(supportFolder, `Pods-App.${configuration}.xcconfig`), content);
+    const linked = 'OTHER_LDFLAGS = -l"sherlo-react-native-storybook"';
+    fs.mkdirSync(supportFolder, { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, 'ios/Podfile.lock'), 'PODS: one');
+    fs.writeFileSync(path.join(projectRoot, 'ios/Pods/Manifest.lock'), 'PODS: one');
+
+    // Sherlo is linked into Debug only: the Release build needs the install.
+    writeXcconfig('debug', linked);
+    writeXcconfig('release', 'OTHER_LDFLAGS = -l"other"');
+    await compileIos();
+    expect(callsOf('pod')).toHaveLength(1);
+
+    // Linked into Release: the install is skipped.
+    calls = [];
+    fs.writeFileSync(path.join(projectRoot, 'ios/Podfile.lock'), 'PODS: one');
+    writeXcconfig('release', linked);
+    await compileIos();
+    expect(callsOf('pod')).toHaveLength(0);
+  });
+
   it('builds iOS with xcodebuild in Release for the arm64 simulator, with code signing off', async () => {
     await compileIos();
     const { args, cwd } = xcodebuildBuildCall();

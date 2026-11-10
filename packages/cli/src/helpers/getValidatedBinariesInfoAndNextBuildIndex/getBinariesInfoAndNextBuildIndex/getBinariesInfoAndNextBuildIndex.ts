@@ -26,6 +26,8 @@ type BaseParams = {
   teamId: string;
   android?: string;
   ios?: string;
+  /** The configuration `sherlo test` compiled the iOS app with, named when Sherlo is missing from it. */
+  iosConfiguration?: string;
 };
 
 type EAS_BUILD_ON_COMPLETE_COMMAND = typeof EAS_BUILD_ON_COMPLETE_COMMAND;
@@ -34,7 +36,8 @@ type OTHER_COMMAND = Exclude<Command, EAS_BUILD_ON_COMPLETE_COMMAND>;
 async function getBinariesInfoAndNextBuildIndex(
   params: Params
 ): Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number }> {
-  const { command, token, platforms, projectIndex, teamId, android, ios } = params;
+  const { command, token, platforms, projectIndex, teamId, android, ios, iosConfiguration } =
+    params;
 
   // The binaries IN FORCE - a posed run answers these reads from its `push` (../../../seams/nativeBuild).
   const localBinariesInfo = await nativeBuild().readBinaries({
@@ -54,6 +57,7 @@ async function getBinariesInfoAndNextBuildIndex(
       ios: localBinariesInfo.ios ? { ...localBinariesInfo.ios, s3Key: '' } : undefined,
     },
     command,
+    iosConfiguration,
   });
 
   reporting.addBreadcrumb({

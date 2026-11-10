@@ -231,6 +231,10 @@ describe('live app builder, the machine', () => {
   it('pod install is skipped when Podfile.lock matches Pods/Manifest.lock', async () => {
     writeFile('ios/Podfile.lock', 'PODS: one\n');
     writeFile('ios/Pods/Manifest.lock', 'PODS: one\n');
+    writeFile(
+      'ios/Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig',
+      'OTHER_LDFLAGS = -l"sherlo-react-native-storybook"\n'
+    );
     // Xcode fails at once, so the run ends right after the pod step.
     const xcodeFails = answeringRunner((call) => ({
       exitCode: call.command === 'xcodebuild' ? 1 : 0,

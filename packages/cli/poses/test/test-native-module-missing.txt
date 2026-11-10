@@ -14,6 +14,8 @@ Testing your app...
 
 [31mERROR: Invalid iOS build; Sherlo Native Module is missing[39m
 
+Sherlo is linked only into the debug configurations unless `pod install` runs with SHERLO_BUILD=storybook: run `SHERLO_BUILD=storybook pod install` in the `ios` folder (`bundle exec pod install` if the project uses Bundler), then build again.
+
 Please verify:
 1. `@sherlo/react-native-storybook` is installed
 2. Package is not excluded in `react-native.config.js`

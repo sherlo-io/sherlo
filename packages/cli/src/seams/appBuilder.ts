@@ -32,6 +32,7 @@ import {
 import { makeProjectSherloFolder } from '../commands/test/appBuild/cacheFolder';
 import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
+import { installedPodsAreCurrent, readTextIfThere } from '../helpers/installedPods';
 import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
 import {
@@ -41,11 +42,11 @@ import {
   sdkDirOfLocalProperties,
 } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
+import { easBuildIdIn } from './easBuildId';
 import { schemeNamesInProject, schemesInXcodeList } from './iosScheme';
 import {
   filesTheInstallChanged,
   podInstallFailureLines,
-  podsAreCurrent,
   readPodTouchedFiles,
 } from './podTouchedFiles';
 import {
@@ -380,31 +381,6 @@ function easStartLogPath(platform: Platform): string {
   return `.sherlo/eas-build-${platform}.log`;
 }
 
-/**
- * The id of the build `eas build --no-wait --json` started, out of what it wrote: its answer is a
- * JSON list of the builds it started, `[{ "id": ..., "platform": "ANDROID", ... }]`, printed last,
- * after whatever it said on the way. Undefined when no such list is there.
- */
-function easBuildIdIn(output: string): string | undefined {
-  // The list starts on a line of its own; the last one that reads as a list of builds is the answer.
-  const listStarts = [...output.matchAll(/^\[/gm)].map((match) => match.index ?? 0).reverse();
-  for (const start of listStarts) {
-    try {
-      const builds: unknown = JSON.parse(output.slice(start, output.lastIndexOf(']') + 1));
-      const id = Array.isArray(builds) ? (builds[0] as { id?: unknown })?.id : undefined;
-      if (typeof id === 'string') return id;
-    } catch {
-      // Not the answer: a line of its log that happened to start with a bracket.
-    }
-  }
-  return undefined;
-}
-
-/** A text file, or undefined when there is none. */
-function readTextIfThere(filePath: string): string | undefined {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : undefined;
-}
-
 /** The bytes of every file under a folder. */
 function folderSizeBytes(folder: string): number {
   return fs.readdirSync(folder, { withFileTypes: true }).reduce((total, entry) => {
@@ -520,13 +496,15 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
   async function installPods(params: {
     projectRoot: string;
     iosFolder: string;
+    /** The configuration about to be built: the installed pods must link Sherlo into it. */
+    configuration: string;
     env: NodeJS.ProcessEnv;
     logPath: string;
   }): Promise<
     { notHeld: string[]; changedAny: boolean } | { skipped: true } | { failedLines: string[] }
   > {
-    const { projectRoot, iosFolder, env, logPath } = params;
-    if (podsAreCurrent(iosFolder)) return { skipped: true };
+    const { projectRoot, iosFolder, configuration, env, logPath } = params;
+    if (installedPodsAreCurrent(iosFolder, [configuration])) return { skipped: true };
     const filesBefore = readPodTouchedFiles(projectRoot);
     const usesBundler = [projectRoot, iosFolder].some((folder) =>
       /cocoapods/i.test(readTextIfThere(path.join(folder, 'Gemfile')) ?? '')
@@ -573,7 +551,18 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
 
     const iosFolder = path.join(projectRoot, 'ios');
     const buildEnv = buildEnvironment({ projectRoot, easProfile, buildEnv: env });
-    const install = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
+    const configuration = iosBuildConfiguration({
+      iosFolder,
+      scheme: ios.scheme,
+      configuration: ios.configuration,
+    });
+    const install = await installPods({
+      projectRoot,
+      iosFolder,
+      configuration,
+      env: buildEnv,
+      logPath,
+    });
     if ('failedLines' in install) return failed(install.failedLines);
 
     // No -derivedDataPath: Xcode keeps its derived data, and the compilation cache, in its own folder.
@@ -582,7 +571,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       '-scheme',
       ios.scheme,
       '-configuration',
-      iosBuildConfiguration({ iosFolder, scheme: ios.scheme, configuration: ios.configuration }),
+      configuration,
       '-sdk',
       'iphonesimulator',
       'ARCHS=arm64',

@@ -60,17 +60,22 @@ export function podsAreCurrent(iosFolder: string): boolean {
   );
 }
 
-/** What a failed pod step prints: its command and exit code, then the first error line of its log. */
+/**
+ * What a failed pod step prints: its command and exit code (when the failure carries one), then the
+ * first error line of its log.
+ */
 export function podInstallFailureLines(params: {
   command: string;
-  exitCode: number;
+  exitCode?: number;
   logLines: string[];
 }): string[] {
   const { command, exitCode, logLines } = params;
   const lines = logLines.filter((line) => line.trim() !== '');
   const firstError = lines.find((line) => /error|mismatch|fail|\[!\]/i.test(line)) ?? lines[0];
   return [
-    `The pod install step failed: \`${command}\` exited with ${exitCode}.`,
+    `The pod install step failed: \`${command}\`${
+      exitCode === undefined ? '' : ` exited with ${exitCode}`
+    }.`,
     ...(firstError ? [firstError.trim()] : []),
   ];
 }
