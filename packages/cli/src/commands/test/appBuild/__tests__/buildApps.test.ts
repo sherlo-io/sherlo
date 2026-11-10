@@ -130,6 +130,32 @@ describe('sherlo test builds the app on this machine', () => {
     );
   });
 
+  it("the app's own scheme is built, never a pod's", async () => {
+    const target = {
+      appSchemes: ['Storefront', 'StorefrontStaging'],
+      configurations: ['Debug', 'Release'],
+      archiveConfiguration: 'Release',
+    };
+    // A pod scheme that sorts first is no scheme the refusal offers as an example.
+    fakeBuilder({
+      listIosSchemes: async () => ['amplitude-plugin', 'Storefront', 'StorefrontStaging'],
+      readIosAppTarget: async () => target,
+    });
+    await expect(build({ toBuild: IOS })).rejects.toThrow(
+      /"build": \{ "ios": \{ "scheme": "Storefront" \} \}/
+    );
+
+    // With one app scheme among them, that one is built.
+    const builder = fakeBuilder({
+      listIosSchemes: async () => ['amplitude-plugin', 'Storefront'],
+      readIosAppTarget: async () => ({ ...target, appSchemes: ['Storefront'] }),
+    });
+    await build({ toBuild: IOS });
+    expect(builder.compile).toHaveBeenCalledWith(
+      expect.objectContaining({ ios: expect.objectContaining({ scheme: 'Storefront' }) })
+    );
+  });
+
   it('refuses an Android app with product flavors and no build.android.task, listing the flavor tasks, before Gradle starts', async () => {
     const tasks = [':app:assembleDevRelease', ':app:assembleProdRelease'];
     const builder = fakeBuilder({ listAndroidFlavorTasks: vi.fn(async () => tasks) });

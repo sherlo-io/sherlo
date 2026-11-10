@@ -205,6 +205,54 @@ describe('live app builder, the machine', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].args).toEqual(['-list', '-json', '-project', 'Storefront.xcodeproj']);
   });
+
+  it('a Pods project that cannot be listed does not stop the build', async () => {
+    fs.mkdirSync(path.join(projectRoot, 'ios/App.xcworkspace'), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, 'ios/Pods/Pods.xcodeproj'), { recursive: true });
+    const schemesOf = (schemes: string[]) =>
+      answeringRunner((call) =>
+        call.args.includes('Pods/Pods.xcodeproj')
+          ? { exitCode: 1, output: 'xcodebuild: error: legacy build locations' }
+          : { exitCode: 0, output: JSON.stringify({ workspace: { schemes } }) }
+      );
+
+    // No scheme files to tell the pods apart by: the workspace's schemes stand as they are.
+    expect(
+      await makeLiveAppBuilder(schemesOf(['dev', 'prod'])).listIosSchemes(projectRoot)
+    ).toEqual(['dev', 'prod']);
+
+    // The app's own project holds scheme files: only those stay.
+    writeFile('ios/App.xcodeproj/xcshareddata/xcschemes/dev.xcscheme', '');
+    expect(
+      await makeLiveAppBuilder(schemesOf(['amplitude-plugin', 'dev'])).listIosSchemes(projectRoot)
+    ).toEqual(['dev']);
+  });
+
+  it('pod install is skipped when Podfile.lock matches Pods/Manifest.lock', async () => {
+    writeFile('ios/Podfile.lock', 'PODS: one\n');
+    writeFile('ios/Pods/Manifest.lock', 'PODS: one\n');
+    // Xcode fails at once, so the run ends right after the pod step.
+    const xcodeFails = answeringRunner((call) => ({
+      exitCode: call.command === 'xcodebuild' ? 1 : 0,
+    }));
+    const compile = () =>
+      makeLiveAppBuilder(xcodeFails).compile({
+        platform: 'ios',
+        projectRoot,
+        env: {},
+        logPath: '.sherlo/build-ios.log',
+        ios: { scheme: 'App', configuration: 'Release' },
+      });
+
+    await compile();
+    expect(calls.map((call) => call.command)).toEqual(['xcodebuild']);
+
+    // Any difference runs it again.
+    writeFile('ios/Pods/Manifest.lock', 'PODS: one \n');
+    calls = [];
+    await compile();
+    expect(calls.map((call) => call.command)).toEqual(['pod', 'xcodebuild']);
+  });
 });
 
 describe('live app builder, the build', () => {
