@@ -45,8 +45,16 @@ export type WaitForACaptureMessage = {
   codeStamp?: string;
 } & Parameters<CaptureTransport['waitForACapture']>[0];
 
+/**
+ * What the capture relay hands an app: the core's instruction, with `startFresh` on a story the same
+ * JavaScript was last handed, which the app draws again from nothing before the core walks it.
+ */
+export type CaptureInstructionOfTheLine = CaptureInstruction & { startFresh?: boolean };
+
 /** The capture relay's answer to a WaitForACaptureMessage. */
-export type CaptureInstructionMessage = { action: 'captureInstruction' } & CaptureInstruction;
+export type CaptureInstructionMessage = {
+  action: 'captureInstruction';
+} & CaptureInstructionOfTheLine;
 
 /**
  * The app's JavaScript died as it started, before Sherlo's Storybook drew: what it threw. The

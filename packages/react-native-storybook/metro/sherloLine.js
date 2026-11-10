@@ -950,6 +950,10 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
    * (a scene's too: the app boots on a scene the way it lands on a story); the driver keeps waiting
    * across the reload. An app in testing mode is handed a scene as `sceneId`, which the core walks
    * with no Storybook, and a story as `storyId`, which it walks through Storybook's channel.
+   *
+   * A story the same JavaScript was last handed is still on its screen, as the last capture left
+   * it: Storybook keeps a story it is asked for again mounted. So it is handed with `startFresh`,
+   * and the app draws it again from nothing before it walks it.
    */
   function instructionFor(waiting, app, mode) {
     var isAScene = waiting.sceneId !== undefined;
@@ -960,7 +964,23 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
       return { restartIntoTesting: true, storyId: isAScene ? waiting.sceneId : waiting.storyId };
     }
     if (isAScene) return { sceneId: waiting.sceneId, settings: waiting.settings };
-    return { storyId: waiting.storyId, settings: waiting.settings };
+    var instruction = { storyId: waiting.storyId, settings: waiting.settings };
+    if (isOnTheScreenOf(app, waiting.storyId)) instruction.startFresh = true;
+    lastStoryHanded = { app: app, storyId: waiting.storyId, at: Date.now() };
+    return instruction;
+  }
+
+  /** The story last handed to an app to walk, with when, or null before any was. */
+  var lastStoryHanded = null;
+
+  /** Whether this app's JavaScript was last handed this story, and has not started again since. */
+  function isOnTheScreenOf(app, storyId) {
+    return (
+      lastStoryHanded !== null &&
+      lastStoryHanded.app === app &&
+      lastStoryHanded.storyId === storyId &&
+      app.javaScriptStartedAt() <= lastStoryHanded.at
+    );
   }
 
   /**
