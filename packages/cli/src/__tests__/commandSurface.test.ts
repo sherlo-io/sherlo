@@ -33,6 +33,13 @@ vi.mock('../helpers/lastCommandRecord', async (importOriginal) => ({
   recordLastCommand: vi.fn(),
 }));
 
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { forgetScenesFlag } from '../helpers/scenesFlag';
+import { installProjectFiles } from '../seams/projectFiles';
+import { installSavedLogins, liveSavedLogins } from '../seams/savedLogins';
+import { installServerCalls, liveServerCalls } from '../seams/serverCalls';
 import start from '../start';
 class ExitSignal extends Error {
   constructor(public readonly code: number | undefined) {
@@ -279,4 +286,59 @@ describe('a removed command', () => {
       expect(stderr).toContain(`error: unknown command '${alias}'`);
     }
   );
+});
+
+describe('scenes by the team flag', () => {
+  let restores: (() => void)[];
+  let folder: string;
+
+  beforeEach(() => {
+    forgetScenesFlag();
+    folder = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-'));
+    fs.writeFileSync(path.join(folder, 'sherlo.config.json'), '{"project":"k3j9x2ab/1"}');
+    restores = [
+      installProjectFiles({ root: () => folder }),
+      installSavedLogins({ ...liveSavedLogins, read: () => ({ token: 't', email: 'a@b.c' }) }),
+    ];
+  });
+  afterEach(() => {
+    restores.forEach((restore) => restore());
+    forgetScenesFlag();
+    fs.rmSync(folder, { recursive: true, force: true });
+  });
+
+  const teamAnswers = (scenes: boolean) =>
+    restores.push(
+      installServerCalls({
+        ...liveServerCalls,
+        listTeams: async () => ({
+          teams: [
+            { id: 'k3j9x2ab', name: 'T', projectCount: 1, role: null, featureFlags: { scenes } },
+          ],
+        }),
+      })
+    );
+
+  it('with scenes off, open and capture list no scene option', async () => {
+    teamAnswers(false);
+    for (const command of ['open', 'capture']) {
+      stdout = '';
+      await runCli(command, '--help');
+
+      expect(stdout, command).toContain('--story');
+      expect(stdout, command).not.toMatch(/scene|--png|--stop-on-repeat/i);
+    }
+  });
+
+  it('with scenes on, open lists --scene and capture lists its scene options', async () => {
+    teamAnswers(true);
+    await runCli('open', '--help');
+    expect(stdout).toContain('--scene');
+
+    stdout = '';
+    await runCli('capture', '--help');
+    for (const option of ['--scene', '--all-scenes', '--stop-on-repeat', '--discover', '--png']) {
+      expect(stdout, option).toContain(option);
+    }
+  });
 });

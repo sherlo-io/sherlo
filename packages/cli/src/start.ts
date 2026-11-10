@@ -70,10 +70,6 @@ import {
   PNG_OPTION,
   PROPS_OPTION,
   STORY_OPTION,
-  SCENE_OPTION,
-  ALL_SCENES_OPTION,
-  STOP_ON_REPEAT_OPTION,
-  DISCOVER_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
   DEFAULT_BUNDLER_PORT,
@@ -88,6 +84,12 @@ import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, withCommandTimeout } from './helpers';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
+import {
+  captureSceneOptions,
+  decideScenesBeforeCommands,
+  openSceneOptions,
+  SCENE_OPTION_DEFINITION,
+} from './helpers/sceneOptions';
 import {
   refuseBinaryPathFlags,
   refuseTokenFlag,
@@ -104,6 +106,8 @@ process.removeAllListeners('warning');
 async function start() {
   try {
     reporting.init();
+
+    await decideScenesBeforeCommands(process.argv);
 
     const program = new Command();
 
@@ -321,19 +325,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${STORY_OPTION} <id>`,
     'The story to put on screen, by the id Storybook gives it (e.g. foundation-typography--scales)',
   ],
-  [SCENE_OPTION]: [
-    `--${SCENE_OPTION} <id>`,
-    'The scene to boot the app fresh on, by its id (e.g. chat--conversation) - instead of --story',
-  ],
-  [ALL_SCENES_OPTION]: ['--all-scenes', 'Capture every scene the app declares, each one kept'],
-  [STOP_ON_REPEAT_OPTION]: [
-    '--stop-on-repeat',
-    'Stop when 2 scenes in a row end for one cause, instead of warning once and carrying on. Needs --all-scenes.',
-  ],
-  [DISCOVER_OPTION]: [
-    `--${DISCOVER_OPTION}`,
-    'List the requests the scene makes that no mock answers, as rules to paste into the scene file. Writes no picture. Needs --scene.',
-  ],
+  ...SCENE_OPTION_DEFINITION,
   [PORT_OPTION]: [
     `--${PORT_OPTION} <port>`,
     `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
@@ -409,7 +401,7 @@ function addOpenCommand(program: Command) {
   addCommand({
     program,
     command: OPEN_COMMAND,
-    options: [STORY_OPTION, SCENE_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
+    options: [STORY_OPTION, ...openSceneOptions(), WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
     action: open,
     withTimeout: false,
   });
@@ -421,17 +413,7 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [
-      STORY_OPTION,
-      SCENE_OPTION,
-      ALL_SCENES_OPTION,
-      STOP_ON_REPEAT_OPTION,
-      DISCOVER_OPTION,
-      PNG_OPTION,
-      PORT_OPTION,
-      JSON_OPTION,
-      LOGS_OPTION,
-    ],
+    options: [STORY_OPTION, ...captureSceneOptions(), PORT_OPTION, JSON_OPTION, LOGS_OPTION],
     action: capture,
     withTimeout: false,
   });

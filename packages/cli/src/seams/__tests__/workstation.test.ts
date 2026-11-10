@@ -13,6 +13,9 @@ import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ansiEscapes from 'ansi-escapes';
 import waitForEnterPress from '../../commands/init/helpers/waitForEnterPress';
+import { forgetScenesFlag } from '../../helpers/scenesFlag';
+import { installSavedLogins, liveSavedLogins } from '../savedLogins';
+import { installServerCalls, liveServerCalls } from '../serverCalls';
 import { installWorkstation, liveWorkstation, posedWorkstation } from '../workstation';
 
 const { shellRuns } = vi.hoisted(() => ({
@@ -76,6 +79,48 @@ describe('the live pod install', () => {
     expect(shellRuns).toHaveLength(1);
     expect(shellRuns[0].env?.LANG).toBe('pl_PL.UTF-8');
     expect(shellRuns[0].env).not.toHaveProperty('LC_ALL');
+  });
+});
+
+describe('the scenes flag at the workstation', () => {
+  it('the live workstation answers the scenes flag the CLI read for this run', async () => {
+    const restores = [
+      installServerCalls({
+        ...liveServerCalls,
+        listTeams: async () => ({
+          teams: [
+            {
+              id: 'k3j9x2ab',
+              name: 'T',
+              projectCount: 1,
+              role: null,
+              featureFlags: { scenes: true },
+            },
+          ],
+        }),
+      }),
+      installSavedLogins({ ...liveSavedLogins, read: () => ({ token: 't', email: 'a@b.c' }) }),
+    ];
+    forgetScenesFlag();
+    expect(liveWorkstation.scenesFlag()).toBeUndefined();
+
+    await liveWorkstation.askScenesFlag('k3j9x2ab/1');
+    expect(liveWorkstation.scenesFlag()).toBe('on');
+
+    await liveWorkstation.askScenesFlag('zz9999zz/1');
+    expect(liveWorkstation.scenesFlag()).toBe('off');
+
+    // A posed run asks nothing and answers what its pose states.
+    const posed = posedWorkstation({
+      install: { package: '@sherlo/react-native-storybook@2.0.2' },
+      enter: 'pressed',
+      scenes: 'on',
+    });
+    await posed.askScenesFlag('zz9999zz/1');
+    expect(posed.scenesFlag()).toBe('on');
+
+    restores.forEach((restore) => restore());
+    forgetScenesFlag();
   });
 });
 

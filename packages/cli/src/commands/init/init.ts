@@ -1,4 +1,5 @@
 import { printSherloIntro } from '../../helpers';
+import { workstation } from '../../seams/workstation';
 import { Options } from '../../types';
 import builds from './builds';
 import config from './config';
@@ -27,6 +28,9 @@ async function init(options: Options<THIS_COMMAND>) {
 
   // Before anything is installed, so a run that cannot name a project changes nothing.
   const projectToWrite = await project(options);
+
+  // From the project it chose, not the folder it started in: that folder may not name one yet.
+  await workstation().askScenesFlag(projectToWrite);
 
   await dependencies({ sessionId });
 
