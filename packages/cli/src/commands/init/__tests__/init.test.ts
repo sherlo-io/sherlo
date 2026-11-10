@@ -5,6 +5,7 @@ import dependencies from '../dependencies';
 import init from '../init';
 import metroConfig from '../metroConfig';
 import project from '../project';
+import skill from '../skill';
 import storybookAccess from '../storybookAccess';
 import testing from '../testing';
 
@@ -31,6 +32,7 @@ vi.mock('../metroConfig', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../storybookAccess', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../config', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../builds', () => ({ default: vi.fn(async () => {}) }));
+vi.mock('../skill', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../testing', () => ({ default: vi.fn(async () => {}) }));
 
 /** What the project step did: it asks the run whether to go on, then makes a project. */
@@ -55,7 +57,15 @@ describe('setup for an app with no Storybook', () => {
     );
 
     expect(madeProjects).toEqual([]);
-    for (const step of [dependencies, metroConfig, storybookAccess, config, builds, testing]) {
+    for (const step of [
+      dependencies,
+      metroConfig,
+      storybookAccess,
+      config,
+      builds,
+      skill,
+      testing,
+    ]) {
       expect(step).not.toHaveBeenCalled();
     }
   });
@@ -70,5 +80,9 @@ describe('setup for an app with no Storybook', () => {
     expect(metroConfig).not.toHaveBeenCalled();
     expect(storybookAccess).not.toHaveBeenCalled();
     expect(config).toHaveBeenCalledTimes(1);
+    expect(skill).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(skill).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(testing).mock.invocationCallOrder[0]!
+    );
   });
 });

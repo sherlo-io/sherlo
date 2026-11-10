@@ -9,6 +9,7 @@ import { trackProgress } from './helpers';
 import metroConfig from './metroConfig';
 import project from './project';
 import requirements, { settleNoStorybook } from './requirements';
+import skill from './skill';
 import storybookAccess from './storybookAccess';
 import testing from './testing';
 
@@ -49,6 +50,9 @@ async function init(options: Options<THIS_COMMAND>) {
   await config({ sessionId, project: projectToWrite });
 
   await builds({ sessionId });
+
+  // Prints nothing: the testing lines below name the guide it leaves for the coding agent.
+  await skill();
 
   await testing(sessionId);
 }
