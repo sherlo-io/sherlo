@@ -921,6 +921,11 @@ export type PosedBrowser = {
 export type PosedLocalServer = {
   /** The port the server answered on; the address the command prints is `http://127.0.0.1:<port>`. */
   port: number;
+  /**
+   * Whether a person watches the run in a terminal and stops it with Ctrl+C. `false` is an agent's
+   * shell, where the run ends once the page has opened. Absent is a person watching.
+   */
+  watched?: boolean;
 };
 
 /**

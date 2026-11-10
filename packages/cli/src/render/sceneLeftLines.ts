@@ -1,6 +1,6 @@
 /**
- * WHAT A SCENE LEFT BEHIND, as the lines under its ending: the requests no mock answered, the
- * modules that ran real, the fakes the app could not use and the errors it logged.
+ * WHAT A SCENE LEFT BEHIND, as the lines under its ending: the requests no mock answered and the
+ * fakes the app could not use first, then how many modules ran real and the errors it logged.
  *
  * Pure, like everything under ./: the scene's record in, lines out. Every ending of a scene
  * (./capturedScene) that carries this news prints it by the same function, so no ending words it
@@ -47,14 +47,18 @@ export function neverSettledLines(
   return [...pasteableRuleLines(unanswered), ...movingPartHint(changing)];
 }
 
-/** Every line a scene leaves except a discover capture's: the modules that ran real, the requests, the findings and the logged errors. */
+/**
+ * Every line a scene leaves except a discover capture's: what is missing first (the requests and
+ * the fakes the app never used), then the count of modules that ran real, the findings and the
+ * logged errors.
+ */
 function aroundTheRequests(left: SceneLeft, requests: string[]): string[] {
   const hasCause = Boolean(left.threw) || (left.unanswered ?? []).length > 0;
   const modulesNamed = (left.mockNotApplied ?? []).length > 0;
   return [
-    ...(!hasCause || modulesNamed ? [] : stillRealLines(left.stillReal)),
     ...requests,
     ...mockNotAppliedLines(left.mockNotApplied),
+    ...(!hasCause || modulesNamed ? [] : stillRealLines(left.stillReal)),
     ...letThroughLines(left.letThrough),
     ...answerFindingLines(left.answerFindings),
     ...loggedErrorsLines(left),

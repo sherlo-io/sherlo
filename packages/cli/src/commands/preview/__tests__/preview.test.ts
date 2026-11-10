@@ -56,9 +56,15 @@ function serverWithPage(pageFolder: string | undefined): LocalServer & { sites: 
   return {
     sites,
     pageFolder: () => pageFolder,
+    watched: () => true,
     serve: async (site) => {
       sites.push(site);
-      return { address: 'http://127.0.0.1:4321', stopped: Promise.resolve(), stop: () => {} };
+      return {
+        address: 'http://127.0.0.1:4321',
+        stopped: Promise.resolve(),
+        opened: Promise.resolve(),
+        stop: () => {},
+      };
     },
   };
 }
@@ -141,6 +147,34 @@ describe('sherlo preview', () => {
 
     expect(printed).toContain('http://127.0.0.1:4321');
     expect(printed).toContain('The browser did not open');
+  });
+
+  it('the review page command ends on its own when no terminal is attached to it', async () => {
+    // A server that serves until it is told to stop, the way the live one does.
+    let stopServing = () => {};
+    const stopped = new Promise<void>((settled) => {
+      stopServing = settled;
+    });
+    const stop = vi.fn(() => stopServing());
+    undo.push(
+      installLocalServer({
+        pageFolder: () => '/page',
+        watched: () => false,
+        serve: async () => ({
+          address: 'http://127.0.0.1:4321',
+          stopped,
+          opened: Promise.resolve(),
+          stop,
+        }),
+      }),
+      installBrowser({ open: async () => true })
+    );
+
+    await preview({});
+
+    expect(stop).toHaveBeenCalledOnce();
+    expect(printed).toContain('No terminal is attached, so this stops once the page has opened');
+    expect(printed).not.toContain('Ctrl+C');
   });
 
   it('refuses, naming --json, when this install has no review page', async () => {

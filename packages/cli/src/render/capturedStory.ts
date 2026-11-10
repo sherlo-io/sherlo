@@ -9,7 +9,8 @@
  * left out, as the tag the inspector names it by, its style block one key per line in the
  * inspector's order (./inspectorStyle), its size in points after the opening tag, and - the two
  * things the inspector does not show - the words a text view draws, between its tags, and the
- * app's own components as tags around the view they render. `--json` prints the record, no screen.
+ * app's own components as tags around the view they render. It prints only with `--tree`, after
+ * what the capture is missing; `--json` prints the record, no screen.
  */
 import chalk from 'chalk';
 import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
@@ -93,8 +94,8 @@ const MOCKED_MODULE_ERROR = 'MockedModuleError';
 export const NOTHING_BEFORE_DEATH =
   '   The app said nothing before it died - a native crash, or the app was closed.';
 
-/** Every line `sherlo capture` prints, in order. */
-export function renderCapturedStory(state: CapturedStory): string[] {
+/** Every line `sherlo capture` prints, in order; the view tree only when `showTree` is set. */
+export function renderCapturedStory(state: CapturedStory, showTree = false): string[] {
   switch (state.kind) {
     case 'no-bundler':
       return [
@@ -133,26 +134,25 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         '',
       ];
 
-    case 'captured':
+    case 'captured': {
+      const scrolls = `   captured in ${state.parts} screenfuls - the story scrolls past the first`;
+      const network = '   has images loaded over the network - a cloud capture depends on them';
+      const facts = [
+        ...((state.parts ?? 1) > 1 ? [chalk.dim(scrolls)] : []),
+        ...(state.hasNetworkImage ? [chalk.dim(network)] : []),
+      ];
+      const missing = [...unansweredLines(state.unanswered), ...stillRealLines(state.stillReal)];
       return [
         `${chalk.green('✔')}  ${chalk.bold(state.storyId)} captured, the way a test run records it`,
         settledLine(state.settledMs, state.frames),
-        ...(state.parts !== undefined && state.parts > 1
-          ? [
-              chalk.dim(
-                `   captured in ${state.parts} screenfuls - the story scrolls past the first`
-              ),
-            ]
-          : []),
-        ...(state.hasNetworkImage
-          ? [chalk.dim('   has images loaded over the network - a cloud capture depends on them')]
-          : []),
-        ...stillRealLines(state.stillReal),
-        ...unansweredLines(state.unanswered),
+        ...missing,
+        ...(missing.length > 0 && facts.length > 0 ? [''] : []),
+        ...facts,
         '',
-        ...treeLines(state.tree),
+        ...treeLines(state.tree, showTree),
         '',
       ];
+    }
 
     case 'never-settled':
       return [
@@ -165,7 +165,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
           : []),
         ...unansweredLines(state.unanswered),
         '',
-        ...treeLines(state.tree),
+        ...treeLines(state.tree, showTree),
         '',
       ];
 
@@ -186,7 +186,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
         '',
         errorLine(state.threw),
         '',
-        ...treeLines(state.tree),
+        ...treeLines(state.tree, showTree),
         '',
       ];
 
@@ -227,14 +227,12 @@ export function errorLine(error: { name: string; message: string }): string {
   return `  ${error.name}: ${error.message}`;
 }
 
-/** The app's own modules the story ran as real code, because no mock replaced them. */
+/** How many of the app's own modules ran as real code, as one line: the list is the kept record's, never the screen's. */
 export function stillRealLines(stillReal: string[] | undefined): string[] {
   if (!stillReal || stillReal.length === 0) return [];
-  return [
-    '',
-    chalk.dim(`   Not mocked - ${stillReal.length} of the app's own modules ran as real code:`),
-    ...stillReal.map((module) => chalk.dim(`     ${module}`)),
-  ];
+  const count = `${stillReal.length} of the app's own modules ran as real code`;
+  const where = "The full list is in the capture's record in .sherlo/captures.";
+  return ['', chalk.dim(`   Not mocked - ${count}. ${where}`)];
 }
 
 /** The requests no mock answered, each a method and an address. */
@@ -252,14 +250,13 @@ export function unansweredLines(
   ];
 }
 
-/** The tree as the inspector draws it, then how many views it holds; nothing for a tree never read. */
-export function treeLines(root: CapturedView): string[] {
+/** The tree as the inspector draws it when shown, then how many views it holds; nothing for a tree never read. */
+export function treeLines(root: CapturedView, shown: boolean): string[] {
   if (!root.primitive && root.components.length === 0 && root.children.length === 0) return [];
-  return [
-    ...viewLines(root, 0),
-    '',
-    chalk.dim(`   ${countViews(root)} views · --json prints the record`),
-  ];
+  const views = `   ${countViews(root)} views`;
+  const json = '--json prints the record';
+  if (!shown) return [chalk.dim(`${views} · --tree prints the view tree · ${json}`)];
+  return [...viewLines(root, 0), '', chalk.dim(`${views} · ${json}`)];
 }
 
 /**

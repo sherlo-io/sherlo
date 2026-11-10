@@ -2,8 +2,9 @@
  * `sherlo preview` - the review page over the captures kept in `.sherlo/captures/`.
  *
  * It opens the web app's own review page on this computer and keeps it updating while captures
- * come in. `--json` prints the same facts once, as plain data: no server, no browser, and the
- * pictures as absolute paths an agent can open.
+ * come in, until Ctrl+C. With no terminal attached it ends once the page has opened, so an agent's
+ * shell is never held. `--json` prints the same facts once, as plain data: no server, no browser,
+ * and the pictures as absolute paths an agent can open.
  *
  * Nothing here logs in, talks to Sherlo's backend or needs a project or a team: the kept captures
  * are the whole input (see ../../seams/localCaptures).
@@ -76,17 +77,23 @@ async function preview(passedOptions: PreviewOptions): Promise<void> {
   });
 
   const { summary } = pageReport();
-  const lines = renderPreview(server.address, {
+  const watched = localServer().watched();
+  const counts = {
     captured: summary.capturedCount,
     notCaptured: summary.notCapturedCount,
     changed: summary.changedCount,
-  });
-  process.stdout.write(`${lines.join('\n')}\n`);
+  };
+  process.stdout.write(`${renderPreview(server.address, counts, watched).join('\n')}\n`);
 
   if (!(await browser().open(server.address))) {
     process.stdout.write(`${renderReportBrowserNotOpened().join('\n')}\n`);
   }
 
+  // Nobody can press Ctrl+C in an agent's shell, and a run that never ends holds that shell.
+  if (!watched) {
+    await server.opened;
+    server.stop();
+  }
   await server.stopped;
 }
 

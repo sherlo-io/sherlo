@@ -1561,6 +1561,7 @@ const PINS: Pin[] = [
     what: 'what `sherlo capture` prints for a story that fits one screen - the green head, the settled line, the named tree, and the view count',
     segment: {
       kind: 'captured-story',
+      showTree: true,
       state: {
         kind: 'captured',
         storyId: 'foundation-typography--scales',
@@ -1618,6 +1619,7 @@ const PINS: Pin[] = [
     what: 'what `sherlo capture --scene` prints for a scene that came back with its record - the boot line, one line per play step done, the route reached, the settled line, then the named tree',
     segment: {
       kind: 'captured-scene',
+      showTree: true,
       state: {
         kind: 'scene',
         sceneId: 'chat--menu-open',

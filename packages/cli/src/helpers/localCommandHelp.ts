@@ -13,6 +13,7 @@ import {
   PORT_OPTION,
   PROPS_OPTION,
   TIMEOUT_OPTION,
+  TREE_OPTION,
   WAIT_OPTION,
 } from '../constants';
 
@@ -33,6 +34,7 @@ export const LOCAL_COMMAND_OPTION_DEFINITION: Record<string, [string, string]> =
     `--${LOGS_OPTION}`,
     "Print Sherlo's latest log lines from the app not shown before (at most 1000)",
   ],
+  [TREE_OPTION]: [`--${TREE_OPTION}`, 'Also print the view tree the capture read'],
   [PNG_OPTION]: [
     `--${PNG_OPTION} <path>`,
     'Save the screen as Sherlo captured it to this path (a PNG file)',

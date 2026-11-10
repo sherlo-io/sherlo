@@ -1912,7 +1912,10 @@ function readPosedLocalServer(value: unknown, path: string, problems: string[]):
   const object1 = asObject(value, path, problems);
   if (object1) {
     expectNumber(object1.port, at(path, 'port'), problems);
-    reportUnknownFields(object1, ['port'], path, problems);
+    if ('watched' in object1) {
+      expectBoolean(object1.watched, at(path, 'watched'), problems);
+    }
+    reportUnknownFields(object1, ['port', 'watched'], path, problems);
   }
 }
 

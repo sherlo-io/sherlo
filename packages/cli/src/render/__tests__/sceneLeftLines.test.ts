@@ -33,4 +33,20 @@ describe('the lines under a scene ending', () => {
   it('says that no request went without a mock when a discover capture found none', () => {
     expect(discoverLeftLines({})).toContain('No request went without a mock.');
   });
+
+  it('modules that ran real are folded into one count line with where the full list is kept', () => {
+    const lines = refusalLeftLines({
+      stillReal: ['src/a.ts', 'src/b.ts'],
+      unanswered: [FEED],
+    });
+    const counted = lines.filter((line) => line.includes("2 of the app's own modules"));
+
+    expect(counted).toEqual([
+      "   Not mocked - 2 of the app's own modules ran as real code. The full list is in the capture's record in .sherlo/captures.",
+    ]);
+    expect(lines.join('\n')).not.toContain('src/a.ts');
+    expect(lines.indexOf(counted[0])).toBeGreaterThan(
+      lines.findIndex((line) => line.includes('api.kindred.test/feed'))
+    );
+  });
 });

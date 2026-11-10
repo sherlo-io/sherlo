@@ -398,12 +398,12 @@ export type TranscriptSegment =
   | { kind: 'team-list'; list: TeamList }
   /** The whole output of `sherlo open`. See ./openedStory. */
   | { kind: 'opened-story'; state: OpenedStory }
-  /** The whole screen output of `sherlo capture`. See ./capturedStory. */
-  | { kind: 'captured-story'; state: CapturedStory }
+  /** The whole screen output of `sherlo capture`; the view tree only with `showTree`. See ./capturedStory. */
+  | { kind: 'captured-story'; state: CapturedStory; showTree?: boolean }
   /** The whole output of `sherlo open --scene`. See ./openedScene. */
   | { kind: 'opened-scene'; state: OpenedScene }
-  /** The whole screen output of `sherlo capture --scene`. See ./capturedScene. */
-  | { kind: 'captured-scene'; state: CapturedScene; picture?: ScenePicture }
+  /** The whole screen output of `sherlo capture --scene`; the view tree only with `showTree`. See ./capturedScene. */
+  | { kind: 'captured-scene'; state: CapturedScene; picture?: ScenePicture; showTree?: boolean }
   /** `sherlo capture --all-scenes` - one line for a scene, with how its capture ended and its times. See ./capturedAllScenes. */
   | { kind: 'scene-run-line'; line: SceneRunLine }
   /** `sherlo capture --all-scenes` - the closing counts of the run and where the captures are kept. See ./capturedAllScenes. */
