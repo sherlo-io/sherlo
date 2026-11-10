@@ -213,6 +213,19 @@ describe('the native modules and their spec', () => {
     expect(offering.map((file) => path.relative(SDK_ROOT, file))).toEqual([]);
   });
 
+  it('the Android package builds its module info by a direct constructor call, never by getConstructor, so code shrinking cannot strip it', () => {
+    const source = fs.readFileSync(
+      path.join(
+        SDK_ROOT,
+        'android/src/main/java/io/sherlo/storybookreactnative/SherloModulePackage.java'
+      ),
+      'utf8'
+    );
+
+    expect(source).toContain('new ReactModuleInfo(');
+    expect(source).not.toMatch(/getConstructor|java\.lang\.reflect/);
+  });
+
   it('the iOS core keeps the JS version until a line opens', () => {
     const source = fs.readFileSync(path.join(SDK_ROOT, 'ios', 'SherloModuleCore.m'), 'utf8');
 
