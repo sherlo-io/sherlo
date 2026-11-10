@@ -8,8 +8,6 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.module.model.ReactModuleInfo;
 import com.facebook.react.module.model.ReactModuleInfoProvider;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,69 +46,25 @@ public class SherloModulePackage extends TurboReactPackage {
         return null;
     }
 
+    /**
+     * The 6-arg ReactModuleInfo constructor exists on every React Native this SDK supports
+     * (>= 0.81), so it is called directly. A reflective lookup is not used: R8 in a minified
+     * release build strips constructors nothing calls directly, and the lookup then fails at
+     * app start.
+     */
     @Override
     public ReactModuleInfoProvider getReactModuleInfoProvider() {
         return () -> {
             final Map<String, ReactModuleInfo> moduleInfos = new HashMap<>();
-            final boolean isTurboModule = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED;
-
-            ReactModuleInfo sherloInfo = makeInfo6(isTurboModule);
-            if (sherloInfo == null) sherloInfo = makeInfo7(isTurboModule);
-            moduleInfos.put(SherloModule.NAME, sherloInfo);
-
+            moduleInfos.put(SherloModule.NAME, new ReactModuleInfo(
+                    SherloModule.NAME,
+                    SherloModule.NAME,
+                    /* canOverride */ false,
+                    /* needsEagerInit */ true,
+                    /* isCxxModule */ false,
+                    /* isTurboModule */ BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
+            ));
             return moduleInfos;
         };
-    }
-
-    /**
-     * Try RN >= 0.74 6-arg constructor:
-     * ReactModuleInfo(String, String, boolean canOverride, boolean needsEagerInit, boolean isCxx, boolean isTurbo)
-     */
-    private static ReactModuleInfo makeInfo6(boolean isTurboModule) {
-        try {
-            Constructor<ReactModuleInfo> ctor = ReactModuleInfo.class.getConstructor(
-                    String.class, String.class, boolean.class, boolean.class, boolean.class, boolean.class);
-
-            return ctor.newInstance(
-                    SherloModule.NAME,
-                    SherloModule.NAME,
-                    /* canOverride */ false,
-                    /* needsEagerInit */ true,
-                    /* isCxxModule */ false,
-                    /* isTurboModule */ isTurboModule
-            );
-        } catch (NoSuchMethodException e) {
-            // RN < 0.74 - not available; signal caller to fall back.
-            return null;
-        } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-            throw new RuntimeException("Failed to call 6-arg ReactModuleInfo constructor", e);
-        }
-    }
-
-    /**
-     * Fall back to legacy 7-arg constructor:
-     * ReactModuleInfo(String, String, boolean canOverride, boolean needsEagerInit, boolean hasConstants, boolean isCxx, boolean isTurbo)
-     * Present on RN <= 0.73, and deprecated-but-present on >= 0.74.
-     */
-    private static ReactModuleInfo makeInfo7(boolean isTurboModule) {
-        try {
-            Constructor<ReactModuleInfo> ctor = ReactModuleInfo.class.getConstructor(
-                    String.class, String.class, boolean.class, boolean.class, boolean.class, boolean.class, boolean.class);
-
-            return ctor.newInstance(
-                    SherloModule.NAME,
-                    SherloModule.NAME,
-                    /* canOverride */ false,
-                    /* needsEagerInit */ true,
-                    /* hasConstants */ true,
-                    /* isCxxModule */ false,
-                    /* isTurboModule */ isTurboModule
-            );
-        } catch (NoSuchMethodException e) {
-            // Constructor exists but failed - escalate so the issue is visible
-            throw new RuntimeException("7-arg ReactModuleInfo constructor not found on this RN version", e);
-        } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-            throw new RuntimeException("Failed to call 7-arg ReactModuleInfo constructor", e);
-        }
     }
 }
