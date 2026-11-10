@@ -27,7 +27,9 @@ import {
 } from './liveScene';
 import { newsOf, stopNewsOf, type PosedSceneNews, type PosedStopNews } from './posedSceneNews';
 import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
-import { readWindowReason, type WindowReason } from './windowReason';
+import { readParts, readRoot, readSettled, readWaited } from './captureAnswerReaders';
+import { listLiveStories, type StoryListResult } from './storyList';
+import type { WindowReason } from './windowReason';
 
 /** What the app answered about the story the command asked it to capture. */
 export type CaptureResult =
@@ -122,6 +124,8 @@ export type CaptureSocket = {
   }): Promise<CaptureResult>;
   /** Boot the app fresh on one scene, run its play, stabilize with the same settings, and read it. */
   captureScene(params: SceneCaptureParams): Promise<SceneCaptureResult>;
+  /** The story ids the running app has, without restarting it or taking a picture. */
+  listStories(params: { port: number }): Promise<StoryListResult>;
 };
 
 /**
@@ -135,6 +139,7 @@ const CAPTURE_PATIENCE_MS = 60_000;
 export const liveCaptureSocket: CaptureSocket = {
   captureStory: async (params) => withPortTheAppAsks(await askForTheStory(params), params.port),
   captureScene: captureLiveScene,
+  listStories: ({ port }) => listLiveStories(port),
 };
 
 /** Ask the app on the bundler's line for one story, and read what it answered. */
@@ -178,10 +183,21 @@ export function captureSocket(): CaptureSocket {
   return installed;
 }
 
-/** Install a capture socket for the duration of one posed run; the returned function undoes it. */
-export function installCaptureSocket(next: CaptureSocket): () => void {
+/**
+ * Install a capture socket for the duration of one posed run; the returned function undoes it.
+ * A socket that does not say how it lists stories refuses the question, so a run that never asks
+ * it does not have to answer it.
+ */
+export function installCaptureSocket(
+  next: Omit<CaptureSocket, 'listStories'> & Partial<Pick<CaptureSocket, 'listStories'>>
+): () => void {
   const previous = installed;
-  installed = next;
+  installed = {
+    listStories: async () => {
+      throw new Error('this capture socket does not list stories');
+    },
+    ...next,
+  };
   return () => {
     installed = previous;
   };
@@ -255,76 +271,6 @@ export function readCaptureAnswer(said: unknown, storyId: string): CaptureResult
   }
 
   return { kind: 'no-app' };
-}
-
-/** How the stabilization ended, or `timed-out` when the relay said nothing readable about it. */
-function readSettled(value: unknown): { ms: number; frames: number } | 'timed-out' {
-  if (value === 'timed-out') return 'timed-out';
-  const settled = value as { ms?: unknown; frames?: unknown } | null | undefined;
-  if (typeof settled?.ms === 'number' && typeof settled?.frames === 'number') {
-    return { ms: settled.ms, frames: settled.frames };
-  }
-  return 'timed-out';
-}
-
-/**
- * How many screenfuls the app said the story was, or nothing when it said nothing readable about
- * it. Nothing is a real answer - an app older than this field has no such number to give - and the
- * screen says no more for it than it says for a story that fits one screen.
- */
-function readParts(value: unknown): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  return value;
-}
-
-/**
- * How the app's two waits for this story went, or nothing when it said nothing readable about
- * them - an app older than this field does. Read straight off the wire, never reconstructed: a
- * value read only here and nowhere inferred is the whole point of carrying it across the socket.
- */
-function readWaited(
-  value: unknown
-): { metadata: WaitOutcome; storyViews: WaitOutcome & { rereads: number } } | undefined {
-  const waited = value as { metadata?: unknown; storyViews?: unknown } | null | undefined;
-  const metadata = readWaitOutcome(waited?.metadata);
-  const storyViews = readStoryViewsWait(waited?.storyViews);
-  if (!metadata || !storyViews) return undefined;
-  return { metadata, storyViews };
-}
-
-function readWaitOutcome(value: unknown): WaitOutcome | undefined {
-  const outcome = value as { outcome?: unknown; ms?: unknown } | null | undefined;
-  if (
-    (outcome?.outcome === 'first-check' ||
-      outcome?.outcome === 'polled' ||
-      outcome?.outcome === 'timed-out') &&
-    typeof outcome.ms === 'number'
-  ) {
-    return { outcome: outcome.outcome, ms: outcome.ms };
-  }
-  return undefined;
-}
-
-function readStoryViewsWait(value: unknown): (WaitOutcome & { rereads: number }) | undefined {
-  const outcome = readWaitOutcome(value);
-  const rereads = (value as { rereads?: unknown } | null | undefined)?.rereads;
-  if (!outcome || typeof rereads !== 'number') return undefined;
-  return { ...outcome, rereads };
-}
-
-/**
- * What the tree the app recorded is rooted at, and how many nodes it holds - or nothing when the
- * app said nothing readable about it, for the same reason `waited` can be absent.
- */
-function readRoot(
-  value: unknown
-): { at: 'story' | 'window'; nodeCount: number; reason?: WindowReason } | undefined {
-  const root = value as { at?: unknown; nodeCount?: unknown; reason?: unknown } | null | undefined;
-  if (!(root?.at === 'story' || root?.at === 'window') || typeof root.nodeCount !== 'number') {
-    return undefined;
-  }
-  const reason = readWindowReason(root.reason);
-  return { at: root.at, nodeCount: root.nodeCount, ...(reason && { reason }) };
 }
 
 /** The files the app said threw as it loaded them, each with its error; a malformed entry is dropped. */
@@ -583,6 +529,20 @@ export function posedCaptureSocket(
         ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),
         tree: withChildren(posed.tree),
       };
+    },
+
+    listStories: async () => {
+      if (posed === 'no-app') return { kind: 'no-app' };
+      if (posed && posed !== 'no-bundler' && 'stories' in posed) {
+        return { kind: 'listed', ids: posed.stories };
+      }
+      if (posed !== 'no-bundler') {
+        refusals.push({
+          call: 'listStories',
+          problem: 'the pose states no `stories` of the app, and the command asked for them',
+        });
+      }
+      return { kind: 'no-bundler' };
     },
 
     captureScene: async ({ sceneId }) => {

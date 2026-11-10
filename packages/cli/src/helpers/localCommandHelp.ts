@@ -8,6 +8,7 @@ import {
   DIR_OPTION,
   FACTS_OPTION,
   JSON_OPTION,
+  LIST_OPTION,
   LOGS_OPTION,
   PNG_OPTION,
   PORT_OPTION,
@@ -35,6 +36,10 @@ export const LOCAL_COMMAND_OPTION_DEFINITION: Record<string, [string, string]> =
     "Print Sherlo's latest log lines from the app not shown before (at most 1000)",
   ],
   [TREE_OPTION]: [`--${TREE_OPTION}`, 'Also print the view tree the capture read'],
+  [LIST_OPTION]: [
+    `--${LIST_OPTION}`,
+    'Print every story id of the running app, one per line, and take no picture',
+  ],
   [PNG_OPTION]: [
     `--${PNG_OPTION} <path>`,
     'Save the screen as Sherlo captured it to this path (a PNG file)',

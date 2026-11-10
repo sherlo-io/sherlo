@@ -80,7 +80,14 @@ var REFUSED_HELLO_CLOSE_CODE = 4001;
 var SOCKET_IS_OPEN = 1;
 
 /** The actions of a driver's questions. Every other action on a socket is the app's. */
-var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogLines', 'askTheApp'];
+var QUESTION_ACTIONS = [
+  'openStory',
+  'whatIsOnScreen',
+  'listStories',
+  'captureStory',
+  'readLogLines',
+  'askTheApp',
+];
 
 /** How long the app has to answer one question about its scroll before the line calls it absent. */
 var APP_ANSWER_MS = 10000;
@@ -267,6 +274,7 @@ function createLine(settings) {
 
     // The other two are answered at once, and leave nothing waiting.
     if (question.action === 'whatIsOnScreen') reply(letterbox.whatIsOnScreen());
+    if (question.action === 'listStories') reply(letterbox.listStories());
     if (question.action === 'readLogLines') {
       var restarts = captureRelay.restartsOfTheLatestCapture();
       reply(
@@ -526,6 +534,12 @@ function createLetterbox(appHoldMs) {
     return { kind: 'showing', storyId: appLastSaid.showing };
   }
 
+  /** A driver: which story ids the app has. An app that cannot list its stories lists none. */
+  function listStories() {
+    if (!appLastSaid) return { kind: 'no-app' };
+    return { kind: 'listed', stories: appLastSaid.stories || [] };
+  }
+
   /**
    * Hand the kept story to every app waiting AT THE STORY BROWSER, and send every other one there.
    * A developer usually has one device on a bundler; with two, both go to the story, the only
@@ -631,6 +645,7 @@ function createLetterbox(appHoldMs) {
     appLeft: appLeft,
     openStory: openStory,
     whatIsOnScreen: whatIsOnScreen,
+    listStories: listStories,
   };
 }
 

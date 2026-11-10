@@ -231,6 +231,12 @@ export const JSON_OPTION = 'json';
 export const LOGS_OPTION = 'logs';
 /** `sherlo capture --tree` - print the view tree on the screen; without it one line counts the views. */
 export const TREE_OPTION = 'tree';
+/** `sherlo capture --list` - print every story id of the running app, one per line, and take no picture. */
+export const LIST_OPTION = 'list';
+/** The refusal when `--list` is given with a story, a scene or `--all-scenes`: it only lists. */
+export function listRefusal(): string {
+  return `\`npx sherlo capture --${LIST_OPTION}\` takes none of \`--${STORY_OPTION}\`, \`--${SCENE_OPTION}\` or \`--${ALL_SCENES_OPTION}\`.`;
+}
 /** `sherlo capture --scene <id> --png <path>` - save the screen as Sherlo captured it. */
 export const PNG_OPTION = 'png';
 /** The refusal when `--png` is given without `--scene` (with `--story`, or alone): the same shape as {@link sceneWithStoryRefusal}. */
