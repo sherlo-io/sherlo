@@ -954,6 +954,7 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
   function instructionFor(waiting, app, mode) {
     var isAScene = waiting.sceneId !== undefined;
     var cause = restartCauseOf(app, mode);
+    clearTimeout(waiting.noAppTimer);
     waiting.instructed.push({ app: app, cause: cause });
     if (cause !== null) {
       return { restartIntoTesting: true, storyId: isAScene ? waiting.sceneId : waiting.storyId };
@@ -1009,23 +1010,34 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
       return function () {};
     }
 
-    // No app this capture may go to has waited yet: for a launched app, every try is a first try.
+    // No app this capture may go to has waited yet. A scene launched its own app, so it is no-app at
+    // once. A story's launched app is connected before it says the hello that waits, so the story
+    // waits for it as long as the line holds an app, and only a hold with no hello is no-app. The
+    // first app handed the capture ends the hold.
     var waitedSinceTheLaunch =
       newestHelloThatWaited !== null &&
       (launchedAt === undefined || newestHelloThatWaited >= launchedAt);
-    if (!waitedSinceTheLaunch) {
+    if (!waitedSinceTheLaunch && sceneId !== undefined) {
       reply({ kind: 'no-app' });
       return function () {};
+    }
+    if (!waitedSinceTheLaunch) {
+      waiting.noAppTimer = setTimeout(function () {
+        if (driverWaiting !== waiting) return;
+        driverWaiting = null;
+        reply({ kind: 'no-app' });
+      }, appHoldMs);
     }
 
     driverWaiting = waiting;
 
     /** A driver that gave up waiting frees its place for the next one. */
     function withdraw() {
+      clearTimeout(waiting.noAppTimer);
       if (driverWaiting === waiting) driverWaiting = null;
     }
 
-    if (held === null) return withdraw;
+    if (!waitedSinceTheLaunch || held === null) return withdraw;
 
     var refusal = refusalOf(waiting, held.app, held.facts);
     if (refusal !== null) {
