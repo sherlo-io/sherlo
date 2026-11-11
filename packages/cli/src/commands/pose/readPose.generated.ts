@@ -2384,6 +2384,9 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
     if ('ancestorBuildIndex' in object1) {
       expectNumber(object1.ancestorBuildIndex, at(path, 'ancestorBuildIndex'), problems);
     }
+    if ('isFirstLook' in object1) {
+      expectBoolean(object1.isFirstLook, at(path, 'isFirstLook'), problems);
+    }
     if ('capturedSnapshotCount' in object1) {
       expectNumber(object1.capturedSnapshotCount, at(path, 'capturedSnapshotCount'), problems);
     }
@@ -2396,6 +2399,7 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
         'platforms',
         'fullCaptureTriggerReason',
         'ancestorBuildIndex',
+        'isFirstLook',
         'capturedSnapshotCount',
         'inheritedSnapshotCount',
       ],
