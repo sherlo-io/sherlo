@@ -388,18 +388,7 @@ export type ApiError = { error: string };
  * build the backend cannot send would let a product design be approved off a state that can never
  * occur, which is why this is the wire's type and not a copy of it.
  */
-export type BuildStatusAnswer = BuildStatus & {
-  /** Every story and scene the finished run ended with no picture for, each with the service's reason. */
-  noPicture?: { kind: 'story' | 'scene'; name: string; device: string; reason: string }[];
-  /** Why the run failed: the stage, the device, the cause, a reference to quote, and whether the service retried. */
-  runFailure?: {
-    stage: string;
-    device: string;
-    cause: string;
-    reference: string;
-    retried: boolean;
-  };
-};
+export type BuildStatusAnswer = BuildStatus;
 
 /**
  * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in

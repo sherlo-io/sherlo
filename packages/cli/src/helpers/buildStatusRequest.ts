@@ -14,6 +14,7 @@
  * load-bearing for the exit-code contract.
  */
 import fetch from 'node-fetch';
+import { PLATFORM_LABEL } from '../constants';
 // TYPE-ONLY: the seam imports this module's read, so a value import back would be a cycle.
 import type { BuildStatusPlatform } from '../seams/serverCalls';
 
@@ -177,7 +178,42 @@ export type BuildStatusResponse = {
       inherited: string[];
       ancestorBuildIndex: number | null;
     };
+    /** Every story and scene the finished run ended with no picture for, each with the service's reason. */
+    noPicture?: { kind: 'story' | 'scene'; name: string; device: string; reason: string }[];
+    /** Why the run failed: the stage, the device, the cause in words, a reference to quote, and whether the service retried. */
+    runFailure?: {
+      stage: string;
+      device: string;
+      cause: string;
+      reference: string;
+      retried: boolean;
+    };
   } | null;
+};
+
+/**
+ * The two failure answers as the service sends them: a device id beside its OS version, and the
+ * cause as a code beside its sentence (`causeLine`). {@link fetchBuildStatus} turns them into the
+ * words the CLI prints, so no other file spells a phone or a cause.
+ */
+type WireBuildStatus = Omit<BuildStatus, 'noPicture' | 'runFailure'> & {
+  noPicture?: WireNoPicture[] | null;
+  runFailure?: WireRunFailure | null;
+};
+type WireNoPicture = {
+  kind: 'story' | 'scene';
+  storyName: string;
+  device: string;
+  osVersion?: string | null;
+  reason: string;
+};
+type WireRunFailure = {
+  stage: string;
+  device: string;
+  osVersion?: string | null;
+  causeLine: string;
+  reference: string;
+  retried: boolean;
 };
 
 /** One poll answer for a build that exists, as the loop and the deciders see it. */
@@ -319,6 +355,21 @@ export async function fetchBuildStatus(
               inherited
               ancestorBuildIndex
             }
+            noPicture {
+              kind
+              storyName
+              device
+              osVersion
+              reason
+            }
+            runFailure {
+              stage
+              device
+              osVersion
+              causeLine
+              reference
+              retried
+            }
           }
         }
       `,
@@ -334,7 +385,10 @@ export async function fetchBuildStatus(
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  const json = (await response.json()) as { data?: BuildStatusResponse; errors?: unknown[] };
+  const json = (await response.json()) as {
+    data?: { getBuildStatus: WireBuildStatus | null };
+    errors?: unknown[];
+  };
 
   if (json.errors?.length) {
     const errorTypes = json.errors.map((e: any) => e?.errorType ?? '').filter(Boolean);
@@ -345,5 +399,45 @@ export async function fetchBuildStatus(
     throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
   }
 
-  return json.data?.getBuildStatus ?? null;
+  const wire = json.data?.getBuildStatus;
+  return wire ? withPhoneWords(wire) : null;
+}
+
+/** `iphone.15 (iOS 17)`: the device id, then the OS it runs, named by the platform the build's own device list gives. */
+function phoneLabel(
+  devices: BuildStatus['devices'],
+  device: string,
+  osVersion?: string | null
+): string {
+  const platform = devices?.find(({ id }) => id === device)?.platform;
+  if (!osVersion || !platform) return device;
+  return `${device} (${PLATFORM_LABEL[platform]} ${osVersion})`;
+}
+
+/** The wire's two failure answers, in the words the seam's {@link BuildStatus} carries. */
+function withPhoneWords({ noPicture, runFailure, ...rest }: WireBuildStatus): BuildStatus {
+  return {
+    ...rest,
+    ...(noPicture
+      ? {
+          noPicture: noPicture.map(({ storyName, device, osVersion, kind, reason }) => ({
+            kind,
+            name: storyName,
+            device: phoneLabel(rest.devices, device, osVersion),
+            reason,
+          })),
+        }
+      : {}),
+    ...(runFailure
+      ? {
+          runFailure: {
+            stage: runFailure.stage,
+            device: phoneLabel(rest.devices, runFailure.device, runFailure.osVersion),
+            cause: runFailure.causeLine,
+            reference: runFailure.reference,
+            retried: runFailure.retried,
+          },
+        }
+      : {}),
+  };
 }

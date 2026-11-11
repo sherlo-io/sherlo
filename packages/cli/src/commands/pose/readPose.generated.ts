@@ -2281,7 +2281,7 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
           const where66 = atIndex(where62, index65);
           const object67 = asObject(entry64, where66, problems);
           if (object67) {
-            expectOneOf(object67.kind, ['story', 'scene'], at(where66, 'kind'), problems);
+            expectOneOf(object67.kind, ['scene', 'story'], at(where66, 'kind'), problems);
             expectString(object67.name, at(where66, 'name'), problems);
             expectString(object67.device, at(where66, 'device'), problems);
             expectString(object67.reason, at(where66, 'reason'), problems);

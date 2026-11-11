@@ -1114,14 +1114,14 @@ export type BuildStatusAnswer = {
    * reason.
    */
   noPicture?: Array<{
-    kind: 'story' | 'scene';
+    kind: 'scene' | 'story';
     name: string;
     device: string;
     reason: string;
   }>;
   /**
-   * Why the run failed: the stage, the device, the cause, a reference to quote, and whether the
-   * service retried.
+   * Why the run failed: the stage, the device, the cause in words, a reference to quote, and
+   * whether the service retried.
    */
   runFailure?: {
     stage: string;

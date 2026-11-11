@@ -22,7 +22,11 @@ import {
   EXIT_TIMEOUT,
   exitCodeForUnfinishedReview,
 } from './exitCodes';
-import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBuildVerdict';
+import {
+  countNoPicture,
+  decideSparseBuildVerdict,
+  routesThroughSparseVerdict,
+} from './sparseBuildVerdict';
 
 /*
  * The exit-code contract this loop returns under - including the ONE input on
@@ -562,7 +566,7 @@ function printTerminalCloser(
     emit({
       kind: 'verdict-run-errored',
       runStatus,
-      runError: build.runError,
+      runError: build.runFailure ? null : build.runError, // a recorded failure says it in words
       testIndex,
       ...(appFailed ? { appFailed } : {}),
     });
@@ -575,8 +579,6 @@ function printTerminalCloser(
     return;
   }
 
-  // runStatus is 'finished' here (the only other caller-guaranteed terminal
-  // state), with viewStatusesCount already confirmed present by the decision.
   const { unreviewed, reported } = viewStatusesCount!;
 
   const serverBypassReason =
@@ -593,9 +595,7 @@ function printTerminalCloser(
   emit({ kind: 'blank-line' });
   const holds = readBuildScreenKind(build);
   if (unreviewed === 0 && reported === 0) {
-    // No verbatim reason: the generic green. Covers the forward-compat degrade of a
-    // counts-bypassed build whose poll carries no prose, and every ordinary green build.
-    emit({ kind: 'verdict-passed', holds });
+    emit({ kind: 'verdict-passed', holds, noPicture: countNoPicture(build) });
   } else {
     emit({
       kind: 'verdict-review-required',
@@ -637,7 +637,7 @@ function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
  * words, once {@link decideTerminalState} has confirmed the build terminal.
  *
  * It emits the frame every closer sits inside (a blank line above and below), and inside it either the sparse verdict's
- * segments or - when the build is one the SERVER closed without a device run -
+ * segments or - when the SERVER closed the build without a device run -
  * that build's existing compact closer, carrying the server's own prose. The
  * bypass keeps precedence deliberately: it is a MORE specific green than
  * `noChanges`, and a project that opted into sparse builds must not lose the one
@@ -645,8 +645,7 @@ function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
  * paths, so precedence changes the words and never the verdict.
  *
  * A `null` verdict (the counts race) is unreachable here, as {@link decideTerminalState} decided
- * the SAME build terminal off the SAME check; it prints nothing, as a false closer must never be
- * reachable by accident.
+ * the SAME build terminal off the SAME check; it prints nothing, so no false closer is reachable.
  */
 function printSparseCloser(
   build: NonNullable<BuildStatusResponse['getBuildStatus']>,
@@ -680,6 +679,7 @@ function namingTheTest(
   holds: ScreenKind
 ): TranscriptSegment {
   if (segment.kind === 'verdict-nothing-recorded') return { ...segment, testIndex };
+  if (segment.kind === 'verdict-passed') return { ...segment, holds };
   return segment.kind === 'verdict-review-required' ? { ...segment, holds } : segment;
 }
 

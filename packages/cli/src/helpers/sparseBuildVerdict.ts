@@ -112,6 +112,21 @@ function recordedEntryCount(build: BuildStatus): number | undefined {
 }
 
 /**
+ * How many screens a finished build tested and how many of its screens ended with no picture, or
+ * `undefined` when none did (or an older API sent no list). A verdict that finds a tally here must
+ * not say every story passed; the exit code is not touched by it.
+ */
+export function countNoPicture(build: BuildStatus): { tested: number; count: number } | undefined {
+  const count = build.noPicture?.length ?? 0;
+  const counts = build.viewStatusesCount;
+  if (count === 0 || !counts) return undefined;
+  return {
+    tested: counts.approved + counts.noChanges + counts.reported + counts.unreviewed,
+    count,
+  };
+}
+
+/**
  * Decide a finished build's verdict under sparse rules.
  *
  * Takes the whole poll answer rather than the status and the two counts, because
@@ -135,10 +150,14 @@ export function decideSparseBuildVerdict(build: BuildStatus): SparseBuildVerdict
   if (checkState === undefined) return null;
 
   if (checkState === 'noChanges' || checkState === 'approved') {
+    const noPicture = countNoPicture(build);
     return {
       checkState,
       exitCode: EXIT_GREEN,
-      segments: [{ kind: 'verdict-no-changes' }, ...captureAccounting(build)],
+      segments: [
+        noPicture ? { kind: 'verdict-passed', noPicture } : { kind: 'verdict-no-changes' },
+        ...captureAccounting(build),
+      ],
     };
   }
 

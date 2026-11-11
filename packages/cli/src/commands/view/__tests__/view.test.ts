@@ -303,3 +303,100 @@ describe('--wait', () => {
     expect(lastCall[0]).not.toHaveProperty('metadata');
   });
 });
+
+describe('--wait on a test that ended without a picture for some screens', () => {
+  const NO_PICTURE = [
+    {
+      kind: 'story',
+      name: 'Profile - Video header',
+      device: 'iPhone 15 (iOS 17)',
+      reason: 'the app did not answer in time',
+    },
+    { kind: 'scene', name: 'Feed - Home', device: 'iPhone 15 (iOS 17)', reason: 'never settled' },
+  ] as const;
+
+  /** The test the server answers, read by the command and by the REAL wait loop, so its verdict is the shipped one. */
+  async function viewWaiting(build: Record<string, unknown>): Promise<void> {
+    const actual = await vi.importActual<typeof import('../../../helpers/waitForBuildResult')>(
+      '../../../helpers/waitForBuildResult'
+    );
+    readBuildStatus.mockReset().mockResolvedValue(build as never);
+    waitForBuildResult.mockImplementation(async (args) => {
+      const { exitCode } = await actual.waitForTest({
+        ...args,
+        pollBuildStatus: async () => build as never,
+      });
+      return exitCode;
+    });
+    await runView('7', { wait: true });
+  }
+
+  /** What the command printed, ANSI stripped. */
+  function printed(): string {
+    return vi
+      .mocked(console.log)
+      .mock.calls.map((call) => call.join(' '))
+      .join('\n')
+      .replace(/\u001b\[[0-9;]*m/g, '');
+  }
+
+  it('a finished test with screens that have no picture lists each with its phone and reason under the verdict', async () => {
+    await viewWaiting({ ...FINISHED_BUILD, noPicture: [...NO_PICTURE] });
+
+    expect(printed()).toContain('2 screens ended with no picture');
+    expect(printed()).toContain(
+      'Story Profile - Video header on iPhone 15 (iOS 17): the app did not answer in time'
+    );
+    expect(printed()).toContain('Scene Feed - Home on iPhone 15 (iOS 17): never settled');
+  });
+
+  it('a test with screens that have no picture never says all stories passed', async () => {
+    await viewWaiting({ ...FINISHED_BUILD, noPicture: [...NO_PICTURE] });
+
+    expect(printed()).toContain('44 stories tested, 2 with no picture');
+    expect(printed()).not.toContain('All stories passed');
+    expect(exitCodes, 'the wait code is kept as it was').toEqual([0]);
+  });
+
+  it('a failed run with a recorded failure prints its stage, phone, cause, retried and reference, and no bare Error line', async () => {
+    await viewWaiting({
+      runStatus: 'error',
+      runError: 'system',
+      runFailure: {
+        stage: 'capture',
+        device: 'iphone.15 (iOS 17)',
+        cause: 'the simulator stopped answering while Feed - Home was open',
+        reference: 'run-7f3a9c-ios',
+        retried: true,
+      },
+    });
+
+    expect(printed()).toContain(
+      'It failed at the capture stage on iphone.15 (iOS 17): the simulator stopped answering while Feed - Home was open'
+    );
+    expect(printed()).toContain('Sherlo retried it and it failed again.');
+    expect(printed()).toContain('quote run-7f3a9c-ios');
+    expect(printed()).not.toContain('Error: "system"');
+  });
+
+  it("a failed run with no recorded failure, from an older api, prints today's error line", async () => {
+    await viewWaiting({ runStatus: 'error', runError: 'system' });
+
+    expect(printed()).toContain('Error: "system"');
+    expect(printed()).not.toContain('It failed at');
+    expect(printed()).not.toContain('with no picture');
+  });
+
+  it('the view without --wait counts the screens with no picture instead of saying all passed', async () => {
+    readBuildStatus.mockReset().mockResolvedValue({
+      ...FINISHED_BUILD,
+      status: 'approved',
+      noPicture: [...NO_PICTURE],
+    });
+
+    await runView('7');
+
+    expect(printed()).toContain('44 stories tested, 2 with no picture');
+    expect(printed()).not.toContain('All stories passed');
+  });
+});
