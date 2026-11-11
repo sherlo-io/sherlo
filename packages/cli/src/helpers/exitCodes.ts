@@ -19,11 +19,14 @@
  *               128+SIGINT(2) code.
  *
  * GitHub check mapping (for reference):
+ * (as sherlo-api's mapBuildStateToCheckRun sends it: reported → failure,
+ * unreviewed → action_required, errored → failure, systemErrored → neutral,
+ * cancelled → cancelled)
  *   exit 0 → conclusion: "success"
- *   exit 1 → conclusion: "action_required"
- *   exit 2 → conclusion: "failure"
- *   exit 3 → conclusion: "action_required" (timeout)
- *   exit 4 → conclusion: "action_required" (changes to review)
+ *   exit 1 → conclusion: "failure" (a reported change)
+ *   exit 2 → conclusion: "failure" ("neutral" when Sherlo itself broke)
+ *   exit 3 → no conclusion of its own (the CLI's own wait ran out)
+ *   exit 4 → conclusion: "action_required" (unreviewed changes only)
  *
  * -----------------------------------------------------------------------------
  * WHERE THE CONTRACT IS KNOWN TO HOLD, AND WHERE IT DID NOT.
