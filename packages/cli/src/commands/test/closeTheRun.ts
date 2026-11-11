@@ -42,8 +42,11 @@ export async function closeTheRun({
   endsOnNextStep = true,
   hasCiToken,
   platformRows,
+  picturesPlanned,
 }: {
   commandParams: CommandParams<THIS_COMMAND>;
+  /** How many pictures the test's plan takes, which sizes the default wait; unknown, 45 minutes. */
+  picturesPlanned?: number;
   buildIndex: number;
   url: string;
   /** Every platform's row, which the test's first row stands under (see `rowsNotYetShown`). */
@@ -77,6 +80,7 @@ export async function closeTheRun({
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+      picturesPlanned,
       serverBypassed,
       // This run started the test just now, so the wait's own time is how long the test ran.
       sawTheTestStart: true,

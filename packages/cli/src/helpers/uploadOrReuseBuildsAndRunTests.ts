@@ -17,6 +17,7 @@ import {
 } from '../commands/test/readModuleManifest';
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
 import { printTestStarted } from '../commands/test/startTheTest';
+import { firstLookOf } from '../commands/test/firstLook';
 import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
 import type { PlatformRow } from '../render/runRows';
@@ -41,7 +42,7 @@ import getValidatedBinariesInfoAndNextBuildIndex from './getValidatedBinariesInf
 import handleClientError from './handleClientError';
 import reporting from './reporting';
 import throwError from './throwError';
-import { registerBase, type GateMetadataInput } from './fingerprint';
+import { defaultEmbeddedBundlePath, registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
 import { isServerBypassed } from './waitForBuildResult';
 
@@ -363,7 +364,17 @@ async function uploadOrReuseBuildsAndRunTests({
     level: 'info',
   });
 
+  const moduleManifests = collectModuleManifests(freshBundles, platformsWithBundles);
+  // A joined run is sent no first look: joinBuild takes none (../commands/test/firstLook).
+  const firstLook = splitJob
+    ? undefined
+    : firstLookOf({
+        allStories: commandParams.allStories,
+        projectRoot: commandParams.projectRoot,
+        moduleManifests,
+      });
   const opened = await io.openBuild({
+    ...(firstLook ? { firstLook } : {}),
     teamId,
     projectIndex,
     binaryHashes: {
@@ -422,19 +433,20 @@ async function uploadOrReuseBuildsAndRunTests({
 
   // The step that started the test, with how many stories it captures, read off the openBuild
   // answer - the same line the staged road prints - then the run's one ending.
-  if (openedAlone) {
-    printTestStarted({
-      openBuildReturn: openedAlone,
-      moduleManifests: collectModuleManifests(freshBundles, platformsWithBundles),
-      platformsToTest: platformsNamedIn(buildRunConfig),
-      devices: commandParams.devices,
-      serverBypassed,
-      platformRows,
-    });
-  }
+  const picturesPlanned = openedAlone
+    ? printTestStarted({
+        openBuildReturn: openedAlone,
+        moduleManifests,
+        platformsToTest: platformsNamedIn(buildRunConfig),
+        devices: commandParams.devices,
+        serverBypassed,
+        platformRows,
+      })
+    : undefined;
 
   await closeTheRun({
     commandParams,
+    picturesPlanned,
     buildIndex,
     url,
     serverBypassed,
@@ -453,22 +465,4 @@ export default uploadOrReuseBuildsAndRunTests;
 /** The platforms a record names something for, Android first: the run's devices, or its app builds. */
 function platformsNamedIn(named: Partial<Record<Platform, unknown>>): Platform[] {
   return (['android', 'ios'] as const).filter((platform) => named[platform]);
-}
-
-/**
- * Where a React Native binary embeds its JS bundle by default:
- * `assets/index.android.bundle` on Android, `main.jsbundle` on iOS. It is the
- * default set by React Native's Gradle bundle task and `expo export:embed`, and
- * does NOT vary with the JS entry file.
- *
- * This is base-registration metadata, not the bundle a run renders. Base
- * registration probes this path to learn whether the binary embeds a bundle
- * and in what format; the runner later overwrites the same path with the
- * freshly built bundle, which is what actually runs.
- */
-function defaultEmbeddedBundlePath(platform: Platform): string {
-  if (platform === 'android') {
-    return 'assets/index.android.bundle';
-  }
-  return 'main.jsbundle';
 }

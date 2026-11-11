@@ -15,5 +15,5 @@ export type {
 } from './gateMetadata';
 export { checkStageable } from './notStageable';
 export type { StageableCheck } from './notStageable';
-export { registerBase } from './registerBase';
+export { defaultEmbeddedBundlePath, registerBase } from './registerBase';
 export type { RegisterBaseParams, RegisterBaseResult } from './registerBase';
