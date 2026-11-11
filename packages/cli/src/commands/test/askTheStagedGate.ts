@@ -51,6 +51,9 @@ export async function checkGate({
     gitBranch: string;
     bundleHashOf: (platform: Platform) => string | undefined;
     devicesOf: (platform: Platform) => Device[] | undefined;
+    /** The test scope (the config's include and exclude): a push that only widens it must not share the earlier test. */
+    include?: string[];
+    exclude?: string[];
   };
   projectIndex: number;
   teamId: string;
@@ -82,7 +85,14 @@ export async function checkGate({
           projectIndex,
           teamId,
           ...(sameCode && bundleHash
-            ? { bundleHash, gitBranch: sameCode.gitBranch, devices: sameCode.devicesOf(platform) }
+            ? {
+                bundleHash,
+                gitBranch: sameCode.gitBranch,
+                devices: sameCode.devicesOf(platform),
+                // A config with no list is an empty list: deleting one widens the scope.
+                include: sameCode.include ?? [],
+                exclude: sameCode.exclude ?? [],
+              }
             : {}),
         });
 

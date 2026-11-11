@@ -68,4 +68,29 @@ describe('asking the staged gate', () => {
     expect(mockCheckStagedGate.mock.calls[0][0]).not.toHaveProperty('bundleHash');
     expect(mockCheckStagedGate.mock.calls[0][0]).not.toHaveProperty('gitBranch');
   });
+
+  it('a config with no include or exclude sends empty lists', async () => {
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
+
+    await ask({ gitBranch: 'main', bundleHashOf: () => 'hash', devicesOf: () => undefined });
+
+    expect(mockCheckStagedGate.mock.calls[0][0]).toMatchObject({ include: [], exclude: [] });
+  });
+
+  it('the same-code question carries the test scope', async () => {
+    mockCheckStagedGate.mockResolvedValue({ outcome: 'fast', diff: [] });
+
+    await ask({
+      gitBranch: 'main',
+      bundleHashOf: () => 'hash',
+      devicesOf: () => undefined,
+      include: ['Storefront/*'],
+      exclude: ['Storefront/CheckoutScreen'],
+    });
+
+    expect(mockCheckStagedGate.mock.calls[0][0]).toMatchObject({
+      include: ['Storefront/*'],
+      exclude: ['Storefront/CheckoutScreen'],
+    });
+  });
 });
