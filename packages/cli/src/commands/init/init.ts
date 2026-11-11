@@ -9,6 +9,7 @@ import { trackProgress } from './helpers';
 import metroConfig from './metroConfig';
 import project from './project';
 import requirements, { settleNoStorybook } from './requirements';
+import scheme from './scheme';
 import skill from './skill';
 import storybookAccess from './storybookAccess';
 import testing from './testing';
@@ -48,6 +49,9 @@ async function init(options: Options<THIS_COMMAND>) {
   }
 
   await config({ sessionId, project: projectToWrite });
+
+  // Into the config just written, so the first push does not stop on an iOS scheme it cannot pick.
+  await scheme();
 
   await builds({ sessionId });
 
