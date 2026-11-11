@@ -285,6 +285,32 @@ describe('a removed command', () => {
     }
   );
 
+  it('an unknown command exits non-zero and names the nearest known command', async () => {
+    const exitCode = await runCli('captur');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("error: unknown command 'captur'");
+    expect(stderr).toContain('(Did you mean capture?)');
+  });
+
+  it('a removed command such as capture-report is unknown', async () => {
+    const exitCode = await runCli('capture-report');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("error: unknown command 'capture-report'");
+  });
+
+  it('every command the shipped guide names is listed in the help', async () => {
+    const guide = fs.readFileSync(path.join(__dirname, '..', '..', 'skill', 'SKILL.md'), 'utf8');
+    const named = [...new Set([...guide.matchAll(/\bsherlo ([a-z][a-z-]*)/g)].map((m) => m[1]))];
+    await runCli('--help');
+
+    expect(named.length).toBeGreaterThan(0);
+    for (const command of named) {
+      expect(stdout, command).toMatch(new RegExp('^\\s+' + command + '\\b', 'm'));
+    }
+  });
+
   it.each(['local-builds', 'expo-update', 'expo-cloud-builds'])(
     'the hidden alias `%s` of a removed command is gone with it',
     async (alias) => {
