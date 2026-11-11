@@ -2,7 +2,6 @@
 [31m✖[39m Running Test 8 failed
 
 Test 8 ended as "error".
-[2mError: "system"[22m
 
 [2m──────────[22m
 

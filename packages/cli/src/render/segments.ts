@@ -300,9 +300,9 @@ export type TranscriptSegment =
   | { kind: 'wait-interrupted'; testIndex?: number }
   /**
    * The green verdict, as a section: `✅ All stories passed`. `holds` names what the build holds
-   * (`stories` when absent), so the section words its screens as the started line does.
+   * (`stories` when absent). With `noPicture` it never says all passed: `⚠️ 44 stories tested, 2 with no picture`.
    */
-  | { kind: 'verdict-passed'; holds?: ScreenKind }
+  | { kind: 'verdict-passed'; holds?: ScreenKind; noPicture?: { tested: number; count: number } }
   /**
    * The compact closer for a build the server closed without a device run, under the platforms'
    * rows: `Test 15     ✔ Finished: nothing to test: no change reaches any story` (./runRows).
@@ -359,18 +359,17 @@ export type TranscriptSegment =
    * The verdict section of a finished test, as `--wait` ends with it. A test still running ends
    * on the `👉 Next step` section instead (`results-url` with its `testIndex`).
    *
-   * It carries the WIRE fields rather than a resolved state, because which verdict
-   * they collapse to - and whether they collapse to one at all - is a rendering
-   * decision ./buildView owns. A finished test whose review status the API did not
-   * send renders NO line.
+   * It carries the WIRE fields rather than a resolved state, because which verdict they collapse
+   * to - and whether to one at all - is ./buildView's call. No review status renders NO line.
    */
   | {
       kind: 'build-view-status';
       runStatus: string;
       status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
       counts?: { approved: number; noChanges: number; reported: number; unreviewed: number };
-      /** What the build holds (see `verdict-passed`). */
+      /** What the build holds (see `verdict-passed`), and its screens with no picture. */
       holds?: ScreenKind;
+      noPicture?: { tested: number; count: number };
     }
   /**
    * `sherlo view --json`'s WHOLE output: the

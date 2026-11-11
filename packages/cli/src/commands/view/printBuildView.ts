@@ -2,6 +2,7 @@ import throwError from '../../helpers/throwError';
 import { emit } from '../../helpers/transcriptSink';
 import type { ViewJson } from '../../render/buildView';
 import type { BuildStatus } from '../../helpers/buildStatusRequest';
+import { countNoPicture } from '../../helpers/sparseBuildVerdict';
 import { readBuildScreenKind } from '../../helpers/waitForBuildResult';
 
 /**
@@ -62,6 +63,7 @@ export function printBuildView({
     status: build.status,
     counts: build.viewStatusesCount,
     holds: readBuildScreenKind(build),
+    noPicture: countNoPicture(build),
   });
 
   // Absent, not empty: a build with no view rows yet (queued, or errored before

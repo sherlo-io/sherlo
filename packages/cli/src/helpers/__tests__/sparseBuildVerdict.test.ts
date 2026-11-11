@@ -258,6 +258,25 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     expect(stdout).not.toContain('No visual changes');
   });
 
+  it('a verdict over a build with no-picture screens is not the all-passed verdict', () => {
+    const verdict = decideSparseBuildVerdict({
+      runStatus: 'finished',
+      showsOnlyBranchChanges: true,
+      status: 'noChanges',
+      viewStatusesCount: { approved: 1, noChanges: 40, reported: 0, unreviewed: 0 },
+      noPicture: [
+        { kind: 'story', name: 'Feed', device: 'iPhone 15 (iOS 17)', reason: 'never settled' },
+      ],
+    });
+
+    expect(verdict?.segments[0]).toEqual({
+      kind: 'verdict-passed',
+      noPicture: { tested: 41, count: 1 },
+    });
+    expect(verdict?.segments.map(({ kind }) => kind)).not.toContain('verdict-no-changes');
+    expect(verdict?.exitCode, 'the exit code stays the server status').toBe(EXIT_GREEN);
+  });
+
   it('the counts race is still poll-again, never a verdict', () => {
     expect(
       decideSparseBuildVerdict({
