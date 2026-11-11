@@ -66,6 +66,42 @@ describe('the capture each platform reports for the Started row', () => {
     );
   });
 
+  it("a stories glob widened to a new screen counts that screen's stories as changed", () => {
+    const typography = 'src/Typography.stories.tsx';
+    const capture = capturePerPlatform({
+      openBuildReturn: openBuildWith({
+        ios: {
+          devices: [],
+          captureScope: {
+            full: false,
+            storyFilePaths: [typography],
+            newStoryFilePaths: [typography],
+          },
+        },
+      }),
+      moduleManifests: {
+        ios: {
+          raw: Buffer.from('{}'),
+          parsed: {
+            version: 1,
+            header: {},
+            moduleHashes: {},
+            storyClosures: { [typography]: [], 'src/Other.stories.tsx': [] },
+            storyCounts: { [typography]: 3, 'src/Other.stories.tsx': 7 },
+          },
+        } as any,
+      },
+      platformsToTest: ['ios'],
+    });
+
+    expect(capture[0]).toMatchObject({
+      capturedStories: 3,
+      storiesInBundle: 10,
+      newStoryFiles: [typography],
+    });
+    expect(describeWhatRuns({ capture })).toBe('3 of 10 stories');
+  });
+
   it('counts the pictures of the plan as its screens on every device of each platform', () => {
     const device = (id: string) => ({
       id,
