@@ -505,6 +505,9 @@ function addTestCommand(program: Command) {
       PARALLEL_BUILDS_OPTION,
       ...devtoolsOptions,
     ],
+    // `withTimeout: false`: the first build of an app can run past the command timeout, and it ends
+    // on its own; `--wait-timeout` bounds the wait the caller asked for.
+    withTimeout: false,
     // THE INTRO COMES FIRST, as on `sherlo init`: a refused flag or a job with nothing to test is
     // still a `sherlo test` screen, opening with `Testing your app...` - under the logo in a
     // terminal, and on the first line of a log.

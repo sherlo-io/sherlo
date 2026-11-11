@@ -14,7 +14,13 @@ import getAppBuildUrl from './getAppBuildUrl';
 import getTokenParts from './getTokenParts';
 import hasNoTokenParts from './hasNoTokenParts';
 import { emit } from './transcriptSink';
-import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from './exitCodes';
+import {
+  EXIT_ERROR,
+  EXIT_GREEN,
+  EXIT_SIGINT,
+  EXIT_TIMEOUT,
+  exitCodeForUnfinishedReview,
+} from './exitCodes';
 import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBuildVerdict';
 
 /*
@@ -496,7 +502,9 @@ function decideTerminalState(
       }
 
       const { unreviewed, reported } = viewStatusesCount;
-      return unreviewed === 0 && reported === 0 ? EXIT_GREEN : EXIT_BLOCK;
+      return unreviewed === 0 && reported === 0
+        ? EXIT_GREEN
+        : exitCodeForUnfinishedReview(reported);
     }
 
     case 'error':

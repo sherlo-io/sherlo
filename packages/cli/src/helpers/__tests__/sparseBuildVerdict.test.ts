@@ -36,7 +36,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { captureTranscript } from '../transcriptSink';
 import waitForBuildResult from '../waitForBuildResult';
 import type { BuildStatus } from '../waitForBuildResult';
-import { EXIT_BLOCK, EXIT_GREEN } from '../exitCodes';
+import { EXIT_BLOCK, EXIT_GREEN, EXIT_REVIEW } from '../exitCodes';
 import { decideSparseBuildVerdict, routesThroughSparseVerdict } from '../sparseBuildVerdict';
 import { catalogue } from '../../commands/pose/catalogue';
 import { readPoseDocument } from '../../commands/pose/readPose';
@@ -301,10 +301,24 @@ describe('an opted-in build takes its verdict from the server, not from the tall
       )
     );
 
-    expect(exitCode).toBe(EXIT_BLOCK);
+    expect(exitCode).toBe(EXIT_REVIEW);
     expect(stdout).toContain('⚠️ 2 stories need review');
     expect(stdout).toContain('Open them in Sherlo to approve or report.');
     expect(stdout).not.toContain('Nothing was recorded');
+  });
+
+  it('a sparse build with a reported change still exits 1 (BLOCK), not the review code', async () => {
+    const { exitCode } = await runWaitLoop(
+      optedIn(
+        {
+          runStatus: 'finished',
+          viewStatusesCount: { approved: 0, noChanges: 42, reported: 1, unreviewed: 2 },
+        },
+        'reported'
+      )
+    );
+
+    expect(exitCode).toBe(EXIT_BLOCK);
   });
 
   /**
