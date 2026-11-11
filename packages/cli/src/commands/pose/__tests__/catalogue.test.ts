@@ -197,6 +197,23 @@ describe('the pose catalogue under packages/cli/poses', () => {
     expect(exitCode).toBe(0);
   });
 
+  it("a pose whose capture decision is a first look draws the first look's Started row with no changed mark", async () => {
+    // The bare push's pose, its narrowed decision (one story file) now said by the service to be
+    // the project's first look. Only the flag differs from the committed pose.
+    const pose = poseNamed('test/staged-reuses-no-wait');
+    const openBuild = pose.api.find(({ call }) => call === 'openBuild');
+    const decision = (openBuild?.answer as { captureDecision: PosedCaptureDecision })
+      .captureDecision;
+    decision.isFirstLook = true;
+
+    const { screen, refusals, unusedCalls } = await runPose(pose);
+
+    expect(refusals).toEqual([]);
+    expect(unusedCalls).toEqual([]);
+    expect(screen).toContain('a first look: --all-stories tests all 5 stories');
+    expect(screen).not.toContain('~');
+  });
+
   it('no screen carries a path from the machine that rendered it', () => {
     // The two folds the tool always makes (`<PROJECT_ROOT>`, `<SHERLO_CONFIG_PATH>`) exist so a
     // committed screen is the same on every machine. A temporary directory reaching one would

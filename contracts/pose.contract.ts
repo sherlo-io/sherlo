@@ -1168,6 +1168,12 @@ export type PosedCaptureDecision = {
   /** The build this decision diffed against - the "inheriting N from build #A" clause. */
   ancestorBuildIndex?: number;
   /**
+   * `build.diffScopeInfo.isFirstLook`, as the service sends it: the project's first build, which
+   * took only the stories the push named. With a partial capture it draws the Started row's "a
+   * first look: --all-stories tests all N stories" and no changed mark.
+   */
+  isFirstLook?: boolean;
+  /**
    * The snapshot counts the open answer's `build.diffScopeInfo` carries. A build the service
    * closed as it opened, because no phone has a story to photograph, says 0 captured and some kept
    * - which is how the tool knows to withhold the review link and end on "Nothing needed
