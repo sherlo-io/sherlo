@@ -1440,6 +1440,33 @@ describe('the wait shows the test live, and in a JSON wait keeps stdout clean', 
     expect(spinnersDrawn[0].stopped, 'the spinner is gone before the verdict prints').toBe(true);
   });
 
+  it('the default wait grows with the number of pictures the plan takes', async () => {
+    streamsAre({ stdout: true, stderr: true });
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    /** The minutes the wait's spinner says it waits, for a plan of this many pictures. */
+    async function minutesWaitedFor(
+      picturesPlanned: number | undefined,
+      waitTimeoutMinutes?: number
+    ) {
+      spinnersDrawn.length = 0;
+      mockGraphqlResponse(200, buildResponse('finished', GREEN));
+      const promise = waitForBuildResult({ ...waitArguments, picturesPlanned, waitTimeoutMinutes });
+      await vi.runAllTimersAsync();
+      await promise;
+      return spinnersDrawn[0].texts[0];
+    }
+
+    expect(await minutesWaitedFor(undefined)).toContain('(up to 45 min)');
+    expect(await minutesWaitedFor(100), 'a small plan keeps the 45-minute floor').toContain(
+      '(up to 45 min)'
+    );
+    expect(await minutesWaitedFor(420), 'ten seconds a picture').toContain('(up to 70 min)');
+    expect(await minutesWaitedFor(420, 20), '--wait-timeout still wins').toContain(
+      '(up to 20 min)'
+    );
+  });
+
   it('a JSON wait prints nothing on stdout and its progress on stderr only when stderr is a terminal', async () => {
     const stdoutLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const stderrLog = vi.spyOn(console, 'warn').mockImplementation(() => undefined);

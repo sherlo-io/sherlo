@@ -1264,6 +1264,11 @@ export type StartedRun = {
     platform: 'android' | 'ios';
     /** Every story is captured. Read FIRST: a full capture's story list is empty and means "all". */
     full: boolean;
+    /**
+     * A project's first test took only a first look: the stories in the files the push named, plus
+     * every scene. `--all-stories` asks for every story.
+     */
+    firstLook?: boolean;
     /** How many stories a partial capture takes. Ignored on a full capture. */
     capturedStories: number;
     /**

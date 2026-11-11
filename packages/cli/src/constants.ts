@@ -222,6 +222,8 @@ export const PORT_OPTION = 'port';
  */
 export const TIMEOUT_OPTION = 'timeout';
 export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
+/** `sherlo test --all-stories` - a project's first test takes every story, not a first look. */
+export const ALL_STORIES_OPTION = 'allStories';
 /** `sherlo capture --json`, `sherlo view --json` - print the whole record as JSON instead of a screen. */
 export const JSON_OPTION = 'json';
 /**

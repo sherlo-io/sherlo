@@ -29,6 +29,7 @@ import {
 } from './commands/test/appBuild/buildSettings';
 import { CACHE_DIR_ENV_VAR } from './commands/test/appBuild/cacheFolder';
 import {
+  ALL_STORIES_OPTION,
   ANDROID_OPTION,
   BASELINE_OPTION,
   CONFIG_OPTION,
@@ -89,6 +90,7 @@ import { reporting, withCommandTimeout } from './helpers';
 import { LOCAL_COMMAND_OPTION_DEFINITION, SUGGEST_DESCRIPTION } from './helpers/localCommandHelp';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import { captureCommandOptions } from './commands/capture';
+import { FIRST_LOOK_OPTION_DEFINITION } from './commands/test/firstLook';
 import {
   decideScenesBeforeCommands,
   openSceneOptions,
@@ -346,10 +348,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       '  0 = all stories passed, 1 = stories need review,\n' +
       '  2 = the app build or the test failed, 3 = stopped waiting, 130 = interrupted',
   ],
-  [WAIT_TIMEOUT_OPTION]: [
-    '--wait-timeout <minutes>',
-    'Max minutes to wait for results (default: 45). Exit code 3 on timeout.',
-  ],
+  ...FIRST_LOOK_OPTION_DEFINITION,
   [PLATFORM_OPTION]: [
     '--platform <platform>',
     'Build and test one platform only (android or ios) - one job of a CI run split across ' +
@@ -499,6 +498,7 @@ function addTestCommand(program: Command) {
       EMIT_BUNDLE_DIR_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
+      ALL_STORIES_OPTION,
       PLATFORM_OPTION,
       RUN_ID_OPTION,
       BUILD_CACHE_OPTION,

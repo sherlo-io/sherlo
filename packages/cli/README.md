@@ -42,7 +42,8 @@ action runs this command, one platform per job.
 - `--config <path>` - Path to the config file (default: sherlo.config.json)
 - `--project-root <path>` - Path to the root directory of your project (default: .)
 - `--wait` - Wait for test results and exit with a code encoding the outcome
-- `--wait-timeout <minutes>` - Max minutes to wait for results (default: 45)
+- `--wait-timeout <minutes>` - Max minutes to wait for results (default: 45, or longer for a test with more pictures)
+- `--all-stories` - Test every story on the project's first test, instead of a first look at the stories changed last
 - `--emit-bundle-dir <path>` - Bundle, write the result to `<path>`, and exit without testing
 - `--bundle-dir <path>` - Test a bundle written by `--emit-bundle-dir` instead of running the bundler
 

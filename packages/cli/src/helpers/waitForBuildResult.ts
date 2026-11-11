@@ -13,6 +13,7 @@ import { surroundings } from '../seams/surroundings';
 import getAppBuildUrl from './getAppBuildUrl';
 import getTokenParts from './getTokenParts';
 import hasNoTokenParts from './hasNoTokenParts';
+import { createSigintSignal } from './sigintSignal';
 import { emit } from './transcriptSink';
 import {
   EXIT_ERROR,
@@ -29,7 +30,10 @@ import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBu
  * repairs that - lives in ./exitCodes, next to the codes themselves.
  */
 
+/** The shortest default wait; a test of many pictures waits ten seconds a picture. */
 const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
+/** A picture took 7 seconds on a customer's first test (408 in 47 minutes); 10 leaves room. */
+const WAIT_SECONDS_PER_PICTURE = 10;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
 /**
  * THE STORIES MUST HAVE STOPPED MOVING BEFORE A VERDICT IS PRINTED (2026-09-09).
@@ -83,6 +87,7 @@ export async function waitForTest({
   projectIndex,
   teamId,
   waitTimeoutMinutes,
+  picturesPlanned = 0,
   serverBypassed = false,
   sawTheTestStart = false,
   rowsNotYetShown = [],
@@ -104,6 +109,8 @@ export async function waitForTest({
   projectIndex: number;
   teamId: string;
   waitTimeoutMinutes?: number;
+  /** How many pictures the test's plan takes, which sizes the default wait; none, 45 minutes. */
+  picturesPlanned?: number;
   /**
    * Injectable clock so the deadline tests can stub time deterministically
    * instead of spying on the global `Date.now` - keeps them immune to any
@@ -156,7 +163,13 @@ export async function waitForTest({
    */
   json?: boolean;
 }): Promise<WaitResult> {
-  const timeoutMs = (waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES) * 60 * 1000;
+  const timeoutMinutes =
+    waitTimeoutMinutes ??
+    Math.max(
+      DEFAULT_WAIT_TIMEOUT_MINUTES,
+      Math.ceil((picturesPlanned * WAIT_SECONDS_PER_PICTURE) / 60)
+    );
+  const timeoutMs = timeoutMinutes * 60 * 1000;
   const startTime = now();
   const deadline = startTime + timeoutMs;
 
@@ -174,7 +187,6 @@ export async function waitForTest({
     return () => serverCalls().getBuildStatus({ token, buildIndex, projectIndex, teamId });
   }
 
-  const timeoutMinutes = waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES;
   const testIndex = buildIndex;
 
   // A server-bypassed build is already closed, so there is nothing to show a wait for: the one
@@ -835,24 +847,6 @@ export async function fetchServerBypassReason({
 /** Let time pass between polls - a real timer on a live run, nothing at all on a posed one (the pose's clock is the time). */
 function sleep(ms: number): Promise<void> {
   return surroundings().sleep(ms);
-}
-
-/**
- * Replaces Node's default "exit immediately" SIGINT behavior for the duration
- * of the wait: the returned promise resolves on the first Ctrl-C, letting the
- * poll loop stop cleanly and exit with {@link EXIT_SIGINT}. `cleanup` restores
- * the default by removing the listener.
- */
-function createSigintSignal(): { promise: Promise<void>; cleanup: () => void } {
-  let resolveSignal: () => void;
-  const promise = new Promise<void>((resolve) => {
-    resolveSignal = resolve;
-  });
-
-  const handler = () => resolveSignal();
-  process.once('SIGINT', handler);
-
-  return { promise, cleanup: () => process.off('SIGINT', handler) };
 }
 
 export default waitForBuildResult;

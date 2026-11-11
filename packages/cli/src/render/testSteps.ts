@@ -85,6 +85,11 @@ export type PlatformCapture = {
   platform: Platform;
   /** Every story is captured. Read FIRST: a full capture's story list is empty and means "all". */
   full: boolean;
+  /**
+   * A project's first test took only a first look: the stories in the files the push named, plus
+   * every scene. `--all-stories` asks for every story.
+   */
+  firstLook?: boolean;
   /** How many stories a partial capture takes. Ignored on a full capture. */
   capturedStories: number;
   /** How many scenes a partial capture takes, a changed scene file counting as its scenes. Ignored on a full capture. */
@@ -121,6 +126,7 @@ export type PlatformCapture = {
  * ONE COUNT when every platform captures the same, which is nearly always; one per platform when
  * they differ. A full capture's reason is kept, after a comma, only when every platform captures
  * every story for that one reason - it is the reason a person can act on (`no main branch is set`).
+ * A first look says so in its place, with the flag that takes every story.
  * A partial capture's reason is `npx sherlo view <n> --json`'s to say; its story files are listed
  * under the row.
  */
@@ -137,9 +143,23 @@ export function describeWhatRuns({
   // `3 of 24 stories on 1 device`, but `🤖 Android 3 of 24 stories, 🍎 iOS all 24 stories, on 2 devices`.
   const beforeDevices = storiesOfEachPlatform.length > 1 ? ', ' : ' ';
   const whatRuns = [stories, onDevices].filter((part) => part !== '').join(beforeDevices);
-  const reason = reasonEveryStoryIsCaptured(capture);
+  const reason = reasonEveryStoryIsCaptured(capture) ?? describeFirstLook(capture);
 
   return reason ? `${whatRuns}, ${reason}` : whatRuns;
+}
+
+/**
+ * `a first look: --all-stories tests all 24 stories` when every platform took a first look; `every
+ * story` when the bundles' counts are unknown or differ.
+ */
+function describeFirstLook(capture: PlatformCapture[]): string | undefined {
+  if (capture.length === 0 || !capture.every(({ firstLook }) => firstLook)) return undefined;
+
+  const storiesInBundles = new Set(capture.map(({ storiesInBundle }) => storiesInBundle));
+  const [stories] = storiesInBundles;
+  const allStories =
+    storiesInBundles.size === 1 && stories != null ? `all ${countStories(stories)}` : 'every story';
+  return `a first look: --all-stories tests ${allStories}`;
 }
 
 /**

@@ -3,8 +3,10 @@
  * (./startTheTest printTestStarted).
  */
 import type { Platform } from '@sherlo/api-types';
+import { DEVICES } from '@sherlo/shared';
 import type { OpenBuildAnswer } from '../../seams/serverCalls';
 import type { PlatformCapture } from '../../render/testSteps';
+import type { Config } from '../../types';
 import {
   bundleStoryFiles,
   countBundleScenes,
@@ -37,6 +39,8 @@ export function capturePerPlatform({
       platform,
       // INVERSION GUARD: full === true is "every story", regardless of the list.
       full: captureScope.full,
+      // A project's first build that took only the stories the push named (./firstLook).
+      ...(diffScopeInfo?.isFirstLook && !captureScope.full ? { firstLook: true } : {}),
       capturedStories: captureScope.full
         ? 0
         : manifest
@@ -68,4 +72,20 @@ export function capturePerPlatform({
     });
   }
   return capture;
+}
+
+/**
+ * How many pictures the plan takes: each platform's stories and scenes, once on every device of
+ * that platform. What the bundle could not count adds none.
+ */
+export function picturesInPlan(capture: PlatformCapture[], devices: Config['devices']): number {
+  return capture.reduce((pictures, platformCapture) => {
+    const screens = platformCapture.full
+      ? (platformCapture.storiesInBundle ?? 0) + (platformCapture.scenesInBundle ?? 0)
+      : platformCapture.capturedStories + (platformCapture.capturedScenes ?? 0);
+    const devicesOfPlatform = devices.filter(
+      ({ id }) => DEVICES[id]?.os === platformCapture.platform
+    ).length;
+    return pictures + screens * devicesOfPlatform;
+  }, 0);
 }
