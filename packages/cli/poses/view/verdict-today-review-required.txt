@@ -10,7 +10,4 @@ Open them in Sherlo to approve or report.
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
-THE POSE COULD NOT ANSWER THIS RUN. The screen above is everything the command printed before it asked:
-  - `getBuildStatus`: the pose scripts no further calls, and the command made a `getBuildStatus`
-
-[exit 1]
+[exit 4]

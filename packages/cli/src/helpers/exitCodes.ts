@@ -6,12 +6,14 @@
  *
  *   0 - GREEN:  build finished, every story noChanges or already approved
  *               (zero unreviewed, zero reported).
- *   1 - BLOCK:  build finished with unreviewed or reported/denied changes.
+ *   1 - BLOCK:  build finished with reported/denied changes.
  *               A human must review in the dashboard.
  *   2 - ERROR:  build ended in a build/system error (infrastructure/capture
  *               failure, canceled, or authentication/permission denied).
  *   3 - TIMEOUT: --wait-timeout elapsed before reaching a terminal state.
  *               Conservative - timeout is a BLOCK, never a pass.
+ *   4 - REVIEW: build finished with unreviewed changes and nothing reported.
+ *               Not a failure: a human only has to look and approve.
  *   130 - SIGINT: the user pressed Ctrl-C while waiting. The run keeps going
  *               in Sherlo; we stop cleanly and exit with the conventional
  *               128+SIGINT(2) code.
@@ -21,6 +23,7 @@
  *   exit 1 → conclusion: "action_required"
  *   exit 2 → conclusion: "failure"
  *   exit 3 → conclusion: "action_required" (timeout)
+ *   exit 4 → conclusion: "action_required" (changes to review)
  *
  * -----------------------------------------------------------------------------
  * WHERE THE CONTRACT IS KNOWN TO HOLD, AND WHERE IT DID NOT.
@@ -48,6 +51,13 @@ export const EXIT_GREEN = 0;
 export const EXIT_BLOCK = 1;
 export const EXIT_ERROR = 2;
 export const EXIT_TIMEOUT = 3;
+/** The build finished with unreviewed changes and nothing reported: a human only has to look. */
+export const EXIT_REVIEW = 4;
 export const EXIT_SIGINT = 130;
 /** 128 + SIGTERM(15): the process was told to terminate. */
 export const EXIT_SIGTERM = 143;
+
+/** A finished run that is not green: BLOCK when a change is reported, else REVIEW. */
+export function exitCodeForUnfinishedReview(reported: number): number {
+  return reported > 0 ? EXIT_BLOCK : EXIT_REVIEW;
+}

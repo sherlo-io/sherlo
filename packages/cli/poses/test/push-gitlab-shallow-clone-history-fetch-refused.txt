@@ -23,4 +23,4 @@ Open them in Sherlo to approve or report.
 🔗 Review: [36mhttps://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>[39m
 
 
-[exit 1]
+[exit 4]

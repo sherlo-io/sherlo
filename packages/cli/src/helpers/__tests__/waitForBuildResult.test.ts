@@ -11,7 +11,14 @@ import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import waitForBuildResult, { fetchServerBypassReason, waitForTest } from '../waitForBuildResult';
 import { closeTheRun } from '../../commands/test/closeTheRun';
-import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from '../exitCodes';
+import {
+  EXIT_BLOCK,
+  EXIT_ERROR,
+  EXIT_GREEN,
+  EXIT_REVIEW,
+  EXIT_SIGINT,
+  EXIT_TIMEOUT,
+} from '../exitCodes';
 
 chalk.level = 0;
 
@@ -412,10 +419,10 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
   });
 
   /* ------------------------------------------------------------------ */
-  /* EXIT 1 - BLOCK (unreviewed or reported changes)                     */
+  /* EXIT 4 - REVIEW (unreviewed changes); EXIT 1 - BLOCK (reported)    */
   /* ------------------------------------------------------------------ */
 
-  it('exits 1 (BLOCK) when build finishes with unreviewed changes', async () => {
+  it('a finished run with changes to review exits with the review code, not the failure code', async () => {
     mockGraphqlResponse(
       200,
       buildResponse('finished', { approved: 3, noChanges: 5, reported: 0, unreviewed: 3 })
@@ -431,7 +438,9 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
     await vi.runAllTimersAsync();
     const result = await promise;
 
-    expect(result).toBe(EXIT_BLOCK);
+    expect(result).toBe(EXIT_REVIEW);
+    expect(result).not.toBe(EXIT_BLOCK);
+    expect(result).not.toBe(EXIT_ERROR);
   });
 
   it('exits 1 (BLOCK) when build finishes with reported (denied) changes', async () => {
@@ -793,7 +802,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       expect(printedOutput()).not.toContain('/build?');
     });
 
-    it('clean finish (BLOCK) does not reprint the link', async () => {
+    it('clean finish (REVIEW) does not reprint the link', async () => {
       mockGraphqlResponse(
         200,
         buildResponse('finished', { approved: 3, noChanges: 5, reported: 0, unreviewed: 3 })
@@ -809,7 +818,7 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
       await vi.runAllTimersAsync();
       const result = await promise;
 
-      expect(result).toBe(EXIT_BLOCK);
+      expect(result).toBe(EXIT_REVIEW);
       expect(printedOutput()).not.toContain('/build?');
     });
 

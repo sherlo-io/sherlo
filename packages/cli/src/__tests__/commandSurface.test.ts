@@ -33,6 +33,19 @@ vi.mock('../helpers/lastCommandRecord', async (importOriginal) => ({
   recordLastCommand: vi.fn(),
 }));
 
+// Counts the commands that took the 30-minute command timeout; the real wrapper still runs.
+const timedCommands = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../helpers/withCommandTimeout', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../helpers/withCommandTimeout')>();
+  return {
+    ...original,
+    default: ((commandFn: never) => {
+      timedCommands.count += 1;
+      return original.default(commandFn);
+    }) as typeof original.default,
+  };
+});
+
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -248,6 +261,20 @@ describe('a Sherlo 2 app build path', () => {
     expect(vi.mocked(console.error).mock.calls.flat().join('\n')).toContain(
       'no longer takes `--android` or `--ios`'
     );
+  });
+});
+
+describe('the command timeout', () => {
+  it('sherlo test runs without the command timeout', async () => {
+    timedCommands.count = 0;
+    await runCli('test', '--platform', 'windows');
+    expect(timedCommands.count).toBe(0);
+
+    // A command that keeps the timeout does take it, so the zero above means something.
+    const emptyFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-timeout-'));
+    await runCli('suggest', '--dir', emptyFolder, '--json');
+    fs.rmSync(emptyFolder, { recursive: true, force: true });
+    expect(timedCommands.count).toBe(1);
   });
 });
 

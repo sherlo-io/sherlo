@@ -63,6 +63,27 @@
         "showsOnlyBranchChanges": true,
         "status": "unreviewed"
       }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 15
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 1,
+          "reported": 0,
+          "unreviewed": 2
+        },
+        "diffScopeInfo": {
+          "capturedSnapshotCount": 3,
+          "inheritedSnapshotCount": 41
+        },
+        "showsOnlyBranchChanges": true,
+        "status": "unreviewed"
+      }
     }
   ],
   "masks": {}

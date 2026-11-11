@@ -30,7 +30,7 @@
  * `deriveBuildCheckState` hands the GitHub check for this build:
  *
  *   `noChanges` / `approved`   -> green, exit 0
- *   `unreviewed` / `reported`  -> not green, exit 1
+ *   `unreviewed` / `reported`  -> not green, exit 4 (review) or exit 1 (a change reported)
  *
  * The two surfaces now cannot drift, because there is only one derivation left.
  *
@@ -56,7 +56,7 @@
  */
 import type { BuildStatus } from './waitForBuildResult';
 import type { TranscriptSegment } from '../render/segments';
-import { EXIT_BLOCK, EXIT_GREEN } from './exitCodes';
+import { EXIT_BLOCK, EXIT_GREEN, exitCodeForUnfinishedReview } from './exitCodes';
 
 /** What the sparse verdict decided, and the bytes it prints to say so. */
 export type SparseBuildVerdict = {
@@ -159,7 +159,7 @@ export function decideSparseBuildVerdict(build: BuildStatus): SparseBuildVerdict
 
   return {
     checkState,
-    exitCode: EXIT_BLOCK,
+    exitCode: exitCodeForUnfinishedReview(counts.reported),
     segments: [
       {
         kind: 'verdict-review-required',
