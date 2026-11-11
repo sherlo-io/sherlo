@@ -264,6 +264,8 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
       gitBranch: gitInfo.branchName,
       bundleHashOf: (platform) => bundles[platform]?.bundleHash,
       devicesOf: (platform) => buildRunConfig[platform]?.devices,
+      include: buildRunConfig.include,
+      exclude: buildRunConfig.exclude,
     },
     projectIndex,
     teamId,
