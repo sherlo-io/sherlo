@@ -169,6 +169,17 @@ describe('sherlo --help', () => {
     }
   });
 
+  it("view help names its own wait deadline, not the test's picture rule", async () => {
+    await runCli('view', '--help');
+    expect(stdout).toContain('--wait-timeout <minutes>');
+    expect(stdout).toContain('default: 45)');
+    expect(stdout).not.toContain('more pictures');
+
+    stdout = '';
+    await runCli('test', '--help');
+    expect(stdout).toContain('more pictures');
+  });
+
   it('lists `view`, with its build as an OPTIONAL positional', async () => {
     // Optional at the parser so the command can refuse in its own words and say
     // why there is no default yet - see commands/view.

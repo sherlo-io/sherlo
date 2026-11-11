@@ -569,12 +569,13 @@ function addViewCommand(program: Command) {
     .command(`${VIEW_COMMAND} [build]`)
     .description(COMMAND_DESCRIPTION[VIEW_COMMAND]);
 
-  addOptionsToCommand(commandInstance, [
-    CONFIG_OPTION,
-    PROJECT_ROOT_OPTION,
-    WAIT_OPTION,
-    WAIT_TIMEOUT_OPTION,
-  ]);
+  addOptionsToCommand(commandInstance, [CONFIG_OPTION, PROJECT_ROOT_OPTION, WAIT_OPTION]);
+
+  // Its own help: unlike a test, a view does not size the wait by pictures, so it waits 45 minutes.
+  commandInstance.option(
+    OPTION_DEFINITION[WAIT_TIMEOUT_OPTION][0],
+    'Max minutes to wait for results (default: 45). Exit code 3 on timeout.'
+  );
 
   // `--json` prints one read as a record for a program. With `--wait` it waits first and prints the
   // record once the wait ends, the way `eas build --json --wait` does (./commands/view).
