@@ -16,6 +16,7 @@ import type { SceneEnding } from '../render/capturedScene';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import type { NoTarget, SceneTarget } from './deviceState';
 import { captureLiveScene } from './liveScene';
+import { sceneCameUp } from './localCaptures';
 
 /**
  * What a story threw while rendering, as the app recorded it and the letterbox passed it on. The
@@ -94,13 +95,14 @@ export const liveLetterbox: Letterbox = {
     });
 
     if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
-    if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
     if (answer.kind === 'gave-up-waiting') {
       // Nobody answered in time. On a `--wait` the story was posted before the silence began and
       // the app may still be loading it, which is the same ending as the bundler's own wait
       // running out; without one there is nothing to say the address was ever reached.
       return wait ? { kind: 'handed-over', storyId, rendered: 'timed-out' } : { kind: 'no-app' };
     }
+    // Not Sherlo's words. (The line never answers `old-code` here: opening a story sends no stamp.)
+    if (answer.kind !== 'said') return { kind: 'no-app' };
 
     return readOpenStoryAnswer(answer.reply, storyId);
   },
@@ -113,7 +115,7 @@ export const liveLetterbox: Letterbox = {
       target,
     });
     if (answer.kind === 'no-such-scene') return { kind: 'no-such-scene', known: answer.known };
-    if (answer.kind === 'scene') {
+    if (sceneCameUp(answer)) {
       return { kind: 'scene-opened', sceneId: answer.sceneId, route: answer.reached.route };
     }
     return answer;

@@ -13,13 +13,17 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScriptedCall, ServerCalls } from '../../../../seams/serverCalls';
 
 /** What the posed seams were asked, in order. */
-const { sentRequests, builderCalls, binaryPuts, fingerprintsOnTheMachine } = vi.hoisted(() => ({
-  sentRequests: [] as Array<{ operation: string; request: Record<string, any> }>,
-  builderCalls: [] as Array<{ call: string; platform: string }>,
-  binaryPuts: [] as string[],
-  /** Each fingerprint the posed machine computed: what a fingerprint taken after the build reads. */
-  fingerprintsOnTheMachine: [] as string[],
-}));
+const { sentRequests, builderCalls, binaryPuts, fingerprintsOnTheMachine, gitReads } = vi.hoisted(
+  () => ({
+    /** How many times the run read git. */
+    gitReads: { count: 0 },
+    sentRequests: [] as Array<{ operation: string; request: Record<string, any> }>,
+    builderCalls: [] as Array<{ call: string; platform: string }>,
+    binaryPuts: [] as string[],
+    /** Each fingerprint the posed machine computed: what a fingerprint taken after the build reads. */
+    fingerprintsOnTheMachine: [] as string[],
+  })
+);
 
 vi.mock('../../../../seams/serverCalls', async (importActual) => {
   const actual = await importActual<typeof import('../../../../seams/serverCalls')>();
@@ -42,6 +46,19 @@ vi.mock('../../../../seams/serverCalls', async (importActual) => {
       }
 
       return recordingServer;
+    },
+  };
+});
+
+vi.mock('../../../../seams/surroundings', async (importActual) => {
+  const actual = await importActual<typeof import('../../../../seams/surroundings')>();
+
+  return {
+    ...actual,
+    // The pose's own git read, counted: a run reads git once, whichever road it ends on.
+    getGitInfo: (...params: Parameters<typeof actual.getGitInfo>) => {
+      gitReads.count += 1;
+      return actual.getGitInfo(...params);
     },
   };
 });
@@ -140,6 +157,7 @@ beforeEach(() => {
   builderCalls.length = 0;
   binaryPuts.length = 0;
   fingerprintsOnTheMachine.length = 0;
+  gitReads.count = 0;
 });
 
 describe('sherlo test builds what the gate refused, then pushes', () => {
@@ -162,6 +180,23 @@ describe('sherlo test builds what the gate refused, then pushes', () => {
       android: expect.any(String),
       ios: expect.any(String),
     });
+  });
+
+  // The probe passes, so the run reads git for the gate's second ask; that ask refuses, and the
+  // build and the push after it take that read rather than make their own.
+  it('reads git once when the second gate ask refuses: the gate, the build and the push share that read', async () => {
+    const pose = testPose('build-both-then-push');
+    const [androidRefusal, iosRefusal, ...rest] = pose.api;
+    const probe = (refusal: ScriptedCall) =>
+      ({ ...refusal, answer: { outcome: 'fast', diff: [] } }) as ScriptedCall;
+    pose.api = [probe(androidRefusal), probe(iosRefusal), androidRefusal, iosRefusal, ...rest];
+
+    const { refusals } = await runPose(pose);
+
+    expect(refusals).toEqual([]);
+    expect(operationsSent().filter((operation) => operation === 'checkStagedGate')).toHaveLength(4);
+    expect(platformsCalled('compile')).toEqual(['android', 'ios']);
+    expect(gitReads.count).toBe(1);
   });
 
   // A build writes into the project (pods, prebuilt frameworks inside node_modules), so a

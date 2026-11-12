@@ -43,6 +43,31 @@ export function emit(segment: TranscriptSegment): void {
   currentSink(segment);
 }
 
+/**
+ * Run `read` with what it emits held back, so a read that is needed early prints where the
+ * transcript puts it. `release` emits the held segments, once, through the sink then in force;
+ * call it where they belong (and on every road out, so none is lost).
+ */
+export async function readHoldingSegments<T>(
+  read: () => Promise<T>
+): Promise<{ result: T; release: () => void }> {
+  const held: TranscriptSegment[] = [];
+  const previousSink = currentSink;
+
+  currentSink = (segment) => held.push(segment);
+  try {
+    const result = await read();
+    return {
+      result,
+      release: () => {
+        for (const segment of held.splice(0)) emit(segment);
+      },
+    };
+  } finally {
+    currentSink = previousSink;
+  }
+}
+
 /** The two streams a captured transcript is made of. */
 export type CapturedTranscript = { stdout: string; stderr: string };
 

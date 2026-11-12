@@ -1,6 +1,6 @@
-// The mocks of a scene file, as the early-boot module hands them over (src/sceneBoot.ts calls
-// activateSceneMocks with the file's mocks, the scene's own, and the scene file's path): a scene's
-// mocks are its file's plus its own, the scene winning; a mock the file shares and the scene never
+// The mocks of a scene's `given` list, as the early-boot module hands them over (src/sceneBoot.ts
+// calls activateSceneMocks with the list's parts in order and the scene file's path): the parts
+// apply in list order, a later one winning; a mock a shared precondition brings and the scene never
 // imports is no failure; and a second copy of the mock registry fails where it loads.
 
 const { mockGetMode } = vi.hoisted(() => ({ mockGetMode: vi.fn() }));
@@ -18,6 +18,9 @@ import { mock } from '../../mocking/mockDeclaration';
 import { mockFailureOf } from '../../mocking/activateStoryMocks';
 import { clearMocks, markStorySettled, __resetShimmedKeysForTests } from '../../mocking/registry';
 import { activateSceneMocks } from '../../getStorybook/storyMockActivation';
+import type { StoryMocks } from '../../mocking/mockDeclaration';
+import { given, partsOf } from '../../preconditions';
+import type { PreconditionParts } from '../../preconditions';
 import { mockClock } from '../../mocking/clock';
 import { mockRandom } from '../../mocking/random';
 
@@ -51,22 +54,68 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+// A precondition as a shared file hands it over, and as the scene file lists it itself.
+const shared = (mocks: StoryMocks): PreconditionParts => ({ mocks, origin: 'shared' });
+const inScene = (mocks: StoryMocks): PreconditionParts => ({ mocks, origin: 'scene file' });
+
 describe('mocks resolve in a scene file', () => {
-  it('file-level and scene-level mocks merge, the scene winning on a clash', () => {
+  it('shared and scene-file preconditions merge, the later one winning on a clash', () => {
     bundlerStartedHaving(['a', 'b']);
     const a = createMockable('a', { label: 'real' });
     const b = createMockable('b', { label: 'real' });
 
-    // The file writes its shared mocks as an object, the scene as a declaration.
+    // A shared precondition writes its fakes as an object, the scene as a declaration.
     activateSceneMocks(
       SCENE_ID,
-      { a: { label: 'file' }, b: { label: 'file' } },
-      [declareImporting('../a', { label: 'scene' })],
+      [
+        shared({ a: { label: 'file' }, b: { label: 'file' } }),
+        inScene([declareImporting('../a', { label: 'scene' })]),
+      ],
       SCENE_FILE
     );
 
     expect(a.label).toBe('scene');
     expect(b.label).toBe('file');
+  });
+
+  it("fakes from a scene's preconditions are applied in list order, later winning", () => {
+    bundlerStartedHaving(['a']);
+    const a = createMockable('a', { client: { get: () => 'real get', list: () => 'real list' } });
+
+    // The scene file's own entry comes FIRST, so the shared one after it wins what both name.
+    activateSceneMocks(
+      SCENE_ID,
+      [
+        inScene([
+          declareImporting('../a', {
+            client: { get: () => 'first get', list: () => 'first list' },
+          }),
+        ]),
+        shared([declareImporting('../a', { client: { list: () => 'second list' } })]),
+      ],
+      SCENE_FILE
+    );
+
+    expect(a.client.list()).toBe('second list');
+    expect(a.client.get()).toBe('first get');
+  });
+
+  it("a scene's fake laid over the file's fake of one module keeps the file's other parts at boot", () => {
+    bundlerStartedHaving(['a']);
+    const a = createMockable('a', { client: { get: () => 'real get', list: () => 'real list' } });
+
+    activateSceneMocks(
+      SCENE_ID,
+      [
+        shared({ a: { client: { list: () => 'file list' }, label: 'file' } }),
+        inScene([declareImporting('../a', { client: { get: () => 'scene get' } })]),
+      ],
+      SCENE_FILE
+    );
+
+    expect(a.client.get()).toBe('scene get');
+    expect(a.client.list()).toBe('file list');
+    expect(a.label).toBe('file');
   });
 
   it('a shared mock a scene never imports is no failure in a scene file', () => {
@@ -76,8 +125,7 @@ describe('mocks resolve in a scene file', () => {
 
     activateSceneMocks(
       SCENE_ID,
-      { shared: { label: 'file' } },
-      { own: { label: 'scene' } },
+      [shared({ shared: { label: 'file' } }), inScene({ own: { label: 'scene' } })],
       SCENE_FILE
     );
     expect(own.label).toBe('scene');
@@ -94,8 +142,7 @@ describe('mocks resolve in a scene file', () => {
     const other = 'chat--other';
     activateSceneMocks(
       other,
-      { shared: { label: 'file' } },
-      { own: { label: 'scene' } },
+      [shared({ shared: { label: 'file' } }), inScene({ own: { label: 'scene' } })],
       SCENE_FILE
     );
     markStorySettled();
@@ -106,17 +153,32 @@ describe('mocks resolve in a scene file', () => {
     });
   });
 
+  it('an entry a shared file built is shared, wrapped in given or not, and a scene file entry is not', () => {
+    const fake = declareImporting('../a', { label: 'fake' });
+    const list = [
+      { mocks: [fake] },
+      { mocks: [fake] },
+      [{ mocks: [fake] }, given({ mocks: [fake] })],
+    ];
+
+    const origins = partsOf(list, 'scene file', [false, true, [false, false]]).map(
+      (part) => part.origin
+    );
+
+    expect(origins).toEqual(['scene file', 'shared', 'scene file', 'shared']);
+  });
+
   it("a scene's clock and random numbers are fixed the moment its mocks go on, before the app's first module", () => {
     bundlerStartedHaving([]);
     const moment = '2020-01-02T03:04:05.000Z';
 
     // A loop the app starts on its first frame reads the clock straight after this call, with no
     // import awaited: a clock that only arrived later gave each capture its own angle.
-    activateSceneMocks(SCENE_ID, [mockClock(moment)], [mockRandom(42)], SCENE_FILE);
+    activateSceneMocks(SCENE_ID, [inScene([mockClock(moment), mockRandom(42)])], SCENE_FILE);
     const firstRandom = Math.random();
 
     expect(Date.now()).toBe(Date.parse(moment));
-    activateSceneMocks(SCENE_ID, [mockClock(moment)], [mockRandom(42)], SCENE_FILE);
+    activateSceneMocks(SCENE_ID, [inScene([mockClock(moment), mockRandom(42)])], SCENE_FILE);
     expect(Math.random()).toBe(firstRandom);
   });
 

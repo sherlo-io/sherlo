@@ -17,6 +17,7 @@ const scene = vi.hoisted(() => ({
 vi.mock('../SherloModule', () => ({
   default: {
     getMode: () => 'testing',
+    getNativeVersion: () => '2.0.0',
     getLastState: () => ({ requestId: 'r', nextSnapshot: { storyId: launch.storyId } }),
     getConfigOrDefault: () => ({}),
     notifyGetStorybookCalled: () => {},
@@ -94,6 +95,8 @@ it('a scene launch writes one log line as it loads the scene, applies its mocks,
 it("each stage line of a scene boot goes onto the line's log feed", async () => {
   const log = vi.spyOn(console, 'log').mockImplementation(() => {});
   await import('../sceneBoot');
+  // The app starts its line when it boots; a message sent before that waits for it.
+  (await import('../connection/appLine')).startTheLine();
   for (let turn = 0; turn < 6; turn++) await Promise.resolve();
   const calls = sceneCallsForTheCore();
   await calls.playSteps!('inbox--full');

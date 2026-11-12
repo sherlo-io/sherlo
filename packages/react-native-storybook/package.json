@@ -93,6 +93,7 @@
     "dist-metro/mockSpecifierTransformer.js",
     "dist-metro/polyfill.js",
     "dist-metro/sherloBuild.js",
+    "dist-metro/xcodeProject.js",
     "dist-metro/sherloLine.js",
     "metro/withStorybook.d.ts",
     "metro/sherloLine.d.ts",

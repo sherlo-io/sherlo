@@ -50,6 +50,14 @@ var LINE_PATH = '/sherlo/line';
 var PROTOCOL_VERSION = 1;
 
 /**
+ * An id made once, as the bundler starts. The code this bundler serves carries it
+ * (./launchTimeEntry), the app says it on each wait for a capture, and a capture is refused to an
+ * app whose id is another or none: that app runs code built into it, or served by an earlier
+ * bundler, and its picture would show screens nobody is looking at.
+ */
+var BUNDLER_STAMP = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+
+/**
  * How long an app's wait is held before it is answered with nothing and the app asks again. Long
  * enough that the app is not asking constantly, short enough that an app that went quiet costs one
  * hold rather than for ever.
@@ -72,7 +80,10 @@ var REFUSED_HELLO_CLOSE_CODE = 4001;
 var SOCKET_IS_OPEN = 1;
 
 /** The actions of a driver's questions. Every other action on a socket is the app's. */
-var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogLines'];
+var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogLines', 'askTheApp'];
+
+/** How long the app has to answer one question about its scroll before the line calls it absent. */
+var APP_ANSWER_MS = 10000;
 
 /**
  * Mount the line on `httpServer`: take every WebSocket upgrade for LINE_PATH, and hand every other
@@ -115,7 +126,14 @@ function attach(httpServer, WebSocketServer, settings) {
   // The server's own sockets close with it; the line's close the same way.
   httpServer.on('close', close);
 
-  return { ask: line.ask, onApp: line.onApp, filesChanged: line.filesChanged, close: close };
+  return {
+    ask: line.ask,
+    onApp: line.onApp,
+    filesChanged: line.filesChanged,
+    bundleDoesNotBuild: line.bundleDoesNotBuild,
+    bundleBuilt: line.bundleBuilt,
+    close: close,
+  };
 }
 
 /** A title the way Storybook turns it into the first part of a story id. */
@@ -165,6 +183,10 @@ function createLine(settings) {
   /** Everyone who wants to hear of each app that says hello. */
   var appListeners = [];
 
+  /** The app that said hello last and has not left: the one a scroll question goes to. */
+  var newestApp = null;
+  var askedTheApp = 0;
+
   function onApp(listener) {
     appListeners.push(listener);
   }
@@ -199,6 +221,7 @@ function createLine(settings) {
         }
         app = appOnTheLine(webSocket, message);
         listenToTheApp(app);
+        newestApp = app;
         appListeners.forEach(function (listener) {
           listener(app);
         });
@@ -227,6 +250,7 @@ function createLine(settings) {
       if (message.action === 'log' && typeof message.line === 'string') logFeed.add(message.line);
     });
     app.onClose(function () {
+      if (newestApp === app) newestApp = null;
       letterbox.appLeft(app);
       captureRelay.appLeft(app);
     });
@@ -239,14 +263,47 @@ function createLine(settings) {
   function pose(question, reply) {
     if (question.action === 'openStory') return letterbox.openStory(question, reply);
     if (question.action === 'captureStory') return captureRelay.captureStory(question, reply);
+    if (question.action === 'askTheApp') return askTheNewestApp(question, reply);
 
     // The other two are answered at once, and leave nothing waiting.
     if (question.action === 'whatIsOnScreen') reply(letterbox.whatIsOnScreen());
     if (question.action === 'readLogLines') {
       var restarts = captureRelay.restartsOfTheLatestCapture();
-      reply(restarts > 0 ? { lines: logFeed.drain(), restarts: restarts } : { lines: logFeed.drain() });
+      reply(
+        restarts > 0 ? { lines: logFeed.drain(), restarts: restarts } : { lines: logFeed.drain() }
+      );
     }
     return function nothingToWithdraw() {};
+  }
+
+  /**
+   * A driver asks the newest app whether its scene scrolls (`is-scrollable`) or to move it to a
+   * position (`scroll-to`): the app is sent the ask under a name, and the driver is told what the
+   * app said under that name, or that no app answered in time.
+   */
+  function askTheNewestApp(question, reply) {
+    var app = newestApp;
+    if (app === null) {
+      reply({ kind: 'no-app' });
+      return function nothingToWithdraw() {};
+    }
+    askedTheApp += 1;
+    var askId = 'app-ask-' + askedTheApp;
+    var giveUp = setTimeout(function () {
+      reply({ kind: 'no-app' });
+    }, APP_ANSWER_MS);
+    app.onMessage(function (heard) {
+      if (heard.action !== 'scroll-answer' || heard.askId !== askId) return;
+      clearTimeout(giveUp);
+      var answer = Object.assign({}, heard);
+      delete answer.action;
+      delete answer.askId;
+      reply({ kind: 'answered', answer: answer });
+    });
+    app.send(Object.assign({}, question.ask, { askId: askId }));
+    return function withdraw() {
+      clearTimeout(giveUp);
+    };
   }
 
   /** A driver in the same process: ask, and get the reply a driver's socket would. */
@@ -261,6 +318,8 @@ function createLine(settings) {
     onApp: onApp,
     ask: ask,
     filesChanged: captureRelay.filesChanged,
+    bundleDoesNotBuild: captureRelay.bundleDoesNotBuild,
+    bundleBuilt: captureRelay.bundleBuilt,
   };
 }
 
@@ -597,6 +656,30 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
   /** Each app on the line whose JavaScript died as it started, with what it threw, latest last. */
   var startFailures = [];
 
+  /** What the bundler last reported it could not build, until a build goes through; null when none. */
+  var bundleFailure = null;
+
+  /** The answer for a capture while the bundle does not build: the scene or story asked, and why. */
+  function doesNotBuildReply(waiting) {
+    return waiting.sceneId !== undefined
+      ? { kind: 'bundle-does-not-build', sceneId: waiting.sceneId, failure: bundleFailure }
+      : { kind: 'bundle-does-not-build', storyId: waiting.storyId, failure: bundleFailure };
+  }
+
+  /** The bundler: this code does not build. The driver waiting for an app that cannot come is answered now. */
+  function bundleDoesNotBuild(failure) {
+    bundleFailure = failure;
+    if (driverWaiting === null) return;
+    var told = driverWaiting;
+    driverWaiting = null;
+    told.reply(doesNotBuildReply(told));
+  }
+
+  /** The bundler: a build went through, so the code that did not build is no more. */
+  function bundleBuilt() {
+    bundleFailure = null;
+  }
+
   /**
    * The latest capture that said when it launched its app, kept after its driver is gone: a driver
    * that gave up reads the log feed, and the restarts this capture counted ride in that reading.
@@ -680,7 +763,9 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     }
     var changed = storyFileChangedSince(app.javaScriptStartedAt());
     if (!changed) return null;
-    return typeof changed === 'string' ? 'the story file ' + changed + ' changed' : 'a story file changed';
+    return typeof changed === 'string'
+      ? 'the story file ' + changed + ' changed'
+      : 'a story file changed';
   }
 
   /** The instruction this app took is forgotten: it answered, so it did not start over. */
@@ -750,6 +835,8 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
       // The story files that threw as the app loaded them, kept as the app said them.
       brokenFiles: Array.isArray(said.brokenFiles) ? said.brokenFiles : [],
       mode: typeof said.mode === 'string' ? said.mode : '',
+      // The stamp of the code the app runs; null from code built into it, which carries none.
+      codeStamp: typeof said.codeStamp === 'string' ? said.codeStamp : null,
     };
     var answer = said.answer == null ? null : said.answer;
     // An app that waits again with no answer, after taking the instruction, started over.
@@ -845,6 +932,7 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
    *   checked. The refusal names the scenes the bundle holds, the way a story's names the stories.
    */
   function refusalOf(waiting, app, facts) {
+    if (facts.codeStamp !== BUNDLER_STAMP) return { kind: 'old-code', appStamp: facts.codeStamp };
     if (waiting.sceneId === undefined) {
       var lacksTheStory = facts.stories !== null && facts.stories.indexOf(waiting.storyId) === -1;
       return lacksTheStory ? noSuchStory(facts.stories, facts.brokenFiles, waiting.storyId) : null;
@@ -891,6 +979,12 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
       reply: reply,
     };
     var launchKey = launchKeyOf(question);
+
+    // The bundler could not build the code: no app will come, so the driver is told so at once.
+    if (bundleFailure !== null) {
+      reply(doesNotBuildReply(waiting));
+      return function () {};
+    }
 
     waiting.instructed = [];
     waiting.launchKey = launchKey;
@@ -961,6 +1055,8 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     appLeft: appLeft,
     captureStory: captureStory,
     filesChanged: filesChanged,
+    bundleDoesNotBuild: bundleDoesNotBuild,
+    bundleBuilt: bundleBuilt,
     restartsOfTheLatestCapture: restartsOfTheLatestCapture,
   };
 }
@@ -1036,4 +1132,5 @@ module.exports = {
   idPartOfTitle: idPartOfTitle,
   LINE_PATH: LINE_PATH,
   PROTOCOL_VERSION: PROTOCOL_VERSION,
+  BUNDLER_STAMP: BUNDLER_STAMP,
 };

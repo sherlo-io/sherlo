@@ -11,7 +11,11 @@ const { views, scene, nativeTree, nativeTouch, textCommands } = vi.hoisted(() =>
   scene: { play: [] as unknown[], ready: undefined as unknown },
   nativeTree: { readable: true },
   /** The native module's touch: none (a native build without it) unless a test lays one. */
-  nativeTouch: { tap: undefined as undefined | ((x: number, y: number, holdMs: number) => any) },
+  nativeTouch: {
+    tap: undefined as undefined | ((x: number, y: number, holdMs: number) => any),
+    /** The labeled views of every window, topmost first: what an alert's buttons are read from. */
+    windows: [] as { name: string; views: { label: string; frame: object }[] }[],
+  },
 }));
 /** The native module's swipe: none (a native build from before it) unless a test lays one. */
 const nativeSwipe = vi.hoisted(() => ({
@@ -23,7 +27,10 @@ vi.mock('../SherloModule', () => ({
     holdAnimationsStill: async () => false,
     tap: async (x: number, y: number, holdMs: number) =>
       nativeTouch.tap ? nativeTouch.tap(x, y, holdMs) : null,
+    tapInWindow: async (x: number, y: number, holdMs: number) =>
+      nativeTouch.tap ? nativeTouch.tap(x, y, holdMs) : null,
     swipe: async (...line: number[]) => (nativeSwipe.swipe ? nativeSwipe.swipe(...line) : null),
+    getWindowViews: async () => nativeTouch.windows,
     getMode: () => 'testing',
     getConfigOrDefault: () => ({}),
     getInspectorData: async () => {
@@ -271,6 +278,7 @@ beforeEach(() => {
   views.now = appViews;
   nativeTree.readable = true;
   nativeTouch.tap = undefined;
+  nativeTouch.windows = [];
   nativeSwipe.swipe = undefined;
   safeArea.providers = [];
   scene.play = [];
@@ -349,6 +357,37 @@ describe('a scene plays its steps', () => {
     scene.play = [{ tap: { text: 'Bo' } }];
     await played();
     expect(pressed.at(-1)).toBe('row Bo');
+  });
+
+  it("a tap that names an alert button's label is sent to the alert's window", async () => {
+    const touches: number[][] = [];
+    nativeTouch.tap = (x, y, holdMs) => {
+      touches.push([x, y, holdMs]);
+      return { reachedReact: false, hitTag: -1, hitClass: 'UIAlertActionView', missing: [] };
+    };
+    nativeTouch.windows = [
+      {
+        name: '_UIAlertControllerShimPresenterWindow',
+        views: [{ label: 'Allow', frame: { x: 100, y: 400, width: 190, height: 44 } }],
+      },
+      { name: 'UIWindow', views: [] },
+    ];
+    scene.play = [{ tap: { label: 'Allow' } }];
+    await played();
+    expect(touches).toEqual([[195, 422, expect.any(Number)]]);
+
+    scene.play = [{ tap: { label: 'Delete' } }];
+    await expect(played()).rejects.toThrow(
+      'no view labeled "Delete" is on screen. Windows looked in, topmost first: _UIAlertControllerShimPresenterWindow, UIWindow'
+    );
+    expect(touches).toHaveLength(1);
+
+    // A testID or an index names a React view, never a pop-up's: no fallback to the first label.
+    scene.play = [{ tap: { label: 'Allow', index: 1 } }];
+    await expect(played()).rejects.toThrow('no visible view');
+    scene.play = [{ tap: { testID: 'allow', label: 'Allow' } }];
+    await expect(played()).rejects.toThrow('no visible view');
+    expect(touches).toHaveLength(1);
   });
 
   it('taps a view no responder answers for through the onPress above it', async () => {
@@ -854,6 +893,16 @@ describe('a step that cannot be played', () => {
     // The steps that did play are carried, so the record says how far the scene got.
     expect(error.played).toEqual(['tap testID "Connections"']);
     expect(pressed).toEqual(['Connections']);
+  });
+
+  it('a step whose target is missing ends the scene naming the step and the route it was on', async () => {
+    scene.play = [{ tap: 'Connections' }, { tap: 'connectionListItem' }];
+
+    const error = await played().catch((thrown) => thrown);
+
+    expect(error.step).toBe('step 2 of 2 (tap testID "connectionListItem")');
+    expect(error.route).toEqual(reachedRoute());
+    expect(error.route.length).toBeGreaterThan(0);
   });
 
   it('a tap whose test id is on no view gives up after 5 seconds and reports the limit it waited', async () => {

@@ -3,7 +3,27 @@
  * unanswered requests become when the wire sent them well, badly, or not at all.
  */
 import { describe, expect, it } from 'vitest';
-import { readStrings, readUnanswered } from '../readAppAnswer';
+import { unusedFakeLine } from '../../../../react-native-storybook/src/mocking/unusedFakeLine';
+import { keptLeft, readStrings, readUnanswered } from '../readAppAnswer';
+
+describe('what the app says of a scene reaches the scene’s record', () => {
+  it('an unused fake and a partial fake’s missing fields reach the scene’s record', () => {
+    const partialMessage =
+      'A scene read "isAnonymous" of a partial object, and the scene does not name it. Add it to the partial.';
+    const left = keptLeft({
+      loggedErrors: {
+        messages: [
+          { message: unusedFakeLine('pkg/analytics', 'shared setup'), times: 1 },
+          { message: partialMessage, times: 1 },
+        ],
+        moreLeftOut: 0,
+      },
+    });
+
+    expect(left.mockNotApplied).toEqual([{ module: 'pkg/analytics' }]);
+    expect(left.loggedErrors?.messages).toEqual([{ message: partialMessage, times: 1 }]);
+  });
+});
 
 describe('reading a list of strings off the wire', () => {
   it('a list of strings is kept and a list with nothing readable in it reads as nothing', () => {

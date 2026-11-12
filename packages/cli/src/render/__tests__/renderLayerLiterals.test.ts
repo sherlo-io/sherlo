@@ -559,6 +559,27 @@ const PINS: Pin[] = [
     prints: [['🍎 iOS      Building the app with Xcode...']],
   },
   {
+    kind: 'app-build-picked-ios',
+    what: 'the iOS pick said once before the compile - scheme and configuration, the skipped schemes and the archive fallback in dim',
+    segment: {
+      kind: 'app-build-picked-ios',
+      scheme: 'Storefront',
+      passedOverSchemes: ['StorefrontTests'],
+      configuration: 'Staging',
+      configurationFrom: 'archive',
+    },
+    stream: 'stdout',
+    prints: [
+      ['Building iOS with scheme "Storefront", configuration "Staging".'],
+      [
+        `${ESC}[2mPicked scheme "Storefront", the only one that builds an app. Skipped: StorefrontTests.${ESC}[22m`,
+      ],
+      [
+        `${ESC}[2mNo Release configuration, so using "Staging", the one the scheme archives with. To change it, set build.ios.configuration in sherlo.config.json.${ESC}[22m`,
+      ],
+    ],
+  },
+  {
     kind: 'app-build-done',
     what: '`sherlo build` says how long it took and where the log is - its next step says where the app build is kept',
     segment: {
@@ -1677,6 +1698,163 @@ const PINS: Pin[] = [
     segment: { kind: 'captured-log', logs: [] },
     stream: 'stdout',
     prints: [[`${ESC}[2mSherlo has logged nothing new from the app.${ESC}[22m`], ['']],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a captured scene: green tick, bold id, dim ready time and refused count',
+    segment: {
+      kind: 'scene-run-line',
+      line: { sceneId: 'feed--home', ending: 'scene', readyMs: 2300, refused: 1 },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[32m✔${ESC}[39m  ${ESC}[1mfeed--home${ESC}[22m captured${ESC}[2m · ready in 2.3s · 1 refused${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a scene that never settled: yellow circle, the views still changing named',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'feed--live-ticker',
+        ending: 'never-settled',
+        readyMs: 2100,
+        changing: ['TickerValue', 'LoadingSpinner'],
+        refused: 0,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[33m◦${ESC}[39m  ${ESC}[1mfeed--live-ticker${ESC}[22m never settled - still changing: TickerValue, LoadingSpinner${ESC}[2m · ready in 2.1s${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a scene that never got ready: red cross, the view it waited for, no time',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'profile--own-profile',
+        ending: 'never-reached',
+        ready: 'profile.header',
+        refused: 0,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  ${ESC}[1mprofile--own-profile${ESC}[22m never reached - no view profile.header showed`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes` - a scene failing for the cause the one before it did: its line, then the warning said once, the fake that answers it and where to paste it',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'kindred--chat-empty',
+        ending: 'never-reached',
+        ready: 'chat.input.message',
+        refused: 1,
+        sameCause: {
+          remaining: 3,
+          cause: 'the app thinks it is offline',
+          fake: 'rule: GET generate_204',
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  ${ESC}[1mkindred--chat-empty${ESC}[22m never reached - no view chat.input.message showed${ESC}[2m · 1 refused${ESC}[22m`,
+      ],
+      [`${ESC}[33m◦${ESC}[39m  3 more scenes may fail the same way: the app thinks it is offline`],
+      ['     rule: GET generate_204'],
+      [
+        `${ESC}[2m   Paste it once where the scenes share their mocks, then capture again.${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'scene-run-line',
+    what: '`sherlo capture --all-scenes --stop-on-repeat` - the same cause again: the run stops there and says how many scenes were not run',
+    segment: {
+      kind: 'scene-run-line',
+      line: {
+        sceneId: 'kindred--chat-empty',
+        ending: 'never-reached',
+        ready: 'chat.input.message',
+        refused: 1,
+        sameCause: {
+          remaining: 1,
+          cause: 'the app thinks it is offline',
+          fake: 'rule: GET generate_204',
+          stopped: true,
+        },
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [
+        `${ESC}[31m✖${ESC}[39m  ${ESC}[1mkindred--chat-empty${ESC}[22m never reached - no view chat.input.message showed${ESC}[2m · 1 refused${ESC}[22m`,
+      ],
+      [`${ESC}[33m◦${ESC}[39m  1 more scene not run, same cause: the app thinks it is offline`],
+      ['     rule: GET generate_204'],
+      [
+        `${ESC}[2m   Paste it once where the scenes share their mocks, then capture again.${ESC}[22m`,
+      ],
+    ],
+  },
+
+  {
+    kind: 'all-scenes-summary',
+    what: '`sherlo capture --all-scenes` closing lines - a blank line, the counts, the dim line saying where the files are, a blank line',
+    segment: {
+      kind: 'all-scenes-summary',
+      summary: {
+        folder: '.sherlo/captures',
+        captured: 1,
+        neverSettled: 1,
+        neverReached: 1,
+        failed: 1,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      [''],
+      ['4 scenes: 1 captured, 1 never settled, 1 never reached, 1 failed'],
+      [
+        `${ESC}[2m   a picture (not for a scene that never came up) and a record of each are kept in .sherlo/captures${ESC}[22m`,
+      ],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'kept-capture',
+    what: 'the dim line under a capture saying which story or scene was kept, with no time in it',
+    segment: { kind: 'kept-capture', id: 'chat--menu-open' },
+    stream: 'stdout',
+    prints: [[`${ESC}[2mKept in .sherlo/captures as chat--menu-open${ESC}[22m`], ['']],
+  },
+
+  {
+    kind: 'no-scenes-to-capture',
+    what: 'the one line `sherlo capture --all-scenes` prints when the app declares no scene, so nothing captured is never silent',
+    segment: { kind: 'no-scenes-to-capture' },
+    stream: 'stdout',
+    prints: [[`${ESC}[33mNo scenes found in this app, so nothing was captured.${ESC}[39m`]],
   },
 
   {

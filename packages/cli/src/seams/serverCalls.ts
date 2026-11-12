@@ -520,6 +520,15 @@ export type StagedGateAnswer = {
    * changed since Test 12" - whatever the outcome. Absent when nothing is stored.
    */
   storedBuildIndex?: number;
+  /**
+   * The branch's last test that ran this very code - the push then says so and starts no new
+   * run. Absent when the branch has no such test, and when the question named no bundle.
+   */
+  sameCodeBuildIndex?: number;
+  /** Why a refused platform needs a new app build - the service's own words, absent on a fast answer. */
+  buildReason?: 'nothing-stored' | 'native-changed';
+  /** The structured detail of a refusal, in the service's own shape - absent unless the gate refused. */
+  refusalReasons?: CheckStagedGateAnswer['refusalReasons'];
 };
 
 /**

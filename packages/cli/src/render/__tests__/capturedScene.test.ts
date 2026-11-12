@@ -167,8 +167,21 @@ describe('a discover capture lists what the scene needs', () => {
         { kind: 'typename-missing', operation: 'Me', path: 'me' },
         { kind: 'typename-matches-no-fragment', operation: 'Me', path: 'me', expected: 'User' },
         { kind: 'no-query-text', operation: 'Feed' },
+        { kind: 'field-extra', operation: 'Me', path: 'me.age' },
+        {
+          kind: 'field-wrong-type',
+          operation: 'Me',
+          path: 'me.pets',
+          expected: 'an object or a list, the answer has a string',
+        },
       ],
     });
+    expect(printed).toContain(
+      'Me at me.age: the mock answer has a field the query did not ask for'
+    );
+    expect(printed).toContain(
+      'Me at me.pets: the mock answer has the wrong type (expected an object or a list, the answer has a string)'
+    );
 
     expect(printed).toContain(
       'The ready view showed after step 1 of 3, before the last step of the play ran.'
@@ -181,7 +194,7 @@ describe('a discover capture lists what the scene needs', () => {
     expect(printed).toContain('Feed: not checked, the request sent no query text');
   });
 
-  it('a capture that is not a discover capture prints none of the discover lines', () => {
+  it('a capture that is not a discover capture prints no rule list and no early-ready note, but does print the mock answers the app could not use', () => {
     const printed = neverReachedPlain({
       unanswered: [{ method: 'GET', url: '/a', operation: 'X' }],
       readyTooEarly: { atStep: 1, of: 3 },
@@ -191,7 +204,7 @@ describe('a discover capture lists what the scene needs', () => {
     expect(printed).toContain('1 request had no mock:');
     expect(printed).not.toContain('mockRequest');
     expect(printed).not.toContain('ready view showed');
-    expect(printed).not.toContain('Mock answers');
+    expect(printed).toContain('Mock answers the app could not use:');
   });
 
   it('a discover capture prints no module list, and its json record still keeps stillReal', () => {

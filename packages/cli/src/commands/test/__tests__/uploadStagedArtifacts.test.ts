@@ -18,6 +18,7 @@ vi.mock('../../../helpers/reporting', () => ({
 }));
 
 import fetch from 'node-fetch';
+import { buildPhoneSide } from '../../../seams/phoneSide';
 import uploadStagedArtifacts from '../uploadStagedArtifacts';
 
 const mockFetch = vi.mocked(fetch as unknown as (...args: any[]) => Promise<any>);
@@ -152,6 +153,51 @@ describe('module manifest upload (SHERLO-1894)', () => {
         urls: urls(true),
       })
     ).rejects.toThrow();
+  });
+});
+
+describe('phone side upload', () => {
+  const PHONE_SIDE_URL = 'http://s3/phone-side';
+  const phoneSide = buildPhoneSide({
+    platform: 'ios',
+    autolinkedModules: ['react-native-svg@15.0.0'],
+    appIdentity: 'io.example.app',
+    coreSource: 'core();',
+  });
+  const slots = (withPhoneSide: boolean) =>
+    ({
+      ...urls(false),
+      ...(withPhoneSide ? { phoneSide: { s3Key: 'phone-side-key', url: PHONE_SIDE_URL } } : {}),
+    }) as any;
+
+  it('with a phone side slot the file is uploaded and its key returned', async () => {
+    mockFetch.mockResolvedValue(okResponse());
+
+    const keys = await uploadStagedArtifacts({
+      platform: 'ios',
+      bundleResult: bundleResult(),
+      urls: slots(true),
+      phoneSide,
+    });
+
+    expect(keys.phoneSideS3Key).toBe('phone-side-key');
+    const call = mockFetch.mock.calls.find((c) => c[0] === PHONE_SIDE_URL);
+    expect(JSON.parse(call![1].body.toString('utf8'))).toEqual(phoneSide);
+  });
+
+  it('with no phone side slot (an older service) nothing fails and no key is returned', async () => {
+    mockFetch.mockResolvedValue(okResponse());
+
+    const keys = await uploadStagedArtifacts({
+      platform: 'ios',
+      bundleResult: bundleResult(),
+      urls: slots(false),
+      phoneSide,
+    });
+
+    expect(keys.jsBundleS3Key).toBe('js-key');
+    expect(keys.phoneSideS3Key).toBeUndefined();
+    expect(mockFetch.mock.calls.some((c) => c[0] === PHONE_SIDE_URL)).toBe(false);
   });
 });
 

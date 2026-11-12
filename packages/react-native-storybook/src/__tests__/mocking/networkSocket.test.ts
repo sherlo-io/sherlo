@@ -35,6 +35,8 @@ import { startStorybookHolding } from './storybookHolding';
 const SUBSCRIPTIONS = 'wss://subscriptions.sherlo.invalid/graphql';
 const DEVTOOLS = 'ws://localhost:8097';
 const STORY_ID = 'mocking-sockets--default';
+// What a refused socket also carries: made before the app rendered, no fake matched it.
+const refused = { scope: 'background', rule: 'no-fake-matched', stack: expect.any(String) };
 
 type Listener = (event: unknown) => void;
 
@@ -186,7 +188,7 @@ describe('WebSockets in a story with network mocks', () => {
     expect(WebSocketModule.connected).toEqual([]);
     expect(events).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
     expect(socket.readyState).toBe(ReactNativeWebSocket.CLOSED);
-    expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS }]);
+    expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS, ...refused }]);
     expect(readStoryError(STORY_ID)?.message).toBe(
       `no mock rule matches WS ${SUBSCRIPTIONS}. Add a rule for it.`
     );
@@ -198,7 +200,7 @@ describe('WebSockets in a story with network mocks', () => {
     openSocket();
 
     expect(WebSocketModule.connected).toEqual([]);
-    expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS }]);
+    expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS, ...refused }]);
   });
 
   it("'pending' holds the socket CONNECTING for good, fires nothing, and is listed nowhere", async () => {
@@ -241,22 +243,28 @@ describe('WebSockets in a story with network mocks', () => {
 
     expect(WebSocketModule.connected).toEqual([]);
     expect(events).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
-    expect(unansweredRequests()).toEqual([]);
+    // The fake's refusal is listed now (rule fake-refused), so the scene's report names it.
+    expect(unansweredRequests()).toEqual([
+      expect.objectContaining({ method: 'WS', url: SUBSCRIPTIONS, rule: 'fake-refused' }),
+    ]);
     expect(readStoryError(STORY_ID)).toBeUndefined();
   });
 
-  it("React DevTools' standalone socket on 8097 is refused", async () => {
+  it("a socket to the app's own React DevTools port is never held or listed", async () => {
     vi.useFakeTimers();
     NativeModules.SourceCode = { scriptURL: 'http://localhost:50524/index.bundle?platform=ios' };
     await activateStory(OTHER_API);
 
-    const socket = openSocket(DEVTOOLS);
-    const events = eventsOf(socket);
+    const devTools = eventsOf(openSocket(DEVTOOLS));
+    const otherPort = eventsOf(openSocket('ws://localhost:8098'));
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(WebSocketModule.connected).toEqual([]);
-    expect(events).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
-    expect(unansweredRequests()).toEqual([{ method: 'WS', url: DEVTOOLS }]);
+    expect(WebSocketModule.connected).toEqual([DEVTOOLS]);
+    expect(devTools).toEqual([]);
+    expect(otherPort).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
+    expect(unansweredRequests()).toEqual([
+      { method: 'WS', url: 'ws://localhost:8098', ...refused },
+    ]);
   });
 
   it('a class the app derived from WebSocket once the SDK was in is held too', async () => {
@@ -282,7 +290,7 @@ describe('WebSockets in a story with network mocks', () => {
     expect(WebSocketModule.connected).toEqual([]);
     expect(socket).toBeInstanceOf(AppSocketDefinedFirst);
     expect(events).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
-    expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS }]);
+    expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS, ...refused }]);
   });
 
   it("a mocked story keeps every socket to the bundler the dev tools use, and still refuses the app's own sockets", async () => {
@@ -307,8 +315,8 @@ describe('WebSockets in a story with network mocks', () => {
     expect(otherPort).toEqual([`close:${SOCKET_REFUSED_CODE}`]);
     // Only the app's own two sockets are listed; the bundler's are never unanswered.
     expect(unansweredRequests()).toEqual([
-      { method: 'WS', url: 'ws://api.sherlo.invalid:50524/hot' },
-      { method: 'WS', url: 'ws://localhost:9999/hot' },
+      { method: 'WS', url: 'ws://api.sherlo.invalid:50524/hot', ...refused },
+      { method: 'WS', url: 'ws://localhost:9999/hot', ...refused },
     ]);
   });
 
@@ -355,6 +363,7 @@ describe('WebSockets in a story with no network mock', () => {
 
     expect(WebSocketModule.connected).toEqual([SUBSCRIPTIONS]);
     expect(socket).toBeInstanceOf(ReactNativeWebSocket);
+    // Let through, not refused: listed with its address alone.
     expect(unansweredRequests()).toEqual([{ method: 'WS', url: SUBSCRIPTIONS }]);
   });
 

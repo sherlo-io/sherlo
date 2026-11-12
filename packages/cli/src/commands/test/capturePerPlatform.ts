@@ -9,6 +9,7 @@ import {
   bundleStoryFiles,
   countBundleScenes,
   countBundleStories,
+  countScenesIn,
   countStoriesIn,
   titledStoryFilesIn,
   type ValidatedModuleManifest,
@@ -41,6 +42,11 @@ export function capturePerPlatform({
         : manifest
           ? countStoriesIn(manifest, captureScope.storyFilePaths ?? [])
           : (captureScope.storyFilePaths ?? []).length,
+      // A partial capture's scene files count as their scenes, off the same module map.
+      capturedScenes:
+        captureScope.full || !manifest
+          ? 0
+          : countScenesIn(manifest, captureScope.storyFilePaths ?? []),
       // The whole bundle's story set, counted the ONE canonical way.
       storiesInBundle: manifest ? countBundleStories(manifest) : undefined,
       scenesInBundle: manifest ? countBundleScenes(manifest) : undefined,

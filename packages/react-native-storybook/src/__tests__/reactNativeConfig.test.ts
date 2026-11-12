@@ -2,6 +2,14 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { loadPlatformsWith } from './linkingConfig';
+import {
+  APP_EXTENSION_PRODUCT_TYPE,
+  type FixtureTarget,
+  pbxprojWith,
+  UNIT_TEST_PRODUCT_TYPE,
+} from './xcodeProjectFixture';
+
+const { APPLICATION_PRODUCT_TYPE } = require('../../metro/xcodeProject');
 
 const temporaryFolders: string[] = [];
 
@@ -18,18 +26,29 @@ afterEach(() => {
   }
 });
 
-/** Lays a small app (ios/Podfile and ios/App.xcodeproj/project.pbxproj) in a temporary folder. */
-function layApp(podfile: string, xcodeConfigurationNames: string[]): string {
+/**
+ * Lays a small app (ios/Podfile and ios/App.xcodeproj/project.pbxproj) in a temporary folder: an
+ * application target named App with the configurations given, and the other targets after it.
+ */
+function layApp(
+  podfile: string,
+  xcodeConfigurationNames: string[],
+  otherTargets: FixtureTarget[] = []
+): string {
   const appFolder = makeTemporaryFolder();
   const iosFolder = path.join(appFolder, 'ios');
   fs.mkdirSync(path.join(iosFolder, 'App.xcodeproj'), { recursive: true });
   fs.writeFileSync(path.join(iosFolder, 'Podfile'), podfile);
-  const entries = xcodeConfigurationNames
-    .map((name) => `\t\tisa = XCBuildConfiguration;\n\t\tname = "${name}";`)
-    .join('\n');
   fs.writeFileSync(
     path.join(iosFolder, 'App.xcodeproj', 'project.pbxproj'),
-    `/* Begin XCBuildConfiguration section */\n${entries}\n/* End XCBuildConfiguration section */\n`
+    pbxprojWith([
+      {
+        name: 'App',
+        productType: APPLICATION_PRODUCT_TYPE,
+        configurations: xcodeConfigurationNames,
+      },
+      ...otherTargets,
+    ])
   );
   return appFolder;
 }
@@ -95,6 +114,29 @@ describe("the SDK's native linking", () => {
     for (const value of [undefined, 'off']) {
       expect(loadPlatformsWith(value, appFolder).ios).toBeNull();
     }
+  });
+
+  it("with the setting unset iOS whitelists only the app target's configurations that the Podfile maps to debug, never a test target's Debug", () => {
+    const appFolder = layApp(
+      "target 'App' do\nend\n" +
+        "project 'App', 'DEV.DEBUG' => :debug, 'PROD.DEBUG' => :debug, " +
+        "'DEV.RELEASE' => :release, 'PROD.RELEASE' => :release\n",
+      ['DEV.DEBUG', 'DEV.RELEASE', 'PROD.DEBUG', 'PROD.RELEASE'],
+      [
+        {
+          name: 'AppTests',
+          productType: UNIT_TEST_PRODUCT_TYPE,
+          configurations: ['Debug', 'Release'],
+        },
+        { name: 'Widget', productType: APP_EXTENSION_PRODUCT_TYPE, configurations: ['Debug'] },
+      ]
+    );
+
+    expect(loadPlatformsWith(undefined, appFolder).ios).toEqual({
+      configurations: ['DEV.DEBUG', 'PROD.DEBUG'],
+    });
+    // A build for Sherlo links every configuration, whatever the targets have.
+    expect(loadPlatformsWith('storybook', appFolder).ios).toEqual({});
   });
 
   it('links the native module for every configuration when the setting is storybook or app-and-storybook', () => {

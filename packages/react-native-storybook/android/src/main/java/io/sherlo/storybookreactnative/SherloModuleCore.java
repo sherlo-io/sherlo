@@ -14,6 +14,7 @@ import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactHost;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.Promise;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.Arguments;
 // Java Utility and IO Imports
@@ -712,6 +713,14 @@ public class SherloModuleCore {
     }
 
     /**
+     * The labeled views of every window shown, topmost first, as JSON. Always empty on Android: a
+     * dialog there is reached through the app's rendered views, so no other window is searched.
+     */
+    public void getWindowViews(Promise promise) {
+        promise.resolve("[]");
+    }
+
+    /**
      * Touches the app window at (x, y), in points, for holdMs, as a finger does: a scene's tap.
      * Resolves, once the touch ended, with whether a React view took it, the hit view's tag (-1 for
      * none) and class. Android has no private calls to lack, so `missing` is always empty.
@@ -752,6 +761,10 @@ public class SherloModuleCore {
                 answer.putInt("hitTag", result.hitTag);
                 answer.putString("hitClass", result.hitClass);
                 answer.putArray("missing", Arguments.createArray());
+                // The one window searched, so a touch that hit only it names where it looked.
+                WritableArray windows = Arguments.createArray();
+                windows.pushString(result.window);
+                answer.putArray("windows", windows);
                 promise.resolve(answer);
             }
         };

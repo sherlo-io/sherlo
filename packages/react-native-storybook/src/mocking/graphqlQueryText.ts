@@ -4,6 +4,7 @@
  * names. Arguments and variable definitions are skipped over by their parentheses. The answer
  * check walks what this reads (./graphqlAnswerCheck).
  */
+import { addressParamsOf, jsonObjectOf, persistedQueryHashOf } from './networkRequestText';
 
 /** The directives under which a field may be left out of an answer. */
 const CONDITIONAL_DIRECTIVES = ['skip', 'include', 'defer'];
@@ -31,6 +32,40 @@ export type GraphqlDocument = {
 type Token = { kind: 'name' | 'punctuator' | 'value'; text: string };
 
 const PUNCTUATORS = '{}()[]:!$@=|&';
+
+/** The items a request body holds: each of a batch, else the one body; none for a body of no JSON. */
+export function requestItemsOf(body: string | undefined): Record<string, unknown>[] {
+  const parsed = jsonObjectOf(body);
+  if (parsed === undefined) return [];
+  return Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [parsed];
+}
+
+/**
+ * The GraphQL operation a request names - the one reading of it, for the record, the rules and the
+ * answer check. The address's name first, then each item of a batched body (its own name, else the
+ * one its query text holds, joined by commas), else "persisted" and the start of its hash.
+ */
+export function graphqlOperationOf(url: string, body: string | undefined): string | undefined {
+  const fromUrl = addressParamsOf(url);
+  if (fromUrl.operationName) return fromUrl.operationName;
+
+  // A GET has no body: its query rides in the address, so it counts as one item of no fields.
+  const found = requestItemsOf(body);
+  const items = found.length > 0 ? found : [{}];
+  const named = items.flatMap((item) => {
+    if (typeof item?.operationName === 'string' && item.operationName !== '') {
+      return [item.operationName];
+    }
+    const query = typeof item?.query === 'string' ? item.query : fromUrl.query;
+    const fromText =
+      query === undefined ? undefined : graphqlDocumentOf(query)?.operations[0]?.name;
+    return fromText ? [fromText] : [];
+  });
+  if (named.length > 0) return named.join(', ');
+
+  const hash = persistedQueryHashOf(items[0]?.extensions ?? jsonObjectOf(fromUrl.extensions));
+  return hash === undefined ? undefined : `persisted ${hash.slice(0, 12)}`;
+}
 
 /** What a query text selects, or nothing when the text does not read as GraphQL. */
 export function graphqlDocumentOf(text: string): GraphqlDocument | undefined {

@@ -3,6 +3,7 @@ vi.mock('../../SherloModule', () => ({
 }));
 
 import createMockable, { createLazyMockable } from '../../mocking/createMockable';
+import { original } from '../../mocking/overlay';
 import { activateMocks, clearMocks } from '../../mocking/registry';
 
 afterEach(() => {
@@ -10,6 +11,58 @@ afterEach(() => {
 });
 
 type Exports = Record<string, any>;
+
+describe('a faked class', () => {
+  class Client {
+    static kind = 'real kind';
+    static create() {
+      return new Client();
+    }
+    send(message: string) {
+      return `real:${message}`;
+    }
+    ping() {
+      return 'pong';
+    }
+  }
+
+  it('a faked class keeps its real statics and a faked method can call the original', () => {
+    const shim = createMockable('app/client', { __esModule: true, Client }) as Exports;
+    activateMocks({
+      'app/client': {
+        Client: {
+          prototype: {
+            send(this: unknown, message: string) {
+              return `fake(${(original(this, 'send') as (text: string) => string)(message)})`;
+            },
+          },
+        },
+      },
+    });
+
+    const made = new shim.Client();
+    expect(made.send('a')).toBe('fake(real:a)');
+    expect(made.ping()).toBe('pong');
+    expect(shim.Client.kind).toBe('real kind');
+    expect(shim.Client.create()).toBeInstanceOf(Client);
+
+    // A fake class stands in for the real one and still has its statics.
+    clearMocks();
+    activateMocks({
+      'app/client': {
+        Client: class FakeClient {
+          send() {
+            return 'fake';
+          }
+        },
+      },
+    });
+    const fakeMade = new shim.Client();
+    expect(fakeMade.send()).toBe('fake');
+    expect(fakeMade.ping()).toBe('pong');
+    expect(shim.Client.kind).toBe('real kind');
+  });
+});
 
 describe('writes to a mocked module', () => {
   it("a write during a story lands in that story's own layer, read before the mock and the real module", () => {

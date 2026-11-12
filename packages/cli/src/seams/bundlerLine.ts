@@ -57,26 +57,33 @@ export type BundlerLineAnswer<AskedQuestion extends Question> =
   | { kind: 'not-in-sherlos-words'; detail: string }
   /** Nothing answered before the tool stopped listening. */
   | { kind: 'gave-up-waiting' }
+  /** The app's stamp is not the running bundler's, or it has none: it runs code built into it, or
+   * served by an earlier bundler, and no picture of it is of the code being served now. `appStamp`
+   * is what the app said, none when it said none. */
+  | { kind: 'old-code'; appStamp: string | null }
   /** The line answered, and here is what it said. */
   | { kind: 'said'; reply: ReplyTo<AskedQuestion> };
 
 /**
  * Ask the line on the bundler at `port` one question, and wait up to `patienceMs` for its reply.
- * Every way of not getting a reply is one of the answers above, never a thrown error.
+ * Every way of not getting a reply is one of the answers above, never a thrown error. An asker
+ * that no longer wants the reply aborts `giveUp`, and the ask ends as having given up waiting.
  */
 export async function askTheBundlerLine<AskedQuestion extends Question>({
   port,
   question,
   patienceMs,
+  giveUp,
 }: {
   port: number;
   question: AskedQuestion;
   patienceMs: number;
+  giveUp?: AbortSignal;
 }): Promise<BundlerLineAnswer<AskedQuestion>> {
   const lineWoken = await wakeTheLine(port, patienceMs);
   if (lineWoken.kind !== 'awake') return lineWoken;
 
-  return askOverTheWebSocket({ port, question, patienceMs });
+  return askOverTheWebSocket({ port, question, patienceMs, giveUp });
 }
 
 /**
@@ -130,16 +137,19 @@ function askOverTheWebSocket<AskedQuestion extends Question>({
   port,
   question,
   patienceMs,
+  giveUp,
 }: {
   port: number;
   question: AskedQuestion;
   patienceMs: number;
+  giveUp?: AbortSignal;
 }): Promise<BundlerLineAnswer<AskedQuestion>> {
   return new Promise((resolve) => {
     const socket = new WebSocket(`ws://localhost:${port}${LINE_PATH}`);
     const askId = 'the-one-question';
 
     const patience = setTimeout(() => finish({ kind: 'gave-up-waiting' }), patienceMs);
+    giveUp?.addEventListener('abort', () => finish({ kind: 'gave-up-waiting' }), { once: true });
 
     /** The first ending wins; later ones (the socket closing after we closed it) change nothing. */
     function finish(answer: BundlerLineAnswer<AskedQuestion>): void {
@@ -155,7 +165,13 @@ function askOverTheWebSocket<AskedQuestion extends Question>({
 
     socket.on('message', (data) => {
       const reply = readReply(data.toString(), askId);
-      if (reply) finish({ kind: 'said', reply: reply as ReplyTo<AskedQuestion> });
+      if (!reply) return;
+      // The line compares the app's stamp with its own, which only it knows, and says the result.
+      if ('appStamp' in reply && reply.kind === 'old-code') {
+        finish({ kind: 'old-code', appStamp: reply.appStamp });
+        return;
+      }
+      finish({ kind: 'said', reply: reply as ReplyTo<AskedQuestion> });
     });
 
     socket.on('error', (error) =>

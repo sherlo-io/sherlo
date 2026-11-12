@@ -78,6 +78,10 @@ afterEach(() => {
 describe("the SDK's road to the bundler's capture relay", () => {
   it("waits for a capture over the connection, saying what the app says, and resolves with the relay's answer", async () => {
     const saying = { mode: 'testing', stories: [STORY], answer: null };
+    // The app starts its line when it boots; a message sent before that waits for it.
+    __resetTheLine();
+    startTheLine();
+    __resetConnection();
 
     const instruction = bundlerCapture()!.waitForACapture(saying);
 
@@ -135,6 +139,10 @@ describe("the SDK's road to the bundler's capture relay", () => {
 describe("the SDK's road to the bundler's letterbox", () => {
   it("waits for a story over the connection, saying what the app says, and resolves with the letterbox's answer", async () => {
     const saying = { stories: [STORY], showing: null, atTheStoryBrowser: true, threw: null };
+    // The app starts its line when it boots; a message sent before that waits for it.
+    __resetTheLine();
+    startTheLine();
+    __resetConnection();
 
     const answer = bundlerLetterbox()!.waitForStory(saying);
 

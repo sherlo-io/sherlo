@@ -10,7 +10,6 @@
  * the two kinds of ending a caller cares about - the story is on screen, or it is not.
  */
 import {
-  DEFAULT_BUNDLER_PORT,
   PORT_OPTION,
   SCENE_OPTION,
   STORY_OPTION,
@@ -19,6 +18,7 @@ import {
   sceneWithStoryRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
+import { readPort } from '../../helpers/readPort';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { letterbox } from '../../seams/letterbox';
@@ -169,19 +169,6 @@ export function endingFor(
  */
 export function storyIsOnScreen(state: OpenedStory): boolean {
   return state.kind === 'opened' || state.kind === 'painted-and-threw';
-}
-
-function readPort(passed: string | undefined): number {
-  if (passed === undefined) return DEFAULT_BUNDLER_PORT;
-
-  const port = Number(passed);
-  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    throwError({
-      message: `\`--${PORT_OPTION}\` takes a port number, and \`${passed}\` is not one.`,
-    });
-  }
-
-  return port;
 }
 
 function readTimeout(passed: string | undefined): number {

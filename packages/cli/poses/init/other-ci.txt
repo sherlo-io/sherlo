@@ -19,7 +19,7 @@ Setting up Sherlo...
 [32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
 [32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook 3.0.0-alpha.0[22m
 [32m✔[39m Updated Metro config   [2mmetro.config.js[22m
-[32m✔[39m No GitHub workflow     [2mthe code is on GitLab[22m
+[32m✔[39m No GitHub workflow     [2mthe code is not on GitHub[22m
 
 
 [1m🚀 First visual test[22m

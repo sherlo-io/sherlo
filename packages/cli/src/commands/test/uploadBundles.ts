@@ -23,6 +23,7 @@
 import { Platform, StagedPlatformUploadUrls } from '@sherlo/api-types';
 import { handleClientError, reporting } from '../../helpers';
 import { nativeBuild } from '../../seams/nativeBuild';
+import type { PhoneSide } from '../../seams/phoneSide';
 import { serverCalls } from '../../seams/serverCalls';
 import type { BundleResult } from './buildBundle';
 import { type StagedUploadKeys } from './uploadStagedArtifacts';
@@ -43,6 +44,7 @@ export type BundleUploadEffects = {
     platform: Platform;
     bundleResult: BundleResult;
     urls: StagedPlatformUploadUrls;
+    phoneSide?: PhoneSide;
   }) => Promise<StagedUploadKeys>;
 };
 
@@ -80,12 +82,15 @@ export async function uploadBundles({
   projectIndex,
   teamId,
   effects,
+  phoneSides = {},
 }: {
   platformsToTest: Platform[];
   bundles: Partial<Record<Platform, BundleResult>>;
   projectIndex: number;
   teamId: string;
   effects: BundleUploadEffects;
+  /** Per platform, the phone side to upload beside the bundle; none for a platform without one. */
+  phoneSides?: Partial<Record<Platform, PhoneSide>>;
 }): Promise<Partial<Record<Platform, StagedUploadKeys>>> {
   reporting.addBreadcrumb({
     category: 'api',
@@ -110,7 +115,12 @@ export async function uploadBundles({
       throw new StagedSlotMissingError(platform);
     }
 
-    keys[platform] = await effects.uploadBundle({ platform, bundleResult, urls });
+    keys[platform] = await effects.uploadBundle({
+      platform,
+      bundleResult,
+      urls,
+      phoneSide: phoneSides[platform],
+    });
   }
 
   // No line of its own: bundling and uploading are one wait, and the step a person reads is the
@@ -125,13 +135,14 @@ export async function uploadBundles({
  * than cast to `any`, the same way `GateMetadataInput` bridges the gate's wire
  * shape. Drop once api-types republishes with the field.
  */
-export type PlatformConfigWithManifest = { manifestS3Key?: string };
+export type PlatformConfigWithManifest = { manifestS3Key?: string; phoneSideS3Key?: string };
 
 /** The subset of a platform's build config that describes its JS bundle. */
 type PlatformBundleConfig = {
   jsBundleS3Key?: string;
   bundleSizeMb?: number;
   assetsS3Key?: string;
+  bundleHash?: string;
 } & PlatformConfigWithManifest;
 
 /**
@@ -153,17 +164,26 @@ export function applyBundleToPlatformConfig({
   platformConfig,
   keys,
   bundleSizeMb,
+  bundleHash,
 }: {
   platformConfig: PlatformBundleConfig;
   keys: StagedUploadKeys;
   bundleSizeMb: number;
+  /** The bundle's hash, which the service compares with the branch's last test (same code, no run). */
+  bundleHash?: string;
 }): void {
   platformConfig.jsBundleS3Key = keys.jsBundleS3Key;
   platformConfig.bundleSizeMb = bundleSizeMb;
+  if (bundleHash) {
+    platformConfig.bundleHash = bundleHash;
+  }
   if (keys.assetsS3Key) {
     platformConfig.assetsS3Key = keys.assetsS3Key;
   }
   if (keys.manifestS3Key) {
     platformConfig.manifestS3Key = keys.manifestS3Key;
+  }
+  if (keys.phoneSideS3Key) {
+    platformConfig.phoneSideS3Key = keys.phoneSideS3Key;
   }
 }

@@ -1,0 +1,42 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--discover-tab"],
+  "capture": {
+    "scenes": ["kindred--discover-tab", "kindred--chat-empty"],
+    "ready": "discover.feed",
+    "stayedOn": ["AppStack", "Discover"],
+    "unanswered": [
+      {
+        "method": "POST",
+        "url": "https://api.segment.io/v1/batch",
+        "library": "@segment/analytics-react-native",
+        "times": 4
+      },
+      {
+        "method": "POST",
+        "url": "https://api2.amplitude.com/2/httpapi",
+        "library": "@amplitude/analytics-react-native",
+        "times": 3
+      },
+      {
+        "method": "GET",
+        "url": "https://api.adapty.io/api/v1/sdk/in-apps/purchase-containers/",
+        "library": "react-native-adapty",
+        "times": 3
+      },
+      {
+        "method": "POST",
+        "url": "https://ingest.sentry.io/api/1/envelope/",
+        "times": 2
+      }
+    ]
+  }
+}

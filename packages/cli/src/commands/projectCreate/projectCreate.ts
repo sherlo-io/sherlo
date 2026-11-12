@@ -28,8 +28,9 @@
  * still run first, so the flag stays required rather than becoming optional
  * now that the lookup exists.
  */
-import { APP_DOMAIN, MAX_PROJECT_NAME_LENGTH, NAME_OPTION, TEAM_OPTION } from '../../constants';
+import { MAX_PROJECT_NAME_LENGTH, NAME_OPTION, TEAM_OPTION } from '../../constants';
 import { printSherloIntro, reporting, throwError } from '../../helpers';
+import getAppDomain from '../../helpers/getAppDomain';
 import { emit } from '../../helpers/transcriptSink';
 import { refuseRejectedLogin, resolveLogin, resolveTeamId } from '../shared';
 import { CreateProjectAuthError } from './createProjectRequest';
@@ -70,7 +71,7 @@ async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void>
     project: {
       name: project.name,
       index: project.index,
-      projectPageUrl: `${APP_DOMAIN}/project?t=${teamId}&p=${project.index}`,
+      projectPageUrl: `${getAppDomain()}/project?t=${teamId}&p=${project.index}`,
     },
   });
 }

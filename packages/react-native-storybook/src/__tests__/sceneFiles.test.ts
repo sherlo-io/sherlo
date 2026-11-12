@@ -5,7 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { scenes } from '../scenes';
-import type { SceneDevice } from '../sceneDeviceTypes';
+import type { ScenePhone } from '../sceneDeviceTypes';
 
 const sceneFiles = require('../../metro/sceneFiles');
 const sourceFiles = require('../../metro/sourceFiles');
@@ -214,6 +214,143 @@ describe('scene files are found and bundled', () => {
     expect(sceneList).toContain('"inbox--menu-open"');
   });
 
+  it('a shared precondition file changed after the bundler started rewrites the scene list', () => {
+    const root = mkProject();
+    writeFile(root, 'index.js', 'module.exports = 1;');
+    writeFile(
+      root,
+      'src/phones.ts',
+      "export const phone = () => ({ device: { permissions: { camera: 'granted' } } });"
+    );
+    writeFile(
+      root,
+      'src/Chat.scenes.tsx',
+      "import { phone } from './phones';\nexport default scenes({ scenes: { Conversation: { given: [phone()] } } });"
+    );
+    const cacheDir = path.join(root, 'node_modules', '.cache', 'sherlo');
+    sceneFiles.writeBundledScenesModule(root, cacheDir);
+    const watcher = new EventEmitter();
+    sceneFiles.keepSceneListCurrent(watcher, root, cacheDir);
+    const listPath = path.join(cacheDir, 'bundled-scenes.js');
+    const before = fs.readFileSync(listPath, 'utf8');
+
+    writeFile(
+      root,
+      'src/phones.ts',
+      "export const phone = () => ({ device: { permissions: { camera: 'denied' } } });"
+    );
+    watcher.emit('change', metro084Change({ modifiedFiles: ['src/phones.ts'] }));
+    const after = fs.readFileSync(listPath, 'utf8');
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(before).toContain('"camera":"granted"');
+    expect(after).toContain('"camera":"denied"');
+  });
+
+  it('an entry of a given list that a shared file built is marked in the scene list', () => {
+    const root = mkProject();
+    writeFile(root, 'src/shared.ts', 'export const inbox = () => ({ mocks: [] });');
+    writeFile(
+      root,
+      'src/Chat.scenes.tsx',
+      `import { scenes, signedOut } from '@sherlo/react-native-storybook';
+import { inbox } from './shared';
+export default scenes({
+  scenes: {
+    Mixed: { given: [{ mocks: [] }, inbox(), [signedOut(), inbox()]] },
+    Own: { given: [{ mocks: [] }, signedOut()] },
+  },
+});`
+    );
+    const scenes = sceneFiles.scenesOfProject(root);
+
+    expect(scenes['chat--mixed'].shared).toEqual([false, true, [false, true]]);
+    expect(scenes['chat--own'].shared).toBe(false);
+  });
+
+  it('a spread in a given list is refused naming the file', () => {
+    const source = `import { rest } from './shared';
+export default scenes({ scenes: { Spread: { given: [...rest()] } } });`;
+
+    expect(() => sceneFiles.sceneDevicesOf('s.scenes.tsx', source)).toThrow(
+      /s\.scenes\.tsx.*spread/
+    );
+  });
+
+  it('two scenes with one name are refused, naming both files', () => {
+    const root = mkProject();
+    writeFile(root, 'src/Chat.scenes.tsx', CHAT_SCENES);
+    writeFile(
+      root,
+      'src/more/Chat.scenes.tsx',
+      `export default scenes({ scenes: { Conversation: {} } });`
+    );
+
+    let refusal = '';
+    try {
+      sceneFiles.scenesOfProject(root);
+    } catch (error) {
+      refusal = (error as Error).message;
+    }
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(refusal).toContain('chat--conversation');
+    expect(refusal).toContain(path.join('src', 'Chat.scenes.tsx'));
+    expect(refusal).toContain(path.join('src', 'more', 'Chat.scenes.tsx'));
+  });
+
+  it('a scene with a missing or wrong input is refused, naming the scene and the input', () => {
+    const refusalOf = (scene: string): string => {
+      try {
+        sceneFiles.sceneIdsOfSource(
+          'chat.scenes.tsx',
+          `export default scenes({ scenes: { ${scene} } });`
+        );
+        return '';
+      } catch (error) {
+        return (error as Error).message;
+      }
+    };
+
+    expect(refusalOf('Empty: { play: [{ tap: 5 }] }')).toMatch(/chat\.scenes\.tsx.*Empty.*tap/);
+    expect(refusalOf("Wrong: { play: [{ type: { testID: 'a' } }] }")).toMatch(/Wrong.*text/);
+    expect(refusalOf("Lost: { play: [{ drag: 'a' }] }")).toMatch(/Lost.*drag/);
+    expect(refusalOf('Late: { ready: 7 }')).toMatch(/Late.*ready/);
+    expect(refusalOf("Odd: { play: 'a' }")).toMatch(/Odd.*play/);
+    expect(refusalOf("Plain: 'a'")).toMatch(/Plain/);
+    expect(refusalOf("Fine: { play: [{ tap: 'a' }, { ready: 'b' }], ready: 'c' }")).toBe('');
+  });
+
+  it('a shared precondition held in a scene-file const or helper is marked as shared', () => {
+    const root = mkProject();
+    writeFile(root, 'src/shared.ts', 'export const inbox = () => ({ mocks: [] });');
+    writeFile(
+      root,
+      'src/Chat.scenes.tsx',
+      `import { scenes, signedOut } from '@sherlo/react-native-storybook';
+import { inbox } from './shared';
+const held = inbox();
+const list = [inbox(), signedOut()];
+const helper = () => inbox();
+function block() { const own = signedOut(); return [own, helper()]; }
+export default scenes({
+  scenes: {
+    Held: { given: [held, signedOut()] },
+    Listed: { given: [list] },
+    Called: { given: [helper(), { mocks: [] }] },
+    Blocked: { given: [block()] },
+  },
+});`
+    );
+    const found = sceneFiles.scenesOfProject(root);
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(found['chat--held'].shared).toEqual([true, false]);
+    expect(found['chat--listed'].shared).toEqual([[true, false]]);
+    expect(found['chat--called'].shared).toEqual([true, false]);
+    expect(found['chat--blocked'].shared).toEqual([[false, true]]);
+  });
+
   it('a scene file added after the bundler started is in the scene list of the next bundle', () => {
     const root = mkProject();
     writeFile(root, 'index.js', 'module.exports = 1;');
@@ -291,13 +428,93 @@ describe('scene files are found and bundled', () => {
     expect(scenes(file)).toBe(file);
   });
 
+  it("a scene's given list is read with each precondition's phone settings", () => {
+    const root = mkProject();
+    // Shared preconditions are the team's own functions, in a file the scene file imports.
+    writeFile(
+      root,
+      'phones.ts',
+      `export const cameraAllowed = () => ({ device: { permissions: { camera: 'granted', photos: 'denied' } } });
+export function nearBerlin(latitude = 52.5) {
+  return { device: { location: { latitude, longitude: 13.4 } } };
+}
+export const evening = (mocks) => [mocks, nearBerlin(1)];`
+    );
+    const source = `import { scenes, mock } from '@sherlo/react-native-storybook';
+import { cameraAllowed, nearBerlin, evening } from './phones';
+export default scenes({
+  scenes: {
+    Scan: { given: [cameraAllowed(), mock(() => import('x'), {}), { device: { permissions: { photos: 'granted' } } }, nearBerlin(-52.5)] },
+    Plain: { given: [cameraAllowed(), evening([])] },
+    Nothing: {},
+  },
+});`;
+    const file = path.join(root, 'scan.scenes.tsx');
+    writeFile(root, 'scan.scenes.tsx', source);
+
+    expect(sceneFiles.sceneDevicesOf(file, source)).toEqual({
+      Scan: {
+        permissions: { camera: 'granted', photos: 'granted' },
+        location: { latitude: -52.5, longitude: 13.4 },
+      },
+      Plain: {
+        permissions: { camera: 'granted', photos: 'denied' },
+        location: { latitude: 1, longitude: 13.4 },
+      },
+      Nothing: {},
+    });
+  });
+
+  it('a scene file with a file-wide setup or device key is refused naming the file', () => {
+    const fileWide = `export default scenes({ device: { permissions: { camera: 'granted' } }, scenes: { Scan: {} } });`;
+    const setup = `export default scenes({ setup: signedIn, scenes: { Scan: {} } });`;
+    const ownKeys = `export default scenes({ scenes: { Scan: { mocks: [] } } });`;
+
+    expect(() => sceneFiles.sceneDevicesOf('scan.scenes.tsx', fileWide)).toThrow(
+      /scan\.scenes\.tsx.*"device".*given/
+    );
+    expect(() => sceneFiles.sceneIdsOfSource('scan.scenes.tsx', setup)).toThrow(
+      /scan\.scenes\.tsx.*"setup".*given/
+    );
+    expect(() => sceneFiles.sceneDevicesOf('scan.scenes.tsx', ownKeys)).toThrow(
+      /scan\.scenes\.tsx.*scene Scan.*"mocks".*given/
+    );
+  });
+
+  it("a scene's member precondition is read as signed out or fresh install", () => {
+    const root = mkProject();
+    writeFile(
+      root,
+      'members.ts',
+      `import { freshInstall, given } from '@sherlo/react-native-storybook';
+export const newcomer = () => given(freshInstall(), { device: { permissions: { notifications: 'denied' } } });`
+    );
+    const source = `import { scenes, signedOut } from '@sherlo/react-native-storybook';
+import { newcomer } from './members';
+export default scenes({
+  scenes: {
+    Login: { given: [signedOut()] },
+    Welcome: { given: [signedOut(), newcomer()] },
+    Home: {},
+  },
+});`;
+    const file = path.join(root, 'login.scenes.tsx');
+    writeFile(root, 'login.scenes.tsx', source);
+
+    expect(sceneFiles.sceneDevicesOf(file, source)).toEqual({
+      Login: { member: 'signed-out' },
+      Welcome: { member: 'fresh-install', permissions: { notifications: 'denied' } },
+      Home: {},
+    });
+  });
+
   it("a scene's permissions and location are read from the scene file, the scene's over the file's", () => {
     const source = `import { scenes } from '@sherlo/react-native-storybook/scenes';
+const file = { device: { permissions: { camera: 'granted', photos: 'denied' }, location: { latitude: 1, longitude: 2 } } };
 export default scenes({
-  device: { permissions: { camera: 'granted', photos: 'denied' }, location: { latitude: 1, longitude: 2 } },
   scenes: {
-    Scan: { device: { permissions: { photos: 'granted' }, location: { latitude: -52.5, longitude: 13.4 } } },
-    Plain: {},
+    Scan: { given: [file, { device: { permissions: { photos: 'granted' }, location: { latitude: -52.5, longitude: 13.4 } } }] },
+    Plain: { given: [file] },
   },
 });`;
 
@@ -314,32 +531,20 @@ export default scenes({
   });
 
   it('a device field that is not a literal is refused with the file and scene named', () => {
-    const shared = `const shared = { permissions: { camera: 'granted' } };`;
-    const identifier = `${shared}
-export default scenes({ scenes: { Scan: { device: shared } } });`;
-    const spread = `${shared}
-export default scenes({ scenes: { Other: { device: { ...shared } } } });`;
-    const call = `export default scenes({ scenes: { Third: { device: { permissions: { camera: grant() } } } } });`;
+    const call = `export default scenes({ scenes: { Third: { given: [{ device: { permissions: { camera: grant() } } }] } } });`;
 
-    expect(() => sceneFiles.sceneDevicesOf('scan.scenes.tsx', identifier)).toThrow(
-      /scan\.scenes\.tsx.*Scan/
-    );
-    expect(() => sceneFiles.sceneDevicesOf('o.scenes.tsx', spread)).toThrow(
-      /o\.scenes\.tsx.*Other/
-    );
     expect(() => sceneFiles.sceneDevicesOf('t.scenes.tsx', call)).toThrow(/t\.scenes\.tsx.*Third/);
   });
 
-  it('scenesOfProject names each scene by id with its key and its file, and the key finds its device', () => {
+  it('scenesOfProject names each scene by id with its key and its file, and carries its phone', () => {
     const root = mkProject();
     writeFile(
       root,
       'chat.scenes.tsx',
-      "export default scenes({ scenes: { 'Empty Chat': { device: { location: { latitude: 1, longitude: 2 } } } } });"
+      "export default scenes({ scenes: { 'Empty Chat': { given: [{ device: { location: { latitude: 1, longitude: 2 } } }] } } });"
     );
     const scene = sceneFiles.scenesOfProject(root)['chat--empty-chat'];
-    const source = fs.readFileSync(scene.file, 'utf8');
-    const device: SceneDevice = sceneFiles.sceneDevicesOf('chat.scenes.tsx', source)[scene.key];
+    const device: ScenePhone = scene.device;
 
     expect(scene.key).toBe('Empty Chat');
     expect(device.location).toEqual({ latitude: 1, longitude: 2 });

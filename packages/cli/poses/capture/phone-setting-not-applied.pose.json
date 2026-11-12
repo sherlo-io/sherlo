@@ -1,0 +1,27 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--discover-tab"],
+  "capture": {
+    "scenes": ["kindred--discover-tab", "kindred--chat-empty"],
+    "route": ["AppStack", "Discover"],
+    "bootMs": 1600,
+    "reachedMs": 2500,
+    "play": [],
+    "settled": { "ms": 600, "frames": 3 },
+    "phoneNotApplied": [{ "setting": "tracking", "wanted": "granted", "why": "app-not-installed" }],
+    "tree": {
+      "primitive": "View",
+      "components": ["Discover"],
+      "size": { "width": 360, "height": 800 },
+      "children": [{ "primitive": "Text", "text": "Discover" }]
+    }
+  }
+}

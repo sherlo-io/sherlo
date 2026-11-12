@@ -2,10 +2,8 @@
  * WHAT `sherlo capture` PRINTS.
  *
  * Pure, like everything under ./: state in, lines out. The state comes from the capture socket
- * (../seams/captureSocket), posed or real, and neither changes a line of what is printed.
- *
- * AN AGENT IS A FIRST-CLASS READER, so every ending is named. The refusals are word for word the
- * ones `sherlo open` prints (./openedStory): the same facts about the same road.
+ * (../seams/captureSocket), posed or real, and neither changes a line of what is printed. Every
+ * ending is named, and the refusals are word for word the ones `sherlo open` prints (./openedStory).
  *
  * THE VIEW TREE IS THE RECORD, DRAWN THE WAY SHERLO'S WEB INSPECTOR DRAWS IT. Every view, none
  * left out, as the tag the inspector names it by, its style block one key per line in the
@@ -16,6 +14,7 @@
 import chalk from 'chalk';
 import { inspectorHex, inspectorStyleEntries, isColourKey } from './inspectorStyle';
 import { moreLines } from './moreLines';
+import { noAppLines, type NoAppEnding } from './noAppLines';
 
 /** One view in the tree, as the screen needs it. */
 export type CapturedView = {
@@ -37,7 +36,7 @@ export type CapturedView = {
 /** How a run of `sherlo capture` ended, as the screen needs it. */
 export type CapturedStory =
   | { kind: 'no-bundler'; port: number }
-  | { kind: 'no-app'; port: number }
+  | NoAppEnding
   | {
       kind: 'no-such-story';
       storyId: string;
@@ -105,14 +104,7 @@ export function renderCapturedStory(state: CapturedStory): string[] {
       ];
 
     case 'no-app':
-      return [
-        `${chalk.red('✖')}  A bundler is running on port ${chalk.bold(
-          String(state.port)
-        )}, and no Sherlo app is attached to it`,
-        '',
-        chalk.dim('Open the app on a device or simulator, then try again.'),
-        '',
-      ];
+      return noAppLines(state);
 
     case 'no-such-story':
       if (state.brokenFiles && state.brokenFiles.length > 0) {
@@ -242,14 +234,16 @@ export function stillRealLines(stillReal: string[] | undefined): string[] {
 
 /** The requests no mock answered, each a method and an address. */
 export function unansweredLines(
-  unanswered: { method: string; url: string }[] | undefined
+  unanswered: { method: string; url: string; library?: string }[] | undefined
 ): string[] {
   if (!unanswered || unanswered.length === 0) return [];
   const one = unanswered.length === 1;
   return [
     '',
     `${chalk.yellow('◦')}  ${unanswered.length} ${one ? 'request' : 'requests'} had no mock:`,
-    ...unanswered.map(({ method, url }) => `     ${method} ${url}`),
+    ...unanswered.map(
+      ({ method, url, library }) => `     ${method} ${url}${library ? ` from ${library}` : ''}`
+    ),
   ];
 }
 

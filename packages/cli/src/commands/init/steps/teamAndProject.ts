@@ -12,8 +12,9 @@
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
-import { APP_DOMAIN, FULL_INIT_COMMAND, TEAM_OPTION } from '../../../constants';
+import { FULL_INIT_COMMAND, TEAM_OPTION } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
+import getAppDomain from '../../../helpers/getAppDomain';
 import { renderNoAccessToProject } from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { serverCalls } from '../../../seams/serverCalls';
@@ -214,6 +215,6 @@ function parseProject(project: string): ProjectAddress | undefined {
 function settled(project: ProjectAddress): SettledProject {
   return {
     projectId: asConfigProject(project),
-    projectPageUrl: `${APP_DOMAIN}/project?t=${project.teamId}&p=${project.projectIndex}`,
+    projectPageUrl: `${getAppDomain()}/project?t=${project.teamId}&p=${project.projectIndex}`,
   };
 }

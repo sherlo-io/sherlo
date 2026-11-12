@@ -80,6 +80,11 @@ export type Workstation = {
     /** The whole command line, e.g. `cd ios && pod install`. */
     command: string;
     projectRoot: string;
+    /**
+     * Whether the command runs with SHERLO_BUILD unset, which links Sherlo into
+     * the app target's debug-mapped configurations only.
+     */
+    sherloBuildUnset?: boolean;
   }): Promise<void>;
 
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
@@ -121,13 +126,17 @@ export const liveWorkstation: Workstation = {
   // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` when no locale is
   // set, as on a CI machine. So an environment naming no locale gets UTF-8 for both, and one that
   // names a locale through either variable is passed as it is.
-  installPods: async ({ command, projectRoot }) => {
+  installPods: async ({ command, projectRoot, sherloBuildUnset }) => {
     const environmentNamesALocale = Boolean(process.env.LANG || process.env.LC_ALL);
-
+    // The command's environment is merged over the ambient one, so an undefined value is what
+    // takes SHERLO_BUILD out of it.
     await runShellCommand({
       command,
       projectRoot,
-      env: environmentNamesALocale ? process.env : { LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' },
+      env: {
+        ...(environmentNamesALocale ? process.env : { LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' }),
+        ...(sherloBuildUnset ? { SHERLO_BUILD: undefined } : {}),
+      },
     });
   },
 
@@ -256,6 +265,15 @@ export type PosedWorkstation = {
    */
   pods?: 'installed';
   /**
+   * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
+   * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
+   * SHERLO_BUILD. Stated, the command must have run so; a mismatch is a refusal of the pose.
+   */
+  podInstall?: {
+    through: 'bundler';
+    sherloBuild: 'unset';
+  };
+  /**
    * What happened at the prompt: a person pressed Enter, the terminal was closed on it (the tool's
    * own cancel branch prints for it), or nobody was at the keyboard at all - no terminal, or `CI`
    * set, as when an agent or a CI job runs setup - so the prompt is never asked and the run goes on.
@@ -356,8 +374,19 @@ export function posedWorkstation(
       }
     },
 
-    installPods: async () => {
+    installPods: async ({ command, sherloBuildUnset }) => {
       podInstallWasAsked = true;
+
+      if (posed?.podInstall) {
+        const throughBundler = command.includes('bundle exec pod install');
+        if (!throughBundler || !sherloBuildUnset) {
+          refuse(
+            'installPods',
+            `the pose answers a \`pod install\` run through Bundler with SHERLO_BUILD unset, and the ` +
+              `command ran \`${command}\`${sherloBuildUnset ? '' : ' with SHERLO_BUILD set'}`
+          );
+        }
+      }
 
       if (posed?.pods !== 'installed') {
         // Recorded, not thrown, exactly like an unanswered `addPackage` - see this file's header.

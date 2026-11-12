@@ -6,7 +6,7 @@ describe('the GitHub workflow setup writes', () => {
   it.todo('writes the workflow on GitHub even when the project runs another CI');
   it.todo('leaves an existing workflow file as it is');
   it.todo('adds no workflow when the code lives on another host');
-  it.todo('a skipped workflow prints one line naming the host it found');
+  it.todo('a skipped workflow prints one line saying the code is not on GitHub');
   it.todo(
     'until GitHub is connected, the workflow ends green with one notice saying where to connect it'
   );

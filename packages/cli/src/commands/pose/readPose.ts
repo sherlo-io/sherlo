@@ -130,7 +130,12 @@ function commandScansTheApp(argv: string[]): boolean {
 
 /** `sherlo login` opens the browser, and so does `sherlo init` when it runs the login itself. */
 function commandOpensTheBrowser(argv: string[]): boolean {
-  return argv[0] === 'login' || argv[0] === 'init';
+  return argv[0] === 'login' || argv[0] === 'init' || argv[0] === 'capture-report';
+}
+
+/** `sherlo capture-report` is the only command that serves a page. */
+function commandServesAPage(argv: string[]): boolean {
+  return argv[0] === 'capture-report';
 }
 
 /**
@@ -138,7 +143,9 @@ function commandOpensTheBrowser(argv: string[]): boolean {
  * it. The five that send no credential at all never read one.
  */
 function commandReadsSavedLogins(argv: string[]): boolean {
-  return !['open', 'capture', 'coverage', 'fingerprint', 'show-error'].includes(argv[0] ?? '');
+  return !['open', 'capture', 'capture-report', 'coverage', 'fingerprint', 'show-error'].includes(
+    argv[0] ?? ''
+  );
 }
 
 function reportRoadsThisCommandDoesNotTake(
@@ -208,6 +215,13 @@ function reportRoadsThisCommandDoesNotTake(
   if ('browser' in pose && !commandOpensTheBrowser(argv)) {
     problems.push(
       `\`browser\`: \`${command}\` never opens a browser, so there is no browser for it to ` +
+        'describe. Leave the field out.'
+    );
+  }
+
+  if ('localServer' in pose && !commandServesAPage(argv)) {
+    problems.push(
+      `\`localServer\`: \`${command}\` never serves a page, so there is no server for it to ` +
         'describe. Leave the field out.'
     );
   }

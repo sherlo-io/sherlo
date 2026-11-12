@@ -13,6 +13,8 @@
 var fs = require('fs');
 var path = require('path');
 
+var givenReader = require('./givenReader');
+var refuseWrongInputs = require('./sceneInputs').refuseWrongInputs;
 var mockScan = require('./mockScan');
 var sourceFiles = require('./sourceFiles');
 var toRelativePath = require('./projectPaths').toRelativePath;
@@ -55,13 +57,7 @@ function namePart(name) {
     .replace(/-+$/, '');
 }
 
-// The static name of an object property key; null for a computed or numeric key.
-function keyName(prop) {
-  if (!prop.key || prop.computed) return null;
-  if (prop.key.type === 'Identifier') return prop.key.name;
-  if (prop.key.type === 'StringLiteral') return prop.key.value;
-  return null;
-}
+var keyName = givenReader.keyName;
 
 // Every `scenes(...)` call, by name or off a namespace.
 function isScenesCall(node) {
@@ -76,9 +72,37 @@ function isScenesCall(node) {
   );
 }
 
+// The value node of the property `name` of an object node, or null.
+function propertyNamed(object, name) {
+  if (!object || object.type !== 'ObjectExpression') return null;
+  for (var i = 0; i < object.properties.length; i++) {
+    var prop = object.properties[i];
+    if (prop.type === 'ObjectProperty' && keyName(prop) === name) return prop.value;
+  }
+  return null;
+}
+
+// A key a scene file used before `given`: one refuses the file, naming it and the new way.
+var OLD_KEYS = ['setup', 'device', 'mocks'];
+
+function refuseOldKeys(fileName, object, where) {
+  OLD_KEYS.forEach(function (key) {
+    if (!propertyNamed(object, key)) return;
+    throw new Error(
+      'Scene file ' +
+        fileName +
+        ': ' +
+        where +
+        ' has a "' +
+        key +
+        '" key, which scenes no longer take. List what the scene starts from in "given" instead, such as given: [signedOut(), mock(...)].'
+    );
+  });
+}
+
 // Calls `visit(name, sceneValue, definition)` for each scene one file's source declares, in order:
 // the scene's key, its value node and the object the file handed to `scenes()`.
-function eachSceneOf(source, visit) {
+function eachSceneOf(fileName, source, visit) {
   var ast = mockScan.parseScanTarget(source);
   if (!ast) return;
 
@@ -86,103 +110,62 @@ function eachSceneOf(source, visit) {
     if (!isScenesCall(node)) return;
     var definition = (node.arguments || [])[0];
     if (!definition || definition.type !== 'ObjectExpression') return;
+    refuseOldKeys(fileName, definition, 'the file');
     definition.properties.forEach(function (prop) {
       if (prop.type !== 'ObjectProperty' || keyName(prop) !== 'scenes') return;
       if (!prop.value || prop.value.type !== 'ObjectExpression') return;
       prop.value.properties.forEach(function (sceneProp) {
         var name = sceneProp.type === 'ObjectProperty' ? keyName(sceneProp) : null;
-        if (name) visit(name, sceneProp.value, definition);
+        if (!name) return;
+        refuseOldKeys(fileName, sceneProp.value, 'scene ' + name);
+        refuseWrongInputs(path.basename(fileName), name, sceneProp.value);
+        visit(name, sceneProp.value, definition);
       });
     });
   });
 }
 
 // The names of the scenes one file's source declares.
-function sceneNamesOf(source) {
+function sceneNamesOf(fileName, source) {
   var names = [];
-  eachSceneOf(source, function (name) {
+  eachSceneOf(fileName, source, function (name) {
     names.push(name);
   });
   return names;
 }
 
-// The plain value a literal node stands for: strings, numbers (a minus sign allowed), booleans,
-// null, and objects and arrays of those. Anything else (an identifier, a spread, a call) throws
-// `NotLiteral`, because the phone is set before the app starts and nothing is run to get a value.
-function literalValueOf(node) {
-  node = mockScan.unwrapExpression(node);
-  if (node.type === 'StringLiteral' || node.type === 'NumericLiteral') return node.value;
-  if (node.type === 'BooleanLiteral') return node.value;
-  if (node.type === 'NullLiteral') return null;
-  if (
-    node.type === 'UnaryExpression' &&
-    node.operator === '-' &&
-    node.argument.type === 'NumericLiteral'
-  ) {
-    return -node.argument.value;
-  }
-  if (node.type === 'ArrayExpression') {
-    return node.elements.map(function (element) {
-      if (!element) throw new Error('NotLiteral');
-      return literalValueOf(element);
-    });
-  }
-  if (node.type === 'ObjectExpression') {
-    var value = {};
-    node.properties.forEach(function (prop) {
-      var name = prop.type === 'ObjectProperty' ? keyName(prop) : null;
-      if (name === null) throw new Error('NotLiteral');
-      value[name] = literalValueOf(prop.value);
-    });
-    return value;
-  }
-  throw new Error('NotLiteral');
-}
-
-// The `device` literal among an object's properties, or null; `where` names it in a refusal.
-function deviceLiteralOf(object, fileName, where) {
-  if (!object || object.type !== 'ObjectExpression') return null;
-  for (var i = 0; i < object.properties.length; i++) {
-    var prop = object.properties[i];
-    if (prop.type !== 'ObjectProperty' || keyName(prop) !== 'device') continue;
-    try {
-      return literalValueOf(prop.value);
-    } catch (error) {
-      if (error.message !== 'NotLiteral') throw error;
-      throw new Error(
-        'Scene file ' +
-          fileName +
-          ': the device field of ' +
-          where +
-          ' must be a plain literal (no variable, spread or call), because the phone is set before the app starts.'
-      );
-    }
-  }
-  return null;
-}
-
 /**
- * The phone setup of each scene one scene file declares: the `device` literal of the file merged
- * with the scene's own, the scene's winning per permission and for the location.
+ * The phone setup of each scene one scene file declares, from evaluating its `given` list while the
+ * bundle is made (metro/givenReader.js): the permissions, the location and the member that its
+ * preconditions set, a later one winning.
  *
- * @param {string} fileName - the file's name, such as `chat.scenes.tsx`
+ * @param {string} fileName - the file's name, such as `chat.scenes.tsx`; a full path lets the
+ *   functions the file imports from beside it be followed
  * @param {string} source - the file's source
- * @returns {Object<string, {permissions?: object, location?: object}>} by the scene's key in the file
- * @throws when a `device` value is not a literal, naming the file and the scene
+ * @returns {Object<string, {permissions?: object, location?: object, member?: string}>} by the
+ *   scene's key in the file
+ * @throws when a phone setting cannot be worked out, or the file uses a key `given` replaced
  */
 function sceneDevicesOf(fileName, source) {
   var devices = {};
-  eachSceneOf(source, function (name, sceneValue, definition) {
-    var fileDevice = deviceLiteralOf(definition, fileName, 'the file') || {};
-    var own = deviceLiteralOf(sceneValue, fileName, 'scene ' + name) || {};
-    var merged = {};
-    var permissions = Object.assign({}, fileDevice.permissions, own.permissions);
-    if (Object.keys(permissions).length > 0) merged.permissions = permissions;
-    var location = own.location || fileDevice.location;
-    if (location) merged.location = location;
-    devices[name] = merged;
+  var givens = givenOfScenes(fileName, source);
+  Object.keys(givens).forEach(function (name) {
+    devices[name] = givens[name].device;
   });
   return devices;
+}
+
+// What each scene's `given` list holds for the bundle, by the scene's key: its phone settings, which
+// of its entries a shared file built, and the files read to know (givenReader.readGiven).
+function givenOfScenes(fileName, source) {
+  var givens = {};
+  eachSceneOf(fileName, source, function (name, sceneValue) {
+    var given = propertyNamed(sceneValue, 'given');
+    givens[name] = given
+      ? givenReader.readGiven(given, fileName, source, 'scene ' + name)
+      : { device: {}, shared: false, files: [] };
+  });
+  return givens;
 }
 
 /**
@@ -202,7 +185,7 @@ function sceneIdsOfSource(fileName, source) {
 // component title and its name, both in words (`Sign In`, `Menu Open`).
 function scenesOfSource(fileName, source) {
   var component = sourceFiles.basenameWithoutExtension(fileName).replace(/\.scenes$/, '');
-  return sceneNamesOf(source).map(function (key) {
+  return sceneNamesOf(fileName, source).map(function (key) {
     return {
       id: idPart(component) + '--' + namePart(key),
       key: key,
@@ -234,10 +217,12 @@ function readSceneIds(projectRoot) {
   return Object.keys(scenesOfProject(projectRoot));
 }
 
-// Every scene in the project by its id: its name and its file, symlinks followed. A scene whose
-// id two files declare keeps the first file's; an unreadable file declares none.
+// Every scene in the project by its id: its name, its file (symlinks followed) and its phone
+// settings, member included. A scene whose id two scenes declare is refused, naming both files;
+// an unreadable file declares none.
 function scenesOfProject(projectRoot) {
   var scenes = {};
+  var realRoot = fs.realpathSync(projectRoot);
   findSceneFiles(projectRoot).forEach(function (file) {
     var source;
     try {
@@ -245,15 +230,34 @@ function scenesOfProject(projectRoot) {
     } catch (_) {
       return;
     }
+    var realFile = fs.realpathSync(file);
+    var givens = givenOfScenes(realFile, source);
     scenesOfSource(path.basename(file), source).forEach(function (scene) {
-      if (!scenes[scene.id]) {
-        scenes[scene.id] = {
-          key: scene.key,
-          title: scene.title,
-          name: scene.name,
-          file: fs.realpathSync(file),
-        };
+      var first = scenes[scene.id];
+      if (first) {
+        throw new Error(
+          'Two scenes have the id ' +
+            scene.id +
+            ': ' +
+            first.key +
+            ' in ' +
+            toRelativePath(first.file, realRoot) +
+            ' and ' +
+            scene.key +
+            ' in ' +
+            toRelativePath(realFile, realRoot) +
+            '. Give one of them another name.'
+        );
       }
+      scenes[scene.id] = {
+        key: scene.key,
+        title: scene.title,
+        name: scene.name,
+        file: realFile,
+        device: givens[scene.key].device,
+        shared: givens[scene.key].shared,
+        reads: givens[scene.key].files,
+      };
     });
   });
   return scenes;
@@ -292,10 +296,32 @@ function writeBundledScenesModule(projectRoot, cacheDir, installWithNoScene) {
  * @param {string} cacheDir - the folder the module is written into
  */
 function keepSceneListCurrent(watcher, projectRoot, cacheDir) {
+  // The files the scenes' lists were worked out from besides the scene files: a change to one of
+  // them changes what a scene starts from, so the list is written again.
+  var readFiles = [];
+  var realRoot = fs.realpathSync(projectRoot);
+  var readAgain = function (writeTheList) {
+    var scenes = scenesOfProject(projectRoot);
+    readFiles = [].concat.apply(
+      [],
+      Object.keys(scenes).map(function (id) {
+        return scenes[id].reads;
+      })
+    );
+    if (writeTheList) writeSceneList(projectRoot, cacheDir, scenes);
+  };
+  try {
+    readAgain(false);
+  } catch (_) {
+    // Whatever stops this first reading stops the bundle's own, which names it.
+  }
   watcher.on('change', function (change) {
-    if (!aSceneFileChanged(change)) return;
+    var changedReadFile = pathsOfChange(change).some(function (changed) {
+      return readFiles.indexOf(path.resolve(realRoot, changed)) !== -1;
+    });
+    if (!aSceneFileChanged(change) && !changedReadFile) return;
     try {
-      writeSceneList(projectRoot, cacheDir, scenesOfProject(projectRoot));
+      readAgain(true);
     } catch (_) {
       // A scan that fails, such as on a file removed while it was read, leaves the list as it was:
       // the watcher's next change writes it again. Nothing is thrown into the bundler's watcher.
@@ -361,6 +387,8 @@ function writeSceneList(projectRoot, cacheDir, scenes) {
       ('    sceneName: ' + JSON.stringify(scene.key) + ',\n') +
       ('    title: ' + JSON.stringify(scene.title) + ',\n') +
       ('    name: ' + JSON.stringify(scene.name) + ',\n') +
+      ('    device: ' + JSON.stringify(scene.device) + ',\n') +
+      ('    shared: ' + JSON.stringify(scene.shared) + ',\n') +
       ('    loadFile: function () { return require(' + JSON.stringify(scene.file) + '); },\n') +
       '  },\n'
     );
@@ -373,11 +401,16 @@ function writeSceneList(projectRoot, cacheDir, scenes) {
     entries.join('') +
     '};\n';
 
-  var modulePath = path.join(cacheDir, 'bundled-scenes.js');
+  var modulePath = bundledScenesModulePath(cacheDir);
   if (readFileOrNull(modulePath) === source) return modulePath;
   fs.mkdirSync(cacheDir, { recursive: true });
   fs.writeFileSync(modulePath, source, 'utf8');
   return modulePath;
+}
+
+// Where the list of scenes sits in `cacheDir`.
+function bundledScenesModulePath(cacheDir) {
+  return path.join(cacheDir, 'bundled-scenes.js');
 }
 
 function readFileOrNull(file) {
@@ -399,4 +432,5 @@ module.exports = {
   scenesOfProject: scenesOfProject,
   readSceneIds: readSceneIds,
   writeBundledScenesModule: writeBundledScenesModule,
+  bundledScenesModulePath: bundledScenesModulePath,
 };

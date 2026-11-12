@@ -4,6 +4,7 @@ on:
     paths:
       - packages/react-native-storybook/react-native.config.js
       - packages/react-native-storybook/metro/sherloBuild.js
+      - packages/react-native-storybook/metro/xcodeProject.js
       - testing/react-native/ios/**
       - .github/workflows/ios-linking.yml
       - scripts/check-ios-linking.sh

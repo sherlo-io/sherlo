@@ -8,8 +8,8 @@
  * Every question goes through the workstation seam (../../../seams/workstation). A question left
  * unanswered - Ctrl+C, or a pose that cannot answer - cancels the setup.
  */
-import { APP_DOMAIN } from '../../../constants';
 import { throwError } from '../../../helpers';
+import getAppDomain from '../../../helpers/getAppDomain';
 import { emit } from '../../../helpers/transcriptSink';
 import type { SavedLogin } from '../../../seams/savedLogins';
 import { serverCalls } from '../../../seams/serverCalls';
@@ -97,7 +97,7 @@ async function askWhichProjectOfTheTeam(
     project: {
       name: newProject.name,
       index: newProject.index,
-      projectPageUrl: `${APP_DOMAIN}/project?t=${teamId}&p=${newProject.index}`,
+      projectPageUrl: `${getAppDomain()}/project?t=${teamId}&p=${newProject.index}`,
     },
   });
 

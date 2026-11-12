@@ -59,6 +59,16 @@ export function providerFirstRenderedAt(): number | undefined {
   return firstRenderedAt;
 }
 
+/**
+ * The stamp of the bundler that served the code running now, or `undefined` for code built into
+ * the app, which carries none. The launch entry the bundler serves sets it (metro/launchTimeEntry);
+ * a wait for a capture says it, so the bundler can refuse a capture of code it is not serving.
+ */
+export function codeStampOfThisApp(): string | undefined {
+  const stamp = (globalThis as { __SHERLO_CODE_STAMP__?: unknown }).__SHERLO_CODE_STAMP__;
+  return typeof stamp === 'string' ? stamp : undefined;
+}
+
 /** Test-only: forget the first-render timestamp, the way a fresh boot's module would never have set it. */
 export function __resetProviderFirstRenderedAtForTests(): void {
   firstRenderedAt = undefined;

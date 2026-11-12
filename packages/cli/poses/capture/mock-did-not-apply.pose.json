@@ -1,0 +1,19 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--chat-with-match", "--png", "./chat-with-match.png"],
+  "capture": {
+    "scenes": ["kindred--chat-with-match", "kindred--chat-empty"],
+    "ready": "chat.header",
+    "stayedOn": ["AppStack", "Chat"],
+    "screen": { "words": ["Loading messages"], "views": 6 },
+    "mockNotApplied": [{ "module": "components/chat/client", "why": "bundler-had-not-seen-it" }]
+  }
+}

@@ -9,6 +9,7 @@ var mockShims = require('./mockShims');
 var writeMockSpecifierTransformer =
   require('./mockSpecifierTransformer').writeMockSpecifierTransformer;
 var sherloLine = require('./sherloLine');
+var watchBuildErrors = require('./bundleBuildFailure').watchBuildErrors;
 var storyTitleReader = require('./storyTitleReader');
 var stillReal = require('./stillReal');
 var stableStringify = require('./stableStringify');
@@ -18,6 +19,9 @@ var pathsOfChange = require('./sceneFiles').pathsOfChange;
 var fileWatcherOfMetro = require('./sceneFiles').fileWatcherOfMetro;
 var storybookEntryCandidates = require('./detectStorybookSetup').storybookEntryCandidates;
 var isPreviewFile = require('./sourceFiles').isPreviewFile;
+var isSceneFile = require('./sourceFiles').isSceneFile;
+var sceneIdsOfSource = require('./sceneFiles').sceneIdsOfSource;
+var bundledScenesModulePath = require('./sceneFiles').bundledScenesModulePath;
 var STORYBOOK_REQUIRES_BASENAMES = require('./ensureStorybookRequires').REQUIRES_FILE_BASENAMES;
 var resolveConfigDir = require('./ensureStorybookRequires').resolveConfigDir;
 var projectRootOf = require('./projectPaths').projectRootOf;
@@ -224,6 +228,24 @@ function collectStories(graph) {
     });
   });
   return stories;
+}
+
+/**
+ * Absolute paths of every scene file in the bundle. A scene file is no require.context target: the
+ * generated scene list (sceneFiles.js writeBundledScenesModule) requires it, so collectStories
+ * never finds it. Files in node_modules are no scene of the project.
+ *
+ * @returns {string[]} unique scene file absolute paths.
+ */
+function collectSceneAbsPaths(graph, projectRoot) {
+  var sceneAbsPaths = [];
+  graph.dependencies.forEach(function (_module, absPath) {
+    var rel = toRelativePath(absPath, projectRoot);
+    if (rel && isSceneFile(absPath) && rel.indexOf('node_modules/') === -1) {
+      sceneAbsPaths.push(absPath);
+    }
+  });
+  return sceneAbsPaths;
 }
 
 /**
@@ -470,8 +492,9 @@ function describeGeneratedFiles(graph, projectRoot) {
  * @param {object} graph      Metro ReadOnlyGraph passed to the customSerializer
  * @param {string} projectRoot absolute project root
  * @param {string} cacheDir   absolute cache directory (node_modules/.cache/sherlo)
+ * @param {string} [entryPoint] the bundle's entry point: a scene boots the whole app from it
  */
-function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
+function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
   try {
     if (!graph || typeof graph !== 'object' || !(graph.dependencies instanceof Map)) {
       return;
@@ -498,19 +521,31 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     // around the story, the story never imports it.
     /** @type {Record<string, boolean>} */
     var globalRelPaths = {};
+    // The generated scene list and every scene file: the SDK reaches the list and the list
+    // requires every scene file, so no walk goes into them, or one scene's edit (or a scene
+    // added) would reach every story and every other scene.
+    var sceneAbsPaths = collectSceneAbsPaths(graph, projectRoot);
+    /** @type {Record<string, boolean>} */
+    var sceneListAndSceneFiles = {};
+    sceneListAndSceneFiles[bundledScenesModulePath(cacheDir)] = true;
+    sceneAbsPaths.forEach(function (sceneAbsPath) {
+      sceneListAndSceneFiles[sceneAbsPath] = true;
+    });
     collectPreviewAbsPaths(graph).forEach(function (previewAbsPath) {
       var previewRel = toRelativePath(previewAbsPath, projectRoot);
       if (previewRel) globalRelPaths[previewRel] = true;
-      collectForwardClosure(graph, previewAbsPath, projectRoot).forEach(function (rel) {
-        globalRelPaths[rel] = true;
-      });
+      collectForwardClosure(graph, previewAbsPath, projectRoot, sceneListAndSceneFiles).forEach(
+        function (rel) {
+          globalRelPaths[rel] = true;
+        }
+      );
     });
 
     // The Storybook entry file joins the same way, with one trap: it imports the
     // requires file, which reaches every story. Its walk stops at the requires
     // file and at every story file.
     /** @type {Record<string, boolean>} */
-    var notPartOfEntryClosure = {};
+    var notPartOfEntryClosure = Object.assign({}, sceneListAndSceneFiles);
     collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
       notPartOfEntryClosure[requiresAbsPath] = true;
     });
@@ -528,6 +563,24 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
       );
     });
 
+    // A scene boots the whole app and reaches its screen by taps or a link, so the app entry's
+    // closure joins every scene file's closure (a story renders its own component, not the app).
+    // The walk stops where the entry walk above stops.
+    /** @type {Record<string, boolean>} */
+    var appRelPaths = {};
+    if (typeof entryPoint === 'string' && entryPoint) {
+      var appEntryAbsPath = path.resolve(projectRoot, entryPoint);
+      var appEntryRel = toRelativePath(appEntryAbsPath, projectRoot);
+      if (appEntryRel && graph.dependencies.has(appEntryAbsPath)) {
+        appRelPaths[appEntryRel] = true;
+        collectForwardClosure(graph, appEntryAbsPath, projectRoot, notPartOfEntryClosure).forEach(
+          function (rel) {
+            appRelPaths[rel] = true;
+          }
+        );
+      }
+    }
+
     /** @type {Record<string, string[]>} */
     var storyClosures = {};
     /**
@@ -542,17 +595,42 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir) {
     /** @type {Record<string, object[]>} requires-file path -> its loader entries. */
     var loaderEntriesByRequiresFile = {};
 
-    stories.forEach(function (story) {
-      var storyRel = toRelativePath(story.absPath, projectRoot);
-      if (!storyRel) return;
+    // A story's closure, or a scene file's: its forward closure plus the global paths, and for a
+    // scene file the app's closure too.
+    function closureOf(fileAbsPath, appPaths) {
       var closureSet = {};
-      collectForwardClosure(graph, story.absPath, projectRoot).forEach(function (rel) {
-        closureSet[rel] = true;
-      });
+      collectForwardClosure(graph, fileAbsPath, projectRoot, sceneListAndSceneFiles).forEach(
+        function (rel) {
+          closureSet[rel] = true;
+        }
+      );
       Object.keys(globalRelPaths).forEach(function (rel) {
         closureSet[rel] = true;
       });
-      storyClosures[storyRel] = Object.keys(closureSet).sort();
+      Object.keys(appPaths || {}).forEach(function (rel) {
+        closureSet[rel] = true;
+      });
+      return Object.keys(closureSet).sort();
+    }
+
+    // A scene file has a closure and a count of its scenes, and no title: an absent title is read
+    // as unknown. It is keyed by the path the scene list writes as its filePath.
+    sceneAbsPaths.forEach(function (sceneAbsPath) {
+      var sceneRel = toRelativePath(sceneAbsPath, projectRoot);
+      storyClosures[sceneRel] = closureOf(sceneAbsPath, appRelPaths);
+      if (fs.existsSync(sceneAbsPath)) {
+        var sceneIds = sceneIdsOfSource(
+          path.basename(sceneAbsPath),
+          fs.readFileSync(sceneAbsPath, 'utf8')
+        );
+        storyCounts[sceneRel] = sceneIds.length;
+      }
+    });
+
+    stories.forEach(function (story) {
+      var storyRel = toRelativePath(story.absPath, projectRoot);
+      if (!storyRel) return;
+      storyClosures[storyRel] = closureOf(story.absPath);
 
       var storySource = fs.existsSync(story.absPath)
         ? fs.readFileSync(story.absPath, 'utf8')
@@ -734,6 +812,7 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
   var mountedOn = null;
   var line = null;
   var followedWatcher = null;
+  var latestFailure = null;
 
   /**
    * Tells the line of each file Metro's file watcher reports changed (named under the project
@@ -780,6 +859,7 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
         console.warn('@sherlo/react-native-storybook: ' + message);
       },
     });
+    if (latestFailure !== null) line.bundleDoesNotBuild(latestFailure);
   }
 
   function middleware(request, response, next) {
@@ -795,7 +875,24 @@ function mountTheLineOnTheBundler(projectRoot, opts) {
     response.end(body);
   }
 
-  return { middleware: middleware, followMetro: followMetro };
+  /**
+   * Metro's reporter, wrapped so the line hears how each build ended (./bundleBuildFailure). The
+   * latest failure is kept for a line that is not mounted yet, and told to it the moment it is.
+   */
+  function watchReporter(reporter) {
+    return watchBuildErrors(reporter, projectRoot, {
+      failed: function (failure) {
+        latestFailure = failure;
+        if (line !== null) line.bundleDoesNotBuild(failure);
+      },
+      built: function () {
+        latestFailure = null;
+        if (line !== null) line.bundleBuilt();
+      },
+    });
+  }
+
+  return { middleware: middleware, followMetro: followMetro, watchReporter: watchReporter };
 }
 
 /** `ws`'s WebSocketServer, as the project's Metro loads it. ws 7 calls it `Server`. */
@@ -949,7 +1046,7 @@ function applySherloTransforms(result, opts) {
         // Emit the manifest as a pure side-effect; never affects bundle output.
         if (moduleManifestEnabled) {
           var serializerProjectRoot = (options && options.projectRoot) || projectRoot;
-          emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir);
+          emitModuleManifestSidecar(graph, serializerProjectRoot, cacheDir, entryPoint);
         }
         mockShims.warnUnreachedMocks(mockSetup);
         // Delegate to the original serializer and return its output unchanged.
@@ -995,7 +1092,10 @@ function applySherloTransforms(result, opts) {
     serializer.customSerializer = sherloCustomSerializer;
   }
 
-  return Object.assign({}, baseResult, {
+  // Metro's reporter, when the config has one, goes on as it was, and the line hears each build's end.
+  var watchedReporter = bundlerLine.watchReporter(baseResult.reporter);
+
+  return Object.assign({}, baseResult, watchedReporter ? { reporter: watchedReporter } : {}, {
     // unstable_allowRequireContext: sb8/sb9 withStorybook(enabled:false) omits this flag, but
     // storybook.requires.ts still uses require.context(). Without this, Metro 0.81.x embeds a
     // throwing stub for r.context, crashing the app before any Sherlo error handling fires.

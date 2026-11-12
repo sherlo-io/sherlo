@@ -9,6 +9,7 @@ export { default as isStorybookMode } from './isStorybookMode';
 export { default as openStorybook } from './openStorybook';
 export { mock } from './mocking/mockDeclaration';
 export type { MockDeclaration } from './mocking/mockDeclaration';
+export { original } from './mocking/overlay';
 export { mockRequest } from './mocking/networkDeclaration';
 export type {
   HttpMethod,
@@ -23,6 +24,10 @@ export type {
 export { UnmockedRequestError } from './mocking/networkRules';
 export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
+export { startState } from './mocking/startState';
+export type { StartState } from './mocking/startState';
+export { freshInstall, given, signedOut } from './preconditions';
+export type { Given, Precondition, PreconditionParts } from './preconditions';
 export { awaitReady } from './storyReady';
 export type { ReadyOutcome } from './storyReady';
 export type {
@@ -31,6 +36,7 @@ export type {
   PlayStep,
   ReadyStep,
   SceneDevice,
+  SceneMember,
   ScenePermission,
   TapStep,
   TapTarget,

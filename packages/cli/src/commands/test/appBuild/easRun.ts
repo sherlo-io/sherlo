@@ -33,6 +33,7 @@ import {
   throwError,
 } from '../../../helpers';
 import type { BaseFingerprints } from '../../../helpers/fingerprint';
+import type { GitInfo } from '../../../helpers/getGitInfo';
 import { readProjectJson } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import { serverCalls } from '../../../seams/serverCalls';
@@ -70,7 +71,10 @@ export async function easRun({
   settings,
   runIdFlag,
   fingerprints,
+  gitInfo,
 }: {
+  /** The git read the gate's ask already made; read here only when none was handed in. */
+  gitInfo?: GitInfo;
   commandParams: CommandParams<THIS_COMMAND>;
   platforms: Platform[];
   settings: BuildSettings;
@@ -98,9 +102,9 @@ export async function easRun({
       projectIndex,
       asyncUpload: true,
       buildRunConfig: getBuildRunConfig({ commandParams }),
-      gitInfo: await getGitInfo(commandParams.projectRoot, {
-        branchOverride: commandParams.gitBranch,
-      }),
+      gitInfo:
+        gitInfo ??
+        (await getGitInfo(commandParams.projectRoot, { branchOverride: commandParams.gitBranch })),
       message: commandParams.message,
       // Built on Expo's servers; each build's story count comes with its delivery (the EAS hook).
       pushFacts: pushFactsOf({

@@ -11,54 +11,56 @@
  * still came back with a record - that is the developer's news, not the tool's failure.
  */
 import {
-  DEFAULT_BUNDLER_PORT,
+  ALL_SCENES_OPTION,
   JSON_OPTION,
   LOGS_OPTION,
   DISCOVER_OPTION,
   PNG_OPTION,
   PORT_OPTION,
   SCENE_OPTION,
+  STOP_ON_REPEAT_OPTION,
   STORY_OPTION,
+  allScenesRefusal,
   discoverRefusal,
   pngWithoutSceneRefusal,
   sceneWithStoryRefusal,
+  stopOnRepeatRefusal,
 } from '../../constants';
 import { throwError } from '../../helpers';
 import getCwd from '../../helpers/getCwd';
-import { applySceneDevice, deviceOfScene } from '../../seams/sceneDevice';
-import type { SceneDeviceField } from '../../seams/sceneDevice';
+import { sceneIdsOfApp } from '../../seams/sceneDevice';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
 import { captureSocket } from '../../seams/captureSocket';
-import {
-  appIsInstalled,
-  deviceState,
-  endOnNotDebuggable,
-  isTarget,
-  prepareCleanDevice,
-  saveScreenPicture,
-} from '../../seams/deviceState';
-import type { SceneDevice } from '../../seams/deviceState';
+import { deviceState, isTarget } from '../../seams/deviceState';
+import { CAPTURES_FOLDER, guardCapture, sceneCameUp } from '../../seams/localCaptures';
+import { readPort } from '../../helpers/readPort';
+import { keepTheCapture, openCapture, runScene, savePicture } from './runScene';
 import type { CaptureResult } from '../../seams/captureSocket';
+import type { CaptureOptions } from './captureOptions';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
-import type { CapturedScene, ScenePicture } from '../../render/capturedScene';
-
-export type CaptureOptions = {
-  [STORY_OPTION]?: string;
-  [SCENE_OPTION]?: string;
-  [DISCOVER_OPTION]?: boolean;
-  [PORT_OPTION]?: string;
-  [JSON_OPTION]?: boolean;
-  [LOGS_OPTION]?: boolean;
-  [PNG_OPTION]?: string;
-};
+import type { CapturedScene } from '../../render/capturedScene';
+import { lineAfterScene } from '../../render/lineAfterScene';
+import { sceneCauseOf } from '../../seams/sceneCause';
+import type { CauseStreak } from '../../seams/sceneCause';
+import { outcomeOf } from '../../render/sceneOutcome';
+import type { SceneOutcome } from '../../render/sceneOutcome';
 
 async function capture(passedOptions: CaptureOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
   const sceneId = passedOptions[SCENE_OPTION];
 
+  if (passedOptions[ALL_SCENES_OPTION]) {
+    if (sceneId || storyId || passedOptions[PNG_OPTION] || passedOptions[DISCOVER_OPTION]) {
+      throwError({ message: allScenesRefusal() });
+    }
+    return captureEveryScene(passedOptions);
+  }
+  if (passedOptions[STOP_ON_REPEAT_OPTION]) {
+    throwError({ message: stopOnRepeatRefusal() });
+  }
   if (sceneId && storyId) {
     throwError({ message: sceneWithStoryRefusal('capture') });
   }
@@ -81,10 +83,18 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
 
   const port = readPort(passedOptions[PORT_OPTION]);
 
-  const answer = await captureSocket().captureStory({
-    storyId,
-    port,
-    settings: STABILIZATION_SETTINGS,
+  const keptFolder = openCapture(storyId);
+  const { answer, kept } = await guardCapture(keptFolder, async () => {
+    const target = keptFolder ? await deviceState().sceneTarget() : undefined;
+    const answer = await captureSocket().captureStory({
+      storyId,
+      port,
+      settings: STABILIZATION_SETTINGS,
+    });
+    if (keptFolder && target && isTarget(target) && answer.kind === 'captured') {
+      await savePicture(target.device, keptFolder.screenPath);
+    }
+    return { answer, kept: await keepTheCapture(keptFolder, answer, target) };
   });
 
   if (passedOptions[JSON_OPTION]) {
@@ -100,6 +110,7 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
     if (passedOptions[LOGS_OPTION] && (answer.kind === 'captured' || answer.kind === 'crashed')) {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
+    if (kept) emit({ kind: 'kept-capture', id: storyId });
   }
 
   if (answer.kind !== 'captured') process.exit(EXIT_BLOCK);
@@ -114,77 +125,94 @@ export default capture;
  * reads it. Any ending but the record is a refusal and leaves the process with EXIT_BLOCK.
  */
 async function captureScene(sceneId: string, passedOptions: CaptureOptions): Promise<void> {
-  const port = readPort(passedOptions[PORT_OPTION]);
-
-  // The scene runs on a clean device, and every ending - a throw included - puts it back.
-  const target = await deviceState().sceneTarget();
-  // An app that is not on the device has nothing to clean or launch: it ends as no app attached.
-  const installed = !isTarget(target) || (await appIsInstalled(target));
-  // The scene's own phone setup, read from its file before the device is touched.
-  const field = isTarget(target) && installed ? sceneDeviceField(sceneId) : undefined;
-  const restore =
-    isTarget(target) && installed
-      ? await prepareCleanDevice(target.device, target.app, field).catch(endOnNotDebuggable)
-      : undefined;
-  const pngPath = passedOptions[PNG_OPTION];
-  const discover = passedOptions[DISCOVER_OPTION] === true;
-  let answer: SceneCaptureResult;
-  let notApplied: string[] = [];
-  let picture: ScenePicture | undefined = pngPath ? { path: pngPath } : undefined;
-  try {
-    if (isTarget(target) && installed) notApplied = await applySceneDevice(target, field);
-    answer = installed
-      ? await captureSocket().captureScene({
-          sceneId,
-          port,
-          settings: STABILIZATION_SETTINGS,
-          target,
-          discover,
-        })
-      : { kind: 'no-app', why: 'not-installed' };
-    // The screen as the app left it: the clean device's put-back below would show the home screen.
-    if (picture && answer.kind === 'scene' && isTarget(target)) {
-      picture = await savePicture(target.device, picture.path);
-    }
-  } finally {
-    await restore?.();
-  }
+  const { answer, record, picture, port, discover, kept } = await runScene(sceneId, passedOptions);
 
   if (passedOptions[JSON_OPTION]) {
-    const saved = picture && !picture.error && answer.kind === 'scene' ? { png: picture.path } : {};
-    const unapplied = notApplied.length > 0 ? { deviceNotApplied: notApplied } : {};
-    const listed = discover ? { discover: true } : {};
-    const record = { ...answer, ...saved, ...unapplied, ...listed };
     process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
   } else {
     emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port, discover), picture });
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
+    if (kept) emit({ kind: 'kept-capture', id: sceneId });
   }
 
+  if (sceneFailed(answer, discover)) process.exit(EXIT_BLOCK);
+}
+
+/**
+ * `sherlo capture --all-scenes` - every scene the app declares, one after another, each kept the
+ * same way. The scenes are read where `--scene` finds one. Each prints one line as it finishes
+ * (../../render/capturedAllScenes); a scene failing for the cause the one before it did warns
+ * once and the run carries on - or stops, with `--stop-on-repeat` - and a closing summary counts
+ * the endings and says where the captures are.
+ */
+async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
+  const sceneIds = sceneIdsOfApp(getCwd());
+  const asJson = passedOptions[JSON_OPTION] === true;
+  if (sceneIds.length === 0 && !asJson) {
+    emit({ kind: 'no-scenes-to-capture' });
+    return;
+  }
+  let failed = false;
+  let streak: CauseStreak = { count: 0, warned: false };
+  const scenes: { sceneId: string; record: unknown }[] = [];
+  const counts: Record<SceneOutcome, number> = {
+    captured: 0,
+    'never-settled': 0,
+    'never-reached': 0,
+    failed: 0,
+  };
+  for (const [index, sceneId] of sceneIds.entries()) {
+    const { answer, record, discover } = await runScene(sceneId, passedOptions);
+    failed = failed || sceneFailed(answer, discover);
+    counts[outcomeOf(answer.kind)] += 1;
+    const remaining = sceneIds.length - index - 1;
+    const stopOnRepeat = passedOptions[STOP_ON_REPEAT_OPTION] === true;
+    const after = lineAfterScene(
+      sceneId,
+      answer,
+      sceneCauseOf(answer),
+      remaining,
+      stopOnRepeat,
+      streak
+    );
+    streak = after.streak;
+    const { stopping } = after;
+    if (asJson) scenes.push({ sceneId, record });
+    else emit({ kind: 'scene-run-line', line: after.line });
+    // Code that does not build fails every scene the same way: it is said once, before the rest run.
+    if (answer.kind === 'bundle-does-not-build' && !asJson) {
+      emit({
+        kind: 'captured-scene',
+        state: capturedSceneEnding(answer, readPort(passedOptions[PORT_OPTION])),
+      });
+      break;
+    }
+    if (stopping) break;
+  }
+  if (asJson) {
+    // One document for the whole run; each scene's record is what `--scene <id> --json` prints.
+    process.stdout.write(`${JSON.stringify({ scenes }, null, 2)}\n`);
+  } else {
+    emit({
+      kind: 'all-scenes-summary',
+      summary: {
+        folder: CAPTURES_FOLDER,
+        captured: counts.captured,
+        neverSettled: counts['never-settled'],
+        neverReached: counts['never-reached'],
+        failed: counts.failed,
+      },
+    });
+  }
+  if (failed) process.exit(EXIT_BLOCK);
+}
+
+/** Whether a scene ending leaves the command with the block code; a discover capture's list is not a failure. */
+function sceneFailed(answer: SceneCaptureResult, discover: boolean): boolean {
   // A discover capture holds requests, so the scene often never gets ready: that is its list, not a failure.
-  const gotTheList = discover && answer.kind === 'never-reached';
-  if (answer.kind !== 'scene' && !gotTheList) process.exit(EXIT_BLOCK);
-}
-
-/** The device the scene's file declares; a field that is not a plain literal ends the command, naming the file. */
-function sceneDeviceField(sceneId: string): SceneDeviceField | undefined {
-  try {
-    return deviceOfScene(getCwd(), sceneId);
-  } catch (error) {
-    return throwError({ message: error instanceof Error ? error.message : String(error) });
-  }
-}
-
-/** Save the device's screen to `path`; a failed save is the picture's own error and changes no ending. */
-async function savePicture(device: SceneDevice, path: string): Promise<ScenePicture> {
-  try {
-    await saveScreenPicture(device, path);
-    return { path };
-  } catch (error) {
-    return { path, error: error instanceof Error ? error.message : String(error) };
-  }
+  return answer.kind !== 'scene' && !(discover && answer.kind === 'never-reached');
 }
 
 /** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */
@@ -193,8 +221,17 @@ export function capturedSceneEnding(
   port: number,
   discover = false
 ): CapturedScene {
-  if (answer.kind === 'no-bundler' || answer.kind === 'no-app') return { kind: answer.kind, port };
-  return discover ? { ...answer, discover: true } : answer;
+  if (answer.kind === 'no-bundler') return { kind: answer.kind, port };
+  if (answer.kind === 'no-app') {
+    // An app on old code is told what to do about it; the other causes have no words of their own here.
+    return answer.why === 'old-code'
+      ? { kind: 'no-app', port, why: 'old-code', detail: answer.detail }
+      : { kind: 'no-app', port };
+  }
+  // The screen has no ending of its own for a scene that kept its picture and had a request refused:
+  // it shows the scene, with the refused requests it lists.
+  const shown = sceneCameUp(answer) ? { ...answer, kind: 'scene' as const } : answer;
+  return discover ? { ...shown, discover: true } : shown;
 }
 
 /** What the screen shows for what the app answered. */
@@ -206,7 +243,7 @@ export function endingFor(
     case 'no-bundler':
       return { kind: 'no-bundler', port: run.port };
     case 'no-app':
-      return { kind: 'no-app', port: run.port };
+      return { ...answer, port: run.port };
     case 'no-such-story':
       return {
         kind: 'no-such-story',
@@ -250,17 +287,4 @@ export function endingFor(
         tree: answer.tree,
       };
   }
-}
-
-function readPort(passed: string | undefined): number {
-  if (passed === undefined) return DEFAULT_BUNDLER_PORT;
-
-  const port = Number(passed);
-  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-    throwError({
-      message: `\`--${PORT_OPTION}\` takes a port number, and \`${passed}\` is not one.`,
-    });
-  }
-
-  return port;
 }

@@ -1,0 +1,31 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--chat-with-match"],
+  "capture": {
+    "scenes": ["kindred--chat-with-match", "kindred--chat-empty"],
+    "bundleFailure": {
+      "kind": "unresolved-import",
+      "message": "Unable to resolve \"scenes/mocks/flags\" from \"src/screens/Chat/Chat.scenes.tsx\"",
+      "file": "src/screens/Chat/Chat.scenes.tsx",
+      "line": 11,
+      "column": 23,
+      "frame": [
+        "   9 | import { Chat } from './Chat';",
+        "  10 | import { chatScene } from 'scenes/helpers';",
+        "> 11 | import { flags } from 'scenes/mocks/flags';",
+        "     |                       ^",
+        "  12 |"
+      ],
+      "importPath": "scenes/mocks/flags",
+      "knownToTheTypeCheck": "baseUrl \"src\""
+    }
+  }
+}

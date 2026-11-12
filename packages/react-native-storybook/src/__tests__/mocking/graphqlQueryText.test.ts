@@ -2,7 +2,7 @@
  * GraphQL query text read with no library (../../mocking/graphqlQueryText): what the answer check
  * walks a faked answer beside.
  */
-import { graphqlDocumentOf } from '../../mocking/graphqlQueryText';
+import { graphqlDocumentOf, graphqlOperationOf } from '../../mocking/graphqlQueryText';
 
 describe('reading GraphQL query text', () => {
   it('a query text is read into its operations and fragments, with aliases, spreads and conditions', () => {
@@ -38,6 +38,21 @@ describe('reading GraphQL query text', () => {
       { selections: [{ kind: 'field', key: 'touch', name: 'touch', conditional: false }] },
     ]);
     expect(document?.fragments.get('ShelfCard')?.on).toBe('Shelf');
+  });
+
+  it('the operation name is read from the URL, then from each item of a batch, then from the query text', () => {
+    const URL = 'https://api.sherlo.invalid/graphql';
+    const batch = JSON.stringify([
+      { operationName: 'Shelf', query: 'query Other { id }' },
+      { query: 'query FromText { id }' },
+      { query: '{ id }' },
+    ]);
+
+    expect(graphqlOperationOf(`${URL}?operationName=FromUrl`, batch)).toBe('FromUrl');
+    expect(graphqlOperationOf(URL, batch)).toBe('Shelf, FromText');
+    expect(graphqlOperationOf(URL, JSON.stringify({ query: 'query Solo { id }' }))).toBe('Solo');
+    expect(graphqlOperationOf(`${URL}?query=query%20Got%20%7B%20id%20%7D`, undefined)).toBe('Got');
+    expect(graphqlOperationOf(URL, undefined)).toBeUndefined();
   });
 
   it('text that does not read as GraphQL gives nothing', () => {

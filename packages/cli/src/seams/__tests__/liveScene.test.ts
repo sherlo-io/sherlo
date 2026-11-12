@@ -2,10 +2,13 @@
  * THE LIVE HALF OF A SCENE - what `sherlo capture --scene` and `sherlo open --scene` do against a
  * bundler with the Sherlo line on it, and a device that only records what it was told to run.
  */
+import * as fs from 'fs';
 import * as http from 'http';
+import { PNG } from 'pngjs';
 import WebSocket, { WebSocketServer } from 'ws';
 import {
   attach,
+  BUNDLER_STAMP,
   LINE_PATH,
   PROTOCOL_VERSION,
 } from '../../../../react-native-storybook/metro/sherloLine';
@@ -15,6 +18,8 @@ import { STABILIZATION_SETTINGS } from '../bundlerLine';
 import { liveCaptureSocket } from '../captureSocket';
 import { liveLetterbox } from '../letterbox';
 import { captureLiveScene, readSceneAnswer } from '../liveScene';
+import { sceneCauseOf } from '../sceneCause';
+import { outcomeOf } from '../../render/sceneOutcome';
 import { installDeviceState, posedDeviceState } from '../deviceState';
 import type { NoTarget, SceneTarget } from '../deviceState';
 import { renderCapturedScene } from '../../render/capturedScene';
@@ -44,6 +49,9 @@ const SCENE_RECORD = {
   settled: { ms: 1500, frames: 6 },
   tree: { primitive: 'RCTView', components: [], children: [] },
 };
+
+/** A watch of the screen that never looks, for a test that runs the clock by hand. */
+const NEVER_LOOKS = { stillMs: 1, loadingMs: 1, lookEveryMs: 10 ** 9 };
 
 /** What a pretend bundler's `say` returns for a question the line never answers. */
 const NO_ANSWER = Symbol('no answer');
@@ -184,7 +192,15 @@ async function appOnTheLine(
 
 /** An app's wait for a capture, in `mode`, with the scene in its bundle. */
 function waitForACapture(mode: string, answer: unknown) {
-  return { action: 'waitForACapture', mode, stories: [SCENE], scenes: [SCENE], answer };
+  return {
+    action: 'waitForACapture',
+    mode,
+    stories: [SCENE],
+    scenes: [SCENE],
+    answer,
+    // The code the bundler serves now, as the launch entry stamps it.
+    codeStamp: BUNDLER_STAMP,
+  };
 }
 
 /** Long enough for what an app sent to land on the line. */
@@ -312,7 +328,8 @@ describe('a scene is captured and opened live', () => {
     expect(crashed).toEqual({
       kind: 'crashed-mid-capture',
       sceneId: SCENE,
-      error: { name: 'TypeError', message: 'boom' },
+      // The stack's top frames now travel with the error, so the CLI can name the source line.
+      error: { name: 'TypeError', message: 'boom', topFrames: ['at start (/app/index.js:12:3)'] },
       threw: { name: 'TypeError', message: 'boom' },
       stillReal: ['src/api.ts'],
       unanswered: [{ method: 'GET', url: 'https://x.test/a' }],
@@ -632,6 +649,7 @@ describe('a scene is captured and opened live', () => {
           port: slow.port,
           settings,
           target: ANDROID,
+          onStill: NEVER_LOOKS,
         });
         // Let the real sockets carry the question, then let the patience run out.
         while (!slow.asked.some(isTheCapture)) await new Promise((next) => setImmediate(next));
@@ -642,6 +660,41 @@ describe('a scene is captured and opened live', () => {
       }
     } finally {
       uninstall();
+    }
+  });
+
+  it('a scene on an app running old code ends before any picture, saying how to load the current code', async () => {
+    const line = await realLine();
+    const told: Instruction[] = [];
+    const apps: Awaited<ReturnType<typeof appOnTheLine>>[] = [];
+
+    // The launched app runs the code built into it: its wait carries no stamp.
+    const uninstall = launchingDevice(async () => {
+      const app = await appOnTheLine(line.port, (instruction) => told.push(instruction));
+      apps.push(app);
+      app.say({ ...waitForACapture('testing', null), codeStamp: undefined });
+      await landed();
+    });
+    try {
+      const ending = await captureLiveScene({
+        sceneId: SCENE,
+        port: line.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+      expect(ending).toMatchObject({ kind: 'no-app', why: 'old-code' });
+      expect((ending as { detail?: string }).detail).toContain('Reload');
+      // What the terminal shows is the reason and the reload step, not "no app is attached".
+      const screen = renderCapturedScene(capturedSceneEnding(ending, line.port)).join('\n');
+      expect(screen).toContain('runs the code built into it');
+      expect(screen).toContain('choose Reload');
+      expect(screen).not.toContain('no Sherlo app is attached');
+      // The app was let go with an empty instruction, never handed the scene to walk.
+      expect(told).toEqual([{}]);
+    } finally {
+      uninstall();
+      apps.forEach((app) => app.leave());
+      line.close();
     }
   });
 
@@ -661,6 +714,7 @@ describe('a scene is captured and opened live', () => {
           port: looping.port,
           settings: STABILIZATION_SETTINGS,
           target: ANDROID,
+          onStill: NEVER_LOOKS,
         });
         while (!looping.asked.some(isTheCapture)) await new Promise((next) => setImmediate(next));
         await vi.advanceTimersByTimeAsync(130_000);
@@ -1097,5 +1151,239 @@ describe('a scene is captured and opened live', () => {
     }
     // The feed was emptied before the launch, which is the only thing asked.
     expect(bundler.asked).toEqual([{ action: 'readLogLines' }]);
+  });
+});
+
+/** One view of a `uiautomator dump`, as the phone prints it. */
+const viewOf = (attributes: Record<string, string>) =>
+  `<node ${Object.entries({
+    class: 'android.widget.TextView',
+    package: 'com.example.chat',
+    ...attributes,
+  })
+    .map(([name, value]) => `${name}="${value}"`)
+    .join(' ')} />`;
+
+/** The whole dump of a screen made of these views. */
+const dumpOf = (...views: string[]) =>
+  `<?xml version='1.0'?><hierarchy rotation="0">${views.join('')}</hierarchy>\nUI hierchary dumped to: /dev/tty`;
+
+/** Small numbers for the limit, so a still screen is found in a blink. */
+const QUICK = { stillMs: 60, loadingMs: 300, lookEveryMs: 10 };
+
+/** An Android phone whose screen dump is `dump`; the app never answers the scene. */
+async function stuckOn(dump: string, onStill = QUICK) {
+  // The app logs once its JavaScript runs, which is when the watch of the screen begins. The launch
+  // empties the feed first, so the first read finds it bare.
+  const feed: string[] = [];
+  let reads = 0;
+  const bundler = await pretendBundler((question) => {
+    if (question.action !== 'readLogLines') return NO_ANSWER;
+    if (reads++ === 1) feed.push('12:00:00: sent its hello');
+    return { lines: feed.splice(0) };
+  });
+  const { uninstall } = recordingDevice({
+    'resolve-activity': LAUNCHER_ANSWER,
+    uiautomator: dump,
+  });
+  const startedAt = Date.now();
+  try {
+    const ending = await captureLiveScene({
+      sceneId: SCENE,
+      port: bundler.port,
+      settings: STABILIZATION_SETTINGS,
+      target: ANDROID,
+      onStill,
+    });
+    return { ending, waitedMs: Date.now() - startedAt };
+  } finally {
+    uninstall();
+  }
+}
+
+describe('a scene that does not get ready ends by what the screen shows', () => {
+  it('a never settled answer keeps the picture and is not counted as captured', async () => {
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines'
+        ? { lines: [] }
+        : {
+            kind: 'never-settled',
+            sceneId: SCENE,
+            bootMs: 900,
+            route: ['ChatStack', 'Chat'],
+            changing: ['Spinner#loader'],
+            unfocused: ['email'],
+            picture: 'taken-at-the-limit',
+          }
+    );
+    const { uninstall } = recordingDevice();
+    try {
+      const ending = await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+
+      expect(ending).toMatchObject({
+        kind: 'never-settled',
+        reached: { route: ['ChatStack', 'Chat'] },
+        changing: ['Spinner#loader'],
+        unfocused: ['email'],
+      });
+      expect(outcomeOf(ending.kind)).toBe('never-settled');
+    } finally {
+      uninstall();
+    }
+  });
+
+  it('a scene still on another screen for 10 seconds with nothing loading ends as never reached', async () => {
+    const { ending, waitedMs } = await stuckOn(
+      dumpOf(viewOf({ text: 'Welcome back' }), viewOf({ text: 'Sign in' })),
+      { stillMs: 100, loadingMs: 1000, lookEveryMs: 10 }
+    );
+
+    expect(ending).toMatchObject({
+      kind: 'never-reached',
+      sceneId: SCENE,
+      stop: {
+        kind: 'on-another-screen',
+        screen: { words: ['Welcome back', 'Sign in'], views: 2 },
+      },
+    });
+    expect(waitedMs).toBeGreaterThanOrEqual(100);
+    expect(waitedMs).toBeLessThan(1000);
+  });
+
+  it('the lines the app logged before the screen was found still stay in the ending', async () => {
+    const { ending } = await stuckOn(dumpOf(viewOf({ text: 'Welcome back' })));
+
+    expect(ending.logs).toEqual(['12:00:00: sent its hello']);
+  });
+
+  it('with a request pending the stillness limit is 20 seconds', async () => {
+    const { ending, waitedMs } = await stuckOn(
+      dumpOf(viewOf({ text: 'Loading chats' }), viewOf({ class: 'android.widget.ProgressBar' })),
+      { stillMs: 50, loadingMs: 400, lookEveryMs: 10 }
+    );
+
+    expect(ending.kind).toBe('never-reached');
+    expect(waitedMs).toBeGreaterThanOrEqual(400);
+  });
+
+  it('a screen that drew no views is reported as blank with its picture and route', async () => {
+    const { ending } = await stuckOn(
+      dumpOf(
+        viewOf({ class: 'android.widget.FrameLayout' }),
+        viewOf({ class: 'android.view.View' })
+      )
+    );
+
+    expect(ending).toMatchObject({
+      kind: 'never-reached',
+      stop: { kind: 'blank', screen: { words: [], views: 0 } },
+    });
+  });
+
+  it('a permission dialog still on screen at capture ends the scene as covered, naming the permission', async () => {
+    const { ending } = await stuckOn(
+      dumpOf(
+        viewOf({
+          package: 'com.google.android.permissioncontroller',
+          text: 'Allow Chat to take pictures and record video?',
+        }),
+        viewOf({ package: 'com.google.android.permissioncontroller', text: 'Camera' })
+      )
+    );
+
+    expect(ending).toMatchObject({
+      kind: 'never-reached',
+      permission: 'camera',
+      stop: { kind: 'covered', early: { stuckOn: 'consent' } },
+    });
+    expect(sceneCauseOf(ending)).toBe('covered by the camera permission dialog');
+  });
+
+  it('a scene that refused a request ends as incomplete with each refused request and the rule that refused it', async () => {
+    const refused = {
+      method: 'GET',
+      url: 'https://api.example.com/chats',
+      scope: 'screen',
+      rule: 'no-fake-matched',
+    };
+    const bundler = await pretendBundler((question) =>
+      question.action === 'readLogLines'
+        ? { lines: [] }
+        : { ...SCENE_RECORD, unanswered: [refused] }
+    );
+    const { uninstall } = recordingDevice();
+    try {
+      const ending = await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+
+      expect(ending).toMatchObject({ kind: 'incomplete', unanswered: [refused] });
+      expect(ending).toHaveProperty('tree');
+    } finally {
+      uninstall();
+    }
+  });
+});
+
+describe('a scene that scrolls is saved as its whole scroll', () => {
+  it("the scene's saved picture is the joined whole scroll", async () => {
+    // A page 150 rows tall on a screen of 100 rows; each row is its own colour.
+    const screenAt = (top: number) => {
+      const png = new PNG({ width: 2, height: 100 });
+      for (let y = 0; y < 100; y++) {
+        for (let x = 0; x < 2; x++) {
+          png.data[(y * 2 + x) * 4] = top + y;
+          png.data[(y * 2 + x) * 4 + 3] = 255;
+        }
+      }
+      return PNG.sync.write(png);
+    };
+    let top = 0;
+    const bundler = await pretendBundler((question) => {
+      if (question.action === 'readLogLines') return { lines: [] };
+      if (question.action !== 'askTheApp') return SCENE_RECORD;
+      const { ask } = question as unknown as {
+        ask: { action: string; index: number; offset: number };
+      };
+      if (ask.action === 'is-scrollable') {
+        return { kind: 'answered', answer: { scrollable: true } };
+      }
+      top = Math.min(ask.index * ask.offset, 50);
+      return { kind: 'answered', answer: { reachedBottom: top === 50, appliedOffsetPx: top } };
+    });
+    const uninstall = installDeviceState({
+      ...posedDeviceState(),
+      run: async (_tool, args) => {
+        if (args.includes('screenshot')) fs.writeFileSync(args[args.length - 1], screenAt(top));
+        return '';
+      },
+    });
+
+    try {
+      const ending = await captureLiveScene({
+        sceneId: SCENE,
+        port: bundler.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+        wholeScroll: true,
+      });
+
+      const joined = ending.kind === 'scene' ? ending.scroll?.picture : undefined;
+      const picture = joined && PNG.sync.read(joined);
+      expect(picture?.height).toBe(150);
+      expect(picture && Array.from({ length: 150 }, (_, y) => picture.data[y * 2 * 4])).toEqual(
+        Array.from({ length: 150 }, (_, y) => y)
+      );
+    } finally {
+      uninstall();
+    }
   });
 });

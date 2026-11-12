@@ -47,6 +47,12 @@ yarn run ncc build metro/sherloBuild.js --minify --out "$WORK_DIR/sherloBuild"
 
 mv "$WORK_DIR/sherloBuild/index.js" "$OUTPUT_DIR/sherloBuild.js"
 
+# The Xcode project reader is loaded on its own by the same react-native.config.js, to find the app
+# target's configurations.
+yarn run ncc build metro/xcodeProject.js --minify --out "$WORK_DIR/xcodeProject"
+
+mv "$WORK_DIR/xcodeProject/index.js" "$OUTPUT_DIR/xcodeProject.js"
+
 # The line's server half is also loaded on its own, by a program that mounts it on a server of its
 # own (metro/sherloLine.d.ts types it).
 yarn run ncc build metro/sherloLine.js --minify --out "$WORK_DIR/sherloLine"

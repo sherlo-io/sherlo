@@ -199,5 +199,7 @@
 
 [2m   17 views · --json prints the record[22m
 
+[2mKept in .sherlo/captures as foundation-typography--scales[22m
+
 
 [exit 0]

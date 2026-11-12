@@ -39,6 +39,7 @@ import {
   renderAppBuildFailed,
   renderAppBuildNextStep,
   renderEasHostedVariables,
+  renderIosBuildPicked,
 } from './appBuild';
 import {
   renderBranchingOff,
@@ -72,8 +73,11 @@ import { renderOpenedStory } from './openedStory';
 import { renderCapturedStory } from './capturedStory';
 import { renderOpenedScene } from './openedScene';
 import { renderCapturedScene } from './capturedScene';
+import { renderAllScenesSummary } from './capturedAllScenes';
+import { renderSceneRunLine } from './sceneRunLine';
 import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
+import { renderKeptCapture, renderNoScenesToCapture } from './keptCapture';
 import { renderTeamList } from './teamList';
 import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
 import {
@@ -130,6 +134,11 @@ export type RenderedSegment = {
   stream: TranscriptStream;
   prints: unknown[][];
 };
+
+/** A screen of lines, one print call each, on stdout. */
+function onStdout(lines: string[]): RenderedSegment {
+  return { stream: 'stdout', prints: lines.map((line) => [line]) };
+}
 
 /** Turn one segment into the exact print calls the CLI makes for it. */
 export function renderSegment(segment: TranscriptSegment): RenderedSegment {
@@ -288,6 +297,9 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
 
     case 'app-build-done':
       return { stream: 'stdout', prints: [[renderAppBuildDone(segment)]] };
+
+    case 'app-build-picked-ios':
+      return { stream: 'stdout', prints: renderIosBuildPicked(segment).map((line) => [line]) };
 
     case 'app-build-failed':
       return { stream: 'stdout', prints: renderAppBuildFailed(segment).map((line) => [line]) };
@@ -474,28 +486,28 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       };
 
     case 'opened-scene':
-      return {
-        stream: 'stdout',
-        prints: renderOpenedScene(segment.state).map((line) => [line]),
-      };
+      return onStdout(renderOpenedScene(segment.state));
 
     case 'captured-scene':
-      return {
-        stream: 'stdout',
-        prints: renderCapturedScene(segment.state, segment.picture).map((line) => [line]),
-      };
+      return onStdout(renderCapturedScene(segment.state, segment.picture));
+
+    case 'scene-run-line':
+      return onStdout(renderSceneRunLine(segment.line));
+
+    case 'all-scenes-summary':
+      return onStdout(renderAllScenesSummary(segment.summary));
 
     case 'coverage':
-      return {
-        stream: 'stdout',
-        prints: renderCoverage(segment.screen).map((line) => [line]),
-      };
+      return onStdout(renderCoverage(segment.screen));
+
+    case 'kept-capture':
+      return onStdout(renderKeptCapture(segment.id));
+
+    case 'no-scenes-to-capture':
+      return onStdout(renderNoScenesToCapture());
 
     case 'captured-log':
-      return {
-        stream: 'stdout',
-        prints: renderCapturedLog(segment.logs).map((line) => [line]),
-      };
+      return onStdout(renderCapturedLog(segment.logs));
 
     case 'team-list':
       return {

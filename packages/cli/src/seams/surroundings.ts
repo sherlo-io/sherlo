@@ -19,6 +19,7 @@
  */
 import type { GitInfo } from '../helpers/getGitInfo';
 import { degradeGitInfo, readGitInfoFromDisk } from '../helpers/getGitInfo';
+import { LIVE_WEB_APP } from '../helpers/getAppDomain';
 import { emit } from '../helpers/transcriptSink';
 
 /** What a command reads from outside its project folder. */
@@ -172,7 +173,9 @@ export function posedSurroundings({
 
     installSettings: () => {
       const previous = process.env;
-      process.env = { ...env };
+      // A posed run is the live product: its links name the live web app, whatever stage this
+      // build of the API client was made for, unless the pose says otherwise.
+      process.env = { SHERLO_APP_URL: LIVE_WEB_APP, ...env };
       return () => {
         process.env = previous;
       };

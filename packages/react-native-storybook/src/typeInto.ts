@@ -11,7 +11,7 @@ import type { WalkedFiber } from './sealedCore/seam';
 import { nativeTagOf, publicInstanceOf } from './tapReach';
 import { textInputCommandsFor } from './textInputCommands';
 
-const TEXT_FIELD_HOSTS = [
+export const TEXT_FIELD_HOSTS = [
   'RCTSinglelineTextInputView',
   'RCTMultilineTextInputView',
   'AndroidTextInput',

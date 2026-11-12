@@ -23,5 +23,7 @@ export { activateNetworkMocks, clearNetworkMocks } from './network';
 export { UnmockedRequestError } from './networkRules';
 export { mockClock } from './clock';
 export { mockRandom } from './random';
+export { startState } from './startState';
+export type { StartState } from './startState';
 export { MOCK_DENY_LIST } from './denyList';
 export * from './types';

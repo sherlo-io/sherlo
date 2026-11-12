@@ -1,0 +1,30 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--discover-tab"],
+  "capture": {
+    "scenes": ["kindred--discover-tab", "kindred--chat-empty"],
+    "route": ["AppStack", "Discover"],
+    "bootMs": 1600,
+    "reachedMs": 2900,
+    "play": [],
+    "settled": { "ms": 700, "frames": 4 },
+    "letThrough": [
+      { "method": "GET", "url": "https://api.kindred.example/v1/discover/feed" },
+      { "method": "GET", "url": "https://api.kindred.example/v1/discover/feed?page=2" }
+    ],
+    "tree": {
+      "primitive": "View",
+      "components": ["Discover"],
+      "size": { "width": 360, "height": 800 },
+      "children": [{ "primitive": "Text", "text": "Discover" }]
+    }
+  }
+}

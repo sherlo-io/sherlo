@@ -29,11 +29,14 @@ final class TouchHelper {
         final int hitTag;
         /** The class name of the view the touch hit. */
         final String hitClass;
+        /** The class name of the window searched (the decor view), named when a target is missing. */
+        final String window;
 
-        Result(boolean reachedReact, int hitTag, String hitClass) {
+        Result(boolean reachedReact, int hitTag, String hitClass, String window) {
             this.reachedReact = reachedReact;
             this.hitTag = hitTag;
             this.hitClass = hitClass;
+            this.window = window;
         }
     }
 
@@ -178,7 +181,7 @@ final class TouchHelper {
                 reachedReact = true;
             }
         }
-        return new Result(reachedReact, hitTag, hit.getClass().getName());
+        return new Result(reachedReact, hitTag, hit.getClass().getName(), root.getClass().getName());
     }
 
     /**

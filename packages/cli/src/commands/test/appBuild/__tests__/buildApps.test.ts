@@ -11,7 +11,9 @@ import type { Platform } from '@sherlo/api-types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { captureTranscript } from '../../../../helpers/transcriptSink';
 import { type AppBuilder, installAppBuilder } from '../../../../seams/appBuilder';
-import { buildApps, cacheKeyOf, type PlatformToBuild } from '../buildApps';
+import { installNativeBuild, type NativeBuild } from '../../../../seams/nativeBuild';
+import { cacheKeyOf } from '../appBuildCacheKeys';
+import { buildApps, type PlatformToBuild } from '../buildApps';
 import { type BuildSettings, buildSettingsDigest } from '../buildSettings';
 import { localBuildCacheFolder, makeProjectSherloFolder } from '../cacheFolder';
 
@@ -24,6 +26,8 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
     hasTool: vi.fn(async () => true),
     javaVersion: vi.fn(async () => 17),
     listIosSchemes: vi.fn(async () => ['Storefront']),
+    readIosAppTarget: vi.fn(async () => null),
+    listAndroidFlavorTasks: vi.fn(async () => []),
     findCachedBuild: vi.fn(
       async (_: Parameters<AppBuilder['findCachedBuild']>[0]): Promise<string | null> => null
     ),
@@ -51,6 +55,7 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
 }
 
 let uninstallBuilder: () => void = () => undefined;
+let uninstallNativeBuild: () => void = () => undefined;
 let projectRoot: string;
 
 beforeEach(() => {
@@ -62,6 +67,8 @@ beforeEach(() => {
 
 afterEach(() => {
   uninstallBuilder();
+  uninstallNativeBuild();
+  uninstallNativeBuild = () => undefined;
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   fs.rmSync(projectRoot, { recursive: true, force: true });
@@ -120,6 +127,44 @@ describe('sherlo test builds the app on this machine', () => {
 
     await expect(build({ toBuild: IOS })).rejects.toThrow(
       /the workspace has Storefront and StorefrontStaging\.\nName one in sherlo\.config\.json: "build": \{ "ios": \{ "scheme": "Storefront" \} \}/
+    );
+  });
+
+  it('refuses an Android app with product flavors and no build.android.task, listing the flavor tasks, before Gradle starts', async () => {
+    const tasks = [':app:assembleDevRelease', ':app:assembleProdRelease'];
+    const builder = fakeBuilder({ listAndroidFlavorTasks: vi.fn(async () => tasks) });
+
+    await expect(build({ toBuild: ANDROID })).rejects.toThrow(
+      /Set build\.android\.task[\s\S]*:app:assembleDevRelease\n\s*:app:assembleProdRelease/
+    );
+    expect(builder.compile).not.toHaveBeenCalled();
+    expect(builder.listAndroidFlavorTasks).toHaveBeenCalledTimes(1);
+
+    await expect(
+      build({ toBuild: ANDROID, settings: { android: { task: tasks[0] } } })
+    ).resolves.toBeDefined();
+    expect(builder.listAndroidFlavorTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a build.ios.configuration the app target lacks, listing the ones it has, before Xcode starts', async () => {
+    const appTarget = {
+      appSchemes: ['Storefront'],
+      configurations: ['DEV.DEBUG', 'DEV.RELEASE'],
+      archiveConfiguration: 'DEV.RELEASE',
+    };
+    const builder = fakeBuilder({ readIosAppTarget: async () => appTarget });
+
+    await expect(
+      build({ toBuild: IOS, settings: { ios: { configuration: 'Release' } } })
+    ).rejects.toThrow(
+      `Can't pick an iOS configuration: the app has no "Release". It has DEV.DEBUG, DEV.RELEASE.`
+    );
+    expect(builder.compile).not.toHaveBeenCalled();
+
+    // The name is matched without regard to case, and Xcode gets the app's own spelling.
+    await build({ toBuild: IOS, settings: { ios: { configuration: 'dev.release' } } });
+    expect(builder.compile).toHaveBeenCalledWith(
+      expect.objectContaining({ ios: { scheme: 'Storefront', configuration: 'DEV.RELEASE' } })
     );
   });
 
@@ -184,6 +229,50 @@ describe('sherlo test builds the app on this machine', () => {
     expect(builder.compile).not.toHaveBeenCalled();
     expect(builder.generateNativeFolder).not.toHaveBeenCalled();
     expect(builder.keepInCache).not.toHaveBeenCalled();
+  });
+
+  it('also keeps the app build under the fingerprint taken after pod install when the install changed files', async () => {
+    const afterInstall = 'b'.repeat(64);
+    const builder = fakeBuilder({
+      compile: async () => ({
+        ok: true as const,
+        path: '/built/ios',
+        sizeMb: '53.90',
+        seconds: 88,
+        podFilesChanged: [],
+        podInstallChangedFiles: true,
+      }),
+    });
+    const computeFingerprint = vi.fn(async () => ({
+      android: { hash: null },
+      ios: { hash: afterInstall },
+    }));
+    uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+    await build({ toBuild: IOS });
+
+    const keyAfter = (baseFingerprint: string) =>
+      cacheKeyOf({ baseFingerprint, platform: 'ios', settings: {} });
+    expect(computeFingerprint).toHaveBeenCalledWith(projectRoot, 'test');
+    const kept = (
+      builder.keepInCache.mock.calls as unknown as [{ cacheKey: string; path: string }][]
+    ).map(([call]) => call);
+    expect(kept.map((call) => call.cacheKey)).toEqual([
+      keyAfter(FINGERPRINT),
+      keyAfter(afterInstall),
+    ]);
+    expect(kept.map((call) => call.path)).toEqual(['/built/ios', '/built/ios']);
+  });
+
+  it('computes no second fingerprint when pod install changed nothing', async () => {
+    const builder = fakeBuilder();
+    const computeFingerprint = vi.fn();
+    uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+    await build({ toBuild: IOS });
+
+    expect(computeFingerprint).not.toHaveBeenCalled();
+    expect(builder.keepInCache).toHaveBeenCalledTimes(1);
   });
 
   it('a changed build setting misses the local build cache', () => {

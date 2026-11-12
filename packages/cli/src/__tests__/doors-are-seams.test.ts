@@ -296,6 +296,7 @@ const LIVE_HALF_SET: { file: string; seam: string }[] = [
   { file: 'commands/test/uploadStagedArtifacts.ts', seam: 'nativeBuild' },
   { file: 'helpers/fingerprint/baseFingerprint.ts', seam: 'nativeBuild' },
   { file: 'helpers/fingerprint/gateMetadata.ts', seam: 'nativeBuild' },
+  { file: 'helpers/readBuiltAppSherloJson.ts', seam: 'nativeBuild' },
   {
     file: 'helpers/getValidatedBinariesInfoAndNextBuildIndex/getBinariesInfoAndNextBuildIndex/getLocalBinariesInfo/accessFileInArchive.ts',
     seam: 'nativeBuild',
@@ -381,6 +382,12 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
     of: 'helpers/fingerprint/baseFingerprint.ts',
     reason:
       "imports only hashNativeFolderFiles, for the live half of the app builder seam itself - a posed run installs the posed app builder, which answers from the pose's nativeFolderFiles and never reaches it",
+  },
+  {
+    file: 'seams/podTouchedFiles.ts',
+    of: 'helpers/fingerprint/baseFingerprint.ts',
+    reason:
+      'imports only stripCocoapodsLine, a pure text function that reads no machine, so that the install check and the fingerprint drop the same line',
   },
 ];
 

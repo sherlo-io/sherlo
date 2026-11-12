@@ -34,8 +34,14 @@ import { hashNativeFolderFiles } from '../helpers/fingerprint/baseFingerprint';
 import { withTheMachineEnv } from '../helpers/fingerprint/deterministicEnv';
 import { readProjectJson } from '../helpers/projectJson';
 import getSizeInMB from '../helpers/uploadOrPrintBinaryReuse/uploadBuild/getSizeInMB';
+import { gradleWrapperIn, listAndroidFlavorTasks } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
-import { iosBuildConfiguration } from './iosConfiguration';
+import { filesTheInstallChanged, readPodTouchedFiles } from './podTouchedFiles';
+import {
+  type IosAppTarget,
+  iosBuildConfiguration,
+  readIosAppTargetFromFiles,
+} from './iosConfiguration';
 import type { NativeFolderFile } from './serverCalls';
 
 /** The build tools a platform needs on the machine, apart from Java, whose version matters too. */
@@ -61,6 +67,8 @@ export type CompiledApp =
        * to commit it - the builder only answers.
        */
       podFilesChanged: string[];
+      /** Whether `pod install` changed any file at all, git-held or not; absent when it did not run. */
+      podInstallChangedFiles?: boolean;
     }
   | {
       ok: false;
@@ -87,6 +95,17 @@ export type AppBuilder = {
   javaVersion(): Promise<number | null>;
   /** The schemes the iOS workspace lists, apart from the CocoaPods ones. */
   listIosSchemes(projectRoot: string): Promise<string[]>;
+  /**
+   * What the iOS workspace says about its APPLICATION target (never a test target's): the schemes
+   * that build an app, the app target's configurations in the project's spelling, and the
+   * configuration the scheme given (else the only app scheme) archives with. Null when it was not read.
+   */
+  readIosAppTarget(projectRoot: string, scheme?: string): Promise<IosAppTarget | null>;
+  /**
+   * The Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. Empty
+   * for an app with no flavors.
+   */
+  listAndroidFlavorTasks(projectRoot: string): Promise<string[]>;
   /** The app build the cache holds under a key, or null. */
   findCachedBuild(params: {
     platform: Platform;
@@ -343,23 +362,6 @@ function appPathFromBuildSettings(settingsPath: string): string | undefined {
   return app && path.join(app.buildSettings.TARGET_BUILD_DIR, app.buildSettings.WRAPPER_NAME);
 }
 
-/** The files `pod install` writes, by path from the project root, with the bytes each holds. */
-function readPodTouchedFiles(projectRoot: string): Map<string, Buffer> {
-  const iosFolder = path.join(projectRoot, 'ios');
-  const files = ['ios/Podfile.lock'];
-  if (fs.existsSync(iosFolder)) {
-    for (const name of fs.readdirSync(iosFolder)) {
-      if (name.endsWith('.xcodeproj')) files.push(`ios/${name}/project.pbxproj`);
-    }
-  }
-  const contents = new Map<string, Buffer>();
-  for (const file of files) {
-    const filePath = path.join(projectRoot, file);
-    if (fs.existsSync(filePath)) contents.set(file, fs.readFileSync(filePath));
-  }
-  return contents;
-}
-
 /** Where starting one platform's EAS build writes everything `eas build` says. */
 function easStartLogPath(platform: Platform): string {
   return `.sherlo/eas-build-${platform}.log`;
@@ -491,7 +493,7 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     const exitCode = await withGradleProgressOnCI(
       logPath,
       runProcess({
-        command: path.join(androidFolder, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew'),
+        command: gradleWrapperIn(androidFolder),
         args: ['-I', initScriptPath, androidTask, ...gradleFlags()],
         cwd: androidFolder,
         env: buildEnvironment({ projectRoot, easProfile, buildEnv: env }),
@@ -537,13 +539,16 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     return isTracked && (await git(['diff', '--quiet', 'HEAD', '--', file])) === 0;
   }
 
-  /** `pod install` before the build, and the files it changed that git does not hold. */
+  /**
+   * `pod install` before the build: the files it changed that git does not hold (a Podfile.lock
+   * that differs only in its COCOAPODS line is no change), and whether it changed any file at all.
+   */
   async function installPods(params: {
     projectRoot: string;
     iosFolder: string;
     env: NodeJS.ProcessEnv;
     logPath: string;
-  }): Promise<string[] | 'failed'> {
+  }): Promise<{ notHeld: string[]; changedAny: boolean } | 'failed'> {
     const { projectRoot, iosFolder, env, logPath } = params;
     const filesBefore = readPodTouchedFiles(projectRoot);
     const usesBundler = [projectRoot, iosFolder].some((folder) =>
@@ -560,15 +565,15 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     });
     if (exitCode !== 0) return 'failed';
 
-    const filesAfter = readPodTouchedFiles(projectRoot);
-    const changedFiles = [...filesAfter.keys()].filter(
-      (file) => !filesAfter.get(file)!.equals(filesBefore.get(file) ?? Buffer.alloc(0))
-    );
+    const { changed, changedInTheApp } = filesTheInstallChanged({
+      before: filesBefore,
+      after: readPodTouchedFiles(projectRoot),
+    });
     const notHeld: string[] = [];
-    for (const file of changedFiles) {
+    for (const file of changedInTheApp) {
       if (!(await gitHoldsFileAsItIs(projectRoot, file, logPath))) notHeld.push(file);
     }
-    return notHeld;
+    return { notHeld, changedAny: changed.length > 0 };
   }
 
   async function compileIos(params: CompileParams): Promise<CompiledApp> {
@@ -585,8 +590,8 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
 
     const iosFolder = path.join(projectRoot, 'ios');
     const buildEnv = buildEnvironment({ projectRoot, easProfile, buildEnv: env });
-    const podFilesChanged = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
-    if (podFilesChanged === 'failed') return failed();
+    const install = await installPods({ projectRoot, iosFolder, env: buildEnv, logPath });
+    if (install === 'failed') return failed();
 
     // No -derivedDataPath: Xcode keeps its derived data, and the compilation cache, in its own folder.
     const xcodebuildArguments = [
@@ -644,7 +649,8 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
       path: appPath,
       sizeMb: appBuildSizeMb(appPath),
       seconds: secondsSince(),
-      podFilesChanged,
+      podFilesChanged: install.notHeld,
+      podInstallChangedFiles: install.changedAny,
     };
   }
 
@@ -765,6 +771,10 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
         : [];
       return schemes.filter((scheme) => !podSchemes.includes(scheme));
     },
+    // Read from the shared schemes and the project files; null keeps the scheme's own configuration.
+    readIosAppTarget: async (projectRoot, scheme) =>
+      readIosAppTargetFromFiles(path.join(projectRoot, 'ios'), scheme),
+    listAndroidFlavorTasks: (projectRoot) => listAndroidFlavorTasks(projectRoot, askProgram),
     findCachedBuild: async ({ cacheKey, cacheDir }) => {
       const buildFolder = path.join(cacheDir, cacheKey);
       if (!fs.existsSync(buildFolder)) return null;
@@ -903,6 +913,19 @@ export type PosedAppBuild = {
   java: number | null;
   /** The schemes the iOS workspace lists, for a project that builds iOS. */
   iosSchemes?: string[];
+  /**
+   * The iOS app target, as the workspace states it. Stated all three or none: none is an app
+   * target that was not read.
+   *
+   * The schemes among `iosSchemes` that build an application product (a test target's does not).
+   */
+  iosAppSchemes?: string[];
+  /** The app target's configurations, in the project's spelling (`DEV.DEBUG`, `PROD.RELEASE`). */
+  iosAppConfigurations?: string[];
+  /** The configuration the app scheme archives with. */
+  iosArchiveConfiguration?: string;
+  /** The Gradle task of each product flavor's release build, e.g. `:app:assembleDevRelease`. */
+  androidFlavorTasks?: string[];
   /** What each platform's build came to, per platform (`android`, `ios`). */
   platforms: Record<string, PosedPlatformBuild>;
   /**
@@ -1005,6 +1028,19 @@ export function posedAppBuilder(posed: PosedAppBuild | undefined): PosedAppBuild
       }
       return schemes;
     },
+
+    readIosAppTarget: async () => {
+      const { iosAppSchemes, iosAppConfigurations, iosArchiveConfiguration } =
+        stated('readIosAppTarget');
+      if (!iosAppSchemes || !iosAppConfigurations || !iosArchiveConfiguration) return null;
+      return {
+        appSchemes: iosAppSchemes,
+        configurations: iosAppConfigurations,
+        archiveConfiguration: iosArchiveConfiguration,
+      };
+    },
+
+    listAndroidFlavorTasks: async () => stated('listAndroidFlavorTasks').androidFlavorTasks ?? [],
 
     findCachedBuild: async ({ platform }) => {
       const build = platformOf('findCachedBuild', platform);

@@ -58,14 +58,15 @@ describe('createMockable - value-type mocks (VT-01..10, VT-17, VT-18)', () => {
     expect(mockable.MAX).toBe(99);
   });
 
-  it('VT-04: serves a mocked nested object as-is', () => {
-    const realModule = { config: { nested: { value: 'real' } } };
+  it('VT-04: serves a mocked nested object, the real parts it does not name beside it', () => {
+    const realModule = { config: { nested: { value: 'real' }, other: 'real other' } };
     const mockedConfig = { nested: { value: 'mock' } };
     const mockable = createMockable('pkg/nested', realModule);
 
     activateMocks({ 'pkg/nested': { config: mockedConfig } });
 
-    expect(mockable.config).toBe(mockedConfig);
+    // The served object is the fake laid over the real one, so it is no longer the fake itself.
+    expect(mockable.config).toEqual({ nested: { value: 'mock' }, other: 'real other' });
     expect(mockable.config.nested.value).toBe('mock');
   });
 
@@ -306,5 +307,30 @@ describe('createMockable - default export captured before activation', () => {
     clearMocks();
 
     expect(await capturedDefault.getItem()).toBe('real');
+  });
+});
+
+describe('createMockable - a fake names only what it changes', () => {
+  it('a fake of one nested method keeps every other method of the real object at any depth', () => {
+    const real = {
+      client: { users: { get: () => 'real get', list: () => 'real list' }, version: 3 },
+      other: 'real other',
+    };
+    const mockable = createMockable('pkg/deep', real);
+
+    activateMocks({ 'pkg/deep': { client: { users: { get: () => 'fake get' } } } });
+
+    expect(mockable.client.users.get()).toBe('fake get');
+    expect(mockable.client.users.list()).toBe('real list');
+    expect(mockable.client.version).toBe(3);
+    expect(mockable.other).toBe('real other');
+    expect(Object.keys(mockable.client.users).sort()).toEqual(['get', 'list']);
+    expect('list' in mockable.client.users).toBe(true);
+    // The same part read twice is the same object, so it keeps its identity.
+    expect(mockable.client).toBe(mockable.client);
+    // The real object is never touched, and is whole again when the mocks end.
+    expect(real.client.users.get()).toBe('real get');
+    clearMocks();
+    expect(mockable.client.users.get()).toBe('real get');
   });
 });

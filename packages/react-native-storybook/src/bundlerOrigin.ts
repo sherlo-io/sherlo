@@ -1,4 +1,5 @@
 import { NativeModules, TurboModule, TurboModuleRegistry } from 'react-native';
+import { LOOPBACK_HOSTS, isReactDevToolsAddress } from './developmentTraffic';
 
 /**
  * The address of the bundler this app's JavaScript came from, or null when it did not come from
@@ -19,23 +20,24 @@ export function bundlerOrigin(): string | null {
   return origin ? origin[1] : null;
 }
 
-const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '[::1]', '10.0.2.2'];
-
 /**
- * Whether the url is a socket the bundler's dev tools open (hot reload at /hot, /message, the
- * inspector): the bundler's own port, on its host or another spelling of this machine (localhost,
- * 127.0.0.1, the Android emulator's 10.0.2.2). Another port or another host is the app's own.
+ * Whether the url is a socket the app's own development traffic opens: the bundler's dev tools
+ * (hot reload at /hot, /message, the inspector) on the bundler's own port, or React DevTools on its
+ * port (developmentTraffic.ts), on its host or another spelling of this machine (localhost,
+ * 127.0.0.1, the Android emulator's 10.0.2.2). Another port or another host is the screen's own.
  */
 export function isBundlerSocketUrl(url: string): boolean {
-  const origin = bundlerOrigin();
-  if (!origin) return false;
   const socket = /^(?:wss?|https?):\/\/([^/?#]+)/.exec(url)?.[1]?.toLowerCase();
   if (!socket) return false;
+  const split = (address: string) => /^(.*?)(?::(\d+))?$/.exec(address) as RegExpExecArray;
+  const [, socketHost, socketPort] = split(socket);
+  if (isReactDevToolsAddress(socketHost, Number(socketPort))) return true;
+
+  const origin = bundlerOrigin();
+  if (!origin) return false;
   const bundler = origin.replace(/^https?:\/\//, '').toLowerCase();
   if (socket === bundler) return true;
 
-  const split = (address: string) => /^(.*?)(?::(\d+))?$/.exec(address) as RegExpExecArray;
-  const [, socketHost, socketPort] = split(socket);
   const [, bundlerHost, bundlerPort] = split(bundler);
   return (
     socketPort === bundlerPort &&

@@ -205,6 +205,7 @@ describe('loading the sealed core', () => {
         'mergeStoryMocks',
         'monotonicNow',
         'native',
+        'neverSettledOf',
         'playSteps',
         'providerFirstRenderedAt',
         'reachedRoute',
@@ -416,6 +417,8 @@ describe('the core the SDK suite runs against', () => {
 /** The core's START, sent through the runner line the SDK handed the installed core. */
 async function startSentByTheCore(): Promise<Record<string, unknown>> {
   const host = coreOnTheGlobal()!.installedWith as unknown as SealedCoreHost;
+  // The app starts its line when it boots; a message sent before that waits for it.
+  (await import('../connection/appLine')).startTheLine();
   __resetConnection();
   // The runner never answers here, so its answer is never awaited: the message goes out before the
   // SDK starts waiting for it.

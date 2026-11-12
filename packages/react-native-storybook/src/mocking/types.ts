@@ -2,9 +2,21 @@ export type ModuleExports = Record<PropertyKey, unknown>;
 
 // Receives the real module and returns the exports to serve in its place.
 // Called at most once per activation; the result is cached for that activation.
-export type MockFactory<T extends ModuleExports = ModuleExports> = (original: T) => Partial<T>;
+export type MockFactory<T extends ModuleExports = ModuleExports> = (original: T) => DeepPartial<T>;
 
-export type MockDefinition<T extends ModuleExports = ModuleExports> = Partial<T> | MockFactory<T>;
+export type MockDefinition<T extends ModuleExports = ModuleExports> =
+  | DeepPartial<T>
+  | MockFactory<T>;
+
+// What a fake of `T` may name: any part of `T`, at any depth, and nothing `T` does not have. A
+// function or class may be named whole or by its own parts (its statics); an array whole.
+export type DeepPartial<T> = T extends readonly unknown[]
+  ? T
+  : T extends (...args: never[]) => unknown
+    ? T | ({ [K in keyof T]?: DeepPartial<T[K]> } & object)
+    : T extends object
+      ? { [K in keyof T]?: DeepPartial<T[K]> }
+      : T;
 
 // Module specifier -> mock definition, installed atomically for one story activation.
 export type MockSet = Record<string, MockDefinition>;

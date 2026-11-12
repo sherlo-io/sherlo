@@ -1,0 +1,27 @@
+{
+  "pose": 1,
+  "files": {},
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--scene", "kindred--discover-tab", "--png", "./discover-tab.png"],
+  "capture": {
+    "scenes": ["kindred--discover-tab", "kindred--chat-empty"],
+    "ready": "discover.feed",
+    "stayedOn": ["AppStack", "Consent"],
+    "endedEarly": { "afterMs": 4000, "stuckOn": "consent", "button": "Accept all" },
+    "screen": {
+      "words": [
+        "Before you continue",
+        "Kindred uses your data to find matches",
+        "Accept all",
+        "Manage choices"
+      ],
+      "views": 9
+    }
+  }
+}
