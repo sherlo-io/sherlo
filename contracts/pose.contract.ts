@@ -1124,8 +1124,8 @@ export type BuildStatusAnswer = {
    * whether the service retried.
    */
   runFailure?: {
-    stage: string;
-    device: string;
+    stage: string | null;
+    device: string | null;
     cause: string;
     reference: string;
     retried: boolean;

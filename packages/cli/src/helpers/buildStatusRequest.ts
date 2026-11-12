@@ -182,8 +182,8 @@ export type BuildStatusResponse = {
     noPicture?: { kind: 'story' | 'scene'; name: string; device: string; reason: string }[];
     /** Why the run failed: the stage, the device, the cause in words, a reference to quote, and whether the service retried. */
     runFailure?: {
-      stage: string;
-      device: string;
+      stage: string | null;
+      device: string | null;
       cause: string;
       reference: string;
       retried: boolean;
@@ -208,8 +208,8 @@ type WireNoPicture = {
   reason: string;
 };
 type WireRunFailure = {
-  stage: string;
-  device: string;
+  stage?: string | null;
+  device?: string | null;
   osVersion?: string | null;
   causeLine: string;
   reference: string;
@@ -408,7 +408,18 @@ function phoneLabel(
   devices: BuildStatus['devices'],
   device: string,
   osVersion?: string | null
-): string {
+): string;
+function phoneLabel(
+  devices: BuildStatus['devices'],
+  device: string | null | undefined,
+  osVersion?: string | null
+): string | null;
+function phoneLabel(
+  devices: BuildStatus['devices'],
+  device: string | null | undefined,
+  osVersion?: string | null
+): string | null {
+  if (!device) return null;
   const platform = devices?.find(({ id }) => id === device)?.platform;
   if (!osVersion || !platform) return device;
   return `${device} (${PLATFORM_LABEL[platform]} ${osVersion})`;
@@ -431,7 +442,7 @@ function withPhoneWords({ noPicture, runFailure, ...rest }: WireBuildStatus): Bu
     ...(runFailure
       ? {
           runFailure: {
-            stage: runFailure.stage,
+            stage: runFailure.stage ?? null,
             device: phoneLabel(rest.devices, runFailure.device, runFailure.osVersion),
             cause: runFailure.causeLine,
             reference: runFailure.reference,

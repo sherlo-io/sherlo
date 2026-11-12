@@ -2294,8 +2294,20 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
       const where68 = at(path, 'runFailure');
       const object69 = asObject(object1.runFailure, where68, problems);
       if (object69) {
-        expectString(object69.stage, at(where68, 'stage'), problems);
-        expectString(object69.device, at(where68, 'device'), problems);
+        const oneOf70 = object69.stage;
+        const where71 = at(where68, 'stage');
+        if (typeof oneOf70 === 'string' || oneOf70 === null) {
+          // the value is one of these
+        } else {
+          reportWrongShape(oneOf70, 'a string or `null`', where71, problems);
+        }
+        const oneOf72 = object69.device;
+        const where73 = at(where68, 'device');
+        if (typeof oneOf72 === 'string' || oneOf72 === null) {
+          // the value is one of these
+        } else {
+          reportWrongShape(oneOf72, 'a string or `null`', where73, problems);
+        }
         expectString(object69.cause, at(where68, 'cause'), problems);
         expectString(object69.reference, at(where68, 'reference'), problems);
         expectBoolean(object69.retried, at(where68, 'retried'), problems);
