@@ -83,4 +83,8 @@ describe('a scene waits for its focused field', () => {
     await keeping;
     expect(neverSettledOf('chat--compose')?.unfocused).toEqual(['message-input']);
   });
+
+  it.todo(
+    'a field the native side keeps from taking focus is not waited for, and the screen settles'
+  );
 });

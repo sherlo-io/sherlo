@@ -113,6 +113,17 @@ describe('SherloModule live - constants merge (new-arch vs old-arch)', () => {
   });
 });
 
+describe('SherloModule live - whether a text field can take focus', () => {
+  it.todo('a native build that locks focus in testing mode says so, and fields cannot take focus');
+  it.todo('a native build that leaves focus alone says so, and fields can take focus');
+  it.todo('an iOS native build from before the answer locks focus when the runner drives it');
+  it.todo(
+    'an iOS native build from before the driver was named had only the runner, so it locks focus'
+  );
+  it.todo('an iOS native build from before the answer leaves focus alone when a capture drives it');
+  it.todo('an Android native build from before the answer leaves focus alone');
+});
+
 describe('SherloModule live - getConfig / getLastState', () => {
   beforeEach(() => {
     mockGetSherloConstants.mockReturnValue(NEW_ARCH_CONSTANTS);
