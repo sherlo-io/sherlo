@@ -61,5 +61,27 @@ export function foldAppBundleStep(screen: string): string {
     }
   }
 
-  return folded.join('\n');
+  return dropBlankAfterStepWarning(folded).join('\n');
+}
+
+/** The first line of the history warning, which a run prints right after the step. */
+const HISTORY_WARNING = /^! Couldn't fetch the git history: /;
+
+/**
+ * The posed road spaces the step's warning from the next row with a blank line and the sim road
+ * prints none, so the blank after a warning that follows the step goes on both roads.
+ */
+function dropBlankAfterStepWarning(lines: string[]): string[] {
+  const at = lines.findIndex(
+    (line, index) =>
+      index > 0 && lines[index - 1] === APP_BUNDLE_STEP && HISTORY_WARNING.test(visible(line))
+  );
+  if (at === -1) return lines;
+
+  let end = at + 1;
+  while (end < lines.length && /^ {2}\S/.test(visible(lines[end]))) end += 1;
+  if (end < lines.length && visible(lines[end]) === '') {
+    return [...lines.slice(0, end), ...lines.slice(end + 1)];
+  }
+  return lines;
 }
