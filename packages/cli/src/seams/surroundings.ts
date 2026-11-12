@@ -44,7 +44,7 @@ export type Surroundings = {
  * More sleeps than any pose scripts polls for: one sleep follows each poll, and a pose scripts its
  * polls one by one.
  */
-const MOST_SLEEPS_IN_A_POSED_RUN = 1000;
+const MOST_SLEEPS_IN_A_POSED_RUN = 100;
 
 /** The shipped answers: the process's own environment, a real `git`, the wall clock. */
 export const liveSurroundings: Surroundings = {
