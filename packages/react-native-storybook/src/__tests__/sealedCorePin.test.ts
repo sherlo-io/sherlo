@@ -82,10 +82,10 @@ describe('the pin', () => {
     expect(storageLookupPossible({ CI: 'true', PACKAGE_TOKEN: 'a-token' })).toBe(true);
   });
 
-  it('the pinned core is 3.6.17 or later, the first whose story walk survives a reload', () => {
+  it("the pinned core is the runner's epic core or later, never one behind it", () => {
     const pin = JSON.parse(fs.readFileSync(PIN_FILE, 'utf8'));
 
-    expect(compareCoreVersions(pin.version, '3.6.17')).toBeGreaterThanOrEqual(0);
+    expect(compareCoreVersions(pin.version, '3.6.30')).toBeGreaterThanOrEqual(0);
   });
 
   it('the pin names one stored core by version, fingerprint, runner commit, source tree and seam hash', async (context) => {
