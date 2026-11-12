@@ -205,6 +205,41 @@ describe('the masker folds every volatile class the tool prints', () => {
     expect(maskScreen(printedNone, {})).toBe(printedNone);
   });
 
+  it('the sim-mode opening and the app bundle step fold to the same text', () => {
+    const bold = (text: string): string => `${ESC}[1m${text}${ESC}[22m`;
+    const cyan = (text: string): string => `${ESC}[36m${text}${ESC}[39m`;
+    const green = (text: string): string => `${ESC}[32m${text}${ESC}[39m`;
+    const rows = ['Test 1      Started', 'Sanity/Hello (1 story)'];
+    const context = { projectRoot: '/tmp/project' };
+
+    const simOpening = [
+      'Testing your app...',
+      '',
+      bold(''),
+      bold('🧪 Sim mode: testing the declared world (/tmp/project/sim-world)...'),
+      bold(''),
+      cyan(''),
+      cyan('⬆️  Uploading android sim world + manifest...'),
+      ...rows,
+    ].join('\n');
+
+    const bundleOpening = (result: string): string =>
+      [
+        'Testing your app...',
+        '',
+        '🤖 Android  Bundling the JavaScript...',
+        `🤖 Android  ${green('✔')} ${result}`,
+        '',
+        ...rows,
+      ].join('\n');
+
+    const folded = maskScreen(simOpening, context);
+    expect(folded.split('\n')).toEqual(['Testing your app...', '', '<APP_BUNDLE_STEP>', ...rows]);
+    for (const result of ['Reused', 'Reused from Test 1', 'Bundled']) {
+      expect(maskScreen(bundleOpening(result), context)).toBe(folded);
+    }
+  });
+
   it('folds a commit id, a run namespace in a branch name, a team id and a project index', () => {
     const folded = maskScreen(
       [
