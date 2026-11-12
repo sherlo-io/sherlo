@@ -27,6 +27,6 @@ Test 14     [32m✔[39m Started: 3 of 5 stories on 2 devices (Pixel 7, iPhone 
    To wait for the result: [36mnpx sherlo view 14 --wait[39m
 
 [1m2. Run Sherlo on every pull request[22m
-   [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
+   [36mhttps://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>[39m
 
 [exit 0]
