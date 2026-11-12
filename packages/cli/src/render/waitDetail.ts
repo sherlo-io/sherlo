@@ -32,7 +32,9 @@ function noPictureEntryLine({ kind, name, device, reason }: NoPicture): string {
 }
 
 function failedAtLine({ stage, device, cause }: RunFailure): string {
-  return `It failed at the ${stage} stage on ${device}: ${cause}`;
+  const atStage = stage ? ` at the ${stage} stage` : '';
+  const onPhone = device ? ` on ${device}` : '';
+  return `It failed${atStage}${onPhone}: ${cause}`;
 }
 
 function retriedLine({ retried }: RunFailure): string {

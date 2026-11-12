@@ -36,7 +36,7 @@ import {
 
 /** The shortest default wait; a test of many pictures waits ten seconds a picture. */
 const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
-/** A picture took 7 seconds on a customer's first test (408 in 47 minutes); 10 leaves room. */
+/** A picture can take 7 seconds on a large app; 10 leaves room. */
 const WAIT_SECONDS_PER_PICTURE = 10;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
 /**

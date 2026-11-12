@@ -29,14 +29,14 @@ vi.mock('../../../../seams/workstation', () => ({
   }),
 }));
 
-const POD_SCHEMES = ['Pods-Feeld', 'Amplitude', 'RNCAsyncStorage'];
+const POD_SCHEMES = ['Pods-ShopApp', 'Amplitude', 'RNCAsyncStorage'];
 
 let root: string;
 let putBack: Array<() => void>;
 
 /** A workspace listing `appSchemes` among the pod schemes, and a Pods project listing those alone. */
 function workspaceWith(appSchemes: string[]): void {
-  fs.mkdirSync(path.join(root, 'ios/Feeld.xcworkspace'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'ios/ShopApp.xcworkspace'), { recursive: true });
   fs.mkdirSync(path.join(root, 'ios/Pods/Pods.xcodeproj'), { recursive: true });
   const xcodebuild: RunProcess = async (call) => {
     const listsPods = call.args.includes('Pods/Pods.xcodeproj');
@@ -75,34 +75,34 @@ describe('the scheme setup picks', () => {
   });
 
   it('a workspace with one app scheme beside pod schemes gets that scheme written to sherlo.config.json', async () => {
-    workspaceWith(['Feeld']);
+    workspaceWith(['ShopApp']);
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await scheme();
 
-    expect(readConfig()).toEqual({ project: 'k3j9x2ab/4', build: { ios: { scheme: 'Feeld' } } });
+    expect(readConfig()).toEqual({ project: 'k3j9x2ab/4', build: { ios: { scheme: 'ShopApp' } } });
     expect(askedChoices).toBeUndefined();
     expect(log.mock.calls.flat().join('\n')).toContain(
-      'iOS scheme "Feeld" written to sherlo.config.json'
+      'iOS scheme "ShopApp" written to sherlo.config.json'
     );
   });
 
   it("a workspace with two app schemes asks a person, offering only the app's schemes", async () => {
-    workspaceWith(['Feeld', 'FeeldDev']);
-    answer = 'FeeldDev';
+    workspaceWith(['ShopApp', 'ShopAppDev']);
+    answer = 'ShopAppDev';
     vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await scheme();
 
-    expect(askedChoices).toEqual(['Feeld', 'FeeldDev']);
+    expect(askedChoices).toEqual(['ShopApp', 'ShopAppDev']);
     expect(readConfig()).toEqual({
       project: 'k3j9x2ab/4',
-      build: { ios: { scheme: 'FeeldDev' } },
+      build: { ios: { scheme: 'ShopAppDev' } },
     });
   });
 
   it('with nobody at the keyboard and two app schemes, setup names them and the config field to set', async () => {
-    workspaceWith(['Feeld', 'FeeldDev']);
+    workspaceWith(['ShopApp', 'ShopAppDev']);
     somebodyIsAtTheKeyboard = false;
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -111,8 +111,8 @@ describe('the scheme setup picks', () => {
     expect(askedChoices).toBeUndefined();
     expect(readConfig()).toEqual({ project: 'k3j9x2ab/4' });
     expect(log.mock.calls.flat().join('\n')).toBe(
-      'The iOS workspace has Feeld and FeeldDev.\n' +
-        '  Name one in sherlo.config.json: "build": { "ios": { "scheme": "Feeld" } }'
+      'The iOS workspace has ShopApp and ShopAppDev.\n' +
+        '  Name one in sherlo.config.json: "build": { "ios": { "scheme": "ShopApp" } }'
     );
   });
 
@@ -121,8 +121,8 @@ describe('the scheme setup picks', () => {
     await scheme();
     expect(readConfig()).toEqual({ project: 'k3j9x2ab/4' });
 
-    workspaceWith(['Feeld', 'FeeldDev']);
-    const named = { project: 'k3j9x2ab/4', build: { ios: { scheme: 'FeeldDev' } } };
+    workspaceWith(['ShopApp', 'ShopAppDev']);
+    const named = { project: 'k3j9x2ab/4', build: { ios: { scheme: 'ShopAppDev' } } };
     writeConfig(named);
     await scheme();
     expect(readConfig()).toEqual(named);
