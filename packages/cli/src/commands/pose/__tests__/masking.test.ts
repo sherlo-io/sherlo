@@ -263,6 +263,17 @@ describe('the masker folds every volatile class the tool prints', () => {
     expect(CLASSES_THE_TOOL_FOLDS).toContain('<LOGIN_LINK>');
   });
 
+  it('a project page link folds to one canonical address on every stack', () => {
+    const folded = 'https://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>';
+    const local =
+      "Set the main branch in the project's settings: http://localhost:3000/project?t=tm000001&p=7";
+    const prod = `  ${ESC}[36mhttps://app.sherlo.io/project?t=tm000001&p=7${ESC}[39m`;
+
+    expect(maskScreen(local, {})).toBe(`Set the main branch in the project's settings: ${folded}`);
+    expect(maskScreen(prod, {})).toBe(`  ${ESC}[36m${folded}${ESC}[39m`);
+    expect(maskScreen(folded, {})).toBe(folded);
+  });
+
   it("folds a capture record's settle time, screenful count and measured size", () => {
     const folded = maskScreen(
       [
