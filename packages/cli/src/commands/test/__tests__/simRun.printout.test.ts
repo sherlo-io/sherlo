@@ -100,9 +100,12 @@ function asSimWorld(push: CommandPose): CommandPose {
 const ESCAPE_CODES = /\u001b\[[0-9;]*m/g;
 
 /** A line of the platform's own rows: `🤖 Android  Bundling the JavaScript...`. */
-const PUSH_ROAD_OWN_LINE = /^(🤖 Android|🍏 iOS) /;
-/** The sim road's header and upload lines: `🧪 Sim mode: ...`, `⬆️  Uploading android sim world...`. */
-const SIM_ROAD_OWN_LINE = /🧪 Sim mode: |sim world \+ manifest/;
+const PUSH_ROAD_OWN_LINE = /^(🤖 Android|🍏 iOS) |^<APP_BUNDLE_STEP>$/;
+/**
+ * The sim road's header and upload lines: `🧪 Sim mode: ...`, `⬆️  Uploading android sim world...`.
+ * A screen's masker folds the bundle lines of either road to `<APP_BUNDLE_STEP>`, so that goes too.
+ */
+const SIM_ROAD_OWN_LINE = /🧪 Sim mode: |sim world \+ manifest|^<APP_BUNDLE_STEP>$/;
 
 /**
  * The screen with the road's own lines taken out. Above the test's row the blank lines go too:
