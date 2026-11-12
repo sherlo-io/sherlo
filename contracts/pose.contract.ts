@@ -166,9 +166,9 @@ export type CommandPose = {
    */
   browser?: PosedBrowser;
   /**
-   * The port the review page's server answered on, for `sherlo capture-report`, the one command
-   * that serves a page. Refused for any other; a `capture-report` with no `localServer` is refused
-   * at run time. Nothing listens on a posed run. `--json` serves nothing and states none.
+   * The port the review page's server answered on, for `sherlo preview`, the one command that
+   * serves a page. Refused for any other; a `preview` with no `localServer` is refused at run
+   * time. Nothing listens on a posed run. `--json` serves nothing and states none.
    */
   localServer?: PosedLocalServer;
   /**
@@ -570,9 +570,12 @@ export type PosedWorkstation = {
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
    * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
-   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile.
+   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile. `"current"` says
+   * the installed pods already match the lockfile, so setup skips `pod install` and never asks it.
    */
-  pods?: 'installed';
+  pods?: 'installed' | 'current';
+  /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
+  scenes?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
    * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
@@ -918,6 +921,11 @@ export type PosedBrowser = {
 export type PosedLocalServer = {
   /** The port the server answered on; the address the command prints is `http://127.0.0.1:<port>`. */
   port: number;
+  /**
+   * Whether a person watches the run in a terminal and stops it with Ctrl+C. `false` is an agent's
+   * shell, where the run ends once the page has opened. Absent is a person watching.
+   */
+  watched?: boolean;
 };
 
 /**
@@ -1101,6 +1109,27 @@ export type BuildStatusAnswer = {
     inherited: string[];
     ancestorBuildIndex: number | null;
   };
+  /**
+   * Every story and scene the finished run ended with no picture for, each with the service's
+   * reason.
+   */
+  noPicture?: Array<{
+    kind: 'scene' | 'story';
+    name: string;
+    device: string;
+    reason: string;
+  }>;
+  /**
+   * Why the run failed: the stage, the device, the cause in words, a reference to quote, and
+   * whether the service retried.
+   */
+  runFailure?: {
+    stage: string | null;
+    device: string | null;
+    cause: string;
+    reference: string;
+    retried: boolean;
+  };
 };
 
 /** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */
@@ -1138,6 +1167,12 @@ export type PosedCaptureDecision = {
   fullCaptureTriggerReason?: string;
   /** The build this decision diffed against - the "inheriting N from build #A" clause. */
   ancestorBuildIndex?: number;
+  /**
+   * `build.diffScopeInfo.isFirstLook`, as the service sends it: the project's first build, which
+   * took only the stories the push named. With a partial capture it draws the Started row's "a
+   * first look: --all-stories tests all N stories" and no changed mark.
+   */
+  isFirstLook?: boolean;
   /**
    * The snapshot counts the open answer's `build.diffScopeInfo` carries. A build the service
    * closed as it opened, because no phone has a story to photograph, says 0 captured and some kept
@@ -1235,6 +1270,11 @@ export type StartedRun = {
     platform: 'android' | 'ios';
     /** Every story is captured. Read FIRST: a full capture's story list is empty and means "all". */
     full: boolean;
+    /**
+     * A project's first test took only a first look: the stories in the files the push named, plus
+     * every scene. `--all-stories` asks for every story.
+     */
+    firstLook?: boolean;
     /** How many stories a partial capture takes. Ignored on a full capture. */
     capturedStories: number;
     /**
@@ -1409,6 +1449,8 @@ export type PosedPlatformBuild =
       seconds: number;
       /** An iOS build's files that pod install changed and git does not track; none when absent. */
       podFilesChanged?: string[];
+      /** True when pod install was skipped because the installed pods matched Podfile.lock. */
+      podInstallSkipped?: true;
     }
   | {
       /** The compile failed. */

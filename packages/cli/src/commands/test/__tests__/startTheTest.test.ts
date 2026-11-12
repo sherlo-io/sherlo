@@ -25,12 +25,17 @@ vi.mock('../closeTheRun', () => ({ closeTheRun: vi.fn() }));
 import { openAndEndTheTest } from '../startTheTest';
 
 /** One android test opened alone, whose module map holds one file of three stories. */
-function openOneTest(refusedAtOpen?: (error: unknown) => Promise<{ url: string }> | undefined) {
+function openOneTest(
+  refusedAtOpen?: (error: unknown) => Promise<{ url: string }> | undefined,
+  allStories?: boolean
+) {
   return openAndEndTheTest({
     passedOptions: {} as any,
     commandParams: {
       credential: { token: 't', projectIndex: 3, teamId: 'team' },
       devices: [],
+      projectRoot: '/no/such/app',
+      allStories,
     } as any,
     platformsToTest: ['android'],
     joinKey: null,
@@ -68,6 +73,25 @@ describe('opening the test', () => {
         pushFacts: expect.objectContaining({ platforms: { android: { storiesInBundle: 3 } } }),
       })
     );
+  });
+
+  it('a first push sends the first-look list of story files', async () => {
+    mocks.openBuild.mockResolvedValue({ build: { index: 4 }, buildRun: { config: {} } });
+
+    await openOneTest();
+
+    expect(mocks.openBuild).toHaveBeenCalledWith(
+      expect.objectContaining({ firstLook: { storyFilePaths: ['src/A.stories.tsx'] } })
+    );
+  });
+
+  it('--all-stories sends no first-look list', async () => {
+    mocks.openBuild.mockResolvedValue({ build: { index: 4 }, buildRun: { config: {} } });
+
+    await openOneTest(undefined, true);
+
+    expect(mocks.openBuild).toHaveBeenCalledTimes(1);
+    expect(mocks.openBuild.mock.calls[0][0]).not.toHaveProperty('firstLook');
   });
 
   it("an error the road answers at the open ends the push on the road's answer", async () => {

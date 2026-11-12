@@ -22,4 +22,18 @@ function refuseRejectedLogin(): never {
   throwError({ message: REJECTED_LOGIN_MESSAGE });
 }
 
+/**
+ * The authorizer refuses a wrong project as it refuses a dead login: both are a 401. When the
+ * saved login still lists its teams, it is the project that is wrong, and logging in again would
+ * change nothing.
+ */
+export function refuseWrongProject(): never {
+  throwError({
+    message:
+      'This project is not in your teams.\n' +
+      '  Your login is still good, but it cannot reach the project the config names.\n' +
+      '  Check the "project" in sherlo.config.json.',
+  });
+}
+
 export default refuseRejectedLogin;

@@ -11,7 +11,7 @@
  *   2. PER PLATFORM, ONE AFTER THE OTHER (unless `build.parallel` or `--parallel-builds` asks for both at once - two compilers at once fight
  *      for the same cores and memory):
  *        - the local build cache (./cacheFolder), keyed by the platform, the base fingerprint and
- *          the build settings - a hit compiles nothing;
+ *          the build settings - a hit compiles nothing, and no fingerprint skips it;
  *        - `expo prebuild` for an Expo app whose native folder is not there, taken away again after;
  *        - the compile, with everything the build tool says written to `.sherlo/build-<p>.log`;
  *        - a failure prints the log's last lines and ends the run with exit 2, nothing uploaded.
@@ -25,16 +25,14 @@
 import path from 'path';
 import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
-import { reporting, throwError } from '../../../helpers';
+import { reporting } from '../../../helpers';
 import type { BaseFingerprints } from '../../../helpers/fingerprint';
+import { podsLinkSherloInto } from '../../../helpers/installedPods';
 import { dependsOnExpo } from '../../../helpers/projectJson';
 import { emit } from '../../../helpers/transcriptSink';
 import {
   type AppBuildCommand,
   renderAndroidFlavorsNeedATask,
-  renderRunOnCi,
-  renderUnknownIosConfiguration,
-  type IosConfigurationSource,
   type WhyANewAppBuild,
 } from '../../../render/appBuild';
 import type { PlatformRow } from '../../../render/runRows';
@@ -42,11 +40,10 @@ import type { SherloProject } from '../../../render/testSteps';
 import { whileShowing } from '../../shared/terminal';
 import { rowsAbove, printPlatformRowInALog } from '../platformRows';
 import { appBuilder } from '../../../seams/appBuilder';
-import { pickIosConfiguration } from '../../../seams/iosConfiguration';
-import { pickIosScheme } from '../../../seams/iosScheme';
 import { cacheKeyOf, keepUnderInstalledTreeKey } from './appBuildCacheKeys';
 import { type BuildSettings, DEFAULT_ANDROID_TASK, buildLogPath } from './buildSettings';
 import { localBuildCacheFolder, makeProjectSherloFolder } from './cacheFolder';
+import { pickIosBuild, refuseToBuildHere } from './iosBuildPick';
 
 /** The Java a React Native Gradle build needs at the least. */
 const MINIMUM_JAVA = 17;
@@ -82,7 +79,7 @@ export async function buildApps({
   projectRoot: string;
   toBuild: PlatformToBuild[];
   settings: BuildSettings;
-  /** Each platform's base fingerprint: its app build is kept in the cache under its own. */
+  /** Each platform's base fingerprint: its app build is kept in the cache under its own, if any. */
   fingerprints: BaseFingerprints;
   /** `--build-cache <dir>`, when the command line names one. */
   cacheDirFlag?: string;
@@ -106,6 +103,8 @@ export async function buildApps({
   platformRows: PlatformRow[];
   /** Per platform, how its app build was got: compiled here, the project's own command, or the cache. */
   madeBy: Partial<Record<Platform, 'compiled' | 'command' | 'build-cache'>>;
+  /** The configuration the iOS app was compiled with here; none for a cached or own-command build. */
+  iosConfiguration?: string;
 }> {
   const builder = appBuilder();
 
@@ -115,17 +114,42 @@ export async function buildApps({
   const appBuildPaths: Partial<Record<Platform, string>> = {};
   const platformRows = [...storedPlatformRows];
   const madeBy: Partial<Record<Platform, 'compiled' | 'command' | 'build-cache'>> = {};
+  let iosConfiguration: string | undefined;
 
   async function buildOnePlatform({ platform, why }: PlatformToBuild): Promise<void> {
     // Each platform's row says why it needed a new app build, so the reason rides on it.
     const whyThisBuild = why ? { why } : {};
-    const cacheKey = cacheKeyOf({
-      baseFingerprint: fingerprints[platform].hash ?? '',
-      platform,
-      settings,
-    });
+    const nativeFolderIsGenerated = needsGeneratedNativeFolder(projectRoot, platform);
+    const platformSettings = settings[platform] ?? {};
+    const ownCommand =
+      platformSettings.command && platformSettings.output
+        ? { command: platformSettings.command, output: platformSettings.output }
+        : undefined;
+    // An iOS folder that is there is picked before the cache is asked, for the configuration the
+    // build would use: whether the installed pods link Sherlo into it decides the cache key. The
+    // project's own command needs no pick of Sherlo's, and a generated folder has no pods yet.
+    let iosPick =
+      platform === 'ios' && !ownCommand && !nativeFolderIsGenerated
+        ? await pickIosBuild(projectRoot, settings, project)
+        : null;
+    /** Whether the installed pods link Sherlo into the picked configuration; undefined when none is picked. */
+    const podsLinkSherlo = () =>
+      iosPick?.configuration && !nativeFolderIsGenerated
+        ? podsLinkSherloInto(path.join(projectRoot, 'ios'), iosPick.configuration.name)
+        : undefined;
+    // No fingerprint, no key: two trees would share one, so the cache is neither read nor kept.
+    const baseFingerprint = fingerprints[platform].hash;
+    const cacheKeyOfThePods = () =>
+      baseFingerprint &&
+      cacheKeyOf({ baseFingerprint, platform, settings, linksSherlo: podsLinkSherlo() });
+    const cacheKey = cacheKeyOfThePods();
 
-    const cached = await builder.findCachedBuild({ platform, cacheKey, cacheDir });
+    // A cached build made while the pods lacked Sherlo has no native module: nothing is reused until
+    // the pods link it, and the build that follows is kept under the key of the linked pods.
+    const cached =
+      !cacheKey || podsLinkSherlo() === false
+        ? null
+        : await builder.findCachedBuild({ platform, cacheKey, cacheDir });
     if (cached) {
       // `sherlo build` says it found what it was asked to build; `sherlo test` says it in the
       // platform's row.
@@ -148,7 +172,6 @@ export async function buildApps({
 
     // Each long step shows while it runs: a spinner in a terminal, one plain line in a log
     // (../../shared/terminal). The spinner is stopped before the step's own line prints.
-    const nativeFolderIsGenerated = needsGeneratedNativeFolder(projectRoot, platform);
     if (nativeFolderIsGenerated) {
       await whileShowing({ kind: 'app-build-generating', platform }, () =>
         builder.generateNativeFolder({ platform, projectRoot, env, ...easProfile })
@@ -156,15 +179,9 @@ export async function buildApps({
     }
 
     const logPath = buildLogPath(platform);
-    const platformSettings = settings[platform] ?? {};
-    const ownCommand =
-      platformSettings.command && platformSettings.output
-        ? { command: platformSettings.command, output: platformSettings.output }
-        : undefined;
     // Picked before the compile is shown: a workspace with several schemes, or an app without the
-    // configuration named, is refused, not compiled. The project's own command needs no pick of
-    // Sherlo's.
-    const iosPick =
+    // configuration named, is refused, not compiled. A generated folder is picked once it is there.
+    iosPick ??=
       platform === 'ios' && !ownCommand ? await pickIosBuild(projectRoot, settings, project) : null;
 
     // The build log is the first thing written into the project's `.sherlo/` folder.
@@ -232,9 +249,13 @@ export async function buildApps({
       throw new Error('unreachable'); // process.exit above never returns
     }
 
-    await builder.keepInCache({ platform, cacheKey, cacheDir, path: compiled.path });
-    // Also under the key of the tree pod install left, for the next run on it.
-    if (compiled.podInstallChangedFiles && !nativeFolderIsGenerated) {
+    // Under the key of the pods the build left: pod install linked Sherlo into the configuration.
+    const keptKey = cacheKeyOfThePods();
+    if (keptKey) {
+      await builder.keepInCache({ platform, cacheKey: keptKey, cacheDir, path: compiled.path });
+    }
+    // Also under the key of the tree the build left (pod install, own command), for the next run.
+    if (keptKey && (compiled.podInstallChangedFiles || ownCommand) && !nativeFolderIsGenerated) {
       await keepUnderInstalledTreeKey({
         platform,
         settings,
@@ -242,7 +263,8 @@ export async function buildApps({
         command,
         cacheDir,
         appPath: compiled.path,
-        firstKey: cacheKey,
+        firstKey: keptKey,
+        linksSherlo: podsLinkSherlo(),
       });
     }
 
@@ -260,6 +282,7 @@ export async function buildApps({
           ...(compiled.podFilesChanged.length > 0 && !nativeFolderIsGenerated
             ? { podFilesChanged: compiled.podFilesChanged }
             : {}),
+          ...(compiled.podInstallSkipped ? { podInstallSkipped: true as const } : {}),
         })
       );
     } else {
@@ -268,6 +291,7 @@ export async function buildApps({
 
     appBuildPaths[platform] = compiled.path;
     madeBy[platform] = ownCommand ? 'command' : 'compiled';
+    if (iosPick?.configuration) iosConfiguration = iosPick.configuration.name;
   }
 
   if (settings.parallel || parallelBuildsFlag) {
@@ -278,7 +302,7 @@ export async function buildApps({
     }
   }
 
-  return { appBuildPaths, platformRows, madeBy };
+  return { appBuildPaths, platformRows, madeBy, iosConfiguration };
 }
 
 /* ========================================================================== */
@@ -355,62 +379,6 @@ async function refuseWhatThisMachineCannotBuild({
   }
 }
 
-/**
- * Refuse to build on this machine: the refusal's own words, and under them the line that points to
- * building on CI instead (../../../render/appBuild `renderRunOnCi`), as every failure to build here
- * ends.
- */
-function refuseToBuildHere(message: string, project: SherloProject | undefined): never {
-  return throwError({ message, below: renderRunOnCi(project) });
-}
-
-/**
- * The step before an iOS build starts: the scheme (../../../seams/iosScheme) and the app target's
- * configuration (../../../seams/iosConfiguration), or a refusal naming what to set. The
- * configuration is null when the app target was not read.
- */
-async function pickIosBuild(
-  projectRoot: string,
-  settings: BuildSettings,
-  project: SherloProject | undefined
-): Promise<{
-  scheme: string;
-  passedOverSchemes: string[];
-  configuration: { name: string; from: IosConfigurationSource } | null;
-}> {
-  const named = settings.ios?.scheme;
-  const schemes = named ? [] : await appBuilder().listIosSchemes(projectRoot);
-  const target = await appBuilder().readIosAppTarget(
-    projectRoot,
-    named ?? (schemes.length === 1 ? schemes[0] : undefined)
-  );
-  const pick = pickIosScheme({ named, schemes, appSchemes: target?.appSchemes ?? [] });
-  if (!pick) {
-    return refuseToBuildHere(
-      `Can't pick an iOS scheme: the workspace has ${namesInAList(schemes)}.\n` +
-        `Name one in sherlo.config.json: "build": { "ios": { "scheme": "${
-          schemes[0] ?? 'MyApp'
-        }" } }`,
-      project
-    );
-  }
-  if (!target) return { scheme: pick.scheme, passedOverSchemes: [], configuration: null };
-
-  // Null only for a configuration the config names and the app target lacks.
-  const namedConfiguration = settings.ios?.configuration ?? '';
-  const configuration = pickIosConfiguration(target, namedConfiguration);
-  if (!configuration) {
-    return refuseToBuildHere(
-      renderUnknownIosConfiguration({
-        configuration: namedConfiguration,
-        configurations: target.configurations,
-      }),
-      project
-    );
-  }
-  return { scheme: pick.scheme, passedOverSchemes: pick.skippedSchemes, configuration };
-}
-
 /** An app with product flavors and no build.android.task is refused before Gradle, with the task line to copy per flavor. */
 async function refuseFlavorsWithoutATask(
   projectRoot: string,
@@ -422,12 +390,6 @@ async function refuseFlavorsWithoutATask(
   if (tasks.length > 1) {
     refuseToBuildHere(renderAndroidFlavorsNeedATask({ tasks }), project);
   }
-}
-
-/** `A and B`, `A, B and C`. */
-function namesInAList(names: string[]): string {
-  if (names.length <= 1) return names.join('');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 /**

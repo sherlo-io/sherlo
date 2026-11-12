@@ -47,6 +47,8 @@ export type PlatformRow =
       why?: WhyANewAppBuild;
       /** An iOS build's files that pod install changed and git does not track, relative to the project root. */
       podFilesChanged?: string[];
+      /** The iOS build skipped pod install: the installed pods already matched Podfile.lock. */
+      podInstallSkipped?: true;
     }
   | { platform: Platform; appBuild: 'reused-from-test'; testIndex?: number }
   | {
@@ -119,6 +121,7 @@ export function renderPlatformRow(row: PlatformRow): string[] {
           mark
         ),
         ...underTheRow(changeLines),
+        ...underTheRow(podsAreCurrentNote(row.podInstallSkipped)),
         ...underTheRow(podFilesWarning(row.podFilesChanged ?? [])),
       ];
     }
@@ -318,6 +321,13 @@ function renderRow(label: string, words: string, mark: string = chalk.green('✔
   return `${label.padEnd(LABEL_WIDTH)}${mark} ${words}`;
 }
 
+/** The note under an iOS row whose build skipped pod install; nothing when it ran. */
+function podsAreCurrentNote(podInstallSkipped: true | undefined): string[] {
+  return podInstallSkipped
+    ? ['Pods are current (Pods/Manifest.lock matches Podfile.lock): pod install skipped']
+    : [];
+}
+
 /** Lines under a row, starting where its words start. */
 function underTheRow(lines: string[]): string[] {
   return lines.map((line) => `${' '.repeat(WORDS_START)}${line}`);
@@ -332,7 +342,10 @@ function underTheRow(lines: string[]): string[] {
  */
 function storyFilesCaptured(capture: PlatformCapture[]): string[] {
   const added = filesOfEveryPlatform(capture, ({ newStoryFiles }) => newStoryFiles);
-  const changed = filesOfEveryPlatform(capture, ({ changedStoryFiles }) => changedStoryFiles);
+  // A first look compared nothing: its files are not "changed".
+  const changed = filesOfEveryPlatform(capture, ({ changedStoryFiles, firstLook }) =>
+    firstLook ? [] : changedStoryFiles
+  );
   const captured = filesOfEveryPlatform(capture, ({ storyFiles }) => storyFiles);
 
   const everyPlatform = capture.length;

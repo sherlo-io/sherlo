@@ -205,6 +205,41 @@ describe('the masker folds every volatile class the tool prints', () => {
     expect(maskScreen(printedNone, {})).toBe(printedNone);
   });
 
+  it('the sim-mode opening and the app bundle step fold to the same text', () => {
+    const bold = (text: string): string => `${ESC}[1m${text}${ESC}[22m`;
+    const cyan = (text: string): string => `${ESC}[36m${text}${ESC}[39m`;
+    const green = (text: string): string => `${ESC}[32m${text}${ESC}[39m`;
+    const rows = ['Test 1      Started', 'Sanity/Hello (1 story)'];
+    const context = { projectRoot: '/tmp/project' };
+
+    const simOpening = [
+      'Testing your app...',
+      '',
+      bold(''),
+      bold('🧪 Sim mode: testing the declared world (/tmp/project/sim-world)...'),
+      bold(''),
+      cyan(''),
+      cyan('⬆️  Uploading android sim world + manifest...'),
+      ...rows,
+    ].join('\n');
+
+    const bundleOpening = (result: string): string =>
+      [
+        'Testing your app...',
+        '',
+        '🤖 Android  Bundling the JavaScript...',
+        `🤖 Android  ${green('✔')} ${result}`,
+        '',
+        ...rows,
+      ].join('\n');
+
+    const folded = maskScreen(simOpening, context);
+    expect(folded.split('\n')).toEqual(['Testing your app...', '', '<APP_BUNDLE_STEP>', ...rows]);
+    for (const result of ['Reused', 'Reused from Test 1', 'Bundled']) {
+      expect(maskScreen(bundleOpening(result), context)).toBe(folded);
+    }
+  });
+
   it('folds a commit id, a run namespace in a branch name, a team id and a project index', () => {
     const folded = maskScreen(
       [
@@ -261,6 +296,17 @@ describe('the masker folds every volatile class the tool prints', () => {
       'https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>'
     );
     expect(CLASSES_THE_TOOL_FOLDS).toContain('<LOGIN_LINK>');
+  });
+
+  it('a project page link folds to one canonical address on every stack', () => {
+    const folded = 'https://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>';
+    const local =
+      "Set the main branch in the project's settings: http://localhost:3000/project?t=tm000001&p=7";
+    const prod = `  ${ESC}[36mhttps://app.sherlo.io/project?t=tm000001&p=7${ESC}[39m`;
+
+    expect(maskScreen(local, {})).toBe(`Set the main branch in the project's settings: ${folded}`);
+    expect(maskScreen(prod, {})).toBe(`  ${ESC}[36m${folded}${ESC}[39m`);
+    expect(maskScreen(folded, {})).toBe(folded);
   });
 
   it("folds a capture record's settle time, screenful count and measured size", () => {

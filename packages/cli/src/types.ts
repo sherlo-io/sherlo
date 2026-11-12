@@ -1,6 +1,7 @@
 import { DeviceID, DeviceTheme } from '@sherlo/api-types';
 import { PartialDeep } from 'type-fest';
 import {
+  ALL_STORIES_OPTION,
   ANDROID_OPTION,
   CONFIG_OPTION,
   DEVICES_OPTION,
@@ -112,6 +113,8 @@ type CommandOptions = {
     [ANDROID_OPTION]?: string;
     [IOS_OPTION]?: string;
     [WAIT_OPTION]?: boolean;
+    /** Take every story on the project's first test, rather than a first look (./commands/test/firstLook). */
+    [ALL_STORIES_OPTION]?: boolean;
     /**
      * Accept a prebuilt bundle directory instead of running the bundler. The
      * directory holds, per platform, the bundle, its assets, its module manifest

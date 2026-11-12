@@ -1,0 +1,117 @@
+{
+  "pose": 1,
+  "argv": ["view", "8", "--wait"],
+  "files": {
+    "sherlo.config.json": {
+      "devices": [
+        {
+          "id": "iphone.15",
+          "osVersion": "17"
+        }
+      ]
+    }
+  },
+  "env": {
+    "SKIP_INTRO": "true",
+    "SHERLO_TOKEN": "posetokenposetokenposetokenpose1tm0000017"
+  },
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 8
+      },
+      "answer": {
+        "runStatus": "finished",
+        "status": "noChanges",
+        "viewStatusesCount": {
+          "approved": 5,
+          "noChanges": 39,
+          "reported": 0,
+          "unreviewed": 0
+        },
+        "noPicture": [
+          {
+            "kind": "story",
+            "name": "Profile - Video header",
+            "device": "iPhone 15 (iOS 17)",
+            "reason": "the app did not answer in time"
+          },
+          {
+            "kind": "scene",
+            "name": "Feed - Home",
+            "device": "iPhone 15 (iOS 17)",
+            "reason": "never settled"
+          }
+        ]
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 8
+      },
+      "answer": {
+        "runStatus": "finished",
+        "status": "noChanges",
+        "viewStatusesCount": {
+          "approved": 5,
+          "noChanges": 39,
+          "reported": 0,
+          "unreviewed": 0
+        },
+        "noPicture": [
+          {
+            "kind": "story",
+            "name": "Profile - Video header",
+            "device": "iPhone 15 (iOS 17)",
+            "reason": "the app did not answer in time"
+          },
+          {
+            "kind": "scene",
+            "name": "Feed - Home",
+            "device": "iPhone 15 (iOS 17)",
+            "reason": "never settled"
+          }
+        ]
+      }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 8
+      },
+      "answer": {
+        "runStatus": "finished",
+        "status": "noChanges",
+        "viewStatusesCount": {
+          "approved": 5,
+          "noChanges": 39,
+          "reported": 0,
+          "unreviewed": 0
+        },
+        "noPicture": [
+          {
+            "kind": "story",
+            "name": "Profile - Video header",
+            "device": "iPhone 15 (iOS 17)",
+            "reason": "the app did not answer in time"
+          },
+          {
+            "kind": "scene",
+            "name": "Feed - Home",
+            "device": "iPhone 15 (iOS 17)",
+            "reason": "never settled"
+          }
+        ]
+      }
+    }
+  ],
+  "masks": {}
+}

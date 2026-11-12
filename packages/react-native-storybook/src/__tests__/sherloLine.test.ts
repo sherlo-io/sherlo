@@ -345,6 +345,23 @@ describe('the Sherlo line', () => {
   });
 });
 
+describe('listing the stories of the app', () => {
+  it('the line answers a list question with the story ids the app last said', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+
+    // No app has ever waited: the answer a capture gives.
+    await expect(driver.ask({ action: 'listStories' })).resolves.toEqual({ kind: 'no-app' });
+
+    const app = await connectAnApp(running);
+    await app.waitsForAStory(appSays([STORY, OTHER_STORY], true));
+    await expect(driver.ask({ action: 'listStories' })).resolves.toEqual({
+      kind: 'listed',
+      stories: [STORY, OTHER_STORY],
+    });
+  });
+});
+
 describe('opening a story on an app that cannot list its stories', () => {
   it('an app that cannot list its stories leaves the story check to the story browser', async () => {
     const running = await startALine();
@@ -609,6 +626,72 @@ describe('a capture of an app whose story files changed after its code loaded', 
   });
 });
 
+describe('a story capture of JavaScript that already walked the story', () => {
+  const pause = () => new Promise((resolve) => setTimeout(resolve, 30));
+  const CAPTURED = { kind: 'captured', storyId: STORY };
+  const STORIES = [STORY, OTHER_STORY];
+
+  /** An app in testing mode that was handed STORY, answered it, and waits for the next capture. */
+  async function anAppThatWalkedTheStory() {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: null });
+    const firstReply = driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: CAPTURED });
+    await expect(firstReply).resolves.toEqual(CAPTURED);
+    // The line lets the app go after its answer, with nothing to do.
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: null });
+    return { app, driver };
+  }
+
+  it('a story capture asks the app for a fresh start before it opens the story', async () => {
+    const { app, driver } = await anAppThatWalkedTheStory();
+
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+      startFresh: true,
+    });
+  });
+
+  it('CONTROL: another story, or the same one on JavaScript started since, is handed with no fresh start', async () => {
+    const { app, driver } = await anAppThatWalkedTheStory();
+
+    // Storybook mounts a story it switches to from nothing: there is nothing to start fresh.
+    const otherReply = driver.ask({
+      action: 'captureStory',
+      storyId: OTHER_STORY,
+      settings: SETTINGS,
+    });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: OTHER_STORY,
+      settings: SETTINGS,
+    });
+    const otherCaptured = { kind: 'captured', storyId: OTHER_STORY };
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: otherCaptured });
+    await expect(otherReply).resolves.toEqual(otherCaptured);
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({});
+
+    // A reload is a fresh start of its own.
+    await pause();
+    await app.startsItsJavaScript();
+    await app.waitsForACapture({ mode: 'testing', stories: STORIES, answer: null });
+    void driver.ask({ action: 'captureStory', storyId: OTHER_STORY, settings: SETTINGS });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: OTHER_STORY,
+      settings: SETTINGS,
+    });
+  });
+});
+
 describe('a capture of an app that cannot list its stories', () => {
   it('a capture of an app that cannot list its stories is checked after the restart', async () => {
     const running = await startALine();
@@ -713,7 +796,7 @@ describe('a capture of an app that cannot list its stories', () => {
   });
 
   it('a driver before any app ever waited is told there is no app', async () => {
-    const running = await startALine();
+    const running = await startALine({ appHoldMs: 50 });
     const driver = await connectADriver(running);
 
     await expect(
@@ -820,6 +903,60 @@ describe('captures asked one after another on one bundler, each of the app it la
     await launchedApp.waitsForACapture(waitInTesting(null));
     void driver.ask(question);
     await expect(launchedApp.nextCaptureInstruction()).resolves.toEqual({ sceneId: SCENE });
+  });
+
+  /** A wait of an app in testing mode that cannot list its stories. */
+  const storyWait = (answer: Message | null) => ({
+    mode: 'testing',
+    stories: null,
+    scenes: null,
+    answer,
+  });
+  const storyQuestion = () => ({
+    action: 'captureStory',
+    storyId: STORY,
+    settings: SETTINGS,
+    launchedAt: Date.now(),
+  });
+
+  it('a capture asked just before the launched app says hello is answered once the app says it, not with no-app', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+
+    const reply = driver.ask(storyQuestion());
+    await expect(replyOrParked(reply, driver)).resolves.toBe('parked');
+
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(storyWait(null));
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      storyId: STORY,
+      settings: SETTINGS,
+    });
+    await app.waitsForACapture(storyWait(NEW_RECORD));
+    await expect(reply).resolves.toEqual(NEW_RECORD);
+  });
+
+  it('a capture with no app saying hello within the hold still ends no-app', async () => {
+    const running = await startALine({ appHoldMs: 50 });
+    const driver = await connectADriver(running);
+
+    await expect(driver.ask(storyQuestion())).resolves.toEqual({ kind: 'no-app' });
+  });
+
+  it('a capture that outlasts the hold after its app was handed it is not told no-app', async () => {
+    const running = await startALine({ appHoldMs: 50 });
+    const driver = await connectADriver(running);
+
+    const reply = driver.ask(storyQuestion());
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(storyWait(null));
+    await app.nextCaptureInstruction();
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await expect(replyOrParked(reply, driver)).resolves.toBe('parked');
+
+    await app.waitsForACapture(storyWait(NEW_RECORD));
+    await expect(reply).resolves.toEqual(NEW_RECORD);
   });
 
   it('CONTROL: a capture that names no launch is paired with whichever app waits, as before', async () => {

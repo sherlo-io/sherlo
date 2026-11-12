@@ -15,6 +15,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { WRITTEN_BY_A_BUILD } from '../writtenByABuild';
 
 // ---------------------------------------------------------------------------
 // Helpers - create tiny fixture projects on disk
@@ -350,6 +351,53 @@ describe('computeBaseFingerprint', () => {
     }
   });
 
+  describe('the Sherlo package in layer 2', () => {
+    const SHERLO = '@sherlo/react-native-storybook';
+
+    /** A bare app with the Sherlo package installed at `version`, its native files as given. */
+    async function sherloEntryOf(version: string, iosSource: string): Promise<string | undefined> {
+      const dir = makeTempDir();
+      mockRunShellCommand.mockImplementation(async ({ command }: { command: string }) => {
+        if (command !== 'npx react-native config') throw new Error('no');
+        return JSON.stringify({
+          dependencies: {
+            [SHERLO]: {
+              name: SHERLO,
+              root: path.join(dir, 'node_modules', SHERLO),
+              platforms: { android: { sourceDir: 'android' }, ios: { podspecPath: 'x' } },
+            },
+          },
+        });
+      });
+      try {
+        writeFile(dir, 'package.json', JSON.stringify({ name: 'bare-app' }));
+        writeFile(dir, 'android/app/build.gradle', 'android {}');
+        writeFile(dir, `node_modules/${SHERLO}/package.json`, JSON.stringify({ version }));
+        writeFile(dir, `node_modules/${SHERLO}/ios/Sherlo.m`, iosSource);
+        writeFile(dir, `node_modules/${SHERLO}/src/index.js`, `// ${version}`);
+        const result = await computeBaseFingerprint(dir);
+        return result.ios.preimage?.autolinkedModules[0];
+      } finally {
+        cleanup(dir);
+      }
+    }
+
+    it('a new Sherlo package version with the same native files keeps the fingerprint', async () => {
+      const before = await sherloEntryOf('1.0.0', 'native code');
+      const after = await sherloEntryOf('1.1.0', 'native code');
+
+      expect(before).toMatch(/^@sherlo\/react-native-storybook@[0-9a-f]{16}$/);
+      expect(after).toBe(before);
+    });
+
+    it("a change in Sherlo's native files changes the fingerprint", async () => {
+      const before = await sherloEntryOf('1.0.0', 'native code');
+      const after = await sherloEntryOf('1.0.0', 'other native code');
+
+      expect(after).not.toBe(before);
+    });
+  });
+
   it('counts a native folder git does not track as generated, so an Expo project stays managed after prebuild', async () => {
     await answerGitForReal();
     const managed = makeTempDir();
@@ -543,6 +591,58 @@ describe('computeBaseFingerprint', () => {
       for (const dir of [fresh, builtOnTheFirstRunner, builtOnTheSecondRunner, bumped]) {
         cleanup(dir);
       }
+    }
+  });
+
+  // A retried push keys the local build cache by the fingerprint of the tree the first build left,
+  // so what the build itself wrote must not name another tree. A lockfile it rewrites still does.
+  it('files the build itself writes do not change the fingerprint', async () => {
+    await useTheRealExpoFingerprint();
+    const dir = makeTempDir();
+    try {
+      writeFile(dir, 'package.json', JSON.stringify({ name: 'bare-app' }));
+      writeRealLibraryConfig(dir);
+      writeFile(dir, 'android/app/build.gradle', 'android { applicationId "com.example" }');
+      writeFile(dir, 'ios/App.xcodeproj/project.pbxproj', '// !$*UTF8*$!\n{ objects = {}; }');
+      writeFile(dir, 'ios/App.xcworkspace/contents.xcworkspacedata', '<Workspace/>');
+      writeFile(dir, 'ios/App.xcworkspace/xcshareddata/swiftpm/Package.resolved', '{"pins":[]}');
+      const clean = await computeBaseFingerprint(dir);
+
+      // What Gradle, pod install and xcodebuild leave in the native folders on a build machine.
+      writeFile(dir, 'android/.kotlin/errors/errors-1762790000000.log', 'daemon died');
+      writeFile(dir, 'android/.kotlin/sessions/kotlin-compiler-1.salive', '');
+      writeFile(dir, 'android/.gradle/8.10/checksums/checksums.lock', 'lock');
+      writeFile(dir, 'android/app/build/outputs/apk/debug/app-debug.apk', 'apk');
+      writeFile(dir, 'android/app/.cxx/Debug/build.ninja', 'ninja');
+      writeFile(dir, 'ios/Pods/Manifest.lock', 'PODS: []');
+      writeFile(dir, 'ios/build/generated/ios/RCTAppDependencyProvider.h', '// codegen');
+      writeFile(dir, 'ios/.xcode.env.local', 'export NODE_BINARY=/opt/homebrew/bin/node');
+      writeFile(
+        dir,
+        'ios/App.xcodeproj/xcuserdata/runner.xcuserdatad/xcschemes/xcschememanagement.plist',
+        '<dict><key>SchemeUserState</key></dict>'
+      );
+      writeFile(
+        dir,
+        'ios/App.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist',
+        '<dict><key>IDEDidComputeMac32BitWarning</key><true/></dict>'
+      );
+      const built = await computeBaseFingerprint(dir);
+
+      // A Swift package pin the build resolved again is a real native change, and still counts.
+      writeFile(dir, 'ios/App.xcworkspace/xcshareddata/swiftpm/Package.resolved', '{"pins":[1]}');
+      const repinned = await computeBaseFingerprint(dir);
+
+      expect(clean.android.hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(built.android.hash).toBe(clean.android.hash);
+      expect(built.ios.hash).toBe(clean.ios.hash);
+      expect(repinned.ios.hash).not.toBe(built.ios.hash);
+      expect(mockCreateFingerprintAsync).toHaveBeenCalledWith(
+        dir,
+        expect.objectContaining({ ignorePaths: WRITTEN_BY_A_BUILD })
+      );
+    } finally {
+      cleanup(dir);
     }
   });
 
@@ -885,6 +985,24 @@ describe('computeBaseFingerprint', () => {
         android: expect.objectContaining({ hash: null }),
         ios: expect.objectContaining({ hash: null }),
       });
+    } finally {
+      cleanup(dir);
+    }
+  });
+
+  // An answer of a shape this code does not read fails after the library returned, past Layer 1.
+  it('a fingerprint that fails gives a reason, not an error', async () => {
+    mockCreateFingerprintAsync.mockResolvedValue({ hash: 'fp-layer1-abc123', sources: [null] });
+    const dir = makeTempDir();
+    try {
+      writeFile(dir, 'package.json', JSON.stringify({ name: 'test' }));
+
+      const result = await computeBaseFingerprint(dir);
+
+      for (const platform of ['android', 'ios'] as const) {
+        expect(result[platform].hash).toBeNull();
+        expect(result[platform].debugMessage).toMatch(/^the fingerprint failed: .*null/);
+      }
     } finally {
       cleanup(dir);
     }

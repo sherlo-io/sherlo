@@ -2,7 +2,7 @@
 
   Nothing faked who is logged in, so the app sent itself to sign-in. Add a logged-in user to the scene's mocks.
 
-[2mKept in .sherlo/captures as chat--conversation[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as chat--conversation[22m
 
 
 [exit 1]

@@ -20,6 +20,7 @@ const {
   mockGetLastState,
   mockNotifyGetStorybookCalled,
   mockStartCaptureTransport,
+  mockBundlerCapture,
   effectsOfTheEntry,
 } = vi.hoisted(() => ({
   mockGetMode: vi.fn(),
@@ -28,6 +29,7 @@ const {
   mockGetLastState: vi.fn(),
   mockNotifyGetStorybookCalled: vi.fn(),
   mockStartCaptureTransport: vi.fn(),
+  mockBundlerCapture: vi.fn(),
   /** Every effect the entry component asked for, kept for a test to run, as React would. */
   effectsOfTheEntry: [] as (() => void | (() => void))[],
 }));
@@ -62,6 +64,7 @@ vi.mock('../../SherloModule', () => ({
     getConfigOrDefault: mockGetConfigOrDefault,
     getLastState: mockGetLastState,
     notifyGetStorybookCalled: mockNotifyGetStorybookCalled,
+    awaitFrameCommit: async () => true,
   },
 }));
 
@@ -72,6 +75,7 @@ vi.mock('../../checkSdkCompatibility', () => ({
 
 vi.mock('../../captureTransport', () => ({
   startCaptureTransport: mockStartCaptureTransport,
+  bundlerCapture: mockBundlerCapture,
 }));
 
 // The React tree itself is out of scope here (no renderer in this package's test setup) - these
@@ -82,7 +86,9 @@ vi.mock('../hooks', () => ({ useHideSplashScreen: () => {} }));
 vi.mock('../components/SherloStoryErrorBoundary', () => ({
   default: ({ children }: { children: unknown }) => children,
 }));
-vi.mock('../../openStoryChannel', () => ({
+// The wait for Storybook to show a story stays real: a fresh start waits on it.
+vi.mock('../../openStoryChannel', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../openStoryChannel')>()),
   startOpenStoryChannel: vi.fn(),
   stopOpenStoryChannel: vi.fn(),
 }));
@@ -124,6 +130,8 @@ beforeEach(() => {
   mockGetMode.mockReturnValue('testing');
   mockGetConfigOrDefault.mockReturnValue(CONFIG_WHEN_NOTHING_IS_ON_DISK);
   mockGetLastState.mockReturnValue(undefined);
+  // A bundler beside the app, whose relay hands no capture.
+  mockBundlerCapture.mockReturnValue({ waitForACapture: async () => ({}) });
   // No runner handed any settings - the throw a capture's restarted app used to hit.
   mockGetConfig.mockImplementation(() => {
     throw new Error('Config is undefined');
@@ -147,7 +155,11 @@ describe('testing mode with no settings from a runner still returns a storybook,
     // and did not get torn down under the config read that follows it.
     expect(mockStartCaptureTransport).toHaveBeenCalledTimes(1);
     const storybooksChannel = (view as unknown as { _channel: unknown })._channel;
-    expect(mockStartCaptureTransport).toHaveBeenCalledWith({ channel: storybooksChannel });
+    // The road is the bundler's, wrapped so each story capture starts from a fresh app state.
+    expect(mockStartCaptureTransport).toHaveBeenCalledWith({
+      channel: storybooksChannel,
+      capture: expect.objectContaining({ waitForACapture: expect.any(Function) }),
+    });
   });
 
   it("the run's render delay is read through the config read that never throws", async () => {
@@ -174,5 +186,131 @@ describe('leaving Storybook mode', () => {
     cleanups.forEach((cleanup) => cleanup?.());
 
     expect(mockable.label).toBe('real');
+  });
+});
+
+/** What a story draws as it mounts, before anything it does later changes it. */
+type DrawnStory = { storyId: string; banner: string | null };
+
+/**
+ * A Storybook view and channel that draw a story the way React Native Storybook does: handing the
+ * view a story mounts it from nothing, unless that story is mounted already, which keeps what it
+ * drew since; `forceRemount` hands the view the story again, and says it rendered.
+ */
+function makeAStorybookThatKeepsItsStory() {
+  const listeners = new Map<string, Set<() => void>>();
+  let mounted: DrawnStory | null = null;
+  let selected: string | null = null;
+
+  function setStory(story: { id: string } | null): void {
+    if (story === null) mounted = null;
+    else if (mounted?.storyId !== story.id) mounted = { storyId: story.id, banner: null };
+  }
+
+  function renders(storyId: string): void {
+    selected = storyId;
+    setStory({ id: storyId });
+    listeners.get('storyRendered')?.forEach((listener) => listener());
+  }
+
+  const channel = {
+    on: (event: string, listener: () => void) => {
+      listeners.set(event, (listeners.get(event) ?? new Set()).add(listener));
+    },
+    off: (event: string, listener: () => void) => {
+      listeners.get(event)?.delete(listener);
+    },
+    emit: (event: string, { storyId }: { storyId: string }) => {
+      if (event === 'setCurrentStory' || event === 'forceRemount') renders(storyId);
+    },
+  };
+
+  return {
+    view: {
+      _channel: channel,
+      _setStory: setStory,
+      _preview: {
+        get currentSelection() {
+          return selected === null ? undefined : { storyId: selected };
+        },
+      },
+    } as never,
+    /** The core's walk: it asks Storybook for the story, and reads what is on screen. */
+    walk(storyId: string): DrawnStory | null {
+      channel.emit('setCurrentStory', { storyId });
+      return mounted === null ? null : { ...mounted };
+    },
+    /** The story, still mounted after its capture, shows a banner of its own. */
+    showsABanner(banner: string): void {
+      if (mounted) mounted.banner = banner;
+    },
+  };
+}
+
+type Road = { waitForACapture: (saying: unknown) => Promise<{ storyId?: string }> };
+
+/**
+ * The road the core walks captures on, over a bundler that hands these instructions in turn: the
+ * one getStorybook hands it, or the bundler's own when it hands none.
+ */
+function theRoadTheCoreIsHanded(instructions: Record<string, unknown>[]): () => Road {
+  const bundlersRoad = { waitForACapture: vi.fn(async () => instructions.shift() ?? {}) };
+  mockBundlerCapture.mockReturnValue(bundlersRoad);
+  return () => {
+    const started = mockStartCaptureTransport.mock.calls[0]?.[0] as { capture?: Road };
+    return started.capture ?? bundlersRoad;
+  };
+}
+
+describe('each story capture starts from a fresh app state', () => {
+  const STORY = 'chat--list';
+  const SAYING = { mode: 'testing', stories: [STORY], answer: null };
+
+  it('an overlay a story left mounted is gone when the next capture opens its story', async () => {
+    const storybook = makeAStorybookThatKeepsItsStory();
+    const road = theRoadTheCoreIsHanded([
+      { storyId: STORY, settings: {} },
+      { storyId: STORY, settings: {}, startFresh: true },
+    ]);
+    getStorybook(storybook.view);
+
+    const first = await road().waitForACapture(SAYING);
+    expect(storybook.walk(first.storyId!)).toEqual({ storyId: STORY, banner: null });
+    storybook.showsABanner('Refreshing...');
+
+    const second = await road().waitForACapture(SAYING);
+    expect(storybook.walk(second.storyId!)).toEqual({ storyId: STORY, banner: null });
+  });
+
+  it('a capture of the same story twice draws the same tree both times', async () => {
+    const storybook = makeAStorybookThatKeepsItsStory();
+    const road = theRoadTheCoreIsHanded([
+      { storyId: STORY, settings: {} },
+      { storyId: STORY, settings: {}, startFresh: true },
+    ]);
+    getStorybook(storybook.view);
+
+    const firstTree = storybook.walk((await road().waitForACapture(SAYING)).storyId!);
+    storybook.showsABanner('Refreshing...');
+    const secondTree = storybook.walk((await road().waitForACapture(SAYING)).storyId!);
+
+    expect(secondTree).toEqual(firstTree);
+  });
+
+  it('CONTROL: a story the line does not ask to start fresh keeps what it drew', async () => {
+    const storybook = makeAStorybookThatKeepsItsStory();
+    const road = theRoadTheCoreIsHanded([
+      { storyId: STORY, settings: {} },
+      { storyId: STORY, settings: {} },
+    ]);
+    getStorybook(storybook.view);
+
+    storybook.walk((await road().waitForACapture(SAYING)).storyId!);
+    storybook.showsABanner('Refreshing...');
+
+    expect(storybook.walk((await road().waitForACapture(SAYING)).storyId!)).toEqual({
+      storyId: STORY,
+      banner: 'Refreshing...',
+    });
   });
 });

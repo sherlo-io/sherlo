@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import capture from '../capture';
-import { ALL_SCENES_OPTION, DISCOVER_OPTION, SCENE_OPTION } from '../../../constants';
+import { ALL_SCENES_OPTION, DISCOVER_OPTION, PNG_OPTION, SCENE_OPTION } from '../../../constants';
 import { captureTranscript } from '../../../helpers/transcriptSink';
 import { installCaptureSocket } from '../../../seams/captureSocket';
 import { installDeviceState } from '../../../seams/deviceState';
@@ -127,7 +127,39 @@ describe('kept captures', () => {
 
     const [kept] = readKeptCaptures(project);
     expect(kept.record).toMatchObject({ kind: 'never-reached', stayedOn: ['Home'] });
+    expect(stdout).toContain('Only the record of the attempt is in .sherlo/captures as chat--open');
+  });
+
+  it('a scene capture that saved no picture says no picture was saved and only the record is kept', async () => {
+    const { stdout } = await captureWith([NEVER_READY], { [SCENE_OPTION]: 'chat--open' });
+
+    expect(stdout).toContain(
+      'No picture was saved. Only the record of the attempt is in .sherlo/captures as chat--open'
+    );
+    expect(stdout).not.toContain('Kept in .sherlo/captures');
+  });
+
+  it('a scene that never got ready but wrote its png picture still says where it is kept', async () => {
+    const stoppedOnAnotherScreen: SceneCaptureResult = {
+      ...NEVER_READY,
+      stop: { kind: 'on-another-screen', screen: { words: ['No internet connection'], views: 7 } },
+    };
+    const picturePath = path.join(project, 'chat.png');
+    const { stdout } = await captureWith([stoppedOnAnotherScreen], {
+      [SCENE_OPTION]: 'chat--open',
+      [PNG_OPTION]: picturePath,
+    });
+
+    expect(stdout).toContain(`Picture saved to ${picturePath}`);
     expect(stdout).toContain('Kept in .sherlo/captures as chat--open');
+    expect(stdout).not.toContain('No picture was saved');
+  });
+
+  it('a captured scene still says where its picture is kept', async () => {
+    const { stdout } = await captureWith([A_SCENE], { [SCENE_OPTION]: 'chat--open' });
+
+    expect(stdout).toContain('Kept in .sherlo/captures as chat--open');
+    expect(stdout).not.toContain('No picture was saved');
   });
 
   it('a scene that never reached its screen keeps no picture and says so in its record, not on the screen', async () => {
@@ -142,7 +174,7 @@ describe('kept captures', () => {
       noPicture: { ending: 'not-captured' },
     });
     expect(stdout).not.toContain('waitedMs');
-    expect(stdout).not.toContain('No picture');
+    expect(stdout).not.toContain('noPicture');
   });
 
   it('a scene that never reached its screen keeps the frame the app ended on, never as its picture', async () => {

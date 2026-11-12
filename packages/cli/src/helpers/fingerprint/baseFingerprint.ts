@@ -45,6 +45,8 @@ import { readProjectJson } from '../projectJson';
 import reporting from '../reporting';
 import runShellCommand from '../runShellCommand';
 import { buildDeterministicEnv, withDeterministicEnv } from './deterministicEnv';
+import { installedVersionOf } from './installedVersion';
+import { WRITTEN_BY_A_BUILD } from './writtenByABuild';
 
 /**
  * `@expo/fingerprint` is an EXTERNAL runtime dependency: it is declared in
@@ -234,20 +236,19 @@ export async function computeBaseFingerprint(
 
   // ------------------------------------------------------------------
   // Layer 1 - @expo/fingerprint over each platform alone, with version
-  //           suppression.
+  //           suppression. Every layer runs inside the one fail-soft try: a
+  //           missing library, or an answer of a shape this code cannot read,
+  //           gives every platform the reason instead of crashing the push.
   // ------------------------------------------------------------------
-  let layer1: Record<Platform, Fingerprint>;
-
   try {
-    // Lazy, fail-soft load: a missing/broken @expo/fingerprint install rejects
-    // here and is caught below, degrading to hash:null instead of crashing.
+    // Lazy load: a missing/broken @expo/fingerprint install rejects here.
     const expoFingerprint = await loadExpoFingerprint();
 
     // Layer 1 (SHERLO-1746): swap in the deterministic env around the library
     // calls so the `ExpoConfigLoader.js` subprocess @expo/fingerprint spawns
     // internally cannot inherit the per-command ambient env. Layer 2 handles its
     // own env via `runShellCommand` (`envMode: 'replace'`) and is NOT wrapped.
-    layer1 = await withDeterministicEnv(async () => ({
+    const layer1: Record<Platform, Fingerprint> = await withDeterministicEnv(async () => ({
       android: await createPlatformFingerprint({
         expoFingerprint,
         projectRoot: resolvedProjectRoot,
@@ -261,52 +262,50 @@ export async function computeBaseFingerprint(
         platform: 'ios',
       }),
     }));
+
+    if (PLATFORMS.some((platform) => !layer1[platform].hash)) {
+      return unavailableOnEveryPlatform('@expo/fingerprint returned an empty hash');
+    }
+
+    const nativeFingerprint = nativeFingerprintOf({
+      android: layer1.android.hash,
+      ios: layer1.ios.hash,
+    });
+
+    // ------------------------------------------------------------------
+    // Layer 2 - augmented native sources.
+    // ------------------------------------------------------------------
+    const autolinkedModulesOf = await getAutolinkedModules(resolvedProjectRoot, workflow);
+
+    const fingerprints = {} as BaseFingerprints;
+    for (const platform of PLATFORMS) {
+      const lockfiles = await hashLockfiles(resolvedProjectRoot, platform);
+      const autolinkedModules = autolinkedModulesOf[platform];
+
+      fingerprints[platform] = {
+        hash: combineLayers({
+          layer1Hash: layer1[platform].hash,
+          lockfiles,
+          autolinkedModules,
+          workflow,
+        }),
+        nativeFingerprint,
+        preimage: {
+          workflow,
+          nativeSources: sourceDigestsOf(layer1[platform]),
+          lockfiles,
+          autolinkedModules,
+          nativeFolderFiles: nativeFolderFilesOf(layer1[platform]),
+        },
+      };
+    }
+
+    return fingerprints;
   } catch (err) {
-    // @expo/fingerprint may not be installed, or the project may have no
-    // native dirs.  Fail-soft - return null and let the caller proceed.
     return unavailableOnEveryPlatform(
-      `@expo/fingerprint unavailable or failed: ${err instanceof Error ? err.message : String(err)}`
+      `the fingerprint failed: ${err instanceof Error ? err.message : String(err)}`
     );
   }
-
-  if (PLATFORMS.some((platform) => !layer1[platform].hash)) {
-    return unavailableOnEveryPlatform('@expo/fingerprint returned an empty hash');
-  }
-
-  const nativeFingerprint = nativeFingerprintOf({
-    android: layer1.android.hash,
-    ios: layer1.ios.hash,
-  });
-
-  // ------------------------------------------------------------------
-  // Layer 2 - augmented native sources.
-  // ------------------------------------------------------------------
-  const autolinkedModulesOf = await getAutolinkedModules(resolvedProjectRoot, workflow);
-
-  const fingerprints = {} as BaseFingerprints;
-  for (const platform of PLATFORMS) {
-    const lockfiles = await hashLockfiles(resolvedProjectRoot, platform);
-    const autolinkedModules = autolinkedModulesOf[platform];
-
-    fingerprints[platform] = {
-      hash: combineLayers({
-        layer1Hash: layer1[platform].hash,
-        lockfiles,
-        autolinkedModules,
-        workflow,
-      }),
-      nativeFingerprint,
-      preimage: {
-        workflow,
-        nativeSources: sourceDigestsOf(layer1[platform]),
-        lockfiles,
-        autolinkedModules,
-        nativeFolderFiles: nativeFolderFilesOf(layer1[platform]),
-      },
-    };
-  }
-
-  return fingerprints;
 }
 
 /**
@@ -401,38 +400,11 @@ function createPlatformFingerprint({
   return createFingerprintAsync(projectRoot, {
     ...versionSuppression,
     fileHookTransform: transformForThisPlatform,
-    ignorePaths: WRITTEN_INTO_PACKAGES_BY_A_BUILD,
+    ignorePaths: WRITTEN_BY_A_BUILD,
     platforms: [platform],
     debug: true,
   });
 }
-
-/**
- * Files a native build writes into an installed package's own folder, which the library would
- * otherwise hash as that package's native code. A clean install has none of them and a built tree
- * has them, with the machine's Xcode toolchain inside - so without this, a fingerprint taken after
- * a build, or on a machine that built before, differs from one taken on a fresh install of the same
- * lockfile. A real change to such a package still moves the fingerprint: its shipped sources, and
- * its version in the native module list, are hashed as before.
- *
- * The same list newer `@expo/fingerprint` releases ignore by default (0.20's
- * `DEFAULT_IGNORE_PATHS`), which the 0.11 line this CLI depends on lacks; the library adds these
- * to its own defaults. Swift Package Manager and `xcodebuild -derivedDataPath` folders are build
- * output in any package, so they are ignored in every one.
- */
-const WRITTEN_INTO_PACKAGES_BY_A_BUILD = [
-  // Swift Package Manager and Xcode build folders, in any package
-  '**/.swiftpm/**/*',
-  '**/node_modules/**/.build/**/*',
-  '**/node_modules/**/.DerivedData/**/*',
-  // expo-modules-jsi's pod builds its xcframework and module map inside the package
-  '**/node_modules/expo-modules-jsi/apple/{Products,.build,.DerivedData,.generated}/**/*',
-  // CocoaPods prepare commands that generate sources inside the package
-  '**/node_modules/expo-sqlite/ios/sqlite3.[ch]',
-  '**/node_modules/expo-updates/ios/EXUpdates/BSPatch/bspatch.c',
-  // Node addons are compiled for the installing machine
-  '**/node_modules/**/*.node',
-];
 
 /** The id `@expo/fingerprint` gives the resolved Expo config (`expo config --json`). */
 const EXPO_CONFIG_SOURCE_ID = 'expoConfig';
@@ -834,13 +806,6 @@ async function getAutolinkedModules(
   };
 }
 
-/** The version of an installed package, read from its own package.json. */
-function installedVersionOf(packageFolder: string | null): string {
-  if (!packageFolder) return 'unknown';
-  const version: unknown = readProjectJson(packageFolder, 'package.json')?.version;
-  return typeof version === 'string' ? version : 'unknown';
-}
-
 /**
  * `react-native config` lists every dependency with what it links per platform: a
  * platform it has nothing for is `null` there, so it does not count for that one.
@@ -866,7 +831,7 @@ async function getBareAutolinkedModules(projectRoot: string): Promise<ModulesByP
         .map((dependency) => {
           const packageFolder =
             dependency.root ?? findInstalledPackageFolder(projectRoot, dependency.name);
-          return `${dependency.name}@${installedVersionOf(packageFolder)}`;
+          return `${dependency.name}@${installedVersionOf(dependency.name, packageFolder)}`;
         })
         .sort();
 
@@ -893,7 +858,10 @@ async function getManagedAutolinkedModules(
 
     return modules
       .flatMap((module) => (module.packageName ? [module.packageName] : []))
-      .map((name) => `${name}@${installedVersionOf(findInstalledPackageFolder(projectRoot, name))}`)
+      .map(
+        (name) =>
+          `${name}@${installedVersionOf(name, findInstalledPackageFolder(projectRoot, name))}`
+      )
       .sort();
   } catch {
     // Fall back to expo config approach (older Expo SDKs).

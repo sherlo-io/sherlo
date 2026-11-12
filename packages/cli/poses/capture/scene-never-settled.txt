@@ -2,32 +2,12 @@
 [2m   A test run of this scene would stop at the same limit. What it read then:[22m
 [2m   Still changing: TickerValue, LoadingSpinner[22m
 
-   [93m<[39m[95mFeed[39m[93m>[39m
-     [93m<[39m[36mView[39m
-       [37mstyle[39m[32m=[39m[36m{{[39m
-         [37mflex[39m[97m:[39m [93m1[39m[97m,[39m
-         [37mbackgroundColor[39m[97m:[39m [93m"[39m[97m#FFFFFF[39m[93m"[39m
-       [36m}}[39m
-     [93m>[39m [36m(<SIZE>)[39m
-       [93m<[39m[95mTickerValue[39m[93m>[39m
-         [93m<[39m[36mText[39m
-           [37mstyle[39m[32m=[39m[36m{{[39m
-             [37mfontWeight[39m[97m:[39m [93m"700"[39m[97m,[39m
-             [37mfontSize[39m[97m:[39m [93m32[39m
-           [36m}}[39m
-         [93m>[39m [36m(<SIZE>)[39m
-           1,204
-         [93m</[39m[36mText[39m[93m>[39m
-       [93m</[39m[95mTickerValue[39m[93m>[39m
-       [93m<[39m[95mLoadingSpinner[39m[93m>[39m
-         [93m<[39m[36mView[39m [93m/>[39m [36m(<SIZE>)[39m
-       [93m</[39m[95mLoadingSpinner[39m[93m>[39m
-     [93m</[39m[36mView[39m[93m>[39m
-   [93m</[39m[95mFeed[39m[93m>[39m
+  TickerValue, LoadingSpinner kept moving. A playing video or animation never lets a screen rest.
+  Fake the module that draws it in the mocks of the scene, and a still frame stands in.
 
-[2m   3 views · --json prints the record[22m
+[2m   3 views · --tree prints the view tree · --json prints the record[22m
 
-[2mKept in .sherlo/captures as feed--live-ticker[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as feed--live-ticker[22m
 
 
 [exit 1]

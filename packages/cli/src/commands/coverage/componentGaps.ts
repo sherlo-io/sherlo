@@ -18,24 +18,27 @@ import { isExcludedStory, isStoryFile } from './storyPropValues';
 /** One source file of the app: its path from the project folder, and its text. */
 export type SourceFile = { path: string; text: string };
 
-const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
-const NOT_APP_CODE = /\.(test|spec)\.[jt]sx?$|\.d\.ts$/;
+export const EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
+export const NOT_APP_CODE = /\.(test|spec)\.[jt]sx?$|\.d\.ts$/;
 
 /** Where one exported name lives: the file that declares it and the name it has there. */
-type Export = { file: string; name: string };
+export type Export = { file: string; name: string };
 
 /** What a file exports: whether it is a component, and the name the list shows for it. */
 type OwnExport = { isComponent: boolean; label: string };
 
-type ParsedFile = {
+export type ParsedFile = {
   path: string;
   ast: babel.Program;
   /** Exported name -> what this file declares itself under that name. */
   own: Map<string, OwnExport>;
   /** `export { a as b } from 's'` and `export * from 's'` (name `*`): outer name -> [source, inner name]. */
   reExports: { outer: string; source: string; inner: string }[];
-  /** Each import declaration: where it points and which exported names it takes (`*` for all). */
-  imports: { source: string; names: string[] }[];
+  /**
+   * Each import declaration: where it points and which exported names it takes (`*` for all). A
+   * `lazy` one is a `require('s').name` read in place: the name is used as a value right there.
+   */
+  imports: { source: string; names: string[]; locals: string[]; lazy?: true }[];
 };
 
 /** The gaps the most files import first; the same count in name order, so a run repeats itself. */
@@ -76,31 +79,7 @@ export function componentGaps(params: {
     }
   }
 
-  // What each import takes, followed through barrels only.
-  function imported(file: ParsedFile): Export[] {
-    return file.imports.flatMap(({ source, names }) => {
-      const target = resolve(file.path, source);
-      return target ? names.flatMap((name) => exported(target, name, new Set())) : [];
-    });
-  }
-
-  function exported(file: string, name: string, seen: Set<string>): Export[] {
-    const visit = `${file}#${name}`;
-    const found = parsed.get(file);
-    if (!found || seen.has(visit)) return [];
-    seen.add(visit);
-
-    const own = name === '*' ? [...found.own.keys()] : found.own.has(name) ? [name] : [];
-    const direct = own.map((ownName) => ({ file, name: ownName }));
-    const through = found.reExports
-      .filter((reExport) => reExport.outer === '*' || name === '*' || reExport.outer === name)
-      .flatMap((reExport) => {
-        const target = resolve(file, reExport.source);
-        const inner = reExport.outer === '*' ? name : reExport.inner;
-        return target ? exported(target, inner, seen) : [];
-      });
-    return [...direct, ...through];
-  }
+  const { imported } = makeExports(parsed, resolve);
 
   const storyKept = new Set<string>();
   const storyExcluded = new Set<string>();
@@ -138,7 +117,7 @@ function key({ file, name }: Export): string {
 /* Reading one file                                                           */
 /* ========================================================================== */
 
-function parseFile(file: SourceFile): ParsedFile | undefined {
+export function parseFile(file: SourceFile): ParsedFile | undefined {
   let program: babel.Program;
   try {
     program = parse(file.text, {
@@ -173,7 +152,11 @@ function parseFile(file: SourceFile): ParsedFile | undefined {
 
   for (const statement of program.body) {
     if (statement.type === 'ImportDeclaration') {
-      imports.push({ source: statement.source.value, names: importedNames(statement) });
+      imports.push({
+        source: statement.source.value,
+        names: importedNames(statement),
+        locals: statement.specifiers.map((specifier) => specifier.local.name),
+      });
     } else if (statement.type === 'ExportAllDeclaration') {
       reExports.push({ outer: '*', source: statement.source.value, inner: '*' });
     } else if (statement.type === 'ExportNamedDeclaration') {
@@ -204,7 +187,38 @@ function parseFile(file: SourceFile): ParsedFile | undefined {
       own.set('default', { isComponent, label });
     }
   }
+  imports.push(...lazyRequires(program));
   return { path: file.path, ast: program, own, reExports, imports };
+}
+
+/**
+ * LAZY ROUTES: a route map registers a screen as `() => require('./screens').FeedScreen` (or
+ * `require('./Feed').default`) so the screen loads on first visit. That is no import declaration,
+ * but it is the screen passed as a value, so each such read is recorded as a lazy import of the
+ * member it takes; the re-export walk then carries it from the index file to the screen.
+ */
+function lazyRequires(root: unknown): ParsedFile['imports'] {
+  const found: ParsedFile['imports'] = [];
+  walkNodes(root, (node) => {
+    if (node.type !== 'MemberExpression' || node.computed) return;
+    const { object, property } = node;
+    if (
+      property.type === 'Identifier' &&
+      object.type === 'CallExpression' &&
+      object.callee.type === 'Identifier' &&
+      object.callee.name === 'require' &&
+      object.arguments.length === 1 &&
+      object.arguments[0].type === 'StringLiteral'
+    ) {
+      found.push({
+        source: object.arguments[0].value,
+        names: [property.name],
+        locals: [property.name],
+        lazy: true,
+      });
+    }
+  });
+  return found;
 }
 
 function unwrapExport(statement: babel.Statement): babel.Statement | babel.Declaration | undefined {
@@ -240,14 +254,25 @@ function returnsJsx(value: babel.Node, local: Map<string, boolean>): boolean {
   return false;
 }
 
-function hasJsx(node: unknown): boolean {
-  if (Array.isArray(node)) return node.some(hasJsx);
-  if (typeof node !== 'object' || node === null) return false;
-  const { type } = node as { type?: string };
-  if (type === 'JSXElement' || type === 'JSXFragment') return true;
-  return Object.entries(node).some(
-    ([property, child]) => property !== 'loc' && property !== 'extra' && hasJsx(child)
-  );
+/** Calls `visit` on every node of a Babel tree (or list of nodes), skipping `loc` and `extra`. */
+export function walkNodes(node: unknown, visit: (node: babel.Node) => void): void {
+  if (Array.isArray(node)) {
+    node.forEach((child) => walkNodes(child, visit));
+    return;
+  }
+  if (typeof node !== 'object' || node === null) return;
+  if (typeof (node as { type?: unknown }).type === 'string') visit(node as babel.Node);
+  for (const [property, child] of Object.entries(node)) {
+    if (property !== 'loc' && property !== 'extra') walkNodes(child, visit);
+  }
+}
+
+export function hasJsx(node: unknown): boolean {
+  let found = false;
+  walkNodes(node, (visited) => {
+    if (visited.type === 'JSXElement' || visited.type === 'JSXFragment') found = true;
+  });
+  return found;
 }
 
 /* ========================================================================== */
@@ -255,7 +280,7 @@ function hasJsx(node: unknown): boolean {
 /* ========================================================================== */
 
 /** `(fromFile, source) -> the app file the import points at`, from relative paths, baseUrl and paths. */
-function makeResolver(files: Set<string>, tsconfig?: string) {
+export function makeResolver(files: Set<string>, tsconfig?: string) {
   const options = tsconfig ? compilerOptions(tsconfig) : {};
   const baseUrl = typeof options.baseUrl === 'string' ? options.baseUrl : undefined;
   const aliases = Object.entries((options.paths as Record<string, string[]>) ?? {});
@@ -323,4 +348,37 @@ function toValue(node: babel.Node): unknown {
   if (node.type === 'ArrayExpression') return node.elements.map((e) => (e ? toValue(e) : null));
   if (node.type === 'StringLiteral' || node.type === 'BooleanLiteral') return node.value;
   return undefined;
+}
+
+/** What each import takes, followed through barrels only; exported is one name of one file. */
+export function makeExports(
+  parsed: Map<string, ParsedFile>,
+  resolve: (from: string, source: string) => string | undefined
+) {
+  function imported(file: ParsedFile): Export[] {
+    return file.imports.flatMap(({ source, names }) => {
+      const target = resolve(file.path, source);
+      return target ? names.flatMap((name) => exported(target, name, new Set())) : [];
+    });
+  }
+
+  function exported(file: string, name: string, seen: Set<string>): Export[] {
+    const visit = `${file}#${name}`;
+    const found = parsed.get(file);
+    if (!found || seen.has(visit)) return [];
+    seen.add(visit);
+
+    const own = name === '*' ? [...found.own.keys()] : found.own.has(name) ? [name] : [];
+    const direct = own.map((ownName) => ({ file, name: ownName }));
+    const through = found.reExports
+      .filter((reExport) => reExport.outer === '*' || name === '*' || reExport.outer === name)
+      .flatMap((reExport) => {
+        const target = resolve(file, reExport.source);
+        const inner = reExport.outer === '*' ? name : reExport.inner;
+        return target ? exported(target, inner, seen) : [];
+      });
+    return [...direct, ...through];
+  }
+
+  return { imported, exported };
 }

@@ -106,6 +106,7 @@ function createOldSetupAppWithAScene(): string {
     write(`${SDK_FOLDER_IN_FIXTURE}/${relativePath}`, content);
   sdk('dist/sceneBoot.js', transpiledSdkFile('sceneBoot.ts'));
   sdk('dist/bundledScenes.js', transpiledSdkFile('bundledScenes.ts'));
+  sdk('dist/sceneBootSlot.js', transpiledSdkFile('sceneBootSlot.ts'));
   sdk('dist/settleClock.js', transpiledSdkFile('settleClock.ts'));
   sdk('dist/preconditions.js', transpiledSdkFile('preconditions.ts'));
   // The SDK's entry imports the early-boot module, as the real one does, so it is in the graph.
@@ -116,7 +117,7 @@ function createOldSetupAppWithAScene(): string {
       "  return { kind: 'module', definition: definition, specifierAsWritten: specifierAsWritten };\n" +
       '};\n' +
       "exports.mockRequest = function (url) { return { kind: 'network', url: url }; };\n" +
-      "require('./sceneBoot');\n"
+      "require('./sceneBootSlot');\n"
   );
   sdk(
     'dist/SherloModule.js',
@@ -235,6 +236,12 @@ describe('a scene is set up before the app starts', () => {
   });
 
   it("a scene's mocks are on before the first app module is evaluated", () => {
+    expect(appGlobal.switchedOnScene).toBe(SCENE_ID);
+    expect(appGlobal.firstCall).toBe('mocked');
+  });
+
+  it("with scenes on the scene boot still runs before the app's entry", () => {
+    // The SDK's entry imports only the slot; the scene boot runs, and first, all the same.
     expect(appGlobal.switchedOnScene).toBe(SCENE_ID);
     expect(appGlobal.firstCall).toBe('mocked');
   });

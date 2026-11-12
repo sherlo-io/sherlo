@@ -1,19 +1,30 @@
-import refuseRejectedLogin from '../commands/shared/refuseRejectedLogin';
+import refuseRejectedLogin, { refuseWrongProject } from '../commands/shared/refuseRejectedLogin';
 import { printLink } from '../helpers';
 import { savedLogins } from '../seams/savedLogins';
+import { serverCalls } from '../seams/serverCalls';
 import { getEndpointUrl } from './buildStatusRequest';
 import getAppDomain from './getAppDomain';
 import throwError from './throwError';
 
 /**
  * `token` is the one the failed request was sent with. When it is the login saved on this
- * computer, a refusal says to log in again rather than to check a token nobody typed.
+ * computer, a refusal says to log in again rather than to check a token nobody typed - unless the
+ * login still lists its teams, when the project is the wrong one and the login is fine.
  */
-function handleClientError(error: any, token?: string): never {
+async function handleClientError(error: any, token?: string): Promise<never> {
   if (error.networkError?.statusCode === 401) {
     const savedLogin = savedLogins().read(getEndpointUrl());
 
-    if (token !== undefined && token === savedLogin?.token) refuseRejectedLogin();
+    if (token !== undefined && token === savedLogin?.token) {
+      const loginStillWorks = await serverCalls()
+        .listTeams({ personalToken: token })
+        .then(
+          () => true,
+          () => false
+        );
+      if (loginStillWorks) refuseWrongProject();
+      refuseRejectedLogin();
+    }
 
     throwError({
       message:

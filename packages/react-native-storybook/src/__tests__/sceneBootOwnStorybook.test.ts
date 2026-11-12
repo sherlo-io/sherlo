@@ -12,6 +12,7 @@ const launch = vi.hoisted(() => ({
 const core = vi.hoisted(() => ({
   startTestSession: vi.fn(),
   startCaptureTransport: vi.fn(),
+  testStory: vi.fn(async (_story: unknown) => {}),
   // The collector's reading, as far as this test needs it: every view under the fibers it is given,
   // by its testID, with the props it was rendered with.
   mergeGenerations: vi.fn((roots: Array<Record<string, any>>) => {
@@ -69,6 +70,7 @@ let collections = 0;
 beforeEach(() => {
   vi.resetModules();
   core.startTestSession.mockClear();
+  core.testStory.mockClear();
   core.startCaptureTransport.mockReset();
   // The core's own guard: a second start while one is collecting does nothing (the seam says so).
   collections = 0;
@@ -206,4 +208,27 @@ it('a launch of an app with its own Storybook that shows a story wraps nothing, 
   const { collectAppMetadata } = await import('../appMetadata');
   expect(collectAppMetadata()).toBeUndefined();
   expect(core.startCaptureTransport).not.toHaveBeenCalled();
+});
+
+it('an app with its own Storybook launched by the runner on a scene boots the scene', async () => {
+  launch.bundler = null;
+  await bootWithStorybookFacts();
+
+  const renderer = await renderTheAppsRoot();
+
+  expect(renderer.root.findByType('View' as never).props.testID).toBe('chat--conversation');
+  expect(core.testStory).toHaveBeenCalledTimes(1);
+  expect(core.startCaptureTransport).not.toHaveBeenCalled();
+  expect(core.startTestSession).not.toHaveBeenCalled();
+});
+
+it('an app with its own Storybook launched by the runner on a story does not boot a scene', async () => {
+  launch.bundler = null;
+  launch.storyId = 'button--primary';
+  await bootWithStorybookFacts();
+
+  const renderer = await renderTheAppsRoot();
+
+  expect(renderer.root.findAllByType('View' as never)).toHaveLength(0);
+  expect(core.testStory).not.toHaveBeenCalled();
 });

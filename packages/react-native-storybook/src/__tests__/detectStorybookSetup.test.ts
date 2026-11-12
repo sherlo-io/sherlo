@@ -2,7 +2,11 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const { detectStorybookSetup, findStorybookEntry } = require('../../metro/detectStorybookSetup');
+const {
+  detectStorybookSetup,
+  findRootRegistrations,
+  findStorybookEntry,
+} = require('../../metro/detectStorybookSetup');
 
 describe('which Storybook setup a project has', () => {
   it('detects the default setup when the Storybook entry registers a root component', () => {
@@ -68,6 +72,32 @@ describe('which Storybook setup a project has', () => {
       export default function Root() { return null; }
     `;
     expect(detectStorybookSetup(source)).toBe('old');
+  });
+});
+
+describe('the top-level registrations of a Storybook entry', () => {
+  it('finds the one statement that registers the root, and that the file uses imports', () => {
+    const registration = 'registerRootComponent(StorybookUIRoot);';
+    const source =
+      "import { registerRootComponent } from 'expo';\n" +
+      '// registerRootComponent(Commented);\n' +
+      'const StorybookUIRoot = view.getStorybookUI({});\n' +
+      `${registration}\n`;
+
+    const found = findRootRegistrations(source);
+
+    expect(found.usesImports).toBe(true);
+    expect(found.registrations).toHaveLength(1);
+    const [{ start, end }] = found.registrations;
+    expect(source.slice(start, end)).toBe(registration);
+  });
+
+  it('a file of requires with a registration inside a function has no top-level registration', () => {
+    const source = `
+      const { AppRegistry } = require('react-native');
+      function later() { AppRegistry.registerComponent('main', () => Root); }
+    `;
+    expect(findRootRegistrations(source)).toEqual({ registrations: [], usesImports: false });
   });
 });
 

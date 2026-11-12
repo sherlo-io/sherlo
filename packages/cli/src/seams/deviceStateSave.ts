@@ -277,9 +277,9 @@ export async function emptyTheAndroidData(serial: string, app: SceneApp): Promis
 /**
  * The bundler address the app was told by hand. User defaults live in the simulator's preferences
  * daemon, which keeps its answer after the app's files are put back, so the restore sets this one
- * through the daemon too.
+ * through the daemon too. ./appBundlerPort reads it to say which port the app asks.
  */
-async function readJsLocation(udid: string, appId: string): Promise<string | null> {
+export async function readJsLocation(udid: string, appId: string): Promise<string | null> {
   try {
     const args = ['simctl', 'spawn', udid, 'defaults', 'read', appId, 'RCT_jsLocation'];
     return (await deviceState().run('xcrun', args)).trim() || null;

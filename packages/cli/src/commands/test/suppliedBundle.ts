@@ -46,11 +46,11 @@ import {
   moduleManifestFileName,
   parseBundleSidecar,
   readProjectIdentity,
-  sha256OfBuffer,
   sidecarFileName,
   type AppSourceClosure,
   type SidecarProjectIdentity,
 } from './bundleSidecar';
+import { sha256OfBuffer } from '../../helpers/sha256OfBuffer';
 
 /** How many moved packages or files a refusal names before summarizing the rest. */
 const MAX_NAMED_ENTRIES = 20;

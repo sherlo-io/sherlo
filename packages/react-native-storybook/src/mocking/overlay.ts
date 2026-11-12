@@ -96,8 +96,10 @@ function layerOver(fake: ModuleExports, real: () => unknown, realIsInHand: boole
       (function sherloLayerDelegate() {}.bind(null) as unknown as ModuleExports)
     : {};
 
+  // A fake function's prototype is its own, even none: an arrow faking a class component must not
+  // read the class's prototype, or React takes it for a class and constructs it.
   const read = (prop: PropertyKey, receiver: unknown): unknown =>
-    staysReal(fake, prop)
+    staysReal(fake, prop) && !(typeof fake === 'function' && prop === 'prototype')
       ? Reflect.get(realObject() ?? {}, prop, receiver)
       : overlay(Reflect.get(fake, prop, receiver), partOf(prop), realIsInHand);
 

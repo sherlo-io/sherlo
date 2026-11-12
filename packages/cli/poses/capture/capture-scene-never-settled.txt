@@ -1,0 +1,15 @@
+[33m◦[39m  [1mfeed--home[22m never settled - still changing: IntroVideo, LoadingSpinner[2m · ready in 2.1s · 2 refused[22m
+
+[33m◦[39m  These requests had no mock. Paste the rules into the scene file and fill in each body:
+     mockRequest({ method: 'POST', operationName: 'FeedHome' }, { body: /* fill in */ })
+     mockRequest({ method: 'GET', url: 'https://cdn.example.com/intro.mp4' }, { body: /* fill in */ })
+
+  IntroVideo, LoadingSpinner kept moving. A playing video or animation never lets a screen rest.
+  Fake the module that draws it in the mocks of the scene, and a still frame stands in.
+
+
+1 scene: 0 captured, 1 never settled, 0 never reached, 0 failed
+[2m   a picture (not for a scene that never came up) and a record of each are kept in .sherlo/captures[22m
+
+
+[exit 1]

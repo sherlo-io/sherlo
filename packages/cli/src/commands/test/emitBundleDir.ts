@@ -36,10 +36,10 @@ import {
   moduleManifestFileName,
   readCliVersion,
   readProjectIdentity,
-  sha256OfBuffer,
   sidecarFileName,
   type BundleSidecar,
 } from './bundleSidecar';
+import { sha256OfBuffer } from '../../helpers/sha256OfBuffer';
 import { recordBaseFingerprint } from './recordedBaseFingerprint';
 
 /**

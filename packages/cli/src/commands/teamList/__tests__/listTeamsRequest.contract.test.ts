@@ -85,6 +85,21 @@ describe('listTeams response', () => {
     });
   });
 
+  it("asks for each team's scenes flag and carries what the service answers", async () => {
+    const effects = effectsAnswering({
+      data: {
+        listTeams: [
+          { id: 'a', name: 'A', role: 'owner', projectsCount: 1, featureFlags: { scenes: true } },
+        ],
+      },
+    });
+
+    const list = await listTeamsRequest({ personalToken: PERSONAL_TOKEN }, effects);
+
+    expect(sentRequest(effects).body.query.replace(/\s+/g, '')).toContain('featureFlags{scenes}');
+    expect(list.teams[0].featureFlags).toEqual({ scenes: true });
+  });
+
   it('uses projectsCount directly rather than counting a nested list', async () => {
     // No `projects` array in the response at all - `listTeams` never sends one;
     // a mapping that still reached for `team.projects.length` would throw here.

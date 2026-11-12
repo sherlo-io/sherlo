@@ -115,8 +115,16 @@ export const MASK_COMMAND = 'mask';
 export const OPEN_COMMAND = 'open';
 /** `sherlo capture --story <id>` - record one story the way a test run does, on the running app. */
 export const CAPTURE_COMMAND = 'capture';
-/** `sherlo capture-report` - open the review page over the captures kept on this computer. */
-export const CAPTURE_REPORT_COMMAND = 'capture-report';
+/** `sherlo preview` - open the review page over the captures kept on this computer. */
+export const PREVIEW_COMMAND = 'preview';
+/** `sherlo suggest` - rank what to test next, from code and git. */
+export const SUGGEST_COMMAND = 'suggest';
+/** `sherlo suggest --dir <path>` - the app folder to read, instead of the one you stand in. */
+export const DIR_OPTION = 'dir';
+/** `sherlo suggest --all` - list every item, not the top 10. */
+export const ALL_OPTION = 'all';
+/** `sherlo suggest --facts <file>` - what to know to write the test of one screen or component. */
+export const FACTS_OPTION = 'facts';
 /** `sherlo coverage` - list the components no story draws. Hidden from `--help`. */
 export const COVERAGE_COMMAND = 'coverage';
 export const FULL_INIT_COMMAND = 'npx sherlo init';
@@ -214,6 +222,8 @@ export const PORT_OPTION = 'port';
  */
 export const TIMEOUT_OPTION = 'timeout';
 export const WAIT_TIMEOUT_OPTION = 'waitTimeout';
+/** `sherlo test --all-stories` - a project's first test takes every story, not a first look. */
+export const ALL_STORIES_OPTION = 'allStories';
 /** `sherlo capture --json`, `sherlo view --json` - print the whole record as JSON instead of a screen. */
 export const JSON_OPTION = 'json';
 /**
@@ -221,6 +231,14 @@ export const JSON_OPTION = 'json';
  * carries them (see `--json`); this is the one flag that puts them on the screen too.
  */
 export const LOGS_OPTION = 'logs';
+/** `sherlo capture --tree` - print the view tree on the screen; without it one line counts the views. */
+export const TREE_OPTION = 'tree';
+/** `sherlo capture --list` - print every story id of the running app, one per line, and take no picture. */
+export const LIST_OPTION = 'list';
+/** The refusal when `--list` is given with a story, a scene or `--all-scenes`: it only lists. */
+export function listRefusal(): string {
+  return `\`npx sherlo capture --${LIST_OPTION}\` takes none of \`--${STORY_OPTION}\`, \`--${SCENE_OPTION}\` or \`--${ALL_SCENES_OPTION}\`.`;
+}
 /** `sherlo capture --scene <id> --png <path>` - save the screen as Sherlo captured it. */
 export const PNG_OPTION = 'png';
 /** The refusal when `--png` is given without `--scene` (with `--story`, or alone): the same shape as {@link sceneWithStoryRefusal}. */

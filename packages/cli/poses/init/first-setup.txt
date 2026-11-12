@@ -113,5 +113,8 @@ To test your app, run:
 [34mINFO: The first run builds your app and stores the app build. After that, `npx sherlo test` reuses it while only JavaScript changes.[39m
 [2m↳ Learn more: [4mhttps://sherlo.io/docs/testing[24m[22m
 
+The Sherlo skill and AGENTS.md cover stories.
+Next: ask your coding agent to add one Sherlo story
+
 
 [exit 0]

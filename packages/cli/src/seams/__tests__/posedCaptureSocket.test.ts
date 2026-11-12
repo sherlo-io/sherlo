@@ -58,7 +58,7 @@ describe('a posed scene run with unanswered requests', () => {
       kind: 'never-reached',
       stillReal: ['src/theme.ts', 'src/format.ts'],
     });
-    expect(lines).toContain("Not mocked - 2 of the app's own modules ran as real code:");
+    expect(lines).toContain("Not mocked - 2 of the app's own modules ran as real code.");
   });
 
   it('a reached scene with none states none', async () => {

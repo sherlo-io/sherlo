@@ -1,5 +1,5 @@
 /**
- * `sherlo capture-report` - the review page over the kept captures, or the same facts once with
+ * `sherlo preview` - the review page over the kept captures, or the same facts once with
  * `--json`. The server and the browser are posed; the kept captures are real files in a folder.
  */
 import fs from 'fs';
@@ -11,7 +11,7 @@ import { installBrowser } from '../../../seams/browser';
 import { installLocalServer } from '../../../seams/localServer';
 import type { LocalServer, Site } from '../../../seams/localServer';
 import { installProjectFiles } from '../../../seams/projectFiles';
-import captureReport from '../captureReport';
+import preview from '../preview';
 
 const CAPTURE_FOLDER = '2026-11-01T09-30-00.000Z_chat--conversation';
 
@@ -20,7 +20,7 @@ let printed: string;
 let undo: Array<() => void>;
 
 beforeEach(() => {
-  project = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-capture-report-'));
+  project = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-preview-'));
   const folder = path.join(project, '.sherlo', 'captures', CAPTURE_FOLDER);
   fs.mkdirSync(folder, { recursive: true });
   fs.writeFileSync(path.join(folder, 'screen.png'), 'picture');
@@ -56,19 +56,25 @@ function serverWithPage(pageFolder: string | undefined): LocalServer & { sites: 
   return {
     sites,
     pageFolder: () => pageFolder,
+    watched: () => true,
     serve: async (site) => {
       sites.push(site);
-      return { address: 'http://127.0.0.1:4321', stopped: Promise.resolve(), stop: () => {} };
+      return {
+        address: 'http://127.0.0.1:4321',
+        stopped: Promise.resolve(),
+        opened: Promise.resolve(),
+        stop: () => {},
+      };
     },
   };
 }
 
-describe('sherlo capture-report', () => {
+describe('sherlo preview', () => {
   it('--json prints the report once, with the pictures as absolute paths, and serves nothing', async () => {
     const server = serverWithPage('/page');
     undo.push(installLocalServer(server));
 
-    await captureReport({ [JSON_OPTION]: true });
+    await preview({ [JSON_OPTION]: true });
 
     const report = JSON.parse(printed);
     expect(report.summary).toMatchObject({ capturedCount: 1, isLive: false });
@@ -91,7 +97,7 @@ describe('sherlo capture-report', () => {
       })
     );
 
-    await captureReport({});
+    await preview({});
 
     expect(opened).toEqual(['http://127.0.0.1:4321']);
     expect(printed).toContain('http://127.0.0.1:4321');
@@ -123,7 +129,7 @@ describe('sherlo capture-report', () => {
     const server = serverWithPage('/page');
     undo.push(installLocalServer(server), installBrowser({ open: async () => true }));
 
-    await captureReport({});
+    await preview({});
 
     const live = server.sites[0].report() as { captures: { id: string; picture: string }[] };
     expect(live.captures.find((shown) => shown.id === 'chat--stopped')?.picture).toBe(
@@ -137,10 +143,38 @@ describe('sherlo capture-report', () => {
       installBrowser({ open: async () => false })
     );
 
-    await captureReport({});
+    await preview({});
 
     expect(printed).toContain('http://127.0.0.1:4321');
     expect(printed).toContain('The browser did not open');
+  });
+
+  it('the review page command ends on its own when no terminal is attached to it', async () => {
+    // A server that serves until it is told to stop, the way the live one does.
+    let stopServing = () => {};
+    const stopped = new Promise<void>((settled) => {
+      stopServing = settled;
+    });
+    const stop = vi.fn(() => stopServing());
+    undo.push(
+      installLocalServer({
+        pageFolder: () => '/page',
+        watched: () => false,
+        serve: async () => ({
+          address: 'http://127.0.0.1:4321',
+          stopped,
+          opened: Promise.resolve(),
+          stop,
+        }),
+      }),
+      installBrowser({ open: async () => true })
+    );
+
+    await preview({});
+
+    expect(stop).toHaveBeenCalledOnce();
+    expect(printed).toContain('No terminal is attached, so this stops once the page has opened');
+    expect(printed).not.toContain('Ctrl+C');
   });
 
   it('refuses, naming --json, when this install has no review page', async () => {
@@ -151,7 +185,7 @@ describe('sherlo capture-report', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await expect(captureReport({})).rejects.toThrow(/--json/);
+    await expect(preview({})).rejects.toThrow(/--json/);
     expect(printed).toBe('');
   });
 });

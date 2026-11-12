@@ -1,4 +1,8 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { installedVersionOf } from '../../../../helpers/fingerprint/installedVersion';
 import stripAnsi from '../../../../helpers/stripAnsi';
 import type { BaseFingerprintPreimage } from '../../../../helpers/fingerprint/baseFingerprint';
 import { renderNativeChanges } from '../../../../render/appBuild';
@@ -62,6 +66,31 @@ describe('the build line lists the native changes', () => {
       '   - react-native-maps 1.2.0',
       '   ~ react-native-svg 15.0.0 → 15.1.0',
     ]);
+  });
+
+  it('a JS-only Sherlo update is not listed as a native change', () => {
+    const sherlo = '@sherlo/react-native-storybook';
+    const installed = (version: string) => {
+      const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-native-changes-'));
+      fs.mkdirSync(path.join(folder, 'ios'));
+      fs.writeFileSync(path.join(folder, 'ios/Sherlo.m'), 'native code');
+      fs.writeFileSync(path.join(folder, 'package.json'), JSON.stringify({ version }));
+      return folder;
+    };
+    const before = installed('1.0.0');
+    const after = installed('1.1.0');
+    try {
+      const changes = nativeChangesSince(
+        stored({ modules: [{ name: sherlo, version: installedVersionOf(sherlo, before) }] }),
+        thisRun({ autolinkedModules: [`${sherlo}@${installedVersionOf(sherlo, after)}`] }),
+        []
+      );
+
+      expect(printed(changes)).toEqual([]);
+    } finally {
+      fs.rmSync(before, { recursive: true, force: true });
+      fs.rmSync(after, { recursive: true, force: true });
+    }
   });
 
   it('lists at most eight native changes and counts the rest as and N more', () => {

@@ -33,6 +33,7 @@ import fs from 'fs';
 import path from 'path';
 import { Platform } from '@sherlo/api-types';
 import type { GateMetadataInput } from '../../helpers/fingerprint/gateMetadata';
+import { sha256OfBuffer } from '../../helpers/sha256OfBuffer';
 import getPackageVersion from '../../commands/init/requirements/getPackageVersion';
 import { readBundledSdkProtocolVersion, toBaseSemver } from './readBundledSdkProtocolVersion';
 import { getExpoSdkVersion, type BundleFormat } from './buildBundle';
@@ -718,10 +719,6 @@ export function parseBundleSidecar(
 // ---------------------------------------------------------------------------
 // Hashing
 // ---------------------------------------------------------------------------
-
-export function sha256OfBuffer(buffer: Buffer): string {
-  return crypto.createHash('sha256').update(buffer).digest('hex');
-}
 
 export function sha256OfString(value: string): string {
   return crypto.createHash('sha256').update(value).digest('hex');

@@ -120,11 +120,23 @@ afterEach(() => {
   for (const root of projectRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-/** Sherlo's withStorybook on `root`'s config, in a debug bundle with `env` set. */
-function wrapConfig(root: string, env: Record<string, string> = {}) {
-  const leaveBundlingProcess = enterBundlingProcess(env, []);
+/**
+ * Sherlo's withStorybook on `root`'s config, with `env` set and `commandLine` after the CLI's
+ * script (a debug bundle when it says nothing), `resolver` as the config's own, and `options` as
+ * the options the app gives withStorybook.
+ */
+function wrapConfig(
+  root: string,
+  env: Record<string, string> = {},
+  {
+    resolver = {},
+    commandLine = [],
+    options = {},
+  }: { resolver?: object; commandLine?: string[]; options?: object } = {}
+) {
+  const leaveBundlingProcess = enterBundlingProcess(env, commandLine);
   try {
-    return withStorybook({ projectRoot: root, resolver: {}, serializer: {}, server: {} }, {});
+    return withStorybook({ projectRoot: root, resolver, serializer: {}, server: {} }, options);
   } finally {
     leaveBundlingProcess();
   }
@@ -238,6 +250,71 @@ describe('the launch-time entry', () => {
     const defaultSetupWithoutEntry = createStorybookProject(DEFAULT_SETUP_STORYBOOK_ENTRY);
     fs.rmSync(path.join(defaultSetupWithoutEntry, 'index.js'));
     expect(() => wrapConfig(defaultSetupWithoutEntry)).toThrow(noEntryMessage);
+  });
+
+  it("the app's entry is the first index file in the bundler's own extension order, so an index.ts wins over an index.js shim", () => {
+    // No main field, and an index.js that only imports index.ts: the bundler, TypeScript first as
+    // Expo's is, serves index.ts for the bundle's entry.
+    const root = createStorybookProject(DEFAULT_SETUP_STORYBOOK_ENTRY);
+    const write = fixtureFileWriter(root);
+    write('index.js', "import './index.ts';\n");
+    write('index.ts', "require('./src/App');\n");
+    const sourceExts = ['ts', 'tsx', 'js', 'jsx', 'json', 'svg'];
+    function resolveTypeScriptFirst(context: { originModulePath: string }, moduleName: string) {
+      const basePath = path.resolve(path.dirname(context.originModulePath), moduleName);
+      const filePath = sourceExts
+        .map((extension) => basePath + '.' + extension)
+        .find((candidate) => fs.existsSync(candidate));
+      if (!filePath) throw new Error('Unable to resolve ' + moduleName);
+      return { type: 'sourceFile', filePath };
+    }
+
+    const { resolveRequest } = wrapConfig(root, {}, { resolver: { sourceExts } }).resolver;
+
+    expect(findAppEntry(root, sourceExts)).toBe(path.join(root, 'index.ts'));
+    const bundleEntry = resolveRequest(
+      { originModulePath: bundleEntryRequester(root), resolveRequest: resolveTypeScriptFirst },
+      './index',
+      'ios'
+    );
+    expect(bundleEntry).toEqual({ type: 'sourceFile', filePath: launchEntryFile(root) });
+    expect(
+      resolveRequest(
+        { originModulePath: launchEntryFile(root), resolveRequest: resolveTypeScriptFirst },
+        APP_SIDE_REQUEST,
+        'ios'
+      ).filePath
+    ).toBe(path.join(root, 'index.ts'));
+
+    // A bundler that names no order looks JavaScript first, as Storybook's own entry swap does.
+    expect(findAppEntry(root)).toBe(path.join(root, 'index.js'));
+  });
+
+  it("on Storybook's old setup the debug bundle still carries the code stamp", () => {
+    const root = createStorybookProject(OLD_SETUP_STORYBOOK_ENTRY);
+    type WithPolyfills = { serializer: { getPolyfills?: (ctx: object) => string[] } };
+    // The old setup has no launch entry: every polyfill the bundle runs first is read for the stamp.
+    function stampOfTheBundle(config: WithPolyfills): unknown {
+      const sandbox: Record<string, unknown> = {};
+      for (const polyfill of config.serializer.getPolyfills?.({}) ?? []) {
+        const source = fs.readFileSync(polyfill, 'utf8');
+        if (!source.includes(CODE_STAMP_GLOBAL)) continue;
+        vm.runInNewContext(source.replace('globalThis', 'sandbox'), { sandbox });
+      }
+      return sandbox[CODE_STAMP_GLOBAL];
+    }
+
+    expect(stampOfTheBundle(wrapConfig(root) as unknown as WithPolyfills)).toBe(BUNDLER_STAMP);
+
+    // A release bundle that carries Sherlo carries no stamp, so two bundles of the same code are
+    // the same.
+    const release = wrapConfig(
+      root,
+      { SHERLO_BUILD: 'app-and-storybook' },
+      { commandLine: ['--dev', 'false'], options: { configPath: path.join(root, '.rnstorybook') } }
+    );
+    expect(release.resolver.resolveRequest).toBeTypeOf('function');
+    expect(stampOfTheBundle(release as unknown as WithPolyfills)).toBeUndefined();
   });
 
   it("only the bundle's own entry request resolves to the generated launch entry", () => {
@@ -366,6 +443,25 @@ describe('the launch-time entry', () => {
 
     expect(ask(STORYBOOK_SIDE_REQUEST).filePath).toBe(path.join(root, '.rnstorybook/index.js'));
     expect(ask(APP_SIDE_REQUEST).filePath).toContain('app-entry-original');
+  });
+
+  it("in a release bundle the app's entry imported from the Storybook entry is the copy, not the launch entry served in its place", () => {
+    const root = defaultSetupRoot;
+    const storybookEntryFile = path.join(root, '.rnstorybook/index.js');
+    const ask = (dev: boolean, platform: string) =>
+      defaultSetupResolve(
+        {
+          originModulePath: storybookEntryFile,
+          resolveRequest: resolveRelativeFile,
+          dev,
+        } as Parameters<ResolveRequest>[0],
+        '../index',
+        platform
+      );
+
+    expect(ask(false, 'ios').filePath).toContain('app-entry-original');
+    expect(ask(true, 'ios').filePath).toBe(path.join(root, 'index.js'));
+    expect(ask(false, 'web').filePath).toBe(path.join(root, 'index.js'));
   });
 
   it("a web bundle keeps the app's entry", () => {

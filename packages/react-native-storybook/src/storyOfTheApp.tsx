@@ -12,7 +12,7 @@ import { AppRegistry, View } from 'react-native';
 import { useFiber } from 'its-fine';
 import { rememberStoryOfTheApp } from './componentNames';
 import { logTheLine } from './connection/appLine';
-import { idOfTheTestingLaunch, sceneOfTheCaptureOfAnAppWithStorybook } from './captureLaunch';
+import { idOfTheTestingLaunch, sceneOfTheLaunchOfAnAppWithStorybook } from './captureLaunch';
 import { MetadataProvider } from './getStorybook/components/TestingMode/MetadataProvider';
 
 export function StoryOfTheApp({ children }: { children: ReactNode }): ReactNode {
@@ -44,19 +44,19 @@ function TheScenesOnlyWrapper({ children }: { children: ReactNode }): ReactNode 
 }
 
 /**
- * For a capture launch of an app with its own Storybook: install, before the app's entry runs, a
- * wrapper that wraps the app's root as the scenes-only launch does (wrapTheAppInStoryOfTheApp). An
- * entry that sets its own wrapper later wins, as on the scenes-only road. Whether this wrapper wraps
- * is decided once, when the root first renders, by what the launch asks for (./captureLaunch): a
- * scene of the bundle that is not also a story of Storybook's index. A story is never wrapped as a
- * scene, whenever its getStorybook runs.
+ * For a scene launch of an app with its own Storybook, by a capture or a runner: install, before
+ * the app's entry runs, a wrapper that wraps the app's root as the scenes-only launch does
+ * (wrapTheAppInStoryOfTheApp). An entry that sets its own wrapper later wins, as on the
+ * scenes-only road. Whether this wrapper wraps is decided once, when the root first renders, by
+ * what the launch asks for (./captureLaunch): a scene of the bundle that is not also a story of
+ * Storybook's index. A story is never wrapped as a scene, whenever its getStorybook runs.
  */
 export function installTheWrapperThatWrapsWhenSherlosStorybookIsAbsent(): void {
   AppRegistry.setWrapperComponentProvider(() => TheAppsWrapperWhenNoSherlosStorybook);
 }
 
 function TheAppsWrapperWhenNoSherlosStorybook({ children }: { children: ReactNode }): ReactNode {
-  const [sceneId] = useState(sceneOfTheCaptureOfAnAppWithStorybook);
+  const [sceneId] = useState(sceneOfTheLaunchOfAnAppWithStorybook);
   return sceneId ? <TheAppsWrapper sceneId={sceneId}>{children}</TheAppsWrapper> : children;
 }
 

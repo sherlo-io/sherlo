@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { compareCoreVersions } from '../checkSdkCompatibility';
 import { LAID_PATHS, packSealedCore } from '../../scripts/packSealedCore.js';
 import { PIN_FILE, pinCore } from '../../scripts/pinCore.js';
 import {
@@ -79,6 +80,12 @@ describe('the pin', () => {
   it('skips the storage lookup when no package token is present', () => {
     expect(storageLookupPossible({ CI: 'true' })).toBe(false);
     expect(storageLookupPossible({ CI: 'true', PACKAGE_TOKEN: 'a-token' })).toBe(true);
+  });
+
+  it("the pinned core is the runner's epic core or later, never one behind it", () => {
+    const pin = JSON.parse(fs.readFileSync(PIN_FILE, 'utf8'));
+
+    expect(compareCoreVersions(pin.version, '3.6.30')).toBeGreaterThanOrEqual(0);
   });
 
   it('the pin names one stored core by version, fingerprint, runner commit, source tree and seam hash', async (context) => {

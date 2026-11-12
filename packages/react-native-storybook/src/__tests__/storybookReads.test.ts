@@ -10,6 +10,7 @@ import { traverseFast } from '@babel/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   __resetStartedStorybookForTests,
+  clearStorybooksStory,
   keepStartedStorybook,
   readStorybookChannel,
   readStorybooksCurrentStory,
@@ -92,6 +93,33 @@ describe("reads of Storybook's own fields", () => {
 
     __resetStartedStorybookForTests();
     expect(readStorybookChannel().value).toBe(globalChannel);
+  });
+
+  it('a story taken off a Storybook that keeps its pick in storage is cleared, though Storybook throws as it keeps the pick', () => {
+    // Storybook's own `_setStory`: it sets the story it draws, then keeps the story's id in the
+    // storage it was handed, which throws on the id of no story.
+    let drawn: { id: string } | null = { id: 'chat--list' };
+    const kept: string[] = [];
+    const view = {
+      _setStory: (story: { id: string } | null) => {
+        drawn = story;
+        kept.push(story!.id);
+      },
+    };
+
+    expect(clearStorybooksStory(view)).toEqual({ value: true, error: null });
+    expect(drawn).toBeNull();
+    expect(kept).toEqual([]);
+  });
+
+  it('a story taken off a Storybook with no way to hand its view a story says so instead of throwing', () => {
+    keepStartedStorybook({}, '9.1.4');
+
+    expect(clearStorybooksStory({})).toEqual({
+      value: null,
+      error:
+        'Sherlo found no way Storybook hands its view a story in @storybook/react-native 9.1.4.',
+    });
   });
 });
 

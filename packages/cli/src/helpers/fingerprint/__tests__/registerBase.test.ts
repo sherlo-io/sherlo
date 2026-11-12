@@ -31,6 +31,15 @@ const STAGEABLE_GATE_METADATA: GateMetadataInput = {
   assetInventory: ['res/a.png', 'res/b.png'],
 };
 
+describe('the bundle path a base registration probes', () => {
+  it("is React Native's default embedded bundle of each platform", async () => {
+    const { defaultEmbeddedBundlePath } = await import('../registerBase');
+
+    expect(defaultEmbeddedBundlePath('android')).toBe('assets/index.android.bundle');
+    expect(defaultEmbeddedBundlePath('ios')).toBe('main.jsbundle');
+  });
+});
+
 describe('registerBase - default stdout hygiene', () => {
   let registerBase: typeof import('../registerBase').registerBase;
   let logSpy: ReturnType<typeof vi.spyOn>;

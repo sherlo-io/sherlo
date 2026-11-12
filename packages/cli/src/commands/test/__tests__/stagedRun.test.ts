@@ -586,6 +586,23 @@ describe('a fingerprint that cannot be computed', () => {
 
     exitSpy.mockRestore();
   });
+
+  it('a push with no fingerprint checks the login before it builds', async () => {
+    mockGetValidatedCommandParams.mockReturnValue({
+      projectRoot: '/proj',
+      credential: PROJECT_TOKEN_CREDENTIAL,
+      devices: [IOS_DEVICE],
+    } as any);
+    mockGetPlatformsToTest.mockReturnValue(['ios'] as any);
+    mockComputeBaseFingerprint.mockResolvedValue({
+      ios: { hash: '', debugMessage: 'No base binary found' },
+    } as any);
+    mockBuildThenPush.mockResolvedValue({ url: 'http://app/built' });
+
+    await stagedRun(mockOptions());
+
+    expect(mockBuildThenPush.mock.calls[0][0].proveLoginFirst).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

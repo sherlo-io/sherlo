@@ -19,7 +19,8 @@
  * These cases pin the DECISION rather than the prompt's bytes, because the decision is the whole bug -
  * the prompt itself was always correct for the case it was written for.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { defaultAgents } from 'agent-cli-detector';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import waitForEnterPress from '../waitForEnterPress';
 
@@ -48,7 +49,17 @@ function stub(target: object, property: string, value: unknown): void {
   });
 }
 
+// A coding agent's terminal is nobody at the keyboard, and the machine running this suite may be
+// inside one: every case here is a person's terminal, so no agent's marker is set.
+beforeEach(() => {
+  for (const agent of defaultAgents) {
+    for (const signal of agent.env ?? []) vi.stubEnv(signal.name, undefined);
+    for (const sessionVariable of agent.sessionEnv ?? []) vi.stubEnv(sessionVariable, undefined);
+  }
+});
+
 afterEach(() => {
+  vi.unstubAllEnvs();
   while (restorers.length) restorers.pop()!();
   if (ORIGINAL_CI === undefined) delete process.env.CI;
   else process.env.CI = ORIGINAL_CI;

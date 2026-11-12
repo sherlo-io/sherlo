@@ -155,8 +155,8 @@ export type CommandPose = {
    */
   browser?: PosedBrowser;
   /**
-   * The port the review page's server answered on, for `sherlo capture-report`, the one command
-   * that serves a page. Refused for any other; a `capture-report` with no `localServer` is
+   * The port the review page's server answered on, for `sherlo preview`, the one command
+   * that serves a page. Refused for any other; a `preview` with no `localServer` is
    * refused at run time. Nothing listens on a posed run. `--json` serves nothing and states none.
    */
   localServer?: PosedLocalServer;

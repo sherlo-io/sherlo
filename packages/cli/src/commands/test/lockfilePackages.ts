@@ -131,7 +131,7 @@ function parseYarnLock(text: string): Map<string, Set<string>> {
  * The package name in a `name@range` specifier, quoted or not. A scoped name
  * holds its own leading `@`, so the separator is the first `@` AFTER position 0.
  */
-function packageNameOfSpecifier(specifier: string): string {
+export function packageNameOfSpecifier(specifier: string): string {
   const unquoted = specifier.trim().replace(/^"|"$/g, '');
   const separator = unquoted.indexOf('@', unquoted.startsWith('@') ? 1 : 0);
   return separator === -1 ? unquoted : unquoted.slice(0, separator);

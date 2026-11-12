@@ -1,8 +1,9 @@
 /**
- * THE LOCAL SERVER SEAM - the small web server `sherlo capture-report` shows the review page from.
+ * THE LOCAL SERVER SEAM - the small web server `sherlo preview` shows the review page from.
  *
  *     live   - a server on this computer's own address (127.0.0.1), on a free port.
- *     posed  - the pose's `localServer`: the port it answers on. Nothing listens.
+ *     posed  - the pose's `localServer`: the port it answers on, and whether a person watches.
+ *              Nothing listens.
  *
  * It serves three things and nothing else:
  *
@@ -21,6 +22,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { ENDED_ON_FILE, SCREEN_FILE } from './localCaptures';
+import { liveWorkstation } from './workstation';
 
 /** What a server shows: the page, the report it polls and the folder the pictures are kept in. */
 export type Site = {
@@ -34,12 +36,27 @@ export type Site = {
   report: () => unknown;
 };
 
-/** A server that is up. `stopped` settles when it ends: Ctrl+C was pressed, or `stop()` ran. */
-export type RunningServer = { address: string; stopped: Promise<void>; stop(): void };
+/**
+ * A server that is up. `stopped` settles when it ends: Ctrl+C was pressed, or `stop()` ran.
+ * `opened` settles once the page has opened: it read its report a second time. The page reads it
+ * once as it opens and then every second (sherlo-frontend apps/local-report/src/pages/index.tsx),
+ * so the second read means the first was drawn. It also settles when no page opened in a minute.
+ */
+export type RunningServer = {
+  address: string;
+  stopped: Promise<void>;
+  opened: Promise<void>;
+  stop(): void;
+};
+
+/** How long `opened` waits for a page that never opens, so a run that waits on it still ends. */
+const OPENED_LIMIT_MS = 60_000;
 
 export type LocalServer = {
   /** The folder the review page is shipped in, or nothing when this CLI was built without it. */
   pageFolder(): string | undefined;
+  /** Whether a person watches the run in a terminal, who can press Ctrl+C to stop the server. */
+  watched(): boolean;
   serve(site: Site): Promise<RunningServer>;
 };
 
@@ -63,9 +80,24 @@ export const liveLocalServer: LocalServer = {
     return fs.existsSync(path.join(folder, 'index.html')) ? folder : undefined;
   },
 
+  watched: () => liveWorkstation.somebodyIsAtTheKeyboard(),
+
   serve: (site) =>
     new Promise((resolve, reject) => {
-      const server = http.createServer((request, response) => answer(site, request, response));
+      let reportReads = 0;
+      let pageOpened = () => {};
+      const opened = new Promise<void>((settled) => {
+        pageOpened = settled;
+      });
+      // Unref'd, so the wait never holds open a process that has stopped serving.
+      setTimeout(() => pageOpened(), OPENED_LIMIT_MS).unref();
+      const server = http.createServer((request, response) => {
+        if (decodeRoute(request.url ?? '/') === '/data/report.json') {
+          reportReads += 1;
+          if (reportReads === 2) pageOpened();
+        }
+        answer(site, request, response);
+      });
       server.on('error', reject);
       server.listen(0, '127.0.0.1', () => {
         const address = server.address();
@@ -87,7 +119,12 @@ export const liveLocalServer: LocalServer = {
         process.once('SIGINT', stop);
         process.once('SIGTERM', stop);
         // The address the server listens on, spelled as it is: `localhost` may mean `::1`.
-        resolve({ address: `http://127.0.0.1:${address.port}`, stopped, stop: () => stop() });
+        resolve({
+          address: `http://127.0.0.1:${address.port}`,
+          stopped,
+          opened,
+          stop: () => stop(),
+        });
       });
     }),
 };
@@ -189,15 +226,20 @@ export function installLocalServer(next: LocalServer): () => void {
 export type PosedLocalServer = {
   /** The port the server answered on; the address the command prints is `http://127.0.0.1:<port>`. */
   port: number;
+  /**
+   * Whether a person watches the run in a terminal and stops it with Ctrl+C. `false` is an agent's
+   * shell, where the run ends once the page has opened. Absent is a person watching.
+   */
+  watched?: boolean;
 };
 
 /** An act the pose could not answer, and the reason - recorded the way an unscripted call is. */
 export type UnansweredLocalServer = { call: string; problem: string };
 
 /**
- * The server a pose declares. Nothing listens; it answers at once and its `stopped` is already
- * settled, so the command ends the way it does when the person presses Ctrl+C. A command that
- * reaches the server with no `localServer` in its pose is RECORDED as a refusal, not thrown.
+ * The server a pose declares. Nothing listens; it answers at once and its `stopped` and `opened`
+ * are already settled, so the command ends the way it does when the person presses Ctrl+C. A
+ * command that reaches the server with no `localServer` in its pose is RECORDED as a refusal.
  */
 export function posedLocalServer(
   posed: PosedLocalServer | undefined
@@ -210,6 +252,8 @@ export function posedLocalServer(
     // A machine that only has the pose has the page it was built with.
     pageFolder: () => '<local-page>',
 
+    watched: () => posed?.watched ?? true,
+
     serve: async (site) => {
       // The report is built once, as the page's first read would: a report that cannot be built is a fault here too.
       site.report();
@@ -219,11 +263,17 @@ export function posedLocalServer(
           problem:
             'the pose states no `localServer`, and the command served the page - say which port',
         });
-        return { address: 'http://127.0.0.1:0', stopped: Promise.resolve(), stop: () => {} };
+        return {
+          address: 'http://127.0.0.1:0',
+          stopped: Promise.resolve(),
+          opened: Promise.resolve(),
+          stop: () => {},
+        };
       }
       return {
         address: `http://127.0.0.1:${posed.port}`,
         stopped: Promise.resolve(),
+        opened: Promise.resolve(),
         stop: () => {},
       };
     },

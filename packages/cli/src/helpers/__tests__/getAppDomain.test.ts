@@ -41,6 +41,25 @@ describe('the web app address a build link names', () => {
     expect(getAppDomain(undefined, undefined, 'local')).toBe('https://app.sherlo.io');
   });
 
+  it('a push against the test server links to the test web app', () => {
+    expect(getAppDomain(undefined, 'https://dev-api.sherlo.io/graphql', 'prod')).toBe(
+      'https://dev.app.sherlo.io'
+    );
+  });
+
+  it('a push against the live server, or with no server set, links to the live web app', () => {
+    expect(getAppDomain(undefined, 'https://api.sherlo.io/graphql', 'dev')).toBe(
+      'https://app.sherlo.io'
+    );
+    expect(getAppDomain(undefined, undefined, 'prod')).toBe('https://app.sherlo.io');
+  });
+
+  it('a web app address set in the environment wins over the server', () => {
+    expect(getAppDomain('https://app.example.test/', 'https://dev-api.sherlo.io/graphql')).toBe(
+      'https://app.example.test'
+    );
+  });
+
   it('a set web app address wins over everything else', () => {
     process.env.SHERLO_APP_URL = 'https://app.example.test/';
     process.env.SHERLO_API_URL = 'https://api.example.test/graphql';

@@ -44,6 +44,27 @@ export async function prepareAndroidDevMenuForCapture(
   await writeAndroidPreferences(adb, appId, 'expo.modules.devmenu.sharedpreferences.xml', xml);
 }
 
+/**
+ * Prepare the developer menu for a capture in the iPhone app's user defaults, the same three
+ * settings as on Android. Mirrors sherlo-runner's ios launchApp.ts: the sheet's record is a user
+ * default of the app. The menu stays closed at launch too (the clean device wipes that setting),
+ * and its floating Tools button is off so it never covers the screen; the shake gesture and key
+ * commands still open the menu.
+ */
+export async function prepareIosDevMenuForCapture(
+  run: ReturnType<typeof deviceState>['run'],
+  udid: string,
+  appId: string
+): Promise<void> {
+  for (const [key, value] of [
+    ['EXDevMenuIsOnboardingFinished', 'YES'],
+    ['EXDevMenuShowsAtLaunch', 'NO'],
+    ['EXDevMenuShowFloatingActionButton', 'NO'],
+  ]) {
+    await run('xcrun', ['simctl', 'spawn', udid, 'defaults', 'write', appId, key, '-bool', value]);
+  }
+}
+
 /** The link that opens the bundler in Expo's development launcher, from the `exp+<scheme>` in `listing`. */
 export function developmentLauncherLink(listing: string, port: number): string | undefined {
   const scheme = listing.match(/exp\+[A-Za-z0-9._-]+/)?.[0];

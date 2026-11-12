@@ -50,19 +50,23 @@ const NOT_THE_APP = ['**/node_modules/**', '**/build/**', '**/dist/**', '**/Pods
 const NO_APP_TYPESCRIPT =
   "`--props` needs the app's TypeScript: no `typescript` package or tsconfig.json was found in the project folder.";
 
+/** The app's source files (sorted) and its tsconfig.json text, read from the project folder. */
+export async function readAppFiles(root: string) {
+  const paths = await fg('**/*.{ts,tsx,js,jsx}', { cwd: root, ignore: NOT_THE_APP, dot: false });
+  const files = paths.sort().map((file) => ({
+    path: file,
+    text: fs.readFileSync(path.join(root, file), 'utf8'),
+  }));
+  const tsconfigPath = path.join(root, 'tsconfig.json');
+  const tsconfig = fs.existsSync(tsconfigPath) ? fs.readFileSync(tsconfigPath, 'utf8') : undefined;
+  return { files, tsconfig };
+}
+
 /** The shipped answer: read the app's source files from the project folder and list the gaps. */
 export const liveCoverageScan: CoverageScan = {
   scan: async ({ withProps }) => {
     const root = projectFiles().root();
-    const paths = await fg('**/*.{ts,tsx,js,jsx}', { cwd: root, ignore: NOT_THE_APP, dot: false });
-    const files = paths.sort().map((file) => ({
-      path: file,
-      text: fs.readFileSync(path.join(root, file), 'utf8'),
-    }));
-    const tsconfigPath = path.join(root, 'tsconfig.json');
-    const tsconfig = fs.existsSync(tsconfigPath)
-      ? fs.readFileSync(tsconfigPath, 'utf8')
-      : undefined;
+    const { files, tsconfig } = await readAppFiles(root);
 
     const findings = componentGaps({ files, tsconfig });
     if (!withProps) return findings;
@@ -100,7 +104,7 @@ export function installCoverageScan(next: CoverageScan): () => void {
 export type OpenComponentTypes = ComponentTypes & { close(): void };
 
 /** The app's own `typescript`, resolved from the project folder, opened on its tsconfig.json. */
-async function openAppTypes(root: string): Promise<OpenComponentTypes> {
+export async function openAppTypes(root: string): Promise<OpenComponentTypes> {
   const fromApp = createRequire(path.join(root, 'package.json'));
   let manifest: string | undefined;
   try {

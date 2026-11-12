@@ -58,7 +58,13 @@ const TCC_FILES = ['TCC.db', 'TCC.db-wal', 'TCC.db-shm'];
 
 /** The simulator's keychain and the files SQLite keeps beside it. */
 const KEYCHAIN_FOLDER = 'Library/Keychains';
-const KEYCHAIN_FILES = ['keychain-2.db', 'keychain-2.db-wal', 'keychain-2.db-shm'];
+// A debug-signed simulator (iOS 18) keeps its items in the debug one; keychain-2.db stays empty.
+const [CLASSIC_KEYCHAIN, DEBUG_KEYCHAIN] = ['keychain-2.db', 'keychain-2-debug.db'];
+const KEYCHAIN_FILES = [CLASSIC_KEYCHAIN, DEBUG_KEYCHAIN].flatMap((db) => [
+  db,
+  `${db}-wal`,
+  `${db}-shm`,
+]);
 
 /** What was changed for one scene, so the put-back knows what to undo. */
 export type SavedSceneDevice = {
@@ -267,10 +273,12 @@ async function setMember(
   const wipe = ['genp', 'inet', 'cert', 'keys'].map(
     (table) => `DELETE FROM ${table} WHERE ${group};`
   );
-  await run('sqlite3', [
-    path.join(simulatorFolder(device.udid), KEYCHAIN_FOLDER, KEYCHAIN_FILES[0]),
-    wipe.join(' '),
-  ]);
+  const keychainFolder = path.join(simulatorFolder(device.udid), KEYCHAIN_FOLDER);
+  const debugKeychain = path.join(keychainFolder, DEBUG_KEYCHAIN);
+  const keychain = fs.existsSync(debugKeychain)
+    ? debugKeychain
+    : path.join(keychainFolder, CLASSIC_KEYCHAIN);
+  await run('sqlite3', [keychain, wipe.join(' ')]);
   await stopDaemon(device.udid, 'com.apple.securityd');
 }
 

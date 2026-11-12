@@ -13,6 +13,7 @@ import { screenLines } from './screenLines';
 import { sinceLastRunLines } from './sinceLastRunLines';
 import { threwLines } from './threwLines';
 import type { CapturedScene } from './capturedScene';
+import type { LikelyCause } from '../seams/readAppAnswer';
 
 /** The lines under a scene that never got ready, up to what the scene left behind. */
 export function neverReachedLines(
@@ -35,4 +36,12 @@ export function neverReachedLines(
     ...(explainsTheStop(state) ? [] : NO_LOGGED_IN_USER),
     ...(stop?.screen?.views === 0 ? blankScreenLines(state.sceneId) : []),
   ];
+}
+
+/** Why a scene that never got ready likely did not, in the words the record's causes map to. */
+export function likelyCauseLines(causes: LikelyCause): string[] {
+  const words = causes.map((cause) =>
+    cause === 'unanswered-requests' ? 'requests with no mock' : 'errors the app logged'
+  );
+  return [`  Likely cause: ${words.join(' and ')}.`];
 }

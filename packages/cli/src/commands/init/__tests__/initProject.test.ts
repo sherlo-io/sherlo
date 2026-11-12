@@ -218,7 +218,7 @@ describe('setup names the project', () => {
     expect(inNoTeam.project).toBe(`${TEAM_ID}/4`);
   });
 
-  it('setup prints the project token of a project it made once, as the CI token', async () => {
+  it("setup that makes a project prints no token and says to copy it from the project's settings as SHERLO_TOKEN", async () => {
     const newProjectToken = `${'b'.repeat(32)}${TEAM_ID}8`;
 
     const run = await runProjectStep({
@@ -243,16 +243,66 @@ describe('setup names the project', () => {
     );
     expect(run.project).toBe(`${TEAM_ID}/8`);
 
-    const lines = plain(run.printed).split('\n');
-    const tokenLines = lines.filter((line) => line.includes(newProjectToken));
+    const printed = plain(run.printed);
+    expect(printed).not.toContain(newProjectToken);
+    expect(printed).not.toContain('shown once');
+    expect(printed).toContain('Made the project Storefront.');
+    expect(printed).toContain("Copy its token from the project's settings");
+    expect(printed).toContain('Add it to your CI as the SHERLO_TOKEN secret.');
+  });
 
-    // Once, alone on its line, under the shown-once warning, and on no `key=value` line.
-    expect(tokenLines).toEqual([`  ${newProjectToken}`]);
-    const tokenLineIndex = lines.indexOf(`  ${newProjectToken}`);
-    expect(lines[tokenLineIndex - 2]).toBe(
-      'Project token - shown once. Store it now; it cannot be shown again.'
-    );
-    expect(lines[tokenLineIndex + 2]).toBe('Add it to your CI as the SHERLO_TOKEN secret.');
+  it('setup given a token never prints it back', async () => {
+    const run = await runProjectStep({ options: { token: PROJECT_TOKEN }, api: [] });
+
+    expect(run.refusal).toBeUndefined();
+    expect(plain(run.printed)).not.toContain(PROJECT_TOKEN);
+  });
+
+  it('a hook that refuses stops the project step on every path before a team or a project is made', async () => {
+    const runStopped = async (world: Parameters<typeof runProjectStep>[0]) => {
+      const teamsAsked: Array<string | undefined> = [];
+      const run = await runProjectStep({
+        ...world,
+        beforeAnythingIsMade: async (teamId) => {
+          teamsAsked.push(teamId);
+          throw new Error('stopped by the hook');
+        },
+      });
+      expect(run.refusal).toBe('stopped by the hook');
+      expect(run.project).toBeUndefined();
+      // createTeam and createProject are in no script: a call to either would have been refused.
+      expect(run.unansweredCalls).toEqual([]);
+      return teamsAsked;
+    };
+
+    // --token: the team of the token, and no call at all.
+    expect(await runStopped({ options: { token: PROJECT_TOKEN }, api: [] })).toEqual([TEAM_ID]);
+    // --project: after the login, before the project is checked.
+    expect(
+      await runStopped({ options: { project: `${TEAM_ID}/4` }, logins: SAVED_LOGIN, api: [] })
+    ).toEqual([TEAM_ID]);
+    // A project the config names.
+    expect(
+      await runStopped({
+        options: {},
+        logins: SAVED_LOGIN,
+        api: [],
+        configFile: { project: `${TEAM_ID}/4` },
+      })
+    ).toEqual([TEAM_ID]);
+    // A team the person picks: before the projects are listed and before a project is made.
+    expect(
+      await runStopped({ options: {}, logins: SAVED_LOGIN, api: [LIST_TEAMS], answers: [TEAM_ID] })
+    ).toEqual([TEAM_ID]);
+    // A person in no team: asked with no team, before createTeam.
+    expect(
+      await runStopped({
+        options: {},
+        logins: SAVED_LOGIN,
+        api: [{ call: 'listTeams', with: {}, answer: { teams: [] } }],
+        answers: [true, 'Acme'],
+      })
+    ).toEqual([undefined]);
   });
 
   it('setup writes the project into the config and never a token', async () => {
@@ -304,6 +354,9 @@ async function runProjectStep(world: {
   logins?: PosedLogins;
   api: ScriptedCall[];
   answers?: Answer[];
+  configFile?: Record<string, unknown>;
+  /** The hook the run passes the project step. */
+  beforeAnythingIsMade?: (teamId: string | undefined) => Promise<void>;
 }) {
   const posedCalls = posedServerCalls(world.api);
   const tokensSpent: string[] = [];
@@ -326,12 +379,12 @@ async function runProjectStep(world: {
     return answers.shift() as Value;
   };
   const person: Workstation = {
-    addPackage: async () => {
-      throw new Error('the project step installs nothing');
-    },
-    installPods: async () => {
-      throw new Error('the project step installs nothing');
-    },
+    addPackage: () => Promise.reject(new Error('the project step installs nothing')),
+    installPods: () => Promise.reject(new Error('the project step installs nothing')),
+    readGit: () => Promise.reject(new Error('the project step reads no git')),
+    podsAreCurrent: () => false,
+    scenesFlag: () => undefined,
+    askScenesFlag: async () => {},
     somebodyIsAtTheKeyboard: () => true,
     readEnterPress: async () => undefined,
     chooseOne: async ({ question, choices }) => {
@@ -348,7 +401,9 @@ async function runProjectStep(world: {
     },
   };
 
-  const files = posedProjectFiles({});
+  const files = posedProjectFiles(
+    world.configFile ? { 'sherlo.config.json': world.configFile } : {}
+  );
   const surroundings = posedSurroundings({
     env: { SKIP_INTRO: 'true', SHERLO_API_URL: SERVICE_ADDRESS, ...world.env },
     git: 'none',
@@ -366,7 +421,9 @@ async function runProjectStep(world: {
   ];
 
   try {
-    const { printed, result, refusal } = await capturePrinted(() => project(world.options));
+    const { printed, result, refusal } = await capturePrinted(() =>
+      project(world.options, world.beforeAnythingIsMade)
+    );
 
     return {
       printed,

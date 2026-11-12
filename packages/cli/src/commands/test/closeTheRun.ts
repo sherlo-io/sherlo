@@ -18,7 +18,13 @@
  * builds the app - suggests pull request tests too.
  */
 import { reporting, waitForBuildResult } from '../../helpers';
-import { EXIT_BLOCK, EXIT_ERROR, EXIT_SIGINT, EXIT_TIMEOUT } from '../../helpers/exitCodes';
+import {
+  EXIT_BLOCK,
+  EXIT_ERROR,
+  EXIT_REVIEW,
+  EXIT_SIGINT,
+  EXIT_TIMEOUT,
+} from '../../helpers/exitCodes';
 import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
@@ -36,8 +42,11 @@ export async function closeTheRun({
   endsOnNextStep = true,
   hasCiToken,
   platformRows,
+  picturesPlanned,
 }: {
   commandParams: CommandParams<THIS_COMMAND>;
+  /** How many pictures the test's plan takes, which sizes the default wait; unknown, 45 minutes. */
+  picturesPlanned?: number;
   buildIndex: number;
   url: string;
   /** Every platform's row, which the test's first row stands under (see `rowsNotYetShown`). */
@@ -71,6 +80,7 @@ export async function closeTheRun({
       projectIndex,
       teamId,
       waitTimeoutMinutes: parseWaitTimeout(commandParams.waitTimeout),
+      picturesPlanned,
       serverBypassed,
       // This run started the test just now, so the wait's own time is how long the test ran.
       sawTheTestStart: true,
@@ -78,8 +88,8 @@ export async function closeTheRun({
     });
 
     // A test the server closed with nothing waiting ends with no link; one that still has a story
-    // waiting (a verdict of EXIT_BLOCK) ends on the Review link like any other.
-    if (!serverBypassed || exitCode === EXIT_BLOCK) {
+    // waiting (a verdict of EXIT_BLOCK or EXIT_REVIEW) ends on the Review link like any other.
+    if (!serverBypassed || exitCode === EXIT_BLOCK || exitCode === EXIT_REVIEW) {
       endAfterTheWait({ exitCode, testIndex: buildIndex, url });
     }
 
@@ -114,7 +124,7 @@ export async function closeTheRun({
  * The link a wait ends on, by how the wait ended - shared by `sherlo test --wait` and
  * `sherlo view <n> --wait`, so both end the same way:
  *
- *   - a verdict (exit 0 or 1): the link alone, under the verdict section;
+ *   - a verdict (exit 0, 1 or 4): the link alone, under the verdict section;
  *   - the waiting stopped while the test runs on (exit 3, or 130 on Ctrl-C): the `👉 Next step`
  *     section, with the command that goes on waiting;
  *   - the test failed (exit 2): nothing - the run ends on its failure and the help block.

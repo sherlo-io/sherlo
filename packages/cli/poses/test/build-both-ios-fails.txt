@@ -25,7 +25,7 @@ Last lines of the log:
 [2m   | ** BUILD FAILED **[22m
 
 Nothing was uploaded and no test was started. Fix the build, then run [36mnpx sherlo test[39m again.
-Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
+Can't build here? Run Sherlo on your CI instead: [36mhttps://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>[39m
 
 [2m──────────[22m
 

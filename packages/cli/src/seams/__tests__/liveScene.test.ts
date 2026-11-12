@@ -23,9 +23,10 @@ import { outcomeOf } from '../../render/sceneOutcome';
 import { installDeviceState, posedDeviceState } from '../deviceState';
 import type { NoTarget, SceneTarget } from '../deviceState';
 import { renderCapturedScene } from '../../render/capturedScene';
+import { renderCapturedStory } from '../../render/capturedStory';
 import { renderOpenedScene } from '../../render/openedScene';
 import { renderCapturedLog } from '../../render/capturedLog';
-import { capturedSceneEnding } from '../../commands/capture/capture';
+import { capturedSceneEnding, endingFor } from '../../commands/capture/capture';
 import { openedSceneEnding } from '../../commands/open/open';
 
 const SCENE = 'chat--conversation';
@@ -137,12 +138,18 @@ function recordingDevice(answers: Record<string, string> = {}): {
   return { ran, uninstall };
 }
 
-/** A device whose launch of the app runs `launch`, as the app's start on a real phone does. */
+/**
+ * A device whose launch of the app runs `launch`, as the app's start on a real phone does, and
+ * which reads back the bundler location the launch saved for the app, as a real simulator does.
+ */
 function launchingDevice(launch: () => Promise<void>): () => void {
+  let savedLocation = '';
   return installDeviceState({
     ...posedDeviceState(),
     run: async (tool, args) => {
       if (tool === 'xcrun' && args[1] === 'launch') await launch();
+      if (args.includes('RCT_jsLocation') && args.includes('write')) savedLocation = args.at(-1)!;
+      if (args.includes('RCT_jsLocation') && args.includes('read')) return savedLocation;
       return '';
     },
   });
@@ -354,6 +361,34 @@ describe('a scene is captured and opened live', () => {
       ready: 'chat-list',
       stayedOn: ['Auth'],
     });
+  });
+
+  it('a never-settled scene answer keeps every unanswered request and every changing component', () => {
+    // What the app answers for the capture-scene-never-settled pose, in both of its shapes.
+    const changing = ['IntroVideo', 'LoadingSpinner'];
+    const unanswered = [
+      {
+        method: 'POST',
+        url: 'https://api.example.com/graphql',
+        library: '@apollo/client',
+        operation: 'FeedHome',
+        rule: 'no-fake-matched',
+      },
+      { method: 'GET', url: 'https://cdn.example.com/intro.mp4', rule: 'no-fake-matched' },
+    ];
+    const told = { sceneId: SCENE, changing, unanswered };
+    const answers = [
+      { kind: 'never-settled', ...told, bootMs: 900, route: ['Feed'], unfocused: [] },
+      { ...SCENE_RECORD, ...told, settled: 'timed-out' },
+    ];
+
+    for (const answer of answers) {
+      expect(readSceneAnswer(answer, SCENE)).toMatchObject({
+        kind: 'never-settled',
+        changing,
+        unanswered,
+      });
+    }
   });
 
   it("a captured scene's answer keeps the phone's density and font scale", () => {
@@ -668,11 +703,11 @@ describe('a scene is captured and opened live', () => {
     const told: Instruction[] = [];
     const apps: Awaited<ReturnType<typeof appOnTheLine>>[] = [];
 
-    // The launched app runs the code built into it: its wait carries no stamp.
+    // The launched app runs code an earlier bundler served: its wait carries that bundler's stamp.
     const uninstall = launchingDevice(async () => {
       const app = await appOnTheLine(line.port, (instruction) => told.push(instruction));
       apps.push(app);
-      app.say({ ...waitForACapture('testing', null), codeStamp: undefined });
+      app.say({ ...waitForACapture('testing', null), codeStamp: 'an-earlier-bundler' });
       await landed();
     });
     try {
@@ -691,6 +726,58 @@ describe('a scene is captured and opened live', () => {
       expect(screen).not.toContain('no Sherlo app is attached');
       // The app was let go with an empty instruction, never handed the scene to walk.
       expect(told).toEqual([{}]);
+    } finally {
+      uninstall();
+      apps.forEach((app) => app.leave());
+      line.close();
+    }
+  });
+
+  it('an app whose bundle carries no code stamp is told its launch code is missing, not that it runs old code', async () => {
+    const line = await realLine();
+    const told: Instruction[] = [];
+    const apps: Awaited<ReturnType<typeof appOnTheLine>>[] = [];
+
+    // The bundler served a bundle without Sherlo's launch code: the app's wait carries no stamp.
+    const uninstall = launchingDevice(async () => {
+      const app = await appOnTheLine(line.port, (instruction) => told.push(instruction));
+      apps.push(app);
+      app.say({ ...waitForACapture('testing', null), codeStamp: undefined });
+      await landed();
+    });
+    try {
+      const sceneEnding = await captureLiveScene({
+        sceneId: SCENE,
+        port: line.port,
+        settings: STABILIZATION_SETTINGS,
+        target: PHONE,
+      });
+      // A story asked of the same app, waiting again, ends the same way.
+      apps[0].say({ ...waitForACapture('testing', null), codeStamp: undefined });
+      await landed();
+      const storyEnding = await liveCaptureSocket.captureStory({
+        storyId: SCENE,
+        port: line.port,
+        settings: STABILIZATION_SETTINGS,
+      });
+
+      for (const ending of [sceneEnding, storyEnding]) {
+        expect(ending).toMatchObject({ kind: 'no-app', why: 'no-launch-code' });
+      }
+      const sceneScreen = renderCapturedScene(capturedSceneEnding(sceneEnding, line.port));
+      const storyScreen = renderCapturedStory(
+        endingFor(storyEnding, { storyId: SCENE, port: line.port })
+      );
+      for (const screen of [sceneScreen.join('\n'), storyScreen.join('\n')]) {
+        expect(screen).toContain('no Sherlo launch code');
+        expect(screen).toContain('withStorybook');
+        // Never the old-code words that send a developer to reload, nor "no app is attached".
+        expect(screen).not.toContain('runs the code built into it');
+        expect(screen).not.toContain('press r');
+        expect(screen).not.toContain('no Sherlo app is attached');
+      }
+      // The app was let go with an empty instruction, never handed the scene to walk.
+      expect(told[0]).toEqual({});
     } finally {
       uninstall();
       apps.forEach((app) => app.leave());

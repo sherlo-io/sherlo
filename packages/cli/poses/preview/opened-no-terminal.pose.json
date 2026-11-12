@@ -1,0 +1,39 @@
+{
+  "pose": 1,
+  "files": {
+    ".sherlo/captures/2026-11-01T09-30-00.000Z_chat--conversation/record.json": {
+      "kind": "scene",
+      "bootMs": 1800,
+      "reached": { "route": ["ChatStack", "Chat"], "ms": 2400 },
+      "play": [{ "tap": "Connections" }],
+      "settled": { "ms": 600, "frames": 4 },
+      "tree": {
+        "primitive": "View",
+        "components": ["Chat"],
+        "size": { "width": 360, "height": 800 },
+        "children": []
+      }
+    },
+    ".sherlo/captures/2026-11-01T09-30-00.000Z_chat--conversation/screen.png": "picture",
+    ".sherlo/captures/2026-11-01T09-30-00.000Z_chat--conversation/device.json": {
+      "local": true,
+      "model": "Pixel 9",
+      "os": "Android 15"
+    },
+    ".sherlo/captures/2026-11-01T09-31-00.000Z_profile--own-profile/record.json": {
+      "kind": "never-reached",
+      "stayedOn": ["SignIn"],
+      "ready": "Profile"
+    }
+  },
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["preview"],
+  "localServer": { "port": 4321, "watched": false },
+  "browser": { "opened": true }
+}

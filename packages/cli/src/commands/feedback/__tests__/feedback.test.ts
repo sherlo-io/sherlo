@@ -46,6 +46,18 @@ describe('sherlo feedback', () => {
     expect(plain(printed)).toContain('The project and its devices');
   });
 
+  it('feedback after a failed push sends the error and the exact version', async () => {
+    const errorLines = ['✖ Pushing the build failed', 'The token was not accepted'];
+    const { sent } = await runFeedback({
+      files: {
+        '.sherlo/last-command.json': { command: 'test', flags: {}, exitCode: 1, errorLines },
+      },
+    });
+
+    expect(sent[0].context.lastCommand).toEqual({ command: 'test', exitCode: 1, errorLines });
+    expect(sent[0].context.cliVersion).toEqual(expect.stringMatching(/^\d+\.\d+\.\d+/));
+  });
+
   it("A report missing a section its type needs is refused once, naming the type's sections and every one missing", async () => {
     const { refusal, sent } = await runFeedback({ report: '## Steps\nran sherlo test' });
 

@@ -15,7 +15,7 @@ Testing your app...
 [31mERROR: Can't build iOS here: iOS builds need macOS, and this machine runs Linux.[39m
 Run `npx sherlo test --platform android` here and `npx sherlo test --platform ios` on a Mac.
 Both jobs in the same CI run join into one Test.
-Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
+Can't build here? Run Sherlo on your CI instead: [36mhttps://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>[39m
 
 [2m──────────[22m
 

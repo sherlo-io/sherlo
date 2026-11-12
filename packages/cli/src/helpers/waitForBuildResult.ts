@@ -13,9 +13,20 @@ import { surroundings } from '../seams/surroundings';
 import getAppBuildUrl from './getAppBuildUrl';
 import getTokenParts from './getTokenParts';
 import hasNoTokenParts from './hasNoTokenParts';
+import { createSigintSignal } from './sigintSignal';
 import { emit } from './transcriptSink';
-import { EXIT_BLOCK, EXIT_ERROR, EXIT_GREEN, EXIT_SIGINT, EXIT_TIMEOUT } from './exitCodes';
-import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBuildVerdict';
+import {
+  EXIT_ERROR,
+  EXIT_GREEN,
+  EXIT_SIGINT,
+  EXIT_TIMEOUT,
+  exitCodeForUnfinishedReview,
+} from './exitCodes';
+import {
+  countNoPicture,
+  decideSparseBuildVerdict,
+  routesThroughSparseVerdict,
+} from './sparseBuildVerdict';
 
 /*
  * The exit-code contract this loop returns under - including the ONE input on
@@ -23,7 +34,10 @@ import { decideSparseBuildVerdict, routesThroughSparseVerdict } from './sparseBu
  * repairs that - lives in ./exitCodes, next to the codes themselves.
  */
 
+/** The shortest default wait; a test of many pictures waits ten seconds a picture. */
 const DEFAULT_WAIT_TIMEOUT_MINUTES = 45;
+/** A picture can take 7 seconds on a large app; 10 leaves room. */
+const WAIT_SECONDS_PER_PICTURE = 10;
 const POLL_INTERVAL_MS = 15_000; // fixed interval, no API hammering
 /**
  * THE STORIES MUST HAVE STOPPED MOVING BEFORE A VERDICT IS PRINTED (2026-09-09).
@@ -77,6 +91,7 @@ export async function waitForTest({
   projectIndex,
   teamId,
   waitTimeoutMinutes,
+  picturesPlanned = 0,
   serverBypassed = false,
   sawTheTestStart = false,
   rowsNotYetShown = [],
@@ -98,6 +113,8 @@ export async function waitForTest({
   projectIndex: number;
   teamId: string;
   waitTimeoutMinutes?: number;
+  /** How many pictures the test's plan takes, which sizes the default wait; none, 45 minutes. */
+  picturesPlanned?: number;
   /**
    * Injectable clock so the deadline tests can stub time deterministically
    * instead of spying on the global `Date.now` - keeps them immune to any
@@ -150,7 +167,13 @@ export async function waitForTest({
    */
   json?: boolean;
 }): Promise<WaitResult> {
-  const timeoutMs = (waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES) * 60 * 1000;
+  const timeoutMinutes =
+    waitTimeoutMinutes ??
+    Math.max(
+      DEFAULT_WAIT_TIMEOUT_MINUTES,
+      Math.ceil((picturesPlanned * WAIT_SECONDS_PER_PICTURE) / 60)
+    );
+  const timeoutMs = timeoutMinutes * 60 * 1000;
   const startTime = now();
   const deadline = startTime + timeoutMs;
 
@@ -168,7 +191,6 @@ export async function waitForTest({
     return () => serverCalls().getBuildStatus({ token, buildIndex, projectIndex, teamId });
   }
 
-  const timeoutMinutes = waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES;
   const testIndex = buildIndex;
 
   // A server-bypassed build is already closed, so there is nothing to show a wait for: the one
@@ -496,7 +518,9 @@ function decideTerminalState(
       }
 
       const { unreviewed, reported } = viewStatusesCount;
-      return unreviewed === 0 && reported === 0 ? EXIT_GREEN : EXIT_BLOCK;
+      return unreviewed === 0 && reported === 0
+        ? EXIT_GREEN
+        : exitCodeForUnfinishedReview(reported);
     }
 
     case 'error':
@@ -542,7 +566,7 @@ function printTerminalCloser(
     emit({
       kind: 'verdict-run-errored',
       runStatus,
-      runError: build.runError,
+      runError: build.runFailure ? null : build.runError, // a recorded failure says it in words
       testIndex,
       ...(appFailed ? { appFailed } : {}),
     });
@@ -555,8 +579,6 @@ function printTerminalCloser(
     return;
   }
 
-  // runStatus is 'finished' here (the only other caller-guaranteed terminal
-  // state), with viewStatusesCount already confirmed present by the decision.
   const { unreviewed, reported } = viewStatusesCount!;
 
   const serverBypassReason =
@@ -573,9 +595,7 @@ function printTerminalCloser(
   emit({ kind: 'blank-line' });
   const holds = readBuildScreenKind(build);
   if (unreviewed === 0 && reported === 0) {
-    // No verbatim reason: the generic green. Covers the forward-compat degrade of a
-    // counts-bypassed build whose poll carries no prose, and every ordinary green build.
-    emit({ kind: 'verdict-passed', holds });
+    emit({ kind: 'verdict-passed', holds, noPicture: countNoPicture(build) });
   } else {
     emit({
       kind: 'verdict-review-required',
@@ -617,7 +637,7 @@ function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
  * words, once {@link decideTerminalState} has confirmed the build terminal.
  *
  * It emits the frame every closer sits inside (a blank line above and below), and inside it either the sparse verdict's
- * segments or - when the build is one the SERVER closed without a device run -
+ * segments or - when the SERVER closed the build without a device run -
  * that build's existing compact closer, carrying the server's own prose. The
  * bypass keeps precedence deliberately: it is a MORE specific green than
  * `noChanges`, and a project that opted into sparse builds must not lose the one
@@ -625,8 +645,7 @@ function printTestFinished({ testIndex, secondsItRan }: HowTheTestRan): void {
  * paths, so precedence changes the words and never the verdict.
  *
  * A `null` verdict (the counts race) is unreachable here, as {@link decideTerminalState} decided
- * the SAME build terminal off the SAME check; it prints nothing, as a false closer must never be
- * reachable by accident.
+ * the SAME build terminal off the SAME check; it prints nothing, so no false closer is reachable.
  */
 function printSparseCloser(
   build: NonNullable<BuildStatusResponse['getBuildStatus']>,
@@ -660,6 +679,7 @@ function namingTheTest(
   holds: ScreenKind
 ): TranscriptSegment {
   if (segment.kind === 'verdict-nothing-recorded') return { ...segment, testIndex };
+  if (segment.kind === 'verdict-passed') return { ...segment, holds };
   return segment.kind === 'verdict-review-required' ? { ...segment, holds } : segment;
 }
 
@@ -827,24 +847,6 @@ export async function fetchServerBypassReason({
 /** Let time pass between polls - a real timer on a live run, nothing at all on a posed one (the pose's clock is the time). */
 function sleep(ms: number): Promise<void> {
   return surroundings().sleep(ms);
-}
-
-/**
- * Replaces Node's default "exit immediately" SIGINT behavior for the duration
- * of the wait: the returned promise resolves on the first Ctrl-C, letting the
- * poll loop stop cleanly and exit with {@link EXIT_SIGINT}. `cleanup` restores
- * the default by removing the listener.
- */
-function createSigintSignal(): { promise: Promise<void>; cleanup: () => void } {
-  let resolveSignal: () => void;
-  const promise = new Promise<void>((resolve) => {
-    resolveSignal = resolve;
-  });
-
-  const handler = () => resolveSignal();
-  process.once('SIGINT', handler);
-
-  return { promise, cleanup: () => process.off('SIGINT', handler) };
 }
 
 export default waitForBuildResult;
