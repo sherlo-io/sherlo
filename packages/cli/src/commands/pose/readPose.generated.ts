@@ -3402,7 +3402,6 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
 function readPosedDiffScope(value: unknown, path: string, problems: string[]): void {
   const object1 = asObject(value, path, problems);
   if (object1) {
-    expectOneOf(object1.style, ['A', 'B', 'C'], at(path, 'style'), problems);
     if ('checked' in object1) {
       expectNumber(object1.checked, at(path, 'checked'), problems);
     }
@@ -3423,15 +3422,7 @@ function readPosedDiffScope(value: unknown, path: string, problems: string[]): v
     }
     reportUnknownFields(
       object1,
-      [
-        'style',
-        'checked',
-        'lookDifferent',
-        'couldNotCheck',
-        'changedFile',
-        'fullReason',
-        'unfinished',
-      ],
+      ['checked', 'lookDifferent', 'couldNotCheck', 'changedFile', 'fullReason', 'unfinished'],
       path,
       problems
     );

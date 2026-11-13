@@ -146,23 +146,9 @@ export function describeWhatRuns({
   // `3 of 24 stories on 1 device`, but `🤖 Android 3 of 24 stories, 🍎 iOS all 24 stories, on 2 devices`.
   const beforeDevices = storiesOfEachPlatform.length > 1 ? ', ' : ' ';
   const whatRuns = [stories, onDevices].filter((part) => part !== '').join(beforeDevices);
-  const reason =
-    reasonEveryStoryIsCaptured(capture) ??
-    describeFirstLook(capture) ??
-    describeReusedInOneLine(capture);
+  const reason = reasonEveryStoryIsCaptured(capture) ?? describeFirstLook(capture);
 
   return reason ? `${whatRuns}, ${reason}` : whatRuns;
-}
-
-/** Design C: `307 reuse their last picture` ends the Started row of a partial capture. */
-function describeReusedInOneLine(capture: PlatformCapture[]): string | undefined {
-  const [first] = capture;
-  if (!first || first.full || capture.some(({ diffScope }) => diffScope?.style !== 'C')) {
-    return undefined;
-  }
-
-  const outOf = first.diffScope?.checked ?? first.storiesInBundle;
-  return outOf != null ? `${outOf - first.capturedStories} reuse their last picture` : undefined;
 }
 
 /**
@@ -202,8 +188,8 @@ function describeStoriesOfEachPlatform(capture: PlatformCapture[]): string[] {
 function reasonEveryStoryIsCaptured(capture: PlatformCapture[]): string | undefined {
   if (capture.length === 0 || !capture.every(({ full }) => full)) return undefined;
 
-  // A test line that says Diff Scope's numbers under the row (designs A and B) says the reason there.
-  if (capture.every(({ diffScope }) => diffScope && diffScope.style !== 'C')) return undefined;
+  // A test with Diff Scope's numbers under the row says the reason there.
+  if (capture.every(({ diffScope }) => diffScope)) return undefined;
 
   const reasons = new Set(capture.map(({ reason }) => reason));
   return reasons.size === 1 ? capture[0].reason : undefined;

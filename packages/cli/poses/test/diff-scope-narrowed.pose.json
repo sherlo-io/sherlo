@@ -116,7 +116,6 @@
               ],
               "reason": "src/components/Button/Button.Text.tsx changed",
               "diffScope": {
-                "style": "C",
                 "checked": 384,
                 "lookDifferent": 26,
                 "couldNotCheck": 51,

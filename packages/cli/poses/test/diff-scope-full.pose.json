@@ -107,20 +107,10 @@
         "captureDecision": {
           "platforms": {
             "android": {
-              "full": false,
-              "storyFilePaths": [
-                "src/components/Button/Button.stories.tsx",
-                "src/components/Button/ButtonGroup.stories.tsx",
-                "src/components/Toolbar/Toolbar.stories.tsx",
-                "src/components/Modal/Modal.stories.tsx",
-                "src/components/Card/Card.stories.tsx"
-              ],
-              "reason": "src/components/Button/Button.Text.tsx changed",
+              "full": true,
+              "reason": "native code changed since Test 14",
               "diffScope": {
-                "style": "B",
-                "checked": 384,
-                "changedFile": "src/components/Button/Button.Text.tsx",
-                "unfinished": true
+                "fullReason": "native code changed since Test 14"
               }
             }
           },

@@ -1683,10 +1683,8 @@ export type PosedPlatformCaptureDecision = {
 /**
  * What Diff Scope's quick check says about one platform, in the words a customer reads: how many
  * stories it checked, how many look different, how many it could not check, and what changed.
- * `style` picks which of the three wordings prints (A, B or C).
  */
 export type PosedDiffScope = {
-  style: 'A' | 'B' | 'C';
   checked?: number;
   lookDifferent?: number;
   couldNotCheck?: number;

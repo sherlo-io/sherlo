@@ -7,9 +7,6 @@
  *                   Capturing those 77. The other 307 reuse their last picture.
  *                   Changed: src/components/Button/Button.Text.tsx
  *
- * Three wordings exist side by side (A sentences, B numbers first, C one line and its reason);
- * `diffScope.style` says which prints.
- *
  * Pure, like everything under ./. Words a customer does not know are not used here.
  */
 import chalk from 'chalk';
@@ -30,61 +27,28 @@ export function renderDiffScopeLines(capture: PlatformCapture[]): string[] {
   const couldNotCheck = diffScope.couldNotCheck ?? 0;
   const found = `${lookDifferent} look different, ${couldNotCheck} could not be checked`;
 
-  // Case 3: every story is captured for a reason the quick check did not even start on.
+  // Every story is captured for a reason the quick check did not even start on.
   if (full && diffScope.fullReason) {
-    switch (diffScope.style) {
-      case 'A':
-        return [
-          `Capturing every story: ${diffScope.fullReason}.`,
-          'None can reuse its last picture.',
-        ];
-      case 'B':
-        return [
-          `${first.storiesInBundle ?? inScope} captured`,
-          `0 reuse their last picture, because ${diffScope.fullReason}`,
-        ];
-      case 'C':
-        return []; // the Started row already ends on the reason, as it does today
-    }
+    return [
+      `${first.storiesInBundle ?? inScope} captured`,
+      `0 reuse their last picture, because ${diffScope.fullReason}`,
+    ];
   }
 
-  // Case 4: the quick check could not finish, so every story the change can reach is captured.
+  // The quick check could not finish, so every story the change can reach is captured; the rest
+  // reuse their last picture.
   if (diffScope.unfinished) {
-    switch (diffScope.style) {
-      case 'A':
-        return [
-          `${warning} The quick check could not finish, so Sherlo could not narrow the test.`,
-          `${capturedStories} are captured: every story ${diffScope.changedFile} can reach.`,
-          `${reused} reuse their last picture.`,
-        ];
-      case 'B':
-        return [
-          `${warning} ${capturedStories} captured: every story ${diffScope.changedFile} can reach`,
-          `${warning} The quick check could not finish`,
-          `${reused} reuse their last picture`,
-        ];
-      case 'C':
-        return [
-          `${warning} The quick check could not finish: capturing every story ${diffScope.changedFile} can reach`,
-        ];
-    }
+    return [
+      `${warning} ${capturedStories} captured: every story ${diffScope.changedFile} can reach`,
+      `${warning} The quick check could not finish`,
+      `${reused} reuse their last picture`,
+    ];
   }
 
-  // Case 1: Diff Scope checked the stories and narrowed the test.
-  switch (diffScope.style) {
-    case 'A':
-      return [
-        `Checked ${stories(inScope ?? 0)}: ${found}.`,
-        `${capturedStories} are captured. ${reused} reuse their last picture.`,
-        ...(diffScope.changedFile ? [`Changed: ${diffScope.changedFile}`] : []),
-      ];
-    case 'B':
-      return [
-        `${inScope} checked, after ${diffScope.changedFile} changed`,
-        `${capturedStories} captured: ${found}`,
-        `${reused} reuse their last picture`,
-      ];
-    case 'C':
-      return [`Because ${diffScope.changedFile} changed: ${found}`];
-  }
+  // Diff Scope checked the stories and narrowed the test.
+  return [
+    `Checked ${stories(inScope ?? 0)}: ${found}.`,
+    `${capturedStories} are captured. ${reused} reuse their last picture.`,
+    ...(diffScope.changedFile ? [`Changed: ${diffScope.changedFile}`] : []),
+  ];
 }
