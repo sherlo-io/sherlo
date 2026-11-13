@@ -28,7 +28,7 @@ vi.mock('../hasStorybook', async (importActual) => ({
 vi.mock('../../../../seams/workstation', () => ({
   workstation: () => ({ scenesFlag: () => scenesFlag, askScenesFlag: async () => {} }),
 }));
-vi.mock('../validateHasWithStorybookInMetroConfig', () => ({ default: vi.fn(async () => {}) }));
+vi.mock('../refuseUnreadableMetroConfig', () => ({ default: vi.fn(async () => {}) }));
 vi.mock('../validateCorePackagesVersions', () => ({ default: vi.fn(() => {}) }));
 vi.mock('../getPackageVersion', () => ({ default: vi.fn() }));
 vi.mock('../../helpers/trackProgress', () => ({

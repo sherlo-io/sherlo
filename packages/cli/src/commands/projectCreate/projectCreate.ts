@@ -30,6 +30,7 @@
  */
 import { MAX_PROJECT_NAME_LENGTH, NAME_OPTION, TEAM_OPTION } from '../../constants';
 import { printSherloIntro, reporting, throwError } from '../../helpers';
+import getAppDomain from '../../helpers/getAppDomain';
 import { emit } from '../../helpers/transcriptSink';
 import { refuseRejectedLogin, resolveLogin, resolveTeamId } from '../shared';
 import { CreateProjectAuthError } from './createProjectRequest';
@@ -63,9 +64,16 @@ async function projectCreate(passedOptions: ProjectCreateOptions): Promise<void>
       throwError({ message: error.message, errorToReport: error });
     });
 
-  // ONE segment, carrying three named fields - never the response. See
-  // ../../render/projectCreated for why that distinction is the point.
-  emit({ kind: 'project-created', project });
+  // ONE segment, carrying named fields - never the response. No token comes with a new project:
+  // the project's page makes one for CI (../../render/projectCreated).
+  emit({
+    kind: 'project-created',
+    project: {
+      name: project.name,
+      index: project.index,
+      projectPageUrl: `${getAppDomain()}/project?t=${teamId}&p=${project.index}`,
+    },
+  });
 }
 
 export default projectCreate;

@@ -1,20 +1,22 @@
-import chalk from 'chalk';
 import { readFile } from 'fs/promises';
 import { detect, resolveCommand } from 'package-manager-detector';
 import { join } from 'path';
-import { version as cliVersion } from '../../../../package.json';
-import { FULL_INIT_COMMAND, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
+import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 import {
   getCwd,
   getErrorWithCustomMessage,
   spinner as createSpinner,
   throwError,
 } from '../../../helpers';
+import { version as cliVersion } from '../../../../package.json';
+import { renderInstallFailed } from '../../../render/initFixes';
+import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
+import { printLines } from '../helpers';
 import getFailedCommandOutput from './getFailedCommandOutput';
 
 async function installSherlo(): Promise<void> {
-  const spinner = createSpinner('Installing Sherlo').start();
+  const spinner = createSpinner('Installing Sherlo...').start();
 
   let packageJson;
   const packageJsonPath = join(getCwd(), 'package.json');
@@ -34,11 +36,18 @@ async function installSherlo(): Promise<void> {
   // An SDK the app already depends on is kept as it is, whatever its spec (a version, file:, link:,
   // workspace:): a pinned or local SDK is the app's own choice, and installing over it would move
   // the app off the version it chose.
-  if (
-    packageJson.dependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME] ||
-    packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]
-  ) {
-    spinner.succeed('Sherlo is already installed');
+  const existingSdkSpec: string | undefined =
+    packageJson.dependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME] ??
+    packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
+  if (existingSdkSpec) {
+    spinner.stop();
+    printLines([
+      renderStepLine({
+        outcome: 'already',
+        name: 'Installed Sherlo',
+        detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${existingSdkSpec}`,
+      }),
+    ]);
     return;
   }
 
@@ -76,25 +85,29 @@ async function installSherlo(): Promise<void> {
       env: packageManager === 'yarn' ? { YARN_ENABLE_IMMUTABLE_INSTALLS: 'false' } : undefined,
     });
   } catch (error) {
-    spinner.fail();
+    spinner.stop();
+    printLines(renderFailedStepLine('Installing Sherlo failed'));
 
-    console.log();
-
+    // BUILD DEBT (init-for-agents): the tool's marked error lines and the full log file, by the rule
+    // the plan settled, in place of the last lines of each stream.
     throwError({
-      message:
-        'Failed to install Sherlo automatically\n' +
-        '\n' +
-        chalk.reset('Please install it manually:\n') +
-        chalk.cyan(`  ${commandToRun}\n`) +
-        '\n' +
-        chalk.reset('Then re-run:\n') +
-        chalk.cyan(`  ${FULL_INIT_COMMAND}`),
-      below: getFailedCommandOutput(error),
+      ...renderInstallFailed({
+        installing: 'Sherlo',
+        command: commandToRun,
+        failedOutput: getFailedCommandOutput(error),
+      }),
       errorToReport: error,
     });
   }
 
-  spinner.succeed('Installed Sherlo');
+  spinner.stop();
+  printLines([
+    renderStepLine({
+      outcome: 'done',
+      name: 'Installed Sherlo',
+      detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${cliVersion}`,
+    }),
+  ]);
 }
 
 /**

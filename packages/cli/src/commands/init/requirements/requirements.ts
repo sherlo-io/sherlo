@@ -27,7 +27,7 @@ import getPackageVersion from './getPackageVersion';
 import validateCorePackagesVersions from './validateCorePackagesVersions';
 import validateHasReactNative from './validateHasReactNative';
 import hasStorybook, { refuseMissingStorybook } from './hasStorybook';
-import validateHasWithStorybookInMetroConfig from './validateHasWithStorybookInMetroConfig';
+import refuseUnreadableMetroConfig from './refuseUnreadableMetroConfig';
 import validateProjectContext from './validateProjectContext';
 
 /**
@@ -123,7 +123,7 @@ async function validateRequirements(token?: string): Promise<boolean> {
 
     const appHasStorybook = await hasStorybook();
 
-    if (appHasStorybook) await validateHasWithStorybookInMetroConfig();
+    await refuseUnreadableMetroConfig();
 
     validateCorePackagesVersions();
 

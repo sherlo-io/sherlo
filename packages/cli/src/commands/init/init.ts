@@ -1,64 +1,86 @@
+/**
+ * `sherlo init` - set Sherlo up in a React Native app with no question asked (init-for-agents).
+ *
+ * The person's one act is clicking Authorize in the browser, so an AI agent can run the whole setup.
+ * Each step prints one line, and a step the project already has says so, so a rerun picks up where
+ * a failed run stopped. The run ends with the next steps, and the feedback line.
+ */
 import { printSherloIntro } from '../../helpers';
-import { workstation } from '../../seams/workstation';
+import { renderFeedbackLine, renderNextSteps, renderSetupIntro } from '../../render/initSteps';
 import { Options } from '../../types';
-import builds from './builds';
 import config from './config';
 import { THIS_COMMAND } from './constants';
-import dependencies from './dependencies';
-import { trackProgress } from './helpers';
+import { printLines, trackProgress } from './helpers';
 import metroConfig from './metroConfig';
-import project from './project';
-import requirements, { settleNoStorybook } from './requirements';
-import scheme from './scheme';
-import skill from './skill';
-import storybookAccess from './storybookAccess';
-import testing from './testing';
+import checkProject from './steps/checkProject';
+import githubWorkflow from './steps/githubWorkflow';
+import logIn from './steps/logIn';
+import sherloSdk from './steps/sherloSdk';
+import storybook from './steps/storybook';
+import storybookSetup from './steps/storybookSetup';
+import teamAndProject from './steps/teamAndProject';
+import {
+  EXPO_PACKAGE_NAME,
+  PROJECT_OPTION,
+  STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
+  TEAM_OPTION,
+} from '../../constants';
+import getPackageVersion from './requirements/getPackageVersion';
 
 async function init(options: Options<THIS_COMMAND>) {
-  const { token } = options;
-
-  const { sessionId } = await trackProgress({
-    event: '0_init',
-    token,
-    sessionId: null,
-    hasStarted: true,
-  });
+  const { sessionId } = await trackProgress({ event: '0_init', sessionId: null, hasStarted: true });
 
   printSherloIntro();
+  printLines(renderSetupIntro());
 
-  const { appHasStorybook } = await requirements({ token, sessionId });
+  try {
+    const project = await checkProject();
+    await trackProgress({ event: '1_requirements', sessionId });
 
-  // Before anything is installed, so a run that cannot name a project changes nothing.
-  // An app with no Storybook is welcome only for a team with scenes on, and the team is known only
-  // inside the project step (after the login, and the "React Native" line already printed). So the
-  // step asks, as soon as it knows the team and before it makes a team or a project, whether to go on.
-  const projectToWrite = await project(
-    options,
-    appHasStorybook ? undefined : (teamId) => settleNoStorybook({ teamId, sessionId })
-  );
+    const person = await logIn();
+    // BUILD DEBT (init-for-agents): `--team` joins init's options type in ../../types.
+    const teamFlag = (options as { [TEAM_OPTION]?: string })[TEAM_OPTION];
+    const { projectId } = await teamAndProject(person, {
+      teamFlag,
+      projectFlag: options[PROJECT_OPTION],
+    });
+    // Written as soon as the project exists, so a run that fails at any later step leaves the
+    // project in the config, and a rerun uses it rather than making a second one.
+    await config({ sessionId, project: projectId });
 
-  // From the project it chose, not the folder it started in: that folder may not name one yet.
-  await workstation().askScenesFlag(projectToWrite);
+    const { installedNow } = await storybook({ hasStorybook: project.hasStorybook });
+    await sherloSdk();
+    await trackProgress({ event: '2_dependencies', params: { status: 'success' }, sessionId });
 
-  await dependencies({ sessionId });
-
-  if (appHasStorybook) {
     await metroConfig(sessionId);
+    await githubWorkflow();
 
-    await storybookAccess(sessionId);
+    const storybookState = installedNow
+      ? 'installed'
+      : storybookSetup() === 'registers-root'
+        ? 'default-setup'
+        : 'old-setup';
+    // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
+    const reader = process.stdout.isTTY ? 'person' : 'agent';
+    printLines(
+      renderNextSteps({
+        storybook: storybookState,
+        storybookVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ?? undefined,
+        isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
+        reader,
+      })
+    );
+    // BUILD DEBT (init-for-agents): on the default setup in a person's terminal, run `sherlo test`
+    // here, under the line renderNextSteps printed, and only when the app has stories of its own.
+    printLines(renderFeedbackLine({ reader }));
+
+    await trackProgress({ event: '7_testing', sessionId, hasFinished: true });
+  } catch (error) {
+    // A failed run ends with one block for feedback and help, in place of the usual help footer
+    // (../../start prints it).
+    Object.assign(error as object, { showFeedbackLine: true });
+    throw error;
   }
-
-  await config({ sessionId, project: projectToWrite });
-
-  // Into the config just written, so the first push does not stop on an iOS scheme it cannot pick.
-  await scheme();
-
-  await builds({ sessionId });
-
-  // Prints nothing: the testing lines below name the guide it leaves for the coding agent.
-  await skill();
-
-  await testing(sessionId);
 }
 
 export default init;

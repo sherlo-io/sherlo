@@ -17,6 +17,7 @@
  * Pure, like everything under ./: state in, words out.
  */
 import type { Platform } from '@sherlo/api-types';
+import { formatBuildDuration } from './appBuild';
 import type { TranscriptSegment } from './segments';
 import { platformLabelColumn } from './runRows';
 
@@ -36,8 +37,18 @@ export type StepInProgress = Extract<
 
 const BUILD_TOOL: Record<Platform, string> = { android: 'Gradle', ios: 'Xcode' };
 
-/** The words a running step shows: `🤖 Android  Building the app with Gradle...`. */
-export function renderStepInProgress(step: StepInProgress): string {
+/**
+ * The words a running step shows: `🤖 Android  Building the app with Gradle...`, and with
+ * `elapsedSeconds` the time it has run so far, `... 12m 40s`. A spinner shows it ticking; a log
+ * gets the same line again every few minutes, so a first build of half an hour never reads as
+ * stuck, and a CI that stops a silent step (CircleCI's default is ten minutes) sees it is alive.
+ */
+export function renderStepInProgress(step: StepInProgress, elapsedSeconds?: number): string {
+  const words = stepWords(step);
+  return elapsedSeconds === undefined ? words : `${words} ${formatBuildDuration(elapsedSeconds)}`;
+}
+
+function stepWords(step: StepInProgress): string {
   switch (step.kind) {
     case 'app-build-generating':
       return `${platformLabelColumn(

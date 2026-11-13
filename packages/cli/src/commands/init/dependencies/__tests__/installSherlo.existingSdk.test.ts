@@ -10,7 +10,7 @@ import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME as SDK } from '../../../../c
 
 const projectRoot = vi.hoisted(() => ({ path: '' }));
 const workstationAnswers = vi.hoisted(() => ({ addPackage: vi.fn() }));
-const spinnerSaid = vi.hoisted(() => ({ done: [] as string[] }));
+const printed = vi.hoisted(() => ({ lines: [] as string[] }));
 
 vi.mock('../../../../helpers/getCwd', () => ({ default: () => projectRoot.path }));
 vi.mock('../../../../helpers/reporting', () => ({ default: { captureException: vi.fn() } }));
@@ -18,16 +18,23 @@ vi.mock('../../../../helpers/spinner', () => ({
   default: () => {
     const spinner = {
       start: () => spinner,
+      stop: () => spinner,
       fail: () => spinner,
-      succeed: (text: string) => {
-        spinnerSaid.done.push(text);
-        return spinner;
-      },
+      succeed: () => spinner,
     };
     return spinner;
   },
 }));
+vi.mock('../../helpers/printLines', () => ({
+  default: (lines: string[]) => printed.lines.push(...lines),
+}));
 vi.mock('../../../../seams/workstation', () => ({ workstation: () => workstationAnswers }));
+
+/** The step line setup prints, with its colours taken off. */
+function printedText(): string {
+  // eslint-disable-next-line no-control-regex
+  return printed.lines.join('\n').replace(/\u001b\[[0-9;]*m/g, '');
+}
 
 import installSherlo from '../installSherlo';
 
@@ -43,7 +50,7 @@ beforeEach(() => {
   vi.stubEnv('SHERLO_SDK_PATH', undefined);
   vi.stubEnv('SHERLO_SDK_VERSION', undefined);
   workstationAnswers.addPackage.mockReset();
-  spinnerSaid.done.length = 0;
+  printed.lines.length = 0;
   projectRoot.path = fs.mkdtempSync(path.join(os.tmpdir(), 'install-sherlo-existing-'));
 });
 
@@ -57,12 +64,12 @@ describe('installSherlo with an SDK already installed', () => {
     for (const spec of ['2.0.2', 'file:/abs/sherlo.tgz', 'link:../sdk', 'workspace:*']) {
       const packageJson = { dependencies: { [SDK]: spec } };
       writePackageJson(packageJson);
-      spinnerSaid.done.length = 0;
+      printed.lines.length = 0;
 
       await installSherlo();
 
       expect(workstationAnswers.addPackage).not.toHaveBeenCalled();
-      expect(spinnerSaid.done).toEqual(['Sherlo is already installed']);
+      expect(printedText()).toContain(`${SDK} ${spec} (already done)`);
       expect(readPackageJson()).toEqual(packageJson);
     }
   });
@@ -74,7 +81,7 @@ describe('installSherlo with an SDK already installed', () => {
     await installSherlo();
 
     expect(workstationAnswers.addPackage).not.toHaveBeenCalled();
-    expect(spinnerSaid.done).toEqual(['Sherlo is already installed']);
+    expect(printedText()).toContain(`${SDK} ^1.4.0 (already done)`);
     expect(readPackageJson()).toEqual(packageJson);
   });
 });

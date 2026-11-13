@@ -45,18 +45,14 @@ function readWrittenConfig(): { project?: string; token?: string } {
 }
 
 describe('the config step of setup', () => {
-  it('writes a new config file with the project and no token, and says so before the devices pointer', async () => {
+  it('writes a new config file with the project and no token, and names the one device it added', async () => {
     const printed = await runConfigStep(PROJECT);
 
     expect(readWrittenConfig()).toMatchObject({ project: PROJECT });
     expect(readWrittenConfig().token).toBeUndefined();
 
-    const createdAt = printed.indexOf('Created: sherlo.config.json');
-    const projectAt = printed.indexOf(`Added project`);
-    const devicesInfoAt = printed.indexOf('You can adjust testing devices');
-    expect(createdAt).toBeGreaterThanOrEqual(0);
-    expect(projectAt).toBeGreaterThan(createdAt);
-    expect(devicesInfoAt).toBeGreaterThan(projectAt);
+    expect(printed).toContain('Created config');
+    expect(printed).toContain('sherlo.config.json, one device:');
     expect(printed).not.toContain('needs a project token');
   });
 
@@ -66,6 +62,6 @@ describe('the config step of setup', () => {
     const printed = await runConfigStep(OTHER_PROJECT);
 
     expect(readWrittenConfig().project).toBe(OTHER_PROJECT);
-    expect(printed).toContain('Already created: sherlo.config.json');
+    expect(printed).toContain('Updated config');
   });
 });
