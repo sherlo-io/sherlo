@@ -15,8 +15,9 @@ Testing your app...
 🤖 Android  [32m✔[39m Reused from Test 14
 
 Test 15     [32m✔[39m Started: all 442 stories on 1 device (Pixel 7)
-              442 captured
-              0 reuse their last picture, because native code changed since Test 14
+              442 checked, after native code changed since Test 14
+              442 captured: every story
+              0 reuse their last picture
                 Button [2m(30 stories)[22m
                 Button/Group [2m(20 stories)[22m
                 Toolbar [2m(17 stories)[22m

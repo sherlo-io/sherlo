@@ -15,8 +15,8 @@ Testing your app...
 🤖 Android  [32m✔[39m Reused from Test 14
 
 Test 15     [32m✔[39m Started: 197 of 384 stories on 1 device (Pixel 7)
-              [33m![39m 197 captured: every story src/components/Button/Button.Text.tsx can reach
-              [33m![39m The quick check could not finish
+              384 checked, after src/components/Button/Button.Text.tsx changed
+              [33m![39m 197 captured: the quick check could not finish, so every story the change can reach
               187 reuse their last picture
               [33m~[39m Button [2m(30 stories)[22m
               [33m~[39m Button/Group [2m(20 stories)[22m

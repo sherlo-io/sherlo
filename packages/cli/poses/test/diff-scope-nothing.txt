@@ -16,7 +16,7 @@ Testing your app...
 
 Test 15     [32m✔[39m Finished: nothing to capture
               384 checked, after src/utils/analytics.ts changed
-              0 look different, 0 could not be checked
+              0 captured: 0 look different, 0 could not be checked
               384 reuse their last picture, no devices started
 
 [exit 0]

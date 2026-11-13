@@ -109,7 +109,7 @@
             "android": {
               "full": false,
               "storyFilePaths": [],
-              "reason": "nothing to capture\n384 checked, after src/utils/analytics.ts changed\n0 look different, 0 could not be checked\n384 reuse their last picture, no devices started"
+              "reason": "nothing to capture\n384 checked, after src/utils/analytics.ts changed\n0 captured: 0 look different, 0 could not be checked\n384 reuse their last picture, no devices started"
             }
           },
           "ancestorBuildIndex": 14,
@@ -137,7 +137,7 @@
           "inheritedSnapshotCount": 384,
           "platforms": {
             "android": {
-              "reason": "nothing to capture\n384 checked, after src/utils/analytics.ts changed\n0 look different, 0 could not be checked\n384 reuse their last picture, no devices started"
+              "reason": "nothing to capture\n384 checked, after src/utils/analytics.ts changed\n0 captured: 0 look different, 0 could not be checked\n384 reuse their last picture, no devices started"
             }
           }
         }
