@@ -1295,6 +1295,8 @@ export type StartedRun = {
     scenesInBundle?: number;
     /** The server's own reason, printed only on a full capture. */
     reason?: string;
+    /** What Diff Scope's quick check found, in the numbers the test line shows under its row. */
+    diffScope?: PosedDiffScope;
     /**
      * The story files the test captures: a partial capture's as openBuild recorded them, or the
      * bundle's.
@@ -1674,6 +1676,26 @@ export type PosedPlatformCaptureDecision = {
    * colon).
    */
   reason?: string;
+  /** What Diff Scope's quick check found, for the test line's numbers. */
+  diffScope?: PosedDiffScope;
+};
+
+/**
+ * What Diff Scope's quick check says about one platform, in the words a customer reads: how many
+ * stories it checked, how many look different, how many it could not check, and what changed.
+ * `style` picks which of the three wordings prints (A, B or C).
+ */
+export type PosedDiffScope = {
+  style: 'A' | 'B' | 'C';
+  checked?: number;
+  lookDifferent?: number;
+  couldNotCheck?: number;
+  /** The changed file the test is about; a whole sentence for a full capture goes in `fullReason`. */
+  changedFile?: string;
+  /** Why every story is captured, in plain words, when it is. */
+  fullReason?: string;
+  /** The quick check could not finish, so every story the change can reach is captured. */
+  unfinished?: boolean;
 };
 
 /**

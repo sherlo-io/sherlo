@@ -2546,6 +2546,9 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           if ('reason' in object13) {
             expectString(object13.reason, at(where12, 'reason'), problems);
           }
+          if ('diffScope' in object13) {
+            readPosedDiffScope(object13.diffScope, at(where12, 'diffScope'), problems);
+          }
           if ('storyFiles' in object13) {
             expectStringArray(object13.storyFiles, at(where12, 'storyFiles'), problems);
           }
@@ -2595,6 +2598,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
               'storiesInBundle',
               'scenesInBundle',
               'reason',
+              'diffScope',
               'storyFiles',
               'newStoryFiles',
               'changedStoryFiles',
@@ -3375,9 +3379,59 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
     if ('reason' in object1) {
       expectString(object1.reason, at(path, 'reason'), problems);
     }
+    if ('diffScope' in object1) {
+      readPosedDiffScope(object1.diffScope, at(path, 'diffScope'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['changedStoryFilePaths', 'newStoryFilePaths', 'full', 'storyFilePaths', 'reason'],
+      [
+        'changedStoryFilePaths',
+        'newStoryFilePaths',
+        'full',
+        'storyFilePaths',
+        'reason',
+        'diffScope',
+      ],
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `PosedDiffScope`, as `contracts/pose.contract.ts` publishes it. */
+function readPosedDiffScope(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    expectOneOf(object1.style, ['A', 'B', 'C'], at(path, 'style'), problems);
+    if ('checked' in object1) {
+      expectNumber(object1.checked, at(path, 'checked'), problems);
+    }
+    if ('lookDifferent' in object1) {
+      expectNumber(object1.lookDifferent, at(path, 'lookDifferent'), problems);
+    }
+    if ('couldNotCheck' in object1) {
+      expectNumber(object1.couldNotCheck, at(path, 'couldNotCheck'), problems);
+    }
+    if ('changedFile' in object1) {
+      expectString(object1.changedFile, at(path, 'changedFile'), problems);
+    }
+    if ('fullReason' in object1) {
+      expectString(object1.fullReason, at(path, 'fullReason'), problems);
+    }
+    if ('unfinished' in object1) {
+      expectBoolean(object1.unfinished, at(path, 'unfinished'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      [
+        'style',
+        'checked',
+        'lookDifferent',
+        'couldNotCheck',
+        'changedFile',
+        'fullReason',
+        'unfinished',
+      ],
       path,
       problems
     );

@@ -600,6 +600,26 @@ export type PosedPlatformCaptureDecision = Pick<
   storyFilePaths?: string[];
   /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
   reason?: string;
+  /** What Diff Scope's quick check found, for the test line's numbers. */
+  diffScope?: PosedDiffScope;
+};
+
+/**
+ * What Diff Scope's quick check says about one platform, in the words a customer reads: how many
+ * stories it checked, how many look different, how many it could not check, and what changed.
+ * `style` picks which of the three wordings prints (A, B or C).
+ */
+export type PosedDiffScope = {
+  style: 'A' | 'B' | 'C';
+  checked?: number;
+  lookDifferent?: number;
+  couldNotCheck?: number;
+  /** The changed file the test is about; a whole sentence for a full capture goes in `fullReason`. */
+  changedFile?: string;
+  /** Why every story is captured, in plain words, when it is. */
+  fullReason?: string;
+  /** The quick check could not finish, so every story the change can reach is captured. */
+  unfinished?: boolean;
 };
 
 /**
@@ -1008,13 +1028,14 @@ function diffScopeInfoOf(
   };
 }
 
-/** One platform's `diffScopeInfo.platforms[platform]` entry - its reason, when the pose states one. */
+/** One platform's `diffScopeInfo.platforms[platform]` entry - its reason and its Diff Scope numbers, when the pose states them. */
 function platformReasonOf(
   captureDecision: PosedCaptureDecision,
   platform: string
-): { reason: string } | undefined {
-  const reason = captureDecision.platforms[platform]?.reason;
-  return reason !== undefined ? { reason } : undefined;
+): { reason?: string; diffScope?: PosedDiffScope } | undefined {
+  const { reason, diffScope } = captureDecision.platforms[platform] ?? {};
+  if (reason === undefined && diffScope === undefined) return undefined;
+  return { ...(reason !== undefined ? { reason } : {}), ...(diffScope ? { diffScope } : {}) };
 }
 
 /**

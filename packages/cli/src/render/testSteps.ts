@@ -16,6 +16,7 @@ import { DEVICES } from '@sherlo/shared';
 import type { Platform } from '@sherlo/api-types';
 import { CONTACT_EMAIL, DISCORD_URL, PLATFORM_LABEL } from '../constants';
 import getAppDomain from '../helpers/getAppDomain';
+import type { PosedDiffScope } from '../seams/serverCalls';
 import type { Config } from '../types';
 import { renderSectionTitle } from './initLines';
 import { renderFailedStepLine, renderStepLine, renderStuckBlock } from './initSteps';
@@ -106,6 +107,8 @@ export type PlatformCapture = {
   scenesInBundle?: number;
   /** The server's own reason, printed only on a full capture. */
   reason?: string;
+  /** What Diff Scope's quick check found, in the numbers the test line shows under its row. */
+  diffScope?: PosedDiffScope;
   /** The story files the test captures: a partial capture's as openBuild recorded them, or the bundle's. */
   storyFiles?: string[];
   /** Story files the build it diffed against did not have. */
@@ -143,9 +146,23 @@ export function describeWhatRuns({
   // `3 of 24 stories on 1 device`, but `🤖 Android 3 of 24 stories, 🍎 iOS all 24 stories, on 2 devices`.
   const beforeDevices = storiesOfEachPlatform.length > 1 ? ', ' : ' ';
   const whatRuns = [stories, onDevices].filter((part) => part !== '').join(beforeDevices);
-  const reason = reasonEveryStoryIsCaptured(capture) ?? describeFirstLook(capture);
+  const reason =
+    reasonEveryStoryIsCaptured(capture) ??
+    describeFirstLook(capture) ??
+    describeReusedInOneLine(capture);
 
   return reason ? `${whatRuns}, ${reason}` : whatRuns;
+}
+
+/** Design C: `307 reuse their last picture` ends the Started row of a partial capture. */
+function describeReusedInOneLine(capture: PlatformCapture[]): string | undefined {
+  const [first] = capture;
+  if (!first || first.full || capture.some(({ diffScope }) => diffScope?.style !== 'C')) {
+    return undefined;
+  }
+
+  const outOf = first.diffScope?.checked ?? first.storiesInBundle;
+  return outOf != null ? `${outOf - first.capturedStories} reuse their last picture` : undefined;
 }
 
 /**
@@ -185,6 +202,9 @@ function describeStoriesOfEachPlatform(capture: PlatformCapture[]): string[] {
 function reasonEveryStoryIsCaptured(capture: PlatformCapture[]): string | undefined {
   if (capture.length === 0 || !capture.every(({ full }) => full)) return undefined;
 
+  // A test line that says Diff Scope's numbers under the row (designs A and B) says the reason there.
+  if (capture.every(({ diffScope }) => diffScope && diffScope.style !== 'C')) return undefined;
+
   const reasons = new Set(capture.map(({ reason }) => reason));
   return reasons.size === 1 ? capture[0].reason : undefined;
 }
@@ -199,6 +219,7 @@ function describeCapturedStories({
   capturedScenes = 0,
   storiesInBundle,
   scenesInBundle,
+  diffScope,
 }: PlatformCapture): string {
   // Uncounted is absent or null alike (see PlatformCapture.storiesInBundle).
   const stories = storiesInBundle ?? 0;
@@ -220,8 +241,10 @@ function describeCapturedStories({
     return `${capturedStories} of ${countStories(stories)} and ${capturedScenes} of ${countScenes(scenes)}`;
   }
 
-  return storiesInBundle != null
-    ? `${capturedStories} of ${countStories(storiesInBundle)}`
+  // What Diff Scope checked is the whole the count is out of: the stories in the config's scope.
+  const checkedStories = diffScope?.checked ?? storiesInBundle;
+  return checkedStories != null
+    ? `${capturedStories} of ${countStories(checkedStories)}`
     : countStories(capturedStories);
 }
 
