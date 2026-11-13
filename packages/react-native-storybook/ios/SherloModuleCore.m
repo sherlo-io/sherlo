@@ -410,7 +410,9 @@ static dispatch_block_t storybookNotDisplayedBlock = nil;
         @"lastState": lastStateString ?: [NSNull null],
         @"nativeVersion": nativeVersion ?: [NSNull null],
         @"driver": driver ?: [NSNull null],
-        @"compiledCoreVersion": compiledCoreVersion ?: [NSNull null]
+        @"compiledCoreVersion": compiledCoreVersion ?: [NSNull null],
+        // A runner launch locks focus (KeyboardHelper), so the JS waits for no field to take it.
+        @"fieldsTakeFocus": @(![KeyboardHelper focusLocked])
     };
 }
 
