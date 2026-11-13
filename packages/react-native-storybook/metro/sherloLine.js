@@ -80,7 +80,14 @@ var REFUSED_HELLO_CLOSE_CODE = 4001;
 var SOCKET_IS_OPEN = 1;
 
 /** The actions of a driver's questions. Every other action on a socket is the app's. */
-var QUESTION_ACTIONS = ['openStory', 'whatIsOnScreen', 'captureStory', 'readLogLines', 'askTheApp'];
+var QUESTION_ACTIONS = [
+  'openStory',
+  'whatIsOnScreen',
+  'listStories',
+  'captureStory',
+  'readLogLines',
+  'askTheApp',
+];
 
 /** How long the app has to answer one question about its scroll before the line calls it absent. */
 var APP_ANSWER_MS = 10000;
@@ -267,6 +274,7 @@ function createLine(settings) {
 
     // The other two are answered at once, and leave nothing waiting.
     if (question.action === 'whatIsOnScreen') reply(letterbox.whatIsOnScreen());
+    if (question.action === 'listStories') reply(letterbox.listStories());
     if (question.action === 'readLogLines') {
       var restarts = captureRelay.restartsOfTheLatestCapture();
       reply(
@@ -526,6 +534,12 @@ function createLetterbox(appHoldMs) {
     return { kind: 'showing', storyId: appLastSaid.showing };
   }
 
+  /** A driver: which story ids the app has. An app that cannot list its stories lists none. */
+  function listStories() {
+    if (!appLastSaid) return { kind: 'no-app' };
+    return { kind: 'listed', stories: appLastSaid.stories || [] };
+  }
+
   /**
    * Hand the kept story to every app waiting AT THE STORY BROWSER, and send every other one there.
    * A developer usually has one device on a bundler; with two, both go to the story, the only
@@ -631,6 +645,7 @@ function createLetterbox(appHoldMs) {
     appLeft: appLeft,
     openStory: openStory,
     whatIsOnScreen: whatIsOnScreen,
+    listStories: listStories,
   };
 }
 
@@ -950,16 +965,37 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
    * (a scene's too: the app boots on a scene the way it lands on a story); the driver keeps waiting
    * across the reload. An app in testing mode is handed a scene as `sceneId`, which the core walks
    * with no Storybook, and a story as `storyId`, which it walks through Storybook's channel.
+   *
+   * A story the same JavaScript was last handed is still on its screen, as the last capture left
+   * it: Storybook keeps a story it is asked for again mounted. So it is handed with `startFresh`,
+   * and the app draws it again from nothing before it walks it.
    */
   function instructionFor(waiting, app, mode) {
     var isAScene = waiting.sceneId !== undefined;
     var cause = restartCauseOf(app, mode);
+    clearTimeout(waiting.noAppTimer);
     waiting.instructed.push({ app: app, cause: cause });
     if (cause !== null) {
       return { restartIntoTesting: true, storyId: isAScene ? waiting.sceneId : waiting.storyId };
     }
     if (isAScene) return { sceneId: waiting.sceneId, settings: waiting.settings };
-    return { storyId: waiting.storyId, settings: waiting.settings };
+    var instruction = { storyId: waiting.storyId, settings: waiting.settings };
+    if (isOnTheScreenOf(app, waiting.storyId)) instruction.startFresh = true;
+    lastStoryHanded = { app: app, storyId: waiting.storyId, at: Date.now() };
+    return instruction;
+  }
+
+  /** The story last handed to an app to walk, with when, or null before any was. */
+  var lastStoryHanded = null;
+
+  /** Whether this app's JavaScript was last handed this story, and has not started again since. */
+  function isOnTheScreenOf(app, storyId) {
+    return (
+      lastStoryHanded !== null &&
+      lastStoryHanded.app === app &&
+      lastStoryHanded.storyId === storyId &&
+      app.javaScriptStartedAt() <= lastStoryHanded.at
+    );
   }
 
   /**
@@ -1009,23 +1045,34 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
       return function () {};
     }
 
-    // No app this capture may go to has waited yet: for a launched app, every try is a first try.
+    // No app this capture may go to has waited yet. A scene launched its own app, so it is no-app at
+    // once. A story's launched app is connected before it says the hello that waits, so the story
+    // waits for it as long as the line holds an app, and only a hold with no hello is no-app. The
+    // first app handed the capture ends the hold.
     var waitedSinceTheLaunch =
       newestHelloThatWaited !== null &&
       (launchedAt === undefined || newestHelloThatWaited >= launchedAt);
-    if (!waitedSinceTheLaunch) {
+    if (!waitedSinceTheLaunch && sceneId !== undefined) {
       reply({ kind: 'no-app' });
       return function () {};
+    }
+    if (!waitedSinceTheLaunch) {
+      waiting.noAppTimer = setTimeout(function () {
+        if (driverWaiting !== waiting) return;
+        driverWaiting = null;
+        reply({ kind: 'no-app' });
+      }, appHoldMs);
     }
 
     driverWaiting = waiting;
 
     /** A driver that gave up waiting frees its place for the next one. */
     function withdraw() {
+      clearTimeout(waiting.noAppTimer);
       if (driverWaiting === waiting) driverWaiting = null;
     }
 
-    if (held === null) return withdraw;
+    if (!waitedSinceTheLaunch || held === null) return withdraw;
 
     var refusal = refusalOf(waiting, held.app, held.facts);
     if (refusal !== null) {

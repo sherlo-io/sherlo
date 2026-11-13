@@ -33,6 +33,26 @@ vi.mock('../helpers/lastCommandRecord', async (importOriginal) => ({
   recordLastCommand: vi.fn(),
 }));
 
+// Counts the commands that took the 30-minute command timeout; the real wrapper still runs.
+const timedCommands = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../helpers/withCommandTimeout', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../helpers/withCommandTimeout')>();
+  return {
+    ...original,
+    default: ((commandFn: never) => {
+      timedCommands.count += 1;
+      return original.default(commandFn);
+    }) as typeof original.default,
+  };
+});
+
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { forgetScenesFlag } from '../helpers/scenesFlag';
+import { installProjectFiles } from '../seams/projectFiles';
+import { installSavedLogins, liveSavedLogins } from '../seams/savedLogins';
+import { installServerCalls, liveServerCalls } from '../seams/serverCalls';
 import start from '../start';
 class ExitSignal extends Error {
   constructor(public readonly code: number | undefined) {
@@ -105,6 +125,14 @@ describe('sherlo --help', () => {
     expect(stdout).toContain('Usage: sherlo build');
   });
 
+  it('the help lists suggest and preview, and no captureReport', async () => {
+    await runCli('--help');
+
+    expect(stdout).toMatch(/^\s+suggest\b/m);
+    expect(stdout).toMatch(/^\s+preview\b/m);
+    expect(stdout).not.toMatch(/capture-?report/i);
+  });
+
   it('keeps build, --build-cache, fingerprint, project and team out of --help', async () => {
     await runCli('--help');
     for (const hiddenCommand of ['build', 'fingerprint', 'project', 'team']) {
@@ -139,6 +167,17 @@ describe('sherlo --help', () => {
 
       expect(stdout, command).not.toContain('--token');
     }
+  });
+
+  it("view help names its own wait deadline, not the test's picture rule", async () => {
+    await runCli('view', '--help');
+    expect(stdout).toContain('--wait-timeout <minutes>');
+    expect(stdout).toContain('default: 45)');
+    expect(stdout).not.toContain('more pictures');
+
+    stdout = '';
+    await runCli('test', '--help');
+    expect(stdout).toContain('more pictures');
   });
 
   it('lists `view`, with its build as an OPTIONAL positional', async () => {
@@ -236,6 +275,20 @@ describe('a Sherlo 2 app build path', () => {
   });
 });
 
+describe('the command timeout', () => {
+  it('sherlo test runs without the command timeout', async () => {
+    timedCommands.count = 0;
+    await runCli('test', '--platform', 'windows');
+    expect(timedCommands.count).toBe(0);
+
+    // A command that keeps the timeout does take it, so the zero above means something.
+    const emptyFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-timeout-'));
+    await runCli('suggest', '--dir', emptyFolder, '--json');
+    fs.rmSync(emptyFolder, { recursive: true, force: true });
+    expect(timedCommands.count).toBe(1);
+  });
+});
+
 describe('a Sherlo 2 token on the command line', () => {
   it('`sherlo test --token <token>` is refused in words, with exit 1, naming the two that remain', async () => {
     const exitCode = await runCli('test', '--token', 'abc');
@@ -270,6 +323,32 @@ describe('a removed command', () => {
     }
   );
 
+  it('an unknown command exits non-zero and names the nearest known command', async () => {
+    const exitCode = await runCli('captur');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("error: unknown command 'captur'");
+    expect(stderr).toContain('(Did you mean capture?)');
+  });
+
+  it('a removed command such as capture-report is unknown', async () => {
+    const exitCode = await runCli('capture-report');
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain("error: unknown command 'capture-report'");
+  });
+
+  it('every command the shipped guide names is listed in the help', async () => {
+    const guide = fs.readFileSync(path.join(__dirname, '..', '..', 'skill', 'SKILL.md'), 'utf8');
+    const named = [...new Set([...guide.matchAll(/\bsherlo ([a-z][a-z-]*)/g)].map((m) => m[1]))];
+    await runCli('--help');
+
+    expect(named.length).toBeGreaterThan(0);
+    for (const command of named) {
+      expect(stdout, command).toMatch(new RegExp('^\\s+' + command + '\\b', 'm'));
+    }
+  });
+
   it.each(['local-builds', 'expo-update', 'expo-cloud-builds'])(
     'the hidden alias `%s` of a removed command is gone with it',
     async (alias) => {
@@ -279,4 +358,83 @@ describe('a removed command', () => {
       expect(stderr).toContain(`error: unknown command '${alias}'`);
     }
   );
+});
+
+describe('scenes by the team flag', () => {
+  let restores: (() => void)[];
+  let folder: string;
+
+  beforeEach(() => {
+    forgetScenesFlag();
+    folder = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-'));
+    fs.writeFileSync(path.join(folder, 'sherlo.config.json'), '{"project":"k3j9x2ab/1"}');
+    restores = [
+      installProjectFiles({ root: () => folder }),
+      installSavedLogins({ ...liveSavedLogins, read: () => ({ token: 't', email: 'a@b.c' }) }),
+    ];
+  });
+  afterEach(() => {
+    restores.forEach((restore) => restore());
+    forgetScenesFlag();
+    fs.rmSync(folder, { recursive: true, force: true });
+  });
+
+  const teamAnswers = (scenes: boolean) =>
+    restores.push(
+      installServerCalls({
+        ...liveServerCalls,
+        listTeams: async () => ({
+          teams: [
+            { id: 'k3j9x2ab', name: 'T', projectCount: 1, role: null, featureFlags: { scenes } },
+          ],
+        }),
+      })
+    );
+
+  it('with scenes off, open and capture list no scene option', async () => {
+    teamAnswers(false);
+    for (const command of ['open', 'capture']) {
+      stdout = '';
+      await runCli(command, '--help');
+
+      expect(stdout, command).toContain('--story');
+      expect(stdout, command).not.toMatch(/scene|--png|--stop-on-repeat/i);
+    }
+  });
+
+  it('with scenes on, open lists --scene and capture lists its scene options', async () => {
+    teamAnswers(true);
+    await runCli('open', '--help');
+    expect(stdout).toContain('--scene');
+
+    stdout = '';
+    await runCli('capture', '--help');
+    for (const option of ['--scene', '--all-scenes', '--stop-on-repeat', '--discover', '--png']) {
+      expect(stdout, option).toContain(option);
+    }
+  });
+
+  it('with scenes off, suggest proposes no scene rows', async () => {
+    const screens = path.join(folder, 'src', 'screens');
+    fs.mkdirSync(screens, { recursive: true });
+    fs.writeFileSync(
+      path.join(screens, 'Home.tsx'),
+      "import React, { useState } from 'react';\n" +
+        'export default function Home() {\n' +
+        '  const [open, setOpen] = useState(false);\n' +
+        '  return <div onClick={() => setOpen(!open)}>{open ? <p>Home</p> : null}</div>;\n' +
+        '}\n'
+    );
+
+    teamAnswers(true);
+    await runCli('suggest', '--dir', folder, '--json');
+    expect(JSON.parse(stdout).items.map((item: { kind: string }) => item.kind)).toContain('scene');
+
+    forgetScenesFlag();
+    teamAnswers(false);
+    stdout = '';
+    await runCli('suggest', '--dir', folder, '--json');
+    const kinds = JSON.parse(stdout).items.map((item: { kind: string }) => item.kind);
+    expect(kinds).toEqual(['story']);
+  });
 });

@@ -19,7 +19,7 @@ function parseWaitTimeout(raw: string | undefined): number | undefined {
 
   if (isNaN(minutes) || minutes < 1) {
     logWarning({
-      message: `Invalid --wait-timeout "${raw}"; using default 45 minutes.`,
+      message: `Invalid --wait-timeout "${raw}"; using the default wait.`,
     });
     return undefined;
   }

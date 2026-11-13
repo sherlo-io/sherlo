@@ -30,6 +30,9 @@ const LIST_TEAMS_QUERY = `
       name
       role
       projectsCount
+      featureFlags {
+        scenes
+      }
     }
   }
 `;
@@ -59,7 +62,13 @@ export const REAL_LIST_TEAMS_EFFECTS: ListTeamsEffects = {
 };
 
 /** The api's own shape for one team summary, before it is narrowed to what is printed. */
-type ApiTeamSummary = { id: string; name: string; role: string; projectsCount: number };
+type ApiTeamSummary = {
+  id: string;
+  name: string;
+  role: string;
+  projectsCount: number;
+  featureFlags?: { scenes?: boolean } | null;
+};
 
 /**
  * List the caller's teams, in the exact shape `render/teamList` prints.
@@ -112,6 +121,7 @@ async function listTeamsRequest(
       name: team.name,
       projectCount: team.projectsCount,
       role: team.role,
+      ...(team.featureFlags && { featureFlags: { scenes: team.featureFlags.scenes === true } }),
     })),
   };
 }

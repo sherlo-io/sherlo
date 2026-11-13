@@ -26,23 +26,8 @@ export { mockClock } from './mocking/clock';
 export { mockRandom } from './mocking/random';
 export { startState } from './mocking/startState';
 export type { StartState } from './mocking/startState';
-export { freshInstall, given, signedOut } from './preconditions';
-export type { Given, Precondition, PreconditionParts } from './preconditions';
 export { awaitReady } from './storyReady';
 export type { ReadyOutcome } from './storyReady';
-export type {
-  LongPressStep,
-  OpenStep,
-  PlayStep,
-  ReadyStep,
-  SceneDevice,
-  SceneMember,
-  ScenePermission,
-  TapStep,
-  TapTarget,
-  TypeStep,
-} from './scenes';
-export type { SwipeStep } from './scenes';
 
 export * from './types';
 
@@ -87,8 +72,10 @@ function installSherloIntegration(): void {
   }
 }
 
-// The early-boot module, imported so every bundle that holds the SDK holds it: Sherlo's bundler
-// config has Metro run it before the app's entry (./sceneBoot). Imported last, so a scene file it
-// requires, which imports this module back, finds every export above already in place. It
-// switches the scene on once, however many copies of the SDK the app imports.
-import './sceneBoot';
+// The slot of the early-boot module: empty here, and answered with the early-boot module
+// (./sceneBoot) only by Sherlo's bundler config on a project with scenes, which also has Metro run
+// it before the app's entry. So a bundle with scenes off holds no scene code. Imported last, so a
+// scene file the early-boot module requires, which imports this module back, finds every export
+// above already in place. It switches the scene on once, however many copies of the SDK the app
+// imports.
+import './sceneBootSlot';

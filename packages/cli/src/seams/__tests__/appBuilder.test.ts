@@ -491,6 +491,29 @@ describe('app builder, iOS', () => {
     podfileLockAfterInstall = 'PODS: one';
   });
 
+  it("pod install is skipped only when Sherlo is linked into the build's configuration", async () => {
+    const supportFolder = path.join(projectRoot, 'ios/Pods/Target Support Files/Pods-App');
+    const writeXcconfig = (configuration: string, content: string) =>
+      fs.writeFileSync(path.join(supportFolder, `Pods-App.${configuration}.xcconfig`), content);
+    const linked = 'OTHER_LDFLAGS = -l"sherlo-react-native-storybook"';
+    fs.mkdirSync(supportFolder, { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, 'ios/Podfile.lock'), 'PODS: one');
+    fs.writeFileSync(path.join(projectRoot, 'ios/Pods/Manifest.lock'), 'PODS: one');
+
+    // Sherlo is linked into Debug only: the Release build needs the install.
+    writeXcconfig('debug', linked);
+    writeXcconfig('release', 'OTHER_LDFLAGS = -l"other"');
+    await compileIos();
+    expect(callsOf('pod')).toHaveLength(1);
+
+    // Linked into Release: the install is skipped.
+    calls = [];
+    fs.writeFileSync(path.join(projectRoot, 'ios/Podfile.lock'), 'PODS: one');
+    writeXcconfig('release', linked);
+    await compileIos();
+    expect(callsOf('pod')).toHaveLength(0);
+  });
+
   it('builds iOS with xcodebuild in Release for the arm64 simulator, with code signing off', async () => {
     await compileIos();
     const { args, cwd } = xcodebuildBuildCall();
@@ -609,6 +632,58 @@ describe('app builder, iOS', () => {
     const withoutLocale = installs[0].env;
     if (!process.env.LANG && !process.env.LC_ALL) expect(withoutLocale.LANG).toBe('en_US.UTF-8');
     expect(calls.indexOf(installs[0])).toBeLessThan(calls.indexOf(xcodebuildBuildCall()));
+  });
+
+  it('a failed pod install names its command, its exit code and the first error line', async () => {
+    fs.writeFileSync(path.join(projectRoot, 'Gemfile'), "gem 'cocoapods'\n");
+    const failing: RunProcess = async (call) => {
+      if (call.command !== 'bundle') return iosRunProcess(call);
+      calls.push(call);
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      fs.appendFileSync(
+        call.logPath,
+        '\nBundler::RubyVersionMismatch: Your Ruby version is 3.2.0, but your Gemfile specified 3.4.5\n  at /x.rb:1\n'
+      );
+      return 18;
+    };
+    const result = await compileIos({}, failing);
+    expect(result).toMatchObject({ ok: false });
+    if (result.ok) throw new Error('unreachable');
+    expect(result.lastLines).toEqual([
+      'The pod install step failed: `bundle exec pod install` exited with 18.',
+      'Bundler::RubyVersionMismatch: Your Ruby version is 3.2.0, but your Gemfile specified 3.4.5',
+    ]);
+    expect(callsOf('xcodebuild')).toHaveLength(0);
+  });
+
+  it('schemes are read from shared and user scheme folders, and pod schemes are left out', async () => {
+    const pods = path.join(projectRoot, 'ios/Pods/Pods.xcodeproj');
+    fs.mkdirSync(path.join(projectRoot, 'ios/App.xcworkspace'), { recursive: true });
+    fs.mkdirSync(path.join(pods, 'xcshareddata/xcschemes'), { recursive: true });
+    fs.mkdirSync(path.join(pods, 'xcuserdata/me.xcuserdatad/xcschemes'), { recursive: true });
+    fs.writeFileSync(path.join(pods, 'xcshareddata/xcschemes/amplitude-plugin.xcscheme'), '');
+    fs.writeFileSync(
+      path.join(pods, 'xcuserdata/me.xcuserdatad/xcschemes/React-Core.xcscheme'),
+      ''
+    );
+    const failsOnPods: RunProcess = async (call) => {
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      const listsPods = call.args.includes('Pods/Pods.xcodeproj');
+      fs.writeFileSync(
+        call.logPath,
+        listsPods
+          ? 'xcodebuild: error: legacy build locations'
+          : JSON.stringify({
+              workspace: { schemes: ['amplitude-plugin', 'dev', 'prod', 'React-Core'] },
+            })
+      );
+      return listsPods ? 1 : 0;
+    };
+
+    expect(await makeLiveAppBuilder(failsOnPods).listIosSchemes(projectRoot)).toEqual([
+      'dev',
+      'prod',
+    ]);
   });
 
   it('runs plain pod install when no Gemfile names cocoapods', async () => {

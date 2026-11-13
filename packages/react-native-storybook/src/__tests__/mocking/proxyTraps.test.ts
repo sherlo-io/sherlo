@@ -62,6 +62,16 @@ describe('a faked class', () => {
     expect(fakeMade.ping()).toBe('pong');
     expect(shim.Client.kind).toBe('real kind');
   });
+
+  it('an arrow function faking a class keeps its own empty prototype, so React calls it and never constructs it', () => {
+    const shim = createMockable('app/client', { __esModule: true, Client }) as Exports;
+    activateMocks({ 'app/client': { Client: () => 'drawn' } });
+
+    // React constructs what has a prototype marked isReactComponent; an arrow cannot be constructed.
+    expect(shim.Client.prototype).toBeUndefined();
+    expect(shim.Client()).toBe('drawn');
+    expect(shim.Client.kind).toBe('real kind');
+  });
 });
 
 describe('writes to a mocked module', () => {

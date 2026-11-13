@@ -15,22 +15,31 @@
 import type { BundleBuildFailure } from '../render/bundleBuildFailure';
 import type { CapturedView } from '../render/capturedStory';
 import { readAppError, type AppError } from './appError';
-import { drainAppLog } from './appLog';
+import { withPortTheAppAsks, type PortTheAppAsks } from './appBundlerPort';
+import { drainAppLog, keepStrings } from './appLog';
 import { askTheBundlerLine, STABILIZATION_SETTINGS } from './bundlerLine';
 import { readCapturedView } from './capturedViewReader';
 import {
   captureLiveScene,
-  OLD_CODE_DETAIL,
+  noAppForItsCode,
   type SceneCaptureParams,
   type SceneCaptureResult,
 } from './liveScene';
 import { newsOf, stopNewsOf, type PosedSceneNews, type PosedStopNews } from './posedSceneNews';
 import { readStrings, readUnanswered, type UnansweredRequest } from './readAppAnswer';
+import { readParts, readRoot, readSettled, readWaited } from './captureAnswerReaders';
+import { listLiveStories, type StoryListResult } from './storyList';
+import type { WindowReason } from './windowReason';
 
 /** What the app answered about the story the command asked it to capture. */
 export type CaptureResult =
   | { kind: 'no-bundler' }
-  | { kind: 'no-app'; why?: 'old-code'; detail?: string }
+  | {
+      kind: 'no-app';
+      why?: 'old-code' | 'no-launch-code';
+      detail?: string;
+      appAsks?: PortTheAppAsks;
+    }
   | {
       kind: 'no-such-story';
       known: string[];
@@ -106,44 +115,6 @@ export type WaitOutcome = {
   ms: number;
 };
 
-/**
- * WHY the app's answer is rooted at the window rather than the story, as it reports it - see the
- * SDK's own WindowReason (packages/react-native-storybook/src/captureTransport.ts).
- */
-export type WindowReason =
-  /** The app never published any reading of its views, of any story, at any point the poll ran. */
-  | {
-      cause: 'nothing-published';
-      /**
-       * How the app's MetadataProvider first rendering relates to when its poll began: positive is
-       * that many ms after, negative is that many ms before, `undefined` is that it never rendered
-       * at all - or rendered once, earlier in the same boot, and was withdrawn before this poll ran.
-       */
-      providerRenderedRelativeToPollMs?: number;
-    }
-  /** A reading WAS published - the app's poll got an answer at some point - but it never named this story. */
-  | {
-      cause: 'story-unnamed';
-      /** Whether the app had published any reading of its views the moment the app's poll began. */
-      publishedAtPollStart: boolean;
-      /**
-       * How the app's MetadataProvider first rendering relates to when its poll began: positive is
-       * that many ms after, negative is that many ms before, `undefined` is that it had not
-       * rendered at all by the time the poll gave up.
-       */
-      providerRenderedRelativeToPollMs?: number;
-      /**
-       * The distinct testIDs the reading held when the app's poll gave up, never this story's own -
-       * see the SDK's own WindowReason.testIdsAtGiveUp. Empty means the reading held no story's
-       * testID at all; one or more means it held a DIFFERENT story's - two different bugs the record
-       * could not otherwise tell apart.
-       */
-      testIdsAtGiveUp: string[];
-    }
-  | { cause: 'story-broken'; source: 'error-registry' }
-  | { cause: 'story-broken'; source: 'fallback-text'; generation: 'live' | 'merged' }
-  | { cause: 'story-not-in-tree' };
-
 /** Everything the tool asks of a running app down this road, and nothing else. */
 export type CaptureSocket = {
   captureStory(params: {
@@ -153,6 +124,8 @@ export type CaptureSocket = {
   }): Promise<CaptureResult>;
   /** Boot the app fresh on one scene, run its play, stabilize with the same settings, and read it. */
   captureScene(params: SceneCaptureParams): Promise<SceneCaptureResult>;
+  /** The story ids the running app has, without restarting it or taking a picture. */
+  listStories(params: { port: number }): Promise<StoryListResult>;
 };
 
 /**
@@ -162,41 +135,46 @@ export type CaptureSocket = {
  */
 const CAPTURE_PATIENCE_MS = 60_000;
 
-/** The shipped answers: a real bundler, with a real app attached to it. */
+/** The shipped answers: a real bundler, with a real app attached to it; no app says the port it asks. */
 export const liveCaptureSocket: CaptureSocket = {
-  captureStory: async ({ storyId, port, settings }) => {
-    const answer = await askTheBundlerLine({
-      port,
-      question: { action: 'captureStory', storyId, settings },
-      patienceMs: CAPTURE_PATIENCE_MS,
-    });
-
-    if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
-    if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
-    // A story is not captured from old code either: said as a scene says it.
-    if (answer.kind === 'old-code') {
-      return { kind: 'no-app', why: 'old-code', detail: OLD_CODE_DETAIL };
-    }
-
-    if (answer.kind === 'gave-up-waiting') {
-      // The app was handed the story and then stopped answering - a fatal error, a native crash,
-      // or the app being closed. The tree and the settle time are gone with it, but whatever it
-      // logged on the way is not: it was already pushed to the bundler's own feed, live, before
-      // whatever silenced the app had a chance to (see drainAppLog).
-      const logs = await drainAppLog(port);
-      return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
-    }
-
-    const result = readCaptureAnswer(answer.reply, storyId);
-    if (result.kind === 'captured' || result.kind === 'crashed') {
-      const logs = await drainAppLog(port);
-      if (logs.length > 0) result.logs = logs;
-    }
-    return result;
-  },
-
+  captureStory: async (params) => withPortTheAppAsks(await askForTheStory(params), params.port),
   captureScene: captureLiveScene,
+  listStories: ({ port }) => listLiveStories(port),
 };
+
+/** Ask the app on the bundler's line for one story, and read what it answered. */
+async function askForTheStory({
+  storyId,
+  port,
+  settings,
+}: Parameters<CaptureSocket['captureStory']>[0]): Promise<CaptureResult> {
+  const answer = await askTheBundlerLine({
+    port,
+    question: { action: 'captureStory', storyId, settings },
+    patienceMs: CAPTURE_PATIENCE_MS,
+  });
+
+  if (answer.kind === 'nothing-on-the-port') return { kind: 'no-bundler' };
+  if (answer.kind === 'not-in-sherlos-words') return { kind: 'no-app' };
+  // A story is not captured from old code either: said as a scene says it.
+  if (answer.kind === 'old-code') return noAppForItsCode(answer.appStamp);
+
+  if (answer.kind === 'gave-up-waiting') {
+    // The app was handed the story and then stopped answering - a fatal error, a native crash,
+    // or the app being closed. The tree and the settle time are gone with it, but whatever it
+    // logged on the way is not: it was already pushed to the bundler's own feed, live, before
+    // whatever silenced the app had a chance to (see drainAppLog).
+    const logs = await drainAppLog(port);
+    return { kind: 'crashed', storyId, ...(logs.length > 0 && { logs }) };
+  }
+
+  const result = readCaptureAnswer(answer.reply, storyId);
+  if (result.kind === 'captured' || result.kind === 'crashed') {
+    const logs = await drainAppLog(port);
+    if (logs.length > 0) result.logs = logs;
+  }
+  return result;
+}
 
 let installed: CaptureSocket = liveCaptureSocket;
 
@@ -205,10 +183,21 @@ export function captureSocket(): CaptureSocket {
   return installed;
 }
 
-/** Install a capture socket for the duration of one posed run; the returned function undoes it. */
-export function installCaptureSocket(next: CaptureSocket): () => void {
+/**
+ * Install a capture socket for the duration of one posed run; the returned function undoes it.
+ * A socket that does not say how it lists stories refuses the question, so a run that never asks
+ * it does not have to answer it.
+ */
+export function installCaptureSocket(
+  next: Omit<CaptureSocket, 'listStories'> & Partial<Pick<CaptureSocket, 'listStories'>>
+): () => void {
   const previous = installed;
-  installed = next;
+  installed = {
+    listStories: async () => {
+      throw new Error('this capture socket does not list stories');
+    },
+    ...next,
+  };
   return () => {
     installed = previous;
   };
@@ -243,8 +232,8 @@ export function readCaptureAnswer(said: unknown, storyId: string): CaptureResult
   if (answer.kind === 'no-app') return { kind: 'no-app' };
 
   if (answer.kind === 'no-such-story') {
-    const known = Array.isArray(answer.known) ? answer.known.filter(isString) : [];
     const brokenFiles = readBrokenFiles(answer.brokenFiles);
+    const known = keepStrings(answer.known);
     return { kind: 'no-such-story', known, ...(brokenFiles && { brokenFiles }) };
   }
 
@@ -284,131 +273,6 @@ export function readCaptureAnswer(said: unknown, storyId: string): CaptureResult
   return { kind: 'no-app' };
 }
 
-/** How the stabilization ended, or `timed-out` when the relay said nothing readable about it. */
-function readSettled(value: unknown): { ms: number; frames: number } | 'timed-out' {
-  if (value === 'timed-out') return 'timed-out';
-  const settled = value as { ms?: unknown; frames?: unknown } | null | undefined;
-  if (typeof settled?.ms === 'number' && typeof settled?.frames === 'number') {
-    return { ms: settled.ms, frames: settled.frames };
-  }
-  return 'timed-out';
-}
-
-/**
- * How many screenfuls the app said the story was, or nothing when it said nothing readable about
- * it. Nothing is a real answer - an app older than this field has no such number to give - and the
- * screen says no more for it than it says for a story that fits one screen.
- */
-function readParts(value: unknown): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  return value;
-}
-
-/**
- * How the app's two waits for this story went, or nothing when it said nothing readable about
- * them - an app older than this field does. Read straight off the wire, never reconstructed: a
- * value read only here and nowhere inferred is the whole point of carrying it across the socket.
- */
-function readWaited(
-  value: unknown
-): { metadata: WaitOutcome; storyViews: WaitOutcome & { rereads: number } } | undefined {
-  const waited = value as { metadata?: unknown; storyViews?: unknown } | null | undefined;
-  const metadata = readWaitOutcome(waited?.metadata);
-  const storyViews = readStoryViewsWait(waited?.storyViews);
-  if (!metadata || !storyViews) return undefined;
-  return { metadata, storyViews };
-}
-
-function readWaitOutcome(value: unknown): WaitOutcome | undefined {
-  const outcome = value as { outcome?: unknown; ms?: unknown } | null | undefined;
-  if (
-    (outcome?.outcome === 'first-check' ||
-      outcome?.outcome === 'polled' ||
-      outcome?.outcome === 'timed-out') &&
-    typeof outcome.ms === 'number'
-  ) {
-    return { outcome: outcome.outcome, ms: outcome.ms };
-  }
-  return undefined;
-}
-
-function readStoryViewsWait(value: unknown): (WaitOutcome & { rereads: number }) | undefined {
-  const outcome = readWaitOutcome(value);
-  const rereads = (value as { rereads?: unknown } | null | undefined)?.rereads;
-  if (!outcome || typeof rereads !== 'number') return undefined;
-  return { ...outcome, rereads };
-}
-
-/**
- * What the tree the app recorded is rooted at, and how many nodes it holds - or nothing when the
- * app said nothing readable about it, for the same reason `waited` can be absent.
- */
-function readRoot(
-  value: unknown
-): { at: 'story' | 'window'; nodeCount: number; reason?: WindowReason } | undefined {
-  const root = value as { at?: unknown; nodeCount?: unknown; reason?: unknown } | null | undefined;
-  if (!(root?.at === 'story' || root?.at === 'window') || typeof root.nodeCount !== 'number') {
-    return undefined;
-  }
-  const reason = readWindowReason(root.reason);
-  return { at: root.at, nodeCount: root.nodeCount, ...(reason && { reason }) };
-}
-
-/**
- * WHY a window root was reported, read straight off the wire the way `readRoot`'s own fields are -
- * or nothing when the app said nothing readable about it, which an app older than this field does,
- * and which a story root always does (it is never asked why).
- */
-function readWindowReason(value: unknown): WindowReason | undefined {
-  const reason = value as
-    | {
-        cause?: unknown;
-        source?: unknown;
-        generation?: unknown;
-        publishedAtPollStart?: unknown;
-        providerRenderedRelativeToPollMs?: unknown;
-        testIdsAtGiveUp?: unknown;
-      }
-    | null
-    | undefined;
-
-  if (reason?.cause === 'nothing-published') {
-    return {
-      cause: 'nothing-published',
-      ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
-        providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,
-      }),
-    };
-  }
-  if (reason?.cause === 'story-unnamed') {
-    return {
-      cause: 'story-unnamed',
-      publishedAtPollStart: reason.publishedAtPollStart === true,
-      ...(typeof reason.providerRenderedRelativeToPollMs === 'number' && {
-        providerRenderedRelativeToPollMs: reason.providerRenderedRelativeToPollMs,
-      }),
-      testIdsAtGiveUp: Array.isArray(reason.testIdsAtGiveUp)
-        ? reason.testIdsAtGiveUp.filter(isString)
-        : [],
-    };
-  }
-  if (reason?.cause === 'story-not-in-tree') return { cause: 'story-not-in-tree' };
-
-  if (reason?.cause === 'story-broken') {
-    if (reason.source === 'error-registry') {
-      return { cause: 'story-broken', source: 'error-registry' };
-    }
-    if (
-      reason.source === 'fallback-text' &&
-      (reason.generation === 'live' || reason.generation === 'merged')
-    ) {
-      return { cause: 'story-broken', source: 'fallback-text', generation: reason.generation };
-    }
-  }
-
-  return undefined;
-}
-
 /** The files the app said threw as it loaded them, each with its error; a malformed entry is dropped. */
 function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -419,10 +283,6 @@ function readBrokenFiles(value: unknown): BrokenStoryFile[] | undefined {
     if (typeof file === 'string' && error) read.push({ file, error });
   }
   return read.length > 0 ? read : undefined;
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
 }
 
 /* ========================================================================== */
@@ -669,6 +529,20 @@ export function posedCaptureSocket(
         ...(posed.hasNetworkImage !== undefined && { hasNetworkImage: posed.hasNetworkImage }),
         tree: withChildren(posed.tree),
       };
+    },
+
+    listStories: async () => {
+      if (posed === 'no-app') return { kind: 'no-app' };
+      if (posed && posed !== 'no-bundler' && 'stories' in posed) {
+        return { kind: 'listed', ids: posed.stories };
+      }
+      if (posed !== 'no-bundler') {
+        refusals.push({
+          call: 'listStories',
+          problem: 'the pose states no `stories` of the app, and the command asked for them',
+        });
+      }
+      return { kind: 'no-bundler' };
     },
 
     captureScene: async ({ sceneId }) => {

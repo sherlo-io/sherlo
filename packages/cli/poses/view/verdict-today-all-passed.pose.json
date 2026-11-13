@@ -51,6 +51,21 @@
           "unreviewed": 0
         }
       }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 11
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 5,
+          "noChanges": 39,
+          "reported": 0,
+          "unreviewed": 0
+        }
+      }
     }
   ],
   "masks": {}

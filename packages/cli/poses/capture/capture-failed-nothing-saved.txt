@@ -1,0 +1,8 @@
+[31m✖[39m  A bundler is running on port [1m8081[22m, and no Sherlo app is attached to it
+
+[2mOpen the app on a device or simulator, then try again.[22m
+
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as foundation-typography--scales[22m
+
+
+[exit 1]

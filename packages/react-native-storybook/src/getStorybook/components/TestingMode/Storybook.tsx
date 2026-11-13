@@ -5,6 +5,7 @@ import { VERIFICATION_TEST_ID } from '../../../constants';
 import { send } from '../../../connection/appLine';
 import { StorybookParams, StorybookView } from '../../../types';
 import { getStorybookComponent } from '../../helpers';
+import { readStorybookFacts } from '../../storybookFacts';
 import { RunnerBridge } from '../../../helpers';
 import { useRef } from 'react';
 import SherloModule from '../../../SherloModule';
@@ -76,8 +77,15 @@ function Storybook({
   // switches after that first selection never go through this component's props at all (they run
   // over Storybook's own channel - see captureTransport.ts), so they were never at risk here; only
   // the first selection, racing whatever causes this component's own first re-render, was.
+  //
+  // An index that holds no stories is the one case with no component at all: Storybook throws on
+  // start over an empty index, and the runner would read that as a crash at launch. So the
+  // component is not built then, and the run reports "no stories" instead. Facts not yet read keep
+  // the road as it was.
+  const facts = readStorybookFacts();
+  const indexHoldsNoStories = facts !== null && Object.keys(facts.storyIndex).length === 0;
   const storybookComponentRef = useRef<(() => JSX.Element) | null>(null);
-  if (!storybookComponentRef.current) {
+  if (!storybookComponentRef.current && !indexHoldsNoStories) {
     storybookComponentRef.current = getStorybookComponent({
       view,
       params: testingParams,
@@ -105,7 +113,7 @@ function Storybook({
   return (
     <View testID={VERIFICATION_TEST_ID} style={style}>
       <View style={{ flex: 1, overflow: 'hidden' }}>
-        <StorybookComponent />
+        {StorybookComponent && <StorybookComponent />}
       </View>
     </View>
   );

@@ -126,8 +126,21 @@ export function renderTestFinished(testIndex: number): string {
  * The green verdict, as a section: every story either matched or was already approved. The title
  * says it all, so nothing stands under it but the link. A build that holds scenes says so, as the
  * started line does: `All scenes passed`, or `All stories and scenes passed` for both.
+ *
+ * A test with screens that ended with no picture never says all passed: it counts the screens
+ * tested and the ones with no picture (`⚠️ 44 stories tested, 2 with no picture`), and the list of
+ * those screens stands under it (./waitDetail).
  */
-export function renderVerdictPassed(holds: ScreenKind = 'stories'): string[] {
+export function renderVerdictPassed(
+  holds: ScreenKind = 'stories',
+  noPicture?: { tested: number; count: number }
+): string[] {
+  if (noPicture) {
+    return renderVerdictSection(
+      `⚠️ ${countScreens(noPicture.tested, holds)} tested, ${noPicture.count} with no picture`,
+      []
+    );
+  }
   const title = `✅ All ${holds} passed`;
   // The underline is one longer than the title: `✅` is counted as one character and drawn as two.
   return renderVerdictSection(title, [], title.length + 1);

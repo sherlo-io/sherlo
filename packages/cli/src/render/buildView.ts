@@ -79,15 +79,21 @@ export function renderBuildViewStatus({
   status,
   counts,
   holds,
+  noPicture,
 }: {
   runStatus: string;
   status?: 'approved' | 'noChanges' | 'reported' | 'unreviewed';
   counts?: ReviewCounts;
   /** What the build holds (`stories` when absent); its screens are worded as that. */
   holds?: ScreenKind;
+  /** Screens tested and screens with no picture: a green verdict then never says all passed. */
+  noPicture?: { tested: number; count: number };
 }): string[] {
   if (runStatus !== 'finished') return [];
 
+  if (noPicture && (status === 'noChanges' || status === 'approved')) {
+    return renderVerdictPassed(holds, noPicture);
+  }
   if (status === 'noChanges') return renderVerdictNoChanges();
   if (status === 'approved') return renderVerdictPassed(holds);
   if ((status === 'unreviewed' || status === 'reported') && counts) {

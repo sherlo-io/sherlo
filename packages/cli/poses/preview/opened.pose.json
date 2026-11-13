@@ -27,12 +27,13 @@
     }
   },
   "env": {
-    "SKIP_INTRO": "true",
-    "TZ": "UTC"
+    "SKIP_INTRO": "true"
   },
   "git": "none",
   "bundles": {},
   "api": [],
   "masks": {},
-  "argv": ["capture-report", "--json"]
+  "argv": ["preview"],
+  "localServer": { "port": 4321 },
+  "browser": { "opened": true }
 }

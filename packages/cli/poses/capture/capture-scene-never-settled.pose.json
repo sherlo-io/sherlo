@@ -1,0 +1,37 @@
+{
+  "pose": 1,
+  "files": {
+    "feed.scenes.tsx": "export default scenes({ scenes: { Home: {} } });\n"
+  },
+  "env": {
+    "SKIP_INTRO": "true"
+  },
+  "git": "none",
+  "bundles": {},
+  "api": [],
+  "masks": {},
+  "argv": ["capture", "--all-scenes"],
+  "capture": {
+    "scenes": ["feed--home"],
+    "everyScene": [
+      {
+        "sceneId": "feed--home",
+        "ending": "never-settled",
+        "reachedMs": 2100,
+        "changing": ["IntroVideo", "LoadingSpinner"],
+        "unanswered": [
+          {
+            "method": "POST",
+            "url": "https://api.example.com/graphql",
+            "library": "@apollo/client",
+            "operation": "FeedHome"
+          },
+          {
+            "method": "GET",
+            "url": "https://cdn.example.com/intro.mp4"
+          }
+        ]
+      }
+    ]
+  }
+}

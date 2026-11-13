@@ -1,9 +1,11 @@
 import fastGlob from 'fast-glob';
 import { readFile } from 'fs/promises';
 import { dirname, join } from 'path';
+import { REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, throwError } from '../../../helpers';
 import { renderMonorepoRoot, renderNotInAnApp } from '../../../render/initFixes';
 import findPackageJsonPaths from './findPackageJsonPaths';
+import hasDependency from './hasDependency';
 
 async function validateProjectContext(): Promise<void> {
   const { current, monorepoRoot } = await findPackageJsonPaths();
@@ -12,7 +14,8 @@ async function validateProjectContext(): Promise<void> {
     throwError(renderNotInAnApp({ folder: getCwd() }));
   }
 
-  if (current === monorepoRoot) {
+  // A root that lists react-native itself is the app, not a monorepo root to refuse.
+  if (current === monorepoRoot && !(await hasDependency(current, REACT_NATIVE_PACKAGE_NAME))) {
     throwError(renderMonorepoRoot({ appFolders: await findAppFolders(dirname(current)) }));
   }
 }

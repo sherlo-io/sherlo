@@ -1,13 +1,14 @@
 /**
- * THE ONE DECISION that a launch is a capture of a scene of an app with its own Storybook: the
- * scene boot (./sceneBoot) asks the bundler's line for the capture, and the app's root wrapper
- * (./storyOfTheApp) wraps the root in the scene's view, on this answer and no other.
+ * THE ONE DECISION that a launch of an app with its own Storybook shows a scene: the app's root
+ * wrapper (./storyOfTheApp) wraps the root in the scene's view on this answer and no other, and
+ * the scene boot (./sceneBoot) asks the bundler's line for the capture or, when a runner drives the
+ * launch (./runnerWalk), hands the scene to the runner's walk.
  *
- * It is a capture when the launch names an id that is one of the bundle's scenes, Storybook has
- * recorded its facts, no runner drives the launch (./runnerWalk), and the id is not one of the
- * stories Storybook indexed. The launch does not say scene or story (`-sherloCapture <id>` for
- * both), and a scene's id (`file--name`) can equal a story's (`title--name`): the facts' story
- * index settles it, and an id that is a story stays a story, never wrapped.
+ * A launch shows a scene when it names an id that is one of the bundle's scenes, Storybook has
+ * recorded its facts, and the id is not one of the stories Storybook indexed. The launch does not
+ * say scene or story (`-sherloCapture <id>` for both), and a scene's id (`file--name`) can equal a
+ * story's (`title--name`): the facts' story index settles it, and an id that is a story stays a
+ * story, never wrapped.
  *
  * This file also holds the only reads of the launch's id and of the bundle's scene entries.
  */
@@ -39,22 +40,31 @@ export function bundleHoldsScenes(): boolean {
 }
 
 /**
- * Whether this launch names one of the bundle's scenes and no runner drives it. It is asked at
+ * Whether this launch names one of the bundle's scenes, from a bundler or a runner. It is asked at
  * import (./isStorybookMode), before Storybook has started and recorded its facts, so it cannot
  * tell a scene from a story of the same id: that id counts as a scene here, while
- * sceneOfTheCaptureOfAnAppWithStorybook, asked later, leaves it a story.
+ * sceneOfTheLaunchOfAnAppWithStorybook, asked later, leaves it a story.
  */
 export function launchNamesABundledScene(): boolean {
   const id = idOfTheTestingLaunch();
-  return !!id && !!bundledSceneOfId(id) && !isDrivenByRunner();
+  return !!id && !!bundledSceneOfId(id);
+}
+
+/**
+ * The scene this launch of an app with its own Storybook shows, or undefined when it shows none:
+ * an id of the bundle's scenes that is not one of the stories Storybook indexed. Who answers it
+ * depends on who drives the launch: a capture (sceneOfTheCaptureOfAnAppWithStorybook) or the
+ * runner's walk (./sceneBoot).
+ */
+export function sceneOfTheLaunchOfAnAppWithStorybook(): string | undefined {
+  const id = idOfTheTestingLaunch();
+  if (!id || !bundledSceneOfId(id)) return undefined;
+  const facts = readStorybookFacts();
+  if (facts === null || facts.storyIndex?.[id]) return undefined;
+  return id;
 }
 
 /** The scene this launch captures, or undefined when the launch is not such a capture. */
 export function sceneOfTheCaptureOfAnAppWithStorybook(): string | undefined {
-  const id = idOfTheTestingLaunch();
-  if (!id || !bundledSceneOfId(id)) return undefined;
-  const facts = readStorybookFacts();
-  if (facts === null || isDrivenByRunner()) return undefined;
-  if (facts.storyIndex?.[id]) return undefined;
-  return id;
+  return isDrivenByRunner() ? undefined : sceneOfTheLaunchOfAnAppWithStorybook();
 }

@@ -31,6 +31,24 @@ async function findPackageJsonPaths(): Promise<{
 
 export default findPackageJsonPaths;
 
+/**
+ * Finds node_modules/<packageName>/package.json from the project folder upward, by the folder the
+ * package is installed in. An alias ("react-native": "npm:other@1") installs a package whose
+ * name field differs from its folder, so the name is never compared.
+ */
+export function findInstalledPackageJsonPath(packageName: string): string | null {
+  let directory = getCwd();
+
+  while (true) {
+    const candidate = join(directory, 'node_modules', packageName, PACKAGE_JSON);
+    if (existsSync(candidate)) return candidate;
+
+    const parent = dirname(directory);
+    if (parent === directory) return null;
+    directory = parent;
+  }
+}
+
 /* ========================================================================== */
 
 const PACKAGE_JSON = 'package.json';

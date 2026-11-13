@@ -13,6 +13,7 @@
 import {
   ALL_SCENES_OPTION,
   JSON_OPTION,
+  LIST_OPTION,
   LOGS_OPTION,
   DISCOVER_OPTION,
   PNG_OPTION,
@@ -20,8 +21,10 @@ import {
   SCENE_OPTION,
   STOP_ON_REPEAT_OPTION,
   STORY_OPTION,
+  TREE_OPTION,
   allScenesRefusal,
   discoverRefusal,
+  listRefusal,
   pngWithoutSceneRefusal,
   sceneWithStoryRefusal,
   stopOnRepeatRefusal,
@@ -34,14 +37,22 @@ import { EXIT_BLOCK } from '../../helpers/exitCodes';
 import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
 import { captureSocket } from '../../seams/captureSocket';
 import { deviceState, isTarget } from '../../seams/deviceState';
-import { CAPTURES_FOLDER, guardCapture, sceneCameUp } from '../../seams/localCaptures';
+import {
+  CAPTURES_FOLDER,
+  guardCapture,
+  pictureKeptFor,
+  sceneCameUp,
+} from '../../seams/localCaptures';
 import { readPort } from '../../helpers/readPort';
 import { keepTheCapture, openCapture, runScene, savePicture } from './runScene';
 import type { CaptureResult } from '../../seams/captureSocket';
+import type { PortTheAppAsks } from '../../seams/appBundlerPort';
 import type { CaptureOptions } from './captureOptions';
 import type { SceneCaptureResult } from '../../seams/liveScene';
 import type { CapturedStory } from '../../render/capturedStory';
+import { pngPictureWritten } from '../../render/capturedScene';
 import type { CapturedScene } from '../../render/capturedScene';
+import type { NoAppEnding } from '../../render/noAppLines';
 import { lineAfterScene } from '../../render/lineAfterScene';
 import { sceneCauseOf } from '../../seams/sceneCause';
 import type { CauseStreak } from '../../seams/sceneCause';
@@ -52,6 +63,12 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
   const storyId = passedOptions[STORY_OPTION];
   const sceneId = passedOptions[SCENE_OPTION];
 
+  if (passedOptions[LIST_OPTION]) {
+    if (sceneId || storyId || passedOptions[ALL_SCENES_OPTION]) {
+      throwError({ message: listRefusal() });
+    }
+    return listStories(passedOptions);
+  }
   if (passedOptions[ALL_SCENES_OPTION]) {
     if (sceneId || storyId || passedOptions[PNG_OPTION] || passedOptions[DISCOVER_OPTION]) {
       throwError({ message: allScenesRefusal() });
@@ -102,7 +119,8 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
     // is a program's own door, so it gets them whether or not `--logs` was also passed.
     process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
   } else {
-    emit({ kind: 'captured-story', state: endingFor(answer, { storyId, port }) });
+    const state = endingFor(answer, { storyId, port });
+    emit({ kind: 'captured-story', state, showTree: passedOptions[TREE_OPTION] });
 
     // The one door that puts the app's own log on a terminal: opt-in, and never woven into the
     // fixed screen above (see ../../render/capturedLog). 'no-bundler' / 'no-app' / 'no-such-story'
@@ -110,13 +128,46 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
     if (passedOptions[LOGS_OPTION] && (answer.kind === 'captured' || answer.kind === 'crashed')) {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
-    if (kept) emit({ kind: 'kept-capture', id: storyId });
+    if (kept) {
+      emit({
+        kind: 'kept-capture',
+        id: storyId,
+        ...(answer.kind !== 'captured' && { picture: false as const }),
+      });
+    }
   }
 
   if (answer.kind !== 'captured') process.exit(EXIT_BLOCK);
 }
 
 export default capture;
+
+/* ========================================================================== */
+
+/**
+ * `sherlo capture --list` - the story ids of the running app, one per line (`--json`: an array).
+ * Nothing is restarted and no picture is taken. With no bundler, or no app, it ends as a capture does.
+ */
+async function listStories(passedOptions: CaptureOptions): Promise<void> {
+  const port = readPort(passedOptions[PORT_OPTION]);
+  const answer = await captureSocket().listStories({ port });
+
+  if (answer.kind === 'listed') {
+    process.stdout.write(
+      passedOptions[JSON_OPTION]
+        ? `${JSON.stringify(answer.ids, null, 2)}\n`
+        : answer.ids.map((id) => `${id}\n`).join('')
+    );
+    return;
+  }
+
+  if (passedOptions[JSON_OPTION]) {
+    process.stdout.write(`${JSON.stringify(answer, null, 2)}\n`);
+  } else {
+    emit({ kind: 'captured-story', state: endingFor(answer, { storyId: '', port }) });
+  }
+  process.exit(EXIT_BLOCK);
+}
 
 /* ========================================================================== */
 
@@ -130,11 +181,22 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
   if (passedOptions[JSON_OPTION]) {
     process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
   } else {
-    emit({ kind: 'captured-scene', state: capturedSceneEnding(answer, port, discover), picture });
+    const state = capturedSceneEnding(answer, port, discover);
+    emit({ kind: 'captured-scene', state, picture, showTree: passedOptions[TREE_OPTION] });
     if (passedOptions[LOGS_OPTION] && answer.kind !== 'no-bundler' && answer.kind !== 'no-app') {
       emit({ kind: 'captured-log', logs: answer.logs ?? [] });
     }
-    if (kept) emit({ kind: 'kept-capture', id: sceneId });
+    if (kept) {
+      // The same condition runScene keeps a picture by: only a scene that came up and threw nothing.
+      // A scene whose --png picture was written still says where it is kept: the screen already says "Picture saved".
+      const pictureSaved =
+        pictureKeptFor(getCwd(), sceneId, answer).saves || pngPictureWritten(state, picture);
+      emit({
+        kind: 'kept-capture',
+        id: sceneId,
+        ...(!pictureSaved && { picture: false as const }),
+      });
+    }
   }
 
   if (sceneFailed(answer, discover)) process.exit(EXIT_BLOCK);
@@ -215,6 +277,23 @@ function sceneFailed(answer: SceneCaptureResult, discover: boolean): boolean {
   return answer.kind !== 'scene' && !(discover && answer.kind === 'never-reached');
 }
 
+/**
+ * What the screen shows for a capture that found no app. An app refused for its code, old or with no
+ * launch code, is told what to do about it: the screen shows that detail under `why: 'old-code'`.
+ * The other causes have no words of their own here. The port the app asks rides along whatever the
+ * cause, and the screen puts it first.
+ */
+function noAppEnding(
+  answer: { why?: string; detail?: string; appAsks?: PortTheAppAsks },
+  port: number
+): NoAppEnding {
+  const refusedForItsCode = answer.why === 'old-code' || answer.why === 'no-launch-code';
+  const asks = answer.appAsks && { appAsks: answer.appAsks };
+  return refusedForItsCode && answer.detail !== undefined
+    ? { kind: 'no-app', port, why: 'old-code', detail: answer.detail, ...asks }
+    : { kind: 'no-app', port, ...asks };
+}
+
 /** What the screen shows for what the app answered about a scene: the bundler's refusals carry the port. */
 export function capturedSceneEnding(
   answer: SceneCaptureResult,
@@ -222,12 +301,7 @@ export function capturedSceneEnding(
   discover = false
 ): CapturedScene {
   if (answer.kind === 'no-bundler') return { kind: answer.kind, port };
-  if (answer.kind === 'no-app') {
-    // An app on old code is told what to do about it; the other causes have no words of their own here.
-    return answer.why === 'old-code'
-      ? { kind: 'no-app', port, why: 'old-code', detail: answer.detail }
-      : { kind: 'no-app', port };
-  }
+  if (answer.kind === 'no-app') return noAppEnding(answer, port);
   // The screen has no ending of its own for a scene that kept its picture and had a request refused:
   // it shows the scene, with the refused requests it lists.
   const shown = sceneCameUp(answer) ? { ...answer, kind: 'scene' as const } : answer;
@@ -243,7 +317,7 @@ export function endingFor(
     case 'no-bundler':
       return { kind: 'no-bundler', port: run.port };
     case 'no-app':
-      return { ...answer, port: run.port };
+      return noAppEnding(answer, run.port);
     case 'no-such-story':
       return {
         kind: 'no-such-story',
@@ -272,6 +346,7 @@ export function endingFor(
           storyId: answer.storyId,
           seconds: STABILIZATION_SETTINGS.timeoutMs / 1000,
           ...(answer.changing && { changing: answer.changing }),
+          ...(answer.unanswered && { unanswered: answer.unanswered }),
           tree: answer.tree,
         };
       }

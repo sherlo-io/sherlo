@@ -12,7 +12,7 @@ import { readPoseDocument } from '../readPose';
 import type { CommandPose } from '../../../seams/commandPose';
 
 const THE_SECOND_STEP = 'Run Sherlo on every pull request';
-const THE_PROJECT_PAGE = 'https://app.sherlo.io/project?t=tm000001&p=7';
+const THE_PROJECT_PAGE = 'https://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>';
 
 function poseNamed(name: string): CommandPose {
   return readPoseDocument(

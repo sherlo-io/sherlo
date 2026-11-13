@@ -137,7 +137,9 @@ export async function buildBundleForPlatform({
   const cacheDir = path.join(makeProjectSherloFolder(projectRoot), 'bundled');
   fs.mkdirSync(cacheDir, { recursive: true });
 
-  const entryFile = detectEntryFile(projectRoot);
+  // Absolute: in a monorepo Metro's server root is the workspace root, and expo export:embed
+  // resolves a relative entry against it, not against the app.
+  const entryFile = path.resolve(projectRoot, detectEntryFile(projectRoot));
   const bundleOut = path.join(cacheDir, `bundle.${platform}.js`);
   const assetsDest = path.join(cacheDir, `assets.${platform}`);
 
@@ -423,7 +425,8 @@ function execBundler(
     const detail = (err.stderr?.toString?.() || '') + (err.stdout?.toString?.() || '');
     throw new Error(
       `${bundlerName} failed for ${platform}:\n` +
-        `${detail.slice(0, 500)}\n` +
+        // The cause is at the end: bundlers print warnings first and the failure last.
+        `${detail.length > 2000 ? `...${detail.slice(-2000)}` : detail}\n` +
         setupErrorLineFor(detail)
     );
   }

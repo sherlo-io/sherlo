@@ -1,8 +1,11 @@
 /**
  * WHAT collectContext GATHERS, AND WHAT IT LEAVES OUT WHEN IT CANNOT READ IT.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { collectContext } from '../collectContext';
+
+const { PACK_VERSION } = vi.hoisted(() => ({ PACK_VERSION: '3.0.0-alpha.0-pack.7' }));
+vi.mock('../../test/bundleSidecar', () => ({ readCliVersion: () => PACK_VERSION }));
 import {
   installProjectFiles,
   posedProjectFiles,
@@ -17,6 +20,12 @@ describe('the facts sent beside a report are gathered from the project and the m
 
     expect(context.project).toEqual({ teamId: 'k3j9x2ab', projectIndex: 4 });
     expect(JSON.stringify(context)).not.toContain('a'.repeat(32));
+  });
+
+  it("the report names the installed tool's version, a pack suffix included", async () => {
+    const context = await inFolder({});
+
+    expect(context.cliVersion).toBe(PACK_VERSION);
   });
 
   it('leaves the project and the versions out when the folder has no config and no packages', async () => {

@@ -1563,6 +1563,7 @@ const PINS: Pin[] = [
     what: 'what `sherlo capture` prints for a story that fits one screen - the green head, the settled line, the named tree, and the view count',
     segment: {
       kind: 'captured-story',
+      showTree: true,
       state: {
         kind: 'captured',
         storyId: 'foundation-typography--scales',
@@ -1620,6 +1621,7 @@ const PINS: Pin[] = [
     what: 'what `sherlo capture --scene` prints for a scene that came back with its record - the boot line, one line per play step done, the route reached, the settled line, then the named tree',
     segment: {
       kind: 'captured-scene',
+      showTree: true,
       state: {
         kind: 'scene',
         sceneId: 'chat--menu-open',
@@ -1733,6 +1735,12 @@ const PINS: Pin[] = [
       [
         `${ESC}[33m◦${ESC}[39m  ${ESC}[1mfeed--live-ticker${ESC}[22m never settled - still changing: TickerValue, LoadingSpinner${ESC}[2m · ready in 2.1s${ESC}[22m`,
       ],
+      [''],
+      [
+        '  TickerValue, LoadingSpinner kept moving. A playing video or animation never lets a screen rest.',
+      ],
+      ['  Fake the module that draws it in the mocks of the scene, and a still frame stands in.'],
+      [''],
     ],
   },
 
@@ -1847,6 +1855,57 @@ const PINS: Pin[] = [
     segment: { kind: 'kept-capture', id: 'chat--menu-open' },
     stream: 'stdout',
     prints: [[`${ESC}[2mKept in .sherlo/captures as chat--menu-open${ESC}[22m`], ['']],
+  },
+
+  {
+    kind: 'no-picture-list',
+    what: '`sherlo view <n> --wait` - the screens that ended with no picture, each with its device and reason, under a yellow header',
+    segment: {
+      kind: 'no-picture-list',
+      entries: [
+        {
+          kind: 'story',
+          name: 'Profile - Video header',
+          device: 'iPhone 15 (iOS 17)',
+          reason: 'the app did not answer in time',
+        },
+        {
+          kind: 'scene',
+          name: 'Feed - Home',
+          device: 'iPhone 15 (iOS 17)',
+          reason: 'never settled',
+        },
+      ],
+    },
+    stream: 'stdout',
+    prints: [
+      [`${ESC}[33m! 2 screens ended with no picture${ESC}[39m`],
+      ['   Story Profile - Video header on iPhone 15 (iOS 17): the app did not answer in time'],
+      ['   Scene Feed - Home on iPhone 15 (iOS 17): never settled'],
+      [''],
+    ],
+  },
+
+  {
+    kind: 'run-failure',
+    what: '`sherlo view <n> --wait` - a failed run: the stage, the device and the cause, whether Sherlo retried, and the reference to quote in cyan',
+    segment: {
+      kind: 'run-failure',
+      failure: {
+        stage: 'capture',
+        device: 'iPhone 15 (iOS 17)',
+        cause: 'the simulator stopped answering',
+        reference: 'run-7f3a9c-ios',
+        retried: true,
+      },
+    },
+    stream: 'stdout',
+    prints: [
+      ['It failed at the capture stage on iPhone 15 (iOS 17): the simulator stopped answering'],
+      ['Sherlo retried it and it failed again.'],
+      [`If you write to us, quote ${ESC}[36mrun-7f3a9c-ios${ESC}[39m`],
+      [''],
+    ],
   },
 
   {

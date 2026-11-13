@@ -18,10 +18,8 @@
  * is only whether there is somebody to ask and what they did. A pose that could put a byte on the
  * screen would be supplying words, and a pose may never supply a word.
  *
- * WHAT IS NOT HERE. The progress init reports as it goes is a call to the backend like any other,
- * so it rides ../seams/serverCalls and is scripted in the pose's `api` as `trackCliInit`. And
- * WHICH package manager the project uses is not an act at all - it is read out of the project's
- * own `package.json` and lockfiles, which a pose already lays out in `files`.
+ * WHAT IS NOT HERE. The progress init reports rides ../seams/serverCalls (the pose's `api`
+ * `trackCliInit`). WHICH package manager the project uses is no act: it is read from its files.
  *
  * ------------------------------------------------------------------------
  * WHY AN UNANSWERED INSTALL IS RECORDED AND NOT THROWN.
@@ -48,7 +46,11 @@ import fs from 'fs';
 import path from 'path';
 import { confirm, input, select } from '@inquirer/prompts';
 import ansiEscapes from 'ansi-escapes';
+import { runningAgent } from '../commands/feedback/runningAgent';
+import { packageNameOfSpecifier } from '../commands/test/lockfilePackages';
+import { installedPodsAreCurrent } from '../helpers/installedPods';
 import runShellCommand from '../helpers/runShellCommand';
+import { decideScenesForProject, rememberedScenesFlag } from '../helpers/scenesFlag';
 import type { PosedFiles } from './projectFiles';
 
 /** Every act `sherlo init` performs on the machine it runs on, and nothing else. */
@@ -86,6 +88,20 @@ export type Workstation = {
      */
     sherloBuildUnset?: boolean;
   }): Promise<void>;
+
+  /**
+   * Whether the project's installed pods already match its Podfile.lock and link Sherlo into a
+   * configuration, so `pod install` would change nothing that matters and is skipped.
+   */
+  podsAreCurrent(iosFolder: string): boolean;
+
+  /** What the service said about the team of the chosen project; undefined, which is off, if unasked. */
+  scenesFlag(): 'on' | 'off' | undefined;
+  /** Ask the service about that team and keep the answer for `scenesFlag()`; a pose asks nothing. */
+  askScenesFlag(configProject: unknown): Promise<void>;
+
+  /** Run one git command line in the project folder; rejects when git fails (not a git folder). */
+  readGit(params: { command: string; projectRoot: string }): Promise<string>;
 
   /** Whether there is a person at the keyboard who could answer a prompt at all. */
   somebodyIsAtTheKeyboard(): boolean;
@@ -140,22 +156,23 @@ export const liveWorkstation: Workstation = {
     });
   },
 
+  podsAreCurrent: (iosFolder) => installedPodsAreCurrent(iosFolder),
+
+  scenesFlag: rememberedScenesFlag,
+  askScenesFlag: decideScenesForProject,
+
+  readGit: ({ command, projectRoot }) => runShellCommand({ command, projectRoot }),
+
   /**
-   * Is there a human at the keyboard who could actually press Enter?
-   *
-   * TWO CONDITIONS, AND THE SECOND ONE IS NOT REDUNDANT. `isTTY` alone answers "is stdin a
-   * terminal", which is NOT the same question - plenty of automation runs the CLI under a
-   * pseudo-terminal: `docker run -t`, `script(1)`, expect, and any tool that records terminal
-   * output. Under one of those, stdin IS a tty and yet nobody is watching. Worse, such a stdin
-   * usually reaches EOF immediately, and a pty signals EOF by delivering the end-of-transmission
-   * byte (4) - which `readEnterPress` below reads as CTRL+D and treats as a deliberate cancel. So
-   * `sherlo init` in a pty-allocating pipeline did not merely hang: it printed the prompt and then
-   * failed the setup with "Setup cancelled", leaving no sherlo.config.json behind.
-   *
-   * `CI` is the standard opt-out every mature CLI honours for exactly this, and it is set by
-   * GitHub Actions, GitLab, CircleCI, Travis and Buildkite alike.
+   * Is there a human at the keyboard who could actually press Enter? `isTTY` alone is not enough:
+   * automation runs the CLI under a pseudo-terminal (`docker run -t`, `script(1)`, expect) where
+   * stdin IS a tty and nobody is watching, and its EOF arrives as the byte `readEnterPress` reads
+   * as CTRL+D, a deliberate cancel - so setup would fail with "Setup cancelled". `CI` is the
+   * standard opt-out for exactly this (GitHub Actions, GitLab, CircleCI, Travis, Buildkite). A
+   * coding agent's shell is a tty too with nobody to press Enter, so an agent its harness's
+   * environment names (`runningAgent`) is nobody at the keyboard either.
    */
-  somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI,
+  somebodyIsAtTheKeyboard: () => Boolean(process.stdin.isTTY) && !process.env.CI && !runningAgent(),
 
   readEnterPress: (showPrompt) => {
     process.stdin.setRawMode(true);
@@ -261,9 +278,12 @@ export type PosedWorkstation = {
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods
    * installed. Left out for a project with no Podfile, where setup never runs it. Either mismatch
-   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile.
+   * is a refusal of the pose: a Podfile and no `pods`, or `pods` and no Podfile. `"current"` says
+   * the installed pods already match the lockfile, so setup skips `pod install` and never asks it.
    */
-  pods?: 'installed';
+  pods?: 'installed' | 'current';
+  /** Whether the service has scenes on for the project's team. Left out: nothing answers, so off. */
+  scenes?: 'on' | 'off';
   /**
    * HOW `pod install` WAS RUN, when the pose states it: `through: 'bundler'` is `bundle exec pod
    * install` (a Gemfile names cocoapods), `sherloBuild: 'unset'` is the environment without
@@ -333,7 +353,7 @@ export function posedWorkstation(
       }
 
       const installedPackage = posed.install.package;
-      if (packageNameOf(installedPackage) !== packageNameOf(packageSpec)) {
+      if (packageNameOfSpecifier(installedPackage) !== packageNameOfSpecifier(packageSpec)) {
         refuse(
           'addPackage',
           `the pose answers the install with \`${installedPackage}\`, and the command asked the ` +
@@ -398,6 +418,14 @@ export function posedWorkstation(
       }
     },
 
+    podsAreCurrent: () => posed?.pods === 'current',
+
+    scenesFlag: () => posed?.scenes,
+    askScenesFlag: async () => {},
+
+    // A pose states no git history: a read of it fails as in a folder that is not a git folder.
+    readGit: () => Promise.reject(new Error('the pose holds no git history')),
+
     // A pose that says Enter was pressed or the terminal closed says somebody was asked, so the
     // prompt prints and `enter` below decides what they did. `nobody` is the run with no keyboard
     // behind it, so the prompt is never asked. A pose that says nothing is a terminal nobody sits
@@ -435,14 +463,4 @@ export function posedWorkstation(
       throw refuse('askYesOrNo', `the pose cannot answer the question "${question}"`);
     },
   };
-}
-
-/* ========================================================================== */
-
-/** The package a spec names, without its version: `@sherlo/x@2.0.2` -> `@sherlo/x`. */
-function packageNameOf(packageSpec: string): string {
-  const versionSeparator = packageSpec.lastIndexOf('@');
-
-  // Index 0 is the scope's own `@`, so a spec with no version is the whole string.
-  return versionSeparator > 0 ? packageSpec.slice(0, versionSeparator) : packageSpec;
 }

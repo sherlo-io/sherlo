@@ -5,6 +5,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { INTRO_HEADER, INTRO_TAGLINE } from '../../render/renderSegment';
 import { installProjectFiles } from '../../seams/projectFiles';
 import { BLANKED } from '../blankSecrets';
 import { hideTokens, readLastCommand, recordLastCommand } from '../lastCommandRecord';
@@ -93,6 +94,20 @@ describe('the last command record', () => {
       `Refused: the token ${BLANKED} was not accepted`,
     ]);
     expect(JSON.stringify(recorded)).not.toContain('sht_abcdefghijklmnopqrstuvwx');
+  });
+
+  it('a failed command keeps its error lines, not the banner, tagline or footer', () => {
+    recordLastCommand('test', {});
+    process.stdout.write(`${INTRO_HEADER}\n${INTRO_TAGLINE}\n\n`);
+    process.stderr.write('✖ Building the Android app failed\nGradle exited with 1\n');
+    process.stdout.write('AI agents: this error can usually be fixed without the person.\n');
+    process.stdout.write(`${'─'.repeat(10)}\n\nNeed help?\n➜ Discord: https://discord.example\n`);
+    endProcess(1);
+
+    expect(readLastCommand()?.errorLines).toEqual([
+      '✖ Building the Android app failed',
+      'Gradle exited with 1',
+    ]);
   });
 
   it('A command that ends well records no error lines', () => {

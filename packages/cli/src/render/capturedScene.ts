@@ -23,10 +23,11 @@ import {
   settledLine,
 } from './capturedStory';
 import type { CapturedView } from './capturedStory';
+import { editDistance } from './closestIds';
 import type { NoAppEnding } from './noAppLines';
-import { leftLines } from './sceneLeftLines';
+import { discoverLeftLines, neverSettledLeftLines, refusalLeftLines } from './sceneLeftLines';
 import { phoneNotAppliedLines } from './phoneNotAppliedLines';
-import { neverReachedLines } from './sceneDiagnosis';
+import { likelyCauseLines, neverReachedLines } from './sceneDiagnosis';
 import { threwLines } from './threwLines';
 import type { SceneStop } from './sceneStop';
 import type { AnswerFinding, LikelyCause, UnansweredRequest } from '../seams/readAppAnswer';
@@ -162,17 +163,32 @@ export type CapturedScene = ({ kind: 'no-bundler'; port: number } | NoAppEnding 
 export type ScenePicture = { path: string; error?: string };
 
 /**
- * Every line `sherlo capture --scene` prints, in order. With `--png`, the last line before the
- * closing blank says whether the picture was saved: one place that all endings reach.
+ * Every line `sherlo capture --scene` prints, in order, the view tree last and only with `--tree`.
+ * With `--png`, the line before the closing blank says whether the picture was saved.
  */
-export function renderCapturedScene(state: CapturedScene, picture?: ScenePicture): string[] {
+export function renderCapturedScene(
+  state: CapturedScene,
+  picture?: ScenePicture,
+  showTree = false
+): string[] {
   const lines = [
     ...phoneNotAppliedLines('phoneNotApplied' in state ? state : {}),
-    ...sceneLines(state),
+    ...sceneLines(state, showTree),
   ];
   if (!picture) return lines;
 
   return [...lines.slice(0, -1), ...pictureLines(state, picture), ''];
+}
+
+/** Whether `--png` has a picture to show for the scene: captured, or stopped with its screen read. */
+function sceneIsPictured(state: CapturedScene): boolean {
+  const stoppedWithScreen = state.kind === 'never-reached' && state.stop?.screen !== undefined;
+  return state.kind === 'scene' || state.kind === 'never-settled' || stoppedWithScreen;
+}
+
+/** Whether the screen says "Picture saved to" for this scene: its `--png` picture was written. */
+export function pngPictureWritten(state: CapturedScene, picture?: ScenePicture): boolean {
+  return picture !== undefined && !picture.error && sceneIsPictured(state);
 }
 
 /**
@@ -180,8 +196,7 @@ export function renderCapturedScene(state: CapturedScene, picture?: ScenePicture
  * its screen read (the picture shows where it stopped), the save's error, or that no scene was captured.
  */
 function pictureLines(state: CapturedScene, picture: ScenePicture): string[] {
-  const stoppedWithScreen = state.kind === 'never-reached' && state.stop?.screen !== undefined;
-  if (state.kind !== 'scene' && state.kind !== 'never-settled' && !stoppedWithScreen) {
+  if (!sceneIsPictured(state)) {
     return [chalk.dim('No picture saved: the scene was not captured')];
   }
 
@@ -190,7 +205,7 @@ function pictureLines(state: CapturedScene, picture: ScenePicture): string[] {
     : [chalk.dim(`Picture saved to ${picture.path}`)];
 }
 
-function sceneLines(state: CapturedScene): string[] {
+function sceneLines(state: CapturedScene, showTree: boolean): string[] {
   switch (state.kind) {
     case 'no-bundler':
     case 'no-app':
@@ -219,7 +234,7 @@ function sceneLines(state: CapturedScene): string[] {
         )} failed after it booted - the capture stopped before it finished`,
         '',
         ...(state.error ? threwLines(state.error, undefined) : [chalk.dim(NOTHING_BEFORE_DEATH)]),
-        ...leftLines(state),
+        ...leftOfScene(state),
         '',
       ];
 
@@ -231,7 +246,7 @@ function sceneLines(state: CapturedScene): string[] {
         '',
         ...neverReachedLines(state),
         ...(state.discover && state.likelyCause ? likelyCauseLines(state.likelyCause) : []),
-        ...leftLines(state),
+        ...leftOfScene(state),
         '',
       ];
 
@@ -244,10 +259,10 @@ function sceneLines(state: CapturedScene): string[] {
         ...(state.changing && state.changing.length > 0
           ? [chalk.dim(`   Still changing: ${state.changing.join(', ')}`)]
           : []),
-        '',
-        ...treeLines(state.tree),
         ...(state.threw ? ['', errorLine(state.threw)] : []),
-        ...leftLines(state),
+        ...leftOfScene(state, neverSettledLeftLines),
+        '',
+        ...treeLines(state.tree, showTree),
         '',
       ];
 
@@ -260,7 +275,7 @@ function sceneLines(state: CapturedScene): string[] {
         '',
         `  ${missedStep(state.missing)} within ${state.limitMs / 1000}s.`,
         ...(state.threw ? ['', errorLine(state.threw)] : []),
-        ...leftLines(state),
+        ...leftOfScene(state),
         '',
       ];
 
@@ -281,21 +296,24 @@ function sceneLines(state: CapturedScene): string[] {
         ...state.play.map((step) => chalk.dim(`   played ${playStep(step)}`)),
         chalk.dim(`   reached ${route(state.reached.route)} in ${seconds(state.reached.ms)}`),
         settledLine(state.settled.ms, state.settled.frames),
-        '',
-        ...treeLines(state.tree),
         ...(state.threw ? ['', errorLine(state.threw)] : []),
-        ...leftLines(state),
+        ...leftOfScene(state),
+        '',
+        ...treeLines(state.tree, showTree),
         '',
       ];
   }
 }
 
-/** Why a scene that never got ready likely did not, in the words the record's causes map to. */
-function likelyCauseLines(causes: LikelyCause): string[] {
-  const words = causes.map((cause) =>
-    cause === 'unanswered-requests' ? 'requests with no mock' : 'errors the app logged'
-  );
-  return [`  Likely cause: ${words.join(' and ')}.`];
+/**
+ * What the scene left behind, in the picture its capture's kind draws: a discover capture's list
+ * of rules (whatever its ending), else the ending's own picture, the refusal unless it says otherwise.
+ */
+function leftOfScene<State extends SceneLeft & { discover?: true }>(
+  state: State,
+  endingPicture: (state: State) => string[] = refusalLeftLines
+): string[] {
+  return state.discover ? discoverLeftLines(state) : endingPicture(state);
 }
 
 /* ========================================================================== */
@@ -358,24 +376,4 @@ function closestScenes(typed: string, known: string[]): string[] {
     chalk.dim(`Closest of this app's ${known.length} scenes:`),
     ...nearest.map((id) => `  ${id}`),
   ];
-}
-
-/** How many single-character edits turn one string into the other. */
-function editDistance(a: string, b: string): number {
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
-
-  for (let row = 1; row <= a.length; row += 1) {
-    const current = [row];
-    for (let column = 1; column <= b.length; column += 1) {
-      const swap = a[row - 1] === b[column - 1] ? 0 : 1;
-      current[column] = Math.min(
-        previous[column] + 1,
-        current[column - 1] + 1,
-        previous[column - 1] + swap
-      );
-    }
-    previous = current;
-  }
-
-  return previous[b.length];
 }

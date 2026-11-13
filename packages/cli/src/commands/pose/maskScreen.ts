@@ -29,7 +29,8 @@
 import fs from 'fs';
 import { GITHUB_SESSION_PREFIX } from '../../constants';
 import { foldAndroidBuild, foldIosBuild } from './foldNativeBuilds';
-import { COLOR_ESCAPE, ESCAPE, ESCAPE_AWARE_BOUNDARY } from './maskPatterns';
+import { foldAppBundleStep } from './foldAppBundleStep';
+import { COLOR_ESCAPE, ESCAPE, ESCAPE_AWARE_BOUNDARY, visible } from './maskPatterns';
 
 /**
  * The two paths only the machine that ran the command knows.
@@ -60,6 +61,7 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldTeamInSetupProject(folded);
   folded = foldTokens(folded);
   folded = foldBuildUrl(folded);
+  folded = foldAppBundleStep(folded);
   folded = foldLoginLink(folded);
   folded = foldProjectIndex(folded);
   folded = foldTeamId(folded);
@@ -134,6 +136,7 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<PARTS>',
   '<VERSION>',
   '<SYSTEM>',
+  '<APP_BUNDLE_STEP>',
 ];
 
 /* ========================================================================== */
@@ -192,18 +195,18 @@ function foldTokens(screen: string): string {
 }
 
 /**
- * A build's address: the host it lives on and the three ids that name it.
+ * A build's or project page's address: the host it lives on and the ids that name it.
  *
- * ALL FOUR MOVE BETWEEN MACHINES - a test environment is not app.sherlo.io, and the team, project
+ * ALL MOVE BETWEEN MACHINES - a test environment is not app.sherlo.io, and the team, project
  * and build a live run made are whatever the server handed out. So the whole address folds to one
- * canonical address rather than to a single placeholder, which keeps the line readable as the
- * link it is. A token that ever reaches the `t=` slot is already `<MASKED>` by the time this
- * runs, and folds on into `<TEAM>` with everything else.
+ * canonical address, which keeps the line readable as the link it is. A token that ever reaches
+ * the `t=` slot is already `<MASKED>` by now, and folds on into `<TEAM>` with everything else.
  */
 function foldBuildUrl(screen: string): string {
   return screen.replace(
-    /https?:\/\/[^/\s\u001b]+\/build\?t=[^&\s\u001b]*&p=[^&\s\u001b]*&b=[^&\s\u001b]*/g,
-    'https://<APP_HOST>/build?t=<TEAM>&p=<PROJECT>&b=<BUILD>'
+    /https?:\/\/[^/\s\u001b]+\/(build|project)\?t=[^&\s\u001b]*&p=[^&\s\u001b]*(&b=[^&\s\u001b]*)?/g,
+    (_link, page, build) =>
+      `https://<APP_HOST>/${page}?t=<TEAM>&p=<PROJECT>${build ? '&b=<BUILD>' : ''}`
   );
 }
 
@@ -466,11 +469,6 @@ function stripTurboSnapDiagnostic(screen: string): string {
 }
 
 /* ========================================================================== */
-
-/** One line with its colour taken off, for the three classes that read a line's words. */
-function visible(line: string): string {
-  return line.replace(new RegExp(`${ESCAPE}\\[[0-9;?]*[A-Za-z]`, 'g'), '');
-}
 
 /** Read the whole of stdin, for `sherlo mask`. */
 function readStdin(): string {

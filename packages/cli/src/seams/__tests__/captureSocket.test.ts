@@ -12,7 +12,7 @@
 import * as http from 'http';
 import type { AddressInfo } from 'net';
 import WebSocket, { WebSocketServer } from 'ws';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   attach,
   BUNDLER_STAMP,
@@ -20,9 +20,11 @@ import {
   PROTOCOL_VERSION,
 } from '../../../../react-native-storybook/metro/sherloLine';
 import type { WebSocketServerClass } from '../../../../react-native-storybook/metro/sherloLine';
+import { endingFor } from '../../commands/capture/capture';
 import { renderCapturedStory, type CapturedStory } from '../../render/capturedStory';
 import { STABILIZATION_SETTINGS } from '../bundlerLine';
-import { liveCaptureSocket } from '../captureSocket';
+import { liveCaptureSocket, type CaptureResult } from '../captureSocket';
+import { installDeviceState, posedDeviceState } from '../deviceState';
 
 const STORY_A = 'components-button--primary';
 const STORY_B = 'components-avatar--basic';
@@ -68,19 +70,43 @@ function answerThePlainGet(request: http.IncomingMessage, response: http.ServerR
   response.end(JSON.stringify({ protocolVersion: PROTOCOL_VERSION }));
 }
 
-/** Close a server the way a bundler going away does: every socket and request cut. */
-function closeServer(server: http.Server): Promise<void> {
-  return new Promise<void>((closed) => {
+/** How long the line holds a tool that asks while no app has waited: short, so no-app comes at once. */
+const APP_HOLD_MS = 300;
+
+/** How long a relay may take to close before the test says which relay hung, not the hook. */
+const CLOSE_LIMIT_MS = 3000;
+
+/**
+ * Close a server the way a bundler going away does: every socket and request cut. An upgraded
+ * socket is no longer the HTTP server's, so the line's own clients are cut one by one first.
+ */
+function closeServer(server: http.Server, line: WebSocketServer): Promise<void> {
+  const closing = new Promise<void>((closed) => {
+    line.clients.forEach((client) => client.terminate());
     (server as { closeAllConnections?: () => void }).closeAllConnections?.();
     server.close(() => closed());
   });
+  const tooLate = new Promise<void>((_, hung) => {
+    setTimeout(
+      () => hung(new Error('the capture relay did not close in ' + CLOSE_LIMIT_MS + ' ms')),
+      CLOSE_LIMIT_MS
+    ).unref();
+  });
+  return Promise.race([closing, tooLate]);
 }
 
 /** A bundler with the SDK's line on it, and an app that said hello on the line. */
 async function startRelay(): Promise<RunningRelay> {
   const server = http.createServer(answerThePlainGet);
   // `ws` types its classes more strictly than the line's own narrow view of the one it uses.
-  attach(server, WebSocketServer as unknown as WebSocketServerClass);
+  let line!: WebSocketServer;
+  class RememberedLine extends WebSocketServer {
+    constructor(...args: ConstructorParameters<typeof WebSocketServer>) {
+      super(...args);
+      line = this;
+    }
+  }
+  attach(server, RememberedLine as unknown as WebSocketServerClass, { appHoldMs: APP_HOLD_MS });
   await new Promise<void>((listening) => server.listen(0, '127.0.0.1', listening));
   const port = (server.address() as AddressInfo).port;
 
@@ -91,7 +117,7 @@ async function startRelay(): Promise<RunningRelay> {
     app,
     close: () => {
       app.socket.terminate();
-      return closeServer(server);
+      return closeServer(server, line);
     },
   };
 }
@@ -165,7 +191,7 @@ async function portWithNothingOnIt(): Promise<number> {
 async function aCapture(
   r: RunningRelay,
   { askedFor, stories, recorded }: { askedFor: string; stories: string[]; recorded: unknown }
-): Promise<unknown> {
+): Promise<CaptureResult> {
   const appWaits = appReports(r, { mode: 'testing', stories, answer: null });
   await letTheRequestLand();
 
@@ -237,8 +263,14 @@ describe('the bundler relays the capture between the command and the app, and ho
 
 describe("the app's answer, read into this seam's own endings", () => {
   const running: RunningRelay[] = [];
+  // A capture that finds no app reads the phone: these cases have none unless they install one.
+  let uninstallDevice: () => void = () => {};
+  beforeEach(() => {
+    uninstallDevice = installDeviceState(posedDeviceState());
+  });
 
   afterEach(async () => {
+    uninstallDevice();
     while (running.length) await running.pop()!.close();
   });
 
@@ -274,13 +306,14 @@ describe("the app's answer, read into this seam's own endings", () => {
 
   it('a story on an app running old code is refused with how to load the current code', async () => {
     const r = await relay();
-    // The app runs the code built into it: its wait carries no stamp.
+    // The app runs code an earlier bundler served: its wait carries that bundler's stamp.
     r.app.socket.send(
       JSON.stringify({
         action: 'waitForACapture',
         mode: 'testing',
         stories: [STORY_A],
         answer: null,
+        codeStamp: 'an-earlier-bundler',
       })
     );
     await letTheRequestLand();
@@ -295,6 +328,48 @@ describe("the app's answer, read into this seam's own endings", () => {
     const screen = renderCapturedStory({ ...answer, port: r.port } as CapturedStory).join('\n');
     expect(screen).toContain('choose Reload');
     expect(screen).not.toContain('no Sherlo app is attached');
+  });
+
+  it('a capture that finds no app, on a bundler port the app does not ask, names the port the app asks and the command that points it at the bundler', async () => {
+    const r = await relay();
+    // The app found nothing on the port it asks, so it runs the code built into it: an old stamp.
+    r.app.socket.send(
+      JSON.stringify({
+        action: 'waitForACapture',
+        mode: 'testing',
+        stories: [STORY_A],
+        answer: null,
+        codeStamp: 'the-code-built-into-the-app',
+      })
+    );
+    await letTheRequestLand();
+    // An iOS simulator app with no saved bundler location: it asks 8081, not the relay's port.
+    uninstallDevice();
+    uninstallDevice = installDeviceState({
+      ...posedDeviceState(),
+      sceneTarget: async () => ({
+        device: { platform: 'ios', udid: 'UDID-1' },
+        app: { id: 'com.example.chat' },
+      }),
+      run: async (_tool, args) => {
+        if (args.includes('RCT_jsLocation')) throw new Error('The default pair does not exist');
+        return args.includes('get_app_container') ? '/apps/Chat.app\n' : '';
+      },
+    });
+
+    const answer = await liveCaptureSocket.captureStory({
+      storyId: STORY_A,
+      port: r.port,
+      settings: STABILIZATION_SETTINGS,
+    });
+
+    expect(answer).toMatchObject({ kind: 'no-app', appAsks: { platform: 'ios', port: 8081 } });
+    const screen = renderCapturedStory({ ...answer, port: r.port } as CapturedStory).join('\n');
+    expect(screen).toContain(`The app asks for its bundler on port 8081, not ${r.port}`);
+    expect(screen).toContain(
+      `xcrun simctl spawn UDID-1 defaults write com.example.chat RCT_jsLocation localhost:${r.port}`
+    );
+    expect(screen).not.toContain('choose Reload');
   });
 
   it('the stories the app really has come back when it does not have the one asked for', async () => {
@@ -655,6 +730,22 @@ describe("the app's answer, read into this seam's own endings", () => {
     expect(answer).toMatchObject({ settled: 'timed-out', changing: ['Image', 'Text'] });
   });
 
+  it('a story that never settles keeps the requests no mock answered', async () => {
+    const r = await relay();
+    const unanswered = [{ method: 'GET', url: 'https://cdn.example.com/intro.mp4' }];
+
+    const answer = await aCapture(r, {
+      askedFor: STORY_A,
+      stories: [STORY_A],
+      recorded: { ...ANSWER_A, settled: 'timed-out', changing: ['IntroVideo'], unanswered },
+    });
+
+    expect(answer).toMatchObject({ settled: 'timed-out', unanswered });
+    // The screen lists each one, never a bare count.
+    const screen = renderCapturedStory(endingFor(answer, { storyId: STORY_A, port: r.port }));
+    expect(screen.join('\n')).toContain('GET https://cdn.example.com/intro.mp4');
+  });
+
   it("an answer carries the app's own modules that ran as real code and the requests no mock answered", async () => {
     const r = await relay();
 
@@ -810,8 +901,7 @@ describe("the app's own log lines, drained from its live feed once the answer is
       expect(answer).toMatchObject({ kind: 'captured', storyId: STORY_A });
       expect(answer).not.toHaveProperty('logs');
     } finally {
-      sockets.clients.forEach((socket) => socket.terminate());
-      await closeServer(server);
+      await closeServer(server, sockets);
     }
   });
 });

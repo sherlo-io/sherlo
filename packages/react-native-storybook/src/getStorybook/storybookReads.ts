@@ -10,6 +10,8 @@
  * - Storybook's channel, the line its own events travel on.
  * - Whether Storybook has picked a story of its own yet, and whether it has named the one it looks
  *   for (`sherlo open` waits for that pick, ../openStoryChannel).
+ * - The way Storybook's view is handed the story it draws, which a capture uses to take the story
+ *   off it, so the story is drawn again from nothing (./getStorybook).
  *
  * No read here throws. A read that finds nothing answers with an error that names the Storybook
  * version, so whoever asked can say so instead of crashing the app.
@@ -71,6 +73,26 @@ export function readWhetherStorybookNamedItsStory(view: unknown): StorybookRead<
       | undefined;
     if (!selectionStore) return NOT_THERE;
     return Boolean(selectionStore.selectionSpecifier);
+  });
+}
+
+/**
+ * Take the story off Storybook's view: the view draws no story until Storybook hands it one again,
+ * and the story it is handed next mounts from nothing, even when it is the same story.
+ *
+ * Storybook's `_setStory` sets the story it draws first, and only then keeps the story's id in the
+ * storage it was handed, if any: with no story that keeping throws, after the story is off the view.
+ */
+export function clearStorybooksStory(view: unknown): StorybookRead<true> {
+  return guardedRead('way Storybook hands its view a story', () => {
+    const storybookView = view as { _setStory?: unknown } | undefined;
+    if (typeof storybookView?._setStory !== 'function') return NOT_THERE;
+    try {
+      storybookView._setStory(null);
+    } catch (_keepingThePickThrew) {
+      // The story is already off the view: only Storybook's keeping of the id of no story threw.
+    }
+    return true;
   });
 }
 

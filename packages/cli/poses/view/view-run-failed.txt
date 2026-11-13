@@ -1,0 +1,17 @@
+[32mTest 8[39m · failed
+[31m✖[39m Running Test 8 failed
+
+Test 8 ended as "error".
+
+[2m──────────[22m
+
+Need help?
+➜ Discord: [36mhttps://discord.gg/G7eqTBkWZt[39m
+➜ Email: [36mcontact@sherlo.io[39m
+
+It failed at the capture stage on iphone.15 (iOS 17): the simulator stopped answering while Feed - Home was open
+Sherlo retried it and it failed again.
+If you write to us, quote [36mrun-7f3a9c-ios[39m
+
+
+[exit 2]

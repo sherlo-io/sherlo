@@ -150,3 +150,27 @@ describe('ABI preflight – accept', () => {
     expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).not.toThrow();
   });
 });
+
+describe('native module preflight', () => {
+  it('a build without the native module names the configuration and the pod install command that links it', () => {
+    const binaries: BinariesInfo = {
+      ios: {
+        hash: 'def456',
+        buildType: 'preview',
+        fileName: 'app.ipa',
+        s3Key: 'builds/def456/app.ipa',
+      },
+    };
+
+    let message = '';
+    try {
+      validateBinariesInfo({ binariesInfo: binaries, command, iosConfiguration: 'UAT.RELEASE' });
+    } catch (error: any) {
+      message = error.message;
+    }
+
+    expect(message).toContain('Sherlo Native Module is missing');
+    expect(message).toContain('The iOS app was built with the "UAT.RELEASE" configuration.');
+    expect(message).toContain('SHERLO_BUILD=storybook pod install');
+  });
+});

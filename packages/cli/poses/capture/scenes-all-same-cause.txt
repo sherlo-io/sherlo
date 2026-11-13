@@ -6,6 +6,10 @@
 [32m✔[39m  [1mkindred--profile-own[22m captured[2m · launched in 1.4s · ready in 2.1s · settled in <SETTLED>[22m
 [32m✔[39m  [1mkindred--discover-tab[22m captured[2m · launched in 1.5s · ready in 2.6s · settled in <SETTLED>[22m
 [33m◦[39m  [1mkindred--settings[22m never settled - still changing: SyncSpinner[2m · ready in 2.0s[22m
+
+  SyncSpinner kept moving. A playing video or animation never lets a screen rest.
+  Fake the module that draws it in the mocks of the scene, and a still frame stands in.
+
 [32m✔[39m  [1mkindred--sign-in[22m captured[2m · launched in 1.3s · ready in 1.8s · settled in <SETTLED>[22m
 
 6 scenes: 3 captured, 1 never settled, 2 never reached, 0 failed

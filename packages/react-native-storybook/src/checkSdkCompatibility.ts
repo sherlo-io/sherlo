@@ -74,7 +74,7 @@ function isVersionCompatible(version: string, minVersion: string): boolean {
   return compareCoreVersions(version, minVersion) >= 0;
 }
 
-function compareCoreVersions(version: string, minVersion: string): number {
+export function compareCoreVersions(version: string, minVersion: string): number {
   const parse = (v: string) => v.split(/[-+]/)[0].split('.').map(Number);
 
   const vParts = parse(version);

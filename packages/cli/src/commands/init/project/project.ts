@@ -21,15 +21,20 @@ import readConfig from '../config/readConfig';
 import { THIS_COMMAND } from '../constants';
 import { renderCheckLine, renderSectionTitle } from '../../../render/initLines';
 import { printLines } from '../helpers';
-import askWhichProject from './askWhichProject';
+import askWhichProject, { printAddTokenToCi } from './askWhichProject';
 import checkGivenProject from './checkGivenProject';
 import resolveSetupLogin from './resolveSetupLogin';
 import { ProjectAddress, asConfigProject } from './projectAddress';
 
-async function project({
-  token,
-  [PROJECT_OPTION]: projectFlag,
-}: Options<THIS_COMMAND>): Promise<string> {
+/**
+ * `beforeAnythingIsMade` is called with the team as soon as it is known - or with none, when the
+ * person is in no team and one is about to be made - and before setup makes a team or a project.
+ * It throws to stop the run there.
+ */
+async function project(
+  { token, [PROJECT_OPTION]: projectFlag }: Options<THIS_COMMAND>,
+  beforeAnythingIsMade: (teamId: string | undefined) => Promise<void> = async () => {}
+): Promise<string> {
   printLines(renderSectionTitle('🎯 Project'));
 
   console.log('Checking who is setting up and which project this app belongs to.');
@@ -39,6 +44,8 @@ async function project({
     const { teamId, projectIndex } = getTokenParts(token);
     const projectFromToken = asConfigProject({ teamId, projectIndex });
 
+    await beforeAnythingIsMade(teamId);
+
     printLines([
       renderCheckLine({
         type: 'success',
@@ -47,7 +54,7 @@ async function project({
       }),
     ]);
     console.log('  The token is not written to sherlo.config.json.');
-    console.log('  Add it to your CI as the SHERLO_TOKEN secret.');
+    printAddTokenToCi();
 
     return projectFromToken;
   }
@@ -64,14 +71,19 @@ async function project({
   const login = await resolveSetupLogin();
 
   if (projectFlag !== undefined && givenProject) {
+    await beforeAnythingIsMade(givenProject.teamId);
     await checkGivenProject({ givenProject, projectAsGiven: projectFlag, login });
 
     return asConfigProject(givenProject);
   }
 
-  if (configProject) return asConfigProject(configProject);
+  if (configProject) {
+    await beforeAnythingIsMade(configProject.teamId);
 
-  return asConfigProject(await askWhichProject(login));
+    return asConfigProject(configProject);
+  }
+
+  return asConfigProject(await askWhichProject(login, beforeAnythingIsMade));
 }
 
 export default project;

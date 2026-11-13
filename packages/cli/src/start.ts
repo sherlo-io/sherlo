@@ -13,9 +13,10 @@ import {
   teamCreate,
   teamList,
   capture,
-  captureReport,
   coverage,
   open,
+  preview,
+  suggest,
   test,
   view,
 } from './commands';
@@ -30,6 +31,7 @@ import { CACHE_DIR_ENV_VAR } from './commands/test/appBuild/cacheFolder';
 import {
   CONTACT_EMAIL,
   DISCORD_URL,
+  ALL_STORIES_OPTION,
   ANDROID_OPTION,
   BASELINE_OPTION,
   CONFIG_OPTION,
@@ -65,20 +67,18 @@ import {
   VIEW_COMMAND,
   OPEN_COMMAND,
   CAPTURE_COMMAND,
-  CAPTURE_REPORT_COMMAND,
+  PREVIEW_COMMAND,
+  SUGGEST_COMMAND,
+  ALL_OPTION,
+  DIR_OPTION,
+  FACTS_OPTION,
   COVERAGE_COMMAND,
   JSON_OPTION,
   LOGS_OPTION,
-  PNG_OPTION,
   PROPS_OPTION,
   STORY_OPTION,
-  SCENE_OPTION,
-  ALL_SCENES_OPTION,
-  STOP_ON_REPEAT_OPTION,
-  DISCOVER_OPTION,
   PORT_OPTION,
   TIMEOUT_OPTION,
-  DEFAULT_BUNDLER_PORT,
   WAIT_OPTION,
   WAIT_TIMEOUT_OPTION,
   WRITE_OPTION,
@@ -89,7 +89,15 @@ import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, withCommandTimeout } from './helpers';
+import { LOCAL_COMMAND_OPTION_DEFINITION, SUGGEST_DESCRIPTION } from './helpers/localCommandHelp';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
+import { captureCommandOptions } from './commands/capture';
+import { FIRST_LOOK_OPTION_DEFINITION } from './commands/test/firstLook';
+import {
+  decideScenesBeforeCommands,
+  openSceneOptions,
+  SCENE_OPTION_DEFINITION,
+} from './helpers/sceneOptions';
 import {
   refuseBinaryPathFlags,
   refuseTokenFlag,
@@ -109,6 +117,8 @@ process.removeAllListeners('warning');
 async function start() {
   try {
     reporting.init();
+
+    await decideScenesBeforeCommands(process.argv);
 
     const program = new Command();
 
@@ -131,7 +141,8 @@ async function start() {
     addOpenCommand(program);
     addCaptureCommand(program);
     addCoverageCommand(program);
-    addCaptureReportCommand(program);
+    addSuggestCommand(program);
+    addPreviewCommand(program);
     addDevtoolsCommands(program);
 
     if (process.argv.length === 2) {
@@ -207,11 +218,12 @@ const COMMAND_DESCRIPTION = {
     `  nowhere. \`--${JSON_OPTION}\` prints the whole record for a program to read, which\n` +
     `  includes Sherlo's log from the app; \`--${LOGS_OPTION}\` prints that log on the screen too.\n` +
     '  Exit 0 when a record came back, 1 when it did not.',
-  [CAPTURE_REPORT_COMMAND]:
+  [PREVIEW_COMMAND]:
     'Open the review page over the captures kept on this computer, and keep it up to date.\n' +
     '  Serves the page from your machine: no login, no network, nothing leaves it.\n' +
     `  \`--${JSON_OPTION}\` prints the same facts once as data for a program to read, and\n` +
     '  opens nothing.',
+  [SUGGEST_COMMAND]: SUGGEST_DESCRIPTION,
   [COVERAGE_COMMAND]:
     'List the components no story draws, the most imported first.\n' +
     '  Reads your source files: no bundler, no phone, no login. A component only a story\n' +
@@ -337,40 +349,8 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
     `--${STORY_OPTION} <id>`,
     'The story to put on screen, by the id Storybook gives it (e.g. foundation-typography--scales)',
   ],
-  [SCENE_OPTION]: [
-    `--${SCENE_OPTION} <id>`,
-    'The scene to boot the app fresh on, by its id (e.g. chat--conversation) - instead of --story',
-  ],
-  [ALL_SCENES_OPTION]: ['--all-scenes', 'Capture every scene the app declares, each one kept'],
-  [STOP_ON_REPEAT_OPTION]: [
-    '--stop-on-repeat',
-    'Stop when 2 scenes in a row end for one cause, instead of warning once and carrying on. Needs --all-scenes.',
-  ],
-  [DISCOVER_OPTION]: [
-    `--${DISCOVER_OPTION}`,
-    'List the requests the scene makes that no mock answers, as rules to paste into the scene file. Writes no picture. Needs --scene.',
-  ],
-  [PORT_OPTION]: [
-    `--${PORT_OPTION} <port>`,
-    `Where the bundler is listening (default: ${DEFAULT_BUNDLER_PORT})`,
-  ],
-  [JSON_OPTION]: [`--${JSON_OPTION}`, 'Print the whole record as JSON instead of a screen'],
-  [LOGS_OPTION]: [
-    `--${LOGS_OPTION}`,
-    "Print Sherlo's latest log lines from the app not shown before (at most 1000)",
-  ],
-  [PNG_OPTION]: [
-    `--${PNG_OPTION} <path>`,
-    'Save the screen as Sherlo captured it to this path (a PNG file)',
-  ],
-  [PROPS_OPTION]: [
-    `--${PROPS_OPTION}`,
-    'Also read the story files and list the prop values no story file sets',
-  ],
-  [TIMEOUT_OPTION]: [
-    `--${TIMEOUT_OPTION} <seconds>`,
-    `How long \`--${WAIT_OPTION}\` waits for the app to report the story (default: 30)`,
-  ],
+  ...SCENE_OPTION_DEFINITION,
+  ...LOCAL_COMMAND_OPTION_DEFINITION,
   /*
    * ONE ENTRY FOR ONE FLAG. `--wait` is the same word on `test`, `view` and `open`, so it is one
    * key here whatever each command does with it - the table is keyed by the flag a person types.
@@ -384,10 +364,7 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       '  0 = all stories passed, 1 = stories need review,\n' +
       '  2 = the app build or the test failed, 3 = stopped waiting, 130 = interrupted',
   ],
-  [WAIT_TIMEOUT_OPTION]: [
-    '--wait-timeout <minutes>',
-    'Max minutes to wait for results (default: 45). Exit code 3 on timeout.',
-  ],
+  ...FIRST_LOOK_OPTION_DEFINITION,
   [PLATFORM_OPTION]: [
     '--platform <platform>',
     'Build and test one platform only (android or ios) - one job of a CI run split across ' +
@@ -425,7 +402,7 @@ function addOpenCommand(program: Command) {
   addCommand({
     program,
     command: OPEN_COMMAND,
-    options: [STORY_OPTION, SCENE_OPTION, WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
+    options: [STORY_OPTION, ...openSceneOptions(), WAIT_OPTION, TIMEOUT_OPTION, PORT_OPTION],
     action: open,
     withTimeout: false,
   });
@@ -437,17 +414,7 @@ function addCaptureCommand(program: Command) {
   addCommand({
     program,
     command: CAPTURE_COMMAND,
-    options: [
-      STORY_OPTION,
-      SCENE_OPTION,
-      ALL_SCENES_OPTION,
-      STOP_ON_REPEAT_OPTION,
-      DISCOVER_OPTION,
-      PNG_OPTION,
-      PORT_OPTION,
-      JSON_OPTION,
-      LOGS_OPTION,
-    ],
+    options: captureCommandOptions(),
     action: capture,
     withTimeout: false,
   });
@@ -455,13 +422,24 @@ function addCaptureCommand(program: Command) {
 
 // Reads only the captures kept in the project folder (../seams/localCaptures) and serves them to
 // the person's own browser; `withTimeout: false` because it runs until the person stops it.
-function addCaptureReportCommand(program: Command) {
+function addPreviewCommand(program: Command) {
   addCommand({
     program,
-    command: CAPTURE_REPORT_COMMAND,
+    command: PREVIEW_COMMAND,
     options: [JSON_OPTION],
-    action: captureReport,
+    action: preview,
     withTimeout: false,
+  });
+}
+
+// Ranks what to test next from the app's source files and its git history (../seams/coverageScan
+// reads the files).
+function addSuggestCommand(program: Command) {
+  addCommand({
+    program,
+    command: SUGGEST_COMMAND,
+    options: [DIR_OPTION, ALL_OPTION, FACTS_OPTION, JSON_OPTION],
+    action: suggest,
   });
 }
 
@@ -538,12 +516,16 @@ function addTestCommand(program: Command) {
       EMIT_BUNDLE_DIR_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
+      ALL_STORIES_OPTION,
       PLATFORM_OPTION,
       RUN_ID_OPTION,
       BUILD_CACHE_OPTION,
       PARALLEL_BUILDS_OPTION,
       ...devtoolsOptions,
     ],
+    // `withTimeout: false`: the first build of an app can run past the command timeout, and it ends
+    // on its own; `--wait-timeout` bounds the wait the caller asked for.
+    withTimeout: false,
     // THE INTRO COMES FIRST, as on `sherlo init`: a refused flag or a job with nothing to test is
     // still a `sherlo test` screen, opening with `Testing your app...` - under the logo in a
     // terminal, and on the first line of a log.
@@ -605,12 +587,13 @@ function addViewCommand(program: Command) {
     .command(`${VIEW_COMMAND} [build]`)
     .description(COMMAND_DESCRIPTION[VIEW_COMMAND]);
 
-  addOptionsToCommand(commandInstance, [
-    CONFIG_OPTION,
-    PROJECT_ROOT_OPTION,
-    WAIT_OPTION,
-    WAIT_TIMEOUT_OPTION,
-  ]);
+  addOptionsToCommand(commandInstance, [CONFIG_OPTION, PROJECT_ROOT_OPTION, WAIT_OPTION]);
+
+  // Its own help: unlike a test, a view does not size the wait by pictures, so it waits 45 minutes.
+  commandInstance.option(
+    OPTION_DEFINITION[WAIT_TIMEOUT_OPTION][0],
+    'Max minutes to wait for results (default: 45). Exit code 3 on timeout.'
+  );
 
   // `--json` prints one read as a record for a program. With `--wait` it waits first and prints the
   // record once the wait ends, the way `eas build --json --wait` does (./commands/view).

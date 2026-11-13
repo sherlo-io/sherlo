@@ -3,8 +3,10 @@
 // writes, and the bundler's scan record (src/mocking/declaredImports.ts) names each mocked
 // module's stand-in. That the module runs before the app's first one is
 // bundle/earlyScene.test.ts's to show.
+import * as fs from 'fs';
 import * as http from 'http';
 import type { AddressInfo } from 'net';
+import * as path from 'path';
 
 const launch = vi.hoisted(() => ({
   mode: 'testing',
@@ -254,5 +256,37 @@ describe('a launch on a scene the bundle does not hold', () => {
     expect(launch.loadFile).not.toHaveBeenCalled();
     await expect(bundler.instruction).resolves.toEqual({});
     await expect(reply).resolves.toEqual({ kind: 'no-such-story', known: [SCENE_ID] });
+  });
+});
+
+describe("the SDK's main entry and its scenes entry", () => {
+  it('the main entry exports no scene types or preconditions; the scenes entry does', async () => {
+    const mainEntry = await import('../index');
+    const scenesEntry = await import('../scenes');
+    const mainEntrySource = fs.readFileSync(path.join(__dirname, '../index.ts'), 'utf8');
+    const sceneTypeNames = [
+      'Given',
+      'Precondition',
+      'PreconditionParts',
+      'LongPressStep',
+      'OpenStep',
+      'PlayStep',
+      'ReadyStep',
+      'SceneDevice',
+      'SceneMember',
+      'ScenePermission',
+      'SwipeStep',
+      'TapStep',
+      'TapTarget',
+      'TypeStep',
+    ];
+
+    for (const name of ['freshInstall', 'given', 'signedOut']) {
+      expect(Object.keys(mainEntry), name).not.toContain(name);
+      expect(Object.keys(scenesEntry), name).toContain(name);
+    }
+    for (const name of sceneTypeNames) {
+      expect(mainEntrySource, name).not.toMatch(new RegExp('\\b' + name + '\\b'));
+    }
   });
 });

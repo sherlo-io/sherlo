@@ -16,7 +16,6 @@ import open from '../../commands/open/open';
 import { SCENE_OPTION } from '../../constants';
 import { captureTranscript } from '../../helpers/transcriptSink';
 import { installCaptureSocket } from '../captureSocket';
-import type { CaptureSocket } from '../captureSocket';
 import { installLetterbox } from '../letterbox';
 import type { Letterbox } from '../letterbox';
 import {
@@ -191,7 +190,7 @@ describe('a local capture leaves the device clean', () => {
   it('a failed capture puts everything back', async () => {
     uninstall();
     uninstall = installDeviceState(recordingDevice(ANDROID));
-    const socket: CaptureSocket = {
+    const socket: Parameters<typeof installCaptureSocket>[0] = {
       captureStory: async () => {
         throw new Error('a scene capture asked about a story');
       },

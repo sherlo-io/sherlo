@@ -3,11 +3,12 @@
 [2mThis app has:[22m
   foundation-typography--scales
   foundation-colour--palette
+  controls-input--empty
   controls-button--primary
-  controls-button--disabled
 [2m  ... and 2 more[22m
+[2mEvery id: npx sherlo capture --list[22m
 
-[2mKept in .sherlo/captures as foundation-typography--scale[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as foundation-typography--scale[22m
 
 
 [exit 1]

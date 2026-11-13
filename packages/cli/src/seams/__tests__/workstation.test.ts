@@ -10,9 +10,13 @@
  * reached the dependencies step.
  */
 import { EventEmitter } from 'node:events';
+import { defaultAgents } from 'agent-cli-detector';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ansiEscapes from 'ansi-escapes';
 import waitForEnterPress from '../../commands/init/helpers/waitForEnterPress';
+import { forgetScenesFlag } from '../../helpers/scenesFlag';
+import { installSavedLogins, liveSavedLogins } from '../savedLogins';
+import { installServerCalls, liveServerCalls } from '../serverCalls';
 import { installWorkstation, liveWorkstation, posedWorkstation } from '../workstation';
 
 const { shellRuns } = vi.hoisted(() => ({
@@ -79,6 +83,48 @@ describe('the live pod install', () => {
   });
 });
 
+describe('the scenes flag at the workstation', () => {
+  it('the live workstation answers the scenes flag the CLI read for this run', async () => {
+    const restores = [
+      installServerCalls({
+        ...liveServerCalls,
+        listTeams: async () => ({
+          teams: [
+            {
+              id: 'k3j9x2ab',
+              name: 'T',
+              projectCount: 1,
+              role: null,
+              featureFlags: { scenes: true },
+            },
+          ],
+        }),
+      }),
+      installSavedLogins({ ...liveSavedLogins, read: () => ({ token: 't', email: 'a@b.c' }) }),
+    ];
+    forgetScenesFlag();
+    expect(liveWorkstation.scenesFlag()).toBeUndefined();
+
+    await liveWorkstation.askScenesFlag('k3j9x2ab/1');
+    expect(liveWorkstation.scenesFlag()).toBe('on');
+
+    await liveWorkstation.askScenesFlag('zz9999zz/1');
+    expect(liveWorkstation.scenesFlag()).toBe('off');
+
+    // A posed run asks nothing and answers what its pose states.
+    const posed = posedWorkstation({
+      install: { package: '@sherlo/react-native-storybook@2.0.2' },
+      enter: 'pressed',
+      scenes: 'on',
+    });
+    await posed.askScenesFlag('zz9999zz/1');
+    expect(posed.scenesFlag()).toBe('on');
+
+    restores.forEach((restore) => restore());
+    forgetScenesFlag();
+  });
+});
+
 describe('the posed workstation', () => {
   it('a pose that answers pod install is not refused when the run stopped before it', () => {
     const posed = posedWorkstation({
@@ -106,6 +152,40 @@ describe('the posed workstation', () => {
     });
 
     expect(posed.refusals()).toEqual([expect.objectContaining({ call: 'installPods' })]);
+  });
+});
+
+describe('the live keyboard', () => {
+  // A terminal, with no CI set and no agent's marker: the machine running this test may itself be
+  // inside an agent or a CI job, so both start from a bare environment.
+  const inAPersonsTerminal = () => {
+    for (const agent of defaultAgents) {
+      for (const signal of agent.env ?? []) vi.stubEnv(signal.name, undefined);
+      for (const sessionVariable of agent.sessionEnv ?? []) vi.stubEnv(sessionVariable, undefined);
+    }
+    vi.stubEnv('CI', undefined);
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+  };
+
+  const ambientIsTTY = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY');
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    if (ambientIsTTY) Object.defineProperty(process.stdin, 'isTTY', ambientIsTTY);
+    else delete (process.stdin as { isTTY?: boolean }).isTTY;
+  });
+
+  it('a terminal driven by a coding agent counts as nobody at the keyboard', () => {
+    inAPersonsTerminal();
+    vi.stubEnv('CLAUDECODE', '1');
+
+    expect(liveWorkstation.somebodyIsAtTheKeyboard()).toBe(false);
+  });
+
+  it("a person's terminal with no agent marker still counts as somebody at the keyboard", () => {
+    inAPersonsTerminal();
+
+    expect(liveWorkstation.somebodyIsAtTheKeyboard()).toBe(true);
   });
 });
 

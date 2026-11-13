@@ -57,6 +57,8 @@ export function lineAfterScene(
       ...(answer.changing && { changing: answer.changing }),
       ...(answer.ready !== undefined && { ready: answer.ready }),
       refused: answer.unanswered?.length ?? 0,
+      ...(answer.kind === 'never-settled' &&
+        answer.unanswered && { refusedRequests: answer.unanswered }),
       sameCause,
     },
     streak: next.streak,

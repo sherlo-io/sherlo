@@ -13,6 +13,11 @@ export const ESCAPE = '\\u001b';
 /** A whole colour escape, from its opening byte to the letter that closes it (`ESC[34m`). */
 export const COLOR_ESCAPE = `${ESCAPE}\\[[0-9;?]*[A-Za-z]`;
 
+/** One line with its colour taken off, for the classes that read a line's words. */
+export function visible(line: string): string {
+  return line.replace(new RegExp(COLOR_ESCAPE, 'g'), '');
+}
+
 /**
  * `\b`, made to see past a colour escape.
  *

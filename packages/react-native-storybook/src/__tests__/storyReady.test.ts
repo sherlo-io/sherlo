@@ -52,6 +52,8 @@ import {
 } from '../getStorybook/storyErrorRegistry';
 import { activateSceneMocks } from '../getStorybook/storyMockActivation';
 import { rememberStoryOfTheApp } from '../componentNames';
+import RunnerBridge from '../helpers/RunnerBridge';
+import { forgetNeverSettled, neverSettledOf } from '../neverSettled';
 import createMockable from '../mocking/createMockable';
 import { __resetRequestsInFlightForTests, requestStarted } from '../mocking/requestsInFlight';
 import { clearMocks, __resetShimmedKeysForTests } from '../mocking/registry';
@@ -314,5 +316,25 @@ describe('a scene that names nothing', () => {
 
     expect(readVisibility).not.toHaveBeenCalled();
     expect(nativeStabilize).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a scene whose stillness check never ends', () => {
+  it('answers as one that never settled within a bounded time, so its snapshot request goes out', async () => {
+    // The native stillness check never answers: a screen that keeps redrawing.
+    nativeStabilize.mockImplementationOnce(() => new Promise<boolean>(() => {}));
+    let answer: boolean | undefined;
+    void stabilize().then((settled) => (answer = settled));
+
+    await vi.advanceTimersByTimeAsync(34_000);
+    expect(answer).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(answer).toBe(false);
+    expect(neverSettledOf(SCENE_ID)).toEqual({ route: [], changing: [], unfocused: [] });
+    expect(RunnerBridge.log).toHaveBeenCalledWith('scene stillness check capped', {
+      storyId: SCENE_ID,
+    });
+    forgetNeverSettled(SCENE_ID);
   });
 });

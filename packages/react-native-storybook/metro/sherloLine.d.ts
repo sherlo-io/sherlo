@@ -45,8 +45,16 @@ export type WaitForACaptureMessage = {
   codeStamp?: string;
 } & Parameters<CaptureTransport['waitForACapture']>[0];
 
+/**
+ * What the capture relay hands an app: the core's instruction, with `startFresh` on a story the same
+ * JavaScript was last handed, which the app draws again from nothing before the core walks it.
+ */
+export type CaptureInstructionOfTheLine = CaptureInstruction & { startFresh?: boolean };
+
 /** The capture relay's answer to a WaitForACaptureMessage. */
-export type CaptureInstructionMessage = { action: 'captureInstruction' } & CaptureInstruction;
+export type CaptureInstructionMessage = {
+  action: 'captureInstruction';
+} & CaptureInstructionOfTheLine;
 
 /**
  * The app's JavaScript died as it started, before Sherlo's Storybook drew: what it threw. The
@@ -129,6 +137,11 @@ export type WhatIsOnScreenReply =
   | { kind: 'not-at-story-browser' }
   | { kind: 'showing'; storyId: string };
 
+/** Which story ids the app has (`sherlo capture --list`). */
+export type ListStoriesQuestion = { action: 'listStories' };
+
+export type ListStoriesReply = { kind: 'no-app' } | { kind: 'listed'; stories: string[] };
+
 /**
  * `sherlo capture`: walk this story with these numbers, and answer with its record. A scene
  * (`sherlo capture --scene`, `sherlo open --scene`) is asked by `sceneId` in place of `storyId`.
@@ -203,6 +216,7 @@ export type AskTheAppReply =
 export type Question =
   | OpenStoryQuestion
   | WhatIsOnScreenQuestion
+  | ListStoriesQuestion
   | CaptureStoryQuestion
   | ReadLogLinesQuestion
   | AskTheAppQuestion;
@@ -211,11 +225,13 @@ export type ReplyTo<AskedQuestion extends Question> = AskedQuestion extends Open
   ? OpenStoryReply
   : AskedQuestion extends WhatIsOnScreenQuestion
     ? WhatIsOnScreenReply
-    : AskedQuestion extends CaptureStoryQuestion
-      ? CaptureStoryReply
-      : AskedQuestion extends AskTheAppQuestion
-        ? AskTheAppReply
-        : ReadLogLinesReply;
+    : AskedQuestion extends ListStoriesQuestion
+      ? ListStoriesReply
+      : AskedQuestion extends CaptureStoryQuestion
+        ? CaptureStoryReply
+        : AskedQuestion extends AskTheAppQuestion
+          ? AskTheAppReply
+          : ReadLogLinesReply;
 
 /**
  * A question asked over a driver's own socket. `askId` is the driver's own name for it, said back
@@ -230,6 +246,7 @@ export type ReplyMessage = {
   reply:
     | OpenStoryReply
     | WhatIsOnScreenReply
+    | ListStoriesReply
     | CaptureStoryReply
     | OldCodeReply
     | ReadLogLinesReply

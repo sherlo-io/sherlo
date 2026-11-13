@@ -42,7 +42,9 @@ import {
   type BaseFingerprints,
 } from '../../helpers/fingerprint';
 import type { BaseFingerprintPreimage } from '../../helpers/fingerprint/baseFingerprint';
-import { parseBundleSidecar, sha256OfBuffer, sidecarFileName } from './bundleSidecar';
+import { digestDirectory } from '../../helpers/fingerprint/digestDirectory';
+import { sha256OfBuffer } from '../../helpers/sha256OfBuffer';
+import { parseBundleSidecar, sidecarFileName } from './bundleSidecar';
 
 export type RecordedBaseFingerprint = {
   hash: string;
@@ -55,25 +57,6 @@ export type RecordedBaseFingerprint = {
     digest: string;
   };
 };
-
-/**
- * Directory names skipped when digesting a native directory - build output and
- * caches that `@expo/fingerprint` skips too, plus `node_modules` (vouched for by
- * the dependency closure) and `.git`. A build machine has them, a checkout does
- * not, and neither is an input to the fingerprint.
- */
-const SKIPPED_DIRECTORY_NAMES = new Set([
-  'node_modules',
-  '.git',
-  'build',
-  '.cxx',
-  '.gradle',
-  'Pods',
-  'DerivedData',
-  'xcuserdata',
-]);
-
-const SKIPPED_FILE_NAMES = new Set(['.DS_Store']);
 
 /**
  * The app config files the resolved Expo config is evaluated from. Listed
@@ -164,33 +147,6 @@ function digestPath(absolutePath: string): string {
 
   if (stat.isDirectory()) return digestDirectory(absolutePath);
   return sha256OfBuffer(fs.readFileSync(absolutePath));
-}
-
-function digestDirectory(directory: string): string {
-  const hash = crypto.createHash('sha256');
-
-  function walk(dir: string, relativeDir: string): void {
-    const entries = fs
-      .readdirSync(dir, { withFileTypes: true })
-      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-
-    for (const entry of entries) {
-      const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) {
-        if (!SKIPPED_DIRECTORY_NAMES.has(entry.name)) {
-          walk(path.join(dir, entry.name), relativePath);
-        }
-        continue;
-      }
-      if (!entry.isFile() || SKIPPED_FILE_NAMES.has(entry.name)) continue;
-      hash.update(
-        `${relativePath}:${sha256OfBuffer(fs.readFileSync(path.join(dir, entry.name)))}\n`
-      );
-    }
-  }
-
-  walk(directory, '');
-  return hash.digest('hex');
 }
 
 // ---------------------------------------------------------------------------

@@ -69,6 +69,30 @@
           }
         }
       }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": {
+        "buildIndex": 13
+      },
+      "answer": {
+        "runStatus": "finished",
+        "viewStatusesCount": {
+          "approved": 0,
+          "noChanges": 44,
+          "reported": 0,
+          "unreviewed": 0
+        },
+        "diffScopeInfo": {
+          "capturedSnapshotCount": 0,
+          "inheritedSnapshotCount": 44,
+          "platforms": {
+            "android": {
+              "reason": "no change on this branch reaches any story"
+            }
+          }
+        }
+      }
     }
   ],
   "masks": {}

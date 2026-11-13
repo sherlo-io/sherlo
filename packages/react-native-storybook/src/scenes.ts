@@ -36,6 +36,7 @@ export type ReadyStep = { ready: string | ReadyRule };
 export type PlayStep = TapStep | LongPressStep | TypeStep | SwipeStep | OpenStep | ReadyStep;
 
 export type { SceneDevice, SceneMember, ScenePermission, ScenePhone } from './sceneDeviceTypes';
+export { freshInstall, given, signedOut } from './preconditions';
 export type { Given, Precondition, PreconditionParts } from './preconditions';
 
 /** One variant of one screen. */

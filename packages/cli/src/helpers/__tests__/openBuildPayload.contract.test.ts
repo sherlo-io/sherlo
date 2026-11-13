@@ -87,7 +87,9 @@ vi.mock('../handleClientError', () => ({ default: mocks.handleClientError }));
 vi.mock('../reporting', () => ({ default: mocks.reporting }));
 vi.mock('../logWarning', () => ({ default: mocks.logWarning }));
 vi.mock('../waitForBuildResult', () => ({ isServerBypassed: mocks.isServerBypassed }));
-vi.mock('../fingerprint', () => ({
+vi.mock('../fingerprint', async (importOriginal) => ({
+  defaultEmbeddedBundlePath: (await importOriginal<typeof import('../fingerprint')>())
+    .defaultEmbeddedBundlePath,
   registerBase: mocks.registerBase,
 }));
 // A whole-module factory REPLACES the module: an export missing here does not

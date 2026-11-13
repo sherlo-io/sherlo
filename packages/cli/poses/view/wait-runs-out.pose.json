@@ -22,6 +22,11 @@
       "call": "getBuildStatus",
       "with": { "buildIndex": 7 },
       "answer": { "runStatus": "inProgress", "status": "unreviewed" }
+    },
+    {
+      "call": "getBuildStatus",
+      "with": { "buildIndex": 7 },
+      "answer": { "runStatus": "inProgress", "status": "unreviewed" }
     }
   ],
   "masks": {}

@@ -19,7 +19,7 @@ Test 2      [32m✔[39m Started: all 5 stories on 1 device (Pixel 7)
                 Storefront/Checkout [2m(2 stories)[22m
 [33m! Branching is off: this project has no main branch.[39m
 [33m  Every build is treated as a main build, so each one captures every story.[39m
-[33m  Set the main branch in the project's settings: https://app.sherlo.io/project?t=tm000001&p=7[39m
+[33m  Set the main branch in the project's settings: https://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>[39m
             [32m✔[39m Finished in <DURATION>
 
 

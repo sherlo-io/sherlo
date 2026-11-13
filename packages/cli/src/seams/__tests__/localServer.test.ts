@@ -5,7 +5,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { liveLocalServer, posedLocalServer } from '../localServer';
 import type { RunningServer, Site } from '../localServer';
 
@@ -34,6 +34,14 @@ const site = (): Site => ({
   capturesFolder: path.join(folder, 'captures'),
   report: () => ({ captures: [] }),
 });
+
+/** Whether `promise` has settled by the time the event loop turns once. */
+function hasSettled(promise: Promise<void>): Promise<boolean> {
+  return Promise.race([
+    promise.then(() => true),
+    new Promise<boolean>((answer) => setImmediate(() => answer(false))),
+  ]);
+}
 
 async function get(route: string): Promise<{ status: number; body: string }> {
   running = await liveLocalServer.serve(site());
@@ -84,6 +92,31 @@ describe('the local server', () => {
     await expect(running.stopped).resolves.toBeUndefined();
   });
 
+  it('`opened` settles when the page reads its report a second time, and not after the first', async () => {
+    running = await liveLocalServer.serve(site());
+
+    await fetch(`${running.address}/data/report.json`);
+    await fetch(`${running.address}/data/pictures/one.png`);
+    expect(await hasSettled(running.opened)).toBe(false);
+
+    await fetch(`${running.address}/data/report.json`);
+    expect(await hasSettled(running.opened)).toBe(true);
+  });
+
+  it('`opened` settles after a minute when no page ever reads the report', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      running = await liveLocalServer.serve(site());
+      vi.advanceTimersByTime(59_999);
+      expect(await hasSettled(running.opened)).toBe(false);
+
+      vi.advanceTimersByTime(1);
+      expect(await hasSettled(running.opened)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('has no page folder in a run from source, where nothing was built', () => {
     expect(liveLocalServer.pageFolder()).toBeUndefined();
   });
@@ -92,6 +125,8 @@ describe('the local server', () => {
     const posed = posedLocalServer({ port: 4321 });
     expect((await posed.serve(site())).address).toBe('http://127.0.0.1:4321');
     expect(posed.refusals()).toEqual([]);
+    expect(posed.watched()).toBe(true);
+    expect(posedLocalServer({ port: 4321, watched: false }).watched()).toBe(false);
 
     const unposed = posedLocalServer(undefined);
     await unposed.serve(site());

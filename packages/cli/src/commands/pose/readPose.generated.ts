@@ -1215,7 +1215,10 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
       }
     }
     if ('pods' in object1) {
-      expectLiteral(object1.pods, 'installed', at(path, 'pods'), problems);
+      expectOneOf(object1.pods, ['installed', 'current'], at(path, 'pods'), problems);
+    }
+    if ('scenes' in object1) {
+      expectOneOf(object1.scenes, ['on', 'off'], at(path, 'scenes'), problems);
     }
     if ('podInstall' in object1) {
       const where10 = at(path, 'podInstall');
@@ -1231,7 +1234,7 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
     }
     reportUnknownFields(
       object1,
-      ['install', 'storybook', 'pods', 'podInstall', 'enter'],
+      ['install', 'storybook', 'pods', 'scenes', 'podInstall', 'enter'],
       path,
       problems
     );
@@ -1980,7 +1983,10 @@ function readPosedLocalServer(value: unknown, path: string, problems: string[]):
   const object1 = asObject(value, path, problems);
   if (object1) {
     expectNumber(object1.port, at(path, 'port'), problems);
-    reportUnknownFields(object1, ['port'], path, problems);
+    if ('watched' in object1) {
+      expectBoolean(object1.watched, at(path, 'watched'), problems);
+    }
+    reportUnknownFields(object1, ['port', 'watched'], path, problems);
   }
 }
 
@@ -2352,6 +2358,52 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         );
       }
     }
+    if ('noPicture' in object1) {
+      const where62 = at(path, 'noPicture');
+      const list63 = asArray(object1.noPicture, where62, problems);
+      if (list63) {
+        list63.forEach((entry64, index65) => {
+          const where66 = atIndex(where62, index65);
+          const object67 = asObject(entry64, where66, problems);
+          if (object67) {
+            expectOneOf(object67.kind, ['scene', 'story'], at(where66, 'kind'), problems);
+            expectString(object67.name, at(where66, 'name'), problems);
+            expectString(object67.device, at(where66, 'device'), problems);
+            expectString(object67.reason, at(where66, 'reason'), problems);
+            reportUnknownFields(object67, ['kind', 'name', 'device', 'reason'], where66, problems);
+          }
+        });
+      }
+    }
+    if ('runFailure' in object1) {
+      const where68 = at(path, 'runFailure');
+      const object69 = asObject(object1.runFailure, where68, problems);
+      if (object69) {
+        const oneOf70 = object69.stage;
+        const where71 = at(where68, 'stage');
+        if (typeof oneOf70 === 'string' || oneOf70 === null) {
+          // the value is one of these
+        } else {
+          reportWrongShape(oneOf70, 'a string or `null`', where71, problems);
+        }
+        const oneOf72 = object69.device;
+        const where73 = at(where68, 'device');
+        if (typeof oneOf72 === 'string' || oneOf72 === null) {
+          // the value is one of these
+        } else {
+          reportWrongShape(oneOf72, 'a string or `null`', where73, problems);
+        }
+        expectString(object69.cause, at(where68, 'cause'), problems);
+        expectString(object69.reference, at(where68, 'reference'), problems);
+        expectBoolean(object69.retried, at(where68, 'retried'), problems);
+        reportUnknownFields(
+          object69,
+          ['stage', 'device', 'cause', 'reference', 'retried'],
+          where68,
+          problems
+        );
+      }
+    }
     reportUnknownFields(
       object1,
       [
@@ -2371,6 +2423,8 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         'platforms',
         'stories',
         'diffScope',
+        'noPicture',
+        'runFailure',
       ],
       path,
       problems
@@ -2427,6 +2481,9 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
     if ('ancestorBuildIndex' in object1) {
       expectNumber(object1.ancestorBuildIndex, at(path, 'ancestorBuildIndex'), problems);
     }
+    if ('isFirstLook' in object1) {
+      expectBoolean(object1.isFirstLook, at(path, 'isFirstLook'), problems);
+    }
     if ('capturedSnapshotCount' in object1) {
       expectNumber(object1.capturedSnapshotCount, at(path, 'capturedSnapshotCount'), problems);
     }
@@ -2439,6 +2496,7 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
         'platforms',
         'fullCaptureTriggerReason',
         'ancestorBuildIndex',
+        'isFirstLook',
         'capturedSnapshotCount',
         'inheritedSnapshotCount',
       ],
@@ -2557,6 +2615,9 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
         if (object13) {
           expectOneOf(object13.platform, ['android', 'ios'], at(where12, 'platform'), problems);
           expectBoolean(object13.full, at(where12, 'full'), problems);
+          if ('firstLook' in object13) {
+            expectBoolean(object13.firstLook, at(where12, 'firstLook'), problems);
+          }
           expectNumber(object13.capturedStories, at(where12, 'capturedStories'), problems);
           if ('capturedScenes' in object13) {
             expectNumber(object13.capturedScenes, at(where12, 'capturedScenes'), problems);
@@ -2613,6 +2674,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
             [
               'platform',
               'full',
+              'firstLook',
               'capturedStories',
               'capturedScenes',
               'storiesInBundle',
@@ -2900,9 +2962,12 @@ function readPosedPlatformBuild(value: unknown, path: string, problems: string[]
         if ('podFilesChanged' in object3) {
           expectStringArray(object3.podFilesChanged, at(path, 'podFilesChanged'), problems);
         }
+        if ('podInstallSkipped' in object3) {
+          expectLiteral(object3.podInstallSkipped, true, at(path, 'podInstallSkipped'), problems);
+        }
         reportUnknownFields(
           object3,
-          ['built', 'sizeMb', 'seconds', 'podFilesChanged'],
+          ['built', 'sizeMb', 'seconds', 'podFilesChanged', 'podInstallSkipped'],
           path,
           problems
         );
@@ -2928,7 +2993,7 @@ function readPosedPlatformBuild(value: unknown, path: string, problems: string[]
     } else {
       reportWrongShape(
         oneOf1,
-        '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number; podFilesChanged?: string[] }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
+        '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number; podFilesChanged?: string[]; podInstallSkipped?: true }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
         path,
         problems
       );
@@ -2936,7 +3001,7 @@ function readPosedPlatformBuild(value: unknown, path: string, problems: string[]
   } else {
     reportWrongShape(
       oneOf1,
-      '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number; podFilesChanged?: string[] }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
+      '`{ cached: string }`, `{ built: string; sizeMb: string; seconds: number; podFilesChanged?: string[]; podInstallSkipped?: true }`, `{ failed: { seconds: number; lastLines: string[] } }` or `{ easBuild: string }`',
       path,
       problems
     );

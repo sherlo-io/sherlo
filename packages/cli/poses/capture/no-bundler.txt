@@ -1,8 +1,9 @@
 [31m✖[39m  No bundler on port [1m8081[22m
 
 [2mStart your app with the bundler running, then try again.[22m
+[2mCapture looked on port 8081. If your bundler runs on another port, run again with --port <port>.[22m
 
-[2mKept in .sherlo/captures as foundation-typography--scales[22m
+[2mNo picture was saved. Only the record of the attempt is in .sherlo/captures as foundation-typography--scales[22m
 
 
 [exit 1]

@@ -12,6 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { captureTranscript } from '../../../../helpers/transcriptSink';
 import { type AppBuilder, installAppBuilder } from '../../../../seams/appBuilder';
 import { installNativeBuild, type NativeBuild } from '../../../../seams/nativeBuild';
+import type { BaseFingerprints } from '../../../../helpers/fingerprint';
+import uploadOrReuseBuildsAndRunTests, {
+  type PushEffects,
+} from '../../../../helpers/uploadOrReuseBuildsAndRunTests';
 import { cacheKeyOf } from '../appBuildCacheKeys';
 import { buildApps, type PlatformToBuild } from '../buildApps';
 import { type BuildSettings, buildSettingsDigest } from '../buildSettings';
@@ -56,10 +60,14 @@ function fakeBuilder(answers: Partial<AppBuilder> = {}) {
 
 let uninstallBuilder: () => void = () => undefined;
 let uninstallNativeBuild: () => void = () => undefined;
+let uninstallNoFingerprint: () => void = () => undefined;
 let projectRoot: string;
 
 beforeEach(() => {
   projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-build-apps-'));
+  // A build can fingerprint the tree it left; unless a test answers that, it finds no fingerprint.
+  const computeFingerprint = async () => ({ android: { hash: null }, ios: { hash: null } });
+  uninstallNoFingerprint = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
   vi.spyOn(process, 'exit').mockImplementation((code?: number | string | null) => {
     throw new Error(`process.exit(${code})`);
   });
@@ -69,6 +77,7 @@ afterEach(() => {
   uninstallBuilder();
   uninstallNativeBuild();
   uninstallNativeBuild = () => undefined;
+  uninstallNoFingerprint();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   fs.rmSync(projectRoot, { recursive: true, force: true });
@@ -80,18 +89,20 @@ function build({
   command = 'test',
   cacheDirFlag,
   parallelBuildsFlag,
+  fingerprints = { android: { hash: FINGERPRINT }, ios: { hash: FINGERPRINT } },
 }: {
   toBuild: PlatformToBuild[];
   settings?: BuildSettings;
   command?: 'test' | 'build';
   cacheDirFlag?: string;
   parallelBuildsFlag?: boolean;
+  fingerprints?: BaseFingerprints;
 }) {
   return buildApps({
     projectRoot,
     toBuild,
     settings,
-    fingerprints: { android: { hash: FINGERPRINT }, ios: { hash: FINGERPRINT } },
+    fingerprints,
     command,
     storedPlatformRows: [],
     ...(cacheDirFlag ? { cacheDirFlag } : {}),
@@ -102,6 +113,12 @@ function build({
 const ANDROID: PlatformToBuild[] = [{ platform: 'android' }];
 const IOS: PlatformToBuild[] = [{ platform: 'ios' }];
 const BOTH: PlatformToBuild[] = [{ platform: 'android' }, { platform: 'ios' }];
+
+/** What the fingerprint answers when it cannot be computed on either platform. */
+const NO_FINGERPRINT: BaseFingerprints = {
+  android: { hash: null, debugMessage: '@expo/fingerprint returned an empty hash' },
+  ios: { hash: null, debugMessage: '@expo/fingerprint returned an empty hash' },
+};
 
 describe('sherlo test builds the app on this machine', () => {
   it('refuses iOS on a machine that is not a Mac, naming --platform android here and --platform ios on a Mac', async () => {
@@ -127,6 +144,32 @@ describe('sherlo test builds the app on this machine', () => {
 
     await expect(build({ toBuild: IOS })).rejects.toThrow(
       /the workspace has Storefront and StorefrontStaging\.\nName one in sherlo\.config\.json: "build": \{ "ios": \{ "scheme": "Storefront" \} \}/
+    );
+  });
+
+  it("the app's own scheme is built, never a pod's", async () => {
+    const target = {
+      appSchemes: ['Storefront', 'StorefrontStaging'],
+      configurations: ['Debug', 'Release'],
+      archiveConfiguration: 'Release',
+    };
+    // A pod scheme that sorts first is no scheme the refusal offers as an example.
+    fakeBuilder({
+      listIosSchemes: async () => ['amplitude-plugin', 'Storefront', 'StorefrontStaging'],
+      readIosAppTarget: async () => target,
+    });
+    await expect(build({ toBuild: IOS })).rejects.toThrow(
+      /"build": \{ "ios": \{ "scheme": "Storefront" \} \}/
+    );
+
+    // With one app scheme among them, that one is built.
+    const builder = fakeBuilder({
+      listIosSchemes: async () => ['amplitude-plugin', 'Storefront'],
+      readIosAppTarget: async () => ({ ...target, appSchemes: ['Storefront'] }),
+    });
+    await build({ toBuild: IOS });
+    expect(builder.compile).toHaveBeenCalledWith(
+      expect.objectContaining({ ios: expect.objectContaining({ scheme: 'Storefront' }) })
     );
   });
 
@@ -275,6 +318,141 @@ describe('sherlo test builds the app on this machine', () => {
     expect(builder.keepInCache).toHaveBeenCalledTimes(1);
   });
 
+  // The first run's fingerprint was taken before its build; the retry's is taken over the tree the
+  // build left (a rewritten Podfile.lock), so the build must be kept under that one too. The
+  // project's own command says nothing of what it rewrote, so its tree is always asked again.
+  it('a push that failed after its build, run again on the unchanged tree, takes the app build from the cache', async () => {
+    const afterTheBuild = 'c'.repeat(64);
+    const roads: [string, BuildSettings, { podInstallChangedFiles?: true }][] = [
+      ["Sherlo's build, whose pod install changed files", {}, { podInstallChangedFiles: true }],
+      [
+        "the project's own command",
+        { ios: { command: 'fastlane sherlo', output: 'App.tar.gz' } },
+        {},
+      ],
+    ];
+    for (const [road, settings, install] of roads) {
+      const cache = new Map<string, string>();
+      const builder = fakeBuilder({
+        findCachedBuild: async ({ cacheKey }) => cache.get(cacheKey) ?? null,
+        keepInCache: async ({ cacheKey, path: appPath }) => void cache.set(cacheKey, appPath),
+        compile: async () => ({
+          ok: true as const,
+          path: '/built/ios',
+          sizeMb: '53.90',
+          seconds: 88,
+          podFilesChanged: [],
+          ...install,
+        }),
+      });
+      const computeFingerprint = vi.fn(async () => ({
+        android: { hash: null },
+        ios: { hash: afterTheBuild },
+      }));
+      uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+      // The push fails after this, so nothing of it reaches Sherlo; the retry asks the cache again.
+      await build({ toBuild: IOS, settings });
+      const retry = await build({
+        toBuild: IOS,
+        settings,
+        fingerprints: { android: { hash: null }, ios: { hash: afterTheBuild } },
+      });
+
+      expect(retry.madeBy, road).toEqual({ ios: 'build-cache' });
+      expect(retry.appBuildPaths, road).toEqual({ ios: '/built/ios' });
+      expect(builder.compile, road).toHaveBeenCalledTimes(1);
+      uninstallBuilder();
+      uninstallNativeBuild();
+    }
+  });
+
+  // Two trees with no fingerprint would share one key, so the cache could serve the other's app.
+  it('with no fingerprint the app is built fresh, and the build cache is neither read nor kept', async () => {
+    const builder = fakeBuilder({
+      findCachedBuild: async () => '/cache/build-cache/another-tree/app-release.apk',
+      compile: async ({ platform }: { platform: Platform }) => ({
+        ok: true as const,
+        path: `/built/${platform}`,
+        sizeMb: '53.90',
+        seconds: 88,
+        podFilesChanged: [],
+        podInstallChangedFiles: true,
+      }),
+    });
+    const computeFingerprint = vi.fn();
+    uninstallNativeBuild = installNativeBuild({ computeFingerprint } as unknown as NativeBuild);
+
+    const { appBuildPaths, madeBy } = await build({ toBuild: BOTH, fingerprints: NO_FINGERPRINT });
+
+    expect(appBuildPaths).toEqual({ android: '/built/android', ios: '/built/ios' });
+    expect(madeBy).toEqual({ android: 'compiled', ios: 'compiled' });
+    expect(builder.findCachedBuild).not.toHaveBeenCalled();
+    expect(builder.keepInCache).not.toHaveBeenCalled();
+    expect(computeFingerprint).not.toHaveBeenCalled();
+  });
+
+  // No bundle can be spliced without a base to name, and the app was just built from this tree, so
+  // the JS bundle inside it is the project's own: the push goes on with it, saying why.
+  it("with no fingerprint the push runs on the app's embedded bundle and warns the fingerprint was skipped", async () => {
+    fakeBuilder();
+    const { appBuildPaths, platformRows, madeBy } = await build({
+      toBuild: BOTH,
+      fingerprints: NO_FINGERPRINT,
+    });
+    const binary = (platform: Platform) => ({
+      hash: `${platform}-hash`,
+      fileName: `${platform}-app`,
+      s3Key: `${platform}-s3-key`,
+      buildType: 'preview' as const,
+    });
+    const openBuild = vi.fn(async (_: Record<string, unknown>) => ({ build: { index: 5 } }));
+    const extractGateMetadataFor = vi.fn();
+    const effects = {
+      resolveBinaries: async () => ({
+        binariesInfo: { android: binary('android'), ios: binary('ios'), sdkVersion: '2.0.0' },
+        nextBuildIndex: 5,
+      }),
+      resolveGitInfo: async () => ({ branchName: 'main', commitHash: 'abc', commitName: 'feat' }),
+      openBuild,
+      binaryUpload: { readBinary: vi.fn(), putBinary: vi.fn() },
+      baseRegistration: { extractGateMetadataFor },
+      // Never reached: a push with nothing to splice bundles nothing.
+      freshBundle: {},
+    } as unknown as PushEffects;
+    const credential = { kind: 'projectToken', token: 't', projectIndex: 7, teamId: 'team1234' };
+
+    const { stdout } = await captureTranscript(async () => {
+      await uploadOrReuseBuildsAndRunTests({
+        commandParams: {
+          projectRoot,
+          credential,
+          devices: [{ id: 'pixel.7' }, { id: 'iphone.15' }],
+        } as never,
+        appBuildPaths,
+        fingerprints: NO_FINGERPRINT,
+        platformRows,
+        appBuilds: {
+          android: { madeBy: madeBy.android!, why: { reason: 'nothing-stored' } },
+          ios: { madeBy: madeBy.ios!, why: { reason: 'nothing-stored' } },
+        },
+        effects,
+      });
+    });
+
+    const opened = openBuild.mock.calls[0][0] as Record<string, any>;
+    expect(opened.buildRunConfig.android).toEqual(
+      expect.objectContaining({ s3Key: 'android-s3-key' })
+    );
+    expect(opened.buildRunConfig.android).not.toHaveProperty('jsBundleS3Key');
+    expect(opened.buildRunConfig.ios).not.toHaveProperty('jsBundleS3Key');
+    expect(opened).not.toHaveProperty('baseFingerprints');
+    expect(extractGateMetadataFor).not.toHaveBeenCalled();
+    const warning = 'Fingerprint skipped - @expo/fingerprint returned an empty hash.';
+    expect(stdout.split(warning)).toHaveLength(2);
+    expect(stdout).not.toContain('Staged uploads unavailable');
+  });
+
   it('a changed build setting misses the local build cache', () => {
     const keyOf = (settings: BuildSettings) =>
       cacheKeyOf({ baseFingerprint: FINGERPRINT, platform: 'android', settings });
@@ -348,6 +526,50 @@ describe('sherlo test builds the app on this machine', () => {
       { platform: 'android', appBuild: 'reused-from-local-build-cache' },
     ]);
     expect(stdout).toContain('Reused from the local build cache');
+  });
+
+  describe('an iOS build and the native module', () => {
+    const appTarget = {
+      appSchemes: ['Storefront'],
+      configurations: ['Debug', 'Release'],
+      archiveConfiguration: 'Release',
+    };
+
+    function writePodsLinking(configuration: string, content: string) {
+      const folder = path.join(projectRoot, 'ios/Pods/Target Support Files/Pods-Storefront');
+      fs.mkdirSync(folder, { recursive: true });
+      fs.writeFileSync(path.join(folder, `Pods-Storefront.${configuration}.xcconfig`), content);
+    }
+
+    it('a cached build made without the native module is not reused', async () => {
+      const builder = fakeBuilder({
+        readIosAppTarget: async () => appTarget,
+        findCachedBuild: async () => '/cache/Storefront.app',
+      });
+      // Sherlo is linked into Debug only, so the Release build would lack it.
+      writePodsLinking('debug', 'OTHER_LDFLAGS = -l"sherlo-react-native-storybook"');
+      writePodsLinking('release', 'OTHER_LDFLAGS = -l"other"');
+
+      const { iosConfiguration } = await build({ toBuild: IOS });
+
+      expect(builder.findCachedBuild).not.toHaveBeenCalled();
+      expect(builder.compile).toHaveBeenCalledTimes(1);
+      expect(iosConfiguration).toBe('Release');
+    });
+
+    it('a cached build made with the native module is looked up under a key of its own and reused', async () => {
+      const builder = fakeBuilder({
+        readIosAppTarget: async () => appTarget,
+        findCachedBuild: async () => '/cache/Storefront.app',
+      });
+      writePodsLinking('release', 'OTHER_LDFLAGS = -l"sherlo-react-native-storybook"');
+
+      await build({ toBuild: IOS });
+
+      const [{ cacheKey }] = builder.findCachedBuild.mock.calls[0];
+      expect(cacheKey).toMatch(/-sherlo$/);
+      expect(builder.compile).not.toHaveBeenCalled();
+    });
   });
 
   it('generates the native folder with expo prebuild only when it is missing in an Expo app', async () => {

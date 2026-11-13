@@ -36,7 +36,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { captureTranscript } from '../transcriptSink';
 import waitForBuildResult from '../waitForBuildResult';
 import type { BuildStatus } from '../waitForBuildResult';
-import { EXIT_BLOCK, EXIT_GREEN } from '../exitCodes';
+import { EXIT_BLOCK, EXIT_GREEN, EXIT_REVIEW } from '../exitCodes';
 import { decideSparseBuildVerdict, routesThroughSparseVerdict } from '../sparseBuildVerdict';
 import { catalogue } from '../../commands/pose/catalogue';
 import { readPoseDocument } from '../../commands/pose/readPose';
@@ -258,6 +258,25 @@ describe('an opted-in build takes its verdict from the server, not from the tall
     expect(stdout).not.toContain('No visual changes');
   });
 
+  it('a verdict over a build with no-picture screens is not the all-passed verdict', () => {
+    const verdict = decideSparseBuildVerdict({
+      runStatus: 'finished',
+      showsOnlyBranchChanges: true,
+      status: 'noChanges',
+      viewStatusesCount: { approved: 1, noChanges: 40, reported: 0, unreviewed: 0 },
+      noPicture: [
+        { kind: 'story', name: 'Feed', device: 'iPhone 15 (iOS 17)', reason: 'never settled' },
+      ],
+    });
+
+    expect(verdict?.segments[0]).toEqual({
+      kind: 'verdict-passed',
+      noPicture: { tested: 41, count: 1 },
+    });
+    expect(verdict?.segments.map(({ kind }) => kind)).not.toContain('verdict-no-changes');
+    expect(verdict?.exitCode, 'the exit code stays the server status').toBe(EXIT_GREEN);
+  });
+
   it('the counts race is still poll-again, never a verdict', () => {
     expect(
       decideSparseBuildVerdict({
@@ -301,10 +320,24 @@ describe('an opted-in build takes its verdict from the server, not from the tall
       )
     );
 
-    expect(exitCode).toBe(EXIT_BLOCK);
+    expect(exitCode).toBe(EXIT_REVIEW);
     expect(stdout).toContain('⚠️ 2 stories need review');
     expect(stdout).toContain('Open them in Sherlo to approve or report.');
     expect(stdout).not.toContain('Nothing was recorded');
+  });
+
+  it('a sparse build with a reported change still exits 1 (BLOCK), not the review code', async () => {
+    const { exitCode } = await runWaitLoop(
+      optedIn(
+        {
+          runStatus: 'finished',
+          viewStatusesCount: { approved: 0, noChanges: 42, reported: 1, unreviewed: 2 },
+        },
+        'reported'
+      )
+    );
+
+    expect(exitCode).toBe(EXIT_BLOCK);
   });
 
   /**

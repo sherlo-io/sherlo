@@ -33,6 +33,7 @@ import {
   discoverOfTheTestingLaunch,
   idOfTheTestingLaunch,
   sceneOfTheCaptureOfAnAppWithStorybook,
+  sceneOfTheLaunchOfAnAppWithStorybook,
 } from './captureLaunch';
 import { startCaptureOfTheLaunch } from './captureTransport';
 import { logTheLine } from './connection/appLine';
@@ -55,7 +56,8 @@ const SWITCHED_ON_FLAG = '__sherloLaunchedSceneSwitchedOn';
  * The story batch launch of an app that holds scenes and no Storybook: no component of the SDK is
  * rendered to start the test session, so it is started here, once the bundle's main module has run
  * and Storybook, if the app has it, has recorded its facts (an app with Storybook keeps its own
- * road: ./getStorybook/components/TestingMode). The core lists the scenes in START.
+ * road: ./getStorybook/components/TestingMode, except on a runner's launch of one of its scenes,
+ * which renders the app and is walked here). The core lists the scenes in START.
  *
  * Every testing-mode launch of such an app, with a scene named or not, also tells the watchdogs the
  * app is up and the runner it takes scenes: no Storybook wrapper renders and no getStorybook() runs
@@ -77,7 +79,9 @@ function startTheSessionOfAnAppWithoutStorybook(sceneId: string | undefined): vo
       startCaptureOfTheLaunch();
       return;
     }
-    if (readStorybookFacts()) return;
+    // A runner's scene of an app with its own Storybook renders the app, not Storybook
+    // (./isStorybookMode), so it takes this road too.
+    if (readStorybookFacts() && !sceneOfTheLaunchOfAnAppWithStorybook()) return;
     if (!sceneId) getSealedCore()?.startTestSession();
     announceAppShowsWhatItTests();
     reportStorybookLoaded();

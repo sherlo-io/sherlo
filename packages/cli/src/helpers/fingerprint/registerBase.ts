@@ -178,6 +178,24 @@ export async function registerBase(
 }
 
 /**
+ * Where a React Native binary embeds its JS bundle by default:
+ * `assets/index.android.bundle` on Android, `main.jsbundle` on iOS. It is the
+ * default set by React Native's Gradle bundle task and `expo export:embed`, and
+ * does NOT vary with the JS entry file.
+ *
+ * This is base-registration metadata, not the bundle a run renders. Base
+ * registration probes this path to learn whether the binary embeds a bundle
+ * and in what format; the runner later overwrites the same path with the
+ * freshly built bundle, which is what actually runs.
+ */
+export function defaultEmbeddedBundlePath(platform: Platform): string {
+  if (platform === 'android') {
+    return 'assets/index.android.bundle';
+  }
+  return 'main.jsbundle';
+}
+
+/**
  * THE SOURCE LIST A STORED BASE KEEPS: what one platform's base fingerprint was
  * computed over - its native files and folders, its lockfiles as files, its
  * resolved settings by id, and its native modules with their versions. A native

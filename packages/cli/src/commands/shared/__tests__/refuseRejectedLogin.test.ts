@@ -18,6 +18,8 @@ import teamCreate from '../../teamCreate/teamCreate';
 import { CreateTeamAuthError } from '../../teamCreate/createTeamRequest';
 import teamList from '../../teamList/teamList';
 import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
+import handleClientError from '../../../helpers/handleClientError';
+import { checkGate } from '../../test/askTheStagedGate';
 import refuseRejectedLogin from '../refuseRejectedLogin';
 
 const SERVICE_ADDRESS = 'https://api.sherlo.io/graphql';
@@ -46,6 +48,84 @@ describe('a refused saved login', () => {
       );
       expect(refusal, command.name).toContain('Run `npx sherlo login` to log in again.');
     }
+  });
+});
+
+describe('a push the service answered with a 401', () => {
+  const REFUSED = { networkError: { statusCode: 401 } };
+
+  /**
+   * What the push ends with when the saved login's request is refused with a 401 and `listTeams`
+   * answers as the login's teams (`listed`) or refuses as a dead login does (`refused`).
+   */
+  async function refusalWhileTeamsAre(
+    teams: 'listed' | 'refused',
+    run: () => Promise<unknown>
+  ): Promise<string> {
+    const surroundings = posedSurroundings({
+      env: { SKIP_INTRO: 'true', SHERLO_API_URL: SERVICE_ADDRESS },
+      git: 'none',
+    });
+    const uninstall = [
+      installServerCalls({
+        ...posedServerCalls([]),
+        // The staged gate refuses the login's request with the 401 the authorizer answers.
+        checkStagedGate: async () => {
+          throw REFUSED;
+        },
+        listTeams: async () => {
+          if (teams === 'refused') throw new ListTeamsAuthError('HTTP 401');
+          return { teams: [] };
+        },
+      }),
+      installSavedLogins(posedSavedLogins({ [SERVICE_ADDRESS]: SAVED_LOGIN })),
+      installSurroundings(surroundings),
+      surroundings.installSettings(),
+    ];
+
+    try {
+      await run();
+      throw new Error('the push ended without a refusal');
+    } catch (error) {
+      return (error as Error).message;
+    } finally {
+      for (const undo of uninstall.reverse()) undo();
+    }
+  }
+
+  const askTheGate = () =>
+    checkGate({
+      token: SAVED_LOGIN.token,
+      platformsToTest: ['android'],
+      baseFingerprints: { android: 'abc' },
+      buildSettings: {} as never,
+      gateMetadata: () => ({ derivedFrom: 'none' }),
+      projectIndex: 7,
+      teamId: 'tm000001',
+    });
+
+  it('a token that still lists its teams but not this project is told the project is wrong, not to log in again', async () => {
+    const told = await refusalWhileTeamsAre('listed', () =>
+      handleClientError(REFUSED, SAVED_LOGIN.token)
+    );
+
+    expect(told).toContain('This project is not in your teams.');
+    expect(told).not.toContain('npx sherlo login');
+  });
+
+  it('a refusal at the staged gate of a login whose teams still list is told the project is wrong', async () => {
+    const told = await refusalWhileTeamsAre('listed', askTheGate);
+
+    expect(told).toContain('This project is not in your teams.');
+    expect(told).not.toContain('npx sherlo login');
+  });
+
+  it('a token that lists no teams is told to log in again', async () => {
+    const told = await refusalWhileTeamsAre('refused', () =>
+      handleClientError(REFUSED, SAVED_LOGIN.token)
+    );
+
+    expect(told).toContain('Run `npx sherlo login` to log in again.');
   });
 });
 

@@ -17,9 +17,10 @@ import type { CommandParams, Config, Options } from '../../types';
 import type { BuildFlags } from './appBuild/buildSettings';
 import { joinTheRun } from './appBuild/joinTheRun';
 import { pushFactsOf } from './appBuild/pushFacts';
-import { capturePerPlatform } from './capturePerPlatform';
+import { capturePerPlatform, picturesInPlan } from './capturePerPlatform';
 import { closeTheRun } from './closeTheRun';
 import type { THIS_COMMAND } from './constants';
+import { firstLookOf } from './firstLook';
 import { rowsAbove } from './platformRows';
 import {
   countBundleScenes,
@@ -89,13 +90,22 @@ export async function openAndEndTheTest({
     } else {
       // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
       // the network.
-      openBuildReturn = await serverCalls().openBuild({ token, pushFacts, ...request });
+      const firstLook = firstLookOf({
+        allStories: commandParams.allStories,
+        projectRoot: commandParams.projectRoot,
+        moduleManifests,
+      });
+      openBuildReturn = await serverCalls().openBuild({
+        token,
+        pushFacts,
+        ...request,
+        ...(firstLook ? { firstLook } : {}),
+      });
     }
   } catch (error) {
     const refused = refusedAtOpen?.(error);
     if (refused) return refused;
-    handleClientError(error, token); // always throws
-    throw error; // unreachable - satisfies control flow / typing
+    return await handleClientError(error, token); // always throws
   }
 
   const buildIndex = openBuildReturn.build.index;
@@ -117,8 +127,10 @@ export async function openAndEndTheTest({
   // The test's row, with what it captures (SHERLO-1919) - read straight off the openBuild response,
   // no extra API call (a joined run's row was printed by joinTheRun) - then its ending
   // (./closeTheRun).
+  // How many pictures the plan takes sizes the default wait; a joined run's plan is unknown here.
+  let picturesPlanned: number | undefined;
   if (!joinKey) {
-    printTestStarted({
+    picturesPlanned = printTestStarted({
       openBuildReturn,
       moduleManifests,
       platformsToTest,
@@ -137,6 +149,7 @@ export async function openAndEndTheTest({
     platformRows,
     endsOnNextStep: !joinedRunWaits,
     hasCiToken: openBuildReturn.hasCiToken,
+    picturesPlanned,
   });
 
   return { url };
@@ -169,7 +182,7 @@ function countInBundleOf(
  * the server closed without a device run has no started row (./closeTheRun ends it).
  *
  * Exported because the standard road (../../helpers/uploadOrReuseBuildsAndRunTests) prints the
- * same row.
+ * same row. Answers how many pictures the plan takes, which sizes the default wait; none when no row.
  */
 export function printTestStarted({
   openBuildReturn,
@@ -189,10 +202,10 @@ export function printTestStarted({
   serverBypassed: boolean;
   /** What became of each platform's app build: the rows above the test's row. The sim road has none. */
   platformRows: PlatformRow[];
-}): void {
+}): number {
   // A test the server closed without a device run never started on one: its ending is the one
   // finished step that says so (./closeTheRun).
-  if (serverBypassed) return;
+  if (serverBypassed) return 0;
 
   const capture = capturePerPlatform({ openBuildReturn, moduleManifests, platformsToTest });
 
@@ -211,6 +224,7 @@ export function printTestStarted({
   if (showBranchingOff) {
     emit({ kind: 'branching-off', project });
   }
+  return picturesInPlan(capture, devices);
 }
 
 /** The server's own words for a full capture that has no main branch to measure against. */

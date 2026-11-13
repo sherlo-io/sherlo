@@ -23,6 +23,8 @@ type OtherCommandParams = BaseParams & {
   commandParams: CommandParams<OTHER_COMMAND>;
   /** The app builds the push uploads, per platform: only these platforms' binaries are read. */
   appBuildPaths: Partial<Record<Platform, string>>;
+  /** The configuration `sherlo test` compiled the iOS app with, when it compiled it. */
+  iosConfiguration?: string;
 };
 
 type EAS_BUILD_ON_COMPLETE_COMMAND = typeof EAS_BUILD_ON_COMPLETE_COMMAND;

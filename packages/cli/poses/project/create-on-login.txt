@@ -4,7 +4,7 @@ projectIndex=<PROJECT>
 projectName=Storefront App
 
 For pull request tests, connect GitHub on the project's page, or make a CI token there for CI not on GitHub:
-  [36mhttps://app.sherlo.io/project?t=tm000001&p=1[39m
+  [36mhttps://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>[39m
 
 
 [exit 0]

@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { SHERLO_TEMP_DIRECTORY } from '../constants';
+import { INTRO_HEADER, INTRO_TAGLINE } from '../render/renderSegment';
 import { projectFiles } from '../seams/projectFiles';
 import type { FeedbackContext } from '../seams/serverCalls';
 import { blankSecrets } from './blankSecrets';
@@ -34,6 +35,19 @@ export function hideTokens(options: unknown): { [name: string]: unknown } {
 }
 
 let lastPrintedLines: string[] = [];
+let isInFooter = false;
+
+const BANNER_LINES = new Set(
+  [...INTRO_HEADER.split('\n'), INTRO_TAGLINE].map((line) => line.trim()).filter(Boolean)
+);
+const FOOTER_START = /^(─{10}|AI agents:)/;
+
+/** The banner, the tagline and the footer are the screen's frame; what is left says what failed. */
+function keepsErrorLine(line: string): boolean {
+  if (FOOTER_START.test(line.trim())) isInFooter = true;
+
+  return !isInFooter && !BANNER_LINES.has(line.trim());
+}
 
 /** Keeps the last lines a command prints, on either stream, without changing what it prints. */
 function keepLastPrintedLines() {
@@ -43,7 +57,7 @@ function keepLastPrintedLines() {
     stream.write = ((chunk: string | Uint8Array, ...rest: unknown[]) => {
       const lines = stripAnsi(String(chunk))
         .split('\n')
-        .filter((line) => line.trim());
+        .filter((line) => line.trim() && keepsErrorLine(line));
       lastPrintedLines = [...lastPrintedLines, ...lines].slice(-MAX_ERROR_LINES);
 
       return write(chunk, ...rest);
@@ -57,6 +71,7 @@ export function recordLastCommand(command: string, options: unknown) {
   // Fixed now, while this command's project is the one in force: the process ends later.
   const file = recordPath();
   lastPrintedLines = [];
+  isInFooter = false;
   keepLastPrintedLines();
 
   process.once('exit', (exitCode) => {

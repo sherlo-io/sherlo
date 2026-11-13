@@ -16,7 +16,7 @@ Testing your app...
 Set build.android.task in sherlo.config.json to one of these:
    :app:assembleDevRelease
    :app:assembleProdRelease
-Can't build here? Run Sherlo on your CI instead: [36mhttps://app.sherlo.io/project?t=tm000001&p=7[39m
+Can't build here? Run Sherlo on your CI instead: [36mhttps://<APP_HOST>/project?t=<TEAM>&p=<PROJECT>[39m
 
 [2m──────────[22m
 

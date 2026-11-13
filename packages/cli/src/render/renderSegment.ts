@@ -78,6 +78,7 @@ import { renderSceneRunLine } from './sceneRunLine';
 import { renderCoverage } from './coverage';
 import { renderCapturedLog } from './capturedLog';
 import { renderKeptCapture, renderNoScenesToCapture } from './keptCapture';
+import { renderNoPictureList, renderRunFailure } from './waitDetail';
 import { renderTeamList } from './teamList';
 import { renderFeedbackDryRun, renderFeedbackSent } from './feedback';
 import {
@@ -107,7 +108,7 @@ import {
 } from './verdictCloser';
 
 /** The sherlo wordmark, rendered per character by `gradient-string`. */
-const INTRO_HEADER = `
+export const INTRO_HEADER = `
              888                       888          
              888                       888          
              888                       888          
@@ -118,7 +119,7 @@ const INTRO_HEADER = `
     '88888P' 888  888  "Y8888  888     888  "Y88P"
 `;
 
-const INTRO_TAGLINE = 'Make sure your mobile app looks perfect on every device';
+export const INTRO_TAGLINE = 'Make sure your mobile app looks perfect on every device';
 
 /** The stderr warn `getGitInfo` prints when the git read fails and it degrades. */
 const GIT_INFO_UNAVAILABLE = "Couldn't get git info";
@@ -379,7 +380,7 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return { stream: 'stdout', prints: [[renderWaitInterrupted(segment.testIndex)]] };
 
     case 'verdict-passed':
-      return { stream: 'stdout', prints: renderVerdictPassed(segment.holds).map((line) => [line]) };
+      return onStdout(renderVerdictPassed(segment.holds, segment.noPicture));
 
     case 'verdict-server-bypassed':
       return {
@@ -482,14 +483,14 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
     case 'captured-story':
       return {
         stream: 'stdout',
-        prints: renderCapturedStory(segment.state).map((line) => [line]),
+        prints: renderCapturedStory(segment.state, segment.showTree).map((line) => [line]),
       };
 
     case 'opened-scene':
       return onStdout(renderOpenedScene(segment.state));
 
     case 'captured-scene':
-      return onStdout(renderCapturedScene(segment.state, segment.picture));
+      return onStdout(renderCapturedScene(segment.state, segment.picture, segment.showTree));
 
     case 'scene-run-line':
       return onStdout(renderSceneRunLine(segment.line));
@@ -501,7 +502,13 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
       return onStdout(renderCoverage(segment.screen));
 
     case 'kept-capture':
-      return onStdout(renderKeptCapture(segment.id));
+      return onStdout(renderKeptCapture(segment.id, segment.picture));
+
+    case 'no-picture-list':
+      return onStdout(renderNoPictureList(segment.entries));
+
+    case 'run-failure':
+      return onStdout(renderRunFailure(segment.failure));
 
     case 'no-scenes-to-capture':
       return onStdout(renderNoScenesToCapture());

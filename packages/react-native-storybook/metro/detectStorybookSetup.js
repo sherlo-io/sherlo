@@ -85,25 +85,59 @@ function registersRootComponent(node) {
 
 /**
  * @param {string} storybookEntrySource - the text of the Storybook entry file
- * @returns {'default'|'old'}
+ * @returns {object|null} the file's parsed program, or null when it cannot be parsed
  */
-function detectStorybookSetup(storybookEntrySource) {
-  var syntaxTree;
+function parseStorybookEntry(storybookEntrySource) {
   try {
-    syntaxTree = getBabelParser().parse(storybookEntrySource, {
+    return getBabelParser().parse(storybookEntrySource, {
       sourceType: 'unambiguous',
       errorRecovery: true,
       plugins: ['typescript', 'jsx'],
-    });
+    }).program;
   } catch (_) {
-    return 'old';
+    // Not parseable even with error recovery: the caller reads it as registering nothing.
+    return null;
   }
+}
 
-  return registersRootComponent(syntaxTree.program) ? 'default' : 'old';
+/**
+ * @param {string} storybookEntrySource - the text of the Storybook entry file
+ * @returns {'default'|'old'}
+ */
+function detectStorybookSetup(storybookEntrySource) {
+  var program = parseStorybookEntry(storybookEntrySource);
+  return program && registersRootComponent(program) ? 'default' : 'old';
+}
+
+/**
+ * The entry file's top-level statements that register the app's root, each a statement of its own
+ * (setup's start-file step, cli commands/init/storybookAccess/writeStartFile, rewrites the one it
+ * finds), and whether the file uses import statements.
+ *
+ * @param {string} storybookEntrySource - the text of the Storybook entry file
+ * @returns {{registrations: {start: number, end: number}[], usesImports: boolean}|null} null when
+ *   the file cannot be parsed
+ */
+function findRootRegistrations(storybookEntrySource) {
+  var program = parseStorybookEntry(storybookEntrySource);
+  if (!program) return null;
+  return {
+    registrations: program.body
+      .filter(function (statement) {
+        return statement.type === 'ExpressionStatement' && registersRootComponent(statement);
+      })
+      .map(function (statement) {
+        return { start: statement.start, end: statement.end };
+      }),
+    usesImports: program.body.some(function (statement) {
+      return statement.type === 'ImportDeclaration';
+    }),
+  };
 }
 
 module.exports = {
   findStorybookEntry: findStorybookEntry,
   storybookEntryCandidates: storybookEntryCandidates,
   detectStorybookSetup: detectStorybookSetup,
+  findRootRegistrations: findRootRegistrations,
 };

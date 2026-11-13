@@ -31,12 +31,13 @@
   "bin": "./cli.js",
   "files": [
     "dist",
+    "skill",
     "sdk-compatibility.json",
     "cli.js"
   ],
   "scripts": {
     "build": "rm -rf dist && esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --minify --keep-names --sourcemap --external:@expo/fingerprint --external:@napi-rs/keyring --external:metro-babel-transformer/node_modules/@babel/parser --outfile=dist/index.js && tsc --emitDeclarationOnly && chmod u+x ./dist/index.js && node -e \"const s='../../sherlo-lib/extracted/local-page';if(require('fs').existsSync(s))require('fs').cpSync(s,'dist/local-page',{recursive:true})\"",
-    "prepack": "node -e \"if(!require('fs').existsSync('dist/local-page/index.html')){console.error('Packing refused: dist/local-page/index.html is missing, so the capture-report command would ship broken. Fetch the page with scripts/init-env.sh, then yarn build.');process.exit(1)}\"",
+    "prepack": "node -e \"if(!require('fs').existsSync('dist/local-page/index.html')){console.error('Packing refused: dist/local-page/index.html is missing, so the preview command would ship broken. Fetch the page with scripts/init-env.sh, then yarn build.');process.exit(1)}\"",
     "check:packed-fingerprint": "node scripts/check-packed-fingerprint.js",
     "check:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts --check",
     "generate:pose-contract": "yarn run -T tsx scripts/generate-pose-contract.ts",
