@@ -10,6 +10,13 @@
  */
 @implementation KeyboardHelper
 
+/** Whether setupKeyboardSwizzling ran: from then on no text field can take focus. */
+static BOOL focusLocked = NO;
+
++ (BOOL)focusLocked {
+    return focusLocked;
+}
+
 /**
  * Sets up keyboard swizzling to intercept keyboard events.
  * Replaces the original methods of UITextField and UITextView with custom implementations
@@ -68,6 +75,8 @@
         return NO;
     });
     method_setImplementation(isFirstResponder, newIsFirstResponder);
+
+    focusLocked = YES;
 }
 
 @end 
