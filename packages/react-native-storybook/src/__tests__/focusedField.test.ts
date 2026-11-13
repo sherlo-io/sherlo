@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const keyboard = vi.hoisted(() => ({ focused: null as unknown, up: false }));
+const keyboard = vi.hoisted(() => ({ focused: null as unknown, up: false, locked: false }));
 vi.mock('react-native', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   TextInput: { State: { currentlyFocusedInput: () => keyboard.focused } },
@@ -9,6 +9,7 @@ vi.mock('../helpers/RunnerBridge', () => ({ default: { log: vi.fn(), send: vi.fn
 vi.mock('../SherloModule', () => ({
   default: {
     holdAnimationsStill: async () => true,
+    fieldsTakeFocus: () => !keyboard.locked,
     getInspectorData: async () => {
       throw new Error('no view tree');
     },
@@ -33,6 +34,7 @@ import { stabilizeOnceReady, storyAboutToRender } from '../storyReady';
 afterEach(() => {
   keyboard.focused = null;
   keyboard.up = false;
+  keyboard.locked = false;
   vi.useRealTimers();
 });
 
@@ -84,7 +86,24 @@ describe('a scene waits for its focused field', () => {
     expect(neverSettledOf('chat--compose')?.unfocused).toEqual(['message-input']);
   });
 
-  it.todo(
-    'a field the native side keeps from taking focus is not waited for, and the screen settles'
-  );
+  it('a field the native side keeps from taking focus is not waited for, and the screen settles', async () => {
+    keyboard.locked = true;
+    expect(fieldsStillWaitingForFocus()).toEqual([]);
+
+    storyAboutToRender('chat--focus-locked');
+    const native = { stabilize: vi.fn(async (..._settings: unknown[]) => true) };
+    const settled = await stabilizeOnceReady(native as never).stabilize(
+      3,
+      3,
+      500,
+      5_000,
+      false,
+      0,
+      true
+    );
+    expect(settled).toBe(true);
+    // No time went on a focus that cannot come: the settle has the whole limit.
+    expect(native.stabilize.mock.calls[0][3]).toBe(5_000);
+    expect(neverSettledOf('chat--focus-locked')).toBeUndefined();
+  });
 });
