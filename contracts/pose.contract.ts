@@ -1295,8 +1295,11 @@ export type StartedRun = {
     scenesInBundle?: number;
     /** The server's own reason, printed only on a full capture. */
     reason?: string;
-    /** What Diff Scope's quick check found, in the numbers the test line shows under its row. */
-    diffScope?: PosedDiffScope;
+    /**
+     * What the service answered for this platform, as it sent it: the numbers the test line shows
+     * under its row.
+     */
+    diffScope?: PlatformDiffScope;
     /**
      * The story files the test captures: a partial capture's as openBuild recorded them, or the
      * bundle's.
@@ -1677,23 +1680,22 @@ export type PosedPlatformCaptureDecision = {
    */
   reason?: string;
   /** What Diff Scope's quick check found, for the test line's numbers. */
-  diffScope?: PosedDiffScope;
+  diffScope?: DiffScopeNumbers;
 };
 
-/**
- * What Diff Scope's quick check says about one platform, in the words a customer reads: how many
- * stories it checked, how many look different, how many it could not check, and what changed.
- */
-export type PosedDiffScope = {
-  checked?: number;
-  lookDifferent?: number;
-  couldNotCheck?: number;
-  /** The changed file the test is about; a whole sentence for a full capture goes in `fullReason`. */
-  changedFile?: string;
-  /** Why every story is captured, in plain words, when it is. */
-  fullReason?: string;
-  /** The quick check could not finish, so every story the change can reach is captured. */
-  unfinished?: boolean;
+/** One platform's entry in the answer's `build.diffScopeInfo.platforms`. */
+export type PlatformDiffScope = {
+  storiesChecked?: number;
+  storiesLookDifferent?: number;
+  storiesCouldNotBeChecked?: number;
+  storiesCaptured?: number;
+  storiesReused?: number;
+  /** The paths of the files the change touched. */
+  changedFiles?: string[];
+  quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
+  /** Why the quick check failed, when it did. */
+  quickCheckFault?: string;
+  reason?: string;
 };
 
 /**
@@ -1735,6 +1737,24 @@ export type AppError = {
   line?: number;
   /** The data the app was reading when it hit undefined, as the error's message names it. */
   dataPath?: string;
+};
+
+/**
+ * What the service says about one platform's quick check, beside the platform's reason: how many
+ * stories it checked, how many look different, how many it could not check, how many are captured
+ * and how many reuse their last picture, and which files changed.
+ */
+export type DiffScopeNumbers = {
+  storiesChecked?: number;
+  storiesLookDifferent?: number;
+  storiesCouldNotBeChecked?: number;
+  storiesCaptured?: number;
+  storiesReused?: number;
+  /** The paths of the files the change touched. */
+  changedFiles?: string[];
+  quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
+  /** Why the quick check failed, when it did. */
+  quickCheckFault?: string;
 };
 
 /** One source of a stored app build's list. */

@@ -4,6 +4,7 @@
  */
 import chalk from 'chalk';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { renderDiffScopeLines } from '../diffScopeLines';
 import { renderSegment } from '../renderSegment';
 import type { PlatformCapture } from '../testSteps';
 
@@ -58,5 +59,43 @@ describe('the story files listed under a started test', () => {
       },
     ]);
     expect(rows.map((row) => row.trim())).toEqual(['Sanity/Hello (1 story)']);
+  });
+});
+
+describe('the lines under a started test', () => {
+  it("the three lines under a test's row come from one function for every case", () => {
+    const narrowed: PlatformCapture = {
+      platform: 'android',
+      full: false,
+      capturedStories: 77,
+      storiesInBundle: 384,
+      diffScope: {
+        storiesChecked: 384,
+        storiesLookDifferent: 26,
+        storiesCouldNotBeChecked: 51,
+        changedFiles: ['src/a.ts'],
+      },
+    };
+    const full: PlatformCapture = {
+      platform: 'android',
+      full: true,
+      capturedStories: 0,
+      storiesInBundle: 442,
+      reason: 'native code changed since Test 14',
+      diffScope: { reason: 'native code changed since Test 14', storiesChecked: 442 },
+    };
+
+    for (const capture of [narrowed, full]) {
+      const { prints } = renderSegment({
+        kind: 'test-started',
+        buildIndex: 1,
+        capture: [capture],
+        rowsAbove: { rows: [], printedAsTheyHappened: false },
+      });
+      const printed = prints.map(([line]) => String(line).trim());
+      const [checkedLine, capturedLine, reusedLine] = renderDiffScopeLines([capture]);
+
+      expect(printed).toEqual(expect.arrayContaining([checkedLine, capturedLine, reusedLine]));
+    }
   });
 });

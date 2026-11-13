@@ -4,7 +4,7 @@
  */
 import type { Platform } from '@sherlo/api-types';
 import { DEVICES } from '@sherlo/shared';
-import type { OpenBuildAnswer, PosedDiffScope } from '../../seams/serverCalls';
+import type { OpenBuildAnswer } from '../../seams/serverCalls';
 import type { PlatformCapture } from '../../render/testSteps';
 import type { Config } from '../../types';
 import {
@@ -57,9 +57,7 @@ export function capturePerPlatform({
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
       // a machine code. The line prints it only for a full capture.
       reason: diffScopeInfo?.platforms?.[platform]?.reason,
-      diffScope: (
-        diffScopeInfo?.platforms?.[platform] as { diffScope?: PosedDiffScope } | undefined
-      )?.diffScope,
+      diffScope: diffScopeInfo?.platforms?.[platform],
       // A full capture takes every story file the bundle holds.
       storyFiles: captureScope.full
         ? manifest

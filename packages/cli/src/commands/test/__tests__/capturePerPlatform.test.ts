@@ -38,6 +38,29 @@ describe('the capture each platform reports for the Started row', () => {
     });
   });
 
+  it('reads the Diff Scope numbers of each platform without a cast', () => {
+    const diffScope = { storiesChecked: 384, storiesLookDifferent: 26, quickCheck: 'FINISHED' };
+    const capture = capturePerPlatform({
+      openBuildReturn: {
+        build: {
+          index: 1,
+          diffScopeInfo: { platforms: { ios: diffScope, android: { reason: 'x' } } },
+        },
+        buildRun: {
+          config: {
+            ios: { devices: [], captureScope: { full: false, storyFilePaths: ['a.stories.tsx'] } },
+            android: { devices: [], captureScope: { full: true } },
+          },
+        },
+      } as any,
+      moduleManifests: {},
+      platformsToTest: ['ios', 'android'],
+    });
+
+    expect(capture[0].diffScope).toEqual(diffScope);
+    expect(capture[1].diffScope).toEqual({ reason: 'x' });
+  });
+
   it('the capture plan of a first look says how many stories it takes and how to ask for all', () => {
     const openBuildReturn = openBuildWith({
       ios: { devices: [], captureScope: { full: false, storyFilePaths: ['src/A.stories.tsx'] } },
