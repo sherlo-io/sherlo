@@ -2547,7 +2547,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
             expectString(object13.reason, at(where12, 'reason'), problems);
           }
           if ('diffScope' in object13) {
-            readPosedDiffScope(object13.diffScope, at(where12, 'diffScope'), problems);
+            readPlatformDiffScope(object13.diffScope, at(where12, 'diffScope'), problems);
           }
           if ('storyFiles' in object13) {
             expectStringArray(object13.storyFiles, at(where12, 'storyFiles'), problems);
@@ -3380,7 +3380,7 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
       expectString(object1.reason, at(path, 'reason'), problems);
     }
     if ('diffScope' in object1) {
-      readPosedDiffScope(object1.diffScope, at(path, 'diffScope'), problems);
+      readDiffScopeNumbers(object1.diffScope, at(path, 'diffScope'), problems);
     }
     reportUnknownFields(
       object1,
@@ -3398,31 +3398,59 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
   }
 }
 
-/** The shape of a `PosedDiffScope`, as `contracts/pose.contract.ts` publishes it. */
-function readPosedDiffScope(value: unknown, path: string, problems: string[]): void {
+/** The shape of a `PlatformDiffScope`, as `contracts/pose.contract.ts` publishes it. */
+function readPlatformDiffScope(value: unknown, path: string, problems: string[]): void {
   const object1 = asObject(value, path, problems);
   if (object1) {
-    if ('checked' in object1) {
-      expectNumber(object1.checked, at(path, 'checked'), problems);
+    if ('storiesChecked' in object1) {
+      expectNumber(object1.storiesChecked, at(path, 'storiesChecked'), problems);
     }
-    if ('lookDifferent' in object1) {
-      expectNumber(object1.lookDifferent, at(path, 'lookDifferent'), problems);
+    if ('storiesLookDifferent' in object1) {
+      expectNumber(object1.storiesLookDifferent, at(path, 'storiesLookDifferent'), problems);
     }
-    if ('couldNotCheck' in object1) {
-      expectNumber(object1.couldNotCheck, at(path, 'couldNotCheck'), problems);
+    if ('storiesCouldNotBeChecked' in object1) {
+      expectNumber(
+        object1.storiesCouldNotBeChecked,
+        at(path, 'storiesCouldNotBeChecked'),
+        problems
+      );
     }
-    if ('changedFile' in object1) {
-      expectString(object1.changedFile, at(path, 'changedFile'), problems);
+    if ('storiesCaptured' in object1) {
+      expectNumber(object1.storiesCaptured, at(path, 'storiesCaptured'), problems);
     }
-    if ('fullReason' in object1) {
-      expectString(object1.fullReason, at(path, 'fullReason'), problems);
+    if ('storiesReused' in object1) {
+      expectNumber(object1.storiesReused, at(path, 'storiesReused'), problems);
     }
-    if ('unfinished' in object1) {
-      expectBoolean(object1.unfinished, at(path, 'unfinished'), problems);
+    if ('changedFiles' in object1) {
+      expectStringArray(object1.changedFiles, at(path, 'changedFiles'), problems);
+    }
+    if ('quickCheck' in object1) {
+      expectOneOf(
+        object1.quickCheck,
+        ['NOT_NEEDED', 'RUNNING', 'FINISHED', 'FAILED'],
+        at(path, 'quickCheck'),
+        problems
+      );
+    }
+    if ('quickCheckFault' in object1) {
+      expectString(object1.quickCheckFault, at(path, 'quickCheckFault'), problems);
+    }
+    if ('reason' in object1) {
+      expectString(object1.reason, at(path, 'reason'), problems);
     }
     reportUnknownFields(
       object1,
-      ['checked', 'lookDifferent', 'couldNotCheck', 'changedFile', 'fullReason', 'unfinished'],
+      [
+        'storiesChecked',
+        'storiesLookDifferent',
+        'storiesCouldNotBeChecked',
+        'storiesCaptured',
+        'storiesReused',
+        'changedFiles',
+        'quickCheck',
+        'quickCheckFault',
+        'reason',
+      ],
       path,
       problems
     );
@@ -3482,6 +3510,61 @@ function readAppError(value: unknown, path: string, problems: string[]): void {
     reportUnknownFields(
       object1,
       ['name', 'message', 'componentStack', 'topFrames', 'file', 'line', 'dataPath'],
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `DiffScopeNumbers`, as `contracts/pose.contract.ts` publishes it. */
+function readDiffScopeNumbers(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    if ('storiesChecked' in object1) {
+      expectNumber(object1.storiesChecked, at(path, 'storiesChecked'), problems);
+    }
+    if ('storiesLookDifferent' in object1) {
+      expectNumber(object1.storiesLookDifferent, at(path, 'storiesLookDifferent'), problems);
+    }
+    if ('storiesCouldNotBeChecked' in object1) {
+      expectNumber(
+        object1.storiesCouldNotBeChecked,
+        at(path, 'storiesCouldNotBeChecked'),
+        problems
+      );
+    }
+    if ('storiesCaptured' in object1) {
+      expectNumber(object1.storiesCaptured, at(path, 'storiesCaptured'), problems);
+    }
+    if ('storiesReused' in object1) {
+      expectNumber(object1.storiesReused, at(path, 'storiesReused'), problems);
+    }
+    if ('changedFiles' in object1) {
+      expectStringArray(object1.changedFiles, at(path, 'changedFiles'), problems);
+    }
+    if ('quickCheck' in object1) {
+      expectOneOf(
+        object1.quickCheck,
+        ['NOT_NEEDED', 'RUNNING', 'FINISHED', 'FAILED'],
+        at(path, 'quickCheck'),
+        problems
+      );
+    }
+    if ('quickCheckFault' in object1) {
+      expectString(object1.quickCheckFault, at(path, 'quickCheckFault'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      [
+        'storiesChecked',
+        'storiesLookDifferent',
+        'storiesCouldNotBeChecked',
+        'storiesCaptured',
+        'storiesReused',
+        'changedFiles',
+        'quickCheck',
+        'quickCheckFault',
+      ],
       path,
       problems
     );

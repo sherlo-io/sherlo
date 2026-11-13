@@ -41,7 +41,27 @@ import type { Config } from '../types';
 /** What `openBuild` is sent, and what it answers - the sdk client's own shapes. */
 type SdkClient = ReturnType<typeof sdkClient>;
 export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
+/**
+ * What the service says about one platform's quick check, beside the platform's reason: how many
+ * stories it checked, how many look different, how many it could not check, how many are captured
+ * and how many reuse their last picture, and which files changed.
+ */
+export type DiffScopeNumbers = {
+  storiesChecked?: number;
+  storiesLookDifferent?: number;
+  storiesCouldNotBeChecked?: number;
+  storiesCaptured?: number;
+  storiesReused?: number;
+  /** The paths of the files the change touched. */
+  changedFiles?: string[];
+  quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
+  /** Why the quick check failed, when it did. */
+  quickCheckFault?: string;
+};
+/** One platform's entry in the answer's `build.diffScopeInfo.platforms`. */
+export type PlatformDiffScope = DiffScopeNumbers & { reason?: string };
 export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
+  build: { diffScopeInfo?: { platforms?: Partial<Record<Platform, PlatformDiffScope>> } };
   /**
    * Whether the project has a CI token, so a person's run can suggest running Sherlo on every pull
    * request while it has none. The service may say whether the project has a CI token; absent
@@ -601,23 +621,7 @@ export type PosedPlatformCaptureDecision = Pick<
   /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
   reason?: string;
   /** What Diff Scope's quick check found, for the test line's numbers. */
-  diffScope?: PosedDiffScope;
-};
-
-/**
- * What Diff Scope's quick check says about one platform, in the words a customer reads: how many
- * stories it checked, how many look different, how many it could not check, and what changed.
- */
-export type PosedDiffScope = {
-  checked?: number;
-  lookDifferent?: number;
-  couldNotCheck?: number;
-  /** The changed file the test is about; a whole sentence for a full capture goes in `fullReason`. */
-  changedFile?: string;
-  /** Why every story is captured, in plain words, when it is. */
-  fullReason?: string;
-  /** The quick check could not finish, so every story the change can reach is captured. */
-  unfinished?: boolean;
+  diffScope?: DiffScopeNumbers;
 };
 
 /**
@@ -1030,10 +1034,10 @@ function diffScopeInfoOf(
 function platformReasonOf(
   captureDecision: PosedCaptureDecision,
   platform: string
-): { reason?: string; diffScope?: PosedDiffScope } | undefined {
+): PlatformDiffScope | undefined {
   const { reason, diffScope } = captureDecision.platforms[platform] ?? {};
   if (reason === undefined && diffScope === undefined) return undefined;
-  return { ...(reason !== undefined ? { reason } : {}), ...(diffScope ? { diffScope } : {}) };
+  return { ...(reason !== undefined ? { reason } : {}), ...diffScope };
 }
 
 /**

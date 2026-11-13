@@ -12,28 +12,37 @@
  * Pure, like everything under ./. Words a customer does not know are not used here.
  */
 import chalk from 'chalk';
+import type { PlatformDiffScope } from '../seams/serverCalls';
 import type { PlatformCapture } from './testSteps';
+
+/** Whether the service sent Diff Scope's numbers for this platform: an answer with only a reason has none. */
+export function hasDiffScopeNumbers(
+  diffScope: PlatformDiffScope | undefined
+): diffScope is PlatformDiffScope & { storiesChecked: number } {
+  return diffScope?.storiesChecked !== undefined;
+}
 
 /** The three lines, unindented; none when the server sent no Diff Scope numbers. */
 export function renderDiffScopeLines(capture: PlatformCapture[]): string[] {
   const [first] = capture;
-  if (!first?.diffScope) return [];
+  if (!first || !hasDiffScopeNumbers(first.diffScope)) return [];
 
-  const { diffScope, full, capturedStories } = first;
-  const everyStory = full && diffScope.fullReason !== undefined;
-  const checked = everyStory
-    ? (first.storiesInBundle ?? 0)
-    : (diffScope.checked ?? first.storiesInBundle ?? 0);
-  const captured = everyStory ? checked : capturedStories;
-  const reused = full ? 0 : checked - capturedStories;
+  const { diffScope } = first;
+  const everyStoryBecause = first.full ? diffScope.reason : undefined;
+  const quickCheckFailed = diffScope.quickCheck === 'FAILED';
 
-  const changed = everyStory ? diffScope.fullReason : `${diffScope.changedFile} changed`;
-  const whatTheyAre = everyStory
-    ? 'every story'
-    : diffScope.unfinished
-      ? 'the quick check could not finish, so every story the change can reach'
-      : `${diffScope.lookDifferent ?? 0} look different, ${diffScope.couldNotCheck ?? 0} could not be checked`;
-  const warning = diffScope.unfinished ? `${chalk.yellow('!')} ` : '';
+  const checked = diffScope.storiesChecked;
+  const captured = everyStoryBecause !== undefined ? checked : first.capturedStories;
+  const reused = first.full ? 0 : checked - first.capturedStories;
+
+  const changed = everyStoryBecause ?? `${diffScope.changedFiles?.[0]} changed`;
+  const whatTheyAre =
+    everyStoryBecause !== undefined
+      ? 'every story'
+      : quickCheckFailed
+        ? 'the quick check could not finish, so every story the change can reach'
+        : `${diffScope.storiesLookDifferent ?? 0} look different, ${diffScope.storiesCouldNotBeChecked ?? 0} could not be checked`;
+  const warning = quickCheckFailed ? `${chalk.yellow('!')} ` : '';
 
   return [
     `${checked} checked, after ${changed}`,

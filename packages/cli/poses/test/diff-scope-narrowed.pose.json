@@ -116,10 +116,10 @@
               ],
               "reason": "src/components/Button/Button.Text.tsx changed",
               "diffScope": {
-                "checked": 384,
-                "lookDifferent": 26,
-                "couldNotCheck": 51,
-                "changedFile": "src/components/Button/Button.Text.tsx"
+                "storiesChecked": 384,
+                "storiesLookDifferent": 26,
+                "storiesCouldNotBeChecked": 51,
+                "changedFiles": ["src/components/Button/Button.Text.tsx"]
               }
             }
           },
