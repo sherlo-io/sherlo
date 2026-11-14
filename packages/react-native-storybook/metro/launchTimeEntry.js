@@ -16,6 +16,8 @@
 var fs = require('fs');
 var path = require('path');
 var resolveThroughConfig = require('./applySherloTransforms').resolveThroughConfig;
+var appEntryCopyPath = require('./appEntryCopy').appEntryCopyPath;
+var appEntryCopyResolver = require('./appEntryCopy').appEntryCopyResolver;
 var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var projectTransformerFile = require('./projectPaths').projectTransformerFile;
@@ -207,8 +209,9 @@ function namesTheAppEntry(context, moduleName, platform, realAppEntry) {
  * - `npx react-native bundle` hands Metro the entry as a path and never asks the resolver, so in a
  *   release bundle Sherlo's release entry transformer (withReleaseEntryTransformer) also serves the
  *   launch entry in place of the app entry's source. There the app entry holds the launch entry,
- *   so the app side is a copy of the app entry, and a request from the copy resolves as if it
- *   came from the app entry. A development bundle never reads the copy.
+ *   so the app side is a copy of the app entry, whose imports resolve as the app entry's, or from
+ *   the copy's own folder for an import Babel rewrote there (appEntryCopyResolver). A development
+ *   bundle never reads the copy.
  *
  * Files are compared with their symlinks followed, so a linked install cannot skip the swap.
  *
@@ -246,10 +249,14 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
     'utf8'
   );
 
-  var resolveAsTheConfigDoes = resolveThroughConfig(config);
+  var resolveAsTheConfigDoes = appEntryCopyResolver(
+    resolveThroughConfig(config),
+    appEntry,
+    appEntryCopy
+  );
 
   function resolveRequest(contextAsAsked, moduleName, platform) {
-    // The copy of the app entry resolves its imports as the app entry itself does.
+    // The copy of the app entry imports as the app entry itself does (appEntryCopyResolver).
     var context =
       contextAsAsked.originModulePath === appEntryCopy
         ? Object.assign({}, contextAsAsked, { originModulePath: appEntry })
@@ -271,7 +278,7 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
       return theAppsOwnEntry(importer === appEntry || context.dev === false);
     }
 
-    var resolution = resolveAsTheConfigDoes(context, moduleName, platform);
+    var resolution = resolveAsTheConfigDoes(contextAsAsked, moduleName, platform);
 
     if (isTheBundleEntryRequest(context)) {
       var isEitherEntry = resolvesToFile(resolution, appEntry) || isTheStorybookEntry(resolution);
@@ -298,18 +305,6 @@ function applyLaunchTimeEntry(config, storybookEntryAsFound, sherloBuild) {
     resolver: Object.assign({}, config.resolver, { resolveRequest: resolveRequest }),
   });
   return withReleaseEntryTransformer(withLaunchEntry, sherloBuild, storybookEntry !== null);
-}
-
-/**
- * Where a release bundle's copy of the app's entry is written: beside the launch entry, in
- * Sherlo's cache folder.
- *
- * @param {string} projectRoot - absolute path to the project
- * @param {string} appEntry - absolute path to the app's entry file
- * @returns {string}
- */
-function appEntryCopyPath(projectRoot, appEntry) {
-  return path.join(sherloCacheFolder(projectRoot), 'app-entry-original' + path.extname(appEntry));
 }
 
 /**
