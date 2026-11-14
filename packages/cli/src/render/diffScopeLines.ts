@@ -13,40 +13,59 @@
  */
 import chalk from 'chalk';
 import type { PlatformDiffScope } from '../seams/serverCalls';
-import type { PlatformCapture } from './testSteps';
+import { platformWithEmoji, type PlatformCapture } from './testSteps';
 
 /** Whether the service sent Diff Scope's numbers for this platform: an answer with only a reason has none. */
 export function hasDiffScopeNumbers(
   diffScope: PlatformDiffScope | undefined
-): diffScope is PlatformDiffScope & { storiesChecked: number } {
-  return diffScope?.storiesChecked !== undefined;
+): diffScope is PlatformDiffScope & {
+  storiesChecked: number;
+  storiesCaptured: number;
+  storiesReused: number;
+} {
+  return (
+    diffScope?.storiesChecked !== undefined &&
+    diffScope.storiesCaptured !== undefined &&
+    diffScope.storiesReused !== undefined
+  );
 }
 
-/** The three lines, unindented; none when the server sent no Diff Scope numbers. */
+/**
+ * The three lines, unindented, with the numbers the service answered. One block when every
+ * platform's lines are equal; else one block per platform, Android first, each under a line naming
+ * it. None when the server sent no Diff Scope numbers.
+ */
 export function renderDiffScopeLines(capture: PlatformCapture[]): string[] {
-  const [first] = capture;
-  if (!first || !hasDiffScopeNumbers(first.diffScope)) return [];
+  const blocks = [...capture]
+    .sort((a, b) => Number(b.platform === 'android') - Number(a.platform === 'android'))
+    .map((platformCapture) => ({
+      platform: platformCapture.platform,
+      lines: renderPlatformLines(platformCapture),
+    }))
+    .filter(({ lines }) => lines.length > 0);
 
-  const { diffScope } = first;
-  const everyStoryBecause = first.full ? diffScope.reason : undefined;
-  const quickCheckFailed = diffScope.quickCheck === 'FAILED';
+  const [first] = blocks;
+  if (!first) return [];
+  if (blocks.every(({ lines }) => lines.join('\n') === first.lines.join('\n'))) return first.lines;
 
-  const checked = diffScope.storiesChecked;
-  const captured = everyStoryBecause !== undefined ? checked : first.capturedStories;
-  const reused = first.full ? 0 : checked - first.capturedStories;
+  return blocks.flatMap(({ platform, lines }) => [platformWithEmoji(platform), ...lines]);
+}
 
-  const changed = everyStoryBecause ?? `${diffScope.changedFiles?.[0]} changed`;
-  const whatTheyAre =
-    everyStoryBecause !== undefined
-      ? 'every story'
-      : quickCheckFailed
-        ? 'the quick check could not finish, so every story the change can reach'
-        : `${diffScope.storiesLookDifferent ?? 0} look different, ${diffScope.storiesCouldNotBeChecked ?? 0} could not be checked`;
+function renderPlatformLines({ full, diffScope }: PlatformCapture): string[] {
+  if (!hasDiffScopeNumbers(diffScope)) return [];
+
+  const quickCheckFailed = diffScope.quickCheck === 'FAILED' && !full;
+  const whatTheyAre = full
+    ? 'every story'
+    : quickCheckFailed
+      ? 'the quick check could not finish, so every story the change can reach'
+      : `${diffScope.storiesLookDifferent ?? 0} look different, ${diffScope.storiesCouldNotBeChecked ?? 0} could not be checked`;
   const warning = quickCheckFailed ? `${chalk.yellow('!')} ` : '';
+  const after = diffScope.reason ? `, after ${diffScope.reason}` : '';
 
   return [
-    `${checked} checked, after ${changed}`,
-    `${warning}${captured} captured: ${whatTheyAre}`,
-    `${reused} reuse their last picture`,
+    `${diffScope.storiesChecked} checked${after}`,
+    `${warning}${diffScope.storiesCaptured} captured: ${whatTheyAre}`,
+    `${diffScope.storiesReused} reuse their last picture`,
   ];
 }

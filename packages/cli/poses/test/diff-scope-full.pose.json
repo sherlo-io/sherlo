@@ -110,7 +110,9 @@
               "full": true,
               "reason": "native code changed since Test 14",
               "diffScope": {
-                "storiesChecked": 442
+                "storiesChecked": 442,
+                "storiesCaptured": 442,
+                "storiesReused": 0
               }
             }
           },

@@ -73,7 +73,10 @@ describe('the lines under a started test', () => {
         storiesChecked: 384,
         storiesLookDifferent: 26,
         storiesCouldNotBeChecked: 51,
+        storiesCaptured: 77,
+        storiesReused: 307,
         changedFiles: ['src/a.ts'],
+        reason: 'src/a.ts changed',
       },
     };
     const full: PlatformCapture = {
@@ -82,7 +85,12 @@ describe('the lines under a started test', () => {
       capturedStories: 0,
       storiesInBundle: 442,
       reason: 'native code changed since Test 14',
-      diffScope: { reason: 'native code changed since Test 14', storiesChecked: 442 },
+      diffScope: {
+        reason: 'native code changed since Test 14',
+        storiesChecked: 442,
+        storiesCaptured: 442,
+        storiesReused: 0,
+      },
     };
 
     for (const capture of [narrowed, full]) {
@@ -97,5 +105,30 @@ describe('the lines under a started test', () => {
 
       expect(printed).toEqual(expect.arrayContaining([checkedLine, capturedLine, reusedLine]));
     }
+  });
+
+  it('a test whose platforms differ prints a line naming each platform above its three lines', () => {
+    const answer = (full: boolean, storiesChecked: number, storiesCaptured: number) => ({
+      full,
+      capturedStories: 0,
+      diffScope: { reason: 'x changed', storiesChecked, storiesCaptured, storiesReused: 0 },
+    });
+    const { prints } = renderSegment({
+      kind: 'test-started',
+      buildIndex: 1,
+      capture: [
+        { platform: 'ios', ...answer(true, 10, 10) },
+        { platform: 'android', ...answer(false, 8, 3) },
+      ],
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
+    });
+    const printed = prints.map(([line]) => String(line).trim());
+
+    const android = printed.indexOf('🤖 Android');
+    const ios = printed.indexOf('🍎 iOS');
+    expect(android).toBeGreaterThan(-1);
+    expect(printed[android + 1]).toBe('8 checked, after x changed');
+    expect(ios).toBe(android + 4);
+    expect(printed[ios + 1]).toBe('10 checked, after x changed');
   });
 });
