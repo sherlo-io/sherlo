@@ -10,12 +10,17 @@ import * as path from 'path';
 import * as vm from 'vm';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  createFixtureRoot,
-  fixtureFileWriter,
-  storybookWrapperStandInSource,
-} from './bundle/fixtureMetroConfig';
+import { fixtureFileWriter, storybookWrapperStandInSource } from './bundle/fixtureMetroConfig';
 import { enterBundlingProcess } from './bundlingProcess';
+import {
+  createProject,
+  createdProjectRoots,
+  removeCreatedProjects,
+  resolveFrom,
+  resolveRelativeFile,
+  wrapConfig,
+  type ResolveRequest,
+} from './launchTimeEntryFixtures';
 
 const SDK_METRO_FOLDER = path.resolve(__dirname, '..', '..', 'metro');
 const {
@@ -29,21 +34,11 @@ const { BUNDLER_STAMP } = require('../../metro/sherloLine');
 const { sherloCacheFolder } = require('../../metro/projectPaths');
 
 type WrapperCall = { wrapper: 'older' | 'newer'; options: Record<string, unknown> };
-type Resolution = { type: string; filePath?: string };
-type ResolveRequest = (
-  context: { originModulePath: string; resolveRequest: unknown },
-  moduleName: string,
-  platform: string | null
-) => Resolution;
 
 // Every stand-in wrapper records its calls here (storybookWrapperStandInSource).
 const wrapperCalls: WrapperCall[] = [];
 (globalThis as { __storybookWrapperCalls?: WrapperCall[] }).__storybookWrapperCalls = wrapperCalls;
 
-const withStorybook: (
-  config: object,
-  opts: object
-) => { resolver: { resolveRequest: ResolveRequest } } = require('../../metro/withStorybook');
 let olderWrapperFile: string;
 let cachedOlderWrapper: NodeModule | undefined;
 
@@ -64,7 +59,7 @@ beforeAll(() => {
   defaultSetupRoot = createStorybookProject(DEFAULT_SETUP_STORYBOOK_ENTRY);
   defaultSetupResolve = wrapConfig(defaultSetupRoot).resolver.resolveRequest;
   // Removed after all the tests, not after the first.
-  projectRoots.length = 0;
+  createdProjectRoots.length = 0;
   wrapperCalls.length = 0;
 });
 
@@ -84,18 +79,6 @@ const DEFAULT_SETUP_STORYBOOK_ENTRY =
   "AppRegistry.registerComponent('main', () => view.getStorybookUI({}));\n";
 const OLD_SETUP_STORYBOOK_ENTRY =
   "import { view } from './storybook.requires';\n" + 'export default view.getStorybookUI({});\n';
-
-// The projects one test makes for itself, removed after it.
-const projectRoots: string[] = [];
-
-/** A project on disk with `files` in it, by their path in the project. */
-function createProject(files: Record<string, string>): string {
-  const root = createFixtureRoot('sherlo-launch-entry-');
-  projectRoots.push(root);
-  const write = fixtureFileWriter(root);
-  for (const [relativePath, content] of Object.entries(files)) write(relativePath, content);
-  return root;
-}
 
 /** A Storybook project: its app entry `index.js`, a Storybook entry file, and both wrappers. */
 function createStorybookProject(storybookEntrySource: string): string {
@@ -117,61 +100,8 @@ function createStorybookProject(storybookEntrySource: string): string {
 
 afterEach(() => {
   wrapperCalls.length = 0;
-  for (const root of projectRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
+  removeCreatedProjects();
 });
-
-/**
- * Sherlo's withStorybook on `root`'s config, with `env` set and `commandLine` after the CLI's
- * script (a debug bundle when it says nothing), `resolver` as the config's own, and `options` as
- * the options the app gives withStorybook.
- */
-function wrapConfig(
-  root: string,
-  env: Record<string, string> = {},
-  {
-    resolver = {},
-    commandLine = [],
-    options = {},
-  }: { resolver?: object; commandLine?: string[]; options?: object } = {}
-) {
-  const leaveBundlingProcess = enterBundlingProcess(env, commandLine);
-  try {
-    return withStorybook({ projectRoot: root, resolver, serializer: {}, server: {} }, options);
-  } finally {
-    leaveBundlingProcess();
-  }
-}
-
-/**
- * Metro's own resolver, as much of it as a relative request in the fixtures needs. Like Metro, it
- * answers with the file a symlink points to.
- */
-function resolveRelativeFile(
-  context: { originModulePath: string },
-  moduleName: string
-): Resolution {
-  const basePath = path.resolve(path.dirname(context.originModulePath), moduleName);
-  const candidates = ['', '.js', '.ts', '/index.js'].map((ending) => basePath + ending);
-  const filePath = candidates.find(
-    (candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile()
-  );
-  if (!filePath) throw new Error('Unable to resolve ' + moduleName);
-  return { type: 'sourceFile', filePath: fs.realpathSync(filePath) };
-}
-
-/** Asks `resolveRequest` for `moduleName` from `importer`, as Metro does. */
-function resolveFrom(
-  resolveRequest: ResolveRequest,
-  importer: string,
-  moduleName: string,
-  platform: string | null = 'ios'
-): Resolution {
-  return resolveRequest(
-    { originModulePath: importer, resolveRequest: resolveRelativeFile },
-    moduleName,
-    platform
-  );
-}
 
 /** Metro asks for the bundle's own entry from the folder it bundles, followed by `/.`. */
 function bundleEntryRequester(root: string): string {
