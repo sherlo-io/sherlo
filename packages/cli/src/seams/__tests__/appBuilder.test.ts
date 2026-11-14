@@ -637,7 +637,9 @@ describe('app builder, iOS', () => {
   it('a failed pod install names its command, its exit code and the first error line', async () => {
     fs.writeFileSync(path.join(projectRoot, 'Gemfile'), "gem 'cocoapods'\n");
     const failing: RunProcess = async (call) => {
-      if (call.command !== 'bundle') return iosRunProcess(call);
+      if (call.command !== 'bundle' || call.args.includes('--version')) {
+        return iosRunProcess(call);
+      }
       calls.push(call);
       fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
       fs.appendFileSync(
@@ -690,6 +692,56 @@ describe('app builder, iOS', () => {
     await compileIos();
     expect(callsOf('pod')).toHaveLength(1);
     expect(callsOf('bundle')).toHaveLength(0);
+  });
+
+  it('runs plain pod install when a Gemfile names cocoapods and bundler cannot run pod', async () => {
+    fs.writeFileSync(path.join(projectRoot, 'Gemfile'), "gem 'cocoapods'\n");
+    const bundlerCannotRunPod: RunProcess = async (call) => {
+      if (call.command !== 'bundle') return iosRunProcess(call);
+      calls.push(call);
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      fs.appendFileSync(call.logPath, 'Your Ruby is 3.2.0, but your Gemfile specified 2.7.6\n');
+      return 18;
+    };
+    const result = await compileIos({}, bundlerCannotRunPod);
+    expect(result).toMatchObject({ ok: true });
+    expect(callsOf('bundle').map((call) => call.args)).toEqual([['exec', 'pod', '--version']]);
+    expect(callsOf('pod')).toHaveLength(1);
+    const log = fs.readFileSync(path.join(projectRoot, '.sherlo/build-ios.log'), 'utf8');
+    expect(log).toContain('plain `pod install` is used');
+  });
+
+  it('a failed plain pod install after a fall back names the install error, not the version error', async () => {
+    fs.writeFileSync(path.join(projectRoot, 'Gemfile'), "gem 'cocoapods'\n");
+    const failing: RunProcess = async (call) => {
+      if (call.command !== 'bundle' && call.command !== 'pod') return iosRunProcess(call);
+      calls.push(call);
+      fs.mkdirSync(path.dirname(call.logPath), { recursive: true });
+      const isVersionCall = call.command === 'bundle';
+      fs.appendFileSync(
+        call.logPath,
+        isVersionCall ? 'Bundler::RubyVersionMismatch: wrong Ruby\n' : '[!] CDN: trunk failed\n'
+      );
+      return isVersionCall ? 18 : 1;
+    };
+    const result = await compileIos({}, failing);
+    if (result.ok) throw new Error('unreachable');
+    expect(result.lastLines).toEqual([
+      'The pod install step failed: `pod install` exited with 1.',
+      '[!] CDN: trunk failed',
+    ]);
+  });
+
+  it("asks bundler for pod's version before it installs pods through bundler", async () => {
+    fs.writeFileSync(path.join(projectRoot, 'Gemfile'), "gem 'cocoapods'\n");
+    await compileIos();
+    const bundleCalls = callsOf('bundle');
+    expect(bundleCalls.map((call) => call.args)).toEqual([
+      ['exec', 'pod', '--version'],
+      ['exec', 'pod', 'install'],
+    ]);
+    expect(bundleCalls[0].cwd).toBe(path.join(projectRoot, 'ios'));
+    expect(callsOf('pod')).toHaveLength(0);
   });
 
   it('warns once when pod install changes files the project does not commit', async () => {
