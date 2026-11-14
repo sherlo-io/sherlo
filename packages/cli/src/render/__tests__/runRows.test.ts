@@ -139,12 +139,16 @@ describe('the lines under a started test', () => {
       platforms: {
         android: {
           arrived: true,
-          capture: { full: false, reason: 'src/utils/analytics.ts changed', storyFiles: [] },
-          storiesChecked: 384,
-          storiesLookDifferent: 0,
-          storiesCouldNotBeChecked: 0,
-          storiesCaptured: 0,
-          storiesReused: 384,
+          capture: {
+            full: false,
+            reason: 'src/utils/analytics.ts changed',
+            storyFiles: [],
+            storiesChecked: 384,
+            storiesLookDifferent: 0,
+            storiesCouldNotBeChecked: 0,
+            storiesCaptured: 0,
+            storiesReused: 384,
+          },
         },
       },
     });

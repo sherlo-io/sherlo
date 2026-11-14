@@ -11,7 +11,7 @@ import type { Platform } from '@sherlo/api-types';
 import type { BuildStatus } from '../../helpers/buildStatusRequest';
 import { hasDiffScopeNumbers, renderDiffScopeLines } from '../../render/diffScopeLines';
 import type { PlatformCapture } from '../../render/testSteps';
-import { serverCalls, type OpenBuildAnswer } from '../../seams/serverCalls';
+import { serverCalls, type DiffScopeNumbers, type OpenBuildAnswer } from '../../seams/serverCalls';
 import { surroundings } from '../../seams/surroundings';
 import { whileShowing } from '../shared/terminal';
 
@@ -66,7 +66,7 @@ export async function waitForQuickCheck({
           return lastAnswer;
         }
         const stillRunning = Object.values(lastAnswer?.platforms ?? {}).some(
-          (platform) => platform?.quickCheck === 'RUNNING'
+          (platform) => platform?.capture?.quickCheck === 'RUNNING'
         );
         if (!stillRunning) return lastAnswer;
         // The last ask is the limit's: nothing is slept after it.
@@ -90,18 +90,19 @@ export function captureWithTheAnswer(
 ): PlatformCapture[] {
   return capture.map((platformCapture) => {
     const answered = answer?.platforms?.[platformCapture.platform];
-    if (!answered || !hasDiffScopeNumbers(answered)) return platformCapture;
+    const answeredCapture = answered?.capture;
+    if (!answeredCapture || !hasDiffScopeNumbers(answeredCapture)) return platformCapture;
 
-    const storyFiles = answered.capture?.full === false ? answered.capture.storyFiles : undefined;
+    const storyFiles = answeredCapture.full === false ? answeredCapture.storyFiles : undefined;
     return {
       ...platformCapture,
-      full: answered.capture?.full ?? platformCapture.full,
-      capturedStories: answered.storiesCaptured,
+      full: answeredCapture.full,
+      capturedStories: answeredCapture.storiesCaptured,
       ...(storyFiles ? { storyFiles, changedStoryFiles: storyFiles } : {}),
       diffScope: {
         ...platformCapture.diffScope,
-        ...numbersOf(answered),
-        reason: answered.capture?.reason ?? platformCapture.diffScope?.reason,
+        ...numbersOf(answeredCapture),
+        reason: answeredCapture.reason ?? platformCapture.diffScope?.reason,
       },
     };
   });
@@ -114,13 +115,13 @@ export function captureWithTheAnswer(
 export function nothingToCaptureWords(answer: BuildStatus): string | undefined {
   const capture: PlatformCapture[] = [];
   for (const platform of ['android', 'ios'] as Platform[]) {
-    const answered = answer.platforms?.[platform];
+    const answered = answer.platforms?.[platform]?.capture;
     if (!answered || !hasDiffScopeNumbers(answered)) continue;
     capture.push({
       platform,
       full: false,
       capturedStories: 0,
-      diffScope: { ...numbersOf(answered), reason: answered.capture?.reason ?? undefined },
+      diffScope: { ...numbersOf(answered), reason: answered.reason ?? undefined },
     });
   }
 
@@ -131,15 +132,15 @@ export function nothingToCaptureWords(answer: BuildStatus): string | undefined {
 }
 
 /** The quick check's state and counts of one platform's answer, and nothing else it holds. */
-function numbersOf(answered: NonNullable<BuildStatus['platforms']>[Platform]) {
+function numbersOf(answered: DiffScopeNumbers) {
   return {
-    quickCheck: answered?.quickCheck,
-    quickCheckFault: answered?.quickCheckFault,
-    storiesChecked: answered?.storiesChecked,
-    storiesLookDifferent: answered?.storiesLookDifferent,
-    storiesCouldNotBeChecked: answered?.storiesCouldNotBeChecked,
-    storiesCaptured: answered?.storiesCaptured,
-    storiesReused: answered?.storiesReused,
-    changedFiles: answered?.changedFiles,
+    quickCheck: answered.quickCheck,
+    quickCheckFault: answered.quickCheckFault,
+    storiesChecked: answered.storiesChecked,
+    storiesLookDifferent: answered.storiesLookDifferent,
+    storiesCouldNotBeChecked: answered.storiesCouldNotBeChecked,
+    storiesCaptured: answered.storiesCaptured,
+    storiesReused: answered.storiesReused,
+    changedFiles: answered.changedFiles,
   };
 }

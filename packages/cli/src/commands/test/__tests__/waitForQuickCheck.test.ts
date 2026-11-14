@@ -37,7 +37,12 @@ function openedWith(quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED'): OpenBui
 function statusWith(quickCheck: 'RUNNING' | 'FINISHED'): BuildStatus {
   return {
     runStatus: 'inProgress',
-    platforms: { android: { arrived: true, quickCheck } },
+    platforms: {
+      android: {
+        arrived: true,
+        capture: { full: false, reason: null, storyFiles: [], quickCheck },
+      },
+    },
   };
 }
 
@@ -56,7 +61,7 @@ describe('the command waits for the quick check', () => {
 
     expect(getBuildStatus).toHaveBeenCalledTimes(3);
     expect(getBuildStatus).toHaveBeenCalledWith(expect.objectContaining({ buildIndex: 15 }));
-    expect(answer?.platforms?.android?.quickCheck).toBe('FINISHED');
+    expect(answer?.platforms?.android?.capture?.quickCheck).toBe('FINISHED');
   });
 
   it('stops asking after the wait limit and returns the last answer', async () => {
@@ -101,7 +106,7 @@ describe('the command waits for the quick check', () => {
 
     const answer = await waitForQuickCheck({ openBuildReturn: openedWith('RUNNING'), ...ASK });
 
-    expect(answer?.platforms?.android?.quickCheck).toBe('RUNNING');
+    expect(answer?.platforms?.android?.capture?.quickCheck).toBe('RUNNING');
     expect(getBuildStatus).toHaveBeenCalledTimes(2);
   });
 });
@@ -121,8 +126,12 @@ describe('the words the finished answer gives the test', () => {
       platforms: {
         android: {
           arrived: true,
-          capture: { full: false, reason: 'src/utils/analytics.ts changed', storyFiles: [] },
-          ...NUMBERS,
+          capture: {
+            full: false,
+            reason: 'src/utils/analytics.ts changed',
+            storyFiles: [],
+            ...NUMBERS,
+          },
         },
       },
     };
@@ -146,7 +155,17 @@ describe('the words the finished answer gives the test', () => {
     const answer: BuildStatus = {
       runStatus: 'inProgress',
       platforms: {
-        android: { arrived: true, ...NUMBERS, storiesCaptured: 77, storiesReused: 307 },
+        android: {
+          arrived: true,
+          capture: {
+            full: false,
+            reason: null,
+            storyFiles: [],
+            ...NUMBERS,
+            storiesCaptured: 77,
+            storiesReused: 307,
+          },
+        },
       },
     };
 
