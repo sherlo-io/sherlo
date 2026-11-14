@@ -15,6 +15,9 @@ import chalk from 'chalk';
 import type { DiffScopeNumbers } from '../seams/serverCalls';
 import { platformWithEmoji, type PlatformCapture } from './testSteps';
 
+const QUICK_CHECK_FAILED_WORDS =
+  'the quick check could not finish, so every story the change can reach';
+
 /** Whether the service sent Diff Scope's numbers for this platform: an answer with only a reason has none. */
 export function hasDiffScopeNumbers<Answer extends DiffScopeNumbers>(
   diffScope: Answer | undefined
@@ -24,9 +27,9 @@ export function hasDiffScopeNumbers<Answer extends DiffScopeNumbers>(
   storiesReused: number;
 } {
   return (
-    diffScope?.storiesChecked !== undefined &&
-    diffScope.storiesCaptured !== undefined &&
-    diffScope.storiesReused !== undefined
+    typeof diffScope?.storiesChecked === 'number' &&
+    typeof diffScope.storiesCaptured === 'number' &&
+    typeof diffScope.storiesReused === 'number'
   );
 }
 
@@ -52,13 +55,15 @@ export function renderDiffScopeLines(capture: PlatformCapture[]): string[] {
 }
 
 function renderPlatformLines({ full, diffScope }: PlatformCapture): string[] {
-  if (!hasDiffScopeNumbers(diffScope)) return [];
+  const quickCheckFailed = diffScope?.quickCheck === 'FAILED' && !full;
+  if (!hasDiffScopeNumbers(diffScope)) {
+    return quickCheckFailed ? [`${chalk.yellow('!')} ${QUICK_CHECK_FAILED_WORDS} is captured`] : [];
+  }
 
-  const quickCheckFailed = diffScope.quickCheck === 'FAILED' && !full;
   const whatTheyAre = full
     ? 'every story'
     : quickCheckFailed
-      ? 'the quick check could not finish, so every story the change can reach'
+      ? QUICK_CHECK_FAILED_WORDS
       : `${diffScope.storiesLookDifferent ?? 0} look different, ${diffScope.storiesCouldNotBeChecked ?? 0} could not be checked`;
   const warning = quickCheckFailed ? `${chalk.yellow('!')} ` : '';
   const after = diffScope.reason ? `, after ${diffScope.reason}` : '';

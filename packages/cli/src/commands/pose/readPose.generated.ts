@@ -3246,27 +3246,49 @@ function readBuildStatusPlatform(value: unknown, path: string, problems: string[
           }
           expectStringArray(object4.storyFiles, at(where3, 'storyFiles'), problems);
           if ('storiesChecked' in object4) {
-            expectNumber(object4.storiesChecked, at(where3, 'storiesChecked'), problems);
+            const oneOf7 = object4.storiesChecked;
+            const where8 = at(where3, 'storiesChecked');
+            if (typeof oneOf7 === 'number' || oneOf7 === null) {
+              // the value is one of these
+            } else {
+              reportWrongShape(oneOf7, 'a number or `null`', where8, problems);
+            }
           }
           if ('storiesLookDifferent' in object4) {
-            expectNumber(
-              object4.storiesLookDifferent,
-              at(where3, 'storiesLookDifferent'),
-              problems
-            );
+            const oneOf9 = object4.storiesLookDifferent;
+            const where10 = at(where3, 'storiesLookDifferent');
+            if (typeof oneOf9 === 'number' || oneOf9 === null) {
+              // the value is one of these
+            } else {
+              reportWrongShape(oneOf9, 'a number or `null`', where10, problems);
+            }
           }
           if ('storiesCouldNotBeChecked' in object4) {
-            expectNumber(
-              object4.storiesCouldNotBeChecked,
-              at(where3, 'storiesCouldNotBeChecked'),
-              problems
-            );
+            const oneOf11 = object4.storiesCouldNotBeChecked;
+            const where12 = at(where3, 'storiesCouldNotBeChecked');
+            if (typeof oneOf11 === 'number' || oneOf11 === null) {
+              // the value is one of these
+            } else {
+              reportWrongShape(oneOf11, 'a number or `null`', where12, problems);
+            }
           }
           if ('storiesCaptured' in object4) {
-            expectNumber(object4.storiesCaptured, at(where3, 'storiesCaptured'), problems);
+            const oneOf13 = object4.storiesCaptured;
+            const where14 = at(where3, 'storiesCaptured');
+            if (typeof oneOf13 === 'number' || oneOf13 === null) {
+              // the value is one of these
+            } else {
+              reportWrongShape(oneOf13, 'a number or `null`', where14, problems);
+            }
           }
           if ('storiesReused' in object4) {
-            expectNumber(object4.storiesReused, at(where3, 'storiesReused'), problems);
+            const oneOf15 = object4.storiesReused;
+            const where16 = at(where3, 'storiesReused');
+            if (typeof oneOf15 === 'number' || oneOf15 === null) {
+              // the value is one of these
+            } else {
+              reportWrongShape(oneOf15, 'a number or `null`', where16, problems);
+            }
           }
           if ('changedFiles' in object4) {
             expectStringArray(object4.changedFiles, at(where3, 'changedFiles'), problems);
@@ -3304,107 +3326,107 @@ function readBuildStatusPlatform(value: unknown, path: string, problems: string[
       } else {
         reportWrongShape(
           oneOf2,
-          "`{ full: boolean; reason: string | null; storyFiles: string[]; storiesChecked?: number; storiesLookDifferent?: number; storiesCouldNotBeChecked?: number; storiesCaptured?: number; storiesReused?: number; changedFiles?: string[]; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED'; quickCheckFault?: string }` or `null`",
+          "`{ full: boolean; reason: string | null; storyFiles: string[]; storiesChecked?: number | null; storiesLookDifferent?: number | null; storiesCouldNotBeChecked?: number | null; storiesCaptured?: number | null; storiesReused?: number | null; changedFiles?: string[]; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED'; quickCheckFault?: string }` or `null`",
           where3,
           problems
         );
       }
     }
     if ('appBuild' in object1) {
-      const oneOf7 = object1.appBuild;
-      const where8 = at(path, 'appBuild');
-      if (oneOf7 === null) {
+      const oneOf17 = object1.appBuild;
+      const where18 = at(path, 'appBuild');
+      if (oneOf17 === null) {
         // the value is one of these
-      } else if (isPlainObject(oneOf7)) {
-        const object9 = asObject(oneOf7, where8, problems);
-        if (object9) {
-          expectOneOf(object9.from, ['uploaded', 'stored'], at(where8, 'from'), problems);
-          if ('storedFromTest' in object9) {
-            const oneOf10 = object9.storedFromTest;
-            const where11 = at(where8, 'storedFromTest');
-            if (typeof oneOf10 === 'number' || oneOf10 === null) {
+      } else if (isPlainObject(oneOf17)) {
+        const object19 = asObject(oneOf17, where18, problems);
+        if (object19) {
+          expectOneOf(object19.from, ['uploaded', 'stored'], at(where18, 'from'), problems);
+          if ('storedFromTest' in object19) {
+            const oneOf20 = object19.storedFromTest;
+            const where21 = at(where18, 'storedFromTest');
+            if (typeof oneOf20 === 'number' || oneOf20 === null) {
               // the value is one of these
             } else {
-              reportWrongShape(oneOf10, 'a number or `null`', where11, problems);
+              reportWrongShape(oneOf20, 'a number or `null`', where21, problems);
             }
           }
-          if ('madeBy' in object9) {
-            const oneOf12 = object9.madeBy;
-            const where13 = at(where8, 'madeBy');
+          if ('madeBy' in object19) {
+            const oneOf22 = object19.madeBy;
+            const where23 = at(where18, 'madeBy');
             if (
-              oneOf12 === 'compiled' ||
-              oneOf12 === 'build-cache' ||
-              oneOf12 === 'command' ||
-              oneOf12 === 'eas' ||
-              oneOf12 === null
+              oneOf22 === 'compiled' ||
+              oneOf22 === 'build-cache' ||
+              oneOf22 === 'command' ||
+              oneOf22 === 'eas' ||
+              oneOf22 === null
             ) {
               // the value is one of these
             } else {
               reportWrongShape(
-                oneOf12,
+                oneOf22,
                 '`"compiled"`, `"build-cache"`, `"command"`, `"eas"` or `null`',
-                where13,
+                where23,
                 problems
               );
             }
           }
-          if ('why' in object9) {
-            const oneOf14 = object9.why;
-            const where15 = at(where8, 'why');
-            if (oneOf14 === 'nothing-stored' || oneOf14 === 'native-changed' || oneOf14 === null) {
+          if ('why' in object19) {
+            const oneOf24 = object19.why;
+            const where25 = at(where18, 'why');
+            if (oneOf24 === 'nothing-stored' || oneOf24 === 'native-changed' || oneOf24 === null) {
               // the value is one of these
             } else {
               reportWrongShape(
-                oneOf14,
+                oneOf24,
                 '`"nothing-stored"`, `"native-changed"` or `null`',
-                where15,
+                where25,
                 problems
               );
             }
           }
-          if ('nativeChanges' in object9) {
-            const oneOf16 = object9.nativeChanges;
-            const where17 = at(where8, 'nativeChanges');
-            if (oneOf16 === null) {
+          if ('nativeChanges' in object19) {
+            const oneOf26 = object19.nativeChanges;
+            const where27 = at(where18, 'nativeChanges');
+            if (oneOf26 === null) {
               // the value is one of these
-            } else if (Array.isArray(oneOf16)) {
-              expectStringArray(oneOf16, where17, problems);
+            } else if (Array.isArray(oneOf26)) {
+              expectStringArray(oneOf26, where27, problems);
             } else {
-              reportWrongShape(oneOf16, 'an array of strings or `null`', where17, problems);
+              reportWrongShape(oneOf26, 'an array of strings or `null`', where27, problems);
             }
           }
           reportUnknownFields(
-            object9,
+            object19,
             ['from', 'storedFromTest', 'madeBy', 'why', 'nativeChanges'],
-            where8,
+            where18,
             problems
           );
         }
       } else {
         reportWrongShape(
-          oneOf7,
+          oneOf17,
           "`{ from: 'uploaded' | 'stored'; storedFromTest?: number | null; madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null; why?: 'nothing-stored' | 'native-changed' | null; nativeChanges?: string[] | null }` or `null`",
-          where8,
+          where18,
           problems
         );
       }
     }
     if ('storiesInBundle' in object1) {
-      const oneOf18 = object1.storiesInBundle;
-      const where19 = at(path, 'storiesInBundle');
-      if (typeof oneOf18 === 'number' || oneOf18 === null) {
+      const oneOf28 = object1.storiesInBundle;
+      const where29 = at(path, 'storiesInBundle');
+      if (typeof oneOf28 === 'number' || oneOf28 === null) {
         // the value is one of these
       } else {
-        reportWrongShape(oneOf18, 'a number or `null`', where19, problems);
+        reportWrongShape(oneOf28, 'a number or `null`', where29, problems);
       }
     }
     if ('scenesInBundle' in object1) {
-      const oneOf20 = object1.scenesInBundle;
-      const where21 = at(path, 'scenesInBundle');
-      if (typeof oneOf20 === 'number' || oneOf20 === null) {
+      const oneOf30 = object1.scenesInBundle;
+      const where31 = at(path, 'scenesInBundle');
+      if (typeof oneOf30 === 'number' || oneOf30 === null) {
         // the value is one of these
       } else {
-        reportWrongShape(oneOf20, 'a number or `null`', where21, problems);
+        reportWrongShape(oneOf30, 'a number or `null`', where31, problems);
       }
     }
     reportUnknownFields(
@@ -3457,23 +3479,49 @@ function readPlatformDiffScope(value: unknown, path: string, problems: string[])
   const object1 = asObject(value, path, problems);
   if (object1) {
     if ('storiesChecked' in object1) {
-      expectNumber(object1.storiesChecked, at(path, 'storiesChecked'), problems);
+      const oneOf2 = object1.storiesChecked;
+      const where3 = at(path, 'storiesChecked');
+      if (typeof oneOf2 === 'number' || oneOf2 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf2, 'a number or `null`', where3, problems);
+      }
     }
     if ('storiesLookDifferent' in object1) {
-      expectNumber(object1.storiesLookDifferent, at(path, 'storiesLookDifferent'), problems);
+      const oneOf4 = object1.storiesLookDifferent;
+      const where5 = at(path, 'storiesLookDifferent');
+      if (typeof oneOf4 === 'number' || oneOf4 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf4, 'a number or `null`', where5, problems);
+      }
     }
     if ('storiesCouldNotBeChecked' in object1) {
-      expectNumber(
-        object1.storiesCouldNotBeChecked,
-        at(path, 'storiesCouldNotBeChecked'),
-        problems
-      );
+      const oneOf6 = object1.storiesCouldNotBeChecked;
+      const where7 = at(path, 'storiesCouldNotBeChecked');
+      if (typeof oneOf6 === 'number' || oneOf6 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf6, 'a number or `null`', where7, problems);
+      }
     }
     if ('storiesCaptured' in object1) {
-      expectNumber(object1.storiesCaptured, at(path, 'storiesCaptured'), problems);
+      const oneOf8 = object1.storiesCaptured;
+      const where9 = at(path, 'storiesCaptured');
+      if (typeof oneOf8 === 'number' || oneOf8 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf8, 'a number or `null`', where9, problems);
+      }
     }
     if ('storiesReused' in object1) {
-      expectNumber(object1.storiesReused, at(path, 'storiesReused'), problems);
+      const oneOf10 = object1.storiesReused;
+      const where11 = at(path, 'storiesReused');
+      if (typeof oneOf10 === 'number' || oneOf10 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf10, 'a number or `null`', where11, problems);
+      }
     }
     if ('changedFiles' in object1) {
       expectStringArray(object1.changedFiles, at(path, 'changedFiles'), problems);
@@ -3575,23 +3623,49 @@ function readDiffScopeNumbers(value: unknown, path: string, problems: string[]):
   const object1 = asObject(value, path, problems);
   if (object1) {
     if ('storiesChecked' in object1) {
-      expectNumber(object1.storiesChecked, at(path, 'storiesChecked'), problems);
+      const oneOf2 = object1.storiesChecked;
+      const where3 = at(path, 'storiesChecked');
+      if (typeof oneOf2 === 'number' || oneOf2 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf2, 'a number or `null`', where3, problems);
+      }
     }
     if ('storiesLookDifferent' in object1) {
-      expectNumber(object1.storiesLookDifferent, at(path, 'storiesLookDifferent'), problems);
+      const oneOf4 = object1.storiesLookDifferent;
+      const where5 = at(path, 'storiesLookDifferent');
+      if (typeof oneOf4 === 'number' || oneOf4 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf4, 'a number or `null`', where5, problems);
+      }
     }
     if ('storiesCouldNotBeChecked' in object1) {
-      expectNumber(
-        object1.storiesCouldNotBeChecked,
-        at(path, 'storiesCouldNotBeChecked'),
-        problems
-      );
+      const oneOf6 = object1.storiesCouldNotBeChecked;
+      const where7 = at(path, 'storiesCouldNotBeChecked');
+      if (typeof oneOf6 === 'number' || oneOf6 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf6, 'a number or `null`', where7, problems);
+      }
     }
     if ('storiesCaptured' in object1) {
-      expectNumber(object1.storiesCaptured, at(path, 'storiesCaptured'), problems);
+      const oneOf8 = object1.storiesCaptured;
+      const where9 = at(path, 'storiesCaptured');
+      if (typeof oneOf8 === 'number' || oneOf8 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf8, 'a number or `null`', where9, problems);
+      }
     }
     if ('storiesReused' in object1) {
-      expectNumber(object1.storiesReused, at(path, 'storiesReused'), problems);
+      const oneOf10 = object1.storiesReused;
+      const where11 = at(path, 'storiesReused');
+      if (typeof oneOf10 === 'number' || oneOf10 === null) {
+        // the value is one of these
+      } else {
+        reportWrongShape(oneOf10, 'a number or `null`', where11, problems);
+      }
     }
     if ('changedFiles' in object1) {
       expectStringArray(object1.changedFiles, at(path, 'changedFiles'), problems);

@@ -131,6 +131,27 @@ describe('the lines the test prints about Diff Scope', () => {
     ]);
   });
 
+  it('never prints null when the quick check failed and every count is null', () => {
+    const lines = renderDiffScopeLines([
+      {
+        ...NARROWED,
+        diffScope: {
+          storiesChecked: null,
+          storiesCaptured: null,
+          storiesReused: null,
+          storiesLookDifferent: null,
+          storiesCouldNotBeChecked: null,
+          quickCheck: 'FAILED',
+        },
+      },
+    ]);
+
+    expect(lines.join('\n')).not.toContain('null');
+    expect(lines).toEqual([
+      '! the quick check could not finish, so every story the change can reach is captured',
+    ]);
+  });
+
   it('prints nothing when the server sent no Diff Scope numbers', () => {
     expect(
       renderDiffScopeLines([{ ...NARROWED, diffScope: { reason: 'no main branch' } }])

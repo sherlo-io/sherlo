@@ -47,11 +47,12 @@ export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
  * and how many reuse their last picture, and which files changed.
  */
 export type DiffScopeNumbers = {
-  storiesChecked?: number;
-  storiesLookDifferent?: number;
-  storiesCouldNotBeChecked?: number;
-  storiesCaptured?: number;
-  storiesReused?: number;
+  // GraphQL sends null for a count the service does not have.
+  storiesChecked?: number | null;
+  storiesLookDifferent?: number | null;
+  storiesCouldNotBeChecked?: number | null;
+  storiesCaptured?: number | null;
+  storiesReused?: number | null;
   /** The paths of the files the change touched. */
   changedFiles?: string[];
   quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';

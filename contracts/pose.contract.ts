@@ -1620,11 +1620,11 @@ export type BuildStatusPlatform = {
     reason: string | null;
     /** The story files captured, as paths. Empty when `full`. */
     storyFiles: string[];
-    storiesChecked?: number;
-    storiesLookDifferent?: number;
-    storiesCouldNotBeChecked?: number;
-    storiesCaptured?: number;
-    storiesReused?: number;
+    storiesChecked?: number | null;
+    storiesLookDifferent?: number | null;
+    storiesCouldNotBeChecked?: number | null;
+    storiesCaptured?: number | null;
+    storiesReused?: number | null;
     /** The paths of the files the change touched. */
     changedFiles?: string[];
     quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
@@ -1695,11 +1695,11 @@ export type PosedPlatformCaptureDecision = {
 
 /** One platform's entry in the answer's `build.diffScopeInfo.platforms`. */
 export type PlatformDiffScope = {
-  storiesChecked?: number;
-  storiesLookDifferent?: number;
-  storiesCouldNotBeChecked?: number;
-  storiesCaptured?: number;
-  storiesReused?: number;
+  storiesChecked?: number | null;
+  storiesLookDifferent?: number | null;
+  storiesCouldNotBeChecked?: number | null;
+  storiesCaptured?: number | null;
+  storiesReused?: number | null;
   /** The paths of the files the change touched. */
   changedFiles?: string[];
   quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
@@ -1755,11 +1755,11 @@ export type AppError = {
  * and how many reuse their last picture, and which files changed.
  */
 export type DiffScopeNumbers = {
-  storiesChecked?: number;
-  storiesLookDifferent?: number;
-  storiesCouldNotBeChecked?: number;
-  storiesCaptured?: number;
-  storiesReused?: number;
+  storiesChecked?: number | null;
+  storiesLookDifferent?: number | null;
+  storiesCouldNotBeChecked?: number | null;
+  storiesCaptured?: number | null;
+  storiesReused?: number | null;
   /** The paths of the files the change touched. */
   changedFiles?: string[];
   quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
