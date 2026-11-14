@@ -8,6 +8,7 @@
  */
 import type { Platform } from '@sherlo/api-types';
 import { getAppBuildUrl, handleClientError, reporting } from '../../helpers';
+import type { BuildStatus } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
 import { isServerBypassed } from '../../helpers/waitForBuildResult';
 import type { PlatformRow } from '../../render/runRows';
@@ -22,6 +23,7 @@ import { closeTheRun } from './closeTheRun';
 import type { THIS_COMMAND } from './constants';
 import { firstLookOf } from './firstLook';
 import { rowsAbove } from './platformRows';
+import { captureWithTheAnswer, waitForQuickCheck } from './waitForQuickCheck';
 import {
   countBundleScenes,
   countBundleStories,
@@ -130,8 +132,16 @@ export async function openAndEndTheTest({
   // How many pictures the plan takes sizes the default wait; a joined run's plan is unknown here.
   let picturesPlanned: number | undefined;
   if (!joinKey) {
+    // The row waits for the quick check, so its lines are the finished answer's.
+    const quickCheckAnswer = await waitForQuickCheck({
+      openBuildReturn,
+      token,
+      projectIndex,
+      teamId,
+    });
     picturesPlanned = printTestStarted({
       openBuildReturn,
+      quickCheckAnswer,
       moduleManifests,
       platformsToTest,
       devices: commandParams.devices,
@@ -186,6 +196,7 @@ function countInBundleOf(
  */
 export function printTestStarted({
   openBuildReturn,
+  quickCheckAnswer,
   moduleManifests,
   platformsToTest,
   devices,
@@ -196,6 +207,8 @@ export function printTestStarted({
   /** The project's address, for the branching-off warning's link; none, no warning. */
   project?: SherloProject;
   openBuildReturn: OpenBuildAnswer;
+  /** The test's status once its quick check ended (./waitForQuickCheck); none, and the row is the open answer's. */
+  quickCheckAnswer?: BuildStatus;
   moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>>;
   platformsToTest: Platform[];
   devices: Config['devices'];
@@ -207,7 +220,10 @@ export function printTestStarted({
   // finished step that says so (./closeTheRun).
   if (serverBypassed) return 0;
 
-  const capture = capturePerPlatform({ openBuildReturn, moduleManifests, platformsToTest });
+  const capture = captureWithTheAnswer(
+    capturePerPlatform({ openBuildReturn, moduleManifests, platformsToTest }),
+    quickCheckAnswer
+  );
 
   // Branching is off when the server captured every story and said why: the project has no main
   // branch. The warning says it, so the Started row drops the same words.

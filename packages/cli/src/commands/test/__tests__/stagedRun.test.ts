@@ -125,6 +125,13 @@ vi.mock('../../../helpers/waitForBuildResult', async (importActual) => {
   return { ...actual, fetchServerBypassReason: vi.fn() };
 });
 
+// The wait for the quick check keeps its real words and its own test (./waitForQuickCheck.test);
+// here only WHEN it ends, against the row the test prints, matters.
+vi.mock('../waitForQuickCheck', async (importActual) => {
+  const actual = await importActual<typeof import('../waitForQuickCheck')>();
+  return { ...actual, waitForQuickCheck: vi.fn(actual.waitForQuickCheck) };
+});
+
 // ---------------------------------------------------------------------------
 // Mocked dependency accessors
 // ---------------------------------------------------------------------------
@@ -147,6 +154,10 @@ import _uploadStagedArtifacts from '../uploadStagedArtifacts';
 import { buildThenPush as _buildThenPush } from '../appBuild/buildThenPush';
 import { joinTheRun as _joinTheRun } from '../appBuild/joinTheRun';
 import { fetchServerBypassReason as _fetchServerBypassReason } from '../../../helpers/waitForBuildResult';
+import {
+  QUICK_CHECK_WAITING_WORDS,
+  waitForQuickCheck as _waitForQuickCheck,
+} from '../waitForQuickCheck';
 
 const mockGetAppBuildUrl = vi.mocked(_getAppBuildUrl);
 const mockGetBuildRunConfig = vi.mocked(_getBuildRunConfig);
@@ -162,6 +173,7 @@ const mockBuildThenPush = vi.mocked(_buildThenPush);
 const mockJoinTheRun = vi.mocked(_joinTheRun);
 const mockWaitForBuildResult = vi.mocked(_waitForBuildResult);
 const mockFetchServerBypassReason = vi.mocked(_fetchServerBypassReason);
+const mockWaitForQuickCheck = vi.mocked(_waitForQuickCheck);
 
 /** The project token this road spends, as getValidatedCommandParams resolves it. */
 const PROJECT_TOKEN_CREDENTIAL = {
@@ -1237,6 +1249,67 @@ describe('server-bypassed build (SHERLO-1952)', () => {
     // A working link beats silence; a closer never prints with nothing after the dash.
     expect(out).toContain('🔗 Review: http://app/build');
     expect(out).not.toContain('Nothing needed capturing');
+
+    logSpy.mockRestore();
+  });
+
+  it('a test whose quick check ran prints its row after the wait, not before', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: false });
+    mockOpenBuild.mockResolvedValue({
+      build: {
+        index: 7,
+        diffScopeInfo: { platforms: { ios: { quickCheck: 'RUNNING' } } },
+      },
+      buildRun: {
+        config: { ios: { devices: [], captureScope: { full: false, storyFilePaths: ['a.tsx'] } } },
+      },
+    });
+    let printedWhileWaiting = '';
+    mockWaitForQuickCheck.mockImplementationOnce(async () => {
+      printedWhileWaiting = printed(logSpy);
+      return {
+        runStatus: 'inProgress',
+        platforms: {
+          ios: {
+            arrived: true,
+            capture: {
+              full: false,
+              reason: 'src/components/Button/Button.Text.tsx changed',
+              storyFiles: ['a.tsx'],
+            },
+            quickCheck: 'FINISHED',
+            storiesChecked: 384,
+            storiesLookDifferent: 26,
+            storiesCouldNotBeChecked: 51,
+            storiesCaptured: 77,
+            storiesReused: 307,
+          },
+        },
+      };
+    });
+
+    await stagedRun(mockOptions());
+
+    expect(printedWhileWaiting).not.toContain('Started');
+    const out = printed(logSpy);
+    expect(out).toContain('Started');
+    expect(out).toContain('384 checked, after src/components/Button/Button.Text.tsx changed');
+    expect(out).toContain('77 captured: 26 look different, 51 could not be checked');
+
+    logSpy.mockRestore();
+  });
+
+  it('a test closed at open for nothing to capture waits for no quick check', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    setup({ wait: false, bypassed: true });
+    mockFetchServerBypassReason.mockResolvedValue({ reason: 'x', storyWaits: false });
+
+    await stagedRun(mockOptions());
+
+    const answers = mockWaitForQuickCheck.mock.results.map(({ value }) => value);
+    await expect(Promise.all(answers)).resolves.toEqual(answers.map(() => undefined));
+    expect(printed(logSpy)).not.toContain(QUICK_CHECK_WAITING_WORDS);
 
     logSpy.mockRestore();
   });
