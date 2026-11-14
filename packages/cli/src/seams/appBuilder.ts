@@ -422,10 +422,11 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     fs.writeFileSync(path.join(projectRoot, 'package.json'), original);
   }
 
-  /** The last lines of a build's log, as the build tool wrote them. */
-  function lastLinesOf(logPath: string): string[] {
+  /** The last lines of a build's log, as the build tool wrote them, from `fromByte` on. */
+  function lastLinesOf(logPath: string, fromByte = 0): string[] {
     if (!fs.existsSync(logPath)) return [];
-    return fs.readFileSync(logPath, 'utf8').trimEnd().split('\n').slice(-LAST_LINES_SHOWN);
+    const text = fs.readFileSync(logPath).subarray(fromByte).toString('utf8');
+    return text.trimEnd().split('\n').slice(-LAST_LINES_SHOWN);
   }
 
   async function compileAndroid(params: CompileParams): Promise<CompiledApp> {
@@ -506,23 +507,48 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     const { projectRoot, iosFolder, configuration, env, logPath } = params;
     if (installedPodsAreCurrent(iosFolder, [configuration])) return { skipped: true };
     const filesBefore = readPodTouchedFiles(projectRoot);
-    const usesBundler = [projectRoot, iosFolder].some((folder) =>
+    const gemfileNamesCocoapods = [projectRoot, iosFolder].some((folder) =>
       /cocoapods/i.test(readTextIfThere(path.join(folder, 'Gemfile')) ?? '')
     );
     // CocoaPods fails with `Unicode Normalization not appropriate for ASCII-8BIT` with no locale.
     const hasLocale = Boolean(env.LANG || env.LC_ALL);
+    const installEnv = hasLocale ? env : { ...env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' };
+    // Like Expo's own build: Bundler is used only where it can run `pod`, else plain `pod install`.
+    let usesBundler = false;
+    if (gemfileNamesCocoapods) {
+      const versionExitCode = await runProcess({
+        command: 'bundle',
+        args: ['exec', 'pod', '--version'],
+        cwd: iosFolder,
+        env: installEnv,
+        logPath,
+      });
+      usesBundler = versionExitCode === 0;
+      if (!usesBundler) {
+        fs.appendFileSync(
+          logPath,
+          'Bundler could not run `pod` here, so plain `pod install` is used.\n'
+        );
+      }
+    }
+    // The failure line is read from what the install wrote, never from the version call above it.
+    const logSizeBeforeInstall = fs.existsSync(logPath) ? fs.statSync(logPath).size : 0;
     const command = usesBundler ? 'bundle exec pod install' : 'pod install';
     const [program, ...args] = command.split(' ');
     const exitCode = await runProcess({
       command: program,
       args,
       cwd: iosFolder,
-      env: hasLocale ? env : { ...env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' },
+      env: installEnv,
       logPath,
     });
     if (exitCode !== 0) {
       return {
-        failedLines: podInstallFailureLines({ command, exitCode, logLines: lastLinesOf(logPath) }),
+        failedLines: podInstallFailureLines({
+          command,
+          exitCode,
+          logLines: lastLinesOf(logPath, logSizeBeforeInstall),
+        }),
       };
     }
 
