@@ -118,6 +118,8 @@
               "reason": "src/components/Button/Button.Text.tsx changed",
               "diffScope": {
                 "storiesChecked": 384,
+                "storiesCaptured": 197,
+                "storiesReused": 187,
                 "changedFiles": ["src/components/Button/Button.Text.tsx"],
                 "quickCheck": "FAILED"
               }

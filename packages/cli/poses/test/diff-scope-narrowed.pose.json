@@ -117,6 +117,8 @@
               "reason": "src/components/Button/Button.Text.tsx changed",
               "diffScope": {
                 "storiesChecked": 384,
+                "storiesCaptured": 77,
+                "storiesReused": 307,
                 "storiesLookDifferent": 26,
                 "storiesCouldNotBeChecked": 51,
                 "changedFiles": ["src/components/Button/Button.Text.tsx"]
