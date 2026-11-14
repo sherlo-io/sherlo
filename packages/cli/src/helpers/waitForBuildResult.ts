@@ -10,6 +10,7 @@ import { screenKindOf, type ScreenKind } from '../render/testSteps';
 import { AuthError, type BuildStatus, type BuildStatusResponse } from './buildStatusRequest';
 import { serverCalls } from '../seams/serverCalls';
 import { surroundings } from '../seams/surroundings';
+import { nothingToCaptureWords } from '../commands/test/waitForQuickCheck';
 import getAppBuildUrl from './getAppBuildUrl';
 import getTokenParts from './getTokenParts';
 import hasNoTokenParts from './hasNoTokenParts';
@@ -587,7 +588,7 @@ function printTerminalCloser(
     // Server-bypassed build (SHERLO-1952): there is nothing to review (zero new screenshots) and
     // the review page cannot render this build shape yet (SHERLO-1974), so the run ends on its one
     // finished step and points at no URL.
-    printServerBypassCloser(serverBypassReason, testIndex, rowsNotYetShown);
+    printServerBypassCloser(serverBypassReason, testIndex, rowsNotYetShown, build);
     return;
   }
 
@@ -659,7 +660,7 @@ function printSparseCloser(
 
   const serverBypassReason = getServerBypassReason(build.diffScopeInfo);
   if (verdict.exitCode === EXIT_GREEN && serverBypassReason) {
-    printServerBypassCloser(serverBypassReason, howItRan.testIndex, rowsNotYetShown);
+    printServerBypassCloser(serverBypassReason, howItRan.testIndex, rowsNotYetShown, build);
     return;
   }
 
@@ -720,20 +721,17 @@ export function isServerBypassed(
 }
 
 /**
- * When the API server-bypassed the build (SHERLO-1959) - it already knew every
- * story's screenshot could be inherited from the previous build, so it closed
- * the build without ever handing it to the runner - return the plain-prose
- * reason line to print in the closing message; otherwise return undefined so the
- * caller falls back to the generic "All stories passed" line.
+ * When the API server-bypassed the build (SHERLO-1959) - it already knew every story's screenshot
+ * could be inherited from the previous build, so it closed the build without ever handing it to
+ * the runner - return the plain-prose reason line to print in the closing message; otherwise
+ * return undefined so the caller falls back to the generic "All stories passed" line.
  *
  * Recognized off the SAME shape closeBuild persists (see the API unit test
- * closeAsZeroCaptureNoOp.unit.test.ts): the {@link isServerBypassed} counts plus
- * a per-platform prose `reason`. The reason is taken from
- * `platforms.<platform>.reason` - the reviewed prose the CLI prints
- * verbatim - never from `fullCaptureTriggerReason`, which is a machine enum
- * code and is always absent on a bypassed (partial-capture) build anyway
- * (SHERLO-1963). An older API response with no `diffScopeInfo` (or no
- * `platforms.<platform>.reason`) yields undefined and degrades gracefully.
+ * closeAsZeroCaptureNoOp.unit.test.ts): the {@link isServerBypassed} counts plus a per-platform
+ * prose `reason`, taken from `platforms.<platform>.reason` - the reviewed prose the CLI prints
+ * verbatim - never from `fullCaptureTriggerReason`, a machine enum code that is always absent on
+ * a bypassed (partial-capture) build anyway (SHERLO-1963). An older API response with no
+ * `diffScopeInfo` (or no `platforms.<platform>.reason`) yields undefined and degrades gracefully.
  */
 function getServerBypassReason(
   diffScopeInfo: NonNullable<BuildStatusResponse['getBuildStatus']>['diffScopeInfo']
@@ -754,19 +752,19 @@ function getServerBypassReason(
 
 /**
  * The compact closer for a server-bypassed build (SHERLO-1952): the test's row, finished, with the
- * server's verbatim reason, under the platforms' rows no test row has shown yet (none for `sherlo
- * view`). No URL - the build has nothing to review and the review page cannot render this shape yet
- * (SHERLO-1974). One definition, used by BOTH the --wait terminal path here and the non-wait closer
- * (../commands/test/closeTheRun), so the two modes print identical text.
+ * three lines from the answer's numbers (`build`) or, when it has none, the server's verbatim
+ * reason, under the platforms' rows no test row has shown yet. No URL - the build has nothing to
+ * review (SHERLO-1974). Used by BOTH the --wait path here and the non-wait closer (closeTheRun).
  */
 export function printServerBypassCloser(
   reason: string,
   testIndex: number,
-  rowsNotYetShown: PlatformRow[]
+  rowsNotYetShown: PlatformRow[],
+  build?: BuildStatus
 ): void {
   emit({
     kind: 'verdict-server-bypassed',
-    reason,
+    reason: (build && nothingToCaptureWords(build)) ?? reason,
     testIndex,
     rowsAbove: rowsAbove(rowsNotYetShown),
   });
@@ -805,10 +803,8 @@ export async function readBuildStatus({
 
 /**
  * Fetch the server's verbatim bypass reason with ONE getBuildStatus call against
- * the already-closed build - the non-wait counterpart to the --wait poll, using
- * the SAME query/wire shape (`fetchBuildStatus`) so there is one place to change
- * if the shape moves. The build is already terminal server-side, so this returns
- * immediately; it is a single read, not a wait.
+ * the already-closed build - the non-wait counterpart to the --wait poll, using the SAME
+ * query/wire shape (`fetchBuildStatus`). The build is already terminal, so this is a read, not a wait.
  *
  * Best-effort by contract (SHERLO-1952 guard rail): any failure - network, auth,
  * timeout, malformed response, or no per-platform reason - degrades to no `reason`
@@ -825,7 +821,7 @@ export async function fetchServerBypassReason({
   buildIndex: number;
   projectIndex: number;
   teamId: string;
-}): Promise<{ reason?: string; storyWaits: boolean }> {
+}): Promise<{ reason?: string; storyWaits: boolean; build?: BuildStatus }> {
   try {
     const build = await serverCalls().getBuildStatus({
       token,
@@ -835,9 +831,12 @@ export async function fetchServerBypassReason({
       boundedRead: true,
     });
     const counts = build?.viewStatusesCount;
+    const reason = getServerBypassReason(build?.diffScopeInfo);
     return {
-      reason: getServerBypassReason(build?.diffScopeInfo),
+      reason,
       storyWaits: (counts?.unreviewed ?? 0) + (counts?.reported ?? 0) > 0,
+      // The answer itself, for a bypassed build: its numbers are the closer's three lines.
+      ...(reason && build ? { build } : {}),
     };
   } catch {
     return { storyWaits: false };

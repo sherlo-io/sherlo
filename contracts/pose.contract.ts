@@ -1071,8 +1071,112 @@ export type BuildStatusAnswer = {
    * absent.
    */
   platforms?: {
-    android?: BuildStatusPlatform;
-    ios?: BuildStatusPlatform;
+    android?: {
+      /**
+       * Whether this platform's app build reached the run. `false`: a split or EAS run still waits
+       * for it.
+       */
+      arrived: boolean;
+      /**
+       * The capture plan the service decided for this platform, read off the stored decision
+       * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has
+       * it. `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
+       */
+      capture?: {
+        /** `true`: every story in the bundle was captured. */
+        full: boolean;
+        /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+        reason: string | null;
+        /** The story files captured, as paths. Empty when `full`. */
+        storyFiles: string[];
+      } | null;
+      /** Where the app build came from. `null` before the platform arrived. */
+      appBuild?: {
+        /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
+        from: 'uploaded' | 'stored';
+        /** The test the stored app build was first uploaded in. Only with `from: stored`. */
+        storedFromTest?: number | null;
+        /**
+         * How the push made the app build it uploaded, as the push reported it. Only with `from:
+         * uploaded`.
+         */
+        madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null;
+        /** Why a new app build was made, as the push reported it. */
+        why?: 'nothing-stored' | 'native-changed' | null;
+        /**
+         * What changed natively since the stored app build, as the push reported it, with `why:
+         * native-changed`.
+         */
+        nativeChanges?: string[] | null;
+      } | null;
+      /** How many stories the pushed bundle holds, as the push counted them. */
+      storiesInBundle?: number | null;
+      /** How many scenes the pushed bundle holds, as the push counted them. */
+      scenesInBundle?: number | null;
+      storiesChecked?: number;
+      storiesLookDifferent?: number;
+      storiesCouldNotBeChecked?: number;
+      storiesCaptured?: number;
+      storiesReused?: number;
+      /** The paths of the files the change touched. */
+      changedFiles?: string[];
+      quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
+      /** Why the quick check failed, when it did. */
+      quickCheckFault?: string;
+    };
+    ios?: {
+      /**
+       * Whether this platform's app build reached the run. `false`: a split or EAS run still waits
+       * for it.
+       */
+      arrived: boolean;
+      /**
+       * The capture plan the service decided for this platform, read off the stored decision
+       * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has
+       * it. `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
+       */
+      capture?: {
+        /** `true`: every story in the bundle was captured. */
+        full: boolean;
+        /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+        reason: string | null;
+        /** The story files captured, as paths. Empty when `full`. */
+        storyFiles: string[];
+      } | null;
+      /** Where the app build came from. `null` before the platform arrived. */
+      appBuild?: {
+        /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
+        from: 'uploaded' | 'stored';
+        /** The test the stored app build was first uploaded in. Only with `from: stored`. */
+        storedFromTest?: number | null;
+        /**
+         * How the push made the app build it uploaded, as the push reported it. Only with `from:
+         * uploaded`.
+         */
+        madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null;
+        /** Why a new app build was made, as the push reported it. */
+        why?: 'nothing-stored' | 'native-changed' | null;
+        /**
+         * What changed natively since the stored app build, as the push reported it, with `why:
+         * native-changed`.
+         */
+        nativeChanges?: string[] | null;
+      } | null;
+      /** How many stories the pushed bundle holds, as the push counted them. */
+      storiesInBundle?: number | null;
+      /** How many scenes the pushed bundle holds, as the push counted them. */
+      scenesInBundle?: number | null;
+      storiesChecked?: number;
+      storiesLookDifferent?: number;
+      storiesCouldNotBeChecked?: number;
+      storiesCaptured?: number;
+      storiesReused?: number;
+      /** The paths of the files the change touched. */
+      changedFiles?: string[];
+      quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
+      /** Why the quick check failed, when it did. */
+      quickCheckFault?: string;
+    };
   } | null;
   /**
    * Per-story rows: what `sherlo view --metadata` prints as `stories[]`. `status` is spelled as
@@ -1595,55 +1699,6 @@ export type PhoneNotApplied = {
   setting: string;
   wanted: string;
   why: 'app-not-installed' | 'phone-refused';
-};
-
-/**
- * ONE PLATFORM OF A BUILD, as `getBuildStatus` answers it (the wire shape in
- * ../helpers/buildStatusRequest): service-known facts beside the facts the push reported about
- * itself (PushFacts).
- */
-export type BuildStatusPlatform = {
-  /**
-   * Whether this platform's app build reached the run. `false`: a split or EAS run still waits for
-   * it.
-   */
-  arrived: boolean;
-  /**
-   * The capture plan the service decided for this platform, read off the stored decision
-   * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has it.
-   * `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
-   */
-  capture?: {
-    /** `true`: every story in the bundle was captured. */
-    full: boolean;
-    /** The service's sentence for the decision ("SharedButton.tsx changed"). */
-    reason: string | null;
-    /** The story files captured, as paths. Empty when `full`. */
-    storyFiles: string[];
-  } | null;
-  /** Where the app build came from. `null` before the platform arrived. */
-  appBuild?: {
-    /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
-    from: 'uploaded' | 'stored';
-    /** The test the stored app build was first uploaded in. Only with `from: stored`. */
-    storedFromTest?: number | null;
-    /**
-     * How the push made the app build it uploaded, as the push reported it. Only with `from:
-     * uploaded`.
-     */
-    madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null;
-    /** Why a new app build was made, as the push reported it. */
-    why?: 'nothing-stored' | 'native-changed' | null;
-    /**
-     * What changed natively since the stored app build, as the push reported it, with `why:
-     * native-changed`.
-     */
-    nativeChanges?: string[] | null;
-  } | null;
-  /** How many stories the pushed bundle holds, as the push counted them. */
-  storiesInBundle?: number | null;
-  /** How many scenes the pushed bundle holds, as the push counted them. */
-  scenesInBundle?: number | null;
 };
 
 /**

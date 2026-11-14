@@ -2155,88 +2155,498 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         const object38 = asObject(oneOf36, where37, problems);
         if (object38) {
           if ('android' in object38) {
-            readBuildStatusPlatform(object38.android, at(where37, 'android'), problems);
+            const where39 = at(where37, 'android');
+            const object40 = asObject(object38.android, where39, problems);
+            if (object40) {
+              expectBoolean(object40.arrived, at(where39, 'arrived'), problems);
+              if ('capture' in object40) {
+                const oneOf41 = object40.capture;
+                const where42 = at(where39, 'capture');
+                if (oneOf41 === null) {
+                  // the value is one of these
+                } else if (isPlainObject(oneOf41)) {
+                  const object43 = asObject(oneOf41, where42, problems);
+                  if (object43) {
+                    expectBoolean(object43.full, at(where42, 'full'), problems);
+                    const oneOf44 = object43.reason;
+                    const where45 = at(where42, 'reason');
+                    if (typeof oneOf44 === 'string' || oneOf44 === null) {
+                      // the value is one of these
+                    } else {
+                      reportWrongShape(oneOf44, 'a string or `null`', where45, problems);
+                    }
+                    expectStringArray(object43.storyFiles, at(where42, 'storyFiles'), problems);
+                    reportUnknownFields(
+                      object43,
+                      ['full', 'reason', 'storyFiles'],
+                      where42,
+                      problems
+                    );
+                  }
+                } else {
+                  reportWrongShape(
+                    oneOf41,
+                    '`{ full: boolean; reason: string | null; storyFiles: string[] }` or `null`',
+                    where42,
+                    problems
+                  );
+                }
+              }
+              if ('appBuild' in object40) {
+                const oneOf46 = object40.appBuild;
+                const where47 = at(where39, 'appBuild');
+                if (oneOf46 === null) {
+                  // the value is one of these
+                } else if (isPlainObject(oneOf46)) {
+                  const object48 = asObject(oneOf46, where47, problems);
+                  if (object48) {
+                    expectOneOf(
+                      object48.from,
+                      ['uploaded', 'stored'],
+                      at(where47, 'from'),
+                      problems
+                    );
+                    if ('storedFromTest' in object48) {
+                      const oneOf49 = object48.storedFromTest;
+                      const where50 = at(where47, 'storedFromTest');
+                      if (typeof oneOf49 === 'number' || oneOf49 === null) {
+                        // the value is one of these
+                      } else {
+                        reportWrongShape(oneOf49, 'a number or `null`', where50, problems);
+                      }
+                    }
+                    if ('madeBy' in object48) {
+                      const oneOf51 = object48.madeBy;
+                      const where52 = at(where47, 'madeBy');
+                      if (
+                        oneOf51 === 'compiled' ||
+                        oneOf51 === 'build-cache' ||
+                        oneOf51 === 'command' ||
+                        oneOf51 === 'eas' ||
+                        oneOf51 === null
+                      ) {
+                        // the value is one of these
+                      } else {
+                        reportWrongShape(
+                          oneOf51,
+                          '`"compiled"`, `"build-cache"`, `"command"`, `"eas"` or `null`',
+                          where52,
+                          problems
+                        );
+                      }
+                    }
+                    if ('why' in object48) {
+                      const oneOf53 = object48.why;
+                      const where54 = at(where47, 'why');
+                      if (
+                        oneOf53 === 'nothing-stored' ||
+                        oneOf53 === 'native-changed' ||
+                        oneOf53 === null
+                      ) {
+                        // the value is one of these
+                      } else {
+                        reportWrongShape(
+                          oneOf53,
+                          '`"nothing-stored"`, `"native-changed"` or `null`',
+                          where54,
+                          problems
+                        );
+                      }
+                    }
+                    if ('nativeChanges' in object48) {
+                      const oneOf55 = object48.nativeChanges;
+                      const where56 = at(where47, 'nativeChanges');
+                      if (oneOf55 === null) {
+                        // the value is one of these
+                      } else if (Array.isArray(oneOf55)) {
+                        expectStringArray(oneOf55, where56, problems);
+                      } else {
+                        reportWrongShape(
+                          oneOf55,
+                          'an array of strings or `null`',
+                          where56,
+                          problems
+                        );
+                      }
+                    }
+                    reportUnknownFields(
+                      object48,
+                      ['from', 'storedFromTest', 'madeBy', 'why', 'nativeChanges'],
+                      where47,
+                      problems
+                    );
+                  }
+                } else {
+                  reportWrongShape(
+                    oneOf46,
+                    "`{ from: 'uploaded' | 'stored'; storedFromTest?: number | null; madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null; why?: 'nothing-stored' | 'native-changed' | null; nativeChanges?: string[] | null }` or `null`",
+                    where47,
+                    problems
+                  );
+                }
+              }
+              if ('storiesInBundle' in object40) {
+                const oneOf57 = object40.storiesInBundle;
+                const where58 = at(where39, 'storiesInBundle');
+                if (typeof oneOf57 === 'number' || oneOf57 === null) {
+                  // the value is one of these
+                } else {
+                  reportWrongShape(oneOf57, 'a number or `null`', where58, problems);
+                }
+              }
+              if ('scenesInBundle' in object40) {
+                const oneOf59 = object40.scenesInBundle;
+                const where60 = at(where39, 'scenesInBundle');
+                if (typeof oneOf59 === 'number' || oneOf59 === null) {
+                  // the value is one of these
+                } else {
+                  reportWrongShape(oneOf59, 'a number or `null`', where60, problems);
+                }
+              }
+              if ('storiesChecked' in object40) {
+                expectNumber(object40.storiesChecked, at(where39, 'storiesChecked'), problems);
+              }
+              if ('storiesLookDifferent' in object40) {
+                expectNumber(
+                  object40.storiesLookDifferent,
+                  at(where39, 'storiesLookDifferent'),
+                  problems
+                );
+              }
+              if ('storiesCouldNotBeChecked' in object40) {
+                expectNumber(
+                  object40.storiesCouldNotBeChecked,
+                  at(where39, 'storiesCouldNotBeChecked'),
+                  problems
+                );
+              }
+              if ('storiesCaptured' in object40) {
+                expectNumber(object40.storiesCaptured, at(where39, 'storiesCaptured'), problems);
+              }
+              if ('storiesReused' in object40) {
+                expectNumber(object40.storiesReused, at(where39, 'storiesReused'), problems);
+              }
+              if ('changedFiles' in object40) {
+                expectStringArray(object40.changedFiles, at(where39, 'changedFiles'), problems);
+              }
+              if ('quickCheck' in object40) {
+                expectOneOf(
+                  object40.quickCheck,
+                  ['NOT_NEEDED', 'RUNNING', 'FINISHED', 'FAILED'],
+                  at(where39, 'quickCheck'),
+                  problems
+                );
+              }
+              if ('quickCheckFault' in object40) {
+                expectString(object40.quickCheckFault, at(where39, 'quickCheckFault'), problems);
+              }
+              reportUnknownFields(
+                object40,
+                [
+                  'arrived',
+                  'capture',
+                  'appBuild',
+                  'storiesInBundle',
+                  'scenesInBundle',
+                  'storiesChecked',
+                  'storiesLookDifferent',
+                  'storiesCouldNotBeChecked',
+                  'storiesCaptured',
+                  'storiesReused',
+                  'changedFiles',
+                  'quickCheck',
+                  'quickCheckFault',
+                ],
+                where39,
+                problems
+              );
+            }
           }
           if ('ios' in object38) {
-            readBuildStatusPlatform(object38.ios, at(where37, 'ios'), problems);
+            const where61 = at(where37, 'ios');
+            const object62 = asObject(object38.ios, where61, problems);
+            if (object62) {
+              expectBoolean(object62.arrived, at(where61, 'arrived'), problems);
+              if ('capture' in object62) {
+                const oneOf63 = object62.capture;
+                const where64 = at(where61, 'capture');
+                if (oneOf63 === null) {
+                  // the value is one of these
+                } else if (isPlainObject(oneOf63)) {
+                  const object65 = asObject(oneOf63, where64, problems);
+                  if (object65) {
+                    expectBoolean(object65.full, at(where64, 'full'), problems);
+                    const oneOf66 = object65.reason;
+                    const where67 = at(where64, 'reason');
+                    if (typeof oneOf66 === 'string' || oneOf66 === null) {
+                      // the value is one of these
+                    } else {
+                      reportWrongShape(oneOf66, 'a string or `null`', where67, problems);
+                    }
+                    expectStringArray(object65.storyFiles, at(where64, 'storyFiles'), problems);
+                    reportUnknownFields(
+                      object65,
+                      ['full', 'reason', 'storyFiles'],
+                      where64,
+                      problems
+                    );
+                  }
+                } else {
+                  reportWrongShape(
+                    oneOf63,
+                    '`{ full: boolean; reason: string | null; storyFiles: string[] }` or `null`',
+                    where64,
+                    problems
+                  );
+                }
+              }
+              if ('appBuild' in object62) {
+                const oneOf68 = object62.appBuild;
+                const where69 = at(where61, 'appBuild');
+                if (oneOf68 === null) {
+                  // the value is one of these
+                } else if (isPlainObject(oneOf68)) {
+                  const object70 = asObject(oneOf68, where69, problems);
+                  if (object70) {
+                    expectOneOf(
+                      object70.from,
+                      ['uploaded', 'stored'],
+                      at(where69, 'from'),
+                      problems
+                    );
+                    if ('storedFromTest' in object70) {
+                      const oneOf71 = object70.storedFromTest;
+                      const where72 = at(where69, 'storedFromTest');
+                      if (typeof oneOf71 === 'number' || oneOf71 === null) {
+                        // the value is one of these
+                      } else {
+                        reportWrongShape(oneOf71, 'a number or `null`', where72, problems);
+                      }
+                    }
+                    if ('madeBy' in object70) {
+                      const oneOf73 = object70.madeBy;
+                      const where74 = at(where69, 'madeBy');
+                      if (
+                        oneOf73 === 'compiled' ||
+                        oneOf73 === 'build-cache' ||
+                        oneOf73 === 'command' ||
+                        oneOf73 === 'eas' ||
+                        oneOf73 === null
+                      ) {
+                        // the value is one of these
+                      } else {
+                        reportWrongShape(
+                          oneOf73,
+                          '`"compiled"`, `"build-cache"`, `"command"`, `"eas"` or `null`',
+                          where74,
+                          problems
+                        );
+                      }
+                    }
+                    if ('why' in object70) {
+                      const oneOf75 = object70.why;
+                      const where76 = at(where69, 'why');
+                      if (
+                        oneOf75 === 'nothing-stored' ||
+                        oneOf75 === 'native-changed' ||
+                        oneOf75 === null
+                      ) {
+                        // the value is one of these
+                      } else {
+                        reportWrongShape(
+                          oneOf75,
+                          '`"nothing-stored"`, `"native-changed"` or `null`',
+                          where76,
+                          problems
+                        );
+                      }
+                    }
+                    if ('nativeChanges' in object70) {
+                      const oneOf77 = object70.nativeChanges;
+                      const where78 = at(where69, 'nativeChanges');
+                      if (oneOf77 === null) {
+                        // the value is one of these
+                      } else if (Array.isArray(oneOf77)) {
+                        expectStringArray(oneOf77, where78, problems);
+                      } else {
+                        reportWrongShape(
+                          oneOf77,
+                          'an array of strings or `null`',
+                          where78,
+                          problems
+                        );
+                      }
+                    }
+                    reportUnknownFields(
+                      object70,
+                      ['from', 'storedFromTest', 'madeBy', 'why', 'nativeChanges'],
+                      where69,
+                      problems
+                    );
+                  }
+                } else {
+                  reportWrongShape(
+                    oneOf68,
+                    "`{ from: 'uploaded' | 'stored'; storedFromTest?: number | null; madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null; why?: 'nothing-stored' | 'native-changed' | null; nativeChanges?: string[] | null }` or `null`",
+                    where69,
+                    problems
+                  );
+                }
+              }
+              if ('storiesInBundle' in object62) {
+                const oneOf79 = object62.storiesInBundle;
+                const where80 = at(where61, 'storiesInBundle');
+                if (typeof oneOf79 === 'number' || oneOf79 === null) {
+                  // the value is one of these
+                } else {
+                  reportWrongShape(oneOf79, 'a number or `null`', where80, problems);
+                }
+              }
+              if ('scenesInBundle' in object62) {
+                const oneOf81 = object62.scenesInBundle;
+                const where82 = at(where61, 'scenesInBundle');
+                if (typeof oneOf81 === 'number' || oneOf81 === null) {
+                  // the value is one of these
+                } else {
+                  reportWrongShape(oneOf81, 'a number or `null`', where82, problems);
+                }
+              }
+              if ('storiesChecked' in object62) {
+                expectNumber(object62.storiesChecked, at(where61, 'storiesChecked'), problems);
+              }
+              if ('storiesLookDifferent' in object62) {
+                expectNumber(
+                  object62.storiesLookDifferent,
+                  at(where61, 'storiesLookDifferent'),
+                  problems
+                );
+              }
+              if ('storiesCouldNotBeChecked' in object62) {
+                expectNumber(
+                  object62.storiesCouldNotBeChecked,
+                  at(where61, 'storiesCouldNotBeChecked'),
+                  problems
+                );
+              }
+              if ('storiesCaptured' in object62) {
+                expectNumber(object62.storiesCaptured, at(where61, 'storiesCaptured'), problems);
+              }
+              if ('storiesReused' in object62) {
+                expectNumber(object62.storiesReused, at(where61, 'storiesReused'), problems);
+              }
+              if ('changedFiles' in object62) {
+                expectStringArray(object62.changedFiles, at(where61, 'changedFiles'), problems);
+              }
+              if ('quickCheck' in object62) {
+                expectOneOf(
+                  object62.quickCheck,
+                  ['NOT_NEEDED', 'RUNNING', 'FINISHED', 'FAILED'],
+                  at(where61, 'quickCheck'),
+                  problems
+                );
+              }
+              if ('quickCheckFault' in object62) {
+                expectString(object62.quickCheckFault, at(where61, 'quickCheckFault'), problems);
+              }
+              reportUnknownFields(
+                object62,
+                [
+                  'arrived',
+                  'capture',
+                  'appBuild',
+                  'storiesInBundle',
+                  'scenesInBundle',
+                  'storiesChecked',
+                  'storiesLookDifferent',
+                  'storiesCouldNotBeChecked',
+                  'storiesCaptured',
+                  'storiesReused',
+                  'changedFiles',
+                  'quickCheck',
+                  'quickCheckFault',
+                ],
+                where61,
+                problems
+              );
+            }
           }
           reportUnknownFields(object38, ['android', 'ios'], where37, problems);
         }
       } else {
         reportWrongShape(
           oneOf36,
-          '`{ android?: BuildStatusPlatform; ios?: BuildStatusPlatform }` or `null`',
+          "`{ android?: { arrived: boolean; capture?: { full: boolean; reason: string | null; storyFiles: string[] } | null; appBuild?: { from: 'uploaded' | 'stored'; storedFromTest?: number | null; madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null; why?: 'nothing-stored' | 'native-changed' | null; nativeChanges?: string[] | null } | null; storiesInBundle?: number | null; scenesInBundle?: number | null; storiesChecked?: number; storiesLookDifferent?: number; storiesCouldNotBeChecked?: number; storiesCaptured?: number; storiesReused?: number; changedFiles?: string[]; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED'; quickCheckFault?: string }; ios?: { arrived: boolean; capture?: { full: boolean; reason: string | null; storyFiles: string[] } | null; appBuild?: { from: 'uploaded' | 'stored'; storedFromTest?: number | null; madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null; why?: 'nothing-stored' | 'native-changed' | null; nativeChanges?: string[] | null } | null; storiesInBundle?: number | null; scenesInBundle?: number | null; storiesChecked?: number; storiesLookDifferent?: number; storiesCouldNotBeChecked?: number; storiesCaptured?: number; storiesReused?: number; changedFiles?: string[]; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED'; quickCheckFault?: string } }` or `null`",
           where37,
           problems
         );
       }
     }
     if ('stories' in object1) {
-      const oneOf39 = object1.stories;
-      const where40 = at(path, 'stories');
-      if (oneOf39 === null) {
+      const oneOf83 = object1.stories;
+      const where84 = at(path, 'stories');
+      if (oneOf83 === null) {
         // the value is one of these
-      } else if (Array.isArray(oneOf39)) {
-        const list41 = asArray(oneOf39, where40, problems);
-        if (list41) {
-          list41.forEach((entry42, index43) => {
-            const where44 = atIndex(where40, index43);
-            const object45 = asObject(entry42, where44, problems);
-            if (object45) {
-              expectString(object45.name, at(where44, 'name'), problems);
-              expectString(object45.status, at(where44, 'status'), problems);
-              const oneOf46 = object45.baseline;
-              const where47 = at(where44, 'baseline');
-              if (oneOf46 === null) {
+      } else if (Array.isArray(oneOf83)) {
+        const list85 = asArray(oneOf83, where84, problems);
+        if (list85) {
+          list85.forEach((entry86, index87) => {
+            const where88 = atIndex(where84, index87);
+            const object89 = asObject(entry86, where88, problems);
+            if (object89) {
+              expectString(object89.name, at(where88, 'name'), problems);
+              expectString(object89.status, at(where88, 'status'), problems);
+              const oneOf90 = object89.baseline;
+              const where91 = at(where88, 'baseline');
+              if (oneOf90 === null) {
                 // the value is one of these
-              } else if (isPlainObject(oneOf46)) {
-                const object48 = asObject(oneOf46, where47, problems);
-                if (object48) {
-                  expectNumber(object48.buildIndex, at(where47, 'buildIndex'), problems);
-                  reportUnknownFields(object48, ['buildIndex'], where47, problems);
+              } else if (isPlainObject(oneOf90)) {
+                const object92 = asObject(oneOf90, where91, problems);
+                if (object92) {
+                  expectNumber(object92.buildIndex, at(where91, 'buildIndex'), problems);
+                  reportUnknownFields(object92, ['buildIndex'], where91, problems);
                 }
               } else {
-                reportWrongShape(oneOf46, '`{ buildIndex: number }` or `null`', where47, problems);
+                reportWrongShape(oneOf90, '`{ buildIndex: number }` or `null`', where91, problems);
               }
-              if ('reason' in object45) {
-                const oneOf49 = object45.reason;
-                const where50 = at(where44, 'reason');
-                if (typeof oneOf49 === 'string' || oneOf49 === null) {
+              if ('reason' in object89) {
+                const oneOf93 = object89.reason;
+                const where94 = at(where88, 'reason');
+                if (typeof oneOf93 === 'string' || oneOf93 === null) {
                   // the value is one of these
                 } else {
-                  reportWrongShape(oneOf49, 'a string or `null`', where50, problems);
+                  reportWrongShape(oneOf93, 'a string or `null`', where94, problems);
                 }
               }
-              if ('candidates' in object45) {
-                const oneOf51 = object45.candidates;
-                const where52 = at(where44, 'candidates');
-                if (oneOf51 === null) {
+              if ('candidates' in object89) {
+                const oneOf95 = object89.candidates;
+                const where96 = at(where88, 'candidates');
+                if (oneOf95 === null) {
                   // the value is one of these
-                } else if (Array.isArray(oneOf51)) {
-                  const list53 = asArray(oneOf51, where52, problems);
-                  if (list53) {
-                    list53.forEach((entry54, index55) => {
-                      const where56 = atIndex(where52, index55);
-                      const object57 = asObject(entry54, where56, problems);
-                      if (object57) {
-                        expectNumber(object57.buildIndex, at(where56, 'buildIndex'), problems);
-                        reportUnknownFields(object57, ['buildIndex'], where56, problems);
+                } else if (Array.isArray(oneOf95)) {
+                  const list97 = asArray(oneOf95, where96, problems);
+                  if (list97) {
+                    list97.forEach((entry98, index99) => {
+                      const where100 = atIndex(where96, index99);
+                      const object101 = asObject(entry98, where100, problems);
+                      if (object101) {
+                        expectNumber(object101.buildIndex, at(where100, 'buildIndex'), problems);
+                        reportUnknownFields(object101, ['buildIndex'], where100, problems);
                       }
                     });
                   }
                 } else {
                   reportWrongShape(
-                    oneOf51,
+                    oneOf95,
                     '`Array<{ buildIndex: number }>` or `null`',
-                    where52,
+                    where96,
                     problems
                   );
                 }
               }
               reportUnknownFields(
-                object45,
+                object89,
                 ['name', 'status', 'baseline', 'reason', 'candidates'],
-                where44,
+                where88,
                 problems
               );
             }
@@ -2244,77 +2654,82 @@ function readBuildStatusAnswer(value: unknown, path: string, problems: string[])
         }
       } else {
         reportWrongShape(
-          oneOf39,
+          oneOf83,
           '`Array<{ name: string; status: string; baseline: { buildIndex: number } | null; reason?: string | null; candidates?: Array<{ buildIndex: number }> | null }>` or `null`',
-          where40,
+          where84,
           problems
         );
       }
     }
     if ('diffScope' in object1) {
-      const where58 = at(path, 'diffScope');
-      const object59 = asObject(object1.diffScope, where58, problems);
-      if (object59) {
-        expectString(object59.reason, at(where58, 'reason'), problems);
-        expectStringArray(object59.captured, at(where58, 'captured'), problems);
-        expectStringArray(object59.inherited, at(where58, 'inherited'), problems);
-        const oneOf60 = object59.ancestorBuildIndex;
-        const where61 = at(where58, 'ancestorBuildIndex');
-        if (typeof oneOf60 === 'number' || oneOf60 === null) {
+      const where102 = at(path, 'diffScope');
+      const object103 = asObject(object1.diffScope, where102, problems);
+      if (object103) {
+        expectString(object103.reason, at(where102, 'reason'), problems);
+        expectStringArray(object103.captured, at(where102, 'captured'), problems);
+        expectStringArray(object103.inherited, at(where102, 'inherited'), problems);
+        const oneOf104 = object103.ancestorBuildIndex;
+        const where105 = at(where102, 'ancestorBuildIndex');
+        if (typeof oneOf104 === 'number' || oneOf104 === null) {
           // the value is one of these
         } else {
-          reportWrongShape(oneOf60, 'a number or `null`', where61, problems);
+          reportWrongShape(oneOf104, 'a number or `null`', where105, problems);
         }
         reportUnknownFields(
-          object59,
+          object103,
           ['reason', 'captured', 'inherited', 'ancestorBuildIndex'],
-          where58,
+          where102,
           problems
         );
       }
     }
     if ('noPicture' in object1) {
-      const where62 = at(path, 'noPicture');
-      const list63 = asArray(object1.noPicture, where62, problems);
-      if (list63) {
-        list63.forEach((entry64, index65) => {
-          const where66 = atIndex(where62, index65);
-          const object67 = asObject(entry64, where66, problems);
-          if (object67) {
-            expectOneOf(object67.kind, ['scene', 'story'], at(where66, 'kind'), problems);
-            expectString(object67.name, at(where66, 'name'), problems);
-            expectString(object67.device, at(where66, 'device'), problems);
-            expectString(object67.reason, at(where66, 'reason'), problems);
-            reportUnknownFields(object67, ['kind', 'name', 'device', 'reason'], where66, problems);
+      const where106 = at(path, 'noPicture');
+      const list107 = asArray(object1.noPicture, where106, problems);
+      if (list107) {
+        list107.forEach((entry108, index109) => {
+          const where110 = atIndex(where106, index109);
+          const object111 = asObject(entry108, where110, problems);
+          if (object111) {
+            expectOneOf(object111.kind, ['scene', 'story'], at(where110, 'kind'), problems);
+            expectString(object111.name, at(where110, 'name'), problems);
+            expectString(object111.device, at(where110, 'device'), problems);
+            expectString(object111.reason, at(where110, 'reason'), problems);
+            reportUnknownFields(
+              object111,
+              ['kind', 'name', 'device', 'reason'],
+              where110,
+              problems
+            );
           }
         });
       }
     }
     if ('runFailure' in object1) {
-      const where68 = at(path, 'runFailure');
-      const object69 = asObject(object1.runFailure, where68, problems);
-      if (object69) {
-        const oneOf70 = object69.stage;
-        const where71 = at(where68, 'stage');
-        if (typeof oneOf70 === 'string' || oneOf70 === null) {
+      const where112 = at(path, 'runFailure');
+      const object113 = asObject(object1.runFailure, where112, problems);
+      if (object113) {
+        const oneOf114 = object113.stage;
+        const where115 = at(where112, 'stage');
+        if (typeof oneOf114 === 'string' || oneOf114 === null) {
           // the value is one of these
         } else {
-          reportWrongShape(oneOf70, 'a string or `null`', where71, problems);
+          reportWrongShape(oneOf114, 'a string or `null`', where115, problems);
         }
-        const oneOf72 = object69.device;
-        const where73 = at(where68, 'device');
-        if (typeof oneOf72 === 'string' || oneOf72 === null) {
+        const oneOf116 = object113.device;
+        const where117 = at(where112, 'device');
+        if (typeof oneOf116 === 'string' || oneOf116 === null) {
           // the value is one of these
         } else {
-          reportWrongShape(oneOf72, 'a string or `null`', where73, problems);
+          reportWrongShape(oneOf116, 'a string or `null`', where117, problems);
         }
-        expectString(object69.cause, at(where68, 'cause'), problems);
-        expectString(object69.reference, at(where68, 'reference'), problems);
-        expectBoolean(object69.retried, at(where68, 'retried'), problems);
+        expectString(object113.cause, at(where112, 'cause'), problems);
+        expectString(object113.reference, at(where112, 'reference'), problems);
+        expectBoolean(object113.retried, at(where112, 'retried'), problems);
         reportUnknownFields(
-          object69,
+          object113,
           ['stage', 'device', 'cause', 'reference', 'retried'],
-          where68,
+          where112,
           problems
         );
       }
@@ -3220,145 +3635,6 @@ function readPhoneNotApplied(value: unknown, path: string, problems: string[]): 
     expectString(object1.wanted, at(path, 'wanted'), problems);
     expectOneOf(object1.why, ['app-not-installed', 'phone-refused'], at(path, 'why'), problems);
     reportUnknownFields(object1, ['setting', 'wanted', 'why'], path, problems);
-  }
-}
-
-/** The shape of a `BuildStatusPlatform`, as `contracts/pose.contract.ts` publishes it. */
-function readBuildStatusPlatform(value: unknown, path: string, problems: string[]): void {
-  const object1 = asObject(value, path, problems);
-  if (object1) {
-    expectBoolean(object1.arrived, at(path, 'arrived'), problems);
-    if ('capture' in object1) {
-      const oneOf2 = object1.capture;
-      const where3 = at(path, 'capture');
-      if (oneOf2 === null) {
-        // the value is one of these
-      } else if (isPlainObject(oneOf2)) {
-        const object4 = asObject(oneOf2, where3, problems);
-        if (object4) {
-          expectBoolean(object4.full, at(where3, 'full'), problems);
-          const oneOf5 = object4.reason;
-          const where6 = at(where3, 'reason');
-          if (typeof oneOf5 === 'string' || oneOf5 === null) {
-            // the value is one of these
-          } else {
-            reportWrongShape(oneOf5, 'a string or `null`', where6, problems);
-          }
-          expectStringArray(object4.storyFiles, at(where3, 'storyFiles'), problems);
-          reportUnknownFields(object4, ['full', 'reason', 'storyFiles'], where3, problems);
-        }
-      } else {
-        reportWrongShape(
-          oneOf2,
-          '`{ full: boolean; reason: string | null; storyFiles: string[] }` or `null`',
-          where3,
-          problems
-        );
-      }
-    }
-    if ('appBuild' in object1) {
-      const oneOf7 = object1.appBuild;
-      const where8 = at(path, 'appBuild');
-      if (oneOf7 === null) {
-        // the value is one of these
-      } else if (isPlainObject(oneOf7)) {
-        const object9 = asObject(oneOf7, where8, problems);
-        if (object9) {
-          expectOneOf(object9.from, ['uploaded', 'stored'], at(where8, 'from'), problems);
-          if ('storedFromTest' in object9) {
-            const oneOf10 = object9.storedFromTest;
-            const where11 = at(where8, 'storedFromTest');
-            if (typeof oneOf10 === 'number' || oneOf10 === null) {
-              // the value is one of these
-            } else {
-              reportWrongShape(oneOf10, 'a number or `null`', where11, problems);
-            }
-          }
-          if ('madeBy' in object9) {
-            const oneOf12 = object9.madeBy;
-            const where13 = at(where8, 'madeBy');
-            if (
-              oneOf12 === 'compiled' ||
-              oneOf12 === 'build-cache' ||
-              oneOf12 === 'command' ||
-              oneOf12 === 'eas' ||
-              oneOf12 === null
-            ) {
-              // the value is one of these
-            } else {
-              reportWrongShape(
-                oneOf12,
-                '`"compiled"`, `"build-cache"`, `"command"`, `"eas"` or `null`',
-                where13,
-                problems
-              );
-            }
-          }
-          if ('why' in object9) {
-            const oneOf14 = object9.why;
-            const where15 = at(where8, 'why');
-            if (oneOf14 === 'nothing-stored' || oneOf14 === 'native-changed' || oneOf14 === null) {
-              // the value is one of these
-            } else {
-              reportWrongShape(
-                oneOf14,
-                '`"nothing-stored"`, `"native-changed"` or `null`',
-                where15,
-                problems
-              );
-            }
-          }
-          if ('nativeChanges' in object9) {
-            const oneOf16 = object9.nativeChanges;
-            const where17 = at(where8, 'nativeChanges');
-            if (oneOf16 === null) {
-              // the value is one of these
-            } else if (Array.isArray(oneOf16)) {
-              expectStringArray(oneOf16, where17, problems);
-            } else {
-              reportWrongShape(oneOf16, 'an array of strings or `null`', where17, problems);
-            }
-          }
-          reportUnknownFields(
-            object9,
-            ['from', 'storedFromTest', 'madeBy', 'why', 'nativeChanges'],
-            where8,
-            problems
-          );
-        }
-      } else {
-        reportWrongShape(
-          oneOf7,
-          "`{ from: 'uploaded' | 'stored'; storedFromTest?: number | null; madeBy?: 'compiled' | 'build-cache' | 'command' | 'eas' | null; why?: 'nothing-stored' | 'native-changed' | null; nativeChanges?: string[] | null }` or `null`",
-          where8,
-          problems
-        );
-      }
-    }
-    if ('storiesInBundle' in object1) {
-      const oneOf18 = object1.storiesInBundle;
-      const where19 = at(path, 'storiesInBundle');
-      if (typeof oneOf18 === 'number' || oneOf18 === null) {
-        // the value is one of these
-      } else {
-        reportWrongShape(oneOf18, 'a number or `null`', where19, problems);
-      }
-    }
-    if ('scenesInBundle' in object1) {
-      const oneOf20 = object1.scenesInBundle;
-      const where21 = at(path, 'scenesInBundle');
-      if (typeof oneOf20 === 'number' || oneOf20 === null) {
-        // the value is one of these
-      } else {
-        reportWrongShape(oneOf20, 'a number or `null`', where21, problems);
-      }
-    }
-    reportUnknownFields(
-      object1,
-      ['arrived', 'capture', 'appBuild', 'storiesInBundle', 'scenesInBundle'],
-      path,
-      problems
-    );
   }
 }
 

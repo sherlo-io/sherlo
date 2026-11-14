@@ -4,6 +4,7 @@
  */
 import chalk from 'chalk';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { nothingToCaptureWords } from '../../commands/test/waitForQuickCheck';
 import { renderDiffScopeLines } from '../diffScopeLines';
 import { renderSegment } from '../renderSegment';
 import type { PlatformCapture } from '../testSteps';
@@ -130,5 +131,36 @@ describe('the lines under a started test', () => {
     expect(printed[android + 1]).toBe('8 checked, after x changed');
     expect(ios).toBe(android + 4);
     expect(printed[ios + 1]).toBe('10 checked, after x changed');
+  });
+
+  it('a finished test with nothing to capture prints its three lines from the answer', () => {
+    const reason = nothingToCaptureWords({
+      runStatus: 'finished',
+      platforms: {
+        android: {
+          arrived: true,
+          capture: { full: false, reason: 'src/utils/analytics.ts changed', storyFiles: [] },
+          storiesChecked: 384,
+          storiesLookDifferent: 0,
+          storiesCouldNotBeChecked: 0,
+          storiesCaptured: 0,
+          storiesReused: 384,
+        },
+      },
+    });
+
+    const { prints } = renderSegment({
+      kind: 'verdict-server-bypassed',
+      reason: reason!,
+      testIndex: 15,
+      rowsAbove: { rows: [], printedAsTheyHappened: false },
+    });
+
+    expect(prints.map(([line]) => String(line).trim())).toEqual([
+      'Test 15     ✔ Finished: nothing to capture',
+      '384 checked, after src/utils/analytics.ts changed',
+      '0 captured: 0 look different, 0 could not be checked',
+      '384 reuse their last picture, no devices started',
+    ]);
   });
 });
