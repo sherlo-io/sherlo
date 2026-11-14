@@ -16,7 +16,7 @@
 import fetch from 'node-fetch';
 import { PLATFORM_LABEL } from '../constants';
 // TYPE-ONLY: the seam imports this module's read, so a value import back would be a cycle.
-import type { BuildStatusPlatform, DiffScopeNumbers } from '../seams/serverCalls';
+import type { BuildStatusPlatform } from '../seams/serverCalls';
 
 /**
  * The `getBuildStatus` wire shape, exported because two things outside this file
@@ -138,8 +138,8 @@ export type BuildStatusResponse = {
     devices?: { id: string; osVersion: string; platform: 'android' | 'ios' }[] | null;
     /** Per platform the run was asked for, what it did with it. A platform it was not asked for is absent. */
     platforms?: {
-      android?: BuildStatusPlatform & DiffScopeNumbers;
-      ios?: BuildStatusPlatform & DiffScopeNumbers;
+      android?: BuildStatusPlatform;
+      ios?: BuildStatusPlatform;
     } | null;
     /**
      * Per-story rows: what `sherlo
@@ -220,8 +220,8 @@ type WireRunFailure = {
 export type BuildStatus = NonNullable<BuildStatusResponse['getBuildStatus']>;
 
 /**
- * What the query asks for about one platform of the run: the fields of {@link BuildStatusPlatform},
- * then the quick check's state and the story counts it answered ({@link DiffScopeNumbers}).
+ * What the query asks for about one platform of the run: the fields of {@link BuildStatusPlatform}.
+ * The quick check's state and the story counts sit inside `capture`, where the service holds them.
  */
 const PLATFORM_SELECTION = `
                 arrived
@@ -229,6 +229,14 @@ const PLATFORM_SELECTION = `
                   full
                   reason
                   storyFiles
+                  quickCheck
+                  quickCheckFault
+                  storiesChecked
+                  storiesLookDifferent
+                  storiesCouldNotBeChecked
+                  storiesCaptured
+                  storiesReused
+                  changedFiles
                 }
                 appBuild {
                   from
@@ -238,15 +246,7 @@ const PLATFORM_SELECTION = `
                   nativeChanges
                 }
                 storiesInBundle
-                scenesInBundle
-                quickCheck
-                quickCheckFault
-                storiesChecked
-                storiesLookDifferent
-                storiesCouldNotBeChecked
-                storiesCaptured
-                storiesReused
-                changedFiles`;
+                scenesInBundle`;
 
 export function getEndpointUrl(): string {
   const sdkEnv = require('@sherlo/sdk-client/dist/env.json');

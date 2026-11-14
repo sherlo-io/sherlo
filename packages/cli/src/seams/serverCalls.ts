@@ -423,14 +423,17 @@ export type BuildStatusPlatform = {
    * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has it.
    * `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
    */
-  capture?: {
-    /** `true`: every story in the bundle was captured. */
-    full: boolean;
-    /** The service's sentence for the decision ("SharedButton.tsx changed"). */
-    reason: string | null;
-    /** The story files captured, as paths. Empty when `full`. */
-    storyFiles: string[];
-  } | null;
+  capture?:
+    | ({
+        /** `true`: every story in the bundle was captured. */
+        full: boolean;
+        /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+        reason: string | null;
+        /** The story files captured, as paths. Empty when `full`. */
+        storyFiles: string[];
+        /** The quick check's state and the story counts sit inside the capture plan, as the service has them. */
+      } & DiffScopeNumbers)
+    | null;
   /** Where the app build came from. `null` before the platform arrived. */
   appBuild?: {
     /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */

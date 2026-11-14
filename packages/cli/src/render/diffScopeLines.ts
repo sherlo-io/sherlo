@@ -12,13 +12,13 @@
  * Pure, like everything under ./. Words a customer does not know are not used here.
  */
 import chalk from 'chalk';
-import type { PlatformDiffScope } from '../seams/serverCalls';
+import type { DiffScopeNumbers } from '../seams/serverCalls';
 import { platformWithEmoji, type PlatformCapture } from './testSteps';
 
 /** Whether the service sent Diff Scope's numbers for this platform: an answer with only a reason has none. */
-export function hasDiffScopeNumbers(
-  diffScope: PlatformDiffScope | undefined
-): diffScope is PlatformDiffScope & {
+export function hasDiffScopeNumbers<Answer extends DiffScopeNumbers>(
+  diffScope: Answer | undefined
+): diffScope is Answer & {
   storiesChecked: number;
   storiesCaptured: number;
   storiesReused: number;
