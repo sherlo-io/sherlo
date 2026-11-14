@@ -17,6 +17,7 @@ import {
 } from '../commands/test/readModuleManifest';
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
 import { printTestStarted } from '../commands/test/startTheTest';
+import { waitForQuickCheck } from '../commands/test/waitForQuickCheck';
 import { firstLookOf } from '../commands/test/firstLook';
 import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
@@ -50,23 +51,18 @@ import { isServerBypassed } from './waitForBuildResult';
  * EVERY EFFECT THE PUSH SPINE PERFORMS, AS PARAMETERS - which is what lets an
  * expectation producer run THIS function rather than a re-implementation of it.
  *
- * The spine's transcript is emitted from here and from the shipped helpers it
- * calls, interleaved with these awaits: the fingerprint warnings from inside
- * `registerBase`, the bundling from inside `uploadFreshBundles`, each platform's
- * upload, then the started test and the run's ending after `openBuild` answers.
- * A producer that re-implemented that order could drift from it silently;
- * supplying the effects means the order, the branching and every literal come
- * from the shipped code, unforked.
+ * The spine's transcript is emitted from here and from the shipped helpers it calls, interleaved
+ * with these awaits: the fingerprint warnings from inside `registerBase`, the bundling from inside
+ * `uploadFreshBundles`, each platform's upload, then the started test and the run's ending after
+ * `openBuild` answers. A producer that re-implemented that order could drift from it silently;
+ * supplying the effects means the order, the branching and every literal come from the shipped
+ * code, unforked.
  *
- * WHAT IS *NOT* HERE IS THE POINT. There is no substitute for a formatter, a
- * print site, a segment or a branch - only for the things that touch the
- * network, the filesystem and the clock.
+ * WHAT IS *NOT* HERE IS THE POINT. There is no substitute for a formatter, a print site, a segment
+ * or a branch - only for the things that touch the network, the filesystem and the clock.
  */
 export type PushEffects = {
-  /**
-   * `ValidatedBinariesInfo`, not `BinariesInfo`: the `openBuild` call below
-   * reads `binariesInfo.sdkVersion`, which only the VALIDATED shape carries.
-   */
+  /** `ValidatedBinariesInfo`, not `BinariesInfo`: `openBuild` reads `binariesInfo.sdkVersion`, which only it carries. */
   resolveBinaries: () => Promise<{
     binariesInfo: ValidatedBinariesInfo;
     nextBuildIndex: number;
@@ -431,11 +427,14 @@ async function uploadOrReuseBuildsAndRunTests({
   const serverBypassed =
     openedAlone !== undefined && isServerBypassed(openedAlone.build.diffScopeInfo);
 
-  // The step that started the test, with how many stories it captures, read off the openBuild
-  // answer - the same line the staged road prints - then the run's one ending.
+  // The step that started the test, as the staged road prints it, after its quick check; then the run's ending.
+  const quickCheckAnswer = openedAlone
+    ? await waitForQuickCheck({ openBuildReturn: openedAlone, token, projectIndex, teamId })
+    : undefined;
   const picturesPlanned = openedAlone
     ? printTestStarted({
         openBuildReturn: openedAlone,
+        quickCheckAnswer,
         moduleManifests,
         platformsToTest: platformsNamedIn(buildRunConfig),
         devices: commandParams.devices,

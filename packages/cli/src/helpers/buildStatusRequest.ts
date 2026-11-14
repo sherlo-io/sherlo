@@ -219,13 +219,24 @@ type WireRunFailure = {
 /** One poll answer for a build that exists, as the loop and the deciders see it. */
 export type BuildStatus = NonNullable<BuildStatusResponse['getBuildStatus']>;
 
-/** What the query asks for about one platform of the run: the fields of {@link BuildStatusPlatform}. */
+/**
+ * What the query asks for about one platform of the run: the fields of {@link BuildStatusPlatform}.
+ * The quick check's state and the story counts sit inside `capture`, where the service holds them.
+ */
 const PLATFORM_SELECTION = `
                 arrived
                 capture {
                   full
                   reason
                   storyFiles
+                  quickCheck
+                  quickCheckFault
+                  storiesChecked
+                  storiesLookDifferent
+                  storiesCouldNotBeChecked
+                  storiesCaptured
+                  storiesReused
+                  changedFiles
                 }
                 appBuild {
                   from

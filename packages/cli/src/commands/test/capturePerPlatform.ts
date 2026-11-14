@@ -57,6 +57,7 @@ export function capturePerPlatform({
       // The server's own prose, verbatim - never the build-wide `fullCaptureTriggerReason`, which is
       // a machine code. The line prints it only for a full capture.
       reason: diffScopeInfo?.platforms?.[platform]?.reason,
+      diffScope: diffScopeInfo?.platforms?.[platform],
       // A full capture takes every story file the bundle holds.
       storyFiles: captureScope.full
         ? manifest
