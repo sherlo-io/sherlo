@@ -91,7 +91,19 @@ export function captureWithTheAnswer(
   return capture.map((platformCapture) => {
     const answered = answer?.platforms?.[platformCapture.platform];
     const answeredCapture = answered?.capture;
-    if (!answeredCapture || !hasDiffScopeNumbers(answeredCapture)) return platformCapture;
+    if (!answeredCapture) return platformCapture;
+    if (!hasDiffScopeNumbers(answeredCapture)) {
+      // A failed check without counts keeps the open answer's counts and says it failed.
+      if (answeredCapture.quickCheck !== 'FAILED') return platformCapture;
+      return {
+        ...platformCapture,
+        diffScope: {
+          ...platformCapture.diffScope,
+          quickCheck: 'FAILED',
+          quickCheckFault: answeredCapture.quickCheckFault,
+        },
+      };
+    }
 
     const storyFiles = answeredCapture.full === false ? answeredCapture.storyFiles : undefined;
     return {

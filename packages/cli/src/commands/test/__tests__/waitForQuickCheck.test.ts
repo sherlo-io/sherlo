@@ -175,4 +175,31 @@ describe('the words the finished answer gives the test', () => {
     expect(android.diffScope?.storiesChecked).toBe(384);
     expect(ios).toBe(capture[1]);
   });
+
+  it('keeps the open answer captured stories when a failed answer has null counts', () => {
+    const capture = [{ platform: 'android' as const, full: false, capturedStories: 90 }];
+    const answer = {
+      runStatus: 'inProgress',
+      platforms: {
+        android: {
+          arrived: true,
+          capture: {
+            full: false,
+            reason: null,
+            storyFiles: [],
+            quickCheck: 'FAILED',
+            storiesChecked: null,
+            storiesCaptured: null,
+            storiesReused: null,
+          },
+        },
+      },
+    } as BuildStatus;
+
+    const [android] = captureWithTheAnswer(capture, answer);
+
+    expect(android.capturedStories).toBe(90);
+    expect(android.diffScope?.quickCheck).toBe('FAILED');
+    expect(android.diffScope?.storiesCaptured).toBeUndefined();
+  });
 });
