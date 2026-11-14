@@ -102,7 +102,7 @@ function appEntryRequest(projectRoot: string, startFile: string): string | null 
       entryPath = launchTimeEntry.findAppEntry(projectRoot);
     } catch {
       console.log(
-        'Sherlo found no app entry to load outside Storybook mode: no "main" in package.json and no index file at the project root'
+        'Sherlo init found no app entry: "main" in package.json names no file and the project root has no index file, so the Storybook entry file is unchanged. Set "main" to your app\'s entry file and run npx sherlo init again'
       );
       return null;
     }
