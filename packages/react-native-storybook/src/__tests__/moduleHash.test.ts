@@ -14,6 +14,14 @@ function moduleWithOutput(code: string) {
   return { output: [{ data: { code } }] };
 }
 
+function moduleImporting(dependencies: Map<string, unknown>) {
+  return { ...moduleWithOutput(ORIGINAL), dependencies };
+}
+
+function plainImport(absolutePath: string) {
+  return { absolutePath, data: { name: './theme', data: {} } };
+}
+
 function hashOf(code: string): string {
   return hashModuleOutput(moduleWithOutput(code));
 }
@@ -100,6 +108,41 @@ describe('hashModuleOutput', () => {
   it('a module whose output cannot be parsed is still hashed, by its exact code', () => {
     expect(hashOf('not { javascript')).toMatch(/^[0-9a-f]{64}$/);
     expect(hashOf('not { javascript')).not.toBe(hashOf('not {  javascript'));
+  });
+
+  it("a module's hash changes when one of its imports resolves to another file", () => {
+    const root = '/app';
+    const before = moduleImporting(new Map([['t', plainImport('/app/src/theme.ts')]]));
+    const repointed = moduleImporting(new Map([['t', plainImport('/app/src/darkTheme.ts')]]));
+
+    expect(hashModuleOutput(repointed, root)).not.toBe(hashModuleOutput(before, root));
+    expect(hashModuleOutput(before, root)).toBe(hashModuleOutput(before, root));
+  });
+
+  it("a module's hash is the same when its imports resolve to the same files under another project root", () => {
+    const underOne = moduleImporting(new Map([['t', plainImport('/one/app/src/theme.ts')]]));
+    const underAnother = moduleImporting(new Map([['t', plainImport('/two/app/src/theme.ts')]]));
+
+    expect(hashModuleOutput(underOne, '/one/app')).toBe(hashModuleOutput(underAnother, '/two/app'));
+  });
+
+  it('a require.context import is hashed by its specifier, not by its synthetic path', () => {
+    const contextImport = (syntheticPath: string, name: string) => ({
+      absolutePath: syntheticPath,
+      data: { name, data: { contextParams: {} } },
+    });
+    const first = moduleImporting(
+      new Map([['c', contextImport('/app/src/x.ts?ctx=aaa', './icons')]])
+    );
+    const second = moduleImporting(
+      new Map([['c', contextImport('/app/src/x.ts?ctx=bbb', './icons')]])
+    );
+    const otherFolder = moduleImporting(
+      new Map([['c', contextImport('/app/src/x.ts?ctx=aaa', './logos')]])
+    );
+
+    expect(hashModuleOutput(first, '/app')).toBe(hashModuleOutput(second, '/app'));
+    expect(hashModuleOutput(otherFolder, '/app')).not.toBe(hashModuleOutput(first, '/app'));
   });
 
   it('a module with no code has no hash', () => {

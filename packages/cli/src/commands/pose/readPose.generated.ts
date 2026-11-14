@@ -2546,6 +2546,9 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
           if ('reason' in object13) {
             expectString(object13.reason, at(where12, 'reason'), problems);
           }
+          if ('diffScope' in object13) {
+            readPlatformDiffScope(object13.diffScope, at(where12, 'diffScope'), problems);
+          }
           if ('storyFiles' in object13) {
             expectStringArray(object13.storyFiles, at(where12, 'storyFiles'), problems);
           }
@@ -2595,6 +2598,7 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
               'storiesInBundle',
               'scenesInBundle',
               'reason',
+              'diffScope',
               'storyFiles',
               'newStoryFiles',
               'changedStoryFiles',
@@ -3241,12 +3245,66 @@ function readBuildStatusPlatform(value: unknown, path: string, problems: string[
             reportWrongShape(oneOf5, 'a string or `null`', where6, problems);
           }
           expectStringArray(object4.storyFiles, at(where3, 'storyFiles'), problems);
-          reportUnknownFields(object4, ['full', 'reason', 'storyFiles'], where3, problems);
+          if ('storiesChecked' in object4) {
+            expectNumber(object4.storiesChecked, at(where3, 'storiesChecked'), problems);
+          }
+          if ('storiesLookDifferent' in object4) {
+            expectNumber(
+              object4.storiesLookDifferent,
+              at(where3, 'storiesLookDifferent'),
+              problems
+            );
+          }
+          if ('storiesCouldNotBeChecked' in object4) {
+            expectNumber(
+              object4.storiesCouldNotBeChecked,
+              at(where3, 'storiesCouldNotBeChecked'),
+              problems
+            );
+          }
+          if ('storiesCaptured' in object4) {
+            expectNumber(object4.storiesCaptured, at(where3, 'storiesCaptured'), problems);
+          }
+          if ('storiesReused' in object4) {
+            expectNumber(object4.storiesReused, at(where3, 'storiesReused'), problems);
+          }
+          if ('changedFiles' in object4) {
+            expectStringArray(object4.changedFiles, at(where3, 'changedFiles'), problems);
+          }
+          if ('quickCheck' in object4) {
+            expectOneOf(
+              object4.quickCheck,
+              ['NOT_NEEDED', 'RUNNING', 'FINISHED', 'FAILED'],
+              at(where3, 'quickCheck'),
+              problems
+            );
+          }
+          if ('quickCheckFault' in object4) {
+            expectString(object4.quickCheckFault, at(where3, 'quickCheckFault'), problems);
+          }
+          reportUnknownFields(
+            object4,
+            [
+              'full',
+              'reason',
+              'storyFiles',
+              'storiesChecked',
+              'storiesLookDifferent',
+              'storiesCouldNotBeChecked',
+              'storiesCaptured',
+              'storiesReused',
+              'changedFiles',
+              'quickCheck',
+              'quickCheckFault',
+            ],
+            where3,
+            problems
+          );
         }
       } else {
         reportWrongShape(
           oneOf2,
-          '`{ full: boolean; reason: string | null; storyFiles: string[] }` or `null`',
+          "`{ full: boolean; reason: string | null; storyFiles: string[]; storiesChecked?: number; storiesLookDifferent?: number; storiesCouldNotBeChecked?: number; storiesCaptured?: number; storiesReused?: number; changedFiles?: string[]; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED'; quickCheckFault?: string }` or `null`",
           where3,
           problems
         );
@@ -3375,9 +3433,78 @@ function readPosedPlatformCaptureDecision(value: unknown, path: string, problems
     if ('reason' in object1) {
       expectString(object1.reason, at(path, 'reason'), problems);
     }
+    if ('diffScope' in object1) {
+      readDiffScopeNumbers(object1.diffScope, at(path, 'diffScope'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['changedStoryFilePaths', 'newStoryFilePaths', 'full', 'storyFilePaths', 'reason'],
+      [
+        'changedStoryFilePaths',
+        'newStoryFilePaths',
+        'full',
+        'storyFilePaths',
+        'reason',
+        'diffScope',
+      ],
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `PlatformDiffScope`, as `contracts/pose.contract.ts` publishes it. */
+function readPlatformDiffScope(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    if ('storiesChecked' in object1) {
+      expectNumber(object1.storiesChecked, at(path, 'storiesChecked'), problems);
+    }
+    if ('storiesLookDifferent' in object1) {
+      expectNumber(object1.storiesLookDifferent, at(path, 'storiesLookDifferent'), problems);
+    }
+    if ('storiesCouldNotBeChecked' in object1) {
+      expectNumber(
+        object1.storiesCouldNotBeChecked,
+        at(path, 'storiesCouldNotBeChecked'),
+        problems
+      );
+    }
+    if ('storiesCaptured' in object1) {
+      expectNumber(object1.storiesCaptured, at(path, 'storiesCaptured'), problems);
+    }
+    if ('storiesReused' in object1) {
+      expectNumber(object1.storiesReused, at(path, 'storiesReused'), problems);
+    }
+    if ('changedFiles' in object1) {
+      expectStringArray(object1.changedFiles, at(path, 'changedFiles'), problems);
+    }
+    if ('quickCheck' in object1) {
+      expectOneOf(
+        object1.quickCheck,
+        ['NOT_NEEDED', 'RUNNING', 'FINISHED', 'FAILED'],
+        at(path, 'quickCheck'),
+        problems
+      );
+    }
+    if ('quickCheckFault' in object1) {
+      expectString(object1.quickCheckFault, at(path, 'quickCheckFault'), problems);
+    }
+    if ('reason' in object1) {
+      expectString(object1.reason, at(path, 'reason'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      [
+        'storiesChecked',
+        'storiesLookDifferent',
+        'storiesCouldNotBeChecked',
+        'storiesCaptured',
+        'storiesReused',
+        'changedFiles',
+        'quickCheck',
+        'quickCheckFault',
+        'reason',
+      ],
       path,
       problems
     );
@@ -3437,6 +3564,61 @@ function readAppError(value: unknown, path: string, problems: string[]): void {
     reportUnknownFields(
       object1,
       ['name', 'message', 'componentStack', 'topFrames', 'file', 'line', 'dataPath'],
+      path,
+      problems
+    );
+  }
+}
+
+/** The shape of a `DiffScopeNumbers`, as `contracts/pose.contract.ts` publishes it. */
+function readDiffScopeNumbers(value: unknown, path: string, problems: string[]): void {
+  const object1 = asObject(value, path, problems);
+  if (object1) {
+    if ('storiesChecked' in object1) {
+      expectNumber(object1.storiesChecked, at(path, 'storiesChecked'), problems);
+    }
+    if ('storiesLookDifferent' in object1) {
+      expectNumber(object1.storiesLookDifferent, at(path, 'storiesLookDifferent'), problems);
+    }
+    if ('storiesCouldNotBeChecked' in object1) {
+      expectNumber(
+        object1.storiesCouldNotBeChecked,
+        at(path, 'storiesCouldNotBeChecked'),
+        problems
+      );
+    }
+    if ('storiesCaptured' in object1) {
+      expectNumber(object1.storiesCaptured, at(path, 'storiesCaptured'), problems);
+    }
+    if ('storiesReused' in object1) {
+      expectNumber(object1.storiesReused, at(path, 'storiesReused'), problems);
+    }
+    if ('changedFiles' in object1) {
+      expectStringArray(object1.changedFiles, at(path, 'changedFiles'), problems);
+    }
+    if ('quickCheck' in object1) {
+      expectOneOf(
+        object1.quickCheck,
+        ['NOT_NEEDED', 'RUNNING', 'FINISHED', 'FAILED'],
+        at(path, 'quickCheck'),
+        problems
+      );
+    }
+    if ('quickCheckFault' in object1) {
+      expectString(object1.quickCheckFault, at(path, 'quickCheckFault'), problems);
+    }
+    reportUnknownFields(
+      object1,
+      [
+        'storiesChecked',
+        'storiesLookDifferent',
+        'storiesCouldNotBeChecked',
+        'storiesCaptured',
+        'storiesReused',
+        'changedFiles',
+        'quickCheck',
+        'quickCheckFault',
+      ],
       path,
       problems
     );

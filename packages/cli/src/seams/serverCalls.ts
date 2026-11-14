@@ -41,7 +41,27 @@ import type { Config } from '../types';
 /** What `openBuild` is sent, and what it answers - the sdk client's own shapes. */
 type SdkClient = ReturnType<typeof sdkClient>;
 export type OpenBuildRequest = Parameters<SdkClient['openBuild']>[0];
+/**
+ * What the service says about one platform's quick check, beside the platform's reason: how many
+ * stories it checked, how many look different, how many it could not check, how many are captured
+ * and how many reuse their last picture, and which files changed.
+ */
+export type DiffScopeNumbers = {
+  storiesChecked?: number;
+  storiesLookDifferent?: number;
+  storiesCouldNotBeChecked?: number;
+  storiesCaptured?: number;
+  storiesReused?: number;
+  /** The paths of the files the change touched. */
+  changedFiles?: string[];
+  quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED';
+  /** Why the quick check failed, when it did. */
+  quickCheckFault?: string;
+};
+/** One platform's entry in the answer's `build.diffScopeInfo.platforms`. */
+export type PlatformDiffScope = DiffScopeNumbers & { reason?: string };
 export type OpenBuildAnswer = Awaited<ReturnType<SdkClient['openBuild']>> & {
+  build: { diffScopeInfo?: { platforms?: Partial<Record<Platform, PlatformDiffScope>> } };
   /**
    * Whether the project has a CI token, so a person's run can suggest running Sherlo on every pull
    * request while it has none. The service may say whether the project has a CI token; absent
@@ -403,14 +423,17 @@ export type BuildStatusPlatform = {
    * (`diffScopeInfo.platforms`), never off the run's results - so a canceled build still has it.
    * `null` while there is no decision: Diff Scope off, or a split run not sealed yet.
    */
-  capture?: {
-    /** `true`: every story in the bundle was captured. */
-    full: boolean;
-    /** The service's sentence for the decision ("SharedButton.tsx changed"). */
-    reason: string | null;
-    /** The story files captured, as paths. Empty when `full`. */
-    storyFiles: string[];
-  } | null;
+  capture?:
+    | ({
+        /** `true`: every story in the bundle was captured. */
+        full: boolean;
+        /** The service's sentence for the decision ("SharedButton.tsx changed"). */
+        reason: string | null;
+        /** The story files captured, as paths. Empty when `full`. */
+        storyFiles: string[];
+        /** The quick check's state and the story counts sit inside the capture plan, as the service has them. */
+      } & DiffScopeNumbers)
+    | null;
   /** Where the app build came from. `null` before the platform arrived. */
   appBuild?: {
     /** `uploaded`: this run sent an app build. `stored`: it took one Sherlo already held. */
@@ -600,6 +623,8 @@ export type PosedPlatformCaptureDecision = Pick<
   storyFilePaths?: string[];
   /** The server's per-platform reason, printed verbatim after "why: " (or before the summary's colon). */
   reason?: string;
+  /** What Diff Scope's quick check found, for the test line's numbers. */
+  diffScope?: DiffScopeNumbers;
 };
 
 /**
@@ -1008,13 +1033,14 @@ function diffScopeInfoOf(
   };
 }
 
-/** One platform's `diffScopeInfo.platforms[platform]` entry - its reason, when the pose states one. */
+/** One platform's `diffScopeInfo.platforms[platform]` entry - its reason and its Diff Scope numbers, when the pose states them. */
 function platformReasonOf(
   captureDecision: PosedCaptureDecision,
   platform: string
-): { reason: string } | undefined {
-  const reason = captureDecision.platforms[platform]?.reason;
-  return reason !== undefined ? { reason } : undefined;
+): PlatformDiffScope | undefined {
+  const { reason, diffScope } = captureDecision.platforms[platform] ?? {};
+  if (reason === undefined && diffScope === undefined) return undefined;
+  return { ...(reason !== undefined ? { reason } : {}), ...diffScope };
 }
 
 /**

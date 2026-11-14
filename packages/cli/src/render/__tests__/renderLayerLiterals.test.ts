@@ -966,6 +966,13 @@ const PINS: Pin[] = [
     prints: [['Waiting for the test to finish (up to 45 min)...']],
   },
   {
+    kind: 'quick-check-waiting',
+    what: 'the wait for the quick check as a log shows it - a step in progress, its one line plain',
+    segment: { kind: 'quick-check-waiting', words: 'Checking which stories may look different' },
+    stream: 'stdout',
+    prints: [['Checking which stories may look different']],
+  },
+  {
     kind: 'wait-progress',
     what: 'the progress line for a known status: three leading spaces INSIDE the dim, and the word',
     segment: { kind: 'wait-progress', runStatus: 'inProgress' },
