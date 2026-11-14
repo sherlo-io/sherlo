@@ -65,4 +65,15 @@ describe("the Storybook entry's require of the app", () => {
     expect(read('.rnstorybook/index.tsx')).toBe(START_FILE);
     expect(log).toHaveBeenCalledTimes(1);
   });
+
+  it("init says in content's words that it found no app entry", () => {
+    write('package.json', JSON.stringify({ name: 'acme-app' }));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    writeStartFile(root);
+
+    expect(log).toHaveBeenCalledWith(
+      'Sherlo init found no app entry: "main" in package.json names no file and the project root has no index file, so the Storybook entry file is unchanged. Set "main" to your app\'s entry file and run npx sherlo init again'
+    );
+  });
 });
