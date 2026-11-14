@@ -600,10 +600,78 @@ describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
     expect(manifest.moduleHashes['./src/shared/Label.tsx']).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it("the module map's header names hash format 2, so a map hashed the old way is never compared", () => {
+    const { manifest } = emitAndRead();
+    expect(manifest.header.moduleHashFormat).toBe(2);
+  });
+
   it('story closure is the transitive forward dependency set (reached through require.context)', () => {
     const { manifest } = emitAndRead();
     const closure = manifest.storyClosures['./src/Button.stories.tsx'];
     expect(closure).toEqual(['./src/Button.tsx', './src/shared/Label.tsx']);
+  });
+
+  it('a module outside the app folder is kept in the module map under a portable key', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-outside-'));
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const { graph, labelPath } = buildFakeGraph(tmpDir);
+    const workspaceFile = path.resolve(tmpDir, '..', 'workspace-ui', 'Badge.ts');
+    const hoistedPackageFile = path.resolve(tmpDir, '..', 'node_modules', 'lib', 'index.js');
+    const mod = (code: string, deps: Map<string, unknown>) => ({
+      output: [{ data: { code } }],
+      dependencies: deps,
+    });
+    graph.dependencies.set(
+      labelPath,
+      mod(
+        'LABEL_CODE',
+        new Map([
+          ['w', { absolutePath: workspaceFile, data: { data: {} } }],
+          ['n', { absolutePath: hoistedPackageFile, data: { data: {} } }],
+        ])
+      )
+    );
+    graph.dependencies.set(workspaceFile, mod('BADGE_CODE', new Map()));
+    graph.dependencies.set(hoistedPackageFile, mod('LIB_CODE', new Map()));
+    result.serializer.customSerializer('index.js', [], graph, { projectRoot: tmpDir });
+    const manifest = JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(manifest.moduleHashes['../workspace-ui/Badge.ts']).toMatch(/^[0-9a-f]{64}$/);
+    expect(manifest.storyClosures['./src/Button.stories.tsx']).toContain(
+      '../workspace-ui/Badge.ts'
+    );
+    // A dependency installed outside the app folder is still no source of the app.
+    expect(Object.keys(manifest.moduleHashes).some((key) => key.includes('node_modules'))).toBe(
+      false
+    );
+    expect(manifest.storyClosures['./src/Button.stories.tsx'].join()).not.toContain('node_modules');
+  });
+
+  it('a file added to the Storybook folder that nothing imports moves no module hash', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-added-file-'));
+    const configDir = path.join(tmpDir, 'src', '.rnstorybook');
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(path.join(configDir, 'main.ts'), 'export default { stories: [] };');
+    const result = applySherloTransforms(
+      { projectRoot: tmpDir, resolver: {}, serializer: { customSerializer: () => 'BYTES' } },
+      { enabled: true }
+    );
+    const { graph } = buildFakeGraph(tmpDir);
+    const emit = () => {
+      result.serializer.customSerializer('index.js', [], graph, { projectRoot: tmpDir });
+      return JSON.parse(fs.readFileSync(path.join(tmpDir, ...manifestRelPath), 'utf8'));
+    };
+    const before = emit();
+    fs.writeFileSync(path.join(configDir, 'notes.ts'), 'export const unused = 1;');
+    const after = emit();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+
+    expect(after.moduleHashes).toEqual(before.moduleHashes);
+    expect(after.storyClosures).toEqual(before.storyClosures);
   });
 
   it("a file the preview imports is in every story's closure", () => {

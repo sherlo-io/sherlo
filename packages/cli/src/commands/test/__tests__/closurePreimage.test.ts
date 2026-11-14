@@ -159,6 +159,35 @@ describe('app source closure pre-image', () => {
     }
   });
 
+  it('the app source closure reads a module kept outside the project folder', () => {
+    const workspace = makeTempDir('sherlo-app-closure-workspace-');
+    try {
+      const projectRoot = path.join(workspace, 'app');
+      fs.mkdirSync(path.join(projectRoot, 'src'), { recursive: true });
+      fs.mkdirSync(path.join(workspace, 'packages', 'ui'), { recursive: true });
+      fs.writeFileSync(path.join(projectRoot, 'src/App.tsx'), 'export default 1;\n');
+      fs.writeFileSync(path.join(workspace, 'packages/ui/Badge.ts'), 'export const badge = 1;\n');
+      const closureOf = () =>
+        computeAppSourceClosure({
+          projectRoot,
+          modulePaths: ['src/App.tsx', '../packages/ui/Badge.ts', '../node_modules/lib/index.js'],
+        });
+      const before = closureOf();
+
+      fs.writeFileSync(path.join(workspace, 'packages/ui/Badge.ts'), 'export const badge = 2;\n');
+      const after = closureOf();
+
+      expect(before.files.map(({ path: filePath }) => filePath)).toEqual([
+        '../packages/ui/Badge.ts',
+        'src/App.tsx',
+      ]);
+      expect(before.files[0].digest).not.toBe('missing');
+      expect(after.hash).not.toBe(before.hash);
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
   it('hashes the module graph to the pinned digest and keeps the per-file digests', () => {
     const dir = makeTempDir('sherlo-app-closure-');
     try {
