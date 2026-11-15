@@ -24,6 +24,7 @@ import os from 'os';
 import path from 'path';
 import type { Platform } from '@sherlo/api-types';
 import { SHERLO_BUILD_FOR_PUSH } from '../commands/test/constants';
+import { ANDROID_ARM64_ABI } from '../constants';
 import {
   buildLogPath,
   DEFAULT_ANDROID_TASK,
@@ -250,6 +251,9 @@ const LAST_LINES_SHOWN = 30;
 
 const MB_PER_GB = 1024;
 
+/** The processor kinds the tool's own Android build compiles native code for. */
+export const ANDROID_PROCESSOR_KINDS = [ANDROID_ARM64_ABI, 'x86_64'];
+
 /**
  * Gradle's home keeps its own build cache; these flags turn it on and size the two JVM daemons from
  * the machine's memory, because React Native's C++ compilers (clang, ninja) run beside them and a
@@ -266,7 +270,7 @@ function gradleFlags(): string[] {
   const gradleHeapMB = clamp(machineMB / 3, 2 * MB_PER_GB, 8 * MB_PER_GB);
   const kotlinHeapMB = clamp(machineMB / 6, MB_PER_GB, 4 * MB_PER_GB);
   return [
-    '-PreactNativeArchitectures=arm64-v8a',
+    `-PreactNativeArchitectures=${ANDROID_PROCESSOR_KINDS.join(',')}`,
     '--build-cache',
     `-Dorg.gradle.jvmargs=-Xmx${gradleHeapMB}m -XX:MaxMetaspaceSize=1024m`,
     `-Pkotlin.daemon.jvmargs=-Xmx${kotlinHeapMB}m`,
