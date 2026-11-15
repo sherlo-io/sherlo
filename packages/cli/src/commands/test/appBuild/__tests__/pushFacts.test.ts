@@ -130,7 +130,7 @@ describe('what a push tells the service about itself', () => {
   });
 });
 
-// Shells for task aoa-cli-both-kinds. Each `it.todo` becomes a real `it(...)` with the exact same name.
+// Shells for task aoa-cli-reports-kinds. Each `it.todo` becomes a real `it(...)` with the exact same name.
 describe('which processor types a push reports', () => {
   it.todo('reports the processor types the Android APK holds');
   it.todo('reports none when the APK was not listed');
