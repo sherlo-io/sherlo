@@ -844,14 +844,14 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
    * Metro saw a change with no capture waiting, and an app was left on a scene: the developer
    * edited the code with the scene open. The app is told to start its JavaScript again, which boots
    * the same scene (the mode and the scene native code keeps survive a reload), and is handed the
-   * scene again once it waits. A change under node_modules is the bundler's or Sherlo's own write,
-   * never an edit. An app told once is not told again before it waits.
+   * scene again once it waits. A change under node_modules or .sherlo is the bundler's or Sherlo's
+   * own write, never an edit. An app told once is not told again before it waits.
    */
   function reloadTheOpenSceneAfterAnEdit(paths) {
     var opened = lastSceneHanded;
     if (opened === null || opened.reloading) return;
     var edited = paths.some(function (changed) {
-      return !/(^|[\\/])node_modules([\\/]|$)/.test(changed);
+      return !/(^|[\\/])(node_modules|\.sherlo)([\\/]|$)/.test(changed);
     });
     if (!edited) return;
     opened.reloading = true;
