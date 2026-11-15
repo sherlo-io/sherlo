@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   openBuild: vi.fn(),
+  getBuildStatus: vi.fn(),
   handleClientError: vi.fn((error: unknown) => {
     throw error;
   }),
@@ -18,10 +19,26 @@ vi.mock('../../../helpers', () => ({
   reporting: { setTag: vi.fn() },
 }));
 vi.mock('../../../seams/serverCalls', () => ({
-  serverCalls: () => ({ openBuild: mocks.openBuild }),
+  serverCalls: () => ({ openBuild: mocks.openBuild, getBuildStatus: mocks.getBuildStatus }),
 }));
 vi.mock('../closeTheRun', () => ({ closeTheRun: vi.fn() }));
+vi.mock('../../../seams/surroundings', () => ({
+  surroundings: () => ({ sleep: () => Promise.resolve() }),
+}));
 
+/** The status answer of a test whose quick check cleared every story, in the run state given. */
+function clearedAnswer(runStatus: string) {
+  return {
+    runStatus,
+    platforms: {
+      android: {
+        capture: { quickCheck: 'FINISHED', storiesChecked: 3, storiesCaptured: 0, full: false },
+      },
+    },
+  };
+}
+
+import { closeTheRun } from '../closeTheRun';
 import { openAndEndTheTest } from '../startTheTest';
 
 /** One android test opened alone, whose module map holds one file of three stories. */
@@ -101,6 +118,51 @@ describe('opening the test', () => {
       url: 'built',
     });
     expect(mocks.handleClientError).not.toHaveBeenCalled();
+  });
+
+  it('a push whose quick check clears every story prints Finished: nothing to test', async () => {
+    mocks.openBuild.mockResolvedValue({
+      build: { index: 4, diffScopeInfo: { platforms: { android: { quickCheck: 'RUNNING' } } } },
+      buildRun: { config: {} },
+    });
+    // The check answers cleared while the server has not closed the test yet; a later read finds it closed.
+    mocks.getBuildStatus
+      .mockResolvedValueOnce(clearedAnswer('queued'))
+      .mockResolvedValue(clearedAnswer('finished'));
+
+    await openOneTest();
+
+    expect(mocks.getBuildStatus).toHaveBeenCalledTimes(2);
+    expect(closeTheRun).toHaveBeenCalledWith(expect.objectContaining({ serverBypassed: true }));
+    expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Started'));
+  });
+
+  it('a push whose quick check clears every story but the server leaves the test open prints Started', async () => {
+    mocks.openBuild.mockResolvedValue({
+      build: { index: 4, diffScopeInfo: { platforms: { android: { quickCheck: 'RUNNING' } } } },
+      buildRun: { config: {} },
+    });
+    mocks.getBuildStatus.mockResolvedValue(clearedAnswer('inProgress'));
+
+    await openOneTest();
+
+    expect(closeTheRun).toHaveBeenCalledWith(expect.objectContaining({ serverBypassed: false }));
+  });
+
+  it('a push whose quick check leaves a story to capture is a started test', async () => {
+    mocks.openBuild.mockResolvedValue({
+      build: { index: 4, diffScopeInfo: { platforms: { android: { quickCheck: 'RUNNING' } } } },
+      buildRun: { config: {} },
+    });
+    mocks.getBuildStatus.mockResolvedValue({
+      platforms: {
+        android: { capture: { quickCheck: 'FINISHED', storiesCaptured: 2, full: false } },
+      },
+    });
+
+    await openOneTest();
+
+    expect(closeTheRun).toHaveBeenCalledWith(expect.objectContaining({ serverBypassed: false }));
   });
 
   it('an error the road does not answer is the client error it is', async () => {
