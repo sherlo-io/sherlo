@@ -73,10 +73,13 @@ async function openSocket(port: number) {
   await new Promise((resolve) => socket.once('open', resolve));
 
   const received: Message[] = [];
+  /** Every message sent to this socket, in order, taken or not. */
+  const everything: Message[] = [];
   const waiters: Array<{ matches: (message: Message) => boolean; resolve: (m: Message) => void }> =
     [];
   socket.on('message', (data: unknown) => {
     const message = JSON.parse(String(data));
+    everything.push(message);
     const index = waiters.findIndex((waiter) => waiter.matches(message));
     if (index === -1) received.push(message);
     else waiters.splice(index, 1)[0].resolve(message);
@@ -84,6 +87,7 @@ async function openSocket(port: number) {
 
   return {
     socket,
+    everything,
     send: (message: Message) => socket.send(JSON.stringify(message)),
     /** The first message sent to this socket that matches, now or once it arrives. */
     next(matches: (message: Message) => boolean): Promise<Message> {
@@ -121,6 +125,8 @@ async function connectAnApp(running: RunningLine) {
     says: say,
     /** The next message of `action` the line sends this app. */
     nextMessage: (action: string) => app.next((m) => m.action === action),
+    /** The action of every message the line sent this app so far, in order. */
+    actionsSent: () => app.everything.map((m) => m.action),
     /** The JavaScript starts again on this same connection, as it does after a reload. */
     startsItsJavaScript: () => say({ action: 'JS_EVAL_COMPLETE' }),
     /** The app's socket closes. */
@@ -548,6 +554,75 @@ describe('the relay hands the restart a story to land on, from whichever side as
     await app.waitsForACapture({ mode: 'testing', stories: null, scenes: HELD, answer: null });
     await expect(app.nextCaptureInstruction()).resolves.toEqual({});
     await expect(reply).resolves.toEqual({ kind: 'no-such-story', known: HELD });
+  });
+});
+
+describe('an edit Metro sees with a scene left on the app', () => {
+  it('only an edit with no capture waiting, after a scene was handed, reloads the app, and the scene is handed again', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const SCENE = 'inbox--full';
+    const testing = { mode: 'testing', stories: [STORY], scenes: [SCENE] };
+
+    // A story walked, and an edit with no scene ever handed: nothing to reload.
+    await app.waitsForACapture({ ...testing, answer: null });
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: { kind: 'captured' } });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: null });
+    running.line.filesChanged(['src/Inbox.js']);
+
+    // An edit while the scene's capture waits is the log feed's, never a reload.
+    const captured = driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+    running.line.filesChanged(['src/Inbox.js']);
+    await app.waitsForACapture({ ...testing, answer: { kind: 'scene', sceneId: SCENE } });
+    await captured;
+    await app.nextCaptureInstruction();
+    expect(app.actionsSent().indexOf('reload-after-edit')).toBe(-1);
+
+    // The scene left on the app: an edit reloads it, once.
+    await app.waitsForACapture({ ...testing, answer: null });
+    running.line.filesChanged(['node_modules/.cache/sherlo/scenes.json']);
+    running.line.filesChanged(['src/Inbox.js']);
+    running.line.filesChanged(['src/Inbox.js']);
+    await expect(app.nextMessage('reload-after-edit')).resolves.toEqual({
+      action: 'reload-after-edit',
+      sceneId: SCENE,
+    });
+
+    // Its new JavaScript is handed the scene again, and a later edit reloads it again.
+    await app.startsItsJavaScript();
+    await app.waitsForACapture({ ...testing, answer: null });
+    await expect(app.nextCaptureInstruction()).resolves.toEqual({
+      sceneId: SCENE,
+      settings: SETTINGS,
+    });
+    await app.waitsForACapture({ ...testing, answer: { kind: 'scene', sceneId: SCENE } });
+    await app.nextCaptureInstruction();
+    running.line.filesChanged(['src/Inbox.js']);
+    await app.nextMessage('reload-after-edit');
+    expect(app.actionsSent().filter((action) => action === 'reload-after-edit')).toHaveLength(2);
+
+    // A story handed since: the scene is no longer what the app shows, and an edit reloads nothing.
+    await app.startsItsJavaScript();
+    await app.waitsForACapture({ ...testing, answer: null });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: { kind: 'scene', sceneId: SCENE } });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: null });
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: { kind: 'captured' } });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: null });
+    running.line.filesChanged(['src/Inbox.js']);
+    // The next story handed lands after any word of a reload would.
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+    expect(app.actionsSent().filter((action) => action === 'reload-after-edit')).toHaveLength(2);
   });
 });
 
