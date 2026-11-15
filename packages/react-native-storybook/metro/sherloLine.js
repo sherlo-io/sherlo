@@ -820,7 +820,9 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
 
   /** Metro's file watcher told the bundler of these files, named under the project root. */
   function filesChanged(paths) {
-    if (driverWaiting === null || driverWaiting.sceneId === undefined || paths.length === 0) return;
+    if (paths.length === 0) return;
+    if (driverWaiting === null) return reloadTheOpenSceneAfterAnEdit(paths);
+    if (driverWaiting.sceneId === undefined) return;
     writeOnTheLogFeed(
       'Sherlo bundler: Metro saw ' +
         paths.slice(0, MOST_CHANGED_FILES_NAMED).join(', ') +
@@ -829,6 +831,38 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
           : '') +
         ' change while the scene was captured.'
     );
+  }
+
+  /**
+   * The scene last handed to an app to walk, kept after its driver is gone: the scene `sherlo open
+   * --scene` leaves on the phone. `reloading` is set from the edit that told the app to reload
+   * until the app waits again. Null before any scene was handed, and once that app left.
+   */
+  var lastSceneHanded = null;
+
+  /**
+   * Metro saw a change with no capture waiting, and an app was left on a scene: the developer
+   * edited the code with the scene open. The app is told to start its JavaScript again, which boots
+   * the same scene (the mode and the scene native code keeps survive a reload), and is handed the
+   * scene again once it waits. A change under node_modules is the bundler's or Sherlo's own write,
+   * never an edit. An app told once is not told again before it waits.
+   */
+  function reloadTheOpenSceneAfterAnEdit(paths) {
+    var opened = lastSceneHanded;
+    if (opened === null || opened.reloading) return;
+    var edited = paths.some(function (changed) {
+      return !/(^|[\\/])node_modules([\\/]|$)/.test(changed);
+    });
+    if (!edited) return;
+    opened.reloading = true;
+    // The JavaScript that waits now is going: its wait is dropped, never answered.
+    stopTheHeldWaitOf(opened.app);
+    opened.app.send({ action: 'reload-after-edit', sceneId: opened.sceneId });
+  }
+
+  /** Whether this app is the one an edit told to reload into its scene, and not back yet. */
+  function isReloadingAfterAnEdit(app) {
+    return lastSceneHanded !== null && lastSceneHanded.app === app && lastSceneHanded.reloading;
   }
 
   /** The app: here is my mode, my stories, my scenes and my answer; hand me the next capture. */
@@ -882,6 +916,15 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
       }
 
       return answerApp(app, instructionFor(driverWaiting, app, facts.mode));
+    }
+
+    // The app an edit reloaded is back on its scene: it walks the scene again, as it was handed.
+    if (driverWaiting === null && isReloadingAfterAnEdit(app)) {
+      lastSceneHanded.reloading = false;
+      return answerApp(app, {
+        sceneId: lastSceneHanded.sceneId,
+        settings: lastSceneHanded.settings,
+      });
     }
 
     holdTheApp(app, facts);
@@ -975,10 +1018,20 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     var cause = restartCauseOf(app, mode);
     clearTimeout(waiting.noAppTimer);
     waiting.instructed.push({ app: app, cause: cause });
+    // Whatever the app is handed now, the scene left on it before is no longer what it shows.
+    lastSceneHanded = null;
     if (cause !== null) {
       return { restartIntoTesting: true, storyId: isAScene ? waiting.sceneId : waiting.storyId };
     }
-    if (isAScene) return { sceneId: waiting.sceneId, settings: waiting.settings };
+    if (isAScene) {
+      lastSceneHanded = {
+        app: app,
+        sceneId: waiting.sceneId,
+        settings: waiting.settings,
+        reloading: false,
+      };
+      return { sceneId: waiting.sceneId, settings: waiting.settings };
+    }
     var instruction = { storyId: waiting.storyId, settings: waiting.settings };
     if (isOnTheScreenOf(app, waiting.storyId)) instruction.startFresh = true;
     lastStoryHanded = { app: app, storyId: waiting.storyId, at: Date.now() };
@@ -1090,6 +1143,7 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     noteARestartOf(app);
     stopTheHeldWaitOf(app);
     forgetTheStartFailureOf(app);
+    if (lastSceneHanded !== null && lastSceneHanded.app === app) lastSceneHanded = null;
   }
 
   function answerApp(app, payload) {
