@@ -129,3 +129,9 @@ describe('what a push tells the service about itself', () => {
     expect(stripAnsi(screen)).toContain('Started: all 5 stories on 2 devices (Pixel 7, iPhone 15)');
   });
 });
+
+// Shells for task aoa-cli-both-kinds. Each `it.todo` becomes a real `it(...)` with the exact same name.
+describe('which processor types a push reports', () => {
+  it.todo('reports the processor types the Android APK holds');
+  it.todo('reports none when the APK was not listed');
+});
