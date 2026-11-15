@@ -137,6 +137,23 @@ describe('opening the test', () => {
     expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Started'));
   });
 
+  it('a push whose quick check clears every story before the service closes the test prints Finished: nothing to test', async () => {
+    mocks.openBuild.mockResolvedValue({
+      build: { index: 4, diffScopeInfo: { platforms: { android: { quickCheck: 'RUNNING' } } } },
+      buildRun: { config: {} },
+    });
+    // The service closes the test some asks after the check finished; the status reads inProgress meanwhile.
+    mocks.getBuildStatus
+      .mockResolvedValueOnce(clearedAnswer('inProgress'))
+      .mockResolvedValueOnce(clearedAnswer('inProgress'))
+      .mockResolvedValue(clearedAnswer('finished'));
+
+    await openOneTest();
+
+    expect(mocks.getBuildStatus).toHaveBeenCalledTimes(3);
+    expect(closeTheRun).toHaveBeenCalledWith(expect.objectContaining({ serverBypassed: true }));
+  });
+
   it('a push whose quick check clears every story but the server leaves the test open prints Started', async () => {
     mocks.openBuild.mockResolvedValue({
       build: { index: 4, diffScopeInfo: { platforms: { android: { quickCheck: 'RUNNING' } } } },
