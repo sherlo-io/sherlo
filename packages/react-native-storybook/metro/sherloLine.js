@@ -858,6 +858,7 @@ function createCaptureRelay(appHoldMs, storyFileChangedSince, writeOnTheLogFeed)
     // The JavaScript that waits now is going: its wait is dropped, never answered.
     stopTheHeldWaitOf(opened.app);
     opened.app.send({ action: 'reload-after-edit', sceneId: opened.sceneId });
+    writeOnTheLogFeed('Sherlo bundler: told the app to reload after an edit');
   }
 
   /** Whether this app is the one an edit told to reload into its scene, and not back yet. */
