@@ -70,6 +70,8 @@ export type PushEffects = {
   resolveBinaries: () => Promise<{
     binariesInfo: ValidatedBinariesInfo;
     nextBuildIndex: number;
+    /** The processor types read from the Android app, when it was read. */
+    androidAbis?: string[];
   }>;
   resolveGitInfo: () => Promise<GitInfo>;
   /** Opens the test, or - for one job of a split CI run - joins the one its CI run shares. */
@@ -195,7 +197,7 @@ async function uploadOrReuseBuildsAndRunTests({
     freshBundle: realFreshBundleEffects(token),
   };
 
-  const { binariesInfo } = await io.resolveBinaries();
+  const { binariesInfo, androidAbis } = await io.resolveBinaries();
 
   const gitInfo = await io.resolveGitInfo();
 
@@ -394,6 +396,7 @@ async function uploadOrReuseBuildsAndRunTests({
       appBuilds,
       storiesInBundle: countInBundles(freshBundles, platformsWithBundles, countBundleStories),
       scenesInBundle: countInBundles(freshBundles, platformsWithBundles, countBundleScenes),
+      androidAbis,
       env: process.env,
       runIdFlag,
     }),
