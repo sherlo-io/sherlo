@@ -66,13 +66,12 @@ export async function waitForQuickCheck({
           return lastAnswer;
         }
         // A check that cleared every story is followed by the service's close, which may land a
-        // moment later (or never, when the test goes on to capture): keep asking while it waits.
+        // moment later (the status reads inProgress meanwhile): keep asking until the test is finished.
         const stillRunning =
           Object.values(lastAnswer?.platforms ?? {}).some(
             (platform) => platform?.capture?.quickCheck === 'RUNNING'
           ) ||
-          (quickCheckClearedEveryStory(lastAnswer) &&
-            (lastAnswer?.runStatus === 'queued' || lastAnswer?.runStatus === 'waiting'));
+          (quickCheckClearedEveryStory(lastAnswer) && lastAnswer?.runStatus !== 'finished');
         if (!stillRunning) return lastAnswer;
         // The last ask is the limit's: nothing is slept after it.
         if (waitedSeconds + SECONDS_BETWEEN_ASKS < QUICK_CHECK_WAIT_LIMIT_SECONDS) {
