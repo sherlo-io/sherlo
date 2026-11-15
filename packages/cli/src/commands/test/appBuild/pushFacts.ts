@@ -24,10 +24,13 @@ export function pushFactsPlatformOf({
   appBuild,
   storiesInBundle,
   scenesInBundle,
+  androidAbis,
 }: {
   appBuild?: AppBuildAccount;
   storiesInBundle?: number;
   scenesInBundle?: number;
+  /** The processor types read from the Android app; never given for iOS. */
+  androidAbis?: string[];
 }): PushFactsPlatform {
   const nativeChanges = appBuild?.why?.changesSince?.changes.map(describeChange);
 
@@ -38,6 +41,8 @@ export function pushFactsPlatformOf({
     ...(storiesInBundle !== undefined ? { storiesInBundle } : {}),
     // A bundle with no scenes reports none, so a push of stories alone sends what it always sent.
     ...(scenesInBundle ? { scenesInBundle } : {}),
+    // No list (the app was not read, or its file list was not) reports none.
+    ...(androidAbis ? { abis: [...androidAbis].sort() } : {}),
   };
 }
 
@@ -46,6 +51,7 @@ export function pushFactsOf({
   appBuilds,
   storiesInBundle,
   scenesInBundle = {},
+  androidAbis,
   env,
   runIdFlag,
 }: {
@@ -55,6 +61,8 @@ export function pushFactsOf({
   storiesInBundle: Partial<Record<Platform, number>>;
   /** How many scenes each delivered platform's bundle holds. */
   scenesInBundle?: Partial<Record<Platform, number>>;
+  /** The processor types read from the Android app, when it was read. */
+  androidAbis?: string[];
   env: NodeJS.ProcessEnv;
   /** `--run-id`, which names the CI run when the CI service does not. */
   runIdFlag?: string;
@@ -67,6 +75,7 @@ export function pushFactsOf({
       appBuild: appBuilds[platform],
       storiesInBundle: storiesInBundle[platform],
       scenesInBundle: scenesInBundle[platform],
+      androidAbis: platform === 'android' ? androidAbis : undefined,
     });
   }
 

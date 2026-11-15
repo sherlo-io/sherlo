@@ -35,7 +35,7 @@ type OTHER_COMMAND = Exclude<Command, EAS_BUILD_ON_COMPLETE_COMMAND>;
 
 async function getBinariesInfoAndNextBuildIndex(
   params: Params
-): Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number }> {
+): Promise<{ binariesInfo: BinariesInfo; nextBuildIndex: number; androidAbis?: string[] }> {
   const { command, token, platforms, projectIndex, teamId, android, ios, iosConfiguration } =
     params;
 
@@ -93,7 +93,8 @@ async function getBinariesInfoAndNextBuildIndex(
     }),
   };
 
-  return { binariesInfo, nextBuildIndex };
+  // The processor types read from the Android app, carried on for the push facts.
+  return { binariesInfo, nextBuildIndex, androidAbis: localBinariesInfo.android?.androidAbis };
 }
 
 export default getBinariesInfoAndNextBuildIndex;

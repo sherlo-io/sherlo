@@ -30,9 +30,11 @@ type OtherCommandParams = BaseParams & {
 type EAS_BUILD_ON_COMPLETE_COMMAND = typeof EAS_BUILD_ON_COMPLETE_COMMAND;
 type OTHER_COMMAND = Exclude<Command, EAS_BUILD_ON_COMPLETE_COMMAND>;
 
-async function getValidatedBinariesInfoAndNextBuildIndex(
-  params: Params
-): Promise<{ binariesInfo: ValidatedBinariesInfo; nextBuildIndex: number }> {
+async function getValidatedBinariesInfoAndNextBuildIndex(params: Params): Promise<{
+  binariesInfo: ValidatedBinariesInfo;
+  nextBuildIndex: number;
+  androidAbis?: string[];
+}> {
   const { command } = params;
 
   let platforms: Platform[];
@@ -49,7 +51,7 @@ async function getValidatedBinariesInfoAndNextBuildIndex(
     platforms = (['android', 'ios'] as const).filter((platform) => params.appBuildPaths[platform]);
   }
 
-  const { binariesInfo, nextBuildIndex } = await getBinariesInfoAndNextBuildIndex({
+  const { binariesInfo, nextBuildIndex, androidAbis } = await getBinariesInfoAndNextBuildIndex({
     ...params,
     android,
     ios,
@@ -64,7 +66,7 @@ async function getValidatedBinariesInfoAndNextBuildIndex(
     });
   }
 
-  return { binariesInfo: { ...binariesInfo, sdkVersion }, nextBuildIndex };
+  return { binariesInfo: { ...binariesInfo, sdkVersion }, nextBuildIndex, androidAbis };
 }
 
 export default getValidatedBinariesInfoAndNextBuildIndex;
