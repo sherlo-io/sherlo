@@ -153,6 +153,16 @@ describe('a capture finds the phone that has the app', () => {
     expect(await liveDeviceState.sceneTarget()).toEqual({ cause: 'no-phone', found: [] });
   });
 
+  it('an ANDROID_SERIAL that names a running phone picks it even with a simulator that has the app booted', async () => {
+    twoPhones(['ios', 'android'], BOTH_IDS);
+    vi.stubEnv('ANDROID_SERIAL', 'emulator-5554');
+    restores.push(() => vi.unstubAllEnvs());
+    expect(await liveDeviceState.sceneTarget()).toEqual({
+      device: { platform: 'android', serial: 'emulator-5554' },
+      app: { id: 'com.a.and' },
+    });
+  });
+
   it('ANDROID_SERIAL picks the phone the capture runs on', async () => {
     androidsListed({ 'emulator-5554': 'EMU1', 'emulator-5556': 'EMU2' });
     vi.stubEnv('ANDROID_SERIAL', 'emulator-5556');
