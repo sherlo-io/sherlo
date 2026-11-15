@@ -626,6 +626,30 @@ describe('an edit Metro sees with a scene left on the app', () => {
   });
 });
 
+describe('a file the CLI saves in the project', () => {
+  it('a file the CLI saves under .sherlo never counts as an edit', async () => {
+    const running = await startALine();
+    const app = await connectAnApp(running);
+    const driver = await connectADriver(running);
+    const SCENE = 'inbox--full';
+    const testing = { mode: 'testing', stories: [STORY], scenes: [SCENE] };
+
+    await app.waitsForACapture({ ...testing, answer: null });
+    const captured = driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: { kind: 'scene', sceneId: SCENE } });
+    await captured;
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...testing, answer: null });
+
+    running.line.filesChanged(['.sherlo/captures/one/screen.png', '/app/.sherlo/captures/x.json']);
+    // The next story handed lands after any word of a reload would.
+    void driver.ask({ action: 'captureStory', storyId: STORY, settings: SETTINGS });
+    await app.nextCaptureInstruction();
+    expect(app.actionsSent()).not.toContain('reload-after-edit');
+  });
+});
+
 describe('a capture of an app whose story files changed after its code loaded', () => {
   const pause = () => new Promise((resolve) => setTimeout(resolve, 30));
 
