@@ -11,6 +11,7 @@
  */
 import { isDrivenByRunner } from './runnerWalk';
 import { bundlerCapture } from './captureTransport';
+import { startReloadingAfterAnEdit } from './reloadAfterEdit';
 import { sendAndAwaitAnswer } from './connection/appLine';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import {
@@ -170,6 +171,7 @@ export function startWaitingAsTheApp(): void {
   if (!letterbox || !capture) return;
 
   core.startWaitingAsTheApp({ letterbox, capture });
+  startReloadingAfterAnEdit();
 }
 
 /**
