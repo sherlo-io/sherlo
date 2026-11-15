@@ -65,9 +65,14 @@ export async function waitForQuickCheck({
           // The row is cosmetic beside the run itself: a read that fails ends the wait, never the test.
           return lastAnswer;
         }
-        const stillRunning = Object.values(lastAnswer?.platforms ?? {}).some(
-          (platform) => platform?.capture?.quickCheck === 'RUNNING'
-        );
+        // A check that cleared every story is followed by the service's close, which may land a
+        // moment later (or never, when the test goes on to capture): keep asking while it waits.
+        const stillRunning =
+          Object.values(lastAnswer?.platforms ?? {}).some(
+            (platform) => platform?.capture?.quickCheck === 'RUNNING'
+          ) ||
+          (quickCheckClearedEveryStory(lastAnswer) &&
+            (lastAnswer?.runStatus === 'queued' || lastAnswer?.runStatus === 'waiting'));
         if (!stillRunning) return lastAnswer;
         // The last ask is the limit's: nothing is slept after it.
         if (waitedSeconds + SECONDS_BETWEEN_ASKS < QUICK_CHECK_WAIT_LIMIT_SECONDS) {
@@ -76,6 +81,22 @@ export async function waitForQuickCheck({
       }
       return lastAnswer;
     }
+  );
+}
+
+/**
+ * Whether the quick check judged every story the same on every platform the answer names: each
+ * finished and none has a story to capture. The service closes such a test itself, so it never
+ * starts on a device. No platform with numbers, or one still unfinished or failed, is not cleared.
+ */
+export function quickCheckClearedEveryStory(answer: BuildStatus | undefined): boolean {
+  const answered = Object.values(answer?.platforms ?? {});
+  return (
+    answered.length > 0 &&
+    answered.every(
+      (platform) =>
+        platform?.capture?.quickCheck === 'FINISHED' && platform.capture.storiesCaptured === 0
+    )
   );
 }
 

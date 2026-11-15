@@ -23,7 +23,11 @@ import { closeTheRun } from './closeTheRun';
 import type { THIS_COMMAND } from './constants';
 import { firstLookOf } from './firstLook';
 import { rowsAbove } from './platformRows';
-import { captureWithTheAnswer, waitForQuickCheck } from './waitForQuickCheck';
+import {
+  captureWithTheAnswer,
+  quickCheckClearedEveryStory,
+  waitForQuickCheck,
+} from './waitForQuickCheck';
 import {
   countBundleScenes,
   countBundleStories,
@@ -124,21 +128,18 @@ export async function openAndEndTheTest({
   // build has nothing to review and the review page cannot render its shape yet
   // (SHERLO-1974), so - in BOTH modes - we withhold the review/build URL and
   // print the compact bypassed closer instead (SHERLO-1952).
-  const serverBypassed = isServerBypassed(openBuildReturn.build.diffScopeInfo);
+  // The row waits for the quick check, so its lines are the finished answer's. A joined run's row
+  // was printed by joinTheRun, and it has no quick check to wait for.
+  const quickCheckAnswer = joinKey
+    ? undefined
+    : await waitForQuickCheck({ openBuildReturn, token, projectIndex, teamId });
+  const serverBypassed = serverClosedTheTest(openBuildReturn, quickCheckAnswer);
 
   // The test's row, with what it captures (SHERLO-1919) - read straight off the openBuild response,
-  // no extra API call (a joined run's row was printed by joinTheRun) - then its ending
-  // (./closeTheRun).
+  // no extra API call - then its ending (./closeTheRun).
   // How many pictures the plan takes sizes the default wait; a joined run's plan is unknown here.
   let picturesPlanned: number | undefined;
   if (!joinKey) {
-    // The row waits for the quick check, so its lines are the finished answer's.
-    const quickCheckAnswer = await waitForQuickCheck({
-      openBuildReturn,
-      token,
-      projectIndex,
-      teamId,
-    });
     picturesPlanned = printTestStarted({
       openBuildReturn,
       quickCheckAnswer,
@@ -163,6 +164,23 @@ export async function openAndEndTheTest({
   });
 
   return { url };
+}
+
+/**
+ * Whether the server closed the test without a device run: its open answer said so, or its quick
+ * check cleared every story AND the test is finished. A cleared check alone decides nothing: the
+ * server closes such a test only on some pushes, and the rest go on to capture on the phones
+ * (./waitForQuickCheck waits for the close). THE ONE PLACE that decides it, for the staged road
+ * here and the build road (../../helpers/uploadOrReuseBuildsAndRunTests).
+ */
+export function serverClosedTheTest(
+  openBuildReturn: OpenBuildAnswer,
+  quickCheckAnswer: BuildStatus | undefined
+): boolean {
+  return (
+    isServerBypassed(openBuildReturn.build.diffScopeInfo) ||
+    (quickCheckClearedEveryStory(quickCheckAnswer) && quickCheckAnswer?.runStatus === 'finished')
+  );
 }
 
 /** How many stories (`countBundleStories`) or scenes (`countBundleScenes`) each platform's bundle holds, counted off its module map. */

@@ -16,7 +16,7 @@ import {
   countInBundles,
 } from '../commands/test/readModuleManifest';
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
-import { printTestStarted } from '../commands/test/startTheTest';
+import { printTestStarted, serverClosedTheTest } from '../commands/test/startTheTest';
 import { waitForQuickCheck } from '../commands/test/waitForQuickCheck';
 import { firstLookOf } from '../commands/test/firstLook';
 import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
@@ -45,7 +45,6 @@ import reporting from './reporting';
 import throwError from './throwError';
 import { defaultEmbeddedBundlePath, registerBase, type GateMetadataInput } from './fingerprint';
 import uploadOrPrintBinaryReuse from './uploadOrPrintBinaryReuse';
-import { isServerBypassed } from './waitForBuildResult';
 
 /**
  * EVERY EFFECT THE PUSH SPINE PERFORMS, AS PARAMETERS - which is what lets an
@@ -424,13 +423,13 @@ async function uploadOrReuseBuildsAndRunTests({
   // run starts when the last platform is in, so a job whose run still waits has no next step.
   const joined = 'waitingFor' in opened ? opened : undefined;
   const openedAlone = 'waitingFor' in opened ? undefined : opened;
-  const serverBypassed =
-    openedAlone !== undefined && isServerBypassed(openedAlone.build.diffScopeInfo);
 
   // The step that started the test, as the staged road prints it, after its quick check; then the run's ending.
   const quickCheckAnswer = openedAlone
     ? await waitForQuickCheck({ openBuildReturn: openedAlone, token, projectIndex, teamId })
     : undefined;
+  const serverBypassed =
+    openedAlone !== undefined && serverClosedTheTest(openedAlone, quickCheckAnswer);
   const picturesPlanned = openedAlone
     ? printTestStarted({
         openBuildReturn: openedAlone,
