@@ -5,7 +5,10 @@
  * options it is called with. The older wrapper withStorybook.js loads from the SDK's own folder is
  * replaced by its stand-in in Node's module cache, so the real one never runs here.
  */
+import { EventEmitter } from 'events';
 import * as fs from 'fs';
+import * as http from 'http';
+import type { AddressInfo } from 'net';
 import * as path from 'path';
 import * as vm from 'vm';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -30,7 +33,7 @@ const {
   CODE_STAMP_GLOBAL,
   launchEntrySource,
 } = require('../../metro/launchTimeEntry');
-const { BUNDLER_STAMP } = require('../../metro/sherloLine');
+const { BUNDLER_STAMP, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine');
 const { sherloCacheFolder } = require('../../metro/projectPaths');
 
 type WrapperCall = { wrapper: 'older' | 'newer'; options: Record<string, unknown> };
@@ -80,9 +83,16 @@ const DEFAULT_SETUP_STORYBOOK_ENTRY =
 const OLD_SETUP_STORYBOOK_ENTRY =
   "import { view } from './storybook.requires';\n" + 'export default view.getStorybookUI({});\n';
 
-/** A Storybook project: its app entry `index.js`, a Storybook entry file, and both wrappers. */
-function createStorybookProject(storybookEntrySource: string): string {
+/**
+ * A Storybook project: its app entry `index.js`, a Storybook entry file, both wrappers, and
+ * `moreFiles`.
+ */
+function createStorybookProject(
+  storybookEntrySource: string,
+  moreFiles: Record<string, string> = {}
+): string {
   return createProject({
+    ...moreFiles,
     'package.json': JSON.stringify({ name: 'fixture-app' }),
     'index.js': "require('./src/App');\n",
     'src/App.js': 'module.exports = {};\n',
@@ -400,5 +410,143 @@ describe('the launch-time entry', () => {
     const webEntry = resolveFrom(defaultSetupResolve, bundleEntryRequester(root), './index', 'web');
 
     expect(webEntry).toEqual({ type: 'sourceFile', filePath: path.join(root, 'index.js') });
+  });
+});
+
+type LineMessage = Record<string, any>;
+
+/** A socket on the bundler's line, every message it is sent, and a question answered on it. */
+async function socketOnTheLine(origin: string) {
+  const ws = require('ws');
+  const socket = new ws(`ws://${origin}${LINE_PATH}`);
+  await new Promise((resolve) => socket.once('open', resolve));
+  const received: LineMessage[] = [];
+  const waiters: Array<{
+    matches: (m: LineMessage) => boolean;
+    resolve: (m: LineMessage) => void;
+  }> = [];
+  socket.on('message', (data: unknown) => {
+    const message = JSON.parse(String(data));
+    received.push(message);
+    const index = waiters.findIndex((waiter) => waiter.matches(message));
+    if (index !== -1) waiters.splice(index, 1)[0].resolve(message);
+  });
+  let asked = 0;
+  return {
+    received,
+    close: () => socket.terminate(),
+    send: (message: LineMessage) => socket.send(JSON.stringify(message)),
+    /** The next message sent to this socket that matches, once it arrives. */
+    next: (matches: (m: LineMessage) => boolean) =>
+      new Promise<LineMessage>((resolve) => waiters.push({ matches, resolve })),
+    /** A question, and its reply. Asked by the app's own socket, it lands after all the app said. */
+    ask(question: LineMessage): Promise<LineMessage> {
+      asked += 1;
+      const askId = String(asked);
+      const reply = new Promise<LineMessage>((resolve) =>
+        waiters.push({ matches: (m) => m.action === 'reply' && m.askId === askId, resolve })
+      );
+      socket.send(JSON.stringify({ ...question, askId }));
+      return reply.then((m) => m.reply);
+    },
+  };
+}
+
+describe('a scene left open on the bundler', () => {
+  it('an edit to a file the open scene draws reaches the scene without leaving it', async () => {
+    const SCENE = 'inbox--full';
+    const SETTINGS = { requiredMatches: 3, timeoutMs: 20000 };
+    // The project's Metro, whose `ws` the line mounts with, as in a real project.
+    const root = createStorybookProject(DEFAULT_SETUP_STORYBOOK_ENTRY, {
+      'node_modules/metro/package.json': JSON.stringify({ name: 'metro', version: '0.83.0' }),
+      'node_modules/ws/index.js': `module.exports = require(${JSON.stringify(require.resolve('ws'))});\n`,
+      'src/Inbox.js': "module.exports = 'Inbox';\n",
+    });
+    const config = wrapConfig(root) as unknown as {
+      server: { enhanceMiddleware: (middleware: unknown, metroServer: unknown) => any };
+    };
+    // Metro's server, as far as the line reaches into it: the file watcher its graph rebuilds from.
+    const watcher = new EventEmitter();
+    const metroServer = {
+      getBundler: () => ({ getBundler: () => ({ getWatcher: () => watcher }) }),
+    };
+    const bundler = http.createServer(
+      config.server.enhanceMiddleware(
+        (_request: unknown, response: http.ServerResponse) => response.end('the bundle'),
+        metroServer
+      )
+    );
+    await new Promise<void>((resolve) => bundler.listen(0, '127.0.0.1', resolve));
+    const origin = `127.0.0.1:${(bundler.address() as AddressInfo).port}`;
+    const sockets: Array<{ close: () => void }> = [];
+
+    try {
+      // The first request mounts the line.
+      await fetch(`http://${origin}${LINE_PATH}`);
+
+      // The app, booted on the scene in testing mode, waits for its capture.
+      const app = await socketOnTheLine(origin);
+      sockets.push(app);
+      app.send({
+        action: 'hello',
+        protocolVersion: PROTOCOL_VERSION,
+        nativeVersion: '3.0.0',
+        jsVersion: '3.0.0',
+      });
+      const waits = (answer: LineMessage | null) =>
+        app.send({
+          action: 'waitForACapture',
+          mode: 'testing',
+          stories: null,
+          scenes: [SCENE],
+          codeStamp: BUNDLER_STAMP,
+          answer,
+        });
+      const nextInstruction = () => app.next((m) => m.action === 'captureInstruction');
+      waits(null);
+      await app.ask({ action: 'whatIsOnScreen' });
+
+      // `sherlo open --scene` captures the scene, then lets go of the line.
+      const driver = await socketOnTheLine(origin);
+      sockets.push(driver);
+      const handed = nextInstruction();
+      const captured = driver.ask({ action: 'captureStory', sceneId: SCENE, settings: SETTINGS });
+      expect(await handed).toEqual({
+        action: 'captureInstruction',
+        sceneId: SCENE,
+        settings: SETTINGS,
+      });
+      const comeBack = nextInstruction();
+      waits({ kind: 'scene', sceneId: SCENE });
+      expect(await captured).toEqual({ kind: 'scene', sceneId: SCENE });
+      expect(await comeBack).toEqual({ action: 'captureInstruction' });
+      driver.close();
+      waits(null);
+      await app.ask({ action: 'whatIsOnScreen' });
+
+      // Sherlo's own writes under node_modules are no edit; the app's screen file is.
+      const reload = app.next((m) => m.action === 'reload-after-edit');
+      watcher.emit('change', {
+        eventsQueue: [{ filePath: path.join(sherloCacheFolder(root), 'scenes.json') }],
+      });
+      watcher.emit('change', { eventsQueue: [{ filePath: path.join(root, 'src/Inbox.js') }] });
+      watcher.emit('change', { eventsQueue: [{ filePath: path.join(root, 'src/Inbox.js') }] });
+      expect(await reload).toEqual({ action: 'reload-after-edit', sceneId: SCENE });
+
+      // The JavaScript starts again on the same connection, booted on the scene, and is handed the
+      // same scene to walk: the phone shows the edit, still on the scene.
+      const handedAgain = nextInstruction();
+      app.send({ action: 'JS_EVAL_COMPLETE' });
+      waits(null);
+      expect(await handedAgain).toEqual({
+        action: 'captureInstruction',
+        sceneId: SCENE,
+        settings: SETTINGS,
+      });
+      expect(app.received.filter((m) => m.action === 'reload-after-edit')).toHaveLength(1);
+    } finally {
+      sockets.forEach((socket) => socket.close());
+      bundler.close();
+    }
   });
 });
