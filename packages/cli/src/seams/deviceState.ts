@@ -278,11 +278,11 @@ export const liveDeviceState: DeviceState = {
     const androids = await connectedAndroids((tool, args, options) =>
       liveDeviceState.run(tool, args, options)
     );
-    // An ANDROID_SERIAL that names no running phone is no phone, even with a simulator booted.
-    const devices =
-      process.env.ANDROID_SERIAL && androids.length === 0
-        ? []
-        : [...(await bootedSimulators()), ...androids];
+    // An ANDROID_SERIAL names the one phone to use: simulators booted beside it are not counted,
+    // and when it names no running phone there is no phone.
+    const devices = process.env.ANDROID_SERIAL
+      ? androids
+      : [...(await bootedSimulators()), ...androids];
     const root = getCwd();
     const phones = devices.map((device) => {
       const id = appIdOf(device.platform, root);
