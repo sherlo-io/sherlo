@@ -23,6 +23,8 @@ import {
 import { __resetForTests as resetTheLine, startTheLine } from '../connection/appLine';
 import { currentAppFiber } from '../componentNames';
 import { startWaitingAsTheApp } from '../openStoryChannel';
+import { stopReloadingAfterAnEdit } from '../reloadAfterEdit';
+import SherloModule from '../SherloModule';
 import * as storyOfTheApp from '../storyOfTheApp';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
 import type { SherloLine } from '../../metro/sherloLine';
@@ -181,6 +183,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopReloadingAfterAnEdit();
+  vi.restoreAllMocks();
   delete NativeModules.SourceCode;
 });
 
@@ -273,6 +277,16 @@ describe('the generated launch entry', () => {
 
     // It has no Storybook side to reach.
     expect(launchEntrySource('app-and-storybook', false)).not.toContain(STORYBOOK_SIDE_REQUEST);
+  });
+
+  it('an app that waits for scenes without Storybook reloads after an edit', () => {
+    const reload = vi.spyOn(SherloModule, 'reloadJavaScript').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    launch('app-and-storybook', 'default', false);
+
+    __emitMessageFromTheConnection({ action: 'reload-after-edit', sceneId: 'inbox--full' });
+
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it("a scenes-only app's wrapped root renders with no provider of the app's own around it", () => {

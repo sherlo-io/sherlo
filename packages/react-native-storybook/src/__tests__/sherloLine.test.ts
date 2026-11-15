@@ -1266,6 +1266,26 @@ describe('a scene capture whose app starts over after taking its instruction', (
     expect(feed.restarts).toBe(1);
   });
 
+  it('telling the app to reload after an edit writes one line to the log', async () => {
+    const running = await startALine();
+    const driver = await connectADriver(running);
+    const app = await connectAnApp(running);
+    await app.waitsForACapture(inMode('testing'));
+    void driver.ask(launch);
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture({ ...inMode('testing'), answer: { kind: 'scene', sceneId: SCENE } });
+    await app.nextCaptureInstruction();
+    await app.waitsForACapture(inMode('testing'));
+
+    running.line.filesChanged(['src/inbox/Inbox.scene.tsx']);
+    running.line.filesChanged(['src/inbox/Inbox.scene.tsx']);
+    await app.nextMessage('reload-after-edit');
+
+    expect(await feedLines(running)).toEqual([
+      'Sherlo bundler: told the app to reload after an edit',
+    ]);
+  });
+
   it('files the bundler sees change while a scene capture waits are written on the feed, by path under the project root', async () => {
     const running = await startALine();
     const driver = await connectADriver(running);
