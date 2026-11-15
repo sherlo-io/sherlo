@@ -836,4 +836,5 @@ describe('app builder, EAS', () => {
 // Shells for task aoa-cli-both-kinds. Each `it.todo` becomes a real `it(...)` with the exact same name.
 describe('app builder, Android processor types', () => {
   it.todo('builds Android for arm64-v8a and x86_64');
+  it.todo('builds Android with :app:assembleRelease');
 });
