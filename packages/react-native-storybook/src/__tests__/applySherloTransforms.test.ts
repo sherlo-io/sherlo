@@ -600,6 +600,14 @@ describe('applySherloTransforms – module manifest sidecar (enabled)', () => {
     expect(manifest.moduleHashes['./src/shared/Label.tsx']).toMatch(/^[0-9a-f]{64}$/);
   });
 
+  it('the module map names for each file the files it imports, keyed like the module hashes', () => {
+    const { manifest } = emitAndRead();
+    expect(manifest.imports['./src/Button.stories.tsx']).toEqual(['./src/Button.tsx']);
+    expect(manifest.imports['./src/Button.tsx']).toEqual(['./src/shared/Label.tsx']);
+    expect(manifest.imports['./src/shared/Label.tsx']).toEqual([]);
+    expect(Object.keys(manifest.imports).sort()).toEqual(Object.keys(manifest.moduleHashes).sort());
+  });
+
   it("the module map's header names hash format 2, so a map hashed the old way is never compared", () => {
     const { manifest } = emitAndRead();
     expect(manifest.header.moduleHashFormat).toBe(2);
