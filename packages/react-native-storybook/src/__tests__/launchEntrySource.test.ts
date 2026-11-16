@@ -66,10 +66,16 @@ type SherloBuild = 'storybook' | 'app-and-storybook';
 
 /**
  * Runs the launch entry of a build carrying `sherloBuild`, in an app the native module says is in
- * `mode`; `hasStorybook` false is an app with scene files and no Storybook. Loading the SDK starts
- * its line, as its index does. Returns what happened, in order.
+ * `mode`; `hasStorybook` false is an app with scene files and no Storybook, and `namesAScene` set
+ * is a project with scene files whose launch names one of them or not. Loading the SDK starts its
+ * line, as its index does. Returns what happened, in order.
  */
-function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): string[] {
+function launch(
+  sherloBuild: SherloBuild,
+  mode: Mode,
+  hasStorybook?: boolean,
+  namesAScene?: boolean
+): string[] {
   const happened: string[] = [];
   const modules: Record<string, () => unknown> = {
     '@sherlo/react-native-storybook': () => {
@@ -100,6 +106,9 @@ function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): s
         storyOfTheApp.wrapTheAppInStoryOfTheApp();
       },
     }),
+    '@sherlo/react-native-storybook/dist/captureLaunch.js': () => ({
+      launchNamesABundledScene: () => namesAScene === true,
+    }),
     [STORYBOOK_SIDE_REQUEST]: () => {
       happened.push('the Storybook side');
       return {};
@@ -119,7 +128,9 @@ function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): s
   }
 
   const runLaunchEntry = vm.runInThisContext(
-    '(function (require) {\n' + launchEntrySource(sherloBuild, hasStorybook) + '\n})'
+    '(function (require) {\n' +
+      launchEntrySource(sherloBuild, hasStorybook, undefined, namesAScene !== undefined) +
+      '\n})'
   );
   runLaunchEntry(stubbedRequire);
   return happened;
@@ -218,6 +229,15 @@ describe('the generated launch entry', () => {
     // A build carrying Storybook alone never reaches the app side, whatever the mode.
     expect(launch('storybook', 'default')).toEqual(['the SDK', 'the Storybook side']);
     expect(launchEntrySource('storybook')).not.toContain(APP_SIDE_REQUEST);
+  });
+
+  it('in a project with scenes a launch that names a scene starts the app, in either build', () => {
+    const theApp = ['the open and capture listeners', 'the app side'];
+    expect(launch('storybook', 'testing', true, true)).toEqual(['the SDK', ...theApp]);
+    expect(launch('storybook', 'testing', true, false)).toEqual(['the SDK', 'the Storybook side']);
+    const appAndStorybook = launch('app-and-storybook', 'testing', true, true);
+    expect(appAndStorybook).toEqual(['the SDK', 'the mode', 'the developer menu item', ...theApp]);
+    expect(launch('app-and-storybook', 'testing', true, false)).toContain('the Storybook side');
   });
 
   it('the launch entry starts the open and capture listeners in default mode', () => {
