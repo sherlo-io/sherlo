@@ -6,7 +6,8 @@
 import type { Platform } from '@sherlo/api-types';
 import { reporting } from '../../../helpers';
 import type { AppBuildCommand } from '../../../render/appBuild';
-import { ANDROID_PROCESSOR_KINDS, appBuilder } from '../../../seams/appBuilder';
+import { ANDROID_REQUIRED_ABIS } from '../../../constants';
+import { appBuilder } from '../../../seams/appBuilder';
 import { nativeBuild } from '../../../seams/nativeBuild';
 import { type BuildSettings, buildSettingsDigest } from './buildSettings';
 
@@ -36,7 +37,7 @@ export function cacheKeyOf({
   linksSherlo?: boolean;
 }): string {
   const settingsDigest = buildSettingsDigest(settings, platform).slice(0, SETTINGS_DIGEST_IN_KEY);
-  const processorKinds = platform === 'android' ? `-${ANDROID_PROCESSOR_KINDS.join('-')}` : '';
+  const processorKinds = platform === 'android' ? `-${ANDROID_REQUIRED_ABIS.join('-')}` : '';
   return `${platform}-${baseFingerprint}-${settingsDigest}${processorKinds}${linksSherlo ? '-sherlo' : ''}`;
 }
 
