@@ -112,7 +112,8 @@ function findAppEntry(projectRoot, sourceExts) {
  *
  * A scene boots the whole app, so in a project with scene files (`holdsScenes`) the bundle holds
  * the app's side in both builds, and a launch that names one of the bundle's scenes starts it
- * (src/captureLaunch.ts, the same decision the old setup's root reads through isStorybookMode).
+ * (src/captureLaunch.ts, the same decision the old setup's root reads through isStorybookMode),
+ * its root wrapped as a scenes-only app's is (src/storyOfTheApp.tsx).
  *
  * An app with scene files and no Storybook (`hasStorybook` false) has only the app's side, and
  * in every mode it waits for `sherlo open` and `sherlo capture` before the app runs.
@@ -149,10 +150,14 @@ function launchEntrySource(sherloBuild, hasStorybook, bundlerStamp, holdsScenes)
   var appSide = waitAsTheApp + "  require('" + APP_SIDE_REQUEST + "');\n";
   var namesAScene =
     "require('@sherlo/react-native-storybook/dist/captureLaunch.js').launchNamesABundledScene()";
+  // A scene launch never starts Storybook, so the early-boot module's wrapper, which waits for
+  // Storybook's facts, never wraps: the app's root is wrapped as a scenes-only app's is, so a play
+  // step walks it and a tap finds its views.
   if (sherloBuild === 'storybook') {
     if (!holdsScenes) return header + storybookSide;
+    var sceneSide = wrapTheApp + '  ' + appSide;
     return (
-      header + 'if (' + namesAScene + ') {\n  ' + appSide + '} else {\n  ' + storybookSide + '}\n'
+      header + 'if (' + namesAScene + ') {\n  ' + sceneSide + '} else {\n  ' + storybookSide + '}\n'
     );
   }
 
@@ -163,6 +168,7 @@ function launchEntrySource(sherloBuild, hasStorybook, bundlerStamp, holdsScenes)
     "var mode = require('@sherlo/react-native-storybook/dist/SherloModule.js').default.getMode();\n" +
     ('if (' + showsStorybook + ') {\n  ' + storybookSide + '} else {\n') +
     "  require('@sherlo/react-native-storybook/dist/addStorybookToDevMenu.js').default();\n" +
+    (holdsScenes ? '  if (' + namesAScene + ') ' + wrapTheApp : '') +
     ('  ' + appSide + '}\n')
   );
 }
