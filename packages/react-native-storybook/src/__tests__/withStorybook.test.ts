@@ -357,6 +357,7 @@ describe('package.json exports map - deep-import subpaths', () => {
     { subpath: './dist/getStorybook/index.js', resolvedFile: 'dist/getStorybook/index.js' },
     { subpath: './dist/addStorybookToDevMenu.js', resolvedFile: 'dist/addStorybookToDevMenu.js' },
     { subpath: './dist/openStoryChannel.js', resolvedFile: 'dist/openStoryChannel.js' },
+    { subpath: './dist/captureLaunch.js', resolvedFile: 'dist/captureLaunch.js' },
   ];
 
   it('exports map uses explicit subpath exports (no dist/* wildcards)', () => {

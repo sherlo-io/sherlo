@@ -1,7 +1,13 @@
 // The process a Metro config loads in, as a test plays it: the environment and command line the
 // bundler wrapper reads (metro/withStorybook.js), and a way to put back the test's own.
 
-const ENV_KEYS = ['SHERLO_BUILD', 'NODE_ENV', 'STORYBOOK_ENABLED', 'STORYBOOK_DISABLE_TELEMETRY'];
+const ENV_KEYS = [
+  'SHERLO_BUILD',
+  'SHERLO_MODULE_MANIFEST',
+  'NODE_ENV',
+  'STORYBOOK_ENABLED',
+  'STORYBOOK_DISABLE_TELEMETRY',
+];
 
 /**
  * Makes this process look like a bundling process with `env` set and `commandLine` after the
