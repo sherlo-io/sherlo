@@ -28,7 +28,9 @@ var projectRootOf = require('./projectPaths').projectRootOf;
 var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var handOverFilePath = require('./projectPaths').handOverFilePath;
 
-var toRelativePath = require('./projectPaths').toRelativePath;
+var moduleMapKeyOf = require('./projectPaths').moduleMapKeyOf;
+var importsOf = require('./importsOf').importsOf;
+var importEdgesOf = require('./importsOf').importEdgesOf;
 
 // ---------------------------------------------------------------------------
 // Module manifest sidecar (SHERLO-1890 Diff Scope - Phase A)
@@ -118,11 +120,13 @@ function behaviourOf(code) {
  * + js/script), through behaviourOf, so a comment, a re-indent or a type hint
  * leaves the hash as it was. The code references dependencies through a per-module
  * dependency map by LOCAL index, not by global module id, so this hash is stable
- * across the ordinal-id renumbering that import add/remove/reorder causes elsewhere.
+ * across the ordinal-id renumbering that import add/remove/reorder causes elsewhere. Because the
+ * code names an import by that local index only, the hash also takes what each import resolves to
+ * (importsOf), so an import a bundler rule points at another file moves the hash.
  *
  * @returns {string|null} hex digest, or null if the module has no hashable output.
  */
-function hashModuleOutput(module) {
+function hashModuleOutput(module, projectRoot) {
   if (!module || !Array.isArray(module.output)) return null;
   var hash = crypto.createHash('sha256');
   var hashedAnything = false;
@@ -133,7 +137,9 @@ function hashModuleOutput(module) {
       hashedAnything = true;
     }
   });
-  return hashedAnything ? hash.digest('hex') : null;
+  if (!hashedAnything) return null;
+  hash.update('\0imports\0' + JSON.stringify(importsOf(module, projectRoot)));
+  return hash.digest('hex');
 }
 
 /**
@@ -207,19 +213,14 @@ function collectStories(graph) {
   var seen = {};
   var stories = [];
   collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
-    var module = graph.dependencies.get(requiresAbsPath);
-    if (!module.dependencies || !(module.dependencies instanceof Map)) return;
-    module.dependencies.forEach(function (dep) {
-      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
-      if (!contextParams) return;
-      var ctxModule = graph.dependencies.get(dep.absolutePath);
-      if (!ctxModule || !(ctxModule.dependencies instanceof Map)) return;
-      var contextDirAbsPath = contextDirectoryOf(dep.absolutePath);
-      ctxModule.dependencies.forEach(function (ctxDep) {
-        if (ctxDep.absolutePath && !seen[ctxDep.absolutePath]) {
-          seen[ctxDep.absolutePath] = true;
+    importEdgesOf(graph.dependencies.get(requiresAbsPath)).forEach(function (edge) {
+      if (!edge.isContext) return;
+      var contextDirAbsPath = contextDirectoryOf(edge.absolutePath);
+      importEdgesOf(graph.dependencies.get(edge.absolutePath)).forEach(function (storyEdge) {
+        if (!seen[storyEdge.absolutePath]) {
+          seen[storyEdge.absolutePath] = true;
           stories.push({
-            absPath: ctxDep.absolutePath,
+            absPath: storyEdge.absolutePath,
             contextDirAbsPath: contextDirAbsPath,
             requiresAbsPath: requiresAbsPath,
           });
@@ -240,7 +241,7 @@ function collectStories(graph) {
 function collectSceneAbsPaths(graph, projectRoot) {
   var sceneAbsPaths = [];
   graph.dependencies.forEach(function (_module, absPath) {
-    var rel = toRelativePath(absPath, projectRoot);
+    var rel = moduleMapKeyOf(absPath, projectRoot);
     if (rel && isSceneFile(absPath) && rel.indexOf('node_modules/') === -1) {
       sceneAbsPaths.push(absPath);
     }
@@ -267,13 +268,10 @@ function collectPreviewAbsPaths(graph) {
   var seen = {};
   var previews = [];
   collectRequiresAbsPaths(graph).forEach(function (requiresAbsPath) {
-    var module = graph.dependencies.get(requiresAbsPath);
-    if (!module.dependencies || !(module.dependencies instanceof Map)) return;
-    module.dependencies.forEach(function (dep) {
-      var depAbs = dep.absolutePath;
-      if (!depAbs || seen[depAbs]) return;
-      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
-      if (contextParams) return; // require.context edge -> stories, not the preview
+    importEdgesOf(graph.dependencies.get(requiresAbsPath)).forEach(function (edge) {
+      var depAbs = edge.absolutePath;
+      if (seen[depAbs]) return;
+      if (edge.isContext) return; // require.context edge -> stories, not the preview
       if (!isPreviewFile(depAbs)) return;
       seen[depAbs] = true;
       previews.push(depAbs);
@@ -319,8 +317,8 @@ function collectEntryAbsPaths(graph) {
  * require.context. A require.context edge points at a synthetic module; we
  * descend THROUGH it (recording its matched targets, not the synthetic path
  * itself), so files reached only via require.context still land in the closure.
- * Paths outside the project root (toRelativePath -> null) are skipped as keys but
- * still traversed, so a source file reached only through a node_modules hop is
+ * Paths with no map key (moduleMapKeyOf -> null: a node_modules file outside the project) are
+ * skipped as keys but still traversed, so a source file reached only through a node_modules hop is
  * not lost.
  */
 function collectForwardClosure(graph, storyAbsPath, projectRoot, excludedAbsPaths) {
@@ -334,14 +332,13 @@ function collectForwardClosure(graph, storyAbsPath, projectRoot, excludedAbsPath
     visited[absPath] = true;
     var module = graph.dependencies.get(absPath);
     if (!module || !(module.dependencies instanceof Map)) continue;
-    module.dependencies.forEach(function (dep) {
-      var depAbs = dep.absolutePath;
-      if (!depAbs || excluded[depAbs]) return;
-      var contextParams = dep.data && dep.data.data && dep.data.data.contextParams;
+    importEdgesOf(module).forEach(function (edge) {
+      var depAbs = edge.absolutePath;
+      if (excluded[depAbs]) return;
       // A require.context edge resolves to a synthetic module: don't record its
       // path, just traverse into it so its matched targets get recorded.
-      if (!contextParams) {
-        var rel = toRelativePath(depAbs, projectRoot);
+      if (!edge.isContext) {
+        var rel = moduleMapKeyOf(depAbs, projectRoot);
         if (rel) closure[rel] = true;
       }
       if (!visited[depAbs]) stack.push(depAbs);
@@ -414,6 +411,9 @@ function buildManifestHeader(projectRoot) {
   var envDigest = crypto.createHash('sha256').update(stableStringify(env)).digest('hex');
 
   return {
+    // How a module's hash is made; a map made another way is never compared with this one. Raise
+    // it when the way a module is hashed changes (2: the hash takes what imports resolve to).
+    moduleHashFormat: 2,
     metroVersion: metroVersion,
     babelConfigDigest: babelConfigDigest,
     envDigest: envDigest,
@@ -460,7 +460,7 @@ function collectRequiresAbsPaths(graph) {
 function describeGeneratedFiles(graph, projectRoot) {
   var generated = {};
   collectRequiresAbsPaths(graph).forEach(function (absPath) {
-    var rel = toRelativePath(absPath, projectRoot);
+    var rel = moduleMapKeyOf(absPath, projectRoot);
     if (!rel) return;
 
     var inputs = [];
@@ -468,7 +468,7 @@ function describeGeneratedFiles(graph, projectRoot) {
       fs.readdirSync(path.dirname(absPath), { withFileTypes: true }).forEach(function (entry) {
         if (!entry.isFile()) return;
         if (isStorybookRequiresBasename(entry.name)) return;
-        var inputRel = toRelativePath(path.join(path.dirname(absPath), entry.name), projectRoot);
+        var inputRel = moduleMapKeyOf(path.join(path.dirname(absPath), entry.name), projectRoot);
         if (inputRel) inputs.push(inputRel);
       });
     } catch (_) {
@@ -505,9 +505,9 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
     /** @type {string[]} source-path keys whose transformed output leaks an abs path. */
     var absolutePathLeaks = [];
     graph.dependencies.forEach(function (module, absPath) {
-      var rel = toRelativePath(absPath, projectRoot);
-      if (!rel) return; // skip synthetic/out-of-root modules
-      var digest = hashModuleOutput(module);
+      var rel = moduleMapKeyOf(absPath, projectRoot);
+      if (!rel) return; // skip synthetic modules and node_modules outside the project
+      var digest = hashModuleOutput(module, projectRoot);
       if (digest) moduleHashes[rel] = digest;
       if (moduleOutputLeaksAbsolutePath(module, projectRoot)) {
         absolutePathLeaks.push(rel);
@@ -532,7 +532,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
       sceneListAndSceneFiles[sceneAbsPath] = true;
     });
     collectPreviewAbsPaths(graph).forEach(function (previewAbsPath) {
-      var previewRel = toRelativePath(previewAbsPath, projectRoot);
+      var previewRel = moduleMapKeyOf(previewAbsPath, projectRoot);
       if (previewRel) globalRelPaths[previewRel] = true;
       collectForwardClosure(graph, previewAbsPath, projectRoot, sceneListAndSceneFiles).forEach(
         function (rel) {
@@ -554,7 +554,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
       notPartOfEntryClosure[story.absPath] = true;
     });
     collectEntryAbsPaths(graph).forEach(function (entryAbsPath) {
-      var entryRel = toRelativePath(entryAbsPath, projectRoot);
+      var entryRel = moduleMapKeyOf(entryAbsPath, projectRoot);
       if (entryRel) globalRelPaths[entryRel] = true;
       collectForwardClosure(graph, entryAbsPath, projectRoot, notPartOfEntryClosure).forEach(
         function (rel) {
@@ -570,7 +570,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
     var appRelPaths = {};
     if (typeof entryPoint === 'string' && entryPoint) {
       var appEntryAbsPath = path.resolve(projectRoot, entryPoint);
-      var appEntryRel = toRelativePath(appEntryAbsPath, projectRoot);
+      var appEntryRel = moduleMapKeyOf(appEntryAbsPath, projectRoot);
       if (appEntryRel && graph.dependencies.has(appEntryAbsPath)) {
         appRelPaths[appEntryRel] = true;
         collectForwardClosure(graph, appEntryAbsPath, projectRoot, notPartOfEntryClosure).forEach(
@@ -616,7 +616,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
     // A scene file has a closure and a count of its scenes, and no title: an absent title is read
     // as unknown. It is keyed by the path the scene list writes as its filePath.
     sceneAbsPaths.forEach(function (sceneAbsPath) {
-      var sceneRel = toRelativePath(sceneAbsPath, projectRoot);
+      var sceneRel = moduleMapKeyOf(sceneAbsPath, projectRoot);
       storyClosures[sceneRel] = closureOf(sceneAbsPath, appRelPaths);
       if (fs.existsSync(sceneAbsPath)) {
         var sceneIds = sceneIdsOfSource(
@@ -628,7 +628,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
     });
 
     stories.forEach(function (story) {
-      var storyRel = toRelativePath(story.absPath, projectRoot);
+      var storyRel = moduleMapKeyOf(story.absPath, projectRoot);
       if (!storyRel) return;
       storyClosures[storyRel] = closureOf(story.absPath);
 

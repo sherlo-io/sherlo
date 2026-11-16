@@ -18,6 +18,7 @@ import bundledScenes from './bundledScenes';
 import { logTheLine, sendAndAwaitAnswer } from './connection/appLine';
 import { readStorybookChannel } from './getStorybook/storybookReads';
 import { startLocalScroll, stopLocalScroll } from './localScroll';
+import { startReloadingAfterAnEdit, stopReloadingAfterAnEdit } from './reloadAfterEdit';
 import { getSealedCore } from './sealedCore/loadSealedCore';
 import type { CaptureTransport, StorybookChannel } from './sealedCore/seam';
 
@@ -55,6 +56,7 @@ export function startCaptureTransport({
 
   core.startCaptureTransport({ channel, capture: road });
   startLocalScroll();
+  startReloadingAfterAnEdit();
   return true;
 }
 
@@ -79,6 +81,7 @@ export function startCaptureOfTheLaunch(): void {
 export function stopCaptureTransport(): void {
   getSealedCore()?.stopCaptureTransport();
   stopLocalScroll();
+  stopReloadingAfterAnEdit();
 }
 
 /**

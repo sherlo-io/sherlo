@@ -10,6 +10,7 @@ import fetch from 'node-fetch';
 import chalk from 'chalk';
 import { afterEach, beforeEach, describe, expect, it, vi, Mock } from 'vitest';
 import waitForBuildResult, { fetchServerBypassReason, waitForTest } from '../waitForBuildResult';
+import { fetchBuildStatus } from '../buildStatusRequest';
 import { closeTheRun } from '../../commands/test/closeTheRun';
 import {
   EXIT_BLOCK,
@@ -82,6 +83,18 @@ function buildResponse(
       finishedAt: null,
     },
   };
+}
+
+/** The text between the first `marker` (ending in an opening brace) and its closing brace. */
+function blockAfter(text: string, marker: string): string {
+  const start = text.indexOf(marker) + marker.length;
+  let depth = 1;
+  for (let at = start; at < text.length; at++) {
+    if (text[at] === '{') depth++;
+    if (text[at] === '}') depth--;
+    if (depth === 0) return text.slice(start, at);
+  }
+  return text.slice(start);
 }
 
 function mockGraphqlResponse(status: number, data: unknown) {
@@ -1047,6 +1060,7 @@ describe('fetchServerBypassReason reads the bypass reason once and never throws'
     await expect(fetchServerBypassReason(args)).resolves.toEqual({
       reason: 'no change reaches any story',
       storyWaits: false,
+      build: expect.objectContaining({ runStatus: 'finished' }),
     });
   });
 
@@ -1580,5 +1594,106 @@ describe('the wait names an app that could not start', () => {
 
     expect(lines.join('\n')).toContain('Error: "user_runner"');
     expect(lines.join('\n')).not.toContain('App failed to start');
+  });
+});
+
+describe('a test the service closed for nothing to capture', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it("a test closed with nothing to capture prints its counts from the answer's numbers", async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const answered = buildResponse(
+      'finished',
+      { approved: 0, noChanges: 384, reported: 0, unreviewed: 0 },
+      undefined,
+      {
+        capturedSnapshotCount: 0,
+        inheritedSnapshotCount: 384,
+        platforms: { android: { reason: 'no change reaches any story' } },
+      }
+    );
+    answered.getBuildStatus.platforms = {
+      android: {
+        arrived: true,
+        capture: {
+          full: false,
+          reason: 'src/utils/analytics.ts changed',
+          storyFiles: [],
+          quickCheck: 'FINISHED',
+          storiesChecked: 384,
+          storiesLookDifferent: 0,
+          storiesCouldNotBeChecked: 0,
+          storiesCaptured: 0,
+          storiesReused: 384,
+        },
+      },
+    };
+    mockGraphqlResponse(200, answered);
+
+    await waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+      serverBypassed: true,
+    });
+
+    const printed = logSpy.mock.calls.map((call: unknown[]) => call[0] ?? '').join('\n');
+    logSpy.mockRestore();
+    expect(printed).toContain(`Test ${BUILD_INDEX}      ✔ Finished: nothing to capture`);
+    expect(printed).toContain('384 checked, after src/utils/analytics.ts changed');
+    expect(printed).toContain('0 captured: 0 look different, 0 could not be checked');
+    expect(printed).toContain('384 reuse their last picture, no devices started');
+    expect(printed).not.toContain('no change reaches any story');
+  });
+
+  it('the status read asks for the quick check state and the story counts of each platform', async () => {
+    mockGraphqlResponse(200, buildResponse('inProgress'));
+
+    await fetchBuildStatus('https://api.example', 'token', {
+      index: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+
+    const { query } = JSON.parse(mockFetch.mock.calls[0][1].body);
+    for (const platform of ['android', 'ios']) {
+      const platformSelection = query.slice(query.indexOf(`${platform} {`));
+      const captureSelection = blockAfter(platformSelection, 'capture {');
+      for (const field of [
+        'quickCheck',
+        'quickCheckFault',
+        'storiesChecked',
+        'storiesLookDifferent',
+        'storiesCouldNotBeChecked',
+        'storiesCaptured',
+        'storiesReused',
+        'changedFiles',
+      ]) {
+        expect(captureSelection).toMatch(new RegExp(`\\b${field}\\b`));
+      }
+    }
+  });
+
+  it('the status read selects no quick check field on the platform itself, where the service has none', async () => {
+    mockGraphqlResponse(200, buildResponse('inProgress'));
+
+    await fetchBuildStatus('https://api.example', 'token', {
+      index: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+    });
+
+    const { query } = JSON.parse(mockFetch.mock.calls[0][1].body);
+    for (const platform of ['android', 'ios']) {
+      const platformSelection = query.slice(query.indexOf(`${platform} {`));
+      const platformBlock = blockAfter(platformSelection, '{');
+      const withoutNestedBlocks = platformBlock.replace(/\w+\s*\{[^{}]*\}/g, '');
+      for (const field of ['quickCheck', 'storiesChecked', 'storiesCaptured', 'changedFiles']) {
+        expect(withoutNestedBlocks).not.toMatch(new RegExp(`\\b${field}\\b`));
+      }
+    }
   });
 });

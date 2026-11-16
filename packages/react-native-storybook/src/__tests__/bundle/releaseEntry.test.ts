@@ -201,3 +201,167 @@ describe('the release bundle entry', () => {
     expect(developmentBundle.bundledModules).toContain(path.join(root, 'src/App.js'));
   });
 });
+
+/**
+ * The default-setup fixture with a story file and a scene file. The scene boots the whole app, so
+ * the screen it shows, src/Home.js, is reached only through the app's root: no story and no scene
+ * file imports it. The SDK's entry reaches the list of the bundle's scenes, as the real one does.
+ */
+function createDefaultSetupAppWithAStoryAndAScene(): string {
+  const root = createDefaultSetupApp();
+  const write = fixtureFileWriter(root);
+
+  write('src/App.js', "require('./Home');\nmodule.exports = { name: 'THE_APP' };\n");
+  write('src/Home.js', "module.exports = 'HOME_BEFORE_THE_EDIT';\n");
+  // In CommonJS, as the whole fixture is, so the bundle runs with no transform.
+  write(
+    'src/Home.scenes.js',
+    "const { scenes } = require('@sherlo/react-native-storybook/scenes');\n" +
+      'exports.default = scenes({ scenes: { Default: {} } });\n'
+  );
+  write('src/Widget.js', "module.exports = 'WIDGET';\n");
+  write(
+    'src/Widget.stories.js',
+    "require('./Widget');\nexports.default = { title: 'Widget' };\nexports.Basic = {};\n"
+  );
+
+  write(
+    '.rnstorybook/main.js',
+    "module.exports = { stories: ['../src/**/*.stories.js'], addons: [] };\n"
+  );
+  write(
+    '.rnstorybook/index.js',
+    "require('./storybook.requires');\n" +
+      "const { AppRegistry } = require('react-native');\n" +
+      "AppRegistry.registerComponent('main', function () { return 'StorybookUI'; });\n" +
+      "global.launched = 'STORYBOOK';\n"
+  );
+  write(
+    '.rnstorybook/storybook.requires.js',
+    "const { start } = require('@storybook/react-native');\n" +
+      "const normalizedStories = [{ req: require.context('../src', true, /^\\.\\/(?:(?!\\.)(?=.)[^/]*?\\.stories\\.js)$/) }];\n" +
+      'exports.view = start({ annotations: [], storyEntries: normalizedStories });\n'
+  );
+
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/index.js`,
+    "require('./bundledScenes');\nexports.isStorybookMode = false;\n"
+  );
+  // The requires file's import of Storybook reaches Sherlo's Storybook, which the wrapper reads, and
+  // Storybook's start, which hands back a view.
+  write(
+    'node_modules/@storybook/react-native/index.js',
+    'exports.start = function () { return { getStorybookUI: function () {} }; };\n'
+  );
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/getStorybook/index.js`,
+    'exports.default = function () {};\n' +
+      'exports.recordWhatStartWasHanded = function () {};\n' +
+      'exports.keepStartedStorybook = function () {};\n'
+  );
+  write(`${SDK_FOLDER_IN_FIXTURE}/dist/bundledScenes.js`, 'exports.default = {};\n');
+  write(`${SDK_FOLDER_IN_FIXTURE}/dist/sceneBoot.js`, '');
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/scenes.js`,
+    'exports.scenes = function (scenes) { return scenes; };\n'
+  );
+  // The one decision of a scene launch, as src/captureLaunch.ts makes it: the launch's id is one
+  // of the bundle's scenes. The test hands the bundle that id.
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/captureLaunch.js`,
+    "var bundledScenes = require('./bundledScenes').default;\n" +
+      'exports.launchNamesABundledScene = function () {\n' +
+      '  return !!global.launchedId && !!bundledScenes[global.launchedId];\n' +
+      '};\n'
+  );
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/storyOfTheApp.js`,
+    'exports.wrapTheAppInStoryOfTheApp = function () { global.appWrapped = true; };\n'
+  );
+  return root;
+}
+
+type ModuleMap = {
+  moduleHashes: Record<string, string>;
+  storyClosures: Record<string, string[]>;
+};
+
+describe('the push bundle of an app with a story and scenes', () => {
+  // Real Metro builds are slower than unit tests; give them room.
+  const TIMEOUT = 120_000;
+
+  // A push: Storybook alone, as the CLI sets it, with the module map on, through
+  // `npx react-native bundle --dev false`.
+  const PUSH = {
+    env: { SHERLO_BUILD: 'storybook', SHERLO_MODULE_MANIFEST: '1' },
+    commandLine: ['bundle', '--dev', 'false'],
+  };
+
+  let root: string;
+  let pushBundle: Bundle;
+  let mapBeforeTheEdit: ModuleMap;
+  let mapAfterTheEdit: ModuleMap;
+
+  beforeAll(async () => {
+    root = createDefaultSetupAppWithAStoryAndAScene();
+    const { config, modulesOfLatestBuild } = await sherloMetroConfig(root, PUSH, {
+      configPath: path.join(root, '.rnstorybook'),
+    });
+    const moduleMapPath = path.join(sherloCacheFolder(root), 'module-manifest.json');
+    const push = async (): Promise<ModuleMap> => {
+      const { code } = await Metro.runBuild(config, {
+        entry: 'index.js',
+        platform: 'ios',
+        dev: false,
+        minify: false,
+      });
+      pushBundle = { bundledModules: modulesOfLatestBuild(), code };
+      return JSON.parse(fs.readFileSync(moduleMapPath, 'utf8'));
+    };
+    mapBeforeTheEdit = await push();
+    fs.writeFileSync(path.join(root, 'src/Home.js'), "module.exports = 'HOME_AFTER_THE_EDIT';\n");
+    mapAfterTheEdit = await push();
+  }, TIMEOUT);
+
+  afterAll(() => {
+    // root is unset when beforeAll failed before it made the fixture.
+    if (root) fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('an edit to a file only a scene imports is a changed file in an app that also has a story', () => {
+    const HOME = './src/Home.js';
+
+    // The push's module map holds the screen, and the scene's closure reaches it...
+    expect(mapBeforeTheEdit.moduleHashes[HOME]).toBeDefined();
+    expect(mapBeforeTheEdit.storyClosures['./src/Home.scenes.js']).toContain(HOME);
+    // ...so the edit changes its hash, which is how the server tells a changed file.
+    expect(mapAfterTheEdit.moduleHashes[HOME]).toBeDefined();
+    expect(mapAfterTheEdit.moduleHashes[HOME]).not.toBe(mapBeforeTheEdit.moduleHashes[HOME]);
+
+    // CONTROL: the story's closure holds its own component and not the app's screen.
+    expect(mapAfterTheEdit.storyClosures['./src/Widget.stories.js']).toContain('./src/Widget.js');
+    expect(mapAfterTheEdit.storyClosures['./src/Widget.stories.js']).not.toContain(HOME);
+  });
+
+  it('a launch of the push bundle on a scene starts the app, and any other launch Storybook', () => {
+    const launchOn = (launchedId: string) => {
+      const appGlobal: Record<string, unknown> = {
+        launchedId,
+        nativeModuleProxy: { SherloModule: { getConstants: () => ({ mode: 'testing' }) } },
+      };
+      vm.runInNewContext(pushBundle.code, appGlobal);
+      return appGlobal;
+    };
+    const bundledScenes = fs.readFileSync(
+      path.join(sherloCacheFolder(root), 'bundled-scenes.js'),
+      'utf8'
+    );
+    expect(bundledScenes).toContain('"home--default"');
+
+    // A scene's app is wrapped, so its play steps walk the app's own root.
+    expect(launchOn('home--default')).toMatchObject({ launched: 'THE_APP', appWrapped: true });
+    const story = launchOn('widget--basic');
+    expect(story.launched).toBe('STORYBOOK');
+    expect(story.appWrapped).toBeUndefined();
+  });
+});

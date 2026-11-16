@@ -30,7 +30,8 @@ export type StepInProgress = Extract<
       | 'platform-bundle-start'
       | 'binary-uploading'
       | 'eas-builds-starting'
-      | 'wait-header';
+      | 'wait-header'
+      | 'quick-check-waiting';
   }
 >;
 
@@ -59,6 +60,9 @@ export function renderStepInProgress(step: StepInProgress): string {
 
     case 'eas-builds-starting':
       return step.platforms.length > 1 ? 'Starting EAS builds...' : 'Starting an EAS build...';
+
+    case 'quick-check-waiting':
+      return step.words;
 
     case 'wait-header': {
       const theTest = step.testIndex !== undefined ? `Test ${step.testIndex}` : 'the test';
