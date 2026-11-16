@@ -15,6 +15,9 @@ import path from 'path';
 import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME } from '../../../constants';
 import { detectEntryFile } from '../../test/detectBundler';
 
+// What detectEntryFile answers when package.json names no main.
+const DEFAULT_MAIN = 'index.js';
+
 type StorybookSetupReader = {
   findStorybookEntry(projectRoot: string): string | null;
   detectStorybookSetup(source: string): 'default' | 'old';
@@ -52,12 +55,15 @@ function writeStartFile(projectRoot: string): string | null {
   const modeImport = found.usesImports
     ? `import { isStorybookMode } from '${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}';\n`
     : `const { isStorybookMode } = require('${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}');\n`;
+  const appRequest = appEntryRequest(projectRoot, startFile);
+  if (!appRequest) return null;
+
   const branch = [
     '// Storybook in Storybook mode; the app otherwise, as a scene launch needs it.',
     'if (isStorybookMode) {',
     `  ${source.slice(registration.start, registration.end)}`,
     '} else {',
-    `  require('${appEntryRequest(projectRoot, startFile)}');`,
+    `  require('${appRequest}');`,
     '}',
   ].join('\n');
 
@@ -71,23 +77,41 @@ function writeStartFile(projectRoot: string): string | null {
 export default writeStartFile;
 
 /**
- * What the start file requires to load the app: the `main` of package.json as a path from the start
- * file's folder when it is a file of the project, else as the package it names (such as
- * `expo-router/entry`).
+ * What the start file requires to load the app, as a path from the start file's folder with no
+ * extension: the file `main` of package.json names when it is a file of the project, else the
+ * entry file the app has at its root (found by the SDK's `findAppEntry`). A `main` that names a
+ * package's file (such as `expo-router/entry`) is required by that name. Null when the app has no
+ * entry.
  */
-function appEntryRequest(projectRoot: string, startFile: string): string {
+function appEntryRequest(projectRoot: string, startFile: string): string | null {
   const main = detectEntryFile(projectRoot);
-  const mainPath = path.join(projectRoot, main);
+  const mainPath = path.join(fs.realpathSync(projectRoot), main);
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const sourceFiles = require('../../../../../react-native-storybook/metro/sourceFiles');
   const isProjectFile =
     sourceFiles.isExistingFile(mainPath) ||
     sourceFiles.firstExistingSourceFile(mainPath, 'javascript-first') !== null;
-  if (!isProjectFile && !main.startsWith('.')) return main;
+  const isPackageEntry = !isProjectFile && main !== DEFAULT_MAIN && !main.startsWith('.');
+  if (isPackageEntry) return main;
 
-  const withoutExtension = mainPath.replace(/\.[jt]sx?$/, '');
+  let entryPath = mainPath;
+  if (!isProjectFile) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const launchTimeEntry = require('../../../../../react-native-storybook/metro/launchTimeEntry');
+      entryPath = launchTimeEntry.findAppEntry(projectRoot);
+    } catch {
+      console.log(
+        'Sherlo init found no app entry: "main" in package.json names no file and the project root has no index file, so the Storybook entry file is unchanged. Set "main" to your app\'s entry file and run npx sherlo init again'
+      );
+      return null;
+    }
+  }
+
+  // Found paths follow symlinks, so the start file's folder is resolved the same way.
+  const withoutExtension = entryPath.replace(/\.[jt]sx?$/, '');
   const request = path
-    .relative(path.dirname(startFile), withoutExtension)
+    .relative(fs.realpathSync(path.dirname(startFile)), withoutExtension)
     .split(path.sep)
     .join('/');
   return request.startsWith('.') ? request : `./${request}`;
