@@ -80,8 +80,8 @@ describe('what a push tells the service about itself', () => {
           madeBy: 'compiled',
           why: 'native-changed',
           storiesInBundle: 5,
-          // The pose's APK holds one processor type, which the push now reports.
-          abis: ['arm64-v8a'],
+          // The pose's APK holds both processor types, which the push reports.
+          abis: ['arm64-v8a', 'x86_64'],
         },
       },
       ciRun: { provider: 'github', runId: 'acme/app/123' },

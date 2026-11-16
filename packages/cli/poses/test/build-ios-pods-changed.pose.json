@@ -206,7 +206,7 @@
         "expoUpdatesEnabled": false,
         "hasExpoDevClient": false,
         "expoSdkVersion": "54.0.0",
-        "androidAbis": ["arm64-v8a"]
+        "androidAbis": ["arm64-v8a", "x86_64"]
       },
       "ios": {
         "hash": "8d2c4e6a0b1f3d5c7e9a2b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a4c6e8b0d2f4a",
