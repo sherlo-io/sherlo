@@ -14,6 +14,7 @@ import type { PlatformCapture } from '../../render/testSteps';
 import { serverCalls, type DiffScopeNumbers, type OpenBuildAnswer } from '../../seams/serverCalls';
 import { surroundings } from '../../seams/surroundings';
 import { whileShowing } from '../shared/terminal';
+import { countScenesIn, countStoriesIn, type ValidatedModuleManifest } from './readModuleManifest';
 
 /** The longest the command line waits for the quick check, in seconds. */
 export const QUICK_CHECK_WAIT_LIMIT_SECONDS = 120;
@@ -103,10 +104,15 @@ export function quickCheckClearedEveryStory(answer: BuildStatus | undefined): bo
  * What each platform captures once the quick check has answered: the open answer's capture, with
  * the numbers, the reason and the story files the status gives in their place. A platform the
  * answer has no numbers for stays as the open answer said it.
+ *
+ * The answer's storiesCaptured is stories plus scenes. A partial answer that names its story files
+ * is counted apart off the module map, as at open (./capturePerPlatform); without a module map or
+ * files the total stays the story count and the scene count stays as the open answer said it.
  */
 export function captureWithTheAnswer(
   capture: PlatformCapture[],
-  answer: BuildStatus | undefined
+  answer: BuildStatus | undefined,
+  moduleManifests: Partial<Record<Platform, ValidatedModuleManifest>> = {}
 ): PlatformCapture[] {
   return capture.map((platformCapture) => {
     const answered = answer?.platforms?.[platformCapture.platform];
@@ -126,10 +132,18 @@ export function captureWithTheAnswer(
     }
 
     const storyFiles = answeredCapture.full === false ? answeredCapture.storyFiles : undefined;
+    const manifest = moduleManifests[platformCapture.platform];
+    const counted =
+      manifest && storyFiles
+        ? {
+            capturedStories: countStoriesIn(manifest, storyFiles),
+            capturedScenes: countScenesIn(manifest, storyFiles),
+          }
+        : { capturedStories: answeredCapture.storiesCaptured };
     return {
       ...platformCapture,
       full: answeredCapture.full,
-      capturedStories: answeredCapture.storiesCaptured,
+      ...counted,
       ...(storyFiles ? { storyFiles, changedStoryFiles: storyFiles } : {}),
       diffScope: {
         ...platformCapture.diffScope,
