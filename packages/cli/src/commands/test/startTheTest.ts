@@ -240,7 +240,8 @@ export function printTestStarted({
 
   const capture = captureWithTheAnswer(
     capturePerPlatform({ openBuildReturn, moduleManifests, platformsToTest }),
-    quickCheckAnswer
+    quickCheckAnswer,
+    moduleManifests
   );
 
   // Branching is off when the server captured every story and said why: the project has no main

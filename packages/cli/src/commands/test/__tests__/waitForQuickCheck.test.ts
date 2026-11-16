@@ -4,6 +4,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BuildStatus } from '../../../helpers/buildStatusRequest';
+import { describeWhatRuns } from '../../../render/testSteps';
 import type { OpenBuildAnswer } from '../../../seams/serverCalls';
 import {
   captureWithTheAnswer,
@@ -174,6 +175,73 @@ describe('the words the finished answer gives the test', () => {
     expect(android.capturedStories).toBe(77);
     expect(android.diffScope?.storiesChecked).toBe(384);
     expect(ios).toBe(capture[1]);
+  });
+
+  it('a partial answer with no story files and a module map counts no stories and no scenes', () => {
+    const capture = [
+      { platform: 'ios' as const, full: false, capturedStories: 0, capturedScenes: 2 },
+    ];
+    const manifest = {
+      raw: Buffer.from('{}'),
+      parsed: { version: 1, header: {}, moduleHashes: {}, storyClosures: {}, storyCounts: {} },
+    } as any;
+    const answer: BuildStatus = {
+      runStatus: 'inProgress',
+      platforms: {
+        ios: {
+          arrived: true,
+          capture: { full: false, reason: null, storyFiles: [], ...NUMBERS },
+        },
+      },
+    };
+
+    const [ios] = captureWithTheAnswer(capture, answer, { ios: manifest });
+
+    expect(ios.capturedStories).toBe(0);
+    expect(ios.capturedScenes).toBe(0);
+  });
+
+  it('an answer that captures a story and two scenes counts one story and two scenes', () => {
+    const capture = [
+      {
+        platform: 'ios' as const,
+        full: false,
+        capturedStories: 0,
+        capturedScenes: 0,
+        storiesInBundle: 1,
+        scenesInBundle: 7,
+      },
+    ];
+    const storyFiles = ['src/Home.stories.tsx', 'src/a.scenes.tsx', 'src/b.scenes.tsx'];
+    const manifest = {
+      raw: Buffer.from('{}'),
+      parsed: {
+        version: 1,
+        header: {},
+        moduleHashes: {},
+        storyClosures: {},
+        storyCounts: {
+          'src/Home.stories.tsx': 1,
+          'src/a.scenes.tsx': 1,
+          'src/b.scenes.tsx': 1,
+          'src/c.scenes.tsx': 5,
+        },
+        sceneIds: ['1', '2', '3', '4', '5', '6', '7'],
+      },
+    } as any;
+    const answer: BuildStatus = {
+      runStatus: 'inProgress',
+      platforms: {
+        ios: {
+          arrived: true,
+          capture: { full: false, reason: null, storyFiles, ...NUMBERS, storiesCaptured: 3 },
+        },
+      },
+    };
+
+    const answered = captureWithTheAnswer(capture, answer, { ios: manifest });
+
+    expect(describeWhatRuns({ capture: answered })).toBe('1 of 1 story and 2 of 7 scenes');
   });
 
   it('keeps the open answer captured stories when a failed answer has null counts', () => {
