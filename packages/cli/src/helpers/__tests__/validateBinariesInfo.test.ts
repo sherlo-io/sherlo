@@ -39,6 +39,7 @@ describe('ABI preflight – rejection', () => {
     } catch (error: any) {
       const message = error.message;
       expect(message).toContain('missing arm64-v8a native libraries');
+      expect(message).toContain("Sherlo's Android simulators require arm64-v8a and x86_64");
       expect(message).toContain('expo-build-properties');
       expect(message).not.toContain('reactNativeArchitectures');
     }
@@ -106,6 +107,7 @@ describe('ABI preflight – rejection', () => {
     } catch (error: any) {
       const message = error.message;
       expect(message).toContain('missing arm64-v8a native libraries');
+      expect(message).toContain("Sherlo's Android simulators require arm64-v8a and x86_64");
       expect(message).toContain('reactNativeArchitectures');
       expect(message).not.toContain('expo-build-properties');
     }

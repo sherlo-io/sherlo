@@ -156,7 +156,7 @@ function getError(error: BinaryError) {
       return {
         message:
           `Android build is missing ${error.missingAbis.join(' and ')} native libraries; ` +
-          `Sherlo's Android emulators require ${ANDROID_REQUIRED_ABIS.join(' and ')}\n\n` +
+          `Sherlo's Android simulators require ${ANDROID_REQUIRED_ABIS.join(' and ')}\n\n` +
           `Detected ABIs: ${error.detectedAbis}\n\n` +
           'Please verify:\n' +
           `1. \`expo-build-properties\` plugin is in your app config and \`buildArchs\` includes ${ANDROID_REQUIRED_ABIS.map((abi) => `\`${abi}\``).join(' and ')}, or is removed ` +
@@ -170,7 +170,7 @@ function getError(error: BinaryError) {
       return {
         message:
           `Android build is missing ${error.missingAbis.join(' and ')} native libraries; ` +
-          `Sherlo's Android emulators require ${ANDROID_REQUIRED_ABIS.join(' and ')}\n\n` +
+          `Sherlo's Android simulators require ${ANDROID_REQUIRED_ABIS.join(' and ')}\n\n` +
           `Detected ABIs: ${error.detectedAbis}\n\n` +
           'Please verify:\n' +
           `1. \`reactNativeArchitectures\` in \`android/gradle.properties\` includes ${ANDROID_REQUIRED_ABIS.map((abi) => `\`${abi}\``).join(' and ')}; ` +
