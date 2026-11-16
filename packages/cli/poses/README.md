@@ -90,7 +90,7 @@ tests only app builds it made itself, and `test/refusal-binary-path-flag-gone` i
 `--android <apk>` meets. A push's credential is posed as `SHERLO_TOKEN`
 in `env` or as a saved login in `logins`, never on the command line or in the config:
 `test/refusal-token-flag-gone` is what a Sherlo 2 `--token` meets. `binary-abi-x86-only` (a native build whose libraries carry no arm64 slice) is a pose
-away: `push.binaries.android.androidAbis` without `arm64-v8a`. The `── details ──` block after
+away: `push.binaries.android.androidAbis` without `x86_64` or without `arm64-v8a`. The `── details ──` block after
 `sherlo test --wait --metadata` is reachable through a push pose too, since the run that opened the
 build has the git rows to give.
 
