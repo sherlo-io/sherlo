@@ -166,10 +166,10 @@ export function renderSegment(segment: TranscriptSegment): RenderedSegment {
         prints: [[renderSignedInThroughGitHub(segment.repository)], []],
       };
 
-    // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts. In a
-    // terminal the same words are a spinner's (../commands/shared/terminal), and this segment is
-    // never emitted there.
+    // A STEP IN PROGRESS, as a log shows it: one plain line, printed once when the step starts (a
+    // terminal shows a spinner instead, ../commands/shared/terminal).
     case 'platform-bundle-start':
+    case 'quick-check-waiting':
     case 'app-build-generating':
     case 'app-build-compiling':
     case 'binary-uploading':

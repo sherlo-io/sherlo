@@ -105,7 +105,14 @@ export type MessageFromTheLineToTheApp =
   | MessageToTheApp
   | LetterboxAnswerMessage
   | CaptureInstructionMessage
-  | ScrollAskMessage;
+  | ScrollAskMessage
+  | ReloadAfterEditMessage;
+
+/**
+ * The line's word to the app left on a scene, once Metro saw an edit with no capture waiting: start
+ * the JavaScript again, which boots the same scene (src/reloadAfterEdit.ts answers).
+ */
+export type ReloadAfterEditMessage = { action: 'reload-after-edit'; sceneId: string };
 
 /* ---- A driver's questions, and their replies ------------------------------------------------- */
 
@@ -273,7 +280,9 @@ export type SherloLine = {
   onApp: (listener: (app: AppOnTheLine) => void) => void;
   /**
    * Metro's file watcher told the bundler of these files, named relative to the project root. While
-   * a scene capture waits, one line on the log feed names them.
+   * a scene capture waits, one line on the log feed names them. With no capture waiting, the app
+   * last handed a scene is told to reload into it (ReloadAfterEditMessage) and handed the scene
+   * again once it waits.
    */
   filesChanged: (paths: string[]) => void;
   /**

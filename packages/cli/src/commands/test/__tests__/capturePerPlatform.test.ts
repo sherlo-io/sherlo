@@ -38,6 +38,61 @@ describe('the capture each platform reports for the Started row', () => {
     });
   });
 
+  it('reads the Diff Scope numbers of each platform without a cast', () => {
+    const diffScope = { storiesChecked: 384, storiesLookDifferent: 26, quickCheck: 'FINISHED' };
+    const capture = capturePerPlatform({
+      openBuildReturn: {
+        build: {
+          index: 1,
+          diffScopeInfo: { platforms: { ios: diffScope, android: { reason: 'x' } } },
+        },
+        buildRun: {
+          config: {
+            ios: { devices: [], captureScope: { full: false, storyFilePaths: ['a.stories.tsx'] } },
+            android: { devices: [], captureScope: { full: true } },
+          },
+        },
+      } as any,
+      moduleManifests: {},
+      platformsToTest: ['ios', 'android'],
+    });
+
+    expect(capture[0].diffScope).toEqual(diffScope);
+    expect(capture[1].diffScope).toEqual({ reason: 'x' });
+  });
+
+  it("carries the answer's story counts and changed files of each platform", () => {
+    const answerOf = (storiesCaptured: number, changedFiles: string[]) => ({
+      storiesChecked: 100,
+      storiesCaptured,
+      storiesReused: 100 - storiesCaptured,
+      changedFiles,
+    });
+    const capture = capturePerPlatform({
+      openBuildReturn: {
+        build: {
+          index: 1,
+          diffScopeInfo: {
+            platforms: { ios: answerOf(100, []), android: answerOf(7, ['a.ts']) },
+          },
+        },
+        buildRun: {
+          config: {
+            ios: { devices: [], captureScope: { full: true } },
+            android: { devices: [], captureScope: { full: false, storyFilePaths: ['a'] } },
+          },
+        },
+      } as any,
+      moduleManifests: {},
+      platformsToTest: ['ios', 'android'],
+    });
+
+    expect(capture.map(({ diffScope }) => diffScope)).toEqual([
+      answerOf(100, []),
+      answerOf(7, ['a.ts']),
+    ]);
+  });
+
   it('the capture plan of a first look says how many stories it takes and how to ask for all', () => {
     const openBuildReturn = openBuildWith({
       ios: { devices: [], captureScope: { full: false, storyFilePaths: ['src/A.stories.tsx'] } },
