@@ -69,6 +69,7 @@
     "./dist/SherloModule.js": "./dist/SherloModule.js",
     "./dist/captureLaunch.js": "./dist/captureLaunch.js",
     "./dist/openStoryChannel.js": "./dist/openStoryChannel.js",
+    "./dist/storyOfTheApp.js": "./dist/storyOfTheApp.js",
     "./dist/offStandIn.js": "./dist/offStandIn.js",
     "./package.json": "./package.json"
   },

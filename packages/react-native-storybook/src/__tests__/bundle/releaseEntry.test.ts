@@ -274,6 +274,10 @@ function createDefaultSetupAppWithAStoryAndAScene(): string {
       '  return !!global.launchedId && !!bundledScenes[global.launchedId];\n' +
       '};\n'
   );
+  write(
+    `${SDK_FOLDER_IN_FIXTURE}/dist/storyOfTheApp.js`,
+    'exports.wrapTheAppInStoryOfTheApp = function () { global.appWrapped = true; };\n'
+  );
   return root;
 }
 
@@ -346,7 +350,7 @@ describe('the push bundle of an app with a story and scenes', () => {
         nativeModuleProxy: { SherloModule: { getConstants: () => ({ mode: 'testing' }) } },
       };
       vm.runInNewContext(pushBundle.code, appGlobal);
-      return appGlobal.launched;
+      return appGlobal;
     };
     const bundledScenes = fs.readFileSync(
       path.join(sherloCacheFolder(root), 'bundled-scenes.js'),
@@ -354,7 +358,10 @@ describe('the push bundle of an app with a story and scenes', () => {
     );
     expect(bundledScenes).toContain('"home--default"');
 
-    expect(launchOn('home--default')).toBe('THE_APP');
-    expect(launchOn('widget--basic')).toBe('STORYBOOK');
+    // A scene's app is wrapped, so its play steps walk the app's own root.
+    expect(launchOn('home--default')).toMatchObject({ launched: 'THE_APP', appWrapped: true });
+    const story = launchOn('widget--basic');
+    expect(story.launched).toBe('STORYBOOK');
+    expect(story.appWrapped).toBeUndefined();
   });
 });
