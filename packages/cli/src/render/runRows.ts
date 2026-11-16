@@ -28,6 +28,7 @@ import {
   renderRunOnCi,
   type WhyANewAppBuild,
 } from './appBuild';
+import { renderDiffScopeLines } from './diffScopeLines';
 import {
   countStories,
   describeWhatRuns,
@@ -181,6 +182,7 @@ export function renderTestStarted({
   return [
     ...renderRowsAbove(rowsAbove),
     renderRow(testLabel(buildIndex), whatRuns ? `Started: ${whatRuns}` : 'Started'),
+    ...underTheRow(renderDiffScopeLines(capture)),
     ...underTheRow(storyFilesCaptured(capture)),
   ];
 }
@@ -220,6 +222,17 @@ export function renderTestFinishedWithNothingToTest({
   testIndex: number;
   reason: string;
 }): string[] {
+  // A reason of several lines is the service's own words for the whole message: its first line
+  // ends the row, the rest stand under it (`nothing to capture`, what was checked).
+  const [firstLine, ...moreLines] = reason.split('\n');
+  if (moreLines.length > 0) {
+    return [
+      ...renderRowsAbove(rowsAbove),
+      renderRow(testLabel(testIndex), `Finished: ${firstLine}`),
+      ...underTheRow(moreLines),
+    ];
+  }
+
   return [
     ...renderRowsAbove(rowsAbove),
     renderRow(

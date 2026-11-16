@@ -264,12 +264,10 @@ export type TranscriptSegment =
    * emits around a closer, which is exactly the shape the shipped code had.
    */
   | { kind: 'blank-line' }
-  /**
-   * `Waiting for Test 7 to finish (up to 45 min)...` - a step in progress (./stepInProgress),
-   * started before the first poll. `testIndex` on this and the closers below names the test; a
-   * line given none says "the test".
-   */
+  /** `Waiting for Test 7 to finish (up to 45 min)...`, a step in progress (./stepInProgress); `testIndex` here and below names the test, none says "the test". */
   | { kind: 'wait-header'; timeoutMinutes: number; testIndex?: number }
+  /** The wait for the quick check, a step in progress (./stepInProgress): `words` are its one line. */
+  | { kind: 'quick-check-waiting'; words: string }
   /**
    * The wait's own step, printed where its spinner was, above the verdict. `seconds` is how long the
    * wait took, given only when the wait saw the test start - `sherlo test --wait`, which printed the

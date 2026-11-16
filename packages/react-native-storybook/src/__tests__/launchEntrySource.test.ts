@@ -5,8 +5,6 @@
  * a stubbed `require` and a stubbed native module; the open and capture listeners go to the suite's
  * fake core (./__mocks__/fakeSealedCore).
  */
-import * as http from 'http';
-import type { AddressInfo } from 'net';
 import * as vm from 'vm';
 import { createElement, type ComponentType, type ReactNode } from 'react';
 import { act, create } from 'react-test-renderer';
@@ -23,20 +21,21 @@ import {
 import { __resetForTests as resetTheLine, startTheLine } from '../connection/appLine';
 import { currentAppFiber } from '../componentNames';
 import { startWaitingAsTheApp } from '../openStoryChannel';
+import { stopReloadingAfterAnEdit } from '../reloadAfterEdit';
+import SherloModule from '../SherloModule';
 import * as storyOfTheApp from '../storyOfTheApp';
 import { getSealedCore } from '../sealedCore/loadSealedCore';
-import type { SherloLine } from '../../metro/sherloLine';
 import type { FakeSealedCore } from './__mocks__/fakeSealedCore';
+import { aBundlersLineWithTheAppOnIt } from './bundlersLineWithTheApp';
 
 /**
  * Renders an app root inside the wrapper React Native was given, for real: no mock of its-fine or
  * of React's hooks, and no provider of the test's own around it. A host element stands for the
- * app's views.
+ * app's views, unless the test hands its own.
  */
-function renderTheAppInItsWrapper() {
+function renderTheAppInItsWrapper(theAppsViews = createElement('View', { testID: 'root' })) {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   const Wrapper = __getWrapperComponentProvider()?.() as ComponentType<{ children: ReactNode }>;
-  const theAppsViews = createElement('View', { testID: 'root' });
   let rendered!: ReturnType<typeof create>;
   act(() => {
     rendered = create(createElement(Wrapper, null, theAppsViews));
@@ -49,8 +48,7 @@ const {
   APP_SIDE_REQUEST,
   STORYBOOK_SIDE_REQUEST,
 } = require('../../metro/launchTimeEntry');
-const { attach, BUNDLER_STAMP, LINE_PATH, PROTOCOL_VERSION } = require('../../metro/sherloLine.js');
-const ws = require('ws');
+const { BUNDLER_STAMP } = require('../../metro/sherloLine.js');
 
 // The bundle holds the scene these captures ask for, as Sherlo's bundler writes its list.
 vi.mock('../bundledScenes', () => ({
@@ -64,10 +62,16 @@ type SherloBuild = 'storybook' | 'app-and-storybook';
 
 /**
  * Runs the launch entry of a build carrying `sherloBuild`, in an app the native module says is in
- * `mode`; `hasStorybook` false is an app with scene files and no Storybook. Loading the SDK starts
- * its line, as its index does. Returns what happened, in order.
+ * `mode`; `hasStorybook` false is an app with scene files and no Storybook, and `namesAScene` set
+ * is a project with scene files whose launch names one of them or not. Loading the SDK starts its
+ * line, as its index does. Returns what happened, in order.
  */
-function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): string[] {
+function launch(
+  sherloBuild: SherloBuild,
+  mode: Mode,
+  hasStorybook?: boolean,
+  namesAScene?: boolean
+): string[] {
   const happened: string[] = [];
   const modules: Record<string, () => unknown> = {
     '@sherlo/react-native-storybook': () => {
@@ -98,6 +102,9 @@ function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): s
         storyOfTheApp.wrapTheAppInStoryOfTheApp();
       },
     }),
+    '@sherlo/react-native-storybook/dist/captureLaunch.js': () => ({
+      launchNamesABundledScene: () => namesAScene === true,
+    }),
     [STORYBOOK_SIDE_REQUEST]: () => {
       happened.push('the Storybook side');
       return {};
@@ -117,7 +124,9 @@ function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): s
   }
 
   const runLaunchEntry = vm.runInThisContext(
-    '(function (require) {\n' + launchEntrySource(sherloBuild, hasStorybook) + '\n})'
+    '(function (require) {\n' +
+      launchEntrySource(sherloBuild, hasStorybook, undefined, namesAScene !== undefined) +
+      '\n})'
   );
   runLaunchEntry(stubbedRequire);
   return happened;
@@ -125,49 +134,6 @@ function launch(sherloBuild: SherloBuild, mode: Mode, hasStorybook?: boolean): s
 
 function fakeCore(): FakeSealedCore {
   return getSealedCore() as FakeSealedCore;
-}
-
-/**
- * A bundler's line on loopback with the app on it: a socket that says hello and stands in for the
- * app's native connection, so what the line says to the app reaches the SDK, and the SDK's
- * messages are carried to the line one at a time.
- */
-async function aBundlersLineWithTheAppOnIt() {
-  const server = http.createServer();
-  const line: SherloLine = attach(server, ws.WebSocketServer || ws.Server);
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const heardWaiters: Array<() => void> = [];
-  const appIsOnTheLine = new Promise<void>((resolve) =>
-    line.onApp((app) => {
-      app.onMessage(() => heardWaiters.splice(0).forEach((heard) => heard()));
-      resolve();
-    })
-  );
-
-  const port = (server.address() as AddressInfo).port;
-  const socket = new ws(`ws://127.0.0.1:${port}${LINE_PATH}`);
-  await new Promise((resolve) => socket.once('open', resolve));
-  socket.on('message', (data: unknown) => __emitMessageFromTheConnection(JSON.parse(String(data))));
-  const hello = { protocolVersion: PROTOCOL_VERSION, nativeVersion: '3.0.0', jsVersion: '3.0.0' };
-
-  /** Send one message to the line as the app, and resolve once the line has heard it. */
-  function sayAsTheApp(message: Record<string, unknown>): Promise<void> {
-    const heard = new Promise<void>((resolve) => heardWaiters.push(resolve));
-    socket.send(JSON.stringify(message));
-    return heard;
-  }
-  socket.send(JSON.stringify({ action: 'hello', ...hello }));
-  await appIsOnTheLine;
-
-  return {
-    ask: line.ask,
-    /** Carry the SDK's latest message to the line, as native code does. */
-    carryTheAppsLatestMessage: () => sayAsTheApp(__getSentMessages().slice(-1)[0]),
-    close: () => {
-      socket.terminate();
-      server.close();
-    },
-  };
 }
 
 beforeEach(() => {
@@ -181,6 +147,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stopReloadingAfterAnEdit();
+  vi.restoreAllMocks();
   delete NativeModules.SourceCode;
 });
 
@@ -214,6 +182,35 @@ describe('the generated launch entry', () => {
     // A build carrying Storybook alone never reaches the app side, whatever the mode.
     expect(launch('storybook', 'default')).toEqual(['the SDK', 'the Storybook side']);
     expect(launchEntrySource('storybook')).not.toContain(APP_SIDE_REQUEST);
+  });
+
+  it('in a project with scenes a launch that names a scene starts the app, in either build', () => {
+    const theApp = ['the app wrapped', 'the open and capture listeners', 'the app side'];
+    expect(launch('storybook', 'testing', true, true)).toEqual(['the SDK', ...theApp]);
+    expect(launch('storybook', 'testing', true, false)).toEqual(['the SDK', 'the Storybook side']);
+    const appAndStorybook = launch('app-and-storybook', 'testing', true, true);
+    expect(appAndStorybook).toEqual(['the SDK', 'the mode', 'the developer menu item', ...theApp]);
+    expect(launch('app-and-storybook', 'testing', true, false)).toContain('the Storybook side');
+  });
+
+  it("a scene launch in a project with a story and scenes loads the app's root, the tab bar included", () => {
+    vi.spyOn(SherloModule, 'getMode').mockReturnValue('testing');
+    const launched = { nextSnapshot: { storyId: 'inbox--full' } };
+    vi.spyOn(SherloModule, 'getLastState').mockReturnValue(launched as never);
+    const tab = createElement('View', { testID: 'tab-inbox' });
+    const tabBar = createElement('View', { testID: 'tab-bar' }, tab);
+
+    for (const sherloBuild of ['storybook', 'app-and-storybook'] as const) {
+      __resetWrapperComponentProvider();
+      // The early-boot module's wrapper goes first (src/sceneBoot.ts); Storybook never starts here.
+      storyOfTheApp.installTheWrapperThatWrapsWhenSherlosStorybookIsAbsent();
+      launch(sherloBuild, 'testing', true, true);
+      const { rendered } = renderTheAppInItsWrapper(tabBar);
+      // The play steps walk from this fiber, so a tap on a tab finds the tab.
+      expect(currentAppFiber()?.child?.memoizedProps).toBe(tabBar.props);
+      expect(rendered.root.findByProps({ testID: 'tab-inbox' })).toBeDefined();
+      act(() => rendered.unmount());
+    }
   });
 
   it('the launch entry starts the open and capture listeners in default mode', () => {
@@ -273,6 +270,16 @@ describe('the generated launch entry', () => {
 
     // It has no Storybook side to reach.
     expect(launchEntrySource('app-and-storybook', false)).not.toContain(STORYBOOK_SIDE_REQUEST);
+  });
+
+  it('an app that waits for scenes without Storybook reloads after an edit', () => {
+    const reload = vi.spyOn(SherloModule, 'reloadJavaScript').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    launch('app-and-storybook', 'default', false);
+
+    __emitMessageFromTheConnection({ action: 'reload-after-edit', sceneId: 'inbox--full' });
+
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   it("a scenes-only app's wrapped root renders with no provider of the app's own around it", () => {

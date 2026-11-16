@@ -1,4 +1,4 @@
-import { NativeModules } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 import isExpoGo from './helpers/isExpoGo';
 import { StorybookViewMode, InspectorData, ViewVisibility } from './types/types';
 import type { Config, LastState } from './sealedCore/seam';
@@ -12,6 +12,13 @@ interface SherloConstants {
   nativeVersion: string | null;
   /** The C core's version, read in testing mode only; null outside it, or with no usable C core. */
   compiledCoreVersion?: string | null;
+  /** Who drives testing mode: the runner, or a capture; absent from an older native build. */
+  driver?: 'runner' | 'capture' | null;
+  /**
+   * Whether a text field can take focus: false while the native side locks focus (iOS driven by
+   * the runner, ios/KeyboardHelper.m). Absent from a native build from before it said.
+   */
+  fieldsTakeFocus?: boolean;
 }
 
 /**
@@ -84,6 +91,12 @@ type SherloModule = {
   getNativeVersion: () => string | null;
   /** The C core's version, in testing mode; null outside it, or with no usable C core. */
   getCompiledCoreVersion: () => string | null;
+  /**
+   * Whether a text field can take focus here, as the native side says. A native build from before
+   * it said locks focus on iOS when the runner drives it (a runner launch has always locked it; a
+   * capture never did, and a build older than the capture had only the runner).
+   */
+  fieldsTakeFocus: () => boolean;
   sendNativeError: (
     errorCode: string,
     message: string,
@@ -233,6 +246,11 @@ function createSherloModule(): SherloModule {
     getCompiledCoreVersion: () => {
       return getConstants().compiledCoreVersion ?? null;
     },
+    fieldsTakeFocus: () => {
+      const { fieldsTakeFocus, driver } = getConstants();
+      const runnerDrives = driver === 'runner' || driver === undefined;
+      return fieldsTakeFocus ?? !(Platform.OS === 'ios' && runnerDrives);
+    },
     sendNativeError: (errorCode: string, message: string, data?: Record<string, string | null>) => {
       module.sendNativeError(errorCode, message, data ? JSON.stringify(data) : '');
     },
@@ -320,6 +338,8 @@ function createDummySherloModule(): SherloModule {
     getMode: () => 'default',
     getNativeVersion: () => null,
     getCompiledCoreVersion: () => null,
+    // With no native module nothing locks focus.
+    fieldsTakeFocus: () => true,
     sendNativeError: () => {},
     getLastState: () => undefined,
     getConfig: () => DEFAULT_CONFIG,

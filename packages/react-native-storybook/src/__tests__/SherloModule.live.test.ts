@@ -43,9 +43,10 @@ vi.mock('../specs/NativeSherloModule', () => ({
   },
 }));
 
+const platform = vi.hoisted(() => ({ OS: 'ios' }));
 vi.mock('react-native', () => ({
   NativeModules: {},
-  Platform: { OS: 'ios' },
+  Platform: platform,
 }));
 
 vi.mock('../helpers/isExpoGo', () => ({ default: false }));
@@ -110,6 +111,49 @@ describe('SherloModule live - constants merge (new-arch vs old-arch)', () => {
     mockGetConstants.mockReturnValue(OLD_ARCH_CONSTANTS);
     expect(SherloModule.getMode()).toBe('default');
     expect(SherloModule.getNativeVersion()).toBe('1.5.0');
+  });
+});
+
+describe('SherloModule live - whether a text field can take focus', () => {
+  afterEach(() => {
+    platform.OS = 'ios';
+  });
+
+  it('a native build that locks focus in testing mode says so, and fields cannot take focus', () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, fieldsTakeFocus: false });
+    mockGetConstants.mockReturnValue({});
+    expect(SherloModule.fieldsTakeFocus()).toBe(false);
+  });
+
+  it('a native build that leaves focus alone says so, and fields can take focus', () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, fieldsTakeFocus: true });
+    mockGetConstants.mockReturnValue({});
+    expect(SherloModule.fieldsTakeFocus()).toBe(true);
+  });
+
+  it('an iOS native build from before the answer locks focus when the runner drives it', () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'runner' });
+    mockGetConstants.mockReturnValue({});
+    expect(SherloModule.fieldsTakeFocus()).toBe(false);
+  });
+
+  it('an iOS native build from before the driver was named had only the runner, so it locks focus', () => {
+    mockGetSherloConstants.mockReturnValue(NEW_ARCH_CONSTANTS);
+    mockGetConstants.mockReturnValue({});
+    expect(SherloModule.fieldsTakeFocus()).toBe(false);
+  });
+
+  it('an iOS native build from before the answer leaves focus alone when a capture drives it', () => {
+    mockGetSherloConstants.mockReturnValue({ ...NEW_ARCH_CONSTANTS, driver: 'capture' });
+    mockGetConstants.mockReturnValue({});
+    expect(SherloModule.fieldsTakeFocus()).toBe(true);
+  });
+
+  it('an Android native build from before the answer leaves focus alone', () => {
+    platform.OS = 'android';
+    mockGetSherloConstants.mockReturnValue(NEW_ARCH_CONSTANTS);
+    mockGetConstants.mockReturnValue({});
+    expect(SherloModule.fieldsTakeFocus()).toBe(true);
   });
 });
 

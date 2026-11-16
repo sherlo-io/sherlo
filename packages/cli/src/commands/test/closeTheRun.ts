@@ -170,7 +170,7 @@ async function printBypassedCloser({
   url: string;
   rowsNotYetShown: PlatformRow[];
 }): Promise<void> {
-  const { reason, storyWaits } = await fetchServerBypassReason({
+  const { reason, storyWaits, build } = await fetchServerBypassReason({
     token,
     buildIndex,
     projectIndex,
@@ -179,7 +179,7 @@ async function printBypassedCloser({
 
   // The same finished step the wait loop ends a bypassed test on, naming the test.
   if (reason) {
-    printServerBypassCloser(reason, buildIndex, rowsNotYetShown);
+    printServerBypassCloser(reason, buildIndex, rowsNotYetShown, build);
   }
   // A story that still waits needs the link; so does a read that gave no reason to print.
   if (storyWaits || !reason) {
