@@ -331,6 +331,14 @@ describe('format parity', () => {
     expect(Object.keys(validated!.parsed.storyClosures)).toEqual([STORY_FILE]);
   });
 
+  it('lists for each module the files it imports, and the validator keeps the list', () => {
+    const manifest = deriveSimManifest(world(baseWorld()));
+
+    const expected = { [BUTTON]: [], [CARD]: [BUTTON], [HOME]: [], [STORY_FILE]: [CARD] };
+    expect(manifest.parsed.imports).toEqual(expected);
+    expect(validateModuleManifestBuffer(manifest.raw)!.parsed.imports).toEqual(expected);
+  });
+
   it("records each story file's title and story count, as the serializer does", () => {
     const modules = baseWorld();
     moduleAt(modules, STORY_FILE).stories.push({
