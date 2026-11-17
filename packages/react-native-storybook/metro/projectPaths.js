@@ -121,18 +121,6 @@ function moduleMapKeyOf(absPath, projectRoot) {
 }
 
 /**
- * An import's name from importsOf, written the way the module map keys its files: a file inside the
- * project gets the leading "./", a file outside it and a require.context specifier stay as they are.
- *
- * @param {string} name - a name importsOf gave
- * @returns {string}
- */
-function importedNameAsMapKey(name) {
-  if (name.indexOf('context:') === 0 || leavesTheRoot(name)) return name;
-  return './' + name;
-}
-
-/**
  * A module's path from the project root with forward slashes, whatever folder it sits in. It names
  * what an import resolves to, so the name is the same under another project root.
  *
@@ -148,7 +136,6 @@ function fromProjectRoot(absPath, projectRoot) {
 module.exports = {
   fromProjectRoot: fromProjectRoot,
   moduleMapKeyOf: moduleMapKeyOf,
-  importedNameAsMapKey: importedNameAsMapKey,
   handOverFilePath: handOverFilePath,
   projectRootOf: projectRootOf,
   projectTransformerFile: projectTransformerFile,

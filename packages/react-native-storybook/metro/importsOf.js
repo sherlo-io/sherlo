@@ -1,6 +1,7 @@
 'use strict';
 
 var fromProjectRoot = require('./projectPaths').fromProjectRoot;
+var moduleMapKeyOf = require('./projectPaths').moduleMapKeyOf;
 
 /**
  * The imports of one Metro module, in the order the module's code numbers them. A require.context
@@ -41,7 +42,30 @@ function importsOf(module, projectRoot) {
   });
 }
 
+/**
+ * What a module imports, named the way the module map keys its files: each import has the key
+ * moduleMapKeyOf gives it, so an import the map holds no file for (a dependency outside the
+ * project) is left out. A require.context import keeps its `context:` specifier.
+ *
+ * @param {object} module - a Metro graph module
+ * @param {string} projectRoot - absolute path to the project
+ * @returns {string[]}
+ */
+function importKeysOf(module, projectRoot) {
+  var keys = [];
+  importEdgesOf(module).forEach(function (edge) {
+    if (edge.isContext) {
+      keys.push('context:' + edge.specifier);
+      return;
+    }
+    var key = moduleMapKeyOf(edge.absolutePath, projectRoot);
+    if (key) keys.push(key);
+  });
+  return keys;
+}
+
 module.exports = {
+  importKeysOf: importKeysOf,
   importEdgesOf: importEdgesOf,
   importsOf: importsOf,
 };

@@ -29,8 +29,8 @@ var sherloCacheFolder = require('./projectPaths').sherloCacheFolder;
 var handOverFilePath = require('./projectPaths').handOverFilePath;
 
 var moduleMapKeyOf = require('./projectPaths').moduleMapKeyOf;
-var importedNameAsMapKey = require('./projectPaths').importedNameAsMapKey;
 var importsOf = require('./importsOf').importsOf;
+var importKeysOf = require('./importsOf').importKeysOf;
 var importEdgesOf = require('./importsOf').importEdgesOf;
 
 // ---------------------------------------------------------------------------
@@ -515,7 +515,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
       var digest = hashModuleOutput(module, projectRoot);
       if (digest) {
         moduleHashes[rel] = digest;
-        imports[rel] = importsOf(module, projectRoot).map(importedNameAsMapKey);
+        imports[rel] = importKeysOf(module, projectRoot);
       }
       if (moduleOutputLeaksAbsolutePath(module, projectRoot)) {
         absolutePathLeaks.push(rel);
