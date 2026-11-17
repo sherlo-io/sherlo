@@ -141,7 +141,7 @@ export type PosedBinary = {
   hasExpoDevClient: boolean;
   /** The Expo SDK the binary was built with, when it was built with Expo. */
   expoSdkVersion?: string;
-  /** The ABIs an Android binary carries (`["arm64-v8a"]`); absent for an iOS build. */
+  /** The ABIs an Android binary carries (`["arm64-v8a", "x86_64"]`, the kinds `ANDROID_REQUIRED_ABIS` lists); absent for an iOS build. */
   androidAbis?: string[];
 };
 

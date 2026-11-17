@@ -24,6 +24,7 @@ import os from 'os';
 import path from 'path';
 import type { Platform } from '@sherlo/api-types';
 import { SHERLO_BUILD_FOR_PUSH } from '../commands/test/constants';
+import { ANDROID_REQUIRED_ABIS } from '../constants';
 import {
   buildLogPath,
   DEFAULT_ANDROID_TASK,
@@ -266,7 +267,7 @@ function gradleFlags(): string[] {
   const gradleHeapMB = clamp(machineMB / 3, 2 * MB_PER_GB, 8 * MB_PER_GB);
   const kotlinHeapMB = clamp(machineMB / 6, MB_PER_GB, 4 * MB_PER_GB);
   return [
-    '-PreactNativeArchitectures=arm64-v8a',
+    `-PreactNativeArchitectures=${ANDROID_REQUIRED_ABIS.join(',')}`,
     '--build-cache',
     `-Dorg.gradle.jvmargs=-Xmx${gradleHeapMB}m -XX:MaxMetaspaceSize=1024m`,
     `-Pkotlin.daemon.jvmargs=-Xmx${kotlinHeapMB}m`,

@@ -166,7 +166,7 @@
         "expoUpdatesEnabled": false,
         "hasExpoDevClient": false,
         "expoSdkVersion": "54.0.0",
-        "androidAbis": ["arm64-v8a"]
+        "androidAbis": ["arm64-v8a", "x86_64"]
       }
     },
     "fingerprint": {

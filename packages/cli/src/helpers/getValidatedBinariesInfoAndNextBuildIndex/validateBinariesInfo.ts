@@ -1,5 +1,5 @@
 import {
-  ANDROID_ARM64_ABI,
+  ANDROID_REQUIRED_ABIS,
   DOCS_LINK,
   EAS_BUILD_ON_COMPLETE_COMMAND,
   PLATFORM_LABEL,
@@ -82,15 +82,16 @@ function validateAndroidAbiRequirements({ android }: BinariesInfo) {
   // An APK with no lib/ entries has no native code and installs on any ABI - pass
   if (abis.length === 0) return;
 
-  if (!abis.includes(ANDROID_ARM64_ABI)) {
+  const missingAbis = ANDROID_REQUIRED_ABIS.filter((abi) => !abis.includes(abi));
+  if (missingAbis.length > 0) {
     const detectedAbis = abis.join(', ');
     const fileName = android.fileName;
 
     throwError(
       getError(
         android.expoSdkVersion
-          ? { type: 'missing_arm64_abi_expo', detectedAbis, fileName }
-          : { type: 'missing_arm64_abi_bare_rn', detectedAbis, fileName }
+          ? { type: 'missing_abis_expo', missingAbis, detectedAbis, fileName }
+          : { type: 'missing_abis_bare_rn', missingAbis, detectedAbis, fileName }
       )
     );
   }
@@ -104,8 +105,8 @@ type BinaryError =
       iosConfiguration?: string;
     }
   | { type: 'dev_build'; platformLabels: string[]; command: Command }
-  | { type: 'missing_arm64_abi_expo'; detectedAbis: string; fileName: string }
-  | { type: 'missing_arm64_abi_bare_rn'; detectedAbis: string; fileName: string };
+  | { type: 'missing_abis_expo'; missingAbis: string[]; detectedAbis: string; fileName: string }
+  | { type: 'missing_abis_bare_rn'; missingAbis: string[]; detectedAbis: string; fileName: string };
 
 function getError(error: BinaryError) {
   switch (error.type) {
@@ -151,28 +152,29 @@ function getError(error: BinaryError) {
         learnMoreLink: DOCS_LINK.buildPreview,
       };
 
-    case 'missing_arm64_abi_expo':
+    case 'missing_abis_expo':
       return {
         message:
-          'Android build is missing arm64-v8a native libraries; ' +
-          "Sherlo's Android emulators require arm64-v8a\n\n" +
+          `Android build is missing ${error.missingAbis.join(' and ')} native libraries; ` +
+          `Sherlo's Android simulators require ${ANDROID_REQUIRED_ABIS.join(' and ')}\n\n` +
           `Detected ABIs: ${error.detectedAbis}\n\n` +
           'Please verify:\n' +
-          '1. `expo-build-properties` plugin is in your app config and `buildArchs` includes `arm64-v8a` ' +
-          '(the Expo default already does - check if it was overridden)\n' +
+          `1. \`expo-build-properties\` plugin is in your app config and \`buildArchs\` includes ${ANDROID_REQUIRED_ABIS.map((abi) => `\`${abi}\``).join(' and ')}, or is removed ` +
+          '(the Expo default already includes both - check if it was overridden)\n' +
           '2. A new build was created after any config changes\n' +
           `3. Run \`unzip -l ${error.fileName} | grep lib/\` to confirm which ABIs are in the APK\n`,
         learnMoreLink: DOCS_LINK.buildAndroidAbiRequirements,
       };
 
-    case 'missing_arm64_abi_bare_rn':
+    case 'missing_abis_bare_rn':
       return {
         message:
-          'Android build is missing arm64-v8a native libraries; ' +
-          "Sherlo's Android emulators require arm64-v8a\n\n" +
+          `Android build is missing ${error.missingAbis.join(' and ')} native libraries; ` +
+          `Sherlo's Android simulators require ${ANDROID_REQUIRED_ABIS.join(' and ')}\n\n` +
           `Detected ABIs: ${error.detectedAbis}\n\n` +
           'Please verify:\n' +
-          '1. `reactNativeArchitectures` in `android/gradle.properties` includes `arm64-v8a`\n' +
+          `1. \`reactNativeArchitectures\` in \`android/gradle.properties\` includes ${ANDROID_REQUIRED_ABIS.map((abi) => `\`${abi}\``).join(' and ')}; ` +
+          `if the project builds with its own command, that command passes \`-PreactNativeArchitectures=${ANDROID_REQUIRED_ABIS.join(',')}\` to Gradle\n` +
           '2. A new build was created after any config changes\n' +
           `3. Run \`unzip -l ${error.fileName} | grep lib/\` to confirm which ABIs are in the APK\n`,
         learnMoreLink: DOCS_LINK.buildAndroidAbiRequirements,

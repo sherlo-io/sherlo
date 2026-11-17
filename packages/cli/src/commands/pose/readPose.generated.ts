@@ -2445,9 +2445,12 @@ function readPushFactsPlatform(value: unknown, path: string, problems: string[])
     if ('scenesInBundle' in object1) {
       expectNumber(object1.scenesInBundle, at(path, 'scenesInBundle'), problems);
     }
+    if ('abis' in object1) {
+      expectStringArray(object1.abis, at(path, 'abis'), problems);
+    }
     reportUnknownFields(
       object1,
-      ['madeBy', 'why', 'nativeChanges', 'storiesInBundle', 'scenesInBundle'],
+      ['madeBy', 'why', 'nativeChanges', 'storiesInBundle', 'scenesInBundle', 'abis'],
       path,
       problems
     );

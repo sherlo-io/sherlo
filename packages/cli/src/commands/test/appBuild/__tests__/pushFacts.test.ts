@@ -80,6 +80,8 @@ describe('what a push tells the service about itself', () => {
           madeBy: 'compiled',
           why: 'native-changed',
           storiesInBundle: 5,
+          // The pose's APK holds both processor types, which the push reports.
+          abis: ['arm64-v8a', 'x86_64'],
         },
       },
       ciRun: { provider: 'github', runId: 'acme/app/123' },
@@ -127,5 +129,31 @@ describe('what a push tells the service about itself', () => {
     expect(requestOf('joinBuild').pushFacts).toMatchObject({ madeBy: 'compiled' });
     // Its row is the whole test's: both devices and the counts are the service's, not this job's.
     expect(stripAnsi(screen)).toContain('Started: all 5 stories on 2 devices (Pixel 7, iPhone 15)');
+  });
+});
+
+describe('which processor types a push reports', () => {
+  it('reports the processor types the Android APK holds', async () => {
+    const pose = testPose('build-android-then-push');
+    pose.push!.binaries!.android!.androidAbis = ['x86_64', 'arm64-v8a'];
+
+    await runPose(pose);
+
+    // Sorted names, on the Android platform's facts only.
+    expect(requestOf('openBuild').pushFacts.platforms.android.abis).toEqual([
+      'arm64-v8a',
+      'x86_64',
+    ]);
+    expect(requestOf('openBuild').pushFacts.platforms.ios).toBeUndefined();
+  });
+
+  it('reports none when the APK was not listed', async () => {
+    const pose = testPose('build-android-then-push');
+    delete pose.push!.binaries!.android!.androidAbis;
+
+    await runPose(pose);
+
+    expect(requestOf('openBuild').pushFacts.platforms.android).not.toHaveProperty('abis');
+    expect(pushFactsPlatformOf({ storiesInBundle: 5 })).toEqual({ storiesInBundle: 5 });
   });
 });

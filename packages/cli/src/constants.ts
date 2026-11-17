@@ -37,6 +37,9 @@ export const IOS_FILE_TYPES = ['.app', '.tar.gz', '.tar'] as const;
 // Mirrors sherlo-runner src/executor/android/constants.ts
 export const ANDROID_ARM64_ABI = 'arm64-v8a';
 
+/** The processor kinds every Android app must hold native code for. */
+export const ANDROID_REQUIRED_ABIS = [ANDROID_ARM64_ABI, 'x86_64'];
+
 export const DEFAULT_CONFIG_FILENAME = 'sherlo.config.json';
 export const DEFAULT_PROJECT_ROOT = '.';
 
