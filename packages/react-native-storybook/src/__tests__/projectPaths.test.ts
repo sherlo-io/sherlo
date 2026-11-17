@@ -2,11 +2,7 @@
  * metro/projectPaths.js: the one place a bundler path becomes a path from the project root.
  */
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const {
-  toRelativePath,
-  moduleMapKeyOf,
-  importedNameAsMapKey,
-} = require('../../metro/projectPaths');
+const { toRelativePath, moduleMapKeyOf } = require('../../metro/projectPaths');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { appModulePathsOf } = require('../../metro/stillReal');
 
@@ -30,13 +26,6 @@ describe('turning a bundler path into a path from the project root', () => {
     expect(moduleMapKeyOf('/packages/ui/x.ts', '/app/web')).toBe('../../packages/ui/x.ts');
     expect(moduleMapKeyOf('/app/node_modules/lib/i.js', '/app/web')).toBeNull();
     expect(moduleMapKeyOf('/app/web/src?ctx', '/app/web')).toBeNull();
-  });
-
-  it('writes an import name as a module map key: dot-slash inside the project, unchanged outside it or for a context', () => {
-    expect(importedNameAsMapKey('src/Button.tsx')).toBe('./src/Button.tsx');
-    expect(importedNameAsMapKey('../../packages/ui/x.ts')).toBe('../../packages/ui/x.ts');
-    expect(importedNameAsMapKey('/other/drive/x.ts')).toBe('/other/drive/x.ts');
-    expect(importedNameAsMapKey('context:./icons')).toBe('context:./icons');
   });
 
   it('is what the still-real list uses, less the leading dot-slash', () => {

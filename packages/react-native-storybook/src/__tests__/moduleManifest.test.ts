@@ -181,6 +181,26 @@ describe('module manifest - a story newly taken into the Storybook glob', () => 
     expect(manifest.imports['./src/Button.tsx']).toEqual([`../shared-ui/x.ts`, 'context:./icons']);
   });
 
+  it('an import outside the project under node_modules is left out of the imports list', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-imports-deps-'));
+    const graph = buildStorybookGraph(root, ['src/Button.stories.tsx']);
+    const buttonPath = path.join(root, 'src', 'Button.tsx');
+    const dependencyPath = path.join(path.dirname(root), 'node_modules', 'lib', 'index.js');
+    graph.dependencies.set(
+      buttonPath,
+      fakeModule(
+        'COMPONENT_CODE_0',
+        new Map<string, unknown>([
+          ['dependency', { absolutePath: dependencyPath, data: { data: {} } }],
+        ])
+      )
+    );
+    const manifest = emitManifest(root, graph);
+    fs.rmSync(root, { recursive: true, force: true });
+
+    expect(manifest.imports['./src/Button.tsx']).toEqual([]);
+  });
+
   it('the manifest carries scene ids beside story ids', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sherlo-manifest-scenes-'));
     const graph = buildStorybookGraph(root, ['src/Button.stories.tsx']);
