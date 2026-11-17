@@ -30,6 +30,7 @@ var handOverFilePath = require('./projectPaths').handOverFilePath;
 
 var moduleMapKeyOf = require('./projectPaths').moduleMapKeyOf;
 var importsOf = require('./importsOf').importsOf;
+var importKeysOf = require('./importsOf').importKeysOf;
 var importEdgesOf = require('./importsOf').importEdgesOf;
 
 // ---------------------------------------------------------------------------
@@ -56,6 +57,8 @@ var importEdgesOf = require('./importsOf').importEdgesOf;
 //                      story's own downward walk ever reaches it (SHERLO-3). The
 //                      Storybook entry file (collectEntryAbsPaths) joins the same
 //                      way, minus the requires file and the stories it reaches.
+//      imports       - source-path -> the files that module imports (importsOf),
+//                      so the chain from a changed file to a story can be named.
 //   3. storyTitles   - story source-path -> the Storybook TITLE of that story
 //                      file. The other two maps are keyed by path and the
 //                      runner knows nothing about paths, so without this the
@@ -502,13 +505,18 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
 
     /** @type {Record<string, string>} */
     var moduleHashes = {};
+    /** @type {Record<string, string[]>} the files each module imports, keyed like moduleHashes. */
+    var imports = {};
     /** @type {string[]} source-path keys whose transformed output leaks an abs path. */
     var absolutePathLeaks = [];
     graph.dependencies.forEach(function (module, absPath) {
       var rel = moduleMapKeyOf(absPath, projectRoot);
       if (!rel) return; // skip synthetic modules and node_modules outside the project
       var digest = hashModuleOutput(module, projectRoot);
-      if (digest) moduleHashes[rel] = digest;
+      if (digest) {
+        moduleHashes[rel] = digest;
+        imports[rel] = importKeysOf(module, projectRoot);
+      }
       if (moduleOutputLeaksAbsolutePath(module, projectRoot)) {
         absolutePathLeaks.push(rel);
       }
@@ -684,6 +692,7 @@ function emitModuleManifestSidecar(graph, projectRoot, cacheDir, entryPoint) {
       header: header,
       moduleHashes: moduleHashes,
       storyClosures: storyClosures,
+      imports: imports,
       storyTitles: storyTitles,
       storyCounts: storyCounts,
       sceneIds: readSceneIds(projectRoot),

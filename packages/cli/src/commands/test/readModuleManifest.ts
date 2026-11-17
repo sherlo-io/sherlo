@@ -26,6 +26,8 @@ export type ModuleManifest = {
   header: Record<string, unknown>;
   moduleHashes: Record<string, unknown>;
   storyClosures: Record<string, unknown>;
+  /** Per file, the files it imports. */
+  imports?: Record<string, string[]>;
   /** Per story file, the title Storybook shows: `Storefront/ProductCard`. */
   storyTitles?: Record<string, string>;
   /** Per story file, how many stories it holds. */
@@ -151,6 +153,9 @@ export function validateModuleManifestBuffer(raw: Buffer): ValidatedModuleManife
       header: parsed.header,
       moduleHashes: parsed.moduleHashes,
       storyClosures: parsed.storyClosures,
+      ...(isPlainObject(parsed.imports)
+        ? { imports: parsed.imports as Record<string, string[]> }
+        : {}),
       ...(isPlainObject(parsed.storyTitles)
         ? { storyTitles: withBareKeys(parsed.storyTitles as Record<string, string>) }
         : {}),
