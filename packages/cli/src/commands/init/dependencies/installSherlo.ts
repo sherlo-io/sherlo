@@ -90,10 +90,12 @@ async function installSherlo(): Promise<void> {
 
     // BUILD DEBT (init-for-agents): the tool's marked error lines and the full log file, by the rule
     // the plan settled, in place of the last lines of each stream.
+    // The fix line names the package with no version: a version that failed to download fails
+    // again when copied, and the bare name installs the newest.
     throwError({
       ...renderInstallFailed({
         installing: 'Sherlo',
-        command: commandToRun,
+        command: commandToRun.replace(packageSpec, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME),
         failedOutput: getFailedCommandOutput(error),
       }),
       errorToReport: error,
