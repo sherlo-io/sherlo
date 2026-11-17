@@ -79,6 +79,7 @@ export type SimModuleManifest = ValidatedModuleManifest & {
     header: typeof SIM_MANIFEST_HEADER;
     moduleHashes: Record<string, string>;
     storyClosures: Record<string, string[]>;
+    imports: Record<string, string[]>;
     storyTitles: Record<string, string>;
     storyCounts: Record<string, number>;
   };
@@ -113,6 +114,7 @@ function deriveSimManifest(world: SimWorld): SimModuleManifest {
     header: SIM_MANIFEST_HEADER,
     moduleHashes,
     storyClosures,
+    imports: Object.fromEntries(importsByModule),
     storyTitles,
     storyCounts,
   };

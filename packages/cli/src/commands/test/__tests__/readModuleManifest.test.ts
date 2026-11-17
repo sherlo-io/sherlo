@@ -64,6 +64,24 @@ describe('readValidatedModuleManifest - happy path', () => {
   });
 });
 
+describe('imports from the module map', () => {
+  it('reads the files each file imports from the sidecar and uploads the bytes unchanged', () => {
+    const raw = JSON.stringify({
+      ...validManifest(),
+      imports: { './src/Button.stories.tsx': ['./src/Button.tsx'], './src/Button.tsx': [] },
+    });
+    writeManifest(raw);
+
+    const result = readValidatedModuleManifest(projectRoot);
+
+    expect(result!.parsed.imports).toEqual({
+      './src/Button.stories.tsx': ['./src/Button.tsx'],
+      './src/Button.tsx': [],
+    });
+    expect(result!.raw.toString('utf8')).toBe(raw);
+  });
+});
+
 describe('scene ids from the module map', () => {
   it('reads the scene ids the bundler wrote, and counts them', () => {
     writeManifest(JSON.stringify({ ...validManifest(), sceneIds: ['chat--empty', 'chat--full'] }));
