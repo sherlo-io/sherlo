@@ -501,6 +501,8 @@ export type PushFactsPlatform = {
   storiesInBundle?: number;
   /** How many scenes the pushed bundle holds. */
   scenesInBundle?: number;
+  /** The processor types the Android app holds, as sorted names, when the tool read them from it. */
+  abis?: string[];
 };
 
 /** What a push reports at `openBuild`: per platform it delivers, and the CI run it ran in. */

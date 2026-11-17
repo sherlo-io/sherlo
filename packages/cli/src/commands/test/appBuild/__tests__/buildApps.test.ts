@@ -252,10 +252,10 @@ describe('sherlo test builds the app on this machine', () => {
 
     const keys = builder.findCachedBuild.mock.calls.map(([{ cacheKey }]) => cacheKey);
     expect(keys).toEqual([
-      `android-${FINGERPRINT}-${buildSettingsDigest(settings, 'android').slice(0, 12)}`,
+      `android-${FINGERPRINT}-${buildSettingsDigest(settings, 'android').slice(0, 12)}-arm64-v8a-x86_64`,
       `ios-${FINGERPRINT}-${buildSettingsDigest(settings, 'ios').slice(0, 12)}`,
     ]);
-    expect(keys[0]).toMatch(/^android-[0-9a-f]{64}-[0-9a-f]{12}$/);
+    expect(keys[0]).toMatch(/^android-[0-9a-f]{64}-[0-9a-f]{12}-arm64-v8a-x86_64$/);
     expect(builder.keepInCache).toHaveBeenCalledWith(
       expect.objectContaining({ platform: 'android', cacheKey: keys[0], path: '/built/android' })
     );
@@ -468,6 +468,13 @@ describe('sherlo test builds the app on this machine', () => {
     expect(keyOf({ env: { A: '1', B: '2' } })).toEqual(keyOf({ env: { B: '2', A: '1' } }));
     // Neither `tool` nor `parallel` shapes the app build, and nor do the other platform's keys.
     expect(keyOf(base)).toEqual(keyOf({ ...base, parallel: true, ios: { scheme: 'Other' } }));
+  });
+
+  it('an Android cache key carries the processor kinds and an iOS key does not', () => {
+    const android = cacheKeyOf({ baseFingerprint: FINGERPRINT, platform: 'android', settings: {} });
+    const ios = cacheKeyOf({ baseFingerprint: FINGERPRINT, platform: 'ios', settings: {} });
+    expect(android).toMatch(/^android-.+-[0-9a-f]{12}-arm64-v8a-x86_64$/);
+    expect(ios).toMatch(/^ios-.+-[0-9a-f]{12}$/);
   });
 
   it("keeps the local build cache in --build-cache, else build-cache in SHERLO_CACHE_DIR, else in the computer's cache folder", async () => {

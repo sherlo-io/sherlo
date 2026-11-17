@@ -38,10 +38,57 @@ describe('ABI preflight – rejection', () => {
       validateBinariesInfo({ binariesInfo: binaries, command });
     } catch (error: any) {
       const message = error.message;
-      expect(message).toContain('missing arm64-v8a');
+      expect(message).toContain('missing arm64-v8a native libraries');
+      expect(message).toContain("Sherlo's Android simulators require arm64-v8a and x86_64");
       expect(message).toContain('expo-build-properties');
       expect(message).not.toContain('reactNativeArchitectures');
     }
+  });
+
+  it('rejects an APK missing x86_64 with the Expo fix hint (expo-build-properties)', () => {
+    const binaries: BinariesInfo = {
+      android: {
+        ...validAndroidBinary,
+        androidAbis: ['arm64-v8a'],
+        expoSdkVersion: '52.0.0',
+      },
+    };
+
+    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).toThrow(
+      /missing x86_64 native libraries/
+    );
+    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).toThrow(
+      /expo-build-properties/
+    );
+    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).not.toThrow(
+      /reactNativeArchitectures/
+    );
+  });
+
+  it('rejects an APK missing x86_64 with the bare-RN fix hint (reactNativeArchitectures)', () => {
+    const binaries: BinariesInfo = {
+      android: { ...validAndroidBinary, androidAbis: ['arm64-v8a'] },
+    };
+
+    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).toThrow(
+      /missing x86_64 native libraries/
+    );
+    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).toThrow(
+      /-PreactNativeArchitectures=arm64-v8a,x86_64/
+    );
+    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).not.toThrow(
+      /expo-build-properties/
+    );
+  });
+
+  it('names every missing processor kind when an APK holds neither', () => {
+    const binaries: BinariesInfo = {
+      android: { ...validAndroidBinary, androidAbis: ['armeabi-v7a'] },
+    };
+
+    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).toThrow(
+      /missing arm64-v8a and x86_64 native libraries/
+    );
   });
 
   it('rejects an APK missing arm64-v8a with the bare-RN fix hint (reactNativeArchitectures)', () => {
@@ -59,7 +106,8 @@ describe('ABI preflight – rejection', () => {
       validateBinariesInfo({ binariesInfo: binaries, command });
     } catch (error: any) {
       const message = error.message;
-      expect(message).toContain('missing arm64-v8a');
+      expect(message).toContain('missing arm64-v8a native libraries');
+      expect(message).toContain("Sherlo's Android simulators require arm64-v8a and x86_64");
       expect(message).toContain('reactNativeArchitectures');
       expect(message).not.toContain('expo-build-properties');
     }
@@ -90,7 +138,7 @@ describe('ABI preflight – rejection', () => {
 // ---------------------------------------------------------------------------
 
 describe('ABI preflight – accept', () => {
-  it('accepts an APK whose androidAbis includes arm64-v8a', () => {
+  it('accepts an APK holding arm64-v8a and x86_64', () => {
     const binaries: BinariesInfo = {
       android: {
         ...validAndroidBinary,
@@ -100,17 +148,6 @@ describe('ABI preflight – accept', () => {
 
     // Must not throw for ABI reasons. Other validations (hasSherlo, buildType)
     // are satisfied by validAndroidBinary, so the call should succeed.
-    expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).not.toThrow();
-  });
-
-  it('accepts an APK with only arm64-v8a in its ABI list', () => {
-    const binaries: BinariesInfo = {
-      android: {
-        ...validAndroidBinary,
-        androidAbis: ['arm64-v8a'],
-      },
-    };
-
     expect(() => validateBinariesInfo({ binariesInfo: binaries, command })).not.toThrow();
   });
 

@@ -130,13 +130,6 @@ describe('app builder, Android flavors', () => {
 });
 
 describe('app builder, Android', () => {
-  it('builds Android with :app:assembleRelease for arm64-v8a only', async () => {
-    await compileAndroid(liveBuilder());
-    expect(gradleCall().args).toContain(':app:assembleRelease');
-    expect(gradleCall().args).toContain('-PreactNativeArchitectures=arm64-v8a');
-    expect(gradleCall().args).not.toContain('assembleRelease');
-  });
-
   it('runs Gradle with an 8 GB heap at most, and 1 GB of metaspace', async () => {
     vi.spyOn(os, 'totalmem').mockReturnValue(64 * 1024 ** 3);
     await compileAndroid(liveBuilder());
@@ -882,5 +875,19 @@ describe('app builder, EAS', () => {
     await expect(
       makeLiveAppBuilder(failing).startEasBuild({ platform: 'ios', profile: 'sherlo', projectRoot })
     ).rejects.toThrow('`eas build` could not start the ios build - see .sherlo/eas-build-ios.log');
+  });
+});
+
+describe('app builder, Android processor types', () => {
+  it('builds Android for arm64-v8a and x86_64', async () => {
+    await compileAndroid(liveBuilder());
+    const flags = gradleCall().args.filter((arg) => arg.startsWith('-PreactNativeArchitectures'));
+    expect(flags).toEqual(['-PreactNativeArchitectures=arm64-v8a,x86_64']);
+  });
+
+  it('builds Android with :app:assembleRelease', async () => {
+    await compileAndroid(liveBuilder());
+    expect(gradleCall().args).toContain(':app:assembleRelease');
+    expect(gradleCall().args).not.toContain('assembleRelease');
   });
 });

@@ -6,6 +6,7 @@
 import type { Platform } from '@sherlo/api-types';
 import { reporting } from '../../../helpers';
 import type { AppBuildCommand } from '../../../render/appBuild';
+import { ANDROID_REQUIRED_ABIS } from '../../../constants';
 import { appBuilder } from '../../../seams/appBuilder';
 import { nativeBuild } from '../../../seams/nativeBuild';
 import { type BuildSettings, buildSettingsDigest } from './buildSettings';
@@ -21,7 +22,8 @@ const SETTINGS_DIGEST_IN_KEY = 12;
  * `build.env` must not reuse an app built without it. An iOS build whose pods link Sherlo into its
  * configuration (`linksSherlo`) is kept under a key ending `-sherlo`: the fingerprint never sees
  * which configurations the pods were installed for, and a build under the plain key may lack
- * Sherlo's native module.
+ * Sherlo's native module. An Android key ends with the processor kinds (`-arm64-v8a-x86_64`): the
+ * fingerprint never sees which processor kinds Gradle was told to build.
  */
 export function cacheKeyOf({
   baseFingerprint,
@@ -35,7 +37,8 @@ export function cacheKeyOf({
   linksSherlo?: boolean;
 }): string {
   const settingsDigest = buildSettingsDigest(settings, platform).slice(0, SETTINGS_DIGEST_IN_KEY);
-  return `${platform}-${baseFingerprint}-${settingsDigest}${linksSherlo ? '-sherlo' : ''}`;
+  const processorKinds = platform === 'android' ? `-${ANDROID_REQUIRED_ABIS.join('-')}` : '';
+  return `${platform}-${baseFingerprint}-${settingsDigest}${processorKinds}${linksSherlo ? '-sherlo' : ''}`;
 }
 
 /**

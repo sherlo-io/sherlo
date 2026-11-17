@@ -65,7 +65,7 @@ async function asyncUploadBuildAndRunTests({
 
   const buildPath = path.resolve(projectRoot, getBuildPath({ easBuildProfile, platform }));
 
-  const { binariesInfo } = await getValidatedBinariesInfoAndNextBuildIndex({
+  const { binariesInfo, androidAbis } = await getValidatedBinariesInfoAndNextBuildIndex({
     buildPath,
     token: ticket,
     command: THIS_COMMAND,
@@ -171,6 +171,7 @@ async function asyncUploadBuildAndRunTests({
       pushFacts: pushFactsPlatformOf({
         appBuild: { madeBy: 'eas' },
         storiesInBundle: moduleMap ? countBundleStories(moduleMap) : undefined,
+        ...(platform === 'android' ? { androidAbis } : {}),
       }),
     } as Parameters<ReturnType<typeof serverCalls>['asyncUpload']>[0])
     .catch((error) => handleClientError(error, ticket));
