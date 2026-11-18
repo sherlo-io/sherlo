@@ -13,7 +13,6 @@ import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import { renderStepLine } from '../../../render/initSteps';
 import { savedLogins, type SavedLogin } from '../../../seams/savedLogins';
 import { logInThroughTheBrowser } from '../../login/login';
-import { REJECTED_LOGIN_SENTENCE } from '../../shared/refuseRejectedLogin';
 import { printLines } from '../helpers';
 
 async function logIn(): Promise<SavedLogin> {
@@ -43,7 +42,7 @@ export async function logInAgain(): Promise<SavedLogin> {
   const serviceAddress = getEndpointUrl();
 
   savedLogins().remove(serviceAddress);
-  printLines(['', rejectedLoginLine()]);
+  printLines(['', SETUP_REJECTED_LOGIN_SENTENCE]);
 
   return logInThroughTheBrowserStep(serviceAddress, {
     linesAboveToErase: LINES_OF_THE_REJECTED_LOGIN,
@@ -51,21 +50,11 @@ export async function logInAgain(): Promise<SavedLogin> {
 }
 
 /**
- * PLAN ONLY (init-for-agents): the words of the rejected-login line are being chosen, each version
- * drawn as its own pose that names it in SHERLO_POSE_REJECTED_LOGIN_WORDING. Once one is picked it
- * becomes the line, and this list and the variable go.
+ * Setup's own words for the refused login (operator, 2026-11-18, picked in chat). Setup logs in
+ * again itself, so it does not list the causes the other commands' refusal names
+ * (`REJECTED_LOGIN_MESSAGE`), whose reader must log in by hand.
  */
-const REJECTED_LOGIN_VERSIONS: Record<string, string> = {
-  expired: 'Your saved Sherlo login has expired. Log in again to continue.',
-  noLongerWorks: "Your saved login no longer works, so let's log in again.",
-  sessionEnded: 'Your Sherlo session has ended.',
-};
-
-function rejectedLoginLine(): string {
-  const version = process.env.SHERLO_POSE_REJECTED_LOGIN_WORDING;
-
-  return (version && REJECTED_LOGIN_VERSIONS[version]) || REJECTED_LOGIN_SENTENCE;
-}
+const SETUP_REJECTED_LOGIN_SENTENCE = 'Your saved login has expired. Log in again to continue.';
 
 /** The earlier Logged in line, and the blank line and sentence `logInAgain` printed under it. */
 const LINES_OF_THE_REJECTED_LOGIN = 3;

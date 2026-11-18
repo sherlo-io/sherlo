@@ -15,7 +15,7 @@ Setting up Sherlo...
 [32m✔[39m Checked the app        [2mExpo 54, React Native 0.81[22m
 [32m✔[39m Logged in              [2manna@example.com[22m
 
-Sherlo no longer accepts the login saved on this computer.
+Your saved login has expired. Log in again to continue.
 
 Opening your browser to log in to Sherlo...
 [2mIf it doesn't open, use this link on any device:[22m
