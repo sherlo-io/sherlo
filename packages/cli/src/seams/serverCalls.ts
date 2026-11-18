@@ -32,7 +32,7 @@ import createTeamRequest from '../commands/teamCreate/createTeamRequest';
 import listProjectsRequest, {
   TeamNotFoundError,
 } from '../commands/projectList/listProjectsRequest';
-import listTeamsRequest from '../commands/teamList/listTeamsRequest';
+import listTeamsRequest, { ListTeamsAuthError } from '../commands/teamList/listTeamsRequest';
 import type { ProjectCreated } from '../render/projectCreated';
 import type { ProjectList } from '../render/projectList';
 import type { TeamCreated } from '../render/teamCreated';
@@ -420,7 +420,7 @@ export function installServerCalls(next: ServerCalls): () => void {
 export type ApiError = {
   error: string;
   /** The client's own error kind, where a command answers it apart: a team the person is not in. */
-  errorName?: 'TeamNotFoundError';
+  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError';
   /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
   cause?: { code: string; hostname?: string };
 };
@@ -879,6 +879,10 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
       // answer it as no access rather than with the service's words.
       if (answer.errorName === 'TeamNotFoundError') {
         throw new TeamNotFoundError(String(answer.error));
+      }
+      // A login the service refuses is its own kind too, so setup answers it as a refused login.
+      if (answer.errorName === 'ListTeamsAuthError') {
+        throw new ListTeamsAuthError(String(answer.error));
       }
       throw Object.assign(new Error(String(answer.error)), { cause: answer.cause });
     }

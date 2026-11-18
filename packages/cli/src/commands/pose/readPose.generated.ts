@@ -2012,7 +2012,12 @@ function readApiError(value: unknown, path: string, problems: string[]): void {
   if (object1) {
     expectString(object1.error, at(path, 'error'), problems);
     if ('errorName' in object1) {
-      expectLiteral(object1.errorName, 'TeamNotFoundError', at(path, 'errorName'), problems);
+      expectOneOf(
+        object1.errorName,
+        ['TeamNotFoundError', 'ListTeamsAuthError'],
+        at(path, 'errorName'),
+        problems
+      );
     }
     if ('cause' in object1) {
       const where2 = at(path, 'cause');

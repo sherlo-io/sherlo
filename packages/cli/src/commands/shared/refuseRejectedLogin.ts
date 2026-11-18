@@ -13,9 +13,13 @@
 import throwError from '../../helpers/throwError';
 import { LOGIN_COMMAND } from '../login/constants';
 
+export const REJECTED_LOGIN_SENTENCE = 'Sherlo no longer accepts the login saved on this computer.';
+export const REJECTED_LOGIN_REASONS =
+  'It expired after 90 days unused, was revoked, or its owner left the team.';
+
 export const REJECTED_LOGIN_MESSAGE =
-  'Sherlo no longer accepts the login saved on this computer.\n' +
-  '  It expired after 90 days unused, was revoked, or its owner left the team.\n' +
+  `${REJECTED_LOGIN_SENTENCE}\n` +
+  `  ${REJECTED_LOGIN_REASONS}\n` +
   `  Run \`npx sherlo ${LOGIN_COMMAND}\` to log in again.`;
 
 function refuseRejectedLogin(): never {

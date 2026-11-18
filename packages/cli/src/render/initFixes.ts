@@ -13,6 +13,11 @@
  * Pure, like everything under ./: state in, the `message` and `below` that `throwError` prints.
  */
 import chalk from 'chalk';
+import { LOGIN_COMMAND } from '../commands/login/constants';
+import {
+  REJECTED_LOGIN_REASONS,
+  REJECTED_LOGIN_SENTENCE,
+} from '../commands/shared/refuseRejectedLogin';
 import { renderCode } from './initLines';
 import type { FeedbackReader } from './initSteps';
 
@@ -251,6 +256,28 @@ export function renderInvalidJson({ path, reason }: { path: string; reason: stri
     '',
     words('Fix the file, then run setup again:'),
     code(INIT_COMMAND),
+  ]);
+}
+
+/**
+ * A browser login that ended without a token (canceled, expired, collected by another run). The
+ * `sentence` is the login's own, said once; the fix is the whole setup again, which starts a new one.
+ */
+export function renderLoginNotFinished({ sentence }: { sentence: string }): InitRefusal {
+  return refusal(sentence, [words('Run setup again:'), code(INIT_COMMAND)]);
+}
+
+/**
+ * The service no longer accepts the login saved on this computer. The sentences are
+ * `refuseRejectedLogin`'s own; the fix is to log in again, then run setup again.
+ */
+export function renderLoginRejected(): InitRefusal {
+  return refusal(REJECTED_LOGIN_SENTENCE, [
+    words(REJECTED_LOGIN_REASONS),
+    '',
+    words('Log in again:'),
+    code(`npx sherlo ${LOGIN_COMMAND}`),
+    ...rerun(),
   ]);
 }
 

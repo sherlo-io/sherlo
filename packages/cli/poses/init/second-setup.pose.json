@@ -8,7 +8,7 @@
       "private": true,
       "main": "index.ts",
       "dependencies": {
-        "@sherlo/react-native-storybook": "^2.0.2",
+        "@sherlo/react-native-storybook": "3.0.0-alpha.0",
         "@storybook/react-native": "^10.6.0",
         "expo": "^54.0.0",
         "react": "19.1.0",
@@ -40,7 +40,7 @@
     "node_modules/@storybook/react-native/index.js": "",
     "node_modules/@sherlo/react-native-storybook/package.json": {
       "name": "@sherlo/react-native-storybook",
-      "version": "2.0.2",
+      "version": "3.0.0-alpha.0",
       "main": "index.js"
     },
     "node_modules/@sherlo/react-native-storybook/index.js": ""
@@ -99,6 +99,5 @@
       "email": "anna@example.com",
       "token": "sht_poselogintoken00000000000000000"
     }
-  },
-  "workstation": { "install": { "package": "@sherlo/react-native-storybook@2.0.2" } }
+  }
 }

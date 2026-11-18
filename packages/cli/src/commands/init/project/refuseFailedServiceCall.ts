@@ -5,12 +5,11 @@
  * words.
  */
 import { throwError } from '../../../helpers';
-import { renderServiceUnreachable } from '../../../render/initFixes';
+import { renderLoginRejected, renderServiceUnreachable } from '../../../render/initFixes';
 import { renderFailedStepLine } from '../../../render/initSteps';
 import { printLines } from '../helpers';
 import { CreateProjectAuthError } from '../../projectCreate/createProjectRequest';
 import { ListProjectsAuthError } from '../../projectList/listProjectsRequest';
-import { refuseRejectedLogin } from '../../shared';
 import { CreateTeamAuthError } from '../../teamCreate/createTeamRequest';
 import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
 
@@ -22,7 +21,11 @@ function refuseFailedServiceCall(error: Error, failedStep: string): never {
     error instanceof CreateTeamAuthError ||
     error instanceof CreateProjectAuthError;
 
-  if (serviceRefusedTheLogin) refuseRejectedLogin();
+  // LIKE EVERY STOP, the step that stopped is marked red above the error.
+  if (serviceRefusedTheLogin) {
+    printLines(renderFailedStepLine(failedStep));
+    throwError({ ...renderLoginRejected(), errorToReport: error });
+  }
 
   // A call that never reached the service carries the network's own code (ENOTFOUND, ECONNREFUSED)
   // on its cause: the fix is the connection, said with that code, not a bug report.

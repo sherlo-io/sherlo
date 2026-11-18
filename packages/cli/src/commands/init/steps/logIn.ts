@@ -13,6 +13,7 @@ import { getEndpointUrl } from '../../../helpers/buildStatusRequest';
 import { renderStepLine } from '../../../render/initSteps';
 import { savedLogins, type SavedLogin } from '../../../seams/savedLogins';
 import { logInThroughTheBrowser } from '../../login/login';
+import { REJECTED_LOGIN_SENTENCE } from '../../shared/refuseRejectedLogin';
 import { printLines } from '../helpers';
 
 async function logIn(): Promise<SavedLogin> {
@@ -26,9 +27,26 @@ async function logIn(): Promise<SavedLogin> {
     return savedLogin;
   }
 
+  return logInThroughTheBrowserStep(serviceAddress);
+}
+
+/**
+ * THE SERVICE REFUSED THE SAVED LOGIN, found by the first call that spends it: setup forgets that
+ * login, says so in one line, and logs in through the browser in the same run.
+ */
+export async function logInAgain(): Promise<SavedLogin> {
+  const serviceAddress = getEndpointUrl();
+
+  savedLogins().remove(serviceAddress);
+  printLines(['', REJECTED_LOGIN_SENTENCE]);
+
+  return logInThroughTheBrowserStep(serviceAddress);
+}
+
+async function logInThroughTheBrowserStep(serviceAddress: string): Promise<SavedLogin> {
   // The login block stands apart from the list while it waits...
   printLines(['']);
-  const newLogin = await logInThroughTheBrowser(serviceAddress);
+  const newLogin = await logInThroughTheBrowser(serviceAddress, { insideSetup: true });
 
   // ...and in a terminal, once Authorize is clicked, it gives way to one line like every other
   // step's: the login's wait was a spinner there, gone by now, so only the link block is left to

@@ -984,7 +984,7 @@ export type PosedLogins = Record<
 export type ApiError = {
   error: string;
   /** The client's own error kind, where a command answers it apart: a team the person is not in. */
-  errorName?: 'TeamNotFoundError';
+  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError';
   /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
   cause?: {
     code: string;

@@ -25,6 +25,8 @@ import { printLines } from '../helpers';
 import { asConfigProject, type ProjectAddress } from '../project/projectAddress';
 import refuseFailedServiceCall from '../project/refuseFailedServiceCall';
 import { TeamNotFoundError } from '../../projectList/listProjectsRequest';
+import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
+import { logInAgain } from './logIn';
 
 /** The project setup settled, as the config holds it, and its page in the web app. */
 export type SettledProject = { projectId: string; projectPageUrl: string };
@@ -42,8 +44,14 @@ async function teamAndProject(
     return settled(existingProject);
   }
 
-  const teamId = await chooseTeam(person, teamFlag);
-  const project = await createProject(teamId, person);
+  // A saved login the service refuses is not a stop here: setup logs in again and goes on.
+  let personNow = person;
+  const teamId = await chooseTeam(personNow, teamFlag).catch(async (error: Error) => {
+    if (!(error instanceof ListTeamsAuthError)) throw error;
+    personNow = await logInAgain();
+    return chooseTeam(personNow, teamFlag);
+  });
+  const project = await createProject(teamId, personNow);
 
   return settled(project);
 }
@@ -98,7 +106,10 @@ async function chooseTeam(
 ): Promise<string> {
   const { teams } = await serverCalls()
     .listTeams({ personalToken })
-    .catch((error: Error) => refuseFailedServiceCall(error, 'Choosing a team failed'));
+    .catch((error: Error) => {
+      if (error instanceof ListTeamsAuthError) throw error;
+      return refuseFailedServiceCall(error, 'Choosing a team failed');
+    });
 
   const namedTeam = teamFlag ? teams.find(({ id }) => id === teamFlag) : undefined;
   const onlyTeam = teams.length === 1 ? teams[0] : undefined;

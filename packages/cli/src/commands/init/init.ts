@@ -17,6 +17,7 @@ import githubWorkflow from './steps/githubWorkflow';
 import logIn from './steps/logIn';
 import sherloSdk from './steps/sherloSdk';
 import storybook from './steps/storybook';
+import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import {
@@ -55,13 +56,17 @@ async function init(options: Options<THIS_COMMAND>) {
     await metroConfig(sessionId);
     await githubWorkflow();
 
+    // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
+    const reader = process.stdout.isTTY ? 'person' : 'agent';
+    // A PERSON'S FIRST TEST WAITS for the app's own stories: with only Storybook's examples, the
+    // next step is to write them.
     const storybookState = installedNow
       ? 'installed'
       : storybookSetup() === 'registers-root'
-        ? 'default-setup'
+        ? reader === 'person' && !hasStoriesOfItsOwn()
+          ? 'example-stories'
+          : 'default-setup'
         : 'old-setup';
-    // BUILD DEBT (init-for-agents): the shared "is this a person's terminal" check, once it exists.
-    const reader = process.stdout.isTTY ? 'person' : 'agent';
     printLines(
       renderNextSteps({
         storybook: storybookState,

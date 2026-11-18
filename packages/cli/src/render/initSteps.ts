@@ -84,7 +84,7 @@ export function renderNextSteps({
   isExpo,
   reader,
 }: {
-  storybook: 'installed' | 'default-setup' | 'old-setup';
+  storybook: 'installed' | 'default-setup' | 'example-stories' | 'old-setup';
   /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
   storybookVersion: string | undefined;
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
@@ -169,6 +169,9 @@ export function renderNextSteps({
       },
     ],
     'default-setup': [],
+    // THE SAME STEP AS `installed`, set just below: the app's Storybook is the person's own, but
+    // the stories are still Storybook's examples.
+    'example-stories': [],
     'old-setup': [
       {
         title: 'Let Sherlo open Storybook',
@@ -187,6 +190,19 @@ export function renderNextSteps({
       },
     ],
   };
+
+  storybookSteps['example-stories'] = storybookSteps.installed;
+
+  // THE FIRST TEST WAITS for the app's own stories: it would photograph Storybook's examples.
+  if (storybook === 'example-stories') {
+    return [
+      ...renderSectionTitle('👉 Next step', 12),
+      chalk.bold(storybookSteps['example-stories'][0].title),
+      ...storybookSteps['example-stories'][0].content.map((line) =>
+        line === '' ? '' : `   ${line}`
+      ),
+    ];
+  }
 
   const steps = [
     ...storybookSteps[storybook],
