@@ -43,11 +43,28 @@ export async function logInAgain(): Promise<SavedLogin> {
   const serviceAddress = getEndpointUrl();
 
   savedLogins().remove(serviceAddress);
-  printLines(['', REJECTED_LOGIN_SENTENCE]);
+  printLines(['', rejectedLoginLine()]);
 
   return logInThroughTheBrowserStep(serviceAddress, {
     linesAboveToErase: LINES_OF_THE_REJECTED_LOGIN,
   });
+}
+
+/**
+ * PLAN ONLY (init-for-agents): the words of the rejected-login line are being chosen, each version
+ * drawn as its own pose that names it in SHERLO_POSE_REJECTED_LOGIN_WORDING. Once one is picked it
+ * becomes the line, and this list and the variable go.
+ */
+const REJECTED_LOGIN_VERSIONS: Record<string, string> = {
+  expired: 'Your saved Sherlo login has expired. Log in again to continue.',
+  noLongerWorks: "Your saved login no longer works, so let's log in again.",
+  sessionEnded: 'Your Sherlo session has ended.',
+};
+
+function rejectedLoginLine(): string {
+  const version = process.env.SHERLO_POSE_REJECTED_LOGIN_WORDING;
+
+  return (version && REJECTED_LOGIN_VERSIONS[version]) || REJECTED_LOGIN_SENTENCE;
 }
 
 /** The earlier Logged in line, and the blank line and sentence `logInAgain` printed under it. */
