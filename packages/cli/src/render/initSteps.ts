@@ -191,18 +191,10 @@ export function renderNextSteps({
     ],
   };
 
+  // THE FIRST TEST COMES SECOND, after the app's own stories, so it never photographs Storybook's
+  // examples - and it is still listed, so an agent that wrote the stories knows what runs next
+  // (operator, 2026-11-18).
   storybookSteps['example-stories'] = storybookSteps.installed;
-
-  // THE FIRST TEST WAITS for the app's own stories: it would photograph Storybook's examples.
-  if (storybook === 'example-stories') {
-    return [
-      ...renderSectionTitle('👉 Next step', 12),
-      chalk.bold(storybookSteps['example-stories'][0].title),
-      ...storybookSteps['example-stories'][0].content.map((line) =>
-        line === '' ? '' : `   ${line}`
-      ),
-    ];
-  }
 
   const steps = [
     ...storybookSteps[storybook],

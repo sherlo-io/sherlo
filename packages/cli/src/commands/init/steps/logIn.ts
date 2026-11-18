@@ -33,6 +33,11 @@ async function logIn(): Promise<SavedLogin> {
 /**
  * THE SERVICE REFUSED THE SAVED LOGIN, found by the first call that spends it: setup forgets that
  * login, says so in one line, and logs in through the browser in the same run.
+ *
+ * IN A TERMINAL THE DETOUR LEAVES NO TRACE (operator, 2026-11-18): the sentence explains the browser
+ * opening while the login waits, and once Authorize is clicked it goes, with the earlier Logged in
+ * line, so the list reads one Logged in like any run. Where nothing can be erased - an agent reading
+ * a pipe - the sentence stays and says why the login ran twice.
  */
 export async function logInAgain(): Promise<SavedLogin> {
   const serviceAddress = getEndpointUrl();
@@ -40,10 +45,18 @@ export async function logInAgain(): Promise<SavedLogin> {
   savedLogins().remove(serviceAddress);
   printLines(['', REJECTED_LOGIN_SENTENCE]);
 
-  return logInThroughTheBrowserStep(serviceAddress);
+  return logInThroughTheBrowserStep(serviceAddress, {
+    linesAboveToErase: LINES_OF_THE_REJECTED_LOGIN,
+  });
 }
 
-async function logInThroughTheBrowserStep(serviceAddress: string): Promise<SavedLogin> {
+/** The earlier Logged in line, and the blank line and sentence `logInAgain` printed under it. */
+const LINES_OF_THE_REJECTED_LOGIN = 3;
+
+async function logInThroughTheBrowserStep(
+  serviceAddress: string,
+  { linesAboveToErase }: { linesAboveToErase: number } = { linesAboveToErase: 0 }
+): Promise<SavedLogin> {
   // The login block stands apart from the list while it waits...
   printLines(['']);
   const newLogin = await logInThroughTheBrowser(serviceAddress, { insideSetup: true });
@@ -56,7 +69,7 @@ async function logInThroughTheBrowserStep(serviceAddress: string): Promise<Saved
   // whether its output is a person's terminal, so the login's spinner, init's spinners and this
   // erase never disagree. Today it is the login's own test.
   if (process.stderr.isTTY && process.stdout.isTTY) {
-    process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted() + 1));
+    process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted() + linesAboveToErase + 1));
   }
   printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
 

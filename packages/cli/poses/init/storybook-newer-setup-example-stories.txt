@@ -22,10 +22,10 @@ Setting up Sherlo...
 [32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m
 
 
-[1m👉 Next step[22m
-[2m════════════[22m
+[1m👉 Next steps[22m
+[2m═════════════[22m
 
-[1mReplace the example stories[22m
+[1m1. Replace the example stories[22m
    Right now Sherlo would test Storybook's examples, not your app.
    Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [2m[[22m[32m'../src'[39m[2m][22m.
 
@@ -38,5 +38,8 @@ Setting up Sherlo...
 
    Before you write stories, read:
      [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
+
+[1m2. Run your first visual test[22m
+   [36mnpx sherlo test[39m
 
 [exit 0]
