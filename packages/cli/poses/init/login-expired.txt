@@ -21,7 +21,7 @@ Opening your browser to log in to Sherlo...
 
 [31m✖[39m Logging in failed
 
-[31mERROR: The login expired at 13:10. Nobody clicked Authorize in time.[39m
+[31mERROR: The login link expired before anyone clicked Authorize.[39m
 
 [0mRun setup again:[0m
 [36m  npx sherlo init[39m

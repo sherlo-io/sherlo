@@ -80,7 +80,7 @@ export async function logInThroughTheBrowser(
   savedLogins().removePending(serviceAddress);
 
   if (answer.status !== 'approved') {
-    refuseUnfinishedLogin(answer.status, pendingLogin, { insideSetup });
+    refuseUnfinishedLogin(answer.status, { insideSetup });
   }
 
   const newLogin: SavedLogin = { token: answer.token, email: answer.email };
@@ -174,12 +174,12 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
 /** A login that ended without a token: the person cancelled it, or nobody answered in time. */
 function refuseUnfinishedLogin(
   status: 'cancelled' | 'expired' | 'used',
-  pendingLogin: PendingLogin,
   { insideSetup }: { insideSetup: boolean }
 ): never {
   const sentence = {
     cancelled: 'The login was canceled in the browser.',
-    expired: describeExpiry(pendingLogin.expiresAt),
+    // No time: a clock time reads wrong on another person's clock, and the next step is the same.
+    expired: 'The login link expired before anyone clicked Authorize.',
     used: 'This login was already collected by another run.',
   }[status];
 
@@ -192,35 +192,4 @@ function refuseUnfinishedLogin(
   throwError({
     message: `${sentence}\n  Run \`npx sherlo ${LOGIN_COMMAND}\` to start a new one.`,
   });
-}
-
-/**
- * When the login expired, read from the expiry the service gave it - never a fixed number of
- * minutes - on this computer's own clock, the way the person reads the time.
- */
-function describeExpiry(expiresAt: string): string {
-  const expiry = new Date(expiresAt);
-  if (Number.isNaN(expiry.getTime())) return 'The login expired. Nobody clicked Authorize in time.';
-
-  return `The login expired at ${clockTime(expiry)}. Nobody clicked Authorize in time.`;
-}
-
-/**
- * "13:10" on this computer's clock. `TZ`, when it names a zone, is read straight, so the same
- * moment reads the same under a fixed zone.
- */
-function clockTime(moment: Date): string {
-  const time = (zone: string | undefined) =>
-    moment.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-      timeZone: zone,
-    });
-  try {
-    return time(process.env.TZ || undefined);
-  } catch {
-    // `TZ` may be a POSIX rule such as `CET-1`, which is not a zone name: use this computer's own.
-    return time(undefined);
-  }
 }

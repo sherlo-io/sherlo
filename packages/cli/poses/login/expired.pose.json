@@ -2,11 +2,7 @@
   "pose": 1,
   "argv": ["login"],
   "files": {},
-  "env": {
-    "SKIP_INTRO": "true",
-    "SHERLO_API_URL": "https://api.sherlo.io/graphql",
-    "TZ": "Europe/London"
-  },
+  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": "none",
   "bundles": {},
   "api": [

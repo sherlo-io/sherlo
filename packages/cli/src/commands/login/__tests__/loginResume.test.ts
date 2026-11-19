@@ -71,7 +71,7 @@ describe('npx sherlo login, as it waits and resumes', () => {
     expect(pendingLoginIn(logins)).toBeUndefined();
   });
 
-  it("says the login expired at the service's own expiry, never a fixed ten minutes", async () => {
+  it("waits until the service's own expiry, then says the link expired and names no time", async () => {
     // Eleven minutes in, the wait still waits: the service's expiry is fifteen minutes away.
     const pastTenMinutes = await runLogin({
       api: [start(), PENDING, APPROVED],
@@ -80,26 +80,12 @@ describe('npx sherlo login, as it waits and resumes', () => {
     expect(pastTenMinutes.refusal).toBeUndefined();
     expect(plain(pastTenMinutes.printed)).toContain(`Logged in as ${EMAIL}`);
 
-    // Past the service's expiry, the refusal names that expiry.
+    // Past the service's expiry, the refusal says so, with no clock time in it.
     const pastExpiry = await runLogin({ api: [start(), PENDING], clock: [AFTER_EXPIRY] });
     expect(pastExpiry.refusal).toContain(
-      'ERROR: The login expired at 13:15. Nobody clicked Authorize in time.'
+      'ERROR: The login link expired before anyone clicked Authorize.'
     );
-    expect(pastExpiry.refusal).not.toMatch(/10 minutes|ten minutes/);
-
-    // Another expiry, another time: the words follow the service.
-    const otherExpiry = await runLogin({
-      api: [start('2026-10-01T12:03:00.000Z'), poll({ status: 'expired' })],
-    });
-    expect(otherExpiry.refusal).toContain('ERROR: The login expired at 13:03.');
-
-    // On the person's own clock, never UTC: the same expiry reads 21:03 in Tokyo.
-    const inTokyo = await runLogin({
-      api: [start('2026-10-01T12:03:00.000Z'), poll({ status: 'expired' })],
-      timeZone: 'Asia/Tokyo',
-    });
-    expect(inTokyo.refusal).toContain('ERROR: The login expired at 21:03.');
-    expect(inTokyo.refusal).not.toContain('UTC');
+    expect(pastExpiry.refusal).not.toMatch(/\d{1,2}:\d{2}|UTC|10 minutes|ten minutes/);
 
     // An expired login is spent: the next run starts a new one.
     const logins = posedSavedLogins(undefined);
@@ -172,16 +158,10 @@ async function runLogin(world: {
   logins?: SavedLogins;
   clock?: string[];
   terminal?: boolean;
-  /** The zone this computer's clock is on; London unless a case names another. */
-  timeZone?: string;
 }) {
   const server = posedServerCalls(world.api);
   const surroundings = posedSurroundings({
-    env: {
-      SKIP_INTRO: 'true',
-      SHERLO_API_URL: SERVICE_ADDRESS,
-      TZ: world.timeZone ?? 'Europe/London',
-    },
+    env: { SKIP_INTRO: 'true', SHERLO_API_URL: SERVICE_ADDRESS },
     git: 'none',
     clock: world.clock ?? [STARTED],
   });
