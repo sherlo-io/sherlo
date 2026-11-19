@@ -64,7 +64,7 @@ export async function spendTheLogin<Answer>(
  * THE SERVICE REFUSED THE SAVED LOGIN, found by the first call that spends it: setup forgets that
  * login, says so in one line, and logs in through the browser in the same run.
  *
- * IN A TERMINAL THE DETOUR LEAVES NO TRACE (operator, 2026-11-18): the sentence explains the browser
+ * IN A TERMINAL THE DETOUR LEAVES NO TRACE: the sentence explains the browser
  * opening while the login waits, and once Authorize is clicked it goes, so the list reads one Logged
  * in like any run. Where nothing can be erased - an agent reading a pipe - the sentence stays and
  * says why the browser opened.
@@ -81,7 +81,7 @@ async function logInAgain(): Promise<SavedLogin> {
 }
 
 /**
- * Setup's own words for the refused login (operator, 2026-11-18, picked in chat). Setup logs in
+ * Setup's own words for the refused login. Setup logs in
  * again itself, so it does not list the causes the other commands' refusal names
  * (`REJECTED_LOGIN_MESSAGE`), whose reader must log in by hand.
  */
