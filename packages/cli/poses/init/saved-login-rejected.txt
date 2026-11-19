@@ -13,7 +13,6 @@
 Setting up Sherlo...
 
 [32m✔[39m Checked the app        [2mExpo 54, React Native 0.81[22m
-[32m✔[39m Logged in              [2manna@example.com[22m
 
 Your saved login has expired. Log in again to continue.
 
@@ -22,7 +21,7 @@ Opening your browser to log in to Sherlo...
 
   [36m<LOGIN_LINK>[39m
 
-[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G[32m✔[39m Logged in              [2manna@example.com[22m
+[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[1A[2K[G[32m✔[39m Logged in              [2manna@example.com[22m
 [32m✔[39m Created team           [2mAnna's team[22m
 [32m✔[39m Created project        [2mAcme Shop[22m
 [32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m

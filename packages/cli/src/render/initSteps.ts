@@ -69,9 +69,9 @@ export function renderFailedStepLine(name: string): string[] {
  *
  * The person reads "the default setup" and "the old setup", the same names everywhere.
  *
- * NO CI HERE: setup has one goal, the first visual test. Pull request tests are offered after that
- * test succeeds - by `sherlo test`'s own output and the project page - and to anyone whose machine
- * cannot build, by `sherlo test`'s build-failure line.
+ * NO CI STEP HERE: setup has one goal, the first visual test. The GitHub workflow is already written
+ * by setup's own step (../commands/init/steps/githubWorkflow) and ends green until GitHub is
+ * connected; connecting it, or a CI token for another CI, is offered on the project page.
  */
 /**
  * ONE TEXT FOR A PERSON AND AN AGENT: each step says what to do and every detail needed to do it,

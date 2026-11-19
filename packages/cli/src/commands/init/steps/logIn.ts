@@ -14,19 +14,50 @@ import { renderStepLine } from '../../../render/initSteps';
 import { savedLogins, type SavedLogin } from '../../../seams/savedLogins';
 import { logInThroughTheBrowser } from '../../login/login';
 import { printLines } from '../helpers';
+import refuseFailedServiceCall, { isRefusedLogin } from '../project/refuseFailedServiceCall';
 
-async function logIn(): Promise<SavedLogin> {
+/**
+ * Who setup runs as. A login just made in the browser is known to work; a saved one is not until the
+ * service answers the first call that spends it.
+ */
+export type Person = { login: SavedLogin; isSaved: boolean };
+
+async function logIn(): Promise<Person> {
   const serviceAddress = getEndpointUrl();
 
+  // A SAVED LOGIN'S LINE WAITS FOR THE SERVICE: printed now, a login the service then refuses would
+  // read "Logged in" right above "Your saved login has expired". `spendTheLogin` prints it.
   const savedLogin = savedLogins().read(serviceAddress);
-  if (savedLogin) {
-    // Not marked as already done: like the team and project lines after it, being logged in is
-    // where setup starts from, not work it did.
-    printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: savedLogin.email })]);
-    return savedLogin;
+  if (savedLogin) return { login: savedLogin, isSaved: true };
+
+  return { login: await logInThroughTheBrowserStep(serviceAddress), isSaved: false };
+}
+
+/**
+ * THE FIRST CALL THAT SPENDS THE LOGIN - the team list, or the project list for a project already
+ * named. A saved login the service accepts gets its Logged in line now. One it refuses is not a stop:
+ * setup logs in again and makes the call once more. A saved login the service could not be asked
+ * about stops as "Logging in failed": that is the step that did not finish.
+ */
+export async function spendTheLogin<Answer>(
+  person: Person,
+  call: (login: SavedLogin) => Promise<Answer>,
+  failedStep: string
+): Promise<{ answer: Answer; login: SavedLogin }> {
+  try {
+    const answer = await call(person.login);
+    if (person.isSaved) printLoggedIn(person.login);
+    return { answer, login: person.login };
+  } catch (error) {
+    if (!person.isSaved) return refuseFailedServiceCall(error as Error, failedStep);
+    if (!isRefusedLogin(error)) return refuseFailedServiceCall(error as Error, 'Logging in failed');
   }
 
-  return logInThroughTheBrowserStep(serviceAddress);
+  const newLogin = await logInAgain();
+  const answer = await call(newLogin).catch((error: Error) =>
+    refuseFailedServiceCall(error, failedStep)
+  );
+  return { answer, login: newLogin };
 }
 
 /**
@@ -34,11 +65,11 @@ async function logIn(): Promise<SavedLogin> {
  * login, says so in one line, and logs in through the browser in the same run.
  *
  * IN A TERMINAL THE DETOUR LEAVES NO TRACE (operator, 2026-11-18): the sentence explains the browser
- * opening while the login waits, and once Authorize is clicked it goes, with the earlier Logged in
- * line, so the list reads one Logged in like any run. Where nothing can be erased - an agent reading
- * a pipe - the sentence stays and says why the login ran twice.
+ * opening while the login waits, and once Authorize is clicked it goes, so the list reads one Logged
+ * in like any run. Where nothing can be erased - an agent reading a pipe - the sentence stays and
+ * says why the browser opened.
  */
-export async function logInAgain(): Promise<SavedLogin> {
+async function logInAgain(): Promise<SavedLogin> {
   const serviceAddress = getEndpointUrl();
 
   savedLogins().remove(serviceAddress);
@@ -56,8 +87,8 @@ export async function logInAgain(): Promise<SavedLogin> {
  */
 const SETUP_REJECTED_LOGIN_SENTENCE = 'Your saved login has expired. Log in again to continue.';
 
-/** The earlier Logged in line, and the blank line and sentence `logInAgain` printed under it. */
-const LINES_OF_THE_REJECTED_LOGIN = 3;
+/** The blank line and the sentence `logInAgain` printed. */
+const LINES_OF_THE_REJECTED_LOGIN = 2;
 
 async function logInThroughTheBrowserStep(
   serviceAddress: string,
@@ -77,9 +108,17 @@ async function logInThroughTheBrowserStep(
   if (process.stderr.isTTY && process.stdout.isTTY) {
     process.stdout.write(ansiEscapes.eraseLines(linesTheLoginPrinted() + linesAboveToErase + 1));
   }
-  printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: newLogin.email })]);
+  printLoggedIn(newLogin);
 
   return newLogin;
+}
+
+/**
+ * Not marked as already done, even for a saved login: like the team and project lines after it,
+ * being logged in is where setup starts from, not work it did.
+ */
+function printLoggedIn({ email }: SavedLogin): void {
+  printLines([renderStepLine({ outcome: 'done', name: 'Logged in', detail: email })]);
 }
 
 export default logIn;

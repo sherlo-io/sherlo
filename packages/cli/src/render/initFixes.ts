@@ -37,9 +37,12 @@ const words = (line: string): string => chalk.reset(line);
  */
 const choiceName = (name: string): string => chalk.bold(name);
 
-/** The closing lines of a refusal whose fix is words, not commands: what to run once it is fixed. */
+/**
+ * The closing lines of a refusal whose fix is words, not commands: what to run once it is fixed.
+ * They say the rerun picks up where it stopped, so nobody undoes the steps already done first.
+ */
 function rerun(): string[] {
-  return ['', words('Then run setup again:'), code(INIT_COMMAND)];
+  return ['', words('Then run setup again. It picks up where it stopped:'), code(INIT_COMMAND)];
 }
 
 function refusal(message: string, below: string[]): InitRefusal {
@@ -75,7 +78,8 @@ export function renderMonorepoRoot({ appFolders }: { appFolders: string[] }): In
             ...appFolders.map((folder) => code(folder)),
             '',
             words('Go to the one to test and run setup again:'),
-            code(`cd ${appFolders[0]}`),
+            // A placeholder, not the first app: a real folder here reads as setup's own pick.
+            code('cd <your app folder>'),
             code(INIT_COMMAND),
           ]
         : goTo("your app's folder", '<your app folder>');

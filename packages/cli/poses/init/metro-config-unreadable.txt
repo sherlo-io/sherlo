@@ -28,7 +28,7 @@ Setting up Sherlo...
 
 [0mIf Storybook's own withStorybook is there, swap it for Sherlo's.[0m
 
-[0mThen run setup again:[0m
+[0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

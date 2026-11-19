@@ -13,16 +13,20 @@ import { ListProjectsAuthError } from '../../projectList/listProjectsRequest';
 import { CreateTeamAuthError } from '../../teamCreate/createTeamRequest';
 import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
 
-/** `failedStep` names the step that stopped, e.g. "Choosing a team failed". */
-function refuseFailedServiceCall(error: Error, failedStep: string): never {
-  const serviceRefusedTheLogin =
+/** Whether the service answered a team or project call by refusing the login it was made with. */
+export function isRefusedLogin(error: unknown): boolean {
+  return (
     error instanceof ListTeamsAuthError ||
     error instanceof ListProjectsAuthError ||
     error instanceof CreateTeamAuthError ||
-    error instanceof CreateProjectAuthError;
+    error instanceof CreateProjectAuthError
+  );
+}
 
+/** `failedStep` names the step that stopped, e.g. "Choosing a team failed". */
+function refuseFailedServiceCall(error: Error, failedStep: string): never {
   // LIKE EVERY STOP, the step that stopped is marked red above the error.
-  if (serviceRefusedTheLogin) {
+  if (isRefusedLogin(error)) {
     printLines(renderFailedStepLine(failedStep));
     throwError({ ...renderLoginRejected(), errorToReport: error });
   }

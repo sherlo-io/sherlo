@@ -21,7 +21,7 @@ Setting up Sherlo...
 [36m  apps/shop[39m
 
 [0mGo to the one to test and run setup again:[0m
-[36m  cd apps/admin[39m
+[36m  cd <your app folder>[39m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

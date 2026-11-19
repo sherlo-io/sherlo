@@ -26,7 +26,7 @@ Setting up Sherlo...
 [0m   Log out, and log in with it when setup asks:[0m
 [36m     npx sherlo logout[39m
 
-[0mThen run setup again:[0m
+[0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

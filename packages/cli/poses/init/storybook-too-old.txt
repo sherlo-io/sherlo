@@ -20,7 +20,7 @@ Setting up Sherlo...
 [0mFollow Storybook for React Native's migration guide, one version at a time:[0m
 [36m  https://github.com/storybookjs/react-native/blob/next/MIGRATION.md[39m
 
-[0mThen run setup again:[0m
+[0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

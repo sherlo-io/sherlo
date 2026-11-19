@@ -25,14 +25,13 @@ import { printLines } from '../helpers';
 import { asConfigProject, type ProjectAddress } from '../project/projectAddress';
 import refuseFailedServiceCall from '../project/refuseFailedServiceCall';
 import { TeamNotFoundError } from '../../projectList/listProjectsRequest';
-import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
-import { logInAgain } from './logIn';
+import { spendTheLogin, type Person } from './logIn';
 
 /** The project setup settled, as the config holds it, and its page in the web app. */
 export type SettledProject = { projectId: string; projectPageUrl: string };
 
 async function teamAndProject(
-  person: SavedLogin,
+  person: Person,
   { teamFlag, projectFlag }: { teamFlag: string | undefined; projectFlag: string | undefined }
 ): Promise<SettledProject> {
   // `--project` is how the web app's setup line connects init to a project made there; it wins over
@@ -44,14 +43,10 @@ async function teamAndProject(
     return settled(existingProject);
   }
 
-  // A saved login the service refuses is not a stop here: setup logs in again and goes on.
-  let personNow = person;
-  const teamId = await chooseTeam(personNow, teamFlag).catch(async (error: Error) => {
-    if (!(error instanceof ListTeamsAuthError)) throw error;
-    personNow = await logInAgain();
-    return chooseTeam(personNow, teamFlag);
-  });
-  const project = await createProject(teamId, personNow);
+  // The first call of either path goes through `spendTheLogin`: a saved login the service refuses
+  // is not a stop, setup logs in again and goes on with the new login.
+  const { teamId, login } = await chooseTeam(person, teamFlag);
+  const project = await createProject(teamId, login);
 
   return settled(project);
 }
@@ -63,17 +58,22 @@ export default teamAndProject;
 /** The team and project a config already names, by name - refused when this person cannot reach them. */
 async function showProjectInConfig(
   project: ProjectAddress,
-  { token: personalToken }: SavedLogin,
+  person: Person,
   namedIn: 'config' | 'flag'
 ): Promise<void> {
   // A team the person is not in and a project its team does not hold are one answer: no access.
-  const teamProjects = await serverCalls()
-    .listProjects({ teamId: project.teamId, personalToken })
-    .catch((error: Error) =>
-      error instanceof TeamNotFoundError
-        ? null
-        : refuseFailedServiceCall(error, 'Finding the project failed')
-    );
+  const { answer: teamProjects, login } = await spendTheLogin(
+    person,
+    ({ token }) =>
+      serverCalls()
+        .listProjects({ teamId: project.teamId, personalToken: token })
+        .catch((error: Error) => {
+          if (error instanceof TeamNotFoundError) return null;
+          throw error;
+        }),
+    'Finding the project failed'
+  );
+  const personalToken = login.token;
 
   const projectInTeam = teamProjects?.projects.find(({ index }) => index === project.projectIndex);
   if (!teamProjects || !projectInTeam) {
@@ -101,15 +101,18 @@ async function showProjectInConfig(
 
 /** `--team`, the one team the person is in, or a new one named after them. */
 async function chooseTeam(
-  { token: personalToken }: SavedLogin,
+  person: Person,
   teamFlag: string | undefined
-): Promise<string> {
-  const { teams } = await serverCalls()
-    .listTeams({ personalToken })
-    .catch((error: Error) => {
-      if (error instanceof ListTeamsAuthError) throw error;
-      return refuseFailedServiceCall(error, 'Choosing a team failed');
-    });
+): Promise<{ teamId: string; login: SavedLogin }> {
+  const {
+    answer: { teams },
+    login,
+  } = await spendTheLogin(
+    person,
+    ({ token }) => serverCalls().listTeams({ personalToken: token }),
+    'Choosing a team failed'
+  );
+  const personalToken = login.token;
 
   const namedTeam = teamFlag ? teams.find(({ id }) => id === teamFlag) : undefined;
   const onlyTeam = teams.length === 1 ? teams[0] : undefined;
@@ -117,7 +120,7 @@ async function chooseTeam(
 
   if (team) {
     printLines([renderStepLine({ outcome: 'done', name: 'Using team', detail: team.name })]);
-    return team.id;
+    return { teamId: team.id, login };
   }
 
   if (teamFlag || teams.length > 1) {
@@ -144,7 +147,7 @@ async function chooseTeam(
     .catch((error: Error) => refuseFailedServiceCall(error, 'Creating a team failed'));
 
   printLines([renderStepLine({ outcome: 'done', name: 'Created team', detail: newTeam.name })]);
-  return newTeam.id;
+  return { teamId: newTeam.id, login };
 }
 
 /** A new project in the team, named after the app. */
