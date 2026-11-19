@@ -38,9 +38,7 @@ function refuseFailedServiceCall(error: Error, failedStep: string): never {
     // LIKE EVERY STOP, the step that stopped is marked red above the error.
     printLines(renderFailedStepLine(failedStep));
     throwError({
-      ...renderServiceUnreachable({
-        cause: [cause.code, cause.hostname].filter(Boolean).join(' '),
-      }),
+      ...renderServiceUnreachable({ host: cause.hostname, code: cause.code }),
       errorToReport: error,
     });
   }

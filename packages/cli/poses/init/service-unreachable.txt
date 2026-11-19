@@ -15,11 +15,9 @@ Setting up Sherlo...
 [32m✔[39m Checked the app        [2mExpo 54, React Native 0.81, Storybook 10.6[22m
 [31m✖[39m Logging in failed
 
-[31mERROR: Setup couldn't reach Sherlo[39m
+[31mERROR: Setup couldn't reach Sherlo at api.sherlo.io ([2mENOTFOUND[22m).[39m
 
-[0mENOTFOUND api.sherlo.io[0m
-
-[0mCheck your internet connection, and that no VPN, proxy or firewall blocks api.sherlo.io.[0m
+[0mCheck your internet connection, and that no VPN, proxy or firewall blocks it.[0m
 
 [0mThen run setup again. It picks up where it stopped:[0m
 [36m  npx sherlo init[39m

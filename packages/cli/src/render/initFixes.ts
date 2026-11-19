@@ -286,18 +286,24 @@ export function renderLoginRejected(): InitRefusal {
 }
 
 /**
- * Sherlo's servers could not be reached; `cause` is the network's own code and host.
+ * Sherlo's servers could not be reached. `host` is the address that failed and `code` the network's
+ * own code, both from the real error; ONE LINE says what failed where, with no brackets when there
+ * is no code.
  *
  * WHAT TO CHECK, NOT AN ADDRESS TO OPEN: the API answers a browser with an error page even when it
  * is up, so opening it tells nobody whether it works.
  */
-export function renderServiceUnreachable({ cause }: { cause: string }): InitRefusal {
-  return refusal("Setup couldn't reach Sherlo", [
-    words(cause),
-    '',
-    words(
-      'Check your internet connection, and that no VPN, proxy or firewall blocks api.sherlo.io.'
-    ),
+export function renderServiceUnreachable({
+  host,
+  code,
+}: {
+  host?: string;
+  code?: string;
+}): InitRefusal {
+  const where = host ? ` at ${host}` : '';
+  const why = code ? ` (${chalk.dim(code)})` : '';
+  return refusal(`Setup couldn't reach Sherlo${where}${why}.`, [
+    words('Check your internet connection, and that no VPN, proxy or firewall blocks it.'),
     ...rerun(),
   ]);
 }
