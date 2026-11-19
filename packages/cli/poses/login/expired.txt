@@ -3,7 +3,7 @@ Opening your browser to log in to Sherlo...
 
   [36m<LOGIN_LINK>[39m
 
-[31mERROR: The login expired at 12:10 UTC. Nobody clicked Authorize in time.[39m
+[31mERROR: The login expired at 13:10. Nobody clicked Authorize in time.[39m
   Run `npx sherlo login` to start a new one.
 
 [2m──────────[22m

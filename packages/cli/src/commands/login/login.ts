@@ -196,12 +196,31 @@ function refuseUnfinishedLogin(
 
 /**
  * When the login expired, read from the expiry the service gave it - never a fixed number of
- * minutes. Written in UTC, so the same expiry reads the same on every machine.
+ * minutes - on this computer's own clock, the way the person reads the time.
  */
 function describeExpiry(expiresAt: string): string {
   const expiry = new Date(expiresAt);
   if (Number.isNaN(expiry.getTime())) return 'The login expired. Nobody clicked Authorize in time.';
 
-  const hoursAndMinutes = expiry.toISOString().slice(11, 16);
-  return `The login expired at ${hoursAndMinutes} UTC. Nobody clicked Authorize in time.`;
+  return `The login expired at ${clockTime(expiry)}. Nobody clicked Authorize in time.`;
+}
+
+/**
+ * "13:10" on this computer's clock. `TZ`, when it names a zone, is read straight, so the same
+ * moment reads the same under a fixed zone.
+ */
+function clockTime(moment: Date): string {
+  const time = (zone: string | undefined) =>
+    moment.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: zone,
+    });
+  try {
+    return time(process.env.TZ || undefined);
+  } catch {
+    // `TZ` may be a POSIX rule such as `CET-1`, which is not a zone name: use this computer's own.
+    return time(undefined);
+  }
 }

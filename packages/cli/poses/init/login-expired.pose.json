@@ -43,7 +43,8 @@
     "node_modules/@storybook/react-native/index.js": ""
   },
   "env": {
-    "SHERLO_API_URL": "https://api.sherlo.io/graphql"
+    "SHERLO_API_URL": "https://api.sherlo.io/graphql",
+    "TZ": "Europe/London"
   },
   "git": {
     "branch": "main",

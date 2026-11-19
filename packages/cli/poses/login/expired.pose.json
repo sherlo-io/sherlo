@@ -2,7 +2,11 @@
   "pose": 1,
   "argv": ["login"],
   "files": {},
-  "env": { "SKIP_INTRO": "true", "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "env": {
+    "SKIP_INTRO": "true",
+    "SHERLO_API_URL": "https://api.sherlo.io/graphql",
+    "TZ": "Europe/London"
+  },
   "git": "none",
   "bundles": {},
   "api": [
@@ -15,7 +19,11 @@
         "expiresAt": "2026-10-01T12:10:00.000Z"
       }
     },
-    { "call": "pollCliLogin", "with": { "loginId": "lg7Qm2Xa" }, "answer": { "status": "pending" } },
+    {
+      "call": "pollCliLogin",
+      "with": { "loginId": "lg7Qm2Xa" },
+      "answer": { "status": "pending" }
+    },
     {
       "call": "pollCliLogin",
       "with": { "loginId": "lg7Qm2Xa" },
