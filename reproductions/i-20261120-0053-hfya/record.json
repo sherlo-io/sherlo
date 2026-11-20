@@ -1,0 +1,26 @@
+{
+  "id": "i-20261120-0053-hfya",
+  "issue": "i-20261120-0053-hfya",
+  "medium": "command",
+  "engine": "vitest on the sherlo checkout (packages/cli)",
+  "mac": "michal",
+  "parentCommit": "bb06b5c9ca2c686ff4d122060466fcb66c3b03d9",
+  "fixCommit": "ed43d0d7be114b1a4fcd1c542ee58cb7ed8903b9",
+  "fixTree": "d2d73538ef301912d812a4f98ae37d490df9ef3f",
+  "red": {
+    "exitCode": 1,
+    "output": "the wait still never ends when one status read never answers (no test passed that it exits 3 at its deadline)",
+    "pictures": [],
+    "seconds": 2.52
+  },
+  "green": {
+    "exitCode": 0,
+    "output": "",
+    "pictures": [],
+    "seconds": 2.79
+  },
+  "verdict": {
+    "matched": true,
+    "line": "Matches the report: \"stopped polling after the build's close and never exited\" - the check shows the wait never ends when a status read never answers and doesn't exit 3 at its deadline."
+  }
+}

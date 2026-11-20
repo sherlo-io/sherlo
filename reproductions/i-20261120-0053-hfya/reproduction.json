@@ -1,0 +1,8 @@
+{
+  "id": "i-20261120-0053-hfya",
+  "issue": "i-20261120-0053-hfya",
+  "medium": "command",
+  "engine": "vitest on the sherlo checkout (packages/cli)",
+  "reporterSaw": { "words": "npx sherlo test --wait stopped polling after the build's close and never exited, until the caller killed it at 60 minutes." },
+  "check": "cd packages/cli && ALLOW_LOCAL_TEST_EXEC=1 yarn test src/helpers/__tests__/waitForBuildResult.test.ts -t 'when one poll never settles' 2>&1 | grep -q 'Tests  1 passed' || { echo 'the wait still never ends when one status read never answers (no test passed that it exits 3 at its deadline)'; exit 1; }"
+}
