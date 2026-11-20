@@ -565,6 +565,39 @@ describe('waitForBuildResult exits with the code its build outcome earns', () =>
   /* RESILIENCE - network errors are retried                              */
   /* ------------------------------------------------------------------ */
 
+  it('exits 3 (TIMEOUT) at its deadline when one poll never settles', async () => {
+    mockFetch.mockImplementation(() => new Promise(() => {}));
+
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+      waitTimeoutMinutes: 1,
+    });
+
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect(await promise).toBe(EXIT_TIMEOUT);
+  }, 10_000);
+
+  it('asks for every poll with a request timeout', async () => {
+    mockFetch.mockImplementationOnce(() => new Promise(() => {}));
+
+    const promise = waitForBuildResult({
+      token: TOKEN,
+      buildIndex: BUILD_INDEX,
+      projectIndex: PROJECT_INDEX,
+      teamId: TEAM_ID,
+      waitTimeoutMinutes: 1,
+    });
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(mockFetch.mock.calls[0][1]).toHaveProperty('timeout');
+    await vi.advanceTimersByTimeAsync(120_000);
+    await promise;
+  }, 10_000);
+
   it('retries on network error and eventually succeeds', async () => {
     // First call fails with network error
     mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));

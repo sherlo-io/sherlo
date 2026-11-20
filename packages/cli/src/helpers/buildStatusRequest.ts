@@ -262,8 +262,8 @@ export class AuthError extends Error {
 
 /**
  * How long a SINGLE-SHOT read of a build's status may take before it is abandoned. Generous
- * enough for a healthy API, short enough that a wedged endpoint cannot stall a run that is not
- * waiting for anything. The poll loop deliberately omits it - its own deadline governs there.
+ * enough for a healthy API, short enough that a wedged endpoint cannot stall a run. The wait's poll
+ * passes it too: a read past it fails as a network error and the loop retries.
  */
 export const SINGLE_READ_TIMEOUT_MS = 10_000;
 
@@ -271,9 +271,7 @@ export async function fetchBuildStatus(
   endpointUrl: string,
   apiToken: string,
   variables: { index: number; projectIndex: number; teamId: string },
-  // Single-shot callers (fetchServerBypassReason) bound the request so a slow API
-  // can never hang a non-wait run. The poll loop omits it - its own outer timeout
-  // governs - so the wait path is unchanged.
+  // Callers bound the request so a slow API can never hang a run; the wait's poll bounds it too.
   timeoutMs?: number
 ): Promise<NonNullable<BuildStatusResponse['getBuildStatus']> | null> {
   const response = await fetch(endpointUrl, {
