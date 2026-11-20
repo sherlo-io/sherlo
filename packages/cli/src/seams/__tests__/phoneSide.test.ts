@@ -46,3 +46,8 @@ describe('the phone side file describes the native app', () => {
     expect(Object.keys(phoneSide.core).sort()).toEqual(['fileName', 'source']);
   });
 });
+
+// Shells for task qck-cli-drops-library-list (epic quick-check-knows-no-library). Each `it.todo` becomes a real `it(...)` with the exact same name.
+describe('the phone side file names no native library', () => {
+  it.todo('the phone-side file the CLI uploads names no native library');
+});
