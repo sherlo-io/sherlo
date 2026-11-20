@@ -189,7 +189,10 @@ export async function waitForTest({
     // out of the call rather than inside the loop's retry catch (see the note above). A personal
     // token, a build ticket and a GitHub session have no parts to parse: each is sent whole.
     if (!hasNoTokenParts(token)) getTokenParts(token);
-    return () => serverCalls().getBuildStatus({ token, buildIndex, projectIndex, teamId });
+    // Bounded, so a request the API never answers fails as a network blip and is retried, instead
+    // of holding the loop on one read for ever.
+    return () =>
+      serverCalls().getBuildStatus({ token, buildIndex, projectIndex, teamId, boundedRead: true });
   }
 
   const testIndex = buildIndex;
@@ -335,10 +338,23 @@ async function pollUntilTheWaitEnds({
       let build: NonNullable<BuildStatusResponse['getBuildStatus']> | null = null;
 
       try {
+        // The read is also raced against the deadline, so a read that never answers cannot hold
+        // the wait past its timeout.
+        let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
         const polled = await Promise.race([
           poll().then((result) => ({ type: 'result' as const, result })),
           sigint.promise.then(() => ({ type: 'sigint' as const })),
-        ]);
+          new Promise<{ type: 'deadline' }>((resolve) => {
+            deadlineTimer = setTimeout(
+              () => resolve({ type: 'deadline' }),
+              Math.max(deadline - now(), 0)
+            );
+          }),
+        ]).finally(() => clearTimeout(deadlineTimer));
+
+        if (polled.type === 'deadline') {
+          return { kind: 'timed-out' };
+        }
 
         if (polled.type === 'sigint') {
           return interrupted;
