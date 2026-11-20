@@ -117,6 +117,11 @@
     entries: {},
   };
   if (stillReal.isTesting) global.__sherloStillReal = stillReal;
+  try {
+    if (stillReal.isTesting) installNativeRecorder();
+  } catch (_) {
+    // Recording never stops the app: a recorder that cannot be installed leaves the run unrecorded.
+  }
   stillReal.isCapture = function () {
     if (!stillReal.paths) stillReal.paths = global.__sherloStillRealPaths || null;
     return stillReal.isTesting && !!stillReal.paths;
@@ -635,4 +640,534 @@
       }, 10000);
     }
   } catch (_) {}
+
+  // THE RECORDER OF A TEST RUN: what the phone does for each story, for the quick check to replay.
+  //
+  // Installed only in testing mode (the gate above has returned for 'default' and 'storybook') and
+  // only on the new architecture, whose Fabric UI manager is there before the bundle runs: on the
+  // old one nothing is installed and nothing is recorded. The files that reach native code hand
+  // their module over as they finish running (metro/mockSpecifierTransformer.js markNativeRoads):
+  // TurboModuleRegistry's and Expo's lookups and NativeModules are wrapped, and every module they
+  // hand out is a Proxy whose methods note the call and native's answer. The Fabric renderer hands
+  // over its commit and its event entry. global.nativeFabricUIManager itself is never wrapped:
+  // native code reads it back as its own on every event, and a Proxy over it aborts the app. Nor is
+  // global.nativeModuleProxy, which cannot be replaced. What the recorder cannot write down it notes
+  // as a blind road. Every entry takes the next number of one order. The SDK starts and reads each
+  // story's part (src/nativeRecording.ts); what came before the first story belongs to every story.
+  function installNativeRecorder() {
+    if (typeof Proxy !== 'function' || !global.nativeFabricUIManager) return;
+
+    // Sherlo's own module is the SDK talking, not the story: not recorded.
+    var NOT_RECORDED = { SherloModule: true };
+    var MAX_DEPTH = 12;
+    var recorder = {
+      order: 0,
+      // The story recording now; null before the first, whose entries every story shares.
+      story: null,
+      // Each entry, as { story, list, entry }: list is the StoryRecording field it belongs to.
+      kept: [],
+      // What the current story already noted once: a lookup, a constant, a blind road.
+      notedInStory: {},
+      notedInLaunch: {},
+      picturesAt: {},
+      placeOfView: function () {
+        return null;
+      },
+      rendererRoads: { commit: false, viewEvents: false },
+      // How many of Expo's own lookups are running: a read of Expo's modules outside one skipped it.
+      expoLookups: 0,
+      watchedExpoModules: null,
+      // The device events delivered since the first story began, each a blind road of every story
+      // that starts later.
+      deviceEventsForLaterStories: {},
+    };
+
+    function keep(list, entry, shared) {
+      entry.order = recorder.order++;
+      recorder.kept.push({ story: shared ? null : recorder.story, list: list, entry: entry });
+      return entry;
+    }
+
+    function keepBlindRoadOnce(kind, name, shared) {
+      var noted = shared ? recorder.notedInLaunch : recorder.notedInStory;
+      var key = 'blind ' + kind + ' ' + name;
+      if (noted[key]) return;
+      noted[key] = true;
+      keep('blindRoads', { kind: kind, name: name }, shared);
+    }
+
+    var tagOf = function (value) {
+      return Object.prototype.toString.call(value);
+    };
+
+    // A JSON-safe copy of a value, with every value JSON cannot carry marked by a "$" key.
+    function serialise(value, depth, seen) {
+      if (value === undefined) return { $: 'undefined' };
+      if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
+      if (typeof value === 'number')
+        return isFinite(value) ? value : { $: 'number', value: String(value) };
+      if (typeof value === 'bigint') return { $: 'bigint', value: String(value) };
+      if (typeof value === 'symbol') return { $unserialisable: 'symbol' };
+      if (typeof value === 'function') return { $unserialisable: 'function' };
+      if (depth > MAX_DEPTH) return { $unserialisable: 'too deep' };
+      if (seen.indexOf(value) !== -1) return { $unserialisable: 'cycle' };
+      if (typeof ArrayBuffer !== 'undefined') {
+        if (value instanceof ArrayBuffer)
+          return { $unserialisable: 'ArrayBuffer', byteLength: value.byteLength };
+        if (ArrayBuffer.isView && ArrayBuffer.isView(value))
+          return { $unserialisable: tagOf(value), byteLength: value.byteLength };
+      }
+      if (typeof value.then === 'function') return { $unserialisable: 'promise' };
+      var tag = tagOf(value);
+      if (tag === '[object Error]') {
+        var code = value.code === undefined ? null : value.code;
+        return { $: 'error', name: value.name, message: value.message, code: code };
+      }
+      if (tag === '[object Date]')
+        return { $: 'date', value: isNaN(value.getTime()) ? 'Invalid' : value.toISOString() };
+      seen.push(value);
+      try {
+        if (Array.isArray(value)) {
+          return value.map(function (item) {
+            return serialise(item, depth + 1, seen);
+          });
+        }
+        var proto = Object.getPrototypeOf(value);
+        var plain =
+          proto === null || (Object.getPrototypeOf(proto) === null && tag === '[object Object]');
+        if (!plain) {
+          // A host object, a class instance (an Expo shared object) or anything JSON would flatten.
+          var name = proto && proto.constructor && proto.constructor.name;
+          return { $unserialisable: 'object', tag: tag, constructor: name || null };
+        }
+        var copy = {};
+        Object.keys(value).forEach(function (key) {
+          copy[key] = serialise(value[key], depth + 1, seen);
+        });
+        return copy;
+      } catch (_) {
+        // A value that throws as it is read is written down as unreadable.
+        return { $unserialisable: 'unreadable', tag: tag };
+      } finally {
+        seen.pop();
+      }
+    }
+    var serialised = function (value) {
+      return serialise(value, 0, []);
+    };
+
+    // A module's method, noting each call with what native answered: the return, the promise's
+    // value or each callback's arguments, and what it threw. A listener added to an Expo module
+    // hears events native code sends straight to it, which the recorder cannot see.
+    function wrapMethod(moduleName, methodName, method, target, fromExpo) {
+      return function () {
+        var args = Array.prototype.slice.call(arguments);
+        var call = keep('nativeCalls', {
+          module: moduleName,
+          method: methodName,
+          args: serialised(args),
+          kind: 'sync',
+        });
+        if (fromExpo && methodName === 'addListener') {
+          keepBlindRoadOnce('expoNativeEvent', moduleName, false);
+        }
+        for (var i = 0; i < args.length; i++) {
+          if (typeof args[i] === 'function') {
+            args[i] = wrapCallback(call, i, args[i]);
+            call.kind = 'async';
+          }
+        }
+        var answer;
+        try {
+          answer = method.apply(target, args);
+        } catch (failure) {
+          call.threw = serialised(failure);
+          throw failure;
+        }
+        if (answer && typeof answer.then === 'function') {
+          call.kind = 'async';
+          answer.then(
+            function (value) {
+              call.answer = serialised(value);
+            },
+            function (failure) {
+              call.threw = serialised(failure);
+            }
+          );
+        } else {
+          call.answer = serialised(answer);
+        }
+        return answer;
+      };
+    }
+
+    function wrapCallback(call, index, callback) {
+      return function () {
+        var callbacks = call.callbacks || (call.callbacks = []);
+        callbacks.push({ arg: index, args: serialised(Array.prototype.slice.call(arguments)) });
+        return callback.apply(this, arguments);
+      };
+    }
+
+    var wrappedModules = {};
+    // Every stand-in handed out, so a module reached by two roads (TurboModuleRegistry asks
+    // NativeModules) is wrapped once and each call noted once.
+    var standIns = typeof WeakSet === 'function' ? new WeakSet() : null;
+    function wrapModule(moduleName, module, fromExpo) {
+      if (!module || (typeof module !== 'object' && typeof module !== 'function')) return module;
+      if (NOT_RECORDED[moduleName]) return module;
+      if (standIns && standIns.has(module)) return module;
+      var known = wrappedModules[moduleName];
+      if (known && known.module === module) return known.standIn;
+      var methods = {};
+      var standIn = new Proxy(module, {
+        get: function (target, key) {
+          var value = target[key];
+          if (typeof key !== 'string') return value;
+          if (typeof value === 'function') {
+            var description = null;
+            try {
+              description = Object.getOwnPropertyDescriptor(target, key);
+            } catch (_) {
+              // A host object may refuse the look: the method is then wrapped as any other.
+            }
+            // A frozen property must be handed back as it is, or the Proxy throws.
+            if (description && description.configurable === false && !description.writable) {
+              return value;
+            }
+            var cached = methods[key];
+            if (cached && cached.method === value) return cached.wrapper;
+            var wrapper = wrapMethod(moduleName, key, value, target, fromExpo);
+            methods[key] = { method: value, wrapper: wrapper };
+            return wrapper;
+          }
+          // A constant the module carries: noted once a story, as a call of its name.
+          var constantKey = 'constant ' + moduleName + '.' + key;
+          if (!recorder.notedInStory[constantKey]) {
+            recorder.notedInStory[constantKey] = true;
+            keep('nativeCalls', {
+              module: moduleName,
+              method: key,
+              args: [],
+              kind: 'sync',
+              answer: serialised(value),
+            });
+          }
+          return value;
+        },
+      });
+      wrappedModules[moduleName] = { module: module, standIn: standIn };
+      if (standIns) standIns.add(standIn);
+      return standIn;
+    }
+
+    // A lookup that hands out a native module by name. Whether it found one changes what the app
+    // draws, so each lookup is noted once a story; the module goes out as its recording stand-in.
+    function wrapLookup(lookupModule, lookupName, real, fromExpo) {
+      return function (moduleName) {
+        var noted = typeof moduleName === 'string' && !NOT_RECORDED[moduleName];
+        var lookupKey = 'lookup ' + lookupModule + '.' + lookupName + '(' + moduleName + ')';
+        var lookup = { module: lookupModule, method: lookupName, args: [moduleName], kind: 'sync' };
+        if (noted && !recorder.notedInStory[lookupKey]) {
+          recorder.notedInStory[lookupKey] = true;
+          keep('nativeCalls', lookup);
+        }
+        var module;
+        if (fromExpo) recorder.expoLookups++;
+        try {
+          module = real.apply(this, arguments);
+        } catch (failure) {
+          lookup.threw = serialised(failure);
+          throw failure;
+        } finally {
+          if (fromExpo) recorder.expoLookups--;
+        }
+        lookup.answer = module == null ? null : { $: 'module' };
+        return noted ? wrapModule(moduleName, module, fromExpo) : module;
+      };
+    }
+
+    // Lays `wrapper` as `exportName` of the module's exports: assigned, or else defined anew.
+    function replaceExport(module, exportName, wrapper) {
+      try {
+        module.exports[exportName] = wrapper;
+      } catch (_) {
+        // A read-only export: it is defined anew below.
+      }
+      if (module.exports[exportName] === wrapper) return;
+      Object.defineProperty(module.exports, exportName, {
+        value: wrapper,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    }
+
+    function wrapLookups(lookupModule, names, fromExpo) {
+      return function (module) {
+        names.forEach(function (name) {
+          var real = module.exports[name];
+          if (typeof real === 'function') {
+            replaceExport(module, name, wrapLookup(lookupModule, name, real, fromExpo));
+          }
+        });
+        if (fromExpo) watchExpoModules();
+      };
+    }
+
+    // NativeModules hands out each module as a property of its default export, which Babel may
+    // lay as a getter: the exports are then laid again around a Proxy of it.
+    function wrapNativeModules(module) {
+      var real = module.exports.default;
+      if (!real) return;
+      var wrapped = new Proxy(
+        {},
+        {
+          get: function (_, key) {
+            var nativeModule = real[key];
+            return typeof key === 'string' ? wrapModule(key, nativeModule, false) : nativeModule;
+          },
+          has: function (_, key) {
+            return key in real;
+          },
+        }
+      );
+      try {
+        module.exports.default = wrapped;
+      } catch (_) {
+        // A getter export: the exports are laid again below.
+      }
+      if (module.exports.default === wrapped) return;
+      var exportsAgain = { __esModule: true };
+      Object.keys(module.exports).forEach(function (key) {
+        exportsAgain[key] = module.exports[key];
+      });
+      exportsAgain.default = wrapped;
+      module.exports = exportsAgain;
+    }
+
+    // Every device event native sends to the JavaScript goes out through the emitter's `emit`. It is
+    // not recorded, and what it told the JavaScript stays (the app's state, the screen's size), so
+    // it blinds the story it lands in before that story's picture and every story that starts
+    // after it. A listener alone changes nothing until an event comes.
+    function keepDeviceEventInStory(road) {
+      // An event the app got before the first story is already carried by every story.
+      if (recorder.notedInLaunch['blind expoNativeEvent ' + road]) return;
+      keepBlindRoadOnce('expoNativeEvent', road, false);
+    }
+    // Sherlo's own messages are the SDK talking, not the app. The polyfill runs before any module,
+    // so it cannot import their names: the same names as src/connection/appLine.ts (MESSAGE_EVENT)
+    // and src/mocking/networkNative.ts (UNANSWERED_EVENT), held to them by the recorder's test.
+    var SHERLO_OWN_DEVICE_EVENTS = { SherloMessage: true, SherloUnansweredRequest: true };
+    function noteDeviceEvent(eventName) {
+      if (SHERLO_OWN_DEVICE_EVENTS[eventName] === true) return;
+      var road = 'deviceEvent:' + eventName;
+      var story = recorder.story;
+      if (story === null) {
+        keepBlindRoadOnce('expoNativeEvent', road, true);
+        return;
+      }
+      recorder.deviceEventsForLaterStories[road] = true;
+      if (recorder.picturesAt[story] === undefined) keepDeviceEventInStory(road);
+    }
+    function watchDeviceEvents(module) {
+      var emitter = module.exports.default;
+      var emit = emitter && emitter.emit;
+      if (typeof emit !== 'function') return;
+      emitter.emit = function (eventName) {
+        try {
+          noteDeviceEvent(String(eventName));
+        } catch (_) {
+          // Recording never stops an event: this one goes on unmarked.
+        }
+        return emit.apply(this, arguments);
+      };
+    }
+
+    var roadHooks = {
+      'react-native/Libraries/TurboModule/TurboModuleRegistry.js': wrapLookups(
+        'TurboModuleRegistry',
+        ['get', 'getEnforcing'],
+        false
+      ),
+      'react-native/Libraries/BatchedBridge/NativeModules.js': wrapNativeModules,
+      'expo-modules-core/src/requireNativeModule.ts': wrapLookups(
+        'expo',
+        ['requireNativeModule', 'requireOptionalNativeModule'],
+        true
+      ),
+      'react-native/Libraries/EventEmitter/RCTDeviceEventEmitter.js': watchDeviceEvents,
+    };
+    // Called by the line each road's file ends with, as that file's module finishes running.
+    global.__sherloNativeRoad = function (road, module) {
+      var hook = roadHooks[road];
+      if (!hook || !module || !module.exports) return;
+      try {
+        hook(module);
+      } catch (_) {
+        // A road that cannot be wrapped is left as it is: the app runs on, its calls unrecorded.
+      }
+    };
+
+    // The Fabric renderer's commit of the tree, handed over by the line rewritten in it.
+    global.__sherloCommitRoad = function (completeRoot) {
+      recorder.rendererRoads.commit = true;
+      return function () {
+        keep('commits', {});
+        return completeRoot.apply(this, arguments);
+      };
+    };
+
+    // The Fabric renderer's event entry: every event a view sends passes here, with the view it
+    // came from, before React runs it.
+    global.__sherloViewEventRoad = function (dispatchEvent) {
+      recorder.rendererRoads.viewEvents = true;
+      return function (target, type, nativeEvent) {
+        try {
+          keep('viewEvents', viewEventOf(target, type, nativeEvent));
+        } catch (_) {
+          // Recording never stops an event: this one goes on unrecorded.
+        }
+        return dispatchEvent.apply(this, arguments);
+      };
+    };
+
+    function viewEventOf(target, type, nativeEvent) {
+      var canonical = target && target.stateNode && target.stateNode.canonical;
+      var viewName = canonical && canonical.viewConfig && canonical.viewConfig.uiViewClassName;
+      var place = null;
+      try {
+        place = recorder.placeOfView(target);
+      } catch (_) {
+        // A view whose place cannot be read is written down as outside the story.
+      }
+      return {
+        component: viewName || (target && typeof target.type === 'string' ? target.type : ''),
+        event: String(type),
+        payload: serialised(nativeEvent),
+        place: place,
+      };
+    }
+
+    // Expo's modules, read straight from global.expo.modules: a read outside Expo's own lookup
+    // skipped it, so its module's calls go unrecorded. Watched as soon as the global is there.
+    function watchExpoModules() {
+      var expo = global.expo;
+      var modules = expo && expo.modules;
+      if (!modules || modules === recorder.watchedExpoModules) return;
+      var watched = new Proxy(modules, {
+        get: function (target, key) {
+          var module = target[key];
+          if (recorder.expoLookups === 0 && typeof key === 'string' && module != null) {
+            keepBlindRoadOnce('expoSkippedLookup', key, false);
+          }
+          return module;
+        },
+      });
+      try {
+        expo.modules = watched;
+      } catch (_) {
+        // Expo's modules cannot be replaced: reads that skip the lookup then go unseen.
+      }
+      if (expo.modules === watched) recorder.watchedExpoModules = watched;
+    }
+
+    // Globals that appeared since the bundle began: a library's native install (a worklet runtime,
+    // a native function, a host object) shows here. Never a getter: reading one may run it.
+    var globalsSeen = {};
+    var namesOfGlobals = function () {
+      try {
+        return Object.getOwnPropertyNames(global);
+      } catch (_) {
+        // A global object that refuses the look shows no new names.
+        return [];
+      }
+    };
+    // What native installed before the bundle began cannot be told from the app's own globals here,
+    // so every one is handed over with each story, by name, for the quick check to judge.
+    namesOfGlobals().forEach(function (name) {
+      globalsSeen[name] = true;
+      if (name.indexOf('__sherlo') === 0) return;
+      keepBlindRoadOnce('jsiGlobal', 'atStart:' + name, true);
+    });
+    function isInstalledByNative(value) {
+      if (typeof value === 'function') {
+        var source = Function.prototype.toString.call(value);
+        return source.indexOf('[native code]') !== -1 && String(value.name).indexOf('bound ') !== 0;
+      }
+      return !!value && typeof value === 'object' && Object.getPrototypeOf(value) === null;
+    }
+    function noteNewGlobals() {
+      namesOfGlobals().forEach(function (name) {
+        if (globalsSeen[name]) return;
+        globalsSeen[name] = true;
+        if (name.indexOf('__sherlo') === 0 || name === 'expo') return;
+        var description = Object.getOwnPropertyDescriptor(global, name);
+        if (!description || !('value' in description)) return;
+        if (!isInstalledByNative(description.value)) return;
+        keepBlindRoadOnce(/worklet/i.test(name) ? 'workletRuntime' : 'jsiGlobal', name, true);
+      });
+    }
+
+    function lookAround() {
+      noteNewGlobals();
+      watchExpoModules();
+    }
+
+    function startStory(storyId, placeOfView) {
+      lookAround();
+      recorder.kept = recorder.kept.filter(function (kept) {
+        return kept.story !== storyId;
+      });
+      delete recorder.picturesAt[storyId];
+      recorder.notedInStory = {};
+      recorder.story = storyId;
+      Object.keys(recorder.deviceEventsForLaterStories).forEach(keepDeviceEventInStory);
+      if (typeof placeOfView === 'function') recorder.placeOfView = placeOfView;
+    }
+
+    function copyOf(entry) {
+      var copy = {};
+      Object.keys(entry).forEach(function (key) {
+        copy[key] = entry[key];
+      });
+      return copy;
+    }
+
+    // The story's recording so far: what came before the first story and the story's own. The
+    // first read is the picture moment.
+    function readStory(storyId) {
+      lookAround();
+      var roads = recorder.rendererRoads;
+      // A renderer that did not take its roads hides the commits and the events of the views.
+      if (!roads.commit || !roads.viewEvents) {
+        keepBlindRoadOnce('jsiGlobal', 'nativeFabricUIManager', true);
+      }
+      if (recorder.picturesAt[storyId] === undefined)
+        recorder.picturesAt[storyId] = recorder.order++;
+      var pictureAt = recorder.picturesAt[storyId];
+      var recording = {
+        storyId: storyId,
+        nativeCalls: [],
+        viewEvents: [],
+        commits: [],
+        pictureAt: pictureAt,
+        blindRoads: [],
+      };
+      recorder.kept.forEach(function (kept) {
+        if (kept.story !== null && kept.story !== storyId) return;
+        if (kept.list === 'commits') {
+          recording.commits.push(kept.entry.order);
+          return;
+        }
+        var copy = copyOf(kept.entry);
+        if (kept.list === 'nativeCalls') copy.afterPicture = copy.order > pictureAt;
+        recording[kept.list].push(copy);
+      });
+      return recording;
+    }
+
+    watchExpoModules();
+    global.__sherloNativeRecorder = { startStory: startStory, readStory: readStory };
+  }
 })();

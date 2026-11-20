@@ -3,8 +3,18 @@ import type { StoryMocks } from '../mocking/mockDeclaration';
 
 import type { Snapshot as SnapshotTheCoreWrites } from '../sealedCore/seam';
 
-// The runner's story entries and the inspector's reading cross the seam, so they are declared there.
-export type { InspectorData, InspectorDataNode, SnapshotMode, StoryId } from '../sealedCore/seam';
+// The runner's story entries, the inspector's reading and the story's recording cross the seam, so
+// they are declared there.
+export type {
+  InspectorData,
+  InspectorDataNode,
+  RecordedBlindRoad,
+  RecordedNativeCall,
+  RecordedViewEvent,
+  SnapshotMode,
+  StoryId,
+  StoryRecording,
+} from '../sealedCore/seam';
 
 /**
  * One story entry of a run, as the core writes it, with its `sherloParameters` typed as the story
@@ -117,70 +127,3 @@ export type StorybookParams = StorybookParamsRaw extends infer U
  * you need to disable animations or mock data during test runs.
  */
 export type StorybookViewMode = 'testing' | 'default' | 'storybook';
-
-/**
- * What the real phone did for one story during a capture: every call to native code, every event a
- * native view sent back, the commits, the moment of the picture and the roads it could not record.
- * The quick check replays it. No library is named in it. Every order number counts from 0 across
- * calls, events, commits and blind roads together.
- */
-export type StoryRecording = {
-  /** The blind roads the story touched: any one makes the story captured, never vouched for. */
-  blindRoads: RecordedBlindRoad[];
-  /** The order numbers at which React committed the tree, in order. */
-  commits: number[];
-  /** Every native module call the story made, in the order made. */
-  nativeCalls: RecordedNativeCall[];
-  /** The order number at which the picture was taken: a call with a higher number is marked `afterPicture`. */
-  pictureAt: number;
-  /** The story's id as Storybook names it. */
-  storyId: string;
-  /** Every event a native view sent to JS during the story, in the order sent. */
-  viewEvents: RecordedViewEvent[];
-};
-
-/** One call from JS to a native module, with what native answered. */
-export type RecordedNativeCall = {
-  /** True when the call came after the picture was taken. */
-  afterPicture: boolean;
-  /** The arguments as the call passed them, written as plain JSON values. */
-  args: unknown[];
-  /** Whether the call returned at once (`sync`) or answered later (`async`: a promise or a callback). */
-  kind: 'async' | 'sync';
-  /** The module's method that was called. */
-  method: string;
-  /** The native module's name as the app asked for it. */
-  module: string;
-  /** This event's place in the recording's one order. */
-  order: number;
-  /** What native returned, or what the promise resolved with; none when it threw. */
-  answer?: unknown;
-  /** The callbacks native called, each with the index of the argument it was and what it was given. */
-  callbacks?: { args: unknown[]; arg: number }[];
-  /** The error native threw or the promise rejected with, as a plain JSON value. */
-  threw?: unknown;
-};
-
-/** One event a native view sent to JS. */
-export type RecordedViewEvent = {
-  /** The native view's component name, as the app's tree holds it. */
-  component: string;
-  /** The event as native names it. */
-  event: string;
-  /** This event's place in the recording's one order, so its place among the commits is known. */
-  order: number;
-  /** What the event carried, as a plain JSON value. */
-  payload: unknown;
-  /** The view's place under the story's root: the child index at each level down; null when outside the story. */
-  place: number[] | null;
-};
-
-/** A road native code can be reached by that the recorder cannot write down. */
-export type RecordedBlindRoad = {
-  /** What kind of road it was: a worklet runtime, a global a library installed, an Expo call that skipped the usual lookup, or an Expo native event. */
-  kind: 'expoNativeEvent' | 'expoSkippedLookup' | 'jsiGlobal' | 'workletRuntime';
-  /** This road's place in the recording's one order. */
-  order: number;
-  /** The global's or the module's name, when there is one. */
-  name?: string;
-};
