@@ -17,7 +17,7 @@ async function sherloSdk(): Promise<void> {
   if (installedVersion === cliVersion) {
     printLines([
       renderStepLine({
-        outcome: 'already',
+        outcome: 'done',
         name: 'Installed Sherlo',
         detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${installedVersion}`,
       }),

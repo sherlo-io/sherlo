@@ -30,7 +30,7 @@ Opening your browser to log in to Sherlo...
 
 [2m➤ YN0000: · Yarn 4.3.1[22m
 [2m➤ YN0000: ┌ Resolution step[22m
-[2m➤ YN0035: │ @sherlo/react-native-storybook@<VERSION> Package not found[22m
+[2m➤ YN0035: │ @sherlo/react-native-storybook: Package not found[22m
 [2m➤ YN0035: │   Response Code: 404 (Not Found)[22m
 [2m➤ YN0035: │   Request Method: GET[22m
 [2m➤ YN0035: │   Request URL: https://registry.yarnpkg.com/@sherlo%2freact-native-storybook[22m

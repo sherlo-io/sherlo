@@ -42,6 +42,17 @@ async function storybook({
   ]);
   const command = resolved ? `${resolved.command} ${resolved.args.join(' ')}` : '';
 
+  // WHAT A PERSON TYPES TO DO IT THEMSELVES is the lite install, never create-storybook (a ruling of epic
+  // init-for-agents). BUILD DEBT: the run above still goes through Storybook's own installer.
+  const liteInstall = resolveCommand(packageManager, 'add', [
+    STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
+    '@storybook/react-native-ui-lite',
+    'storybook',
+  ]);
+  const installItYourself = liteInstall
+    ? `${liteInstall.command} ${liteInstall.args.join(' ')}`
+    : '';
+
   // The longest step: a spinner in a terminal, and one line for an agent reading a pipe, so neither
   // takes the wait for a hang.
   const spinner = createSpinner('Installing Storybook...').start();
@@ -55,7 +66,7 @@ async function storybook({
     throwError({
       ...renderInstallFailed({
         installing: 'Storybook',
-        command,
+        command: installItYourself,
         failedOutput: getFailedCommandOutput(error),
       }),
       errorToReport: error as Error,

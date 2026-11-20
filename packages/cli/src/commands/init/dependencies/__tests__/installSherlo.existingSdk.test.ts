@@ -69,7 +69,8 @@ describe('installSherlo with an SDK already installed', () => {
       await installSherlo();
 
       expect(workstationAnswers.addPackage).not.toHaveBeenCalled();
-      expect(printedText()).toContain(`${SDK} ${spec} (already done)`);
+      expect(printedText()).toContain(`${SDK} ${spec}`);
+      expect(printedText()).not.toContain('already done');
       expect(readPackageJson()).toEqual(packageJson);
     }
   });
@@ -81,7 +82,8 @@ describe('installSherlo with an SDK already installed', () => {
     await installSherlo();
 
     expect(workstationAnswers.addPackage).not.toHaveBeenCalled();
-    expect(printedText()).toContain(`${SDK} ^1.4.0 (already done)`);
+    expect(printedText()).toContain(`${SDK} ^1.4.0`);
+    expect(printedText()).not.toContain('already done');
     expect(readPackageJson()).toEqual(packageJson);
   });
 });

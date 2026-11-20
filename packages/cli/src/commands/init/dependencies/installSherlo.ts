@@ -43,7 +43,7 @@ async function installSherlo(): Promise<void> {
     spinner.stop();
     printLines([
       renderStepLine({
-        outcome: 'already',
+        outcome: 'done',
         name: 'Installed Sherlo',
         detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${existingSdkSpec}`,
       }),

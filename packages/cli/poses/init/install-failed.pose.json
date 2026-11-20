@@ -91,7 +91,7 @@
     "install": {
       "package": "@sherlo/react-native-storybook@2.0.2",
       "failed": {
-        "stdout": "➤ YN0000: · Yarn 4.3.1\n➤ YN0000: ┌ Resolution step\n➤ YN0035: │ @sherlo/react-native-storybook@npm:^2.0.2: Package not found\n➤ YN0035: │   Response Code: 404 (Not Found)\n➤ YN0035: │   Request Method: GET\n➤ YN0035: │   Request URL: https://registry.yarnpkg.com/@sherlo%2freact-native-storybook\n➤ YN0000: └ Completed in 0s 512ms\n➤ YN0000: · Failed with errors in 0s 518ms\n",
+        "stdout": "➤ YN0000: · Yarn 4.3.1\n➤ YN0000: ┌ Resolution step\n➤ YN0035: │ @sherlo/react-native-storybook: Package not found\n➤ YN0035: │   Response Code: 404 (Not Found)\n➤ YN0035: │   Request Method: GET\n➤ YN0035: │   Request URL: https://registry.yarnpkg.com/@sherlo%2freact-native-storybook\n➤ YN0000: └ Completed in 0s 512ms\n➤ YN0000: · Failed with errors in 0s 518ms\n",
         "stderr": ""
       }
     },
