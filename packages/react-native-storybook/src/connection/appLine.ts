@@ -33,8 +33,11 @@ import { SHERLO_PROTOCOL_VERSION } from '../sealedCore/seam';
 import SherloModule from '../SherloModule';
 import TurboModule from '../specs/NativeSherloModule';
 
-/** The event native code raises for each message the connection brings, with its JSON. */
-const MESSAGE_EVENT = 'SherloMessage';
+/**
+ * The event native code raises for each message the connection brings, with its JSON. The
+ * polyfill's recorder knows it by name too (metro/polyfill.js, SHERLO_OWN_DEVICE_EVENTS).
+ */
+export const MESSAGE_EVENT = 'SherloMessage';
 
 const nativeModule = TurboModule ?? NativeModules.SherloModule ?? null;
 
