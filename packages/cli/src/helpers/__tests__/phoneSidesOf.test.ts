@@ -56,13 +56,11 @@ describe('the phone sides of a push', () => {
 
     expect(phoneSides.ios).toMatchObject({
       platform: 'ios',
-      linkedModules: ['@sherlo/react-native-storybook'],
       app: { bundleIdentifier: 'io.acme.app' },
       core: { fileName: 'sherlo-core.js', source: '// sherlo-core ios' },
     });
     expect(phoneSides.android).toMatchObject({
       platform: 'android',
-      linkedModules: ['react-native-svg'],
       app: { packageName: 'io.acme.app' },
       core: { source: '// sherlo-core android' },
     });

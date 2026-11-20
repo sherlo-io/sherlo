@@ -160,7 +160,6 @@ describe('phone side upload', () => {
   const PHONE_SIDE_URL = 'http://s3/phone-side';
   const phoneSide = buildPhoneSide({
     platform: 'ios',
-    autolinkedModules: ['react-native-svg@15.0.0'],
     appIdentity: 'io.example.app',
     coreSource: 'core();',
   });
