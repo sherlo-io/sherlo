@@ -1,9 +1,12 @@
 /**
  * STEP 5 - STORYBOOK. A project that has it keeps it as it is. One that has none gets Storybook's
- * lite setup: one native library instead of eight. Storybook's own installer
- * cannot write it, so setup installs the packages and writes `.rnstorybook` from its own copy of
- * Storybook's files, with Storybook's example stories - the stories the first test photographs until
- * the project has stories of its own.
+ * lite setup: no heavy native library. Storybook's own installer has no lite option, so setup runs it
+ * with `--skip-install` (it writes `.rnstorybook` with Storybook's example stories - the stories the
+ * first test photographs until the project has stories of its own - and lists its packages without
+ * installing them), then converts what it wrote: crosses off the heavy native packages it added and
+ * the controls addon (which needs a date picker and a slider), switches `.rnstorybook/index.ts` to the
+ * lite UI and turns lite on in the bundler config, and installs once. Sherlo keeps no copy of
+ * Storybook's files.
  *
  * Its line names the package and version, as Sherlo's line does. It does not say "lite": that changes
  * nothing anyone does next, and the stories guide and `.rnstorybook/index.ts` say it where it matters.
@@ -42,8 +45,9 @@ async function storybook({
   ]);
   const command = resolved ? `${resolved.command} ${resolved.args.join(' ')}` : '';
 
-  // WHAT A PERSON TYPES TO DO IT THEMSELVES is the lite install, never create-storybook (a ruling of epic
-  // init-for-agents). BUILD DEBT: the run above still goes through Storybook's own installer.
+  // WHAT A PERSON TYPES TO DO IT THEMSELVES is the lite install, never create-storybook.
+  // BUILD DEBT: the run above still installs the full setup; build adds --skip-install, the lite
+  // conversion and one install.
   const liteInstall = resolveCommand(packageManager, 'add', [
     STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
     '@storybook/react-native-ui-lite',
