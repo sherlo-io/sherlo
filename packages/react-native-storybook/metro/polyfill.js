@@ -695,11 +695,12 @@
   // a function bound for a second runtime ('workletRuntime', '<handle>.<op>'), a native value the
   // bundle must get unwrapped ('jsiGlobal', 'unrecordable:<handle>.<key>'), a seam not taken
   // ('jsiGlobal' '__turboModuleProxy' or 'nativeFabricUIManager', 'expoNativeEvent'
-  // 'callableModules'). The recorder never changes what the app and native exchange: a native
-  // value a stand-in could not carry back is handed to the bundle as it is, and a stand-in swapped
-  // for its native value where the bundle held it goes unseen from then on, both a blind road of
-  // every story ('jsiGlobal', 'unwrapped:<handle>.<op>', 'unwrapped:<module>' or
-  // 'unwrapped:<handle>'). A throw in the recorder's own work stops the recording, never the app:
+  // 'callableModules'). The recorder never changes what the app and native exchange: a module
+  // whose method native holds fixed is handed to the bundle as it is, and a stand-in swapped for
+  // its native value where the bundle held it goes unseen from then on, both a blind road of every
+  // story ('jsiGlobal', 'unwrapped:<module>' or 'unwrapped:<handle>'). A native value whose
+  // members native holds fixed is recorded as any other: its stand-in stands on a value of the
+  // recorder's own, and native gets back the value itself. A throw in the recorder's own work stops the recording, never the app:
   // every story is then blind ('jsiGlobal', 'recorderStopped').
   function installNativeRecorder() {
     if (typeof Proxy !== 'function' || typeof WeakMap !== 'function') return;
@@ -1277,30 +1278,21 @@
       return nativeOfStandIn.get(value) || value;
     };
 
-    // What the bundle gets of a value a native value handed it (`road`: the handle and the use it
-    // came by): data as it is, written down whole; a promise as one that notes how it settled; a
-    // callback as the bundle's own function; any other object or function as its stand-in, so
-    // nothing reached from native goes unseen, unless a stand-in of it could reach native.
-    function toBundle(value, road) {
+    // What the bundle gets of a value a native value handed it: data as it is, written down whole;
+    // a promise as one that notes how it settled; a callback as the bundle's own function; any
+    // other object or function as its stand-in, so nothing reached from native goes unseen.
+    function toBundle(value) {
       return fromNative(value, function (real) {
         if (typeof Promise === 'function' && real instanceof Promise) return settlingOf(real);
         if (typeof real === 'object' && isData(real)) return real;
-        return asStandIn(real, road);
+        return standInFor(real, nextHandle());
       });
     }
 
-    // A native value as its stand-in; one native code holds a method to goes to the bundle as it
-    // is, and every story is blind on it.
-    function asStandIn(real, road) {
-      if (!hasHeldNativeMethod(real)) return standInFor(real, nextHandle());
-      keepBlindRoadOnce('jsiGlobal', 'unwrapped:' + road, true);
-      return real;
-    }
-
     // Whether the engine holds an own property of the value to a native function, neither
-    // configurable nor writable: a Proxy must hand back that very function, which the bundle then
-    // calls with the stand-in as `this`, and native would get the Proxy. A value that refuses the
-    // look may hold one.
+    // configurable nor writable: a Proxy on the value must hand back that very function, which
+    // the bundle then calls with the Proxy as `this`, and native would get the Proxy. A value that
+    // refuses the look may hold one.
     function hasHeldNativeMethod(value) {
       try {
         return Object.getOwnPropertyNames(value).some(function (key) {
@@ -1324,7 +1316,7 @@
       var settled = promise.then(
         function (value) {
           return quietly(function () {
-            var given = toBundle(value, ref.handle + '.resolve');
+            var given = toBundle(value);
             keep('nativeCalls', {
               module: ref.handle,
               method: 'resolve',
@@ -1538,8 +1530,8 @@
         var self = this;
         var args = Array.prototype.slice.call(arguments);
         var given = quietly(function () {
-          var bundled = args.map(function (arg, index) {
-            return toBundle(arg, ref.handle + '.' + index);
+          var bundled = args.map(function (arg) {
+            return toBundle(arg);
           });
           keep('nativeCalls', {
             module: ref.handle,
@@ -1622,6 +1614,14 @@
       return !!description && description.configurable === false && description.writable === false;
     }
 
+    // A member its stand-in's ground does not hold fixed is reported as one the bundle may change:
+    // the engine refuses a stand-in that reports a fixed member its ground lacks.
+    function asGroundAllows(ground, key, description) {
+      var onGround = Reflect.getOwnPropertyDescriptor(ground, key);
+      if (description && (!onGround || onGround.configurable)) description.configurable = true;
+      return description;
+    }
+
     function descriptorAsRecorded(description) {
       if (!description) return { $: 'undefined' };
       var written = { configurable: description.configurable, enumerable: description.enumerable };
@@ -1634,9 +1634,11 @@
       return written;
     }
 
-    function standInHandler(handle) {
+    // Each use goes to `real`; `ground`, what the stand-in stands on (groundOfStandIn), is read
+    // only where the engine checks an answer against it.
+    function standInHandler(handle, real) {
       return {
-        get: function (real, key, receiver) {
+        get: function (ground, key, receiver) {
           var self = nativeOf(receiver);
           var isNativeUse = quietly(function () {
             return typeof key === 'string' && !isEngineOwn(real, key);
@@ -1644,7 +1646,7 @@
           if (!isNativeUse) return Reflect.get(real, key, self);
           // Held or not, when the look fails: the bundle then gets the value as it is.
           var isHeld = quietly(function () {
-            return isHeldToItsValue(real, key);
+            return isHeldToItsValue(ground, key);
           }, true);
           return noteUse(
             handle,
@@ -1653,10 +1655,10 @@
               return [key];
             },
             function () {
-              return Reflect.get(real, key, self);
+              return Reflect.get(isHeld ? ground : real, key, self);
             },
             function (value) {
-              if (!isHeld) return toBundle(value, handle + '.' + key);
+              if (!isHeld) return toBundle(value);
               // The bundle gets it unwrapped, so its own uses go unseen.
               if (isNativeValue(value) && !refs.get(value)) {
                 keepBlindRoadOnce('jsiGlobal', 'unrecordable:' + handle + '.' + key, false);
@@ -1665,7 +1667,7 @@
             }
           );
         },
-        has: function (real, key) {
+        has: function (_ground, key) {
           if (typeof key !== 'string') return Reflect.has(real, key);
           return noteUse(
             handle,
@@ -1678,7 +1680,7 @@
             }
           );
         },
-        ownKeys: function (real) {
+        ownKeys: function () {
           return noteUse(
             handle,
             'ownKeys',
@@ -1696,8 +1698,10 @@
             }
           );
         },
-        getOwnPropertyDescriptor: function (real, key) {
-          if (typeof key !== 'string') return Reflect.getOwnPropertyDescriptor(real, key);
+        getOwnPropertyDescriptor: function (ground, key) {
+          if (typeof key !== 'string') {
+            return asGroundAllows(ground, key, Reflect.getOwnPropertyDescriptor(real, key));
+          }
           return noteUse(
             handle,
             'getOwnPropertyDescriptor',
@@ -1708,15 +1712,18 @@
               return Reflect.getOwnPropertyDescriptor(real, key);
             },
             function (description) {
-              if (description && description.configurable && 'value' in description) {
-                description.value = toBundle(description.value, handle + '.' + key);
+              asGroundAllows(ground, key, description);
+              // A member a ground of the recorder's own holds fixed, it holds as the bundle got it.
+              var isWrapped = description && (description.configurable || ground !== real);
+              if (isWrapped && 'value' in description) {
+                description.value = toBundle(description.value);
               }
               return description;
             },
             descriptorAsRecorded
           );
         },
-        getPrototypeOf: function (real) {
+        getPrototypeOf: function (ground) {
           return noteUse(
             handle,
             'getPrototypeOf',
@@ -1727,12 +1734,12 @@
               return Reflect.getPrototypeOf(real);
             },
             function (prototype) {
-              if (!Reflect.isExtensible(real)) return prototype;
-              return toBundle(prototype, handle + '.getPrototypeOf');
+              if (!Reflect.isExtensible(ground)) return prototype;
+              return toBundle(prototype);
             }
           );
         },
-        set: function (real, key, value, receiver) {
+        set: function (_ground, key, value, receiver) {
           if (typeof key !== 'string') return Reflect.set(real, key, value, nativeOf(receiver));
           var road = handle + '.set';
           var given = toNative(value, road, true);
@@ -1747,8 +1754,17 @@
             }
           );
         },
-        defineProperty: function (real, key, description) {
-          if (typeof key !== 'string') return Reflect.defineProperty(real, key, description);
+        defineProperty: function (ground, key, description) {
+          // A member the bundle fixes is fixed on the ground too, as the engine asks.
+          var fixOnGround = function (isDefined) {
+            if (isDefined && ground !== real && description.configurable === false) {
+              Reflect.defineProperty(ground, key, description);
+            }
+            return isDefined;
+          };
+          if (typeof key !== 'string') {
+            return fixOnGround(Reflect.defineProperty(real, key, description));
+          }
           var given = {};
           Object.keys(description).forEach(function (field) {
             given[field] = toNative(description[field], handle + '.defineProperty', true);
@@ -1760,12 +1776,17 @@
               return [key, descriptorAsRecorded(description)];
             },
             function () {
-              return Reflect.defineProperty(real, key, given);
+              return fixOnGround(Reflect.defineProperty(real, key, given));
             }
           );
         },
-        deleteProperty: function (real, key) {
-          if (typeof key !== 'string') return Reflect.deleteProperty(real, key);
+        deleteProperty: function (ground, key) {
+          // A member the value lost, a ground of the recorder's own loses too, as the engine asks.
+          var deleteOnGround = function (isDeleted) {
+            if (isDeleted && ground !== real) Reflect.deleteProperty(ground, key);
+            return isDeleted;
+          };
+          if (typeof key !== 'string') return deleteOnGround(Reflect.deleteProperty(real, key));
           return noteUse(
             handle,
             'deleteProperty',
@@ -1773,11 +1794,20 @@
               return [key];
             },
             function () {
-              return Reflect.deleteProperty(real, key);
+              return deleteOnGround(Reflect.deleteProperty(real, key));
             }
           );
         },
-        apply: function (real, self, args) {
+        // The value itself stops taking members, as unrecorded; a ground of the recorder's own
+        // closes with it.
+        preventExtensions: function (ground) {
+          var isPrevented = Reflect.preventExtensions(real);
+          if (isPrevented && ground !== real && Reflect.isExtensible(ground)) {
+            closeGround(ground, real);
+          }
+          return isPrevented;
+        },
+        apply: function (_ground, self, args) {
           var road = handle + '.apply';
           var given = args.map(function (arg) {
             return toNative(arg, road, true);
@@ -1793,11 +1823,11 @@
               return Reflect.apply(real, givenSelf, given);
             },
             function (answer) {
-              return toBundle(answer, road);
+              return toBundle(answer);
             }
           );
         },
-        construct: function (real, args, newTarget) {
+        construct: function (_ground, args, newTarget) {
           var road = handle + '.construct';
           var given = args.map(function (arg) {
             return toNative(arg, road, true);
@@ -1813,8 +1843,8 @@
               return Reflect.construct(real, given, isOwn ? real : newTarget);
             },
             function (made) {
-              return fromNative(made, function (real) {
-                return asStandIn(real, road);
+              return fromNative(made, function (madeReal) {
+                return standInFor(madeReal, nextHandle());
               });
             }
           );
@@ -1822,13 +1852,62 @@
       };
     }
 
+    // What a stand-in stands on: the native value itself, unless the engine holds a member of it
+    // fixed or it takes no new members. A Proxy must answer such a member with that very value,
+    // and a held method would then get the stand-in as `this`; so it stands on an empty object or
+    // function of the recorder's own, never handed to native, and answers every member as any
+    // other. A value that refuses the look stands on one too.
+    function groundOfStandIn(real) {
+      var isFixed = true;
+      try {
+        isFixed =
+          !Object.isExtensible(real) ||
+          Object.getOwnPropertyNames(real).some(function (key) {
+            return isHeldToItsValue(real, key);
+          });
+      } catch (_) {
+        // A host object's: it may hold a member fixed.
+      }
+      if (!isFixed) return real;
+      return typeof real === 'function' ? function () {}.bind(null) : Object.create(null);
+    }
+
+    // A ground of the recorder's own takes no new members once its value takes none: the engine
+    // then checks every answer against the ground, so it first takes the value's prototype and
+    // each member (named by a string) as the bundle gets it, and loses any member the value lacks.
+    // A throw as it is laid is the recorder's own, which stops the recording.
+    function closeGround(ground, real) {
+      quietly(function () {
+        Reflect.ownKeys(ground).forEach(function (key) {
+          if (!Object.prototype.hasOwnProperty.call(real, key)) Reflect.deleteProperty(ground, key);
+        });
+        Object.setPrototypeOf(ground, Object.getPrototypeOf(real));
+        Object.getOwnPropertyNames(real).forEach(function (key) {
+          var onGround = Object.getOwnPropertyDescriptor(ground, key);
+          if (onGround && !onGround.configurable) return;
+          var description = Object.getOwnPropertyDescriptor(real, key);
+          if ('value' in description) description.value = toBundle(description.value);
+          Object.defineProperty(ground, key, description);
+        });
+      });
+      Object.preventExtensions(ground);
+    }
+
     function standInFor(real, handle) {
       var ref = { $: 'native', handle: handle, type: typeof real };
-      var standIn = new Proxy(real, standInHandler(handle));
+      var ground = groundOfStandIn(real);
+      var standIn = new Proxy(ground, standInHandler(handle, real));
       refs.set(real, ref);
       refs.set(standIn, ref);
       standInOfNative.set(real, standIn);
       nativeOfStandIn.set(standIn, real);
+      var isClosed = false;
+      try {
+        isClosed = ground !== real && !Object.isExtensible(real);
+      } catch (_) {
+        // A host object that refuses the look takes new members, as host objects do.
+      }
+      if (isClosed) closeGround(ground, real);
       return standIn;
     }
 
@@ -1887,11 +1966,11 @@
     }
 
     // Lays a native global's stand-in in its place and notes it for every story, before any use of
-    // it; false when the global cannot be replaced, or holds a method a stand-in would break.
+    // it; false when the global cannot be replaced.
     function recordGlobal(name, description) {
       var standIn = fromNative(description.value, function (real) {
         if (!description.writable || !description.enumerable) return real;
-        return hasHeldNativeMethod(real) ? real : standInFor(real, name);
+        return standInFor(real, name);
       });
       if (standIn === description.value) return false;
       try {

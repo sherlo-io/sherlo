@@ -20,19 +20,23 @@ import { MESSAGE_EVENT } from '../connection/appLine';
 import { UNANSWERED_EVENT } from '../mocking/networkNative';
 import { startStoryRecording, storyRecordingOf } from '../nativeRecording';
 
+import {
+  CALLABLE_MODULES,
+  callableModulesSource,
+  DEVICE_EVENT_EMITTER,
+  deviceEventEmitterSource,
+  FABRIC_RENDERER,
+  NATIVE_MODULES,
+  nativeModulesSource,
+  registrySource,
+  rendererSource,
+  TURBO_MODULE_REGISTRY,
+} from './nativeRoadFiles';
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { markNativeRoads } = require('../../metro/mockSpecifierTransformer.js');
 
 const polyfillSource = fs.readFileSync(path.join(__dirname, '../../metro/polyfill.js'), 'utf8');
-
-const TURBO_MODULE_REGISTRY =
-  'node_modules/react-native/Libraries/TurboModule/TurboModuleRegistry.js';
-const NATIVE_MODULES = 'node_modules/react-native/Libraries/BatchedBridge/NativeModules.js';
-const CALLABLE_MODULES = 'node_modules/react-native/Libraries/Core/registerCallableModule.js';
-const FABRIC_RENDERER =
-  'node_modules/react-native/Libraries/Renderer/implementations/ReactFabric-prod.js';
-const DEVICE_EVENT_EMITTER =
-  'node_modules/react-native/Libraries/EventEmitter/RCTDeviceEventEmitter.js';
 
 // The globals of the test's app on the new architecture as its JavaScript begins.
 const GLOBALS_OF_A_NEW_APP = [
@@ -55,64 +59,6 @@ function globalsAtStart(names: string[], recorded: string[] = []) {
 function nativeFunction<T extends object>(implementation: T): T {
   return new Proxy(implementation, {});
 }
-
-// React Native's lookup of native modules, as the bundle has it: it reads the lookup native code
-// installed once, as it loads.
-const registrySource = [
-  'var turboModuleProxy = global.__turboModuleProxy;',
-  'module.exports = {',
-  '  get: function (name) { return turboModuleProxy(name); },',
-  '  getEnforcing: function (name) { return turboModuleProxy(name); },',
-  '};',
-].join('\n');
-
-// React Native's table of native modules on a bridgeless app, which native code installs.
-const nativeModulesSource =
-  'module.exports = { __esModule: true, default: global.nativeModuleProxy };';
-
-// React Native's registration of the modules native code calls into; `registered` stands for the
-// list native code keeps.
-const callableModulesSource = [
-  'var registered = {};',
-  'module.exports = {',
-  '  __esModule: true,',
-  '  registered: registered,',
-  '  default: function (name, moduleOrFactory) {',
-  "    registered[name] = typeof moduleOrFactory === 'function' ? moduleOrFactory : function () {",
-  '      return moduleOrFactory;',
-  '    };',
-  '  },',
-  '};',
-].join('\n');
-
-// The lines of React Native's Fabric renderer the transformer looks for, around a renderer of the
-// test's own: `commit` commits the tree as React does.
-const rendererSource = [
-  'var _nativeFabricUIManage = global.nativeFabricUIManager,',
-  '  completeRoot = _nativeFabricUIManage.completeRoot,',
-  '  registerEventHandler = _nativeFabricUIManage.registerEventHandler;',
-  'function dispatchEvent(target, topLevelType, nativeEvent) {',
-  '  global.eventsReactRan.push(topLevelType);',
-  '}',
-  'registerEventHandler && registerEventHandler(dispatchEvent);',
-  'module.exports = { commit: function () { completeRoot(1, []); } };',
-].join('\n');
-
-// React Native's emitter of device events, as the bundle has it: every event native sends to
-// JavaScript goes out through its `emit`.
-const deviceEventEmitterSource = [
-  'var listeners = {};',
-  'var emitter = {',
-  '  addListener: function (name, listener) {',
-  '    (listeners[name] = listeners[name] || []).push(listener);',
-  '    return { remove: function () {} };',
-  '  },',
-  '  emit: function (name, payload) {',
-  '    (listeners[name] || []).forEach(function (listener) { listener(payload); });',
-  '  },',
-  '};',
-  'module.exports = { __esModule: true, default: emitter };',
-].join('\n');
 
 type App = {
   fakeGlobal: Record<string, any>;
@@ -453,6 +399,78 @@ describe('what the app records for each story', () => {
     expect(heard).toEqual(['focus']);
   });
 
+  it('a native global whose members native holds fixed is recorded with what the bundle reads from it, and native still gets back its own value', () => {
+    class Emitter {
+      constructor(readonly name: string) {}
+      describe() {
+        return `emits ${this.name}`;
+      }
+    }
+    // A native half that installs a global before the bundle runs and holds each of its members
+    // fixed, neither writable nor configurable; its method refuses any `this` but its own object.
+    const refused: string[] = [];
+    const parts = Object.create(null);
+    const holdFixed = (key: string, value: unknown) =>
+      Object.defineProperty(parts, key, { value, enumerable: true });
+    holdFixed('version', '3');
+    holdFixed('Emitter', nativeFunction(Emitter));
+    holdFixed(
+      'ping',
+      nativeFunction(function (this: unknown) {
+        if (this !== parts) refused.push("a held method's this");
+        return 'pong';
+      })
+    );
+    holdFixed(
+      'take',
+      nativeFunction((given: unknown) => {
+        if (given !== parts) refused.push('the global handed back');
+      })
+    );
+    const app = startAppIn('testing', 'new', { nativeParts: parts });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('parts--plain');
+    // The bundle extends the class it reads from the global as it loads.
+    const native = app.fakeGlobal.nativeParts;
+    class StoryEmitter extends native.Emitter {}
+    expect(new StoryEmitter('taps').describe()).toBe('emits taps');
+    expect(native.version).toBe('3');
+    expect(native.ping()).toBe('pong');
+    native.take(native);
+    expect(refused).toEqual([]);
+
+    const recording = storyRecordingOf('parts--plain');
+    const names = [...GLOBALS_OF_A_NEW_APP.slice(0, 4), 'nativeParts', 'nativeFabricUIManager'];
+    expect(recording?.blindRoads).toEqual(globalsAtStart(names, ['nativeParts']));
+    const ref = (handle: string, type = 'function') => ({ $: 'native', handle, type });
+    expect(
+      recording?.nativeCalls.map(({ module, method, args, answer }) => [
+        module,
+        method,
+        args,
+        answer,
+      ])
+    ).toEqual([
+      ['global', 'installed', ['nativeParts'], ref('nativeParts', 'object')],
+      ['nativeParts', 'get', ['Emitter'], ref('#1')],
+      ['#1', 'get', ['prototype'], {}],
+      ['#1', 'construct', [['taps'], { $: 'subclass' }], ref('#2', 'object')],
+      ['#2', 'get', ['describe'], ref('#3')],
+      ['#3', 'apply', [ref('#2', 'object'), []], 'emits taps'],
+      ['nativeParts', 'get', ['version'], '3'],
+      ['nativeParts', 'get', ['ping'], ref('#4')],
+      ['#4', 'apply', [ref('nativeParts', 'object'), []], 'pong'],
+      ['nativeParts', 'get', ['take'], ref('#5')],
+      [
+        '#5',
+        'apply',
+        [ref('nativeParts', 'object'), [ref('nativeParts', 'object')]],
+        { $: 'undefined' },
+      ],
+    ]);
+  });
+
   it('a module lookup is recorded present or absent whichever way it is asked', () => {
     // A library's module table, as native code installs it on a global of its own.
     const library = Object.create(null);
@@ -752,17 +770,21 @@ describe('what the app records for each story', () => {
     expect(handedOut.describe()).toBe('made natively');
     // Its uses go unseen from then on: no story can be vouched for on it.
     startStoryRecording('store--empty');
-    expect(storyRecordingOf('store--empty')?.blindRoads).toEqual(
+    const blindOfEveryStory = storyRecordingOf('store--empty')?.blindRoads;
+    expect(blindOfEveryStory).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: 'jsiGlobal', name: 'unwrapped:#2' }),
-        expect.objectContaining({ kind: 'jsiGlobal', name: 'unwrapped:#5.apply' }),
         expect.objectContaining({ kind: 'jsiGlobal', name: 'recorderStopped' }),
       ])
+    );
+    // The object native holds a method to is recorded through its stand-in, never blind.
+    expect(blindOfEveryStory).not.toContainEqual(
+      expect.objectContaining({ name: expect.stringMatching(/\.apply$/) })
     );
     // A function of the app native may call unseen: the story it ran in cannot be vouched for.
     expect(storyRecordingOf('store--full')?.blindRoads).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: 'jsiGlobal', name: 'unrecordable:#7.apply' }),
+        expect.objectContaining({ kind: 'jsiGlobal', name: 'unrecordable:#9.apply' }),
       ])
     );
   });
@@ -910,6 +932,56 @@ describe('what the app records for each story', () => {
       }
     }
     expect(refused).toEqual([]);
+  });
+
+  it('an app that freezes a native value it was handed goes on as it would unrecorded', () => {
+    // A native value with a member native holds fixed, and a plain one.
+    const makers: Record<string, () => any> = {
+      fixed: () => {
+        const value = Object.create(null);
+        Object.defineProperty(value, 'ping', {
+          value: nativeFunction(() => 'pong'),
+          enumerable: true,
+        });
+        value.count = 1;
+        return value;
+      },
+      plain: () => {
+        const value = Object.create(null);
+        value.ping = nativeFunction(() => 'pong');
+        value.count = 1;
+        return value;
+      },
+    };
+    const ways: Record<string, [(value: any) => unknown, (value: any) => boolean]> = {
+      freeze: [Object.freeze, Object.isFrozen],
+      seal: [Object.seal, Object.isSealed],
+      preventExtensions: [Object.preventExtensions, (value) => !Object.isExtensible(value)],
+    };
+    const reals: Record<string, any> = {};
+    Object.keys(makers).forEach((kind) => {
+      Object.keys(ways).forEach((way) => {
+        reals[`${kind}${way}`] = makers[kind]();
+      });
+    });
+    const app = startAppIn('testing', 'new', reals);
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('values--frozen');
+    Object.keys(reals).forEach((name) => {
+      const [stop, isStopped] = ways[name.replace(/^(fixed|plain)/, '')];
+      const handed = app.fakeGlobal[name];
+      expect(() => stop(handed), name).not.toThrow();
+      expect(isStopped(handed), name).toBe(true);
+      expect(isStopped(reals[name]), name).toBe(true);
+      expect(Object.keys(handed), name).toEqual(['ping', 'count']);
+      expect(handed.ping(), name).toBe('pong');
+      expect(handed.count, name).toBe(1);
+      expect(Object.getOwnPropertyDescriptor(handed, 'count')?.value, name).toBe(1);
+    });
+    expect(storyRecordingOf('values--frozen')?.blindRoads).not.toContainEqual(
+      expect.objectContaining({ name: 'recorderStopped' })
+    );
   });
 
   it('an app whose recorder throws still starts, and its stories are recorded as blind', () => {
