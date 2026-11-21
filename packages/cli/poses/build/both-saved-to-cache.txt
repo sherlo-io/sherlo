@@ -12,8 +12,8 @@
 
 Building your app...
 
-[32m✔[39m Built the Android app  in <DURATION> [2m(log: .sherlo/build-android.log)[22m
-[32m✔[39m Built the iOS app      in <DURATION> [2m(log: .sherlo/build-ios.log)[22m
+[32m✔[39m Built the Android app  [2min <DURATION> (log: .sherlo/build-android.log)[22m
+[32m✔[39m Built the iOS app      [2min <DURATION> (log: .sherlo/build-ios.log)[22m
 
 
 [1m👉 Next step[22m

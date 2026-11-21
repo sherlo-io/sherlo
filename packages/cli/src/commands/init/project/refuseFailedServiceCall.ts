@@ -5,20 +5,43 @@
  * words.
  */
 import { throwError } from '../../../helpers';
+import { renderLoginRejected, renderServiceUnreachable } from '../../../render/initFixes';
+import { renderFailedStepLine } from '../../../render/initSteps';
+import { printLines } from '../helpers';
 import { CreateProjectAuthError } from '../../projectCreate/createProjectRequest';
 import { ListProjectsAuthError } from '../../projectList/listProjectsRequest';
-import { refuseRejectedLogin } from '../../shared';
 import { CreateTeamAuthError } from '../../teamCreate/createTeamRequest';
 import { ListTeamsAuthError } from '../../teamList/listTeamsRequest';
 
-function refuseFailedServiceCall(error: Error): never {
-  const serviceRefusedTheLogin =
+/** Whether the service answered a team or project call by refusing the login it was made with. */
+export function isRefusedLogin(error: unknown): boolean {
+  return (
     error instanceof ListTeamsAuthError ||
     error instanceof ListProjectsAuthError ||
     error instanceof CreateTeamAuthError ||
-    error instanceof CreateProjectAuthError;
+    error instanceof CreateProjectAuthError
+  );
+}
 
-  if (serviceRefusedTheLogin) refuseRejectedLogin();
+/** `failedStep` names the step that stopped, e.g. "Choosing a team failed". */
+function refuseFailedServiceCall(error: Error, failedStep: string): never {
+  // LIKE EVERY STOP, the step that stopped is marked red above the error.
+  if (isRefusedLogin(error)) {
+    printLines(renderFailedStepLine(failedStep));
+    throwError({ ...renderLoginRejected(), errorToReport: error });
+  }
+
+  // A call that never reached the service carries the network's own code (ENOTFOUND, ECONNREFUSED)
+  // on its cause: the fix is the connection, said with that code, not a bug report.
+  const { cause } = error as { cause?: { code?: string; hostname?: string } };
+  if (cause?.code) {
+    // LIKE EVERY STOP, the step that stopped is marked red above the error.
+    printLines(renderFailedStepLine(failedStep));
+    throwError({
+      ...renderServiceUnreachable({ host: cause.hostname, code: cause.code }),
+      errorToReport: error,
+    });
+  }
 
   throwError({ message: error.message, errorToReport: error });
 }

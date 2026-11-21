@@ -29,8 +29,10 @@ import authTokenFor from '../helpers/authTokenFor';
 import liveGitHubTrade from './liveGitHubTrade';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
-import listProjectsRequest from '../commands/projectList/listProjectsRequest';
-import listTeamsRequest from '../commands/teamList/listTeamsRequest';
+import listProjectsRequest, {
+  TeamNotFoundError,
+} from '../commands/projectList/listProjectsRequest';
+import listTeamsRequest, { ListTeamsAuthError } from '../commands/teamList/listTeamsRequest';
 import type { ProjectCreated } from '../render/projectCreated';
 import type { ProjectList } from '../render/projectList';
 import type { TeamCreated } from '../render/teamCreated';
@@ -99,6 +101,12 @@ export type ServerCalls = {
   createTeam(request: { name: string; personalToken: string }): Promise<TeamCreated>;
 
   listTeams(request: { personalToken: string }): Promise<TeamList>;
+
+  /**
+   * Who the personal token belongs to: the name they signed up with, and their email. Setup names
+   * a team it makes for them after them ("Dawid's team").
+   */
+  whoAmI(request: { personalToken: string }): Promise<PersonOfToken>;
 
   listProjects(request: { teamId: string; personalToken: string }): Promise<ProjectList>;
 
@@ -207,6 +215,9 @@ export type FeedbackContext = {
   devices?: Config['devices'];
 };
 
+/** The person a personal token belongs to. `name` is one string, as they signed up with it. */
+export type PersonOfToken = { name: string; email: string };
+
 /** A login the service started for this run: what to open, and what only this run may ask with. */
 export type PendingCliLogin = {
   loginId: string;
@@ -282,6 +293,11 @@ export const liveServerCalls: ServerCalls = {
   createTeam: (request) => createTeamRequest(request),
   listTeams: (request) => listTeamsRequest(request),
   listProjects: (request) => listProjectsRequest(request),
+
+  // BUILD DEBT (init-for-agents): the service has no query a personal token can ask this with yet.
+  whoAmI: async () => {
+    throw new Error('whoAmI is not available yet.');
+  },
 
   openBuild: ({ token, ...request }) => clientFor(token).openBuild(request),
 
@@ -401,7 +417,13 @@ export function installServerCalls(next: ServerCalls): () => void {
 /* ========================================================================== */
 
 /** The error the server sends, as the tool's client surfaces it. */
-export type ApiError = { error: string };
+export type ApiError = {
+  error: string;
+  /** The client's own error kind, where a command answers it apart: a team the person is not in. */
+  errorName?: 'TeamNotFoundError' | 'ListTeamsAuthError';
+  /** A call that never reached the service: the network's own code, as fetch puts it on `cause`. */
+  cause?: { code: string; hostname?: string };
+};
 
 /**
  * What `getBuildStatus` answers: THE WIRE'S OWN SHAPE (../helpers/buildStatusRequest), named here
@@ -661,6 +683,12 @@ export type ScriptedCall =
         | ApiError;
     }
   | {
+      /** Who the personal token belongs to: their name as they signed up with it, and their email. */
+      call: 'whoAmI';
+      with: Record<string, never>;
+      answer: { name: string; email: string } | ApiError;
+    }
+  | {
       call: 'listProjects';
       with: { teamId: string };
       /** `mainBranch` is null while the project has never chosen one. */
@@ -847,7 +875,16 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     // refusal - its wording, its exit code - is what the screen shows.
     const answer = next.answer as Record<string, unknown> | null;
     if (answer !== null && typeof answer === 'object' && 'error' in answer) {
-      throw new Error(String(answer.error));
+      // A team the person is not in is its own kind, as the real client raises it, so setup can
+      // answer it as no access rather than with the service's words.
+      if (answer.errorName === 'TeamNotFoundError') {
+        throw new TeamNotFoundError(String(answer.error));
+      }
+      // A login the service refuses is its own kind too, so setup answers it as a refused login.
+      if (answer.errorName === 'ListTeamsAuthError') {
+        throw new ListTeamsAuthError(String(answer.error));
+      }
+      throw Object.assign(new Error(String(answer.error)), { cause: answer.cause });
     }
 
     return next.answer;
@@ -871,6 +908,8 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     createTeam: async ({ name }) => answerFor('createTeam', { name }) as TeamCreated,
 
     listTeams: async () => answerFor('listTeams', {}) as TeamList,
+
+    whoAmI: async () => answerFor('whoAmI', {}) as PersonOfToken,
 
     listProjects: async ({ teamId }) => answerFor('listProjects', { teamId }) as ProjectList,
 

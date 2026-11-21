@@ -15,7 +15,11 @@
         "expiresAt": "2026-10-01T12:10:00.000Z"
       }
     },
-    { "call": "pollCliLogin", "with": { "loginId": "lg7Qm2Xa" }, "answer": { "status": "pending" } },
+    {
+      "call": "pollCliLogin",
+      "with": { "loginId": "lg7Qm2Xa" },
+      "answer": { "status": "pending" }
+    },
     {
       "call": "pollCliLogin",
       "with": { "loginId": "lg7Qm2Xa" },

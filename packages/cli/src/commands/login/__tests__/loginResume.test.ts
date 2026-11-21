@@ -71,7 +71,7 @@ describe('npx sherlo login, as it waits and resumes', () => {
     expect(pendingLoginIn(logins)).toBeUndefined();
   });
 
-  it("says the login expired at the service's own expiry, never a fixed ten minutes", async () => {
+  it("waits until the service's own expiry, then says the link expired and names no time", async () => {
     // Eleven minutes in, the wait still waits: the service's expiry is fifteen minutes away.
     const pastTenMinutes = await runLogin({
       api: [start(), PENDING, APPROVED],
@@ -80,18 +80,12 @@ describe('npx sherlo login, as it waits and resumes', () => {
     expect(pastTenMinutes.refusal).toBeUndefined();
     expect(plain(pastTenMinutes.printed)).toContain(`Logged in as ${EMAIL}`);
 
-    // Past the service's expiry, the refusal names that expiry.
+    // Past the service's expiry, the refusal says so, with no clock time in it.
     const pastExpiry = await runLogin({ api: [start(), PENDING], clock: [AFTER_EXPIRY] });
     expect(pastExpiry.refusal).toContain(
-      'ERROR: The login expired at 12:15 UTC. Nobody clicked Authorize in time.'
+      'ERROR: The login link expired before anyone clicked Authorize.'
     );
-    expect(pastExpiry.refusal).not.toMatch(/10 minutes|ten minutes/);
-
-    // Another expiry, another time: the words follow the service.
-    const otherExpiry = await runLogin({
-      api: [start('2026-10-01T12:03:00.000Z'), poll({ status: 'expired' })],
-    });
-    expect(otherExpiry.refusal).toContain('ERROR: The login expired at 12:03 UTC.');
+    expect(pastExpiry.refusal).not.toMatch(/\d{1,2}:\d{2}|UTC|10 minutes|ten minutes/);
 
     // An expired login is spent: the next run starts a new one.
     const logins = posedSavedLogins(undefined);
@@ -142,13 +136,12 @@ describe('npx sherlo login, as it waits and resumes', () => {
 
     const elsewhere = await runLogin({ api: [start(), PENDING, APPROVED], terminal: false });
 
-    // Off a terminal nothing is drawn: the plain line stays, and tells an agent it may wait in
-    // the background.
+    // Off a terminal nothing is drawn: the plain line stays, with no separate note under it.
     expect(elsewhere.terminalWrites).toBe('');
     const lines = plainLines(elsewhere.printed);
     const waiting = lines.indexOf('⏳ Waiting for you to click Authorize... (Ctrl+C to stop)');
     expect(waiting).toBeGreaterThanOrEqual(0);
-    expect(lines[waiting + 1]).toContain('in the background');
+    expect(plain(elsewhere.printed)).not.toContain('in the background');
     expect(plain(elsewhere.printed)).toContain(`Logged in as ${EMAIL}`);
   });
 });

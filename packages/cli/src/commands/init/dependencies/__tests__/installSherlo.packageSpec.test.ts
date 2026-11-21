@@ -12,7 +12,7 @@ vi.mock('../../../../helpers/getCwd', () => ({ default: () => projectRoot.path }
 vi.mock('../../../../helpers/reporting', () => ({ default: { captureException: vi.fn() } }));
 vi.mock('../../../../helpers/spinner', () => ({
   default: () => {
-    const spinner = { start: () => spinner, fail: () => spinner, succeed: () => spinner };
+    const spinner = { start: () => spinner, fail: () => spinner, stop: () => spinner };
     return spinner;
   },
 }));

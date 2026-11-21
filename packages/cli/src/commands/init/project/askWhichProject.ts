@@ -8,8 +8,9 @@
  * Every question goes through the workstation seam (../../../seams/workstation). A question left
  * unanswered - Ctrl+C, or a pose that cannot answer - cancels the setup.
  */
-import chalk from 'chalk';
 import { throwError } from '../../../helpers';
+import getAppDomain from '../../../helpers/getAppDomain';
+import { emit } from '../../../helpers/transcriptSink';
 import type { SavedLogin } from '../../../seams/savedLogins';
 import { serverCalls } from '../../../seams/serverCalls';
 import { workstation } from '../../../seams/workstation';
@@ -46,7 +47,7 @@ async function askWhichTeam(
 ): Promise<string> {
   const { teams } = await serverCalls()
     .listTeams({ personalToken: login.token })
-    .catch(refuseFailedServiceCall);
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Choosing a project failed'));
 
   if (teams.length > 0) {
     return cancelSetupWhenUnanswered(
@@ -70,7 +71,7 @@ async function askWhichTeam(
 
   const newTeam = await serverCalls()
     .createTeam({ name: teamName.trim(), personalToken: login.token })
-    .catch(refuseFailedServiceCall);
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Choosing a project failed'));
 
   return newTeam.id;
 }
@@ -82,7 +83,7 @@ async function askWhichProjectOfTheTeam(
 ): Promise<ProjectAddress> {
   const { projects } = await serverCalls()
     .listProjects({ teamId, personalToken: login.token })
-    .catch(refuseFailedServiceCall);
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Choosing a project failed'));
 
   const chosenProject = await cancelSetupWhenUnanswered(
     workstation().chooseOne<number | typeof MAKE_A_NEW_PROJECT>({
@@ -102,13 +103,18 @@ async function askWhichProjectOfTheTeam(
 
   const newProject = await serverCalls()
     .createProject({ name: projectName.trim(), teamId, personalToken: login.token })
-    .catch(refuseFailedServiceCall);
+    .catch((error: Error) => refuseFailedServiceCall(error, 'Choosing a project failed'));
 
-  // The token is never printed here: an agent's log or a CI log would hold it. `project create`
-  // is the command that shows it once.
-  console.log(`Made the project ${chalk.bold(newProject.name)}.`);
-  console.log("  Copy its token from the project's settings in the Sherlo web app.");
-  printAddTokenToCi();
+  // BUILD DEBT (init-for-agents): this interactive step is dead - setup asks nothing now - and goes
+  // with ../steps/teamAndProject's build.
+  emit({
+    kind: 'project-created',
+    project: {
+      name: newProject.name,
+      index: newProject.index,
+      projectPageUrl: `${getAppDomain()}/project?t=${teamId}&p=${newProject.index}`,
+    },
+  });
 
   return { teamId, projectIndex: newProject.index };
 }

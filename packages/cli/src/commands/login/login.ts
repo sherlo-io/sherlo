@@ -20,7 +20,10 @@
 import { printSherloIntro, spinner, throwError } from '../../helpers';
 import { getEndpointUrl } from '../../helpers/buildStatusRequest';
 import { emit } from '../../helpers/transcriptSink';
+import { renderLoginNotFinished } from '../../render/initFixes';
+import { renderFailedStepLine } from '../../render/initSteps';
 import { renderLoginWaitingSpinner } from '../../render/login';
+import { printLines } from '../init/helpers';
 import { browser } from '../../seams/browser';
 import {
   hasExpired,
@@ -61,7 +64,10 @@ export default login;
  * It prints the link and the wait, and nothing after them: what a finished login means is the
  * calling command's to say.
  */
-export async function logInThroughTheBrowser(serviceAddress: string): Promise<SavedLogin> {
+export async function logInThroughTheBrowser(
+  serviceAddress: string,
+  { insideSetup = false }: { insideSetup?: boolean } = {}
+): Promise<SavedLogin> {
   const pendingLogin =
     savedLogins().readPending(serviceAddress) ?? (await startNewLogin(serviceAddress));
 
@@ -73,7 +79,9 @@ export async function logInThroughTheBrowser(serviceAddress: string): Promise<Sa
   // Collected, cancelled, expired or used: the pending login is spent in every one of them.
   savedLogins().removePending(serviceAddress);
 
-  if (answer.status !== 'approved') refuseUnfinishedLogin(answer.status, pendingLogin);
+  if (answer.status !== 'approved') {
+    refuseUnfinishedLogin(answer.status, { insideSetup });
+  }
 
   const newLogin: SavedLogin = { token: answer.token, email: answer.email };
   savedLogins().save(serviceAddress, newLogin);
@@ -166,27 +174,22 @@ async function waitForTheAnswer(pendingLogin: PendingLogin): Promise<FinishedLog
 /** A login that ended without a token: the person cancelled it, or nobody answered in time. */
 function refuseUnfinishedLogin(
   status: 'cancelled' | 'expired' | 'used',
-  pendingLogin: PendingLogin
+  { insideSetup }: { insideSetup: boolean }
 ): never {
   const sentence = {
     cancelled: 'The login was canceled in the browser.',
-    expired: describeExpiry(pendingLogin.expiresAt),
+    // No time: a clock time reads wrong on another person's clock, and the next step is the same.
+    expired: 'The login link expired before anyone clicked Authorize.',
     used: 'This login was already collected by another run.',
   }[status];
+
+  // INSIDE SETUP, LIKE EVERY STOP THERE: the step is marked red, and the fix is setup again.
+  if (insideSetup) {
+    printLines(renderFailedStepLine('Logging in failed'));
+    throwError(renderLoginNotFinished({ sentence }));
+  }
 
   throwError({
     message: `${sentence}\n  Run \`npx sherlo ${LOGIN_COMMAND}\` to start a new one.`,
   });
-}
-
-/**
- * When the login expired, read from the expiry the service gave it - never a fixed number of
- * minutes. Written in UTC, so the same expiry reads the same on every machine.
- */
-function describeExpiry(expiresAt: string): string {
-  const expiry = new Date(expiresAt);
-  if (Number.isNaN(expiry.getTime())) return 'The login expired. Nobody clicked Authorize in time.';
-
-  const hoursAndMinutes = expiry.toISOString().slice(11, 16);
-  return `The login expired at ${hoursAndMinutes} UTC. Nobody clicked Authorize in time.`;
 }

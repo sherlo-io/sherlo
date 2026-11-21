@@ -1,0 +1,41 @@
+{
+  "pose": 1,
+  "argv": ["init"],
+  "files": {
+    "package.json": {
+      "name": "acme",
+      "private": true,
+      "workspaces": ["apps/*", "packages/*"],
+      "packageManager": "yarn@4.3.1"
+    },
+    "apps/shop/package.json": {
+      "name": "acme-shop",
+      "version": "1.0.0",
+      "private": true,
+      "dependencies": { "expo": "^54.0.0", "react": "19.1.0", "react-native": "0.81.5" }
+    },
+    "apps/shop/app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
+    "packages/ui/package.json": {
+      "name": "@acme/ui",
+      "version": "1.0.0",
+      "private": true,
+      "peerDependencies": { "react": "*" }
+    }
+  },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false,
+    "remote": "git@github.com:acme/acme.git"
+  },
+  "bundles": {},
+  "api": [
+    {
+      "call": "trackCliInit",
+      "with": { "event": "0_init" },
+      "answer": { "sessionId": "init-session-1" }
+    }
+  ],
+  "masks": {}
+}

@@ -218,7 +218,7 @@ describe('setup names the project', () => {
     expect(inNoTeam.project).toBe(`${TEAM_ID}/4`);
   });
 
-  it("setup that makes a project prints no token and says to copy it from the project's settings as SHERLO_TOKEN", async () => {
+  it('setup settles a project it made and prints no project token', async () => {
     const newProjectToken = `${'b'.repeat(32)}${TEAM_ID}8`;
 
     const run = await runProjectStep({
@@ -243,12 +243,8 @@ describe('setup names the project', () => {
     );
     expect(run.project).toBe(`${TEAM_ID}/8`);
 
-    const printed = plain(run.printed);
-    expect(printed).not.toContain(newProjectToken);
-    expect(printed).not.toContain('shown once');
-    expect(printed).toContain('Made the project Storefront.');
-    expect(printed).toContain("Copy its token from the project's settings");
-    expect(printed).toContain('Add it to your CI as the SHERLO_TOKEN secret.');
+    // The CI token is made on the project's page in the web app, never printed by setup.
+    expect(plain(run.printed)).not.toContain(newProjectToken);
   });
 
   it('setup given a token never prints it back', async () => {
@@ -309,12 +305,10 @@ describe('setup names the project', () => {
     const created = await runConfigStep({ files: {}, projectToWrite: `${TEAM_ID}/4` });
     expect(created.config).toEqual({
       project: `${TEAM_ID}/4`,
-      devices: [
-        { id: 'iphone.15.pro', osVersion: '17' },
-        { id: 'pixel.7.pro', osVersion: '13' },
-      ],
+      devices: [{ id: 'pixel.7.pro', osVersion: '13' }],
     });
-    expect(plain(created.printed)).toContain(`Added project ${TEAM_ID}/4 to sherlo.config.json`);
+    expect(plain(created.printed)).toContain('Created config');
+    expect(plain(created.printed)).toContain('sherlo.config.json, one device:');
 
     // An older setup's token stays where it was, untouched; the project replaces the old one.
     const olderToken = `${'c'.repeat(32)}${TEAM_ID}2`;
@@ -380,6 +374,7 @@ async function runProjectStep(world: {
   };
   const person: Workstation = {
     addPackage: () => Promise.reject(new Error('the project step installs nothing')),
+    installStorybook: () => Promise.reject(new Error('the project step installs nothing')),
     installPods: () => Promise.reject(new Error('the project step installs nothing')),
     readGit: () => Promise.reject(new Error('the project step reads no git')),
     podsAreCurrent: () => false,
