@@ -14,7 +14,7 @@ Setting up Sherlo...
 
 [31m✖[39m Checking the app failed
 
-[31mERROR: React Native 0.76.9 is too old: Sherlo needs 0.81.0 or newer[39m
+[31mERROR: Expo SDK 54 is too old: Sherlo needs Expo SDK 55 or newer[39m
 
 [0mUpgrading changes the whole app.[0m
 

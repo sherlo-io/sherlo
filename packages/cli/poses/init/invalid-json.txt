@@ -16,7 +16,7 @@ Setting up Sherlo...
 
 [31mERROR: package.json isn't valid JSON[39m
 
-[0mExpected double-quoted property name in JSON at position 122 (line 7 column 3)[0m
+[0mExpected double-quoted property name in JSON at position 123 (line 7 column 3)[0m
 
 [0mFix the file, then run setup again:[0m
 [36m  npx sherlo init[39m

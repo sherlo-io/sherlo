@@ -107,14 +107,14 @@ describe('the checks setup runs before it changes anything', () => {
     );
   });
 
-  it('refuses React Native older than 0.81.0, naming the installed version and the 0.81.0 it needs', async () => {
-    vi.mocked(getPackageVersion).mockReturnValue('0.80.2');
+  it('refuses React Native older than 0.82.0, naming the installed version and the 0.82.0 it needs', async () => {
+    vi.mocked(getPackageVersion).mockReturnValue('0.81.5');
     const { default: validateCorePackagesVersions } = await vi.importActual<
       typeof import('../validateCorePackagesVersions')
     >('../validateCorePackagesVersions');
 
     expect(() => validateCorePackagesVersions()).toThrow(
-      /`react-native` version 0\.80\.2 is not supported \(requires ≥0\.81\.0\)/
+      /`react-native` version 0\.81\.5 is not supported \(requires ≥0\.82\.0\)/
     );
   });
 });

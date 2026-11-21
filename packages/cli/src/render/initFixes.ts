@@ -122,17 +122,26 @@ export function renderReactNativeTooOld({
   current,
   min,
   isExpo,
+  expoSdk,
+  minExpoSdk,
   addReactNativeCommand,
   reader = 'person',
 }: {
   current: string;
   min: string;
   isExpo: boolean;
-  /** The project's package manager adding the oldest supported React Native, e.g. `yarn add react-native@0.81.0`. */
+  /** An Expo app's SDK major, e.g. 54: an Expo user knows the SDK number, not the React Native one. */
+  expoSdk?: number;
+  minExpoSdk: number;
+  /** The project's package manager adding the oldest supported React Native, e.g. `yarn add react-native@0.82.0`. */
   addReactNativeCommand: string;
   reader?: FeedbackReader;
 }): InitRefusal {
-  return refusal(`React Native ${current} is too old: Sherlo needs ${min} or newer`, [
+  const title =
+    isExpo && expoSdk !== undefined
+      ? `Expo SDK ${expoSdk} is too old: Sherlo needs Expo SDK ${minExpoSdk} or newer`
+      : `React Native ${current} is too old: Sherlo needs ${min} or newer`;
+  return refusal(title, [
     words('Upgrading changes the whole app.'),
     ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK.")] : []),
     '',

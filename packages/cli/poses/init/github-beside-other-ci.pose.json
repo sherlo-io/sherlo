@@ -13,9 +13,9 @@
       },
       "dependencies": {
         "@storybook/react-native": "^10.6.0",
-        "expo": "^54.0.0",
-        "react": "19.1.0",
-        "react-native": "0.81.5",
+        "expo": "~58.0.26",
+        "react": "19.3.0",
+        "react-native": "0.88.1",
         "storybook": "^10.6.0"
       },
       "packageManager": "yarn@4.3.1"
@@ -27,11 +27,11 @@
     ".circleci/config.yml": "version: 2.1\njobs:\n  test:\n    docker:\n      - image: cimg/node:24.0\n    steps:\n      - checkout\n      - run: yarn install --immutable\n      - run: yarn test\n",
     "node_modules/react-native/package.json": {
       "name": "react-native",
-      "version": "0.81.5",
+      "version": "0.88.1",
       "main": "index.js"
     },
     "node_modules/react-native/index.js": "",
-    "node_modules/expo/package.json": { "name": "expo", "version": "54.0.0", "main": "index.js" },
+    "node_modules/expo/package.json": { "name": "expo", "version": "58.0.26", "main": "index.js" },
     "node_modules/expo/index.js": "",
     "node_modules/@storybook/react-native/package.json": {
       "name": "@storybook/react-native",

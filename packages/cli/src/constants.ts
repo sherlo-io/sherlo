@@ -57,9 +57,10 @@ export const WRITING_STORIES_GUIDE = `node_modules/${SHERLO_REACT_NATIVE_STORYBO
 /** Both ways of letting Sherlo open Storybook, per kind of app, shipped in the SDK beside the stories guide. */
 export const STORYBOOK_SETUP_GUIDE = `node_modules/${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME}/guides/storybook-setup.md`;
 
-export const MIN_REACT_NATIVE_VERSION = '0.81.0';
-/** The oldest published 8.x: 8.0.0 was never published (npm view, 2026-10-29). */
-export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '8.3.5';
+/** The first React Native that runs only on the New Architecture; Expo SDK 55 is the first Expo on it. */
+export const MIN_REACT_NATIVE_VERSION = '0.82.0';
+export const MIN_EXPO_SDK = 55;
+export const MIN_STORYBOOK_REACT_NATIVE_VERSION = '9.0.0';
 
 /* COMMANDS */
 

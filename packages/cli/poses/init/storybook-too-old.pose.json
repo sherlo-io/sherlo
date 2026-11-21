@@ -8,25 +8,25 @@
       "private": true,
       "main": "index.ts",
       "dependencies": {
-        "@storybook/react-native": "^7.6.20",
-        "expo": "^54.0.0",
-        "react": "19.1.0",
-        "react-native": "0.81.5"
+        "@storybook/react-native": "^8.6.4",
+        "expo": "~55.0.32",
+        "react": "19.2.0",
+        "react-native": "0.83.10"
       },
       "packageManager": "yarn@4.3.1"
     },
     "app.json": { "expo": { "name": "Acme Shop", "slug": "acme-shop" } },
     "node_modules/react-native/package.json": {
       "name": "react-native",
-      "version": "0.81.5",
+      "version": "0.83.10",
       "main": "index.js"
     },
     "node_modules/react-native/index.js": "",
-    "node_modules/expo/package.json": { "name": "expo", "version": "54.0.0", "main": "index.js" },
+    "node_modules/expo/package.json": { "name": "expo", "version": "55.0.32", "main": "index.js" },
     "node_modules/expo/index.js": "",
     "node_modules/@storybook/react-native/package.json": {
       "name": "@storybook/react-native",
-      "version": "7.6.20",
+      "version": "8.6.4",
       "main": "index.js"
     },
     "node_modules/@storybook/react-native/index.js": ""

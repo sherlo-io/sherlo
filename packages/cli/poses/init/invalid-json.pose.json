@@ -2,7 +2,7 @@
   "pose": 1,
   "argv": ["init"],
   "files": {
-    "package.json": "{\n  \"name\": \"acme-shop\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\n    \"expo\": \"^54.0.0\",\n    \"react-native\": \"0.81.5\",\n  }\n}\n"
+    "package.json": "{\n  \"name\": \"acme-shop\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\n    \"expo\": \"~58.0.26\",\n    \"react-native\": \"0.88.1\",\n  }\n}\n"
   },
   "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
   "git": {

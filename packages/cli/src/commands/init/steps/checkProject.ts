@@ -7,6 +7,7 @@
  */
 import {
   EXPO_PACKAGE_NAME,
+  MIN_EXPO_SDK,
   MIN_REACT_NATIVE_VERSION,
   MIN_STORYBOOK_REACT_NATIVE_VERSION,
   REACT_NATIVE_PACKAGE_NAME,
@@ -64,6 +65,9 @@ async function checkTheApp(): Promise<CheckedProject> {
         current: reactNativeVersion,
         min: MIN_REACT_NATIVE_VERSION,
         isExpo: !!expoVersion,
+        // BUILD DEBT (init-for-agents): read the installed Expo's major, as React Native's is read.
+        expoSdk: expoVersion ? Number.parseInt(expoVersion.replace(/^\D*/, ''), 10) : undefined,
+        minExpoSdk: MIN_EXPO_SDK,
         addReactNativeCommand: await packageManagerCommand('add', [
           `${REACT_NATIVE_PACKAGE_NAME}@${MIN_REACT_NATIVE_VERSION}`,
         ]),
