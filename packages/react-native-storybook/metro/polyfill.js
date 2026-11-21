@@ -671,7 +671,10 @@
   // - A global native code installed, whether before the bundle or during a recorded call:
   //   { module: 'global', method: 'installed', args: [name], answer: { $: 'native', handle: name,
   //   type: 'object' or 'function' } }, before any use of it: one there before the first story
-  //   belongs to every story, one a call installed follows that call.
+  //   belongs to every story, one a call installed follows that call. A global holding data as
+  //   the bundle began is the same entry with the data written down as its answer. The globals the
+  //   bundle began with that the engine or the bundle's own code made come once, ahead of every
+  //   story: { module: 'global', method: 'notFromThePhone', args: [name, ...], kind: 'sync' }.
   // - Each use of a native value: module is the value's handle, method the operation, args its
   //   arguments: 'get' [key], 'has' [key], 'ownKeys' [], 'getOwnPropertyDescriptor' [key],
   //   'getPrototypeOf' [], 'set' [key, value], 'defineProperty' [key, descriptor],
@@ -689,8 +692,8 @@
   //   is one): { module: 'callable:<name>', method, args, kind: 'async' }. One made during a story
   //   is a blind road ('expoNativeEvent', 'callable:<name>.<method>') of every later story.
   // Views' events go in viewEvents, commits in commits. What cannot be recorded is a blind road,
-  // never left out: a global native code had at the start that is not recordable ('jsiGlobal',
-  // 'atStart:<name>'), a native global first seen outside a recorded call ('jsiGlobal', <name>), a
+  // never left out: a global the bundle began with that is neither recorded nor its own
+  // ('jsiGlobal', 'atStart:<name>'), a native global first seen outside a recorded call ('jsiGlobal', <name>), a
   // value handed to native that cannot be written down ('jsiGlobal', 'unrecordable:<handle>.<op>'),
   // a function bound for a second runtime ('workletRuntime', '<handle>.<op>'), a native value the
   // bundle must get unwrapped ('jsiGlobal', 'unrecordable:<handle>.<key>'), a seam not taken
@@ -1307,8 +1310,19 @@
     // own keys are read (serialise goes by Object.keys), so a member reached through `super` or
     // the prototype is not recorded: the draw meets it unwritten and throws, never draws it wrong.
     function isData(value) {
-      var written = JSON.stringify(serialised(value));
-      return written.indexOf('"$unserialisable"') === -1 && written.indexOf('"handle"') === -1;
+      return isWrittenWhole(serialised(value), false);
+    }
+
+    // Whether a value written down holds nothing left unwritten nor any handle; a function left
+    // unwritten is let pass when `exceptFunctions`.
+    function isWrittenWhole(written, exceptFunctions) {
+      var text = JSON.stringify(written);
+      if (exceptFunctions) text = withoutUnwrittenFunctions(text);
+      return text.indexOf('"$unserialisable"') === -1 && text.indexOf('"handle"') === -1;
+    }
+
+    function withoutUnwrittenFunctions(text) {
+      return text.replace(/"\$unserialisable":"function"/g, '');
     }
 
     function settlingOf(promise) {
@@ -1556,7 +1570,7 @@
     // which has a blind road of its own; one deeper is written as too deep, a blind road too.
     function argumentsAsRecorded(args, road) {
       var written = serialised(args);
-      var unwritten = JSON.stringify(written).replace(/"\$unserialisable":"function"/g, '');
+      var unwritten = withoutUnwrittenFunctions(JSON.stringify(written));
       if (unwritten.indexOf('"$unserialisable"') !== -1) {
         keepBlindRoadOnce('jsiGlobal', 'unrecordable:' + road, false);
       }
@@ -1956,13 +1970,18 @@
       }
     };
 
-    // A global native code installed, as a value the bundle may be handed a stand-in of: a plain
-    // property, there to be read and replaced. Never a getter: reading one may run it.
-    function nativeGlobalOf(name) {
+    // A global as a plain property, there to be read and replaced; never a getter, as reading one
+    // may run it, and never one of React Native's own.
+    function plainGlobalOf(name) {
       if (REACT_NATIVE_GLOBALS[name] === true) return null;
       var description = Object.getOwnPropertyDescriptor(global, name);
-      if (!description || !('value' in description)) return null;
-      return isNativeValue(description.value) ? description : null;
+      return description && 'value' in description ? description : null;
+    }
+
+    // A global native code installed, as a value the bundle may be handed a stand-in of.
+    function nativeGlobalOf(name) {
+      var description = plainGlobalOf(name);
+      return description && isNativeValue(description.value) ? description : null;
     }
 
     // Lays a native global's stand-in in its place and notes it for every story, before any use of
@@ -1979,30 +1998,52 @@
         // A global that cannot be replaced is checked below.
       }
       if (global[name] !== standIn) return false;
-      keep(
-        'nativeCalls',
-        {
-          module: 'global',
-          method: 'installed',
-          args: [name],
-          kind: 'sync',
-          answer: refs.get(standIn),
-        },
-        true
-      );
+      keepInstalled(name, refs.get(standIn));
       return true;
     }
 
-    // The globals the bundle began with: each native one is recorded where it can be. Every other
-    // is handed over by name with each story, for the quick check to judge.
+    // A global the bundle was handed, noted for every story with what it held: a native value's
+    // handle, or data written down whole.
+    function keepInstalled(name, answer) {
+      keep(
+        'nativeCalls',
+        { module: 'global', method: 'installed', args: [name], kind: 'sync', answer: answer },
+        true
+      );
+    }
+
+    // The globals the bundle began with. One that is not enumerable the engine laid there, as the
+    // language lays its own; one that is neither native nor data and is written down whole but for
+    // functions of JavaScript source only JavaScript made, and before the recorder only the
+    // bundle's own code runs. Neither is the phone's: both come again wherever the bundle loads,
+    // so their names are handed over once, in one entry every story shares, for the quick check
+    // to find them there. A native one is recorded where it can be, and one holding data as its
+    // value, whoever wrote it. Every other (a getter, a native value that cannot be stood in for,
+    // React Native's own, a value that cannot be written down) is handed over by name with each
+    // story, for the quick check to judge.
     quietly(function () {
+      var notFromThePhone = [];
       namesOfGlobals().forEach(function (name) {
         globalsSeen[name] = true;
         if (name.indexOf('__sherlo') === 0) return;
-        var description = nativeGlobalOf(name);
-        if (description && recordGlobal(name, description)) return;
+        var description = plainGlobalOf(name);
+        if (description && !description.enumerable) return notFromThePhone.push(name);
+        var isNative = !!description && isNativeValue(description.value);
+        if (isNative && recordGlobal(name, description)) return;
+        if (description && !isNative) {
+          var written = serialised(description.value);
+          if (isWrittenWhole(written, false)) return keepInstalled(name, written);
+          if (isWrittenWhole(written, true)) return notFromThePhone.push(name);
+        }
         keepBlindRoadOnce('jsiGlobal', 'atStart:' + name, true);
       });
+      if (notFromThePhone.length > 0) {
+        keep(
+          'nativeCalls',
+          { module: 'global', method: 'notFromThePhone', args: notFromThePhone, kind: 'sync' },
+          true
+        );
+      }
     });
 
     // Globals that appeared since: `asItRan` after a recorded call, whose native code installed
