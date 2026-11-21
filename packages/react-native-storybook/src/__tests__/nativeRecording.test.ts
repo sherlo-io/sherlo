@@ -638,6 +638,324 @@ describe('what the app records for each story', () => {
     );
   });
 
+  it('a value native handed out reaches native again as itself, at any depth and in any container', () => {
+    // A library's native half: it hands out objects of its own and, as a host function does,
+    // refuses anything but the very object it made where it expects one back.
+    const made = Object.create(null);
+    made.describe = nativeFunction(() => 'made natively');
+    // An object native code holds a method to: the bundle calls it with the object as `this`.
+    const sealedMade = Object.create(null);
+    Object.defineProperty(sealedMade, 'whoAmI', {
+      enumerable: true,
+      value: nativeFunction(function (this: unknown) {
+        if (this !== sealedMade) refused.push("a held method's this");
+      }),
+    });
+    const keeper = { keep: () => true };
+    const refused: string[] = [];
+    let deepest = (held: any) => held;
+    const findIn: Record<string, (held: any) => unknown> = {
+      'a class instance': (held) => held.item,
+      'a Map': (held) => held.get('item'),
+      'a Set': (held) => Array.from(held)[0],
+      'a deep object': (held) => deepest(held),
+      'a frozen class instance': (held) => held.item,
+      'a cyclic object': (held) => held.self.item,
+      "a callback's answer": (held) => held(),
+      'a class instance holding a native function': (held) => held.item,
+      'a member of a function that cannot be changed': (held) => held.item,
+      'a carrier whose walk throws': (held) => held.item,
+      'a native object holding a held native method': (held) => held,
+      'a global of the app holding a native function': (held) => held.item,
+      'a Map holding a function of the app': (held) => held.get('item'),
+    };
+    const received: Record<string, unknown> = {};
+    const ofTheApp = () => "the app's own";
+    deepest = (held) => (held.inner ? deepest(held.inner) : held.item);
+    const store = Object.create(null);
+    store.make = nativeFunction(() => made);
+    store.makeSealed = nativeFunction(() => sealedMade);
+    store.take = nativeFunction((where: string, held: unknown) => {
+      const expectedOf: Record<string, unknown> = {
+        'a module': keeper,
+        'a class instance holding a native function': store.make,
+        'a native object holding a held native method': sealedMade,
+        'a global of the app holding a native function': store.make,
+        'a Map holding a function of the app': ofTheApp,
+      };
+      received[where] = held;
+      const expected = where in expectedOf ? expectedOf[where] : made;
+      const found = where === 'a module' ? held : findIn[where](held);
+      if (found !== expected) refused.push(where);
+    });
+    // A callback's answer is not written down, so the one blind road it can have is its own.
+    store.hold = nativeFunction((give: () => { item: unknown }) => {
+      if (give().item !== ofTheApp) refused.push('a class instance holding a function of the app');
+    });
+    const app = startAppIn('testing', 'new', { store });
+    app.fakeGlobal.nativeModulesOfTheTest = { Keeper: keeper };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('store--full');
+    const native = app.fakeGlobal.store;
+    const handedOut = native.make();
+    class Shelf {
+      constructor(readonly item: unknown) {}
+    }
+    const shelf = new Shelf(handedOut);
+    let deep: any = { item: handedOut };
+    for (let level = 0; level < 20; level++) deep = { inner: deep };
+    const cyclic: any = { item: handedOut };
+    cyclic.self = cyclic;
+    native.take('a class instance', shelf);
+    native.take('a Map', new Map([['item', handedOut]]));
+    native.take('a Set', new Set([handedOut]));
+    native.take('a deep object', deep);
+    native.take('a frozen class instance', Object.freeze(new Shelf(handedOut)));
+    native.take('a cyclic object', cyclic);
+    native.take("a callback's answer", () => handedOut);
+    native.take('a module', registry.get('Keeper'));
+    native.take('a class instance holding a native function', new Shelf(native.make));
+    const carrier = () => 'carried';
+    Object.defineProperty(carrier, 'item', { value: handedOut, enumerable: true });
+    native.take('a member of a function that cannot be changed', carrier);
+    const sealed = native.makeSealed();
+    sealed.whoAmI();
+    native.take('a native object holding a held native method', sealed);
+    // A global the app made, holding a stand-in, is the app's own: never taken for native's.
+    app.fakeGlobal.appHelpers = { item: native.make };
+    native.make();
+    native.take('a global of the app holding a native function', app.fakeGlobal.appHelpers);
+    // A function of the app left inside a container changed in place: native calls go unseen.
+    native.hold(() => new Shelf(ofTheApp));
+    native.take('a Map holding a function of the app', new Map([['item', ofTheApp]]));
+    // The recorder's look at one of its members throws: the rest still reaches native as itself.
+    const unreadable = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error('an object of the app refuses the look');
+        },
+      }
+    );
+    native.take('a carrier whose walk throws', Object.assign(new Shelf(handedOut), { unreadable }));
+
+    expect(refused).toEqual([]);
+    // The function the bundle cannot have changed keeps its stand-in; native got a copy.
+    expect((carrier as unknown as { item: unknown }).item).toBe(handedOut);
+    const carried = received['a member of a function that cannot be changed'] as () => string;
+    expect(typeof carried).toBe('function');
+    expect(carried()).toBe('carried');
+    // The app goes on with what it holds, now the native value itself.
+    expect(shelf.item).toBe(made);
+    expect(handedOut.describe()).toBe('made natively');
+    // Its uses go unseen from then on: no story can be vouched for on it.
+    startStoryRecording('store--empty');
+    expect(storyRecordingOf('store--empty')?.blindRoads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'jsiGlobal', name: 'unwrapped:#2' }),
+        expect.objectContaining({ kind: 'jsiGlobal', name: 'unwrapped:#5.apply' }),
+        expect.objectContaining({ kind: 'jsiGlobal', name: 'recorderStopped' }),
+      ])
+    );
+    // A function of the app native may call unseen: the story it ran in cannot be vouched for.
+    expect(storyRecordingOf('store--full')?.blindRoads).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'jsiGlobal', name: 'unrecordable:#7.apply' }),
+      ])
+    );
+  });
+
+  it('a value native hands the bundle by any road reaches native again as itself', async () => {
+    // What native makes, fresh for each road: an object native code holds a method of, and one
+    // whose native method could be swapped.
+    const madeFor = (road: string): object[] => {
+      const sealed = Object.create(null);
+      Object.defineProperty(sealed, 'whoAmI', {
+        enumerable: true,
+        value: nativeFunction(() => road),
+      });
+      const plain = Object.create(null);
+      plain.run = nativeFunction(() => road);
+      return [sealed, plain];
+    };
+    const made: Record<string, object[]> = {};
+    [
+      'a stand-in answer',
+      'a stand-in promise',
+      "a stand-in callback's argument",
+      'a held property',
+      'a constructed value',
+      'a global',
+      'a global installed between stories',
+      'a module answer',
+      'a module promise',
+      "a module callback's argument",
+      'a module constant',
+      'a module',
+      "a callable module's argument",
+    ].forEach((road) => {
+      made[road] = madeFor(road);
+    });
+    // A method of a module the engine holds, as the bundle reads it, and the module table itself.
+    made["a module's held function"] = [() => 'held'];
+    made['the module table'] = [{ Haptics: { impact: nativeFunction(() => true) } }];
+    const at = (road: string, index: number) => made[road][index];
+
+    let got: unknown;
+    const store = Object.create(null);
+    store.take = nativeFunction((value: unknown) => {
+      got = value;
+    });
+    store.answer = nativeFunction((index: number) => at('a stand-in answer', index));
+    store.later = nativeFunction((index: number) =>
+      Promise.resolve(at('a stand-in promise', index))
+    );
+    store.callBack = nativeFunction((index: number, call: (value: unknown) => void) =>
+      call(at("a stand-in callback's argument", index))
+    );
+    store.Made = nativeFunction(function (index: number) {
+      return at('a constructed value', index);
+    });
+    made['a held property'].forEach((value, index) => {
+      Object.defineProperty(store, `held${index}`, { value, enumerable: true });
+    });
+    const maker: Record<string, unknown> = {
+      answer: (index: number) => at('a module answer', index),
+      later: (index: number) => Promise.resolve(at('a module promise', index)),
+      callBack: (index: number, call: (value: unknown) => void) =>
+        call(at("a module callback's argument", index)),
+      constant0: at('a module constant', 0),
+      constant1: at('a module constant', 1),
+    };
+    Object.defineProperty(maker, 'held', {
+      value: at("a module's held function", 0),
+      enumerable: true,
+    });
+    const app = startAppIn('testing', 'new', {
+      store,
+      aGlobal0: at('a global', 0),
+      aGlobal1: at('a global', 1),
+      nativeModuleProxy: at('the module table', 0),
+    });
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      Maker: maker,
+      SealedModule: at('a module', 0),
+      PlainModule: at('a module', 1),
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    const nativeModules = runFile(app, NATIVE_MODULES, nativeModulesSource).default;
+    const receivedByTheApp: unknown[] = [];
+    app.registerCallableModule('Receiver', {
+      receive: (value: unknown) => receivedByTheApp.push(value),
+    });
+    made['a global installed between stories'].forEach((value, index) => {
+      app.fakeGlobal[`lateGlobal${index}`] = value;
+    });
+
+    startStoryRecording('store--full');
+    const native = app.fakeGlobal.store;
+    const makerOfTheApp = registry.get('Maker');
+    const caught = (give: (call: (value: unknown) => void) => void) => {
+      let value: unknown;
+      give((given) => {
+        value = given;
+      });
+      return value;
+    };
+    const reach: Record<string, (index: number) => unknown> = {
+      'a stand-in answer': (index) => native.answer(index),
+      'a stand-in promise': (index) => native.later(index),
+      "a stand-in callback's argument": (index) => caught((call) => native.callBack(index, call)),
+      'a held property': (index) => native[`held${index}`],
+      'a constructed value': (index) => new native.Made(index),
+      'a global': (index) => app.fakeGlobal[`aGlobal${index}`],
+      'a global installed between stories': (index) => app.fakeGlobal[`lateGlobal${index}`],
+      'a module answer': (index) => makerOfTheApp.answer(index),
+      'a module promise': (index) => makerOfTheApp.later(index),
+      "a module callback's argument": (index) =>
+        caught((call) => makerOfTheApp.callBack(index, call)),
+      'a module constant': (index) => makerOfTheApp[`constant${index}`],
+      'a module': (index) => registry.get(['SealedModule', 'PlainModule'][index]),
+      "a callable module's argument": (index) => {
+        app.callableModule('Receiver').receive(at("a callable module's argument", index));
+        return receivedByTheApp.pop();
+      },
+      "a module's held function": () => makerOfTheApp.held,
+      'the module table': () => nativeModules,
+    };
+    class Shelf {
+      constructor(readonly item: unknown) {}
+    }
+    const refused: string[] = [];
+    for (const [road, values] of Object.entries(made)) {
+      for (const [index, value] of values.entries()) {
+        const membersOf = () =>
+          Object.getOwnPropertyNames(value).map((key) => (value as Record<string, unknown>)[key]);
+        const members = membersOf();
+        const reached = reach[road](index);
+        const handedOut = road.endsWith('promise') ? await reached : reached;
+        native.take(handedOut);
+        if (got !== value) refused.push(`${road} ${index}`);
+        // Native gets the shelf with the native value in place, and the app hands that back.
+        const shelf = new Shelf(handedOut);
+        native.take(shelf);
+        native.take(shelf.item);
+        if (got !== value) refused.push(`${road} ${index}, from a shelf`);
+        // Nor is anything inside it changed.
+        if (membersOf().some((member, at) => member !== members[at])) {
+          refused.push(`${road} ${index}, changed inside`);
+        }
+      }
+    }
+    expect(refused).toEqual([]);
+  });
+
+  it('an app whose recorder throws still starts, and its stories are recorded as blind', () => {
+    // A library's native half that refuses a look at what it is made from, as a host object may:
+    // the recorder's own look at it throws.
+    const read = nativeFunction(() => 21);
+    const sensor = new Proxy(Object.create(null), {
+      get: (_, key) => (key === 'read' ? read : undefined),
+      getPrototypeOf: () => {
+        throw new Error('a host object refuses the look');
+      },
+    });
+    // Another native object, recorded before the stop: its method answers only on the very object,
+    // and it keeps what it is handed.
+    let taken: unknown;
+    const meter = Object.create(null);
+    meter.read = nativeFunction(function (this: unknown) {
+      return this === meter ? 21 : 0;
+    });
+    meter.take = nativeFunction((value: unknown) => {
+      taken = value;
+    });
+    const app = startAppIn('testing', 'new', { meter, sensor });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    const meterOfTheApp = app.fakeGlobal.meter;
+
+    // The app starts as it would unrecorded.
+    expect(app.fakeGlobal.sensor.read()).toBe(21);
+
+    startStoryRecording('sensor--first');
+    expect(app.fakeGlobal.sensor.read()).toBe(21);
+    // After the stop, native still meets its own object, as the method's `this` and as a value
+    // the app held from before the stop.
+    expect(meterOfTheApp.read()).toBe(21);
+    meterOfTheApp.take(meterOfTheApp);
+    expect(taken).toBe(meter);
+    const stopped = expect.objectContaining({ kind: 'jsiGlobal', name: 'recorderStopped' });
+    expect(storyRecordingOf('sensor--first')?.blindRoads).toEqual(
+      expect.arrayContaining([stopped])
+    );
+    startStoryRecording('sensor--second');
+    expect(storyRecordingOf('sensor--second')?.blindRoads).toEqual(
+      expect.arrayContaining([stopped])
+    );
+  });
+
   it('a device event delivered as a story runs is recorded in order with its payload', () => {
     const app = startAppIn('testing', 'new');
     runFile(app, FABRIC_RENDERER, rendererSource);
