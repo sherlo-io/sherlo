@@ -64,16 +64,15 @@ function markMockSpecifiers(filename, source) {
   }, source);
 }
 
-// The files that hand native modules to the JavaScript, and the emitter every device event native
-// sends to the JavaScript goes out through. A release bundle names no module by its path, so each
-// is ended with one line that hands its module to the polyfill's recorder (metro/polyfill.js,
+// The file that hands React Native's table of native modules to the JavaScript, which native code
+// installs read-only, and the one every module native code may call into is registered through
+// (every device event goes out that way). A release bundle names no module by its path, so each is
+// ended with one line that hands its module to the polyfill's recorder (metro/polyfill.js,
 // global.__sherloNativeRoad) as it finishes running. The line does nothing where there is no
 // recorder: outside a test run and on the old architecture.
 var NATIVE_ROAD_FILES = [
-  'react-native/Libraries/TurboModule/TurboModuleRegistry.js',
   'react-native/Libraries/BatchedBridge/NativeModules.js',
-  'expo-modules-core/src/requireNativeModule.ts',
-  'react-native/Libraries/EventEmitter/RCTDeviceEventEmitter.js',
+  'react-native/Libraries/Core/registerCallableModule.js',
 ];
 
 // The Fabric renderers take native code's two entries on lines of their own as they load: the

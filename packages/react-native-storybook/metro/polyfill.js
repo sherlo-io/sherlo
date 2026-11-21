@@ -645,17 +645,55 @@
   //
   // Installed only in testing mode (the gate above has returned for 'default' and 'storybook') and
   // only on the new architecture, whose Fabric UI manager is there before the bundle runs: on the
-  // old one nothing is installed and nothing is recorded. The files that reach native code hand
-  // their module over as they finish running (metro/mockSpecifierTransformer.js markNativeRoads):
-  // TurboModuleRegistry's and Expo's lookups and NativeModules are wrapped, and every module they
-  // hand out is a Proxy whose methods note the call and native's answer. The Fabric renderer hands
-  // over its commit and its event entry. global.nativeFabricUIManager itself is never wrapped:
-  // native code reads it back as its own on every event, and a Proxy over it aborts the app. Nor is
-  // global.nativeModuleProxy, which cannot be replaced. What the recorder cannot write down it notes
-  // as a blind road. Every entry takes the next number of one order. The SDK starts and reads each
-  // story's part (src/nativeRecording.ts); what came before the first story belongs to every story.
+  // old one nothing is installed and nothing is recorded. Native code reaches the bundle by four
+  // seams, each watched here: the module lookups (global.__turboModuleProxy, wrapped here, and
+  // NativeModules, the read-only global.nativeModuleProxy handed over by its file), the globals
+  // native code installs, the modules native code calls into (handed over as they are registered)
+  // and the Fabric renderer's commit and event entry (handed over by lines rewritten in it). The
+  // files hand their part over as they finish running (metro/mockSpecifierTransformer.js
+  // markNativeRoads). global.nativeFabricUIManager itself is never wrapped: native code reads it
+  // back as its own on every event, and a Proxy over it aborts the app. The SDK starts and reads
+  // each story's part (src/nativeRecording.ts).
+  //
+  // THE SHAPE OF THE RECORDING. Every entry takes the next number of one order (`order`), and what
+  // came before the first story belongs to every story. A call goes in nativeCalls as
+  // { module, method, args, kind: 'sync' | 'async', answer?, threw?, callbacks? }:
+  // - A module's method: module and method by name. A constant read is a call of its name with no
+  //   arguments, noted once a story; a promise's value or each callback's arguments come later.
+  // - A module lookup, each time it is made, found or not: { module: '__turboModuleProxy' or
+  //   'nativeModuleProxy', method: 'lookup', args: [name], answer: { $: 'module' } or null }; a
+  //   check with `in` on nativeModuleProxy is method 'has', answered true or false.
+  // - A global native code installed, whether before the bundle or during a recorded call:
+  //   { module: 'global', method: 'installed', args: [name], answer: { $: 'native', handle: name,
+  //   type: 'object' or 'function' } }, before any use of it: one there before the first story
+  //   belongs to every story, one a call installed follows that call.
+  // - Each use of a native value: module is the value's handle, method the operation, args its
+  //   arguments: 'get' [key], 'has' [key], 'ownKeys' [], 'getOwnPropertyDescriptor' [key],
+  //   'getPrototypeOf' [], 'set' [key, value], 'defineProperty' [key, descriptor],
+  //   'deleteProperty' [key], 'apply' [this, [arg, ...]] and 'construct' [[arg, ...], newTarget],
+  //   newTarget the value itself or { $: 'subclass' } for a class of the bundle's extending it.
+  //   Symbol keys are not recorded. A descriptor answers { configurable, enumerable, writable?,
+  //   value?, get?: true, set?: true }, and this, when it is the global object, { $: 'global' }.
+  // - A native object or function, in an answer or an argument, is { $: 'native', handle: '#n',
+  //   type }, numbered as first seen; its own uses follow under its handle.
+  // - A function of the bundle handed to native is { $: 'callback', handle: '#n' }; native calling
+  //   it is { module: '#n', method: 'apply', args: [this, [arg, ...]], kind: 'async' }.
+  // - A promise a native value answered is { $: 'promise', handle: '#n' }; as it settles,
+  //   { module: '#n', method: 'resolve' or 'reject', args: [value], kind: 'async' }.
+  // - A call native code makes into a module the bundle registered as callable (every device event
+  //   is one): { module: 'callable:<name>', method, args, kind: 'async' }. One made during a story
+  //   is a blind road ('expoNativeEvent', 'callable:<name>.<method>') of every later story.
+  // Views' events go in viewEvents, commits in commits. What cannot be recorded is a blind road,
+  // never left out: a global native code had at the start that is not recordable ('jsiGlobal',
+  // 'atStart:<name>'), a native global first seen outside a recorded call ('jsiGlobal', <name>), a
+  // value handed to native that cannot be written down ('jsiGlobal', 'unrecordable:<handle>.<op>'),
+  // a function bound for a second runtime ('workletRuntime', '<handle>.<op>'), a native value the
+  // bundle must get unwrapped ('jsiGlobal', 'unrecordable:<handle>.<key>'), a seam not taken
+  // ('jsiGlobal' '__turboModuleProxy' or 'nativeFabricUIManager', 'expoNativeEvent'
+  // 'callableModules').
   function installNativeRecorder() {
-    if (typeof Proxy !== 'function' || !global.nativeFabricUIManager) return;
+    if (typeof Proxy !== 'function' || typeof WeakMap !== 'function') return;
+    if (!global.nativeFabricUIManager) return;
 
     // Sherlo's own module is the SDK talking, not the story: not recorded.
     var NOT_RECORDED = { SherloModule: true };
@@ -666,7 +704,7 @@
       story: null,
       // Each entry, as { story, list, entry }: list is the StoryRecording field it belongs to.
       kept: [],
-      // What the current story already noted once: a lookup, a constant, a blind road.
+      // What the current story already noted once: a constant, a blind road.
       notedInStory: {},
       notedInLaunch: {},
       picturesAt: {},
@@ -674,12 +712,12 @@
         return null;
       },
       rendererRoads: { commit: false, viewEvents: false },
-      // How many of Expo's own lookups are running: a read of Expo's modules outside one skipped it.
-      expoLookups: 0,
-      watchedExpoModules: null,
-      // The device events delivered since the first story began, each a blind road of every story
-      // that starts later.
-      deviceEventsForLaterStories: {},
+      callableRoad: false,
+      // The calls native code made into callable modules since the first story began, each a blind
+      // road of every story that starts later.
+      callsForLaterStories: {},
+      // The number the next native value, callback or promise is handed out under.
+      nextHandle: 1,
     };
 
     function keep(list, entry, shared) {
@@ -700,6 +738,13 @@
       return Object.prototype.toString.call(value);
     };
 
+    // An object of keys and values alone: no prototype, or the plain object's own.
+    function isPlainObject(value) {
+      var proto = Object.getPrototypeOf(value);
+      if (proto === null) return true;
+      return Object.getPrototypeOf(proto) === null && tagOf(value) === '[object Object]';
+    }
+
     // A JSON-safe copy of a value, with every value JSON cannot carry marked by a "$" key.
     function serialise(value, depth, seen) {
       if (value === undefined) return { $: 'undefined' };
@@ -708,6 +753,10 @@
         return isFinite(value) ? value : { $: 'number', value: String(value) };
       if (typeof value === 'bigint') return { $: 'bigint', value: String(value) };
       if (typeof value === 'symbol') return { $unserialisable: 'symbol' };
+      if (value === global) return { $: 'global' };
+      // A native value, a callback or a promise already handed out is written as its handle.
+      var ref = refs.get(value);
+      if (ref) return ref;
       if (typeof value === 'function') return { $unserialisable: 'function' };
       if (depth > MAX_DEPTH) return { $unserialisable: 'too deep' };
       if (seen.indexOf(value) !== -1) return { $unserialisable: 'cycle' };
@@ -732,11 +781,9 @@
             return serialise(item, depth + 1, seen);
           });
         }
-        var proto = Object.getPrototypeOf(value);
-        var plain =
-          proto === null || (Object.getPrototypeOf(proto) === null && tag === '[object Object]');
-        if (!plain) {
-          // A host object, a class instance (an Expo shared object) or anything JSON would flatten.
+        if (!isPlainObject(value)) {
+          // A host object, a class instance or anything JSON would flatten.
+          var proto = Object.getPrototypeOf(value);
           var name = proto && proto.constructor && proto.constructor.name;
           return { $unserialisable: 'object', tag: tag, constructor: name || null };
         }
@@ -756,10 +803,21 @@
       return serialise(value, 0, []);
     };
 
+    // A native value's handle and its stand-in, both ways, and the handle of every callback and
+    // promise handed out; each value is wrapped once, so every use of it is noted once.
+    var refs = new WeakMap();
+    var standInOfNative = new WeakMap();
+    var nativeOfStandIn = new WeakMap();
+    var callbackOfFunction = new WeakMap();
+    var functionOfCallback = new WeakMap();
+    var nextHandle = function () {
+      return '#' + recorder.nextHandle++;
+    };
+
     // A module's method, noting each call with what native answered: the return, the promise's
-    // value or each callback's arguments, and what it threw. A listener added to an Expo module
-    // hears events native code sends straight to it, which the recorder cannot see.
-    function wrapMethod(moduleName, methodName, method, target, fromExpo) {
+    // value or each callback's arguments, and what it threw. Native code may install globals as
+    // it runs: they are taken up right after.
+    function wrapMethod(moduleName, methodName, method, target) {
       return function () {
         var args = Array.prototype.slice.call(arguments);
         var call = keep('nativeCalls', {
@@ -768,13 +826,12 @@
           args: serialised(args),
           kind: 'sync',
         });
-        if (fromExpo && methodName === 'addListener') {
-          keepBlindRoadOnce('expoNativeEvent', moduleName, false);
-        }
         for (var i = 0; i < args.length; i++) {
           if (typeof args[i] === 'function') {
             args[i] = wrapCallback(call, i, args[i]);
             call.kind = 'async';
+          } else {
+            args[i] = nativeOf(args[i]);
           }
         }
         var answer;
@@ -783,6 +840,8 @@
         } catch (failure) {
           call.threw = serialised(failure);
           throw failure;
+        } finally {
+          takeUpNewGlobals();
         }
         if (answer && typeof answer.then === 'function') {
           call.kind = 'async';
@@ -813,7 +872,7 @@
     // Every stand-in handed out, so a module reached by two roads (TurboModuleRegistry asks
     // NativeModules) is wrapped once and each call noted once.
     var standIns = typeof WeakSet === 'function' ? new WeakSet() : null;
-    function wrapModule(moduleName, module, fromExpo) {
+    function wrapModule(moduleName, module) {
       if (!module || (typeof module !== 'object' && typeof module !== 'function')) return module;
       if (NOT_RECORDED[moduleName]) return module;
       if (standIns && standIns.has(module)) return module;
@@ -837,7 +896,7 @@
             }
             var cached = methods[key];
             if (cached && cached.method === value) return cached.wrapper;
-            var wrapper = wrapMethod(moduleName, key, value, target, fromExpo);
+            var wrapper = wrapMethod(moduleName, key, value, target);
             methods[key] = { method: value, wrapper: wrapper };
             return wrapper;
           }
@@ -861,30 +920,47 @@
       return standIn;
     }
 
-    // A lookup that hands out a native module by name. Whether it found one changes what the app
-    // draws, so each lookup is noted once a story; the module goes out as its recording stand-in.
-    function wrapLookup(lookupModule, lookupName, real, fromExpo) {
-      return function (moduleName) {
-        var noted = typeof moduleName === 'string' && !NOT_RECORDED[moduleName];
-        var lookupKey = 'lookup ' + lookupModule + '.' + lookupName + '(' + moduleName + ')';
-        var lookup = { module: lookupModule, method: lookupName, args: [moduleName], kind: 'sync' };
-        if (noted && !recorder.notedInStory[lookupKey]) {
-          recorder.notedInStory[lookupKey] = true;
-          keep('nativeCalls', lookup);
-        }
-        var module;
-        if (fromExpo) recorder.expoLookups++;
-        try {
-          module = real.apply(this, arguments);
-        } catch (failure) {
-          lookup.threw = serialised(failure);
-          throw failure;
-        } finally {
-          if (fromExpo) recorder.expoLookups--;
-        }
-        lookup.answer = module == null ? null : { $: 'module' };
-        return noted ? wrapModule(moduleName, module, fromExpo) : module;
+    // A lookup of a native module by name, noted each time it is made with whether it found one:
+    // that changes what the app draws. The module goes out as its recording stand-in.
+    function noteLookup(lookupModule, moduleName, find) {
+      if (typeof moduleName !== 'string' || NOT_RECORDED[moduleName]) return find();
+      var lookup = keep('nativeCalls', {
+        module: lookupModule,
+        method: 'lookup',
+        args: [moduleName],
+        kind: 'sync',
+      });
+      var module;
+      try {
+        module = find();
+      } catch (failure) {
+        lookup.threw = serialised(failure);
+        throw failure;
+      }
+      lookup.answer = module == null ? null : { $: 'module' };
+      return wrapModule(moduleName, module);
+    }
+
+    // The lookup TurboModuleRegistry reads as it loads, which native code installs off the
+    // bridgeless runtime; a bridgeless runtime looks up through global.nativeModuleProxy alone.
+    function watchTurboModuleProxy() {
+      var real = global.__turboModuleProxy;
+      if (typeof real !== 'function') return;
+      var watched = function (moduleName) {
+        var self = this;
+        var args = arguments;
+        return noteLookup('__turboModuleProxy', moduleName, function () {
+          return real.apply(self, args);
+        });
       };
+      try {
+        global.__turboModuleProxy = watched;
+      } catch (_) {
+        // A lookup that cannot be replaced is checked below.
+      }
+      if (global.__turboModuleProxy !== watched) {
+        keepBlindRoadOnce('jsiGlobal', '__turboModuleProxy', true);
+      }
     }
 
     // Lays `wrapper` as `exportName` of the module's exports: assigned, or else defined anew.
@@ -903,20 +979,9 @@
       });
     }
 
-    function wrapLookups(lookupModule, names, fromExpo) {
-      return function (module) {
-        names.forEach(function (name) {
-          var real = module.exports[name];
-          if (typeof real === 'function') {
-            replaceExport(module, name, wrapLookup(lookupModule, name, real, fromExpo));
-          }
-        });
-        if (fromExpo) watchExpoModules();
-      };
-    }
-
     // NativeModules hands out each module as a property of its default export, which Babel may
-    // lay as a getter: the exports are then laid again around a Proxy of it.
+    // lay as a getter: the exports are then laid again around a Proxy of it. Each read of a module
+    // is a lookup, and so is each check with `in`.
     function wrapNativeModules(module) {
       var real = module.exports.default;
       if (!real) return;
@@ -924,11 +989,23 @@
         {},
         {
           get: function (_, key) {
-            var nativeModule = real[key];
-            return typeof key === 'string' ? wrapModule(key, nativeModule, false) : nativeModule;
+            if (typeof key !== 'string') return real[key];
+            return noteLookup('nativeModuleProxy', key, function () {
+              return real[key];
+            });
           },
           has: function (_, key) {
-            return key in real;
+            var found = key in real;
+            if (typeof key === 'string' && !NOT_RECORDED[key]) {
+              keep('nativeCalls', {
+                module: 'nativeModuleProxy',
+                method: 'has',
+                args: [key],
+                kind: 'sync',
+                answer: found,
+              });
+            }
+            return found;
           },
         }
       );
@@ -946,57 +1023,75 @@
       module.exports = exportsAgain;
     }
 
-    // Every device event native sends to the JavaScript goes out through the emitter's `emit`. It is
-    // not recorded, and what it told the JavaScript stays (the app's state, the screen's size), so
-    // it blinds the story it lands in before that story's picture and every story that starts
-    // after it. A listener alone changes nothing until an event comes.
-    function keepDeviceEventInStory(road) {
-      // An event the app got before the first story is already carried by every story.
-      if (recorder.notedInLaunch['blind expoNativeEvent ' + road]) return;
-      keepBlindRoadOnce('expoNativeEvent', road, false);
-    }
     // Sherlo's own messages are the SDK talking, not the app. The polyfill runs before any module,
     // so it cannot import their names: the same names as src/connection/appLine.ts (MESSAGE_EVENT)
     // and src/mocking/networkNative.ts (UNANSWERED_EVENT), held to them by the recorder's test.
     var SHERLO_OWN_DEVICE_EVENTS = { SherloMessage: true, SherloUnansweredRequest: true };
-    function noteDeviceEvent(eventName) {
-      if (SHERLO_OWN_DEVICE_EVENTS[eventName] === true) return;
-      var road = 'deviceEvent:' + eventName;
-      var story = recorder.story;
-      if (story === null) {
-        keepBlindRoadOnce('expoNativeEvent', road, true);
-        return;
+    var isSherloOwnCall = function (moduleName, methodName, args) {
+      return (
+        moduleName === 'RCTDeviceEventEmitter' &&
+        methodName === 'emit' &&
+        SHERLO_OWN_DEVICE_EVENTS[args[0]] === true
+      );
+    };
+
+    // A module native code calls into, as native code gets it: every call is noted with its
+    // arguments, in order, before the module runs it. What a call told the JavaScript stays (the
+    // app's state, the screen's size), so one made during a story blinds every later story.
+    function callableStandIn(moduleName, callable) {
+      if (!callable || (typeof callable !== 'object' && typeof callable !== 'function')) {
+        return callable;
       }
-      recorder.deviceEventsForLaterStories[road] = true;
-      if (recorder.picturesAt[story] === undefined) keepDeviceEventInStory(road);
+      var methods = {};
+      return new Proxy(callable, {
+        get: function (target, key) {
+          var value = target[key];
+          if (typeof key !== 'string' || typeof value !== 'function') return value;
+          var cached = methods[key];
+          if (cached && cached.method === value) return cached.wrapper;
+          var wrapper = function () {
+            var args = Array.prototype.slice.call(arguments);
+            if (!isSherloOwnCall(moduleName, key, args)) {
+              keep('nativeCalls', {
+                module: 'callable:' + moduleName,
+                method: key,
+                args: serialised(args),
+                kind: 'async',
+              });
+              if (recorder.story !== null) {
+                recorder.callsForLaterStories['callable:' + moduleName + '.' + key] = true;
+              }
+            }
+            return value.apply(target, args);
+          };
+          methods[key] = { method: value, wrapper: wrapper };
+          return wrapper;
+        },
+      });
     }
-    function watchDeviceEvents(module) {
-      var emitter = module.exports.default;
-      var emit = emitter && emitter.emit;
-      if (typeof emit !== 'function') return;
-      emitter.emit = function (eventName) {
-        try {
-          noteDeviceEvent(String(eventName));
-        } catch (_) {
-          // Recording never stops an event: this one goes on unmarked.
-        }
-        return emit.apply(this, arguments);
-      };
+
+    // The registration of a module native code may call into: native code is handed each module
+    // as its recording stand-in.
+    function watchCallableModules(module) {
+      var register = module.exports.default;
+      if (typeof register !== 'function') return;
+      replaceExport(module, 'default', function (name, moduleOrFactory) {
+        var factory =
+          typeof moduleOrFactory === 'function'
+            ? moduleOrFactory
+            : function () {
+                return moduleOrFactory;
+              };
+        return register.call(this, name, function () {
+          return callableStandIn(String(name), factory.apply(this, arguments));
+        });
+      });
+      recorder.callableRoad = module.exports.default !== register;
     }
 
     var roadHooks = {
-      'react-native/Libraries/TurboModule/TurboModuleRegistry.js': wrapLookups(
-        'TurboModuleRegistry',
-        ['get', 'getEnforcing'],
-        false
-      ),
       'react-native/Libraries/BatchedBridge/NativeModules.js': wrapNativeModules,
-      'expo-modules-core/src/requireNativeModule.ts': wrapLookups(
-        'expo',
-        ['requireNativeModule', 'requireOptionalNativeModule'],
-        true
-      ),
-      'react-native/Libraries/EventEmitter/RCTDeviceEventEmitter.js': watchDeviceEvents,
+      'react-native/Libraries/Core/registerCallableModule.js': watchCallableModules,
     };
     // Called by the line each road's file ends with, as that file's module finishes running.
     global.__sherloNativeRoad = function (road, module) {
@@ -1049,31 +1144,379 @@
       };
     }
 
-    // Expo's modules, read straight from global.expo.modules: a read outside Expo's own lookup
-    // skipped it, so its module's calls go unrecorded. Watched as soon as the global is there.
-    function watchExpoModules() {
-      var expo = global.expo;
-      var modules = expo && expo.modules;
-      if (!modules || modules === recorder.watchedExpoModules) return;
-      var watched = new Proxy(modules, {
-        get: function (target, key) {
-          var module = target[key];
-          if (recorder.expoLookups === 0 && typeof key === 'string' && module != null) {
-            keepBlindRoadOnce('expoSkippedLookup', key, false);
-          }
-          return module;
-        },
-      });
-      try {
-        expo.modules = watched;
-      } catch (_) {
-        // Expo's modules cannot be replaced: reads that skip the lookup then go unseen.
-      }
-      if (expo.modules === watched) recorder.watchedExpoModules = watched;
+    // THE NATIVE VALUES. A global native code installed, and every object or function reached
+    // from it, goes to the bundle as a stand-in that notes each use with its answer.
+
+    // The JavaScript engine's own prototypes: what a native value inherits from them is the
+    // engine's, handed back as it is, so `call`, `bind` and the like run on the stand-in itself.
+    var enginePrototypes = [Object.prototype, Function.prototype, Array.prototype];
+    if (typeof Error === 'function') enginePrototypes.push(Error.prototype);
+    if (typeof Promise === 'function') enginePrototypes.push(Promise.prototype);
+
+    function isNativeFunction(value) {
+      if (typeof value !== 'function') return false;
+      var source = Function.prototype.toString.call(value);
+      return source.indexOf('[native code]') !== -1 && String(value.name).indexOf('bound ') !== 0;
     }
 
-    // Globals that appeared since the bundle began: a library's native install (a worklet runtime,
-    // a native function, a host object) shows here. Never a getter: reading one may run it.
+    // Made by native code: a function whose source it holds, an object with no prototype, or an
+    // object carrying such a function. Read through descriptors only: a getter is never run.
+    function isNativeValue(value) {
+      if (value === null || value === global || enginePrototypes.indexOf(value) !== -1) {
+        return false;
+      }
+      if (typeof value === 'function') return isNativeFunction(value);
+      if (typeof value !== 'object') return false;
+      try {
+        if (Object.getPrototypeOf(value) === null) return true;
+        return Object.getOwnPropertyNames(value).some(function (key) {
+          var description = Object.getOwnPropertyDescriptor(value, key);
+          return !!description && 'value' in description && isNativeFunction(description.value);
+        });
+      } catch (_) {
+        // An object that refuses the look is a host object's.
+        return true;
+      }
+    }
+
+    var nativeOf = function (value) {
+      return nativeOfStandIn.get(value) || value;
+    };
+
+    // What the bundle gets of a value a native value handed it: data as it is, written down whole;
+    // a promise as one that notes how it settled; a callback as the bundle's own function; any
+    // other object or function as its stand-in, so nothing reached from native goes unseen.
+    function toBundle(value) {
+      if (value === null || (typeof value !== 'object' && typeof value !== 'function')) {
+        return value;
+      }
+      if (refs.get(value)) {
+        return standInOfNative.get(value) || functionOfCallback.get(value) || value;
+      }
+      if (typeof Promise === 'function' && value instanceof Promise) return settlingOf(value);
+      if (typeof value === 'object' && isData(value)) return value;
+      return standInFor(value, nextHandle());
+    }
+
+    // Data: an object written down whole, holding nothing a stand-in would have to watch. Only its
+    // own keys are read (serialise goes by Object.keys), so a member reached through `super` or
+    // the prototype is not recorded: the draw meets it unwritten and throws, never draws it wrong.
+    function isData(value) {
+      var written = JSON.stringify(serialised(value));
+      return written.indexOf('"$unserialisable"') === -1 && written.indexOf('"handle"') === -1;
+    }
+
+    function settlingOf(promise) {
+      var ref = { $: 'promise', handle: nextHandle() };
+      var settled = promise.then(
+        function (value) {
+          var given = toBundle(value);
+          keep('nativeCalls', {
+            module: ref.handle,
+            method: 'resolve',
+            args: [serialised(given)],
+            kind: 'async',
+          });
+          return given;
+        },
+        function (failure) {
+          keep('nativeCalls', {
+            module: ref.handle,
+            method: 'reject',
+            args: [serialised(failure)],
+            kind: 'async',
+          });
+          throw failure;
+        }
+      );
+      refs.set(promise, ref);
+      refs.set(settled, ref);
+      standInOfNative.set(promise, settled);
+      return settled;
+    }
+
+    // What native code gets of a value the bundle hands it: a stand-in as the native value it
+    // stands for, a function as a callback that notes each call native makes of it, at any depth
+    // of an array or a plain object. A function carrying properties of its own is bound for
+    // another runtime (a worklet's), whose globals the recorder cannot see; any other value that
+    // cannot be written down is noted as such too.
+    function toNative(value, handle, operation) {
+      return nativeAtDepth(value, handle, operation, 1, []);
+    }
+
+    function nativeAtDepth(value, handle, operation, depth, seen) {
+      if (value !== null && typeof value === 'object') {
+        return membersToNative(value, handle, operation, depth, seen);
+      }
+      if (typeof value !== 'function') return value;
+      if (nativeOfStandIn.has(value) || refs.get(value)) {
+        return nativeOf(callbackOfFunction.get(value) || value);
+      }
+      if (Object.keys(value).length > 0) {
+        keepBlindRoadOnce('workletRuntime', handle + '.' + operation, false);
+        return value;
+      }
+      return callbackFor(value);
+    }
+
+    // An array or a plain object of the bundle holding a function or a stand-in at some depth is
+    // handed to native as a copy, each member as native code must get it; any other object goes as
+    // it is. Past the depth the recording writes down, or round a cycle, a value goes as it is and
+    // its recording marks the road blind.
+    function membersToNative(value, handle, operation, depth, seen) {
+      if (nativeOfStandIn.has(value) || refs.get(value)) return nativeOf(value);
+      if (depth > MAX_DEPTH || seen.indexOf(value) !== -1) return value;
+      var isArray = Array.isArray(value);
+      if (!isArray && !isPlainObject(value)) return value;
+      seen.push(value);
+      try {
+        var copy = isArray ? [] : Object.create(Object.getPrototypeOf(value));
+        var changed = false;
+        Object.keys(value).forEach(function (key) {
+          copy[key] = nativeAtDepth(value[key], handle, operation, depth + 1, seen);
+          if (copy[key] !== value[key]) changed = true;
+        });
+        return changed ? copy : value;
+      } catch (_) {
+        // A member that throws as it is read goes to native as it is; its recording is unreadable.
+        return value;
+      } finally {
+        seen.pop();
+      }
+    }
+
+    function callbackFor(callable) {
+      var ref = { $: 'callback', handle: nextHandle() };
+      var callback = function () {
+        var given = Array.prototype.slice.call(arguments).map(toBundle);
+        keep('nativeCalls', {
+          module: ref.handle,
+          method: 'apply',
+          args: [serialised(this), serialised(given)],
+          kind: 'async',
+        });
+        return callable.apply(this, given);
+      };
+      refs.set(callable, ref);
+      refs.set(callback, ref);
+      callbackOfFunction.set(callable, callback);
+      functionOfCallback.set(callback, callable);
+      return callback;
+    }
+
+    // The arguments as written down, with a blind road when any part of them cannot be. They have
+    // been through toNative first, which gave every function within the depth written down a
+    // callback handle, so the only function left unwritten there is one bound for another runtime,
+    // which has a blind road of its own; one deeper is written as too deep, a blind road too.
+    function argumentsAsRecorded(args, handle, operation) {
+      var written = serialised(args);
+      var unwritten = JSON.stringify(written).replace(/"\$unserialisable":"function"/g, '');
+      if (unwritten.indexOf('"$unserialisable"') !== -1) {
+        keepBlindRoadOnce('jsiGlobal', 'unrecordable:' + handle + '.' + operation, false);
+      }
+      return written;
+    }
+
+    // One use of a native value: noted before it runs, so whatever it sets off comes after it,
+    // with its answer or what it threw. A call may install globals as it runs: they are taken up.
+    function noteUse(handle, operation, args, run) {
+      var use = keep('nativeCalls', {
+        module: handle,
+        method: operation,
+        args: args,
+        kind: 'sync',
+      });
+      var answer;
+      try {
+        answer = run();
+      } catch (failure) {
+        use.threw = serialised(failure);
+        throw failure;
+      } finally {
+        if (operation === 'apply' || operation === 'construct') takeUpNewGlobals();
+      }
+      use.answer = serialised(answer);
+      return answer;
+    }
+
+    // Whether the engine's own prototypes hand out the property: the engine's, not native code's.
+    function isEngineOwn(real, key) {
+      var owner = real;
+      while (owner) {
+        if (Object.prototype.hasOwnProperty.call(owner, key)) {
+          return enginePrototypes.indexOf(owner) !== -1;
+        }
+        owner = nativeOf(Object.getPrototypeOf(owner));
+      }
+      return false;
+    }
+
+    // A property the engine holds to its value, neither configurable nor writable: a Proxy must
+    // hand back that very value.
+    function isHeldToItsValue(real, key) {
+      var description = Object.getOwnPropertyDescriptor(real, key);
+      return !!description && description.configurable === false && description.writable === false;
+    }
+
+    function descriptorAsRecorded(description) {
+      if (!description) return { $: 'undefined' };
+      var written = { configurable: description.configurable, enumerable: description.enumerable };
+      if ('value' in description) {
+        written.writable = description.writable;
+        written.value = serialised(description.value);
+      }
+      if (description.get) written.get = true;
+      if (description.set) written.set = true;
+      return written;
+    }
+
+    function standInHandler(handle) {
+      return {
+        get: function (real, key, receiver) {
+          var self = nativeOf(receiver);
+          if (typeof key !== 'string' || isEngineOwn(real, key)) {
+            return Reflect.get(real, key, self);
+          }
+          var isHeld = isHeldToItsValue(real, key);
+          return noteUse(handle, 'get', [key], function () {
+            var value = Reflect.get(real, key, self);
+            if (!isHeld) return toBundle(value);
+            // The bundle gets it unwrapped, so its own uses go unseen.
+            if (isNativeValue(value) && !refs.get(value)) {
+              keepBlindRoadOnce('jsiGlobal', 'unrecordable:' + handle + '.' + key, false);
+            }
+            return value;
+          });
+        },
+        has: function (real, key) {
+          if (typeof key !== 'string') return Reflect.has(real, key);
+          return noteUse(handle, 'has', [key], function () {
+            return Reflect.has(real, key);
+          });
+        },
+        ownKeys: function (real) {
+          var keys = Reflect.ownKeys(real);
+          noteUse(handle, 'ownKeys', [], function () {
+            return keys.filter(function (key) {
+              return typeof key === 'string';
+            });
+          });
+          return keys;
+        },
+        getOwnPropertyDescriptor: function (real, key) {
+          if (typeof key !== 'string') return Reflect.getOwnPropertyDescriptor(real, key);
+          var description;
+          noteUse(handle, 'getOwnPropertyDescriptor', [key], function () {
+            description = Reflect.getOwnPropertyDescriptor(real, key);
+            if (description && description.configurable && 'value' in description) {
+              description.value = toBundle(description.value);
+            }
+            return descriptorAsRecorded(description);
+          });
+          return description;
+        },
+        getPrototypeOf: function (real) {
+          return noteUse(handle, 'getPrototypeOf', [], function () {
+            var prototype = Reflect.getPrototypeOf(real);
+            return Reflect.isExtensible(real) ? toBundle(prototype) : prototype;
+          });
+        },
+        set: function (real, key, value, receiver) {
+          if (typeof key !== 'string') return Reflect.set(real, key, value, nativeOf(receiver));
+          var given = toNative(value, handle, 'set');
+          var args = [key, argumentsAsRecorded(value, handle, 'set')];
+          return noteUse(handle, 'set', args, function () {
+            return Reflect.set(real, key, given, nativeOf(receiver));
+          });
+        },
+        defineProperty: function (real, key, description) {
+          if (typeof key !== 'string') return Reflect.defineProperty(real, key, description);
+          var given = {};
+          Object.keys(description).forEach(function (field) {
+            given[field] = toNative(description[field], handle, 'defineProperty');
+          });
+          var args = [key, descriptorAsRecorded(description)];
+          return noteUse(handle, 'defineProperty', args, function () {
+            return Reflect.defineProperty(real, key, given);
+          });
+        },
+        deleteProperty: function (real, key) {
+          if (typeof key !== 'string') return Reflect.deleteProperty(real, key);
+          return noteUse(handle, 'deleteProperty', [key], function () {
+            return Reflect.deleteProperty(real, key);
+          });
+        },
+        apply: function (real, self, args) {
+          var given = args.map(function (arg) {
+            return toNative(arg, handle, 'apply');
+          });
+          var recorded = [serialised(self), argumentsAsRecorded(args, handle, 'apply')];
+          return noteUse(handle, 'apply', recorded, function () {
+            return toBundle(Reflect.apply(real, nativeOf(self), given));
+          });
+        },
+        construct: function (real, args, newTarget) {
+          var given = args.map(function (arg) {
+            return toNative(arg, handle, 'construct');
+          });
+          var isOwn = nativeOf(newTarget) === real;
+          var recorded = [
+            argumentsAsRecorded(args, handle, 'construct'),
+            isOwn ? refs.get(real) : { $: 'subclass' },
+          ];
+          return noteUse(handle, 'construct', recorded, function () {
+            var made = Reflect.construct(real, given, isOwn ? real : newTarget);
+            return refs.get(made) ? toBundle(made) : standInFor(made, nextHandle());
+          });
+        },
+      };
+    }
+
+    function standInFor(real, handle) {
+      var ref = { $: 'native', handle: handle, type: typeof real };
+      var standIn = new Proxy(real, standInHandler(handle));
+      refs.set(real, ref);
+      refs.set(standIn, ref);
+      standInOfNative.set(real, standIn);
+      nativeOfStandIn.set(standIn, real);
+      return standIn;
+    }
+
+    // THE GLOBALS. React Native's own, which native code installs for every app: the quick check
+    // stands each one itself, so they are not recorded. No rule on the phone tells them from a
+    // library's, so they are named; every other global is judged by what it is.
+    var REACT_NATIVE_GLOBALS = {
+      HermesInternal: true,
+      __turboModuleProxy: true,
+      nativeModuleProxy: true,
+      nativeFabricUIManager: true,
+      nativeRuntimeScheduler: true,
+      nativeLoggingHook: true,
+      nativePerformanceNow: true,
+      nativeCallSyncHook: true,
+      nativeFlushQueueImmediate: true,
+      nativeRequire: true,
+      nativeTraceBeginSection: true,
+      nativeTraceEndSection: true,
+      nativeTraceBeginAsyncSection: true,
+      nativeTraceEndAsyncSection: true,
+      nativeTraceCounter: true,
+      nativeTraceIsTracing: true,
+      __nativeComponentRegistry__hasComponent: true,
+      console: true,
+      setTimeout: true,
+      clearTimeout: true,
+      setInterval: true,
+      clearInterval: true,
+      setImmediate: true,
+      clearImmediate: true,
+      queueMicrotask: true,
+      requestAnimationFrame: true,
+      cancelAnimationFrame: true,
+      globalEvalWithSourceUrl: true,
+      _jsiRuntimeDataCleanUp: true,
+    };
+
     var globalsSeen = {};
     var namesOfGlobals = function () {
       try {
@@ -1083,46 +1526,82 @@
         return [];
       }
     };
-    // What native installed before the bundle began cannot be told from the app's own globals here,
-    // so every one is handed over with each story, by name, for the quick check to judge.
+
+    // A global native code installed, as a value the bundle may be handed a stand-in of: a plain
+    // property, there to be read and replaced. Never a getter: reading one may run it.
+    function nativeGlobalOf(name) {
+      if (REACT_NATIVE_GLOBALS[name] === true) return null;
+      var description = Object.getOwnPropertyDescriptor(global, name);
+      if (!description || !('value' in description)) return null;
+      return isNativeValue(description.value) ? description : null;
+    }
+
+    // Lays a native global's stand-in in its place and notes it for every story, before any use of
+    // it; false when the global cannot be replaced.
+    function recordGlobal(name, description) {
+      if (!description.writable || !description.enumerable) return false;
+      var standIn = standInFor(description.value, name);
+      try {
+        global[name] = standIn;
+      } catch (_) {
+        // A global that cannot be replaced is checked below.
+      }
+      if (global[name] !== standIn) return false;
+      keep(
+        'nativeCalls',
+        {
+          module: 'global',
+          method: 'installed',
+          args: [name],
+          kind: 'sync',
+          answer: refs.get(standIn),
+        },
+        true
+      );
+      return true;
+    }
+
+    // The globals the bundle began with: each native one is recorded where it can be. Every other
+    // is handed over by name with each story, for the quick check to judge.
     namesOfGlobals().forEach(function (name) {
       globalsSeen[name] = true;
       if (name.indexOf('__sherlo') === 0) return;
+      var description = nativeGlobalOf(name);
+      if (description && recordGlobal(name, description)) return;
       keepBlindRoadOnce('jsiGlobal', 'atStart:' + name, true);
     });
-    function isInstalledByNative(value) {
-      if (typeof value === 'function') {
-        var source = Function.prototype.toString.call(value);
-        return source.indexOf('[native code]') !== -1 && String(value.name).indexOf('bound ') !== 0;
-      }
-      return !!value && typeof value === 'object' && Object.getPrototypeOf(value) === null;
-    }
-    function noteNewGlobals() {
+
+    // Globals that appeared since: `asItRan` after a recorded call, whose native code installed
+    // them, so each native one is recorded; seen any other time, the bundle may have used one
+    // already, so it is a blind road of every story.
+    function noteNewGlobals(asItRan) {
       namesOfGlobals().forEach(function (name) {
         if (globalsSeen[name]) return;
         globalsSeen[name] = true;
-        if (name.indexOf('__sherlo') === 0 || name === 'expo') return;
-        var description = Object.getOwnPropertyDescriptor(global, name);
-        if (!description || !('value' in description)) return;
-        if (!isInstalledByNative(description.value)) return;
-        keepBlindRoadOnce(/worklet/i.test(name) ? 'workletRuntime' : 'jsiGlobal', name, true);
+        if (name.indexOf('__sherlo') === 0) return;
+        var description = nativeGlobalOf(name);
+        if (!description) return;
+        if (asItRan && recordGlobal(name, description)) return;
+        keepBlindRoadOnce('jsiGlobal', name, true);
       });
     }
-
-    function lookAround() {
-      noteNewGlobals();
-      watchExpoModules();
+    function takeUpNewGlobals() {
+      noteNewGlobals(true);
     }
 
+    watchTurboModuleProxy();
+
     function startStory(storyId, placeOfView) {
-      lookAround();
+      noteNewGlobals(false);
       recorder.kept = recorder.kept.filter(function (kept) {
         return kept.story !== storyId;
       });
       delete recorder.picturesAt[storyId];
       recorder.notedInStory = {};
       recorder.story = storyId;
-      Object.keys(recorder.deviceEventsForLaterStories).forEach(keepDeviceEventInStory);
+      Object.keys(recorder.callsForLaterStories).forEach(function (road) {
+        keepBlindRoadOnce('expoNativeEvent', road, false);
+      });
       if (typeof placeOfView === 'function') recorder.placeOfView = placeOfView;
     }
 
@@ -1137,12 +1616,14 @@
     // The story's recording so far: what came before the first story and the story's own. The
     // first read is the picture moment.
     function readStory(storyId) {
-      lookAround();
+      noteNewGlobals(false);
       var roads = recorder.rendererRoads;
       // A renderer that did not take its roads hides the commits and the events of the views.
       if (!roads.commit || !roads.viewEvents) {
         keepBlindRoadOnce('jsiGlobal', 'nativeFabricUIManager', true);
       }
+      // Without its road, the calls native code makes into the bundle's modules go unseen.
+      if (!recorder.callableRoad) keepBlindRoadOnce('expoNativeEvent', 'callableModules', true);
       if (recorder.picturesAt[storyId] === undefined)
         recorder.picturesAt[storyId] = recorder.order++;
       var pictureAt = recorder.picturesAt[storyId];
@@ -1167,7 +1648,6 @@
       return recording;
     }
 
-    watchExpoModules();
     global.__sherloNativeRecorder = { startStory: startStory, readStory: readStory };
   }
 })();
