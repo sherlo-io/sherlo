@@ -1,7 +1,3 @@
-/**
- * An SDK the app already depends on is the app's own choice - a pinned version, a tarball, a
- * workspace link - so setup leaves it where it is and installs nothing over it.
- */
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -11,6 +7,8 @@ import { SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME as SDK } from '../../../../c
 const projectRoot = vi.hoisted(() => ({ path: '' }));
 const workstationAnswers = vi.hoisted(() => ({ addPackage: vi.fn() }));
 const printed = vi.hoisted(() => ({ lines: [] as string[] }));
+/** The SDK version in the app's node_modules; null when the app has none. */
+const installedSdk = vi.hoisted(() => ({ version: null as string | null }));
 
 vi.mock('../../../../helpers/getCwd', () => ({ default: () => projectRoot.path }));
 vi.mock('../../../../helpers/reporting', () => ({ default: { captureException: vi.fn() } }));
@@ -29,6 +27,9 @@ vi.mock('../../helpers/printLines', () => ({
   default: (lines: string[]) => printed.lines.push(...lines),
 }));
 vi.mock('../../../../seams/workstation', () => ({ workstation: () => workstationAnswers }));
+vi.mock('../../requirements/getPackageVersion', () => ({
+  default: () => installedSdk.version,
+}));
 
 /** The step line setup prints, with its colours taken off. */
 function printedText(): string {
@@ -36,14 +37,11 @@ function printedText(): string {
   return printed.lines.join('\n').replace(/\u001b\[[0-9;]*m/g, '');
 }
 
-import installSherlo from '../installSherlo';
+import { version as cliVersion } from '../../../../../package.json';
+import sherloSdk from '../../steps/sherloSdk';
 
 function writePackageJson(contents: object): void {
   fs.writeFileSync(path.join(projectRoot.path, 'package.json'), JSON.stringify(contents));
-}
-
-function readPackageJson(): unknown {
-  return JSON.parse(fs.readFileSync(path.join(projectRoot.path, 'package.json'), 'utf-8'));
 }
 
 beforeEach(() => {
@@ -51,6 +49,7 @@ beforeEach(() => {
   vi.stubEnv('SHERLO_SDK_VERSION', undefined);
   workstationAnswers.addPackage.mockReset();
   printed.lines.length = 0;
+  installedSdk.version = null;
   projectRoot.path = fs.mkdtempSync(path.join(os.tmpdir(), 'install-sherlo-existing-'));
 });
 
@@ -59,31 +58,39 @@ afterEach(() => {
   fs.rmSync(projectRoot.path, { recursive: true, force: true });
 });
 
-describe('installSherlo with an SDK already installed', () => {
-  it('an SDK already in dependencies is kept and setup says Sherlo is already installed', async () => {
-    for (const spec of ['2.0.2', 'file:/abs/sherlo.tgz', 'link:../sdk', 'workspace:*']) {
-      const packageJson = { dependencies: { [SDK]: spec } };
-      writePackageJson(packageJson);
-      printed.lines.length = 0;
+describe('the Sherlo step by what the app already has', () => {
+  it("no SDK yet: installs this tool's version and says Installed", async () => {
+    writePackageJson({ dependencies: {} });
 
-      await installSherlo();
+    await sherloSdk();
 
-      expect(workstationAnswers.addPackage).not.toHaveBeenCalled();
-      expect(printedText()).toContain(`${SDK} ${spec}`);
-      expect(printedText()).not.toContain('already done');
-      expect(readPackageJson()).toEqual(packageJson);
-    }
+    expect(workstationAnswers.addPackage).toHaveBeenCalledOnce();
+    expect(printedText()).toContain(`Installed Sherlo`);
+    expect(printedText()).toContain(`${SDK} ${cliVersion}`);
+    expect(printedText()).not.toContain('already done');
   });
 
-  it('an SDK already in devDependencies is kept where it is', async () => {
-    const packageJson = { devDependencies: { [SDK]: '^1.4.0' } };
-    writePackageJson(packageJson);
+  it("the SDK at this tool's version: changes nothing and says already done", async () => {
+    writePackageJson({ dependencies: { [SDK]: cliVersion } });
+    installedSdk.version = cliVersion;
 
-    await installSherlo();
+    await sherloSdk();
 
     expect(workstationAnswers.addPackage).not.toHaveBeenCalled();
-    expect(printedText()).toContain(`${SDK} ^1.4.0`);
+    expect(printedText()).toContain(`Installed Sherlo`);
+    expect(printedText()).toContain(`${SDK} ${cliVersion}`);
+    expect(printedText()).toContain('(already done)');
+  });
+
+  it("the SDK at another version: installs this tool's version and says Updated", async () => {
+    writePackageJson({ devDependencies: { [SDK]: '2.0.2' } });
+    installedSdk.version = '2.0.2';
+
+    await sherloSdk();
+
+    expect(workstationAnswers.addPackage).toHaveBeenCalledOnce();
+    expect(printedText()).toContain('Updated Sherlo');
+    expect(printedText()).toContain(`${SDK} ${cliVersion}`);
     expect(printedText()).not.toContain('already done');
-    expect(readPackageJson()).toEqual(packageJson);
   });
 });

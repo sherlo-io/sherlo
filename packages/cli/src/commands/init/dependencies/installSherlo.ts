@@ -33,23 +33,12 @@ async function installSherlo(): Promise<void> {
     });
   }
 
-  // An SDK the app already depends on is kept as it is, whatever its spec (a version, file:, link:,
-  // workspace:): a pinned or local SDK is the app's own choice, and installing over it would move
-  // the app off the version it chose.
-  const existingSdkSpec: string | undefined =
+  // An SDK the app already depends on (the step before this one left it alone when it is at this
+  // tool's version) is at another version: it gets this tool's version, and the line says Updated.
+  const hadSdk = Boolean(
     packageJson.dependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME] ??
-    packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME];
-  if (existingSdkSpec) {
-    spinner.stop();
-    printLines([
-      renderStepLine({
-        outcome: 'done',
-        name: 'Installed Sherlo',
-        detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${existingSdkSpec}`,
-      }),
-    ]);
-    return;
-  }
+    packageJson.devDependencies?.[SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME]
+  );
 
   const packageSpec = sherloSdkPackageSpec(
     process.env.SHERLO_SDK_PATH,
@@ -105,7 +94,7 @@ async function installSherlo(): Promise<void> {
   printLines([
     renderStepLine({
       outcome: 'done',
-      name: 'Installed Sherlo',
+      name: hadSdk ? 'Updated Sherlo' : 'Installed Sherlo',
       detail: `${SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME} ${cliVersion}`,
     }),
   ]);

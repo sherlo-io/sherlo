@@ -116,6 +116,9 @@ describe('init through the sixth seam', () => {
     const { screen, exitCode } = await runPose(poseNamed('second-setup'));
 
     // A project found in place is left as found: the config and Metro lines both say so.
+    expect(plain(screen)).toMatch(
+      /Installed Sherlo +@sherlo\/react-native-storybook 3\.0\.0-alpha\.0 \(already done\)/
+    );
     expect(plain(screen)).toMatch(/Created config +sherlo\.config\.json \(already done\)/);
     expect(plain(screen)).toMatch(/Updated Metro config +metro\.config\.js \(already done\)/);
     expect(configFilesWritten).toEqual([]);
