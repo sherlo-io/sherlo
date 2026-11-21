@@ -94,7 +94,6 @@ async function installSherlo(): Promise<void> {
     // again when copied, and the bare name installs the newest.
     throwError({
       ...renderInstallFailed({
-        installing: 'Sherlo',
         command: commandToRun.replace(packageSpec, SHERLO_REACT_NATIVE_STORYBOOK_PACKAGE_NAME),
         failedOutput: getFailedCommandOutput(error),
       }),

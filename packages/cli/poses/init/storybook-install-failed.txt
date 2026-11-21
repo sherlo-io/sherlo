@@ -19,7 +19,7 @@ Setting up Sherlo...
 [32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
 [31m✖[39m Installing Storybook failed
 
-[31mERROR: Storybook couldn't be installed[39m
+[31mERROR: Storybook's installer failed[39m
 
 [2m➤ YN0000: · Yarn 4.3.1[22m
 [2m➤ YN0000: ┌ Resolution step[22m
@@ -27,10 +27,7 @@ Setting up Sherlo...
 [2m➤ YN0000: └ Completed in 30s 104ms[22m
 [2m➤ YN0000: · Failed with errors in 30s 110ms[22m
 
-[0mFix the error, or install Storybook yourself:[0m
-[36m  yarn add @storybook/react-native @storybook/react-native-ui-lite storybook[39m
-
-[0mThen run setup again. It picks up where it stopped:[0m
+[0mFix the error shown above, then run setup again:[0m
 [36m  npx sherlo init[39m
 
 [2m──────────[22m

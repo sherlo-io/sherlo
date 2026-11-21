@@ -230,24 +230,57 @@ export function renderNoAccessToProject({
 }
 
 /**
- * An install setup ran failed - Storybook's installer or the package manager adding Sherlo - in one
- * shape for both. `failedOutput` is the tool's own last lines; the command is shown so it can be run
- * alone, which also shows its whole output.
+ * The package manager adding Sherlo failed. `failedOutput` is its own last lines; the command is
+ * shown so it can be run alone, which also shows its whole output.
  */
 export function renderInstallFailed({
-  installing,
   command,
   failedOutput,
 }: {
-  /** What the step installs, as its step line names it. */
-  installing: 'Storybook' | 'Sherlo';
   command: string;
   /** Undefined when the tool printed nothing. */
   failedOutput: string | undefined;
 }): InitRefusal {
-  return refusal(`${installing} couldn't be installed`, [
+  return refusal("Sherlo couldn't be installed", [
     ...(failedOutput ? [failedOutput, ''] : []),
-    words(`Fix the error, or install ${installing} yourself:`),
+    words('Fix the error, or install Sherlo yourself:'),
+    code(command),
+    ...rerun(),
+  ]);
+}
+
+/**
+ * Storybook's installer failed, so nothing was written. `failedOutput` is the installer's own last
+ * lines. No command to type but setup itself: setup runs the installer again.
+ */
+export function renderStorybookInstallerFailed({
+  failedOutput,
+}: {
+  /** Undefined when the installer printed nothing. */
+  failedOutput: string | undefined;
+}): InitRefusal {
+  return refusal("Storybook's installer failed", [
+    ...(failedOutput ? [failedOutput, ''] : []),
+    words('Fix the error shown above, then run setup again:'),
+    code(INIT_COMMAND),
+  ]);
+}
+
+/**
+ * The download of Storybook's packages failed after its files and package list were written.
+ * `command` is the package manager's plain install, which shows the whole error when run alone.
+ */
+export function renderStorybookDownloadFailed({
+  command,
+  failedOutput,
+}: {
+  command: string;
+  /** Undefined when the package manager printed nothing. */
+  failedOutput: string | undefined;
+}): InitRefusal {
+  return refusal("Storybook's packages couldn't be downloaded", [
+    ...(failedOutput ? [failedOutput, ''] : []),
+    words("Storybook's files are written. Download its packages yourself:"),
     code(command),
     ...rerun(),
   ]);

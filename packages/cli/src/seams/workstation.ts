@@ -272,8 +272,11 @@ export type PosedWorkstation = {
    */
   storybook?: {
     wrote: PosedFiles;
-    /** What the installer printed when it failed, on each stream: stated, it writes nothing. */
-    failed?: { stdout: string; stderr: string };
+    /**
+     * What the installer printed when it failed, on each stream: stated, it writes nothing - unless
+     * `during` is `'download'`: the installer ran, and the package download after it failed.
+     */
+    failed?: { stdout: string; stderr: string; during?: 'download' };
   };
   /**
    * What `pod install` answered, for a project whose `files` hold `ios/Podfile`: the pods

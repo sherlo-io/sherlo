@@ -1208,7 +1208,10 @@ function readPosedWorkstation(value: unknown, path: string, problems: string[]):
           if (object9) {
             expectString(object9.stdout, at(where8, 'stdout'), problems);
             expectString(object9.stderr, at(where8, 'stderr'), problems);
-            reportUnknownFields(object9, ['stdout', 'stderr'], where8, problems);
+            if ('during' in object9) {
+              expectLiteral(object9.during, 'download', at(where8, 'during'), problems);
+            }
+            reportUnknownFields(object9, ['stdout', 'stderr', 'during'], where8, problems);
           }
         }
         reportUnknownFields(object7, ['wrote', 'failed'], where6, problems);

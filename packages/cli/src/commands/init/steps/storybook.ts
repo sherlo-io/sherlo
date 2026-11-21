@@ -14,7 +14,10 @@
 import { detect, resolveCommand } from 'package-manager-detector';
 import { STORYBOOK_REACT_NATIVE_PACKAGE_NAME } from '../../../constants';
 import { getCwd, spinner as createSpinner, throwError } from '../../../helpers';
-import { renderInstallFailed } from '../../../render/initFixes';
+import {
+  renderStorybookDownloadFailed,
+  renderStorybookInstallerFailed,
+} from '../../../render/initFixes';
 import { renderFailedStepLine, renderStepLine } from '../../../render/initSteps';
 import { workstation } from '../../../seams/workstation';
 import getFailedCommandOutput from '../dependencies/getFailedCommandOutput';
@@ -45,16 +48,15 @@ async function storybook({
   ]);
   const command = resolved ? `${resolved.command} ${resolved.args.join(' ')}` : '';
 
-  // WHAT A PERSON TYPES TO DO IT THEMSELVES is the lite install, never create-storybook.
-  // BUILD DEBT: the run above still installs the full setup; build adds --skip-install, the lite
-  // conversion and one install.
-  const liteInstall = resolveCommand(packageManager, 'add', [
-    STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
-    '@storybook/react-native-ui-lite',
-    'storybook',
-  ]);
-  const installItYourself = liteInstall
-    ? `${liteInstall.command} ${liteInstall.args.join(' ')}`
+  // WHAT A PERSON TYPES AFTER A FAILED DOWNLOAD is the package manager's plain install: the files
+  // and the package list are already written.
+  // BUILD DEBT: the run below still installs the full setup in one call, so a failure cannot tell its
+  // two failure points apart (the real error always shows the installer screen). Build adds
+  // --skip-install, the lite conversion and one download, as two calls: the installer's failure
+  // throws the installer screen, the download's failure throws the download screen.
+  const plainInstall = resolveCommand(packageManager, 'install', []);
+  const downloadItYourself = plainInstall
+    ? `${plainInstall.command} ${plainInstall.args.join(' ')}`.trim()
     : '';
 
   // The longest step: a spinner in a terminal, and one line for an agent reading a pipe, so neither
@@ -67,12 +69,13 @@ async function storybook({
     spinner.stop();
     printLines(renderFailedStepLine('Installing Storybook failed'));
 
+    const failedOutput = getFailedCommandOutput(error);
+    const failedAtDownload = (error as { during?: string }).during === 'download';
+
     throwError({
-      ...renderInstallFailed({
-        installing: 'Storybook',
-        command: installItYourself,
-        failedOutput: getFailedCommandOutput(error),
-      }),
+      ...(failedAtDownload
+        ? renderStorybookDownloadFailed({ command: downloadItYourself, failedOutput })
+        : renderStorybookInstallerFailed({ failedOutput })),
       errorToReport: error as Error,
     });
   }
