@@ -219,6 +219,7 @@ describe('loading the sealed core', () => {
         'storybookChannel',
         'storybookFacts',
         'storyOfTheAppFiber',
+        'storyRecordingOf',
         'stillRealModulesOfStory',
         'unansweredRequestsOfStory',
         'warn',

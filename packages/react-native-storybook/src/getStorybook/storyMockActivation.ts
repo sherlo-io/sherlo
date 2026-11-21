@@ -27,6 +27,7 @@ import {
 } from '../mocking';
 import { MockLookups, newMockLookups } from '../mocking/registry';
 import { startStillRealStory } from '../mocking/stillReal';
+import { startStoryRecording } from '../nativeRecording';
 import { storyAboutToRender } from '../storyReady';
 import { namesAsWrittenOf, standInKeyAtBundlerStart } from '../mocking/declaredImports';
 import { MockSet } from '../mocking/types';
@@ -158,6 +159,8 @@ function installMergedMocks(
   // empty on every activation: a second capture of an unchanged story renders nothing again, so
   // it lists neither.
   startStillRealStory();
+  // What the phone does from here on is this story's own (../nativeRecording).
+  startStoryRecording(storyId);
 
   const install = (latestInstall += 1);
 
