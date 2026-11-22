@@ -12,7 +12,7 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the app        [2mExpo 58, React Native 0.88[22m
+[32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>[22m
 
 Your saved login has expired. Log in again to continue.
 
@@ -25,8 +25,8 @@ Opening your browser to log in to Sherlo...
 [32m✔[39m Created team           [2mAnna's team[22m
 [32m✔[39m Created project        [2mAcme Shop[22m
 [32m✔[39m Created config         [2msherlo.config.json, one device: Pixel 7 Pro[22m
-[32m✔[39m Installed Storybook    [2m@storybook/react-native 10.6.2[22m
-[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook 3.0.0-alpha.0[22m
+[32m✔[39m Installed Storybook    [2m@storybook/react-native <STORYBOOK_VERSION>[22m
+[32m✔[39m Installed Sherlo       [2m@sherlo/react-native-storybook <SHERLO_VERSION>[22m
 [32m✔[39m Updated Metro config   [2mmetro.config.js[22m
 [32m✔[39m Added GitHub workflow  [2m.github/workflows/sherlo.yml[22m
 

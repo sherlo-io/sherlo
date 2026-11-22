@@ -559,11 +559,67 @@ async function runMask(
 
 describe('the machine facts a feedback dry run prints', () => {
   it('folds the CLI version and the operating system to their placeholders', () => {
-    const dryRun = '  Sherlo CLI: 3.0.0\n  Operating system: Darwin 25.5.0\n  Expo: 53.0.0';
+    const dryRun = '  Sherlo CLI: 3.0.0\n  Operating system: Darwin 25.5.0';
 
     expect(maskScreen(dryRun, {})).toBe(
-      '  Sherlo CLI: <VERSION>\n  Operating system: <SYSTEM>\n  Expo: 53.0.0'
+      '  Sherlo CLI: <SHERLO_VERSION>\n  Operating system: <SYSTEM>'
     );
+  });
+
+  it('folds each known version of the app to its own placeholder and keeps "not known"', () => {
+    const dryRun = [
+      '  Sherlo SDK: 3.0.0-alpha.0',
+      '  React Native: 0.88.1',
+      '  Expo: 58.0.26',
+      '  Storybook: not known',
+    ].join('\n');
+
+    expect(maskScreen(dryRun, {})).toBe(
+      [
+        '  Sherlo SDK: <SHERLO_VERSION>',
+        '  React Native: <REACT_NATIVE_VERSION>',
+        '  Expo: <EXPO_VERSION>',
+        '  Storybook: not known',
+      ].join('\n')
+    );
+  });
+});
+
+describe('the versions sherlo init shows', () => {
+  it('folds the versions on the line that checks the app, each to its own placeholder', () => {
+    const checked = `${ESC}[32m✔${ESC}[39m Checked the app        ${ESC}[2mExpo 58, React Native 0.88, Storybook 10.6${ESC}[22m`;
+
+    expect(maskScreen(checked, {})).toBe(
+      `${ESC}[32m✔${ESC}[39m Checked the app        ${ESC}[2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>${ESC}[22m`
+    );
+  });
+
+  it('folds the Storybook and Sherlo versions setup installed', () => {
+    const installed = [
+      `${ESC}[32m✔${ESC}[39m Installed Storybook    ${ESC}[2m@storybook/react-native 10.6.2${ESC}[22m`,
+      `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook 3.0.0-alpha.0${ESC}[22m`,
+      '  yarn add @sherlo/react-native-storybook@3.0.0',
+    ].join('\n');
+
+    expect(maskScreen(installed, {})).toBe(
+      [
+        `${ESC}[32m✔${ESC}[39m Installed Storybook    ${ESC}[2m@storybook/react-native <STORYBOOK_VERSION>${ESC}[22m`,
+        `${ESC}[32m✔${ESC}[39m Installed Sherlo       ${ESC}[2m@sherlo/react-native-storybook <SHERLO_VERSION>${ESC}[22m`,
+        '  yarn add @sherlo/react-native-storybook@<SHERLO_VERSION>',
+      ].join('\n')
+    );
+  });
+
+  it('keeps the version a refusal names and the oldest supported one', () => {
+    const refusals = [
+      'ERROR: Storybook 8.6.4 is too old: Sherlo needs 9.0.0 or newer',
+      'ERROR: Expo SDK 54 is too old: Sherlo needs Expo SDK 55 or newer',
+      '  npx expo install expo@^55.0.0',
+      '  yarn add react-native@0.82.0',
+      '  yarn add @sherlo/react-native-storybook',
+    ].join('\n');
+
+    expect(maskScreen(refusals, {})).toBe(refusals);
   });
 });
 

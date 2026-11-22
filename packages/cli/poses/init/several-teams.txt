@@ -12,7 +12,7 @@
 
 Setting up Sherlo...
 
-[32m✔[39m Checked the app        [2mExpo 58, React Native 0.88, Storybook 10.6[22m
+[32m✔[39m Checked the app        [2mExpo <EXPO_VERSION>, React Native <REACT_NATIVE_VERSION>, Storybook <STORYBOOK_VERSION>[22m
 [32m✔[39m Logged in              [2manna@example.com[22m
 [31m✖[39m Choosing a team failed
 

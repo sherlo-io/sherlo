@@ -17,6 +17,7 @@ Setting up Sherlo...
 [31mERROR: Storybook 8.6.4 is too old: Sherlo needs 9.0.0 or newer[39m
 
 [0mUpgrade Storybook, with every @storybook/* package on the same version.[0m
+
 [0mFollow Storybook for React Native's migration guide, one version at a time:[0m
 [36m  https://github.com/storybookjs/react-native/blob/next/MIGRATION.md[39m
 

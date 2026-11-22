@@ -3,7 +3,10 @@
  *
  * A screen carries values no plan can state and no fixture should pin: a temporary folder, a
  * token, a build's address, a size in megabytes, a duration, the time since a build, a commit id,
- * a fingerprint, the progress lines a wait prints while it waits. Every one of them is folded
+ * a fingerprint, the progress lines a wait prints while it waits, and the versions of Expo, React
+ * Native, Storybook and Sherlo the app happens to stand on (a new release must not change a
+ * reviewed screen; the oldest supported versions and a refusal's version stay, as they are the point
+ * of their screens, and unit tests hold the real values). Every one of them is folded
  * here to a placeholder BY CLASS - recognised by its shape, never by a literal somebody typed -
  * so the same fold lands on a posed screen and on a live screen alike.
  *
@@ -82,6 +85,8 @@ export function maskScreen(screen: string, context: MaskContext): string {
   folded = foldCaptureSettleTime(folded);
   folded = foldCaptureScreenfuls(folded);
   folded = foldCaptureMeasuredSize(folded);
+  folded = foldCheckedAppVersions(folded);
+  folded = foldInstalledStorybookVersion(folded);
   folded = foldInstalledSdkVersion(folded);
   folded = foldFeedbackMachineFacts(folded);
   folded = stripTurboSnapDiagnostic(folded);
@@ -134,7 +139,10 @@ export const CLASSES_THE_TOOL_FOLDS = [
   '<SHERLO_IOS_BUILD_FILE_NAME>',
   '<SETTLED>',
   '<PARTS>',
-  '<VERSION>',
+  '<EXPO_VERSION>',
+  '<REACT_NATIVE_VERSION>',
+  '<STORYBOOK_VERSION>',
+  '<SHERLO_VERSION>',
   '<SYSTEM>',
   '<APP_BUNDLE_STEP>',
 ];
@@ -433,18 +441,52 @@ function foldCaptureMeasuredSize(screen: string): string {
   return screen.replace(/\(\d+(?:\.\d+)? x \d+(?:\.\d+)?\)/g, '(<SIZE>)');
 }
 
-/** The SDK version `sherlo init` installs - a published number, a local tarball, whatever it is. */
-function foldInstalledSdkVersion(screen: string): string {
-  return screen.replace(/(@sherlo\/react-native-storybook)@[^\s"'`\u001b]+/g, '$1@<VERSION>');
+/**
+ * The versions of the app's stack on the line `sherlo init` checks the app on, e.g. `Expo 58, React
+ * Native 0.88, Storybook 10.6`. A new Expo, React Native or Storybook release changes them, and the
+ * screen says the same thing either way, so each is folded to its own placeholder. Only that line:
+ * a refusal's version ("Storybook 8.6.4 is too old") and the oldest supported one are the point of
+ * their screens, and stay.
+ */
+function foldCheckedAppVersions(screen: string): string {
+  return screen.replace(/^(.*Checked the app.*)$/gm, (line) =>
+    line
+      .replace(/Expo \d+(?:\.\d+)*/g, 'Expo <EXPO_VERSION>')
+      .replace(/React Native \d+(?:\.\d+)*/g, 'React Native <REACT_NATIVE_VERSION>')
+      .replace(/Storybook \d+(?:\.\d+)*/g, 'Storybook <STORYBOOK_VERSION>')
+  );
+}
+
+/** The Storybook version `sherlo init` installs, on its `Installed Storybook` line. */
+function foldInstalledStorybookVersion(screen: string): string {
+  return screen.replace(/(@storybook\/react-native) \d[^\s\u001b]*/g, '$1 <STORYBOOK_VERSION>');
 }
 
 /**
- * The two facts `sherlo feedback --dry-run` reads off the machine: the CLI's own version and the
- * operating system, each on its own `Name: value` line.
+ * The SDK version `sherlo init` installs - a published number, a local tarball, whatever it is -
+ * written after an `@` in a command, or after a space on the `Installed Sherlo` line.
+ */
+function foldInstalledSdkVersion(screen: string): string {
+  return screen
+    .replace(/(@sherlo\/react-native-storybook)@[^\s"'`\u001b]+/g, '$1@<SHERLO_VERSION>')
+    .replace(
+      /(@sherlo\/react-native-storybook) (?:\d|file:|\/)[^\s\u001b]*/g,
+      '$1 <SHERLO_VERSION>'
+    );
+}
+
+/**
+ * The facts `sherlo feedback --dry-run` reads off the machine and the app, each on its own `Name:
+ * value` line: the operating system, the CLI's own version, and each version of the app's stack
+ * that is known ("not known" is a declared answer, and stays).
  */
 function foldFeedbackMachineFacts(screen: string): string {
   return screen
-    .replace(/^( *Sherlo CLI: ).*$/gm, '$1<VERSION>')
+    .replace(/^( *Sherlo CLI: ).*$/gm, '$1<SHERLO_VERSION>')
+    .replace(/^( *Sherlo SDK: )\d.*$/gm, '$1<SHERLO_VERSION>')
+    .replace(/^( *Expo: )\d.*$/gm, '$1<EXPO_VERSION>')
+    .replace(/^( *React Native: )\d.*$/gm, '$1<REACT_NATIVE_VERSION>')
+    .replace(/^( *Storybook: )\d.*$/gm, '$1<STORYBOOK_VERSION>')
     .replace(/^( *Operating system: ).*$/gm, '$1<SYSTEM>');
 }
 

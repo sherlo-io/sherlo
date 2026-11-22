@@ -16,10 +16,8 @@ Setting up Sherlo...
 
 [31mERROR: Expo SDK 54 is too old: Sherlo needs Expo SDK 55 or newer[39m
 
-[0mUpgrading changes the whole app.[0m
-
 [0mUpgrade Expo, then run setup again:[0m
-[36m  npx expo install expo@latest[39m
+[36m  npx expo install expo@^55.0.0[39m
 [36m  npx expo install --fix[39m
 [36m  npx sherlo init[39m
 

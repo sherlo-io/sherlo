@@ -116,7 +116,8 @@ export function renderPackagesNotInstalled({
 /**
  * React Native is older than Sherlo supports. An upgrade changes the whole app, so the person
  * decides it: an agent reads one more line saying it upgrades only with the user's OK. The commands
- * are Expo's and React Native's own.
+ * are Expo's and React Native's own, and both land on the oldest supported version: the smallest
+ * jump breaks the least, as Storybook's guide upgrades one version at a time.
  */
 export function renderReactNativeTooOld({
   current,
@@ -142,13 +143,11 @@ export function renderReactNativeTooOld({
       ? `Expo SDK ${expoSdk} is too old: Sherlo needs Expo SDK ${minExpoSdk} or newer`
       : `React Native ${current} is too old: Sherlo needs ${min} or newer`;
   return refusal(title, [
-    words('Upgrading changes the whole app.'),
-    ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK.")] : []),
-    '',
+    ...(reader === 'agent' ? [words("AI agents upgrade it only with the user's OK."), ''] : []),
     ...(isExpo
       ? [
           words('Upgrade Expo, then run setup again:'),
-          code('npx expo install expo@latest'),
+          code(`npx expo install expo@^${minExpoSdk}.0.0`),
           code('npx expo install --fix'),
           code(INIT_COMMAND),
         ]
@@ -182,6 +181,7 @@ export function renderStorybookTooOld({
 }): InitRefusal {
   return refusal(`Storybook ${current} is too old: Sherlo needs ${min} or newer`, [
     words('Upgrade Storybook, with every @storybook/* package on the same version.'),
+    '',
     words("Follow Storybook for React Native's migration guide, one version at a time:"),
     code('https://github.com/storybookjs/react-native/blob/next/MIGRATION.md'),
     ...rerun(),

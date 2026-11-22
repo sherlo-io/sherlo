@@ -16,8 +16,6 @@ Setting up Sherlo...
 
 [31mERROR: React Native 0.81.5 is too old: Sherlo needs 0.82.0 or newer[39m
 
-[0mUpgrading changes the whole app.[0m
-
 [0mMake the native changes React Native's Upgrade Helper lists for your versions:[0m
 [36m  https://react-native-community.github.io/upgrade-helper[39m
 

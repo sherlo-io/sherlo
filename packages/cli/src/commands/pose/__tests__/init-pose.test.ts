@@ -115,9 +115,10 @@ describe('init through the sixth seam', () => {
   it('a second setup on a project already set up says each step was already done and writes no config', async () => {
     const { screen, exitCode } = await runPose(poseNamed('second-setup'));
 
-    // A project found in place is left as found: the config and Metro lines both say so.
+    // A project found in place is left as found: the config and Metro lines both say so. The
+    // screen folds the installed version to its placeholder (maskScreen.ts).
     expect(plain(screen)).toMatch(
-      /Installed Sherlo +@sherlo\/react-native-storybook 3\.0\.0-alpha\.0 \(already done\)/
+      /Installed Sherlo +@sherlo\/react-native-storybook <SHERLO_VERSION> \(already done\)/
     );
     expect(plain(screen)).toMatch(/Created config +sherlo\.config\.json \(already done\)/);
     expect(plain(screen)).toMatch(/Updated Metro config +metro\.config\.js \(already done\)/);
