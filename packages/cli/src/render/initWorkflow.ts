@@ -33,20 +33,81 @@
 /** Where the workflow goes in the repository - one name for the step that writes it and the lines that name it. */
 export const GITHUB_WORKFLOW_PATH = '.github/workflows/sherlo.yml';
 
-/** The line that installs the project's packages on a clean machine, per package manager. */
-const INSTALL_COMMAND: Record<string, string> = {
+/**
+ * The package managers the workflow knows, as package-manager-detector names their agents: Yarn 1
+ * is `yarn`, Yarn 2 and later is `yarn@berry`, because the two install with different words.
+ */
+type PackageManager = 'npm' | 'yarn' | 'yarn@berry' | 'pnpm' | 'bun';
+
+/**
+ * The line that installs the project's packages on a clean machine, per package manager. Each one
+ * installs exactly what the lock file says or stops, so the machine gets the developer's versions.
+ */
+const INSTALL_COMMAND: Record<PackageManager, string> = {
   npm: 'npm ci',
-  yarn: 'yarn install --immutable',
+  yarn: 'yarn install --frozen-lockfile',
+  'yarn@berry': 'yarn install --immutable',
   pnpm: 'pnpm install --frozen-lockfile',
   bun: 'bun install --frozen-lockfile',
 };
 
-/** The package caches setup-node knows by name; bun has none, so it gets no cache line. */
-const SETUP_NODE_CACHE: Record<string, string> = { npm: 'npm', yarn: 'yarn', pnpm: 'pnpm' };
+/**
+ * The package caches setup-node fills. Its cache step runs the package manager first, so only the
+ * ones GitHub's machines already have (npm, Yarn 1) or that a step before it installs (pnpm) get one.
+ * Yarn 2+ arrives only after setup-node, and Bun has no setup-node cache.
+ */
+const SETUP_NODE_CACHE: Partial<Record<PackageManager, string>> = {
+  npm: 'npm',
+  yarn: 'yarn',
+  pnpm: 'pnpm',
+};
 
-export function renderSherloWorkflow({ packageManager }: { packageManager: string }): string {
+/**
+ * GITHUB'S MACHINES HAVE ONLY NODE, NPM AND YARN 1, so every other package manager is put there
+ * first. Each step takes the version from the project's `packageManager` field; `pinnedVersion` is
+ * the developer's own version, written only when the project has no such field.
+ * Proved on GitHub's ubuntu and macOS machines, Node 22 and 26 (spike ci-package-managers).
+ */
+function packageManagerSetup(packageManager: PackageManager, pinnedVersion?: string) {
+  const versionInput = (name: string) =>
+    pinnedVersion ? `\n        with:\n          ${name}: ${pinnedVersion}` : '';
+
+  switch (packageManager) {
+    case 'pnpm':
+      return {
+        beforeNode: `\n      - uses: pnpm/action-setup@v6${versionInput('version')}\n`,
+        afterNode: '',
+      };
+    case 'bun':
+      return {
+        beforeNode: `\n      - uses: oven-sh/setup-bun@v2${versionInput('bun-version')}\n`,
+        afterNode: '',
+      };
+    case 'yarn@berry':
+      return {
+        beforeNode: '',
+        afterNode:
+          '\n      # Node no longer ships corepack, which runs the Yarn your package.json names.\n' +
+          '      - name: Set up Yarn\n' +
+          '        run: |\n' +
+          '          npm install --global corepack@latest\n' +
+          '          corepack enable\n',
+      };
+    default:
+      return { beforeNode: '', afterNode: '' };
+  }
+}
+
+export function renderSherloWorkflow({
+  packageManager,
+  pinnedVersion,
+}: {
+  packageManager: PackageManager;
+  pinnedVersion?: string;
+}): string {
   const cache = SETUP_NODE_CACHE[packageManager];
   const cacheLine = cache ? `\n          cache: ${cache}` : '';
+  const setup = packageManagerSetup(packageManager, pinnedVersion);
   return `# Sherlo visual tests, added by \`npx sherlo init\`.
 #
 # Sherlo photographs your app's Storybook stories on a device and shows what changed, for review.
@@ -92,13 +153,13 @@ jobs:
       SHERLO_UNTIL_CONNECTED: notice
     steps:
       - uses: actions/checkout@v4
-
+${setup.beforeNode}
       - uses: actions/setup-node@v4
         with:
           node-version: 22${cacheLine}
-
+${setup.afterNode}
       - name: Install packages
-        run: ${INSTALL_COMMAND[packageManager] ?? INSTALL_COMMAND.npm}
+        run: ${INSTALL_COMMAND[packageManager]}
 
       - name: Run Sherlo
         uses: sherlo-io/sherlo@v3

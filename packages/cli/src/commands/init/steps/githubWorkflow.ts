@@ -65,7 +65,14 @@ async function githubWorkflow(): Promise<{ hasWorkflow: boolean }> {
     return { hasWorkflow: true };
   }
 
-  const packageManager = (await detect({ cwd: projectRoot }))?.name ?? 'npm';
+  // The agent, not the name: Yarn 1 and Yarn 2+ install with different words.
+  const agent = (await detect({ cwd: projectRoot }))?.agent;
+  const packageManager =
+    agent === 'yarn' || agent === 'yarn@berry' || agent === 'pnpm' || agent === 'bun'
+      ? agent
+      : agent === 'pnpm@6'
+        ? 'pnpm'
+        : 'npm';
 
   fs.mkdirSync(path.dirname(workflowFile), { recursive: true });
   fs.writeFileSync(workflowFile, renderSherloWorkflow({ packageManager }));

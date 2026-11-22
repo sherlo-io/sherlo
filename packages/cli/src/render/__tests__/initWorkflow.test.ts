@@ -68,15 +68,52 @@ describe('the workflow sherlo init writes', () => {
     expect(workflow).toContain('Connect GitHub');
   });
 
-  it('sets up Node 22 with the package manager cache setup-node knows, and none for bun', () => {
+  it('sets up Node 22 with the package manager cache setup-node knows, and none for bun or Yarn 2+', () => {
     expect(workflow).toMatch(/node-version: 22\n\s+cache: yarn\n/);
     expect(renderSherloWorkflow({ packageManager: 'bun' })).toMatch(/node-version: 22\n\n/);
+    expect(renderSherloWorkflow({ packageManager: 'yarn@berry' })).not.toContain('cache:');
   });
 
-  it("installs with the project's package manager", () => {
-    expect(workflow).toContain('run: yarn install --immutable');
-    expect(renderSherloWorkflow({ packageManager: 'pnpm' })).toContain(
-      'run: pnpm install --frozen-lockfile'
+  it("installs exactly the lock file's versions, in each package manager's own words", () => {
+    const installLine = (
+      packageManager: Parameters<typeof renderSherloWorkflow>[0]['packageManager']
+    ) => /run: (.+)\n\n\s+- name: Run Sherlo/.exec(renderSherloWorkflow({ packageManager }))?.[1];
+
+    expect(installLine('npm')).toBe('npm ci');
+    expect(installLine('yarn')).toBe('yarn install --frozen-lockfile');
+    expect(installLine('yarn@berry')).toBe('yarn install --immutable');
+    expect(installLine('pnpm')).toBe('pnpm install --frozen-lockfile');
+    expect(installLine('bun')).toBe('bun install --frozen-lockfile');
+  });
+
+  it('puts the package managers GitHub lacks on the machine: pnpm and Bun before Node, Yarn 2+ through corepack after it', () => {
+    const pnpm = renderSherloWorkflow({ packageManager: 'pnpm' });
+    expect(pnpm.indexOf('pnpm/action-setup@')).toBeGreaterThan(-1);
+    expect(pnpm.indexOf('pnpm/action-setup@')).toBeLessThan(pnpm.indexOf('actions/setup-node@'));
+
+    const bun = renderSherloWorkflow({ packageManager: 'bun' });
+    expect(bun.indexOf('oven-sh/setup-bun@')).toBeGreaterThan(-1);
+
+    const berry = renderSherloWorkflow({ packageManager: 'yarn@berry' });
+    expect(berry.indexOf('npm install --global corepack@latest')).toBeGreaterThan(
+      berry.indexOf('actions/setup-node@')
+    );
+    expect(berry).toContain('corepack enable');
+
+    expect(renderSherloWorkflow({ packageManager: 'npm' })).not.toMatch(
+      /action-setup|setup-bun|corepack/
+    );
+  });
+
+  it("pins the developer's version only when package.json names no package manager", () => {
+    expect(renderSherloWorkflow({ packageManager: 'pnpm' })).toMatch(
+      /pnpm\/action-setup@v6\n\n\s+- uses: actions\/setup-node@/
+    );
+    expect(renderSherloWorkflow({ packageManager: 'pnpm', pinnedVersion: '9.15.0' })).toMatch(
+      /pnpm\/action-setup@v6\n\s+with:\n\s+version: 9\.15\.0\n/
+    );
+    expect(renderSherloWorkflow({ packageManager: 'bun', pinnedVersion: '1.3.9' })).toMatch(
+      /oven-sh\/setup-bun@v2\n\s+with:\n\s+bun-version: 1\.3\.9\n/
     );
   });
 });
