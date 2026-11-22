@@ -93,34 +93,6 @@ describe('the capture each platform reports for the Started row', () => {
     ]);
   });
 
-  it('the capture plan of a first look says how many stories it takes and how to ask for all', () => {
-    const openBuildReturn = openBuildWith({
-      ios: { devices: [], captureScope: { full: false, storyFilePaths: ['src/A.stories.tsx'] } },
-    });
-    openBuildReturn.build.diffScopeInfo.isFirstLook = true;
-
-    const capture = capturePerPlatform({
-      openBuildReturn,
-      moduleManifests: {
-        ios: {
-          raw: Buffer.from('{}'),
-          parsed: {
-            version: 1,
-            header: {},
-            moduleHashes: {},
-            storyClosures: { 'src/A.stories.tsx': [], 'src/B.stories.tsx': [] },
-            storyCounts: { 'src/A.stories.tsx': 3, 'src/B.stories.tsx': 20 },
-          },
-        } as any,
-      },
-      platformsToTest: ['ios'],
-    });
-
-    expect(describeWhatRuns({ capture })).toBe(
-      '3 of 23 stories, a first look: --all-stories tests all 23 stories'
-    );
-  });
-
   it("a stories glob widened to a new screen counts that screen's stories as changed", () => {
     const typography = 'src/Typography.stories.tsx';
     const capture = capturePerPlatform({

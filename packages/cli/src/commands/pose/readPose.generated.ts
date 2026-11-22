@@ -2396,9 +2396,6 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
     if ('ancestorBuildIndex' in object1) {
       expectNumber(object1.ancestorBuildIndex, at(path, 'ancestorBuildIndex'), problems);
     }
-    if ('isFirstLook' in object1) {
-      expectBoolean(object1.isFirstLook, at(path, 'isFirstLook'), problems);
-    }
     if ('capturedSnapshotCount' in object1) {
       expectNumber(object1.capturedSnapshotCount, at(path, 'capturedSnapshotCount'), problems);
     }
@@ -2411,7 +2408,6 @@ function readPosedCaptureDecision(value: unknown, path: string, problems: string
         'platforms',
         'fullCaptureTriggerReason',
         'ancestorBuildIndex',
-        'isFirstLook',
         'capturedSnapshotCount',
         'inheritedSnapshotCount',
       ],
@@ -2533,9 +2529,6 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
         if (object13) {
           expectOneOf(object13.platform, ['android', 'ios'], at(where12, 'platform'), problems);
           expectBoolean(object13.full, at(where12, 'full'), problems);
-          if ('firstLook' in object13) {
-            expectBoolean(object13.firstLook, at(where12, 'firstLook'), problems);
-          }
           expectNumber(object13.capturedStories, at(where12, 'capturedStories'), problems);
           if ('capturedScenes' in object13) {
             expectNumber(object13.capturedScenes, at(where12, 'capturedScenes'), problems);
@@ -2595,7 +2588,6 @@ function readStartedRun(value: unknown, path: string, problems: string[]): void 
             [
               'platform',
               'full',
-              'firstLook',
               'capturedStories',
               'capturedScenes',
               'storiesInBundle',

@@ -42,17 +42,13 @@ import { closeTheRun } from '../closeTheRun';
 import { openAndEndTheTest } from '../startTheTest';
 
 /** One android test opened alone, whose module map holds one file of three stories. */
-function openOneTest(
-  refusedAtOpen?: (error: unknown) => Promise<{ url: string }> | undefined,
-  allStories?: boolean
-) {
+function openOneTest(refusedAtOpen?: (error: unknown) => Promise<{ url: string }> | undefined) {
   return openAndEndTheTest({
     passedOptions: {} as any,
     commandParams: {
       credential: { token: 't', projectIndex: 3, teamId: 'team' },
       devices: [],
       projectRoot: '/no/such/app',
-      allStories,
     } as any,
     platformsToTest: ['android'],
     joinKey: null,
@@ -92,23 +88,38 @@ describe('opening the test', () => {
     );
   });
 
-  it('a first push sends the first-look list of story files', async () => {
+  it('a first push sends no list of story files for the service to narrow to', async () => {
     mocks.openBuild.mockResolvedValue({ build: { index: 4 }, buildRun: { config: {} } });
 
     await openOneTest();
 
-    expect(mocks.openBuild).toHaveBeenCalledWith(
-      expect.objectContaining({ firstLook: { storyFilePaths: ['src/A.stories.tsx'] } })
-    );
-  });
-
-  it('--all-stories sends no first-look list', async () => {
-    mocks.openBuild.mockResolvedValue({ build: { index: 4 }, buildRun: { config: {} } });
-
-    await openOneTest(undefined, true);
-
     expect(mocks.openBuild).toHaveBeenCalledTimes(1);
     expect(mocks.openBuild.mock.calls[0][0]).not.toHaveProperty('firstLook');
+  });
+
+  it('the test command takes no flag that asks for every story', async () => {
+    vi.doUnmock('../../../helpers');
+    vi.doUnmock('../../../seams/serverCalls');
+    vi.doUnmock('../closeTheRun');
+    vi.doUnmock('../../../seams/surroundings');
+    vi.resetModules();
+    const { default: start } = await import('../../../start');
+    const originalArgv = process.argv;
+    let help = '';
+    vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+      help += String(chunk);
+      return true;
+    }) as never);
+    vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit');
+    }) as never);
+
+    process.argv = ['node', 'sherlo', 'test', '--help'];
+    await start().catch(() => undefined);
+    process.argv = originalArgv;
+
+    expect(help).toContain('Usage: sherlo test');
+    expect(help).not.toMatch(/all-stories|every story/i);
   });
 
   it("an error the road answers at the open ends the push on the road's answer", async () => {

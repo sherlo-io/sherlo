@@ -18,7 +18,6 @@ import {
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
 import { printTestStarted, serverClosedTheTest } from '../commands/test/startTheTest';
 import { waitForQuickCheck } from '../commands/test/waitForQuickCheck';
-import { firstLookOf } from '../commands/test/firstLook';
 import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
 import type { PlatformRow } from '../render/runRows';
@@ -362,16 +361,7 @@ async function uploadOrReuseBuildsAndRunTests({
   });
 
   const moduleManifests = collectModuleManifests(freshBundles, platformsWithBundles);
-  // A joined run is sent no first look: joinBuild takes none (../commands/test/firstLook).
-  const firstLook = splitJob
-    ? undefined
-    : firstLookOf({
-        allStories: commandParams.allStories,
-        projectRoot: commandParams.projectRoot,
-        moduleManifests,
-      });
   const opened = await io.openBuild({
-    ...(firstLook ? { firstLook } : {}),
     teamId,
     projectIndex,
     binaryHashes: {

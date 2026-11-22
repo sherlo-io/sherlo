@@ -21,7 +21,6 @@ import { pushFactsOf } from './appBuild/pushFacts';
 import { capturePerPlatform, picturesInPlan } from './capturePerPlatform';
 import { closeTheRun } from './closeTheRun';
 import type { THIS_COMMAND } from './constants';
-import { firstLookOf } from './firstLook';
 import { rowsAbove } from './platformRows';
 import {
   captureWithTheAnswer,
@@ -96,17 +95,7 @@ export async function openAndEndTheTest({
     } else {
       // Through the server seam (../../seams/serverCalls), so a pose answers this call instead of
       // the network.
-      const firstLook = firstLookOf({
-        allStories: commandParams.allStories,
-        projectRoot: commandParams.projectRoot,
-        moduleManifests,
-      });
-      openBuildReturn = await serverCalls().openBuild({
-        token,
-        pushFacts,
-        ...request,
-        ...(firstLook ? { firstLook } : {}),
-      });
+      openBuildReturn = await serverCalls().openBuild({ token, pushFacts, ...request });
     }
   } catch (error) {
     const refused = refusedAtOpen?.(error);
