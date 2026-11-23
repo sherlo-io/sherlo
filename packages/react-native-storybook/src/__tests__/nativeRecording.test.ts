@@ -108,13 +108,15 @@ type App = {
 
 // The polyfill run as the app's JavaScript starts in `mode`; the new architecture carries Fabric's
 // UI manager, the old one does not. `readOnly` globals are installed as native code installs a
-// global the app cannot replace; the registration of callable modules runs unless left out.
+// global the app cannot replace, `notEnumerated` ones as a native side installs a global it does
+// not enumerate; the registration of callable modules runs unless left out.
 function startAppIn(
   mode: string,
   architecture: 'new' | 'old',
   extras: Record<string, any> = {},
   options: {
     readOnly?: Record<string, unknown>;
+    notEnumerated?: Record<string, unknown>;
     engine?: Record<string, unknown>;
     withoutCallableRoad?: boolean;
   } = {}
@@ -125,7 +127,12 @@ function startAppIn(
     registerCallableModule: () => undefined,
     callableModule: () => undefined,
   };
-  app.fakeGlobal = {
+  // The engine's own, as the language lays them on the global object as the engine starts, before
+  // anything else is there: never enumerable.
+  Object.entries(options.engine ?? {}).forEach(([name, value]) => {
+    Object.defineProperty(app.fakeGlobal, name, { value, enumerable: false, writable: false });
+  });
+  Object.assign(app.fakeGlobal, {
     __turboModuleProxy: (name: string) =>
       app.fakeGlobal.nativeModulesOfTheTest[name] ??
       (name === 'SherloModule' ? { getSherloConstants: () => ({ mode }) } : null),
@@ -133,13 +140,17 @@ function startAppIn(
     eventsReactRan: [],
     nativeModulesOfTheTest: {},
     ...extras,
-  };
+  });
   Object.entries(options.readOnly ?? {}).forEach(([name, value]) => {
     Object.defineProperty(app.fakeGlobal, name, { value, enumerable: true, writable: false });
   });
-  // The engine's own, as the language lays them on the global object: never enumerable.
-  Object.entries(options.engine ?? {}).forEach(([name, value]) => {
-    Object.defineProperty(app.fakeGlobal, name, { value, enumerable: false, writable: false });
+  Object.entries(options.notEnumerated ?? {}).forEach(([name, value]) => {
+    Object.defineProperty(app.fakeGlobal, name, {
+      value,
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    });
   });
   if (architecture === 'new') {
     app.fakeGlobal.nativeFabricUIManager = {
@@ -531,6 +542,159 @@ describe('what the app records for each story', () => {
     ]);
   });
 
+  it('a global the phone installed without enumerating it is recorded with what the bundle reads and calls on it', () => {
+    class Emitter {
+      constructor(readonly name: string) {}
+      describe() {
+        return `emits ${this.name}`;
+      }
+    }
+    // Two globals a native side installs before the bundle runs without enumerating them: one
+    // whose member class the bundle reads as it loads, one whose function it calls.
+    const core = Object.create(null);
+    core.Emitter = nativeFunction(Emitter);
+    const refused: string[] = [];
+    const bridge = Object.create(null);
+    bridge.readBlocking = nativeFunction(function (this: unknown, key: string) {
+      if (this !== bridge) refused.push("a method's this");
+      return `held ${key}`;
+    });
+    const app = startAppIn(
+      'testing',
+      'new',
+      {},
+      { engine: { Math }, notEnumerated: { appCore: core, moduleBridge: bridge } }
+    );
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('cart--full');
+    class CartEmitter extends app.fakeGlobal.appCore.Emitter {}
+    expect(new CartEmitter('cart').describe()).toBe('emits cart');
+    expect(app.fakeGlobal.moduleBridge.readBlocking('cart')).toBe('held cart');
+    expect(refused).toEqual([]);
+    // Each is laid back as native laid it, and the engine's own are left as they are.
+    expect(Object.getOwnPropertyDescriptor(app.fakeGlobal, 'appCore')?.enumerable).toBe(false);
+    expect(app.fakeGlobal.Math).toBe(Math);
+
+    const recording = storyRecordingOf('cart--full');
+    const named = (recording?.blindRoads ?? []).map(({ name }) => name);
+    expect(named).not.toContain('atStart:appCore');
+    expect(named).not.toContain('atStart:moduleBridge');
+    const ref = (handle: string, type = 'function') => ({ $: 'native', handle, type });
+    expect(
+      recording?.nativeCalls.map(({ module, method, args, answer }) => [
+        module,
+        method,
+        args,
+        answer,
+      ])
+    ).toEqual([
+      ...DATA_ENTRIES_AT_START,
+      ['global', 'installed', ['appCore'], ref('appCore', 'object')],
+      ['global', 'installed', ['moduleBridge'], ref('moduleBridge', 'object')],
+      ['global', 'notFromThePhone', ['Math', ...MADE_BY_THE_BUNDLE], undefined],
+      ['appCore', 'get', ['Emitter'], ref('#1')],
+      ['#1', 'get', ['prototype'], {}],
+      ['#1', 'construct', [['cart'], { $: 'subclass' }], ref('#2', 'object')],
+      ['#2', 'get', ['describe'], ref('#3')],
+      ['#3', 'apply', [ref('#2', 'object'), []], 'emits cart'],
+      ['moduleBridge', 'get', ['readBlocking'], ref('#4')],
+      ['#4', 'apply', [ref('moduleBridge', 'object'), ['cart']], 'held cart'],
+    ]);
+  });
+
+  it('a global a recorded native call lays that is neither native nor data is named as unseen, never skipped', () => {
+    const app = startAppIn('testing', 'new');
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      Loader: {
+        // Native code that runs JavaScript of its own as it loads, laying globals as it goes.
+        load: () => {
+          app.fakeGlobal.loadedHelpers = { unpack: (value: unknown) => value };
+          app.fakeGlobal.loadedCount = 3;
+        },
+      },
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('loader--ready');
+    // The bundle's own global, laid before the call, is the bundle's.
+    app.fakeGlobal.appHelper = () => undefined;
+    registry.get('Loader').load();
+
+    const recording = storyRecordingOf('loader--ready');
+    const named = (recording?.blindRoads ?? []).map(({ kind, name }) => `${kind} ${name}`);
+    expect(named).toContain('jsiGlobal loadedHelpers');
+    expect(named.filter((name) => name.includes('appHelper'))).toEqual([]);
+    expect(
+      recording?.nativeCalls.filter(
+        ({ module, method, args }) =>
+          module === 'global' && method === 'installed' && args[0] === 'loadedCount'
+      )
+    ).toEqual([expect.objectContaining({ answer: 3 })]);
+  });
+
+  it('a global that cannot be replaced has the shape of its own members recorded by reading alone', () => {
+    class Emitter {}
+    const touched: string[] = [];
+    const members: Record<string, unknown> = {
+      version: '5',
+      Emitter: nativeFunction(Emitter),
+      modules: {},
+      ping: nativeFunction(() => 'pong'),
+    };
+    Object.defineProperty(members, 'lazy', {
+      get: () => touched.push('a getter run'),
+      enumerable: true,
+      configurable: true,
+    });
+    // What the recorder does to the global's object, beyond reading what it holds.
+    const core = new Proxy(members, {
+      set: (target, key, value) => {
+        touched.push(`a write of ${String(key)}`);
+        return Reflect.set(target, key, value);
+      },
+      defineProperty: (target, key, description) => {
+        touched.push(`a definition of ${String(key)}`);
+        return Reflect.defineProperty(target, key, description);
+      },
+    });
+    const app = startAppIn('testing', 'new', {}, { readOnly: { appCore: core } });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('core--plain');
+    // The bundle reads a member as it loads, and is handed the very object native laid.
+    expect(app.fakeGlobal.appCore.Emitter).toBe(members.Emitter);
+    expect(app.fakeGlobal.appCore).toBe(core);
+    expect(touched).toEqual([]);
+
+    const recording = storyRecordingOf('core--plain');
+    const ref = (handle: string, type = 'function') => ({ $: 'native', handle, type });
+    expect(
+      recording?.nativeCalls.filter(
+        ({ module, method }) => module === 'global' && method === 'shape'
+      )
+    ).toEqual([
+      expect.objectContaining({
+        args: ['appCore'],
+        kind: 'sync',
+        answer: {
+          $: 'shape',
+          type: 'object',
+          members: {
+            version: '5',
+            Emitter: ref('appCore.Emitter'),
+            modules: ref('appCore.modules', 'object'),
+            ping: ref('appCore.ping'),
+            lazy: { $: 'accessor' },
+          },
+        },
+      }),
+    ]);
+    // The global stays named as unseen beside its shape.
+    expect((recording?.blindRoads ?? []).map(({ name }) => name)).toContain('atStart:appCore');
+  });
+
   it('a module lookup is recorded present or absent whichever way it is asked', () => {
     // A library's module table, as native code installs it on a global of its own.
     const library = Object.create(null);
@@ -681,16 +845,17 @@ describe('what the app records for each story', () => {
     const recording = storyRecordingOf('map--live');
     expect(recording?.blindRoads).toEqual([
       ...globalsAtStart(GLOBALS_OF_A_NEW_APP.slice(0, 4)),
-      { kind: 'jsiGlobal', name: 'atStart:imageDecoder', order: 4 },
-      { kind: 'jsiGlobal', name: 'atStart:nativeFabricUIManager', order: 5 },
-      { kind: 'workletRuntime', name: '#1.apply', order: 8 },
-      { kind: 'jsiGlobal', name: 'unrecordable:#3.apply', order: 11 },
-      { kind: 'jsiGlobal', name: 'createRuntime', order: 13 },
-      { kind: 'jsiGlobal', name: 'imageCache', order: 14 },
-      { kind: 'jsiGlobal', name: 'nativeFabricUIManager', order: 15 },
-      { kind: 'expoNativeEvent', name: 'callableModules', order: 16 },
+      // Order 4 is the shape of `imageDecoder`, noted beside its blind road.
+      { kind: 'jsiGlobal', name: 'atStart:imageDecoder', order: 5 },
+      { kind: 'jsiGlobal', name: 'atStart:nativeFabricUIManager', order: 6 },
+      { kind: 'workletRuntime', name: '#1.apply', order: 9 },
+      { kind: 'jsiGlobal', name: 'unrecordable:#3.apply', order: 12 },
+      { kind: 'jsiGlobal', name: 'createRuntime', order: 14 },
+      { kind: 'jsiGlobal', name: 'imageCache', order: 15 },
+      { kind: 'jsiGlobal', name: 'nativeFabricUIManager', order: 16 },
+      { kind: 'expoNativeEvent', name: 'callableModules', order: 17 },
     ]);
-    expect(recording?.pictureAt).toBe(17);
+    expect(recording?.pictureAt).toBe(18);
 
     // A lookup native code installed read-only cannot be watched.
     const fixedApp = startAppIn(
@@ -1277,7 +1442,7 @@ describe('what the app records for each story', () => {
     );
     expect(listed).toEqual([
       expect.objectContaining({
-        args: ['__d', 'defineModule', 'moduleTable', 'NaN', 'Infinity', 'Math'],
+        args: ['NaN', 'Infinity', 'Math', '__d', 'defineModule', 'moduleTable'],
         kind: 'sync',
       }),
     ]);
