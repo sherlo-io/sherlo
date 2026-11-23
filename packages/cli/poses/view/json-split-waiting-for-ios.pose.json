@@ -50,6 +50,16 @@
           }
         }
       }
+    },
+    {
+      "call": "getStoriesDiffScope",
+      "with": { "buildIndex": 1, "platform": "android" },
+      "answer": { "isCut": false, "stories": [] }
+    },
+    {
+      "call": "getStoriesDiffScope",
+      "with": { "buildIndex": 1, "platform": "ios" },
+      "answer": { "isCut": false, "stories": [] }
     }
   ],
   "masks": {}
