@@ -245,6 +245,58 @@ export type ScriptedCall =
       answer: ApiError | BuildStatusAnswer | null;
     }
   | {
+      call: 'getStoriesDiffScope';
+      with: {
+        buildIndex: number;
+        platform: 'android' | 'ios';
+        after?: string;
+      };
+      answer:
+        | ApiError
+        | {
+            isCut: boolean;
+            nextAfter?: string | null;
+            quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED' | null;
+            stories: Array<{
+              storyId: string;
+              deviceId: string;
+              hasDiffScopeData: boolean;
+              /** `final`, or `quickCheckRunning` while the story's quick check may still move its record. */
+              state: string;
+              record: {
+                checks: Array<{
+                  answer: string;
+                  name: string;
+                  tone: string;
+                  count?: number | null;
+                  isDeciding?: boolean | null;
+                }>;
+                reason: string;
+                test: number;
+                changedFiles?: string[] | null;
+                comparedWithTest?: number | null;
+                /** The lines that differ from the last test: `kind` is same or after. */
+                drawnLines?: Array<{
+                  kind: string;
+                  number: number;
+                  text: string;
+                }> | null;
+                drawnStoryPastRetention?: boolean | null;
+                /** What stood in the way of the quick check. */
+                obstacles?: Array<{
+                  cause: string;
+                  name?: string | null;
+                }> | null;
+                /** The chain of files the change reaches the story through. */
+                reachedThrough?: string[] | null;
+                wholeTestFile?: string | null;
+                wholeTestReason?: string | null;
+              } | null;
+            }>;
+          }
+        | null;
+    }
+  | {
       call: 'createProject';
       with: {
         teamId: string;

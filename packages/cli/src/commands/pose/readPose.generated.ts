@@ -271,34 +271,324 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         }
         reportUnknownFields(object2, ['call', 'with', 'answer'], path, problems);
       }
-    } else if (oneOf1.call === 'createProject') {
+    } else if (oneOf1.call === 'getStoriesDiffScope') {
       const object7 = asObject(oneOf1, path, problems);
       if (object7) {
-        expectLiteral(object7.call, 'createProject', at(path, 'call'), problems);
+        expectLiteral(object7.call, 'getStoriesDiffScope', at(path, 'call'), problems);
         const where8 = at(path, 'with');
         const object9 = asObject(object7.with, where8, problems);
         if (object9) {
-          expectString(object9.teamId, at(where8, 'teamId'), problems);
-          expectString(object9.name, at(where8, 'name'), problems);
-          reportUnknownFields(object9, ['teamId', 'name'], where8, problems);
+          expectNumber(object9.buildIndex, at(where8, 'buildIndex'), problems);
+          expectOneOf(object9.platform, ['android', 'ios'], at(where8, 'platform'), problems);
+          if ('after' in object9) {
+            expectString(object9.after, at(where8, 'after'), problems);
+          }
+          reportUnknownFields(object9, ['buildIndex', 'platform', 'after'], where8, problems);
         }
         const oneOf10 = object7.answer;
         const where11 = at(path, 'answer');
-        if (isPlainObject(oneOf10)) {
+        if (oneOf10 === null) {
+          // the value is one of these
+        } else if (isPlainObject(oneOf10)) {
           if ('error' in oneOf10) {
             readApiError(oneOf10, where11, problems);
-          } else if ('name' in oneOf10) {
+          } else if ('isCut' in oneOf10) {
             const object12 = asObject(oneOf10, where11, problems);
             if (object12) {
-              expectString(object12.name, at(where11, 'name'), problems);
-              expectNumber(object12.index, at(where11, 'index'), problems);
-              expectString(object12.projectToken, at(where11, 'projectToken'), problems);
-              reportUnknownFields(object12, ['name', 'index', 'projectToken'], where11, problems);
+              expectBoolean(object12.isCut, at(where11, 'isCut'), problems);
+              if ('nextAfter' in object12) {
+                const oneOf13 = object12.nextAfter;
+                const where14 = at(where11, 'nextAfter');
+                if (typeof oneOf13 === 'string' || oneOf13 === null) {
+                  // the value is one of these
+                } else {
+                  reportWrongShape(oneOf13, 'a string or `null`', where14, problems);
+                }
+              }
+              if ('quickCheck' in object12) {
+                const oneOf15 = object12.quickCheck;
+                const where16 = at(where11, 'quickCheck');
+                if (
+                  oneOf15 === 'NOT_NEEDED' ||
+                  oneOf15 === 'RUNNING' ||
+                  oneOf15 === 'FINISHED' ||
+                  oneOf15 === 'FAILED' ||
+                  oneOf15 === null
+                ) {
+                  // the value is one of these
+                } else {
+                  reportWrongShape(
+                    oneOf15,
+                    '`"NOT_NEEDED"`, `"RUNNING"`, `"FINISHED"`, `"FAILED"` or `null`',
+                    where16,
+                    problems
+                  );
+                }
+              }
+              const where17 = at(where11, 'stories');
+              const list18 = asArray(object12.stories, where17, problems);
+              if (list18) {
+                list18.forEach((entry19, index20) => {
+                  const where21 = atIndex(where17, index20);
+                  const object22 = asObject(entry19, where21, problems);
+                  if (object22) {
+                    expectString(object22.storyId, at(where21, 'storyId'), problems);
+                    expectString(object22.deviceId, at(where21, 'deviceId'), problems);
+                    expectBoolean(
+                      object22.hasDiffScopeData,
+                      at(where21, 'hasDiffScopeData'),
+                      problems
+                    );
+                    expectString(object22.state, at(where21, 'state'), problems);
+                    const oneOf23 = object22.record;
+                    const where24 = at(where21, 'record');
+                    if (oneOf23 === null) {
+                      // the value is one of these
+                    } else if (isPlainObject(oneOf23)) {
+                      const object25 = asObject(oneOf23, where24, problems);
+                      if (object25) {
+                        const where26 = at(where24, 'checks');
+                        const list27 = asArray(object25.checks, where26, problems);
+                        if (list27) {
+                          list27.forEach((entry28, index29) => {
+                            const where30 = atIndex(where26, index29);
+                            const object31 = asObject(entry28, where30, problems);
+                            if (object31) {
+                              expectString(object31.answer, at(where30, 'answer'), problems);
+                              expectString(object31.name, at(where30, 'name'), problems);
+                              expectString(object31.tone, at(where30, 'tone'), problems);
+                              if ('count' in object31) {
+                                const oneOf32 = object31.count;
+                                const where33 = at(where30, 'count');
+                                if (typeof oneOf32 === 'number' || oneOf32 === null) {
+                                  // the value is one of these
+                                } else {
+                                  reportWrongShape(
+                                    oneOf32,
+                                    'a number or `null`',
+                                    where33,
+                                    problems
+                                  );
+                                }
+                              }
+                              if ('isDeciding' in object31) {
+                                const oneOf34 = object31.isDeciding;
+                                const where35 = at(where30, 'isDeciding');
+                                if (typeof oneOf34 === 'boolean' || oneOf34 === null) {
+                                  // the value is one of these
+                                } else {
+                                  reportWrongShape(
+                                    oneOf34,
+                                    'true/false or `null`',
+                                    where35,
+                                    problems
+                                  );
+                                }
+                              }
+                              reportUnknownFields(
+                                object31,
+                                ['answer', 'name', 'tone', 'count', 'isDeciding'],
+                                where30,
+                                problems
+                              );
+                            }
+                          });
+                        }
+                        expectString(object25.reason, at(where24, 'reason'), problems);
+                        expectNumber(object25.test, at(where24, 'test'), problems);
+                        if ('changedFiles' in object25) {
+                          const oneOf36 = object25.changedFiles;
+                          const where37 = at(where24, 'changedFiles');
+                          if (oneOf36 === null) {
+                            // the value is one of these
+                          } else if (Array.isArray(oneOf36)) {
+                            expectStringArray(oneOf36, where37, problems);
+                          } else {
+                            reportWrongShape(
+                              oneOf36,
+                              'an array of strings or `null`',
+                              where37,
+                              problems
+                            );
+                          }
+                        }
+                        if ('comparedWithTest' in object25) {
+                          const oneOf38 = object25.comparedWithTest;
+                          const where39 = at(where24, 'comparedWithTest');
+                          if (typeof oneOf38 === 'number' || oneOf38 === null) {
+                            // the value is one of these
+                          } else {
+                            reportWrongShape(oneOf38, 'a number or `null`', where39, problems);
+                          }
+                        }
+                        if ('drawnLines' in object25) {
+                          const oneOf40 = object25.drawnLines;
+                          const where41 = at(where24, 'drawnLines');
+                          if (oneOf40 === null) {
+                            // the value is one of these
+                          } else if (Array.isArray(oneOf40)) {
+                            const list42 = asArray(oneOf40, where41, problems);
+                            if (list42) {
+                              list42.forEach((entry43, index44) => {
+                                const where45 = atIndex(where41, index44);
+                                const object46 = asObject(entry43, where45, problems);
+                                if (object46) {
+                                  expectString(object46.kind, at(where45, 'kind'), problems);
+                                  expectNumber(object46.number, at(where45, 'number'), problems);
+                                  expectString(object46.text, at(where45, 'text'), problems);
+                                  reportUnknownFields(
+                                    object46,
+                                    ['kind', 'number', 'text'],
+                                    where45,
+                                    problems
+                                  );
+                                }
+                              });
+                            }
+                          } else {
+                            reportWrongShape(
+                              oneOf40,
+                              '`Array<{ kind: string; number: number; text: string }>` or `null`',
+                              where41,
+                              problems
+                            );
+                          }
+                        }
+                        if ('drawnStoryPastRetention' in object25) {
+                          const oneOf47 = object25.drawnStoryPastRetention;
+                          const where48 = at(where24, 'drawnStoryPastRetention');
+                          if (typeof oneOf47 === 'boolean' || oneOf47 === null) {
+                            // the value is one of these
+                          } else {
+                            reportWrongShape(oneOf47, 'true/false or `null`', where48, problems);
+                          }
+                        }
+                        if ('obstacles' in object25) {
+                          const oneOf49 = object25.obstacles;
+                          const where50 = at(where24, 'obstacles');
+                          if (oneOf49 === null) {
+                            // the value is one of these
+                          } else if (Array.isArray(oneOf49)) {
+                            const list51 = asArray(oneOf49, where50, problems);
+                            if (list51) {
+                              list51.forEach((entry52, index53) => {
+                                const where54 = atIndex(where50, index53);
+                                const object55 = asObject(entry52, where54, problems);
+                                if (object55) {
+                                  expectString(object55.cause, at(where54, 'cause'), problems);
+                                  if ('name' in object55) {
+                                    const oneOf56 = object55.name;
+                                    const where57 = at(where54, 'name');
+                                    if (typeof oneOf56 === 'string' || oneOf56 === null) {
+                                      // the value is one of these
+                                    } else {
+                                      reportWrongShape(
+                                        oneOf56,
+                                        'a string or `null`',
+                                        where57,
+                                        problems
+                                      );
+                                    }
+                                  }
+                                  reportUnknownFields(
+                                    object55,
+                                    ['cause', 'name'],
+                                    where54,
+                                    problems
+                                  );
+                                }
+                              });
+                            }
+                          } else {
+                            reportWrongShape(
+                              oneOf49,
+                              '`Array<{ cause: string; name?: string | null }>` or `null`',
+                              where50,
+                              problems
+                            );
+                          }
+                        }
+                        if ('reachedThrough' in object25) {
+                          const oneOf58 = object25.reachedThrough;
+                          const where59 = at(where24, 'reachedThrough');
+                          if (oneOf58 === null) {
+                            // the value is one of these
+                          } else if (Array.isArray(oneOf58)) {
+                            expectStringArray(oneOf58, where59, problems);
+                          } else {
+                            reportWrongShape(
+                              oneOf58,
+                              'an array of strings or `null`',
+                              where59,
+                              problems
+                            );
+                          }
+                        }
+                        if ('wholeTestFile' in object25) {
+                          const oneOf60 = object25.wholeTestFile;
+                          const where61 = at(where24, 'wholeTestFile');
+                          if (typeof oneOf60 === 'string' || oneOf60 === null) {
+                            // the value is one of these
+                          } else {
+                            reportWrongShape(oneOf60, 'a string or `null`', where61, problems);
+                          }
+                        }
+                        if ('wholeTestReason' in object25) {
+                          const oneOf62 = object25.wholeTestReason;
+                          const where63 = at(where24, 'wholeTestReason');
+                          if (typeof oneOf62 === 'string' || oneOf62 === null) {
+                            // the value is one of these
+                          } else {
+                            reportWrongShape(oneOf62, 'a string or `null`', where63, problems);
+                          }
+                        }
+                        reportUnknownFields(
+                          object25,
+                          [
+                            'checks',
+                            'reason',
+                            'test',
+                            'changedFiles',
+                            'comparedWithTest',
+                            'drawnLines',
+                            'drawnStoryPastRetention',
+                            'obstacles',
+                            'reachedThrough',
+                            'wholeTestFile',
+                            'wholeTestReason',
+                          ],
+                          where24,
+                          problems
+                        );
+                      }
+                    } else {
+                      reportWrongShape(
+                        oneOf23,
+                        '`{ checks: Array<{ answer: string; name: string; tone: string; count?: number | null; isDeciding?: boolean | null }>; reason: string; test: number; changedFiles?: string[] | null; comparedWithTest?: number | null; drawnLines?: Array<{ kind: string; number: number; text: string }> | null; drawnStoryPastRetention?: boolean | null; obstacles?: Array<{ cause: string; name?: string | null }> | null; reachedThrough?: string[] | null; wholeTestFile?: string | null; wholeTestReason?: string | null }` or `null`',
+                        where24,
+                        problems
+                      );
+                    }
+                    reportUnknownFields(
+                      object22,
+                      ['storyId', 'deviceId', 'hasDiffScopeData', 'state', 'record'],
+                      where21,
+                      problems
+                    );
+                  }
+                });
+              }
+              reportUnknownFields(
+                object12,
+                ['isCut', 'nextAfter', 'quickCheck', 'stories'],
+                where11,
+                problems
+              );
             }
           } else {
             reportWrongShape(
               oneOf10,
-              '`ApiError` or `{ name: string; index: number; projectToken: string }`',
+              "`ApiError` or `{ isCut: boolean; nextAfter?: string | null; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED' | null; stories: Array<{ storyId: string; deviceId: string; hasDiffScopeData: boolean; state: string; record: { checks: Array<{ answer: string; name: string; tone: string; count?: number | null; isDeciding?: boolean | null }>; reason: string; test: number; changedFiles?: string[] | null; comparedWithTest?: number | null; drawnLines?: Array<{ kind: string; number: number; text: string }> | null; drawnStoryPastRetention?: boolean | null; obstacles?: Array<{ cause: string; name?: string | null }> | null; reachedThrough?: string[] | null; wholeTestFile?: string | null; wholeTestReason?: string | null } | null }> }`",
               where11,
               problems
             );
@@ -306,691 +596,739 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
         } else {
           reportWrongShape(
             oneOf10,
-            '`ApiError` or `{ name: string; index: number; projectToken: string }`',
+            "`ApiError`, `{ isCut: boolean; nextAfter?: string | null; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED' | null; stories: Array<{ storyId: string; deviceId: string; hasDiffScopeData: boolean; state: string; record: { checks: Array<{ answer: string; name: string; tone: string; count?: number | null; isDeciding?: boolean | null }>; reason: string; test: number; changedFiles?: string[] | null; comparedWithTest?: number | null; drawnLines?: Array<{ kind: string; number: number; text: string }> | null; drawnStoryPastRetention?: boolean | null; obstacles?: Array<{ cause: string; name?: string | null }> | null; reachedThrough?: string[] | null; wholeTestFile?: string | null; wholeTestReason?: string | null } | null }> }` or `null`",
             where11,
             problems
           );
         }
         reportUnknownFields(object7, ['call', 'with', 'answer'], path, problems);
       }
-    } else if (oneOf1.call === 'createTeam') {
-      const object13 = asObject(oneOf1, path, problems);
-      if (object13) {
-        expectLiteral(object13.call, 'createTeam', at(path, 'call'), problems);
-        const where14 = at(path, 'with');
-        const object15 = asObject(object13.with, where14, problems);
-        if (object15) {
-          expectString(object15.name, at(where14, 'name'), problems);
-          reportUnknownFields(object15, ['name'], where14, problems);
+    } else if (oneOf1.call === 'createProject') {
+      const object64 = asObject(oneOf1, path, problems);
+      if (object64) {
+        expectLiteral(object64.call, 'createProject', at(path, 'call'), problems);
+        const where65 = at(path, 'with');
+        const object66 = asObject(object64.with, where65, problems);
+        if (object66) {
+          expectString(object66.teamId, at(where65, 'teamId'), problems);
+          expectString(object66.name, at(where65, 'name'), problems);
+          reportUnknownFields(object66, ['teamId', 'name'], where65, problems);
         }
-        const oneOf16 = object13.answer;
-        const where17 = at(path, 'answer');
-        if (isPlainObject(oneOf16)) {
-          if ('error' in oneOf16) {
-            readApiError(oneOf16, where17, problems);
-          } else if ('id' in oneOf16) {
-            const object18 = asObject(oneOf16, where17, problems);
-            if (object18) {
-              expectString(object18.id, at(where17, 'id'), problems);
-              expectString(object18.name, at(where17, 'name'), problems);
-              reportUnknownFields(object18, ['id', 'name'], where17, problems);
+        const oneOf67 = object64.answer;
+        const where68 = at(path, 'answer');
+        if (isPlainObject(oneOf67)) {
+          if ('error' in oneOf67) {
+            readApiError(oneOf67, where68, problems);
+          } else if ('name' in oneOf67) {
+            const object69 = asObject(oneOf67, where68, problems);
+            if (object69) {
+              expectString(object69.name, at(where68, 'name'), problems);
+              expectNumber(object69.index, at(where68, 'index'), problems);
+              expectString(object69.projectToken, at(where68, 'projectToken'), problems);
+              reportUnknownFields(object69, ['name', 'index', 'projectToken'], where68, problems);
             }
           } else {
             reportWrongShape(
-              oneOf16,
-              '`ApiError` or `{ id: string; name: string }`',
-              where17,
+              oneOf67,
+              '`ApiError` or `{ name: string; index: number; projectToken: string }`',
+              where68,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf16,
-            '`ApiError` or `{ id: string; name: string }`',
-            where17,
+            oneOf67,
+            '`ApiError` or `{ name: string; index: number; projectToken: string }`',
+            where68,
             problems
           );
         }
-        reportUnknownFields(object13, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object64, ['call', 'with', 'answer'], path, problems);
+      }
+    } else if (oneOf1.call === 'createTeam') {
+      const object70 = asObject(oneOf1, path, problems);
+      if (object70) {
+        expectLiteral(object70.call, 'createTeam', at(path, 'call'), problems);
+        const where71 = at(path, 'with');
+        const object72 = asObject(object70.with, where71, problems);
+        if (object72) {
+          expectString(object72.name, at(where71, 'name'), problems);
+          reportUnknownFields(object72, ['name'], where71, problems);
+        }
+        const oneOf73 = object70.answer;
+        const where74 = at(path, 'answer');
+        if (isPlainObject(oneOf73)) {
+          if ('error' in oneOf73) {
+            readApiError(oneOf73, where74, problems);
+          } else if ('id' in oneOf73) {
+            const object75 = asObject(oneOf73, where74, problems);
+            if (object75) {
+              expectString(object75.id, at(where74, 'id'), problems);
+              expectString(object75.name, at(where74, 'name'), problems);
+              reportUnknownFields(object75, ['id', 'name'], where74, problems);
+            }
+          } else {
+            reportWrongShape(
+              oneOf73,
+              '`ApiError` or `{ id: string; name: string }`',
+              where74,
+              problems
+            );
+          }
+        } else {
+          reportWrongShape(
+            oneOf73,
+            '`ApiError` or `{ id: string; name: string }`',
+            where74,
+            problems
+          );
+        }
+        reportUnknownFields(object70, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'listTeams') {
-      const object19 = asObject(oneOf1, path, problems);
-      if (object19) {
-        expectLiteral(object19.call, 'listTeams', at(path, 'call'), problems);
-        const where20 = at(path, 'with');
-        const map21 = asObject(object19.with, where20, problems);
-        if (map21) {
-          reportUnknownFields(map21, [], where20, problems);
+      const object76 = asObject(oneOf1, path, problems);
+      if (object76) {
+        expectLiteral(object76.call, 'listTeams', at(path, 'call'), problems);
+        const where77 = at(path, 'with');
+        const map78 = asObject(object76.with, where77, problems);
+        if (map78) {
+          reportUnknownFields(map78, [], where77, problems);
         }
-        const oneOf22 = object19.answer;
-        const where23 = at(path, 'answer');
-        if (isPlainObject(oneOf22)) {
-          if ('error' in oneOf22) {
-            readApiError(oneOf22, where23, problems);
-          } else if ('teams' in oneOf22) {
-            const object24 = asObject(oneOf22, where23, problems);
-            if (object24) {
-              const where25 = at(where23, 'teams');
-              const list26 = asArray(object24.teams, where25, problems);
-              if (list26) {
-                list26.forEach((entry27, index28) => {
-                  const where29 = atIndex(where25, index28);
-                  const object30 = asObject(entry27, where29, problems);
-                  if (object30) {
-                    expectString(object30.id, at(where29, 'id'), problems);
-                    expectString(object30.name, at(where29, 'name'), problems);
-                    expectNumber(object30.projectCount, at(where29, 'projectCount'), problems);
-                    const oneOf31 = object30.role;
-                    const where32 = at(where29, 'role');
-                    if (typeof oneOf31 === 'string' || oneOf31 === null) {
+        const oneOf79 = object76.answer;
+        const where80 = at(path, 'answer');
+        if (isPlainObject(oneOf79)) {
+          if ('error' in oneOf79) {
+            readApiError(oneOf79, where80, problems);
+          } else if ('teams' in oneOf79) {
+            const object81 = asObject(oneOf79, where80, problems);
+            if (object81) {
+              const where82 = at(where80, 'teams');
+              const list83 = asArray(object81.teams, where82, problems);
+              if (list83) {
+                list83.forEach((entry84, index85) => {
+                  const where86 = atIndex(where82, index85);
+                  const object87 = asObject(entry84, where86, problems);
+                  if (object87) {
+                    expectString(object87.id, at(where86, 'id'), problems);
+                    expectString(object87.name, at(where86, 'name'), problems);
+                    expectNumber(object87.projectCount, at(where86, 'projectCount'), problems);
+                    const oneOf88 = object87.role;
+                    const where89 = at(where86, 'role');
+                    if (typeof oneOf88 === 'string' || oneOf88 === null) {
                       // the value is one of these
                     } else {
-                      reportWrongShape(oneOf31, 'a string or `null`', where32, problems);
+                      reportWrongShape(oneOf88, 'a string or `null`', where89, problems);
                     }
                     reportUnknownFields(
-                      object30,
+                      object87,
                       ['id', 'name', 'projectCount', 'role'],
-                      where29,
+                      where86,
                       problems
                     );
                   }
                 });
               }
-              reportUnknownFields(object24, ['teams'], where23, problems);
+              reportUnknownFields(object81, ['teams'], where80, problems);
             }
           } else {
             reportWrongShape(
-              oneOf22,
+              oneOf79,
               '`ApiError` or `{ teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> }`',
-              where23,
+              where80,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf22,
+            oneOf79,
             '`ApiError` or `{ teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> }`',
-            where23,
+            where80,
             problems
           );
         }
-        reportUnknownFields(object19, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object76, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'listProjects') {
-      const object33 = asObject(oneOf1, path, problems);
-      if (object33) {
-        expectLiteral(object33.call, 'listProjects', at(path, 'call'), problems);
-        const where34 = at(path, 'with');
-        const object35 = asObject(object33.with, where34, problems);
-        if (object35) {
-          expectString(object35.teamId, at(where34, 'teamId'), problems);
-          reportUnknownFields(object35, ['teamId'], where34, problems);
+      const object90 = asObject(oneOf1, path, problems);
+      if (object90) {
+        expectLiteral(object90.call, 'listProjects', at(path, 'call'), problems);
+        const where91 = at(path, 'with');
+        const object92 = asObject(object90.with, where91, problems);
+        if (object92) {
+          expectString(object92.teamId, at(where91, 'teamId'), problems);
+          reportUnknownFields(object92, ['teamId'], where91, problems);
         }
-        const oneOf36 = object33.answer;
-        const where37 = at(path, 'answer');
-        if (isPlainObject(oneOf36)) {
-          if ('error' in oneOf36) {
-            readApiError(oneOf36, where37, problems);
-          } else if ('team' in oneOf36) {
-            const object38 = asObject(oneOf36, where37, problems);
-            if (object38) {
-              const where39 = at(where37, 'team');
-              const object40 = asObject(object38.team, where39, problems);
-              if (object40) {
-                expectString(object40.name, at(where39, 'name'), problems);
-                expectString(object40.id, at(where39, 'id'), problems);
-                reportUnknownFields(object40, ['name', 'id'], where39, problems);
+        const oneOf93 = object90.answer;
+        const where94 = at(path, 'answer');
+        if (isPlainObject(oneOf93)) {
+          if ('error' in oneOf93) {
+            readApiError(oneOf93, where94, problems);
+          } else if ('team' in oneOf93) {
+            const object95 = asObject(oneOf93, where94, problems);
+            if (object95) {
+              const where96 = at(where94, 'team');
+              const object97 = asObject(object95.team, where96, problems);
+              if (object97) {
+                expectString(object97.name, at(where96, 'name'), problems);
+                expectString(object97.id, at(where96, 'id'), problems);
+                reportUnknownFields(object97, ['name', 'id'], where96, problems);
               }
-              const where41 = at(where37, 'projects');
-              const list42 = asArray(object38.projects, where41, problems);
-              if (list42) {
-                list42.forEach((entry43, index44) => {
-                  const where45 = atIndex(where41, index44);
-                  const object46 = asObject(entry43, where45, problems);
-                  if (object46) {
-                    expectNumber(object46.index, at(where45, 'index'), problems);
-                    expectString(object46.name, at(where45, 'name'), problems);
-                    expectNumber(object46.buildCount, at(where45, 'buildCount'), problems);
-                    const oneOf47 = object46.mainBranch;
-                    const where48 = at(where45, 'mainBranch');
-                    if (typeof oneOf47 === 'string' || oneOf47 === null) {
+              const where98 = at(where94, 'projects');
+              const list99 = asArray(object95.projects, where98, problems);
+              if (list99) {
+                list99.forEach((entry100, index101) => {
+                  const where102 = atIndex(where98, index101);
+                  const object103 = asObject(entry100, where102, problems);
+                  if (object103) {
+                    expectNumber(object103.index, at(where102, 'index'), problems);
+                    expectString(object103.name, at(where102, 'name'), problems);
+                    expectNumber(object103.buildCount, at(where102, 'buildCount'), problems);
+                    const oneOf104 = object103.mainBranch;
+                    const where105 = at(where102, 'mainBranch');
+                    if (typeof oneOf104 === 'string' || oneOf104 === null) {
                       // the value is one of these
                     } else {
-                      reportWrongShape(oneOf47, 'a string or `null`', where48, problems);
+                      reportWrongShape(oneOf104, 'a string or `null`', where105, problems);
                     }
                     reportUnknownFields(
-                      object46,
+                      object103,
                       ['index', 'name', 'buildCount', 'mainBranch'],
-                      where45,
+                      where102,
                       problems
                     );
                   }
                 });
               }
-              reportUnknownFields(object38, ['team', 'projects'], where37, problems);
+              reportUnknownFields(object95, ['team', 'projects'], where94, problems);
             }
           } else {
             reportWrongShape(
-              oneOf36,
+              oneOf93,
               '`ApiError` or `{ team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> }`',
-              where37,
+              where94,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf36,
+            oneOf93,
             '`ApiError` or `{ team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> }`',
-            where37,
+            where94,
             problems
           );
         }
-        reportUnknownFields(object33, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object90, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'openBuild') {
-      const object49 = asObject(oneOf1, path, problems);
-      if (object49) {
-        expectLiteral(object49.call, 'openBuild', at(path, 'call'), problems);
-        const where50 = at(path, 'with');
-        const object51 = asObject(object49.with, where50, problems);
-        if (object51) {
-          expectStringArray(object51.platforms, at(where50, 'platforms'), problems);
-          if ('pushFacts' in object51) {
-            readPushFacts(object51.pushFacts, at(where50, 'pushFacts'), problems);
+      const object106 = asObject(oneOf1, path, problems);
+      if (object106) {
+        expectLiteral(object106.call, 'openBuild', at(path, 'call'), problems);
+        const where107 = at(path, 'with');
+        const object108 = asObject(object106.with, where107, problems);
+        if (object108) {
+          expectStringArray(object108.platforms, at(where107, 'platforms'), problems);
+          if ('pushFacts' in object108) {
+            readPushFacts(object108.pushFacts, at(where107, 'pushFacts'), problems);
           }
-          reportUnknownFields(object51, ['platforms', 'pushFacts'], where50, problems);
+          reportUnknownFields(object108, ['platforms', 'pushFacts'], where107, problems);
         }
-        const oneOf52 = object49.answer;
-        const where53 = at(path, 'answer');
-        if (isPlainObject(oneOf52)) {
-          if ('error' in oneOf52) {
-            readApiError(oneOf52, where53, problems);
-          } else if ('buildIndex' in oneOf52) {
-            const object54 = asObject(oneOf52, where53, problems);
-            if (object54) {
-              expectNumber(object54.buildIndex, at(where53, 'buildIndex'), problems);
-              expectString(object54.url, at(where53, 'url'), problems);
-              if ('captureDecision' in object54) {
+        const oneOf109 = object106.answer;
+        const where110 = at(path, 'answer');
+        if (isPlainObject(oneOf109)) {
+          if ('error' in oneOf109) {
+            readApiError(oneOf109, where110, problems);
+          } else if ('buildIndex' in oneOf109) {
+            const object111 = asObject(oneOf109, where110, problems);
+            if (object111) {
+              expectNumber(object111.buildIndex, at(where110, 'buildIndex'), problems);
+              expectString(object111.url, at(where110, 'url'), problems);
+              if ('captureDecision' in object111) {
                 readPosedCaptureDecision(
-                  object54.captureDecision,
-                  at(where53, 'captureDecision'),
+                  object111.captureDecision,
+                  at(where110, 'captureDecision'),
                   problems
                 );
               }
-              if ('hasCiToken' in object54) {
-                expectBoolean(object54.hasCiToken, at(where53, 'hasCiToken'), problems);
+              if ('hasCiToken' in object111) {
+                expectBoolean(object111.hasCiToken, at(where110, 'hasCiToken'), problems);
               }
-              if ('buildTicket' in object54) {
-                expectString(object54.buildTicket, at(where53, 'buildTicket'), problems);
+              if ('buildTicket' in object111) {
+                expectString(object111.buildTicket, at(where110, 'buildTicket'), problems);
               }
               reportUnknownFields(
-                object54,
+                object111,
                 ['buildIndex', 'url', 'captureDecision', 'hasCiToken', 'buildTicket'],
-                where53,
+                where110,
                 problems
               );
             }
           } else {
             reportWrongShape(
-              oneOf52,
+              oneOf109,
               '`ApiError` or `{ buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string }`',
-              where53,
+              where110,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf52,
+            oneOf109,
             '`ApiError` or `{ buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string }`',
-            where53,
+            where110,
             problems
           );
         }
-        reportUnknownFields(object49, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object106, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'joinBuild') {
-      const object55 = asObject(oneOf1, path, problems);
-      if (object55) {
-        expectLiteral(object55.call, 'joinBuild', at(path, 'call'), problems);
-        const where56 = at(path, 'with');
-        const object57 = asObject(object55.with, where56, problems);
-        if (object57) {
-          expectString(object57.joinKey, at(where56, 'joinKey'), problems);
-          expectString(object57.platform, at(where56, 'platform'), problems);
-          if ('pushFacts' in object57) {
-            readPushFactsPlatform(object57.pushFacts, at(where56, 'pushFacts'), problems);
+      const object112 = asObject(oneOf1, path, problems);
+      if (object112) {
+        expectLiteral(object112.call, 'joinBuild', at(path, 'call'), problems);
+        const where113 = at(path, 'with');
+        const object114 = asObject(object112.with, where113, problems);
+        if (object114) {
+          expectString(object114.joinKey, at(where113, 'joinKey'), problems);
+          expectString(object114.platform, at(where113, 'platform'), problems);
+          if ('pushFacts' in object114) {
+            readPushFactsPlatform(object114.pushFacts, at(where113, 'pushFacts'), problems);
           }
-          reportUnknownFields(object57, ['joinKey', 'platform', 'pushFacts'], where56, problems);
+          reportUnknownFields(object114, ['joinKey', 'platform', 'pushFacts'], where113, problems);
         }
-        const oneOf58 = object55.answer;
-        const where59 = at(path, 'answer');
-        if (isPlainObject(oneOf58)) {
-          if ('error' in oneOf58) {
-            readApiError(oneOf58, where59, problems);
-          } else if ('buildIndex' in oneOf58) {
-            const object60 = asObject(oneOf58, where59, problems);
-            if (object60) {
-              expectNumber(object60.buildIndex, at(where59, 'buildIndex'), problems);
-              expectStringArray(object60.waitingFor, at(where59, 'waitingFor'), problems);
-              if ('startedRun' in object60) {
-                readStartedRun(object60.startedRun, at(where59, 'startedRun'), problems);
+        const oneOf115 = object112.answer;
+        const where116 = at(path, 'answer');
+        if (isPlainObject(oneOf115)) {
+          if ('error' in oneOf115) {
+            readApiError(oneOf115, where116, problems);
+          } else if ('buildIndex' in oneOf115) {
+            const object117 = asObject(oneOf115, where116, problems);
+            if (object117) {
+              expectNumber(object117.buildIndex, at(where116, 'buildIndex'), problems);
+              expectStringArray(object117.waitingFor, at(where116, 'waitingFor'), problems);
+              if ('startedRun' in object117) {
+                readStartedRun(object117.startedRun, at(where116, 'startedRun'), problems);
               }
               reportUnknownFields(
-                object60,
+                object117,
                 ['buildIndex', 'waitingFor', 'startedRun'],
-                where59,
+                where116,
                 problems
               );
             }
           } else {
             reportWrongShape(
-              oneOf58,
+              oneOf115,
               '`ApiError` or `{ buildIndex: number; waitingFor: string[]; startedRun?: StartedRun }`',
-              where59,
+              where116,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf58,
+            oneOf115,
             '`ApiError` or `{ buildIndex: number; waitingFor: string[]; startedRun?: StartedRun }`',
-            where59,
+            where116,
             problems
           );
         }
-        reportUnknownFields(object55, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object112, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'asyncUpload') {
-      const object61 = asObject(oneOf1, path, problems);
-      if (object61) {
-        expectLiteral(object61.call, 'asyncUpload', at(path, 'call'), problems);
-        const where62 = at(path, 'with');
-        const object63 = asObject(object61.with, where62, problems);
-        if (object63) {
-          expectNumber(object63.buildIndex, at(where62, 'buildIndex'), problems);
-          expectString(object63.platform, at(where62, 'platform'), problems);
-          if ('pushFacts' in object63) {
-            readPushFactsPlatform(object63.pushFacts, at(where62, 'pushFacts'), problems);
+      const object118 = asObject(oneOf1, path, problems);
+      if (object118) {
+        expectLiteral(object118.call, 'asyncUpload', at(path, 'call'), problems);
+        const where119 = at(path, 'with');
+        const object120 = asObject(object118.with, where119, problems);
+        if (object120) {
+          expectNumber(object120.buildIndex, at(where119, 'buildIndex'), problems);
+          expectString(object120.platform, at(where119, 'platform'), problems);
+          if ('pushFacts' in object120) {
+            readPushFactsPlatform(object120.pushFacts, at(where119, 'pushFacts'), problems);
           }
-          reportUnknownFields(object63, ['buildIndex', 'platform', 'pushFacts'], where62, problems);
+          reportUnknownFields(
+            object120,
+            ['buildIndex', 'platform', 'pushFacts'],
+            where119,
+            problems
+          );
         }
-        const oneOf64 = object61.answer;
-        const where65 = at(path, 'answer');
-        if (isPlainObject(oneOf64)) {
-          if ('error' in oneOf64) {
-            readApiError(oneOf64, where65, problems);
-          } else if ('couldRunThisBuildRightNow' in oneOf64) {
-            const object66 = asObject(oneOf64, where65, problems);
-            if (object66) {
+        const oneOf121 = object118.answer;
+        const where122 = at(path, 'answer');
+        if (isPlainObject(oneOf121)) {
+          if ('error' in oneOf121) {
+            readApiError(oneOf121, where122, problems);
+          } else if ('couldRunThisBuildRightNow' in oneOf121) {
+            const object123 = asObject(oneOf121, where122, problems);
+            if (object123) {
               expectBoolean(
-                object66.couldRunThisBuildRightNow,
-                at(where65, 'couldRunThisBuildRightNow'),
+                object123.couldRunThisBuildRightNow,
+                at(where122, 'couldRunThisBuildRightNow'),
                 problems
               );
-              if ('startedRun' in object66) {
-                readStartedRun(object66.startedRun, at(where65, 'startedRun'), problems);
+              if ('startedRun' in object123) {
+                readStartedRun(object123.startedRun, at(where122, 'startedRun'), problems);
               }
               reportUnknownFields(
-                object66,
+                object123,
                 ['couldRunThisBuildRightNow', 'startedRun'],
-                where65,
+                where122,
                 problems
               );
             }
           } else {
             reportWrongShape(
-              oneOf64,
+              oneOf121,
               '`ApiError` or `{ couldRunThisBuildRightNow: boolean; startedRun?: StartedRun }`',
-              where65,
+              where122,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf64,
+            oneOf121,
             '`ApiError` or `{ couldRunThisBuildRightNow: boolean; startedRun?: StartedRun }`',
-            where65,
+            where122,
             problems
           );
         }
-        reportUnknownFields(object61, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object118, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'closeBuild') {
-      const object67 = asObject(oneOf1, path, problems);
-      if (object67) {
-        expectLiteral(object67.call, 'closeBuild', at(path, 'call'), problems);
-        const where68 = at(path, 'with');
-        const object69 = asObject(object67.with, where68, problems);
-        if (object69) {
-          expectNumber(object69.buildIndex, at(where68, 'buildIndex'), problems);
-          expectString(object69.runError, at(where68, 'runError'), problems);
-          reportUnknownFields(object69, ['buildIndex', 'runError'], where68, problems);
+      const object124 = asObject(oneOf1, path, problems);
+      if (object124) {
+        expectLiteral(object124.call, 'closeBuild', at(path, 'call'), problems);
+        const where125 = at(path, 'with');
+        const object126 = asObject(object124.with, where125, problems);
+        if (object126) {
+          expectNumber(object126.buildIndex, at(where125, 'buildIndex'), problems);
+          expectString(object126.runError, at(where125, 'runError'), problems);
+          reportUnknownFields(object126, ['buildIndex', 'runError'], where125, problems);
         }
-        const oneOf70 = object67.answer;
-        const where71 = at(path, 'answer');
-        if (isPlainObject(oneOf70)) {
-          if ('error' in oneOf70) {
-            readApiError(oneOf70, where71, problems);
+        const oneOf127 = object124.answer;
+        const where128 = at(path, 'answer');
+        if (isPlainObject(oneOf127)) {
+          if ('error' in oneOf127) {
+            readApiError(oneOf127, where128, problems);
           } else {
-            const map72 = asObject(oneOf70, where71, problems);
-            if (map72) {
-              reportUnknownFields(map72, [], where71, problems);
+            const map129 = asObject(oneOf127, where128, problems);
+            if (map129) {
+              reportUnknownFields(map129, [], where128, problems);
             }
           }
         } else {
-          reportWrongShape(oneOf70, '`ApiError` or an object', where71, problems);
+          reportWrongShape(oneOf127, '`ApiError` or an object', where128, problems);
         }
-        reportUnknownFields(object67, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object124, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'getNextBuildInfo') {
-      const object73 = asObject(oneOf1, path, problems);
-      if (object73) {
-        expectLiteral(object73.call, 'getNextBuildInfo', at(path, 'call'), problems);
-        const where74 = at(path, 'with');
-        const object75 = asObject(object73.with, where74, problems);
-        if (object75) {
-          expectStringArray(object75.platforms, at(where74, 'platforms'), problems);
-          reportUnknownFields(object75, ['platforms'], where74, problems);
+      const object130 = asObject(oneOf1, path, problems);
+      if (object130) {
+        expectLiteral(object130.call, 'getNextBuildInfo', at(path, 'call'), problems);
+        const where131 = at(path, 'with');
+        const object132 = asObject(object130.with, where131, problems);
+        if (object132) {
+          expectStringArray(object132.platforms, at(where131, 'platforms'), problems);
+          reportUnknownFields(object132, ['platforms'], where131, problems);
         }
-        const oneOf76 = object73.answer;
-        const where77 = at(path, 'answer');
-        if (isPlainObject(oneOf76)) {
-          if ('error' in oneOf76) {
-            readApiError(oneOf76, where77, problems);
-          } else if ('nextBuildIndex' in oneOf76) {
-            readNextBuildInfoAnswer(oneOf76, where77, problems);
+        const oneOf133 = object130.answer;
+        const where134 = at(path, 'answer');
+        if (isPlainObject(oneOf133)) {
+          if ('error' in oneOf133) {
+            readApiError(oneOf133, where134, problems);
+          } else if ('nextBuildIndex' in oneOf133) {
+            readNextBuildInfoAnswer(oneOf133, where134, problems);
           } else {
-            reportWrongShape(oneOf76, '`ApiError` or `NextBuildInfoAnswer`', where77, problems);
+            reportWrongShape(oneOf133, '`ApiError` or `NextBuildInfoAnswer`', where134, problems);
           }
         } else {
-          reportWrongShape(oneOf76, '`ApiError` or `NextBuildInfoAnswer`', where77, problems);
+          reportWrongShape(oneOf133, '`ApiError` or `NextBuildInfoAnswer`', where134, problems);
         }
-        reportUnknownFields(object73, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object130, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'getStagedUploadUrls') {
-      const object78 = asObject(oneOf1, path, problems);
-      if (object78) {
-        expectLiteral(object78.call, 'getStagedUploadUrls', at(path, 'call'), problems);
-        const where79 = at(path, 'with');
-        const object80 = asObject(object78.with, where79, problems);
-        if (object80) {
-          expectStringArray(object80.platforms, at(where79, 'platforms'), problems);
-          reportUnknownFields(object80, ['platforms'], where79, problems);
+      const object135 = asObject(oneOf1, path, problems);
+      if (object135) {
+        expectLiteral(object135.call, 'getStagedUploadUrls', at(path, 'call'), problems);
+        const where136 = at(path, 'with');
+        const object137 = asObject(object135.with, where136, problems);
+        if (object137) {
+          expectStringArray(object137.platforms, at(where136, 'platforms'), problems);
+          reportUnknownFields(object137, ['platforms'], where136, problems);
         }
-        const oneOf81 = object78.answer;
-        const where82 = at(path, 'answer');
-        if (isPlainObject(oneOf81)) {
-          if ('error' in oneOf81) {
-            readApiError(oneOf81, where82, problems);
+        const oneOf138 = object135.answer;
+        const where139 = at(path, 'answer');
+        if (isPlainObject(oneOf138)) {
+          if ('error' in oneOf138) {
+            readApiError(oneOf138, where139, problems);
           } else {
-            const map83 = asObject(oneOf81, where82, problems);
-            if (map83) {
-              reportUnknownFields(map83, [], where82, problems);
+            const map140 = asObject(oneOf138, where139, problems);
+            if (map140) {
+              reportUnknownFields(map140, [], where139, problems);
             }
           }
         } else {
-          reportWrongShape(oneOf81, '`ApiError` or an object', where82, problems);
+          reportWrongShape(oneOf138, '`ApiError` or an object', where139, problems);
         }
-        reportUnknownFields(object78, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object135, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'checkStagedGate') {
-      const object84 = asObject(oneOf1, path, problems);
-      if (object84) {
-        expectLiteral(object84.call, 'checkStagedGate', at(path, 'call'), problems);
-        const where85 = at(path, 'with');
-        const object86 = asObject(object84.with, where85, problems);
-        if (object86) {
-          expectString(object86.platform, at(where85, 'platform'), problems);
-          expectString(object86.baseFingerprint, at(where85, 'baseFingerprint'), problems);
-          reportUnknownFields(object86, ['platform', 'baseFingerprint'], where85, problems);
+      const object141 = asObject(oneOf1, path, problems);
+      if (object141) {
+        expectLiteral(object141.call, 'checkStagedGate', at(path, 'call'), problems);
+        const where142 = at(path, 'with');
+        const object143 = asObject(object141.with, where142, problems);
+        if (object143) {
+          expectString(object143.platform, at(where142, 'platform'), problems);
+          expectString(object143.baseFingerprint, at(where142, 'baseFingerprint'), problems);
+          reportUnknownFields(object143, ['platform', 'baseFingerprint'], where142, problems);
         }
-        const oneOf87 = object84.answer;
-        const where88 = at(path, 'answer');
-        if (isPlainObject(oneOf87)) {
-          if ('error' in oneOf87) {
-            readApiError(oneOf87, where88, problems);
-          } else if ('outcome' in oneOf87) {
-            readStagedGateAnswer(oneOf87, where88, problems);
+        const oneOf144 = object141.answer;
+        const where145 = at(path, 'answer');
+        if (isPlainObject(oneOf144)) {
+          if ('error' in oneOf144) {
+            readApiError(oneOf144, where145, problems);
+          } else if ('outcome' in oneOf144) {
+            readStagedGateAnswer(oneOf144, where145, problems);
           } else {
-            reportWrongShape(oneOf87, '`ApiError` or `StagedGateAnswer`', where88, problems);
+            reportWrongShape(oneOf144, '`ApiError` or `StagedGateAnswer`', where145, problems);
           }
         } else {
-          reportWrongShape(oneOf87, '`ApiError` or `StagedGateAnswer`', where88, problems);
+          reportWrongShape(oneOf144, '`ApiError` or `StagedGateAnswer`', where145, problems);
         }
-        reportUnknownFields(object84, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object141, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'trackCliInit') {
-      const object89 = asObject(oneOf1, path, problems);
-      if (object89) {
-        expectLiteral(object89.call, 'trackCliInit', at(path, 'call'), problems);
-        const where90 = at(path, 'with');
-        const object91 = asObject(object89.with, where90, problems);
-        if (object91) {
-          expectString(object91.event, at(where90, 'event'), problems);
-          reportUnknownFields(object91, ['event'], where90, problems);
+      const object146 = asObject(oneOf1, path, problems);
+      if (object146) {
+        expectLiteral(object146.call, 'trackCliInit', at(path, 'call'), problems);
+        const where147 = at(path, 'with');
+        const object148 = asObject(object146.with, where147, problems);
+        if (object148) {
+          expectString(object148.event, at(where147, 'event'), problems);
+          reportUnknownFields(object148, ['event'], where147, problems);
         }
-        const oneOf92 = object89.answer;
-        const where93 = at(path, 'answer');
-        if (isPlainObject(oneOf92)) {
-          if ('error' in oneOf92) {
-            readApiError(oneOf92, where93, problems);
-          } else if ('sessionId' in oneOf92) {
-            const object94 = asObject(oneOf92, where93, problems);
-            if (object94) {
-              expectString(object94.sessionId, at(where93, 'sessionId'), problems);
-              reportUnknownFields(object94, ['sessionId'], where93, problems);
+        const oneOf149 = object146.answer;
+        const where150 = at(path, 'answer');
+        if (isPlainObject(oneOf149)) {
+          if ('error' in oneOf149) {
+            readApiError(oneOf149, where150, problems);
+          } else if ('sessionId' in oneOf149) {
+            const object151 = asObject(oneOf149, where150, problems);
+            if (object151) {
+              expectString(object151.sessionId, at(where150, 'sessionId'), problems);
+              reportUnknownFields(object151, ['sessionId'], where150, problems);
             }
           } else {
-            reportWrongShape(oneOf92, '`ApiError` or `{ sessionId: string }`', where93, problems);
+            reportWrongShape(oneOf149, '`ApiError` or `{ sessionId: string }`', where150, problems);
           }
         } else {
-          reportWrongShape(oneOf92, '`ApiError` or `{ sessionId: string }`', where93, problems);
+          reportWrongShape(oneOf149, '`ApiError` or `{ sessionId: string }`', where150, problems);
         }
-        reportUnknownFields(object89, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object146, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'startCliLogin') {
-      const object95 = asObject(oneOf1, path, problems);
-      if (object95) {
-        expectLiteral(object95.call, 'startCliLogin', at(path, 'call'), problems);
-        const where96 = at(path, 'with');
-        const map97 = asObject(object95.with, where96, problems);
-        if (map97) {
-          reportUnknownFields(map97, [], where96, problems);
+      const object152 = asObject(oneOf1, path, problems);
+      if (object152) {
+        expectLiteral(object152.call, 'startCliLogin', at(path, 'call'), problems);
+        const where153 = at(path, 'with');
+        const map154 = asObject(object152.with, where153, problems);
+        if (map154) {
+          reportUnknownFields(map154, [], where153, problems);
         }
-        const oneOf98 = object95.answer;
-        const where99 = at(path, 'answer');
-        if (isPlainObject(oneOf98)) {
-          if ('error' in oneOf98) {
-            readApiError(oneOf98, where99, problems);
-          } else if ('loginId' in oneOf98) {
-            const object100 = asObject(oneOf98, where99, problems);
-            if (object100) {
-              expectString(object100.loginId, at(where99, 'loginId'), problems);
-              expectString(object100.authorizeUrl, at(where99, 'authorizeUrl'), problems);
-              expectString(object100.expiresAt, at(where99, 'expiresAt'), problems);
+        const oneOf155 = object152.answer;
+        const where156 = at(path, 'answer');
+        if (isPlainObject(oneOf155)) {
+          if ('error' in oneOf155) {
+            readApiError(oneOf155, where156, problems);
+          } else if ('loginId' in oneOf155) {
+            const object157 = asObject(oneOf155, where156, problems);
+            if (object157) {
+              expectString(object157.loginId, at(where156, 'loginId'), problems);
+              expectString(object157.authorizeUrl, at(where156, 'authorizeUrl'), problems);
+              expectString(object157.expiresAt, at(where156, 'expiresAt'), problems);
               reportUnknownFields(
-                object100,
+                object157,
                 ['loginId', 'authorizeUrl', 'expiresAt'],
-                where99,
+                where156,
                 problems
               );
             }
           } else {
             reportWrongShape(
-              oneOf98,
+              oneOf155,
               '`ApiError` or `{ loginId: string; authorizeUrl: string; expiresAt: string }`',
-              where99,
+              where156,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf98,
+            oneOf155,
             '`ApiError` or `{ loginId: string; authorizeUrl: string; expiresAt: string }`',
-            where99,
+            where156,
             problems
           );
         }
-        reportUnknownFields(object95, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object152, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'pollCliLogin') {
-      const object101 = asObject(oneOf1, path, problems);
-      if (object101) {
-        expectLiteral(object101.call, 'pollCliLogin', at(path, 'call'), problems);
-        const where102 = at(path, 'with');
-        const object103 = asObject(object101.with, where102, problems);
-        if (object103) {
-          expectString(object103.loginId, at(where102, 'loginId'), problems);
-          reportUnknownFields(object103, ['loginId'], where102, problems);
+      const object158 = asObject(oneOf1, path, problems);
+      if (object158) {
+        expectLiteral(object158.call, 'pollCliLogin', at(path, 'call'), problems);
+        const where159 = at(path, 'with');
+        const object160 = asObject(object158.with, where159, problems);
+        if (object160) {
+          expectString(object160.loginId, at(where159, 'loginId'), problems);
+          reportUnknownFields(object160, ['loginId'], where159, problems);
         }
-        const oneOf104 = object101.answer;
-        const where105 = at(path, 'answer');
-        if (isPlainObject(oneOf104)) {
-          if ('error' in oneOf104) {
-            readApiError(oneOf104, where105, problems);
-          } else if ('email' in oneOf104) {
-            const object106 = asObject(oneOf104, where105, problems);
-            if (object106) {
-              expectLiteral(object106.status, 'approved', at(where105, 'status'), problems);
-              expectString(object106.email, at(where105, 'email'), problems);
-              expectString(object106.token, at(where105, 'token'), problems);
-              reportUnknownFields(object106, ['status', 'email', 'token'], where105, problems);
+        const oneOf161 = object158.answer;
+        const where162 = at(path, 'answer');
+        if (isPlainObject(oneOf161)) {
+          if ('error' in oneOf161) {
+            readApiError(oneOf161, where162, problems);
+          } else if ('email' in oneOf161) {
+            const object163 = asObject(oneOf161, where162, problems);
+            if (object163) {
+              expectLiteral(object163.status, 'approved', at(where162, 'status'), problems);
+              expectString(object163.email, at(where162, 'email'), problems);
+              expectString(object163.token, at(where162, 'token'), problems);
+              reportUnknownFields(object163, ['status', 'email', 'token'], where162, problems);
             }
           } else {
-            const object107 = asObject(oneOf104, where105, problems);
-            if (object107) {
+            const object164 = asObject(oneOf161, where162, problems);
+            if (object164) {
               expectOneOf(
-                object107.status,
+                object164.status,
                 ['pending', 'cancelled', 'expired', 'used'],
-                at(where105, 'status'),
+                at(where162, 'status'),
                 problems
               );
-              reportUnknownFields(object107, ['status'], where105, problems);
+              reportUnknownFields(object164, ['status'], where162, problems);
             }
           }
         } else {
           reportWrongShape(
-            oneOf104,
+            oneOf161,
             "`ApiError`, `{ status: 'pending' | 'cancelled' | 'expired' | 'used' }` or `{ status: 'approved'; email: string; token: string }`",
-            where105,
+            where162,
             problems
           );
         }
-        reportUnknownFields(object101, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object158, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'logOutCli') {
-      const object108 = asObject(oneOf1, path, problems);
-      if (object108) {
-        expectLiteral(object108.call, 'logOutCli', at(path, 'call'), problems);
-        const where109 = at(path, 'with');
-        const map110 = asObject(object108.with, where109, problems);
-        if (map110) {
-          reportUnknownFields(map110, [], where109, problems);
+      const object165 = asObject(oneOf1, path, problems);
+      if (object165) {
+        expectLiteral(object165.call, 'logOutCli', at(path, 'call'), problems);
+        const where166 = at(path, 'with');
+        const map167 = asObject(object165.with, where166, problems);
+        if (map167) {
+          reportUnknownFields(map167, [], where166, problems);
         }
-        const oneOf111 = object108.answer;
-        const where112 = at(path, 'answer');
-        if (isPlainObject(oneOf111)) {
-          if ('error' in oneOf111) {
-            readApiError(oneOf111, where112, problems);
+        const oneOf168 = object165.answer;
+        const where169 = at(path, 'answer');
+        if (isPlainObject(oneOf168)) {
+          if ('error' in oneOf168) {
+            readApiError(oneOf168, where169, problems);
           } else {
-            const map113 = asObject(oneOf111, where112, problems);
-            if (map113) {
-              reportUnknownFields(map113, [], where112, problems);
+            const map170 = asObject(oneOf168, where169, problems);
+            if (map170) {
+              reportUnknownFields(map170, [], where169, problems);
             }
           }
         } else {
-          reportWrongShape(oneOf111, '`ApiError` or an object', where112, problems);
+          reportWrongShape(oneOf168, '`ApiError` or an object', where169, problems);
         }
-        reportUnknownFields(object108, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object165, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'sendFeedback') {
-      const object114 = asObject(oneOf1, path, problems);
-      if (object114) {
-        expectLiteral(object114.call, 'sendFeedback', at(path, 'call'), problems);
-        const where115 = at(path, 'with');
-        const object116 = asObject(object114.with, where115, problems);
-        if (object116) {
+      const object171 = asObject(oneOf1, path, problems);
+      if (object171) {
+        expectLiteral(object171.call, 'sendFeedback', at(path, 'call'), problems);
+        const where172 = at(path, 'with');
+        const object173 = asObject(object171.with, where172, problems);
+        if (object173) {
           expectOneOf(
-            object116.kind,
+            object173.kind,
             ['bug', 'missing', 'unclear', 'other'],
-            at(where115, 'kind'),
+            at(where172, 'kind'),
             problems
           );
-          expectString(object116.report, at(where115, 'report'), problems);
-          reportUnknownFields(object116, ['kind', 'report'], where115, problems);
+          expectString(object173.report, at(where172, 'report'), problems);
+          reportUnknownFields(object173, ['kind', 'report'], where172, problems);
         }
-        const oneOf117 = object114.answer;
-        const where118 = at(path, 'answer');
-        if (isPlainObject(oneOf117)) {
-          if ('error' in oneOf117) {
-            readApiError(oneOf117, where118, problems);
-          } else if ('reference' in oneOf117) {
-            const object119 = asObject(oneOf117, where118, problems);
-            if (object119) {
-              expectString(object119.reference, at(where118, 'reference'), problems);
-              reportUnknownFields(object119, ['reference'], where118, problems);
+        const oneOf174 = object171.answer;
+        const where175 = at(path, 'answer');
+        if (isPlainObject(oneOf174)) {
+          if ('error' in oneOf174) {
+            readApiError(oneOf174, where175, problems);
+          } else if ('reference' in oneOf174) {
+            const object176 = asObject(oneOf174, where175, problems);
+            if (object176) {
+              expectString(object176.reference, at(where175, 'reference'), problems);
+              reportUnknownFields(object176, ['reference'], where175, problems);
             }
           } else {
-            reportWrongShape(oneOf117, '`ApiError` or `{ reference: string }`', where118, problems);
+            reportWrongShape(oneOf174, '`ApiError` or `{ reference: string }`', where175, problems);
           }
         } else {
-          reportWrongShape(oneOf117, '`ApiError` or `{ reference: string }`', where118, problems);
+          reportWrongShape(oneOf174, '`ApiError` or `{ reference: string }`', where175, problems);
         }
-        reportUnknownFields(object114, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object171, ['call', 'with', 'answer'], path, problems);
       }
     } else if (oneOf1.call === 'tradeGitHubIdToken') {
-      const object120 = asObject(oneOf1, path, problems);
-      if (object120) {
-        expectLiteral(object120.call, 'tradeGitHubIdToken', at(path, 'call'), problems);
-        const where121 = at(path, 'with');
-        const object122 = asObject(object120.with, where121, problems);
-        if (object122) {
-          expectString(object122.repository, at(where121, 'repository'), problems);
-          expectString(object122.teamId, at(where121, 'teamId'), problems);
-          reportUnknownFields(object122, ['repository', 'teamId'], where121, problems);
+      const object177 = asObject(oneOf1, path, problems);
+      if (object177) {
+        expectLiteral(object177.call, 'tradeGitHubIdToken', at(path, 'call'), problems);
+        const where178 = at(path, 'with');
+        const object179 = asObject(object177.with, where178, problems);
+        if (object179) {
+          expectString(object179.repository, at(where178, 'repository'), problems);
+          expectString(object179.teamId, at(where178, 'teamId'), problems);
+          reportUnknownFields(object179, ['repository', 'teamId'], where178, problems);
         }
-        const oneOf123 = object120.answer;
-        const where124 = at(path, 'answer');
-        if (isPlainObject(oneOf123)) {
-          if ('error' in oneOf123) {
-            readApiError(oneOf123, where124, problems);
-          } else if ('token' in oneOf123) {
-            const object125 = asObject(oneOf123, where124, problems);
-            if (object125) {
-              expectLiteral(object125.status, 'signed-in', at(where124, 'status'), problems);
-              expectString(object125.token, at(where124, 'token'), problems);
-              reportUnknownFields(object125, ['status', 'token'], where124, problems);
+        const oneOf180 = object177.answer;
+        const where181 = at(path, 'answer');
+        if (isPlainObject(oneOf180)) {
+          if ('error' in oneOf180) {
+            readApiError(oneOf180, where181, problems);
+          } else if ('token' in oneOf180) {
+            const object182 = asObject(oneOf180, where181, problems);
+            if (object182) {
+              expectLiteral(object182.status, 'signed-in', at(where181, 'status'), problems);
+              expectString(object182.token, at(where181, 'token'), problems);
+              reportUnknownFields(object182, ['status', 'token'], where181, problems);
             }
-          } else if ('teamName' in oneOf123) {
-            const object126 = asObject(oneOf123, where124, problems);
-            if (object126) {
-              expectLiteral(object126.status, 'not-connected', at(where124, 'status'), problems);
-              expectString(object126.teamName, at(where124, 'teamName'), problems);
-              reportUnknownFields(object126, ['status', 'teamName'], where124, problems);
+          } else if ('teamName' in oneOf180) {
+            const object183 = asObject(oneOf180, where181, problems);
+            if (object183) {
+              expectLiteral(object183.status, 'not-connected', at(where181, 'status'), problems);
+              expectString(object183.teamName, at(where181, 'teamName'), problems);
+              reportUnknownFields(object183, ['status', 'teamName'], where181, problems);
             }
           } else {
             reportWrongShape(
-              oneOf123,
+              oneOf180,
               "`ApiError`, `{ status: 'signed-in'; token: string }` or `{ status: 'not-connected'; teamName: string }`",
-              where124,
+              where181,
               problems
             );
           }
         } else {
           reportWrongShape(
-            oneOf123,
+            oneOf180,
             "`ApiError`, `{ status: 'signed-in'; token: string }` or `{ status: 'not-connected'; teamName: string }`",
-            where124,
+            where181,
             problems
           );
         }
-        reportUnknownFields(object120, ['call', 'with', 'answer'], path, problems);
+        reportUnknownFields(object177, ['call', 'with', 'answer'], path, problems);
       }
     } else {
       reportUnknownName(
         oneOf1.call,
         [
           'getBuildStatus',
+          'getStoriesDiffScope',
           'createProject',
           'createTeam',
           'listTeams',
@@ -1016,7 +1354,7 @@ function readScriptedCall(value: unknown, path: string, problems: string[]): voi
   } else {
     reportWrongShape(
       oneOf1,
-      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }`, `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`, `{ call: 'sendFeedback'; with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string }; answer: ApiError | { reference: string } }` or `{ call: 'tradeGitHubIdToken'; with: { repository: string; teamId: string }; answer: ApiError | { status: 'signed-in'; token: string } | { status: 'not-connected'; teamName: string } }`",
+      "`{ call: 'getBuildStatus'; with: { buildIndex: number }; answer: ApiError | BuildStatusAnswer | null }`, `{ call: 'getStoriesDiffScope'; with: { buildIndex: number; platform: 'android' | 'ios'; after?: string }; answer: ApiError | { isCut: boolean; nextAfter?: string | null; quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED' | null; stories: Array<{ storyId: string; deviceId: string; hasDiffScopeData: boolean; state: string; record: { checks: Array<{ answer: string; name: string; tone: string; count?: number | null; isDeciding?: boolean | null }>; reason: string; test: number; changedFiles?: string[] | null; comparedWithTest?: number | null; drawnLines?: Array<{ kind: string; number: number; text: string }> | null; drawnStoryPastRetention?: boolean | null; obstacles?: Array<{ cause: string; name?: string | null }> | null; reachedThrough?: string[] | null; wholeTestFile?: string | null; wholeTestReason?: string | null } | null }> } | null }`, `{ call: 'createProject'; with: { teamId: string; name: string }; answer: ApiError | { name: string; index: number; projectToken: string } }`, `{ call: 'createTeam'; with: { name: string }; answer: ApiError | { id: string; name: string } }`, `{ call: 'listTeams'; with: Record<string, never>; answer: ApiError | { teams: Array<{ id: string; name: string; projectCount: number; role: string | null }> } }`, `{ call: 'listProjects'; with: { teamId: string }; answer: ApiError | { team: { name: string; id: string }; projects: Array<{ index: number; name: string; buildCount: number; mainBranch: string | null }> } }`, `{ call: 'openBuild'; with: { platforms: string[]; pushFacts?: PushFacts }; answer: ApiError | { buildIndex: number; url: string; captureDecision?: PosedCaptureDecision; hasCiToken?: boolean; buildTicket?: string } }`, `{ call: 'joinBuild'; with: { joinKey: string; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { buildIndex: number; waitingFor: string[]; startedRun?: StartedRun } }`, `{ call: 'asyncUpload'; with: { buildIndex: number; platform: string; pushFacts?: PushFactsPlatform }; answer: ApiError | { couldRunThisBuildRightNow: boolean; startedRun?: StartedRun } }`, `{ call: 'closeBuild'; with: { buildIndex: number; runError: string }; answer: ApiError | Record<string, never> }`, `{ call: 'getNextBuildInfo'; with: { platforms: string[] }; answer: ApiError | NextBuildInfoAnswer }`, `{ call: 'getStagedUploadUrls'; with: { platforms: string[] }; answer: ApiError | Record<string, never> }`, `{ call: 'checkStagedGate'; with: { platform: string; baseFingerprint: string }; answer: ApiError | StagedGateAnswer }`, `{ call: 'trackCliInit'; with: { event: string }; answer: ApiError | { sessionId: string } }`, `{ call: 'startCliLogin'; with: Record<string, never>; answer: ApiError | { loginId: string; authorizeUrl: string; expiresAt: string } }`, `{ call: 'pollCliLogin'; with: { loginId: string }; answer: ApiError | { status: 'pending' | 'cancelled' | 'expired' | 'used' } | { status: 'approved'; email: string; token: string } }`, `{ call: 'logOutCli'; with: Record<string, never>; answer: ApiError | Record<string, never> }`, `{ call: 'sendFeedback'; with: { kind: 'bug' | 'missing' | 'unclear' | 'other'; report: string }; answer: ApiError | { reference: string } }` or `{ call: 'tradeGitHubIdToken'; with: { repository: string; teamId: string }; answer: ApiError | { status: 'signed-in'; token: string } | { status: 'not-connected'; teamName: string } }`",
       path,
       problems
     );

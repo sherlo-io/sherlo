@@ -55,6 +55,73 @@
           }
         }
       }
+    },
+    {
+      "call": "getStoriesDiffScope",
+      "with": { "buildIndex": 7, "platform": "ios" },
+      "answer": {
+        "isCut": false,
+        "nextAfter": null,
+        "quickCheck": "FINISHED",
+        "stories": [
+          {
+            "storyId": "sanity-hello--basic",
+            "deviceId": "iphone.15",
+            "hasDiffScopeData": true,
+            "state": "final",
+            "record": {
+              "reason": "looksDifferent",
+              "test": 7,
+              "comparedWithTest": 6,
+              "changedFiles": ["Card.stories.tsx"],
+              "reachedThrough": ["Card.stories.tsx"],
+              "checks": [
+                { "name": "wholeTest", "answer": "eachStoryOnItsOwn", "tone": "ok" },
+                {
+                  "name": "changedFiles",
+                  "answer": "changedFilesReach",
+                  "tone": "warning",
+                  "count": 1
+                },
+                {
+                  "name": "quickCheck",
+                  "answer": "linesDiffer",
+                  "tone": "warning",
+                  "isDeciding": true
+                }
+              ],
+              "drawnLines": [
+                { "kind": "same", "number": 1, "text": "<View>" },
+                { "kind": "after", "number": 2, "text": "<Text>Hello</Text>" }
+              ],
+              "obstacles": []
+            }
+          },
+          {
+            "storyId": "typography--dense",
+            "deviceId": "iphone.15",
+            "hasDiffScopeData": true,
+            "state": "final",
+            "record": {
+              "reason": "notReached",
+              "test": 7,
+              "comparedWithTest": 6,
+              "changedFiles": [],
+              "checks": [
+                { "name": "wholeTest", "answer": "eachStoryOnItsOwn", "tone": "ok" },
+                {
+                  "name": "changedFiles",
+                  "answer": "changedFilesDoNotReach",
+                  "tone": "ok",
+                  "count": 0,
+                  "isDeciding": true
+                },
+                { "name": "quickCheck", "answer": "notNeeded", "tone": "notRun" }
+              ]
+            }
+          }
+        ]
+      }
     }
   ],
   "masks": {}
