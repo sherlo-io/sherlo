@@ -8,6 +8,7 @@
  */
 import chalk from 'chalk';
 import type { BuildStatus } from '../helpers/buildStatusRequest';
+import type { StoriesOfDiffScopeOfPlatform } from '../helpers/readStoriesDiffScope';
 import {
   storyStatusWord,
   renderVerdictNoChanges,
@@ -159,8 +160,13 @@ export type ViewJson = {
    * Per platform the run was asked for: whether its app build `arrived`, where the app build came
    * from (`appBuild`), the capture plan (`capture`, read off the stored decision, so a canceled
    * build still has it) and `storiesInBundle`. See ../seams/serverCalls' BuildStatusPlatform.
+   * With the list of stories (helpers/readStoriesDiffScope) beside them: one record per story,
+   * `diffScopeStories`, or why the list is not whole or not available.
    */
-  platforms?: BuildStatus['platforms'];
+  platforms?: {
+    android?: NonNullable<BuildStatus['platforms']>['android'] & StoriesOfDiffScopeOfPlatform;
+    ios?: NonNullable<BuildStatus['platforms']>['ios'] & StoriesOfDiffScopeOfPlatform;
+  } | null;
 };
 
 /**

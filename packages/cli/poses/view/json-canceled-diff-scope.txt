@@ -43,7 +43,8 @@
         "from": "stored",
         "storedFromTest": 9
       },
-      "storiesInBundle": 24
+      "storiesInBundle": 24,
+      "diffScopeStories": []
     },
     "ios": {
       "arrived": true,
@@ -60,7 +61,8 @@
         "from": "stored",
         "storedFromTest": 9
       },
-      "storiesInBundle": 24
+      "storiesInBundle": 24,
+      "diffScopeStories": []
     }
   }
 }
