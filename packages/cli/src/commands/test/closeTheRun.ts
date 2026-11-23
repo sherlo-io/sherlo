@@ -25,6 +25,7 @@ import {
   EXIT_SIGINT,
   EXIT_TIMEOUT,
 } from '../../helpers/exitCodes';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { emit } from '../../helpers/transcriptSink';
@@ -94,7 +95,7 @@ export async function closeTheRun({
     }
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => process.exit(exitCode));
+    await reporting.flush().finally(() => exitAfterOutput(exitCode));
     return;
   }
 

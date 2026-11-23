@@ -45,8 +45,9 @@ afterEach(() => {
 async function runPoseCommand(documentPath: string, options: { terminal: boolean; play?: string }) {
   const printed: string[] = [];
   const exits: number[] = [];
-  vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+  vi.spyOn(process.stdout, 'write').mockImplementation(((text: string, done?: () => void) => {
     printed.push(text);
+    done?.();
     return true;
   }) as typeof process.stdout.write);
   vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
