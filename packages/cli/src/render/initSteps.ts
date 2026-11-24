@@ -144,8 +144,8 @@ export function renderNextSteps({
       `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
     ],
   });
-  // BOTH CHOICES WORK ON EVERY APP (operator, 2026-11-24, Q24): Sherlo's build is Storybook alone
-  // either way, so an app that exports its routes for the server builds it too.
+  // BOTH CHOICES WORK ON EVERY APP: Sherlo's build is Storybook alone either way, so an app that
+  // exports its routes for the server builds it too.
   const keepSetupChoice = [
     chalk.bold('b) In-app integration'),
     '   At the top of your root component, add:',
