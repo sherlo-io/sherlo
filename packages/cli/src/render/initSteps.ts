@@ -59,8 +59,10 @@ export function renderFailedStepLine(name: string): string[] {
  * The next steps, in their own section, numbered in the order they are done. The first ones
  * depend on the Storybook the project had:
  *
- *   - `installed`: setup installed Storybook just now, on its default setup, which needs nothing in
- *     the app. Its stories are Storybook's examples, so the step is to replace them with the app's own.
+ *   - `installed`: setup installed Storybook just now. Setup does not register Storybook as the app's
+ *     root itself, as the person or their agent picks how Sherlo reaches it, so the first step is the
+ *     same two choices as `old-setup`, with no upgrade and nothing to remove. Its stories are
+ *     Storybook's examples, so the next step is to replace them with the app's own.
  *   - `default-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
  *     with no change to the app - no Storybook step at all.
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
@@ -112,9 +114,16 @@ export function renderNextSteps({
         renderCode("import { name as appName } from '../app.json';"),
         renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
       ];
-  const upgradeFirst = hasDefaultSetup(storybookVersion)
+  // A STORYBOOK SETUP JUST INSTALLED is pinned to a version with the default setup, and the app has
+  // no code of its own that renders Storybook, so neither the upgrade nor the removal applies.
+  const isFreshInstall = storybook === 'installed';
+  const upgradeFirst =
+    isFreshInstall || hasDefaultSetup(storybookVersion)
+      ? []
+      : [`   First, upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer.`];
+  const removeOldRender = isFreshInstall
     ? []
-    : [`   First, upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer.`];
+    : ["   Then remove your app's code that renders Storybook, and its import."];
   // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
   // the eye finds a) and b) before reading either.
   const defaultSetupChoice = [
@@ -124,8 +133,25 @@ export function renderNextSteps({
     ...upgradeFirst,
     '   In .rnstorybook/index.ts, below StorybookUIRoot, add:',
     ...registerRoot.map((line) => `     ${line}`),
-    "   Then remove your app's code that renders Storybook, and its import.",
+    ...removeOldRender,
   ];
+  // THE SAME TWO CHOICES after a fresh install and on the old setup; only the reason Sherlo can't
+  // open Storybook alone differs.
+  const openStorybookStep = (reason: string) => ({
+    title: 'Let Sherlo open Storybook',
+    content: [
+      `${reason} Pick one:`,
+      '',
+      ...defaultSetupChoice,
+      '',
+      ...keepSetupChoice,
+      '',
+      // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: whichever option is picked, the providers
+      // that wrapped Storybook in the app must move first, so the guide is read before any change.
+      'Before you change your setup, read:',
+      `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
+    ],
+  });
   const keepSetupChoice = [
     chalk.bold('b) In-app integration'),
     '   At the top of your root component, add:',
@@ -136,64 +162,53 @@ export function renderNextSteps({
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
-  const storybookSteps: Record<typeof storybook, Array<{ title: string; content: string[] }>> = {
-    installed: [
-      {
-        title: 'Replace the example stories',
-        // WHERE STORYBOOK LOOKS: an agent told to write "your components' stories" writes them where
-        // Storybook never loads them.
-        content: [
-          // WHY FIRST, THEN A SMALL START: the examples must go because Sherlo would test them, and
-          // a few components are enough to begin, so the step never reads as a big job.
-          "Right now Sherlo would test Storybook's examples, not your app.",
-          // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
-          // outside it drop out, so they need no deleting.
-          `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
-          // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
-          // found without reading the others.
-          '',
-          'You can start with a few components or screens, one story per state:',
-          // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
-          // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
-          `  ${renderCode('// Button.stories.tsx')}`,
-          `  ${renderCode("import { Button } from './Button';")}`,
-          `  ${renderCode('export default { component: Button };')}`,
-          // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
-          `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
-          `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
-          '',
-          // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
-          'Before you write stories, read:',
-          `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
-        ],
-      },
-    ],
-    'default-setup': [],
-    // THE SAME STEP AS `installed`, set just below: the app's Storybook is the person's own, but
-    // the stories are still Storybook's examples.
-    'example-stories': [],
-    'old-setup': [
-      {
-        title: 'Let Sherlo open Storybook',
-        content: [
-          "Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:",
-          '',
-          ...defaultSetupChoice,
-          '',
-          ...keepSetupChoice,
-          '',
-          // AN INSTRUCTION WITH ITS MOMENT, NOT A TOPIC: whichever option is picked, the providers
-          // that wrapped Storybook in the app must move first, so the guide is read before any change.
-          'Before you change your setup, read:',
-          `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
-        ],
-      },
+  const replaceExampleStoriesStep = {
+    title: 'Replace the example stories',
+    // WHERE STORYBOOK LOOKS: an agent told to write "your components' stories" writes them where
+    // Storybook never loads them.
+    content: [
+      // WHY FIRST, THEN A SMALL START: the examples must go because Sherlo would test them, and
+      // a few components are enough to begin, so the step never reads as a big job.
+      "Right now Sherlo would test Storybook's examples, not your app.",
+      // A FOLDER, NOT A PATTERN: Storybook finds every story file under it, and the examples
+      // outside it drop out, so they need no deleting.
+      `Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. ${renderCode("['../src']")}.`,
+      // A BLANK LINE BETWEEN PARTS - what to change, an example, where to read more - so each is
+      // found without reading the others.
+      '',
+      'You can start with a few components or screens, one story per state:',
+      // ONE STORY FILE, TWO STATES, so it is on the screen whole; the rest of the how -
+      // providers, steady screenshots, Sherlo's parameters - is in the guide the SDK ships.
+      `  ${renderCode('// Button.stories.tsx')}`,
+      `  ${renderCode("import { Button } from './Button';")}`,
+      `  ${renderCode('export default { component: Button };')}`,
+      // EACH LABEL NAMES ITS STATE, so a screenshot says what it shows.
+      `  ${renderCode("export const Default = { args: { title: 'Default' } };")}`,
+      `  ${renderCode("export const Disabled = { args: { title: 'Disabled', disabled: true } };")}`,
+      '',
+      // AN INSTRUCTION, NOT A TOPIC: "How to write stories" read as basics the snippet covers.
+      'Before you write stories, read:',
+      `  ${chalk.cyan(WRITING_STORIES_GUIDE)}`,
     ],
   };
 
-  // THE FIRST TEST COMES SECOND, after the app's own stories, so it never photographs Storybook's
+  // THE FIRST TEST COMES LAST, after the app's own stories, so it never photographs Storybook's
   // examples - and it is still listed, so an agent that wrote the stories knows what runs next.
-  storybookSteps['example-stories'] = storybookSteps.installed;
+  const storybookSteps: Record<typeof storybook, Array<{ title: string; content: string[] }>> = {
+    installed: [
+      openStorybookStep(
+        "Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it."
+      ),
+      replaceExampleStoriesStep,
+    ],
+    'default-setup': [],
+    // The app's Storybook is the person's own and already opens, but the stories are still
+    // Storybook's examples.
+    'example-stories': [replaceExampleStoriesStep],
+    'old-setup': [
+      openStorybookStep("Storybook starts from your app's code, so Sherlo can't open it alone."),
+    ],
+  };
 
   const steps = [
     ...storybookSteps[storybook],

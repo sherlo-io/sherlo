@@ -1,0 +1,129 @@
+{
+  "pose": 1,
+  "argv": ["init"],
+  "files": {
+    "package.json": {
+      "name": "acme-shop",
+      "version": "0.0.1",
+      "private": true,
+      "scripts": {
+        "android": "react-native run-android",
+        "ios": "react-native run-ios",
+        "start": "react-native start"
+      },
+      "dependencies": {
+        "@react-native/new-app-screen": "0.88.1",
+        "react": "19.3.0",
+        "react-native": "0.88.1",
+        "react-native-safe-area-context": "^5.5.2"
+      }
+    },
+    "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
+    "app.json": { "name": "AcmeShop", "displayName": "Acme Shop" },
+    "metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\n\nconst config = {};\n\nmodule.exports = mergeConfig(getDefaultConfig(__dirname), config);\n",
+    "node_modules/react-native/package.json": {
+      "name": "react-native",
+      "version": "0.88.1",
+      "main": "index.js"
+    },
+    "node_modules/react-native/index.js": ""
+  },
+  "env": { "SHERLO_API_URL": "https://api.sherlo.io/graphql" },
+  "git": {
+    "branch": "main",
+    "commit": "4f3a9c1d2e5b6a7c8d9e0f1a2b3c4d5e6f7a8b9c",
+    "dirty": false,
+    "remote": "git@github.com:acme/acme-shop.git"
+  },
+  "bundles": {},
+  "logins": {
+    "https://api.sherlo.io/graphql": {
+      "email": "anna@example.com",
+      "token": "sht_poselogintoken00000000000000000"
+    }
+  },
+  "api": [
+    {
+      "call": "trackCliInit",
+      "with": { "event": "0_init" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "1_requirements" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "listTeams",
+      "with": {},
+      "answer": {
+        "teams": [{ "id": "k7m2p9qx", "name": "Anna's team", "projectCount": 0, "role": "owner" }]
+      }
+    },
+    {
+      "call": "createProject",
+      "with": { "teamId": "k7m2p9qx", "name": "acme-shop" },
+      "answer": {
+        "name": "acme-shop",
+        "index": 1,
+        "projectToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaak7m2p9qx1"
+      }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "5_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "2_dependencies" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "3_metro_config" },
+      "answer": { "sessionId": "init-session-1" }
+    },
+    {
+      "call": "trackCliInit",
+      "with": { "event": "7_testing" },
+      "answer": { "sessionId": "init-session-1" }
+    }
+  ],
+  "masks": {},
+  "workstation": {
+    "install": { "package": "@sherlo/react-native-storybook@2.0.2" },
+    "storybook": {
+      "wrote": {
+        "package.json": {
+          "name": "acme-shop",
+          "version": "0.0.1",
+          "private": true,
+          "scripts": {
+            "android": "react-native run-android",
+            "ios": "react-native run-ios",
+            "start": "react-native start"
+          },
+          "dependencies": {
+            "@react-native/new-app-screen": "0.88.1",
+            "@storybook/react-native": "10.7.2",
+            "@storybook/react-native-ui-lite": "10.7.2",
+            "react": "19.3.0",
+            "react-native": "0.88.1",
+            "react-native-safe-area-context": "^5.5.2",
+            "storybook": "10.6.8"
+          }
+        },
+        "pnpm-workspace.yaml": "allowBuilds:\n  esbuild: false\npublicHoistPattern:\n  - '@react-native/*'\n  - hermes-compiler\n",
+        "metro.config.js": "const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');\nconst { withStorybook } = require('@storybook/react-native/metro/withStorybook');\n\nconst config = {};\n\nmodule.exports = withStorybook(mergeConfig(getDefaultConfig(__dirname), config), { liteMode: true });\n",
+        ".rnstorybook/index.ts": "import { LiteUI } from '@storybook/react-native-ui-lite';\nimport { view } from './storybook.requires';\n\nconst StorybookUIRoot = view.getStorybookUI({\n  CustomUIComponent: LiteUI,\n  shouldPersistSelection: false,\n});\n\nexport default StorybookUIRoot;\n",
+        "node_modules/@storybook/react-native/package.json": {
+          "name": "@storybook/react-native",
+          "version": "10.7.2",
+          "main": "index.js"
+        },
+        "node_modules/@storybook/react-native/index.js": ""
+      }
+    }
+  }
+}

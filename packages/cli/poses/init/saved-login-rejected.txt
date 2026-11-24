@@ -34,7 +34,24 @@ Opening your browser to log in to Sherlo...
 [1m👉 Next steps[22m
 [2m═════════════[22m
 
-[1m1. Replace the example stories[22m
+[1m1. Let Sherlo open Storybook[22m
+   Storybook is installed, but your app doesn't start it yet, so Sherlo can't open it. Pick one:
+
+   [1ma) Entry-point swapping (Storybook's default, recommended)[22m
+      In .rnstorybook/index.ts, below StorybookUIRoot, add:
+        [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
+        [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m
+
+   [1mb) In-app integration[22m
+      At the top of your root component, add:
+        [35mimport[39m [2m{[22m isStorybookMode [2m}[22m [35mfrom[39m [32m'@sherlo/react-native-storybook'[39m[2m;[22m
+        [35mimport[39m [33mStorybook[39m [35mfrom[39m [32m'./.rnstorybook'[39m[2m;[22m
+        [35mif[39m [2m([22misStorybookMode[2m)[22m [35mreturn[39m [2m<[22m[33mStorybook[39m [2m/>;[22m
+
+   Before you change your setup, read:
+     [36mnode_modules/@sherlo/react-native-storybook/guides/storybook-setup.md[39m
+
+[1m2. Replace the example stories[22m
    Right now Sherlo would test Storybook's examples, not your app.
    Set "stories" in .rnstorybook/main.ts to your code's folder, e.g. [2m[[22m[32m'../src'[39m[2m][22m.
 
@@ -48,7 +65,7 @@ Opening your browser to log in to Sherlo...
    Before you write stories, read:
      [36mnode_modules/@sherlo/react-native-storybook/guides/writing-stories.md[39m
 
-[1m2. Run your first visual test[22m
+[1m3. Run your first visual test[22m
    [36mnpx sherlo test[39m
 
 [exit 0]
