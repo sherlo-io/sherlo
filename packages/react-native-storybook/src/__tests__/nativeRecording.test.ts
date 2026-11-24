@@ -13,17 +13,13 @@
  * calls, a promise that settles and a call native makes into a callable module (a device event)
  * come as kind 'async', under the callback's or promise's handle or 'callable:<name>'.
  */
-import * as fs from 'fs';
-import * as path from 'path';
-
 import { rememberStoryOfTheApp } from '../componentNames';
 import { MESSAGE_EVENT } from '../connection/appLine';
 import { UNANSWERED_EVENT } from '../mocking/networkNative';
 import { startStoryRecording, storyRecordingOf } from '../nativeRecording';
 
 import {
-  CALLABLE_MODULES,
-  callableModulesSource,
+  callableModulesWithFixedDefaultSource,
   DEVICE_EVENT_EMITTER,
   deviceEventEmitterSource,
   FABRIC_RENDERER,
@@ -33,155 +29,24 @@ import {
   rendererSource,
   TURBO_MODULE_REGISTRY,
 } from './nativeRoadFiles';
+import {
+  App,
+  BUNDLE_KINDS,
+  CALLS_AT_START,
+  DATA_ENTRIES_AT_START,
+  ENTRIES_AT_START,
+  GLOBALS_OF_A_NEW_APP,
+  globalsAtStart,
+  KINDS_AT_START,
+  LIST_ENTRY_AT_START,
+  MADE_BY_THE_BUNDLE,
+  nativeFunction,
+  runFile,
+  startAppIn,
+} from './recordingApp';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { markNativeRoads } = require('../../metro/mockSpecifierTransformer.js');
-
-const polyfillSource = fs.readFileSync(path.join(__dirname, '../../metro/polyfill.js'), 'utf8');
-
-// The globals of the test's app on the new architecture as its JavaScript begins.
-const GLOBALS_OF_A_NEW_APP = [
-  '__turboModuleProxy',
-  '__d',
-  'eventsReactRan',
-  'nativeModulesOfTheTest',
-  'nativeFabricUIManager',
-];
-// Of them, a function of the bundle's own source, never named as unseen...
-const MADE_BY_THE_BUNDLE = ['__d'];
-// ...and the ones holding data, recorded as their values (an empty list and an empty object).
-const DATA_AT_START = ['eventsReactRan', 'nativeModulesOfTheTest'];
-// As each story's recording holds them, ahead of everything else: the data as its values, then,
-// once every start global is through, the bundle's own listed for the quick check to find.
-const DATA_ENTRIES_AT_START = [
-  ['global', 'installed', ['eventsReactRan'], []],
-  ['global', 'installed', ['nativeModulesOfTheTest'], {}],
-];
-// The list comes after an app's own native globals too, as they are start globals as well. Each
-// name carries what it is, for the quick check to tell its own global of that name from the
-// phone's: the bundle's is a function of JavaScript source (the test's mock).
-const BUNDLE_KINDS = { __d: { type: 'function', native: false, name: 'Mock', length: 0 } };
-const LIST_ENTRY_AT_START = ['global', 'notFromThePhone', MADE_BY_THE_BUNDLE, BUNDLE_KINDS];
-const ENTRIES_AT_START = [...DATA_ENTRIES_AT_START, LIST_ENTRY_AT_START];
-// The same entries in full, in their places in an app with no globals of its own: the data after
-// `__turboModuleProxy`, the list after every start global the bundle did not make.
-const ORDERS_AT_START = [1, 2, GLOBALS_OF_A_NEW_APP.length - MADE_BY_THE_BUNDLE.length];
-const CALLS_AT_START = ENTRIES_AT_START.map(([module, method, args, answer], index) => ({
-  module,
-  method,
-  args,
-  kind: 'sync',
-  answer,
-  order: ORDERS_AT_START[index],
-  afterPicture: false,
-}));
-// The same entries as [module, method, args, kind].
-const KINDS_AT_START = CALLS_AT_START.map(({ module, method, args, kind }) => [
-  module,
-  method,
-  args,
-  kind,
-]);
-
-// The globals the bundle began with, `names` in the order the app has them, handed over with every
-// story ahead of the rest; the bundle's own take no place, and the native ones `recorded` and the
-// ones holding data take their place in the order as recorded.
-function globalsAtStart(names: string[], recorded: string[] = []) {
-  return names
-    .filter((name) => !MADE_BY_THE_BUNDLE.includes(name))
-    .map((name, order) => ({ kind: 'jsiGlobal', name: `atStart:${name}`, order }))
-    .filter(({ name }) => {
-      const globalName = name.slice('atStart:'.length);
-      return !recorded.includes(globalName) && !DATA_AT_START.includes(globalName);
-    });
-}
-
-// A function as native code makes it: the engine does not show its source.
-function nativeFunction<T extends object>(implementation: T): T {
-  return new Proxy(implementation, {});
-}
-
-type App = {
-  fakeGlobal: Record<string, any>;
-  dispatch: (...args: unknown[]) => void;
-  // The bundle registering a module native code may call into, and that module as native has it.
-  registerCallableModule: (name: string, module: object) => void;
-  callableModule: (name: string) => any;
-};
-
-// The polyfill run as the app's JavaScript starts in `mode`; the new architecture carries Fabric's
-// UI manager, the old one does not. `readOnly` globals are installed as native code installs a
-// global the app cannot replace, `notEnumerated` ones as a native side installs a global it does
-// not enumerate; the registration of callable modules runs unless left out.
-function startAppIn(
-  mode: string,
-  architecture: 'new' | 'old',
-  extras: Record<string, any> = {},
-  options: {
-    readOnly?: Record<string, unknown>;
-    notEnumerated?: Record<string, unknown>;
-    engine?: Record<string, unknown>;
-    withoutCallableRoad?: boolean;
-  } = {}
-) {
-  const app: App = {
-    fakeGlobal: {},
-    dispatch: () => undefined,
-    registerCallableModule: () => undefined,
-    callableModule: () => undefined,
-  };
-  // The engine's own, as the language lays them on the global object as the engine starts, before
-  // anything else is there: never enumerable.
-  Object.entries(options.engine ?? {}).forEach(([name, value]) => {
-    Object.defineProperty(app.fakeGlobal, name, { value, enumerable: false, writable: false });
-  });
-  Object.assign(app.fakeGlobal, {
-    __turboModuleProxy: (name: string) =>
-      app.fakeGlobal.nativeModulesOfTheTest[name] ??
-      (name === 'SherloModule' ? { getSherloConstants: () => ({ mode }) } : null),
-    __d: vi.fn(),
-    eventsReactRan: [],
-    nativeModulesOfTheTest: {},
-    ...extras,
-  });
-  Object.entries(options.readOnly ?? {}).forEach(([name, value]) => {
-    Object.defineProperty(app.fakeGlobal, name, { value, enumerable: true, writable: false });
-  });
-  Object.entries(options.notEnumerated ?? {}).forEach(([name, value]) => {
-    Object.defineProperty(app.fakeGlobal, name, {
-      value,
-      enumerable: false,
-      writable: true,
-      configurable: true,
-    });
-  });
-  if (architecture === 'new') {
-    app.fakeGlobal.nativeFabricUIManager = {
-      completeRoot: vi.fn(),
-      registerEventHandler: (handler: App['dispatch']) => {
-        app.dispatch = handler;
-      },
-    };
-  }
-  // eslint-disable-next-line no-new-func
-  new Function('global', `"use strict";\n${polyfillSource}`)(app.fakeGlobal);
-  (globalThis as { __sherloNativeRecorder?: unknown }).__sherloNativeRecorder =
-    app.fakeGlobal.__sherloNativeRecorder;
-  if (!options.withoutCallableRoad) {
-    const callables = runFile(app, CALLABLE_MODULES, callableModulesSource);
-    app.registerCallableModule = callables.default;
-    app.callableModule = (name) => callables.registered[name]();
-  }
-  return app;
-}
-
-// Runs one file of the app as the bundle would, after the transformer marked it.
-function runFile(app: App, filename: string, source: string): any {
-  const module = { exports: {} as any };
-  // eslint-disable-next-line no-new-func
-  new Function('global', 'module', markNativeRoads(filename, source))(app.fakeGlobal, module);
-  return module.exports;
-}
 
 // The native object native code lays as the global `coreBridge` in a run of its own.
 function bridgeLaidByNative() {
@@ -1546,6 +1411,33 @@ describe('what the app records for each story', () => {
     });
     // Every listener heard every event, as without the recorder.
     expect(heard).toEqual(['active', 'background']);
+  });
+
+  it('a registration of callable modules whose default export is a fixed getter is still watched, and the recorder never stops', () => {
+    const app = startAppIn(
+      'testing',
+      'new',
+      {},
+      {
+        callableModules: callableModulesWithFixedDefaultSource,
+      }
+    );
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    const deviceEvents = runFile(app, DEVICE_EVENT_EMITTER, deviceEventEmitterSource).default;
+    app.registerCallableModule('RCTDeviceEventEmitter', deviceEvents);
+    const heard: string[] = [];
+    deviceEvents.addListener('appStateDidChange', (state: string) => heard.push(state));
+
+    startStoryRecording('settings--fixed');
+    app.callableModule('RCTDeviceEventEmitter').emit('appStateDidChange', 'active');
+    const recording = storyRecordingOf('settings--fixed');
+
+    expect(recording?.blindRoads).toEqual(globalsAtStart(GLOBALS_OF_A_NEW_APP));
+    expect(recording?.nativeCalls.at(-1)).toMatchObject({
+      module: 'callable:RCTDeviceEventEmitter',
+      args: ['appStateDidChange', 'active'],
+    });
+    expect(heard).toEqual(['active']);
   });
 
   it('a device event the app got before the first story is recorded with every story', () => {

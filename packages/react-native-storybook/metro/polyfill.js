@@ -63,6 +63,12 @@
 // as the messages src/sealedCore/seam.ts types, and the bundler's line its `start-failed`
 // (metro/sherloLine.d.ts). It writes no file.
 //
+// The engine's rules for wrapping a value safely are shared with the mock layer
+// (src/safeWrapping.ts). The polyfill runs before any module exists, so scripts/bundlePolyfill.js
+// inlines them into the polyfill that ships, which requires nothing: run this file only as built.
+//
+
+var safeWrapping = require('../src/safeWrapping');
 
 (function () {
   if (typeof globalThis === 'undefined') return;
@@ -127,17 +133,12 @@
     return stillReal.isTesting && !!stillReal.paths;
   };
 
-  // A value only an object or a function is: one held by reference, which a Proxy may wrap.
-  function isObjectOrFunction(value) {
-    return value !== null && (typeof value === 'object' || typeof value === 'function');
-  }
-
   function watchModuleExports(moduleId, moduleObj) {
     if (!stillReal.isCapture()) return;
     var modulePath = stillReal.paths[moduleId];
     if (!modulePath || !moduleObj || typeof Proxy !== 'function') return;
     var target = moduleObj.exports;
-    if (!isObjectOrFunction(target)) return;
+    if (!safeWrapping.isObjectOrFunction(target)) return;
 
     var entry = { path: modulePath, used: null };
     var note = function (name) {
@@ -887,7 +888,7 @@
     // rest, which it gets as it is without one. A known one goes as before: as it is without
     // `forBundle` (a held property must be), else as the bundle met it.
     function fromNative(value, forBundle) {
-      if (!isObjectOrFunction(value) || nativeOfStandIn.has(value)) return value;
+      if (!safeWrapping.isObjectOrFunction(value) || nativeOfStandIn.has(value)) return value;
       var ref = refs.get(value);
       if (!ref) madeByNative.add(value);
       if (!forBundle) return value;
@@ -1025,16 +1026,14 @@
     // as it is, noted once a story as a call of its name.
     function moduleMemberForBundle(moduleName, methods, target, key, value) {
       if (typeof value === 'function') {
-        var description = null;
+        var isHeld = false;
         try {
-          description = Object.getOwnPropertyDescriptor(target, key);
+          isHeld = safeWrapping.isHeldToItsValue(target, key);
         } catch (_) {
           // A host object may refuse the look: the method is then wrapped as any other.
         }
         // A frozen property must be handed back as it is, or the Proxy throws.
-        if (description && description.configurable === false && !description.writable) {
-          return value;
-        }
+        if (isHeld) return value;
         var cached = methods[key];
         if (cached && cached.method === value) return cached.wrapper;
         var wrapper = wrapMethod(moduleName, key, value, target);
@@ -1104,41 +1103,44 @@
       }
     }
 
-    // Lays `wrapper` as `exportName` of the module's exports: assigned, or else defined anew.
+    // Lays `wrapper` as `exportName` of the module's exports: assigned, or else defined anew. An
+    // export the engine holds fixed (a compiler may lay one as a getter that is not configurable)
+    // can be neither, nor can a new one on exports that take none: the exports are then laid again
+    // around the wrapper.
     function replaceExport(module, exportName, wrapper) {
       try {
         module.exports[exportName] = wrapper;
       } catch (_) {
-        // A read-only export: it is defined anew below.
+        // A read-only export: it is laid below.
       }
       if (module.exports[exportName] === wrapper) return;
-      Object.defineProperty(module.exports, exportName, {
-        value: wrapper,
-        writable: true,
-        configurable: true,
-        enumerable: true,
-      });
-    }
-
-    // NativeModules hands out each module as a property of its default export, which Babel may
-    // lay as a getter: the exports are then laid again around a Proxy of it. Each read of a module
-    // is a lookup, and so is each check with `in`.
-    function wrapNativeModules(module) {
-      var real = module.exports.default;
-      var wrapped = fromNative(real, standInOfModuleTable);
-      if (wrapped === real) return;
-      try {
-        module.exports.default = wrapped;
-      } catch (_) {
-        // A getter export: the exports are laid again below.
+      var canDefine = safeWrapping.hasOwn(module.exports, exportName)
+        ? !safeWrapping.isFixedProperty(module.exports, exportName)
+        : Object.isExtensible(module.exports);
+      if (canDefine) {
+        Object.defineProperty(module.exports, exportName, {
+          value: wrapper,
+          writable: true,
+          configurable: true,
+          enumerable: true,
+        });
+        return;
       }
-      if (module.exports.default === wrapped) return;
       var exportsAgain = { __esModule: true };
       Object.keys(module.exports).forEach(function (key) {
         exportsAgain[key] = module.exports[key];
       });
-      exportsAgain.default = wrapped;
+      exportsAgain[exportName] = wrapper;
       module.exports = exportsAgain;
+    }
+
+    // NativeModules hands out each module as a property of its default export: a Proxy of it is
+    // laid in its place. Each read of a module is a lookup, and so is each check with `in`.
+    function wrapNativeModules(module) {
+      var real = module.exports.default;
+      var wrapped = fromNative(real, standInOfModuleTable);
+      if (wrapped === real) return;
+      replaceExport(module, 'default', wrapped);
     }
 
     function standInOfModuleTable(real) {
@@ -1188,7 +1190,7 @@
     // arguments, in order, before the module runs it. What a call told the JavaScript stays (the
     // app's state, the screen's size), so one made during a story blinds every later story.
     function callableStandIn(moduleName, callable) {
-      if (!isObjectOrFunction(callable)) return callable;
+      if (!safeWrapping.isObjectOrFunction(callable)) return callable;
       var methods = {};
       return new Proxy(callable, {
         get: function (target, key) {
@@ -1351,7 +1353,7 @@
     function hasHeldNativeMethod(value) {
       try {
         return Object.getOwnPropertyNames(value).some(function (key) {
-          return isHeldToItsValue(value, key) && isNativeFunction(value[key]);
+          return safeWrapping.isHeldToItsValue(value, key) && isNativeFunction(value[key]);
         });
       } catch (_) {
         return true;
@@ -1431,7 +1433,7 @@
     // rest of the walk goes on, and the container goes as it is: what the recorder cannot read of
     // it, native cannot read either, so no stand-in reaches native through it.
     function nativeWithin(value, walk, inPlace) {
-      if (!isObjectOrFunction(value)) return value;
+      if (!safeWrapping.isObjectOrFunction(value)) return value;
       if (nativeOfStandIn.has(value)) return nativeOfStandIn.get(value);
       if (madeByNative.has(value)) return value;
       if (refs.get(value)) return callbackOfFunction.get(value) || value;
@@ -1663,7 +1665,7 @@
     function isEngineOwn(real, key) {
       var owner = real;
       while (owner) {
-        if (Object.prototype.hasOwnProperty.call(owner, key)) {
+        if (safeWrapping.hasOwn(owner, key)) {
           return enginePrototypes.indexOf(owner) !== -1;
         }
         owner = nativeOf(Object.getPrototypeOf(owner));
@@ -1671,18 +1673,12 @@
       return false;
     }
 
-    // A property the engine holds to its value, neither configurable nor writable: a Proxy must
-    // hand back that very value.
-    function isHeldToItsValue(real, key) {
-      var description = Object.getOwnPropertyDescriptor(real, key);
-      return !!description && description.configurable === false && description.writable === false;
-    }
-
     // A member its stand-in's ground does not hold fixed is reported as one the bundle may change:
     // the engine refuses a stand-in that reports a fixed member its ground lacks.
     function asGroundAllows(ground, key, description) {
-      var onGround = Reflect.getOwnPropertyDescriptor(ground, key);
-      if (description && (!onGround || onGround.configurable)) description.configurable = true;
+      if (description && !safeWrapping.isFixedProperty(ground, key)) {
+        description.configurable = true;
+      }
       return description;
     }
 
@@ -1710,7 +1706,7 @@
           if (!isNativeUse) return Reflect.get(real, key, self);
           // Held or not, when the look fails: the bundle then gets the value as it is.
           var isHeld = quietly(function () {
-            return isHeldToItsValue(ground, key);
+            return safeWrapping.isHeldToItsValue(ground, key);
           }, true);
           return noteUse(
             handle,
@@ -1927,13 +1923,13 @@
         isFixed =
           !Object.isExtensible(real) ||
           Object.getOwnPropertyNames(real).some(function (key) {
-            return isHeldToItsValue(real, key);
+            return safeWrapping.isHeldToItsValue(real, key);
           });
       } catch (_) {
         // A host object's: it may hold a member fixed.
       }
       if (!isFixed) return real;
-      return typeof real === 'function' ? function () {}.bind(null) : Object.create(null);
+      return typeof real === 'function' ? safeWrapping.callableTarget() : Object.create(null);
     }
 
     // A ground of the recorder's own takes no new members once its value takes none: the engine
@@ -1943,12 +1939,11 @@
     function closeGround(ground, real) {
       quietly(function () {
         Reflect.ownKeys(ground).forEach(function (key) {
-          if (!Object.prototype.hasOwnProperty.call(real, key)) Reflect.deleteProperty(ground, key);
+          if (!safeWrapping.hasOwn(real, key)) Reflect.deleteProperty(ground, key);
         });
         Object.setPrototypeOf(ground, Object.getPrototypeOf(real));
         Object.getOwnPropertyNames(real).forEach(function (key) {
-          var onGround = Object.getOwnPropertyDescriptor(ground, key);
-          if (onGround && !onGround.configurable) return;
+          if (safeWrapping.isFixedProperty(ground, key)) return;
           var description = Object.getOwnPropertyDescriptor(real, key);
           if ('value' in description) description.value = toBundle(description.value);
           Object.defineProperty(ground, key, description);
@@ -2076,7 +2071,7 @@
         if (!member) return;
         if (!('value' in member)) {
           members[key] = { $: 'accessor' };
-        } else if (isObjectOrFunction(member.value)) {
+        } else if (safeWrapping.isObjectOrFunction(member.value)) {
           members[key] = { $: 'native', handle: name + '.' + key, type: typeof member.value };
         } else {
           members[key] = serialised(member.value);
@@ -2129,7 +2124,7 @@
           length: ownDataOf(value, 'length'),
         };
       }
-      if (isObjectOrFunction(value)) {
+      if (safeWrapping.isObjectOrFunction(value)) {
         return { type: 'object', tag: ownDataOf(value, Symbol.toStringTag) };
       }
       return { type: typeof value, value: serialised(value) };
@@ -2172,7 +2167,7 @@
             return listNotFromThePhone(name, description.value);
           }
         }
-        if (description && isObjectOrFunction(description.value)) {
+        if (description && safeWrapping.isObjectOrFunction(description.value)) {
           return keepShape(name, description.value, 'atStart:' + name);
         }
         keepBlindRoadOnce('jsiGlobal', 'atStart:' + name, true);

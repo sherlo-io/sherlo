@@ -1,3 +1,4 @@
+import { hasOwn } from '../safeWrapping';
 import { activeMockLookups } from './registry';
 
 /**
@@ -63,7 +64,7 @@ export function stillRealModulesWithExports(): StillRealModule[] {
  * names it. The one place that answers it, for the overlay (./overlay) at every depth.
  */
 export function staysReal(fake: object, key: PropertyKey): boolean {
-  return !Object.prototype.hasOwnProperty.call(fake, key);
+  return !hasOwn(fake, key);
 }
 
 /**

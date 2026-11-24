@@ -3,12 +3,11 @@
  * is the earliest code in the bundle, so it is the one that says so over the app's line, as one
  * `start-failed` message, dialing the bundler first when the line is not open yet.
  */
-import * as fs from 'fs';
-import * as path from 'path';
 import { describe, expect, it, vi } from 'vitest';
 import { BUNDLER_LINE_PATH } from '../constants';
+import { builtPolyfillSource } from './builtPolyfill';
 
-const polyfillSource = fs.readFileSync(path.join(__dirname, '../../metro/polyfill.js'), 'utf8');
+const polyfillSource = builtPolyfillSource();
 
 /**
  * A phone's JavaScript as the polyfill meets it: its native module, the bundle's url, Metro's __d.

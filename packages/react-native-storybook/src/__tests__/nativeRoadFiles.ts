@@ -41,6 +41,23 @@ export const callableModulesSource = [
   '};',
 ].join('\n');
 
+// The same registration as a compiler may lay an ES module's exports: its default export a getter
+// that is not configurable, so nothing can assign it or define it anew.
+export const callableModulesWithFixedDefaultSource = [
+  'var registered = {};',
+  'function registerCallableModule(name, moduleOrFactory) {',
+  "  registered[name] = typeof moduleOrFactory === 'function' ? moduleOrFactory : function () {",
+  '    return moduleOrFactory;',
+  '  };',
+  '}',
+  "Object.defineProperty(module.exports, '__esModule', { value: true });",
+  'module.exports.registered = registered;',
+  "Object.defineProperty(module.exports, 'default', {",
+  '  enumerable: true,',
+  '  get: function () { return registerCallableModule; },',
+  '});',
+].join('\n');
+
 // The lines of React Native's Fabric renderer the transformer looks for, around a renderer of the
 // test's own: `commit` commits the tree as React does.
 export const rendererSource = [

@@ -1,14 +1,9 @@
+import { callableTarget, isObjectOrFunction } from '../safeWrapping';
 import { isPlainObject } from './mergeDefinitions';
 import { partialFake } from './mergeMocks';
 import { recordUndo } from './registry';
 import { staysReal } from './stillReal';
 import { ModuleExports } from './types';
-
-export const hasOwn = (obj: ModuleExports, prop: PropertyKey): boolean =>
-  Object.prototype.hasOwnProperty.call(obj, prop);
-
-export const isObjectOrFunction = (value: unknown): value is ModuleExports =>
-  (typeof value === 'object' && value !== null) || typeof value === 'function';
 
 // Writes to a real object made while a story is active are undone when its mocks end; with no
 // story active the write stays, as it would without the shim.
@@ -88,13 +83,9 @@ function layerOver(fake: ModuleExports, real: () => unknown, realIsInHand: boole
   const partOf = (prop: PropertyKey) => (): unknown => realObject()?.[prop];
 
   // Callable when either side is: a Proxy carries `apply` and `construct` only on a callable target.
-  // A BOUND function, as in createMockable: it has no own `prototype`, so no fixed key to report.
   const callable =
     typeof fake === 'function' || (realIsInHand && typeof realObject() === 'function');
-  const delegate = callable
-    ? // eslint-disable-next-line no-extra-bind
-      (function sherloLayerDelegate() {}.bind(null) as unknown as ModuleExports)
-    : {};
+  const delegate = callable ? (callableTarget() as unknown as ModuleExports) : {};
 
   // A fake function's prototype is its own, even none: an arrow faking a class component must not
   // read the class's prototype, or React takes it for a class and constructs it.

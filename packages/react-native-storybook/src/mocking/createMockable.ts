@@ -7,27 +7,27 @@ import {
   resolveMockExports,
 } from './registry';
 import { recordThrownByStandIn } from './mockDeclaration';
-import { hasOwn, isObjectOrFunction, overlay, writeUndoably } from './overlay';
+import {
+  callableTarget,
+  fixedKeysOf,
+  hasOwn,
+  isFixedProperty,
+  isObjectOrFunction,
+} from '../safeWrapping';
+import { overlay, writeUndoably } from './overlay';
 import { ModuleExports, MOCKED_MODULE_KEY } from './types';
 
-// A Proxy must keep every non-configurable own key of its target in its ownKeys answer and report
-// that key's real descriptor, or the engine throws. The stand-in targets below are meant to own
-// no such key, but a runtime may give one, so both shims stay honest about whatever their target
-// fixes.
-const fixedKeysOf = (target: ModuleExports): Array<string | symbol> =>
-  Reflect.ownKeys(target).filter(
-    (key) => !Reflect.getOwnPropertyDescriptor(target, key)?.configurable
-  );
-
-// The descriptor a shim reports for `prop`: the target's own when it is fixed there, else the
-// wanted one claimed configurable (the targets hold nothing, so a configurable claim is legal).
+// A Proxy must keep every fixed own key of its target in its ownKeys answer and report that key's
+// real descriptor, or the engine throws. The stand-in targets below are meant to own no such key,
+// but a runtime may give one, so both shims stay honest about whatever their target fixes: the
+// descriptor a shim reports for `prop` is the target's own when it is fixed there, else the wanted
+// one claimed configurable (the targets hold nothing, so a configurable claim is legal).
 function reportDescriptor(
   target: ModuleExports,
   prop: PropertyKey,
   wanted: PropertyDescriptor | undefined
 ): PropertyDescriptor | undefined {
-  const own = Reflect.getOwnPropertyDescriptor(target, prop);
-  if (own && !own.configurable) return own;
+  if (isFixedProperty(target, prop)) return Reflect.getOwnPropertyDescriptor(target, prop);
   return wanted && { ...wanted, configurable: true };
 }
 
@@ -49,13 +49,10 @@ function refuseFixedProperty(key: string, prop: PropertyKey, descriptor: Propert
 // Primitive defaults (string, number, ...) cannot be forwarded, so they are served as they are.
 function createForwardingDefault(key: string, realModule: ModuleExports): ModuleExports {
   const realDefault = realModule.default as ModuleExports;
-  // A callable default needs a callable target (a bound function, as for the shim delegate in
-  // createMockable); an object default gets a plain object so it still compares like one.
+  // A callable default needs a callable target; an object default gets a plain object so it still
+  // compares like one.
   const delegate =
-    typeof realDefault === 'function'
-      ? // eslint-disable-next-line no-extra-bind
-        (function sherloDefaultDelegate() {}.bind(null) as unknown as ModuleExports)
-      : {};
+    typeof realDefault === 'function' ? (callableTarget() as unknown as ModuleExports) : {};
 
   const activeDefault = (): ModuleExports => {
     const mock = resolveMockExports(key, realModule);
@@ -201,14 +198,9 @@ function buildMockable<T extends ModuleExports>(
   // mockable at runtime. Read by the FG-03 declared-but-unshimmed tripwire.
   registerShimmedKey(key);
 
-  // A BOUND function, deliberately. It is callable AND constructable (so the apply/construct
-  // traps are valid) yet - unlike a plain function - it has no own `prototype` property. A plain
-  // function's `prototype` is a NON-configurable own property, which the ownKeys and
-  // getOwnPropertyDescriptor traps below would then be forced to report (or would illegally hide),
-  // tripping the Proxy invariants. A bound function's only own props (`length`, `name`) are
-  // configurable, so hiding them is legal and the trap behavior stays identical to a plain object.
-  // eslint-disable-next-line no-extra-bind
-  const delegate = function sherloMockableDelegate() {}.bind(null) as unknown as ModuleExports;
+  // Callable, so the apply and construct traps are valid, and owning no fixed key, so the ownKeys
+  // and getOwnPropertyDescriptor traps below behave as on a plain object.
+  const delegate = callableTarget() as unknown as ModuleExports;
 
   // Made on the first read of `default`, once the real module is in hand.
   let forwardingDefault: ModuleExports | undefined;

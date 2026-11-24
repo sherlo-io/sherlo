@@ -12,9 +12,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { normalizeStack } from '../normalizeStack';
+import { builtPolyfillSource } from './builtPolyfill';
 
-const POLYFILL_PATH = path.join(__dirname, '../../metro/polyfill.js');
-const polyfillSource = fs.readFileSync(POLYFILL_PATH, 'utf8');
+const polyfillSource = builtPolyfillSource();
 
 function runPolyfill(fakeGlobal: Record<string, any>) {
   // eslint-disable-next-line no-new-func

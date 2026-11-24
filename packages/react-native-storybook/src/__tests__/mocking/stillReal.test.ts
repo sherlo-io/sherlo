@@ -19,11 +19,12 @@ import {
   stillRealModulesOfStory,
   stillRealModulesWithExports,
 } from '../../mocking/stillReal';
+import { builtPolyfillSource } from '../builtPolyfill';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const stillRealBundler = require('../../../metro/stillReal.js');
 
-const polyfillSource = fs.readFileSync(path.join(__dirname, '../../../metro/polyfill.js'), 'utf8');
+const polyfillSource = builtPolyfillSource();
 
 type Watcher = {
   isTesting: boolean;
