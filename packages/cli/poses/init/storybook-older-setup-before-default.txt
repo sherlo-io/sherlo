@@ -29,7 +29,6 @@ Setting up Sherlo...
    Storybook starts from your app's code, so Sherlo can't open it alone. Pick one:
 
    [1ma) Entry-point swapping (Storybook's default, recommended)[22m
-      First, upgrade every @storybook/* package to 10.4 or newer.
       In .rnstorybook/index.ts, below StorybookUIRoot, add:
         [35mimport[39m [2m{[22m registerRootComponent [2m}[22m [35mfrom[39m [32m'expo'[39m[2m;[22m
         [32mregisterRootComponent[39m[2m([22m[33mStorybookUIRoot[39m[2m);[22m

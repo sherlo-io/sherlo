@@ -61,12 +61,12 @@ export function renderFailedStepLine(name: string): string[] {
  *
  *   - `installed`: setup installed Storybook just now. Setup does not register Storybook as the app's
  *     root itself, as the person or their agent picks how Sherlo reaches it, so the first step is the
- *     same two choices as `old-setup`, with no upgrade and nothing to remove. Its stories are
+ *     same two choices as `old-setup`, with nothing to remove. Its stories are
  *     Storybook's examples, so the next step is to replace them with the app's own.
  *   - `default-setup`: `.rnstorybook/index` registers the app's root, and Sherlo reaches Storybook
  *     with no change to the app - no Storybook step at all.
  *   - `old-setup`: Storybook renders from the app's own root. Two equal choices, the recommended one
- *     first: move to the default setup (upgrading Storybook first when it predates it), or keep the
+ *     first: move to the default setup, on any supported Storybook, or keep the
  *     old setup and render Storybook in Sherlo's testing mode - each with its code on the screen.
  *
  * The person reads "the default setup" and "the old setup", the same names everywhere.
@@ -82,13 +82,10 @@ export function renderFailedStepLine(name: string): string[] {
  */
 export function renderNextSteps({
   storybook,
-  storybookVersion,
   isExpo,
   reader,
 }: {
   storybook: 'installed' | 'default-setup' | 'example-stories' | 'old-setup';
-  /** The installed `@storybook/react-native` version, which says whether the default setup needs an upgrade first. */
-  storybookVersion: string | undefined;
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
   reader: FeedbackReader;
@@ -114,23 +111,18 @@ export function renderNextSteps({
         renderCode("import { name as appName } from '../app.json';"),
         renderCode('AppRegistry.registerComponent(appName, () => StorybookUIRoot);'),
       ];
-  // A STORYBOOK SETUP JUST INSTALLED is pinned to a version with the default setup, and the app has
-  // no code of its own that renders Storybook, so neither the upgrade nor the removal applies.
+  // A STORYBOOK SETUP JUST INSTALLED has no code of the app's own that renders Storybook, so there
+  // is nothing to remove. NO UPGRADE ON ANY SUPPORTED VERSION: Sherlo's withStorybook does the swap,
+  // so the registration opens Storybook on 9.0 as on 10 (proven on device, Expo and bare).
   const isFreshInstall = storybook === 'installed';
-  const upgradeFirst =
-    isFreshInstall || hasDefaultSetup(storybookVersion)
-      ? []
-      : [`   First, upgrade every @storybook/* package to ${DEFAULT_SETUP_SINCE} or newer.`];
   const removeOldRender = isFreshInstall
     ? []
     : ["   Then remove your app's code that renders Storybook, and its import."];
   // EACH CHOICE IS A BLOCK: its name bold and alone on its line, a blank line between the two, so
   // the eye finds a) and b) before reading either.
   const defaultSetupChoice = [
-    // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up; the version needed is the
-    // upgrade line's to say, shown only to an older Storybook.
+    // WHY RECOMMENDED, IN TWO WORDS: it is what a new Storybook sets up.
     chalk.bold("a) Entry-point swapping (Storybook's default, recommended)"),
-    ...upgradeFirst,
     '   In .rnstorybook/index.ts, below StorybookUIRoot, add:',
     ...registerRoot.map((line) => `     ${line}`),
     ...removeOldRender,
@@ -248,14 +240,6 @@ export function renderNextSteps({
     // The last step's blank line goes: nothing follows it in this section.
     ...stepLines.slice(0, -1),
   ];
-}
-
-/** The first `@storybook/react-native` with the default setup, whose own entry starts the app. */
-const DEFAULT_SETUP_SINCE = '10.4';
-
-function hasDefaultSetup(storybookVersion: string | undefined): boolean {
-  const [major = 0, minor = 0] = (storybookVersion ?? '').split('.').map(Number);
-  return major > 10 || (major === 10 && minor >= 4);
 }
 
 /**

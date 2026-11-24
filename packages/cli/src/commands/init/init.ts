@@ -20,12 +20,7 @@ import storybook from './steps/storybook';
 import hasStoriesOfItsOwn from './steps/hasStoriesOfItsOwn';
 import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
-import {
-  EXPO_PACKAGE_NAME,
-  PROJECT_OPTION,
-  STORYBOOK_REACT_NATIVE_PACKAGE_NAME,
-  TEAM_OPTION,
-} from '../../constants';
+import { EXPO_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
 import getPackageVersion from './requirements/getPackageVersion';
 
 async function init(options: Options<THIS_COMMAND>) {
@@ -70,7 +65,6 @@ async function init(options: Options<THIS_COMMAND>) {
     printLines(
       renderNextSteps({
         storybook: storybookState,
-        storybookVersion: getPackageVersion(STORYBOOK_REACT_NATIVE_PACKAGE_NAME) ?? undefined,
         isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
         reader,
       })
