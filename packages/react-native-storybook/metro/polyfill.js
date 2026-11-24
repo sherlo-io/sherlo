@@ -895,6 +895,7 @@
           return noted;
         }, null);
         var answer;
+        quietly(takeUpBundleGlobals);
         try {
           answer = method.apply(target, given);
         } catch (failure) {
@@ -1592,6 +1593,8 @@
         });
       }, null);
       var answer;
+      var laysGlobals = operation === 'apply' || operation === 'construct';
+      if (laysGlobals) quietly(takeUpBundleGlobals);
       try {
         answer = run();
       } catch (failure) {
@@ -1600,7 +1603,7 @@
         });
         throw failure;
       } finally {
-        if (operation === 'apply' || operation === 'construct') quietly(takeUpNewGlobals);
+        if (laysGlobals) quietly(takeUpNewGlobals);
       }
       return quietly(function () {
         var given = forBundle ? forBundle(answer) : answer;
@@ -1978,17 +1981,11 @@
       return description && 'value' in description ? description : null;
     }
 
-    // A global native code installed, as a value the bundle may be handed a stand-in of.
-    function nativeGlobalOf(name) {
-      var description = plainGlobalOf(name);
-      return description && isNativeValue(description.value) ? description : null;
-    }
-
     // Lays a native global's stand-in in its place and notes it for every story, before any use of
     // it; false when the global cannot be replaced.
     function recordGlobal(name, description) {
       var standIn = fromNative(description.value, function (real) {
-        if (!description.writable || !description.enumerable) return real;
+        if (!description.writable) return real;
         return standInFor(real, name);
       });
       if (standIn === description.value) return false;
@@ -2012,55 +2009,165 @@
       );
     }
 
-    // The globals the bundle began with. One that is not enumerable the engine laid there, as the
-    // language lays its own; one that is neither native nor data and is written down whole but for
-    // functions of JavaScript source only JavaScript made, and before the recorder only the
-    // bundle's own code runs. Neither is the phone's: both come again wherever the bundle loads,
-    // so their names are handed over once, in one entry every story shares, for the quick check
-    // to find them there. A native one is recorded where it can be, and one holding data as its
-    // value, whoever wrote it. Every other (a getter, a native value that cannot be stood in for,
-    // React Native's own, a value that cannot be written down) is handed over by name with each
-    // story, for the quick check to judge.
+    // A global holding data, noted for every story as its value; false when it holds more.
+    function keepIfData(name, value) {
+      var written = serialised(value);
+      if (!isWrittenWhole(written, false)) return false;
+      keepInstalled(name, written);
+      return true;
+    }
+
+    // What a global that cannot be replaced holds: its own members, each read through its
+    // description alone, so no getter runs, nothing is written and nothing is handed to native.
+    // Data is written down, an object or function is named by where it hangs, a getter as one.
+    // Neither the global nor its members can be stood in for: native reads the members back by
+    // name, past every crossing the recorder sees, and would meet a stand-in, not its own value.
+    function shapeOf(name, value) {
+      var members = {};
+      Object.getOwnPropertyNames(value).forEach(function (key) {
+        var member = Object.getOwnPropertyDescriptor(value, key);
+        if (!member) return;
+        if (!('value' in member)) {
+          members[key] = { $: 'accessor' };
+        } else if (isObjectOrFunction(member.value)) {
+          members[key] = { $: 'native', handle: name + '.' + key, type: typeof member.value };
+        } else {
+          members[key] = serialised(member.value);
+        }
+      });
+      return { $: 'shape', type: typeof value, members: members };
+    }
+
+    // The globals that cannot be replaced, by name: the value, its road and its shape as noted.
+    var shapesKept = {};
+
+    // Notes a global that cannot be replaced for every story as its shape, for the quick check to
+    // stand it up and judge each story by what its draw asks of it beyond the shape; `road` names
+    // it should a story meet it changed.
+    function keepShape(name, value, road) {
+      var shape = shapeOf(name, value);
+      shapesKept[name] = { value: value, road: road, written: JSON.stringify(shape) };
+      keep(
+        'nativeCalls',
+        { module: 'global', method: 'shape', args: [name], kind: 'sync', answer: shape },
+        true
+      );
+    }
+
+    // A global that cannot be replaced whose members changed since its shape was noted: what the
+    // story read of it may not be the shape, so the story's road through it is unseen.
+    function noteChangedShapes() {
+      Object.keys(shapesKept).forEach(function (name) {
+        var kept = shapesKept[name];
+        if (JSON.stringify(shapeOf(name, kept.value)) === kept.written) return;
+        keepBlindRoadOnce('jsiGlobal', kept.road, false);
+      });
+    }
+
+    // An own data member's value, read through its description, so no getter runs.
+    function ownDataOf(value, key) {
+      var member = Object.getOwnPropertyDescriptor(value, key);
+      return member && 'value' in member ? serialised(member.value) : { $: 'undefined' };
+    }
+
+    // What a start global the recorder does not record is, read through descriptions alone, for
+    // the quick check to tell its own global of that name from the phone's: data as its value, a
+    // function by whether native code made it with its name and length, an object by its tag.
+    function kindOf(value) {
+      if (typeof value === 'function') {
+        return {
+          type: 'function',
+          native: isNativeFunction(value),
+          name: ownDataOf(value, 'name'),
+          length: ownDataOf(value, 'length'),
+        };
+      }
+      if (isObjectOrFunction(value)) {
+        return { type: 'object', tag: ownDataOf(value, Symbol.toStringTag) };
+      }
+      return { type: typeof value, value: serialised(value) };
+    }
+
+    // The globals the bundle began with. The engine lays its own as it starts, before a native side
+    // or the bundle lays any, and the language lays each of them not enumerable: the engine's are
+    // the run of globals not enumerable that the global object lists first, as it lists them in
+    // the order they were laid. A native side may lay a global not enumerable too, but only after
+    // the engine's, so it is judged by what it is, as every later global is. A global that is
+    // neither native nor data and is written down whole but for functions of JavaScript source
+    // only JavaScript made, and before the recorder only the bundle's own code runs. Neither the
+    // engine's nor the bundle's is the phone's: both come again wherever the bundle loads, so
+    // their names are handed over once, in one entry every story shares, for the quick check to
+    // find them there, each with what it is (kindOf), so that one taken wrongly for the engine's
+    // is told from the quick check's own of that name. A native one is recorded where it can be,
+    // one holding data as its value, whoever wrote it, and an object or function that cannot be
+    // replaced as its shape. Every other (a getter, React Native's own, a value that cannot be
+    // written down) is handed over by name with each story, for the quick check to judge.
     quietly(function () {
       var notFromThePhone = [];
+      var kinds = {};
+      var listNotFromThePhone = function (name, value) {
+        notFromThePhone.push(name);
+        kinds[name] = kindOf(value);
+      };
+      var isInTheEnginesRun = true;
       namesOfGlobals().forEach(function (name) {
         globalsSeen[name] = true;
+        var laid = Object.getOwnPropertyDescriptor(global, name);
+        isInTheEnginesRun = isInTheEnginesRun && !!laid && !laid.enumerable;
         if (name.indexOf('__sherlo') === 0) return;
         var description = plainGlobalOf(name);
-        if (description && !description.enumerable) return notFromThePhone.push(name);
+        if (description && isInTheEnginesRun) return listNotFromThePhone(name, description.value);
         var isNative = !!description && isNativeValue(description.value);
         if (isNative && recordGlobal(name, description)) return;
         if (description && !isNative) {
-          var written = serialised(description.value);
-          if (isWrittenWhole(written, false)) return keepInstalled(name, written);
-          if (isWrittenWhole(written, true)) return notFromThePhone.push(name);
+          if (keepIfData(name, description.value)) return;
+          if (isWrittenWhole(serialised(description.value), true)) {
+            return listNotFromThePhone(name, description.value);
+          }
+        }
+        if (description && isObjectOrFunction(description.value)) {
+          return keepShape(name, description.value, 'atStart:' + name);
         }
         keepBlindRoadOnce('jsiGlobal', 'atStart:' + name, true);
       });
       if (notFromThePhone.length > 0) {
         keep(
           'nativeCalls',
-          { module: 'global', method: 'notFromThePhone', args: notFromThePhone, kind: 'sync' },
+          {
+            module: 'global',
+            method: 'notFromThePhone',
+            args: notFromThePhone,
+            kind: 'sync',
+            answer: kinds,
+          },
           true
         );
       }
     });
 
-    // Globals that appeared since: `asItRan` after a recorded call, whose native code installed
-    // them, so each native one is recorded; seen any other time, the bundle may have used one
-    // already, so it is a blind road of every story.
+    // Globals that appeared since: `asItRan` after a recorded call, whose native code laid them
+    // (the globals the bundle laid before the call were taken up as it began), so each native one
+    // is recorded, each holding data as its value and each that cannot be replaced as its shape.
+    // Seen any other time, a native one may have been used by the bundle already, and one that is
+    // not native is the bundle's own. Every other is a blind road of every story, never skipped.
     function noteNewGlobals(asItRan) {
       namesOfGlobals().forEach(function (name) {
         if (globalsSeen[name]) return;
         globalsSeen[name] = true;
         if (name.indexOf('__sherlo') === 0) return;
-        var description = nativeGlobalOf(name);
-        if (!description) return;
-        if (asItRan && recordGlobal(name, description)) return;
+        var description = plainGlobalOf(name);
+        var isNative = !!description && isNativeValue(description.value);
+        if (!isNative && !asItRan) return;
+        if (isNative && asItRan && recordGlobal(name, description)) return;
+        if (description && !isNative && keepIfData(name, description.value)) return;
         // The bundle holds it as it is.
-        fromNative(description.value, null);
+        if (isNative) fromNative(description.value, null);
+        if (isNative && asItRan) return keepShape(name, description.value, name);
         keepBlindRoadOnce('jsiGlobal', name, true);
       });
+    }
+    function takeUpBundleGlobals() {
+      noteNewGlobals(false);
     }
     function takeUpNewGlobals() {
       noteNewGlobals(true);
@@ -2070,9 +2177,7 @@
 
     // From the first story on, a throw in the recorder stops it as one anywhere else does.
     function startStory(storyId, placeOfView) {
-      quietly(function () {
-        noteNewGlobals(false);
-      });
+      quietly(takeUpBundleGlobals);
       recorder.kept = recorder.kept.filter(function (kept) {
         return kept.story !== storyId;
       });
@@ -2083,6 +2188,7 @@
         keepBlindRoadOnce('expoNativeEvent', road, false);
       });
       if (typeof placeOfView === 'function') recorder.placeOfView = placeOfView;
+      quietly(noteChangedShapes);
     }
 
     function copyOf(entry) {
@@ -2096,9 +2202,8 @@
     // The story's recording so far: what came before the first story and the story's own. The
     // first read is the picture moment.
     function readStory(storyId) {
-      quietly(function () {
-        noteNewGlobals(false);
-      });
+      quietly(takeUpBundleGlobals);
+      if (storyId === recorder.story) quietly(noteChangedShapes);
       var roads = recorder.rendererRoads;
       // A renderer that did not take its roads hides the commits and the events of the views.
       if (!roads.commit || !roads.viewEvents) {
