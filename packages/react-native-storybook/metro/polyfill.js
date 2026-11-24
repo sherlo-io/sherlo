@@ -668,10 +668,12 @@
   // - A module lookup, each time it is made, found or not: { module: '__turboModuleProxy' or
   //   'nativeModuleProxy', method: 'lookup', args: [name], answer: { $: 'module' } or null }; a
   //   check with `in` on nativeModuleProxy is method 'has', answered true or false.
-  // - A global native code installed, whether before the bundle or during a recorded call:
+  // - A global native code installed, before the bundle, during a recorded call or read, or
+  //   off every run of native code the recorder sees (then as first seen, with a blind road):
   //   { module: 'global', method: 'installed', args: [name], answer: { $: 'native', handle: name,
   //   type: 'object' or 'function' } }, before any use of it: one there before the first story
-  //   belongs to every story, one a call installed follows that call. A global holding data as
+  //   belongs to every story, one a call installed follows that call, and one the read of a
+  //   module's constant installed comes ahead of the constant's entry. A global holding data as
   //   the bundle began is the same entry with the data written down as its answer. The globals the
   //   bundle began with that the engine or the bundle's own code made come once, ahead of every
   //   story: { module: 'global', method: 'notFromThePhone', args: [name, ...], kind: 'sync' }.
@@ -693,8 +695,9 @@
   //   is a blind road ('expoNativeEvent', 'callable:<name>.<method>') of every later story.
   // Views' events go in viewEvents, commits in commits. What cannot be recorded is a blind road,
   // never left out: a global the bundle began with that is neither recorded nor its own
-  // ('jsiGlobal', 'atStart:<name>'), a native global first seen outside a recorded call ('jsiGlobal', <name>), a
-  // value handed to native that cannot be written down ('jsiGlobal', 'unrecordable:<handle>.<op>'),
+  // ('jsiGlobal', 'atStart:<name>'), what the bundle read of a native global laid off every run
+  // of native code the recorder sees, before it saw the global ('jsiGlobal', <name>; the global
+  // itself is recorded from then on), a value handed to native that cannot be written down ('jsiGlobal', 'unrecordable:<handle>.<op>'),
   // a function bound for a second runtime ('workletRuntime', '<handle>.<op>'), a native value the
   // bundle must get unwrapped ('jsiGlobal', 'unrecordable:<handle>.<key>'), a seam not taken
   // ('jsiGlobal' '__turboModuleProxy' or 'nativeFabricUIManager', 'expoNativeEvent'
@@ -704,7 +707,8 @@
   // story ('jsiGlobal', 'unwrapped:<module>' or 'unwrapped:<handle>'). A native value whose
   // members native holds fixed is recorded as any other: its stand-in stands on a value of the
   // recorder's own, and native gets back the value itself. A throw in the recorder's own work stops the recording, never the app:
-  // every story is then blind ('jsiGlobal', 'recorderStopped').
+  // every story is then blind ('jsiGlobal', 'recorderStopped'), and the road carries what threw
+  // (`why`: its name, message and the top of its stack, each cut short).
   function installNativeRecorder() {
     if (typeof Proxy !== 'function' || typeof WeakMap !== 'function') return;
     if (!global.nativeFabricUIManager) return;
@@ -743,9 +747,9 @@
     function keepBlindRoadOnce(kind, name, shared) {
       var noted = shared ? recorder.notedInLaunch : recorder.notedInStory;
       var key = 'blind ' + kind + ' ' + name;
-      if (noted[key]) return;
+      if (noted[key]) return null;
       noted[key] = true;
-      keep('blindRoads', { kind: kind, name: name }, shared);
+      return keep('blindRoads', { kind: kind, name: name }, shared);
     }
 
     // The recorder's own work, never the app's nor native's: a throw in it writes the shared blind
@@ -755,14 +759,42 @@
     function quietly(work, otherwise) {
       try {
         return work();
-      } catch (_) {
-        stopRecording();
+      } catch (failure) {
+        stopRecording(failure);
         return otherwise;
       }
     }
 
-    function stopRecording() {
-      keepBlindRoadOnce('jsiGlobal', 'recorderStopped', true);
+    // The first stop writes down what threw, for the stop to be found from the recording alone:
+    // the error's name and message and the top frames of its stack, the recorder's step by its
+    // place in the bundle, each cut short. Writing it never throws.
+    function stopRecording(failure) {
+      var road = keepBlindRoadOnce('jsiGlobal', 'recorderStopped', true);
+      if (!road) return;
+      var frames = readQuietly(failure, 'stack')
+        .split('\n')
+        .filter(function (line) {
+          return /^\s*at /.test(line);
+        });
+      road.why = {
+        name: cutShort(readQuietly(failure, 'name'), 100),
+        message: cutShort(readQuietly(failure, 'message'), 200),
+        step: cutShort(frames.slice(0, 3).join('\n'), 400),
+      };
+    }
+
+    // A member of what was thrown, as text: empty when there is none or reading it throws.
+    function readQuietly(failure, key) {
+      try {
+        var value = failure == null ? undefined : failure[key];
+        return value == null ? '' : String(value);
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function cutShort(text, length) {
+      return text.length > length ? text.slice(0, length) : text;
     }
 
     var tagOf = function (value) {
@@ -870,9 +902,24 @@
       });
     }
 
+    // Native code may lay globals whenever it runs, in a call or in a read: the globals laid
+    // before one of its runs the recorder sees are taken up as it begins, and the ones it laid as
+    // it ends, before the bundle runs one more step and could read one unseen.
+    function acrossNative(run) {
+      quietly(function () {
+        takeUpIfLaid(false);
+      });
+      try {
+        return run();
+      } finally {
+        quietly(function () {
+          takeUpIfLaid(true);
+        });
+      }
+    }
+
     // A module's method, noting each call with what native answered: the return, the promise's
-    // value or each callback's arguments, and what it threw. Native code may install globals as
-    // it runs: they are taken up right after.
+    // value or each callback's arguments, and what it threw.
     function wrapMethod(moduleName, methodName, method, target) {
       return function () {
         var args = Array.prototype.slice.call(arguments);
@@ -895,16 +942,15 @@
           return noted;
         }, null);
         var answer;
-        quietly(takeUpBundleGlobals);
         try {
-          answer = method.apply(target, given);
+          answer = acrossNative(function () {
+            return method.apply(target, given);
+          });
         } catch (failure) {
           quietly(function () {
             if (call) call.threw = serialised(failure);
           });
           throw failure;
-        } finally {
-          quietly(takeUpNewGlobals);
         }
         quietly(function () {
           if (!call) return;
@@ -957,7 +1003,12 @@
         var methods = {};
         var standIn = new Proxy(real, {
           get: function (target, key) {
-            var value = fromNative(target[key], null);
+            var value = fromNative(
+              acrossNative(function () {
+                return target[key];
+              }),
+              null
+            );
             if (typeof key !== 'string') return value;
             return quietly(function () {
               return moduleMemberForBundle(moduleName, methods, target, key, value);
@@ -1018,7 +1069,7 @@
       }, null);
       var module;
       try {
-        module = find();
+        module = acrossNative(find);
       } catch (failure) {
         quietly(function () {
           if (lookup) lookup.threw = serialised(failure);
@@ -1387,8 +1438,8 @@
       if (walk.copies.has(value)) return walk.copies.get(value);
       try {
         return containerToNative(value, walk, inPlace);
-      } catch (_) {
-        stopRecording();
+      } catch (failure) {
+        stopRecording(failure);
         walk.copies.set(value, value);
         return value;
       }
@@ -1581,8 +1632,8 @@
     // One use of a native value: noted before it runs, so whatever it sets off comes after it,
     // with its answer or what it threw. `run` is native's own work, the only part a throw of which
     // reaches the bundle; `forBundle` makes what the bundle gets of the answer (the answer itself
-    // when absent) and `asRecorded` what is written down of that (serialised when absent). A call
-    // may install globals as it runs: they are taken up.
+    // when absent) and `asRecorded` what is written down of that (serialised when absent). Any use,
+    // a read as much as a call, may install globals as it runs: they are taken up.
     function noteUse(handle, operation, argsAsRecorded, run, forBundle, asRecorded) {
       var use = quietly(function () {
         return keep('nativeCalls', {
@@ -1593,17 +1644,13 @@
         });
       }, null);
       var answer;
-      var laysGlobals = operation === 'apply' || operation === 'construct';
-      if (laysGlobals) quietly(takeUpBundleGlobals);
       try {
-        answer = run();
+        answer = acrossNative(run);
       } catch (failure) {
         quietly(function () {
           if (use) use.threw = serialised(failure);
         });
         throw failure;
-      } finally {
-        if (laysGlobals) quietly(takeUpNewGlobals);
       }
       return quietly(function () {
         var given = forBundle ? forBundle(answer) : answer;
@@ -2145,32 +2192,62 @@
       }
     });
 
-    // Globals that appeared since: `asItRan` after a recorded call, whose native code laid them
-    // (the globals the bundle laid before the call were taken up as it began), so each native one
-    // is recorded, each holding data as its value and each that cannot be replaced as its shape.
-    // Seen any other time, a native one may have been used by the bundle already, and one that is
-    // not native is the bundle's own. Every other is a blind road of every story, never skipped.
-    function noteNewGlobals(asItRan) {
-      namesOfGlobals().forEach(function (name) {
+    // Globals that appeared since: `asItRan` as a run of native code the recorder sees ends, a call
+    // or a read, whose native code laid them (the globals laid before it were taken up as it
+    // began), so the bundle has read none of them yet. Seen any other time, as a story starts or
+    // is read, or as a run of native code begins, a global was laid by native code off every run
+    // the recorder sees, as each such run is followed by a take-up: one that is not native is the
+    // bundle's own, and a native one may have been read by the bundle already. Either way each
+    // native one is recorded from then on, so each later read of its members is written down, as
+    // a stand-in, else as its shape as first seen, and one holding data as its value. What the
+    // bundle read of a native one before it was seen, and kept as it was, stays unseen: that one
+    // is a blind road of every story, named by the global alone, and so is every other global
+    // that native code laid, never skipped.
+    function noteNewGlobals(asItRan, names) {
+      namesWalked = names;
+      names.forEach(function (name) {
         if (globalsSeen[name]) return;
         globalsSeen[name] = true;
         if (name.indexOf('__sherlo') === 0) return;
         var description = plainGlobalOf(name);
         var isNative = !!description && isNativeValue(description.value);
         if (!isNative && !asItRan) return;
-        if (isNative && asItRan && recordGlobal(name, description)) return;
-        if (description && !isNative && keepIfData(name, description.value)) return;
-        // The bundle holds it as it is.
-        if (isNative) fromNative(description.value, null);
-        if (isNative && asItRan) return keepShape(name, description.value, name);
+        var isRecorded = isNative && recordGlobal(name, description);
+        if (!isRecorded && description && !isNative && keepIfData(name, description.value)) return;
+        if (!isRecorded && isNative) {
+          // The bundle holds it as it is.
+          fromNative(description.value, null);
+          keepShape(name, description.value, name);
+        }
+        if (asItRan && isNative) return;
         keepBlindRoadOnce('jsiGlobal', name, true);
       });
     }
+    // As a story starts or is read: every name is walked.
     function takeUpBundleGlobals() {
-      noteNewGlobals(false);
+      noteNewGlobals(false, namesOfGlobals());
     }
-    function takeUpNewGlobals() {
-      noteNewGlobals(true);
+
+    // The global object's names as last walked, in the order listed.
+    var namesWalked = [];
+
+    // Around each run of native code, the app's hot path: the names are walked only when the
+    // listing differs from the one last walked. Every name of that one was seen as it was walked,
+    // so a listing the same, name for name in order, holds none not seen; any name laid since,
+    // whatever was deleted with it, makes the listing differ, and then every name is walked.
+    // The comparison stops at the first difference and reads nothing but the names.
+    function takeUpIfLaid(asItRan) {
+      var names = namesOfGlobals();
+      if (isListedAsWalked(names)) return;
+      noteNewGlobals(asItRan, names);
+    }
+
+    function isListedAsWalked(names) {
+      if (names.length !== namesWalked.length) return false;
+      for (var i = 0; i < names.length; i++) {
+        if (names[i] !== namesWalked[i]) return false;
+      }
+      return true;
     }
 
     quietly(watchTurboModuleProxy);

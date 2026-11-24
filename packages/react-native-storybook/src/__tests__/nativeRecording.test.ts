@@ -183,6 +183,27 @@ function runFile(app: App, filename: string, source: string): any {
   return module.exports;
 }
 
+// The native object native code lays as the global `coreBridge` in a run of its own.
+function bridgeLaidByNative() {
+  const laid = Object.create(null);
+  laid.Emitter = nativeFunction(function Emitter() {});
+  return laid;
+}
+
+// The bundle reads a member of `coreBridge` at load, then the story starts: what it recorded last,
+// each call as [module, method, args], once `coreBridge` is checked to be no blind road of it.
+function lastCallsAfterBridgeRead(app: App, storyId: string, count: number) {
+  expect(typeof app.fakeGlobal.coreBridge.Emitter).toBe('function');
+  startStoryRecording(storyId);
+  const recording = storyRecordingOf(storyId);
+  expect(recording?.blindRoads).not.toContainEqual(
+    expect.objectContaining({ kind: 'jsiGlobal', name: 'coreBridge' })
+  );
+  return recording?.nativeCalls
+    .map(({ module, method, args }) => [module, method, args])
+    .slice(-count);
+}
+
 afterEach(() => {
   delete (globalThis as { __sherloNativeRecorder?: unknown }).__sherloNativeRecorder;
   rememberStoryOfTheApp(undefined);
@@ -875,17 +896,36 @@ describe('what the app records for each story', () => {
       { kind: 'jsiGlobal', name: 'atStart:nativeFabricUIManager', order: 5 },
       { kind: 'workletRuntime', name: '#1.apply', order: 8 },
       { kind: 'jsiGlobal', name: 'unrecordable:#3.apply', order: 11 },
-      { kind: 'jsiGlobal', name: 'createRuntime', order: 13 },
-      { kind: 'jsiGlobal', name: 'imageCache', order: 14 },
-      { kind: 'jsiGlobal', name: 'nativeFabricUIManager', order: 15 },
-      { kind: 'expoNativeEvent', name: 'callableModules', order: 16 },
+      // What the bundle read of each before the recorder saw it stays unseen: orders 13 and 15
+      // record each from then on.
+      { kind: 'jsiGlobal', name: 'createRuntime', order: 14 },
+      { kind: 'jsiGlobal', name: 'imageCache', order: 16 },
+      { kind: 'jsiGlobal', name: 'nativeFabricUIManager', order: 17 },
+      { kind: 'expoNativeEvent', name: 'callableModules', order: 18 },
     ]);
-    expect(recording?.pictureAt).toBe(17);
+    expect(recording?.pictureAt).toBe(19);
     expect(recording?.nativeCalls.find(({ method }) => method === 'shape')).toMatchObject({
       order: 4,
       args: ['imageDecoder'],
       answer: { $: 'shape', type: 'function' },
     });
+    // A native global first seen outside a recorded call is recorded from then on like any other:
+    // each later read of it is written down.
+    startStoryRecording('map--later');
+    expect(app.fakeGlobal.createRuntime(1, 2)).toBe(2);
+    app.fakeGlobal.imageCache.hit = 'yes';
+    expect(app.fakeGlobal.imageCache.hit).toBe('yes');
+    expect(
+      storyRecordingOf('map--later')
+        ?.nativeCalls.filter(({ order }) => order >= 13)
+        .map(({ module, method, args }) => [module, method, args])
+    ).toEqual([
+      ['global', 'installed', ['createRuntime']],
+      ['global', 'installed', ['imageCache']],
+      ['createRuntime', 'apply', [{ $: 'global' }, [1, 2]]],
+      ['imageCache', 'set', ['hit', 'yes']],
+      ['imageCache', 'get', ['hit']],
+    ]);
 
     // A lookup native code installed read-only cannot be watched.
     const fixedApp = startAppIn(
@@ -912,6 +952,160 @@ describe('what the app records for each story', () => {
     startStoryRecording('map--still');
     expect(storyRecordingOf('map--still')?.blindRoads).toEqual(
       globalsAtStart(GLOBALS_OF_A_NEW_APP)
+    );
+  });
+
+  it("a native global laid while native code answers the read of a module's constant is recorded, with each member the bundle reads of it at load", () => {
+    const app = startAppIn('testing', 'new');
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    const laidByNative = bridgeLaidByNative();
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      Installer: {
+        // Native code works out the module's constants on their first read, and lays a global
+        // of its own as it does: a read, not a call.
+        get methods() {
+          app.fakeGlobal.coreBridge = laidByNative;
+          return {};
+        },
+      },
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+
+    // The bundle as it loads, before any story: it reads the constant, then a member of the
+    // global the read laid, with no call of native in between.
+    expect(registry.get('Installer').methods).toEqual({});
+    expect(lastCallsAfterBridgeRead(app, 'bridge--loaded', 4)).toEqual([
+      ['__turboModuleProxy', 'lookup', ['Installer']],
+      // Laid as the read ran, so taken up as it ended, ahead of the constant it answered.
+      ['global', 'installed', ['coreBridge']],
+      ['Installer', 'methods', []],
+      ['coreBridge', 'get', ['Emitter']],
+    ]);
+  });
+
+  it('a native global laid while native code answers a module lookup is recorded, with each member the bundle reads of it at load', () => {
+    const app = startAppIn('testing', 'new');
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    const laidByNative = bridgeLaidByNative();
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      // Native code makes the module as it is first looked up, and lays a global of its own as
+      // it does.
+      get Installer() {
+        app.fakeGlobal.coreBridge = laidByNative;
+        return {};
+      },
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+
+    // The bundle as it loads: it looks the module up, then reads a member of the global the
+    // lookup laid, with no other run of native in between.
+    expect(registry.get('Installer')).toBeTruthy();
+    expect(lastCallsAfterBridgeRead(app, 'bridge--looked-up', 3)).toEqual([
+      ['__turboModuleProxy', 'lookup', ['Installer']],
+      // Laid as the lookup ran, so taken up as it ended.
+      ['global', 'installed', ['coreBridge']],
+      ['coreBridge', 'get', ['Emitter']],
+    ]);
+  });
+
+  it('a native global laid as native code deletes another, leaving the count of globals as it was, is recorded', () => {
+    const app = startAppIn('testing', 'new', { spare: 1 });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    const laidByNative = bridgeLaidByNative();
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      Installer: {
+        get methods() {
+          delete app.fakeGlobal.spare;
+          app.fakeGlobal.coreBridge = laidByNative;
+          return {};
+        },
+      },
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    const installer = registry.get('Installer');
+    const before = Object.getOwnPropertyNames(app.fakeGlobal).length;
+
+    expect(installer.methods).toEqual({});
+    expect(Object.getOwnPropertyNames(app.fakeGlobal)).toHaveLength(before);
+    expect(lastCallsAfterBridgeRead(app, 'bridge--swapped', 3)).toEqual([
+      ['global', 'installed', ['coreBridge']],
+      ['Installer', 'methods', []],
+      ['coreBridge', 'get', ['Emitter']],
+    ]);
+  });
+
+  it('a data global laid as native code lays the last-listed global again and deletes another is recorded with its value', () => {
+    const app = startAppIn('testing', 'new', { spare: 1 });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      Installer: {
+        // The new global is listed ahead of the last one laid again, and the count stays.
+        get methods() {
+          app.fakeGlobal.level = { reading: 3 };
+          delete app.fakeGlobal.spare;
+          const { tail } = app.fakeGlobal;
+          delete app.fakeGlobal.tail;
+          app.fakeGlobal.tail = tail;
+          return {};
+        },
+      },
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    const installer = registry.get('Installer');
+    // The global listed last as native code begins its run.
+    app.fakeGlobal.tail = 'last';
+    const listed = Object.getOwnPropertyNames(app.fakeGlobal);
+
+    expect(installer.methods).toEqual({});
+    const listedAfter = Object.getOwnPropertyNames(app.fakeGlobal);
+    expect(listedAfter).toHaveLength(listed.length);
+    expect(listedAfter[listedAfter.length - 1]).toBe(listed[listed.length - 1]);
+    expect(app.fakeGlobal.level.reading).toBe(3);
+    startStoryRecording('level--read');
+
+    expect(storyRecordingOf('level--read')?.nativeCalls.slice(-2)).toEqual([
+      expect.objectContaining({
+        module: 'global',
+        method: 'installed',
+        args: ['level'],
+        answer: { reading: 3 },
+      }),
+      expect.objectContaining({ module: 'Installer', method: 'methods' }),
+    ]);
+  });
+
+  it('a run of native reads that lays no global walks the names of the globals at most once', () => {
+    const app = startAppIn('testing', 'new');
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    app.fakeGlobal.nativeModulesOfTheTest = { Meter: { unit: 'mm' } };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    const meter = registry.get('Meter');
+    startStoryRecording('meter--read');
+
+    // Each listing of the global object's names counts a walk as it is gone through.
+    let walks = 0;
+    const listNames = Object.getOwnPropertyNames;
+    const listing = vi.spyOn(Object, 'getOwnPropertyNames').mockImplementation((value) => {
+      const names = listNames(value);
+      if (value !== app.fakeGlobal) return names;
+      const walk = names.forEach.bind(names);
+      Object.defineProperty(names, 'forEach', {
+        value: (...args: Parameters<typeof walk>) => {
+          walks += 1;
+          return walk(...args);
+        },
+      });
+      return names;
+    });
+    try {
+      for (let read = 0; read < 10; read++) expect(meter.unit).toBe('mm');
+    } finally {
+      listing.mockRestore();
+    }
+
+    expect(walks).toBeLessThanOrEqual(1);
+    expect(storyRecordingOf('meter--read')?.nativeCalls).toContainEqual(
+      expect.objectContaining({ module: 'Meter', method: 'unit', answer: 'mm' })
     );
   });
 
@@ -1285,6 +1479,38 @@ describe('what the app records for each story', () => {
     expect(storyRecordingOf('sensor--second')?.blindRoads).toEqual(
       expect.arrayContaining([stopped])
     );
+  });
+
+  it("the recorder's stop carries what threw in its own work, cut short, and the app never meets it", () => {
+    // A native object that refuses the recorder's look with a long message.
+    const refusal = `a host object refuses the look ${'and goes on '.repeat(100)}`;
+    const read = nativeFunction(() => 21);
+    const sensor = new Proxy(Object.create(null), {
+      get: (_, key) => (key === 'read' ? read : undefined),
+      getPrototypeOf: () => {
+        throw new TypeError(refusal);
+      },
+    });
+    const app = startAppIn('testing', 'new', { sensor });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    expect(app.fakeGlobal.sensor.read()).toBe(21);
+    startStoryRecording('sensor--why');
+    expect(app.fakeGlobal.sensor.read()).toBe(21);
+
+    const stops = (storyRecordingOf('sensor--why')?.blindRoads ?? []).filter(
+      (road) => road.name === 'recorderStopped'
+    );
+    expect(stops).toHaveLength(1);
+    // Beyond the sealed seam's type: a reader that does not know `why` skips it.
+    const { why } = stops[0] as { why?: { message: string; name: string; step: string } };
+    expect(why?.name).toBe('TypeError');
+    expect(why?.message).toBe(refusal.slice(0, 200));
+    // The step is the top frames of the throw's stack alone, never its message.
+    expect(why?.step).toMatch(/^\s*at /);
+    expect(why?.step.split('\n').length).toBeLessThanOrEqual(3);
+    expect(why?.step.length).toBeLessThanOrEqual(400);
+    expect(why?.step).not.toContain('refuses the look');
   });
 
   it('a device event delivered as a story runs is recorded in order with its payload', () => {
