@@ -13,8 +13,8 @@
  * reads, and errors surfaced rather than thrown as opaque client failures. All three are
  * load-bearing for the exit-code contract.
  */
-import fetch from 'node-fetch';
 import { PLATFORM_LABEL } from '../constants';
+import { postGraphql } from './graphqlRequest';
 // TYPE-ONLY: the seam imports this module's read, so a value import back would be a cycle.
 import type { BuildStatusPlatform } from '../seams/serverCalls';
 
@@ -253,12 +253,7 @@ export function getEndpointUrl(): string {
   return process.env.SHERLO_API_URL ?? sdkEnv.endpoints.url;
 }
 
-export class AuthError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AuthError';
-  }
-}
+export { AuthError } from './graphqlRequest';
 
 /**
  * How long a SINGLE-SHOT read of a build's status may take before it is abandoned. Generous
@@ -274,29 +269,22 @@ export async function fetchBuildStatus(
   // Callers bound the request so a slow API can never hang a run; the wait's poll bounds it too.
   timeoutMs?: number
 ): Promise<NonNullable<BuildStatusResponse['getBuildStatus']> | null> {
-  const response = await fetch(endpointUrl, {
-    method: 'POST',
-    ...(timeoutMs !== undefined ? { timeout: timeoutMs } : {}),
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: JSON.stringify({ authToken: apiToken }),
-    },
-    body: JSON.stringify({
-      // ⚠ THIS IS THE SECOND `getBuildStatus` DOCUMENT, AND THE OTHER ONE IS IN
-      // ANOTHER REPO: sherlo-api-full's sdk client ships its own at
-      // packages/clients/sdk/src/requests/queries/getBuildStatus.ts.
-      //
-      // The duplication is deliberate, not an oversight. This poll is issued
-      // over raw node-fetch because it needs three things the sdk client does
-      // not give it: 401/403 mapped to a non-retryable AuthError, a per-request
-      // timeout for the single-shot bypass read, and errors surfaced rather
-      // than thrown as opaque client failures. All three are load-bearing for
-      // the exit-code contract.
-      //
-      // THE COST IS THAT A FIELD ADDED THERE DOES NOT ARRIVE HERE. Both
-      // documents have to be kept in step by hand, so a schema change that this
-      // loop should see must be added to the selection below as well.
-      query: `
+  const data = await postGraphql<{ getBuildStatus: WireBuildStatus | null }>({
+    endpointUrl,
+    apiToken,
+    timeoutMs,
+    variables,
+    // ⚠ THIS IS THE SECOND `getBuildStatus` DOCUMENT, AND THE OTHER ONE IS IN
+    // ANOTHER REPO: sherlo-api-full's sdk client ships its own at
+    // packages/clients/sdk/src/requests/queries/getBuildStatus.ts.
+    //
+    // The duplication is deliberate, not an oversight: the poll goes over the raw request of
+    // ./graphqlRequest, which the sdk client cannot give (see there).
+    //
+    // THE COST IS THAT A FIELD ADDED THERE DOES NOT ARRIVE HERE. Both documents have to be kept in
+    // step by hand, so a schema change that this loop should see must be added to the selection
+    // below as well.
+    query: `
         query getBuildStatus($index: Int!, $projectIndex: Int!, $teamId: String!) {
           getBuildStatus(index: $index, projectIndex: $projectIndex, teamId: $teamId) {
             runStatus
@@ -382,33 +370,9 @@ export async function fetchBuildStatus(
           }
         }
       `,
-      variables,
-    }),
   });
 
-  if (response.status === 401 || response.status === 403) {
-    throw new AuthError(`Authentication failed (HTTP ${response.status}) - check your token`);
-  }
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const json = (await response.json()) as {
-    data?: { getBuildStatus: WireBuildStatus | null };
-    errors?: unknown[];
-  };
-
-  if (json.errors?.length) {
-    const errorTypes = json.errors.map((e: any) => e?.errorType ?? '').filter(Boolean);
-    const isAuthError = errorTypes.some((t: string) => /unauthorized|forbidden|auth/i.test(t));
-    if (isAuthError) {
-      throw new AuthError('Authentication failed - GraphQL authorization error. Check your token.');
-    }
-    throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
-  }
-
-  const wire = json.data?.getBuildStatus;
+  const wire = data?.getBuildStatus;
   return wire ? withPhoneWords(wire) : null;
 }
 

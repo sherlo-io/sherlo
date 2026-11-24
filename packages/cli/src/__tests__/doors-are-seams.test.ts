@@ -348,10 +348,10 @@ const ALLOWED_ADDITIONAL_IMPORTERS: { file: string; of: string; reason: string }
       'calls putBuffer, which itself PUTs through nativeBuild().putBinary - a posed sim run sends nothing real',
   },
   {
-    file: 'commands/easBuildOnComplete/helpers/asyncUploadBuildAndRunTests/asyncUploadBuildAndRunTests.ts',
+    file: 'commands/test/stageTheModuleMap.ts',
     of: 'commands/test/uploadStagedArtifacts.ts',
     reason:
-      'calls putBuffer to stage the module map an EAS build wrote, which itself PUTs through nativeBuild().putBinary - a posed hook sends nothing real',
+      'calls putBuffer to stage a module map (the EAS hook and the local native build road both stage theirs through it), which itself PUTs through nativeBuild().putBinary - a posed run or hook sends nothing real',
   },
   {
     file: 'commands/test/bundleSidecar.ts',

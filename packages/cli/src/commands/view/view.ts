@@ -46,6 +46,9 @@ import type { BuildStatusAnswer } from '../../seams/serverCalls';
 import { AuthError } from '../../helpers/buildStatusRequest';
 import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
+import { EXIT_ERROR, EXIT_GREEN } from '../../helpers/exitCodes';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
+import { isAnyListIncomplete, readStoriesDiffScope } from '../../helpers/readStoriesDiffScope';
 import { emit } from '../../helpers/transcriptSink';
 import { readBuildStatus, waitForTest } from '../../helpers/waitForBuildResult';
 import { Options } from '../../types';
@@ -124,14 +127,24 @@ async function view(
 
     // The wait's last read is the test as the wait left it: finished, or - when the wait ran out -
     // still running. A test that never appeared has no record to print.
+    // The stories are read now, after the wait: a test that ended in time is final, so no story
+    // is still waiting for its quick check.
+    const storiesOfDiffScope = lastRead
+      ? await readStoriesDiffScope({ token, buildIndex, projectIndex, teamId }, lastRead)
+      : {};
     if (lastRead) {
-      printBuildView({ build: lastRead, buildIndex, url, printJson: true });
+      printBuildView({ build: lastRead, buildIndex, url, printJson: true, storiesOfDiffScope });
     }
 
-    // The exit code is the wait's, exactly as on `--wait` alone.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
-    });
+    // The exit code is the wait's, exactly as on `--wait` alone - or an error when a list of
+    // stories could not be read whole.
+    await reporting
+      .flush()
+      .finally(() =>
+        exitAfterOutput(
+          exitCode === EXIT_GREEN && isAnyListIncomplete(storiesOfDiffScope) ? EXIT_ERROR : exitCode
+        )
+      );
 
     return;
   }
@@ -164,9 +177,7 @@ async function view(
     endAfterTheWait({ exitCode, testIndex: buildIndex, url });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
-    });
+    await reporting.flush().finally(() => exitAfterOutput(exitCode));
 
     // Unreachable - the line above ends the process. Written out so a reader
     // never has to prove that to know the block below is not printed too.
@@ -177,7 +188,14 @@ async function view(
     refuseBuildNotFound(buildIndex);
   }
 
-  printBuildView({ build, buildIndex, url, printJson });
+  // The stories of each platform are read for `--json` only: the words a person reads stay as
+  // they were, and so does the number of reads behind them.
+  const storiesOfDiffScope = printJson
+    ? await readStoriesDiffScope({ token, buildIndex, projectIndex, teamId }, build)
+    : {};
+  printBuildView({ build, buildIndex, url, printJson, storiesOfDiffScope });
+
+  if (isAnyListIncomplete(storiesOfDiffScope)) process.exitCode = EXIT_ERROR;
 }
 
 export default view;

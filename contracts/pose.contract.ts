@@ -245,6 +245,58 @@ export type ScriptedCall =
       answer: ApiError | BuildStatusAnswer | null;
     }
   | {
+      call: 'getStoriesDiffScope';
+      with: {
+        buildIndex: number;
+        platform: 'android' | 'ios';
+        after?: string;
+      };
+      answer:
+        | ApiError
+        | {
+            isCut: boolean;
+            nextAfter?: string | null;
+            quickCheck?: 'NOT_NEEDED' | 'RUNNING' | 'FINISHED' | 'FAILED' | null;
+            stories: Array<{
+              storyId: string;
+              deviceId: string;
+              hasDiffScopeData: boolean;
+              /** `final`, or `quickCheckRunning` while the story's quick check may still move its record. */
+              state: string;
+              record: {
+                checks: Array<{
+                  answer: string;
+                  name: string;
+                  tone: string;
+                  count?: number | null;
+                  isDeciding?: boolean | null;
+                }>;
+                reason: string;
+                test: number;
+                changedFiles?: string[] | null;
+                comparedWithTest?: number | null;
+                /** The lines that differ from the last test: `kind` is same or after. */
+                drawnLines?: Array<{
+                  kind: string;
+                  number: number;
+                  text: string;
+                }> | null;
+                drawnStoryPastRetention?: boolean | null;
+                /** What stood in the way of the quick check. */
+                obstacles?: Array<{
+                  cause: string;
+                  name?: string | null;
+                }> | null;
+                /** The chain of files the change reaches the story through. */
+                reachedThrough?: string[] | null;
+                wholeTestFile?: string | null;
+                wholeTestReason?: string | null;
+              } | null;
+            }>;
+          }
+        | null;
+    }
+  | {
       call: 'createProject';
       with: {
         teamId: string;
@@ -1168,12 +1220,6 @@ export type PosedCaptureDecision = {
   /** The build this decision diffed against - the "inheriting N from build #A" clause. */
   ancestorBuildIndex?: number;
   /**
-   * `build.diffScopeInfo.isFirstLook`, as the service sends it: the project's first build, which
-   * took only the stories the push named. With a partial capture it draws the Started row's "a
-   * first look: --all-stories tests all N stories" and no changed mark.
-   */
-  isFirstLook?: boolean;
-  /**
    * The snapshot counts the open answer's `build.diffScopeInfo` carries. A build the service
    * closed as it opened, because no phone has a story to photograph, says 0 captured and some kept
    * - which is how the tool knows to withhold the review link and end on "Nothing needed
@@ -1272,11 +1318,6 @@ export type StartedRun = {
     platform: 'android' | 'ios';
     /** Every story is captured. Read FIRST: a full capture's story list is empty and means "all". */
     full: boolean;
-    /**
-     * A project's first test took only a first look: the stories in the files the push named, plus
-     * every scene. `--all-stories` asks for every story.
-     */
-    firstLook?: boolean;
     /** How many stories a partial capture takes. Ignored on a full capture. */
     capturedStories: number;
     /**

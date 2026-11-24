@@ -3,8 +3,18 @@ import type { StoryMocks } from '../mocking/mockDeclaration';
 
 import type { Snapshot as SnapshotTheCoreWrites } from '../sealedCore/seam';
 
-// The runner's story entries and the inspector's reading cross the seam, so they are declared there.
-export type { InspectorData, InspectorDataNode, SnapshotMode, StoryId } from '../sealedCore/seam';
+// The runner's story entries, the inspector's reading and the story's recording cross the seam, so
+// they are declared there.
+export type {
+  InspectorData,
+  InspectorDataNode,
+  RecordedBlindRoad,
+  RecordedNativeCall,
+  RecordedViewEvent,
+  SnapshotMode,
+  StoryId,
+  StoryRecording,
+} from '../sealedCore/seam';
 
 /**
  * One story entry of a run, as the core writes it, with its `sherloParameters` typed as the story

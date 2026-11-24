@@ -35,13 +35,15 @@
         "madeBy": "eas",
         "why": "nothing-stored"
       },
-      "storiesInBundle": 12
+      "storiesInBundle": 12,
+      "diffScopeStories": []
     },
     "ios": {
       "arrived": false,
       "capture": null,
       "appBuild": null,
-      "storiesInBundle": 12
+      "storiesInBundle": 12,
+      "diffScopeStories": []
     }
   }
 }

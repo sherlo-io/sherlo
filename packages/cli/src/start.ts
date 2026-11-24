@@ -29,7 +29,6 @@ import {
 } from './commands/test/appBuild/buildSettings';
 import { CACHE_DIR_ENV_VAR } from './commands/test/appBuild/cacheFolder';
 import {
-  ALL_STORIES_OPTION,
   ANDROID_OPTION,
   BASELINE_OPTION,
   CONFIG_OPTION,
@@ -87,10 +86,10 @@ import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, withCommandTimeout } from './helpers';
+import exitAfterOutput from './helpers/exitAfterOutput';
 import { LOCAL_COMMAND_OPTION_DEFINITION, SUGGEST_DESCRIPTION } from './helpers/localCommandHelp';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import { captureCommandOptions } from './commands/capture';
-import { FIRST_LOOK_OPTION_DEFINITION } from './commands/test/firstLook';
 import {
   decideScenesBeforeCommands,
   openSceneOptions,
@@ -142,7 +141,7 @@ async function start() {
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
-      process.exit(0);
+      await exitAfterOutput(0);
     }
 
     await program.parseAsync(process.argv);
@@ -160,7 +159,7 @@ async function start() {
       for (const line of renderHelpBlock()) console.log(line);
 
       // A Node file-system error's `code` is a string (`'ENOENT'`), which `process.exit` refuses.
-      process.exit(typeof error.code === 'number' && error.code !== 0 ? error.code : 1);
+      return exitAfterOutput(typeof error.code === 'number' && error.code !== 0 ? error.code : 1);
     });
   }
 }
@@ -348,7 +347,10 @@ const OPTION_DEFINITION: Record<string, [string, string]> = {
       '  0 = all stories passed, 1 = stories need review,\n' +
       '  2 = the app build or the test failed, 3 = stopped waiting, 130 = interrupted',
   ],
-  ...FIRST_LOOK_OPTION_DEFINITION,
+  [WAIT_TIMEOUT_OPTION]: [
+    '--wait-timeout <minutes>',
+    'Max minutes to wait for results (default: 45, or longer for a test with more pictures). Exit code 3 on timeout.',
+  ],
   [PLATFORM_OPTION]: [
     '--platform <platform>',
     'Build and test one platform only (android or ios) - one job of a CI run split across ' +
@@ -498,7 +500,6 @@ function addTestCommand(program: Command) {
       EMIT_BUNDLE_DIR_OPTION,
       WAIT_OPTION,
       WAIT_TIMEOUT_OPTION,
-      ALL_STORIES_OPTION,
       PLATFORM_OPTION,
       RUN_ID_OPTION,
       BUILD_CACHE_OPTION,

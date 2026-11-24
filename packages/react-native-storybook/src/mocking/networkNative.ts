@@ -87,8 +87,11 @@ export function handRulesToNative(
   }
 }
 
-/** The event native code raises for each request it met that no rule matches, with its JSON. */
-const UNANSWERED_EVENT = 'SherloUnansweredRequest';
+/**
+ * The event native code raises for each request it met that no rule matches, with its JSON. The
+ * polyfill's recorder knows it by name too (metro/polyfill.js, SHERLO_OWN_DEVICE_EVENTS).
+ */
+export const UNANSWERED_EVENT = 'SherloUnansweredRequest';
 
 /**
  * Record every request native code tells of from now on as one no rule answers; the answer stops

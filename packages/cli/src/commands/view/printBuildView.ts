@@ -2,6 +2,7 @@ import throwError from '../../helpers/throwError';
 import { emit } from '../../helpers/transcriptSink';
 import type { ViewJson } from '../../render/buildView';
 import type { BuildStatus } from '../../helpers/buildStatusRequest';
+import type { StoriesOfDiffScopeByPlatform } from '../../helpers/readStoriesDiffScope';
 import { countNoPicture } from '../../helpers/sparseBuildVerdict';
 import { readBuildScreenKind } from '../../helpers/waitForBuildResult';
 
@@ -30,15 +31,18 @@ export function printBuildView({
   buildIndex,
   url,
   printJson,
+  storiesOfDiffScope = {},
 }: {
   build: BuildStatus;
   buildIndex: number;
   url: string;
   /** `--json`: print the record instead of the human view. */
   printJson: boolean;
+  /** The stories of each platform, read for `--json` only; the human view never shows them. */
+  storiesOfDiffScope?: StoriesOfDiffScopeByPlatform;
 }): void {
   if (printJson) {
-    emit({ kind: 'build-view-json', json: viewJsonOf(build, buildIndex) });
+    emit({ kind: 'build-view-json', json: viewJsonOf(build, buildIndex, storiesOfDiffScope) });
     return;
   }
 
@@ -90,7 +94,11 @@ function isStillRunning(runStatus: string): boolean {
  * own plain words: `commit` from the frozen `gitInfo` (`sherlo view` opened nothing, so the build's
  * own git identity is the only one it can print), and `runError` with the platform it names.
  */
-export function viewJsonOf(build: BuildStatus, buildIndex: number): ViewJson {
+export function viewJsonOf(
+  build: BuildStatus,
+  buildIndex: number,
+  storiesOfDiffScope: StoriesOfDiffScopeByPlatform = {}
+): ViewJson {
   return {
     runStatus: build.runStatus,
     buildIndex,
@@ -111,7 +119,16 @@ export function viewJsonOf(build: BuildStatus, buildIndex: number): ViewJson {
     viewStatusesCount: build.viewStatusesCount,
     stories: build.stories,
     diffScope: build.diffScope,
-    platforms: build.platforms,
+    platforms: build.platforms
+      ? {
+          ...(build.platforms.android && {
+            android: { ...build.platforms.android, ...storiesOfDiffScope.android },
+          }),
+          ...(build.platforms.ios && {
+            ios: { ...build.platforms.ios, ...storiesOfDiffScope.ios },
+          }),
+        }
+      : build.platforms,
   };
 }
 

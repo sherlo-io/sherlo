@@ -1,6 +1,6 @@
 /**
  * THE PHONE SIDES OF A PUSH - one per platform it uploads, built from what the project already
- * tells the CLI: the base fingerprint's autolinked modules, the app's id (../seams/deviceStateAppId)
+ * tells the CLI: the app's id (../seams/deviceStateAppId)
  * and the SDK's sherlo-core.js as the installed package carries it.
  *
  * Bail-open and silent: a platform missing any input gets no phone side and the push goes on as
@@ -40,7 +40,6 @@ export function phoneSidesOf(
 
     phoneSides[platform] = buildPhoneSide({
       platform,
-      autolinkedModules: preimage.autolinkedModules,
       appIdentity,
       coreSource,
     });

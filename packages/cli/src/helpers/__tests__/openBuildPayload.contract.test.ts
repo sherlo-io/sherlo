@@ -58,8 +58,16 @@ const mocks = vi.hoisted(() => {
      */
     freshBundleEffects: FRESH_BUNDLE_EFFECTS,
     realFreshBundleEffects: vi.fn(() => FRESH_BUNDLE_EFFECTS),
+    /** The one extra bundling pass that makes the module map of an app built with no fingerprint. */
+    bundleFor: vi.fn(),
+    stageTheModuleMap: vi.fn(),
   };
 });
+
+vi.mock('../../seams/bundler', () => ({ bundler: () => ({ bundleFor: mocks.bundleFor }) }));
+vi.mock('../../commands/test/stageTheModuleMap', () => ({
+  stageTheModuleMap: mocks.stageTheModuleMap,
+}));
 
 vi.mock('@sherlo/sdk-client', () => ({ default: mocks.sdkClient }));
 vi.mock('../getValidatedBinariesInfoAndNextBuildIndex', () => ({
@@ -177,10 +185,11 @@ function buildRunConfig() {
 /** The base fingerprints the build road took before building, handed to the spine. */
 let fingerprints: any;
 
-function callSubject(overrides: { commandParams?: any } = {}) {
+function callSubject(overrides: { commandParams?: any; appBuilds?: any } = {}) {
   const commandParams = overrides.commandParams ?? COMMAND_PARAMS;
   return uploadOrReuseBuildsAndRunTests({
     commandParams,
+    ...(overrides.appBuilds ? { appBuilds: overrides.appBuilds } : {}),
     // The app builds the push uploads arrive beside the params, as the build road hands them over.
     appBuildPaths: { android: commandParams.android, ios: commandParams.ios },
     fingerprints,
@@ -421,6 +430,40 @@ describe('reuse-vs-upload branch selection', () => {
 // the shape the api tells apart from a staged run (placeholder s3Key) and from
 // an old CLI's full run (no bundle fields) by fields alone.
 // ---------------------------------------------------------------------------
+
+describe('a local native build with no fingerprint', () => {
+  const MODULE_MAP = { raw: Buffer.from('{}') };
+
+  /** The iOS app was built here and its fingerprint could not be computed, so it has no fresh bundle. */
+  function callWithIosBuiltWithoutFingerprint() {
+    fingerprints.ios = { debugMessage: 'no lockfile' };
+    mocks.bundleFor.mockResolvedValue({ moduleManifest: MODULE_MAP });
+    return callSubject({ appBuilds: { ios: { madeBy: 'compiled' } } });
+  }
+
+  it('a local native build opens its build with a module manifest for each platform it built, so the server can count its stories', async () => {
+    mocks.stageTheModuleMap.mockResolvedValue('ios-map-key');
+
+    await callWithIosBuiltWithoutFingerprint();
+
+    expect(mocks.stageTheModuleMap).toHaveBeenCalledWith(
+      expect.objectContaining({ moduleMap: MODULE_MAP, platform: 'ios', teamId: 'team1234' })
+    );
+    expect(lastOpenBuildPayload().buildRunConfig.ios.manifestS3Key).toBe('ios-map-key');
+  });
+
+  it('a local native build whose module map could not be made still opens its build, with no manifest key', async () => {
+    mocks.bundleFor.mockRejectedValue(new Error('metro failed'));
+    fingerprints.ios = { debugMessage: 'no lockfile' };
+
+    await callSubject({ appBuilds: { ios: { madeBy: 'compiled' } } });
+
+    expect(lastOpenBuildPayload().buildRunConfig.ios).not.toHaveProperty('manifestS3Key');
+    expect(mocks.logWarning).toHaveBeenCalledWith({
+      message: expect.stringContaining('Could not make the iOS module manifest (metro failed)'),
+    });
+  });
+});
 
 describe('the fresh bundle on the platform config', () => {
   it('runs the fresh-bundle step with the registered platforms, the base fingerprint, the caller`s --bundle-dir and the effects built from the client', async () => {

@@ -36,13 +36,15 @@
           "android/app/build.gradle"
         ]
       },
-      "storiesInBundle": 7
+      "storiesInBundle": 7,
+      "diffScopeStories": []
     },
     "ios": {
       "arrived": false,
       "capture": null,
       "appBuild": null,
-      "storiesInBundle": null
+      "storiesInBundle": null,
+      "diffScopeStories": []
     }
   }
 }

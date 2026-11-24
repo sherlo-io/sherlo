@@ -53,6 +53,11 @@
           }
         }
       }
+    },
+    {
+      "call": "getStoriesDiffScope",
+      "with": { "buildIndex": 7, "platform": "ios" },
+      "answer": { "isCut": false, "stories": [] }
     }
   ],
   "masks": {}

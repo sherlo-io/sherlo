@@ -25,7 +25,13 @@ import {
   SINGLE_READ_TIMEOUT_MS,
   type BuildStatus,
 } from '../helpers/buildStatusRequest';
+import {
+  fetchStoriesDiffScopePage,
+  type StoriesDiffScopePage,
+  type StoriesDiffScopeVariables,
+} from '../helpers/storiesDiffScopeRequest';
 import authTokenFor from '../helpers/authTokenFor';
+import { ServiceRefusedTokenError, throwTokenRefusal } from './serviceRefusedToken';
 import liveGitHubTrade from './liveGitHubTrade';
 import createProjectRequest from '../commands/projectCreate/createProjectRequest';
 import createTeamRequest from '../commands/teamCreate/createTeamRequest';
@@ -89,6 +95,11 @@ export type ServerCalls = {
     /** A single-shot read bounds its own request; the poll loop's own deadline governs there. */
     boundedRead?: boolean;
   }): Promise<BuildStatus | null>;
+
+  /** One page of a test's stories on one platform; `null` when the team has no Diff Scope viewer. */
+  getStoriesDiffScope(
+    request: StoriesDiffScopeVariables & { token: string }
+  ): Promise<StoriesDiffScopePage | null>;
 
   createProject(request: {
     name: string;
@@ -278,6 +289,14 @@ export const liveServerCalls: ServerCalls = {
     );
   },
 
+  getStoriesDiffScope: ({ token, ...variables }) =>
+    fetchStoriesDiffScopePage(
+      getEndpointUrl(),
+      authTokenFor(token),
+      variables,
+      SINGLE_READ_TIMEOUT_MS
+    ),
+
   createProject: (request) => createProjectRequest(request),
   createTeam: (request) => createTeamRequest(request),
   listTeams: (request) => listTeamsRequest(request),
@@ -336,41 +355,7 @@ export const liveServerCalls: ServerCalls = {
   tradeGitHubIdToken: (request) => liveGitHubTrade(clientWithNoCredential(), request),
 };
 
-/** Rethrow a service's refusal of the token as {@link ServiceRefusedTokenError}, any other error as is. */
-function throwTokenRefusal(error: unknown): never {
-  if (serviceRefusedTheToken(error)) throw new ServiceRefusedTokenError();
-  throw error;
-}
-
-/** The service answered, and refused the token it was sent. */
-export class ServiceRefusedTokenError extends Error {
-  constructor() {
-    super('Sherlo refused the token.');
-    this.name = 'ServiceRefusedTokenError';
-  }
-}
-
-/**
- * Whether an sdk client error is the service refusing the token, rather than a service the tool
- * never reached. The authorizer refuses with HTTP 401 or 403; a refusal from inside the API comes
- * back as a GraphQL error typed as unauthorized - thrown bare by the client, or inside its error.
- */
-function serviceRefusedTheToken(error: unknown): boolean {
-  const clientError = error as {
-    errorType?: string;
-    networkError?: { statusCode?: number };
-    graphQLErrors?: Array<{ errorType?: string }>;
-  };
-
-  const httpStatus = clientError?.networkError?.statusCode;
-  if (httpStatus === 401 || httpStatus === 403) return true;
-
-  const errorTypes = [
-    clientError?.errorType,
-    ...(clientError?.graphQLErrors ?? []).map((graphQLError) => graphQLError.errorType),
-  ];
-  return errorTypes.some((errorType) => /unauthori[sz]ed|forbidden/i.test(errorType ?? ''));
-}
+export { ServiceRefusedTokenError };
 
 // Never empty: AppSync refuses an empty Authorization before the service's request gate sees it.
 const NO_CREDENTIAL_PLACEHOLDER = 'no-credential';
@@ -592,12 +577,6 @@ export type PosedCaptureDecision = {
   /** The build this decision diffed against - the "inheriting N from build #A" clause. */
   ancestorBuildIndex?: number;
   /**
-   * `build.diffScopeInfo.isFirstLook`, as the service sends it: the project's first build, which
-   * took only the stories the push named. With a partial capture it draws the Started row's
-   * "a first look: --all-stories tests all N stories" and no changed mark.
-   */
-  isFirstLook?: boolean;
-  /**
    * The snapshot counts the open answer's `build.diffScopeInfo` carries. A build the service closed
    * as it opened, because no phone has a story to photograph, says 0 captured and some kept - which
    * is how the tool knows to withhold the review link and end on "Nothing needed capturing"
@@ -641,6 +620,11 @@ export type ScriptedCall =
       call: 'getBuildStatus';
       with: { buildIndex: number };
       answer: BuildStatusAnswer | null | ApiError;
+    }
+  | {
+      call: 'getStoriesDiffScope';
+      with: { buildIndex: number; platform: 'android' | 'ios'; after?: string };
+      answer: StoriesDiffScopePage | null | ApiError;
     }
   | {
       call: 'createProject';
@@ -865,6 +849,13 @@ export function posedServerCalls(script: ScriptedCall[]): PosedServerCalls {
     getBuildStatus: async ({ buildIndex }) =>
       answerFor('getBuildStatus', { buildIndex }) as BuildStatusAnswer | null,
 
+    getStoriesDiffScope: async ({ buildIndex, platform, after }) =>
+      answerFor('getStoriesDiffScope', {
+        buildIndex,
+        platform,
+        after,
+      }) as StoriesDiffScopePage | null,
+
     createProject: async ({ name, teamId }) =>
       answerFor('createProject', { teamId, name }) as ProjectCreated,
 
@@ -1026,7 +1017,6 @@ function diffScopeInfoOf(
   return {
     fullCaptureTriggerReason: captureDecision.fullCaptureTriggerReason,
     ancestorBuildIndex: captureDecision.ancestorBuildIndex,
-    isFirstLook: captureDecision.isFirstLook,
     capturedSnapshotCount: captureDecision.capturedSnapshotCount,
     inheritedSnapshotCount: captureDecision.inheritedSnapshotCount,
     platforms: {

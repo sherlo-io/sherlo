@@ -9,6 +9,7 @@
 import { Platform } from '@sherlo/api-types';
 import { emit } from '../../helpers/transcriptSink';
 import { reporting } from '../../helpers';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import type { GateMetadataInput } from '../../helpers/fingerprint';
 import type { BundleResult } from './buildBundle';
 import type { BuildSettings } from './appBuild/buildSettings';
@@ -83,7 +84,7 @@ export async function buildBundles({
       // buildBundleForPlatform throws user-facing messages.
       const message = err instanceof Error ? err.message : String(err);
       emit({ kind: 'platform-bundle-failed', message });
-      await reporting.flush().finally(() => process.exit(1));
+      await reporting.flush().finally(() => exitAfterOutput(1));
     }
   }
 
