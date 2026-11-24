@@ -52,7 +52,9 @@ function createForwardingDefault(key: string, realModule: ModuleExports): Module
   // A callable default needs a callable target; an object default gets a plain object so it still
   // compares like one.
   const delegate =
-    typeof realDefault === 'function' ? (callableTarget() as unknown as ModuleExports) : {};
+    typeof realDefault === 'function'
+      ? (callableTarget(realDefault) as unknown as ModuleExports)
+      : {};
 
   const activeDefault = (): ModuleExports => {
     const mock = resolveMockExports(key, realModule);

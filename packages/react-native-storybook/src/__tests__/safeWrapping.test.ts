@@ -12,6 +12,7 @@ import {
   isFixedProperty,
   isHeldToItsValue,
   isObjectOrFunction,
+  withNameAndLengthOf,
 } from '../safeWrapping';
 import { builtPolyfillSource } from './builtPolyfill';
 
@@ -89,6 +90,41 @@ describe('the rules for wrapping a value safely', () => {
     expect(Reflect.ownKeys(standIn)).toEqual([]);
     expect((standIn as () => unknown)()).toBe('called');
     expect(new (standIn as unknown as new () => object)()).toEqual({ made: true });
+  });
+
+  it('a wrap carries the name and the length of the function it wraps, laid as the engine lays them', () => {
+    function share(_first: unknown, _second: unknown) {
+      return undefined;
+    }
+    const wrap = withNameAndLengthOf(() => undefined, share);
+    expect([wrap.name, wrap.length]).toEqual(['share', 2]);
+    expect(Object.getOwnPropertyDescriptor(wrap, 'name')).toEqual({
+      value: 'share',
+      writable: false,
+      enumerable: false,
+      configurable: true,
+    });
+    const target = callableTarget(share);
+    expect([target.name, target.length]).toEqual(['share', 2]);
+    expect(fixedKeysOf(target)).toEqual([]);
+  });
+
+  it('a wrap reads the name and the length it carries without running a getter, and takes none that is not a value', () => {
+    let reads = 0;
+    function counted() {
+      return undefined;
+    }
+    Object.defineProperty(counted, 'name', {
+      get: () => {
+        reads += 1;
+        return 'asked';
+      },
+      configurable: true,
+    });
+    const wrap = withNameAndLengthOf(function kept(_only: unknown) {}, counted);
+    expect(reads).toBe(0);
+    expect([wrap.name, wrap.length]).toEqual(['kept', 0]);
+    expect(withNameAndLengthOf(function alone() {}, { name: 'object' }).name).toBe('alone');
   });
 });
 

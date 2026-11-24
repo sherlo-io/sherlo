@@ -64,11 +64,13 @@
 // (metro/sherloLine.d.ts). It writes no file.
 //
 // The engine's rules for wrapping a value safely are shared with the mock layer
-// (src/safeWrapping.ts). The polyfill runs before any module exists, so scripts/bundlePolyfill.js
-// inlines them into the polyfill that ships, which requires nothing: run this file only as built.
+// (src/safeWrapping.ts), and so is the exact undo of a write (src/mocking/exactUndo.ts). The
+// polyfill runs before any module exists, so scripts/bundlePolyfill.js inlines them into the
+// polyfill that ships, which requires nothing: run this file only as built.
 //
 
 var safeWrapping = require('../src/safeWrapping');
+var exactUndo = require('../src/mocking/exactUndo');
 
 (function () {
   if (typeof globalThis === 'undefined') return;
@@ -123,8 +125,12 @@ var safeWrapping = require('../src/safeWrapping');
     entries: {},
   };
   if (stillReal.isTesting) global.__sherloStillReal = stillReal;
+  // The quick check replays this very bundle, and its Sherlo module says `isReplay` in its
+  // constants, which a phone never sets: there the recorder installs nothing, so it never walks
+  // the replay's own globals, whose reads the replay would then have to answer.
   try {
-    if (stillReal.isTesting) installNativeRecorder();
+    var isReplay = !!_gateC && _gateC.isReplay === true;
+    if (stillReal.isTesting && !isReplay) installNativeRecorder();
   } catch (_) {
     // Recording never stops the app: a recorder that cannot be installed leaves the run unrecorded.
   }
@@ -651,7 +657,8 @@ var safeWrapping = require('../src/safeWrapping');
   //
   // Installed only in testing mode (the gate above has returned for 'default' and 'storybook') and
   // only on the new architecture, whose Fabric UI manager is there before the bundle runs: on the
-  // old one nothing is installed and nothing is recorded. Native code reaches the bundle by four
+  // old one nothing is installed and nothing is recorded, nor in the quick check's replay of the
+  // bundle, whose Sherlo module says `isReplay`. Native code reaches the bundle by four
   // seams, each watched here: the module lookups (global.__turboModuleProxy, wrapped here, and
   // NativeModules, the read-only global.nativeModuleProxy handed over by its file), the globals
   // native code installs, the modules native code calls into (handed over as they are registered)
@@ -678,6 +685,12 @@ var safeWrapping = require('../src/safeWrapping');
   //   the bundle began is the same entry with the data written down as its answer. The globals the
   //   bundle began with that the engine or the bundle's own code made come once, ahead of every
   //   story: { module: 'global', method: 'notFromThePhone', args: [name, ...], kind: 'sync' }.
+  // - What the quick check needs beyond the calls, each a note of module 'global' that answers
+  //   nothing of itself: a global that cannot be replaced as its 'shape' ('laidAfter' when native
+  //   code laid it as a run of it ended) with what lies below it left unread as 'shapeCut'
+  //   ['unread'] [handle, ...] (keepShape), the read of a module's method
+  //   as 'memberRead' [module, key], and a lookup a story made as 'lookedUp' [lookup, name] with
+  //   its answer, the last two once for every story read from then on.
   // - Each use of a native value: module is the value's handle, method the operation, args its
   //   arguments: 'get' [key], 'has' [key], 'ownKeys' [], 'getOwnPropertyDescriptor' [key],
   //   'getPrototypeOf' [], 'set' [key, value], 'defineProperty' [key, descriptor],
@@ -737,6 +750,9 @@ var safeWrapping = require('../src/safeWrapping');
       callsForLaterStories: {},
       // The number the next native value, callback or promise is handed out under.
       nextHandle: 1,
+      // The wrap on the language's source of chance while the load's draws are recorded: what
+      // takes it off exactly, the wrap itself, and how many draws it wrote down.
+      chance: { undo: null, wrapped: null, drawn: 0 },
     };
 
     function keep(list, entry, shared) {
@@ -770,6 +786,7 @@ var safeWrapping = require('../src/safeWrapping');
     // the error's name and message and the top frames of its stack, the recorder's step by its
     // place in the bundle, each cut short. Writing it never throws.
     function stopRecording(failure) {
+      takeOffChanceWrap();
       var road = keepBlindRoadOnce('jsiGlobal', 'recorderStopped', true);
       if (!road) return;
       var frames = readQuietly(failure, 'stack')
@@ -910,11 +927,13 @@ var safeWrapping = require('../src/safeWrapping');
       quietly(function () {
         takeUpIfLaid(false);
       });
+      // The order of the last entry kept before native code runs: what it lays was not there yet.
+      var laidAfter = recorder.order - 1;
       try {
         return run();
       } finally {
         quietly(function () {
-          takeUpIfLaid(true);
+          takeUpIfLaid(true, laidAfter);
         });
       }
     }
@@ -922,7 +941,7 @@ var safeWrapping = require('../src/safeWrapping');
     // A module's method, noting each call with what native answered: the return, the promise's
     // value or each callback's arguments, and what it threw.
     function wrapMethod(moduleName, methodName, method, target) {
-      return function () {
+      return safeWrapping.withNameAndLengthOf(function () {
         var args = Array.prototype.slice.call(arguments);
         var given = args.map(function (arg) {
           return toNative(arg, moduleName + '.' + methodName, false);
@@ -975,18 +994,18 @@ var safeWrapping = require('../src/safeWrapping');
           }
         });
         return fromNative(answer, null);
-      };
+      }, method);
     }
 
     function wrapCallback(call, index, callback, road) {
-      return function () {
+      return safeWrapping.withNameAndLengthOf(function () {
         var args = argumentsFromNative(arguments);
         quietly(function () {
           var callbacks = call.callbacks || (call.callbacks = []);
           callbacks.push({ arg: index, args: serialised(args) });
         });
         return toNative(callback.apply(this, arguments), road, false);
-      };
+      }, callback);
     }
 
     var wrappedModules = {};
@@ -1023,9 +1042,13 @@ var safeWrapping = require('../src/safeWrapping');
     }
 
     // What the bundle gets of a module's member: a method as one that notes each call, a constant
-    // as it is, noted once a story as a call of its name.
+    // as it is, noted once a story as a call of its name. The read of a method is noted too, once,
+    // for every story, as { module: 'global', method: 'memberRead', args: [module, key], kind:
+    // 'sync', answer: what it is (kindOf) }: the bundle may read one to bind or test it and never
+    // call it, and a module's file the bundle first runs in a story runs in no later story.
     function moduleMemberForBundle(moduleName, methods, target, key, value) {
       if (typeof value === 'function') {
+        noteOnceForEveryStory('memberRead', [moduleName, key], kindOf(value));
         var isHeld = false;
         try {
           isHeld = safeWrapping.isHeldToItsValue(target, key);
@@ -1077,8 +1100,25 @@ var safeWrapping = require('../src/safeWrapping');
       }
       return quietly(function () {
         lookup.answer = module == null ? null : { $: 'module' };
+        if (recorder.story !== null) {
+          noteOnceForEveryStory('lookedUp', [lookupModule, moduleName], lookup.answer);
+        }
         return wrapModule(moduleName, module);
       }, module);
+    }
+
+    // A fact of the run a story learned, noted once for every story read from then on: a file
+    // the bundle first runs in a story is not run again by a later story of the same run, which
+    // the quick check runs fresh.
+    function noteOnceForEveryStory(method, args, answer) {
+      var key = method + ' ' + JSON.stringify(args);
+      if (recorder.notedInLaunch[key]) return;
+      recorder.notedInLaunch[key] = true;
+      keep(
+        'nativeCalls',
+        { module: 'global', method: method, args: args, kind: 'sync', answer: answer },
+        true
+      );
     }
 
     // The lookup TurboModuleRegistry reads as it loads, which native code installs off the
@@ -1086,13 +1126,13 @@ var safeWrapping = require('../src/safeWrapping');
     function watchTurboModuleProxy() {
       var real = global.__turboModuleProxy;
       if (typeof real !== 'function') return;
-      var watched = function (moduleName) {
+      var watched = safeWrapping.withNameAndLengthOf(function (moduleName) {
         var self = this;
         var args = arguments;
         return noteLookup('__turboModuleProxy', moduleName, function () {
           return real.apply(self, args);
         });
-      };
+      }, real);
       try {
         global.__turboModuleProxy = watched;
       } catch (_) {
@@ -1198,7 +1238,7 @@ var safeWrapping = require('../src/safeWrapping');
           if (typeof key !== 'string' || typeof value !== 'function') return value;
           var cached = methods[key];
           if (cached && cached.method === value) return cached.wrapper;
-          var wrapper = function () {
+          var wrapper = safeWrapping.withNameAndLengthOf(function () {
             var args = argumentsFromNative(arguments);
             quietly(function () {
               if (isSherloOwnCall(moduleName, key, args)) return;
@@ -1213,7 +1253,7 @@ var safeWrapping = require('../src/safeWrapping');
               }
             });
             return value.apply(target, args);
-          };
+          }, value);
           methods[key] = { method: value, wrapper: wrapper };
           return wrapper;
         },
@@ -1225,17 +1265,19 @@ var safeWrapping = require('../src/safeWrapping');
     function watchCallableModules(module) {
       var register = module.exports.default;
       if (typeof register !== 'function') return;
-      replaceExport(module, 'default', function (name, moduleOrFactory) {
+      var registerWatched = safeWrapping.withNameAndLengthOf(function (name, moduleOrFactory) {
         var factory =
           typeof moduleOrFactory === 'function'
             ? moduleOrFactory
             : function () {
                 return moduleOrFactory;
               };
-        return register.call(this, name, function () {
+        var made = safeWrapping.withNameAndLengthOf(function () {
           return callableStandIn(String(name), factory.apply(this, arguments));
-        });
-      });
+        }, factory);
+        return register.call(this, name, made);
+      }, register);
+      replaceExport(module, 'default', registerWatched);
       recorder.callableRoad = module.exports.default !== register;
     }
 
@@ -1256,24 +1298,24 @@ var safeWrapping = require('../src/safeWrapping');
     // The Fabric renderer's commit of the tree, handed over by the line rewritten in it.
     global.__sherloCommitRoad = function (completeRoot) {
       recorder.rendererRoads.commit = true;
-      return function () {
+      return safeWrapping.withNameAndLengthOf(function () {
         quietly(function () {
           keep('commits', {});
         });
         return completeRoot.apply(this, arguments);
-      };
+      }, completeRoot);
     };
 
     // The Fabric renderer's event entry: every event a view sends passes here, with the view it
     // came from, before React runs it.
     global.__sherloViewEventRoad = function (dispatchEvent) {
       recorder.rendererRoads.viewEvents = true;
-      return function (target, type, nativeEvent) {
+      return safeWrapping.withNameAndLengthOf(function (target, type, nativeEvent) {
         quietly(function () {
           keep('viewEvents', viewEventOf(target, type, nativeEvent));
         });
         return dispatchEvent.apply(this, arguments);
-      };
+      }, dispatchEvent);
     };
 
     function viewEventOf(target, type, nativeEvent) {
@@ -1594,7 +1636,7 @@ var safeWrapping = require('../src/safeWrapping');
 
     function callbackFor(callable) {
       var ref = { $: 'callback', handle: nextHandle() };
-      var callback = function () {
+      var callback = safeWrapping.withNameAndLengthOf(function () {
         var self = this;
         var args = Array.prototype.slice.call(arguments);
         var given = quietly(function () {
@@ -1610,7 +1652,7 @@ var safeWrapping = require('../src/safeWrapping');
           return bundled;
         }, args);
         return toNative(callable.apply(this, given), ref.handle + '.apply', false);
-      };
+      }, callable);
       refs.set(callable, ref);
       refs.set(callback, ref);
       callbackOfFunction.set(callable, callback);
@@ -1929,7 +1971,7 @@ var safeWrapping = require('../src/safeWrapping');
         // A host object's: it may hold a member fixed.
       }
       if (!isFixed) return real;
-      return typeof real === 'function' ? safeWrapping.callableTarget() : Object.create(null);
+      return typeof real === 'function' ? safeWrapping.callableTarget(real) : Object.create(null);
     }
 
     // A ground of the recorder's own takes no new members once its value takes none: the engine
@@ -2085,13 +2127,38 @@ var safeWrapping = require('../src/safeWrapping');
 
     // Notes a global that cannot be replaced for every story as its shape, for the quick check to
     // stand it up and judge each story by what its draw asks of it beyond the shape; `road` names
-    // it should a story meet it changed.
-    function keepShape(name, value, road) {
+    // it should a story meet it changed. One native code laid as a run of it ended carries
+    // `laidAfter`, the order of the last entry kept before that run began: the global was not
+    // there at that entry, and is from the end of that run on.
+    //
+    // What lies below the global is never read: an object native answers as it is asked (a host
+    // object) answers the list of its keys and the description of each member itself, and the
+    // language tells it from a plain object by no look that does not ask it. So the recorder
+    // asks nothing of an object below a shaped global that the app did not ask for itself, and
+    // notes each member it left unread, by its handle, once with the shape, for the quick check
+    // to read a miss there: { module: 'global', method: 'shapeCut', args: ['unread'], kind:
+    // 'sync', answer: [handle, ...] }.
+    function keepShape(name, value, road, laidAfter) {
       var shape = shapeOf(name, value);
       shapesKept[name] = { value: value, road: road, written: JSON.stringify(shape) };
+      var note = { module: 'global', method: 'shape', args: [name], kind: 'sync', answer: shape };
+      if (laidAfter !== undefined) note.laidAfter = laidAfter;
+      keep('nativeCalls', note, true);
+      var unread = Object.keys(shape.members).filter(function (key) {
+        return shape.members[key] !== null && shape.members[key].$ === 'native';
+      });
+      if (unread.length === 0) return;
       keep(
         'nativeCalls',
-        { module: 'global', method: 'shape', args: [name], kind: 'sync', answer: shape },
+        {
+          module: 'global',
+          method: 'shapeCut',
+          args: ['unread'],
+          kind: 'sync',
+          answer: unread.map(function (key) {
+            return shape.members[key].handle;
+          }),
+        },
         true
       );
     }
@@ -2197,8 +2264,9 @@ var safeWrapping = require('../src/safeWrapping');
     // a stand-in, else as its shape as first seen, and one holding data as its value. What the
     // bundle read of a native one before it was seen, and kept as it was, stays unseen: that one
     // is a blind road of every story, named by the global alone, and so is every other global
-    // that native code laid, never skipped.
-    function noteNewGlobals(asItRan, names) {
+    // that native code laid, never skipped. One laid as a run ended is noted with `laidAfter`, the
+    // order of the last entry kept before that run began.
+    function noteNewGlobals(asItRan, names, laidAfter) {
       namesWalked = names;
       names.forEach(function (name) {
         if (globalsSeen[name]) return;
@@ -2212,7 +2280,7 @@ var safeWrapping = require('../src/safeWrapping');
         if (!isRecorded && isNative) {
           // The bundle holds it as it is.
           fromNative(description.value, null);
-          keepShape(name, description.value, name);
+          keepShape(name, description.value, name, asItRan ? laidAfter : undefined);
         }
         if (asItRan && isNative) return;
         keepBlindRoadOnce('jsiGlobal', name, true);
@@ -2231,10 +2299,10 @@ var safeWrapping = require('../src/safeWrapping');
     // so a listing the same, name for name in order, holds none not seen; any name laid since,
     // whatever was deleted with it, makes the listing differ, and then every name is walked.
     // The comparison stops at the first difference and reads nothing but the names.
-    function takeUpIfLaid(asItRan) {
+    function takeUpIfLaid(asItRan, laidAfter) {
       var names = namesOfGlobals();
       if (isListedAsWalked(names)) return;
-      noteNewGlobals(asItRan, names);
+      noteNewGlobals(asItRan, names, laidAfter);
     }
 
     function isListedAsWalked(names) {
@@ -2247,8 +2315,98 @@ var safeWrapping = require('../src/safeWrapping');
 
     quietly(watchTurboModuleProxy);
 
+    // THE LOAD'S DRAWS OF CHANCE. No two engines draw alike, so the replay hands the load the
+    // phone's own draws, in the phone's order: each is noted for every story as
+    // { module: 'global', method: 'drawn', args: [], kind: 'sync', answer: <the draw> }. The
+    // language's source (safeWrapping.CHANCE_SOURCE) is wrapped from here to the first story, then
+    // taken off exactly, so the app holds its own untouched function again. A source already
+    // replaced, or one the engine holds to its value, is not wrapped, and a recording past the cap
+    // or of the stop takes the wrap off: each is told once, as { module: 'global', method:
+    // 'drawnNoMore', args: [why], kind: 'sync' }, why 'replaced', 'heldToItsValue' or 'cap', and a
+    // draw the recording does not hold is one the replay cannot answer.
+    // The cap: a load draws a few dozen times (one identifier of 36 characters takes 31 draws), and
+    // every story's recording carries each draw again.
+    var MOST_DRAWS_RECORDED = 256;
+
+    function noteNoMoreDraws(why) {
+      keep(
+        'nativeCalls',
+        { module: 'global', method: 'drawnNoMore', args: [why], kind: 'sync' },
+        true
+      );
+    }
+
+    function noteDraw(drawn) {
+      var chance = recorder.chance;
+      if (chance.drawn >= MOST_DRAWS_RECORDED) {
+        takeOffChanceWrap();
+        noteNoMoreDraws('cap');
+        return;
+      }
+      chance.drawn++;
+      keep(
+        'nativeCalls',
+        { module: 'global', method: 'drawn', args: [], kind: 'sync', answer: serialised(drawn) },
+        true
+      );
+    }
+
+    function wrapChance() {
+      var holder = global[CHANCE_SOURCE.holder];
+      if (!safeWrapping.isObjectOrFunction(holder)) return;
+      var held = Object.getOwnPropertyDescriptor(holder, CHANCE_SOURCE.key);
+      if (!held) return;
+      if (safeWrapping.isHeldToItsValue(holder, CHANCE_SOURCE.key)) {
+        return noteNoMoreDraws('heldToItsValue');
+      }
+      if (!('value' in held) || !isNativeFunction(held.value)) return noteNoMoreDraws('replaced');
+      var chance = recorder.chance;
+      var wrapped = new Proxy(held.value, {
+        apply: function (source, self, args) {
+          var drawn = Reflect.apply(source, self, args);
+          if (chance.wrapped === wrapped) {
+            quietly(function () {
+              noteDraw(drawn);
+            });
+          }
+          return drawn;
+        },
+      });
+      var undo = exactUndo.undoOfWrite(holder, CHANCE_SOURCE.key);
+      Object.defineProperty(holder, CHANCE_SOURCE.key, {
+        value: wrapped,
+        writable: held.writable,
+        enumerable: held.enumerable,
+        configurable: held.configurable,
+      });
+      chance.wrapped = wrapped;
+      chance.undo = function () {
+        var now = Object.getOwnPropertyDescriptor(holder, CHANCE_SOURCE.key);
+        // One the app laid over the wrap since stays: the wrap under it only passes draws on.
+        if (now && now.value === wrapped) undo();
+      };
+    }
+
+    // Takes the wrap off the source of chance, once; it never throws.
+    function takeOffChanceWrap() {
+      var chance = recorder.chance;
+      var undo = chance.undo;
+      chance.undo = null;
+      chance.wrapped = null;
+      if (!undo) return;
+      try {
+        undo();
+      } catch (_) {
+        // A holder that refuses the undo keeps the wrap, which only passes draws on from now.
+      }
+    }
+
+    var CHANCE_SOURCE = safeWrapping.CHANCE_SOURCE;
+    quietly(wrapChance);
+
     // From the first story on, a throw in the recorder stops it as one anywhere else does.
     function startStory(storyId, placeOfView) {
+      takeOffChanceWrap();
       quietly(takeUpBundleGlobals);
       recorder.kept = recorder.kept.filter(function (kept) {
         return kept.story !== storyId;

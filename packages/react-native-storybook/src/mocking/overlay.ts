@@ -81,7 +81,10 @@ function layerOver(fake: ModuleExports, real: () => unknown, realIsInHand: boole
   // Callable when either side is: a Proxy carries `apply` and `construct` only on a callable target.
   const callable =
     typeof fake === 'function' || (realIsInHand && typeof realObject() === 'function');
-  const delegate = callable ? (callableTarget() as unknown as ModuleExports) : {};
+  // The function wrapped: the fake when it is one, else the real, which is then in hand.
+  const delegate = callable
+    ? (callableTarget(typeof fake === 'function' ? fake : realObject()) as unknown as ModuleExports)
+    : {};
 
   // A fake function's prototype is its own, even none: an arrow faking a class component must not
   // read the class's prototype, or React takes it for a class and constructs it.

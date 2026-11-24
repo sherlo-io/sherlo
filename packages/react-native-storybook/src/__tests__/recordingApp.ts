@@ -5,6 +5,8 @@
  */
 import { vi } from 'vitest';
 
+import { rememberStoryOfTheApp } from '../componentNames';
+
 import { builtPolyfillSource } from './builtPolyfill';
 import { CALLABLE_MODULES, callableModulesSource } from './nativeRoadFiles';
 
@@ -68,6 +70,17 @@ export function globalsAtStart(names: string[], recorded: string[] = []) {
     });
 }
 
+// A note the recorder keeps once for every story read from then on (a lookup a story made, a
+// module's method the bundle read), as a story's recording holds it at `order`.
+export function noteForEveryStory(method: string, args: unknown[], answer: unknown, order: number) {
+  return { module: 'global', method, args, kind: 'sync', answer, order, afterPicture: false };
+}
+
+// A method of a test's module as the recorder writes what it is: a function of JavaScript source.
+export function methodKind(name: string, length = 0) {
+  return { type: 'function', native: false, name, length };
+}
+
 // A function as native code makes it: the engine does not show its source.
 export function nativeFunction<T extends object>(implementation: T): T {
   return new Proxy(implementation, {});
@@ -85,7 +98,8 @@ export type App = {
 // UI manager, the old one does not. `readOnly` globals are installed as native code installs a
 // global the app cannot replace, `notEnumerated` ones as a native side installs a global it does
 // not enumerate; the registration of callable modules runs unless left out, from
-// `callableModules` when given.
+// `callableModules` when given. Sherlo's native module says `mode` in its constants, with
+// `sdkConstants` beside it.
 export function startAppIn(
   mode: string,
   architecture: 'new' | 'old',
@@ -96,6 +110,7 @@ export function startAppIn(
     engine?: Record<string, unknown>;
     withoutCallableRoad?: boolean;
     callableModules?: string;
+    sdkConstants?: Record<string, unknown>;
   } = {}
 ) {
   const app: App = {
@@ -112,7 +127,9 @@ export function startAppIn(
   Object.assign(app.fakeGlobal, {
     __turboModuleProxy: (name: string) =>
       app.fakeGlobal.nativeModulesOfTheTest[name] ??
-      (name === 'SherloModule' ? { getSherloConstants: () => ({ mode }) } : null),
+      (name === 'SherloModule'
+        ? { getSherloConstants: () => ({ mode, ...options.sdkConstants }) }
+        : null),
     __d: vi.fn(),
     eventsReactRan: [],
     nativeModulesOfTheTest: {},
@@ -151,6 +168,12 @@ export function startAppIn(
     app.callableModule = (name) => callables.registered[name]();
   }
   return app;
+}
+
+// After each test: the recorder its app handed the SDK and the story it was on are forgotten.
+export function forgetTheRecorder() {
+  delete (globalThis as { __sherloNativeRecorder?: unknown }).__sherloNativeRecorder;
+  rememberStoryOfTheApp(undefined);
 }
 
 // Runs one file of the app as the bundle would, after the transformer marked it.

@@ -35,12 +35,15 @@ import {
   CALLS_AT_START,
   DATA_ENTRIES_AT_START,
   ENTRIES_AT_START,
+  forgetTheRecorder,
   GLOBALS_OF_A_NEW_APP,
   globalsAtStart,
   KINDS_AT_START,
   LIST_ENTRY_AT_START,
   MADE_BY_THE_BUNDLE,
+  methodKind,
   nativeFunction,
+  noteForEveryStory,
   runFile,
   startAppIn,
 } from './recordingApp';
@@ -69,10 +72,7 @@ function lastCallsAfterBridgeRead(app: App, storyId: string, count: number) {
     .slice(-count);
 }
 
-afterEach(() => {
-  delete (globalThis as { __sherloNativeRecorder?: unknown }).__sherloNativeRecorder;
-  rememberStoryOfTheApp(undefined);
-});
+afterEach(forgetTheRecorder);
 
 describe('what the app records for each story', () => {
   it('a test run records every native module call with its answer for each story and device setup', async () => {
@@ -104,6 +104,7 @@ describe('what the app records for each story', () => {
     expect(registry.get('Missing')).toBeNull();
 
     // Sherlo's own module is the SDK talking, not the story: neither its lookup nor its calls.
+    // Each lookup the story made and each method it read is noted for every later story too.
     expect(storyRecordingOf('buttons--primary')?.nativeCalls).toEqual([
       ...CALLS_AT_START,
       {
@@ -115,15 +116,18 @@ describe('what the app records for each story', () => {
         order: 5,
         afterPicture: false,
       },
+      noteForEveryStory('lookedUp', ['__turboModuleProxy', 'Clipboard'], { $: 'module' }, 6),
+      noteForEveryStory('memberRead', ['Clipboard', 'getString'], methodKind('getString'), 7),
       {
         module: 'Clipboard',
         method: 'getString',
         args: ['plain'],
         kind: 'sync',
         answer: 'copied',
-        order: 6,
+        order: 8,
         afterPicture: false,
       },
+      noteForEveryStory('memberRead', ['Clipboard', 'hasStrings'], methodKind('hasStrings', 1), 9),
       {
         module: 'Clipboard',
         method: 'hasStrings',
@@ -131,25 +135,27 @@ describe('what the app records for each story', () => {
         kind: 'async',
         answer: { $: 'undefined' },
         callbacks: [{ arg: 0, args: ['yes'] }],
-        order: 7,
+        order: 10,
         afterPicture: false,
       },
+      noteForEveryStory('memberRead', ['Clipboard', 'getImage'], methodKind('getImage'), 11),
       {
         module: 'Clipboard',
         method: 'getImage',
         args: [],
         kind: 'async',
         answer: { width: 2 },
-        order: 8,
+        order: 12,
         afterPicture: false,
       },
+      noteForEveryStory('memberRead', ['Clipboard', 'setString'], methodKind('setString'), 13),
       {
         module: 'Clipboard',
         method: 'setString',
         args: [{ $: 'undefined' }],
         kind: 'sync',
         threw: { $: 'error', name: 'Error', message: 'no clipboard', code: null },
-        order: 9,
+        order: 14,
         afterPicture: false,
       },
       {
@@ -158,12 +164,14 @@ describe('what the app records for each story', () => {
         args: ['Missing'],
         kind: 'sync',
         answer: null,
-        order: 10,
+        order: 15,
         afterPicture: false,
       },
+      noteForEveryStory('lookedUp', ['__turboModuleProxy', 'Missing'], null, 16),
     ]);
 
-    // The next story keeps its own calls; the first story's stay as they were.
+    // The next story keeps its own calls, and is handed what the first learned; the first
+    // story's stay as they were.
     startStoryRecording('buttons--secondary');
     registry.get('Clipboard').getString('rich');
     expect(
@@ -173,10 +181,16 @@ describe('what the app records for each story', () => {
       ])
     ).toEqual([
       ...ENTRIES_AT_START.map(([module, method]) => [module, method]),
+      ['global', 'lookedUp'],
+      ['global', 'memberRead'],
+      ['global', 'memberRead'],
+      ['global', 'memberRead'],
+      ['global', 'memberRead'],
+      ['global', 'lookedUp'],
       ['__turboModuleProxy', 'lookup'],
       ['Clipboard', 'getString'],
     ]);
-    expect(storyRecordingOf('buttons--primary')?.nativeCalls).toHaveLength(9);
+    expect(storyRecordingOf('buttons--primary')?.nativeCalls).toHaveLength(15);
 
     // Each device setup is its own launch, with a recording of its own.
     const darkApp = startAppIn('testing', 'new');
@@ -186,6 +200,8 @@ describe('what the app records for each story', () => {
     expect(storyRecordingOf('buttons--primary')?.nativeCalls.map(({ answer }) => answer)).toEqual([
       ...ENTRIES_AT_START.map(([, , , answer]) => answer),
       { $: 'module' },
+      { $: 'module' },
+      methodKind('getString'),
       'dark',
     ]);
   });
@@ -252,6 +268,8 @@ describe('what the app records for each story', () => {
     ).toEqual([
       ...CALLS_AT_START.map(({ method, afterPicture }) => [method, afterPicture]),
       ['lookup', true],
+      ['lookedUp', true],
+      ['memberRead', true],
       ['impact', true],
     ]);
   });
@@ -606,6 +624,54 @@ describe('what the app records for each story', () => {
     expect(touched).toEqual([]);
   });
 
+  it('nothing below a global that cannot be replaced is read by the recorder, at load or as a story starts or is read, and the recording names what it left unread', () => {
+    // An object whose members native answers as they are asked for: each ask is counted.
+    const asked: string[] = [];
+    const answeredByNative = new Proxy(Object.create(null), {
+      get: (target, key) => {
+        asked.push(`a read of ${String(key)}`);
+        return Reflect.get(target, key);
+      },
+      ownKeys: (target) => {
+        asked.push('a list of its keys');
+        return Reflect.ownKeys(target);
+      },
+      getOwnPropertyDescriptor: (target, key) => {
+        asked.push(`a description of ${String(key)}`);
+        return Reflect.getOwnPropertyDescriptor(target, key);
+      },
+      getPrototypeOf: (target) => {
+        asked.push('its prototype');
+        return Reflect.getPrototypeOf(target);
+      },
+      has: (target, key) => {
+        asked.push(`a check of ${String(key)}`);
+        return Reflect.has(target, key);
+      },
+    });
+    const core = { version: '5', modules: answeredByNative, ping: nativeFunction(() => 'pong') };
+    const app = startAppIn('testing', 'new', {}, { readOnly: { appCore: core } });
+    runFile(app, FABRIC_RENDERER, rendererSource);
+
+    startStoryRecording('core--first');
+    expect(storyRecordingOf('core--first')).toBeDefined();
+    startStoryRecording('core--second');
+    expect(storyRecordingOf('core--second')).toBeDefined();
+    expect(asked).toEqual([]);
+
+    // What the recorder left unread below the global, for the quick check to read a miss there.
+    const unread = (storyId: string) =>
+      storyRecordingOf(storyId)
+        ?.nativeCalls.filter(({ module, method }) => module === 'global' && method === 'shapeCut')
+        .map(({ args, answer }) => [args, answer]);
+    expect(unread('core--first')).toEqual([[['unread'], ['appCore.modules', 'appCore.ping']]]);
+    expect(unread('core--second')).toEqual(unread('core--first'));
+
+    // The app's own read asks native, as it would with no recorder.
+    expect(app.fakeGlobal.appCore.modules.Camera).toBeUndefined();
+    expect(asked).toEqual(['a read of Camera']);
+  });
+
   it('a module lookup is recorded present or absent whichever way it is asked', () => {
     // A library's module table, as native code installs it on a global of its own.
     const library = Object.create(null);
@@ -633,6 +699,7 @@ describe('what the app records for each story', () => {
     expect('Camera' in modules).toBe(true);
 
     const module = { $: 'module' };
+    // Each lookup is also noted once for the stories after it, whichever way it was made.
     expect(
       storyRecordingOf('camera--ready')?.nativeCalls.map(({ module, method, args, answer }) => [
         module,
@@ -645,11 +712,16 @@ describe('what the app records for each story', () => {
       ['global', 'installed', ['library'], { $: 'native', handle: 'library', type: 'object' }],
       LIST_ENTRY_AT_START,
       ['__turboModuleProxy', 'lookup', ['Clipboard'], module],
+      ['global', 'lookedUp', ['__turboModuleProxy', 'Clipboard'], module],
       ['__turboModuleProxy', 'lookup', ['Clipboard'], module],
       ['__turboModuleProxy', 'lookup', ['Torch'], null],
+      ['global', 'lookedUp', ['__turboModuleProxy', 'Torch'], null],
       ['nativeModuleProxy', 'lookup', ['Haptics'], module],
+      ['global', 'lookedUp', ['nativeModuleProxy', 'Haptics'], module],
+      ['global', 'memberRead', ['Haptics', 'impact'], methodKind('impact')],
       ['Haptics', 'impact', [], true],
       ['nativeModuleProxy', 'lookup', ['Lidar'], null],
+      ['global', 'lookedUp', ['nativeModuleProxy', 'Lidar'], null],
       ['nativeModuleProxy', 'has', ['Haptics'], true],
       ['nativeModuleProxy', 'has', ['Lidar'], false],
       ['library', 'get', ['modules'], { $: 'native', handle: '#1', type: 'object' }],
@@ -657,6 +729,57 @@ describe('what the app records for each story', () => {
       ['#1', 'get', ['Scanner'], { $: 'undefined' }],
       ['#1', 'has', ['Camera'], true],
     ]);
+  });
+
+  it("a module's method the bundle reads but never calls is recorded with what it is, once, for every story from then on", () => {
+    const app = startAppIn('testing', 'new');
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      Clipboard: { getString: (kind: string) => kind, hasStrings: () => true },
+    };
+    const clipboard = runFile(app, TURBO_MODULE_REGISTRY, registrySource).get('Clipboard');
+    // The bundle as it loads: it reads a method to keep, and calls none.
+    const { getString } = clipboard;
+    expect(typeof getString).toBe('function');
+
+    startStoryRecording('clipboard--first');
+    expect(typeof clipboard.getString).toBe('function');
+    startStoryRecording('clipboard--second');
+    const memberReadsOf = (storyId: string) =>
+      storyRecordingOf(storyId)
+        ?.nativeCalls.filter(({ method }) => method === 'memberRead')
+        .map(({ args, answer }) => [args, answer]);
+    expect(memberReadsOf('clipboard--first')).toEqual([
+      [['Clipboard', 'getString'], methodKind('getString', 1)],
+    ]);
+    expect(memberReadsOf('clipboard--second')).toEqual(memberReadsOf('clipboard--first'));
+  });
+
+  it("every function the recorder hands the app in place of the phone's carries the phone's own name and length", () => {
+    function getString(_kind: unknown) {
+      return 'copied';
+    }
+    function start(_options: unknown, _done: unknown) {
+      return undefined;
+    }
+    let handed: any;
+    function listen(callback: unknown) {
+      handed = callback;
+    }
+    const uploader = Object.create(null);
+    uploader.start = nativeFunction(start);
+    const app = startAppIn('testing', 'new', { uploader });
+    app.fakeGlobal.nativeModulesOfTheTest = { Clipboard: { getString, listen } };
+    const clipboard = runFile(app, TURBO_MODULE_REGISTRY, registrySource).get('Clipboard');
+    startStoryRecording('names--kept');
+
+    const nameAndLength = (value: { name: string; length: number }) => [value.name, value.length];
+    expect(nameAndLength(clipboard.getString)).toEqual(['getString', 1]);
+    expect(nameAndLength(app.fakeGlobal.uploader.start)).toEqual(['start', 2]);
+    // The lookup the recorder lays over the phone's, as the test's app lays it.
+    expect(nameAndLength(app.fakeGlobal.__turboModuleProxy)).toEqual(['__turboModuleProxy', 1]);
+    // A function the app hands native reaches native with its own name and length too.
+    clipboard.listen(function onCopy(_text: unknown) {});
+    expect(nameAndLength(handed)).toEqual(['onCopy', 1]);
   });
 
   it('a function nested in an argument to native is recorded as a callback, and native calling it is recorded', () => {
@@ -870,6 +993,37 @@ describe('what the app records for each story', () => {
       // Laid as the lookup ran, so taken up as it ended.
       ['global', 'installed', ['coreBridge']],
       ['coreBridge', 'get', ['Emitter']],
+    ]);
+  });
+
+  it('a global that cannot be replaced laid while native code answers a lookup has its shape noted with the last entry before that lookup', () => {
+    const app = startAppIn('testing', 'new');
+    runFile(app, FABRIC_RENDERER, rendererSource);
+    app.fakeGlobal.nativeModulesOfTheTest = {
+      get Installer() {
+        Object.defineProperty(app.fakeGlobal, 'appCore', {
+          value: { ping: nativeFunction(() => 'pong') },
+          enumerable: true,
+          writable: false,
+        });
+        return {};
+      },
+    };
+    const registry = runFile(app, TURBO_MODULE_REGISTRY, registrySource);
+    expect(registry.get('Installer')).toBeTruthy();
+
+    startStoryRecording('core--laid');
+    // The global was not there at the lookup's own entry, the last one kept before native ran,
+    // and is from the lookup's end on.
+    const calls = storyRecordingOf('core--laid')?.nativeCalls ?? [];
+    expect(
+      calls
+        .slice(-3)
+        .map(({ method, args, order, laidAfter }: any) => [method, args, order, laidAfter])
+    ).toEqual([
+      ['lookup', ['Installer'], 5, undefined],
+      ['shape', ['appCore'], 6, 5],
+      ['shapeCut', ['unread'], 7, undefined],
     ]);
   });
 
