@@ -83,18 +83,11 @@ export function renderFailedStepLine(name: string): string[] {
 export function renderNextSteps({
   storybook,
   isExpo,
-  exportsServerRoutes,
   reader,
 }: {
   storybook: 'installed' | 'default-setup' | 'example-stories' | 'old-setup';
   /** Expo registers the root with `registerRootComponent`, a bare app with `AppRegistry`. */
   isExpo: boolean;
-  /**
-   * Expo Router with `web.output` "server" in app.json, as the default Expo 58 app has it: a release
-   * build exports every route for the server too, and fails on Storybook imported in the root layout
-   * ("__fbBatchedBridgeConfig is not set", proven on Expo 58, spike sherlo-modes-matrix).
-   */
-  exportsServerRoutes: boolean;
   reader: FeedbackReader;
 }): string[] {
   // NOTHING LEFT BUT THE TEST, FOR A PERSON: setup starts it, so nobody leaves it for later. The
@@ -151,21 +144,15 @@ export function renderNextSteps({
       `  ${chalk.cyan(STORYBOOK_SETUP_GUIDE)}`,
     ],
   });
-  // THE CHOICE STAYS ON THE SCREEN, CLOSED WHERE IT CANNOT WORK: an app that exports its routes for
-  // the server fails its release build with Storybook in the root layout, so b) says why, not how.
-  const keepSetupChoice = exportsServerRoutes
-    ? [
-        chalk.bold('b) In-app integration'),
-        `   Not for this app: with ${renderCode('"output": "server"')} in app.json, the release build fails`,
-        "   on Storybook's import in your root layout.",
-      ]
-    : [
-        chalk.bold('b) In-app integration'),
-        '   At the top of your root component, add:',
-        `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
-        `     ${renderCode("import Storybook from './.rnstorybook';")}`,
-        `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
-      ];
+  // BOTH CHOICES WORK ON EVERY APP (operator, 2026-11-24, Q24): Sherlo's build is Storybook alone
+  // either way, so an app that exports its routes for the server builds it too.
+  const keepSetupChoice = [
+    chalk.bold('b) In-app integration'),
+    '   At the top of your root component, add:',
+    `     ${renderCode("import { isStorybookMode } from '@sherlo/react-native-storybook';")}`,
+    `     ${renderCode("import Storybook from './.rnstorybook';")}`,
+    `     ${renderCode('if (isStorybookMode) return <Storybook />;')}`,
+  ];
 
   // EVERY STEP IS A TITLE AND ITS CONTENT: a bold line saying what, then indented lines in plain
   // weight, nothing dimmed, so a recommendation reads as clearly as the step it sits in.
