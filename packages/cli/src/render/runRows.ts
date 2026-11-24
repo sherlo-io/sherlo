@@ -355,10 +355,7 @@ function underTheRow(lines: string[]): string[] {
  */
 function storyFilesCaptured(capture: PlatformCapture[]): string[] {
   const added = filesOfEveryPlatform(capture, ({ newStoryFiles }) => newStoryFiles);
-  // A first look compared nothing: its files are not "changed".
-  const changed = filesOfEveryPlatform(capture, ({ changedStoryFiles, firstLook }) =>
-    firstLook ? [] : changedStoryFiles
-  );
+  const changed = filesOfEveryPlatform(capture, ({ changedStoryFiles }) => changedStoryFiles);
   const captured = filesOfEveryPlatform(capture, ({ storyFiles }) => storyFiles);
 
   const everyPlatform = capture.length;

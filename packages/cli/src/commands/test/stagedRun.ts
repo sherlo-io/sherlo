@@ -38,6 +38,7 @@ import { baseFingerprintsOf } from '../../helpers/fingerprint/baseFingerprintsOf
 import type { GitInfo } from '../../helpers/getGitInfo';
 import { readHoldingSegments } from '../../helpers/transcriptSink';
 import { phoneSidesOf } from '../../helpers/phoneSidesOf';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import { THIS_COMMAND } from './constants';
 import type { BundleResult } from './buildBundle';
 import { checkGate, type GateAnswers } from './askTheStagedGate';
@@ -105,7 +106,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
         'No devices configured. Add devices in sherlo.config.json to test on specific platforms.'
       )
     );
-    await reporting.flush().finally(() => process.exit(1));
+    await reporting.flush().finally(() => exitAfterOutput(1));
   }
 
   // 3. Compute the base fingerprint - identifies which app build to stage
@@ -325,7 +326,7 @@ async function stagedRun(passedOptions: Options<THIS_COMMAND>): Promise<{ url: s
     if (!(error instanceof StagedSlotMissingError)) throw error;
 
     console.log(chalk.red(`\n${error.message}`));
-    await reporting.flush().finally(() => process.exit(1));
+    await reporting.flush().finally(() => exitAfterOutput(1));
     return { url: '' }; // unreachable - satisfies control flow when exit is stubbed
   }
 

@@ -139,6 +139,84 @@ export type SealedCoreHost = {
   causeOfCrash?: (id: string) => StoryError;
   /** Whether `url` is an asset the bundler itself serves: a file of the app, no network image. */
   isBundlerAssetUrl?: (url: string) => boolean;
+  /**
+   * What the phone did for the story `storyId` so far, read as the core asks for its picture: the
+   * first read marks the picture moment, and a later read marks each call made after it. Undefined
+   * outside a test run and on the old architecture, where nothing is recorded.
+   */
+  storyRecordingOf?: (storyId: string) => StoryRecording | undefined;
+};
+
+/* ---- What the phone did for one story -------------------------------------------------------- */
+
+/**
+ * What the real phone did for one story during a capture: every call to native code, every event a
+ * native view sent back, the commits, the moment of the picture and the roads it could not record.
+ * The quick check replays it. No library is named in it. Every order number counts from 0 across
+ * calls, events, commits, blind roads and the picture together.
+ */
+export type StoryRecording = {
+  /** The blind roads the story touched: any one makes the story captured, never vouched for. */
+  blindRoads: RecordedBlindRoad[];
+  /** The order numbers at which React committed the tree, in order. */
+  commits: number[];
+  /** Every native module call the story made, in the order made. */
+  nativeCalls: RecordedNativeCall[];
+  /** The order number at which the picture was taken: a call with a higher number is marked `afterPicture`. */
+  pictureAt: number;
+  /** The story's id as Storybook names it. */
+  storyId: string;
+  /** Every event a native view sent to JS during the story, in the order sent. */
+  viewEvents: RecordedViewEvent[];
+};
+
+/**
+ * One call from JS to a native module, with what native answered. A constant a module carries is
+ * written as a call of that name with no arguments, and finding a module as a call of the lookup.
+ */
+export type RecordedNativeCall = {
+  /** True when the call came after the picture was taken. */
+  afterPicture: boolean;
+  /** The arguments as the call passed them, written as plain JSON values. */
+  args: unknown[];
+  /** Whether the call returned at once (`sync`) or answered later (`async`: a promise or a callback). */
+  kind: 'async' | 'sync';
+  /** The module's method that was called. */
+  method: string;
+  /** The native module's name as the app asked for it. */
+  module: string;
+  /** This call's place in the recording's one order. */
+  order: number;
+  /** What native returned, or what the promise resolved with; none when it threw. */
+  answer?: unknown;
+  /** The callbacks native called, each with the index of the argument it was and what it was given. */
+  callbacks?: { args: unknown[]; arg: number }[];
+  /** The error native threw or the promise rejected with, as a plain JSON value. */
+  threw?: unknown;
+};
+
+/** One event a native view sent to JS. */
+export type RecordedViewEvent = {
+  /** The native view's component name, as the app's tree holds it. */
+  component: string;
+  /** The event as native names it. */
+  event: string;
+  /** This event's place in the recording's one order, so its place among the commits is known. */
+  order: number;
+  /** What the event carried, as a plain JSON value. */
+  payload: unknown;
+  /** The view's place under the story's root: the child index at each level down; null when outside the story. */
+  place: number[] | null;
+};
+
+/** A road native code can be reached by that the recorder cannot write down. */
+export type RecordedBlindRoad = {
+  /** What kind of road it was: a worklet runtime, a global a library installed, an Expo call that skipped the usual lookup, or an Expo native event. */
+  kind: 'expoNativeEvent' | 'expoSkippedLookup' | 'jsiGlobal' | 'workletRuntime';
+  /** This road's place in the recording's one order. */
+  order: number;
+  /** The global's or the module's name, when there is one. */
+  name?: string;
 };
 
 /**
@@ -440,6 +518,8 @@ export type RequestSnapshotProtocolItem = {
     insetBottom: number;
     insetTop: number;
   };
+  /** What the phone did for the story (`storyRecordingOf`); none on a phone that cannot record. */
+  recording?: StoryRecording;
 };
 
 /* The runner's answers on the file road, where it writes them into the app's protocol file. */

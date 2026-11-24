@@ -21,6 +21,7 @@ import { throwError } from '../../helpers';
 import { readPort } from '../../helpers/readPort';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import { letterbox } from '../../seams/letterbox';
 import {
   appIsInstalled,
@@ -75,7 +76,7 @@ async function open(passedOptions: OpenOptions): Promise<void> {
 
   // A story that is not on screen is the one failure a caller has to be able to branch on, and it
   // is not an error in the tool - the screen above already said what happened, in its own words.
-  if (!storyIsOnScreen(state)) process.exit(EXIT_BLOCK);
+  if (!storyIsOnScreen(state)) await exitAfterOutput(EXIT_BLOCK);
 }
 
 export default open;
@@ -109,7 +110,7 @@ async function openScene(sceneId: string, passedOptions: OpenOptions): Promise<v
     await restore?.();
   }
 
-  if (answer.kind !== 'scene-opened') process.exit(EXIT_BLOCK);
+  if (answer.kind !== 'scene-opened') await exitAfterOutput(EXIT_BLOCK);
 }
 
 /** What the screen shows for what the letterbox answered about a scene. */

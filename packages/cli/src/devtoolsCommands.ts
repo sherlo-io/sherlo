@@ -53,6 +53,6 @@ export function addDevtoolsCommands(program: Command) {
     .action(async (actionOptions: { projectRoot?: string; configPath?: string }) => {
       const { mask } = await import('./commands/pose/maskScreen');
 
-      mask(actionOptions);
+      await mask(actionOptions);
     });
 }

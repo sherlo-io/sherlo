@@ -1,5 +1,5 @@
 import { BaseSourceList, Platform } from '@sherlo/api-types';
-import logWarning from './logWarning';
+import { stageModuleMapsOfBuiltApps } from './stageModuleMapsOfBuiltApps';
 import { phoneSidesOf } from './phoneSidesOf';
 import { PLATFORM_LABEL, TEST_COMMAND } from '../constants';
 import { CommandParams } from '../types';
@@ -18,7 +18,6 @@ import {
 import { type AppBuildAccount, pushFactsOf } from '../commands/test/appBuild/pushFacts';
 import { printTestStarted, serverClosedTheTest } from '../commands/test/startTheTest';
 import { waitForQuickCheck } from '../commands/test/waitForQuickCheck';
-import { firstLookOf } from '../commands/test/firstLook';
 import { buildSettingsDigestsOf, readBuildSettings } from '../commands/test/appBuild/buildSettings';
 import { joinTheRun } from '../commands/test/appBuild/joinTheRun';
 import type { PlatformRow } from '../render/runRows';
@@ -265,13 +264,6 @@ async function uploadOrReuseBuildsAndRunTests({
       }
     }
   }
-  if (builtWithoutFingerprint.length > 0) {
-    logWarning({
-      message:
-        `Fingerprint skipped - ${whyNoFingerprint(builtWithoutFingerprint[0])}. The app ` +
-        'this run built is tested with its own JS bundle, and it is not kept in the build cache.',
-    });
-  }
 
   // A split job's test names every device of the test, so the platform the other job brings is
   // waited for rather than left out; a platform with no app build here carries the async-upload
@@ -283,6 +275,13 @@ async function uploadOrReuseBuildsAndRunTests({
       ios: binariesInfo.ios?.s3Key,
     },
     ...(splitJob ? { wholeTest: true } : {}),
+  });
+  // An app built here with no fingerprint has no fresh bundle, so its module map is made apart.
+  await stageModuleMapsOfBuiltApps({
+    platforms: builtWithoutFingerprint,
+    whyNoFingerprint,
+    buildRunConfig,
+    commandParams,
   });
 
   // A BUNDLED PLATFORM RENDERS ITS FRESHLY BUILT BUNDLE, OR THE RUN DOES NOT START.
@@ -362,16 +361,7 @@ async function uploadOrReuseBuildsAndRunTests({
   });
 
   const moduleManifests = collectModuleManifests(freshBundles, platformsWithBundles);
-  // A joined run is sent no first look: joinBuild takes none (../commands/test/firstLook).
-  const firstLook = splitJob
-    ? undefined
-    : firstLookOf({
-        allStories: commandParams.allStories,
-        projectRoot: commandParams.projectRoot,
-        moduleManifests,
-      });
   const opened = await io.openBuild({
-    ...(firstLook ? { firstLook } : {}),
     teamId,
     projectIndex,
     binaryHashes: {

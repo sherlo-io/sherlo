@@ -46,21 +46,6 @@ describe('the story files listed under a started test', () => {
       'Sanity/Hello (1 story)',
     ]);
   });
-
-  it('a first look lists its stories with no changed mark', () => {
-    const rows = storyFileRows([
-      {
-        ...CAPTURED,
-        full: false,
-        firstLook: true,
-        capturedStories: 1,
-        newStoryFiles: [],
-        storyFiles: ['Hello.stories.tsx'],
-        changedStoryFiles: ['Hello.stories.tsx'],
-      },
-    ]);
-    expect(rows.map((row) => row.trim())).toEqual(['Sanity/Hello (1 story)']);
-  });
 });
 
 describe('the lines under a started test', () => {

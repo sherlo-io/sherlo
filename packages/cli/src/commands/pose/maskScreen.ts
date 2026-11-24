@@ -31,6 +31,7 @@
 /* eslint-disable no-control-regex */
 import fs from 'fs';
 import { GITHUB_SESSION_PREFIX } from '../../constants';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import { foldAndroidBuild, foldIosBuild } from './foldNativeBuilds';
 import { foldAppBundleStep } from './foldAppBundleStep';
 import { COLOR_ESCAPE, ESCAPE, ESCAPE_AWARE_BOUNDARY, visible } from './maskPatterns';
@@ -102,9 +103,9 @@ export function maskScreen(screen: string, context: MaskContext): string {
  * byte for byte what {@link applyMasks} would have produced for the same screen, because both go
  * through {@link maskScreen} and nothing else in this tool folds anything.
  */
-export function mask(context: MaskContext): void {
+export async function mask(context: MaskContext): Promise<void> {
   process.stdout.write(maskScreen(readStdin(), context));
-  process.exit(0);
+  await exitAfterOutput(0);
 }
 
 export default mask;

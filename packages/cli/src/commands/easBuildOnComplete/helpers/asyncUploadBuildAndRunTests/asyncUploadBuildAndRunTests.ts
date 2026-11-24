@@ -1,7 +1,5 @@
 import path from 'path';
-import zlib from 'zlib';
 import { Platform } from '@sherlo/api-types';
-import { PLATFORM_LABEL } from '../../../../constants';
 import {
   getAppBuildUrl,
   getCwd,
@@ -22,12 +20,8 @@ import { nativeBuild } from '../../../../seams/nativeBuild';
 import { serverCalls } from '../../../../seams/serverCalls';
 import { rowsAbove, printPlatformRowInALog } from '../../../test/platformRows';
 import { pushFactsPlatformOf } from '../../../test/appBuild/pushFacts';
-import {
-  countBundleStories,
-  readValidatedModuleManifest,
-  type ValidatedModuleManifest,
-} from '../../../test/readModuleManifest';
-import { putBuffer, type StagedUploadUrlsWithManifest } from '../../../test/uploadStagedArtifacts';
+import { countBundleStories, readValidatedModuleManifest } from '../../../test/readModuleManifest';
+import { stageTheModuleMap } from '../../../test/stageTheModuleMap';
 import { THIS_COMMAND } from '../../constants';
 import getBuildPath from './getBuildPath';
 
@@ -209,60 +203,3 @@ async function asyncUploadBuildAndRunTests({
 }
 
 export default asyncUploadBuildAndRunTests;
-
-/* ========================================================================== */
-
-/**
- * THE MODULE MAP THE EAS BUILD WROTE, staged where the service offers it, so the run captures only
- * what changed, as Diff Scope does on every other road. The Sherlo bundler step wrote it into the
- * project while EAS bundled the app; it is read the way every other road reads it and uploaded the
- * way every other staged module map is (../../../test/uploadStagedArtifacts). Answers the staged
- * key, or undefined when there is no map or no slot for it.
- *
- * BAIL-OPEN, as on every road: a missing or broken map, or one that fails to upload, costs the run
- * its narrowing - it captures every story - and never fails the hook.
- */
-async function stageTheModuleMap({
-  moduleMap,
-  platform,
-  ticket,
-  teamId,
-  projectIndex,
-}: {
-  /** The module map the EAS build wrote; none when there is none to stage. */
-  moduleMap: ValidatedModuleManifest | null;
-  platform: Platform;
-  ticket: string;
-  teamId: string;
-  projectIndex: number;
-}): Promise<string | undefined> {
-  if (!moduleMap) return undefined;
-
-  try {
-    const { stagedPresignedUploadUrls } = await serverCalls().getStagedUploadUrls({
-      token: ticket,
-      platforms: [platform],
-      projectIndex,
-      teamId,
-    });
-    const slot = (stagedPresignedUploadUrls[platform] as StagedUploadUrlsWithManifest | undefined)
-      ?.manifest;
-    if (!slot) return undefined;
-
-    await putBuffer({
-      platform,
-      label: 'module manifest',
-      uploadUrl: slot.url,
-      buffer: zlib.gzipSync(moduleMap.raw),
-    });
-    return slot.s3Key;
-  } catch (error) {
-    logWarning({
-      message:
-        `Failed to upload the ${PLATFORM_LABEL[platform]} module manifest ` +
-        `(${error instanceof Error ? error.message : String(error)}); ` +
-        'continuing without it.',
-    });
-    return undefined;
-  }
-}

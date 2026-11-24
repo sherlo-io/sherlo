@@ -37,6 +37,7 @@ import zlib from 'zlib';
 import { Platform } from '@sherlo/api-types';
 import chalk from 'chalk';
 import { Options } from '../../types';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import {
   getBuildRunConfig,
   getGitInfo,
@@ -97,7 +98,7 @@ async function simRun(
         'No devices configured. Add devices in sherlo.config.json to test on specific platforms.'
       )
     );
-    await reporting.flush().finally(() => process.exit(1));
+    await reporting.flush().finally(() => exitAfterOutput(1));
   }
 
   console.log(chalk.bold(`\n🧪 Sim mode: testing the declared world (${world.dirPath})...\n`));
