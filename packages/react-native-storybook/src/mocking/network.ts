@@ -5,6 +5,7 @@ import { RecordRefusal, setNetworkMocks, unmatchedRequestVerdict } from './netwo
 import { TurboModule, TurboModuleRegistry } from 'react-native';
 import { holdNativeSockets, NativeSocketModule } from './networkSocket';
 import { isACapture } from './stillReal';
+import { appsOwn, installReplacement, isReplaced, restoreOriginal } from './replacedGlobals';
 import { handRulesToNative, listenForNativeUnanswered } from './networkNative';
 import { isBundlerSocketUrl } from '../bundlerOrigin';
 import SherloModule from '../SherloModule';
@@ -25,9 +26,6 @@ type NetworkGlobals = {
   fetch: typeof fetch;
   XMLHttpRequest?: XhrClass;
 };
-
-/** What was replaced, kept so it can be put back. Null whenever nothing is replaced. */
-let realNetwork: NetworkGlobals | null = null;
 
 // Stops hearing the requests native code met that no rule matches, while the wrappers are in.
 let stopListeningToNative: () => void = () => {};
@@ -110,7 +108,7 @@ export function sherloFetch(
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1]
 ): Promise<Response> {
-  return (realNetwork?.fetch ?? globalThis.fetch)(input, init);
+  return (appsOwn(globalThis, 'fetch') as typeof fetch)(input, init);
 }
 
 /** Put the real fetch and XMLHttpRequest back, and leave no rules in effect. */
@@ -121,25 +119,23 @@ export function clearNetworkMocks(): void {
 }
 
 function install(): void {
-  if (realNetwork) return;
+  if (isReplaced(globalThis, 'fetch')) return;
 
   const globals = globalThis as unknown as NetworkGlobals;
-  realNetwork = { fetch: globals.fetch, XMLHttpRequest: globals.XMLHttpRequest };
+  const realXhr = globals.XMLHttpRequest;
   stopListeningToNative = listenForNativeUnanswered();
 
-  globals.fetch = mockedFetchOf(realNetwork.fetch);
+  installReplacement(globals, 'fetch', mockedFetchOf(globals.fetch));
   // A runtime without XMLHttpRequest has nothing to wrap; fetch alone still answers.
-  if (realNetwork.XMLHttpRequest) globals.XMLHttpRequest = mockedXhrOf(realNetwork.XMLHttpRequest);
+  if (realXhr) installReplacement(globals, 'XMLHttpRequest', mockedXhrOf(realXhr));
 }
 
 function restore(): void {
-  if (!realNetwork) return;
+  if (!isReplaced(globalThis, 'fetch')) return;
 
-  const globals = globalThis as unknown as NetworkGlobals;
-  globals.fetch = realNetwork.fetch;
-  if (realNetwork.XMLHttpRequest) globals.XMLHttpRequest = realNetwork.XMLHttpRequest;
+  restoreOriginal(globalThis, 'fetch');
+  restoreOriginal(globalThis, 'XMLHttpRequest');
 
   stopListeningToNative();
   stopListeningToNative = () => {};
-  realNetwork = null;
 }

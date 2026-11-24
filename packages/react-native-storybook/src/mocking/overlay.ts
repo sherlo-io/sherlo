@@ -1,4 +1,5 @@
 import { callableTarget, isObjectOrFunction } from '../safeWrapping';
+import { undoOfWrite } from './exactUndo';
 import { isPlainObject } from './mergeDefinitions';
 import { partialFake } from './mergeMocks';
 import { recordUndo } from './registry';
@@ -12,14 +13,9 @@ export function writeUndoably(
   prop: PropertyKey,
   write: () => boolean
 ): boolean {
-  const before = Reflect.getOwnPropertyDescriptor(object, prop);
+  const undo = undoOfWrite(object, prop);
   const done = write();
-  if (done) {
-    recordUndo(() => {
-      if (before) Reflect.defineProperty(object, prop, before);
-      else Reflect.deleteProperty(object, prop);
-    });
-  }
+  if (done) recordUndo(undo);
   return done;
 }
 
