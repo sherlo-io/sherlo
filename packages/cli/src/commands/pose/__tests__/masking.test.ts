@@ -515,8 +515,9 @@ async function runMask(
   if (devtools) process.env.SHERLO_DEVTOOLS = '1';
   else delete process.env.SHERLO_DEVTOOLS;
 
-  const keepUntilExit = (into: string[]) => (chunk: unknown) => {
+  const keepUntilExit = (into: string[]) => (chunk: unknown, done?: unknown) => {
     if (exitCode === undefined) into.push(String(chunk));
+    if (typeof done === 'function') done();
     return true;
   };
   const spies = [

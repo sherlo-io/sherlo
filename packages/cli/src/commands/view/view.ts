@@ -47,6 +47,7 @@ import { AuthError } from '../../helpers/buildStatusRequest';
 import isSavedLoginCredential from '../../helpers/isSavedLoginCredential';
 import parseWaitTimeout from '../../helpers/parseWaitTimeout';
 import { EXIT_ERROR, EXIT_GREEN } from '../../helpers/exitCodes';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import { isAnyListIncomplete, readStoriesDiffScope } from '../../helpers/readStoriesDiffScope';
 import { emit } from '../../helpers/transcriptSink';
 import { readBuildStatus, waitForTest } from '../../helpers/waitForBuildResult';
@@ -137,11 +138,13 @@ async function view(
 
     // The exit code is the wait's, exactly as on `--wait` alone - or an error when a list of
     // stories could not be read whole.
-    await reporting.flush().finally(() => {
-      process.exit(
-        exitCode === EXIT_GREEN && isAnyListIncomplete(storiesOfDiffScope) ? EXIT_ERROR : exitCode
+    await reporting
+      .flush()
+      .finally(() =>
+        exitAfterOutput(
+          exitCode === EXIT_GREEN && isAnyListIncomplete(storiesOfDiffScope) ? EXIT_ERROR : exitCode
+        )
       );
-    });
 
     return;
   }
@@ -174,9 +177,7 @@ async function view(
     endAfterTheWait({ exitCode, testIndex: buildIndex, url });
 
     // --wait mode: the exit code IS the contract. Flush telemetry then exit.
-    await reporting.flush().finally(() => {
-      process.exit(exitCode);
-    });
+    await reporting.flush().finally(() => exitAfterOutput(exitCode));
 
     // Unreachable - the line above ends the process. Written out so a reader
     // never has to prove that to know the block below is not printed too.

@@ -285,6 +285,28 @@ describe('--json --wait', () => {
     }
   });
 
+  it('a waited JSON read larger than one pipe buffer ends the process only after every byte is written', async () => {
+    const lines = Array.from({ length: 3000 }, (_, index) => `story ${index}`.padEnd(40, '.'));
+    const bigRecord = { ...FINISHED_BUILD, stories: lines } as never;
+    waitForTest.mockReset().mockResolvedValue({ exitCode: 1, lastRead: bigRecord });
+    // A pipe that takes the queued bytes later, as one does when the reader is slower than the writer.
+    const queued: (() => void)[] = [];
+    const slowPipe = (_chunk: unknown, callback?: () => void) => {
+      if (callback) queued.push(callback);
+      return true;
+    };
+    vi.spyOn(process.stdout, 'write').mockImplementation(slowPipe as never);
+    vi.spyOn(process.stderr, 'write').mockImplementation(slowPipe as never);
+
+    const ended = runView('7', { wait: true, json: true });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(exitCodes, 'bytes are still queued, so the process must not end yet').toEqual([]);
+
+    queued.forEach((release) => release());
+    await ended;
+    expect(exitCodes).toEqual([1]);
+  });
+
   it('prints no record when the test never appeared, and still exits with the wait code', async () => {
     waitForTest.mockReset().mockResolvedValue({ exitCode: 3, lastRead: null });
 

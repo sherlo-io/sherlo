@@ -106,8 +106,12 @@ describe('opening the test', () => {
     const { default: start } = await import('../../../start');
     const originalArgv = process.argv;
     let help = '';
-    vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+    vi.spyOn(process.stdout, 'write').mockImplementation(((
+      chunk: string | Uint8Array,
+      done?: () => void
+    ) => {
       help += String(chunk);
+      done?.();
       return true;
     }) as never);
     vi.spyOn(process, 'exit').mockImplementation((() => {

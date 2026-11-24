@@ -69,12 +69,20 @@ beforeEach(() => {
   stdout = '';
   stderr = '';
   exitCodes = [];
-  vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+  vi.spyOn(process.stdout, 'write').mockImplementation(((
+    chunk: string | Uint8Array,
+    done?: () => void
+  ) => {
     stdout += String(chunk);
+    done?.();
     return true;
   }) as never);
-  vi.spyOn(process.stderr, 'write').mockImplementation(((chunk: string | Uint8Array) => {
+  vi.spyOn(process.stderr, 'write').mockImplementation(((
+    chunk: string | Uint8Array,
+    done?: () => void
+  ) => {
     stderr += String(chunk);
+    done?.();
     return true;
   }) as never);
   vi.spyOn(console, 'log').mockImplementation(() => {});

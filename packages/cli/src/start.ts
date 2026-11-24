@@ -86,6 +86,7 @@ import { LOGIN_COMMAND } from './commands/login/constants';
 import { LOGOUT_COMMAND } from './commands/logout/constants';
 import { FEEDBACK_COMMAND } from './commands/feedback/constants';
 import { reporting, withCommandTimeout } from './helpers';
+import exitAfterOutput from './helpers/exitAfterOutput';
 import { LOCAL_COMMAND_OPTION_DEFINITION, SUGGEST_DESCRIPTION } from './helpers/localCommandHelp';
 import { hideTokens, recordLastCommand } from './helpers/lastCommandRecord';
 import { captureCommandOptions } from './commands/capture';
@@ -140,7 +141,7 @@ async function start() {
 
     if (process.argv.length === 2) {
       console.log('Choose a Sherlo command. Use --help for more information.');
-      process.exit(0);
+      await exitAfterOutput(0);
     }
 
     await program.parseAsync(process.argv);
@@ -158,7 +159,7 @@ async function start() {
       for (const line of renderHelpBlock()) console.log(line);
 
       // A Node file-system error's `code` is a string (`'ENOENT'`), which `process.exit` refuses.
-      process.exit(typeof error.code === 'number' && error.code !== 0 ? error.code : 1);
+      return exitAfterOutput(typeof error.code === 'number' && error.code !== 0 ? error.code : 1);
     });
   }
 }

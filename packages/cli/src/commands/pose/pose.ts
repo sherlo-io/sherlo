@@ -66,6 +66,7 @@ import {
   type PlayChunk,
 } from './playClock';
 import { maskScreen } from './maskScreen';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import resolveConfigPath from '../../helpers/getValidatedCommandParams/getNormalizedConfig/resolveConfigPath';
 
 /**
@@ -239,10 +240,11 @@ export async function pose(documentPath: string, options: PoseOptions): Promise<
 
   if (refusals.length > 0) {
     process.stdout.write(formatRefusals(refusals));
-    process.exit(1);
+    await exitAfterOutput(1);
+    return;
   }
 
-  process.exit(exitCode);
+  await exitAfterOutput(exitCode);
 }
 
 export default pose;

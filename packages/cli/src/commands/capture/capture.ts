@@ -34,6 +34,7 @@ import getCwd from '../../helpers/getCwd';
 import { sceneIdsOfApp } from '../../seams/sceneDevice';
 import { emit } from '../../helpers/transcriptSink';
 import { EXIT_BLOCK } from '../../helpers/exitCodes';
+import exitAfterOutput from '../../helpers/exitAfterOutput';
 import { STABILIZATION_SETTINGS } from '../../seams/bundlerLine';
 import { captureSocket } from '../../seams/captureSocket';
 import { deviceState, isTarget } from '../../seams/deviceState';
@@ -137,7 +138,7 @@ async function capture(passedOptions: CaptureOptions): Promise<void> {
     }
   }
 
-  if (answer.kind !== 'captured') process.exit(EXIT_BLOCK);
+  if (answer.kind !== 'captured') await exitAfterOutput(EXIT_BLOCK);
 }
 
 export default capture;
@@ -166,7 +167,7 @@ async function listStories(passedOptions: CaptureOptions): Promise<void> {
   } else {
     emit({ kind: 'captured-story', state: endingFor(answer, { storyId: '', port }) });
   }
-  process.exit(EXIT_BLOCK);
+  await exitAfterOutput(EXIT_BLOCK);
 }
 
 /* ========================================================================== */
@@ -199,7 +200,7 @@ async function captureScene(sceneId: string, passedOptions: CaptureOptions): Pro
     }
   }
 
-  if (sceneFailed(answer, discover)) process.exit(EXIT_BLOCK);
+  if (sceneFailed(answer, discover)) await exitAfterOutput(EXIT_BLOCK);
 }
 
 /**
@@ -268,7 +269,7 @@ async function captureEveryScene(passedOptions: CaptureOptions): Promise<void> {
       },
     });
   }
-  if (failed) process.exit(EXIT_BLOCK);
+  if (failed) await exitAfterOutput(EXIT_BLOCK);
 }
 
 /** Whether a scene ending leaves the command with the block code; a discover capture's list is not a failure. */

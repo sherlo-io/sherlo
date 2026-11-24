@@ -26,6 +26,7 @@ import path from 'path';
 import fs from 'fs';
 import type { Platform } from '@sherlo/api-types';
 import { reporting } from '../../../helpers';
+import exitAfterOutput from '../../../helpers/exitAfterOutput';
 import type { BaseFingerprints } from '../../../helpers/fingerprint';
 import { podsLinkSherloInto } from '../../../helpers/installedPods';
 import { dependsOnExpo } from '../../../helpers/projectJson';
@@ -245,7 +246,7 @@ export async function buildApps({
           logPath,
         });
       }
-      await reporting.flush().finally(() => process.exit(EXIT_BUILD_FAILED));
+      await reporting.flush().finally(() => exitAfterOutput(EXIT_BUILD_FAILED));
       throw new Error('unreachable'); // process.exit above never returns
     }
 

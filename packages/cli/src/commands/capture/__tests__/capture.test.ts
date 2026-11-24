@@ -471,8 +471,12 @@ describe('a scene capture can save the screen it captured', () => {
 
   it('--json carries png when the save worked and leaves it out when it failed', async () => {
     const written: string[] = [];
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      text: string,
+      done?: () => void
+    ) => {
       written.push(String(text));
+      done?.();
       return true;
     }) as never);
     let saved: string;
@@ -513,8 +517,12 @@ describe('a scene capture can save the screen it captured', () => {
     answer: SceneCaptureResult = A_SCENE
   ) {
     const written: string[] = [];
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      text: string,
+      done?: () => void
+    ) => {
       written.push(String(text));
+      done?.();
       return true;
     }) as never);
     try {
@@ -743,8 +751,12 @@ describe('a scene capture can save the screen it captured', () => {
 
   it("a scene's json record carries the early ready view, likely cause, answer findings and each unanswered request's details unchanged", async () => {
     const written: string[] = [];
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      text: string,
+      done?: () => void
+    ) => {
       written.push(String(text));
+      done?.();
       return true;
     }) as never);
     try {
@@ -882,8 +894,12 @@ describe("the app's own log lines never reach the drawn screen unasked, and `--l
     // `--json` writes straight to process.stdout, not through the emit() sink captureOneStory
     // otherwise reads - so this reads that stream directly instead.
     let written = '';
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string) => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      chunk: string,
+      done?: () => void
+    ) => {
       written += chunk;
+      done?.();
       return true;
     }) as never);
 
@@ -1121,8 +1137,12 @@ describe('`--json` prints the record and nothing else', () => {
     // `--json` writes straight to process.stdout, not through the emit() sink captureOneStory
     // otherwise reads - see the log-lines case below for the same pattern.
     let written = '';
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string) => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      chunk: string,
+      done?: () => void
+    ) => {
       written += chunk;
+      done?.();
       return true;
     }) as never);
 
@@ -1255,8 +1275,12 @@ describe('a capture leaves no mark behind and prints plain data on request', () 
       }),
     });
     const written: string[] = [];
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      text: string,
+      done?: () => void
+    ) => {
       written.push(String(text));
+      done?.();
       return true;
     }) as never);
     try {
@@ -1291,8 +1315,12 @@ describe('the story ids of the app', () => {
       listStories: async () => listed,
     });
     const written: string[] = [];
-    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((text: string) => {
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(((
+      text: string,
+      done?: () => void
+    ) => {
       written.push(String(text));
+      done?.();
       return true;
     }) as never);
     try {
