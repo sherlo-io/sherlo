@@ -5,7 +5,7 @@
  * Each step prints one line, and a step the project already has says so, so a rerun picks up where
  * a failed run stopped. The run ends with the next steps, and the feedback line.
  */
-import { printSherloIntro } from '../../helpers';
+import { getCwd, printSherloIntro } from '../../helpers';
 import { renderFeedbackLine, renderNextSteps, renderSetupIntro } from '../../render/initSteps';
 import { Options } from '../../types';
 import config from './config';
@@ -22,6 +22,7 @@ import storybookSetup from './steps/storybookSetup';
 import teamAndProject from './steps/teamAndProject';
 import { EXPO_PACKAGE_NAME, PROJECT_OPTION, TEAM_OPTION } from '../../constants';
 import getPackageVersion from './requirements/getPackageVersion';
+import { readProjectJson } from '../../helpers/projectJson';
 
 async function init(options: Options<THIS_COMMAND>) {
   const { sessionId } = await trackProgress({ event: '0_init', sessionId: null, hasStarted: true });
@@ -66,6 +67,9 @@ async function init(options: Options<THIS_COMMAND>) {
       renderNextSteps({
         storybook: storybookState,
         isExpo: !!getPackageVersion(EXPO_PACKAGE_NAME),
+        exportsServerRoutes:
+          !!getPackageVersion('expo-router') &&
+          readProjectJson(getCwd(), 'app.json')?.expo?.web?.output === 'server',
         reader,
       })
     );
