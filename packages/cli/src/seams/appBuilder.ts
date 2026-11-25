@@ -43,6 +43,7 @@ import {
   sdkDirOfLocalProperties,
 } from './androidFlavors';
 import { GRADLE_INIT_SCRIPT, GRADLE_INIT_SCRIPT_PATH } from './gradleInitScript';
+import { buildLogLinesShown } from './buildLogLines';
 import { easBuildIdIn } from './easBuildId';
 import { schemeNamesInProject, schemesInXcodeList } from './iosScheme';
 import {
@@ -423,11 +424,11 @@ export function makeLiveAppBuilder(runProcess: RunProcess): AppBuilder {
     fs.writeFileSync(path.join(projectRoot, 'package.json'), original);
   }
 
-  /** The last lines of a build's log, as the build tool wrote them, from `fromByte` on. */
+  /** The lines a failed build's log shows (errors first, then the last lines), from `fromByte` on. */
   function lastLinesOf(logPath: string, fromByte = 0): string[] {
     if (!fs.existsSync(logPath)) return [];
-    const text = fs.readFileSync(logPath).subarray(fromByte).toString('utf8');
-    return text.trimEnd().split('\n').slice(-LAST_LINES_SHOWN);
+    const log = fs.readFileSync(logPath).subarray(fromByte);
+    return buildLogLinesShown(log.toString('utf8'), LAST_LINES_SHOWN);
   }
 
   async function compileAndroid(params: CompileParams): Promise<CompiledApp> {
